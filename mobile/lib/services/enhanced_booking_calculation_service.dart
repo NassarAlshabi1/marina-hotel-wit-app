@@ -7,8 +7,9 @@ import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
+import 'daos/bookings_dao.dart';
+import 'daos/outbox_dao.dart';
 import 'local_db.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class BookingCalculationResult {
   const BookingCalculationResult({
@@ -34,9 +35,11 @@ class BookingCalculationResult {
 }
 
 class EnhancedBookingCalculationService {
-  EnhancedBookingCalculationService(this.db);
+  EnhancedBookingCalculationService(this.db, [OutboxDao? outboxDao])
+    : _outboxDao = outboxDao ?? OutboxDao(db);
 
   final AppDatabase db;
+  final OutboxDao _outboxDao;
 
   Future<BookingCalculationResult> calculateForBooking(
     Booking booking, {
@@ -101,6 +104,7 @@ class EnhancedBookingCalculationService {
     bool forceRebuild = true,
     List<NightlyBreakdown>? breakdown,
     bool inTransaction = false,
+    bool enqueueOutbox = true,
   }) async {
     final context = _resolveDateRange(booking, now ?? DateTime.now());
     final resolvedBreakdown =
@@ -110,6 +114,7 @@ class EnhancedBookingCalculationService {
       breakdown: resolvedBreakdown,
       forceRebuild: forceRebuild,
       inTransaction: inTransaction,
+      enqueueOutbox: enqueueOutbox,
     );
   }
 
@@ -153,6 +158,25 @@ class EnhancedBookingCalculationService {
         updatedAtIso: d.Value(stampIso),
       ),
     );
+
+    final updatedBooking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
+    if (updatedBooking != null) {
+      final bookingsDao = BookingsDao(db, _outboxDao);
+      final payload = await bookingsDao.payloadForLocalUuid(
+        updatedBooking.localUuid,
+      );
+      if (payload != null) {
+        await _outboxDao.merge(
+          entity: 'bookings',
+          op: 'update',
+          localUuid: updatedBooking.localUuid,
+          payload: payload,
+          clientTs: stamp,
+        );
+      }
+    }
   }
 
   Future<List<NightlyBreakdown>> _buildNightlyBreakdown(
@@ -411,6 +435,7 @@ class EnhancedBookingCalculationService {
     required List<NightlyBreakdown> breakdown,
     required bool forceRebuild,
     bool inTransaction = false,
+    bool enqueueOutbox = true,
   }) async {
     final nowUtc = DateTime.now().toUtc();
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
@@ -505,12 +530,30 @@ class EnhancedBookingCalculationService {
       });
     }
 
+    Future<void> mergeBookingOutbox() async {
+      if (!enqueueOutbox) {
+        return;
+      }
+      final bookingsDao = BookingsDao(db, _outboxDao);
+      final payload = await bookingsDao.payloadForLocalUuid(booking.localUuid);
+      if (payload != null) {
+        await _outboxDao.merge(
+          entity: 'bookings',
+          op: 'update',
+          localUuid: booking.localUuid,
+          payload: payload,
+          clientTs: stamp,
+        );
+      }
+    }
+
     if (inTransaction) {
-      // Already inside a transaction — just perform the writes directly.
       await doWrite();
+      await mergeBookingOutbox();
     } else {
       await db.transaction(() async {
         await doWrite();
+        await mergeBookingOutbox();
       });
     }
   }
@@ -531,7 +574,7 @@ class EnhancedBookingCalculationService {
       checkout = actualCheckout.isBefore(moment) ? actualCheckout : moment;
     } else if (bookingActive) {
       // For active guests, always calculate up to the current moment
-      // This ensures that if they stay past 14:01, a new night is added automatically
+      // This ensures that if they stay past 14:00, a new night is added automatically
       checkout = moment;
     } else if (plannedCheckout != null && plannedCheckout.isBefore(moment)) {
       checkout = plannedCheckout;
@@ -624,8 +667,7 @@ class EnhancedBookingCalculationService {
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in enhanced_booking_calculation_service.dart: ');
+    } catch (_) {
       return null;
     }
   }
@@ -649,15 +691,17 @@ class EnhancedBookingCalculationService {
   List<_NightSegment> _buildNightSegments(
     DateTime checkin,
     DateTime checkout, {
-    int cutoffHour = 14,
+    int cutoffHour = Time.hotelDayBoundaryHour,
+    int cutoffMinute = Time.hotelDayBoundaryMinute,
   }) {
     final segments = <_NightSegment>[];
 
-    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:01
+    // استخدام حد اليوم الفندقي الموحد 14:01.
     final int totalNights = Time.nightsWithCutoff(
       checkin,
       checkout: checkout,
       cutoffHour: cutoffHour,
+      cutoffMinute: cutoffMinute,
     );
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
@@ -666,6 +710,7 @@ class EnhancedBookingCalculationService {
       checkin.month,
       checkin.day,
       cutoffHour,
+      cutoffMinute,
     );
     if (checkin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(

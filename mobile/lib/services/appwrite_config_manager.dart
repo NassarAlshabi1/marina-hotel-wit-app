@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/debug_log.dart';
 import 'appwrite_config.dart';
 
 class AppwriteConfigManager {
@@ -32,12 +34,13 @@ class AppwriteConfigManager {
     _apiKeyValue = prefs.getString(_apiKey) ?? AppwriteConfig.defaultApiKey;
 
     if (kDebugMode) {
-      debugPrint('📱 Appwrite Config Loaded:');
-      debugPrint('   Endpoint: $_endpoint');
-      debugPrint('   Project ID: $_projectId');
-      debugPrint('   Database ID: $_databaseId');
-      debugPrint(
-        '   API Key: ${_apiKeyValue.isEmpty ? '(empty)' : '${_apiKeyValue.substring(0, 12)}...'}',
+      dlog('📱 Appwrite Config Loaded:');
+      dlog(() => '   Endpoint: $_endpoint');
+      dlog(() => '   Project ID: $_projectId');
+      dlog(() => '   Database ID: $_databaseId');
+      dlog(
+        () =>
+            '   API Key: ${_apiKeyValue.isEmpty ? '(empty)' : '${_apiKeyValue.substring(0, 12)}...'}',
       );
     }
   }
@@ -61,10 +64,10 @@ class AppwriteConfigManager {
     _apiKeyValue = apiKey;
 
     if (kDebugMode) {
-      debugPrint('💾 Appwrite Config Saved:');
-      debugPrint('   Endpoint: $_endpoint');
-      debugPrint('   Project ID: $_projectId');
-      debugPrint('   Database ID: $_databaseId');
+      dlog('💾 Appwrite Config Saved:');
+      dlog(() => '   Endpoint: $_endpoint');
+      dlog(() => '   Project ID: $_projectId');
+      dlog(() => '   Database ID: $_databaseId');
     }
   }
 
@@ -83,7 +86,7 @@ class AppwriteConfigManager {
     _apiKeyValue = AppwriteConfig.defaultApiKey;
 
     if (kDebugMode) {
-      debugPrint('🔄 Appwrite Config Reset to Defaults');
+      dlog('🔄 Appwrite Config Reset to Defaults');
     }
   }
 

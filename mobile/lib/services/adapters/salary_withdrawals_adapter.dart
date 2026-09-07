@@ -7,7 +7,6 @@ import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class SalaryWithdrawalsAdapter
     extends EntityAdapter<SalaryWithdrawal, SalaryWithdrawalsCompanion> {
@@ -24,13 +23,9 @@ class SalaryWithdrawalsAdapter
     try {
       await db.customStatement(
         'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
-        [
-          expenseId,
-          salaryWithdrawalId,
-        ],
+        [expenseId, salaryWithdrawalId],
       );
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in salary_withdrawals_adapter.dart: ');
+    } catch (_) {
       // العمود قد لا يكون موجوداً
     }
   }
@@ -50,7 +45,19 @@ class SalaryWithdrawalsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    // ✅ حل FK الموظف بالترتيب: UUID -> id -> serverId -> employeeId
+    // ✅ حل FK الموظف عبر IdResolver: UUID → serverId → (id المحلي للمصدر
+    // المحلي فقط).
+    //
+    // ✅ إصلاح (2026-09-02):
+    // 1) كان يُمرَّر serverId الخاص بالسحوبة نفسها كأنه serverId الموظف —
+    //    خلط فضاءتي معرفتين (serverId السحوبة رقم تسلسلي للسحوبات) قد يربط
+    //    السحوبة بموظف عشوائي عند التصادم الرقمي. الآن للمصادر البعيدة
+    //    نُمرّر employeeId من الـ payload بوصفه "id جهاز المصدر" — وهو
+    //    يساوي employees.serverId بعد سحبه (انظر _syncEmployees).
+    // 2) كان يُمرَّر employeeId البعيد كـ localId/employeeId (مطابقة مع
+    //    e.id المحلي) — Employee.id autoIncrement يختلف بين الأجهزة،
+    //    فالربط الخاطئ صامت محتمل. نفس قرار resolveBooking و
+    //    expenses_adapter: يُسمح بمطابقة id المحلي للمصدر المحلي فقط.
     final remoteEmployeeUuid =
         _asString(json, 'employeeUuid', src) ??
         _asString(json, 'employee_uuid', src) ??
@@ -58,14 +65,13 @@ class SalaryWithdrawalsAdapter
         _asString(json, 'employee_local_uuid', src);
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
-    final remoteServerId =
-        _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
 
+    final fromRemote = src == Source.appwrite || src == Source.drive;
     final resolvedEmployeeId = await resolver.resolveEmployee(
       uuid: remoteEmployeeUuid,
-      localId: remoteEmployeeId,
-      serverId: remoteServerId,
-      employeeId: remoteEmployeeId,
+      serverId: fromRemote ? remoteEmployeeId : null,
+      localId: fromRemote ? null : remoteEmployeeId,
+      fromRemote: fromRemote,
     );
 
     final createdAt = _epoch(json, 'createdAt', src);
@@ -78,8 +84,9 @@ class SalaryWithdrawalsAdapter
         (src == Source.appwrite || src == Source.drive);
     final skipReason = shouldSkip
         ? 'salary_withdrawal: لا يمكن العثور على الموظف المرتبط '
-              '(uuid=$remoteEmployeeUuid, serverId=$remoteServerId, localId=$remoteEmployeeId) '
-              '— تم التخطي لتجنب InvalidDataException'
+              '(uuid=$remoteEmployeeUuid, originEmployeeId=$remoteEmployeeId, '
+              'src=$src) — تم التخطي لتجنب InvalidDataException وربط خاطئ '
+              'عبر الأجهزة'
         : null;
 
     return ResolveResult(
@@ -134,7 +141,7 @@ class SalaryWithdrawalsAdapter
       // ملاحظة: employeeId هو NOT NULL، لذا إدراج بـ absent سيفشل بـ NOT NULL constraint
       // بدلاً من FK constraint — وهذا أفضل لأنه يُمكّن المتصل من التقاط الخطأ
       // وتخطي السجل بدلاً من إدراج بيانات فاسدة.
-      // المتصل (_syncSalaryWithdrawals / AppwriteFullPull) يفحص قبل الإدراج.
+      // المتصل (_syncSalaryWithdrawals) يفحص قبل الإدراج.
       employeeId: refs.employeeLocalId != null
           ? d.Value(refs.employeeLocalId!)
           : (src == Source.appwrite || src == Source.drive)
@@ -142,6 +149,11 @@ class SalaryWithdrawalsAdapter
           : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
       amount: _vDouble(json, 'amount', src),
       withdrawDate: d.Value(wd),
+      // ✅ Audit Fix (2026-08-06): إضافة expenseId.
+      // سابقاً، expenseId لم يكن يُقرأ من JSON رغم وجوده في schema
+      // (local_db.dart:669). كان يُستخرج من reason بصيغة "exp_123"
+      // لكن لا يُعاد تعبئته في expenseId عند fromJson.
+      expenseId: _vInt(json, 'expenseId', src, altKey: 'expense_id'),
       reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       withdrawalType: wt != null ? d.Value(wt) : const d.Value.absent(),
@@ -206,8 +218,7 @@ class SalaryWithdrawalsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
-      _k(src, 'amount', 'amount'):
-          model.amount, // ✅ Appwrite: double (fixed 2026-07-26)
+      _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
       _k(src, 'withdrawDate', 'withdraw_date'): effectiveWithdrawDate,
       _k(src, 'reason', 'reason'): model.reason,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,

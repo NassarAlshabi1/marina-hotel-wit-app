@@ -17,8 +17,11 @@ class EmployeesRepository {
   final OutboxDao outbox;
   final EmployeesDao dao;
 
-  Stream<List<Employee>> watchAll({String? search}) =>
-      dao.watchList(search: search);
+  Stream<List<Employee>> watchAll({
+    String? search,
+    int? limit,
+    int offset = 0,
+  }) => dao.watchList(search: search, limit: limit, offset: offset);
   Stream<Employee?> watchOne(int id) => dao.watchById(id);
 
   String _normalizeStatus(String status) =>
@@ -46,7 +49,8 @@ class EmployeesRepository {
           status: d.Value(normalizedStatus),
         ),
       );
-      unawaited(AutoBackupManager.instance.onDataChange(
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
           'employees',
           'INSERT',
           recordData: {'name': name},
@@ -105,7 +109,8 @@ class EmployeesRepository {
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
             'employees',
             'UPDATE',
             recordData: {'id': id},
@@ -175,7 +180,8 @@ class EmployeesRepository {
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
             'employees',
             'TERMINATE',
             recordData: {'id': id, 'type': terminationType},
@@ -208,7 +214,8 @@ class EmployeesRepository {
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
             'employees',
             'REACTIVATE',
             recordData: {'id': id},
@@ -232,7 +239,8 @@ class EmployeesRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
             'employees',
             'DELETE',
             recordData: {'id': id},

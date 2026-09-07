@@ -93,11 +93,9 @@ void main() {
         final todayHotelDay = HotelTimeEngine.getHotelDayKey(
           dateTime: DateTime(2026, 8, 2, 15, 0),
         );
-        final yesterdayHotelDay = DateTime.parse(todayHotelDay)
-            .subtract(const Duration(days: 1))
-            .toIso8601String()
-            .split('T')
-            .first;
+        final yesterdayHotelDay = DateTime.parse(
+          todayHotelDay,
+        ).subtract(const Duration(days: 1)).toIso8601String().split('T').first;
 
         expect(todayHotelDay, equals('2026-08-02'));
         expect(yesterdayHotelDay, equals('2026-08-01'));

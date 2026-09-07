@@ -1,14 +1,13 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
+import '../../services/bootstrap_full_pull.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
 
@@ -29,7 +28,7 @@ class _GoogleDriveLoginScreenState
   @override
   void initState() {
     super.initState();
-    _trySilentSignIn();
+    unawaited(_trySilentSignIn());
   }
 
   /// محاولة تسجيل الدخول الصامت تلقائياً — إذا سبق تسجيل الدخول
@@ -43,13 +42,12 @@ class _GoogleDriveLoginScreenState
         try {
           await ref.read(autoBackupManagerProvider).setEnabled(true);
         } catch (e) {
-          debugPrint(
-            '⚠️ Failed to enable auto backup after silent sign-in: $e',
+          dlog(
+            () => '⚠️ Failed to enable auto backup after silent sign-in: $e',
           );
         }
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in google_drive_login_screen.dart: ');
+    } catch (_) {
       // فشل الصامت — يظهر الواجهة العادية
     }
     if (mounted) {
@@ -70,9 +68,9 @@ class _GoogleDriveLoginScreenState
       if (state.isSignedIn) {
         try {
           await ref.read(autoBackupManagerProvider).setEnabled(true);
-          debugPrint('✅ تم تفعيل المزامنة التلقائية');
+          dlog('✅ تم تفعيل المزامنة التلقائية');
         } catch (e) {
-          debugPrint('⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
+          dlog(() => '⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
         }
         if (mounted) {
           setState(() {
@@ -151,22 +149,21 @@ class _GoogleDriveLoginScreenState
     }
   }
 
+  /// ✅ (2026-09-06) طلب المستخدم: «عند تثبيت التطبيق والضغط على زر
+  /// المتابعة بدون مزامنة يتم سحب full sync» — المنطق نُقل إلى
+  /// BootstrapFullPull (نفس علم 2026-09-01
+  /// appwrite_pull_after_drive_skip_done، يُضبط بعد اكتمال السحب فقط)
+  /// مع إضافة إعادة المحاولة التلقائية عند كل إطلاق عبر HomeShell
+  /// (main.dart): كانت هذه محاولة واحدة صامتة، وفشلها (لا شبكة /
+  /// worker غير متاح) كان يترك قاعدة البيانات فارغة بلا إعادة محاولة
+  /// لأن هذه الشاشة لا تظهر مجدداً بعد التخطي (requiresDriveLogin=false)
+  /// والمسارات الخلفية deltaOnly ترفض بدء full sync على جهاز bootstrap.
   Future<void> _pullAppwriteOnceAfterSkip() async {
-    const key = 'appwrite_pull_after_drive_skip_done';
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final done = prefs.getBool(key) ?? false;
-      if (done) {
-        return;
-      }
-      await prefs.setBool(key, true);
-
       final manager = ref.read(appwrite.appwriteSyncManagerProvider);
-      await manager.initialize();
-      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
-      await manager.pullAllDataWithDisabledFK();
+      await BootstrapFullPull.ensureFullPullAfterSkip(manager: manager);
     } catch (e) {
-      debugPrint('❌ Appwrite auto pull after skip error: $e');
+      dlog(() => '❌ Appwrite auto pull after skip error: $e');
     }
   }
 

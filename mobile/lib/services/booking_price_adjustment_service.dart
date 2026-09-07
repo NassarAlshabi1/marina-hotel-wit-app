@@ -1,13 +1,11 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 
 import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
-import 'appwrite_sync_manager.dart';
 import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
@@ -249,7 +247,6 @@ class BookingPriceAdjustmentService {
     String? reason,
     String? appliedBy,
     AdjustmentMode mode = AdjustmentMode.perNight,
-    DateTime? calculationTime,
   }) async {
     final booking = await (db.select(
       db.bookings,
@@ -259,7 +256,6 @@ class BookingPriceAdjustmentService {
     }
 
     final now = Time.nowEpoch();
-    final nowIso = DateTime.now().toIso8601String();
     final uuid = IdGen.uuid();
 
     final adjustment = BookingPriceAdjustmentsCompanion(
@@ -276,15 +272,8 @@ class BookingPriceAdjustmentService {
       reason: Value(reason),
       appliedBy: Value(appliedBy),
       createdAt: Value(now),
-      createdAtIso: Value(nowIso),
-      createdAtEpoch: Value(now),
       updatedAt: Value(now),
-      updatedAtIso: Value(nowIso),
       lastModified: Value(now),
-      lastModifiedEpoch: Value(now),
-      version: const Value(1),
-      origin: const Value('local'),
-      deviceId: Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
     );
 
     await db.into(db.bookingPriceAdjustments).insert(adjustment);
@@ -311,7 +300,7 @@ class BookingPriceAdjustmentService {
       clientTs: now,
     );
 
-    await _recalculateBookingNights(booking.id, now: calculationTime);
+    await _recalculateBookingNights(booking.id);
 
     await AutoBackupManager.instance.onDataChange(
       'booking_price_adjustments',
@@ -323,7 +312,7 @@ class BookingPriceAdjustmentService {
       db.bookingPriceAdjustments,
     )..where((a) => a.localUuid.equals(uuid))).getSingle();
 
-    debugPrint('✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
+    dlog(() => '✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
 
     return result;
   }
@@ -372,13 +361,12 @@ class BookingPriceAdjustmentService {
       effectiveEnd = yesterdayHotelDay;
     }
 
-    // ─── إصلاح: تعطيل is_active دائماً عند الإلغاء ───
-    // المشكلة السابقة: كنا نُبقي is_active = true للسجلات التي لها
-    // ليالي سابقة مخفّضة. لكن هذا يسبب ظهورها في UI كـ "نشطة" رغم
-    // أنها مُلغية. الحل: نعطّل is_active دائماً عند الإلغاء، ونحتفظ
-    // بـ endHotelDay لمعرفة آخر ليلة مخفّضة (للحسابات التاريخية).
+    // إذا لم يتبقَّ أي ليلة مخفّضة → نعطّل التخفيض بالكامل
+    final bool fullyCancelled =
+        effectiveEnd == null || effectiveEnd.compareTo(effectiveStart) < 0;
+
     final update = BookingPriceAdjustmentsCompanion(
-      isActive: const Value(false), // ⚠️ دائماً false عند الإلغاء
+      isActive: Value(!fullyCancelled),
       endHotelDay: Value(effectiveEnd),
       cancelledAt: Value(nowIso),
       cancelledBy: Value(cancelledBy),
@@ -398,7 +386,7 @@ class BookingPriceAdjustmentService {
       op: 'update',
       localUuid: adjustmentUuid,
       payload: {
-        'isActive': false, // ⚠️ دائماً false
+        'isActive': !fullyCancelled,
         'endHotelDay': effectiveEnd,
         'cancelledAt': nowIso,
         'cancelledBy': cancelledBy,
@@ -416,57 +404,9 @@ class BookingPriceAdjustmentService {
       recordData: update.toColumns(false),
     );
 
-    debugPrint(
-      '⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd، is_active=false)',
+    dlog(
+      () => '⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)',
     );
-  }
-
-  /// إصلاح السجلات المعلّقة: يعطّل is_active للسجلات التي انتهت مدتها
-  /// (endHotelDay < todayHotelDay) لكنها ما زالت نشطة في قاعدة البيانات.
-  /// هذا يُحسّن دقة عرض UI ويمنع ظهور تعديلات منتهية كـ "نشطة".
-  Future<int> deactivateExpiredAdjustments() async {
-    final todayHotelDay = HotelTimeEngine.getHotelDayKey();
-
-    // ابحث عن السجلات النشطة التي انتهت مدتها
-    final expired = await (db.select(db.bookingPriceAdjustments)
-          ..where((a) => a.isActive.equals(true))
-          ..where((a) => a.endHotelDay.isNotNull())
-          ..where((a) => a.endHotelDay.isSmallerOrEqualValue(todayHotelDay)))
-        .get();
-
-    if (expired.isEmpty) return 0;
-
-    final now = Time.nowEpoch();
-    int count = 0;
-
-    for (final adj in expired) {
-      await (db.update(db.bookingPriceAdjustments)
-            ..where((a) => a.localUuid.equals(adj.localUuid)))
-          .write(BookingPriceAdjustmentsCompanion(
-        isActive: const Value(false),
-        updatedAt: Value(now),
-        lastModified: Value(now),
-        version: Value(adj.version + 1),
-      ));
-
-      // مزامنة التحديث
-      final outboxDao = OutboxDao(db);
-      await outboxDao.merge(
-        entity: 'booking_price_adjustments',
-        op: 'update',
-        localUuid: adj.localUuid,
-        payload: {
-          'isActive': false,
-          'endHotelDay': adj.endHotelDay,
-        },
-        clientTs: now,
-      );
-
-      count++;
-    }
-
-    debugPrint('🧹 تم تعطيل $count تعديل منتهي (is_active → false)');
-    return count;
   }
 
   Future<List<BookingPriceAdjustment>> getActiveAdjustments(
@@ -555,7 +495,7 @@ class BookingPriceAdjustmentService {
     );
   }
 
-  Future<void> _recalculateBookingNights(int bookingId, {DateTime? now}) async {
+  Future<void> _recalculateBookingNights(int bookingId) async {
     final booking = await (db.select(
       db.bookings,
     )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
@@ -565,13 +505,13 @@ class BookingPriceAdjustmentService {
 
     await BookingDerivedFieldsService(
       db,
-    ).refreshForBooking(booking, now: now, forceRebuild: true);
+    ).refreshForBooking(booking, forceRebuild: true);
 
-    debugPrint('🔄 تم إعادة حساب الحجز #$bookingId');
+    dlog(() => '🔄 تم إعادة حساب الحجز #$bookingId');
   }
 
-  Future<void> recalculateAfterSync(int bookingId, {DateTime? now}) async {
-    await _recalculateBookingNights(bookingId, now: now);
+  Future<void> recalculateAfterSync(int bookingId) async {
+    await _recalculateBookingNights(bookingId);
   }
 
   Future<List<Booking>> getLongStayBookingsWithoutSurcharge({
@@ -706,7 +646,7 @@ class BookingPriceAdjustmentService {
           }
         }
 
-        final type = AdjustmentType.fromValue(adj.adjustmentType);
+        final type = AdjustmentType.fromValue(adj.adjustmentType ?? 0);
         final double signedAmount = adj.amount;
         final double impact = type == AdjustmentType.discount
             ? -signedAmount * nightsAffected

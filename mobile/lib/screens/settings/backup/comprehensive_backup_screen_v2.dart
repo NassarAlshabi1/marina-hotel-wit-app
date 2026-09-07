@@ -1,11 +1,10 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
-import 'tabs/google_drive_tab.dart';
+import 'tabs/cloudflare_d1_tab.dart';
 import 'tabs/local_backups_tab.dart';
 
 /// Comprehensive Backup Screen - الشاشة الرئيسية للنسخ الاحتياطي
@@ -13,8 +12,10 @@ import 'tabs/local_backups_tab.dart';
 /// ✅ تحسين (audit agent-9):
 /// تم إزالة تبويب "نظرة عامة" (كان mock ببيانات hardcoded من 2024-01-29)
 /// وتبويب "إدارة الملفات" (كان mock بأزرار لا تعمل).
-/// الآن الشاشة تحتوي فقط على التبويبات الوظيفية:
-/// - Google Drive: للنسخ السحابي
+/// الآن الشاشة تحتوي فقط على التبويبات الوظيفية (3 تبويبات):
+/// - Appwrite: إنشاء ورفع نسخة إدارية إلى الخادم المعتمد
+/// - Cloudflare D1: رفع جداول النطاق الافتراضي للمزامنة (24 كياناً
+///   + تجسيد blacklist الافتراضي) إلى D1 — لا يرفع قاعدة البيانات كاملة
 /// - النسخ المحلية: للنسخ على الجهاز
 ///
 /// كما تم:
@@ -68,7 +69,7 @@ class _ComprehensiveBackupScreenState
               unselectedLabelColor: Colors.grey,
               indicatorColor: UIConstants.backupColor,
               tabs: const [
-                Tab(icon: Icon(Icons.cloud), text: 'Google Drive'),
+                Tab(icon: Icon(Icons.dns), text: 'Cloudflare D1'),
                 Tab(icon: Icon(Icons.phone_android), text: 'النسخ المحلية'),
               ],
             ),
@@ -78,7 +79,10 @@ class _ComprehensiveBackupScreenState
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [GoogleDriveTab(), LocalBackupsTab()],
+              children: const [
+                CloudflareD1Tab(),
+                LocalBackupsTab(),
+              ],
             ),
           ),
         ],
@@ -87,17 +91,21 @@ class _ComprehensiveBackupScreenState
   }
 
   void _showHelpDialog() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('مساعدة'),
         content: const SingleChildScrollView(
           child: Text(
             'نظام النسخ الاحتياطي:\n\n'
-            '• Google Drive: نسخ احتياطي سحابي تلقائي ويدوي\n'
-            '  - يسجل الدخول بحساب Google\n'
-            '  - يرفع النسخ مشفّرة ومضغوطة\n'
-            '  - يدعم المزامنة التفاضلية (Delta Sync)\n\n'
+            '• Cloudflare D1 (رفع إداري): رفع نسخة إدارية يدوياً\n'
+            '  - ينشئ ملف JSON من البيانات المحلية\n'
+            '  - يرفعه إلى Cloudflare بعد تأكيد صريح\n'
+            '  - لا يُسمح به ما دام Outbox يحتوي تغييرات غير مُسلّمة\n\n'
+            '• Cloudflare D1: رفع بيانات جداول المزامنة المطابقة '
+            'لعقد المزامنة السحابي فقط\n'
+            '  - كتابة آمنة بأسلوب INSERT OR REPLACE\n'
+            '  - اختيار الجداول وعرض التقدم والإيقاف\n\n'
             '• النسخ المحلية: نسخ على ذاكرة الجهاز\n'
             '  - إنشاء نسخة احتياطية محلية\n'
             '  - استعادة من نسخة محلية\n'
@@ -112,6 +120,6 @@ class _ComprehensiveBackupScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 }

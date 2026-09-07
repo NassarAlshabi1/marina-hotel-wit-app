@@ -17,6 +17,14 @@
 
 // ignore_for_file: lines_longer_than_80_chars
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.scroll_performance_benchmark_test;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -96,10 +104,7 @@ void main() {
       final scrollStopwatch = Stopwatch()..start();
       var frameCount = 0;
       for (var i = 0; i < 10; i++) {
-        await tester.drag(
-          find.byType(ListView),
-          const Offset(0, -500),
-        );
+        await tester.drag(find.byType(ListView), const Offset(0, -500));
         await tester.pump(const Duration(milliseconds: 100));
         frameCount++;
       }
@@ -134,9 +139,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ListView(
-              children: items100.map(_buildListItem).toList(),
-            ),
+            body: ListView(children: items100.map(_buildListItem).toList()),
           ),
         ),
       );
@@ -145,10 +148,7 @@ void main() {
       final scrollStopwatch = Stopwatch()..start();
       var frameCount = 0;
       for (var i = 0; i < 10; i++) {
-        await tester.drag(
-          find.byType(ListView),
-          const Offset(0, -500),
-        );
+        await tester.drag(find.byType(ListView), const Offset(0, -500));
         await tester.pump(const Duration(milliseconds: 100));
         frameCount++;
       }
@@ -200,9 +200,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ListView(
-              children: items200.map(_buildListItem).toList(),
-            ),
+            body: ListView(children: items200.map(_buildListItem).toList()),
           ),
         ),
       );

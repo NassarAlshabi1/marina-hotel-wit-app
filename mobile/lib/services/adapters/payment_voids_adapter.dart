@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart' show debugPrint;
 
+import '../../utils/debug_log.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
@@ -328,9 +328,10 @@ double? _asDouble(Map<String, dynamic> json, String key, Source src) {
   if (v is String) return double.tryParse(v);
   // ✅ تسجيل تحذيري للأنواع غير المتوقعة (bool, List, Map) — كان silent null
   // يصعّب التشخيص عند تلقي بيانات Appwrite/Drive بنوع خاطئ.
-  debugPrint(
-    '⚠️ payment_voids._asDouble: قيمة غير متوقعة لـ $key من $src — '
-    'type=${v.runtimeType}, value=$v',
+  dlog(
+    () =>
+        '⚠️ payment_voids._asDouble: قيمة غير متوقعة لـ $key من $src — '
+        'type=${v.runtimeType}, value=$v',
   );
   return null;
 }

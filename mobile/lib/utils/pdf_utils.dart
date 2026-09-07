@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/widgets.dart' as pw;
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class ArabicPdfFonts {
   ArabicPdfFonts({required this.base, required this.bold});

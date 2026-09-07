@@ -1,5 +1,4 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -52,11 +51,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeDefaults();
+    unawaited(_initializeDefaults());
   }
 
   Future<void> _initializeDefaults() async {
-    // الافتراضي: اليوم الفندقي الحالي (14:01 → 14:00)
+    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;
@@ -480,7 +479,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                   _fromDate = range.from;
                   _toDate = range.to;
                 });
-                _fetchReport();
+                unawaited(_fetchReport());
               },
             ),
             Wrap(
@@ -707,13 +706,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in debts_report_screen.dart: ');
+    } catch (_) {
       try {
         final safeDate = Time.safeIsoToDateString(value);
         return DateTime.parse('${safeDate}T00:00:00');
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in debts_report_screen.dart: ');
+      } catch (_) {
         // بيانات تاريخ فاسدة — إرجاع null لتجاهل السجل في التجميع
         return null;
       }

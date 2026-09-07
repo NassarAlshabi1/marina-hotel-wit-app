@@ -6,11 +6,33 @@
 import type { Database, PushOperation, SyncRecord } from './database';
 import { isValidEntity, SYNC_ENTITY_TABLES } from './database';
 import type { AuthContext } from './auth';
+import type { RealtimeMessage } from './sync-lock';
+
+/**
+ * Best-effort realtime change notifier (plan phase 3): after a successful
+ * push the worker notifies the SyncLockDO WebSocket hub so OTHER devices
+ * trigger an immediate delta pull instead of waiting for auto-sync.
+ * Implementation lives in index.ts (it owns the DO namespace binding);
+ * sync.ts stays decoupled from bindings.
+ */
+export type RealtimeBroadcast = (msg: RealtimeMessage) => Promise<void>;
 
 // ─── Validation ───────────────────────────────────────────────
 
 const MAX_BATCH_SIZE = 100;
 const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024; // 5MB
+
+/**
+ * Device attribution for pushed rows (fix discovered by test): the op
+ * carries the device that produced it (cloudflare_sync_manager sends
+ * `deviceId` per operation), while the JWT device_id is whatever was
+ * present at LOGIN time — often empty for bootstrap-registered users.
+ * The op value wins; the JWT value is the fallback.
+ */
+function opDeviceId(op: PushOperation, ctx: AuthContext): string {
+  if (typeof op.deviceId === 'string' && op.deviceId.length > 0) return op.deviceId;
+  return ctx.deviceId;
+}
 
 function validatePushOperation(op: PushOperation): string | null {
   if (!op.idempotencyKey || typeof op.idempotencyKey !== 'string') {
@@ -162,9 +184,15 @@ export async function handlePull(
       return jsonResponse({ error: `Unknown entity: ${entity}` }, 400);
     }
     const limitStr = url.searchParams.get('limit') || '200';
-    const limit = Math.min(Math.max(parseInt(limitStr, 10) || 200, 1), MAX_BATCH_SIZE);
+    // True [1, 200] clamp: 0 and negatives → 1, NaN → 200, anything
+    // larger → 200. (The old `parseInt(...) || 200` let limit=0 slip to
+    // the 200 default and return a full page for a nonsense request.)
+    const parsedLimit = parseInt(limitStr, 10);
+    const limit = Math.min(Math.max(Number.isFinite(parsedLimit) ? parsedLimit : 200, 1), MAX_BATCH_SIZE);
+    // Echo filter (plan 2.5): skip rows this device already has locally.
+    const excludeDevice = url.searchParams.get('exclude_device') || undefined;
 
-    const result = await db.pullChanges(entity, cursor, limit);
+    const result = await db.pullChanges(entity, cursor, limit, excludeDevice);
 
     return jsonResponse({
       changes: result.changes,
@@ -183,7 +211,8 @@ export async function handlePull(
 export async function handlePush(
   request: Request,
   db: Database,
-  ctx: AuthContext
+  ctx: AuthContext,
+  broadcast?: RealtimeBroadcast
 ): Promise<Response> {
   try {
     // ─── Size limit check (use compressed size if gzip) ─────
@@ -227,6 +256,15 @@ export async function handlePush(
       skipped?: boolean;
     }> = [];
 
+    // Distinct entities touched by SUCCESSFUL, non-skipped ops — one change
+    // event per entity (entity-level signal; clients answer with a delta
+    // pull, so per-row granularity is unnecessary). Skipped ops are exact
+    // replays already broadcast with their original batch.
+    const touched = new Map<
+      string,
+      { entityId: string; deviceId: string; operation: string }
+    >();
+
     for (const op of body.operations) {
       try {
         // ─── Validate ──────────────────────────────────────────
@@ -258,7 +296,7 @@ export async function handlePush(
 
         switch (op.operation) {
           case 'create': {
-            const record = await db.createRecord(op.entity, op.data, ctx.deviceId, op.vectorClock);
+            const record = await db.createRecord(op.entity, op.data, opDeviceId(op, ctx), op.vectorClock);
             entityId = record.local_uuid;
             break;
           }
@@ -269,7 +307,7 @@ export async function handlePush(
               recordId,
               op.data,
               op.vectorClock,
-              ctx.deviceId,
+              opDeviceId(op, ctx),
               op.updatedAt
             );
             entityId = record.local_uuid;
@@ -277,7 +315,7 @@ export async function handlePush(
           }
           case 'delete': {
             entityId = requireEntityId(op.data);
-            await db.deleteRecord(op.entity, entityId, ctx.deviceId);
+            await db.deleteRecord(op.entity, entityId, opDeviceId(op, ctx));
             break;
           }
           default:
@@ -287,6 +325,14 @@ export async function handlePush(
         // ─── Save idempotency ──────────────────────────────────
         const responsePayload = { entity: op.entity, entityId, operation: op.operation };
         await db.saveIdempotency(op.idempotencyKey, op.entity, op.operation, entityId, responsePayload);
+
+        if (!touched.has(op.entity)) {
+          touched.set(op.entity, {
+            entityId,
+            deviceId: opDeviceId(op, ctx),
+            operation: op.operation,
+          });
+        }
 
         results.push({
           idempotencyKey: op.idempotencyKey,
@@ -301,6 +347,29 @@ export async function handlePush(
           success: false,
           error: String(err),
         });
+      }
+    }
+
+    // ─── Realtime broadcast (plan phase 3) ────────────────────
+    // Best-effort and AFTER the push is durably recorded: a broadcast
+    // failure must never fail the push (realtime is an optimization —
+    // devices still converge via auto-sync/delta cursor).
+    if (broadcast && touched.size > 0) {
+      try {
+        await Promise.all(
+          [...touched.entries()].map(([entity, info]) =>
+            broadcast({
+              type: 'change',
+              entity,
+              entityId: info.entityId,
+              operation: info.operation,
+              deviceId: info.deviceId,
+              timestamp: Date.now(),
+            })
+          )
+        );
+      } catch (err) {
+        console.error('[SYNC/PUSH] Realtime broadcast failed (push unaffected):', err);
       }
     }
 
@@ -437,37 +506,50 @@ export async function handleMigrate(
       }
     }
 
-    // ─── Execute SQL via D1 prepare().run() (per-statement) ───
-    // Simpler than batch() — avoids PRAGMA issues and gives accurate
-    // per-statement error reporting. Each INSERT OR REPLACE statement
-    // is executed independently.
+    // ─── Execute via D1 batch API in atomic chunks (plan 2.6) ─
+    // Each chunk of ≤50 statements runs through db.batch() which is
+    // ATOMIC in D1: either the whole chunk commits or none of it does.
+    // Per-statement run() previously allowed partial imports (half a
+    // multi-row INSERT committed) with no way for the client to know
+    // which rows landed. On chunk failure we stop immediately — every
+    // statement is INSERT [OR IGNORE/REPLACE] (idempotent), so the
+    // client can safely retry the whole batch.
+    const MIGRATE_CHUNK_SIZE = 50;
     const d1Db = db.raw;
     let rowsInserted = 0;
+    let statementsExecuted = 0;
     const errors: string[] = [];
 
     console.log(`[MIGRATE] Received ${statements.length} SQL statements, ` +
       `${sqlText.length} bytes (${contentLength} compressed)`);
 
-    // Execute each statement independently
-    for (let i = 0; i < statements.length; i++) {
-      const stmt = statements[i];
+    for (let start = 0; start < statements.length; start += MIGRATE_CHUNK_SIZE) {
+      const chunk = statements.slice(start, start + MIGRATE_CHUNK_SIZE);
       try {
-        const prepared = d1Db.prepare(stmt + ';');
-        const result = await prepared.run();
-        // D1 run() returns { success, meta: { changes, ... }, results }
-        const meta = (result as { meta?: { changes?: number; last_row_id?: number } }).meta;
-        if (meta && typeof meta.changes === 'number') {
-          rowsInserted += meta.changes;
+        const results = await d1Db.batch(
+          chunk.map((stmt) => d1Db.prepare(stmt + ';'))
+        );
+        for (const result of results) {
+          // batch() returns one result per statement with meta.changes
+          const meta = (result as { meta?: { changes?: number } }).meta;
+          if (meta && typeof meta.changes === 'number') {
+            rowsInserted += meta.changes;
+          }
         }
+        statementsExecuted += chunk.length;
       } catch (err) {
         const errMsg = String(err).slice(0, 300);
-        errors.push(`Statement ${i + 1}: ${errMsg}`);
-        console.error(`[MIGRATE] Statement ${i + 1} failed:`, errMsg);
-        // Continue with next statement — don't abort the whole batch
+        const chunkNo = Math.floor(start / MIGRATE_CHUNK_SIZE) + 1;
+        errors.push(
+          `Chunk ${chunkNo} (statements ${start + 1}-${start + chunk.length}) aborted atomically: ${errMsg}`
+        );
+        console.error(`[MIGRATE] Chunk ${chunkNo} failed:`, errMsg);
+        break; // fail-fast — retry is safe (idempotent INSERTs)
       }
     }
 
     console.log(`[MIGRATE] Done: ${rowsInserted} rows inserted, ` +
+      `${statementsExecuted}/${statements.length} statements executed, ` +
       `${errors.length} errors`);
 
     // ✅ Advance the sync clock past migrated timestamps so subsequent
@@ -482,7 +564,9 @@ export async function handleMigrate(
     return jsonResponse({
       success: errors.length === 0,
       rowsInserted,
-      statementsExecuted: statements.length,
+      statementsExecuted,
+      statementsTotal: statements.length,
+      abortedEarly: statementsExecuted < statements.length,
       errors: errors.slice(0, 20), // Limit errors to first 20 to avoid huge response
       totalErrors: errors.length,
       server_time: Math.floor(Date.now() / 1000),

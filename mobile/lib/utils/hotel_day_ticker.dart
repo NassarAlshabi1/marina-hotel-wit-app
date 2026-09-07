@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 /// تيار تفاعلي عالمي لبداية اليوم الفندقي الجديد.
@@ -78,7 +76,42 @@ class HotelDayTicker {
       return;
     }
     _controller = StreamController<void>.broadcast();
+    // ✅ OCR FIX (2026-08-06): فحص فوري إذا فات الحدث عند بدء التطبيق.
+    // سابقاً، لو فُتح التطبيق بعد 14:01 (مثلاً 14:05)، كان ينتظر حتى 14:01
+    // غداً — يفوّت تنبيه اليوم الفندقي. الآن نُصدر tick فوري إذا فات الحدث
+    // خلال آخر ساعة (لتفادي false positives عند إعادة تشغيل التطبيق).
+    _emitMissedTickIfNeeded();
     _scheduleNext();
+  }
+
+  /// ✅ OCR FIX: يُصدر tick فوري إذا فات الحدث عند بدء التطبيق.
+  ///
+  /// السيناريو: التطبيق كان مغلقاً عند 14:01، وفُتح عند 14:05.
+  /// بدون هذا الفحص، الشاشات لن تعرف أن اليوم الفندقي تغيّر حتى غداً.
+  ///
+  /// القيود: نُصدر tick فقط إذا كان الوقت الحالي ضمن ساعة من 14:01
+  /// (14:01 - 15:01) لتجنب إصدار ticks خاطئة عند فتح التطبيق في منتصف
+  /// الليل بعد يوم كامل من الإغلاق.
+  void _emitMissedTickIfNeeded() {
+    final now = DateTime.now();
+    final todayHotelDayStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      _hotelStartHour,
+      _hotelStartMinute,
+    );
+
+    // إذا كنا خلال ساعة بعد 14:01 اليوم، نُصدر tick فوري
+    final oneHourAfterStart = todayHotelDayStart.add(const Duration(hours: 1));
+    if (now.isAfter(todayHotelDayStart) && now.isBefore(oneHourAfterStart)) {
+      // استخدام scheduleMicrotask لتجنب استدعاء listeners متزامن أثناء init
+      scheduleMicrotask(() {
+        if (_controller != null && !_controller!.isClosed) {
+          _controller!.add(null);
+        }
+      });
+    }
   }
 
   void _scheduleNext() {
@@ -91,11 +124,15 @@ class HotelDayTicker {
       _hotelStartHour,
       _hotelStartMinute,
     );
-    // إذا تجاوزنا 14:01 اليوم، الهدف هو 14:01 غداً
+    // ✅ OCR FIX: توضيح أوضح للحالة الحافة.
+    // إذا تجاوزنا 14:01 اليوم (now >= next)، الهدف هو 14:01 غداً.
+    // ملاحظة: isBefore يُرجع true فقط إذا كان now < next بدقة millisecond.
+    // لذا إذا كان now == next بالضبط، isBefore يُرجع false وننتقل لليوم التالي
+    // — وهو صحيح لأن الحدث أُصدر بالفعل في _emitMissedTickIfNeeded.
     if (!now.isBefore(next)) {
       next = next.add(const Duration(days: 1));
     }
-    final delay = next.difference(now) + const Duration(seconds: 1);
+    final delay = next.difference(now);
     _timer = Timer(delay, () {
       _controller?.add(null);
       _scheduleNext(); // جدولة اليوم التالي
@@ -104,10 +141,14 @@ class HotelDayTicker {
 
   /// إيقاف التقر وتحرير الموارد.
   /// لا تحتاج لاستدعائه عادةً لأن الـ singleton يعيش طوال عمر التطبيق.
+  ///
+  /// ✅ OCR FIX (2026-08-06): تأكيد إلغاء كل الموارد لمنع memory leaks.
   void dispose() {
     _timer?.cancel();
-    _controller?.close();
     _timer = null;
+    if (_controller != null && !_controller!.isClosed) {
+      unawaited(_controller!.close());
+    }
     _controller = null;
   }
 }

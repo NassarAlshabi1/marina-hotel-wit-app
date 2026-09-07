@@ -16,6 +16,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
 import 'package:workmanager/workmanager.dart';
 
 import 'components/admin_layout.dart';
+import 'providers/appwrite_providers.dart' as appwrite;
 import 'providers/auth_provider.dart';
 import 'providers/cloudflare_providers.dart' as cloudflare;
 import 'providers/repository_providers.dart';
@@ -40,10 +41,13 @@ import 'services/alarm_backup.dart';
 import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
 import 'services/auto_backup_manager.dart';
+import 'services/auto_outbox_sync_watcher.dart';
 import 'services/background_sync_service.dart';
-import 'services/blacklist_alert_service.dart';
 import 'services/battery_optimizer.dart';
+import 'services/blacklist_alert_service.dart';
+import 'services/bootstrap_full_pull.dart';
 import 'services/central_sync_coordinator.dart';
+import 'services/cloudflare_config.dart';
 import 'services/cloudflare_migration_service.dart';
 import 'services/cloudflare_sync_manager.dart';
 import 'services/connectivity_service.dart';
@@ -70,7 +74,6 @@ import 'services/sync_continuation_service.dart';
 import 'services/sync_guardian.dart';
 import 'services/sync_performance_optimizer.dart';
 import 'services/sync_queue_service.dart';
-import 'services/sync_service.dart';
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
 import 'utils/auto_sync_preferences.dart';
@@ -96,7 +99,7 @@ Future<void> main() async {
       sqflite_ffi.databaseFactory = sqflite_ffi.databaseFactoryFfi;
       debugPrint('✅ sqflite_common_ffi initialized for desktop');
     } catch (e, st) {
-      debugPrint( 'sqflite_common_ffi init failed: $e');
+      debugPrint('sqflite_common_ffi init failed: $e');
     }
   }
 
@@ -105,7 +108,7 @@ Future<void> main() async {
     await Firebase.initializeApp();
     debugPrint('✅ Firebase Core initialized');
   } catch (e) {
-    debugPrint( 'Firebase Core initialization failed: $e');
+    debugPrint('Firebase Core initialization failed: $e');
     debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
   }
 
@@ -126,8 +129,12 @@ Future<void> main() async {
 
   // ─── Deferred initialization (بعد runApp، non-blocking) ───
   // هذه الخدمات لا تؤثر على UI الأولي — يمكن تأجيلها بأمان
-  unawaited(_safeInit('RemoteConfigService', RemoteConfigService.instance.initialize));
-  unawaited(_safeInit('ApiConfigService', ApiConfigService.instance.initialize));
+  unawaited(
+    _safeInit('RemoteConfigService', RemoteConfigService.instance.initialize),
+  );
+  unawaited(
+    _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
+  );
   unawaited(_safeInit('PostHogService', PostHogService.instance.initialize));
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
@@ -135,7 +142,7 @@ Future<void> main() async {
   // الخطأ بدل تركه silent (البوت أشار لهذا بشكل صحيح).
   unawaited(
     AlarmBackup.initAlarmSystem().catchError(
-      (Object e) => debugPrint( 'Alarm system init failed: $e'),
+      (Object e) => debugPrint('Alarm system init failed: $e'),
     ),
   );
 
@@ -223,7 +230,7 @@ Future<void> _safeInit(String label, Future<void> Function() init) async {
   try {
     await init();
   } catch (e, stack) {
-    debugPrint( '$label initialization failed: $e\n$stack');
+    debugPrint('$label initialization failed: $e\n$stack');
   }
 }
 
@@ -245,7 +252,7 @@ void _startHealthChecker() {
     // notifier.startPeriodicCheck(interval: const Duration(minutes: 5));
     debugPrint('🏥 [Main] Health checker started (5min interval)');
   } catch (e, st) {
-    debugPrint( '[Main] Health checker init failed: $e');
+    debugPrint('[Main] Health checker init failed: $e');
   }
 }
 
@@ -256,7 +263,7 @@ Future<void> _initializeSecondarySync() async {
     // SecondaryAppwriteConfig removed (Cloudflare migration)
     debugPrint('🔵 [Main] Secondary sync disabled or not configured');
   } catch (e) {
-    debugPrint( '[Main] Secondary sync init failed: $e');
+    debugPrint('[Main] Secondary sync init failed: $e');
   }
 }
 
@@ -299,7 +306,9 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
           );
           final conflictResolver = GoogleDriveConflictResolver.instance;
           conflictResolver.initialize(driveLogger);
-          await conflictResolver.setStrategy(ConflictResolutionStrategy.newerWins);
+          await conflictResolver.setStrategy(
+            ConflictResolutionStrategy.newerWins,
+          );
           await conflictResolver.setConflictThreshold(30);
 
           // SmartSync + AutoSyncEngine only if Drive is active
@@ -336,7 +345,8 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
           );
           await _configureAutoSyncEngine(autoSyncEngine);
 
-          final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+          final driveSyncEnabled =
+              prefs.getBool('google_drive_sync_enabled') ?? false;
           if (backupService.isSignedIn && driveSyncEnabled) {
             await autoSyncEngine.start();
             await autoSyncEngine.onSignInChanged(true);
@@ -523,6 +533,23 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         final syncManager = ref.read(cloudflare.cloudflareSyncManagerProvider);
         await syncManager.initialize(database: DatabaseManager.instance);
 
+        // ✅ (2026-09-07) إحياء الرفع الفوري — القرار المُصدر من مراجعة
+        // معمارية المزامنة: AutoOutboxSyncWatcher.start() لم يكن مستدعى
+        // وpushFunction لم تكن مضبوطة، فكان الرفع بعد الكتابة ميتاً
+        // (لا يحدث إلا عبر مؤقت 15 دقيقة / فتح التطبيق / الأزرار اليدوية).
+        // الآن: أي إدخال جديد في outbox يُرفع تلقائياً بعد debounce
+        // 3 ثوانٍ — مع ضمان التهيئة (إعادة محاولة الدخول عند فشلها
+        // السابق) قبل كل محاولة رفع، فلا يضيع أي رفع بعد تهيئة فاشلة.
+        AutoOutboxSyncWatcher.pushFunction = () async {
+          if (syncManager.token == null) {
+            await syncManager.initialize(database: DatabaseManager.instance);
+          }
+          return syncManager.pushLocalChanges();
+        };
+        unawaited(
+          AutoOutboxSyncWatcher.instance.start(DatabaseManager.instance),
+        );
+
         // ✅ Cloudflare migration: push local data to D1 on first run
         if (!await CloudflareMigrationService.instance.isMigrationComplete()) {
           debugPrint('🔄 Starting Cloudflare migration...');
@@ -532,9 +559,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               token: syncManager.token!,
               deviceId: AppwriteSyncManager.currentDeviceIdStatic!,
             );
-            debugPrint('🔄 Migration: ${result.totalPushed}/${result.totalRecords} pushed, ${result.totalFailed} failed');
+            debugPrint(
+              '🔄 Migration: ${result.totalPushed}/${result.totalRecords} pushed, ${result.totalFailed} failed',
+            );
           } catch (e, st) {
-            debugPrint( '⚠️ Migration error: $e');
+            debugPrint('⚠️ Migration error: $e');
           }
         }
 
@@ -542,7 +571,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         try {
           await syncManager.registerDevice();
         } catch (e, st) {
-          debugPrint( 'Device registration error: $e');
+          debugPrint('Device registration error: $e');
         }
 
         // ✅ تهيئة الإشعارات المحلية (للأحداث على نفس الجهاز)
@@ -551,15 +580,18 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         try {
           await LocalNotificationService.instance.initialize();
         } catch (e, st) {
-          debugPrint( 'Local notifications init error: $e');
+          debugPrint('Local notifications init error: $e');
         }
 
         // تهيئة FCM للإشعارات بين الأجهزة
         try {
           await _initializeFcm(syncManager);
         } catch (e) {
-          debugPrint( 'FCM initialization error: $e');
+          debugPrint('FCM initialization error: $e');
         }
+
+        // ✅ (2026-09-05) Cloudflare-only: أُزيلت المقارنة الظلّية مع
+        // Appwrite (DualRun) — لا مصدر ثانٍ للمقارنة بعد إزالة Appwrite Cloud.
 
         // بدء المزامنة التلقائية (push + pull)
         // ✅ Forensic audit fix (2026-07-22):
@@ -610,7 +642,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
 
           if (shouldSync) {
-            debugPrint('📥 Pulling latest data from Cloudflare D1 on app start...');
+            debugPrint(
+              '📥 Pulling latest data from Cloudflare D1 on app start...',
+            );
             // push + pull معاً — لا نرفع بدون سحب
             await syncManager.sync();
             // تسجيل وقت هذا السحب
@@ -621,7 +655,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             debugPrint('✅ Initial sync on app start completed');
           }
         } catch (e) {
-          debugPrint( 'Initial sync on app start failed: $e');
+          debugPrint('Initial sync on app start failed: $e');
         }
 
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
@@ -725,7 +759,17 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     _localAutoSyncRunning = true;
     try {
-      await ref.read(syncServiceProvider).runSync();
+      // ✅ (2026-09-07) Cloudflare-only: فصل محرك PHP القديم عن مسار
+      // المزامنة التلقائي (القرار المُصدر من المراجعة المعمارية —
+      // محركان متوازيان كانا يتنافسان على نفس البيانات). زناد
+      // ما-بعد-الكتابة يشغّل الآن المدير الموحد (رفع + سحب دلتا) —
+      // sync() محمي داخلياً (kill switch / appwrite_sync_enabled /
+      // _syncInProgress) والرفع الفوري مغطى بواسطة AutoOutboxSyncWatcher.
+      final manager = ref.read(cloudflare.cloudflareSyncManagerProvider);
+      if (manager.token == null) {
+        await manager.initialize(database: DatabaseManager.instance);
+      }
+      await manager.sync();
     } catch (e) {
       derr(() => 'Local auto sync error: $e');
     } finally {
@@ -738,10 +782,22 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   Future<void> _initializeFcm(AppwriteSyncManager syncManager) async {
     final fcm = FcmService();
 
+    // ✅ المرحلة 3: Realtime كامل عبر WebSocket (SyncLockDO) — نفس
+    // المثال singleton يُحقن في FCM (شارة UI) ويُضبط trigger السحب
+    // على المسار الدلتا-فقط للمدير (realtimeTriggeredPull).
+    final realtime = AppwriteRealtimeSync();
+    realtime.setSyncTrigger(syncManager.realtimeTriggeredPull);
+    realtime.configure(
+      baseUrl: CloudflareConfig.workerUrl,
+      tokenProvider: () async => CloudflareSyncManager().token,
+    );
+    await realtime.initialize(deviceId: syncManager.currentDeviceId);
+    unawaited(realtime.start());
+
     // حقن الاعتمادات لتجنب import دائري
     FcmService.injectDependencies(
       syncManager: syncManager,
-      realtimeSync: AppwriteRealtimeSync(),
+      realtimeSync: realtime,
     );
 
     await fcm.initialize();
@@ -779,7 +835,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         '✅ Push on resume completed (pull handled by UnifiedSyncOrchestrator)',
       );
     } catch (e) {
-      debugPrint( 'Sync on resume error: $e');
+      debugPrint('Sync on resume error: $e');
     }
   }
 
@@ -803,7 +859,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('✅ Push on pause completed');
     } catch (e) {
       // البيانات محفوظة في outbox — لن تُفقد أبداً
-      debugPrint( 'Push on pause error (data safe in outbox): $e');
+      debugPrint('Push on pause error (data safe in outbox): $e');
 
       // ✅ جدولة مهمة WorkManager لإكمال المزامنة في الخلفية
       // البيانات محفوظة في outbox، لكن push للسحابة لم يكتمل —
@@ -812,7 +868,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         await SyncContinuationService.scheduleSyncCompletion();
         debugPrint('📅 Scheduled WorkManager to complete sync in background');
       } catch (schedErr) {
-        debugPrint( 'Failed to schedule sync continuation: $schedErr');
+        debugPrint('Failed to schedule sync continuation: $schedErr');
       }
     }
   }
@@ -849,80 +905,80 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     try {
       await FcmService.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing FcmService: $e');
+      debugPrint('Error disposing FcmService: $e');
     }
     try {
       await BatteryOptimizer.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing BatteryOptimizer: $e');
+      debugPrint('Error disposing BatteryOptimizer: $e');
     }
     try {
       // Realtime disposed
     } catch (e, st) {
-      debugPrint( 'Error disposing realtime: $e');
+      debugPrint('Error disposing realtime: $e');
     }
     try {
       await SyncPerformanceOptimizer.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing SyncPerformanceOptimizer: $e');
+      debugPrint('Error disposing SyncPerformanceOptimizer: $e');
     }
     try {
       await SmartSyncManager.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing SmartSyncManager: $e');
+      debugPrint('Error disposing SmartSyncManager: $e');
     }
     try {
       ConnectivityService.instance.dispose();
     } catch (e, st) {
-      debugPrint( 'Error disposing ConnectivityService: $e');
+      debugPrint('Error disposing ConnectivityService: $e');
     }
     try {
       HotelDayTicker.instance.dispose();
     } catch (e, st) {
-      debugPrint( 'Error disposing HotelDayTicker: $e');
+      debugPrint('Error disposing HotelDayTicker: $e');
     }
     try {
       AutoSyncEngine.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing GoogleDriveAutoSyncEngine: $e');
+      debugPrint('Error disposing GoogleDriveAutoSyncEngine: $e');
     }
     try {
       UnifiedSyncOrchestrator.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing UnifiedSyncOrchestrator: $e');
+      debugPrint('Error disposing UnifiedSyncOrchestrator: $e');
     }
     try {
       GoogleDriveUnifiedSyncCoordinator.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
+      debugPrint('Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
     }
     try {
       CentralSyncCoordinator.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing CentralSyncCoordinator: $e');
+      debugPrint('Error disposing CentralSyncCoordinator: $e');
     }
     try {
       BackgroundSyncService.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing BackgroundSyncService: $e');
+      debugPrint('Error disposing BackgroundSyncService: $e');
     }
     // ✅ تنظيف خدمات إضافية كانت تتسرب StreamController
     try {
       SyncConflictEventBus.instance.dispose();
     } catch (e, st) {
-      debugPrint( 'Error disposing SyncConflictEventBus: $e');
+      debugPrint('Error disposing SyncConflictEventBus: $e');
     }
     // ✅ Batch 3: تنظيف AutoBackupManager timers + SmartSyncManager timers
     try {
       AutoBackupManager.disposeInstance();
     } catch (e, st) {
-      debugPrint( 'Error disposing AutoBackupManager: $e');
+      debugPrint('Error disposing AutoBackupManager: $e');
     }
     // ✅ Batch 3: تنظيف SyncGuardian timer + StreamController
     try {
       await SyncGuardian.disposeInstance();
     } catch (e) {
-      debugPrint( 'Error disposing SyncGuardian: $e');
+      debugPrint('Error disposing SyncGuardian: $e');
     }
     debugPrint('✅ All singleton services disposed');
   }
@@ -958,10 +1014,20 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         (Object e, StackTrace s) =>
             derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
       );
+      // ✅ المرحلة 3.3: إعادة فتح Realtime عند العودة للواجهة
+      // (+ استرداد دلتا لما فات أثناء الخمول عبر recovery pull)
+      unawaited(
+        AppwriteRealtimeSync().ensureStarted().catchError(
+          (Object e, StackTrace s) =>
+              derr(() => 'Error in realtime ensureStarted: $e\n$s'),
+        ),
+      );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
+      // ✅ المرحلة 3.3: إغلاق Realtime في الخلفية (توفير بطارية/وحدات DO)
+      unawaited(AppwriteRealtimeSync().stop());
       // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
       unawaited(_pushPendingChangesOnPause());
       // ✅ جدولة مهمة WorkManager لإكمال المزامنة في الخلفية
@@ -1039,6 +1105,33 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   String _currentRoute = '/dashboard';
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ (2026-09-06) طلب المستخدم: «عند تثبيت التطبيق والضغط على زر
+    // المتابعة بدون مزامنة يتم سحب full sync» — إعادة محاولة تلقائية
+    // للسحب الكامل عند كل إطلاق إذا اختار المستخدم التخطي ولم يكتمل
+    // السحب بعد. ثغرة ما قبل الإصلاح: محاولة التخطي الوحيدة كانت
+    // fire-and-forget لحظة التخطي، وفشلها (لا شبكة / worker غير متاح)
+    // كان يترك قاعدة البيانات فارغة إلى ما لا نهاية لأن شاشة الدخول
+    // لا تظهر مجدداً بعد التخطي (requiresDriveLogin=false) والمسارات
+    // الخلفية deltaOnly ترفض بدء full sync على جهاز bootstrap.
+    // BootstrapFullPull idempotent: لا تنفّذ إذا سبق إنجاز السحب
+    // بأي مسار، والاستدعاء المتداخل مع نداء التخطي الفوري محمي
+    // بـ in-flight guard.
+    unawaited(_bootstrapFullPullAfterSkip());
+  }
+
+  Future<void> _bootstrapFullPullAfterSkip() async {
+    try {
+      await BootstrapFullPull.ensureFullPullAfterSkip(
+        manager: ref.read(appwrite.appwriteSyncManagerProvider),
+      );
+    } catch (e) {
+      dlog(() => '⚠️ Bootstrap full pull (HomeShell) error: $e');
+    }
+  }
 
   /// قائمة بالمسارات الصالحة (للتحقق من الصلاحيات)
   static const _validRoutes = [

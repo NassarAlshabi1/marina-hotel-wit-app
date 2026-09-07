@@ -13,6 +13,14 @@
 //    flutter test test/performance/appwrite_sync_perf_test.dart --reporter expanded
 // ============================================================================
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.appwrite_sync_perf_test;
+
 import 'dart:convert' show JsonEncoder, jsonDecode, jsonEncode;
 import 'dart:io' show Directory, File;
 
@@ -47,7 +55,7 @@ void main() {
       final stopwatch = Stopwatch()..start();
 
       // محاكاة معالجة الدفعة - تحويل كل entry إلى JSON وتجميعها
-      final batchSize = 20;
+      const batchSize = 20;
       var processed = 0;
       for (var i = 0; i < entries.length; i += batchSize) {
         final batch = entries.skip(i).take(batchSize).toList();
@@ -553,7 +561,7 @@ void main() {
 
       final file = File('${dir.path}/sync_perf_report.json');
       await file.writeAsString(
-        '${JsonEncoder.withIndent('  ').convert(report)}\n',
+        '${const JsonEncoder.withIndent('  ').convert(report)}\n',
       );
 
       expect(await file.exists(), true);

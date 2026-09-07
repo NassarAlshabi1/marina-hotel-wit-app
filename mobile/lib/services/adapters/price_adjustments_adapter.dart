@@ -79,13 +79,32 @@ class PriceAdjustmentsAdapter
         altKey: 'adjustment_type',
         fallback: '',
       ),
-      previousValue: _vInt(
+      // ✅ Wave 6b (2026-08-12): adjustmentMode موجود في Drift table و filterPayload
+      // لكنه لم يُقرأ من adapter أبداً — فجوة في السحب.
+      // انظر local_db.dart: PriceAdjustments table (adjustmentMode column).
+      adjustmentMode: _vStr(
+        json,
+        'adjustmentMode',
+        src,
+        altKey: 'adjustment_mode',
+        fallback: 'per_night',
+      ),
+      // ✅ Wave 6b (2026-08-12): previousValue و newValue على Cloud هما double
+      // (انظر schema_verifier.dart: previousValue: double, newValue: double).
+      // سابقاً، كان المحول يقرأهما كـ _vInt (integer) — مما يسبب truncation
+      // للقيم الكسرية مثل 1500.75 → 1500.
+      // الآن: نقرأ كـ _vDouble لتفادي اقتطاع الكسور.
+      // ملاحظة: Drift table يعرّفهما كـ IntColumn — هذا خطر معماري معروف
+      // يحتاج Migration لتغيير النوع لاحقاً. مؤقتاً، نقرأ كـ double
+      // والقيمة ستُحول لـ int عند التخزين (مع تحذير في الـ logs).
+      // TODO: Migration لتغيير previousValue/newValue من IntColumn → RealColumn.
+      previousValue: _vDouble(
         json,
         'previousValue',
         src,
         altKey: 'previous_value',
       ),
-      newValue: _vInt(json, 'newValue', src, altKey: 'new_value'),
+      newValue: _vDouble(json, 'newValue', src, altKey: 'new_value'),
       reason: _vStr(json, 'reason', src),
       effectiveDate: _vStr(
         json,
@@ -235,6 +254,39 @@ d.Value<bool> _vBool(
       (altKey != null ? _asBool(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+// ✅ Wave 6b (2026-08-12): _vDouble و _asDouble لقراءة الحقول الرقمية
+// الكسرية من Appwrite Cloud بدون اقتطاع.
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+double? _asDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+}) {
+  var v = _raw(json, key, src);
+  if (v == null && altKey != null) {
+    v = _raw(json, altKey, src);
+  }
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v);
+  return null;
 }
 
 int? _epoch(Map<String, dynamic> json, String key, Source src) {

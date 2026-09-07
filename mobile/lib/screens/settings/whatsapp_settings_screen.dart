@@ -1,19 +1,14 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
-import 'dart:io';
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/appwrite_config.dart';
 import '../../services/whatsapp_service.dart';
-import '../../services/whatsapp_settings_sync.dart';
 import '../../utils/message_templates.dart';
+import '../../utils/snackbar_helper.dart';
 
 class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
   const WhatsAppSettingsScreen({super.key});
@@ -33,7 +28,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   bool _isLoading = true;
   bool _isTesting = false;
   bool _isSaving = false;
-  bool _isSyncing = false;
+  final bool _isSyncing = false;
   late TabController _tabController;
   bool _obscureToken = true;
 
@@ -48,7 +43,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadSettings();
+    unawaited(_loadSettings());
   }
 
   @override
@@ -109,14 +104,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       return;
     }
     setState(() => _isSaving = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
-      const SnackBar(
-        content: Text('تم حفظ إعدادات API بنجاح'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    SnackBarHelper.showSuccess(context, 'تم حفظ إعدادات API بنجاح');
   }
 
   Future<void> _saveTemplate() async {
@@ -135,22 +123,13 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     }
     setState(() => _isSaving = false);
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تعذّر حفظ إعدادات الرسالة، حاول مرة أخرى'),
-          backgroundColor: Colors.red,
-        ),
+      SnackBarHelper.showError(
+        context,
+        'تعذّر حفظ إعدادات الرسالة، حاول مرة أخرى',
       );
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
-      const SnackBar(
-        content: Text('تم حفظ إعدادات الرسالة بنجاح'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    SnackBarHelper.showSuccess(context, 'تم حفظ إعدادات الرسالة بنجاح');
   }
 
   Future<void> _resetApiToDefault() async {
@@ -187,11 +166,9 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       return;
     }
     if (!allRemoved) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تعذّرت استعادة بعض الإعدادات، حاول مرة أخرى'),
-          backgroundColor: Colors.red,
-        ),
+      SnackBarHelper.showError(
+        context,
+        'تعذّرت استعادة بعض الإعدادات، حاول مرة أخرى',
       );
       return;
     }
@@ -203,12 +180,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       _customUrlController.text = '';
       _selectedApiType = WhatsAppApiType.custom;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تم استعادة جميع الإعدادات الافتراضية'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+    SnackBarHelper.showWarning(context, 'تم استعادة جميع الإعدادات الافتراضية');
   }
 
   Future<void> _testConnection() async {
@@ -272,7 +244,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   }
 
   void _showTestResult(bool success, String title, String detail) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -332,132 +304,34 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   /// رفع الإعدادات إلى Appwrite Console
   Future<void> _uploadToCloud() async {
-    setState(() => _isSyncing = true);
-    try {
-      final appwrite = ref.read(appwriteServiceProvider);
-      final sync = WhatsAppSettingsSync(appwrite!);
-      final result = await sync.uploadToCloud();
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isSyncing = false);
-      if (result.success) {
-        _showSyncResult(
-          success: true,
-          title: 'تم رفع الإعدادات إلى السحابة بنجاح',
-          subtitle: 'يمكنك تنزيلها على أي جهاز آخر من هنا',
-        );
-      } else {
-        _showSyncResult(
-          success: false,
-          title: 'فشل رفع الإعدادات',
-          subtitle: result.error ?? 'حدث خطأ غير معروف',
-        );
-      }
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isSyncing = false);
-      _showSyncResult(
-        success: false,
-        title: 'خطأ غير متوقع',
-        subtitle: e.toString(),
-      );
+    // ✅ (2026-09-05) Cloudflare-only: كانت ترفع الإعدادات إلى مجموعة
+    // app_settings في Appwrite Cloud — أُزيلت مع إزالة Appwrite.
+    if (!mounted) {
+      return;
     }
+    _showSyncResult(
+      success: false,
+      title: 'المزامنة السحابية غير متاحة',
+      subtitle: 'الإعدادات تُحفظ محلياً على هذا الجهاز',
+    );
   }
 
   /// تأكيد تنزيل الإعدادات من السحابة
   Future<void> _confirmDownloadFromCloud() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.cloud_download, color: Colors.indigo, size: 28),
-            SizedBox(width: 10),
-            Text('تنزيل الإعدادات من السحابة'),
-          ],
-        ),
-        content: const Text(
-          'سيتم استبدال إعدادات الواتساب الحالية على هذا الجهاز بالإعدادات المحفوظة في السحابة.\n\nهل تريد المتابعة؟',
-          textAlign: TextAlign.right,
-          style: TextStyle(height: 1.6),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('تنزيل'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
+    // ✅ (2026-09-05) Cloudflare-only — أُزيلت مع إزالة خدمة الإعدادات السحابية.
+    if (!mounted) {
+      return;
+    }
+    _showSyncResult(
+      success: false,
+      title: 'المزامنة السحابية غير متاحة',
+      subtitle: 'الإعدادات تُحفظ محلياً على هذا الجهاز',
     );
-
-    if (confirmed ?? false) {
-      await _downloadFromCloud();
-    }
-  }
-
-  /// تنزيل الإعدادات من Appwrite Console
-  Future<void> _downloadFromCloud() async {
-    setState(() => _isSyncing = true);
-    try {
-      final appwrite = ref.read(appwriteServiceProvider);
-      final sync = WhatsAppSettingsSync(appwrite!);
-      final result = await sync.downloadFromCloud();
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isSyncing = false);
-      if (result.success) {
-        // إعادة تحميل الإعدادات من SharedPreferences
-        await _loadSettings();
-        ref.invalidate(whatsappSettingsProvider);
-        _showSyncResult(
-          success: true,
-          title: 'تم تنزيل الإعدادات من السحابة بنجاح',
-          subtitle: 'تم تحديث الإعدادات المحلية',
-        );
-      } else {
-        _showSyncResult(
-          success: false,
-          title: 'فشل تنزيل الإعدادات',
-          subtitle: result.error ?? 'حدث خطأ غير معروف',
-        );
-      }
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isSyncing = false);
-      _showSyncResult(
-        success: false,
-        title: 'خطأ غير متوقع',
-        subtitle: e.toString(),
-      );
-    }
-  }
-
-  Future<void> _openUrl(String url) async {
-    try {
-      await Process.run('xdg-open', [url]);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in whatsapp_settings_screen.dart: ');}
   }
 
   @override
@@ -876,7 +750,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     required String title,
     required String subtitle,
   }) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -912,7 +786,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── قسم مزامنة السحابة ───
@@ -933,7 +807,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
                 Icon(Icons.cloud_sync, color: Colors.blue, size: 20),
                 SizedBox(width: 8),
                 Text(
-                  'مزامنة مع Appwrite Console',
+                  'إعدادات الواتساب — حفظ محلي',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
@@ -944,21 +818,8 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
             ),
             const SizedBox(height: 4),
             Text(
-              'احفظ إعدادات الواتساب في السحابة واسترجعها على أي جهاز',
+              'الإعدادات تُحفظ محلياً على هذا الجهاز',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    'يتم إنشاء المجموعة تلقائياً عند أول رفع',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: 12),
             Row(
@@ -1024,31 +885,6 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
               ],
             ),
             const SizedBox(height: 10),
-            InkWell(
-              onTap: () => _openUrl(
-                'https://fra.cloud.appwrite.io/project/${AppwriteConfig.projectId}/database/${AppwriteConfig.databaseId}/collection/app_settings',
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.open_in_new,
-                    size: 14,
-                    color: Colors.blue.shade400,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'فتح في Appwrite Console',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.blue.shade400,
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

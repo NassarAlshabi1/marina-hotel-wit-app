@@ -119,6 +119,37 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
       ),
       amountImpact: _vInt(json, 'amountImpact', src, altKey: 'amount_impact'),
       createdAt: d.Value(createdAt),
+      // ✅ Audit Fix (2026-08-06): إضافة SyncFields المفقودة.
+      // سابقاً، 11 حقل SyncFields كان مفقوداً. updatedAt و lastModified
+      // هما NOT NULL → INSERT كان سيفشل عند استقبال سجلات من Appwrite.
+      serverId: _vInt(json, 'serverId', src, altKey: 'server_id'),
+      updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
+      lastModified: d.Value(_epoch(json, 'lastModified', src) ?? createdAt),
+      deletedAt: _vInt(json, 'deletedAt', src, altKey: 'deleted_at'),
+      createdAtIso: _vStr(json, 'createdAtIso', src, altKey: 'created_at_iso'),
+      updatedAtIso: _vStr(json, 'updatedAtIso', src, altKey: 'updated_at_iso'),
+      deletedAtIso: _vStr(json, 'deletedAtIso', src, altKey: 'deleted_at_iso'),
+      createdAtEpoch: d.Value(_asInt(json, 'createdAtEpoch', src) ?? createdAt),
+      lastModifiedEpoch: d.Value(
+        _asInt(json, 'lastModifiedEpoch', src) ?? createdAt,
+      ),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: src == Source.appwrite || src == Source.drive
+          ? const d.Value('server')
+          : _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
     );
   }
 

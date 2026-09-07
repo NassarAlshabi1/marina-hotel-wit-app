@@ -4,7 +4,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../utils/app_logger.dart';
 import 'api_config_service.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class ApiService {
   ApiService._internal() {
@@ -88,24 +87,23 @@ class ApiService {
       '/auth/login.php',
       data: jsonEncode({'username': username, 'password': password}),
     );
-    // Cast res.data to typed Map to avoid avoid_dynamic_calls on res.data[...]
-    if (res.statusCode == 200 && res.data is Map) {
-      final resData = Map<String, dynamic>.from(res.data as Map);
-      if (resData['success'] == true) {
-        final rawData = resData['data'];
-        if (rawData is Map) {
-          final data = Map<String, dynamic>.from(rawData);
-          final token = data['token'] as String?;
-          final user = data['user'];
-          if (token != null) {
-            await _storage.write(key: _kToken, value: token);
-          }
-          if (user is Map) {
-            return Map<String, dynamic>.from(user);
-          }
+    final data = res.data;
+    if (res.statusCode == 200 &&
+        data is Map &&
+        data['success'] == true) {
+      final rawData = data['data'];
+      if (rawData is Map) {
+        final data = Map<String, dynamic>.from(rawData);
+        final token = data['token'] as String?;
+        final user = data['user'];
+        if (token != null) {
+          await _storage.write(key: _kToken, value: token);
         }
-        return null;
+        if (user is Map) {
+          return Map<String, dynamic>.from(user);
+        }
       }
+      return null;
     }
     return null;
   }
@@ -113,13 +111,9 @@ class ApiService {
   Future<bool> ping() async {
     try {
       final res = await _dio.get<dynamic>('/auth/ping.php');
-      if (res.statusCode == 200 && res.data is Map) {
-        final resData = Map<String, dynamic>.from(res.data as Map);
-        return resData['success'] == true;
-      }
-      return false;
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in api_service.dart: ');
+      final data = res.data;
+      return res.statusCode == 200 && data is Map && data['success'] == true;
+    } catch (_) {
       return false;
     }
   }
@@ -202,12 +196,9 @@ class ApiService {
       'image': await MultipartFile.fromFile(filePath),
     });
     final res = await _dio.post<dynamic>('/uploads/rooms.php', data: form);
-    if (res.statusCode == 200 && res.data is Map) {
-      final resData = Map<String, dynamic>.from(res.data as Map);
-      if (resData['success'] == true) {
-        final data = resData['data'] as Map;
-        return data['url'] as String;
-      }
+    final data = res.data;
+    if (res.statusCode == 200 && data is Map && data['success'] == true) {
+      return (data['data'] as Map)['url'] as String;
     }
     return null;
   }

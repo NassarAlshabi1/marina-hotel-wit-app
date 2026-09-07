@@ -416,8 +416,7 @@ class _RemoteConfigSettingsScreenState
     try {
       final dt = DateTime.parse(iso);
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} — ${dt.day}/${dt.month}/${dt.year}';
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in remote_config_settings_screen.dart: ');
+    } catch (_) {
       return iso;
     }
   }

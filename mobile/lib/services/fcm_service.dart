@@ -10,7 +10,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
-import 'appwrite_messaging_service.dart';
 import 'appwrite_sync_manager.dart';
 
 /// خدمة Firebase Cloud Messaging
@@ -66,7 +65,6 @@ class FcmService {
 
         // 4.b ✅ تسجيل الجهاز في Appwrite Messaging أيضاً (بالتوازي مع FCM التقليدي)
         // هذا يُتيح الاستفادة من مزايا Messaging API (Logs, Topics, UI)
-        await _registerInAppwriteMessaging(_currentToken!);
       }
 
       // 5. الاستماع لتغيير التوكن — حفظ الاشتراك لإلغائه عند التنظيف
@@ -85,7 +83,6 @@ class FcmService {
         }
 
         // ✅ تحديث التوكن في Appwrite Messaging أيضاً
-        await _registerInAppwriteMessaging(newToken);
       });
 
       // 6. الاستماع للرسائل الواردة
@@ -334,28 +331,6 @@ class FcmService {
   ///   - إرسال مركزي عبر Function بدون Firebase Admin SDK
   ///
   /// آمنة للفشل — إذا تعذّر التسجيل، يُكمل التطبيق بدون مشاكل (FCM التقليدي يعمل).
-  Future<void> _registerInAppwriteMessaging(String fcmToken) async {
-    try {
-      final messagingService = AppwriteMessagingService();
-      if (!messagingService.isInitialized) {
-        await messagingService.initialize();
-      }
-      final targetId = await messagingService.registerDevice(
-        fcmToken: fcmToken,
-      );
-      if (targetId != null) {
-        debugPrint('✅ Device also registered in Appwrite Messaging: $targetId');
-        // اشترك في Topics الافتراضية
-        await messagingService.subscribeToTopics(MessagingTopics.all);
-      }
-    } catch (e) {
-      // آمن للفشل — نُسجّل تحذيراً فقط
-      debugPrint(
-        '⚠️ Appwrite Messaging registration failed (FCM still works): $e',
-      );
-    }
-  }
-
   /// الحصول على التوكن الحالي
   String? get currentToken => _currentToken;
 

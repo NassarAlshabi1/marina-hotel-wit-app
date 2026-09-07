@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls)
-// ignore_for_file: avoid_dynamic_calls
 import 'dart:async';
 import 'dart:io';
 
@@ -172,12 +170,12 @@ class SmartSyncManager {
     // متتاليتين بدون أي await بينهما. سابقاً كان هناك await points
     // (shouldSkipSync, isLimitExceeded) بين canStart و markStarted، مما
     // يسمح لخدمة أخرى بالدخول في الفجوة وبدء مزامنة متزامنة.
-    if (!SyncGuard.canStart(label: 'smart_sync')) {
+    // ✅ Wave 5: ownership-safe tryAcquire (with token).
+    final token = SyncGuard.tryAcquire(label: 'smart_sync');
+    if (token == null) {
       _log('⏸️ تم تخطي المزامنة — خدمة أخرى نشطة (${SyncGuard.activeLabel})');
       return;
     }
-    // ✅ احجز الـ lock فوراً قبل أي await
-    SyncGuard.markStarted(label: 'smart_sync');
 
     try {
       // تحقق من قيود الأداء (بعد حجز الـ lock)
@@ -204,7 +202,7 @@ class SmartSyncManager {
       _log('⚠️ فشل فحص المزامنة المُحسَّن: $e');
       // لا rethrow
     } finally {
-      SyncGuard.markFinished();
+      SyncGuard.release(token);
     }
   }
 
@@ -421,8 +419,8 @@ class SmartSyncManager {
       // البحث عن التضارب
       for (final uuid in localMap.keys) {
         if (remoteMap.containsKey(uuid)) {
-          final localRecord = localMap[uuid];
-          final remoteRecord = remoteMap[uuid];
+          final localRecord = localMap[uuid] as Map<String, dynamic>;
+          final remoteRecord = remoteMap[uuid] as Map<String, dynamic>;
 
           // مقارنة timestamps
           final localTimestamp = localRecord['last_modified'] as int?;
@@ -442,8 +440,8 @@ class SmartSyncManager {
                 DataConflict(
                   tableName: tableName,
                   recordId: uuid,
-                  localRecord: localRecord as Map<String, dynamic>,
-                  remoteRecord: remoteRecord as Map<String, dynamic>,
+                  localRecord: localRecord,
+                  remoteRecord: remoteRecord,
                   localTimestamp: localTime,
                   remoteTimestamp: remoteTime,
                 ),
@@ -640,7 +638,8 @@ class SmartSyncManager {
       );
 
       // إرسال عبر Telegram
-      unawaited(TelegramNotificationService.instance.notifySyncError(
+      unawaited(
+        TelegramNotificationService.instance.notifySyncError(
           operation: 'sync',
           error: errorMsg,
         ),

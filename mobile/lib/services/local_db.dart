@@ -1,4 +1,3 @@
-// ignore_for_file: unused_catch_stack
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
@@ -11,7 +10,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
-import '../utils/hotel_time_engine.dart';
+import '../utils/weak_device_optimizer.dart';
 
 part 'local_db.g.dart';
 
@@ -33,6 +32,7 @@ mixin SyncFields on Table {
   TextColumn get origin => text().withDefault(const Constant('local'))();
   TextColumn get vectorClock => text().withDefault(const Constant('{}'))();
   TextColumn get deviceId => text().withDefault(const Constant(''))();
+  IntColumn get syncTimestamp => integer().withDefault(const Constant(0))();
   // ✅ v2: مفتاح إزالة التكرار (idempotency) — يمنع تكرار العمليات عبر الأجهزة
   TextColumn get idempotencyKey => text().nullable()();
 }
@@ -101,6 +101,8 @@ class Bookings extends Table with SyncFields {
   BoolColumn get isFullyPaid => boolean().withDefault(const Constant(false))();
   TextColumn get hotelDayCheckin => text().nullable()();
   TextColumn get hotelDayCheckout => text().nullable()();
+  IntColumn get financialFrozenAt => integer().nullable()();
+  TextColumn get financialHash => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -122,6 +124,10 @@ class Bookings extends Table with SyncFields {
     Index(
       'idx_bookings_checkin',
       'CREATE INDEX idx_bookings_checkin ON bookings (checkin_date)',
+    ),
+    Index(
+      'idx_bookings_active_checkin',
+      'CREATE INDEX idx_bookings_active_checkin ON bookings (checkin_date DESC) WHERE deleted_at IS NULL',
     ),
   ];
 }
@@ -198,6 +204,18 @@ class Expenses extends Table with SyncFields {
       'idx_expenses_date',
       'CREATE INDEX idx_expenses_date ON expenses (date)',
     ),
+    Index(
+      'idx_expenses_active_hotel_day',
+      'CREATE INDEX idx_expenses_active_hotel_day ON expenses (hotel_day_key, expense_type, date) WHERE deleted_at IS NULL',
+    ),
+    Index(
+      'idx_expenses_legacy_active_date',
+      'CREATE INDEX idx_expenses_legacy_active_date ON expenses (date) WHERE hotel_day_key IS NULL AND deleted_at IS NULL',
+    ),
+    Index(
+      'idx_expenses_active_date',
+      'CREATE INDEX idx_expenses_active_date ON expenses (date DESC) WHERE deleted_at IS NULL',
+    ),
   ];
 }
 
@@ -251,6 +269,15 @@ class Payments extends Table with SyncFields {
   BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
   IntColumn get voidedAt => integer().nullable()();
   TextColumn get voidedBy => text().nullable()();
+  TextColumn get voidReason => text().nullable()();
+  BoolColumn get isImmutable => boolean().withDefault(const Constant(false))();
+  // هوية الموظف وجلسة تسجيل الدخول التي استلمت الدفعة.
+  // Nullable للتوافق مع السجلات القديمة قبل تفعيل الخيار A.
+  IntColumn get receivedByUserId => integer().nullable()();
+  TextColumn get receivedByName => text().nullable()();
+  TextColumn get receivedSessionUuid => text().nullable()();
+  // معرّف مستخدم Appwrite Cloud الثابت بين الأجهزة.
+  TextColumn get receivedByCloudId => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -276,6 +303,22 @@ class Payments extends Table with SyncFields {
     Index(
       'idx_payments_method',
       'CREATE INDEX idx_payments_method ON payments (payment_method)',
+    ),
+    Index(
+      'idx_payments_active_hotel_day',
+      'CREATE INDEX idx_payments_active_hotel_day ON payments (hotel_day_key, revenue_type, payment_date) WHERE deleted_at IS NULL AND is_voided = 0',
+    ),
+    Index(
+      'idx_payments_legacy_active_date',
+      'CREATE INDEX idx_payments_legacy_active_date ON payments (payment_date) WHERE hotel_day_key IS NULL AND deleted_at IS NULL AND is_voided = 0',
+    ),
+    Index(
+      'idx_payments_active_report_date',
+      'CREATE INDEX idx_payments_active_report_date ON payments (payment_date DESC) WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0',
+    ),
+    Index(
+      'idx_payments_active_receiver_session',
+      'CREATE INDEX idx_payments_active_receiver_session ON payments (received_by_user_id, received_session_uuid, hotel_day_key) WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0',
     ),
   ];
 }
@@ -305,6 +348,20 @@ class Debts extends Table with SyncFields {
       boolean().withDefault(const Constant(false))();
   BoolColumn get settlementConfirmed =>
       boolean().withDefault(const Constant(false))();
+  TextColumn get guestPhone => text().nullable()();
+  TextColumn get description => text().nullable()();
+  TextColumn get status => text().nullable()();
+  TextColumn get dueDate => text().nullable()();
+
+  /// ✅ Wave 6 (2026-08-12): حقول إضافية مطلوبة من Appwrite Cloud.
+  /// موجودة في schemaAttributeTypes و filterPayload لـ debts لكنها
+  /// كانت مفقودة من الـ Drift table — مما يمنع الـ push و pull.
+  /// انظر appwrite_sync_utils.dart:362-411 (whitelist) و
+  /// appwrite_schema_verifier.dart:301-304 (Cloud schema).
+  TextColumn get bookingUuidCache => text().nullable()();
+  TextColumn get debtorName => text().nullable()();
+  RealColumn get amount => real().nullable()();
+  TextColumn get date => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -384,6 +441,9 @@ class BookingNights extends Table with SyncFields {
   RealColumn get finalRate => real().withDefault(const Constant(0.0))();
   TextColumn get appliedAdjustmentUuid => text().nullable()();
   TextColumn get appliedAdjustmentsJson => text().nullable()();
+  // ✅ حقول مضافة لمطابقة مخطط Appwrite
+  TextColumn get bookingUuidCache => text().nullable()();
+  IntColumn get serverBookingId => integer().nullable()();
 
   @override
   List<Set<Column>>? get uniqueKeys => [
@@ -424,12 +484,19 @@ class PriceAdjustments extends Table with SyncFields {
   TextColumn get targetType => text()();
   TextColumn get targetUuid => text()();
   TextColumn get adjustmentType => text()();
-  IntColumn get previousValue => integer()();
-  IntColumn get newValue => integer()();
+  // ✅ Wave 6b (2026-08-12): changed from IntColumn → RealColumn
+  // Cloud schema defines these as 'double' (انظر appwrite_schema_verifier.dart).
+  // سابقاً كانت IntColumn مما يسبب truncation للقيم الكسرية مثل 1500.75 → 1500.
+  RealColumn get previousValue => real()();
+  RealColumn get newValue => real()();
   TextColumn get reason => text().nullable()();
   TextColumn get effectiveDate => text()();
   TextColumn get appliedBy => text()();
-  TextColumn get hotelDayKey => text()();
+  TextColumn get hotelDayKey => text().nullable()();
+  TextColumn get adjustmentMode =>
+      text().withDefault(const Constant('per_night'))();
+  TextColumn get bookingUuid => text().nullable()();
+  IntColumn get appliedAt => integer().nullable()();
   BoolColumn get isReversed => boolean().withDefault(const Constant(false))();
   TextColumn get reversedAt => text().nullable()();
   TextColumn get reversedBy => text().nullable()();
@@ -457,9 +524,6 @@ class BookingPriceAdjustments extends Table with SyncFields {
   IntColumn get bookingLocalId =>
       integer().nullable().references(Bookings, #id)();
   TextColumn get roomNumber => text().withLength(min: 1, max: 20).nullable()();
-  IntColumn get adjustmentType => integer().withDefault(const Constant(0))();
-  TextColumn get adjustmentMode =>
-      text().withDefault(const Constant('per_night'))();
   RealColumn get amount => real().withDefault(const Constant(0.0))();
   TextColumn get effectiveHotelDay => text()();
   TextColumn get endHotelDay => text().nullable()();
@@ -468,6 +532,11 @@ class BookingPriceAdjustments extends Table with SyncFields {
   TextColumn get appliedBy => text().nullable()();
   TextColumn get cancelledAt => text().nullable()();
   TextColumn get cancelledBy => text().nullable()();
+  TextColumn get bookingUuid => text().nullable()();
+  // ✅ حقول مضافة لمطابقة مخطط Appwrite (Migration 53 / payload_mapper)
+  IntColumn get adjustmentType => integer().nullable()();
+  TextColumn get adjustmentMode => text().nullable()();
+  IntColumn get appliedAt => integer().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -559,6 +628,7 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
   TextColumn get notes => text().nullable()();
+  TextColumn get guestPhone => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -679,11 +749,6 @@ class SalaryWithdrawals extends Table with SyncFields {
       'idx_salary_withdrawals_expense',
       'CREATE INDEX idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
     ),
-    // ✅ index على hotelDayKey لتسريع فلترة التقارير باليوم الفندقي
-    Index(
-      'idx_salary_withdrawals_hotel_day',
-      'CREATE INDEX idx_salary_withdrawals_hotel_day ON salary_withdrawals (hotel_day_key)',
-    ),
   ];
 }
 
@@ -700,6 +765,12 @@ class SalaryCarryOverLogs extends Table with SyncFields {
   TextColumn get newCycleEnd => text()();
   TextColumn get reason => text()();
   IntColumn get carriedAt => integer()();
+  TextColumn get fromCycleId => text().nullable()();
+  TextColumn get toCycleId => text().nullable()();
+  TextColumn get carryDate => text().nullable()();
+  TextColumn get performedBy => text().nullable()();
+  // ✅ حقل مضاف لمطابقة مخطط Appwrite
+  TextColumn get hotelDayKey => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -719,6 +790,10 @@ class Outbox extends Table {
   IntColumn get clientTs => integer()();
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
+  // ✅ P0-1 Audit Fix (2026-08-06): UNIQUE constraint على idempotencyKey
+  // سابقاً كان nullable بدون unique، مما يسمح بتكرار نفس العملية على الـ cloud
+  // عند retry بعد timeout. UNIQUE يمنع التكرار ويُطبَّق عبر partial unique index
+  // في migration 51 (WHERE idempotency_key IS NOT NULL).
   TextColumn get idempotencyKey => text().nullable()();
   TextColumn get processingStatus =>
       text().withDefault(const Constant('pending'))();
@@ -744,6 +819,45 @@ class Outbox extends Table {
       boolean().withDefault(const Constant(false))();
   BoolColumn get deliveredToSecondary =>
       boolean().withDefault(const Constant(true))();
+
+  /// ✅ Sync Safety Fix (2026-08-10): فصل processing state لكل وجهة.
+  /// سابقاً، processingStatus و attempts و lastError كانت مشتركة بين
+  /// Primary و Secondary. هذا يعني أن فشل Secondary في معالجة سجل
+  /// يمنع Primary من معالجته (لأن processingStatus قد تكون 'failed').
+  /// الآن: كل وجهة لها حالة منفصلة.
+  TextColumn get primaryProcessingStatus =>
+      text().withDefault(const Constant('pending'))();
+  IntColumn get primaryAttempts => integer().withDefault(const Constant(0))();
+  TextColumn get primaryLastError => text().nullable()();
+  TextColumn get secondaryProcessingStatus =>
+      text().withDefault(const Constant('pending'))();
+  IntColumn get secondaryAttempts => integer().withDefault(const Constant(0))();
+  TextColumn get secondaryLastError => text().nullable()();
+
+  /// ✅ Wave 5 (2026-08-12): Generation field لمنع stale acknowledgements.
+  ///
+  /// يُزداد بمقدار 1 كل مرة يتم فيها تحديث payload أو op أو clientTs في
+  /// `merge()`. عند الالتقاط (claim)، يتم تخزين قيمة `payloadVersion` في
+  /// `processingPayloadVersion`. عند التأكيد (markDelivered/setError/etc.)
+  /// يتحقق الكود أن `processingPayloadVersion == payloadVersion` الحالية.
+  ///
+  /// إذا تغيرت `payloadVersion` أثناء المعالجة (لأن `merge` أخرى حدّثت
+  /// payload أثناء عمل worker قديم)، يرفض الكود التأكيد ويُعيد السجل
+  /// لـ pending ليُعالج من جديد.
+  ///
+  /// **مثال على السباق الذي يمنعه**:
+  /// 1. worker-A يلتقط السجل (payloadVersion=5, processingPayloadVersion=5)
+  /// 2. أثناء معالجة worker-A، payload يُحدَّث (payloadVersion=6)
+  /// 3. worker-A يحاول تأكيد التسليم
+  /// 4. الكود يرى processingPayloadVersion=5 != payloadVersion=6
+  /// 5. التأكيد يُرفض، السجل يُعاد لـ pending، worker-A يُعاد رفعه
+  ///
+  /// القيمة الافتراضية: 1 (للسجلات الجديدة)
+  IntColumn get payloadVersion => integer().withDefault(const Constant(1))();
+
+  /// ✅ Wave 5: قيمة `payloadVersion` عند الالتقاط (claim).
+  /// تُستخدم للتحقق من أن العامل الذي يؤكد التسليم هو نفس العامل الذي التقطه.
+  IntColumn get processingPayloadVersion => integer().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -779,6 +893,10 @@ class Outbox extends Table {
       'idx_outbox_delivery_secondary',
       'CREATE INDEX idx_outbox_delivery_secondary ON outbox (delivered_to_secondary, processing_status)',
     ),
+    Index(
+      'idx_outbox_pending_primary_source_ts',
+      "CREATE INDEX idx_outbox_pending_primary_source_ts ON outbox (source, client_ts) WHERE processing_status = 'pending' AND delivered_to_primary = 0",
+    ),
   ];
 }
 
@@ -789,6 +907,33 @@ class SyncState extends Table {
   IntColumn get lastPushTs => integer().withDefault(const Constant(0))();
   IntColumn get isSyncing => integer().withDefault(const Constant(0))();
   IntColumn get version => integer().withDefault(const Constant(1))();
+
+  /// ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Flag.
+  ///
+  /// `full_sync_complete = 0` (default): الجهاز في مرحلة bootstrap — يجب
+  /// القيام بـ full sync كامل. لا يُسمح بالتحول لـ delta sync حتى تكتمل
+  /// كل الكولكشنات بنجاح في دورة واحدة.
+  ///
+  /// `full_sync_complete = 1`: اكتملت أول full sync بنجاح — يمكن استخدام
+  /// delta sync بشكل آمن (لن نفقد سجلات لم تُسحب بعد).
+  ///
+  /// **المشكلة التي يحلها**: قبل هذا الـ flag، كان النظام يعتمد فقط على
+  /// `lastPullTs == 0` لتحديد "full sync mode". لكن هذا يعني:
+  /// 1. إذا نجحت أول دورة full sync جزئياً (مثلاً 18 من 19 collection)،
+  ///    `failedCollections.isEmpty` يمنع تحديث `lastPullTs`، فالدورة التالية
+  ///    تعيد full sync — هذا جيد.
+  /// 2. لكن إذا نجحت كل الكولكشنات ظاهرياً (لا exception) لكن بعض السجلات
+  ///    لم تُعالج داخل `_syncXxx` (مثلاً skip بسبب تعارض غير متوقع)،
+  ///    `lastPullTs` يُحدَّث والجهاز يتحول لـ delta mode — فقدان صامت.
+  ///
+  /// مع هذا الـ flag، حتى لو نُجح الـ full sync ظاهرياً، نضبط الـ flag
+  /// فقط بعد التحقق من أن كل كولكشن عاد بنتيجة متوقعة (records > 0 أو
+  /// دورة فارغة معروفة). حتى ذلك الحين، الـ delta queries تُرجع قائمة
+  /// فارغة (full fetch) لضمان عدم فقدان أي سجل.
+  ///
+  /// Migration 56 يضيف هذا العمود مع DEFAULT 0.
+  IntColumn get fullSyncComplete => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -877,6 +1022,144 @@ class SyncConflicts extends Table {
   ];
 }
 
+/// أصناف المخزون المحلية. الرصيد الحالي مشتق من حركات الوارد والصرف والجرد.
+class InventoryItems extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().unique()();
+  TextColumn get unit => text().withDefault(const Constant('قطعة'))();
+  TextColumn get category => text().nullable()();
+  IntColumn get quantity => integer().withDefault(const Constant(0))();
+  IntColumn get minimumQuantity => integer().withDefault(const Constant(0))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  List<Index> get indexes => [
+    Index(
+      'idx_inventory_items_active_name',
+      'CREATE INDEX idx_inventory_items_active_name ON inventory_items (is_active, name)',
+    ),
+  ];
+}
+
+class InventoryTransactions extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get itemLocalUuid => text().nullable()();
+  IntColumn get itemId => integer().references(InventoryItems, #id)();
+  TextColumn get movementType => text()();
+  IntColumn get quantity => integer()();
+  IntColumn get balanceAfter => integer()();
+  TextColumn get note => text().nullable()();
+  IntColumn get userId => integer().nullable()();
+  TextColumn get userName => text().nullable()();
+  List<Index> get indexes => [
+    Index(
+      'idx_inventory_transactions_item_date',
+      'CREATE INDEX idx_inventory_transactions_item_date ON inventory_transactions (item_id, created_at DESC)',
+    ),
+  ];
+}
+
+/// ✅ (2026-09-05) جدول app_users — حسابات مستخدمي التطبيق ككيان متزامن.
+///
+/// تعليمات المستخدم («النطاق الافتراضي المزامنة … user_app … أيضاً
+/// pull/push و outbox delta sync»): كيان app_users كان يُزامَن عبر
+/// Appwrite Cloud (appwrite_config.dart:116، outbox_dao.dart
+/// _entityTableMap، auth_local_store._enqueuePermissionSync) لكن طبقة
+/// Cloudflare أسقطته كلياً — لا جدول Drift ولا جدول D1 ولا إدخال في
+/// ENTITY_TABLES، فأي تغيير حسابات لا يصل D1 وأي سحب له يتقدم cursor
+/// فوق صفوف مفقودة.
+///
+/// يخدم ثلاث أدوار:
+/// 1. Landing zone للسحب (delta pull) — بدونه _applyChange يَطيّر
+///    الكيان بلا جدول محلي ويُفقَد صمتاً.
+/// 2. مصدر رفع D1 (تبويب النسخ الاحتياطي + مسار الترحيل).
+/// 3. هدف الكتابة المحلية لتغيّرات الحسابات (auth_local_store) التي
+///    تُغذّي outbox بحمولات snake_case مطابقة لأعمدة D1.
+///
+/// الأعمدة مرآة مجموعة app_users الحية في Appwrite
+/// (schema_extract.json validFieldsPerCollection['app_users'])
+/// بصيغة snake_case؛ الحقلان المكرران userType/user_type في المجموعة
+/// الحية يُمثَّلان بعمود user_type واحد (الكود المُنشئ يكتبهما
+/// بنفس القيمة دائماً — auth_local_store).
+class AppUsers extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get username => text()();
+  TextColumn get password => text().nullable()();
+  TextColumn get fullName => text().withDefault(const Constant(''))();
+  TextColumn get userType => text().withDefault(const Constant(''))();
+  TextColumn get permissions => text().nullable()();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+  IntColumn get lastLogin => integer().nullable()();
+  IntColumn get credentialsVersion =>
+      integer().withDefault(const Constant(0))();
+  TextColumn get role => text().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_app_users_updated',
+      'CREATE INDEX idx_app_users_updated ON app_users (updated_at)',
+    ),
+    Index(
+      'idx_app_users_deleted',
+      'CREATE INDEX idx_app_users_deleted ON app_users (deleted_at)',
+    ),
+    Index(
+      'idx_app_users_username',
+      'CREATE INDEX idx_app_users_username ON app_users (username)',
+    ),
+  ];
+}
+
+/// ✅ (2026-09-05) جدول devices — سجل الأجهزة ككيان متزامن (تعليمات
+/// المستخدم: «… و devices — أيضاً pull/push و outbox و delta sync»).
+///
+/// سابقاً كان تسجيل الجهاز مساراً REST فقط (/api/devices/register يكتب
+/// جدول FCM الضيق بلا local_uuid/SyncFields) بينما سجل Appwrite
+/// (DeviceRegistrar → مجموعة devices) سقط من طبقة Cloudflare. الآن:
+/// 1. Landing zone للسحب — سجل كل جهاز يُسحب محلياً (شاشات الأجهزة
+///    تقرأ من هنا — getRegisteredDevices).
+/// 2. مصدر رفع D1 (تبويب النسخ + الترحيل).
+/// 3. هدف كتابة تسجيل الجهاز (registerDevice/setFcmToken) مع outbox.
+///
+/// الأعمدة مرآة مجموعة devices الحية في Appwrite
+/// (appwrite_sync_utils.dart whitelist) بصيغة snake_case.
+/// ملاحظة معمارية: SyncFields.deviceId (جهاز الكاتب) يُعاد تعريفه هنا
+/// ليهو هوية الجهاز نفسها الفريدة — لصف الجهاز، الكاتب هو الجهاز.
+@DataClassName('DeviceRow')
+class Devices extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// ✅ إعادة تعريف عمود SyncFields.device_id: هوية الجهاز الفريدة
+  /// (cf_dev_*) — نفس القيمة المرسلة في /api/devices/register وفي
+  /// عمليات outbox، فتتقارب مسارات REST والمزامنة على صف واحد.
+  @override
+  TextColumn get deviceId => text().unique()();
+  TextColumn get deviceName => text().withDefault(const Constant(''))();
+  TextColumn get deviceModel => text().nullable()();
+  TextColumn get deviceType => text().nullable()();
+  TextColumn get osVersion => text().nullable()();
+  TextColumn get platform => text().nullable()();
+  TextColumn get appVersion => text().nullable()();
+  TextColumn get fcmToken => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  TextColumn get lastSeen => text().nullable()();
+  IntColumn get lastActive => integer().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_devices_updated',
+      'CREATE INDEX idx_devices_updated ON devices (updated_at)',
+    ),
+    Index(
+      'idx_devices_deleted',
+      'CREATE INDEX idx_devices_deleted ON devices (deleted_at)',
+    ),
+    Index(
+      'idx_devices_status',
+      'CREATE INDEX idx_devices_status ON devices (status)',
+    ),
+  ];
+}
+
 /// ✅ جدول AncestorCache — يخزّن آخر نسخة معروفة مشتركة (common ancestor)
 /// لكل سجل، ويُستخدم في الدمج ثلاثي الأطراف (3-way merge) لحل التعارضات.
 ///
@@ -893,6 +1176,27 @@ class AncestorCache extends Table {
   List<Set<Column>> get uniqueKeys => [
     {entity, localUuid},
   ];
+}
+
+/// ✅ (2026-08-30) الفجوتان 3+4 — خريطة $updatedAt البعيدة لكل مستند مُسحوب.
+///
+/// تُستخدم في السحب الكامل (metadata-first): نسحب ($id + $updatedAt) فقط من
+/// الخادم ونقارنها بهذه الخريطة، ثم نُنزّل المستند الكامل فقط لما تغيّر فعلاً.
+/// تُحدَّث في `_checkpointEntity` بعد نجاح تطبيق كل دفعة سحب (delta أو full)،
+/// لذا وجود صف بطابع زمني يعني أن المحلي يملك محتوى ذلك الإصدار من الخادم.
+@DataClassName('SyncRemoteMetaRow')
+class SyncRemoteMeta extends Table {
+  /// معرّف كولكشن Appwrite (مثل 'bookings')
+  TextColumn get collection => text()();
+
+  /// معرّف المستند على الخادم ($id)
+  TextColumn get docId => text()();
+
+  /// $updatedAt بالثواني لآخر إصدار جُلب وطبّق بنجاح (سلطة الخادم)
+  IntColumn get remoteUpdatedAtSec => integer()();
+
+  @override
+  Set<Column> get primaryKey => {collection, docId};
 }
 
 @DriftDatabase(
@@ -926,7 +1230,12 @@ class AncestorCache extends Table {
     GuestInfos,
     SalaryWithdrawals,
     SalaryCarryOverLogs,
+    InventoryItems,
+    InventoryTransactions,
+    AppUsers,
+    Devices,
     AncestorCache,
+    SyncRemoteMeta,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -936,7 +1245,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 51;
+  int get schemaVersion => 67;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -945,15 +1254,70 @@ class AppDatabase extends _$AppDatabase {
       // تحسينات الأداء: WAL mode للقراءة والكتابة المتوازية
       await customStatement('PRAGMA journal_mode = WAL');
       await customStatement('PRAGMA synchronous = NORMAL');
-      await customStatement('PRAGMA cache_size = -8192');
-      await customStatement('PRAGMA temp_store = MEMORY');
-      await customStatement('PRAGMA mmap_size = 268435456');
+      // ✅ Low-RAM tuning (1GB devices): تقليل بصمة الذاكرة لمنع OOM-kill.
+      // القيم الافتراضية للأجهزة العادية؛ تُخفّض فقط على الأجهزة الضعيفة.
+      final weak = WeakDeviceOptimizer.instance.isWeakDevice;
+      await customStatement('PRAGMA busy_timeout = 5000');
+      if (weak) {
+        // 2MB page cache + 16MB mmap، temp يذهب للملف لا للذاكرة.
+        await customStatement('PRAGMA cache_size = -2048');
+        await customStatement('PRAGMA temp_store = FILE');
+        await customStatement('PRAGMA mmap_size = 16777216');
+      } else {
+        await customStatement('PRAGMA cache_size = -8192');
+        await customStatement('PRAGMA temp_store = MEMORY');
+        await customStatement('PRAGMA mmap_size = 268435456');
+      }
       // ✅ تم إزالة PRAGMA page_size = 4096 — لا يعمل بعد إنشاء قاعدة البيانات
       // page_size يجب تعيينه فقط عند إنشاء قاعدة بيانات جديدة، وبما أن
       // قاعدة البيانات موجودة مسبقاً بقيمة مختلفة (غالباً 1024) فهذا إهدار I/O
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-09-05) الإصدار 67: جدول devices ككيان متزامن كامل
+      // (تعليمات المستخدم: النطاق الافتراضي يشمل devices مع pull/push
+      // وoutbox وdelta sync). يُنشأ لكل الترقيات (من أي إصدار) — فارغ
+      // مبدئياً؛ تمتلئ صفوفه من تسجيل الجهاز (registerDevice) والسحب.
+      if (from < 67) {
+        await m.createTable(devices);
+      }
+      // ✅ (2026-09-05) الإصدار 66: جدول app_users ككيان متزامن كامل
+      // (تعليمات المستخدم: النطاق الافتراضي للمزامنة يشمل حسابات
+      // المستخدمين مع pull/push وoutbox delta sync). يُنشأ لكل الترقيات
+      // (من أي إصدار) — فارغ مبدئياً؛ تمتلئ صفوفه من كتابة
+      // auth_local_store المحلية ومن السحب من D1.
+      if (from < 66) {
+        await m.createTable(appUsers);
+      }
+      // ✅ (2026-08-30) الإصدار 65: جدول sync_remote_meta للسحب metadata-first.
+      // يُنشأ لكل الترقيات (من أي إصدار) — فارغ مبدئياً فأول سحب كامل بعد
+      // الترقية يبنيه تدريجياً من دفعات checkpoint الناجحة.
+      if (from < 65) {
+        await m.createTable(syncRemoteMeta);
+      }
+      if (from < 62) {
+        await m.createTable(inventoryItems);
+        await m.createTable(inventoryTransactions);
+      }
+      // الإصدار 63: إضافة UUID المرجعي لحركات المخزون الموجودة منذ الإصدار 62.
+      // لا نضيف العمود عند إنشاء الجداول لأول مرة (from < 62)، لأنه موجود
+      // ضمن تعريف الجدول الحالي بالفعل.
+      if (from >= 62 && from < 63) {
+        await m.addColumn(
+          inventoryTransactions,
+          inventoryTransactions.itemLocalUuid,
+        );
+      }
+      if (from < 61) {
+        await m.addColumn(payments, payments.receivedByUserId);
+        await m.addColumn(payments, payments.receivedByName);
+        await m.addColumn(payments, payments.receivedSessionUuid);
+      }
+      // الإصدار 64: هوية Appwrite Cloud الثابتة لاستلام الدفعة.
+      // Nullable عمداً؛ لا نعيد نسب السجلات القديمة إلى مستخدم دون دليل.
+      if (from < 64) {
+        await m.addColumn(payments, payments.receivedByCloudId);
+      }
       if (from < 2) {
         await m.addColumn(bookings, bookings.guestIdType);
         await m.addColumn(bookings, bookings.guestIdNumber);
@@ -1250,7 +1614,7 @@ class AppDatabase extends _$AppDatabase {
             'serverId column already exists in rooms table',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           // العمود غير موجود، نحتاج لإضافته
           try {
             await m.addColumn(rooms, rooms.serverId);
@@ -1283,7 +1647,7 @@ class AppDatabase extends _$AppDatabase {
             await m.database.customStatement(
               'SELECT server_id FROM $tableName LIMIT 1',
             );
-          } catch (e, st) {
+          } catch (e) {
             // العمود غير موجود
             try {
               await m.database.customStatement(
@@ -1410,7 +1774,7 @@ class AppDatabase extends _$AppDatabase {
             'remaining_balance_cached = CAST(ROUND(remaining_balance_cached) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: bookings conversion failed: $e',
             name: 'db.migration',
@@ -1422,7 +1786,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE employees SET basic_salary = CAST(ROUND(basic_salary) AS INTEGER) WHERE basic_salary IS NOT NULL',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: employees conversion failed: $e',
             name: 'db.migration',
@@ -1434,7 +1798,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE expenses SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: expenses conversion failed: $e',
             name: 'db.migration',
@@ -1446,7 +1810,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE cash_transactions SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: cash_transactions conversion failed: $e',
             name: 'db.migration',
@@ -1474,7 +1838,7 @@ class AppDatabase extends _$AppDatabase {
             'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: debts conversion failed: $e',
             name: 'db.migration',
@@ -1486,7 +1850,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE booking_nights SET nightly_rate = CAST(ROUND(nightly_rate) AS INTEGER) WHERE nightly_rate IS NOT NULL',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: booking_nights.nightly_rate conversion failed: $e',
             name: 'db.migration',
@@ -1496,7 +1860,7 @@ class AppDatabase extends _$AppDatabase {
         // إضافة أعمدة BookingNights الجديدة (baseRate, adjustment, finalRate)
         try {
           await m.addColumn(bookingNights, bookingNights.baseRate);
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: add baseRate failed: $e',
             name: 'db.migration',
@@ -1504,7 +1868,7 @@ class AppDatabase extends _$AppDatabase {
         }
         try {
           await m.addColumn(bookingNights, bookingNights.adjustment);
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: add adjustment failed: $e',
             name: 'db.migration',
@@ -1512,7 +1876,7 @@ class AppDatabase extends _$AppDatabase {
         }
         try {
           await m.addColumn(bookingNights, bookingNights.finalRate);
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: add finalRate failed: $e',
             name: 'db.migration',
@@ -1553,7 +1917,7 @@ class AppDatabase extends _$AppDatabase {
             'occupancy_rate = CAST(ROUND(occupancy_rate) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: hotel_day_ledger conversion failed: $e',
             name: 'db.migration',
@@ -1568,7 +1932,7 @@ class AppDatabase extends _$AppDatabase {
             'new_value = CAST(ROUND(new_value) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: price_adjustments conversion failed: $e',
             name: 'db.migration',
@@ -1596,7 +1960,7 @@ class AppDatabase extends _$AppDatabase {
             'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
             'WHERE 1=1',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: salary_cycles conversion failed: $e',
             name: 'db.migration',
@@ -1608,7 +1972,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE salary_payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: salary_payments conversion failed: $e',
             name: 'db.migration',
@@ -1620,7 +1984,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'UPDATE audit_logs SET amount_impact = CAST(ROUND(amount_impact) AS INTEGER) WHERE amount_impact IS NOT NULL',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: audit_logs conversion failed: $e',
             name: 'db.migration',
@@ -1630,7 +1994,7 @@ class AppDatabase extends _$AppDatabase {
         // إضافة حقل discountStartDate للحجوزات إذا لم يكن موجوداً
         try {
           await m.addColumn(bookings, bookings.discountStartDate);
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 24: add discountStartDate already exists or failed: $e',
             name: 'db.migration',
@@ -1660,7 +2024,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 26: added adjustmentMode column to booking_price_adjustments',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 26: add adjustmentMode failed: $e',
             name: 'db.migration',
@@ -1675,7 +2039,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 27: created guest_infos table',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 27: create guest_infos failed: $e',
             name: 'db.migration',
@@ -1690,7 +2054,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 28: created salary_withdrawals table',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 28: create salary_withdrawals failed: $e',
             name: 'db.migration',
@@ -1705,7 +2069,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 29: added payments.discountAmount',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 29: add payments.discountAmount failed: $e',
             name: 'db.migration',
@@ -1717,7 +2081,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 29: added payments.discountStartDate',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 29: add payments.discountStartDate failed: $e',
             name: 'db.migration',
@@ -1729,7 +2093,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 29: added payments.isVoided',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 29: add payments.isVoided failed: $e',
             name: 'db.migration',
@@ -1741,7 +2105,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 29: added payments.voidedAt',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 29: add payments.voidedAt failed: $e',
             name: 'db.migration',
@@ -1771,7 +2135,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 30: added salary_withdrawals.withdrawalType',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 30: add salary_withdrawals.withdrawalType failed: $e',
             name: 'db.migration',
@@ -2116,7 +2480,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 39: added employees.terminationDate',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 39: add employees.terminationDate failed: $e',
             name: 'db.migration',
@@ -2300,7 +2664,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 44: added outbox.delivered_to_primary column',
             name: 'db.migration',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 44: delivered_to_primary already exists: $e',
             name: 'db.migration',
@@ -2399,7 +2763,7 @@ class AppDatabase extends _$AppDatabase {
             await m.database.customStatement(
               'ALTER TABLE $table ADD COLUMN idempotency_key TEXT',
             );
-          } catch (e, st) {
+          } catch (e) {
             developer.log(
               'Migration 46: $table.idempotency_key already exists: $e',
               name: 'db.migration',
@@ -2411,7 +2775,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'ALTER TABLE employees ADD COLUMN employee_i_d TEXT',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 46: employees.employee_i_d already exists: $e',
             name: 'db.migration',
@@ -2442,7 +2806,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'ALTER TABLE payment_voids ADD COLUMN note TEXT',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 47: payment_voids.note already exists: $e',
             name: 'db.migration',
@@ -2452,7 +2816,7 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'ALTER TABLE payment_voids ADD COLUMN original_amount REAL',
           );
-        } catch (e, st) {
+        } catch (e) {
           developer.log(
             'Migration 47: payment_voids.original_amount already exists: $e',
             name: 'db.migration',
@@ -2472,152 +2836,644 @@ class AppDatabase extends _$AppDatabase {
           'Migration 47: added note, originalAmount, paymentUuid to payment_voids',
           name: 'db.migration',
         );
+      }
 
-        if (from < 48) {
-          // ✅ v2: إضافة SyncFields إلى audit_logs للتوافق مع مخطط Appwrite Cloud
-          // audit_logs لم يكن يمتلك حقول المزامنة الأساسية (serverId, updatedAt,
-          // lastModified, version, origin, vectorClock, إلخ)
-          // هذه الحقول ضرورية لتتبع مصدر وتوقيت كل سجل تدقيق عبر الأجهزة.
-          final auditLogColumns = <String, String>{
-            'server_id': 'INTEGER',
-            'updated_at': 'INTEGER',
-            'deleted_at': 'INTEGER',
-            'last_modified': 'INTEGER',
-            'created_at_iso': 'TEXT',
-            'updated_at_iso': 'TEXT',
-            'deleted_at_iso': 'TEXT',
-            'created_at_epoch': 'INTEGER NOT NULL DEFAULT 0',
-            'last_modified_epoch': 'INTEGER NOT NULL DEFAULT 0',
-            'version': 'INTEGER NOT NULL DEFAULT 1',
-            'origin': 'TEXT NOT NULL DEFAULT \'local\'',
-            'vector_clock': 'TEXT NOT NULL DEFAULT \'{}\'',
-            'idempotency_key': 'TEXT',
-          };
-          for (final column in auditLogColumns.entries) {
-            try {
-              await m.database.customStatement(
-                'ALTER TABLE audit_logs ADD COLUMN ${column.key} ${column.value}',
-              );
-              developer.log(
-                'Migration 48: added audit_logs.${column.key}',
-                name: 'db.migration',
-              );
-            } catch (e) {
-              // العمود موجود مسبقاً — ليس خطأ
-              developer.log(
-                'Migration 48: audit_logs.${column.key} already exists: $e',
-                name: 'db.migration',
-              );
-            }
-          }
-          developer.log(
-            'Migration 48: added SyncFields columns to audit_logs',
-            name: 'db.migration',
-          );
-        }
-
-        // === Migration 49: Performance indexes for sorted queries ===
-        if (from < 49) {
-          const perfIndexes = [
-            'CREATE INDEX IF NOT EXISTS idx_bookings_checkin ON bookings (checkin_date)',
-            'CREATE INDEX IF NOT EXISTS idx_debts_payment_date ON debts (payment_date)',
-            'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_log_created ON sync_log (created_at)',
-          ];
-          for (final sql in perfIndexes) {
-            try {
-              await m.database.customStatement(sql);
-              developer.log(
-                'Migration 49: created index: $sql',
-                name: 'db.migration',
-              );
-            } catch (e) {
-              developer.log(
-                'Migration 49: index already exists or failed: $e',
-                name: 'db.migration',
-              );
-            }
-          }
-          developer.log(
-            'Migration 49: performance indexes created successfully',
-            name: 'db.migration',
-          );
-        }
-
-        // === Migration 50: Additional indexes for frequently queried columns ===
-        if (from < 50) {
-          const additionalIndexes = [
-            'CREATE INDEX IF NOT EXISTS idx_booking_nights_booking ON booking_nights (booking_local_id)',
-            'CREATE INDEX IF NOT EXISTS idx_guest_infos_room ON guest_infos (room_number)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_log_sync_id ON sync_log (sync_id)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_log_device_id ON sync_log (device_id)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_conflicts_table_uuid ON sync_conflicts (table_name, uuid)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue (status)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON sync_queue (table_name)',
-          ];
-          for (final sql in additionalIndexes) {
-            try {
-              await m.database.customStatement(sql);
-              developer.log(
-                'Migration 50: created index: $sql',
-                name: 'db.migration',
-              );
-            } catch (e) {
-              developer.log(
-                'Migration 50: index already exists or failed: $e',
-                name: 'db.migration',
-              );
-            }
-          }
-          developer.log(
-            'Migration 50: additional indexes created successfully',
-            name: 'db.migration',
-          );
-        }
-
-        // ─── Migration 51: إصلاح booking_price_adjustments ───
-        // تعطيل is_active للسجلات التي:
-        //   1. لها cancelled_at (تم إلغاؤها) لكن is_active=1
-        //   2. لها endHotelDay < اليوم الفندقي لكن is_active=1
-        // هذا يمنع ظهور تعديلات منتهية/ملغاة كـ "نشطة" في UI.
-        if (from < 51) {
+      // === Migration 48: SyncFields لـ audit_logs ===
+      // ✅ P0-5 FIX (2026-08-06 Audit): كان هذا الـ block متعشّشاً داخل
+      // `if (from < 47)` — أي مستخدم على v47 لن يدخل الـ block الأب إطلاقاً،
+      // وبالتالي لن تُضاف حقول المزامنة إلى audit_logs. النتيجة: فشل صامت
+      // في مزامنة audit_logs وتراكمها في outbox بحالة failed ثم dead.
+      // الإصلاح: إخراج الـ block إلى top-level في onUpgrade.
+      if (from < 48) {
+        // ✅ v2: إضافة SyncFields إلى audit_logs للتوافق مع مخطط Appwrite Cloud
+        // audit_logs لم يكن يمتلك حقول المزامنة الأساسية (serverId, updatedAt,
+        // lastModified, version, origin, vectorClock, إلخ)
+        // هذه الحقول ضرورية لتتبع مصدر وتوقيت كل سجل تدقيق عبر الأجهزة.
+        final auditLogColumns = <String, String>{
+          'server_id': 'INTEGER',
+          'updated_at': 'INTEGER',
+          'deleted_at': 'INTEGER',
+          'last_modified': 'INTEGER',
+          'created_at_iso': 'TEXT',
+          'updated_at_iso': 'TEXT',
+          'deleted_at_iso': 'TEXT',
+          'created_at_epoch': 'INTEGER NOT NULL DEFAULT 0',
+          'last_modified_epoch': 'INTEGER NOT NULL DEFAULT 0',
+          'version': 'INTEGER NOT NULL DEFAULT 1',
+          'origin': 'TEXT NOT NULL DEFAULT \'local\'',
+          'vector_clock': 'TEXT NOT NULL DEFAULT \'{}\'',
+          'idempotency_key': 'TEXT',
+        };
+        for (final column in auditLogColumns.entries) {
           try {
-            // 1) السجلات الملغاة
             await m.database.customStatement(
-              'UPDATE booking_price_adjustments SET is_active = 0 '
-              'WHERE cancelled_at IS NOT NULL AND is_active = 1',
+              'ALTER TABLE audit_logs ADD COLUMN ${column.key} ${column.value}',
             );
             developer.log(
-              'Migration 51: deactivated cancelled adjustments',
+              'Migration 48: added audit_logs.${column.key}',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            // العمود موجود مسبقاً — ليس خطأ
+            developer.log(
+              'Migration 48: audit_logs.${column.key} already exists: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 48: added SyncFields columns to audit_logs',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 49: Performance indexes for sorted queries ===
+      // ✅ P0-5 FIX (2026-08-06 Audit): أُخرج من تعشّش Migration 47.
+      if (from < 49) {
+        const perfIndexes = [
+          'CREATE INDEX IF NOT EXISTS idx_bookings_checkin ON bookings (checkin_date)',
+          'CREATE INDEX IF NOT EXISTS idx_debts_payment_date ON debts (payment_date)',
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_log_created ON sync_log (created_at)',
+        ];
+        for (final sql in perfIndexes) {
+          try {
+            await m.database.customStatement(sql);
+            developer.log(
+              'Migration 49: created index: $sql',
               name: 'db.migration',
             );
           } catch (e) {
             developer.log(
-              'Migration 51: failed to deactivate cancelled: $e',
+              'Migration 49: index already exists or failed: $e',
               name: 'db.migration',
             );
           }
+        }
+        developer.log(
+          'Migration 49: performance indexes created successfully',
+          name: 'db.migration',
+        );
+      }
 
+      // === Migration 50: Additional indexes for frequently queried columns ===
+      // ✅ P0-5 FIX (2026-08-06 Audit): أُخرج من تعشّش Migration 47.
+      if (from < 50) {
+        const additionalIndexes = [
+          'CREATE INDEX IF NOT EXISTS idx_booking_nights_booking ON booking_nights (booking_local_id)',
+          'CREATE INDEX IF NOT EXISTS idx_guest_infos_room ON guest_infos (room_number)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_log_sync_id ON sync_log (sync_id)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_log_device_id ON sync_log (device_id)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_conflicts_table_uuid ON sync_conflicts (table_name, uuid)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue (status)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON sync_queue (table_name)',
+        ];
+        for (final sql in additionalIndexes) {
           try {
-            // 2) السجلات المنتهية (endHotelDay < اليوم)
-            final todayHotelDay = HotelTimeEngine.getHotelDayKey();
-            await m.database.customStatement(
-              'UPDATE booking_price_adjustments SET is_active = 0 '
-              'WHERE end_hotel_day IS NOT NULL '
-              "AND end_hotel_day != '' "
-              "AND end_hotel_day < '$todayHotelDay' "
-              'AND is_active = 1',
-            );
+            await m.database.customStatement(sql);
             developer.log(
-              'Migration 51: deactivated expired adjustments (before $todayHotelDay)',
+              'Migration 50: created index: $sql',
               name: 'db.migration',
             );
           } catch (e) {
             developer.log(
-              'Migration 51: failed to deactivate expired: $e',
+              'Migration 50: index already exists or failed: $e',
               name: 'db.migration',
             );
           }
+        }
+        developer.log(
+          'Migration 50: additional indexes created successfully',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 51: Audit Fixes (2026-08-06) ===
+      // ✅ P0-1: UNIQUE index على outbox.idempotency_key (partial — WHERE NOT NULL)
+      // ✅ P0-2: تحديث ancestor_cache.capturedAt من ثواني لمللي ثانية (×1000)
+      if (from < 51) {
+        // P0-1: UNIQUE index يمنع تكرار نفس idempotency_key في outbox
+        try {
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_outbox_idempotency_unique '
+            'ON outbox (idempotency_key) WHERE idempotency_key IS NOT NULL',
+          );
+          developer.log(
+            'Migration 51: created unique index on outbox.idempotency_key',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 51: idempotency unique index failed (may already exist): $e',
+            name: 'db.migration',
+          );
+        }
+
+        // P0-2: تحديث ancestor_cache.capturedAt من ثواني لمللي ثانية
+        // القيم القديمة (< 10^12) هي ثواني، نضربها في 1000 لتحويلها لمللي ثانية
+        try {
+          await m.database.customStatement(
+            'UPDATE ancestor_cache SET captured_at = captured_at * 1000 '
+            'WHERE captured_at < 1000000000000',
+          );
+          developer.log(
+            'Migration 51: converted ancestor_cache.captured_at to milliseconds',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 51: ancestor_cache timestamp conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        developer.log(
+          'Migration 51: audit fixes applied (unique idempotency + timestamp units)',
+          name: 'db.migration',
+        );
+      }
+      // === Migration 52: Add sync_timestamp to all SyncFields tables ===
+      if (from < 52) {
+        const syncTimestampTables = [
+          'rooms',
+          'bookings',
+          'booking_notes',
+          'employees',
+          'expenses',
+          'cash_transactions',
+          'payments',
+          'debts',
+          'shift_notes',
+          'booking_nights',
+          'hotel_day_ledger',
+          'price_adjustments',
+          'booking_price_adjustments',
+          'payment_voids',
+          'guest_infos',
+          'salary_cycles',
+          'salary_payments',
+          'salary_withdrawals',
+          'salary_carry_over_logs',
+          'audit_logs',
+        ];
+        for (final table in syncTimestampTables) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE $table ADD COLUMN sync_timestamp INTEGER DEFAULT 0',
+            );
+            developer.log(
+              'Migration 52: added sync_timestamp to $table',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 52: sync_timestamp already exists in $table: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 52: added sync_timestamp to all sync tables',
+          name: 'db.migration',
+        );
+      }
+      // === Migration 53: Add missing Appwrite schema fields ===
+      if (from < 53) {
+        developer.log(
+          'Migration 53: adding missing Appwrite fields...',
+          name: 'db.migration',
+        );
+
+        // bookings: financialFrozenAt, financialHash
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE bookings ADD COLUMN financial_frozen_at INTEGER DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE bookings ADD COLUMN financial_hash TEXT DEFAULT NULL',
+          );
+          developer.log(
+            'Migration 53: added financial_frozen_at, financial_hash to bookings',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: bookings fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // payments: voidReason, isImmutable
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE payments ADD COLUMN void_reason TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE payments ADD COLUMN is_immutable INTEGER DEFAULT 0',
+          );
+          developer.log(
+            'Migration 53: added void_reason, is_immutable to payments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: payments fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // debts: guestPhone, description, status, dueDate
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE debts ADD COLUMN guest_phone TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE debts ADD COLUMN description TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE debts ADD COLUMN status TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE debts ADD COLUMN due_date TEXT DEFAULT NULL',
+          );
+          developer.log(
+            'Migration 53: added guest_phone, description, status, due_date to debts',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: debts fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // price_adjustments: adjustmentMode, bookingUuid, appliedAt
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
+          );
+          await m.database.customStatement(
+            'ALTER TABLE price_adjustments ADD COLUMN booking_uuid TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL',
+          );
+          developer.log(
+            'Migration 53: added adjustment_mode, booking_uuid, applied_at to price_adjustments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: price_adjustments fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // booking_price_adjustments: adjustmentMode
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE booking_price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
+          );
+          developer.log(
+            'Migration 53: added adjustment_mode to booking_price_adjustments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: booking_price_adjustments adjustment_mode may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // booking_nights: bookingUuidCache, serverBookingId
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE booking_nights ADD COLUMN booking_uuid_cache TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE booking_nights ADD COLUMN server_booking_id INTEGER DEFAULT NULL',
+          );
+          developer.log(
+            'Migration 53: added booking_uuid_cache, server_booking_id to booking_nights',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: booking_nights fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // booking_price_adjustments: adjustmentType, appliedAt
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE booking_price_adjustments ADD COLUMN adjustment_type INTEGER DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE booking_price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL',
+          );
+          developer.log(
+            'Migration 53: added adjustment_type, applied_at to booking_price_adjustments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: booking_price_adjustments fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // salary_carry_over_logs: fromCycleId, toCycleId, carryDate, performedBy, hotelDayKey
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN from_cycle_id TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN to_cycle_id TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN carry_date TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN performed_by TEXT DEFAULT NULL',
+          );
+          await m.database.customStatement(
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN hotel_day_key TEXT DEFAULT NULL',
+          );
+          developer.log(
+            'Migration 53: added from_cycle_id, to_cycle_id, carry_date, performed_by, hotel_day_key to salary_carry_over_logs',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: salary_carry_over_logs fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        developer.log(
+          'Migration 53: all missing Appwrite schema fields added',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 54: syncTimestamp non-nullable DEFAULT 0 ===
+      // ✅ syncTimestamp كان nullable في SyncFields. تم تغييره إلى
+      // integer().withDefault(const Constant(0))() في الـ schema.
+      // SQLite لا يدعم ALTER COLUMN لتغيير nullable → NOT NULL مباشرة.
+      // الحل: backfill كل القيم NULL إلى 0. الأعمدة الموجودة فعلاً تحمل
+      // DEFAULT 0 (من Migration 52)، لكن القيم NULL المُدرجة يدوياً
+      // تحتاج backfill. بعد ذلك، Drift يتعامل مع INSERT الجديد كـ NOT NULL.
+      if (from < 54) {
+        const syncTimestampTables = [
+          'rooms',
+          'bookings',
+          'booking_notes',
+          'employees',
+          'expenses',
+          'cash_transactions',
+          'payments',
+          'debts',
+          'shift_notes',
+          'booking_nights',
+          'hotel_day_ledger',
+          'price_adjustments',
+          'booking_price_adjustments',
+          'payment_voids',
+          'guest_infos',
+          'salary_cycles',
+          'salary_payments',
+          'salary_withdrawals',
+          'salary_carry_over_logs',
+          'audit_logs',
+        ];
+        for (final table in syncTimestampTables) {
+          try {
+            await m.database.customStatement(
+              'UPDATE $table SET sync_timestamp = 0 WHERE sync_timestamp IS NULL',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 54: $table sync_timestamp backfill skipped: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 54: sync_timestamp backfilled to 0 for all SyncFields tables',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 55: Separate primary/secondary processing state ===
+      // ✅ Sync Safety Fix (2026-08-10): فصل حالة المعالجة لكل وجهة.
+      // سابقاً، processingStatus و attempts و lastError كانت مشتركة —
+      // فشل Secondary يمنع Primary من المعالجة.
+      if (from < 55) {
+        const newColumns = <String, String>{
+          'primary_processing_status': "TEXT DEFAULT 'pending'",
+          'primary_attempts': 'INTEGER DEFAULT 0',
+          'primary_last_error': 'TEXT',
+          'secondary_processing_status': "TEXT DEFAULT 'pending'",
+          'secondary_attempts': 'INTEGER DEFAULT 0',
+          'secondary_last_error': 'TEXT',
+        };
+        for (final entry in newColumns.entries) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE outbox ADD COLUMN ${entry.key} ${entry.value}',
+            );
+            developer.log(
+              'Migration 55: added outbox.${entry.key}',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 55: outbox.${entry.key} may already exist: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        // Backfill: نسخ الحالة المشتركة الحالية إلى primary columns
+        try {
+          await m.database.customStatement(
+            'UPDATE outbox SET primary_processing_status = processing_status, '
+            'primary_attempts = attempts, primary_last_error = last_error, '
+            'secondary_processing_status = processing_status, '
+            'secondary_attempts = attempts, secondary_last_error = last_error',
+          );
+          developer.log(
+            'Migration 55: backfilled primary/secondary state from shared columns',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 55: backfill failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+
+      // === Migration 56: Full Sync Bootstrap Flag ===
+      // ✅ Sync Safety Wave 2 (2026-08-12): إضافة عمود `full_sync_complete`
+      // إلى جدول sync_state. القيمة الافتراضية 0 (false) تعني أن الجهاز
+      // لم يكمل بعد أول full sync بنجاح، فيجب البقاء في وضع "full fetch"
+      // بدلاً من delta sync.
+      //
+      // هذا يمنع سيناريو خطير: إذا نجحت أول دورة full sync ظاهرياً
+      // (لا exception) لكن بعض السجلات لم تُعالج داخل `_syncXxx`، فإن
+      // `lastPullTs` يُحدَّث والجهاز يتحول لـ delta mode — مما يعني أن
+      // السجلات غير المُعالَجة لن تُسحب أبداً (لأن delta filter يستثنيها).
+      //
+      // مع هذا الـ flag، يتم ضبطه على 1 فقط بعد التحقق من اكتمال كل
+      // الكولكشنات بنجاح في دورة واحدة (failedCollections.isEmpty).
+      if (from < 56) {
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE sync_state ADD COLUMN full_sync_complete INTEGER NOT NULL DEFAULT 0',
+          );
+          developer.log(
+            'Migration 56: added sync_state.full_sync_complete column',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 56: sync_state.full_sync_complete may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+
+      // === Migration 57: Outbox payload_version + processing_payload_version ===
+      // ✅ Sync Safety Wave 5 (2026-08-12): Generation field لمنع stale ack.
+      //
+      // `payload_version`:
+      //   - يُزداد بمقدار 1 عند كل `merge()` تحدّث payload/op/clientTs
+      //   - يبدأ من 1 للسجلات الجديدة
+      //   - القيمة الافتراضية 1 (DEFAULT 1)
+      //
+      // `processing_payload_version`:
+      //   - قيمة `payload_version` عند الالتقاط (claim)
+      //   - nullable (NULL للسجلات غير المُلتقَطة)
+      //   - تُستخدم للتحقق أن العامل الذي يؤكد التسليم هو نفسه الذي التقطه
+      //
+      // السباق الذي يمنعه:
+      // 1. worker-A يلتقط السجل (payload_version=5, processing_payload_version=5)
+      // 2. أثناء المعالجة، payload يُحدَّث (payload_version=6)
+      // 3. worker-A يحاول تأكيد التسليم
+      // 4. الكود يرى 5 != 6 → يرفض التأكيد ويُعيد السجل لـ pending
+      if (from < 57) {
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE outbox ADD COLUMN payload_version INTEGER NOT NULL DEFAULT 1',
+          );
+          developer.log(
+            'Migration 57: added outbox.payload_version column',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 57: outbox.payload_version may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE outbox ADD COLUMN processing_payload_version INTEGER',
+          );
+          developer.log(
+            'Migration 57: added outbox.processing_payload_version column',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 57: outbox.processing_payload_version may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+
+      // === Migration 59: hot financial-report indexes ===
+      // فهارس جزئية تقلل الحجم وكلفة الكتابة، وتستهدف فقط الصفوف النشطة
+      // التي تقرؤها تقارير اليوم الفندقي ومسارات fallback للبيانات القديمة.
+      if (from < 59) {
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_payments_active_hotel_day '
+          'ON payments (hotel_day_key, revenue_type, payment_date) '
+          'WHERE deleted_at IS NULL AND is_voided = 0',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_payments_legacy_active_date '
+          'ON payments (payment_date) WHERE hotel_day_key IS NULL '
+          'AND deleted_at IS NULL AND is_voided = 0',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_expenses_active_hotel_day '
+          'ON expenses (hotel_day_key, expense_type, date) '
+          'WHERE deleted_at IS NULL',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_expenses_legacy_active_date '
+          'ON expenses (date) WHERE hotel_day_key IS NULL '
+          'AND deleted_at IS NULL',
+        );
+      }
+
+      // === Migration 58: debts — bookingUuidCache, debtorName, amount, date ===
+      // ✅ Sync Safety Wave 6 (2026-08-12): إضافة 4 حقول مطلوبة من Appwrite Cloud
+      // لجدول debts لكنها كانت مفقودة من الـ Drift table.
+      //
+      // المشكلة التي تم إصلاحها:
+      // - Appwrite Cloud يخزّن هذه الحقول (انظر appwrite_schema_verifier.dart:301-304)
+      // - filterPayload يسمح بها (انظر appwrite_sync_utils.dart:362-411)
+      // - لكن Drift table لم يكن لديها كأعمدة — فلا يمكن قراءتها أو كتابتها
+      // - debtToRemote لم يرسلها، DebtsAdapter.fromJson لم يقرأها
+      //
+      // الحقول:
+      // - bookingUuidCache: معرّف UUID للحجز المرتبط (للربط بين الأجهزة بدل bookingLocalId)
+      // - debtorName: اسم المدين (قد يختلف عن guestName في حالات معينة)
+      // - amount: مبلغ الدين (قد يختلف عن totalAmount في بعض الحالات)
+      // - date: تاريخ الدين (مستقل عن checkinDate/checkoutDate/paymentDate)
+      //
+      // جميع الحقول nullable — لا تتطلب backfill.
+      if (from < 58) {
+        const newColumns = <String, String>{
+          'booking_uuid_cache': 'TEXT',
+          'debtor_name': 'TEXT',
+          'amount': 'REAL',
+          'date': 'TEXT',
+        };
+        for (final entry in newColumns.entries) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE debts ADD COLUMN ${entry.key} ${entry.value}',
+            );
+            developer.log(
+              'Migration 58: added debts.${entry.key}',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 58: debts.${entry.key} may already exist: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+      }
+
+      // === Migration 60: measured low-end query indexes ===
+      // These indexes were selected from EXPLAIN QUERY PLAN measurements for
+      // the active list/report and pending Outbox queries. Keep this migration
+      // after 58 because the historical migration order is not chronological.
+      if (from < 60) {
+        const indexes = [
+          'CREATE INDEX IF NOT EXISTS idx_bookings_active_checkin ON bookings (checkin_date DESC) WHERE deleted_at IS NULL',
+          'CREATE INDEX IF NOT EXISTS idx_payments_active_report_date ON payments (payment_date DESC) WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0',
+          'CREATE INDEX IF NOT EXISTS idx_expenses_active_date ON expenses (date DESC) WHERE deleted_at IS NULL',
+          "CREATE INDEX IF NOT EXISTS idx_outbox_pending_primary_source_ts ON outbox (source, client_ts) WHERE processing_status = 'pending' AND delivered_to_primary = 0",
+        ];
+        for (final sql in indexes) {
+          await m.database.customStatement(sql);
         }
       }
     },
@@ -2812,6 +3668,58 @@ class AppDatabase extends _$AppDatabase {
       }
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ✅ (2026-08-30) SyncRemoteMeta — helpers للسحب metadata-first (الفجوة 3+4)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// خريطة docId → $updatedAt (بالثواني) لكل مستندات كولكشن معروفة محلياً.
+  Future<Map<String, int>> getRemoteMetaMap(String collection) async {
+    final rows = await (select(
+      syncRemoteMeta,
+    )..where((t) => t.collection.equals(collection))).get();
+    return {for (final r in rows) r.docId: r.remoteUpdatedAtSec};
+  }
+
+  /// تحديث/إدراج خريطة $updatedAt البعيدة لكولكشن (دفعة واحدة على شرائح).
+  Future<void> upsertRemoteMeta(
+    String collection,
+    Map<String, int> meta,
+  ) async {
+    if (meta.isEmpty) return;
+    final entries = meta.entries.toList(growable: false);
+    // شرائح 500 لتجنب معاملات ضخمة على أجهزة ضعيفة
+    const chunkSize = 500;
+    for (var i = 0; i < entries.length; i += chunkSize) {
+      final end = (i + chunkSize < entries.length)
+          ? i + chunkSize
+          : entries.length;
+      final chunk = entries.sublist(i, end);
+      await batch((b) {
+        b.insertAllOnConflictUpdate(syncRemoteMeta, [
+          for (final e in chunk)
+            SyncRemoteMetaCompanion.insert(
+              collection: collection,
+              docId: e.key,
+              remoteUpdatedAtSec: e.value,
+            ),
+        ]);
+      });
+    }
+  }
+
+  /// مسح خريطة الـ metadata للكولكشن المحدد أو للكل.
+  /// يُستدعى من resetSyncState — مسحه إلزامي وإلا اعتبر السحب الكامل
+  /// التالي أن كل شيء محفوظ وتخطى الجلب.
+  Future<void> clearRemoteMeta({String? collection}) async {
+    if (collection == null) {
+      await delete(syncRemoteMeta).go();
+    } else {
+      await (delete(
+        syncRemoteMeta,
+      )..where((t) => t.collection.equals(collection))).go();
+    }
+  }
 }
 
 LazyDatabase _open() {
@@ -2859,6 +3767,18 @@ class DatabaseManager {
   static bool get isInitialized => _instance != null;
   static bool get isRestoring => _isRestoring;
 
+  /// ✅ (2026-09-07) حقن قاعدة في الذاكرة للاختبارات — الخدمات التي تقرأ
+  /// [DatabaseManager.instance] مباشرة (AuthLocalStore وغيرها) تحتاج نسخة
+  /// مهيأة بدون فتح ملف فعلي على القرص. للاستخدام في dart test فقط.
+  static void attachForTesting(AppDatabase db) {
+    _instance = db;
+  }
+
+  /// فك الحقن بعد الاختبار حتى لا يتسرب الاتصال بين الاختبارات.
+  static void detachForTesting() {
+    _instance = null;
+  }
+
   static Future<T> runWithRestoreGuard<T>(Future<T> Function() action) async {
     _isRestoring = true;
     try {
@@ -2881,7 +3801,7 @@ class DatabaseManager {
     if (_onStopCallback != null) {
       try {
         await _onStopCallback!();
-      } catch (e, st) {
+      } catch (e) {
         developer.log(
           '⚠️ Database stop callback error: $e',
           name: 'DatabaseManager',
@@ -2890,7 +3810,7 @@ class DatabaseManager {
     }
     try {
       await _instance?.close();
-    } catch (e, st) {
+    } catch (e) {
       developer.log('⚠️ Database close error: $e', name: 'DatabaseManager');
     }
     _instance = null;

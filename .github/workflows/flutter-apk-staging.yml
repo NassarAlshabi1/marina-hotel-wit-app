@@ -11,10 +11,6 @@ on:
   # Allows manual triggering of the workflow from the GitHub Actions tab
   workflow_dispatch:
 
-permissions:
-  contents: read
-  actions: read
-
 jobs:
   build-staging-apk:
     # Runs the job on the latest Ubuntu runner
@@ -57,7 +53,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (e.g., using Freezed, json_serializable)
-        run: flutter pub run build_runner build 
+        run: flutter pub run build_runner build --delete-conflicting-outputs
 
       - name: Build staging APK
         # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
@@ -68,7 +64,7 @@ jobs:
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
 
       - name: Upload staging artifact
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: 'marina-hotel-staging-${{ github.run_number }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk

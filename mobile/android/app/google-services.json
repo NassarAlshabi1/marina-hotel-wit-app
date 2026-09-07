@@ -10,7 +10,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:256666337807:android:256825433b15f1bf07d97a",
         "android_client_info": {
-          "package_name": "com.aden.marina"
+          "package_name": "com.marina.marina"
         }
       },
       "oauth_client": [
@@ -18,7 +18,7 @@
           "client_id": "256666337807-8k16mnnbn1j87oaetmpsq5f9rlbolkid.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.aden.marina",
+            "package_name": "com.marina.marina",
             "certificate_hash": "671257a29b53fa71acbc0fa8c9542f3f460ba81c"
           }
         },

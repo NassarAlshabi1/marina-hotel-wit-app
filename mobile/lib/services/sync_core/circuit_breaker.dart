@@ -1,7 +1,5 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import '../../utils/debug_log.dart';
 
 enum CircuitState { closed, open, halfOpen }
 
@@ -87,10 +85,10 @@ class CircuitBreaker {
     try {
       return await execute(operation);
     } on CircuitBreakerOpenException catch (e) {
-      debugPrint('⚠️ [CircuitBreaker] $e');
+      dlog(() => '⚠️ [CircuitBreaker] $e');
       return defaultValue;
     } catch (e) {
-      debugPrint('❌ [CircuitBreaker] خطأ: $e');
+      dlog(() => '❌ [CircuitBreaker] خطأ: $e');
       return defaultValue;
     }
   }
@@ -100,8 +98,9 @@ class CircuitBreaker {
 
     if (_state == CircuitState.halfOpen) {
       _successCount++;
-      debugPrint(
-        '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
+      dlog(
+        () =>
+            '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
       );
 
       if (_successCount >= config.successThreshold) {
@@ -116,8 +115,9 @@ class CircuitBreaker {
     _lastFailureTime = DateTime.now();
     _successCount = 0;
 
-    debugPrint(
-      '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',
+    dlog(
+      () =>
+          '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',
     );
 
     if (_state == CircuitState.halfOpen) {
@@ -144,7 +144,7 @@ class CircuitBreaker {
     final oldState = _state;
     _state = newState;
 
-    debugPrint('🔄 [CircuitBreaker] [$name] $oldState → $newState');
+    dlog(() => '🔄 [CircuitBreaker] [$name] $oldState → $newState');
 
     _stateController.add(newState);
 
@@ -161,7 +161,7 @@ class CircuitBreaker {
     _cancelReset();
     _resetTimer = Timer(config.resetTimeout, () {
       if (_state == CircuitState.open) {
-        debugPrint('⏰ [CircuitBreaker] [$name] محاولة إعادة الفتح تلقائيًا');
+        dlog(() => '⏰ [CircuitBreaker] [$name] محاولة إعادة الفتح تلقائيًا');
         _transitionTo(CircuitState.halfOpen);
       }
     });
@@ -173,7 +173,7 @@ class CircuitBreaker {
   }
 
   void reset() {
-    debugPrint('🔄 [CircuitBreaker] [$name] إعادة تعيين يدوية');
+    dlog(() => '🔄 [CircuitBreaker] [$name] إعادة تعيين يدوية');
     _failureCount = 0;
     _successCount = 0;
     _lastFailureTime = null;
@@ -192,7 +192,7 @@ class CircuitBreaker {
 
   void dispose() {
     _cancelReset();
-    _stateController.close();
+    unawaited(_stateController.close());
   }
 }
 

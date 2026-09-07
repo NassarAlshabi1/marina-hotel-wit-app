@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -154,9 +152,9 @@ class ConnectivityService {
   }
 
   void dispose() {
-    _subscription?.cancel();
+    unawaited(_subscription?.cancel());
     _subscription = null;
-    _statusController.close();
+    unawaited(_statusController.close());
     _initialized = false;
     _instance = null;
   }

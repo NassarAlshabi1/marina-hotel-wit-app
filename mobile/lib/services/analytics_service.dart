@@ -1,9 +1,8 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // lib/services/analytics_service.dart
 // خدمة التحليلات والمراقبة
 // analytics_service.dart - خدمة التحليلات والمراقبة
 
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
@@ -122,7 +121,7 @@ class AnalyticsService {
   /// تمكين/تعطيل التحليلات
   void setEnabled(bool enabled) {
     _isEnabled = enabled;
-    _analytics?.setAnalyticsCollectionEnabled(enabled);
+    unawaited(_analytics?.setAnalyticsCollectionEnabled(enabled));
   }
 
   /// تسجيل حدث مزامنة

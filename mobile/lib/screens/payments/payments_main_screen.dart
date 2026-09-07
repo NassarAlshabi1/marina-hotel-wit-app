@@ -1,10 +1,7 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -16,6 +13,7 @@ import '../../services/analytics_service.dart';
 import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -42,7 +40,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    CrashlyticsService.instance.setCurrentScreen('PaymentsMainScreen');
+    unawaited(CrashlyticsService.instance.setCurrentScreen('PaymentsMainScreen'));
     // ✅ Analytics: تتبّع مشاهدة شاشة المدفوعات
     unawaited(
       AnalyticsService().logScreenView(
@@ -330,8 +328,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return DateTime.parse(
           b.paymentDate,
         ).compareTo(DateTime.parse(a.paymentDate));
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in payments_main_screen.dart: ');
+      } catch (_) {
         return 0;
       }
     });
@@ -434,14 +431,49 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           );
         }
 
+        // ✅ تنبيه تأخر السداد: نحسب الساعة الحالية لتحديد ما إذا كان
+        // الحجز يحتاج إلى مؤشر برتقالي (22:00-23:00) أو أحمر متأخر (23:00-05:00).
+        final now = DateTime.now();
+        final hour = now.hour;
+        final isLateWindow = hour >= 22 && hour < 23;
+        final isOverdueWindow = hour >= 23 || hour < 5;
+
         return ListView.builder(
           padding: const EdgeInsets.all(12),
           itemCount: activeBookings.length,
           itemBuilder: (context, index) {
             final booking = activeBookings[index];
+            // ✅ حالة تأخر السداد الخاصة بهذا الحجز (لا تظهر إلا إذا كان
+            // هناك رصيد متبقي + نحن داخل نافذة التنبيه الليلية).
+            final hasRemainingBalance =
+                booking.remainingBalanceCached.round() > 0;
+            final isLate = hasRemainingBalance && isLateWindow;
+            final isOverdue = hasRemainingBalance && isOverdueWindow;
+
+            // ✅ لون دائرة رقم الغرفة يتغير حسب الحالة.
+            final Color avatarBg = isOverdue
+                ? Colors.red.shade100
+                : isLate
+                ? Colors.orange.shade100
+                : Colors.orange.shade100;
+            final Color avatarFg = isOverdue
+                ? Colors.red.shade700
+                : isLate
+                ? Colors.orange.shade700
+                : Colors.orange;
+
             return RepaintBoundary(
               child: Card(
                 margin: const EdgeInsets.only(bottom: 6),
+                // ✅ حدود ملوّنة عند التنبيه للتأخر
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: isOverdue
+                      ? BorderSide(color: Colors.red.shade700, width: 1.5)
+                      : isLate
+                      ? BorderSide(color: Colors.orange.shade700, width: 1.2)
+                      : BorderSide.none,
+                ),
                 child: ListTile(
                   dense: true,
                   visualDensity: VisualDensity.compact,
@@ -451,22 +483,97 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                   ),
                   leading: CircleAvatar(
                     radius: 16,
-                    backgroundColor: Colors.orange.shade100,
+                    backgroundColor: avatarBg,
                     child: Text(
                       booking.roomNumber,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.orange,
+                        color: avatarFg,
                         fontSize: 11,
                       ),
                     ),
                   ),
-                  title: Text(
-                    booking.guestName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          booking.guestName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      // ✅ شارة تنبيه برتقالية/حمراء عند التأخر
+                      if (isLate)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.orange.shade700,
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                size: 10,
+                                color: Colors.orange.shade700,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                'تنبيه 22:00',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.orange.shade800,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (isOverdue)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.red.shade700,
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 10,
+                                color: Colors.red.shade700,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                'متأخر',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.red.shade800,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,18 +603,26 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                   ),
                   trailing: ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push<void>(
+                      unawaited(Navigator.push<void>(
                         context,
                         MaterialPageRoute<void>(
                           builder: (context) =>
                               BookingCheckoutScreen(booking: booking),
                         ),
-                      );
+                      ));
                     },
                     icon: const Icon(Icons.payment, size: 14),
-                    label: const Text('دفع', style: TextStyle(fontSize: 13)),
+                    label: Text(
+                      isOverdue ? 'دفع فوري' : 'دفع',
+                      style: const TextStyle(fontSize: 13),
+                    ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      // ✅ زر الدفع يتحول إلى أحمر/برتقالي حسب حالة التأخر.
+                      backgroundColor: isOverdue
+                          ? Colors.red.shade700
+                          : isLate
+                          ? Colors.orange.shade600
+                          : Colors.green,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -635,9 +750,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d+')),
-                        ],
+                        inputFormatters: const [englishIntegerInputFormatter],
                       ),
                       const SizedBox(height: 12),
 
@@ -720,9 +833,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   ) async {
     final parsedAmount = CurrencyFormatter.parseAmount(amountText);
     if (parsedAmount == null || parsedAmount <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يرجى إدخال مبلغ صحيح'),
           backgroundColor: Colors.red,
@@ -783,9 +894,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       if (mounted && dialogContext.mounted) {
         Navigator.pop(dialogContext);
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),
             backgroundColor: Colors.red,

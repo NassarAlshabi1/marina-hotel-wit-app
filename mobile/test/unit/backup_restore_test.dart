@@ -2,7 +2,6 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' as d;
@@ -11,9 +10,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/backup_serializers.dart';
 import 'package:marina_hotel_mobile/services/google_drive_backup_service.dart'
-    show BackupFormat, BackupMetadata;
+    show BackupFormat, BackupMetadata, GoogleDriveBackupService;
+import 'package:marina_hotel_mobile/services/local_backup_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/services/sqlite_backup_restore.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' show Sqflite, openDatabase;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -190,7 +192,59 @@ void main() {
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  //  Group 1: LocalBackupService — JSON format
+  //  Group 1: Backup JSON schema + checksum
+  // ═════════════════════════════════════════════════════════════════════════
+  group('Backup JSON schema + checksum', () {
+    test('backup map includes inventory tables and detects tampering', () {
+      final metadata = BackupMetadata(
+        appVersion: '1.2.0+3',
+        databaseVersion: db.schemaVersion,
+        backupTimestamp: DateTime(2026, 8, 28),
+        totalRecords: 2,
+        deviceInfo: 'Test Device',
+      ).toJson();
+      final backupData = buildBackupDataMap(
+        metadata: metadata,
+        roomsData: const [],
+        bookingsData: const [],
+        bookingNotesData: const [],
+        bookingNightsData: const [],
+        ledgerData: const [],
+        shiftNotesData: const [],
+        employeesData: const [],
+        expensesData: const [],
+        cashTransactionsData: const [],
+        paymentsData: const [],
+        debtsData: const [],
+        salaryCyclesData: const [],
+        salaryPaymentsData: const [],
+        priceAdjustmentsData: const [],
+        bookingPriceAdjData: const [],
+        auditLogsData: const [],
+        paymentVoidsData: const [],
+        guestInfosData: const [],
+        salaryWithdrawalsData: const [],
+        salaryCarryOverLogsData: const [],
+        inventoryItemsData: const [],
+        inventoryTransactionsData: const [],
+      );
+      expect(backupData, containsPair('inventory_items', isEmpty));
+      expect(backupData, containsPair('inventory_transactions', isEmpty));
+
+      final hash = GoogleDriveBackupService.computeBackupChecksum(backupData);
+      (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = hash;
+      expect(GoogleDriveBackupService.verifyBackupChecksum(backupData), isTrue);
+
+      (backupData['inventory_items'] as List<dynamic>).add({'name': 'تعديل'});
+      expect(
+        GoogleDriveBackupService.verifyBackupChecksum(backupData),
+        isFalse,
+      );
+    });
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  Group 2: LocalBackupService — JSON format
   // ═════════════════════════════════════════════════════════════════════════
   group('LocalBackupService — JSON format', () {
     test(
@@ -1067,7 +1121,7 @@ void main() {
   group('WAL mode integrity (production-critical)', () {
     /// Helper: ينشئ قاعدة بيانات SQLite حقيقية على القرص في وضع WAL
     /// ويدخل بيانات فيها. يُعيد المسار + عدد السجلات المدخلة.
-    Future<String> _createWalDatabase(
+    Future<String> createWalDatabase(
       String path, {
       required int rowCount,
     }) async {
@@ -1095,7 +1149,7 @@ void main() {
       () async {
         // 1. إنشاء DB في وضع WAL مع بيانات
         final dbPath = p.join(tempDir.path, 'wal_test.db');
-        await _createWalDatabase(dbPath, rowCount: 50);
+        await createWalDatabase(dbPath, rowCount: 50);
 
         // 2. فتح DB مرة أخرى وإضافة بيانات إضافية WITHOUT checkpoint
         final database = await openDatabase(dbPath, version: 1);
@@ -1348,6 +1402,106 @@ void main() {
   // ═════════════════════════════════════════════════════════════════════════
   //  Group 8: deleteLocalBackup sidecar cleanup
   // ═════════════════════════════════════════════════════════════════════════
+  // ═════════════════════════════════════════════════════════════════════════
+  //  Group: Local .db backup completeness (post-copy verification)
+  //  يوثّق عقد النسخة الكاملة: checkpoint(TRUNCATE) بنجاح ⇒ ملف .db وحده
+  //  يحتوي 100% من المعاملات الملتزمة، والنسخة المنتجة تمرّ integrity_check.
+  // ═════════════════════════════════════════════════════════════════════════
+  group('Local .db backup completeness (post-copy verification)', () {
+    test('verifyBackupIntegrity passes for a healthy .db file', () async {
+      final dbPath = p.join(tempDir.path, 'healthy.db');
+      final database = await openDatabase(dbPath, version: 1);
+      await database.execute('CREATE TABLE rooms (id INTEGER PRIMARY KEY)');
+      await database.insert('rooms', {'id': 1});
+      await database.close();
+
+      // لا يجب أن يرمي أي استثناء
+      await SqliteBackupRestore.verifyBackupIntegrity(File(dbPath));
+    });
+
+    test('verifyBackupIntegrity throws for a corrupted .db file', () async {
+      final dbPath = p.join(tempDir.path, 'corrupted.db');
+      final database = await openDatabase(dbPath, version: 1);
+      await database.execute(
+        'CREATE TABLE rooms (id INTEGER PRIMARY KEY, number TEXT)',
+      );
+      for (var i = 0; i < 200; i++) {
+        await database.insert('rooms', {'id': i, 'number': 'R$i'});
+      }
+      await database.close();
+
+      // إتلاف بايتات داخل صفحات البيانات (بعد الـ header الـ 16 بايت)
+      final bytes = await File(dbPath).readAsBytes();
+      final corrupted = Uint8List.fromList(bytes);
+      for (var i = 100; i < 400; i++) {
+        corrupted[i] = 0xFF;
+      }
+      final corruptedPath = p.join(tempDir.path, 'corrupted_copy.db');
+      await File(corruptedPath).writeAsBytes(corrupted);
+
+      await expectLater(
+        SqliteBackupRestore.verifyBackupIntegrity(File(corruptedPath)),
+        throwsA(anyOf(isA<StateError>(), isA<Exception>())),
+        reason:
+            'corrupted page bytes must fail integrity_check at creation time',
+      );
+    });
+
+    test(
+      '.db copy alone (no sidecars) is complete after live-connection checkpoint',
+      () async {
+        // 1. قاعدة WAL حقيقية مع كتابة جارية (الاتصال يبقى مفتوحاً — مثل الإنتاج)
+        final dbPath = p.join(tempDir.path, 'live_wal.db');
+        final database = await openDatabase(dbPath, version: 1);
+        await database.execute('PRAGMA journal_mode = WAL');
+        await database.execute(
+          'CREATE TABLE rooms (id INTEGER PRIMARY KEY, number TEXT, price REAL)',
+        );
+        for (var i = 0; i < 120; i++) {
+          await database.insert('rooms', {
+            'id': i,
+            'number': 'R$i',
+            'price': 50.0,
+          });
+        }
+
+        // 2. checkpoint(TRUNCATE) عبر نفس الاتصال الحي (منطق createLocalBackup)
+        final checkpoint = await database.rawQuery(
+          'PRAGMA wal_checkpoint(TRUNCATE)',
+        );
+        final busy = Sqflite.firstIntValue(checkpoint) ?? 1;
+        expect(busy, equals(0), reason: 'no active reader → busy must be 0');
+
+        // 3. نسخ ملف .db فقط — بدون -wal وبدون -shm
+        final backupPath = p.join(backupDir.path, 'backup_live.db');
+        await File(dbPath).copy(backupPath);
+        expect(
+          File('$backupPath-wal').existsSync(),
+          isFalse,
+          reason: 'complete backup must be a single .db file',
+        );
+
+        // 4. النسخة تمرّ integrity_check ثم تحتوي كل السجلات الـ120
+        await SqliteBackupRestore.verifyBackupIntegrity(File(backupPath));
+
+        final copyDb = await openDatabase(backupPath, readOnly: true);
+        final count =
+            Sqflite.firstIntValue(
+              await copyDb.rawQuery('SELECT COUNT(*) FROM rooms'),
+            ) ??
+            0;
+        await copyDb.close();
+        await database.close();
+
+        expect(
+          count,
+          equals(120),
+          reason: 'single .db file after TRUNCATE checkpoint holds ALL rows',
+        );
+      },
+    );
+  });
+
   group('deleteLocalBackup sidecar cleanup', () {
     test(
       'deleting a .sqlite backup should also delete its .metadata.json',
@@ -1419,6 +1573,30 @@ void main() {
         );
       },
     );
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  Group 9: Local backup default format — SQLite .db
+  //  الحفظ المحلي الافتراضي: نسخة .db خام تُحفظ تلقائياً في
+  //  /storage/emulated/0/Documents/MarinaHotelBackups
+  // ═════════════════════════════════════════════════════════════════════════
+  group('Local backup default format (.db)', () {
+    test('getPreferredBackupFormat defaults to BackupFormat.sqlite', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = LocalBackupService();
+      final format = await service.getPreferredBackupFormat();
+      expect(format, BackupFormat.sqlite);
+      expect(format.name, 'sqlite');
+    });
+
+    test('setPreferredBackupFormat round-trips the chosen format', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = LocalBackupService();
+      await service.setPreferredBackupFormat(BackupFormat.json);
+      expect(await service.getPreferredBackupFormat(), BackupFormat.json);
+      await service.setPreferredBackupFormat(BackupFormat.sqlite);
+      expect(await service.getPreferredBackupFormat(), BackupFormat.sqlite);
+    });
   });
 }
 

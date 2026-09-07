@@ -1,7 +1,5 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import '../utils/debug_log.dart';
 
 /// حدث تضارب في المزامنة
 class SyncConflictEvent {
@@ -67,8 +65,9 @@ class SyncConflictEventBus {
       _recentEvents.removeAt(0);
     }
     _controller.add(event);
-    debugPrint(
-      '[ConflictBus] ${event.table}/${event.localUuid} → ${event.winnerSide}: ${event.reason}',
+    dlog(
+      () =>
+          '[ConflictBus] ${event.table}/${event.localUuid} → ${event.winnerSide}: ${event.reason}',
     );
   }
 
@@ -96,6 +95,6 @@ class SyncConflictEventBus {
 
   /// تنظيف الموارد
   void dispose() {
-    _controller.close();
+    unawaited(_controller.close());
   }
 }

@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // lib/services/battery_optimizer.dart
 // خدمة تحسين استهلاك البطارية
 // battery_optimizer.dart - تحسين استهلاك البطارية للمزامنة
@@ -188,8 +186,8 @@ class BatteryOptimizer extends ChangeNotifier {
   /// إيقاف المراقبة وإلغاء جميع الاشتراكات والمؤقتات
   void stopMonitoring() {
     _isMonitoring = false;
-    _batterySubscription?.cancel();
-    _connectivitySubscription?.cancel();
+    unawaited(_batterySubscription?.cancel());
+    unawaited(_connectivitySubscription?.cancel());
     _batteryLevelTimer?.cancel(); // إلغاء مؤقت فحص البطارية
     _batterySubscription = null;
     _connectivitySubscription = null;

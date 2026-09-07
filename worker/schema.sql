@@ -44,18 +44,47 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   PRIMARY KEY (client_id, window_start)
 );
 
--- ─── Devices (FCM push targets) ───────────────────────────────
+-- ─── Devices (device registry + FCM targets — sync entity) ───
+-- User directive 2026-09-05: devices joins the default sync scope with
+-- pull/push + outbox delta sync. Columns mirror the local Drift table
+-- Devices (local_db.dart, schemaVersion 67) which mirrors the live
+-- Appwrite devices collection in snake_case. device_id is BOTH the
+-- device identity and the SyncFields writer column (unified — for a
+-- device row, the writer IS the device).
 CREATE TABLE IF NOT EXISTS devices (
-  id TEXT PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  local_uuid TEXT NOT NULL UNIQUE,
   device_id TEXT NOT NULL UNIQUE,
+  device_name TEXT NOT NULL DEFAULT '',
+  device_model TEXT,
+  device_type TEXT,
+  os_version TEXT,
+  platform TEXT,
+  app_version TEXT,
   fcm_token TEXT,
   status TEXT NOT NULL DEFAULT 'active',
-  device_name TEXT,
-  platform TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  last_seen TEXT,
+  last_active INTEGER,
+  -- SyncFields (Drift mixin mirror)
+  server_id INTEGER,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  last_modified INTEGER NOT NULL DEFAULT 0,
+  created_at_iso TEXT,
+  updated_at_iso TEXT,
+  deleted_at_iso TEXT,
+  created_at_epoch INTEGER NOT NULL DEFAULT 0,
+  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1,
+  origin TEXT NOT NULL DEFAULT 'local',
+  vector_clock TEXT NOT NULL DEFAULT '{}',
+  idempotency_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);
+CREATE INDEX IF NOT EXISTS idx_devices_updated ON devices(updated_at);
+CREATE INDEX IF NOT EXISTS idx_devices_deleted ON devices(deleted_at);
 
 -- ─── Sync Log (audit trail) ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS sync_log (
@@ -268,6 +297,9 @@ CREATE TABLE IF NOT EXISTS bookings (
   is_fully_paid INTEGER NOT NULL DEFAULT 0,
   hotel_day_checkin TEXT,
   hotel_day_checkout TEXT,
+  -- ✅ Parity (2026-09-05): Drift Bookings — تجميد مالي
+  financial_frozen_at INTEGER,
+  financial_hash TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -304,6 +336,8 @@ CREATE TABLE IF NOT EXISTS guest_infos (
   issue_place TEXT,
   governorate TEXT,
   notes TEXT,
+  -- ✅ Parity (2026-09-05): Drift GuestInfos
+  guest_phone TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -367,6 +401,9 @@ CREATE TABLE IF NOT EXISTS booking_nights (
   final_rate REAL NOT NULL DEFAULT 0,
   applied_adjustment_uuid TEXT,
   applied_adjustments_json TEXT,
+  -- ✅ Parity (2026-09-05): Drift BookingNights
+  booking_uuid_cache TEXT,
+  server_booking_id INTEGER,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -404,6 +441,9 @@ CREATE TABLE IF NOT EXISTS booking_price_adjustments (
   applied_by TEXT,
   cancelled_at TEXT,
   cancelled_by TEXT,
+  -- ✅ Parity (2026-09-05): Drift BookingPriceAdjustments
+  booking_uuid TEXT,
+  applied_at INTEGER,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -449,6 +489,15 @@ CREATE TABLE IF NOT EXISTS payments (
   is_voided INTEGER NOT NULL DEFAULT 0,
   voided_at INTEGER,
   voided_by TEXT,
+  -- ✅ Parity (2026-09-05): Drift Payments — بيانات الإبطال
+  -- الكاملة وهوية المستلم (الخيار A) لعرض استلامات النوبات
+  -- عبر الأجهزة (dashboards منسوبة للمستخدم الصحيح)
+  void_reason TEXT,
+  is_immutable INTEGER NOT NULL DEFAULT 0,
+  received_by_user_id INTEGER,
+  received_by_name TEXT,
+  received_session_uuid TEXT,
+  received_by_cloud_id TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -533,6 +582,16 @@ CREATE TABLE IF NOT EXISTS debts (
   hotel_day_closed TEXT,
   is_from_auto_fix INTEGER NOT NULL DEFAULT 0,
   settlement_confirmed INTEGER NOT NULL DEFAULT 0,
+  -- ✅ Parity (2026-09-05): Drift Debts Wave-6 — أعمدة عقد
+  -- Appwrite (appwrite_sync_utils.dart:362-411)
+  guest_phone TEXT,
+  description TEXT,
+  status TEXT,
+  due_date TEXT,
+  booking_uuid_cache TEXT,
+  debtor_name TEXT,
+  amount REAL,
+  date TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -630,6 +689,12 @@ CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
   new_cycle_end TEXT NOT NULL,
   reason TEXT NOT NULL,
   carried_at INTEGER NOT NULL,
+  -- ✅ Parity (2026-09-05): Drift SalaryCarryOverLogs
+  from_cycle_id TEXT,
+  to_cycle_id TEXT,
+  carry_date TEXT,
+  performed_by TEXT,
+  hotel_day_key TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -721,8 +786,10 @@ CREATE TABLE IF NOT EXISTS price_adjustments (
   target_type TEXT NOT NULL,
   target_uuid TEXT NOT NULL,
   adjustment_type TEXT NOT NULL,
-  previous_value INTEGER NOT NULL,
-  new_value INTEGER NOT NULL,
+  -- ✅ Type fix (2026-09-05): Wave 6b غيّر Drift إلى RealColumn
+  -- (عقد السحابة double — منع اقتطاع 1500.75) ولم يُحدَّث هنا.
+  previous_value REAL NOT NULL,
+  new_value REAL NOT NULL,
   reason TEXT,
   effective_date TEXT NOT NULL,
   applied_by TEXT NOT NULL,
@@ -730,6 +797,10 @@ CREATE TABLE IF NOT EXISTS price_adjustments (
   is_reversed INTEGER NOT NULL DEFAULT 0,
   reversed_at TEXT,
   reversed_by TEXT,
+  -- ✅ Parity (2026-09-05): Drift PriceAdjustments
+  adjustment_mode TEXT NOT NULL DEFAULT 'per_night',
+  booking_uuid TEXT,
+  applied_at INTEGER,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -827,3 +898,165 @@ CREATE TABLE IF NOT EXISTS payment_voids (
 CREATE INDEX IF NOT EXISTS idx_payment_voids_updated ON payment_voids(updated_at);
 CREATE INDEX IF NOT EXISTS idx_void_booking ON payment_voids(booking_uuid);
 CREATE INDEX IF NOT EXISTS idx_void_day ON payment_voids(hotel_day_key);
+--        whitelist) converted camelCase → snake_case.
+--
+--  Conventions identical to schema.sql (no sync_timestamp — that column
+--  is Appwrite-only and does not exist in the Drift SyncFields mixin;
+--  booleans stored as INTEGER NOT NULL DEFAULT 0/1; last_modified
+--  NOT NULL DEFAULT 0; idx_<table>_updated / idx_<table>_deleted).
+--
+--    * id INTEGER PRIMARY KEY AUTOINCREMENT (server-generated)
+--    * local_uuid TEXT NOT NULL UNIQUE (client identity)
+--    * SyncFields columns identical to the Drift mixin
+--    * NO FOREIGN KEY constraints — referential integrity is owned by
+--      the app layer (migration client sends references as-is)
+--
+--  Apply with: npm run db:migrate
+-- ═══════════════════════════════════════════════════════════════
+
+-- ─── inventory_items ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS inventory_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  local_uuid TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'قطعة',
+  category TEXT,
+  quantity INTEGER NOT NULL DEFAULT 0,
+  minimum_quantity INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  -- SyncFields (Drift mixin mirror)
+  server_id INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  last_modified INTEGER NOT NULL DEFAULT 0,
+  created_at_iso TEXT,
+  updated_at_iso TEXT,
+  deleted_at_iso TEXT,
+  created_at_epoch INTEGER NOT NULL DEFAULT 0,
+  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1,
+  origin TEXT NOT NULL DEFAULT 'local',
+  vector_clock TEXT NOT NULL DEFAULT '{}',
+  device_id TEXT NOT NULL DEFAULT '',
+  idempotency_key TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_inventory_items_updated ON inventory_items(updated_at);
+CREATE INDEX IF NOT EXISTS idx_inventory_items_deleted ON inventory_items(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_inventory_items_active_name ON inventory_items(is_active, name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_items_name ON inventory_items(name) WHERE deleted_at IS NULL;
+
+-- ─── inventory_transactions ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS inventory_transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  local_uuid TEXT NOT NULL UNIQUE,
+  item_local_uuid TEXT,
+  item_id INTEGER NOT NULL,
+  movement_type TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  note TEXT,
+  user_id INTEGER,
+  user_name TEXT,
+  -- SyncFields (Drift mixin mirror)
+  server_id INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  last_modified INTEGER NOT NULL DEFAULT 0,
+  created_at_iso TEXT,
+  updated_at_iso TEXT,
+  deleted_at_iso TEXT,
+  created_at_epoch INTEGER NOT NULL DEFAULT 0,
+  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1,
+  origin TEXT NOT NULL DEFAULT 'local',
+  vector_clock TEXT NOT NULL DEFAULT '{}',
+  device_id TEXT NOT NULL DEFAULT '',
+  idempotency_key TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_inventory_transactions_updated ON inventory_transactions(updated_at);
+CREATE INDEX IF NOT EXISTS idx_inventory_transactions_deleted ON inventory_transactions(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_inventory_transactions_item_date ON inventory_transactions(item_id, created_at DESC);
+
+-- ─── blacklist ───────────────────────────────────────────────
+-- Cloud-only entity (no Drift table): guests blacklisted across devices.
+CREATE TABLE IF NOT EXISTS blacklist (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  local_uuid TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  nationality TEXT NOT NULL DEFAULT '',
+  national_id TEXT,
+  phone TEXT,
+  reason TEXT,
+  notes TEXT,
+  reported_by TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  guest_name TEXT,
+  guest_phone TEXT,
+  guest_id_number TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  added_date TEXT,
+  added_by TEXT,
+  -- SyncFields (Drift mixin mirror)
+  server_id INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  last_modified INTEGER NOT NULL DEFAULT 0,
+  created_at_iso TEXT,
+  updated_at_iso TEXT,
+  deleted_at_iso TEXT,
+  created_at_epoch INTEGER NOT NULL DEFAULT 0,
+  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1,
+  origin TEXT NOT NULL DEFAULT 'local',
+  vector_clock TEXT NOT NULL DEFAULT '{}',
+  device_id TEXT NOT NULL DEFAULT '',
+  idempotency_key TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_blacklist_updated ON blacklist(updated_at);
+CREATE INDEX IF NOT EXISTS idx_blacklist_deleted ON blacklist(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_blacklist_national_id ON blacklist(national_id);
+CREATE INDEX IF NOT EXISTS idx_blacklist_guest_id_number ON blacklist(guest_id_number);
+
+-- ─── app_users ──────────────────────────────────────────────
+-- App users (auth accounts) — user directive 2026-09-05: default sync
+-- scope includes user_app with pull/push + outbox delta sync. Columns
+-- mirror the local Drift table AppUsers (local_db.dart, schemaVersion 66)
+-- which mirrors the live Appwrite app_users collection
+-- (schema_extract.json validFieldsPerCollection) in snake_case; the
+-- collection's duplicate userType/user_type pair maps to one user_type
+-- column (the creating code always writes identical values).
+CREATE TABLE IF NOT EXISTS app_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  local_uuid TEXT NOT NULL UNIQUE,
+  username TEXT NOT NULL,
+  password TEXT,
+  full_name TEXT NOT NULL DEFAULT '',
+  user_type TEXT NOT NULL DEFAULT '',
+  permissions TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  last_login INTEGER,
+  credentials_version INTEGER NOT NULL DEFAULT 0,
+  role TEXT,
+  -- SyncFields (Drift mixin mirror)
+  server_id INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  last_modified INTEGER NOT NULL DEFAULT 0,
+  created_at_iso TEXT,
+  updated_at_iso TEXT,
+  deleted_at_iso TEXT,
+  created_at_epoch INTEGER NOT NULL DEFAULT 0,
+  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1,
+  origin TEXT NOT NULL DEFAULT 'local',
+  vector_clock TEXT NOT NULL DEFAULT '{}',
+  device_id TEXT NOT NULL DEFAULT '',
+  idempotency_key TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_app_users_updated ON app_users(updated_at);
+CREATE INDEX IF NOT EXISTS idx_app_users_deleted ON app_users(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);

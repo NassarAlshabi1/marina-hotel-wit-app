@@ -24,7 +24,8 @@ class _CapturedNotification {
 }
 
 // ignore: library_private_types_in_public_api
-final List<_CapturedNotification> capturedNotifications = <_CapturedNotification>[];
+final List<_CapturedNotification> capturedNotifications =
+    <_CapturedNotification>[];
 
 void main() {
   setUp(() {
@@ -222,7 +223,10 @@ void main() {
       final savedKeys = prefs.getStringList('remote_change_dedup_keys');
       expect(savedKeys, isNotNull);
       expect(savedKeys!.length, equals(1));
-      expect(savedKeys.first, equals('bookings:booking-006:1785549900:device_B'));
+      expect(
+        savedKeys.first,
+        equals('bookings:booking-006:1785549900:device_B'),
+      );
 
       await RemoteChangeNotifier.instance.onRemoteChangeApplied(
         entity: 'bookings',

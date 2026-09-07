@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -14,6 +12,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
@@ -55,7 +54,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     super.didChangeDependencies();
     if (!_roomsLoaded) {
       _roomsLoaded = true;
-      _initializeDefaults();
+      unawaited(_initializeDefaults());
     }
   }
 
@@ -71,8 +70,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
       await derivedService.refreshAllActiveBookings();
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in payments_report_screen.dart: ');}
+    } catch (_) {}
     await _fetchReport();
   }
 
@@ -188,7 +186,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final paymentDate = _parseDateTime(payment.paymentDate);
       if (paymentDate == null) {
         // لا يمكن تحديد تاريخ الدفعة، نهملها مع إمكانية تسجيل خطأ
-        debugPrint('تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}');
+        dlog(() => 'تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}');
         continue;
       }
 
@@ -410,7 +408,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           _fromDate = range.from;
           _toDate = range.to;
         });
-        _fetchReport();
+        unawaited(_fetchReport());
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
@@ -460,7 +458,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               setState(() {
                 _selectedRoom = value;
               });
-              _fetchReport();
+              unawaited(_fetchReport());
             },
           ),
         ),
@@ -680,10 +678,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in payments_report_screen.dart: ');
+    } catch (_) {
       // طباعة الخطأ (اختياري) وإرجاع null ليتجاهل المُستدعي السجل
-      debugPrint('_parseDateTime: فشل تحليل "$value"');
+      dlog(() => '_parseDateTime: فشل تحليل "$value"');
       return null;
     }
   }

@@ -1,6 +1,9 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/debug_log.dart';
 import '../utils/env.dart';
 
 class ApiConfig {
@@ -95,7 +98,7 @@ class ApiConfigService {
         _currentConfig = ApiConfig.fromJson(json);
         configNotifier.value = _currentConfig;
       } catch (e) {
-        debugPrint('خطأ في تحميل إعدادات API: $e');
+        dlog(() => 'خطأ في تحميل إعدادات API: $e');
       }
     }
     await _loadServerList();
@@ -112,7 +115,7 @@ class ApiConfigService {
           list.map((e) => ServerInfo.fromJson(e as Map<String, dynamic>)),
         );
       } catch (e) {
-        debugPrint('خطأ في تحميل قائمة السيرفرات: $e');
+        dlog(() => 'خطأ في تحميل قائمة السيرفرات: $e');
       }
     }
   }
@@ -122,7 +125,7 @@ class ApiConfigService {
     configNotifier.value = config;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_configKey, jsonEncode(config.toJson()));
-    debugPrint('✅ تم حفظ إعدادات API: ${config.baseUrl}');
+    dlog(() => '✅ تم حفظ إعدادات API: ${config.baseUrl}');
   }
 
   Future<void> updateBaseUrl(String url) async {

@@ -72,7 +72,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.setCustomKey('room_number', roomNumber);
     } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تحديث حالة المزامنة (idle, pushing, pulling, conflicting, error)
@@ -80,7 +81,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.setCustomKey('sync_status', status);
     } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تحديث دور المستخدم (admin, receptionist, manager)
@@ -88,7 +90,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.setCustomKey('user_role', role);
     } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تحديث اليوم الفندقي الحالي
@@ -96,7 +99,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.setCustomKey('hotel_day_key', hotelDayKey);
     } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تحديد محرك المزامنة النشط (appwrite, google_drive, secondary)
@@ -104,7 +108,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.setCustomKey('sync_engine', engine);
     } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تحديث نوع الشبكة (wifi, mobile, none)
@@ -112,7 +117,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.setCustomKey('network_type', networkType);
     } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تحديث معرف الجهاز
@@ -120,7 +126,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.setCustomKey('device_id', deviceId);
     } catch (e) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تحديث كل السياق دفعة واحدة (مُسهّل للـ main.dart)
@@ -348,7 +355,8 @@ class CrashlyticsService {
         ],
       );
     } catch (e) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تسجيل خطأ قاتل في المزامنة
@@ -398,7 +406,8 @@ class CrashlyticsService {
         reason: context ?? 'unexpected_error',
       );
     } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تسجيل رسالة سجل (log)
@@ -410,7 +419,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.log(message);
     } catch (e) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تسجيل خطأ معزز مع سياق كامل
@@ -442,7 +452,8 @@ class CrashlyticsService {
             [],
       );
     } catch (e) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -458,7 +469,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.setUserIdentifier(userId);
     } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تعيين مفتاح مخصص
@@ -470,7 +482,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.setCustomKey(key, value.toString());
     } catch (e) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// تعيين اسم الشاشة الحالية (للتتبع)
@@ -491,7 +504,8 @@ class CrashlyticsService {
     try {
       await _crashlytics?.sendUnsentReports();
     } catch (e) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   /// الحصول على تاريخ الأخطاء
@@ -518,7 +532,8 @@ class CrashlyticsService {
     try {
       _crashlytics?.recordFlutterFatalError(details);
     } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   void _recordPlatformError(Object error, StackTrace stack) {
@@ -529,7 +544,8 @@ class CrashlyticsService {
     try {
       _crashlytics?.recordError(error, stack, fatal: true);
     } catch (e) {
-      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
+    }
   }
 
   void _addToHistory(

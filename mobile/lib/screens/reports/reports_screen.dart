@@ -1,5 +1,4 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: avoid_dynamic_calls, discarded_futures
+import 'dart:async';
 import 'package:drift/drift.dart' hide Column;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -12,12 +11,14 @@ import '../../providers/core_providers.dart';
 import '../../providers/performance_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/crashlytics_service.dart';
+import '../../services/local_db.dart' show Room;
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import 'debts_report_screen.dart';
 import 'expenses_report_screen.dart';
 import 'guest_payments_detail_report_screen.dart';
 import 'income_expense_report_screen.dart';
+import 'inventory_report_screen.dart';
 import 'payments_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
 
@@ -41,7 +42,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    unawaited(_loadData());
   }
 
   Future<void> _loadData({bool force = false}) async {
@@ -70,7 +71,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         },
         recordsProcessed: 1,
       );
-      final rooms = roomsData['rooms'] as List;
+      final rooms = roomsData['rooms'] as List<Room>;
 
       // 2. تحميل البيانات المالية (مع cache)
       final finData = await PerformanceTimer.measure(
@@ -125,7 +126,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
       final daily = List.generate(7, (i) {
         final busy = rooms
-            .where((r) => StatusUtils.isRoomOccupied(r.status as String))
+            .where((r) => StatusUtils.isRoomOccupied(r.status))
             .length;
         final occ = (busy * 100 / total).round().toDouble();
         return BarChartGroupData(
@@ -159,7 +160,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final topBars = <BarChartGroupData>[];
       for (var i = 0; i < topRooms.length; i++) {
         final r = topRooms[i];
-        final v = StatusUtils.isRoomOccupied(r.status as String) ? 100.0 : 20.0;
+        final v = StatusUtils.isRoomOccupied(r.status) ? 100.0 : 20.0;
         topBars.add(
           BarChartGroupData(
             x: i,
@@ -290,6 +291,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   color: Colors.blue,
                   onTap: () =>
                       _navigate((_) => const SalaryWithdrawalsReportScreen()),
+                ),
+                const SizedBox(height: 4),
+                _ReportShortcut(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'التقرير المخزني',
+                  color: Colors.brown,
+                  onTap: () => _navigate((_) => const InventoryReportScreen()),
                 ),
                 const SizedBox(height: 10),
 
@@ -465,7 +473,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   /// التنقل بأسلوب lazy — الـ WidgetBuilder لا يُنفذ إلا عند التنقل الفعلي
   void _navigate(WidgetBuilder builder) {
-    Navigator.push<void>(context, MaterialPageRoute(builder: builder));
+    unawaited(Navigator.push<void>(context, MaterialPageRoute(builder: builder)));
   }
 }
 

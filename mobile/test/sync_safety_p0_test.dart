@@ -80,7 +80,8 @@ void main() {
         expect(
           row.read<int>('delivered_to_primary'),
           equals(0),
-          reason: 'P0-D: delivered_to_primary must be reset to false when payload changes',
+          reason:
+              'P0-D: delivered_to_primary must be reset to false when payload changes',
         );
         expect(
           row.read<int>('attempts'),
@@ -202,7 +203,8 @@ void main() {
         expect(
           removed,
           equals(0),
-          reason: 'P0-E: pending entries must not be deleted (silent data loss prevention)',
+          reason:
+              'P0-E: pending entries must not be deleted (silent data loss prevention)',
         );
 
         final count = await outboxDao.count();
@@ -227,8 +229,10 @@ void main() {
           "WHERE local_uuid = 'p0e-failed-001'",
         );
 
+        // ✅ وضع P0-E صراحةً (الافتراضي في الدمج = Wave 4 completed-only)
         final removed = await outboxDao.cleanupForMissingEntities(
           ['p0e-failed-001'],
+          minAttempts: 3,
         );
         expect(removed, equals(1));
       },
@@ -288,58 +292,89 @@ void main() {
     });
   });
 
-  group('P0-I: SyncGuard tryAcquire/release atomic', () {
+  group('P0-I: SyncGuard tryAcquire/release atomic (Wave 5 token ownership)', () {
     // SyncGuard uses static state, so reset between tests
     setUp(() {
       // Force-release any prior state by directly accessing internals
-      // via the public deprecated markFinished (clears state regardless)
+      // via the public markFinished (clears state regardless)
       SyncGuard.markFinished();
+    });
+    tearDown(() {
+      SyncGuard.markFinished();
+      // إعادة مهلة stale الافتراضية (10 دقائق — قيمة _defaultStaleLockTimeout)
+      SyncGuard.configureTimeouts(
+        staleLockTimeout: const Duration(minutes: 10),
+      );
     });
 
     test('tryAcquire succeeds when no lock held', () {
-      final acquired = SyncGuard.tryAcquire(label: 'test_1');
-      expect(acquired, isTrue);
+      final token = SyncGuard.tryAcquire(label: 'test_1');
+      expect(token, isNotNull);
       expect(SyncGuard.isActive, isTrue);
       expect(SyncGuard.activeLabel, equals('test_1'));
-      SyncGuard.release(label: 'test_1');
+      SyncGuard.release(token!);
     });
 
     test('tryAcquire fails when lock held by another label', () {
       final first = SyncGuard.tryAcquire(label: 'service_a');
-      expect(first, isTrue);
+      expect(first, isNotNull);
 
       final second = SyncGuard.tryAcquire(label: 'service_b');
-      expect(second, isFalse, reason: 'P0-I: second service must NOT acquire');
-      expect(SyncGuard.activeLabel, equals('service_a'), reason: 'Lock must still be held by service_a');
+      expect(second, isNull, reason: 'P0-I: second service must NOT acquire');
+      expect(
+        SyncGuard.activeLabel,
+        equals('service_a'),
+        reason: 'Lock must still be held by service_a',
+      );
 
-      SyncGuard.release(label: 'service_a');
+      SyncGuard.release(first!);
     });
 
     test(
-      'release with wrong label does NOT release the lock',
+      'stale takeover: old token does NOT release the newer lock (cross-release protection)',
       () {
-        final first = SyncGuard.tryAcquire(label: 'service_a');
-        expect(first, isTrue);
+        final tokenA = SyncGuard.tryAcquire(label: 'service_a');
+        expect(tokenA, isNotNull);
 
-        // Try to release with wrong label
-        SyncGuard.release(label: 'service_b');
+        // مهلة stale = صفر مؤقتاً → الاستحواذ التالي ينتزع القفل المنتهي
+        SyncGuard.configureTimeouts(staleLockTimeout: Duration.zero);
+        final tokenB = SyncGuard.tryAcquire(label: 'service_b');
+        expect(tokenB, isNotNull, reason: 'Stale lock must be takeover-able');
+        expect(SyncGuard.activeLabel, equals('service_b'));
 
-        // Lock should still be held
-        expect(SyncGuard.isActive, isTrue, reason: 'P0-I: wrong-label release must NOT clear the lock');
-        expect(SyncGuard.activeLabel, equals('service_a'));
+        // إعادة المهلة الافتراضية → قفل service_b الآن حيّ (غير منتهي)
+        SyncGuard.configureTimeouts(
+          staleLockTimeout: const Duration(minutes: 10),
+        );
 
-        SyncGuard.release(label: 'service_a');
+        // token القديم يحاول فك قفل حي لا يملكه — يجب رفضه (ملكية Wave 5)
+        // (ملاحظة: فك قفل منتهي بأي token مقبول بعمد — صمام أمان perf)
+        SyncGuard.release(tokenA!);
+
+        expect(
+          SyncGuard.isActive,
+          isTrue,
+          reason: 'P0-I: stale-token release must NOT clear the newer lock',
+        );
+        expect(SyncGuard.activeLabel, equals('service_b'));
+
+        SyncGuard.release(tokenB!);
+        expect(SyncGuard.isActive, isFalse);
       },
     );
 
     test('can re-acquire after release', () {
       final first = SyncGuard.tryAcquire(label: 'service_a');
-      expect(first, isTrue);
-      SyncGuard.release(label: 'service_a');
+      expect(first, isNotNull);
+      SyncGuard.release(first!);
 
       final second = SyncGuard.tryAcquire(label: 'service_b');
-      expect(second, isTrue, reason: 'P0-I: must be able to acquire after release');
-      SyncGuard.release(label: 'service_b');
+      expect(
+        second,
+        isNotNull,
+        reason: 'P0-I: must be able to acquire after release',
+      );
+      SyncGuard.release(second!);
     });
   });
 
@@ -388,7 +423,8 @@ void main() {
         expect(
           result.mergedData['status'],
           equals('occupied'),
-          reason: 'newerWins for status (remote ts 1785549901 > local 1785549900)',
+          reason:
+              'newerWins for status (remote ts 1785549901 > local 1785549900)',
         );
         expect(
           result.mergedData['cleaning_status'],
@@ -430,7 +466,11 @@ void main() {
           isTrue,
           reason: 'P0-F: delete decision must be re-uploaded to remote',
         );
-        expect(result.warnings, isNotEmpty, reason: 'Should warn about delete-vs-update priority');
+        expect(
+          result.warnings,
+          isNotEmpty,
+          reason: 'Should warn about delete-vs-update priority',
+        );
       },
     );
 
@@ -476,7 +516,11 @@ void main() {
         final vc1 = VectorClock.fromString('{"a": 2, "b": 1}');
         final vc2 = VectorClock.fromString('{"a": 1, "b": 2}');
 
-        expect(vc1.isConcurrent(vc2), isTrue, reason: 'Vector clocks with disjoint increments are concurrent');
+        expect(
+          vc1.isConcurrent(vc2),
+          isTrue,
+          reason: 'Vector clocks with disjoint increments are concurrent',
+        );
         expect(vc1.happensBefore(vc2), isFalse);
         expect(vc2.happensBefore(vc1), isFalse);
       },

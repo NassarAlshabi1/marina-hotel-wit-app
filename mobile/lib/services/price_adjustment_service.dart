@@ -1,10 +1,9 @@
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
-import 'appwrite_sync_manager.dart';
 import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
@@ -41,25 +40,18 @@ class PriceAdjustmentService {
     }
 
     final adjustmentUuid = _uuid.v4();
-    final nowEpoch = now.millisecondsSinceEpoch ~/ 1000;
-    final nowIso = now.toIso8601String();
     final adjustmentRecord = PriceAdjustmentsCompanion(
       localUuid: Value(adjustmentUuid),
-      createdAt: Value(nowEpoch),
-      createdAtIso: Value(nowIso),
-      createdAtEpoch: Value(nowEpoch),
-      updatedAt: Value(nowEpoch),
-      updatedAtIso: Value(nowIso),
-      lastModified: Value(nowEpoch),
-      lastModifiedEpoch: Value(nowEpoch),
-      version: const Value(1),
-      origin: const Value('local'),
-      deviceId: Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      createdAt: Value(Time.nowEpoch()),
+      updatedAt: Value(Time.nowEpoch()),
+      lastModified: Value(Time.nowEpoch()),
       targetType: const Value('room'),
       targetUuid: Value(room.localUuid),
       adjustmentType: const Value('price_change'),
-      previousValue: Value(oldPrice.round()),
-      newValue: Value(newPrice.round()),
+      previousValue: Value(
+        oldPrice,
+      ), // ✅ Wave 6b: double (no .round() truncation)
+      newValue: Value(newPrice), // ✅ Wave 6b: double (no .round() truncation)
       reason: Value(reason),
       effectiveDate: Value(effectiveDate.toIso8601String()),
       appliedBy: Value(appliedBy),
@@ -80,8 +72,8 @@ class PriceAdjustmentService {
         'targetType': 'room',
         'targetUuid': room.localUuid,
         'adjustmentType': 'price_change',
-        'previousValue': oldPrice.round(),
-        'newValue': newPrice.round(),
+        'previousValue': oldPrice, // ✅ Wave 6b: double (no .round() truncation)
+        'newValue': newPrice, // ✅ Wave 6b: double (no .round() truncation)
         'reason': reason,
         'effectiveDate': effectiveDate.toIso8601String(),
         'appliedBy': appliedBy,
@@ -152,7 +144,7 @@ class PriceAdjustmentService {
           db,
         ).refreshForBookingId(booking.id, forceRebuild: true);
       } catch (e) {
-        debugPrint('⚠️ خطأ في إعادة حساب حجز ${booking.id}: $e');
+        dlog(() => '⚠️ خطأ في إعادة حساب حجز ${booking.id}: $e');
       }
 
       // حساب النتيجة بعد إعادة الحساب
@@ -224,8 +216,8 @@ class PriceAdjustmentService {
     required String performedBy,
   }) async {
     final now = DateTime.now();
+    final epoch = Time.nowEpoch();
     final auditUuid = _uuid.v4();
-    final nowEpoch = Time.nowEpoch();
     await db
         .into(db.auditLogs)
         .insert(
@@ -239,37 +231,46 @@ class PriceAdjustmentService {
             performedBy: Value(performedBy),
             deviceId: const Value('app'),
             hotelDayKey: Value(HotelTimeEngine.getHotelDayKey(dateTime: now)),
-            timestamp: Value(nowEpoch),
+            timestamp: Value(epoch),
             timestampIso: Value(now.toIso8601String()),
             isFinancial: const Value(true),
-            createdAt: Value(nowEpoch),
+            createdAt: Value(epoch),
+            // ✅ FIX: SyncFields مطلوبة في schema الـ DB — بدونها يفشل الإدراج
+            updatedAt: Value(epoch),
+            lastModified: Value(epoch),
+            origin: const Value('local'),
+            version: const Value(1),
+            vectorClock: const Value('{}'),
           ),
         );
-
-    // ✅ تسجيل في outbox للمزامنة التلقائية مع Cloudflare D1
-    try {
-      await OutboxDao(db).merge(
-        entity: 'audit_logs',
-        op: 'create',
-        localUuid: auditUuid,
-        clientTs: nowEpoch,
-        payload: {
-          'localUuid': auditUuid,
-          'operationType': action,
-          'entityType': 'booking_nights',
-          'entityUuid': '',
-          'newState': details,
-          'performedBy': performedBy,
-          'deviceId': 'app',
-          'hotelDayKey': HotelTimeEngine.getHotelDayKey(dateTime: now),
-          'timestamp': nowEpoch,
-          'isFinancial': true,
-          'createdAt': nowEpoch,
-        },
-      );
-    } catch (e) {
-      debugPrint('⚠️ Failed to merge audit_log to outbox: $e');
-    }
+    // ✅ عقد المزامنة (2026-09-05): audit_logs ضمن النطاق الافتراضي
+    // (pull/push + outbox delta sync) — الكاتب المحلي الوحيد لهذا الجدول
+    // كان يكتب محلياً فقط فلا تصل سجلات التدقيق للأجهزة الأخرى.
+    final outboxDao = OutboxDao(db);
+    await outboxDao.merge(
+      entity: 'audit_logs',
+      op: 'create',
+      localUuid: auditUuid,
+      payload: <String, dynamic>{
+        'local_uuid': auditUuid,
+        'operation_type': action,
+        'entity_type': 'booking_nights',
+        'entity_uuid': '',
+        'new_state': details,
+        'performed_by': performedBy,
+        'device_id': 'app',
+        'hotel_day_key': HotelTimeEngine.getHotelDayKey(dateTime: now),
+        'timestamp': epoch,
+        'timestamp_iso': now.toIso8601String(),
+        'is_financial': 1,
+        'created_at': epoch,
+        'updated_at': epoch,
+        'last_modified': epoch,
+        'origin': 'local',
+        'version': 1,
+      },
+      clientTs: epoch,
+    );
   }
 
   Future<List<PriceAdjustment>> getAdjustmentsForRoom(String roomUuid) async {

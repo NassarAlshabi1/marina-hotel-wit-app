@@ -8,7 +8,7 @@ name: Build Flutter Windows Release
 #  ينتج ملف .exe + ملفات DLL + assets في مجلد bundle.
 #
 #  المتطلبات:
-#  - Flutter 3.44.4+ (مع --enable-windows-desktop)
+#  - Flutter 3.44.9+ (مع --enable-windows-desktop)
 #  - Visual Studio Build Tools (CMake)
 #  - sqflite_common_ffi لـ SQLite على Desktop
 #
@@ -27,14 +27,16 @@ permissions:
 
 on:
   push:
-    branches: [main, marina]
+    branches: [main, marina, refactor/performance-fixes-v2]
     paths:
       - 'mobile/**'
+      - 'scripts/windows_low_end_sqlite_stress.ps1'
       - '.github/workflows/flutter-windows-release.yml'
   pull_request:
     branches: [main]
     paths:
       - 'mobile/**'
+      - 'scripts/windows_low_end_sqlite_stress.ps1'
       - '.github/workflows/flutter-windows-release.yml'
   workflow_dispatch:
 
@@ -53,7 +55,7 @@ jobs:
       - name: 🐦 Set up Flutter
         uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.4'
+          flutter-version: '3.44.9'
           channel: stable
           cache: true
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
@@ -65,11 +67,26 @@ jobs:
         run: flutter pub get
 
       - name: 🏗️ Generate code (build_runner)
-        run: dart run build_runner build 
+        run: dart run build_runner build
 
       - name: 🔍 Static analysis
         run: flutter analyze --no-fatal-infos
-        continue-on-error: true
+
+      - name: 🧪 Run focused tests
+        run: flutter test test/auth_login_test.dart
+
+      - name: 🧠 SQLite low-end stress with 25% CPU cap
+        shell: pwsh
+        run: .\\..\\scripts\\windows_low_end_sqlite_stress.ps1
+
+      - name: 📤 Upload SQLite stress log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-sqlite-low-end-stress
+          path: mobile/sqlite-low-end-stress-windows.log
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: 🔨 Build Windows Release
         run: flutter build windows --release
@@ -82,7 +99,7 @@ jobs:
           mv windows-release.zip ../../../../../
 
       - name: 📤 Upload Windows artifact
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: windows-release
           path: mobile/windows-release.zip
@@ -97,7 +114,7 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| Build Type | Release |" >> $GITHUB_STEP_SUMMARY
           echo "| Platform | Windows x64 |" >> $GITHUB_STEP_SUMMARY
-          echo "| Flutter | 3.44.4 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Flutter | 3.44.9 |" >> $GITHUB_STEP_SUMMARY
           echo "| Status | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Artifact" >> $GITHUB_STEP_SUMMARY

@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 // ============================================================================
 //  Marina Hotel — Memory Leak Detection Benchmark
 //  ============================================================================
@@ -20,6 +18,14 @@ import 'dart:io' show Platform;
 
 // ignore_for_file: lines_longer_than_80_chars
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.memory_leak_benchmark_test;
+
 import 'dart:io' show ProcessInfo;
 
 import 'package:drift/drift.dart' as d;
@@ -28,6 +34,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:marina_hotel_mobile/providers/auth_provider.dart';
 import 'package:marina_hotel_mobile/providers/core_providers.dart';
@@ -39,6 +46,7 @@ import 'package:marina_hotel_mobile/screens/employees/employees_list.dart';
 import 'package:marina_hotel_mobile/screens/expenses/expenses_list.dart';
 import 'package:marina_hotel_mobile/screens/rooms/rooms_list.dart';
 import 'package:marina_hotel_mobile/services/daos/employees_dao.dart';
+import 'package:marina_hotel_mobile/services/fcm_sender.dart';
 import 'package:marina_hotel_mobile/services/daos/expenses_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/rooms_dao.dart';
@@ -252,18 +260,16 @@ String _analyzeLeak(List<_IterationMetrics> results) {
 }
 
 void main() {
-  final isCI = Platform.environment.containsKey('CI') ||
-      Platform.environment.containsKey('GITHUB_ACTIONS');
-  if (isCI) {
-    // هذه الاختبارات تحتاج موارد كبيرة وتسبب segmentation fault في CI
-    // تُشغّل محلياً فقط
-    return;
-  }
-
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    FcmSender.setNotificationsDisabledForTesting(true);
+    SharedPreferences.setMockInitialValues({'appwrite_sync_enabled': false});
     await initializeDateFormatting();
+  });
+
+  tearDownAll(() {
+    FcmSender.setNotificationsDisabledForTesting(false);
   });
 
   // ═══════════════════════════════════════════════════════════════════════════

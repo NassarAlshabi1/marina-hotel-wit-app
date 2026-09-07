@@ -33,7 +33,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.aden.marina"
+    namespace = "com.marina.marina"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -48,7 +48,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.aden.marina"
+        applicationId = "com.marina.marina"
         minSdkVersion = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutterVersionCode.toInteger()
@@ -59,10 +59,17 @@ android {
         // This allows flexible multi-architecture builds via GitHub Actions
 
         // Add app metadata
+        //
+        // ✅ P0-4 FIX (2026-08-06 Audit): إضافة posthogToken placeholder.
+        // يُقرأ من local.properties (للتطوير المحلي) أو POSTHOG_API_KEY
+        // environment variable (لـ CI/CD). إذا لم يكن موجوداً، يُعطّل
+        // PostHog تلقائياً (قيمة فارغة).
+        // سابقاً كان المفتاح hardcoded في AndroidManifest.xml.
         manifestPlaceholders = [
             appName: "Marina Hotel",
             appDescription: "Complete Hotel Management System",
-            applicationName: "io.flutter.app.FlutterApplication"
+            applicationName: "io.flutter.app.FlutterApplication",
+            posthogToken: localProperties.getProperty("POSTHOG_API_KEY", System.getenv("POSTHOG_API_KEY") ?: "")
         ]
 
         // ════════════════════════════════════════════════════════════════

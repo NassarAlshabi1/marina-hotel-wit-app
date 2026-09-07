@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 import 'dart:math';
 
@@ -9,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
 import '../utils/debug_logs.dart';
+import '../utils/weak_device_optimizer.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_conflict_resolver.dart';
 import 'google_drive_logger.dart';
@@ -269,7 +268,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   void stop() {
-    SyncLocks.autoEngineLock.synchronized(() {
+    unawaited(SyncLocks.autoEngineLock.synchronized(() {
       if (!_isRunning) {
         return;
       }
@@ -278,13 +277,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
       _isRunning = false;
 
-      _connectivitySubscription?.cancel();
+      unawaited(_connectivitySubscription?.cancel());
       _connectivitySubscription = null;
 
-      _syncResultSubscription?.cancel();
+      unawaited(_syncResultSubscription?.cancel());
       _syncResultSubscription = null;
 
-      _dataStreamSubscription?.cancel();
+      unawaited(_dataStreamSubscription?.cancel());
       _dataStreamSubscription = null;
 
       _retryTimer?.cancel();
@@ -297,7 +296,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
       _emitState();
       _log('✅ Auto Sync Engine stopped');
-    });
+    }));
   }
 
   Future<void> restart() async {
@@ -334,11 +333,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
       },
     );
 
-    Connectivity().checkConnectivity().then((results) {
+    unawaited(Connectivity().checkConnectivity().then((results) {
       _hasNetworkConnection = results.any((r) => r != ConnectivityResult.none);
       _log('📡 Initial network status: $_hasNetworkConnection');
       _emitState();
-    });
+    }));
   }
 
   void _setupSyncResultListener() {
@@ -376,7 +375,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
           );
 
           final prefs = SharedPreferences.getInstance();
-          prefs.then((p) async {
+          unawaited(prefs.then((p) async {
             final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
             if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
               await _scheduleRetry();
@@ -386,7 +385,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
                 level: LogLevel.warning,
               );
             }
-          });
+          }));
         }
 
         _emitState();
@@ -400,7 +399,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   void _setupDataStreamListener() {
     _log('💾 Setting up data stream listener...');
 
-    _dataStreamSubscription?.cancel();
+    unawaited(_dataStreamSubscription?.cancel());
     _dataStreamSubscription = _coordinator!.syncResults.listen((result) {
       if (result.success &&
           result.pushedChanges != null &&
@@ -414,10 +413,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('❤️ Starting health check monitor...');
 
     _healthCheckTimer?.cancel();
-    _healthCheckTimer = Timer.periodic(
-      const Duration(minutes: 5),
-      (_) => _performHealthCheck(),
-    );
+    final interval = WeakDeviceOptimizer.instance.isWeakDevice
+        ? const Duration(minutes: 15)
+        : const Duration(minutes: 5);
+    _healthCheckTimer = Timer.periodic(interval, (_) => _performHealthCheck());
+    _log('❤️ Health check interval: ${interval.inMinutes} minutes');
   }
 
   Future<void> _performHealthCheck() async {
@@ -497,9 +497,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
         '📤 Syncing $_pendingChangesCount pending changes after network restore',
       );
       await _guardedSyncNow(pull: false, reason: 'network_restore_push');
-    } else {
+    } else if (!WeakDeviceOptimizer.instance.isWeakDevice) {
       _log('📥 Checking for remote changes after network restore');
       await _guardedSyncNow(push: false, reason: 'network_restore_pull');
+    } else {
+      _log('🧠 Low-RAM policy: deferred empty pull after network restore');
     }
   }
 
@@ -508,7 +510,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🔄 App lifecycle changed: ${state.name}');
 
     if (state == AppLifecycleState.resumed) {
-      _onAppResumed();
+      unawaited(_onAppResumed());
     } else if (state == AppLifecycleState.paused) {
       _onAppPaused();
     } else if (state == AppLifecycleState.inactive) {
@@ -560,6 +562,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
       }
     }
 
+    if (WeakDeviceOptimizer.instance.isWeakDevice) {
+      // مزامنة foreground الكاملة قد تبدأ pull + snapshot قريبًا من استعادة
+      // الواجهة. على 1GB نؤجلها إلى المؤقت أو إلى إجراء المستخدم.
+      _log('🧠 Low-RAM policy: deferred foreground pull');
+      return;
+    }
+
     Future<void>.delayed(SyncConstants.appForegroundDelay, () async {
       try {
         await _orchestrator.onAppForeground();
@@ -572,10 +581,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
   void _onAppPaused() {
     _log('⏸️ App paused');
 
-    if (_pendingChangesCount > 0 && _hasNetworkConnection && _isSignedIn) {
+    if (!WeakDeviceOptimizer.instance.isWeakDevice &&
+        _pendingChangesCount > 0 &&
+        _hasNetworkConnection &&
+        _isSignedIn) {
       _log('💾 App paused with pending changes - quick sync before background');
 
-      _guardedSyncNow(pull: false, reason: 'app_paused')
+      unawaited(_guardedSyncNow(pull: false, reason: 'app_paused')
           .then((result) {
             if (result) {
               _log('✅ Quick sync before background completed');
@@ -583,7 +595,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
           })
           .catchError((Object error) {
             _log('⚠️ Quick sync before background failed: $error');
-          });
+          }));
     }
   }
 
@@ -601,9 +613,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
       return;
     }
 
-    SyncLocks.autoEngineLock.synchronized(() {
+    unawaited(SyncLocks.autoEngineLock.synchronized(() {
       _pendingChangesCount += count;
-    });
+    }));
 
     _emitState();
 
@@ -611,7 +623,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
       '💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)',
     );
 
-    _orchestrator.notifyLocalChange(table: table, operation: operation);
+    unawaited(_orchestrator.notifyLocalChange(table: table, operation: operation));
   }
 
   Future<void> _scheduleRetry() async {

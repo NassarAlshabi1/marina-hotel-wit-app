@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -11,6 +9,7 @@ import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
@@ -57,7 +56,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
           return roomsWithStatusAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, st) {
-              debugPrint('❌ RoomsDashboard error: $e\n$st');
+              dlog(() => '❌ RoomsDashboard error: $e\n$st');
               return const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -166,10 +165,10 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       _navigateToBooking(context, room.roomNumber);
     } else if (isOccupied) {
       // الانتقال مباشرة إلى شاشة الدفع/عرض الحجز عند النقر على غرفة محجوزة
-      _showRoomBookings(context, ref, room.roomNumber);
+      unawaited(_showRoomBookings(context, ref, room.roomNumber));
     } else {
       // للحالات الأخرى مثل الصيانة، نعرض التفاصيل
-      showDialog<void>(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(
@@ -196,7 +195,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
             ),
           ],
         ),
-      );
+      ));
     }
   }
 
@@ -213,13 +212,11 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
   }
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
-    Navigator.of(
-      context,
-    ).push<void>(
+    unawaited(Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
-    );
+    ));
   }
 
   Future<void> _showRoomBookings(
@@ -250,9 +247,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       }
 
       unawaited(
-        Navigator.of(
-          context,
-        ).push<void>(
+        Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
             builder: (_) => BookingPaymentScreen(booking: activeBooking),
           ),

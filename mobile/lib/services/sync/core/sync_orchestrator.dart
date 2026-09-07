@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 import 'dart:math';
 
@@ -193,7 +191,7 @@ class SyncOrchestrator {
   }
 
   void dispose() {
-    _stateController.close();
+    unawaited(_stateController.close());
     for (final adapter in _adapters) {
       adapter.dispose();
     }

@@ -1,5 +1,4 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,8 +10,9 @@ import '../../providers/backup_provider.dart';
 import '../../providers/smart_sync_provider.dart';
 import '../../services/alarm_backup.dart';
 import '../../services/smart_sync_manager.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/performance_monitor.dart';
-import 'appwrite_settings_screen.dart';
+import 'sync/unified_sync_settings_screen.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
   const DataProtectionScreen({super.key});
@@ -45,7 +45,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     super.initState();
     _maxBackupsController = TextEditingController();
     _retentionDaysController = TextEditingController();
-    _loadBackupForm();
+    unawaited(_loadBackupForm());
   }
 
   @override
@@ -104,9 +104,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الإعدادات: $e'),
           backgroundColor: Colors.red,
@@ -128,9 +126,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             enabled ? 'تم تفعيل النسخ التلقائي' : 'تم إيقاف النسخ التلقائي',
@@ -141,9 +137,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل تغيير الحالة: $e'),
           backgroundColor: Colors.red,
@@ -170,9 +164,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('فشل التنظيف: $e'), backgroundColor: Colors.red),
       );
     } finally {
@@ -199,9 +191,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         return;
       }
       setState(() => _scheduledEnabled = enabled);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             enabled ? 'تم تفعيل النسخ المجدول' : 'تم إيقاف النسخ المجدول',
@@ -212,9 +202,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر تحديث الجدولة: $e'),
           backgroundColor: Colors.red,
@@ -248,9 +236,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم تحديث وقت النسخ إلى ${picked.format(context)}'),
         ),
@@ -288,9 +274,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير حالة مزامنة Google Drive: $e'),
           backgroundColor: Colors.red,
@@ -325,9 +309,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير إعداد بدء التشغيل: $e'),
           backgroundColor: Colors.red,
@@ -342,9 +324,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
 
   Future<void> _toggleGoogleDrivePushEnabled(bool enabled) async {
     if (!_googleDriveSyncEnabled) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('فعّل مزامنة Google Drive أولاً'),
           backgroundColor: Colors.orange,
@@ -359,9 +339,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         return;
       }
       setState(() => _googleDrivePushEnabled = enabled);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             enabled ? 'تم تفعيل الرفع إلى Google Drive' : 'تم إيقاف الرفع',
@@ -372,9 +350,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير إعداد الرفع: $e'),
           backgroundColor: Colors.red,
@@ -395,9 +371,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(enabled ? 'تم تفعيل المزامنة' : 'تم إيقاف المزامنة'),
         ),
@@ -406,9 +380,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير حالة المزامنة: $e'),
           backgroundColor: Colors.red,
@@ -436,9 +408,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر تعديل الفترة: $e'),
           backgroundColor: Colors.red,
@@ -466,9 +436,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر تحديث الاستراتيجية: $e'),
           backgroundColor: Colors.red,
@@ -496,9 +464,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشلت المزامنة اليدوية: $e'),
           backgroundColor: Colors.red,
@@ -555,8 +521,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       final pushed = result.recordsPushed;
       final pulled = result.recordsPulled;
       final label = triggeredByBackup
-          ? 'تمت مزامنة Appwrite بعد النسخة الاحتياطية'
-          : 'تمت مزامنة Appwrite بنجاح';
+          ? 'تمت مزامنة Cloudflare بعد النسخة الاحتياطية'
+          : 'تمت مزامنة Cloudflare بنجاح';
       messenger.showSnackBar(
         SnackBar(content: Text('$label (رفع $pushed / استقبل $pulled)')),
       );
@@ -567,7 +533,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       }
       messenger.showSnackBar(
         SnackBar(
-          content: Text('فشلت مزامنة Appwrite: $e'),
+          content: Text('فشلت مزامنة Cloudflare: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -606,7 +572,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 appwriteStats,
               ),
               const SizedBox(height: 24),
-              _buildSectionTitle('مزامنة Appwrite السحابية', Icons.cloud_sync),
+              _buildSectionTitle(
+                'مزامنة Cloudflare السحابية',
+                Icons.cloud_sync,
+              ),
               const SizedBox(height: 12),
               _buildAppwriteSection(appwriteConnection, appwriteStats),
               const SizedBox(height: 32),
@@ -741,8 +710,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     AsyncValue<Map<String, dynamic>> statsAsync,
   ) {
     return statsAsync.when(
-      loading: () => _buildSummarySkeleton('Appwrite'),
-      error: (error, stack) => _buildSummaryError('Appwrite'),
+      loading: () => _buildSummarySkeleton('Cloudflare'),
+      error: (error, stack) => _buildSummaryError('Cloudflare'),
       data: (stats) {
         final subtitle = _formatOptionalDate(stats['lastSyncTime'] as String?);
         final successRate = stats['successRate'];
@@ -757,7 +726,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Appwrite',
+                  'Cloudflare',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.blueGrey,
@@ -854,7 +823,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               statsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, stack) => const Text(
-                  'تعذر تحميل إحصائيات Appwrite',
+                  'تعذر تحميل إحصائيات Cloudflare',
                   style: TextStyle(color: Colors.red),
                 ),
                 data: (stats) {
@@ -902,7 +871,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                       )
                     : const Icon(Icons.cloud_sync),
                 label: Text(
-                  _appwriteBusy ? 'جارٍ المزامنة...' : 'مزامنة Appwrite الآن',
+                  _appwriteBusy ? 'جارٍ المزامنة...' : 'مزامنة Cloudflare الآن',
                 ),
               ),
             ),
@@ -932,15 +901,15 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           alignment: Alignment.centerRight,
           child: TextButton.icon(
             onPressed: () {
-              Navigator.push<void>(
+              unawaited(Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(
-                  builder: (context) => const AppwriteSettingsScreen(),
+                  builder: (context) => const UnifiedSyncSettingsScreen(),
                 ),
-              );
+              ));
             },
             icon: const Icon(Icons.settings),
-            label: const Text('إعدادات Appwrite المتقدمة'),
+            label: const Text('إعدادات المزامنة المتقدمة'),
           ),
         ),
       ],
@@ -1100,7 +1069,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                   ? null
                   : (value) {
                       if (value != null) {
-                        _changeSyncInterval(value);
+                        unawaited(_changeSyncInterval(value));
                       }
                     },
             ),
@@ -1127,7 +1096,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                       ? null
                       : (value) {
                           if (value != null) {
-                            _changeConflictResolution(value);
+                            unawaited(_changeConflictResolution(value));
                           }
                         },
                 ),
@@ -1280,6 +1249,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               TextFormField(
                 controller: _maxBackupsController,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [englishIntegerInputFormatter],
                 decoration: const InputDecoration(
                   labelText: 'عدد النسخ القصوى',
                   suffixIcon: Icon(Icons.numbers),
@@ -1290,6 +1260,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               TextFormField(
                 controller: _retentionDaysController,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [englishIntegerInputFormatter],
                 decoration: const InputDecoration(
                   labelText: 'فترة الاحتفاظ بالأيام',
                   suffixIcon: Icon(Icons.calendar_today),
@@ -1365,7 +1336,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             label: Text(
               _backupBusy
                   ? 'جارٍ تجهيز النسخة...'
-                  : 'نسخة شاملة + مزامنة Appwrite',
+                  : 'نسخة شاملة + مزامنة Cloudflare',
             ),
           ),
         ),

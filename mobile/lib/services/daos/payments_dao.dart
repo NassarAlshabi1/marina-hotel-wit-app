@@ -4,16 +4,15 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import '../../utils/id.dart';
+import '../../utils/sql_date_range.dart';
 import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
 import '../fcm_sender.dart';
 import '../local_db.dart';
-import '../local_notification_service.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 part 'payments_dao.g.dart';
 
@@ -147,13 +146,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (!includeVoided) {
       q.where((t) => t.isVoided.equals(false));
     }
-    // حالة 1: hotelDayKey يطابق اليوم
-    q.where(
-      (t) =>
-          t.hotelDayKey.equals(hotelDayKey) |
-          // حالة 2: hotelDayKey فارغ وتاريخ الدفعة ضمن نطاق اليوم
-          (t.hotelDayKey.isNull() & t.paymentDate.like('$hotelDayKey%')),
-    );
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.paymentDate.like('$hotelDayKey%')
+          : (t.paymentDate.isBiggerOrEqualValue(range.start) &
+                t.paymentDate.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
     return q.watch();
   }
 
@@ -170,7 +171,13 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (!includeVoided) {
       q.where((t) => t.isVoided.equals(false));
     }
-    q.where((t) => t.paymentDate.like('$date%'));
+    final range = SqlDateRange.forDay(date);
+    q.where(
+      (t) => range == null
+          ? t.paymentDate.like('$date%')
+          : (t.paymentDate.isBiggerOrEqualValue(range.start) &
+                t.paymentDate.isSmallerThanValue(range.endExclusive)),
+    );
     return q.get();
   }
 
@@ -214,12 +221,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       );
     }
     if (toHotelDay != null) {
+      final endRange = SqlDateRange.forDay(toHotelDay);
       q.where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
                 t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
             (t.hotelDayKey.isNull() &
-                t.paymentDate.isSmallerOrEqualValue(toHotelDay)),
+                (endRange == null
+                    ? t.paymentDate.isSmallerOrEqualValue(toHotelDay)
+                    : t.paymentDate.isSmallerThanValue(endRange.endExclusive))),
       );
     }
     if (roomNumber != null && roomNumber.isNotEmpty) {
@@ -248,12 +258,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.isVoided.equals(false));
     }
 
-    final byKey = payments.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback =
-        payments.hotelDayKey.isNull() &
-        payments.paymentDate.like('$hotelDayKey%');
-
-    q.where((t) => byKey | byDateFallback);
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.paymentDate.like('$hotelDayKey%')
+          : (t.paymentDate.isBiggerOrEqualValue(range.start) &
+                t.paymentDate.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
 
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
@@ -272,18 +285,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
-    final nowIso = DateTime.now().toIso8601String();
     final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
     final comp = data.copyWith(
       localUuid: Value(uu),
       createdAt: Value(now),
-      createdAtIso: Value(nowIso),
-      createdAtEpoch: Value(now),
       updatedAt: Value(now),
-      updatedAtIso: Value(nowIso),
       lastModified: Value(now),
-      lastModifiedEpoch: Value(now),
-      version: const Value(1),
       origin: Value(originIsServer ? 'server' : 'local'),
       deviceId: originIsServer
           ? const Value.absent()
@@ -310,36 +317,23 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     // ✅ FCM: إشعار الأجهزة الأخرى بدفعة جديدة (fire-and-forget)
     // بعد نجاح الـ transaction — لن يُرسل لدفعة لم تُحفظ.
     if (!originIsServer && comp.amount.present) {
-      // قراءة roomNumber + guestName من booking المرتبط (اختياري، best-effort)
+      // قراءة roomNumber من booking المرتبط (اختياري، best-effort)
       String? roomNumber;
-      String? guestName;
       if (comp.bookingLocalId.present && comp.bookingLocalId.value != null) {
         try {
           final booking =
-              await (db.select(
-                    db.bookings,
-                  )..where((b) => b.id.equals(comp.bookingLocalId.value!)))
+              await (db.select(db.bookings)
+                    ..where((b) => b.id.equals(comp.bookingLocalId.value!)))
                   .getSingleOrNull();
           roomNumber = booking?.roomNumber;
-          guestName = booking?.guestName;
-        } catch (e) {
-      debugPrint('⚠️ Swallowed error in payments_dao.dart: ');
-          // تجاهل — roomNumber/guestName اختياريان في الإشعار
+        } catch (_) {
+          // تجاهل — roomNumber اختياري في الإشعار
         }
       }
       unawaited(
         FcmSender().notifyPaymentAdded(
           amount: comp.amount.value,
           roomNumber: roomNumber ?? 'غير محدد',
-        ),
-      );
-      // ✅ إشعار محلي على نفس الجهاز
-      unawaited(
-        LocalNotificationService.instance.notifyPaymentAdded(
-          amount: comp.amount.value,
-          roomNumber: roomNumber ?? 'غير محدد',
-          method: comp.paymentMethod.present ? comp.paymentMethod.value : null,
-          guestName: guestName,
         ),
       );
     }
@@ -353,7 +347,6 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       final existing = await getById(id);
       if (existing == null) {
         return 0;
@@ -363,15 +356,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       final effectiveLastModified = originIsServer && data.lastModified.present
           ? data.lastModified
           : Value(now);
-      final effectiveLastModifiedEpoch =
-          originIsServer && data.lastModifiedEpoch.present
-          ? data.lastModifiedEpoch
-          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
-        updatedAtIso: Value(nowIso),
         lastModified: effectiveLastModified,
-        lastModifiedEpoch: effectiveLastModifiedEpoch,
         version: Value(existing.version + 1),
       );
       final rows = await (update(
@@ -392,7 +379,6 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       final existing = await getById(id);
       if (existing == null) {
         return 0;
@@ -401,12 +387,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
           .write(
             PaymentsCompanion(
               deletedAt: Value(now),
-              deletedAtIso: Value(nowIso),
               updatedAt: Value(now),
-              updatedAtIso: Value(nowIso),
               lastModified: Value(now),
-              lastModifiedEpoch: Value(now),
-              version: Value(existing.version + 1),
             ),
           );
       if (rows > 0 && !originIsServer) {
@@ -500,6 +482,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
             lastModified: Value(payment.lastModified),
             version: Value(payment.version),
             origin: Value(payment.origin),
+            receivedByUserId: Value(payment.receivedByUserId),
+            receivedByName: Value(payment.receivedByName),
+            receivedSessionUuid: Value(payment.receivedSessionUuid),
           ),
         );
       }

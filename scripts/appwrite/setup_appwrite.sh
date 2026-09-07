@@ -8,7 +8,7 @@ fi
 
 PROJECT_ID="${PROJECT_ID:-690ff0da0025518570c1}"
 APPWRITE_ENDPOINT="${APPWRITE_ENDPOINT:-https://fra.cloud.appwrite.io/v1}"
-ANDROID_APP_ID="${ANDROID_APP_ID:-com.aden.marina}"
+ANDROID_APP_ID="${ANDROID_APP_ID:-com.marina.marina}"
 IOS_BUNDLE_ID="${IOS_BUNDLE_ID:-com.aden.marina}"
 WEB_HOSTNAME="${WEB_HOSTNAME:-localhost}"
 WINDOWS_PACKAGE="${WINDOWS_PACKAGE:-marina_hotel}" 

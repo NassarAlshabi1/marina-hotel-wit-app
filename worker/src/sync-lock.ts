@@ -219,7 +219,9 @@ export class SyncLockDO {
   // ─── Lock Status ───────────────────────────────────────────
 
   async handleLockStatus(): Promise<Response> {
-    // List all active locks
+    // List all active locks — keys are returned WITHOUT the internal
+    // `lock:` storage prefix so clients see the natural
+    // `<entity>:<entityId>` identity.
     const locks: Array<{ key: string; deviceId: string; expiresAt: number }> = [];
     const entries = await this.state.storage.list<{ deviceId: string; expiresAt: number }>({
       prefix: 'lock:',
@@ -227,7 +229,7 @@ export class SyncLockDO {
 
     for (const [key, value] of entries) {
       if (value.expiresAt > Date.now()) {
-        locks.push({ key, deviceId: value.deviceId, expiresAt: value.expiresAt });
+        locks.push({ key: key.slice('lock:'.length), deviceId: value.deviceId, expiresAt: value.expiresAt });
       } else {
         // Clean up expired locks
         await this.state.storage.delete(key);

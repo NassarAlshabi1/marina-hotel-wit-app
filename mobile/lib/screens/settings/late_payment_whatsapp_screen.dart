@@ -138,9 +138,7 @@ class _LatePaymentWhatsAppScreenState
       message: message,
     );
     if (result.quotaMessage != null && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.quotaMessage!),
           backgroundColor: Colors.orange,
@@ -153,9 +151,7 @@ class _LatePaymentWhatsAppScreenState
   /// إرسال تنبيه لجميع الديون المحددة
   Future<void> _sendBulkReminders(List<Debt> debts) async {
     if (debts.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('لم تختر أي دين لإرسال التنبيه'),
           backgroundColor: Colors.orange,
@@ -877,9 +873,7 @@ class _LatePaymentWhatsAppScreenState
   /// تأكيد الإرسال المجمّع
   Future<void> _showBulkSendConfirmation(BuildContext context) async {
     if (_selectedIds.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('اختر ديناً واحداً على الأقل'),
           backgroundColor: Colors.orange,

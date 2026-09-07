@@ -8,7 +8,7 @@ Future<T> migrateAutoSyncPreference<T>({
   required Future<void> Function(T value) apply,
 }) async {
   if (T != int && T != bool) {
-    throw UnsupportedError('Unsupported preference type: $T');
+    throw ArgumentError('Unsupported preference type: $T');
   }
 
   T value;

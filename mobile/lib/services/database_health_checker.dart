@@ -1,21 +1,20 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+
+import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart' as sqflite;
+
+import '../utils/debug_log.dart';
 import 'local_db.dart';
 
 class DatabaseHealthChecker {
   DatabaseHealthChecker._();
-
   static final DatabaseHealthChecker instance = DatabaseHealthChecker._();
 
   final _healthStreamController = StreamController<DatabaseHealth>.broadcast();
   Timer? _healthCheckTimer;
-
   DatabaseHealth _lastHealth = DatabaseHealth.healthy();
 
   Stream<DatabaseHealth> get healthStream => _healthStreamController.stream;
-
   DatabaseHealth get currentHealth => _lastHealth;
 
   void startMonitoring({Duration interval = const Duration(seconds: 30)}) {
@@ -34,12 +33,9 @@ class DatabaseHealthChecker {
         _updateHealth(DatabaseHealth.notInitialized());
         return;
       }
-
       final stopwatch = Stopwatch()..start();
       final db = DatabaseManager.instance;
-
       await db.customStatement('SELECT 1');
-
       stopwatch.stop();
       final responseTime = stopwatch.elapsedMilliseconds;
 
@@ -49,7 +45,7 @@ class DatabaseHealthChecker {
         _updateHealth(DatabaseHealth.healthy(responseTime));
       }
     } catch (e) {
-      debugPrint('❌ Database health check failed: $e');
+      dlog(() => '❌ Database health check failed: $e');
       _updateHealth(DatabaseHealth.error(e.toString()));
     }
   }
@@ -65,16 +61,15 @@ class DatabaseHealthChecker {
     Duration timeout = const Duration(seconds: 5),
   }) async {
     if (!DatabaseManager.isInitialized) {
-      debugPrint('⚠️ Database not initialized');
+      dlog('⚠️ Database not initialized');
       return false;
     }
-
     try {
       final db = DatabaseManager.instance;
       await db.customStatement('SELECT 1').timeout(timeout);
       return true;
     } catch (e) {
-      debugPrint('❌ Database health check failed: $e');
+      dlog(() => '❌ Database health check failed: $e');
       return false;
     }
   }
@@ -86,9 +81,43 @@ class DatabaseHealthChecker {
     return operation();
   }
 
+  /// ✅ Check SQLite integrity using PRAGMA integrity_check.
+  /// Returns the integrity check result ('ok' or error description).
+  /// Returns null if the check could not be performed.
+  Future<String?> checkIntegrity() async {
+    try {
+      // Open a direct sqflite connection to run PRAGMA integrity_check
+      // on the same database file Drift uses.
+      final dbDir = await sqflite.getDatabasesPath();
+      final dbPath = p.join(dbDir, 'marina_hotel.db');
+      final db = await sqflite.openDatabase(
+        dbPath,
+        readOnly: true,
+        singleInstance: false,
+      );
+      try {
+        final result = await db.rawQuery('PRAGMA integrity_check');
+        final integrity = result.isEmpty
+            ? null
+            : result.first.values.first! as String;
+        if (integrity != 'ok') {
+          dlog(() => '❌ SQLite integrity_check FAILED: $integrity');
+          return integrity;
+        }
+        dlog('✅ SQLite integrity_check: ok');
+        return 'ok';
+      } finally {
+        await db.close();
+      }
+    } catch (e) {
+      dlog(() => '❌ SQLite integrity_check error: $e');
+      return null;
+    }
+  }
+
   void dispose() {
     stopMonitoring();
-    _healthStreamController.close();
+    unawaited(_healthStreamController.close());
   }
 }
 
@@ -122,6 +151,7 @@ class DatabaseHealth {
     errorMessage: message,
     timestamp: DateTime.now(),
   );
+
   final DatabaseHealthStatus status;
   final int? responseTimeMs;
   final String? errorMessage;

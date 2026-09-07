@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:drift/drift.dart' hide Column;
@@ -12,6 +10,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
@@ -79,12 +78,12 @@ class _SalaryWithdrawalsReportScreenState
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
-      _initializeDefaults();
+      unawaited(_initializeDefaults());
     }
   }
 
   Future<void> _initializeDefaults() async {
-    // ✅ افتراضي: اليوم الفندقي الحالي (14:01 → 14:00)
+    // ✅ افتراضي: اليوم الفندقي الحالي (14:00 → 13:59)
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;
@@ -423,7 +422,7 @@ class _SalaryWithdrawalsReportScreenState
                   _fromDate = range.from;
                   _toDate = range.to;
                 });
-                _fetchReport();
+                unawaited(_fetchReport());
               },
             ),
             const SizedBox(height: 8),
@@ -893,7 +892,7 @@ class _SalaryWithdrawalsReportScreenState
     try {
       return DateTime.parse(normalized);
     } catch (e) {
-      debugPrint('⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e');
+      dlog(() => '⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }

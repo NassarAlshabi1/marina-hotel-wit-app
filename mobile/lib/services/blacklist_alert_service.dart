@@ -26,6 +26,19 @@ class BlacklistAlert {
     required this.detectedAt,
   });
 
+  factory BlacklistAlert.fromJson(
+    Map<String, dynamic> json,
+    BlacklistEntry entry,
+  ) {
+    return BlacklistAlert(
+      guestName: json['guestName'] as String,
+      roomNumber: json['roomNumber'] as String,
+      bookingId: json['bookingId'] as int,
+      blacklistEntry: entry,
+      detectedAt: DateTime.parse(json['detectedAt'] as String),
+    );
+  }
+
   final String guestName;
   final String roomNumber;
   final int bookingId;
@@ -45,15 +58,6 @@ class BlacklistAlert {
     'detectedAt': detectedAt.toIso8601String(),
   };
 
-  static BlacklistAlert fromJson(Map<String, dynamic> json, BlacklistEntry entry) {
-    return BlacklistAlert(
-      guestName: json['guestName'] as String,
-      roomNumber: json['roomNumber'] as String,
-      bookingId: json['bookingId'] as int,
-      blacklistEntry: entry,
-      detectedAt: DateTime.parse(json['detectedAt'] as String),
-    );
-  }
 }
 
 /// خدمة تنبيهات القائمة السوداء — Singleton
@@ -111,7 +115,9 @@ class BlacklistAlertService {
     _alertsController.add(_activeAlerts);
     await _persistAlerts();
 
-    debugPrint('🚨 BLACKLIST ALERT: ${match.name} matched guest "$guestName" in room $roomNumber');
+    debugPrint(
+      '🚨 BLACKLIST ALERT: ${match.name} matched guest "$guestName" in room $roomNumber',
+    );
 
     return alert;
   }
@@ -123,7 +129,7 @@ class BlacklistAlertService {
           .customSelect(
             'SELECT id, guest_name, room_number FROM bookings '
             'WHERE status = ? AND deleted_at IS NULL AND actual_checkout IS NULL',
-            variables: [Variable<String>('checked_in')],
+            variables: [const Variable<String>('checked_in')],
           )
           .get();
 
@@ -164,7 +170,9 @@ class BlacklistAlertService {
 
   /// إزالة تنبيه عند مغادرة النزيل
   Future<void> dismissAlert(int bookingId) async {
-    _activeAlerts = _activeAlerts.where((a) => a.bookingId != bookingId).toList();
+    _activeAlerts = _activeAlerts
+        .where((a) => a.bookingId != bookingId)
+        .toList();
     _alertsController.add(_activeAlerts);
     await _persistAlerts();
   }
@@ -196,7 +204,10 @@ class BlacklistAlertService {
         final booking = await db
             .customSelect(
               'SELECT id FROM bookings WHERE id = ? AND status = ? AND deleted_at IS NULL',
-              variables: [Variable<int>(bookingId), Variable<String>('checked_in')],
+              variables: [
+                Variable<int>(bookingId),
+                const Variable<String>('checked_in'),
+              ],
             )
             .getSingleOrNull();
 

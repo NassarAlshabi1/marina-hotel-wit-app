@@ -90,11 +90,13 @@ class _Channels {
 class LocalNotificationService {
   factory LocalNotificationService() => _instance;
   LocalNotificationService._internal();
-  static final LocalNotificationService _instance = LocalNotificationService._internal();
+  static final LocalNotificationService _instance =
+      LocalNotificationService._internal();
 
   static LocalNotificationService get instance => _instance;
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
 
@@ -141,7 +143,10 @@ class LocalNotificationService {
   /// إنشاء قنوات الإشعارات على Android.
   /// على iOS لا توجد قنوات — يتم تجاهل الاستدعاء تلقائياً.
   Future<void> _createChannels() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android == null) return;
     for (final channel in _Channels.all) {
       await android.createNotificationChannel(channel);
@@ -208,12 +213,15 @@ class LocalNotificationService {
     String? guestName,
   }) async {
     final methodStr = (method != null && method.isNotEmpty) ? ' | $method' : '';
-    final guestStr = (guestName != null && guestName.isNotEmpty) ? ' — $guestName' : '';
+    final guestStr = (guestName != null && guestName.isNotEmpty)
+        ? ' — $guestName'
+        : '';
     await _show(
       id: _nextPaymentId++,
       channel: _Channels.payments,
       title: '💰 دفعة جديدة',
-      body: 'غرفة $roomNumber$guestStr | ${amount.toStringAsFixed(0)} ريال$methodStr',
+      body:
+          'غرفة $roomNumber$guestStr | ${amount.toStringAsFixed(0)} ريال$methodStr',
       payload: 'payment_added:$roomNumber',
     );
   }

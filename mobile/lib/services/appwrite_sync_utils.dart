@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../utils/hotel_date_helper.dart';
 
 /// فئة أدوات موحدة لمعالجة البيانات قبل إرسالها أو بعد سحبها من Appwrite
@@ -98,9 +100,12 @@ class AppwriteSyncUtils {
       'credentials_version',
       'full_name',
       'last_login',
+      'lastModifiedEpoch',
       'password',
       'permissions',
       'role',
+      'syncTimestamp',
+      'userType',
       'user_type',
       'username',
       'version',
@@ -597,6 +602,10 @@ class AppwriteSyncUtils {
       'paymentMethod',
       'referenceNumber',
       'revenueType',
+      'receivedByName',
+      'receivedByUserId',
+      'receivedSessionUuid',
+      'receivedByCloudId',
       'roomNumber',
       'serverBookingId',
       'serverId',
@@ -645,6 +654,60 @@ class AppwriteSyncUtils {
       'targetUuid',
       'updatedAt',
       'updatedAtIso',
+      'vectorClock',
+      'version',
+    },
+    'inventory_items': {
+      'category',
+      'createdAt',
+      'createdAtEpoch',
+      'createdAtIso',
+      'deletedAt',
+      'deletedAtIso',
+      'deviceId',
+      'idempotencyKey',
+      'isActive',
+      'lastModified',
+      'lastModifiedEpoch',
+      'localUuid',
+      'minimumQuantity',
+      'name',
+      'origin',
+      'quantity',
+      'serverId',
+      'syncTimestamp',
+      'sync_origin',
+      'unit',
+      'updatedAt',
+      'updatedAtIso',
+      'vectorClock',
+      'version',
+    },
+    'inventory_transactions': {
+      'balanceAfter',
+      'createdAt',
+      'createdAtEpoch',
+      'createdAtIso',
+      'deletedAt',
+      'deletedAtIso',
+      'deviceId',
+      'idempotencyKey',
+      'itemId',
+      'itemLocalUuid',
+      'lastModified',
+      'lastModifiedEpoch',
+      'localUuid',
+      'movementType',
+      'note',
+      'origin',
+      'quantity',
+      'serverId',
+      'syncTimestamp',
+      'sync_origin',
+      'updatedAt',
+      'updatedAtIso',
+      'userId',
+      'userName',
       'vectorClock',
       'version',
     },
@@ -897,6 +960,60 @@ class AppwriteSyncUtils {
   // أي حقل غير موجود هنا سيُزال تلقائياً قبل الإرسال لمنع "Unknown attribute"
   // ══════════════════════════════════════════════════════════════════════════
   static const Map<String, Map<String, String>> collectionSchema = {
+    'inventory_items': {
+      'localUuid': 'string',
+      'name': 'string',
+      'unit': 'string',
+      'category': 'string',
+      'quantity': 'integer',
+      'minimumQuantity': 'integer',
+      'isActive': 'boolean',
+      'serverId': 'integer',
+      'createdAt': 'integer',
+      'updatedAt': 'integer',
+      'deletedAt': 'integer',
+      'lastModified': 'integer',
+      'createdAtIso': 'string',
+      'updatedAtIso': 'string',
+      'deletedAtIso': 'string',
+      'createdAtEpoch': 'integer',
+      'lastModifiedEpoch': 'integer',
+      'syncTimestamp': 'integer',
+      'deviceId': 'string',
+      'version': 'integer',
+      'origin': 'string',
+      'vectorClock': 'string',
+      'sync_origin': 'string',
+      'idempotencyKey': 'string',
+    },
+    'inventory_transactions': {
+      'localUuid': 'string',
+      'itemLocalUuid': 'string',
+      'itemId': 'integer',
+      'movementType': 'string',
+      'quantity': 'integer',
+      'balanceAfter': 'integer',
+      'note': 'string',
+      'userId': 'integer',
+      'userName': 'string',
+      'serverId': 'integer',
+      'createdAt': 'integer',
+      'updatedAt': 'integer',
+      'deletedAt': 'integer',
+      'lastModified': 'integer',
+      'createdAtIso': 'string',
+      'updatedAtIso': 'string',
+      'deletedAtIso': 'string',
+      'createdAtEpoch': 'integer',
+      'lastModifiedEpoch': 'integer',
+      'syncTimestamp': 'integer',
+      'deviceId': 'string',
+      'version': 'integer',
+      'origin': 'string',
+      'vectorClock': 'string',
+      'sync_origin': 'string',
+      'idempotencyKey': 'string',
+    },
     'rooms': {
       'localUuid': 'string',
       'roomNumber': 'string',
@@ -1009,6 +1126,10 @@ class AppwriteSyncUtils {
       'isImmutable': 'boolean',
       'discountAmount': 'double',
       'discountStartDate': 'string',
+      'receivedByUserId': 'integer',
+      'receivedByName': 'string',
+      'receivedSessionUuid': 'string',
+      'receivedByCloudId': 'string',
       'serverId': 'integer',
       'createdAt': 'integer',
       'updatedAt': 'integer',
@@ -1377,7 +1498,9 @@ class AppwriteSyncUtils {
     'shift_notes': {
       'localUuid': 'string',
       'serverId': 'integer',
-      'createdAt': 'string',
+      // يجب أن يطابق مخطط Appwrite الموحد: epoch seconds في integer.
+      // القيمة النصية كانت تُرسل بسبب هذا التعريف وتسبب document_invalid_structure.
+      'createdAt': 'integer',
       'updatedAt': 'integer',
       'deletedAt': 'integer',
       'lastModified': 'integer',
@@ -1576,6 +1699,56 @@ class AppwriteSyncUtils {
     },
   };
 
+  /// يضمن تمثيل vectorClock كسلسلة JSON صالحة ضمن حد Appwrite (1000 حرف).
+  ///
+  /// قد تصل القيمة كـ Map بعد دمج التعارضات، أو كنص تالف من سجل قديم. لا
+  /// يجوز أن تمنع بيانات الفندق الأساسية من الرفع بسبب بيانات وصفية تالفة؛
+  /// لذلك نُعيد ساعة فارغة آمنة في الحالات غير الصالحة أو الطويلة جداً.
+  static String normalizeVectorClock(dynamic value) {
+    dynamic decoded;
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty || trimmed == '{}') return '{}';
+      try {
+        decoded = jsonDecode(trimmed);
+      } catch (_) {
+        return '{}';
+      }
+    } else if (value is Map) {
+      decoded = value;
+    } else {
+      return '{}';
+    }
+
+    if (decoded is! Map) return '{}';
+
+    final normalized = <String, int>{};
+    decoded.forEach((key, rawCounter) {
+      final deviceId = key.toString().trim();
+      final counter = rawCounter is num
+          ? rawCounter.toInt()
+          : int.tryParse(rawCounter.toString());
+      if (deviceId.isNotEmpty && counter != null && counter >= 0) {
+        normalized[deviceId] = counter;
+      }
+    });
+
+    final serialized = jsonEncode(normalized);
+    return serialized.length <= 1000 ? serialized : '{}';
+  }
+
+  /// دفاع أخير للحمولات التي لا تمر عبر PayloadMapper.
+  static Map<String, dynamic> normalizeVectorClockInPayload(
+    Map<String, dynamic> payload,
+  ) {
+    if (!payload.containsKey('vectorClock')) {
+      return Map<String, dynamic>.from(payload);
+    }
+    final normalized = Map<String, dynamic>.from(payload);
+    normalized['vectorClock'] = normalizeVectorClock(normalized['vectorClock']);
+    return normalized;
+  }
+
   /// تصفية الحمولة — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
   /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
   /// إذا لم يكن المجموعة معروفة، يتم إرجاع الحمولة كما هي (بدون تصفية)
@@ -1597,8 +1770,9 @@ class AppwriteSyncUtils {
       return result;
     }
 
+    final normalizedPayload = normalizeVectorClockInPayload(payload);
     final result = <String, dynamic>{};
-    for (final entry in payload.entries) {
+    for (final entry in normalizedPayload.entries) {
       final fieldSchema = schema[entry.key];
       if (fieldSchema != null) {
         result[entry.key] = _coerceToType(entry.value, fieldSchema);
@@ -1644,6 +1818,9 @@ class AppwriteSyncUtils {
         }
         return false;
       case 'string':
+        // Appwrite string attributes لا تقبل Map/List مباشرة. الساعات المتجهة
+        // والحقول JSON قد تصل كمركبات بعد دمج OCC، فتُسلسل بدلاً من Map.toString().
+        if (value is Map || value is Iterable) return jsonEncode(value);
         return value.toString();
       default:
         return value;

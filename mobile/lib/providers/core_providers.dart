@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../services/local_db.dart';
 import '../services/sync_service.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 final syncProvider = Provider<SyncService>(
   (ref) => SyncService(DatabaseManager.instance),
@@ -19,8 +18,7 @@ final appVersionProvider = FutureProvider<String>((ref) async {
   try {
     final info = await PackageInfo.fromPlatform();
     return '${info.version}+${info.buildNumber}';
-  } catch (e) {
-      debugPrint('⚠️ Swallowed error in core_providers.dart: ');
+  } catch (_) {
     // Fallback ثابت في حال فشل package_info_plus (نادراً، يحدث فقط في
     // اختبارات الوحدة بدون Flutter binding مهيّأ).
     return '1.2.0+3';

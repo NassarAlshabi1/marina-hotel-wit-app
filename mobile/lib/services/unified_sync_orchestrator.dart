@@ -5,14 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
 import '../utils/debug_log.dart';
+import '../utils/weak_device_optimizer.dart';
 import 'analytics_service.dart';
-import 'appwrite_sync_manager.dart' show AppwriteSyncManager;
+import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
-import 'sync_enums.dart' show SyncStatus;
 import 'sync_integrity_checker.dart';
 
 class UnifiedSyncState {
@@ -205,8 +205,6 @@ class UnifiedSyncOrchestrator {
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
   static void disposeInstance() {
-    // dispose() returns Future<void>; we fire-and-forget it here because
-    // disposeInstance is synchronous (called from app shutdown hooks).
     unawaited(instance.dispose());
   }
 
@@ -391,6 +389,13 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> _snapshotIfNeeded({bool force = false}) async {
+    // الـ snapshot التلقائي يقرأ جداول كاملة ويبني عدة نسخ JSON في الذاكرة.
+    // على جهاز 1GB نحتفظ بالمزامنة التفاضلية ونؤجل الـ snapshot إلى طلب يدوي.
+    if (!force && WeakDeviceOptimizer.instance.isWeakDevice) {
+      dlog('🧠 Low-RAM policy: skipped automatic full snapshot');
+      return;
+    }
+
     final now = DateTime.now();
     if (!force && _state.lastSnapshotAt != null) {
       final diff = now.difference(_state.lastSnapshotAt!);
@@ -427,33 +432,54 @@ class UnifiedSyncOrchestrator {
 
   Future<String> _computeUnifiedChecksum() async {
     final db = _database!;
-    // Load each table with its proper type to keep type safety (avoid_dynamic_calls).
-    // Future.wait on mixed-type futures would return List<List<dynamic>> and force
-    // dynamic .toJson() calls below.
-    final rooms = await db.select(db.rooms).get();
-    final bookings = await db.select(db.bookings).get();
-    final bookingNotes = await db.select(db.bookingNotes).get();
-    final employees = await db.select(db.employees).get();
-    final expenses = await db.select(db.expenses).get();
-    final cashTransactions = await db.select(db.cashTransactions).get();
-    final payments = await db.select(db.payments).get();
-    final debts = await db.select(db.debts).get();
-    final bookingNights = await db.select(db.bookingNights).get();
-    final hotelDayLedger = await db.select(db.hotelDayLedger).get();
-    final shiftNotes = await db.select(db.shiftNotes).get();
+    final results = await Future.wait([
+      db.select(db.rooms).get(),
+      db.select(db.bookings).get(),
+      db.select(db.bookingNotes).get(),
+      db.select(db.employees).get(),
+      db.select(db.expenses).get(),
+      db.select(db.cashTransactions).get(),
+      db.select(db.payments).get(),
+      db.select(db.debts).get(),
+      db.select(db.bookingNights).get(),
+      // ✅ (2026-09-05) حُذف hotel_day_ledger من checksum المزامنة —
+      // جدول محلي-فقط بقرار المستخدم («جدول محلي لا أريد أن يتم
+      // مزامنته») وD8؛ إدراجه في checksum عبر الأجهزة يضمن عدم
+      // تطابق دائماً (بيانات محلية لكل جهاز) = ضجيج كشف غير مفيد.
+      db.select(db.shiftNotes).get(),
+    ]);
 
     final tablesPayload = <String, List<Map<String, dynamic>>>{
-      'rooms': rooms.map((r) => r.toJson()).toList(),
-      'bookings': bookings.map((b) => b.toJson()).toList(),
-      'booking_notes': bookingNotes.map((n) => n.toJson()).toList(),
-      'employees': employees.map((e) => e.toJson()).toList(),
-      'expenses': expenses.map((e) => e.toJson()).toList(),
-      'cash_transactions': cashTransactions.map((c) => c.toJson()).toList(),
-      'payments': payments.map((p) => p.toJson()).toList(),
-      'debts': debts.map((d) => d.toJson()).toList(),
-      'booking_nights': bookingNights.map((n) => n.toJson()).toList(),
-      'hotel_day_ledger': hotelDayLedger.map((l) => l.toJson()).toList(),
-      'shift_notes': shiftNotes.map((s) => s.toJson()).toList(),
+      'rooms': (results[0] as List<Room>)
+          .map((e) => e.toJson())
+          .toList(),
+      'bookings': (results[1] as List<Booking>)
+          .map((e) => e.toJson())
+          .toList(),
+      'booking_notes': (results[2] as List<BookingNote>)
+          .map((e) => e.toJson())
+          .toList(),
+      'employees': (results[3] as List<Employee>)
+          .map((e) => e.toJson())
+          .toList(),
+      'expenses': (results[4] as List<Expense>)
+          .map((e) => e.toJson())
+          .toList(),
+      'cash_transactions': (results[5] as List<CashTransaction>)
+          .map((e) => e.toJson())
+          .toList(),
+      'payments': (results[6] as List<Payment>)
+          .map((e) => e.toJson())
+          .toList(),
+      'debts': (results[7] as List<Debt>)
+          .map((e) => e.toJson())
+          .toList(),
+      'booking_nights': (results[8] as List<BookingNight>)
+          .map((e) => e.toJson())
+          .toList(),
+      'shift_notes': (results[9] as List<ShiftNote>)
+          .map((e) => e.toJson())
+          .toList(),
     };
     return Isolate.run(
       () => models.SyncChecksum.compute({'tables': tablesPayload}),
@@ -473,11 +499,26 @@ class UnifiedSyncOrchestrator {
 
     var success = true;
     if (push) {
-      final pushed = await manager.pushLocalChanges();
-      success = (pushed >= 0) && success;
+      // ✅ (2026-09-06) سابقاً: `manager.pushLocalChanges()` مع
+      // `pushed >= 0` — شرط صادق دائماً (recordsPushed ليس سالباً أبداً)
+      // فأي دورة فاشلة كانت تُحسب نجاحاً. الآن sync() مباشرة مع فحص
+      // الحالة — نفس نمط فرع push&&pull أعلاه.
+      final result = await manager.sync(pull: false);
+      success = result.isSuccess && success;
     }
     if (pull) {
-      success = await manager.pullRemoteChanges() && success;
+      // ✅ V-2 (تدقيق معماري — perf 014cc156): تفويض السحب للحلقة الرئيسية
+      // الموحدة — pullRemoteChanges مسار قديم بلا metadata-first: checkpoint
+      // عالمي فقط، لا يكتب sync_remote_meta ولا مؤشرات الكيانات، فيعيد
+      // تنزيل كامل في كل استدعاء. deltaOnly يمنع بدء Full Sync من الخلفية
+      // على جهاز في مرحلة bootstrap (نمط حارس الركود — ASM:760).
+      // كل مستدعي pull-only هم مهام خلفية/تلقائية؛ اليدوي يمر عبر فرع
+      // push&&pull أعلاه حيث يبقى السحب الكامل قراراً مرئياً.
+      final result = await manager.sync(
+        push: false,
+        deltaOnly: true,
+      );
+      success = result.isSuccess && success;
     }
 
     return success;
@@ -489,7 +530,8 @@ class UnifiedSyncOrchestrator {
     }
     final db = _database ?? DatabaseManager.instance;
     _database ??= db;
-    final manager = AppwriteSyncManager();
+    // ✅ (2026-09-05) Cloudflare-only: بلا خدمة Appwrite
+    final manager = AppwriteSyncManager(database: db);
     await manager.initialize();
     _appwrite = manager;
     return manager;

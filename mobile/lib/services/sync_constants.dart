@@ -21,11 +21,15 @@ class SyncConstants {
     'employees',
     'cash_transactions',
     'shift_notes',
-    'hotel_day_ledger',
+    // ✅ (2026-09-05) حُذف 'hotel_day_ledger' من ترتيب الجداول المتزامنة —
+    // جدول محلي-فقط بقرار المستخدم الصريح وD8؛ إدراجه في قائمة
+    // «الجداول المتزامنة» يخالف توثيق النطاق حتى لو كان الاستخدام
+    // دفاعياً فقط.
     'price_adjustments',
     'audit_logs',
     'payment_voids',
     'guest_infos',
+    'ancestor_cache', // ✅ Audit Fix (2026-08-06): كان مفقوداً — لا يُحذف في sync rollback
     'auto_fix_runs',
     'app_sessions',
     'outbox',
@@ -64,6 +68,32 @@ class SyncConstants {
 
   static const Duration defaultAutoSyncInterval = Duration(minutes: 15);
 
+  /// إعدادات التطبيق محلية فقط حالياً ولا تدخل في دورة Appwrite.
+  /// عند الحاجة إلى مزامنتها مستقبلاً، تُفعّل بعد توحيد مخططها واختبارات الترحيل.
+  static const bool appSettingsSyncEnabled = false;
+
+  /// ✅ (2026-08-30) استبعاد audit_logs من مزامنة Appwrite بالكامل
+  /// (سحب + رفع + Realtime).
+  ///
+  /// التبرير: سجلات التدقيق عالية الحركة والحجم، وتُنشأ محلياً على كل جهاز،
+  /// ولا تحتاج الواجهات المتبقية إلى نسخ أجهزة أخرى منها. استبعادها يقلّل
+  /// السحب التزايدي والدورات الكاملة بشكل ملموس ويخفف الضغط على الـ outbox.
+  ///
+  /// تبقى السجلات محلية ويُحتفظ بها عبر النسخ الاحتياطي (Google Drive /
+  /// local_backup) — الاستبعاد هنا يخص مزامنة Appwrite فقط.
+  ///
+  /// عند الاستبعاد: مدخلات الـ outbox القديمة الخاصة بـ audit_logs تُعدّ
+  /// "مُسلَّمة" (تُسقط بأمان) بدل أن تتراكم بحالة failed.
+  static const bool auditLogsSyncEnabled = false;
+
+  /// ✅ (2026-08-30) الحد الأقصى لسجلات booking_nights عند السحب الكامل/الأولي.
+  ///
+  /// booking_nights قد يحوي عشرات الآلاف من الليالي التاريخية؛ السحب الكامل
+  /// غير المحدود يبطئ التهيئة الأولى ويستهلك ذاكرة وبيانات كبيرة. السحب
+  /// التزايدي اللاحق (delta) يجلب التغييرات الجديدة فقط دون سقف.
+  /// نفس القيمة كانت معرّفة محلياً في pullRemoteChanges — تم توحيدها هنا.
+  static const int initialBookingNightsPullLimit = 1000;
+
   /// مفتاح SharedPreferences لفاصل المزامنة التلقائية (بالدقائق).
   /// يُسمح للمستخدم بتغييره من شاشة الإعدادات دون إعادة بناء التطبيق.
   /// القيم المقترحة:
@@ -75,7 +105,13 @@ class SyncConstants {
   static const int autoSyncIntervalDefaultMinutes = 15;
   static const int autoSyncIntervalMinMinutes = 1;
   static const int autoSyncIntervalMaxMinutes = 120;
-  static const Duration outboxDebounceWindow = Duration(seconds: 10);
+
+  /// مهلة تجميع الكتابات المحلية قبل دفعها إلى Appwrite.
+  ///
+  /// يُعاد تشغيل هذه المهلة عند كل إنشاء أو تعديل أو حذف مسجّل في Outbox؛
+  /// لذلك تُرفع الدفعة بعد 3 ثوانٍ من **آخر** تغيير، لا بعد كل نقرة. هذا
+  /// يحقق مزامنة شبه فورية من دون طلبات شبكة متتابعة على الأجهزة الضعيفة.
+  static const Duration outboxDebounceWindow = Duration(seconds: 3);
   static const Duration guardianOutboxDebounce = Duration(seconds: 30);
   static const Duration guardianLocalChangeDebounce = Duration(seconds: 5);
   static const Duration shortPollingDelay = Duration(milliseconds: 500);
@@ -91,6 +127,71 @@ class SyncConstants {
   /// مفتاح SharedPreferences لحفظ وقت آخر سحب تلقائي عند فتح التطبيق
   static const String lastAppOpenPullKey = 'last_app_open_pull_epoch_ms';
 
+  /// ✅ (2026-08-30) حارس مركزي: الفاصل الأدنى بين دورتي سحب من أي مدخل
+  /// (شاشة/جلسة/زر/مؤقت). يُقاس من **وقت الجهاز لآخر مزامنة مكتملة**
+  /// (appwrite_last_sync_time) — وليس من lastPullTs لأنه أقصى $updatedAt
+  /// على الخادم (زمن الخادم) وليس زمن السحب، فلا يصلح ساعةً للتقييد.
+  /// المؤقت الدوري (15 دقيقة) والشاشات (ساعة) يتجاوزانه تلقائياً؛ دوره
+  /// حماية أخيرة من عواصف السحب من مداخل غير متوقعة.
+  static const Duration minPullGap = Duration(minutes: 2);
+
+  /// ✅ (2026-09-01) صمام أمان الركود — سيناريو "المستخدم نسى المزامنة".
+  ///
+  /// إذا مرت [pullStalenessThreshold] على آخر **سحب** مكتمل (وليس أي دورة
+  /// مزامنة — الرفع وحده لا يجلب بيانات الأجهزة الأخرى)، يُطلق حارس الركود
+  /// سحباً تلقائياً **دلتا فقط** (deltaOnly=true — لا يبدأ Full Sync من
+  /// الخلفية أبداً؛ الجهاز غير المُهيأ ينتظر المزامنة اليدوية/إقلاع
+  /// التطبيق). يعمل حتى عند تعطيل المزامنة التلقائية — هذا هو الغرض —
+  /// لكنه يحترم المفتاح الرئيسي appwrite_sync_enabled وwifi-only.
+  static const Duration pullStalenessThreshold = Duration(hours: 1);
+
+  /// ✅ (2026-09-01) فحص الركود كل 10 دقائق — تكلفة الفحص قراءة SharedPreferences
+  /// ومقارنة طابع فقط؛ السحب الفعلي لا يبدأ إلا عند تجاوز العتبة.
+  static const Duration pullStalenessCheckInterval = Duration(minutes: 10);
+
+  /// ✅ (2026-09-01) مفتاح SharedPreferences لطابع آخر **سحب** مكتمل
+  /// (ساعة الحائط للجهاز). يختلف عن appwrite_last_sync_time الذي يتقدم مع
+  /// أي دورة (حتى رفع فقط)، وعن lastPullTs المشتق من أقصى $updatedAt على
+  /// الخادم. كتابته عند اكتمال أي دورة نفّذت مرحلة سحب فعلية.
+  static const String lastPullWallClockKey = 'appwrite_last_pull_wall_clock_ms';
+
+  /// ✅ (2026-08-31) تفعيل Realtime الكامل — فترة تهيئة السحب المُطلَق بحدث
+  /// Realtime داخل AppwriteRealtimeSync نفسها.
+  ///
+  /// حدث Realtime يعني أن الخادم أعلن تغييراً فعلياً — لذلك يُسمح له بمعدل
+  /// أعلى بكثير من minPullGap (الدقيقتان لمداخل الشاشات/الأزرار/المؤقتات):
+  ///   - ديبونس 500ms يجمّع العواصف.
+  ///   - هذه التهيئة (15 ثانية) تحدّ السحب المُطلَق بـ 4 دورات/دقيقة كحد أقصى
+  ///     تحت أعنف عاصفة مستمرة، وعادةً دورة واحدة لكل دفعة تغييرات.
+  ///   - المسار العام AppwriteSyncManager.sync(realtimePriority: true)
+  ///     يتجاوز حارس الدقيقتين لهذا المدخل لأنه مدخل موثوق مُسرَّع ذاتياً —
+  ///     حماية الـ outbox و SyncLocks و connectivity تبقى سارية.
+  ///   - Metadata-first يجعل كل دورة رخيصة ($id + $updatedAt فقط) عند عدم
+  ///     وجود تغييرات.
+  static const Duration realtimeEventPullCooldown = Duration(seconds: 15);
+
+  /// ✅ (2026-08-31) فاصل السحب في وضع الـ fallback عندما يكون WebSocket
+  /// معطلاً/فاشلاً (لا أحداث Realtime وصلت). كل tick (30 ثانية) يُحدّث علامة
+  /// الـ UI فقط، وكل [realtimeFallbackPullInterval] يُطلق سحباً فعلياً خفيفاً
+  /// حتى لا تبقى الأجهزة التي يفشل عندها WS بلا تحديثات.
+  /// 5 دقائق توازن بين "شبه فوري" وتكلفة reads على Appwrite Cloud.
+  static const Duration realtimeFallbackPullInterval = Duration(minutes: 5);
+
   static const int googleDriveDefaultShardBytes = 4 * 1024 * 1024;
   static const int estimatedBytesPerDeltaChange = 500;
+
+  // ✅ Circuit Breaker — prevents battery drain during server outages.
+  static const int circuitBreakerFailureThreshold = 5;
+  static const int circuitBreakerMinCooldownMinutes = 5;
+  static const int circuitBreakerMaxCooldownMinutes = 60;
+
+  // ✅ Sync Timeout — force-release SyncGuard if held longer than this.
+  static const Duration syncGuardMaxHoldDuration = Duration(minutes: 5);
+
+  // ✅ Adaptive Fallback — initial interval when WebSocket disconnects.
+  static const Duration realtimeFallbackBaseInterval = Duration(minutes: 5);
+  static const Duration realtimeFallbackMaxInterval = Duration(minutes: 60);
+
+  // ✅ Batch Push — push outbox entries in batches to avoid huge API calls.
+  static const int outboxBatchSize = 50;
 }

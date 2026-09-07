@@ -1,12 +1,11 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/alarm_backup.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
+import '../utils/debug_log.dart';
 import '../utils/env.dart';
 
 /// حالة إعداد التقرير اليومي عبر واتساب
@@ -65,7 +64,7 @@ class WhatsAppDailyReportState {
 class WhatsAppDailyReportNotifier
     extends StateNotifier<WhatsAppDailyReportState> {
   WhatsAppDailyReportNotifier() : super(const WhatsAppDailyReportState()) {
-    _initialize();
+    unawaited(_initialize());
   }
 
   final TelegramReportService _reports = TelegramReportService.instance;
@@ -92,7 +91,7 @@ class WhatsAppDailyReportNotifier
         lastReportSent: lastReportSent,
       );
     } catch (e) {
-      debugPrint('خطأ في تهيئة WhatsAppDailyReportNotifier: $e');
+      dlog(() => 'خطأ في تهيئة WhatsAppDailyReportNotifier: $e');
     }
   }
 
@@ -144,7 +143,7 @@ class WhatsAppDailyReportNotifier
         await AlarmBackup.cancelTelegramReportAlarm();
       }
     } catch (e) {
-      debugPrint('خطأ في جدولة إنذار التقرير اليومي: $e');
+      dlog(() => 'خطأ في جدولة إنذار التقرير اليومي: $e');
     }
     _clearMessageAfterDelay();
   }
@@ -163,7 +162,7 @@ class WhatsAppDailyReportNotifier
         );
       }
     } catch (e) {
-      debugPrint('خطأ في إعادة جدولة إنذار التقرير: $e');
+      dlog(() => 'خطأ في إعادة جدولة إنذار التقرير: $e');
     }
   }
 
@@ -234,7 +233,7 @@ class WhatsAppDailyReportNotifier
     try {
       return await _reports.sendDailyReport();
     } catch (e) {
-      debugPrint('خطأ في إرسال التقرير اليومي: $e');
+      dlog(() => 'خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
   }
@@ -270,9 +269,7 @@ final whatsappDailyReportProvider =
     StateNotifierProvider<
       WhatsAppDailyReportNotifier,
       WhatsAppDailyReportState
-    >(
-      (ref) => WhatsAppDailyReportNotifier(),
-    );
+    >((ref) => WhatsAppDailyReportNotifier());
 
 /// Provider للوصول إلى خدمة التقارير
 final whatsappDailyReportServiceProvider = Provider<TelegramReportService>(

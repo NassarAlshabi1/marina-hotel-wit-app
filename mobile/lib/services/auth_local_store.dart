@@ -1,17 +1,82 @@
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
-import 'appwrite_service.dart';
+import 'daos/outbox_dao.dart';
+import 'local_db.dart';
 import 'password_hasher.dart';
-import 'secondary_appwrite_config.dart';
-import 'secondary_appwrite_service.dart';
 
 enum AuthType { local }
 
 class AuthLocalStore {
+  String _cloudDocumentId(String username) {
+    final legacyId = 'user_$username';
+    final validLegacy =
+        legacyId.length <= 36 &&
+        RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(legacyId);
+    if (validLegacy) return legacyId;
+
+    final digest = sha256.convert(utf8.encode(username)).toString();
+    return 'user_${digest.substring(0, 31)}';
+  }
+
+  /// ✅ (2026-09-05) حمولة مزامنة app_users بصيغة snake_case مطابقة
+  /// لأعمدة جدول app_users في D1 (worker/schema.sql و
+  /// migrations/0003_app_users.sql — مرآة جدول Drift المحلي AppUsers).
+  ///
+  /// لماذا snake_case؟ طبقة Cloudflare تُرشّح مفاتيح الحمولة مقابل
+  /// أعمدة الجدول فعلياً (worker database.ts getTableColumns في
+  /// createRecord/updateRecord) — المفاتيح camelCase القديمة
+  /// (updatedAt/lastModified/…) كانت تُسقط صمتاً، و requireEntityId
+  /// (worker sync.ts:60) يطلب local_uuid صراحة وإلا فشلت العملية
+  /// ورست في dead-letter. هذا يوحّد app_users مع بقية الكيانات التي
+  /// تبني حمولاتها من صفوف Drift (أعمدة snake_case).
+  ///
+  /// الهوية: local_uuid = معرف المستند السحابي الحتمي [_cloudDocumentId]
+  /// — نفسها التي تستخدمها عمليات Outbox القائمة.
+  static Map<String, dynamic> appUsersSyncPayload({
+    required String localUuid,
+    required int now, String? username,
+    String? password,
+    String? fullName,
+    String? userType,
+    String? permissionsJson,
+    bool? active,
+    int? lastLogin,
+    int? credentialsVersion,
+    String? role,
+    int version = 1,
+    String? deviceId,
+    bool tombstone = false,
+  }) {
+    return <String, dynamic>{
+      'local_uuid': localUuid,
+      'updated_at': now,
+      'last_modified': now,
+      'last_modified_epoch': now,
+      'version': version,
+      'vector_clock': jsonEncode(<String, int>{
+        if (deviceId != null && deviceId.isNotEmpty) deviceId: 1,
+      }),
+      if (deviceId != null && deviceId.isNotEmpty) 'device_id': deviceId,
+      'origin': 'local',
+      if (tombstone) 'deleted_at': now,
+      if (username != null) 'username': username,
+      if (password != null) 'password': password,
+      if (fullName != null) 'full_name': fullName,
+      if (userType != null) 'user_type': userType,
+      if (role != null) 'role': role,
+      if (permissionsJson != null) 'permissions': permissionsJson,
+      if (active != null) 'active': active ? 1 : 0,
+      if (lastLogin != null) 'last_login': lastLogin,
+      if (credentialsVersion != null) 'credentials_version': credentialsVersion,
+    };
+  }
+
   static const _kCurrentUser = 'current_user';
   static const _kPermissionsMap = 'user_permissions';
   static const _kCustomAccounts = 'custom_accounts';
@@ -31,32 +96,74 @@ class AuthLocalStore {
     'notes',
     'information',
     'settings',
+    'inventory',
   ];
 
+  /// صلاحيات العمليات الدقيقة. وجود المفتاح القديم للقسم يبقى متوافقاً
+  /// ويمنح نفس صلاحيات الإصدار السابق، بينما المفاتيح الجديدة تسمح بالفصل
+  /// بين القراءة والإضافة والتعديل والحذف.
+  static const List<String> operationPermissionKeys = [
+    'view',
+    'create',
+    'update',
+    'delete',
+  ];
+
+  static const Map<String, String> _permissionActions = {
+    'view': 'عرض',
+    'create': 'إضافة',
+    'update': 'تعديل',
+    'delete': 'حذف',
+  };
+
+  static List<String> permissionKeysForModule(String module) => [
+    for (final action in operationPermissionKeys) '$module.$action',
+  ];
+
+  /// مفاتيح محرر المستخدمين: المفاتيح القديمة للتوافق، ثم العمليات الدقيقة.
+  static List<String> get permissionEditorKeys => [
+    ...permissionKeys,
+    for (final module in permissionKeys) ...permissionKeysForModule(module),
+  ];
+
+  static String operationLabel(String action) =>
+      _permissionActions[action] ?? action;
+
+  /// يتحقق من صلاحية عملية محددة مع إبقاء الحسابات الحالية متوافقة.
+  static bool canPerform({
+    required String? userType,
+    required List<String> permissions,
+    required String module,
+    required String action,
+  }) {
+    if (userType == 'admin' || permissions.contains('all')) return true;
+    if (permissions.contains(module)) return true;
+    return permissions.contains('$module.$action');
+  }
+
+  /// يستخدم لحارس الصفحة والقائمة: يكفي امتلاك أي صلاحية تشغيلية.
+  static bool canAccessModule({
+    required String? userType,
+    required List<String> permissions,
+    required String module,
+  }) {
+    if (userType == 'admin' || permissions.contains('all')) return true;
+    if (permissions.contains(module)) return true;
+    return permissionKeysForModule(module).any(permissions.contains);
+  }
+
+  /// حسابات افتراضية للوصول المحلي (fallback عند عدم توفر Appwrite Cloud).
+  ///
+  /// admin/admin — مدير النظام
+  ///
+  /// ⚠️ مهم: هذه الحسابات تعمل فقط على الأجهزة التي لم تُهاجر لـ Appwrite Cloud.
+  /// الأجهزة المُهاجرة تستخدم `app_users` collection في Cloud.
   static const Map<String, Map<String, dynamic>> _fixedAccounts = {
     'admin': {
       'password': 'admin',
       'user_type': 'admin',
       'full_name': 'مدير النظام',
       'id': 1,
-    },
-    'm': {
-      'password': '1',
-      'user_type': 'supervisor',
-      'full_name': 'محمد',
-      'id': 2,
-    },
-    'ahmed': {
-      'password': '2222',
-      'user_type': 'employee',
-      'full_name': 'أحمد',
-      'id': 3,
-    },
-    '1': {
-      'password': '1',
-      'user_type': 'supervisor',
-      'full_name': 'محمد',
-      'id': 4,
     },
   };
 
@@ -148,41 +255,51 @@ class AuthLocalStore {
     return maxId + 1;
   }
 
-  /// سحب المستخدمين من Appwrite Cloud (app_users collection)
+  /// سحب المستخدمين السحابيين — ✅ (2026-09-05) Cloudflare-only:
+  /// المصدر هو جدول app_users المحلي (Drift) — landing zone للسحب من D1
+  /// عبر مسار app_users المتزامن (pull/push + outbox delta sync).
+  /// كان يقرأ مجموعة app_users من Appwrite Cloud مباشرة.
   /// يعيد Map<username, account_data> أو فارغ عند الفشل
-  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts() async {
+  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts({
+    bool includeInactive = false,
+  }) async {
     try {
-      final appwrite = AppwriteService();
-      await appwrite.initialize();
-      final docs = await appwrite.listDocuments(
-        collectionId: 'app_users',
-        useCache: false,
-      );
+      if (!DatabaseManager.isInitialized) return {};
+      final db = DatabaseManager.instance;
+      final rows = await db
+          .customSelect(
+            'SELECT * FROM app_users WHERE deleted_at IS NULL',
+          )
+          .get();
       final cloudAccounts = <String, Map<String, dynamic>>{};
-      for (final doc in docs) {
-        final d = doc.data;
+      for (final row in rows) {
+        final d = row.data;
         final username = (d['username'] ?? '').toString().trim();
         if (username.isEmpty) continue;
         final active = d['active'];
-        if (active == false) continue;
+        final isActive = active is bool ? active : (active as num? ?? 1) != 0;
+        if (!isActive && !includeInactive) continue;
+        final docId = (d['local_uuid'] ?? '').toString();
         cloudAccounts[username] = {
           'password': (d['password'] ?? '').toString(),
           'full_name': (d['full_name'] ?? username).toString(),
           'user_type': (d['user_type'] ?? d['role'] ?? 'employee').toString(),
-          'id': doc.$id.hashCode,
-          'doc_id': doc.$id,
+          'id': (d['id'] as num?)?.toInt() ?? docId.hashCode,
+          'cloud_user_id': docId,
+          'doc_id': docId,
           'is_cloud': true,
           'permissions_json': (d['permissions'] ?? '[]').toString(),
-          'active': d['active'] ?? true,
-          'credentials_version': d['credentials_version'] ?? 1,
+          'active': isActive,
+          'is_locked': false,
+          'credentials_version': (d['credentials_version'] as num?) ?? 1,
           'role': (d['role'] ?? d['user_type'] ?? 'employee').toString(),
-          'version': d['version'] ?? 1,
-          'lastModified': d['lastModified'],
+          'version': (d['version'] as num?) ?? 1,
+          'lastModified': d['last_modified'],
         };
       }
       if (cloudAccounts.isNotEmpty) {
         AppLogger.debug(
-          'Cloud users loaded: ${cloudAccounts.keys.join(', ')}',
+          'Cloud users loaded (D1 local mirror): ${cloudAccounts.keys.join(', ')}',
           tag: 'AUTH',
         );
       }
@@ -255,19 +372,23 @@ class AuthLocalStore {
         );
         perms = await getPermissions(normalized);
       }
-      // حفظ credentials_version لمراقبة الجلسة
+      // حفظ credentials_version لمراقبة الجلسة — ✅ (2026-09-05)
+      // Cloudflare-only: القراءة من صف app_users المحلي (مرآة D1) —
+      // كان يقرأ مجموعة app_users من Appwrite مباشرة.
       try {
-        final appwrite = AppwriteService();
-        await appwrite.initialize();
-        final docs = await appwrite.listDocuments(
-          collectionId: 'app_users',
-          useCache: false,
-        );
-        for (final doc in docs) {
-          if ((doc.data['username']?.toString() ?? '') == normalized) {
-            final version = doc.data['credentials_version'] as int? ?? 0;
+        if (DatabaseManager.isInitialized) {
+          final db = DatabaseManager.instance;
+          final rows = await db
+              .customSelect(
+                'SELECT credentials_version FROM app_users '
+                'WHERE username = ? AND deleted_at IS NULL LIMIT 1',
+                variables: [Variable.withString(normalized)],
+              )
+              .get();
+          if (rows.isNotEmpty) {
+            final version =
+                (rows.first.data['credentials_version'] as num?)?.toInt() ?? 0;
             await saveCredentialsVersion(version);
-            break;
           }
         }
       } catch (e, st) {
@@ -281,8 +402,10 @@ class AuthLocalStore {
     } else {
       perms = await getPermissions(normalized);
     }
+
     return {
       'id': account['id'] ?? 0,
+      'cloud_user_id': account['cloud_user_id'],
       'username': normalized,
       'full_name': (account['full_name'] ?? normalized).toString(),
       'user_type': (account['user_type'] ?? 'employee').toString(),
@@ -311,6 +434,14 @@ class AuthLocalStore {
     if (accounts.containsKey(normalized)) {
       throw Exception('اسم المستخدم موجود مسبقاً');
     }
+    // ✅ (2026-09-07) منع شرخ الهوية: مستخدم مُزامن من أجهزة أخرى موجود في
+    // مرآة app_users المحلية لكن ليس في custom_accounts — إن سمحنا بإضافته
+    // مجدداً فستكتب نسخة دخول محلية بكلمة مرور جديدة بينما تحتفظ D1 بالصف
+    // القديم (نفس local_uuid) فتختلف كلمات المرور بين الأجهزة.
+    final syncedUsers = await loadCloudAccounts();
+    if (syncedUsers.containsKey(normalized)) {
+      throw Exception('اسم المستخدم موجود مسبقاً');
+    }
     final id = _nextUserId(accounts);
     // ✅ تشفير كلمة المرور قبل التخزين المحلي
     final hashedPassword = PasswordHasher.hash(password);
@@ -333,12 +464,11 @@ class AuthLocalStore {
     );
   }
 
-  /// رفع مستخدم إلى Appwrite Cloud
-  ///
-  /// ✅ يُرسل الحقول الأساسية فقط (16 من 33) — كافية للمصادقة + المزامنة.
-  /// الحقول المُستبعدة (serverId, deletedAt*, createdAtIso, epoch duplicates,
-  /// idempotencyKey, syncTimestamp, sync_origin, camelCase duplicates) ليست
-  /// ضرورية للمستخدمين — Appwrite يملأها بـ NULL تلقائياً.
+  /// رفع مستخدم إلى "السحابة" — ✅ (2026-09-05) Cloudflare-only:
+  /// الكتابة المحلية + Outbox فقط — جدول app_users المحلي مصدر رفع D1
+  /// وlanding zone للسحب (pull/push + outbox delta sync). الإرسال الفعلي
+  /// إلى D1 يتم عبر CloudflareSyncManager._pushOutbox. كان يكتب مستنداً
+  /// موازياً في Appwrite Cloud — أُزيل ضمن إزالة Appwrite.
   Future<void> _pushUserToCloud({
     required String username,
     required String password,
@@ -347,135 +477,40 @@ class AuthLocalStore {
     required List<String> permissions,
   }) async {
     try {
-      final appwrite = AppwriteService();
-      await appwrite.initialize();
-      final docId = 'user_$username';
+      final docId = _cloudDocumentId(username);
       final hashedPassword = PasswordHasher.hash(password);
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-
-      await appwrite.upsertDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-        data: {
-          // الحقول الأساسية (9)
-          'username': username,
-          'password': hashedPassword,
-          'full_name': fullName,
-          'user_type': userType,
-          'permissions': jsonEncode(permissions),
-          'active': true,
-          'last_login': 0,
-          'credentials_version': 1,
-          'role': userType,
-
-          // حقول المزامنة الأساسية فقط (7)
-          'localUuid': docId,
-          'createdAt': now,
-          'updatedAt': now,
-          'lastModified': now,
-          'version': 1,
-          'vectorClock': '{}',
-          'deviceId': await _getDeviceId() ?? '',
-        },
+      final deviceId = await _getDeviceId() ?? '';
+      final syncPayload = AuthLocalStore.appUsersSyncPayload(
+        localUuid: docId,
+        username: username,
+        password: hashedPassword,
+        fullName: fullName,
+        userType: userType,
+        permissionsJson: jsonEncode(permissions),
+        active: true,
+        lastLogin: 0,
+        credentialsVersion: 1,
+        role: userType,
+        now: now,
+        deviceId: deviceId,
+      );
+      await _writeLocalAppUsersRow(syncPayload);
+      await _enqueueAppUsersOp(
+        op: 'create',
+        docId: docId,
+        payload: syncPayload,
       );
       AppLogger.debug(
-        'User $username pushed to cloud (password hashed)',
+        'User $username queued to D1 via outbox (password hashed)',
         tag: 'AUTH',
       );
-
-      // ✅ مزامنة Secondary Appwrite: إرسال نفس البيانات للوجهة الثانوية
-      await _pushToSecondary(docId, {
-        'username': username,
-        'password': hashedPassword,
-        'full_name': fullName,
-        'user_type': userType,
-        'permissions': jsonEncode(permissions),
-        'active': true,
-        'last_login': 0,
-        'credentials_version': 1,
-        'role': userType,
-        'localUuid': docId,
-        'createdAt': now,
-        'updatedAt': now,
-        'lastModified': now,
-        'version': 1,
-        'vectorClock': '{}',
-        'deviceId': await _getDeviceId() ?? '',
-      });
     } catch (e) {
       AppLogger.warning(
-        'Failed to push user $username to cloud',
+        'Failed to queue user $username to D1 outbox',
         tag: 'AUTH',
         error: e,
       );
-    }
-  }
-
-  /// ✅ إرسال بيانات المستخدم للوجهة الثانوية (Secondary Appwrite)
-  ///
-  /// تعمل فقط إذا كان Secondary مُفعّلاً + Push مُفعّل.
-  /// الفشل هنا غير حرج — البيانات موجودة في Primary.
-  Future<void> _pushToSecondary(String docId, Map<String, dynamic> data) async {
-    try {
-      if (!SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled ||
-          !SecondaryAppwriteConfig.isConfigured) {
-        return; // Secondary معطّل — لا شيء لنفعله
-      }
-
-      final service = SecondaryAppwriteService.instance;
-      await service.ensureInitialized();
-      await service.upsertDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-        data: data,
-      );
-      debugPrint('📤 [Auth] User synced to Secondary: $docId');
-    } catch (e) {
-      // فشل Secondary غير حرج — Primary لديه البيانات
-      debugPrint('⚠️ [Auth] Secondary sync failed for user $docId: $e');
-    }
-  }
-
-  /// ✅ تحديث مستخدم في الوجهة الثانوية
-  Future<void> _updateSecondary(String docId, Map<String, dynamic> data) async {
-    try {
-      if (!SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled ||
-          !SecondaryAppwriteConfig.isConfigured) {
-        return;
-      }
-
-      final service = SecondaryAppwriteService.instance;
-      await service.ensureInitialized();
-      await service.upsertDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-        data: data,
-      );
-      debugPrint('📤 [Auth] User updated in Secondary: $docId');
-    } catch (e) {
-      debugPrint('⚠️ [Auth] Secondary update failed for user $docId: $e');
-    }
-  }
-
-  /// ✅ حذف مستخدم من الوجهة الثانوية
-  Future<void> _deleteFromSecondary(String docId) async {
-    try {
-      if (!SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isConfigured) {
-        return;
-      }
-
-      final service = SecondaryAppwriteService.instance;
-      await service.ensureInitialized();
-      await service.deleteDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-      );
-      debugPrint('📤 [Auth] User deleted from Secondary: $docId');
-    } catch (e) {
-      debugPrint('⚠️ [Auth] Secondary delete failed for user $docId: $e');
     }
   }
 
@@ -496,16 +531,23 @@ class AuthLocalStore {
         AppLogger.debug('Local password migrated for $username', tag: 'AUTH');
       }
 
-      // 2️⃣ تحديث السحابة (إذا كان حساباً سحابياً)
+      // 2️⃣ تحديث السحابة (إذا كان حساباً سحابياً) — ✅ (2026-09-05)
+      // Cloudflare-only: كتابة محلية + Outbox فقط، كان يحدّث Appwrite أولاً.
       if (account['is_cloud'] == true) {
         final docId = account['doc_id'] as String?;
         if (docId != null && docId.isNotEmpty) {
-          final appwrite = AppwriteService();
-          await appwrite.initialize();
-          await appwrite.updateDocument(
-            collectionId: 'app_users',
-            documentId: docId,
-            data: {'password': hashedPassword},
+          final syncPayload = AuthLocalStore.appUsersSyncPayload(
+            localUuid: docId,
+            username: username,
+            password: hashedPassword,
+            now: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            deviceId: await _getDeviceId(),
+          );
+          await _writeLocalAppUsersRow(syncPayload);
+          await _enqueueAppUsersOp(
+            op: 'update',
+            docId: docId,
+            payload: syncPayload,
           );
           AppLogger.debug('Cloud password migrated for $username', tag: 'AUTH');
         }
@@ -522,8 +564,117 @@ class AuthLocalStore {
     }
   }
 
-  /// تحديث بيانات مستخدم سحابي (اسم، كلمة مرور، صلاحيات) + زيادة credentials_version
-  /// يعيد true إذا نجح → يجب قطع الجلسة على الأجهزة الأخرى
+  /// تحديث حساب محلي مخصص.
+  Future<bool> updateLocalUser({
+    required String username,
+    String? newPassword,
+    String? newFullName,
+    String? newUserType,
+    List<String>? newPermissions,
+  }) async {
+    final accounts = await _loadCustomAccounts();
+    final raw = accounts[username];
+    if (raw is! Map) return false;
+
+    final account = Map<String, dynamic>.from(raw);
+    if (newPassword != null && newPassword.isNotEmpty) {
+      account['password'] = PasswordHasher.hash(newPassword);
+    }
+    if (newFullName != null) account['full_name'] = newFullName;
+    if (newUserType != null) account['user_type'] = newUserType;
+    accounts[username] = account;
+    await _saveCustomAccounts(accounts);
+    if (newPermissions != null) {
+      await setPermissions(username, newPermissions);
+    }
+    return true;
+  }
+
+  /// حذف حساب محلي مخصص.
+  Future<bool> deleteLocalUser(String username) async {
+    if (_fixedAccounts.containsKey(username)) return false;
+    final accounts = await _loadCustomAccounts();
+    if (!accounts.containsKey(username)) return false;
+    accounts.remove(username);
+    await _saveCustomAccounts(accounts);
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kPermissionsMap);
+    if (raw != null) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          final permissions = decoded.map(
+            (key, value) => MapEntry(key.toString(), value),
+          );
+          permissions.remove(username);
+          await prefs.setString(_kPermissionsMap, jsonEncode(permissions));
+        }
+      } catch (e, st) {
+        AppLogger.warning(
+          'تعذر تنظيف صلاحيات المستخدم المحلي المحذوف $username',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+
+    // ✅ (2026-09-07) منع «المستخدم الزومبي»: إن كان هذا الحساب المخصص قد
+    // رُفع سابقاً إلى app_users/D1 (صف حي محلياً — أُنشئ بمسار addUser الذي
+    // يرفع كل حساب مخصص)، الحذف من custom_accounts وحده يترك صف D1 حياً
+    // فيعود المستخدم مع السحب التالي على هذا الجهاز وبقية الأجهزة. نكتب
+    // tombstone محلياً ونحجز عملية delete في Outbox لإزالته نهائياً.
+    try {
+      if (DatabaseManager.isInitialized) {
+        final db = DatabaseManager.instance;
+        final rows = await db
+            .customSelect(
+              'SELECT local_uuid FROM app_users '
+              'WHERE username = ? AND deleted_at IS NULL LIMIT 1',
+              variables: [Variable.withString(username)],
+            )
+            .get();
+        if (rows.isNotEmpty) {
+          final docId = (rows.first.data['local_uuid'] ?? '').toString();
+          if (docId.isNotEmpty) {
+            final tombstone = AuthLocalStore.appUsersSyncPayload(
+              localUuid: docId,
+              username: username,
+              now: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              deviceId: await _getDeviceId(),
+              tombstone: true,
+            );
+            await _writeLocalAppUsersRow(tombstone);
+            await _enqueueAppUsersOp(
+              op: 'delete',
+              docId: docId,
+              payload: tombstone,
+            );
+            AppLogger.info(
+              'Local user $username had a synced app_users row — '
+              'tombstone queued (doc: $docId)',
+              tag: 'AUTH',
+            );
+          }
+        }
+      }
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر تحزين حذف صف app_users للمستخدم المحلي $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+    }
+    return true;
+  }
+
+  /// تحديث بيانات مستخدم سحابي (اسم، كلمة مرور، صلاحيات).
+  /// credentials_version (عدّاد إبطال الجلسات على الأجهزة الأخرى) يُرفع
+  /// فقط عند تغيير كلمة المرور — ✅ (2026-09-07).
+  /// يعيد true إذا نجح → عند تغيير كلمة المرور يجب قطع الجلسة على
+  /// الأجهزة الأخرى.
   Future<bool> updateCloudUser({
     required String username,
     required String docId,
@@ -534,54 +685,91 @@ class AuthLocalStore {
     bool? active,
   }) async {
     try {
-      final appwrite = AppwriteService();
-      await appwrite.initialize();
-
-      // سحب المستند الحالي لمعرفة credentials_version الحالي
-      final currentDoc = await appwrite.getDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-      );
-      final currentVersion =
-          currentDoc.data['credentials_version'] as int? ?? 0;
+      // ✅ (2026-09-05) Cloudflare-only: الإصدار الحالي يُقرأ من صف
+      // app_users المحلي (مرآة D1) — كان يُسحب من Appwrite قبل التعديل.
+      int currentVersion = 0;
+      if (DatabaseManager.isInitialized) {
+        final db = DatabaseManager.instance;
+        final rows = await db
+            .customSelect(
+              'SELECT credentials_version FROM app_users '
+              'WHERE local_uuid = ? LIMIT 1',
+              variables: [Variable.withString(docId)],
+            )
+            .get();
+        if (rows.isNotEmpty) {
+          currentVersion =
+              (rows.first.data['credentials_version'] as num?)?.toInt() ?? 0;
+        }
+      }
       final nextVersion = currentVersion + 1;
 
-      final data = <String, dynamic>{'credentials_version': nextVersion};
+      // ✅ (2026-09-07) credentials_version هو عدّاد إبطال الجلسات — يُرفع
+      // فقط عند تغيير كلمة المرور (نفس وعد الواجهة: «سيتم قطع الجلسة على
+      // الأجهزة الأخرى عند حفظ كلمة المرور»). رفعه على كل تعديل (اسم/نوع)
+      // كان يقطع جلسات كل الأجهزة الأخرى بلا سبب.
+      final hasPasswordChange =
+          newPassword != null && newPassword.isNotEmpty;
 
-      // ✅ تشفير كلمة المرور الجديدة قبل رفعها للسحابة
-      if (newPassword != null && newPassword.isNotEmpty) {
-        data['password'] = PasswordHasher.hash(newPassword);
-      }
-      if (newFullName != null) data['full_name'] = newFullName;
-      if (newUserType != null) {
-        data['user_type'] = newUserType;
-        data['role'] = newUserType;
-      }
-      if (newPermissions != null) {
-        data['permissions'] = jsonEncode(newPermissions);
-      }
-      if (active != null) data['active'] = active;
-
-      // ✅ تحديث حقول المزامنة الأساسية فقط
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      data['updatedAt'] = now;
-      data['lastModified'] = now;
-      data['version'] = (currentDoc.data['version'] as int? ?? 1) + 1;
-
-      await appwrite.updateDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-        data: data,
+      final syncPayload = AuthLocalStore.appUsersSyncPayload(
+        localUuid: docId,
+        username: username,
+        password: hasPasswordChange
+            ? PasswordHasher.hash(newPassword)
+            : null,
+        fullName: newFullName,
+        userType: newUserType,
+        permissionsJson: newPermissions != null
+            ? jsonEncode(newPermissions)
+            : null,
+        active: active,
+        credentialsVersion: hasPasswordChange ? nextVersion : null,
+        role: newUserType,
+        now: now,
+        version: nextVersion,
+        deviceId: await _getDeviceId(),
       );
+      await _writeLocalAppUsersRow(syncPayload);
+      final queued = await _enqueueAppUsersOp(
+        op: 'update',
+        docId: docId,
+        payload: syncPayload,
+      );
+
+      // ✅ (2026-09-07) اتساق بيانات الدخول محلياً: إن وُجد الحساب في
+      // custom_accounts (أُنشئ على هذا الجهاز) يجب تحديث نسخة الدخول
+      // المحلية أيضاً — validateCredentials يفحص الحسابات المخصصة أولاً،
+      // وترك الهاش القديم كان يجعل كلمة المرور الجديدة مرفوضة والقديمة
+      // مقبولة على جهاز الإنشاء رغم نجاح التعديل سحابياً.
+      try {
+        final accounts = await _loadCustomAccounts();
+        final raw = accounts[username];
+        if (raw is Map) {
+          final custom = Map<String, dynamic>.from(raw);
+          if (hasPasswordChange) {
+            custom['password'] = PasswordHasher.hash(newPassword);
+          }
+          if (newFullName != null) custom['full_name'] = newFullName;
+          if (newUserType != null) custom['user_type'] = newUserType;
+          accounts[username] = custom;
+          await _saveCustomAccounts(accounts);
+        }
+      } catch (e, st) {
+        AppLogger.warning(
+          'تعذر تحديث نسخة الحساب المخصص المحلي للمستخدم $username',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
+      }
 
       AppLogger.info(
-        'Cloud user $username updated (version $currentVersion → $nextVersion)',
+        'Cloud user $username updated locally, outbox=$queued '
+        '(version $currentVersion → $nextVersion, '
+        'credentialsBumped=$hasPasswordChange)',
         tag: 'AUTH',
       );
-
-      // ✅ مزامنة Secondary Appwrite: تحديث نفس البيانات في الوجهة الثانوية
-      await _updateSecondary(docId, data);
-
       return true;
     } catch (e) {
       AppLogger.error(
@@ -593,20 +781,24 @@ class AuthLocalStore {
     }
   }
 
-  /// حذف مستخدم سحابي من Appwrite
+  /// حذف مستخدم سحابي — ✅ (2026-09-05) Cloudflare-only: tombstone محلي +
+  /// outbox delete — يصل الحذف إلى D1 عبر المسار المتزامن ولا يعود الصف
+  /// مع السحب اللاحق. كان يحذف المستند من Appwrite أولاً.
   Future<bool> deleteCloudUser({required String docId}) async {
     try {
-      final appwrite = AppwriteService();
-      await appwrite.initialize();
-      await appwrite.deleteDocument(
-        collectionId: 'app_users',
-        documentId: docId,
+      final syncPayload = AuthLocalStore.appUsersSyncPayload(
+        localUuid: docId,
+        now: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        deviceId: await _getDeviceId(),
+        tombstone: true,
+      );
+      await _writeLocalAppUsersRow(syncPayload);
+      await _enqueueAppUsersOp(
+        op: 'delete',
+        docId: docId,
+        payload: syncPayload,
       );
       AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
-
-      // ✅ مزامنة Secondary Appwrite: حذف من الوجهة الثانوية
-      await _deleteFromSecondary(docId);
-
       return true;
     } catch (e) {
       AppLogger.warning('Failed to delete cloud user', tag: 'AUTH', error: e);
@@ -633,7 +825,6 @@ class AuthLocalStore {
     try {
       final prefs = await SharedPreferences.getInstance();
       final storedVersion = prefs.getInt(_kCredVersion);
-      if (storedVersion == null) return true; // مستخدم محلي، لا تحقق
 
       final currentUser = await loadCurrentUser();
       if (currentUser == null) return true;
@@ -642,22 +833,44 @@ class AuthLocalStore {
       if (username.isEmpty) return true;
       if (_fixedAccounts.containsKey(username)) return true; // hardcoded
 
-      final appwrite = AppwriteService();
-      await appwrite.initialize();
-      final cloudAccounts = await loadCloudAccounts();
-      final cloudAccount = cloudAccounts[username];
-      if (cloudAccount == null) return true; // ليس مستخدم سحابي
+      // ✅ (2026-09-05) Cloudflare-only: نقرأ صف app_users المحلي
+      // (مرآة D1) — يشمل الحسابات النشطة وغير النشطة لأننا نقرأ الجدول
+      // مباشرة، ولا يعتمد على شبكة. غياب الصف = حذف/تعطيل الحساب.
+      if (!DatabaseManager.isInitialized) return true;
+      final db = DatabaseManager.instance;
+      final rows = await db
+          .customSelect(
+            'SELECT active, credentials_version FROM app_users '
+            'WHERE username = ? AND deleted_at IS NULL LIMIT 1',
+            variables: [Variable.withString(username)],
+          )
+          .get();
 
-      // ✅ Forensic audit fix (2026-07-22):
-      // كان الكود السابق يستدعي listDocuments('app_users') مرة ثانية (السطر 552)
-      // للبحث عن credentials_version — لكن loadCloudAccounts() أعلاه (السطر 547)
-      // سبق وجلب نفس البيانات وخزّنها في cloudAccount['credentials_version']
-      // (انظر auth_local_store.dart:146). هذا الاستدعاء المكرر يستهلك
-      // listDocuments API call إضافي بلا داعٍ في كل فحص جلسة (كل 30 ثانية).
-      //
-      /// للتراجع: أعد استدعاء listDocuments('app_users') بدل استخدام cloudAccount.
-      final cloudVersion =
-          (cloudAccount['credentials_version'] as num?)?.toInt() ?? 0;
+      if (rows.isEmpty) {
+        AppLogger.warning(
+          'Session invalid for $username: account deleted or inactive',
+          tag: 'AUTH',
+        );
+        return false;
+      }
+      final d = rows.first.data;
+      final active = d['active'];
+      final isActive = active is bool ? active : (active as num? ?? 1) != 0;
+      if (!isActive) {
+        AppLogger.warning(
+          'Session invalid for $username: account deleted or inactive',
+          tag: 'AUTH',
+        );
+        return false;
+      }
+
+      final cloudVersion = (d['credentials_version'] as num?)?.toInt() ?? 0;
+      if (storedVersion == null) {
+        // جلسة قديمة من إصدار لا يحفظ النسخة: نثبت النسخة الحالية بعد
+        // التحقق من أن الحساب موجود ونشط، بدلاً من تجاوز الإلغاء تماماً.
+        await saveCredentialsVersion(cloudVersion);
+        return true;
+      }
       if (cloudVersion != storedVersion) {
         AppLogger.warning(
           'Session invalid for $username: local=$storedVersion, cloud=$cloudVersion',
@@ -688,6 +901,8 @@ class AuthLocalStore {
         'id': data['id'],
         'is_fixed': true,
         'is_cloud': false,
+        'is_active': true,
+        'is_locked': false,
       });
     });
 
@@ -702,19 +917,22 @@ class AuthLocalStore {
           'id': rawData['id'],
           'is_fixed': false,
           'is_cloud': false,
+          'is_active': true,
+          'is_locked': false,
         });
       }
     });
 
-    // حسابات سحابية من Appwrite (app_users)
+    // حسابات سحابية من Appwrite (app_users)، بما فيها المعطلة لعرض حالتها.
     try {
-      final cloudAccounts = await loadCloudAccounts();
-      final localUsernames = result
-          .map((a) => a['username'].toString())
-          .toSet();
-      cloudAccounts.forEach((username, data) {
-        // تجنب التكرار مع الحسابات المحلية
-        if (!localUsernames.contains(username)) {
+      final cloudAccounts = await loadCloudAccounts(includeInactive: true);
+      for (final entry in cloudAccounts.entries) {
+        final username = entry.key;
+        final data = entry.value;
+        final existingIndex = result.indexWhere(
+          (account) => account['username'].toString() == username,
+        );
+        if (existingIndex == -1) {
           result.add({
             'username': username,
             'full_name': data['full_name'] ?? username,
@@ -723,9 +941,25 @@ class AuthLocalStore {
             'is_fixed': false,
             'is_cloud': true,
             'doc_id': data['doc_id'],
+            'is_active': data['active'] != false,
+            'is_locked': data['is_locked'] == true,
           });
+        } else if (result[existingIndex]['is_fixed'] != true) {
+          // الحساب أُنشئ محلياً ثم رُفع إلى Appwrite؛ نحتفظ ببطاقة واحدة
+          // ونضيف doc_id حتى تستخدم الشاشة مسار التعديل السحابي الصحيح.
+          result[existingIndex] = {
+            ...result[existingIndex],
+            'full_name':
+                data['full_name'] ?? result[existingIndex]['full_name'],
+            'user_type':
+                data['user_type'] ?? result[existingIndex]['user_type'],
+            'is_cloud': true,
+            'doc_id': data['doc_id'],
+            'is_active': data['active'] != false,
+            'is_locked': data['is_locked'] == true,
+          };
         }
-      });
+      }
     } catch (e, st) {
       // فشل سحب السحابي — لا مشكلة، نعرض المحلي فقط
       AppLogger.warning(
@@ -788,7 +1022,7 @@ class AuthLocalStore {
 
   Future<bool> getRememberMe() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_kRememberMe) ?? false;
+    return prefs.getBool(_kRememberMe) ?? true;
   }
 
   Future<void> setAuthType(AuthType type) async {
@@ -853,7 +1087,7 @@ class AuthLocalStore {
     }
   }
 
-  Future<void> setPermissions(String username, List<String> permissions) async {
+  Future<bool> setPermissions(String username, List<String> permissions) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPermissionsMap);
     Map<String, dynamic> map = {};
@@ -872,47 +1106,185 @@ class AuthLocalStore {
         );
       }
     }
-    map[username] = permissions;
+    final previous = map.containsKey(username) ? map[username] : null;
+    final nextPermissions = username == 'admin' ? <String>['all'] : permissions;
+    map[username] = nextPermissions;
     await prefs.setString(_kPermissionsMap, jsonEncode(map));
-    if (username == 'admin') {
-      map[username] = ['all'];
-    }
 
-    // تحديث الصلاحيات في السحابة أيضاً
-    await _updateCloudPermissions(username, permissions);
+    // تحديث الصلاحيات في السحابة أيضاً. إذا فشل، نعيد القيمة المحلية السابقة
+    // حتى لا تعرض الواجهة صلاحيات لم تصل فعلياً إلى Appwrite.
+    final cloudUpdated = await _updateCloudPermissions(
+      username,
+      nextPermissions,
+    );
+    if (cloudUpdated) return true;
+
+    if (previous == null) {
+      map.remove(username);
+    } else {
+      map[username] = previous;
+    }
+    await prefs.setString(_kPermissionsMap, jsonEncode(map));
+    return false;
   }
 
-  /// تحديث صلاحيات مستخدم سحابي في Appwrite
-  Future<void> _updateCloudPermissions(
+  /// تحديث صلاحيات مستخدم سحابي — ✅ (2026-09-05) Cloudflare-only:
+  /// الكتابة المحلية + Outbox فقط (identifiers حتمية عبر
+  /// _cloudDocumentId). كان يحدّث مستند Appwrite مباشرة.
+  Future<bool> _updateCloudPermissions(
     String username,
     List<String> permissions,
   ) async {
     try {
-      final appwrite = AppwriteService();
-      await appwrite.initialize();
-      final cloudAccounts = await loadCloudAccounts();
-      final cloudAccount = cloudAccounts[username];
-      if (cloudAccount == null) return;
-      final docId = cloudAccount['doc_id'] as String?;
-      if (docId == null) return;
-      await appwrite.updateDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-        data: {'permissions': jsonEncode(permissions)},
+      final docId = _cloudDocumentId(username);
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      // الإصدار الحالي من الصف المحلي (مرآة D1) إن وجد
+      int version = 0;
+      if (DatabaseManager.isInitialized) {
+        final db = DatabaseManager.instance;
+        final rows = await db
+            .customSelect(
+              'SELECT version FROM app_users '
+              'WHERE local_uuid = ? LIMIT 1',
+              variables: [Variable.withString(docId)],
+            )
+            .get();
+        if (rows.isNotEmpty) {
+          version = (rows.first.data['version'] as num?)?.toInt() ?? 0;
+        }
+      }
+      // ✅ (2026-09-07) لا نرفع credentials_version هنا — هو عدّاد إبطال
+      // الجلسات (كلمة المرور فقط). رفعه عند كل نقرة صلاحية كان يقطع جلسة
+      // كل الأجهزة الأخرى فيُلزم بإعادة الدخول رغم عدم تغيير بيانات الدخول.
+      final syncPayload = AuthLocalStore.appUsersSyncPayload(
+        localUuid: docId,
+        username: username,
+        permissionsJson: jsonEncode(permissions),
+        now: now,
+        version: version + 1,
+        deviceId: await _getDeviceId(),
+      );
+      await _writeLocalAppUsersRow(syncPayload);
+      final queued = await _enqueueAppUsersOp(
+        op: 'update',
+        docId: docId,
+        payload: syncPayload,
       );
       AppLogger.debug(
-        'Permissions updated for $username in cloud',
+        'Permissions updated for $username (outbox=$queued)',
         tag: 'AUTH',
       );
-
-      // ✅ مزامنة Secondary Appwrite: تحديث الصلاحيات في الوجهة الثانوية
-      await _updateSecondary(docId, {'permissions': jsonEncode(permissions)});
+      return true;
     } catch (e) {
       AppLogger.warning(
         'Failed to update cloud permissions for $username',
         tag: 'AUTH',
         error: e,
       );
+      return false;
+    }
+  }
+
+  /// ✅ (2026-09-05) كتابة/تحديث الصف المحلي في جدول app_users المتزامن
+  /// (Drift) — يجعل الجدول المحلي مصدر رفع D1 وlanding zone مكتملة
+  /// للسحب، أثناء بقاء Appwrite مساراً مباشراً موازياً (تشغيل مزدوج).
+  ///
+  /// - الصف موجود: UPDATE بالحقول المرسلة + version = الموجود + 1
+  ///   (رقم أحادي التزايد يغذي فصل التعارضات LWW في worker).
+  /// - الصف جديد: INSERT كامل مع ملء الأعمدة NOT NULL بلا default
+  ///   بما يطابق سلوك worker (database.ts createRecord).
+  ///
+  /// فشل الكتابة المحلية مساعِد فقط — لا يُفشل العملية الأصلية.
+  Future<void> _writeLocalAppUsersRow(
+    Map<String, dynamic> syncPayload,
+  ) async {
+    try {
+      if (!DatabaseManager.isInitialized) return;
+      final db = DatabaseManager.instance;
+      final localUuid = syncPayload['local_uuid'] as String?;
+      if (localUuid == null || localUuid.isEmpty) return;
+
+      final existingRows = await db
+          .customSelect(
+            'SELECT id, version FROM app_users WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable.withString(localUuid)],
+          )
+          .get();
+      if (existingRows.isNotEmpty) {
+        final existingVersion =
+            (existingRows.first.data['version'] as int?) ?? 0;
+        final fields = Map<String, dynamic>.from(syncPayload)
+          ..remove('local_uuid')
+          ..remove('created_at')
+          ..['version'] = existingVersion + 1;
+        if (fields.isEmpty) return;
+        final setClauses = fields.keys.map((c) => '$c = ?').join(', ');
+        await db.customStatement(
+          'UPDATE app_users SET $setClauses WHERE local_uuid = ?',
+          [...fields.values, localUuid],
+        );
+      } else {
+        final row = <String, dynamic>{
+          ...syncPayload,
+          'username': syncPayload['username'] ?? '',
+          'full_name': syncPayload['full_name'] ?? '',
+          'user_type': syncPayload['user_type'] ?? '',
+          'active': syncPayload['active'] ?? 1,
+          'credentials_version': syncPayload['credentials_version'] ?? 0,
+          'created_at':
+              (syncPayload['created_at'] ?? syncPayload['updated_at']) as int,
+          'created_at_epoch': 0,
+          'sync_timestamp': 0,
+        }..remove('id');
+        final columns = row.keys.join(', ');
+        final placeholders = row.keys.map((_) => '?').join(', ');
+        await db.customStatement(
+          'INSERT OR REPLACE INTO app_users ($columns) '
+          'VALUES ($placeholders)',
+          row.values.toList(),
+        );
+      }
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر تحديث صف app_users المحلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// ✅ (2026-09-05) حجز عملية app_users في Outbox (create/update/delete)
+  /// بحمولة snake_case — انظر [appUsersSyncPayload].
+  Future<bool> _enqueueAppUsersOp({
+    required String op,
+    required String docId,
+    required Map<String, dynamic> payload,
+  }) async {
+    // ✅ (2026-09-07) الحجز عبر قاعدة DatabaseManager مباشرة بدل
+    // AppwriteSyncManager.instance.outboxDao — نفس القاعدة في الإنتاج
+    // (المدير يهيّئ نفسه عليها)، لكن: (1) لا يُسقط العملية صمتاً عندما
+    // لم يُهيأ المدير بعد (أوفلاين/إقلاع بطيء) — العملية تبقى في Outbox
+    // وتُرفع فور التهيئة، (2) قابل للاختبار بقاعدة في الذاكرة.
+    try {
+      if (!DatabaseManager.isInitialized) return false;
+      final outboxDao = OutboxDao(DatabaseManager.instance);
+      await outboxDao.merge(
+        entity: 'app_users',
+        op: op,
+        localUuid: docId,
+        payload: payload,
+        clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      );
+      return true;
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر إضافة عملية app_users إلى Outbox',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+      return false;
     }
   }
 
@@ -972,8 +1344,7 @@ class AuthLocalStore {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('appwrite_device_id') ??
           prefs.getString('appwrite_realtime_device_id');
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in auth_local_store.dart: ');
+    } catch (_) {
       return null;
     }
   }

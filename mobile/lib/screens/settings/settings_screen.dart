@@ -1,6 +1,5 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -12,21 +11,23 @@ import '../../providers/theme_provider.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
+import '../inventory/inventory_screen.dart';
 import '../security/blacklist_screen.dart';
 import 'active_bookings_reminder_screen.dart';
-import 'appwrite_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
-import 'data_protection_screen.dart';
+import 'error_center_screen.dart';
+import 'error_tracker_screen.dart';
 import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'remote_config_settings_screen.dart';
-import 'secondary_appwrite_settings_screen.dart';
 import 'settings_custom_lists.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_maintenance.dart';
 import 'settings_users.dart';
+import 'sync/unified_sync_settings_screen.dart';
 import 'sync_health/sync_health_screen.dart';
+import 'telegram_settings_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
 import 'whatsapp_settings_screen.dart';
 
@@ -43,8 +44,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final info = await PackageInfo.fromPlatform();
       return '${info.version}+${info.buildNumber}';
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_screen.dart: ');
+    } catch (_) {
       return '1.2.0+3';
     }
   }
@@ -71,7 +71,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             usersCountAsync,
           ),
 
-          // ✅ المحتوى: الأقسام مع CustomScrollView + RepaintBoundary
+          // ✅ العرض السابق: الأقسام ظاهرة دائماً بدون طيّ.
+          // يحافظ ذلك على قابلية اكتشاف كل الوظائف مع إبقاء التمرير واحداً.
           Expanded(
             child: CustomScrollView(
               slivers: [
@@ -79,43 +80,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: RepaintBoundary(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionTitle(
-                            'إدارة البيانات',
-                            Icons.manage_accounts,
-                          ),
-                          _buildSettingsGrid(
-                            context,
-                            _getSectionItems(context, 'data'),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle(
-                            'المزامنة والنسخ الاحتياطي',
-                            Icons.sync,
-                          ),
-                          _buildSettingsGrid(
-                            context,
-                            _getSectionItems(context, 'sync'),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle(
-                            'واتساب والإشعارات',
-                            Icons.notifications,
-                          ),
-                          _buildSettingsGrid(
-                            context,
-                            _getSectionItems(context, 'whatsapp'),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('التطبيق', Icons.apps),
-                          _buildSettingsGrid(
-                            context,
-                            _getSectionItems(context, 'app'),
-                          ),
-                        ],
-                      ),
+                      child: _buildSettingsContent(context),
                     ),
                   ),
                 ),
@@ -124,6 +89,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSettingsContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
+        _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
+        _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('الإشعارات والتقارير', Icons.notifications),
+        _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('التطبيق والخدمات', Icons.apps),
+        _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+      ],
     );
   }
 
@@ -156,18 +140,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'إدارة الضيوف',
-            subtitle: 'عرض تاريخ وإحصائيات الضيوف',
-            icon: Icons.person,
-            color: Colors.green,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const SettingsGuestsScreen(),
-              ),
-            ),
-          ),
-          _SettingsItem(
             title: 'إدارة المستخدمين',
             subtitle: 'مستخدمي النظام والصلاحيات',
             icon: Icons.admin_panel_settings,
@@ -176,6 +148,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               context,
               MaterialPageRoute<void>(
                 builder: (context) => const SettingsUsersScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'إدارة الضيوف',
+            subtitle: 'عرض تاريخ وإحصائيات الضيوف',
+            icon: Icons.person,
+            color: Colors.green,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const SettingsGuestsScreen(),
               ),
             ),
           ),
@@ -215,63 +199,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ),
+          _SettingsItem(
+            title: 'المخزون',
+            subtitle: 'الأصناف والرصيد والوارد والصرف والجرد',
+            icon: Icons.inventory_2,
+            color: Colors.brown,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const InventoryScreen(),
+              ),
+            ),
+          ),
         ];
 
       case 'sync':
         return [
           _SettingsItem(
-            title: 'Google Drive',
-            subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
-            icon: Icons.cloud,
+            title: 'المزامنة بين الأجهزة',
+            subtitle: 'التحكم في مزامنة Cloudflare والأداء والشبكة',
+            icon: Icons.sync,
             color: Colors.blue,
             onTap: () => Navigator.push<void>(
               context,
               MaterialPageRoute<void>(
-                builder: (context) => const GoogleDriveBackupScreen(),
+                builder: (context) => const UnifiedSyncSettingsScreen(),
               ),
             ),
           ),
           _SettingsItem(
-            title: 'Appwrite',
-            subtitle: 'المزامنة السحابية',
-            icon: Icons.cloud_sync,
-            color: Colors.pink,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const AppwriteSettingsScreen(),
-              ),
-            ),
-          ),
-          // ✅ جديد: Appwrite الثانوي (نسخة احتياطية)
-          _SettingsItem(
-            title: 'Appwrite الثانوي',
-            subtitle: 'نسخة احتياطية للوجهة الثانوية',
-            icon: Icons.cloud_queue,
-            color: Colors.deepPurple,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const SecondaryAppwriteSettingsScreen(),
-              ),
-            ),
-          ),
-          // ✅ جديد: زر حالة المزامنة
-          _SettingsItem(
-            title: 'حالة المزامنة',
-            subtitle: 'مراقبة صحة النظام',
-            icon: Icons.health_and_safety,
-            color: Colors.green,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const SyncHealthScreen(),
-              ),
-            ),
-          ),
-          _SettingsItem(
-            title: 'النسخ الاحتياطي',
-            subtitle: 'محلي · Google Drive · Appwrite',
+            title: 'النسخ الاحتياطي والاستعادة',
+            subtitle: 'نسخ محلية آمنة ومزامنة Cloudflare D1',
             icon: Icons.backup,
             color: Colors.deepOrange,
             onTap: () => Navigator.push<void>(
@@ -283,14 +241,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'حماية البيانات',
-            subtitle: 'إعدادات المزامنة (Push/Pull)',
-            icon: Icons.security,
+            title: 'المزامنة السحابية',
+            subtitle: 'رفع وسحب البيانات عبر Cloudflare D1 وحالة الأجهزة',
+            icon: Icons.cloud_sync,
+            color: Colors.pink,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const UnifiedSyncSettingsScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'حالة المزامنة',
+            subtitle: 'مراقبة صحة النظام والعمليات المعلقة',
+            icon: Icons.health_and_safety,
+            color: Colors.green,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const SyncHealthScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'النسخ الاحتياطي - Google Drive',
+            subtitle: 'نسخ احتياطي واستعادة من Google Drive',
+            icon: Icons.cloud_upload,
             color: Colors.teal,
             onTap: () => Navigator.push<void>(
               context,
               MaterialPageRoute<void>(
-                builder: (context) => const DataProtectionScreen(),
+                builder: (context) => const GoogleDriveBackupScreen(),
               ),
             ),
           ),
@@ -330,8 +312,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'رسالة الواتساب',
-            subtitle: 'تخصيص نص رسالة الدفع',
+            title: 'ربط وقوالب WhatsApp',
+            subtitle: 'إعداد الاتصال وتخصيص نص رسالة الدفع',
             icon: Icons.message,
             color: Colors.green,
             onTap: () => Navigator.push<void>(
@@ -342,14 +324,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'واتساب',
-            subtitle: 'الإشعارات الفورية والتقارير اليومية',
+            title: 'إشعارات وتقارير WhatsApp',
+            subtitle: 'تفعيل الأحداث الفورية والملخص اليومي',
             icon: Icons.chat,
             color: const Color(0xFF25D366),
             onTap: () => Navigator.push<void>(
               context,
               MaterialPageRoute<void>(
                 builder: (context) => const WhatsAppDailyReportScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'Telegram',
+            subtitle: 'إعداد البوت وإشعارات الأحداث والتقرير اليومي',
+            icon: Icons.send,
+            color: Colors.lightBlue,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const TelegramSettingsScreen(),
               ),
             ),
           ),
@@ -377,11 +371,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'Crashlytics',
-            subtitle: 'مراقبة الأخطاء والأعطال',
+            // ✅ (2026-09-05) كانت تفتح حواراً مختصراً بينما شاشة تتبع
+            // الأخطاء الكاملة (ErrorTrackerScreen — فلترة/نسخ/سجل) كانت
+            // شاشة يتيمة غير قابلة للوصول. الآن الإدخال يفتح الشاشة
+            // الكاملة (تستخدم CrashlyticsService داخلياً) — تجهيزاً
+            // للإنتاج الحقيقي، مع إدخال ثانٍ لمركز أخطاء المزامنة.
+            title: 'تتبع الأخطاء والأعطال',
+            subtitle: 'سجل الأخطاء الكامل مع النسخ والفلترة',
             icon: Icons.bug_report,
             color: Colors.red.shade700,
-            onTap: () => _showCrashlyticsDialog(context),
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const ErrorTrackerScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'مركز أخطاء المزامنة',
+            subtitle: 'أخطاء السحابة والنسخ الاحتياطي وسجلات المزامنة',
+            icon: Icons.report,
+            color: Colors.deepOrange.shade700,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const ErrorCenterScreen(),
+              ),
+            ),
           ),
           _SettingsItem(
             title: 'Remote Config',
@@ -526,12 +542,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           Icon(icon, color: Colors.blue, size: 24),
           const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
             ),
           ),
         ],
@@ -542,53 +562,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // ─── شبكة الإعدادات ───
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
-    const crossAxisCount = 3;
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        mainAxisExtent: 130,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return Card(
-          elevation: 2,
-          child: InkWell(
-            onTap: item.onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, size: 20, color: item.color),
-                  const SizedBox(height: 8),
-                  Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.subtitle,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // نفس تخطيط فرع A: بطاقات صغيرة ثابتة بثلاثة أعمدة.
+        const crossAxisCount = 3;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            mainAxisExtent: 130,
           ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return Card(
+              elevation: 1,
+              child: InkWell(
+                onTap: item.onTap,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(item.icon, size: 20, color: item.color),
+                      const SizedBox(height: 8),
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -699,7 +727,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showAppSettingsDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Consumer(
         builder: (context, ref, _) {
@@ -728,219 +756,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           );
         },
       ),
-    );
-  }
-
-  void _showCrashlyticsDialog(BuildContext context) {
-    final crashlytics = ref.read(crashlyticsServiceProvider);
-    final isInitialized = crashlytics.isInitialized;
-    final isFirebaseConnected = crashlytics.isFirebaseConnected;
-    final errorCount = crashlytics.errorCount;
-    final history = crashlytics.getErrorHistory();
-
-    final String statusText;
-    final IconData statusIcon;
-    final Color statusColor;
-    final Color bgColor;
-
-    if (!isInitialized) {
-      statusText = 'الخدمة غير مهيأة';
-      statusIcon = Icons.error;
-      statusColor = Colors.red;
-      bgColor = Colors.red.shade50;
-    } else if (isFirebaseConnected) {
-      statusText = 'الخدمة مفعلة وتعمل';
-      statusIcon = Icons.check_circle;
-      statusColor = Colors.green;
-      bgColor = Colors.green.shade50;
-    } else {
-      statusText = 'الخدمة تعمل بالتسجيل المحلي';
-      statusIcon = Icons.cloud_queue;
-      statusColor = Colors.orange;
-      bgColor = Colors.orange.shade50;
-    }
-
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.bug_report, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Firebase Crashlytics'),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(statusIcon, color: statusColor),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          statusText,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isInitialized && !isFirebaseConnected) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'الاتصال بـ Firebase غير متوفر. الأخطاء تُسجل محلياً فقط.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange.shade700,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                Text(
-                  'الأخطاء المسجلة: $errorCount',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (history.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text(
-                        'لا توجد أخطاء مسجلة',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  )
-                else
-                  ...history.reversed.take(10).map((entry) {
-                    final severity = entry['severity'] as String;
-                    final color = severity == 'fatal'
-                        ? Colors.red
-                        : severity == 'error'
-                        ? Colors.orange
-                        : Colors.amber;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: color.withValues(alpha: 0.3)),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  severity.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: color,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '${entry['source']} — ${entry['action']}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${entry['error']}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade700,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            entry['timestamp']?.toString() ?? '',
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await crashlytics.sendUnsentReports();
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تم إرسال التقارير المعلقة'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-            child: const Text('إرسال التقارير'),
-          ),
-          if (history.isNotEmpty)
-            TextButton(
-              onPressed: () {
-                crashlytics.clearErrorHistory();
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('تم مسح سجل الأخطاء')),
-                );
-              },
-              child: const Text(
-                'مسح السجل',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
-      ),
-    );
+    ));
   }
 
   /// ✅ قراءة الإصدار ديناميكياً

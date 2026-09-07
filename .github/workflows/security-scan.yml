@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload Semgrep JSON report
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: semgrep-report
           path: semgrep-report.json
@@ -222,7 +222,7 @@ jobs:
 
       - name: Upload Trivy license report
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-licenses
           path: trivy-licenses.txt
@@ -272,7 +272,7 @@ jobs:
   npm-audit:
     name: npm audit (root + scripts)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -321,7 +321,7 @@ jobs:
 
       - name: Upload npm audit reports
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: npm-audit-reports
           path: |
@@ -492,7 +492,7 @@ jobs:
 
       - name: Upload pub security reports
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: pub-security-report
           path: |
@@ -559,7 +559,7 @@ jobs:
 
       - name: Upload PHP security report
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: php-security-report
           path: |
@@ -600,14 +600,16 @@ jobs:
             fi
           done
 
-      - name: Flutter/Dart dependency audit (pub outdated + pub audit)
-        working-directory: mobile
+      - name: Install & run pip-audit (for any python scripts in repo)
         run: |
           set -euo pipefail
-          # Check for outdated packages
-          dart pub outdated --no-dev-dependencies || true
-          # Check for security advisories in pub.dev packages
-          dart pub audit || true
+          python3 -m pip install --upgrade pip-audit 2>&1 | tail -3
+          # Scan requirements.txt files if any
+          find . -maxdepth 3 -name "requirements*.txt" -print0 | while IFS= read -r -d '' f; do
+            echo "=== pip-audit on $f ==="
+            pip-audit -r "$f" -f json -o "pip-audit-$(basename $f .txt).json" || true
+          done
+          echo "::notice::pip-audit complete (if no requirements.txt files, no scans ran)"
 
       - name: Custom malware heuristic — scan for suspicious patterns
         # Catches: base64-encoded evals, suspicious domains, exec from network
@@ -668,7 +670,7 @@ jobs:
 
       - name: Upload malware heuristic report
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: malware-heuristics
           path: malware-heuristics/
@@ -676,7 +678,7 @@ jobs:
 
       - name: Upload socket security reports
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: socket-security-reports
           path: socket-*.json

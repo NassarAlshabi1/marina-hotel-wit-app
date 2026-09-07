@@ -1,5 +1,4 @@
-import 'package:flutter/foundation.dart';
-
+import '../../utils/debug_log.dart';
 import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 
@@ -11,7 +10,7 @@ class RecalculateBookingNightsMigration {
   final AppDatabase db;
 
   Future<void> execute() async {
-    debugPrint('🔧 Starting booking nights recalculation migration...');
+    dlog('🔧 Starting booking nights recalculation migration...');
 
     final derivedFieldsService = BookingDerivedFieldsService(db);
 
@@ -21,19 +20,19 @@ class RecalculateBookingNightsMigration {
     )..where((b) => b.deletedAt.isNull())).get();
 
     if (bookings.isEmpty) {
-      debugPrint('✅ No bookings found');
+      dlog('✅ No bookings found');
       return;
     }
 
-    debugPrint('📋 Found ${bookings.length} bookings to recalculate');
+    dlog(() => '📋 Found ${bookings.length} bookings to recalculate');
 
     int successCount = 0;
     int errorCount = 0;
 
     for (final booking in bookings) {
       try {
-        debugPrint(
-          '   Processing ${booking.guestName} (${booking.roomNumber})...',
+        dlog(
+          () => '   Processing ${booking.guestName} (${booking.roomNumber})...',
         );
 
         // إعادة حساب جميع الحقول المشتقة بناءً على التواريخ
@@ -44,15 +43,15 @@ class RecalculateBookingNightsMigration {
 
         successCount++;
       } catch (e) {
-        debugPrint('   ❌ Error processing booking ${booking.id}: $e');
+        dlog(() => '   ❌ Error processing booking ${booking.id}: $e');
         errorCount++;
       }
     }
 
-    debugPrint('');
-    debugPrint('✅ Migration completed:');
-    debugPrint('   - Success: $successCount');
-    debugPrint('   - Errors: $errorCount');
+    dlog('');
+    dlog('✅ Migration completed:');
+    dlog(() => '   - Success: $successCount');
+    dlog(() => '   - Errors: $errorCount');
   }
 
   Future<RecalculationReport> executeWithReport() async {

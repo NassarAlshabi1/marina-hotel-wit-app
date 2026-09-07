@@ -1,5 +1,4 @@
 import 'time.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 /// محرك الوقت الفندقي — المصدر الوحيد للحسابات
 ///
@@ -21,12 +20,12 @@ class HotelTimeEngine {
   // ثوابت
   // ═══════════════════════════════════════════════════════════════
 
-  /// ساعة بداية اليوم الفندقي (14)
-  static const int boundaryHour = 14;
+  /// ساعة بداية اليوم الفندقي (14).
+  static const int boundaryHour = Time.hotelDayBoundaryHour;
 
-  /// دقيقة بداية اليوم الفندقي (01)
-  /// اليوم الفندقي يبدأ الساعة 14:01 وليس 14:00
-  static const int boundaryMinute = 1;
+  /// دقيقة بداية اليوم الفندقي (01).
+  /// اليوم الفندقي يبدأ الساعة 14:01 وليس 14:00.
+  static const int boundaryMinute = Time.hotelDayBoundaryMinute;
 
   /// دالة لتحديد بداية ونهاية اليوم الفندقي لتاريخ معين.
   /// اليوم الفندقي يبدأ الساعة 14:01 وينتهي في اليوم التالي الساعة 14:00:59.
@@ -126,9 +125,24 @@ class HotelTimeEngine {
           : isoString.trim().replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return getHotelDayKey(dateTime: dt);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in hotel_time_engine.dart: ');
+    } catch (_) {
       return getHotelDayKey();
+    }
+  }
+
+  /// مفتاح اليوم الفندقي السابق لمفتاح معطى (التسمية D تغطي
+  /// [D 14:01, D+1 14:00:59] — فالسابق لتسمية D هو D−1 حتماً).
+  /// ✅ (2026-09-05) يستخدمه نطاق «إجمالي النوبة» — نوبة تعبر حد
+  /// 14:01 يوزع استلاماتها على مفتاحين، والإجمالي الكامل للنوبة
+  /// يحتاج المفتاحين معاً.
+  static String? previousHotelDayKey(String? hotelDayKey) {
+    if (hotelDayKey == null || hotelDayKey.trim().isEmpty) return null;
+    try {
+      final dt = DateTime.parse(hotelDayKey.trim());
+      final prev = dt.subtract(const Duration(days: 1));
+      return Time.dateToString(prev);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -254,8 +268,7 @@ class HotelTimeEngine {
             : checkoutDate.replaceFirst(' ', 'T'),
       );
       return DateTime.now().isAfter(checkout);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in hotel_time_engine.dart: ');
+    } catch (_) {
       return false;
     }
   }

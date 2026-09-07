@@ -1,5 +1,4 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -10,6 +9,8 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/time.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
@@ -53,9 +54,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ? _buildPaymentsList(paymentsRepo.watchAll())
                   : StreamBuilder<Booking?>(
                       stream:
-                          (database.select(
-                                database.bookings,
-                              )..where(
+                          (database.select(database.bookings)..where(
                                 (t) => t.localUuid.equals(widget.bookingId!),
                               ))
                               .watchSingleOrNull(),
@@ -117,7 +116,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   // ✅ إعادة المحاولة تُشغّل مزامنة فعلية من المصدر بدل مجرد
                   // setState الذي قد لا يُغيّر شيئاً لو كان الخطأ ثابتاً.
                   onPressed: () {
-                    ref.read(syncServiceProvider).runSync();
+                    unawaited(ref.read(syncServiceProvider).runSync());
                     setState(() {});
                   },
                   child: const Text('إعادة المحاولة'),
@@ -217,6 +216,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 onRefresh: () => ref.read(syncServiceProvider).runSync(),
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollCacheExtent: optimizedScrollCacheExtent,
+                  addAutomaticKeepAlives: false,
+                  addRepaintBoundaries: false,
                   itemCount: payments.length,
                   itemBuilder: (context, index) {
                     final payment = payments[index];
@@ -406,7 +408,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             return false;
           }
         } catch (e) {
-          debugPrint('Date parse error in filter: $e');
+          dlog(() => 'Date parse error in filter: $e');
         }
       }
 
@@ -415,7 +417,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showFilterDialog() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -564,7 +566,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   void _clearFilters() {
@@ -577,7 +579,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showPaymentDetails(Payment payment) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -611,7 +613,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildDetailRow(String label, String value) {

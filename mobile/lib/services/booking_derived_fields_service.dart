@@ -1,21 +1,26 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
+import '../services/daos/bookings_dao.dart';
+import '../services/daos/outbox_dao.dart';
+import '../utils/debug_log.dart';
+import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
-import 'remote_config_service.dart';
 
 class BookingDerivedFieldsService {
-  BookingDerivedFieldsService(this.db);
+  BookingDerivedFieldsService(this.db, [OutboxDao? outboxDao])
+    : _outboxDao = outboxDao ?? OutboxDao(db);
 
   final AppDatabase db;
+  final OutboxDao _outboxDao;
 
   Future<void> refreshForBookingId(
     int bookingId, {
     DateTime? now,
     bool forceRebuild = false,
+    bool enqueueOutbox = true,
   }) async {
     final booking =
         await (db.select(db.bookings)
@@ -26,7 +31,12 @@ class BookingDerivedFieldsService {
       return;
     }
 
-    await refreshForBooking(booking, now: now, forceRebuild: forceRebuild);
+    await refreshForBooking(
+      booking,
+      now: now,
+      forceRebuild: forceRebuild,
+      enqueueOutbox: enqueueOutbox,
+    );
   }
 
   /// Refresh derived fields for a single booking (opens its own transaction).
@@ -36,12 +46,14 @@ class BookingDerivedFieldsService {
     Booking booking, {
     DateTime? now,
     bool forceRebuild = false,
+    bool enqueueOutbox = true,
   }) async {
     await db.transaction(() async {
       await _refreshForBookingInTransaction(
         booking,
         now: now,
         forceRebuild: forceRebuild,
+        enqueueOutbox: enqueueOutbox,
       );
     });
   }
@@ -53,6 +65,7 @@ class BookingDerivedFieldsService {
     Booking booking, {
     DateTime? now,
     bool forceRebuild = false,
+    bool enqueueOutbox = true,
   }) async {
     final moment = now ?? DateTime.now();
     final calcService = EnhancedBookingCalculationService(db);
@@ -67,6 +80,7 @@ class BookingDerivedFieldsService {
       forceRebuild: forceRebuild,
       breakdown: calculation.breakdown,
       inTransaction: true, // we are already inside a transaction
+      enqueueOutbox: enqueueOutbox,
     );
 
     final plannedCheckout = _parseDateTime(booking.checkoutDate);
@@ -74,7 +88,7 @@ class BookingDerivedFieldsService {
 
     // For active bookings (no actual checkout), expectedNights should dynamically
     // grow with the current time (totalNights from calculation which uses moment).
-    // This ensures payment screens show the correct number of nights if they stay past 14:01.
+    // This ensures payment screens show the correct number of nights if they stay past 14:00.
     final expectedNightsValue =
         (actualCheckout == null && StatusUtils.isBookingActive(booking))
         ? calculation.financialSummary.totalNights
@@ -122,9 +136,35 @@ class BookingDerivedFieldsService {
         updatedAtIso: d.Value(stampIso),
       ),
     );
+
+    // الحقول المشتقة تُعاد حسابها أثناء السحب أيضاً. لا يجوز أن تتحول
+    // كتابة بيانات Appwrite إلى تعديل مستخدم محلي قابل للرفع.
+    if (!enqueueOutbox) {
+      return;
+    }
+
+    final updated = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
+    if (updated != null) {
+      final bookingsDao = BookingsDao(db, _outboxDao);
+      final payload = await bookingsDao.payloadForLocalUuid(updated.localUuid);
+      if (payload != null) {
+        await _outboxDao.merge(
+          entity: 'bookings',
+          op: 'update',
+          localUuid: updated.localUuid,
+          payload: payload,
+          clientTs: stamp,
+        );
+      }
+    }
   }
 
-  Future<int> refreshAllActiveBookings({DateTime? now}) async {
+  Future<int> refreshAllActiveBookings({
+    DateTime? now,
+    bool enqueueOutbox = true,
+  }) async {
     final moment = now ?? DateTime.now();
     final activeBookings =
         await (db.select(db.bookings)
@@ -144,9 +184,8 @@ class BookingDerivedFieldsService {
     await db.transaction(() async {
       for (final booking in active) {
         try {
-          final cutoffHour = RemoteConfigService.instance.checkoutHour;
           if (StatusUtils.isBookingProvisional(booking) &&
-              moment.hour >= cutoffHour) {
+              HotelTimeEngine.isAfterCutoff(moment)) {
             await _promoteProvisionalBooking(booking.id);
             promoted++;
           }
@@ -154,28 +193,49 @@ class BookingDerivedFieldsService {
             booking,
             now: moment,
             forceRebuild: true,
+            enqueueOutbox: enqueueOutbox,
           );
           refreshed++;
         } catch (e) {
-          debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+          dlog(() => '⚠️ خطأ في تحديث حجز ${booking.id}: $e');
         }
       }
     });
 
     if (promoted > 0) {
-      debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
+      dlog(() => '✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
     }
     if (refreshed > 0) {
-      debugPrint('🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
+      dlog(() => '🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
     }
     return refreshed;
   }
 
   Future<void> _promoteProvisionalBooking(int bookingId) async {
-    await (db.update(
+    final booking = await (db.select(
       db.bookings,
-    )..where((b) => b.id.equals(bookingId))).write(
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    if (booking == null) return;
+
+    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId))).write(
       const BookingsCompanion(status: d.Value('محجوزة')),
+    );
+
+    final updated = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    if (updated == null) return;
+
+    final bookingsDao = BookingsDao(db, _outboxDao);
+    final payload = await bookingsDao.payloadForLocalUuid(updated.localUuid);
+    if (payload == null) return;
+
+    await _outboxDao.merge(
+      entity: 'bookings',
+      op: 'update',
+      localUuid: updated.localUuid,
+      payload: payload,
+      clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
     );
   }
 
@@ -243,43 +303,27 @@ class BookingDerivedFieldsService {
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in booking_derived_fields_service.dart: ');
+    } catch (_) {
       return null;
     }
   }
 
   // ignore: unused_element
-  List<_NightSegment> _buildNightSegments(
-    DateTime checkin,
-    DateTime checkout, {
-    int? cutoffHour,
-  }) {
-    final int resolvedCutoffHour =
-        cutoffHour ?? RemoteConfigService.instance.checkoutHour;
+  List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout) {
     final segments = <_NightSegment>[];
-
-    // ✅ استخدام HotelTimeEngine كمرجع موحد (14:01)
-    final int totalNights = Time.nightsWithCutoff(
+    final totalNights = HotelTimeEngine.calculateDays(
       checkin,
-      checkout: checkout,
-      cutoffHour: resolvedCutoffHour,
-      // cutoffMinute defaults to 1 (14:01) — matches HotelTimeEngine
+      checkOut: checkout,
     );
 
-    // حساب بداية "يوم الفندق" لعملية تسجيل الدخول (14:01)
-    DateTime startOfCheckinHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
-      resolvedCutoffHour,
-      1, // ✅ 14:01 — matches HotelTimeEngine boundaryMinute
+    final hotelDay = HotelTimeEngine.getHotelDay(checkin);
+    final startOfCheckinHotelDay = DateTime(
+      hotelDay.year,
+      hotelDay.month,
+      hotelDay.day,
+      HotelTimeEngine.boundaryHour,
+      HotelTimeEngine.boundaryMinute,
     );
-    if (checkin.isBefore(startOfCheckinHotelDay)) {
-      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
-        const Duration(days: 1),
-      );
-    }
 
     for (int i = 0; i < totalNights; i++) {
       final dayDate = startOfCheckinHotelDay.add(Duration(days: i));

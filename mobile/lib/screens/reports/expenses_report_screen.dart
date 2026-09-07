@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:drift/drift.dart' hide Column;
@@ -14,6 +12,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
@@ -128,7 +127,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
-      _initializeDefaults();
+      unawaited(_initializeDefaults());
     }
   }
 
@@ -280,9 +279,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // ─── سحب سحوبات الرواتب من salary_withdrawals ───
     // ✅ إصلاح: جلب salary_withdrawals أيضاً عند اختيار نوع راتب
     // لعرض السحوبات اليتيمة المرتبطة بنوع الراتب المحدد
-    // Note: Dart's flow analysis promotes `selectedType` to non-null on the right side of `||`
-    // because `showAll = selectedType == null` — if showAll is false, selectedType is non-null.
-    final shouldFetchSalaryWithdrawals = showAll || _isSalaryType(selectedType);
+    final shouldFetchSalaryWithdrawals =
+        showAll ||
+        (_isSalaryType(selectedType)); // ignore: unnecessary_null_comparison
     List<SalaryWithdrawal> salaryWithdrawals = [];
     if (shouldFetchSalaryWithdrawals) {
       try {
@@ -314,8 +313,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         for (final sw in salaryWithdrawals) {
           employeeIds.add(sw.employeeId);
         }
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in expenses_report_screen.dart: ');
+      } catch (_) {
         // في حال عدم وجود الجدول أو خطأ آخر
       }
     }
@@ -379,8 +377,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             swExpenseIdMap[swId] = expId;
           }
         }
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in expenses_report_screen.dart: ');
+      } catch (_) {
         // العمود قد لا يكون موجوداً بعد في الإصدارات القديمة — نتخطى
       }
     }
@@ -475,8 +472,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   ) &&
                   expense.amount.abs() == sw.amount.abs()) {
                 hasMatchingExpense = true;
-                debugPrint(
-                  '⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات',
+                dlog(
+                  () =>
+                      '⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات',
                 );
                 break;
               }
@@ -749,7 +747,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           _fromDate = range.from;
           _toDate = range.to;
         });
-        _fetchReport();
+        unawaited(_fetchReport());
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
@@ -1365,8 +1363,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   static int? _readNullableInt(QueryRow row, String column) {
     try {
       return row.read<int>(column);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in expenses_report_screen.dart: ');
+    } catch (_) {
       return null;
     }
   }
@@ -1403,7 +1400,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     try {
       return DateTime.parse(normalized);
     } catch (e) {
-      debugPrint('⚠️ تعذر تحليل تاريخ المصروف "$value": $e');
+      dlog(() => '⚠️ تعذر تحليل تاريخ المصروف "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }

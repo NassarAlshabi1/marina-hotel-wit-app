@@ -1,4 +1,3 @@
-@Skip('Causes segmentation fault on CI headless runners (uses widgets bindings). Run locally.')
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,12 +24,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('إخفاء عنصر الغرف بدون صلاحية rooms', (tester) async {
-    final user = AuthUser(
+    const user = AuthUser(
       id: 2,
       username: 'm',
       fullName: 'محمد',
       userType: 'supervisor',
-      permissions: const ['dashboard'],
+      permissions: ['dashboard'],
     );
 
     await tester.pumpWidget(
@@ -38,7 +37,7 @@ void main() {
         overrides: [
           authProvider.overrideWith(
             (ref) => FakeAuthNotifier(
-              AuthState(isAuthenticated: true, currentUser: user),
+              const AuthState(isAuthenticated: true, currentUser: user),
             ),
           ),
         ],

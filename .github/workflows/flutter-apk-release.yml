@@ -25,10 +25,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  actions: read
-
 jobs:
   build-release-apk:
     # Runs the job on the latest Ubuntu runner
@@ -111,25 +107,28 @@ jobs:
         run: flutter pub run build_runner clean
 
       - name: Generate code (e.g., using Freezed, json_serializable)
-        # Build runner: generate Freezed/Drift/json_serializable code
-        # Note: --delete-conflicting-outputs is deprecated in newer build_runner versions.
-        # Flutter 3.44.4 handles conflicts automatically.
+        # Use delete-conflicting-outputs and verbose logging to avoid conflicts and aid debugging
         run: flutter pub run build_runner build --verbose
 
       - name: Build release APK
         # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
         # Build only for arm64-v8a architecture (modern 64-bit Android devices)
+        # ✅ SECURITY: --obfuscate + --split-debug-info for code protection
         run: >
           flutter build apk --release
           --target-platform android-arm64
           --build-name ${{ steps.version.outputs.build_name }}
           --build-number ${{ steps.version.outputs.build_number }}
-          --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
+          --obfuscate
+          --split-debug-info=./debug-info
+          --dart-define=BASE_API_URL=https://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
           --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
+          --dart-define=APPWRITE_API_KEY=${{ secrets.APPWRITE_API_KEY }}
+          --dart-define=SECONDARY_APPWRITE_API_KEY=${{ secrets.SECONDARY_APPWRITE_API_KEY }}
 
       - name: Upload release artifact
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk

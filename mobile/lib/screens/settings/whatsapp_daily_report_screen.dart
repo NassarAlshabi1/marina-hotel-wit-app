@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -26,11 +24,12 @@ class _WhatsAppDailyReportScreenState
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    unawaited(_loadSettings());
   }
 
   Future<void> _loadSettings() async {
     await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
     final state = ref.read(whatsappDailyReportProvider);
     _reportTimeController.text = state.dailyReportTime;
     setState(() => _isLoading = false);
@@ -841,7 +840,7 @@ class _WhatsAppDailyReportScreenState
   }
 
   void _showSetupGuide(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -894,7 +893,7 @@ class _WhatsAppDailyReportScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildSectionTitle(String title, IconData icon, Color color) {

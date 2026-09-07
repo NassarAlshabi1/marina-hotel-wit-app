@@ -1,4 +1,3 @@
-// ignore_for_file: unused_catch_stack
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -105,7 +104,7 @@ class SyncGuardian {
           await AutoSyncTask.scheduleImmediateSync();
         }
         _pendingChangesCount = 0;
-      } catch (e, st) {
+      } catch (e) {
         dwarn(() => 'فشل رفع التغييرات: $e');
         try {
           await AutoSyncTask.scheduleImmediateSync();

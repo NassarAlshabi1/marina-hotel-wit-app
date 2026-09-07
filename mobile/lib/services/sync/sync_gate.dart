@@ -1,9 +1,8 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../utils/debug_log.dart';
 
 /// حالة بوّابة المزامنة العامة — تعكس ما إذا كانت أي عملية مزامنة
 /// جارية في التطبيق كله، بصرف النظر عن المصدر (زر يدوي، سحب تلقائي
@@ -108,9 +107,10 @@ class SyncGate {
   bool tryEnter({required String operation, required String source}) {
     if (notifier.value.isBusy) {
       if (kDebugMode) {
-        debugPrint(
-          '🚫 [SyncGate] rejected entry: already busy with '
-          '${notifier.value.operation} from ${notifier.value.source}',
+        dlog(
+          () =>
+              '🚫 [SyncGate] rejected entry: already busy with '
+              '${notifier.value.operation} from ${notifier.value.source}',
         );
       }
       return false;
@@ -122,7 +122,7 @@ class SyncGate {
       startedAt: DateTime.now(),
     );
     if (kDebugMode) {
-      debugPrint('🔒 [SyncGate] entered: $operation from $source');
+      dlog(() => '🔒 [SyncGate] entered: $operation from $source');
     }
     return true;
   }
@@ -135,9 +135,10 @@ class SyncGate {
     }
     if (kDebugMode) {
       final elapsed = notifier.value.elapsedMs;
-      debugPrint(
-        '🔓 [SyncGate] exited: ${notifier.value.operation} from '
-        '${notifier.value.source} (took ${elapsed}ms)',
+      dlog(
+        () =>
+            '🔓 [SyncGate] exited: ${notifier.value.operation} from '
+            '${notifier.value.source} (took ${elapsed}ms)',
       );
     }
     notifier.value = const SyncGateState();
@@ -196,7 +197,7 @@ final syncGateStateProvider = StreamProvider<SyncGateState>((ref) {
   SyncGate.instance.notifier.addListener(listener);
   ref.onDispose(() {
     SyncGate.instance.notifier.removeListener(listener);
-    controller.close();
+    unawaited(controller.close());
   });
   // البث الأول للحالة الحالية
   controller.add(SyncGate.instance.notifier.value);

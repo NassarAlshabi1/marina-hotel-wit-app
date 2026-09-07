@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:ui' as ui;
@@ -12,6 +10,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/status_utils.dart';
 // ✅ whatsapp_template_manager ملغي — البناء مباشر
 
@@ -40,7 +39,7 @@ class _ActiveBookingsReminderScreenState
     super.initState();
     // تحديث البيانات تلقائياً عند فتح الشاشة
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoRefreshData();
+      unawaited(_autoRefreshData());
     });
   }
 
@@ -56,7 +55,7 @@ class _ActiveBookingsReminderScreenState
         setState(() => _isInitialLoading = false);
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في التحديث التلقائي: $e');
+      dlog(() => '⚠️ خطأ في التحديث التلقائي: $e');
       if (mounted) {
         setState(() => _isInitialLoading = false);
       }
@@ -165,9 +164,7 @@ class _ActiveBookingsReminderScreenState
       message: message,
     );
     if (result.quotaMessage != null && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.quotaMessage!),
           backgroundColor: Colors.orange,
@@ -180,9 +177,7 @@ class _ActiveBookingsReminderScreenState
   /// إرسال تذكير لجميع الحجوزات المحددة
   Future<void> _sendBulkReminders(List<Booking> bookings) async {
     if (bookings.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('لم تختر أي حجز لإرسال التذكير'),
           backgroundColor: Colors.orange,
@@ -1180,9 +1175,7 @@ class _ActiveBookingsReminderScreenState
   /// تأكيد الإرسال المجمّع
   Future<void> _showBulkSendConfirmation(BuildContext context) async {
     if (_selectedIds.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('اختر حجزاً واحداً على الأقل'),
           backgroundColor: Colors.orange,

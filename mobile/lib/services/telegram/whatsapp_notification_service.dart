@@ -1,8 +1,9 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
 import '../remote_config_service.dart';
 
 /// أنواع أحداث الفندق
@@ -68,8 +69,7 @@ class WhatsAppNotificationService {
   bool _checkWhatsAppEnabled() {
     try {
       return RemoteConfigService.instance.whatsappEnabled;
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in whatsapp_notification_service.dart: ');
+    } catch (_) {
       // Remote Config غير متاح — الإشعارات مفعلة افتراضياً
       return true;
     }
@@ -118,7 +118,7 @@ class WhatsAppNotificationService {
       final phone = _phone;
       final apiKey = _apiKey;
       if (phone.isEmpty || apiKey.isEmpty) {
-        debugPrint('⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ');
+        dlog('⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ');
         return false;
       }
 
@@ -148,21 +148,20 @@ class WhatsAppNotificationService {
           if (json['success'] == true || json['sent'] == true) {
             return true;
           }
-        } catch (e) {
-      debugPrint('⚠️ Swallowed error in whatsapp_notification_service.dart: ');
+        } catch (_) {
           if (body.toLowerCase().contains('sent') ||
               body.toLowerCase().contains('ok') ||
               body.toLowerCase().contains('success')) {
             return true;
           }
         }
-        debugPrint('⚠️ WhatsApp: فشل الإرسال — $body');
+        dlog(() => '⚠️ WhatsApp: فشل الإرسال — $body');
         return false;
       }
-      debugPrint('⚠️ WhatsApp: HTTP ${response.statusCode} — $body');
+      dlog(() => '⚠️ WhatsApp: HTTP ${response.statusCode} — $body');
       return false;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في الإرسال — $e');
+      dlog(() => '❌ WhatsApp: خطأ في الإرسال — $e');
       return false;
     }
   }
@@ -176,7 +175,7 @@ class WhatsAppNotificationService {
       // يتم التحكم عبر Remote Config مع fallback إلى SharedPreferences
       final isWhatsAppEnabled = _checkWhatsAppEnabled();
       if (!isWhatsAppEnabled) {
-        debugPrint('⚠️ WhatsApp: الإشعارات معطلة');
+        dlog('⚠️ WhatsApp: الإشعارات معطلة');
         return false;
       }
 
@@ -195,7 +194,9 @@ class WhatsAppNotificationService {
       }
 
       if (event.amount != null && event.amount! > 0) {
-        buffer.writeln('💵 المبلغ: *\$${event.amount!.toStringAsFixed(2)}*');
+        buffer.writeln(
+          '💵 المبلغ: *\$${CurrencyFormatter.formatAmount(event.amount!)}*',
+        );
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
@@ -216,14 +217,15 @@ class WhatsAppNotificationService {
       final success = await _sendViaCallMeBot(buffer.toString().trimRight());
 
       if (success) {
-        debugPrint(
-          '✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
+        dlog(
+          () =>
+              '✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
         );
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في إرسال الإشعار: $e');
+      dlog(() => '❌ WhatsApp: خطأ في إرسال الإشعار: $e');
       return false;
     }
   }
@@ -253,7 +255,9 @@ class WhatsAppNotificationService {
       details.writeln('🌙 الليالي: $nights');
     }
     if (totalDue != null) {
-      details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
+      details.writeln(
+        '💰 الإجمالي: \$${CurrencyFormatter.formatAmount(totalDue)}',
+      );
     }
 
     return sendEventNotification(
@@ -305,10 +309,14 @@ class WhatsAppNotificationService {
       details.writeln('🌙 الليالي الفعلية: $actualNights');
     }
     if (totalPaid != null) {
-      details.writeln('💰 المدفوع: \$${totalPaid.toStringAsFixed(2)}');
+      details.writeln(
+        '💰 المدفوع: \$${CurrencyFormatter.formatAmount(totalPaid)}',
+      );
     }
     if (remaining != null && remaining > 0) {
-      details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
+      details.writeln(
+        '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
+      );
     }
 
     return sendEventNotification(
@@ -334,7 +342,9 @@ class WhatsAppNotificationService {
     details.writeln('💳 طريقة الدفع: $paymentMethod');
     if (remaining != null) {
       if (remaining > 0) {
-        details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
+        details.writeln(
+          '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
+        );
       } else {
         details.writeln('✅ مسدد بالكامل');
       }
@@ -400,7 +410,9 @@ class WhatsAppNotificationService {
       details.writeln('➕ ليالي إضافية: $extraNights');
     }
     if (extraCharge != null) {
-      details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
+      details.writeln(
+        '💵 تكلفة إضافية: \$${CurrencyFormatter.formatAmount(extraCharge)}',
+      );
     }
 
     return sendEventNotification(
@@ -415,20 +427,13 @@ class WhatsAppNotificationService {
   }
 
   /// إشعار مصروف جديد
-  ///
-  /// [employeeName] — اسم الموظف المرتبط بالمصروف (إذا كان راتب/سحب/خصم/سلفة).
-  /// عند وجوده يُضاف بوضوح في الرسالة حتى يعرف المستلم لمن ينطبق المصروف.
   Future<bool> notifyNewExpense({
     required String category,
     required double amount,
     String? description,
-    String? employeeName,
   }) {
     final details = StringBuffer();
     details.writeln('📂 التصنيف: $category');
-    if (employeeName != null && employeeName.trim().isNotEmpty) {
-      details.writeln('👤 الموظف: ${employeeName.trim()}');
-    }
     if (description != null && description.isNotEmpty) {
       details.writeln(description);
     }
@@ -456,9 +461,7 @@ class WhatsAppNotificationService {
       final phone = _phone;
       final apiKey = _apiKey;
       if (phone.isEmpty || apiKey.isEmpty) {
-        debugPrint(
-          '⚠️ WhatsApp: لا يمكن إرسال تنبيه المزامنة - بيانات API فارغة',
-        );
+        dlog('⚠️ WhatsApp: لا يمكن إرسال تنبيه المزامنة - بيانات API فارغة');
         return false;
       }
 
@@ -488,15 +491,16 @@ class WhatsAppNotificationService {
       final response = await _httpClient.get(url);
       final success = response.statusCode == 200;
       if (success) {
-        debugPrint('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
+        dlog(() => '✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
       } else {
-        debugPrint(
-          '⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}',
+        dlog(
+          () =>
+              '⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}',
         );
       }
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e');
+      dlog(() => '❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e');
       return false;
     }
   }
@@ -535,7 +539,7 @@ class WhatsAppNotificationService {
       final response = await _httpClient.get(url);
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
+      dlog(() => '❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
       return false;
     }
   }

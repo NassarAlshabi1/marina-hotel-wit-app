@@ -1,11 +1,11 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../utils/debug_log.dart';
 import 'logging/log_models.dart';
 
 class GoogleDriveLogger extends ChangeNotifier {
@@ -52,7 +52,7 @@ class GoogleDriveLogger extends ChangeNotifier {
           'drive_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     } catch (e) {
-      debugPrint('Error initializing drive log file: $e');
+      dlog(() => 'Error initializing drive log file: $e');
     }
   }
 
@@ -83,14 +83,14 @@ class GoogleDriveLogger extends ChangeNotifier {
       _printToConsole(entry);
     }
     if (_enableFile && _logFile != null) {
-      _writeToFile(entry);
+      unawaited(_writeToFile(entry));
     }
     notifyListeners();
   }
 
   void _printToConsole(LogEntry entry) {
     final emoji = _getEmojiForLevel(entry.level);
-    debugPrint('$emoji ${entry.toFormattedString()}');
+    dlog(() => '$emoji ${entry.toFormattedString()}');
   }
 
   Future<void> _writeToFile(LogEntry entry) async {
@@ -100,7 +100,7 @@ class GoogleDriveLogger extends ChangeNotifier {
         mode: FileMode.append,
       );
     } catch (e) {
-      debugPrint('Error writing drive log: $e');
+      dlog(() => 'Error writing drive log: $e');
     }
   }
 

@@ -1,34 +1,34 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/utils/time.dart';
-import '../lib/utils/currency_formatter.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
+import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
 
 void main() {
   group('Time - Hotel Day Calculations', () {
     test('hotelDayStart returns correct boundary for before 14:01', () {
-      final before14 = DateTime(2026, 1, 15, 10, 0, 0);
-      final result = Time.hotelDayStart(before14);
+      final beforeBoundary = DateTime(2026, 1, 15, 10, 0, 0);
+      final result = Time.hotelDayStart(beforeBoundary);
       expect(result, DateTime(2026, 1, 14, 14, 1, 0));
     });
 
     test('hotelDayStart returns correct boundary for after 14:01', () {
-      final after14 = DateTime(2026, 1, 15, 16, 0, 0);
-      final result = Time.hotelDayStart(after14);
+      final afterBoundary = DateTime(2026, 1, 15, 16, 0, 0);
+      final result = Time.hotelDayStart(afterBoundary);
       expect(result, DateTime(2026, 1, 15, 14, 1, 0));
     });
 
-    test('hotelDayStart returns correct boundary for exactly 14:00 (before 14:01)', () {
-      final exact14 = DateTime(2026, 1, 15, 14, 1, 0);
+    test('hotelDayStart keeps exactly 14:00 in the previous hotel day', () {
+      final exact14 = DateTime(2026, 1, 15, 14, 0, 0);
       final result = Time.hotelDayStart(exact14);
-      expect(result, DateTime(2026, 1, 15, 14, 1, 0));
+      expect(result, DateTime(2026, 1, 14, 14, 1, 0));
     });
 
-    test('hotelDayKey returns correct date string for before 14:01', () {
+    test('hotelDayKey returns correct date string for before 14:00', () {
       final before14 = DateTime(2026, 1, 15, 10, 0, 0);
       final result = Time.hotelDayKey(now: before14);
       expect(result, '2026-01-14');
     });
 
-    test('hotelDayKey returns correct date string for after 14:01', () {
+    test('hotelDayKey returns correct date string for after 14:00', () {
       final after14 = DateTime(2026, 1, 15, 16, 0, 0);
       final result = Time.hotelDayKey(now: after14);
       expect(result, '2026-01-15');
@@ -68,10 +68,10 @@ void main() {
       expect(CurrencyFormatter.formatAmount(5000.0), '5,000');
     });
 
-    test('formatAmount shows decimals when explicitly requested', () {
+    test('formatAmount never shows decimals even when legacy flag is used', () {
       expect(
         CurrencyFormatter.formatAmount(1999.99, showDecimals: true),
-        '1,999.99',
+        '1,999',
       );
     });
 
@@ -93,8 +93,10 @@ void main() {
         discountStartDate.month,
         discountStartDate.day,
         14,
+        1,
       );
       expect(hotelDayStart.hour, 14);
+      expect(hotelDayStart.minute, 1);
     });
 
     test('segment at midnight should be counted as previous hotel day', () {
@@ -155,7 +157,7 @@ void main() {
       const discount = 1000.0;
       const discountType = 'total';
 
-      final totalNightAmount = baseRate * nights;
+      const totalNightAmount = baseRate * nights;
       double totalDue = totalNightAmount;
       if (discount > 0 && discountType == 'total') {
         totalDue = (totalNightAmount - discount).clamp(0.0, totalNightAmount);
@@ -194,8 +196,8 @@ void main() {
       const totalDue = 10000.0;
       const totalPaid = 12000.0;
 
-      final remainingRaw = totalDue - totalPaid;
-      final remaining = remainingRaw < 0 ? 0.0 : remainingRaw;
+      const remainingRaw = totalDue - totalPaid;
+      const remaining = remainingRaw < 0 ? 0.0 : remainingRaw;
 
       expect(remaining, 0.0);
     });

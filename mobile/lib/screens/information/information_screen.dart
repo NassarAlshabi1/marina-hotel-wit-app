@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:typed_data';
@@ -18,6 +16,7 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/pdf_utils.dart';
 
 class InformationScreen extends ConsumerStatefulWidget {
@@ -101,7 +100,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   void _showDiscardDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تغييرات غير محفوظة'),
@@ -120,7 +119,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildContent(List<GuestInfo> entries) {
@@ -246,9 +245,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     icon: const Icon(Icons.more_vert, size: 20),
                     onSelected: (value) {
                       if (value == 'edit') {
-                        _openEditor(context, existing: info);
+                        unawaited(_openEditor(context, existing: info));
                       } else if (value == 'delete') {
-                        _confirmDelete(info);
+                        unawaited(_confirmDelete(info));
                       }
                     },
                     itemBuilder: (context) => [
@@ -497,9 +496,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ السجل: $e'),
           backgroundColor: Colors.red.shade900,
@@ -541,9 +538,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حذف السجل: $e'),
           backgroundColor: Colors.red.shade900,
@@ -764,8 +759,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       await Printing.sharePdf(bytes: pdfBytes, filename: filename);
     } catch (error, stackTrace) {
       // ✅ تشخيص مفصّل: نُسجّل الـ stackTrace في console + نُظهر رسالة واضحة للمستخدم.
-      debugPrint(
-        '❌ فشل تصدير PDF لسجل المعلومية:\n  error: $error\n  stack: $stackTrace',
+      dlog(
+        () =>
+            '❌ فشل تصدير PDF لسجل المعلومية:\n  error: $error\n  stack: $stackTrace',
       );
       _showSnack('فشل تصدير الملف: $error');
     } finally {
@@ -797,7 +793,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       await syncManager.sync(pull: false);
     } catch (e) {
-      debugPrint('⚠️ فشلت المزامنة الفورية: $e');
+      dlog(() => '⚠️ فشلت المزامنة الفورية: $e');
     }
   }
 }

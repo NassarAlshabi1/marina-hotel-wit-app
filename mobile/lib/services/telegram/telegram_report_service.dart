@@ -1,14 +1,13 @@
-import 'dart:convert';
+import 'package:drift/drift.dart' as d;
 
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-
+import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
-import '../remote_config_service.dart';
 import 'telegram_config.dart';
+import 'telegram_service.dart';
 
-/// بيانات التقرير اليومي
+/// بيانات التقرير اليومي المرسلة إلى Telegram.
 class TelegramDailyReportData {
   const TelegramDailyReportData({
     required this.reportDate,
@@ -28,6 +27,7 @@ class TelegramDailyReportData {
     required this.unsettledDebts,
     required this.alerts,
   });
+
   final String reportDate;
   final int totalRooms;
   final int occupiedRooms;
@@ -46,353 +46,232 @@ class TelegramDailyReportData {
   final List<String> alerts;
 }
 
-/// خدمة التقارير اليومية عبر Telegram
+/// التقرير اليومي عبر Telegram.
+///
+/// جميع الملخصات المالية تُفلتر بـ [h`hotelDayKey` المخزن، وهو مصدر الحقيقة
+/// المحاسبي. لا يستخدم التاريخ التقويمي أو تحميل جداول كاملة إلى الذاكرة.
 class TelegramReportService {
   TelegramReportService._();
+
   static TelegramReportService? _instance;
   // ignore: prefer_constructors_over_static_methods
   static TelegramReportService get instance =>
       _instance ??= TelegramReportService._();
 
-  // الإرسال عبر CallMeBot WhatsApp
-  static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
-  // بيانات الاتصال من Firebase Remote Config (قابلة للتغيير من Firebase Console)
-  String get _phone => RemoteConfigService.instance.whatsappPhone;
-  String get _apiKey => RemoteConfigService.instance.whatsappApiKey;
-  final http.Client _httpClient = http.Client();
+  final TelegramApiClient _api = TelegramApiClient.instance;
 
-  /// تحرير موارد HTTP client
-  void dispose() {
-    _httpClient.close();
-  }
+  /// لا تملك الخدمة موارد مستقلة؛ عميل Telegram مشترك مع الإشعارات الفورية.
+  void dispose() {}
 
-  /// تحرير الموارد الثابتة للـ singleton
   static void disposeInstance() {
-    _instance?._httpClient.close();
     _instance = null;
   }
 
-  /// إرسال التقرير اليومي عبر WhatsApp (CallMeBot)
+  /// يرسل تقريراً واحداً فقط لكل يوم فندقي بعد نجاح التسليم.
   Future<bool> sendDailyReport() async {
     try {
-      if (!await TelegramConfig.isEnabled()) {
-        return false;
-      }
-      if (!await TelegramConfig.isDailyReportEnabled()) {
+      if (!await TelegramConfig.isEnabled() ||
+          !await TelegramConfig.isDailyReportEnabled()) {
         return false;
       }
 
-      // منع الإرسال المتكرر
       final hotelDayKey = HotelTimeEngine.getHotelDayKey();
-      final lastSent = await TelegramConfig.getLastReportSent();
-      if (lastSent == hotelDayKey) {
-        debugPrint('⏭️ WhatsApp: تم إرسال تقرير اليوم بالفعل');
+      if (await TelegramConfig.getLastReportSent() == hotelDayKey) {
+        dlog('⏭️ Telegram: تم إرسال تقرير اليوم الفندقي بالفعل');
         return true;
       }
 
       final data = await _gatherReportData();
-      if (data == null) {
-        return false;
-      }
+      if (data == null) return false;
 
-      // إرسال عبر WhatsApp (CallMeBot)
-      final message = _buildReportMessage(data);
-      final success = await _sendViaCallMeBot(message);
-
+      final success = await _api.sendToDefaultChat(
+        text: _buildReportMessage(data),
+      );
       if (success) {
         await TelegramConfig.setLastReportSent(hotelDayKey);
-        debugPrint('✅ WhatsApp: تم إرسال التقرير اليومي بنجاح');
+        dlog('✅ Telegram: تم إرسال التقرير اليومي بنجاح');
       }
-
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في التقرير اليومي: $e');
+      dlog(() => '❌ Telegram: خطأ في التقرير اليومي: $e');
       return false;
     }
   }
 
-  /// إرسال التقرير فوراً (تجريبي) عبر WhatsApp
+  /// إرسال تجريبي لا يغيّر علامة التقرير اليومي، كي لا يمنع إرسال المجدول.
   Future<bool> sendReportNow() async {
     try {
-      if (!await TelegramConfig.isEnabled()) {
-        return false;
-      }
-
+      if (!await TelegramConfig.isEnabled()) return false;
       final data = await _gatherReportData();
-      if (data == null) {
-        return false;
-      }
-
-      // إرسال عبر WhatsApp (CallMeBot)
-      final message = _buildReportMessage(data);
-      final success = await _sendViaCallMeBot(message);
-
-      if (success) {
-        final hotelDayKey = HotelTimeEngine.getHotelDayKey();
-        await TelegramConfig.setLastReportSent(hotelDayKey);
-      }
-
-      return success;
+      if (data == null) return false;
+      return _api.sendToDefaultChat(text: _buildReportMessage(data));
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في إرسال التقرير: $e');
+      dlog(() => '❌ Telegram: خطأ في إرسال التقرير التجريبي: $e');
       return false;
     }
   }
 
-  /// تجميع بيانات التقرير من قاعدة البيانات
   Future<TelegramDailyReportData?> _gatherReportData() async {
     try {
       final db = DatabaseManager.instance;
-      final hotelDayKey = HotelTimeEngine.getHotelDayKey();
+      final now = DateTime.now();
+      final hotelDayKey = HotelTimeEngine.getHotelDayKey(dateTime: now);
+      final range = HotelTimeEngine.getHotelDayRange(now);
+      final startEpoch = range['start']!.millisecondsSinceEpoch ~/ 1000;
+      final endExclusiveEpoch =
+          range['end']!
+              .add(const Duration(milliseconds: 1))
+              .millisecondsSinceEpoch ~/
+          1000;
 
-      // ── حالة الغرف ──
-      final roomsQuery = await db.select(db.rooms).get();
-      final totalRooms = roomsQuery.length;
-      int occupiedRooms = 0;
-      int availableRooms = 0;
-      int cleaningRooms = 0;
-      int maintenanceRooms = 0;
+      // تجميعات SQL: صف واحد فقط بدلاً من فك جميع الكيانات في Dart.
+      final summary = await db
+          .customSelect(
+            '''
+SELECT
+  (SELECT COUNT(*) FROM rooms WHERE deleted_at IS NULL) AS total_rooms,
+  (SELECT COUNT(*) FROM rooms WHERE deleted_at IS NULL
+      AND status IN ('محجوزة', 'مشغولة')) AS occupied_rooms,
+  (SELECT COUNT(*) FROM rooms WHERE deleted_at IS NULL
+      AND status IN ('شاغرة', 'متاحة')) AS available_rooms,
+  (SELECT COUNT(*) FROM rooms WHERE deleted_at IS NULL
+      AND status = 'تنظيف') AS cleaning_rooms,
+  (SELECT COUNT(*) FROM rooms WHERE deleted_at IS NULL
+      AND status = 'صيانة') AS maintenance_rooms,
+  (SELECT COUNT(*) FROM bookings WHERE deleted_at IS NULL
+      AND (hotel_day_checkin = ?
+        OR (hotel_day_checkin IS NULL AND created_at >= ? AND created_at < ?)))
+      AS new_bookings,
+  (SELECT COUNT(*) FROM bookings WHERE deleted_at IS NULL
+      AND hotel_day_checkin = ?) AS check_ins,
+  (SELECT COUNT(*) FROM bookings WHERE deleted_at IS NULL
+      AND hotel_day_checkout = ?) AS check_outs,
+  (SELECT COUNT(*) FROM bookings WHERE deleted_at IS NULL
+      AND status IN ('نشط', 'محجوزة')) AS active_bookings,
+  (SELECT COALESCE(SUM(amount), 0.0) FROM payments
+      WHERE deleted_at IS NULL AND is_voided = 0 AND hotel_day_key = ?)
+      AS revenue,
+  (SELECT COALESCE(SUM(amount), 0.0) FROM expenses
+      WHERE deleted_at IS NULL AND hotel_day_key = ?) AS expenses,
+  (SELECT COUNT(*) FROM debts WHERE deleted_at IS NULL AND is_settled = 0)
+      AS unsettled_debts
+''',
+            variables: [
+              d.Variable.withString(hotelDayKey),
+              d.Variable.withInt(startEpoch),
+              d.Variable.withInt(endExclusiveEpoch),
+              d.Variable.withString(hotelDayKey),
+              d.Variable.withString(hotelDayKey),
+              d.Variable.withString(hotelDayKey),
+              d.Variable.withString(hotelDayKey),
+            ],
+          )
+          .getSingle();
+      final values = summary.data;
+      int count(String name) => (values[name] as num? ?? 0).toInt();
+      double amount(String name) => (values[name] as num? ?? 0).toDouble();
 
-      for (final room in roomsQuery) {
-        final status = room.status.toLowerCase();
-        if (status == 'محجوزة' || status == 'مشغولة') {
-          occupiedRooms++;
-        } else if (status == 'شاغرة' || status == 'متاحة') {
-          availableRooms++;
-        } else if (status == 'تنظيف') {
-          cleaningRooms++;
-        } else if (status == 'صيانة') {
-          maintenanceRooms++;
-        }
-      }
+      final totalRooms = count('total_rooms');
+      final occupiedRooms = count('occupied_rooms');
+      final maintenanceRooms = count('maintenance_rooms');
+      final revenue = amount('revenue');
+      final expenses = amount('expenses');
 
-      final occupancyRate = totalRooms > 0
-          ? (occupiedRooms / totalRooms * 100)
-          : 0.0;
+      final overdueBookings =
+          await (db.select(db.bookings)
+                ..where(
+                  (b) =>
+                      b.deletedAt.isNull() &
+                      b.actualCheckout.isNull() &
+                      b.hotelDayCheckout.isNotNull() &
+                      b.hotelDayCheckout.isSmallerThanValue(hotelDayKey) &
+                      b.status.isIn(const ['نشط', 'محجوزة']),
+                )
+                ..limit(20))
+              .get();
 
-      // ── حجوزات اليوم ──
-      final bookingsQuery = await db.select(db.bookings).get();
-      int newBookingsToday = 0;
-      int checkInsToday = 0;
-      int checkOutsToday = 0;
-      int activeBookings = 0;
-
-      for (final booking in bookingsQuery) {
-        if (booking.deletedAt != null) {
-          continue;
-        }
-
-        final status = booking.status.toLowerCase();
-
-        // حجوزات نشطة
-        if (status == 'نشط' || status == 'محجوزة') {
-          activeBookings++;
-        }
-
-        // حجوزات جديدة اليوم
-        if (booking.checkinDate == hotelDayKey ||
-            booking.createdAtIso?.substring(0, 10) == hotelDayKey) {
-          newBookingsToday++;
-        }
-
-        // تسجيلات دخول اليوم
-        if (booking.hotelDayCheckin == hotelDayKey) {
-          checkInsToday++;
-        }
-
-        // تسجيلات خروج اليوم
-        if (booking.hotelDayCheckout == hotelDayKey ||
-            booking.actualCheckout?.substring(0, 10) == hotelDayKey) {
-          checkOutsToday++;
-        }
-      }
-
-      // ── ملخص مالي ──
-      final paymentsQuery = await db.select(db.payments).get();
-      double todayRevenue = 0;
-      for (final payment in paymentsQuery) {
-        if (payment.hotelDayKey == hotelDayKey && !payment.isVoided) {
-          todayRevenue += payment.amount;
-        }
-      }
-
-      final expensesQuery = await db.select(db.expenses).get();
-      double todayExpenses = 0;
-      for (final expense in expensesQuery) {
-        if (expense.hotelDayKey == hotelDayKey) {
-          todayExpenses += expense.amount;
-        }
-      }
-
-      final netProfit = todayRevenue - todayExpenses;
-
-      // ── الديون غير المسددة ──
-      final debtsQuery = await db.select(db.debts).get();
-      int unsettledDebts = 0;
-      for (final debt in debtsQuery) {
-        if (debt.isSettled == 0 && debt.deletedAt == null) {
-          unsettledDebts++;
-        }
-      }
-
-      // ── التنبيهات ──
-      final alerts = <String>[];
-
-      // تأخير مغادرة
-      for (final booking in bookingsQuery) {
-        if (booking.deletedAt != null) {
-          continue;
-        }
-        final status = booking.status.toLowerCase();
-        if (status == 'نشط' || status == 'محجوزة') {
-          if (booking.checkoutDate != null &&
-              booking.actualCheckout == null &&
-              booking.checkoutDate!.compareTo(hotelDayKey) < 0) {
-            final room = roomsQuery
-                .where((r) => r.roomNumber == booking.roomNumber)
-                .firstOrNull;
-            alerts.add(
-              '⏰ تأخير مغادرة — غرفة ${room?.roomNumber ?? '?'} (${booking.guestName})',
-            );
-          }
-        }
-      }
-
-      if (unsettledDebts > 0) {
-        alerts.add('💳 لديك $unsettledDebts ديون غير مسددة');
-      }
-
-      if (maintenanceRooms > 0) {
-        alerts.add('🔧 $maintenanceRooms غرف تحت الصيانة');
-      }
+      final alerts = <String>[
+        for (final booking in overdueBookings)
+          '⏰ تأخير مغادرة — غرفة ${_escapeHtml(booking.roomNumber)} (${_escapeHtml(booking.guestName)})',
+        if (count('unsettled_debts') > 0)
+          '💳 لديك ${count('unsettled_debts')} ديون غير مسددة',
+        if (maintenanceRooms > 0) '🔧 $maintenanceRooms غرف تحت الصيانة',
+      ];
 
       return TelegramDailyReportData(
         reportDate: hotelDayKey,
         totalRooms: totalRooms,
         occupiedRooms: occupiedRooms,
-        availableRooms: availableRooms,
-        cleaningRooms: cleaningRooms,
+        availableRooms: count('available_rooms'),
+        cleaningRooms: count('cleaning_rooms'),
         maintenanceRooms: maintenanceRooms,
-        occupancyRate: occupancyRate,
-        newBookingsToday: newBookingsToday,
-        checkInsToday: checkInsToday,
-        checkOutsToday: checkOutsToday,
-        activeBookings: activeBookings,
-        todayRevenue: todayRevenue,
-        todayExpenses: todayExpenses,
-        netProfit: netProfit,
-        unsettledDebts: unsettledDebts,
+        occupancyRate: totalRooms == 0 ? 0 : occupiedRooms / totalRooms * 100,
+        newBookingsToday: count('new_bookings'),
+        checkInsToday: count('check_ins'),
+        checkOutsToday: count('check_outs'),
+        activeBookings: count('active_bookings'),
+        todayRevenue: revenue,
+        todayExpenses: expenses,
+        netProfit: revenue - expenses,
+        unsettledDebts: count('unsettled_debts'),
         alerts: alerts,
       );
     } catch (e) {
-      debugPrint('❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
+      dlog(() => '❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
       return null;
     }
   }
 
-  /// إرسال رسالة عبر CallMeBot WhatsApp API
-  Future<bool> _sendViaCallMeBot(String message) async {
-    try {
-      // قص الرسالة إذا تجاوزت الحد الأقصى (CallMeBot ~1000 حرف)
-      final maxLength = RemoteConfigService.instance.whatsappMessageMaxLength;
-      final trimmedMessage = message.length > maxLength
-          ? '${message.substring(0, maxLength - 3)}...'
-          : message;
-
-      final url = Uri.parse(
-        '$_callMeBotUrl'
-        '?phone=$_phone'
-        '&text=${Uri.encodeComponent(trimmedMessage)}'
-        '&apikey=$_apiKey',
-      );
-
-      // timeout من Remote Config (افتراضي 15 ثانية)
-      final timeout = Duration(
-        seconds: RemoteConfigService.instance.whatsappApiTimeout,
-      );
-      final response = await _httpClient.get(url).timeout(timeout);
-      final body = response.body;
-
-      if (response.statusCode == 200) {
-        try {
-          final json = jsonDecode(body) as Map<String, dynamic>;
-          if (json['success'] == true || json['sent'] == true) {
-            debugPrint('✅ WhatsApp (CallMeBot): تم إرسال التقرير');
-            return true;
-          }
-        } catch (e) {
-      debugPrint('⚠️ Swallowed error in telegram_report_service.dart: ');
-          if (body.toLowerCase().contains('sent') ||
-              body.toLowerCase().contains('ok') ||
-              body.toLowerCase().contains('success')) {
-            return true;
-          }
-        }
-        debugPrint('⚠️ WhatsApp (CallMeBot): فشل الإرسال — $body');
-        return false;
-      }
-      debugPrint(
-        '⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body',
-      );
-      return false;
-    } catch (e) {
-      debugPrint('❌ WhatsApp (CallMeBot): خطأ — $e');
-      return false;
-    }
-  }
-
-  /// بناء رسالة التقرير — نص عادي (WhatsApp لا يدعم HTML)
   String _buildReportMessage(TelegramDailyReportData data) {
-    final buffer = StringBuffer();
+    final buffer = StringBuffer()
+      ..writeln('📊 <b>التقرير اليومي — Marina Hotel</b>')
+      ..writeln('📅 اليوم الفندقي: <b>${data.reportDate}</b>')
+      ..writeln('━━━━━━━━━━━━━━━━━')
+      ..writeln()
+      ..writeln('🏨 <b>حالة الغرف</b>')
+      ..writeln('┌ الإجمالي: ${data.totalRooms}')
+      ..writeln('├ 🔴 مشغولة: ${data.occupiedRooms}')
+      ..writeln('├ 🟢 متاحة: ${data.availableRooms}')
+      ..writeln('├ 🟡 تنظيف: ${data.cleaningRooms}')
+      ..writeln('└ 🔧 صيانة: ${data.maintenanceRooms}')
+      ..writeln('📈 نسبة الإشغال: ${data.occupancyRate.toStringAsFixed(1)}%')
+      ..writeln()
+      ..writeln('📋 <b>حجوزات اليوم الفندقي</b>')
+      ..writeln('┌ جديدة: ${data.newBookingsToday}')
+      ..writeln('├ تسجيل دخول: ${data.checkInsToday}')
+      ..writeln('├ تسجيل خروج: ${data.checkOutsToday}')
+      ..writeln('└ نشطة حالياً: ${data.activeBookings}')
+      ..writeln()
+      ..writeln('💰 <b>ملخص مالي</b>')
+      ..writeln(
+        '┌ الإيرادات: \$${CurrencyFormatter.formatAmount(data.todayRevenue)}',
+      )
+      ..writeln(
+        '├ المصروفات: \$${CurrencyFormatter.formatAmount(data.todayExpenses)}',
+      )
+      ..writeln(
+        '└ صافي الربح: \$${CurrencyFormatter.formatAmount(data.netProfit)}',
+      )
+      ..writeln()
+      ..writeln('💳 الديون غير المسددة: ${data.unsettledDebts}');
 
-    // العنوان
-    buffer.writeln('📊 التقرير اليومي — Marina Hotel');
-    buffer.writeln('📅 ${data.reportDate}');
-    buffer.writeln('━━━━━━━━━━━━━━━━━');
-
-    // حالة الغرف
-    buffer.writeln();
-    buffer.writeln('🏨 حالة الغرف');
-    buffer.writeln('┌ الإجمالي: ${data.totalRooms}');
-    buffer.writeln('├ 🔴 مشغولة: ${data.occupiedRooms}');
-    buffer.writeln('├ 🟢 متاحة: ${data.availableRooms}');
-    buffer.writeln('├ 🟡 تنظيف: ${data.cleaningRooms}');
-    buffer.writeln('└ 🔧 صيانة: ${data.maintenanceRooms}');
-    buffer.writeln(
-      '📈 نسبة الإشغال: ${data.occupancyRate.toStringAsFixed(1)}%',
-    );
-
-    // حجوزات اليوم
-    buffer.writeln();
-    buffer.writeln('📋 حجوزات اليوم');
-    buffer.writeln('┌ جديدة: ${data.newBookingsToday}');
-    buffer.writeln('├ تسجيل دخول: ${data.checkInsToday}');
-    buffer.writeln('├ تسجيل خروج: ${data.checkOutsToday}');
-    buffer.writeln('└ نشطة حالياً: ${data.activeBookings}');
-
-    // ملخص مالي
-    buffer.writeln();
-    buffer.writeln('💰 ملخص مالي');
-    buffer.writeln('┌ الإيرادات: \$${data.todayRevenue.toStringAsFixed(2)}');
-    buffer.writeln('├ المصروفات: \$${data.todayExpenses.toStringAsFixed(2)}');
-    buffer.writeln('└ صافي الربح: \$${data.netProfit.toStringAsFixed(2)}');
-
-    // الديون
-    buffer.writeln();
-    buffer.writeln('💳 الديون غير المسددة: ${data.unsettledDebts}');
-
-    // التنبيهات
     if (data.alerts.isNotEmpty) {
-      buffer.writeln();
-      buffer.writeln('⚠️ تنبيهات');
+      buffer
+        ..writeln()
+        ..writeln('⚠️ <b>تنبيهات</b>');
       for (final alert in data.alerts) {
         buffer.writeln('• $alert');
       }
     }
 
-    buffer.writeln();
-    buffer.writeln('Marina Hotel App 🏨');
-
+    buffer
+      ..writeln()
+      ..writeln('<i>Marina Hotel App 🏨</i>');
     return buffer.toString().trimRight();
   }
+
+  static String _escapeHtml(String value) => value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
 }

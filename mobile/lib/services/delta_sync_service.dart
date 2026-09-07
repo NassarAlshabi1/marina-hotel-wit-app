@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 
 import '../data/sync_models.dart';
+import '../utils/debug_log.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -77,8 +77,9 @@ class DeltaSyncService {
       final hasMirror = previousMirror.containsKey(config.entity);
       if (!hasMirror) {
         fallbackTables.add(config.entity);
-        debugPrint(
-          '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
+        dlog(
+          () =>
+              '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
         );
       }
 
@@ -271,8 +272,8 @@ class DeltaSyncService {
   Future<void> repairMirrorIfNeeded() async {
     final validation = await validateMirror();
     if (!validation.isValid) {
-      debugPrint('⚠️ Mirror inconsistency detected, repairing...');
-      debugPrint('Issues: ${validation.issues.join(', ')}');
+      dlog('⚠️ Mirror inconsistency detected, repairing...');
+      dlog(() => 'Issues: ${validation.issues.join(', ')}');
       await _rebuildMirror();
     }
   }
@@ -303,15 +304,15 @@ class DeltaSyncService {
             [config.entity, uuid, rowHash, jsonEncode(sanitized), nowTs],
           );
         }
-        debugPrint(
-          '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
+        dlog(
+          () => '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
         );
       } catch (e) {
-        debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
+        dlog(() => '❌ Failed to rebuild mirror for ${config.entity}: $e');
       }
     }
 
-    debugPrint('✅ Mirror rebuild completed');
+    dlog('✅ Mirror rebuild completed');
   }
 
   List<_EntityConfig> _entityConfigs() {
@@ -357,6 +358,25 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Employee).lastModified,
         deletedAt: (dynamic row) => (row as Employee).deletedAt,
         toJson: (dynamic row) => (row as Employee).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'inventory_items',
+        fetchAll: () => db.select(db.inventoryItems).get(),
+        localUuid: (dynamic row) => (row as InventoryItem).localUuid,
+        createdAt: (dynamic row) => (row as InventoryItem).createdAt,
+        lastModified: (dynamic row) => (row as InventoryItem).lastModified,
+        deletedAt: (dynamic row) => (row as InventoryItem).deletedAt,
+        toJson: (dynamic row) => (row as InventoryItem).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'inventory_transactions',
+        fetchAll: () => db.select(db.inventoryTransactions).get(),
+        localUuid: (dynamic row) => (row as InventoryTransaction).localUuid,
+        createdAt: (dynamic row) => (row as InventoryTransaction).createdAt,
+        lastModified: (dynamic row) =>
+            (row as InventoryTransaction).lastModified,
+        deletedAt: (dynamic row) => (row as InventoryTransaction).deletedAt,
+        toJson: (dynamic row) => (row as InventoryTransaction).toJson(),
       ),
       _EntityConfig(
         entity: 'expenses',
@@ -682,18 +702,45 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       final payload = Map<String, dynamic>.from(previous.payload);
       final previousDeletedAt = _asInt(payload['deleted_at']);
       final deleteStamp = previousDeletedAt ?? input.nowTs;
-      payload['deleted_at'] = deleteStamp;
-      payload['row_hash'] = previous.rowHash;
-      changes.add(
-        DeltaSyncChange(
-          entity: entityData.entity,
-          operation: 'update',
-          data: payload,
-          rowHash: previous.rowHash,
-          localUuid: uuid,
-          clientTimestamp: deleteStamp,
-        ),
-      );
+      // ✅ إصلاح bug "missing forever":
+      // المنطق السابق كان يُرسل كل uuid "missing" كـ delete في كل دورة
+      // مزامنة، حتى لو كان قد أُرسل للخادم سابقاً. هذا يُسبب:
+      //   - إهدار عرض النطاق الترددي
+      //   - إهدار عمليات كتابة على Appwrite
+      //   - ضغط غير ضروري على الخادم
+      //
+      // المنطق الجديد: نُرسل الـ delete فقط إذا:
+      //   (أ) لم يكن هناك delete مسجل مسبقاً (previousDeletedAt == null) —
+      //       هذا أول اكتشاف للـ hard-delete، يجب إرساله مرة واحدة.
+      //   (ب) أو كان delete timestamp أحدث من normalizedSince — لم يُرسل
+      //       بعد ضمن نافذة delta الحالية.
+      //
+      // في الحالات الأخرى (soft-delete سابق + normalizedSince >= deleteStamp):
+      //   - تم إرسال الـ delete ضمن دورة سابقة
+      //   - الخادم يعرف عنه
+      //   - لا حاجة لإعادة الإرسال
+      final shouldEmit =
+          previousDeletedAt == null || deleteStamp > input.normalizedSince;
+      if (shouldEmit) {
+        payload['deleted_at'] = deleteStamp;
+        payload['row_hash'] = previous.rowHash;
+        changes.add(
+          DeltaSyncChange(
+            entity: entityData.entity,
+            operation: 'update',
+            data: payload,
+            rowHash: previous.rowHash,
+            localUuid: uuid,
+            clientTimestamp: deleteStamp,
+          ),
+        );
+      }
+      // ✅ ملاحظة: نُبقي الـ uuid في snapshot؟ لا — snapshot يحتوي فقط
+      // على الـ rows الحالية. الـ uuids المفقودة (missing) تُترك خارج
+      // snapshot، مما يعني أن _persistMirrorSnapshot سيحذفها من جدول
+      // sync_mirror (لأنه يستخدم DELETE FROM ... ثم REPLACE INTO).
+      // هذا هو السلوك الصحيح: بمجرد إرسال الـ delete، لا حاجة لتتبعه
+      // محلياً. إذا ظهر السجل مرة أخرى على الخادم، سيأتي عبر pull.
     }
 
     snapshot[entityData.entity] = tableSnapshot;

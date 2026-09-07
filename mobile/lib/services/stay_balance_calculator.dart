@@ -1,3 +1,4 @@
+import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -66,7 +67,7 @@ class StayBalanceResult {
 
   // ─── الأيام ───
 
-  /// الأيام المقضية فعلياً حتى الآن (بناءً على قاعدة 14:01)
+  /// الأيام المقضية فعلياً حتى الآن (بناءً على قاعدة 14:00)
   final int actualNightsSpent;
 
   /// إجمالي الليالي التي يغطيها المدفوع التراكمي
@@ -245,15 +246,14 @@ class StayBalanceCalculator {
     );
 
     // ─── حساب بداية يوم الفندق الأول (قاعدة 14:01) ───
-    DateTime firstHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
-      14,
+    final hotelDay = HotelTimeEngine.getHotelDay(checkin);
+    final firstHotelDay = DateTime(
+      hotelDay.year,
+      hotelDay.month,
+      hotelDay.day,
+      HotelTimeEngine.boundaryHour,
+      HotelTimeEngine.boundaryMinute,
     );
-    if (checkin.isBefore(firstHotelDay)) {
-      firstHotelDay = firstHotelDay.subtract(const Duration(days: 1));
-    }
 
     // ─── محاكاة يوم بيوم لحساب الليالي المغطاة ───
     final coveredDates = <DateTime>[];

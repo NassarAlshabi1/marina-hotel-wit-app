@@ -1,29 +1,30 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
+import '../providers/auth_provider.dart';
 import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/local_db.dart';
-import '../services/remote_config_service.dart';
+import '../services/payment_session_context.dart';
+import '../services/repositories/payments_repository.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
+import '../utils/debug_log.dart';
 import '../utils/loading_snackbar.dart';
+import '../utils/performance_config.dart';
 import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
-import '../widgets/blacklist_alert_banner.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
+import 'finance/finance_screen.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
 
@@ -68,26 +69,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         screenClass: 'DashboardScreen',
       ),
     );
-    // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
+    // ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
+    // refactor/performance-fixes-v2: فحص ساعة + SyncGate + إشعار تحميل.
+    // التكييف مع معمارية هذا الفرع: deltaOnly:true — فتح الشاشة لا يبدأ
+    // Full Sync أبداً (Bootstrap الصريح فقط)؛ الدلتا تكفي لتحديث قسم
+    // "استلامات المستخدمين" وأقسام اليوم الفندقي بأحدث بيانات الخادم.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoPullFromAppwrite();
+      unawaited(_autoPullFromAppwrite());
     });
   }
 
+  /// ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
+  /// refactor/performance-fixes-v2 (SyncGate + فحص ساعة + إشعار تحميل)
+  /// مع تكييف المعمارية: deltaOnly فقط — لا Full Sync من الشاشة أبداً.
   Future<void> _autoPullFromAppwrite() async {
-    // ✅ P3-5 (Global SyncGate): السحب التلقائي عند الفتح يمرّ عبر البوّابة
-    // العامة. إذا كان المستخدم قد ضغط زر مزامنة يدوياً، أو كان المؤقّت
-    // يعمل، فإن السحب التلقائي يُلغى بصمت دون منافسة على الموارد.
+    // ✅ SyncGate: إذا كانت مزامنة يدوية/مؤقت/realtime يعمل — يُلغى بصمت
+    // دون منافسة على الموارد (نفس نمط DashboardSyncButton).
     final executed = await SyncGate.instance.runGuardedVoid(
       operation: 'auto_pull',
       source: 'auto_open',
       task: _autoPullFromAppwriteInner,
     );
     if (!executed) {
-      debugPrint(
-        'ℹ️ [AutoPull] skipped — SyncGate busy with '
-        '${SyncGate.instance.state.operation} from '
-        '${SyncGate.instance.state.source}',
+      dlog(
+        () =>
+            'ℹ️ [AutoPull] skipped — SyncGate busy with '
+            '${SyncGate.instance.state.operation} from '
+            '${SyncGate.instance.state.source}',
       );
     }
   }
@@ -101,7 +109,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return;
       }
 
-      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
+      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب عند الفتح؟ ───
+      // نفس مفتاح فحص إقلاع التطبيق (lastAppOpenPullKey) — مصدر واحد للحقيقة.
       final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
       if (lastPullEpochMs != null) {
         final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
@@ -111,7 +120,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         }
       }
 
-      // Connection check (Cloudflare) — always connected
+      // التأكد من الاتصال
+      await ref.read(connectionStatusProvider.notifier).checkConnection();
+      final isConnected = ref.read(connectionStatusProvider).isConnected;
+      if (!isConnected) {
+        return;
+      }
+
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? loading;
       if (mounted) {
@@ -122,7 +137,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       final syncManager = ref.read(appwriteSyncManagerProvider);
-      final result = await syncManager.sync(push: false);
+      // ✅ deltaOnly: true — في حالة التهيئة يُتخطى السحب (Bootstrap الصريح
+      // مسؤول عنه)؛ وفي الحالة المستقرة دلتا خفيفة metadata-first تكفي.
+      final result = await syncManager.sync(
+        push: false,
+        deltaOnly: true,
+      );
       final pulledCount = result.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء السحب
@@ -146,7 +166,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '✅ تم سحب $pulledCount سجل جديد من Appwrite تلقائياً',
+                    '✅ تم سحب $pulledCount سجل جديد من Cloudflare تلقائياً',
                     style: const TextStyle(fontFamily: 'Tajawal'),
                   ),
                 ),
@@ -159,23 +179,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
         );
-      } else if (mounted) {
+      } else {
         // إشعار صامت بأن البيانات محدثة
-        debugPrint('✅ البيانات محدثة — لا توجد سجلات جديدة');
+        dlog('✅ البيانات محدثة — لا توجد سجلات جديدة');
       }
     } catch (e) {
-      debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
+      dlog(() => '❌ فشل السحب التلقائي عند الفتح: $e');
     }
-  }
-
-  /// لون الغرفة المتأخرة عن السداد — يُقرأ من Remote Config
-  Color _overdueColor() {
-    final hex = RemoteConfigService.instance.overdueRoomColor;
-    final parsed = int.tryParse('FF$hex', radix: 16);
-    if (parsed == null) {
-      return Colors.red; // fallback آمن
-    }
-    return Color(parsed);
   }
 
   @override
@@ -188,15 +198,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // ✅ بانر تحذير القائمة السوداء
-              const BlacklistAlertBanner(),
               _buildHeader(),
               const SizedBox(height: 16),
               _buildStatisticsCards(),
               const SizedBox(height: 20),
               _buildRoomsSection(),
               const SizedBox(height: 12),
-              _buildColorInstructions(),
+              _buildMyShiftReceipts(),
+              const SizedBox(height: 12),
+              _buildEmployeeShiftPayments(),
             ],
           ),
         ),
@@ -342,6 +352,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   currencyFmt.format(total),
                   Icons.payments_rounded,
                   Colors.green,
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const FinanceScreen(),
+                    ),
+                  ),
                 ),
               );
             },
@@ -399,13 +415,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
+          boxShadow: isLowEndDevice
+              ? const []
+              : const [
+                  BoxShadow(
+                    color: Color(0x0D000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,7 +459,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Center(child: CircularProgressIndicator()),
           ),
           error: (e, st) {
-            debugPrint('❌ Dashboard rooms error: $e');
+            dlog(() => '❌ Dashboard rooms error: $e');
             return Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -505,7 +523,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const Spacer(),
               _buildLegendItem('محجوزة', Colors.red.shade600),
               const SizedBox(width: 8),
-              _buildLegendItem('متأخر', _overdueColor()),
+              _buildLegendSplitItem(
+                'تنبيه 22:00',
+                Colors.red.shade600,
+                Colors.orange.shade500,
+              ),
+              const SizedBox(width: 8),
+              _buildLegendItem('متأخر 23:00', Colors.red.shade800),
               const SizedBox(width: 8),
               _buildLegendItem('شاغرة', Colors.green.shade600),
             ],
@@ -555,6 +579,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
+  /// ✅ عنصر legend يُظهر شريطاً مزدوج اللون (أحمر + برتقالي) لتمثيل
+  /// حالة "التنبيه المبكر" (22:00-23:00) التي يظهر فيها جزء من الزر برتقالي.
+  Widget _buildLegendSplitItem(
+    String label,
+    Color leftColor,
+    Color rightColor,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 10,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(3),
+            gradient: LinearGradient(
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+              colors: [leftColor, rightColor],
+              stops: const [0.55, 0.55],
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+        ),
+      ],
+    );
+  }
+
   Widget _buildRoomButton(
     BuildContext context,
     String roomNumber,
@@ -563,15 +619,66 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final Color bgColor = rws?.roomColor ?? Colors.grey.shade400;
     final String tooltipText = rws != null ? rws.displayStatus : 'غير مسجلة';
     final bool isOverdue = rws?.isPaymentOverdue ?? false;
+    final bool isLatePayment = rws?.isLatePayment ?? false;
 
     // ✅ إصلاح الوميض: استخدام ValueKey يمنع flutter_animate من إعادة تشغيل
     // الرسوم المتحركة عند إعادة بناء الـ widget بنفس البيانات
     // المفتاح يتضمن حالة التأخر فقط — لا يتغير إلا عند تغيير الحالة فعلياً
-    final keySuffix = isOverdue ? '_overdue' : '_normal';
+    final keySuffix = isOverdue
+        ? '_overdue'
+        : isLatePayment
+        ? '_late'
+        : '_normal';
+
+    // ✅ مرحلة التحذير المبكر (22:00-23:00 + رصيد متبقي):
+    // نُظهر Gradient أفقي: 55% من الجهة اليمنى باللون الأحمر (لون الغرفة المحجوزة)
+    // و 45% من الجهة اليسرى باللون البرتقالي كـ "شريط تنبيه" جزئي.
+    // هذا يلبي طلب المستخدم: "الغرفة المحجوزة أحمر + جزء من الزر برتقالي".
+    //
+    // ✅ مرحلة التأخر الفعلي (23:00-05:00 + رصيد متبقي):
+    // بدون وميض الآن — نُظهر Gradient أحمر داكن + حدود حمراء سميكة + أيقونة
+    // خطأ بدلاً من أيقونة التحذير للتمييز البصري الواضح.
+    final BoxDecoration? alertDecoration = isOverdue
+        ? BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+              colors: [
+                Colors.red.shade800,
+                Colors.red.shade600,
+                Colors.red.shade400,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            // ✅ حدود حمراء سميكة لإبراز التأخر الفعلي
+            border: Border.all(color: Colors.red.shade900, width: 2.0),
+          )
+        : isLatePayment
+        ? BoxDecoration(
+            gradient: LinearGradient(
+              // RTL: نبدأ من اليمين. اليمين = أحمر، اليسار = برتقالي
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+              colors: [
+                Colors.red.shade600,
+                Colors.red.shade600,
+                Colors.orange.shade500,
+                Colors.orange.shade500,
+              ],
+              stops: const [0.0, 0.55, 0.55, 1.0],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            // ✅ حدود برتقالية لإبراز التنبيه
+            border: Border.all(color: Colors.orange.shade700, width: 1.5),
+          )
+        : null;
 
     final Widget button = Tooltip(
       message: isOverdue
-          ? '$tooltipText — ⚠️ تأخر سداد (بعد 10 مساءً)'
+          ? '$tooltipText — متأخر السداد (23:00+)'
+          : isLatePayment
+          ? '$tooltipText — تنبيه: السداد بعد ساعة (22:00+)'
           : tooltipText,
       child: GestureDetector(
         onLongPress: rws != null
@@ -579,109 +686,67 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             : null,
         child: Material(
           key: ValueKey('room_$roomNumber$keySuffix'),
-          color: bgColor,
+          color: alertDecoration == null ? bgColor : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () => _handleRoomTap(context, roomNumber, rws?.room),
-            child: Stack(
-              children: [
-                // رقم الغرفة في المنتصف
-                Center(
-                  child: Text(
-                    roomNumber,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                // ─── شريط برتقالي على اليمين عند تأخر الدفع ───
-                // يظهر بعد الساعة 10 مساءً للغرف المحجوزة التي لها رصيد متبقي
-                if (isOverdue)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade400,
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(10),
-                          bottomRight: Radius.circular(10),
-                        ),
-                      ),
-                      child: const Center(
-                        child: RotatedBox(
-                          quarterTurns: 3,
-                          child: Text(
-                            '⚠',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                            ),
-                          ),
-                        ),
+            child: Container(
+              // ✅ تطبيق الـ Gradient في حالتي التحذير المبكر والتأخر الفعلي.
+              decoration: alertDecoration,
+              alignment: Alignment.center,
+              child: Stack(
+                children: [
+                  // ✅ نص رقم الغرفة في المنتصف
+                  Center(
+                    child: Text(
+                      roomNumber,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
                   ),
-                // ─── نقطة برتقالية في الأعلى عند تأخر الدفع ───
-                if (isOverdue)
-                  Positioned(
-                    left: 4,
-                    top: 4,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade300,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.orange.withValues(alpha: 0.6),
-                            blurRadius: 4,
-                            spreadRadius: 1,
-                          ),
-                        ],
+                  // ✅ أيقونة تنبيه صغيرة في الزاوية اليسرى للتحذير المبكر
+                  if (isLatePayment && !isOverdue)
+                    Positioned(
+                      top: 2,
+                      left: 2,
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        size: 10,
                       ),
                     ),
-                  ),
-              ],
+                  // ✅ أيقونة خطأ في الزاوية اليسرى للتأخر الفعلي
+                  if (isOverdue)
+                    Positioned(
+                      top: 2,
+                      left: 2,
+                      child: Icon(
+                        Icons.error_outline,
+                        color: Colors.white.withValues(alpha: 0.95),
+                        size: 11,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
 
-    if (isOverdue) {
-      // ✅ إصلاح الوميض: استخدام target(uniqueKey) لمنع إعادة تشغيل
-      // الرسوم المتحركة عند إعادة بناء القائمة بدون تغيير حقيقي
-      return button
-          .animate(key: ValueKey('anim_${roomNumber}_overdue'))
-          .tint(color: const Color(0x30FF9800), duration: 1000.ms)
-          .scale(
-            begin: const Offset(1.0, 1.0),
-            end: const Offset(1.02, 1.02),
-            duration: 1000.ms,
-            curve: Curves.easeInOut,
-          )
-          .then()
-          .tint(color: const Color(0x00FF9800), duration: 1000.ms)
-          .scale(
-            begin: const Offset(1.02, 1.02),
-            end: const Offset(1.0, 1.0),
-            duration: 1000.ms,
-            curve: Curves.easeInOut,
-          );
-    }
-
+    // ✅ تم إلغاء جميع الوميض والرسوم المتحركة بناءً على طلب المستخدم.
+    // الغرفة المتأخرة تظهر بـ Gradient ثابت (أحمر + برتقالي) بدون أي حركة.
+    // الغرفة في نافذة 23:00-05:00 تظهر بـ Gradient أحمر بالكامل + حدود حمراء.
+    // الاعتماد على الألوان الثابتة + الأيقونات التنبيهية بدلاً من الوميض.
     return button;
   }
 
   void _showRoomOptionsDialog(BuildContext context, Room room) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -722,7 +787,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<void> _updateRoomStatus(Room room, String newStatus) async {
@@ -741,9 +806,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('خطأ في تحديث الحالة: $e'),
             backgroundColor: Colors.red,
@@ -783,13 +846,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
-    Navigator.of(
-      context,
-    ).push<void>(
+    unawaited(Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
-    );
+    ));
   }
 
   Future<void> _navigateToPaymentForRoom(
@@ -816,9 +877,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       if (context.mounted) {
         unawaited(
-          Navigator.of(
-            context,
-          ).push<void>(
+          Navigator.of(context).push<void>(
             MaterialPageRoute<void>(
               builder: (context) =>
                   BookingPaymentScreen(booking: activeBooking),
@@ -836,7 +895,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showRoomDetailsDialog(BuildContext context, Room room) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -865,40 +924,218 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
         ],
       ),
-    );
+    ));
   }
 
-  Widget _buildColorInstructions() {
-    return Align(
-      alignment: Alignment.centerRight,
+  /// ✅ (2026-09-05) بطاقة «إجمالي استلاماتي خلال النوبة الحالية» —
+  /// تعليمات المستخدم: «المستخدم 1 استلم مبلغاً… أريد في شاشة الـ
+  /// dashboard أن أعرف إجمالي المبلغ الذي استلمه أثناء النوبة،
+  /// وكذلك المستخدم 2 بحسب المستخدم». النوبة = جلسة الدخول (الخيار A،
+  /// PaymentSessionContext) والإجمالي بلا فلتر يوم فندقي (قد تعبر
+  /// النوبة حد 14:01). تظهر لكل مستخدم مسجل — استلاماته الخاصة.
+  Widget _buildMyShiftReceipts() {
+    if (!PaymentSessionContext.isActive) return const SizedBox.shrink();
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
+    final startedAt = PaymentSessionContext.startedAt;
+    final startedLabel = startedAt == null
+        ? ''
+        : 'النوبة بدأت ${DateFormat('HH:mm').format(startedAt)}';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade50, Colors.white],
+          begin: Alignment.centerRight,
+          end: Alignment.centerLeft,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildInstructionDot(Colors.green.shade600, 'شاغرة (متاحة)'),
-          const SizedBox(width: 12),
-          _buildInstructionDot(Colors.red.shade600, 'محجوزة (مشغولة)'),
-          const SizedBox(width: 12),
-          _buildInstructionDot(Colors.red.shade600, 'وميض: تأخر سداد (11م-5ص)'),
+          Icon(
+            Icons.payments_outlined,
+            color: Colors.green.shade700,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'إجمالي استلاماتي خلال النوبة الحالية',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                if (startedLabel.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      startedLabel,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          ref
+              .watch(currentUserSessionPaymentsProvider)
+              .when(
+                loading: () => const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                error: (_, _) => const Text(
+                  '—',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                data: (total) => Text(
+                  currencyFmt.format(total),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ),
         ],
       ),
     );
   }
 
-  Widget _buildInstructionDot(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
+  Widget _buildEmployeeShiftPayments() {
+    final user = ref.watch(authProvider).currentUser;
+    final canViewOtherEmployees =
+        user?.isAdmin == true ||
+        user?.userType == 'manager' ||
+        user?.userType == 'supervisor';
+    if (!canViewOtherEmployees) return const SizedBox.shrink();
+
+    final summariesAsync = ref.watch(employeeShiftPaymentSummariesProvider);
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
+    return summariesAsync.when(
+      loading: () =>
+          _buildEmployeeShiftCard(const [], currencyFmt, isLoading: true),
+      error: (error, _) => _buildEmployeeShiftCard(
+        const [],
+        currencyFmt,
+        errorMessage: 'تعذر تحميل استلامات الموظفين',
+      ),
+      data: (summaries) => _buildEmployeeShiftCard(summaries, currencyFmt),
+    );
+  }
+
+  Widget _buildEmployeeShiftCard(
+    List<PaymentShiftSummary> summaries,
+    NumberFormat currencyFmt, {
+    bool isLoading = false,
+    String? errorMessage,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade100),
+        boxShadow: isLowEndDevice
+            ? const []
+            : const [
+                BoxShadow(
+                  color: Color(0x0D000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.groups_2_outlined,
+                color: Colors.blue.shade700,
+                size: 19,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'استلامات المستخدمين الآخرين في النوبات',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Text(
+                'إجمالي النوبة كاملة (اليومان الفندقيان الأخيران)',
+                style: TextStyle(fontSize: 9, color: Colors.grey),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(width: 3),
-        Text(label, style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
-      ],
+          const SizedBox(height: 8),
+          if (isLoading)
+            const LinearProgressIndicator(minHeight: 2)
+          else if (errorMessage != null)
+            Text(
+              errorMessage,
+              style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+            )
+          else if (summaries.isEmpty)
+            const Text(
+              'لا توجد استلامات منسوبة إلى نوبات مسجلة بعد',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            )
+          else
+            ...summaries
+                .take(12)
+                .map(
+                  (summary) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            summary.userName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${summary.paymentCount} دفعة',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          currencyFmt.format(summary.totalAmount),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ],
+      ),
     );
   }
 

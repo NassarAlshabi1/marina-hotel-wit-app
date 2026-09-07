@@ -125,18 +125,21 @@ class BookingPriceAdjustmentsAdapter
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // نقرأه كـ double للمحلي (integer على Cloud → double محلياً)
       amount: _vDouble(json, 'amount', src),
-      // ✅ إصلاح 2026-07-26: نقرأ effectiveHotelDay من أي من الحقلين
-      // — 'effectiveHotelDay' (الاسم المحلي) أو 'hotelDayKey' (اسم Appwrite المطلوب)
-      // عند السحب من Appwrite، الـ payload قد يحتوي على hotelDayKey فقط.
-      effectiveHotelDay: () {
-        final v =
-            _asString(json, 'effectiveHotelDay', src) ??
-            _asString(json, 'effective_hotel_day', src) ??
+      // ✅ Wave 6b (2026-08-12): hotelDayKey و appliedDate على Cloud هما نفس
+      // effectiveHotelDay محلياً (انظر toJson السطر 206-207). سابقاً، fromJson
+      // لم يقرأهما كـ fallback — فإذا أرسل Cloud hotelDayKey بدل effectiveHotelDay
+      // (وهو ما يحدث فعلياً)، تُفقد القيمة ويُحفظ effectiveHotelDay كـ ''.
+      // الآن: نقرأ effectiveHotelDay أولاً، ثم hotelDayKey، ثم appliedDate.
+      effectiveHotelDay: _vStr(
+        json,
+        'effectiveHotelDay',
+        src,
+        altKey: 'effective_hotel_day',
+        fallback:
             _asString(json, 'hotelDayKey', src) ??
-            _asString(json, 'hotel_day_key', src) ??
-            '';
-        return d.Value(v);
-      }(),
+            _asString(json, 'appliedDate', src) ??
+            '',
+      ),
       endHotelDay: _vStr(json, 'endHotelDay', src, altKey: 'end_hotel_day'),
       isActive: _vBool(
         json,
@@ -184,6 +187,13 @@ class BookingPriceAdjustmentsAdapter
         altKey: 'idempotency_key',
       ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
+      // ✅ Wave 6b (2026-08-12): appliedAt و bookingUuid كانا موجودين في
+      // filterPayload و Drift table لكنهما لم يُقرآ من adapter during pull.
+      // appliedAt: timestamp متى طُبّق التعديل (مستقل عن createdAt)
+      // bookingUuid: UUID للحجز (يُستخدم للربط بدل bookingLocalId الذي يختلف بين الأجهزة)
+      // انظر local_db.dart: booking_price_adjustments columns (appliedAt, bookingUuid).
+      appliedAt: _vInt(json, 'appliedAt', src, altKey: 'applied_at'),
+      bookingUuid: _vStr(json, 'bookingUuid', src, altKey: 'booking_uuid'),
     );
   }
 
@@ -201,10 +211,9 @@ class BookingPriceAdjustmentsAdapter
       _k(src, 'roomNumber', 'room_number'): model.roomNumber,
       _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
       _k(src, 'adjustmentMode', 'adjustment_mode'): model.adjustmentMode,
-      // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15)
-      // على Cloud هو double — نرسل كما هو بدون rounding
       _k(src, 'amount', 'amount'):
           model.amount, // ✅ Appwrite: double (fixed 2026-07-26)
+      // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15)
       _k(src, 'effectiveHotelDay', 'effective_hotel_day'):
           model.effectiveHotelDay,
       // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud

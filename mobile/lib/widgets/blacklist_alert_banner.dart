@@ -47,105 +47,119 @@ class _BlacklistBannerState extends ConsumerState<_BlacklistBanner> {
     if (alerts.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade700, width: 2),
-        gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [
-            Colors.red.shade900.withValues(alpha: 0.95),
-            Colors.red.shade700.withValues(alpha: 0.9),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // ─── الرأس (always visible) ───
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  // أيقونة نبض
-                  Icon(
-                        Icons.warning_rounded,
-                        color: Colors.yellow.shade300,
-                        size: 28,
-                      )
-                      .animate(onPlay: (c) => c.repeat())
-                      .shimmer(duration: 1200.ms, color: Colors.yellow.withValues(alpha: 0.5)),
-                  const SizedBox(width: 12),
-                  // نص التحذير
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '🚨 تنبيه أمني — القائمة السوداء',
-                          style: TextStyle(
-                            color: Colors.yellow.shade100,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          alerts.length == 1
-                              ? 'نزيل مطابق: ${alerts.first.guestName} — غرفة ${alerts.first.roomNumber}'
-                              : '${alerts.length} نزلاء مطابقين للقائمة السوداء',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // زر التوسيع
-                  Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.white70,
-                  ),
-                ],
-              ),
+            border: Border.all(color: Colors.red.shade700, width: 2),
+            gradient: LinearGradient(
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+              colors: [
+                Colors.red.shade900.withValues(alpha: 0.95),
+                Colors.red.shade700.withValues(alpha: 0.9),
+              ],
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          // ─── التفاصيل (expandable) ───
-          if (_expanded)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.red.shade900.withValues(alpha: 0.5),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(10),
-                  bottomRight: Radius.circular(10),
+          child: Column(
+            children: [
+              // ─── الرأس (always visible) ───
+              InkWell(
+                onTap: () => setState(() => _expanded = !_expanded),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      // أيقونة نبض
+                      Icon(
+                            Icons.warning_rounded,
+                            color: Colors.yellow.shade300,
+                            size: 28,
+                          )
+                          .animate(onPlay: (c) => c.repeat())
+                          .shimmer(
+                            duration: 1200.ms,
+                            color: Colors.yellow.withValues(alpha: 0.5),
+                          ),
+                      const SizedBox(width: 12),
+                      // نص التحذير
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '🚨 تنبيه أمني — القائمة السوداء',
+                              style: TextStyle(
+                                color: Colors.yellow.shade100,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              alerts.length == 1
+                                  ? 'نزيل مطابق: ${alerts.first.guestName} — غرفة ${alerts.first.roomNumber}'
+                                  : '${alerts.length} نزلاء مطابقين للقائمة السوداء',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // زر التوسيع
+                      Icon(
+                        _expanded ? Icons.expand_less : Icons.expand_more,
+                        color: Colors.white70,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                children: alerts.map((alert) {
-                  return _AlertCard(
-                    alert: alert,
-                    onDismiss: () {
-                      ref.read(blacklistAlertServiceProvider).dismissAlert(alert.bookingId);
-                    },
-                  );
-                }).toList(),
-              ),
-            ),
-        ],
-      ),
-    ).animate().slideY(begin: -1, duration: 400.ms, curve: Curves.easeOut).fadeIn(duration: 300.ms);
+              // ─── التفاصيل (expandable) ───
+              if (_expanded)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade900.withValues(alpha: 0.5),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(10),
+                      bottomRight: Radius.circular(10),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Column(
+                    children: alerts.map((alert) {
+                      return _AlertCard(
+                        alert: alert,
+                        onDismiss: () {
+                          ref
+                              .read(blacklistAlertServiceProvider)
+                              .dismissAlert(alert.bookingId);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+            ],
+          ),
+        )
+        .animate()
+        .slideY(begin: -1, duration: 400.ms, curve: Curves.easeOut)
+        .fadeIn(duration: 300.ms);
   }
 }
 
@@ -184,7 +198,10 @@ class _AlertCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.yellow.shade900.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
@@ -225,7 +242,8 @@ class _AlertCard extends StatelessWidget {
               value: alert.reasonText,
               valueColor: Colors.yellow.shade200,
             ),
-            if (alert.blacklistEntry.notes != null && alert.blacklistEntry.notes!.isNotEmpty)
+            if (alert.blacklistEntry.notes != null &&
+                alert.blacklistEntry.notes!.isNotEmpty)
               _InfoRow(
                 icon: Icons.note,
                 label: 'ملاحظات',
@@ -239,7 +257,10 @@ class _AlertCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onDismiss,
                   icon: const Icon(Icons.close, size: 16),
-                  label: const Text('إغلاق التنبيه', style: TextStyle(fontSize: 12)),
+                  label: const Text(
+                    'إغلاق التنبيه',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white70,
                   ),

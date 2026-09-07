@@ -166,7 +166,8 @@ class DiagnosticsLogger extends ChangeNotifier {
         mode: FileMode.append,
       );
     } catch (e) {
-      debugPrint('⚠️ Swallowed error in diagnostics_logger.dart: ');}
+      debugPrint('⚠️ Swallowed error in diagnostics_logger.dart: ');
+    }
   }
 
   /// ✅ إصلاح: إضافة dispose() لتنظيف المستمعين ومنع تسرب الذاكرة

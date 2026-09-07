@@ -7,7 +7,6 @@ import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
   ShiftNotesAdapter(this.resolver);
@@ -242,8 +241,7 @@ int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final normalized = s.contains('T') ? s : s.replaceFirst(' ', 'T');
   try {
     return DateTime.parse(normalized).millisecondsSinceEpoch ~/ 1000;
-  } catch (e) {
-      debugPrint('⚠️ Swallowed error in shift_notes_adapter.dart: ');
+  } catch (_) {
     return null;
   }
 }

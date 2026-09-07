@@ -1,480 +1,614 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
-// lib/screens/ai/ai_chat_screen.dart
-// شاشة المحادثة مع المساعد الذكي "ماريانا"
-// ✅ تصميم محسّن + نسخ المخرجات + تنسيق احترافي للأوامر
-
 import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import '../../services/ai_settings_service.dart';
-import '../../services/crashlytics_service.dart';
-import '../../services/gemini_service.dart';
-import '../../utils/hotel_time_engine.dart';
-import '../settings/ai_settings_screen.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
-// ═══ نموذج رسالة المحادثة ═══
+import '../../services/gemini_service.dart';
+import '../../utils/debug_log.dart';
+import '../../utils/performance_monitor.dart';
+
+/// مزود AI النشط
+enum AiProvider {
+  gemini;
+
+  String get displayName {
+    switch (this) {
+      case AiProvider.gemini:
+        return 'Gemini AI';
+    }
+  }
+
+  String get modelName {
+    switch (this) {
+      case AiProvider.gemini:
+        return 'Gemini 2.5 Flash';
+    }
+  }
+}
+
+/// رسالة محادثة
 class ChatMessage {
-  const ChatMessage({
+  ChatMessage({
     required this.id,
     required this.text,
-    required this.isUser,
-    this.isError = false,
-    this.timestamp,
-    this.isCommandResult = false,
-  });
+    this.isUser = false,
+    this.pendingCommand,
+    this.isExecuted = false,
+    this.executionResult,
+    DateTime? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now();
 
   final String id;
-  final String text;
+  String text;
   final bool isUser;
-  final bool isError;
-  final DateTime? timestamp;
-  final bool isCommandResult;
+  final AiCommand? pendingCommand;
+  final bool isExecuted;
+  final String? executionResult;
+  final DateTime timestamp;
 
   ChatMessage copyWith({
     String? text,
-    bool? isUser,
-    bool? isError,
-    bool? isCommandResult,
+    bool? isExecuted,
+    String? executionResult,
   }) {
     return ChatMessage(
       id: id,
       text: text ?? this.text,
-      isUser: isUser ?? this.isUser,
-      isError: isError ?? this.isError,
-      // ignore: unnecessary_this
-      timestamp: timestamp ?? this.timestamp,
-      isCommandResult: isCommandResult ?? this.isCommandResult,
+      isUser: isUser,
+      pendingCommand: pendingCommand,
+      isExecuted: isExecuted ?? this.isExecuted,
+      executionResult: executionResult ?? this.executionResult,
+      timestamp: timestamp,
     );
   }
 }
 
-// ═══ الشاشة الرئيسية ═══
-class AiChatScreen extends ConsumerStatefulWidget {
+/// شاشة المساعد الذكي — Gemini AI
+class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
 
   @override
-  ConsumerState<AiChatScreen> createState() => _AiChatScreenState();
+  State<AiChatScreen> createState() => _AiChatScreenState();
 }
 
-class _AiChatScreenState extends ConsumerState<AiChatScreen> {
-  final TextEditingController _inputController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
+class _AiChatScreenState extends State<AiChatScreen>
+    with SingleTickerProviderStateMixin {
   final List<ChatMessage> _messages = [];
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
+  String? _lastUserMessage;
+  String _loadingText = 'يفكر...';
 
-  final _quickActions = [
-    '📊 ملخص اليوم المالي',
-    '🛏️ الغرف الشاغرة',
-    '⚠️ الحجوزات المتأخرة',
-    '💰 أكبر الديون',
-    '📅 تقرير الأمس',
-    '🔢 إحصائيات الإشغال',
-  ];
+  /// مزود AI النشط
+  AiProvider _activeProvider = AiProvider.gemini;
+
+  /// هل يتوفر Gemini؟
+  bool get _isGeminiAvailable => GeminiService.instance.isAvailable;
+
+  /// هل مزود متاح؟
+  bool get _isAnyAvailable => _isGeminiAvailable;
 
   @override
   void initState() {
     super.initState();
-    _initializeAI();
+    unawaited(_initializeProviders());
+    _addWelcomeMessage();
   }
 
-  Future<void> _initializeAI() async {
+  Future<void> _initializeProviders() async {
+    // تهيئة Gemini
     await GeminiService.instance.initialize();
+
+    _activeProvider = AiProvider.gemini;
+
     if (mounted) setState(() {});
   }
 
+  /// إعادة تهيئة Gemini
   Future<void> _retryInit() async {
+    setState(() => _isLoading = true);
     await GeminiService.instance.initialize(forceRetry: true);
-    if (mounted) setState(() {});
+    if (mounted) setState(() => _isLoading = false);
   }
 
-  bool get _isGeminiAvailable => GeminiService.instance.isAvailable;
-
-  Future<void> _sendMessage({String? presetMessage}) async {
-    final text = presetMessage ?? _inputController.text.trim();
-    if (text.isEmpty || _isLoading) return;
-
-    _inputController.clear();
-
-    // إضافة رسالة المستخدم
-    final userMsg = ChatMessage(
-      id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      text: text,
-      isUser: true,
-      timestamp: DateTime.now(),
+  void _addWelcomeMessage() {
+    _messages.add(
+      ChatMessage(
+        id: 'welcome',
+        text:
+            'مرحباً! أنا المساعد الذكي لفندق Marina\n\n'
+            'يمكنني مساعدتك في:\n'
+            '- عرض معلومات الغرف والحجوزات\n'
+            '- تغيير أسعار الغرف وحالاتها\n'
+            '- تسجيل دفعات ومصروفات\n'
+            '- إنشاء حجوزات جديدة\n'
+            '- إنهاء حجوزات وتسجيل خروج\n'
+            '- تسوية الديون\n'
+            '- تحديث بيانات الضيوف\n'
+            '- ملخص الإيرادات والمصروفات\n\n'
+            'اكتب طلبك وسأساعدك!',
+      ),
     );
-    setState(() {
-      _messages.add(userMsg);
-      _isLoading = true;
-    });
-    _scrollToBottom();
-
-    try {
-      // إرسال للمساعد الذكي
-      final response = await GeminiService.instance.chat(text);
-
-      // إضافة رد المساعد
-      final aiMsg = ChatMessage(
-        id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
-        text: response.text,
-        isUser: false,
-        isError:
-            response.text.contains('خطأ') ||
-            response.text.contains('عذراً') ||
-            response.text.contains('غير متاح'),
-        timestamp: DateTime.now(),
-        isCommandResult: response.hasCommand,
-      );
-      setState(() {
-        _messages.add(aiMsg);
-        _isLoading = false;
-      });
-
-      // تنفيذ الأمر إذا كان موجوداً
-      if (response.hasCommand && response.command != null) {
-        unawaited(_executeCommand(response.command!, text));
-      }
-
-      // تتبع في Crashlytics
-      await CrashlyticsService.instance.setSyncStatus('ai_chat_idle');
-
-      _scrollToBottom();
-    } catch (e) {
-      setState(() {
-        _messages.add(
-          ChatMessage(
-            id: 'err_${DateTime.now().millisecondsSinceEpoch}',
-            text: _friendlyError(e),
-            isUser: false,
-            isError: true,
-            timestamp: DateTime.now(),
-          ),
-        );
-        _isLoading = false;
-      });
-      _scrollToBottom();
-    }
-  }
-
-  Future<void> _executeCommand(AiCommand command, String userMessage) async {
-    try {
-      final result = await GeminiService.instance.executeCommand(
-        command,
-        confirmed: command is! AiQueryCommand,
-      );
-
-      if (mounted) {
-        setState(() {
-          _messages.add(
-            ChatMessage(
-              id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
-              text: result,
-              isUser: false,
-              isCommandResult: true,
-              timestamp: DateTime.now(),
-            ),
-          );
-        });
-        _scrollToBottom();
-      }
-    } catch (e) {
-      debugPrint('Command execution error: $e');
-    }
-  }
-
-  String _friendlyError(Object e) {
-    final msg = e.toString();
-    if (msg.contains('401') || msg.contains('API_KEY')) {
-      return '🔑 خطأ في مفتاح API.\n\nالحل:\n1. افتح إعدادات AI\n2. غيّر المزود إلى OpenRouter\n3. أدخل مفتاح API صالح';
-    } else if (msg.contains('429') || msg.contains('QUOTA')) {
-      return '⏳ تم تجاوز حد الطلبات.\nانتظر 30 ثانية ثم حاول مجدداً.';
-    } else if (msg.contains('network') || msg.contains('socket')) {
-      return '📡 خطأ في الاتصال.\nتحقق من الإنترنت.';
-    }
-    return '❌ حدث خطأ: $e';
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
+        unawaited(_scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
-        );
+        ));
       }
     });
   }
 
-  void _copyMessage(String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✅ تم نسخ النص'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
+  Future<void> _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _isLoading) return;
+
+    _controller.clear();
+    _lastUserMessage = text;
+
+    setState(() {
+      _messages.add(
+        ChatMessage(
+          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          text: text,
+          isUser: true,
+        ),
+      );
+      _isLoading = true;
+      _loadingText = 'يفكر...';
+    });
+    _scrollToBottom();
+
+    try {
+      final GeminiResponse response;
+
+      if (_isGeminiAvailable) {
+        response = await GeminiService.instance.chat(text);
+      } else {
+        response = const GeminiResponse(
+          text: 'Gemini AI غير متاح. تأكد من اتصالك بالإنترنت ومفتاح API.',
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _messages.add(
+            ChatMessage(
+              id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
+              text: response.text,
+              pendingCommand: response.requiresConfirmation
+                  ? response.command
+                  : null,
+            ),
+          );
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      dlog(() => '❌ Chat Error: $e');
+      if (mounted) {
+        String errorMsg = 'عذراً، حدث خطأ أثناء الاتصال.';
+        if (e.toString().contains('API_KEY') || e.toString().contains('401')) {
+          errorMsg = 'خطأ في مفتاح API.';
+        } else if (e.toString().contains('QUOTA') ||
+            e.toString().contains('429')) {
+          errorMsg = 'تم تجاوز حد الطلبات المسموح به.';
+        }
+
+        setState(() {
+          _messages.add(
+            ChatMessage(
+              id: 'error_${DateTime.now().millisecondsSinceEpoch}',
+              text: '$errorMsg\nتأكد من اتصالك بالإنترنت.',
+            ),
+          );
+          _isLoading = false;
+        });
+        _scrollToBottom();
+      }
+    }
+  }
+
+  Future<void> _confirmCommand(ChatMessage message) async {
+    if (message.pendingCommand == null) return;
+
+    setState(() {
+      final idx = _messages.indexOf(message);
+      if (idx >= 0) {
+        _messages[idx] = message.copyWith(
+          text: '${message.text}\n⏳ جاري التنفيذ...',
+        );
+      }
+    });
+
+    final result = await GeminiService.instance.executeCommand(
+      message.pendingCommand!,
     );
+
+    // تسجيل في سجل التدقيق
+    GeminiService.instance.logToAudit(
+      userMessage: _lastUserMessage ?? '',
+      aiResponse: message.text,
+      command: message.pendingCommand,
+      executionResult: result,
+      wasConfirmed: true,
+    );
+
+    if (mounted) {
+      setState(() {
+        final idx = _messages.indexOf(message);
+        if (idx >= 0) {
+          _messages[idx] = ChatMessage(
+            id: message.id,
+            text: message.text,
+            timestamp: message.timestamp,
+            isExecuted: true,
+            executionResult: result,
+          );
+        }
+      });
+    }
+  }
+
+  Future<void> _cancelCommand(ChatMessage message) async {
+    GeminiService.instance.logToAudit(
+      userMessage: _lastUserMessage ?? '',
+      aiResponse: message.text,
+      command: message.pendingCommand,
+      executionResult: 'تم الإلغاء بواسطة المستخدم',
+      wasConfirmed: false,
+    );
+
+    if (mounted) {
+      setState(() {
+        final idx = _messages.indexOf(message);
+        if (idx >= 0) {
+          _messages[idx] = message.copyWith(
+            text: '${message.text}\n❌ تم الإلغاء',
+          );
+        }
+      });
+    }
+  }
+
+  void _showAuditLog() {
+    final log = GeminiService.instance.auditLog;
+    unawaited(showDialog<void>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.history, color: Colors.amber),
+              SizedBox(width: 8),
+              Text('سجل عمليات AI'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: log.isEmpty
+                ? const Center(
+                    child: Text(
+                      'لا توجد عمليات مسجلة بعد',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: log.length,
+                    itemBuilder: (context, index) {
+                      final entry = log[log.length - 1 - index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: entry.wasConfirmed
+                                          ? Colors.green.withValues(alpha: 0.15)
+                                          : Colors.orange.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      entry.wasConfirmed ? 'تم' : 'ألغي',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: entry.wasConfirmed
+                                            ? Colors.green
+                                            : Colors.orange,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  if (entry.commandType != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        entry.commandType!
+                                            .replaceAll('Ai', '')
+                                            .replaceAll('Command', ''),
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                    ),
+                                  const Spacer(),
+                                  Text(
+                                    DateFormat('HH:mm').format(entry.timestamp),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                entry.userMessage,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                entry.executionResult,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: entry.executionResult.startsWith('✅')
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            if (log.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  GeminiService.instance.clearAuditLog();
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('تم مسح السجل')));
+                },
+                child: const Text(
+                  'مسح السجل',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      ),
+    ));
+  }
+
+  void _clearChat() {
+    setState(() {
+      _messages.clear();
+      GeminiService.instance.clearHistory();
+      _addWelcomeMessage();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFB46B00), Color(0xFFD9A621)],
+    return PerformanceInspector(
+      name: 'AiChatScreen',
+      child: Scaffold(
+        appBar: AppBar(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _isAnyAvailable ? Icons.smart_toy : Icons.smart_toy_outlined,
+                color: _isAnyAvailable ? Colors.amber : Colors.grey,
+              ),
+              const SizedBox(width: 8),
+              const Text('المساعد الذكي'),
+              if (_isAnyAvailable) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _activeProvider.displayName,
+                    style: const TextStyle(color: Colors.green, fontSize: 11),
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.auto_awesome,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ماريانا',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'المساعد الذكي',
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                ],
-              ),
+              ],
+            ],
+          ),
+          actions: [
+            // سجل التدقيق
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'سجل العمليات',
+              onPressed: _showAuditLog,
             ),
           ],
         ),
-        actions: [
-          // زر الإعدادات
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'إعدادات AI',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute<void>(builder: (_) => const AiSettingsScreen()),
-              ).then((_) {
-                // إعادة التهيئة بعد تغيير الإعدادات
-                GeminiService.instance.reset();
-                _initializeAI();
-              });
-            },
-          ),
-          // زر مسح المحادثة
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'محادثة جديدة',
-            onPressed: () {
-              setState(() {
-                _messages.clear();
-                GeminiService.instance.clearHistory();
-              });
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // شريط حالة الـ AI
-          if (!_isGeminiAvailable)
-            _buildUnavailableBar()
-          else
-            _buildStatusBar(theme),
-
-          // قائمة الرسائل
-          Expanded(
-            child: _messages.isEmpty
-                ? _buildWelcomeScreen()
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    itemCount: _messages.length + (_isLoading ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index >= _messages.length) {
-                        return _buildTypingIndicator();
-                      }
-                      return _buildMessageBubble(_messages[index]);
-                    },
-                  ),
-          ),
-
-          // اقتراحات سريعة
-          if (_messages.length <= 1 && _isGeminiAvailable) _buildQuickActions(),
-
-          // حقل الإدخال
-          _buildInputField(theme),
-        ],
-      ),
-    );
-  }
-
-  // ═══ شريط "غير متاح" ═══
-  Widget _buildUnavailableBar() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'المساعد الذكي غير متاح',
-                  style: TextStyle(
-                    color: Colors.orange.shade800,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
+        body: Column(
+          children: [
+            // شريط تحذير إذا لم يكن متاحاً
+            if (!_isAnyAvailable)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  border: Border(
+                    bottom: BorderSide(color: Colors.orange.shade200),
                   ),
                 ),
-                if (GeminiService.instance.initError != null)
-                  Text(
-                    GeminiService.instance.initError!,
-                    style: TextStyle(
-                      color: Colors.orange.shade600,
-                      fontSize: 11,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.warning_amber,
+                      color: Colors.orange.shade700,
+                      size: 20,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: _retryInit,
-            icon: const Icon(Icons.refresh, size: 14),
-            label: const Text('إعادة', style: TextStyle(fontSize: 11)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange.shade700,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'المساعد الذكي غير متاح',
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (GeminiService.instance.initError != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Gemini: ${GeminiService.instance.initError}',
+                              style: TextStyle(
+                                color: Colors.orange.shade700,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 6),
+                          SizedBox(
+                            height: 28,
+                            child: ElevatedButton.icon(
+                              onPressed: _retryInit,
+                              icon: const Icon(Icons.refresh, size: 14),
+                              label: const Text(
+                                'إعادة المحاولة',
+                                style: TextStyle(fontSize: 11),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange.shade700,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
+
+            // قائمة الرسائل
+            Expanded(
+              child: _messages.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _messages.length + (_isLoading ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= _messages.length) {
+                          return RepaintBoundary(child: _buildLoadingBubble());
+                        }
+                        return _buildMessageBubble(_messages[index]);
+                      },
+                    ),
             ),
-          ),
-        ],
+
+            // اقتراحات سريعة
+            if (_messages.length <= 1 && !_isAnyAvailable)
+              _buildQuickSuggestions(),
+
+            // حقل الإدخال
+            _buildInputField(theme),
+          ],
+        ),
       ),
     );
   }
 
-  // ═══ شريط الحالة ═══
-  Widget _buildStatusBar(ThemeData theme) {
-    final model = AiSettingsService.instance.model;
-    final provider = AiSettingsService.instance.provider == 'gemini'
-        ? 'Gemini'
-        : 'OpenRouter';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: Colors.green,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            'متصل · $provider · $model',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            'اليوم الفندقي: ${HotelTimeEngine.getHotelDayKey()}',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ═══ شاشة الترحيب ═══
-  Widget _buildWelcomeScreen() {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFB46B00), Color(0xFFD9A621)],
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.auto_awesome,
-              color: Colors.white,
-              size: 40,
-            ),
-          ),
+          Icon(Icons.smart_toy_outlined, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
-          const Text(
-            'مرحباً، أنا ماريانا',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
           Text(
-            'مساعدتك الذكية لإدارة فندق مارينا',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 24),
-          // اقتراحات سريعة في شاشة الترحيب
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: _quickActions.map((action) {
-              return ActionChip(
-                label: Text(action),
-                onPressed: () => _sendMessage(presetMessage: action),
-                backgroundColor: Colors.deepOrange.shade50,
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  color: Colors.deepOrange.shade700,
-                ),
-              );
-            }).toList(),
+            'ابدأ محادثة مع المساعد الذكي',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
           ),
         ],
       ),
     );
   }
 
-  // ═══ فقاعة الرسالة ═══
   Widget _buildMessageBubble(ChatMessage message) {
     final isUser = message.isUser;
     final theme = Theme.of(context);
@@ -482,39 +616,28 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     return Align(
       alignment: isUser ? Alignment.centerLeft : Alignment.centerRight,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.85,
+          maxWidth: MediaQuery.of(context).size.width * 0.82,
         ),
         decoration: BoxDecoration(
-          gradient: isUser
-              ? const LinearGradient(
-                  colors: [Color(0xFF1B3A5C), Color(0xFF2D5A8C)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
           color: isUser
-              ? null
-              : (message.isError ? Colors.red.shade50 : theme.cardColor),
+              ? theme.colorScheme.primary.withValues(alpha: 0.1)
+              : theme.cardColor,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
             bottomLeft: isUser ? const Radius.circular(4) : Radius.zero,
             bottomRight: isUser ? Radius.zero : const Radius.circular(4),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 6,
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],
-          border: !isUser && message.isError
-              ? Border.all(color: Colors.red.shade200)
-              : !isUser && message.isCommandResult
-              ? Border.all(color: Colors.green.shade200)
-              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,296 +645,306 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             // رأس الرسالة (AI فقط)
             if (!isUser)
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                padding: const EdgeInsets.only(bottom: 6),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFB46B00), Color(0xFFD9A621)],
-                        ),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(
-                        Icons.auto_awesome,
-                        color: Colors.white,
-                        size: 12,
-                      ),
+                    Icon(
+                      Icons.smart_toy,
+                      size: 14,
+                      color: Colors.amber.shade700,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Text(
-                      message.isError
-                          ? '⚠️ خطأ'
-                          : (message.isCommandResult
-                                ? '✅ تم التنفيذ'
-                                : 'ماريانا'),
+                      _activeProvider.displayName,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: message.isError
-                            ? Colors.red.shade700
-                            : Colors.deepOrange,
+                        color: Colors.amber.shade700,
                       ),
                     ),
                     const Spacer(),
-                    // زر النسخ
-                    IconButton(
-                      icon: const Icon(Icons.copy_outlined, size: 14),
-                      tooltip: 'نسخ',
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
-                      ),
-                      onPressed: () => _copyMessage(message.text),
-                    ),
-                  ],
-                ),
-              ),
-            // محتوى الرسالة
-            Padding(
-              padding: isUser
-                  ? const EdgeInsets.symmetric(horizontal: 14, vertical: 10)
-                  : const EdgeInsets.fromLTRB(14, 6, 14, 10),
-              child: _buildFormattedText(message.text, isUser),
-            ),
-            // تذييل الوقت (AI فقط)
-            if (!isUser && message.timestamp != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-                child: Row(
-                  children: [
                     Text(
-                      DateFormat('HH:mm').format(message.timestamp!),
+                      DateFormat('HH:mm').format(message.timestamp),
                       style: TextStyle(
-                        fontSize: 9,
+                        fontSize: 10,
                         color: Colors.grey.shade400,
                       ),
                     ),
                   ],
                 ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  // ═══ تنسيق النص (يدعم أسطر متعددة وقوائم) ═══
-  Widget _buildFormattedText(String text, bool isUser) {
-    final color = isUser
-        ? Colors.white
-        : (text.contains('خطأ') ? Colors.red.shade800 : Colors.black87);
-
-    // تقسيم النص لأسطر
-    final lines = text.split('\n');
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: lines.map((line) {
-        // تنسيق العناوين (تبدأ بـ ═══ أو ─── أو ▸ أو ●)
-        if (line.contains('═══') || line.contains('───')) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text(
-              line,
+            // محتوى الرسالة
+            Text(
+              message.text,
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: isUser ? Colors.white70 : Colors.deepOrange,
+                fontSize: 14,
+                height: 1.5,
+                color: theme.textTheme.bodyMedium?.color,
               ),
             ),
-          );
-        }
 
-        // تنسيق القوائم (تبدأ بـ • أو - أو رقم)
-        if (line.trimLeft().startsWith('•') ||
-            line.trimLeft().startsWith('-') ||
-            line.trimLeft().startsWith('▸') ||
-            RegExp(r'^\d+\.').hasMatch(line.trimLeft())) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: Text(
-              line,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.4,
-                color: color,
-              ),
-            ),
-          );
-        }
-
-        // نص عادي
-        return Text(
-          line,
-          style: TextStyle(
-            fontSize: 13,
-            height: 1.4,
-            color: color,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // ═══ مؤشر الكتابة ═══
-  Widget _buildTypingIndicator() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomRight: Radius.circular(4),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('ماريانا يكتب'),
-            const SizedBox(width: 8),
-            _buildDot(0),
-            _buildDot(1),
-            _buildDot(2),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDot(int index) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.3, end: 1.0),
-      duration: Duration(milliseconds: 600 + index * 200),
-      builder: (context, value, child) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: Colors.deepOrange.withValues(alpha: value),
-            shape: BoxShape.circle,
-          ),
-        );
-      },
-    );
-  }
-
-  // ═══ الاقتراحات السريعة ═══
-  Widget _buildQuickActions() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      height: 44,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _quickActions.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          return ActionChip(
-            label: Text(
-              _quickActions[index],
-              style: const TextStyle(fontSize: 12),
-            ),
-            onPressed: () => _sendMessage(presetMessage: _quickActions[index]),
-            backgroundColor: Colors.deepOrange.shade50,
-            labelStyle: TextStyle(color: Colors.deepOrange.shade700),
-            side: BorderSide(color: Colors.deepOrange.shade100),
-          );
-        },
-      ),
-    );
-  }
-
-  // ═══ حقل الإدخال ═══
-  Widget _buildInputField(ThemeData theme) {
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-          border: Border(
-            top: BorderSide(color: theme.dividerColor, width: 0.5),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Container(
+            // نتيجة التنفيذ
+            if (message.isExecuted && message.executionResult != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: theme.cardColor,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: theme.dividerColor),
+                  color: message.executionResult!.startsWith('✅')
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: message.executionResult!.startsWith('✅')
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.red.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _inputController,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _sendMessage(),
-                        enabled: _isGeminiAvailable && !_isLoading,
-                        maxLines: null,
-                        textCapitalization: TextCapitalization.sentences,
-                        decoration: const InputDecoration(
-                          hintText: 'اكتب رسالتك...',
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
+                    Icon(
+                      message.executionResult!.startsWith('✅')
+                          ? Icons.check_circle
+                          : Icons.error,
+                      size: 14,
+                      color: message.executionResult!.startsWith('✅')
+                          ? Colors.green
+                          : Colors.red,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        message.executionResult!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: message.executionResult!.startsWith('✅')
+                              ? Colors.green.shade800
+                              : Colors.red.shade800,
                         ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.mic_outlined, size: 20),
-                      onPressed: () {
-                        // TODO: voice input
-                      },
-                      tooltip: 'إدخال صوتي',
                     ),
                   ],
                 ),
               ),
+            ],
+
+            // أزرار التأكيد
+            if (message.pendingCommand != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _confirmCommand(message),
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text(
+                      'تأكيد التنفيذ',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _cancelCommand(message),
+                    icon: const Icon(Icons.close, size: 16),
+                    label: const Text('إلغاء', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingBubble() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+            bottomLeft: Radius.circular(16),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.amber.shade600,
+              ),
             ),
             const SizedBox(width: 8),
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFB46B00), Color(0xFFD9A621)],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.send, color: Colors.white, size: 20),
-                onPressed: _isLoading || !_isGeminiAvailable
-                    ? null
-                    : _sendMessage,
-                tooltip: 'إرسال',
-              ),
+            Text(
+              _loadingText,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuickSuggestions() {
+    final suggestions = [
+      ('📊', 'تقرير اليوم', 'أعطني تقرير اليوم'),
+      ('🏠', 'الغرف الشاغرة', 'ما هي الغرف المتاحة حالياً؟'),
+      ('📈', 'زيادة أسعار', 'زِد جميع الأسعار 10%'),
+      ('📉', 'تخفيض سعر', 'خفّض سعر الغرفة 101 إلى 40000'),
+      ('💳', 'تسجيل دفعة', 'سجّل دفعة 50000 للغرفة 101'),
+      ('📋', 'تقرير الديون', 'أعطني تقرير الديون'),
+      ('📊', 'نسبة الإشغال', 'كم نسبة الإشغال حالياً؟'),
+      ('🏨', 'أسعار الغرف', 'أعطني تقرير أسعار الغرف'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: suggestions.map((s) {
+          return ActionChip(
+            avatar: Text(s.$1, style: const TextStyle(fontSize: 14)),
+            label: Text(s.$2, style: const TextStyle(fontSize: 11)),
+            onPressed: () {
+              _controller.text = s.$3;
+              unawaited(_sendMessage());
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildInputField(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        border: Border(top: BorderSide(color: theme.dividerColor, width: 0.5)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // زر مسح المحادثة
+          if (_messages.length > 2)
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: IconButton(
+                onPressed: _clearChat,
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: Colors.grey.shade500,
+                ),
+                tooltip: 'مسح المحادثة',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ),
+
+          Expanded(
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 120),
+              child: TextField(
+                controller: _controller,
+                style: const TextStyle(fontSize: 16, height: 1.4),
+                decoration: InputDecoration(
+                  hintText: 'اكتب هنا...',
+                  hintStyle: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade400,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  isDense: true,
+                  filled: true,
+                  fillColor: theme.scaffoldBackgroundColor,
+                ),
+                onSubmitted: (_) => _sendMessage(),
+                minLines: 1,
+                maxLines: 4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 42,
+            height: 42,
+            child: IconButton.filled(
+              onPressed: _isLoading ? null : _sendMessage,
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send, size: 20),
+              style: IconButton.styleFrom(
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

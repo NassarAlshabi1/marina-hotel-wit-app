@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
@@ -10,6 +8,7 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/repositories/blacklist_repository.dart';
 import '../../services/sync_service.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class BlacklistScreen extends ConsumerStatefulWidget {
   const BlacklistScreen({super.key});
@@ -430,9 +429,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تمت المزامنة بنجاح'),
           backgroundColor: Colors.green,
@@ -442,9 +439,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشلت المزامنة: $e'),
           backgroundColor: Colors.red,
@@ -459,7 +454,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
 
   void _showSearchDialog(BuildContext context) {
     final controller = TextEditingController(text: _filterText);
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('بحث في القائمة السوداء'),
@@ -499,7 +494,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
       ),
     ).then((_) {
       controller.dispose();
-    });
+    }));
   }
 
   Future<bool?> _showDeleteConfirmDialog(BuildContext context, String name) {
@@ -548,7 +543,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
     );
     final formKey = GlobalKey<FormState>();
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
@@ -597,6 +592,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.phone,
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -672,9 +668,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                 if (!mounted) {
                   return;
                 }
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('خطأ: $e'),
                     backgroundColor: Colors.red,
@@ -694,7 +688,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
       phoneCtrl.dispose();
       reasonCtrl.dispose();
       notesCtrl.dispose();
-    });
+    }));
   }
 }
 

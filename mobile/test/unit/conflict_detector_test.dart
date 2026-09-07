@@ -37,13 +37,17 @@ void main() {
         expect(result.type, equals(ConflictType.deleteVsUpdate));
       });
 
-      test('noConflictRemoteNewer when remote deleted, local not', () {
+      // ✅ P0-4 Audit Fix (2026-08-06): تماثل سياسة الحذف.
+      // سابقاً، كان هذا يُرجع `noConflictRemoteNewer` (يُطبّق الحذف البعيد
+      // ويُفقد التحديث المحلي). الآن يُرجع `deleteVsUpdate` ليُعالجه
+      // SmartConflictResolver بقرار واعٍ بدلاً من تطبيق الحذف صامتاً.
+      test('deleteVsUpdate when remote deleted, local not (P0-4 fix)', () {
         final result = ConflictDetector.detect(
           localData: {'status': 'active'},
           remoteData: {'deletedAt': 1000},
           commonAncestor: null,
         );
-        expect(result.type, equals(ConflictType.noConflictRemoteNewer));
+        expect(result.type, equals(ConflictType.deleteVsUpdate));
       });
 
       test('noConflictEqual when VCs are identical', () {
@@ -281,7 +285,7 @@ void main() {
       test(
         'needsManualResolution is true for concurrentSameFields with critical field',
         () {
-          final result = ConflictDetectionResult(
+          const result = ConflictDetectionResult(
             type: ConflictType.concurrentSameFields,
             conflictingFields: {'amount'},
           );
@@ -292,7 +296,7 @@ void main() {
       test(
         'needsManualResolution is false for concurrentSameFields without critical field',
         () {
-          final result = ConflictDetectionResult(
+          const result = ConflictDetectionResult(
             type: ConflictType.concurrentSameFields,
             conflictingFields: {'notes'},
           );
@@ -301,7 +305,7 @@ void main() {
       );
 
       test('canAutoResolve is true for concurrentDifferentFields', () {
-        final result = ConflictDetectionResult(
+        const result = ConflictDetectionResult(
           type: ConflictType.concurrentDifferentFields,
         );
         expect(result.canAutoResolve, isTrue);

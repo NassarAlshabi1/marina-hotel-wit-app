@@ -150,7 +150,7 @@ Example:
 | Property | Value |
 |----------|-------|
 | SHA-1 | 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C |
-| Package | com.aden.marina |
+| Package | com.marina.marina |
 ```
 
 ## 🔄 Workflow Steps

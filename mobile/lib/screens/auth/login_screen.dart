@@ -1,10 +1,10 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
 
@@ -21,12 +21,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
   bool _submitting = false;
-  bool _rememberMe = false;
+  bool _rememberMe = true;
 
   @override
   void initState() {
     super.initState();
-    _loadRememberMe();
+    unawaited(_loadRememberMe());
   }
 
   Future<void> _loadRememberMe() async {
@@ -60,6 +60,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Card(
+                  elevation: isLowEndDevice ? 0 : null,
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Form(

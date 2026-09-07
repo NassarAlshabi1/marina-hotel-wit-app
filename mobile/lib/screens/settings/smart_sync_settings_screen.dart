@@ -1,6 +1,4 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
-// ignore_for_file: use_build_context_synchronously
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,6 +33,7 @@ class _SmartSyncSettingsScreenState
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setEnabled(enabled);
+      if (!mounted) return;
 
       ref.invalidate(smartSyncStatusProvider);
 
@@ -49,9 +48,8 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة المزامنة: $e'),
           backgroundColor: Colors.red,
@@ -59,6 +57,7 @@ class _SmartSyncSettingsScreenState
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -68,6 +67,7 @@ class _SmartSyncSettingsScreenState
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setSyncInterval(minutes);
+      if (!mounted) return;
 
       ref.invalidate(smartSyncStatusProvider);
 
@@ -78,9 +78,8 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير فترة المزامنة: $e'),
           backgroundColor: Colors.red,
@@ -88,6 +87,7 @@ class _SmartSyncSettingsScreenState
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -97,21 +97,19 @@ class _SmartSyncSettingsScreenState
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setConflictResolution(resolution);
+      if (!mounted) return;
 
       ref.invalidate(smartSyncStatusProvider);
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🤝 تم تغيير استراتيجية حل التضارب'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير استراتيجية التضارب: $e'),
           backgroundColor: Colors.red,
@@ -119,6 +117,7 @@ class _SmartSyncSettingsScreenState
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -128,21 +127,19 @@ class _SmartSyncSettingsScreenState
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.forceSyncNow();
+      if (!mounted) return;
 
       ref.invalidate(smartSyncStatusProvider);
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🔄 تمت المزامنة اليدوية بنجاح'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ فشلت المزامنة اليدوية: $e'),
           backgroundColor: Colors.red,
@@ -150,6 +147,7 @@ class _SmartSyncSettingsScreenState
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -158,6 +156,7 @@ class _SmartSyncSettingsScreenState
     try {
       final guardian = ref.read(syncGuardianProvider);
       await guardian.forceSync();
+      if (!mounted) return;
       ref.invalidate(syncHealthProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -166,15 +165,15 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'),
           backgroundColor: Colors.red,
         ),
       );
     }
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -183,6 +182,7 @@ class _SmartSyncSettingsScreenState
     try {
       final guardian = ref.read(syncGuardianProvider);
       await guardian.setDevicePriority(enabled ? 200 : 100);
+      if (!mounted) return;
       ref.invalidate(syncHealthProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -195,15 +195,15 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تغيير أولوية الجهاز: $e'),
           backgroundColor: Colors.red,
         ),
       );
     }
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -573,7 +573,7 @@ class _SmartSyncSettingsScreenState
                   ? null
                   : (value) {
                       if (value != null) {
-                        _changeSyncInterval(value);
+                        unawaited(_changeSyncInterval(value));
                       }
                     },
             ),
@@ -623,7 +623,7 @@ class _SmartSyncSettingsScreenState
                   ? null
                   : (value) {
                       if (value != null) {
-                        _changeConflictResolution(value);
+                        unawaited(_changeConflictResolution(value));
                       }
                     },
             ),

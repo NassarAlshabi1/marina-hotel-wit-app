@@ -21,7 +21,8 @@ import 'local_notification_service.dart';
 class RemoteChangeNotifier {
   factory RemoteChangeNotifier() => _instance;
   RemoteChangeNotifier._internal();
-  static final RemoteChangeNotifier _instance = RemoteChangeNotifier._internal();
+  static final RemoteChangeNotifier _instance =
+      RemoteChangeNotifier._internal();
 
   static RemoteChangeNotifier get instance => _instance;
 
@@ -49,7 +50,9 @@ class RemoteChangeNotifier {
       final keys = prefs.getStringList(_kDedupKey) ?? <String>[];
       _dedupKeys.addAll(keys);
       _dedupLoaded = true;
-      debugPrint('📞 RemoteChangeNotifier: loaded ${_dedupKeys.length} dedup keys');
+      debugPrint(
+        '📞 RemoteChangeNotifier: loaded ${_dedupKeys.length} dedup keys',
+      );
     } catch (e) {
       debugPrint('⚠️ RemoteChangeNotifier: failed to load dedup keys: $e');
       _dedupLoaded = true;
@@ -87,7 +90,10 @@ class RemoteChangeNotifier {
     final updatedAt = (record['updated_at'] as int?) ?? 0;
 
     // ✅ لا تُشعر لتغييرات نفس الجهاز
-    if (_myDeviceId != null && _myDeviceId!.isNotEmpty && sourceDeviceId.isNotEmpty && sourceDeviceId == _myDeviceId) {
+    if (_myDeviceId != null &&
+        _myDeviceId!.isNotEmpty &&
+        sourceDeviceId.isNotEmpty &&
+        sourceDeviceId == _myDeviceId) {
       return;
     }
 
@@ -125,7 +131,10 @@ class RemoteChangeNotifier {
     );
 
     _aggregationTimer?.cancel();
-    _aggregationTimer = Timer(_kAggregationWindow, _flushAggregatedNotification);
+    _aggregationTimer = Timer(
+      _kAggregationWindow,
+      _flushAggregatedNotification,
+    );
   }
 
   void _flushAggregatedNotification() {
@@ -162,7 +171,9 @@ class RemoteChangeNotifier {
   String _singleChangeTitle(_PendingChange c) {
     switch (c.entity) {
       case 'bookings':
-        return c.op == 'delete' ? '🚪 حذف حجز من جهاز آخر' : '🛎️ حجز جديد من جهاز آخر';
+        return c.op == 'delete'
+            ? '🚪 حذف حجز من جهاز آخر'
+            : '🛎️ حجز جديد من جهاز آخر';
       case 'payments':
         return '💰 دفعة من جهاز آخر';
       case 'expenses':

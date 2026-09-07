@@ -1,9 +1,9 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
+
+import '../utils/debug_log.dart';
 import 'local_db.dart';
 
 class PendingConflict {
@@ -157,7 +157,7 @@ class ConflictManager {
             );
       }
     } catch (e) {
-      debugPrint('❌ فشل حفظ التعارض: $e');
+      dlog(() => '❌ فشل حفظ التعارض: $e');
     }
   }
 
@@ -209,7 +209,7 @@ class ConflictManager {
         );
       }
     } catch (e) {
-      debugPrint('❌ فشل تحديث حل التعارض: $e');
+      dlog(() => '❌ فشل تحديث حل التعارض: $e');
     }
   }
 
@@ -236,7 +236,7 @@ class ConflictManager {
                 jsonDecode(row.resolution) as Map<String, dynamic>?;
           }
         } catch (e) {
-          debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');
+          dlog(() => '❌ فشل في فك ترميز بيانات التعارض: $e');
         }
 
         _pendingConflicts.add(
@@ -254,7 +254,7 @@ class ConflictManager {
 
       _conflictsController.add(_pendingConflicts);
     } catch (e) {
-      debugPrint('❌ فشل تحميل التعارضات المعلقة: $e');
+      dlog(() => '❌ فشل تحميل التعارضات المعلقة: $e');
     }
   }
 
@@ -280,7 +280,7 @@ class ConflictManager {
 
   void dispose() {
     if (!_conflictsController.isClosed) {
-      _conflictsController.close();
+      unawaited(_conflictsController.close());
     }
   }
 }

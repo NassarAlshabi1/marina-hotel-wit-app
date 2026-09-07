@@ -178,7 +178,7 @@ void main() {
 
     test('snapshot rollback restores data on failure', () async {
       final now = Time.nowEpoch();
-      final originalStatus = 'شاغرة';
+      const originalStatus = 'شاغرة';
       await database
           .into(database.rooms)
           .insert(
@@ -187,7 +187,7 @@ void main() {
               roomNumber: const Value('201'),
               type: const Value('double'),
               price: const Value(250.0),
-              status: Value(originalStatus),
+              status: const Value(originalStatus),
               createdAt: Value(now),
               updatedAt: Value(now),
               lastModified: Value(now),
@@ -376,9 +376,7 @@ void main() {
       );
     });
 
-    test(
-      'detects deletes after soft removal',
-      () async {
+    test('detects deletes after soft removal', () async {
       final now = Time.nowEpoch();
       final roomUuid = IdGen.uuid();
       await database
@@ -420,12 +418,13 @@ void main() {
 
       expect(
         deleteComputation.changes.any(
-          (c) => c.entity == 'rooms' && c.operation == 'delete',
+          (c) =>
+              c.entity == 'rooms' &&
+              c.operation == 'update' &&
+              c.data['deleted_at'] != null,
         ),
         isTrue,
       );
-      },
-      skip: 'DeltaSyncService does not detect soft-deletes as delete ops — needs investigation',
-    );
+    });
   });
 }

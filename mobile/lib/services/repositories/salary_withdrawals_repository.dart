@@ -10,7 +10,6 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class SalaryWithdrawalsRepository {
   SalaryWithdrawalsRepository(this._db) : _outboxDao = OutboxDao(_db);
@@ -23,29 +22,10 @@ class SalaryWithdrawalsRepository {
     try {
       await _db.customStatement(
         'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
-        [
-          expenseId,
-          salaryWithdrawalId,
-        ],
+        [expenseId, salaryWithdrawalId],
       );
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
+    } catch (_) {
       // العمود قد لا يكون موجوداً في الإصدارات القديمة — نتخطى بصمت
-    }
-  }
-
-  /// جلب اسم الموظف من قاعدة البيانات لاستخدامه في إشعارات Telegram/WhatsApp.
-  /// يُرجع null إذا لم يُعثر على الموظف (مثلاً تم حذفه).
-  Future<String?> _lookupEmployeeName(int employeeId) async {
-    try {
-      final emp = await (_db.select(_db.employees)
-            ..where((e) => e.id.equals(employeeId))
-            ..limit(1))
-          .getSingleOrNull();
-      return emp?.name;
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
-      return null;
     }
   }
 
@@ -63,77 +43,75 @@ class SalaryWithdrawalsRepository {
   }) async {
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
-    final companion = SalaryWithdrawalsCompanion(
-      localUuid: d.Value(uuid),
-      serverId: const d.Value(null),
-      employeeId: d.Value(employeeId),
-      amount: d.Value(amount),
-      withdrawDate: d.Value(date),
-      reason: d.Value(reason),
-      hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
-      withdrawalType: d.Value(withdrawalType),
-      description: d.Value(description),
-      createdAt: d.Value(now),
-      updatedAt: d.Value(now),
-      deletedAt: const d.Value(null),
-      lastModified: d.Value(now),
-      createdAtEpoch: d.Value(now),
-      lastModifiedEpoch: d.Value(now),
-      version: const d.Value(1),
-      origin: d.Value(originIsServer ? 'server' : 'local'),
-      vectorClock: const d.Value('{}'),
-    );
-    final id = await _db.into(_db.salaryWithdrawals).insert(companion);
 
-    // ✅ كتابة expense_id في العمود الخام (إذا كان expenseId > 0)
-    if (expenseId > 0) {
-      await _setExpenseIdRaw(id, expenseId);
-    }
+    final id = await _db.transaction(() async {
+      final companion = SalaryWithdrawalsCompanion(
+        localUuid: d.Value(uuid),
+        serverId: const d.Value(null),
+        employeeId: d.Value(employeeId),
+        amount: d.Value(amount),
+        withdrawDate: d.Value(date),
+        reason: d.Value(reason),
+        hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
+        withdrawalType: d.Value(withdrawalType),
+        description: d.Value(description),
+        createdAt: d.Value(now),
+        updatedAt: d.Value(now),
+        deletedAt: const d.Value(null),
+        lastModified: d.Value(now),
+        createdAtEpoch: d.Value(now),
+        lastModifiedEpoch: d.Value(now),
+        version: const d.Value(1),
+        origin: d.Value(originIsServer ? 'server' : 'local'),
+        vectorClock: const d.Value('{}'),
+      );
+      final id = await _db.into(_db.salaryWithdrawals).insert(companion);
 
-    // إشعارات فورية (fire-and-forget) — مع اسم الموظف
-    unawaited(
-      () async {
-        final empName = await _lookupEmployeeName(employeeId);
-        await WhatsAppNotificationService.instance.notifyNewExpense(
-          category: 'سحب راتب',
-          amount: amount,
-          description: reason,
-          employeeName: empName,
-        );
-      }(),
-    );
-    unawaited(
-      () async {
-        final empName = await _lookupEmployeeName(employeeId);
-        await TelegramNotificationService.instance.notifyNewExpense(
-          category: 'سحب راتب',
-          amount: amount,
-          description: reason,
-          employeeName: empName,
-        );
-      }(),
-    );
-
-    if (!originIsServer) {
-      final payload = <String, dynamic>{
-        'employeeId': employeeId,
-        'amount': amount,
-        'withdrawDate': date,
-        'reason': reason,
-        'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
-        'withdrawalType': withdrawalType,
-        'description': description,
-      };
-      // ✅ إضافة expenseId للحمولة لمزامنته مع Appwrite
       if (expenseId > 0) {
-        payload['expenseId'] = expenseId;
+        await _setExpenseIdRaw(id, expenseId);
       }
-      await _outboxDao.merge(
-        entity: 'salary_withdrawals',
-        op: 'create',
-        localUuid: uuid,
-        payload: payload,
-        clientTs: now,
+
+      if (!originIsServer) {
+        final payload = <String, dynamic>{
+          'employeeId': employeeId,
+          'amount': amount,
+          'withdrawDate': date,
+          'reason': reason,
+          'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
+          'withdrawalType': withdrawalType,
+          'description': description,
+        };
+        if (expenseId > 0) {
+          payload['expenseId'] = expenseId;
+        }
+        await _outboxDao.merge(
+          entity: 'salary_withdrawals',
+          op: 'create',
+          localUuid: uuid,
+          payload: payload,
+          clientTs: now,
+        );
+      }
+
+      return id;
+    });
+
+    // الإشعارات لا تدخل في المعاملة حتى لا تطيل قفل SQLite أو تُرسل قبل
+    // نجاح حفظ السجل وoutbox. لا نرسلها للبيانات المسحوبة من الخادم.
+    if (!originIsServer) {
+      unawaited(
+        WhatsAppNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount,
+          description: reason,
+        ),
+      );
+      unawaited(
+        TelegramNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount,
+          description: reason,
+        ),
       );
     }
 
@@ -175,17 +153,14 @@ class SalaryWithdrawalsRepository {
           matched = byId;
         }
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
+    } catch (_) {
       // العمود قد لا يكون موجوداً
     }
 
     // الطريقة 2: بحث عبر reason (الطريقة القديمة)
     if (matched == null) {
       final existing =
-          await (_db.select(
-                _db.salaryWithdrawals,
-              )..where(
+          await (_db.select(_db.salaryWithdrawals)..where(
                 (t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull(),
               ))
               .get();
@@ -204,9 +179,7 @@ class SalaryWithdrawalsRepository {
       final matchedId = matched.id; // ✅ متغير محلي non-null
       // البحث عن سجلات أخرى بنفس expense_id أو exp_XX
       final allExisting =
-          await (_db.select(
-                _db.salaryWithdrawals,
-              )..where(
+          await (_db.select(_db.salaryWithdrawals)..where(
                 (t) => t.deletedAt.isNull() & t.id.equals(matchedId).not(),
               ))
               .get();
@@ -298,28 +271,20 @@ class SalaryWithdrawalsRepository {
             clientTs: now,
           );
         }
-        // إشعارات فورية (fire-and-forget) عند التحديث — مع اسم الموظف
+        // إشعارات فورية (fire-and-forget) عند التحديث
         unawaited(
-          () async {
-            final empName = await _lookupEmployeeName(employeeId);
-            await WhatsAppNotificationService.instance.notifyNewExpense(
-              category: 'سحب راتب',
-              amount: amount,
-              description: note ?? reasonText,
-              employeeName: empName,
-            );
-          }(),
+          WhatsAppNotificationService.instance.notifyNewExpense(
+            category: 'سحب راتب',
+            amount: amount,
+            description: note ?? reasonText,
+          ),
         );
         unawaited(
-          () async {
-            final empName = await _lookupEmployeeName(employeeId);
-            await TelegramNotificationService.instance.notifyNewExpense(
-              category: 'سحب راتب',
-              amount: amount,
-              description: note ?? reasonText,
-              employeeName: empName,
-            );
-          }(),
+          TelegramNotificationService.instance.notifyNewExpense(
+            category: 'سحب راتب',
+            amount: amount,
+            description: note ?? reasonText,
+          ),
         );
       } else {
         // إنشاء سجل جديد
@@ -351,28 +316,19 @@ class SalaryWithdrawalsRepository {
 
         // ✅ كتابة expense_id في العمود الخام
         await _setExpenseIdRaw(newId, expenseId);
-        // إشعارات فورية — مع اسم الموظف
         unawaited(
-          () async {
-            final empName = await _lookupEmployeeName(employeeId);
-            await WhatsAppNotificationService.instance.notifyNewExpense(
-              category: 'سحب راتب',
-              amount: amount,
-              description: note,
-              employeeName: empName,
-            );
-          }(),
+          WhatsAppNotificationService.instance.notifyNewExpense(
+            category: 'سحب راتب',
+            amount: amount,
+            description: note,
+          ),
         );
         unawaited(
-          () async {
-            final empName = await _lookupEmployeeName(employeeId);
-            await TelegramNotificationService.instance.notifyNewExpense(
-              category: 'سحب راتب',
-              amount: amount,
-              description: note,
-              employeeName: empName,
-            );
-          }(),
+          TelegramNotificationService.instance.notifyNewExpense(
+            category: 'سحب راتب',
+            amount: amount,
+            description: note,
+          ),
         );
 
         if (!originIsServer) {
@@ -419,17 +375,14 @@ class SalaryWithdrawalsRepository {
           _db.salaryWithdrawals,
         )..where((t) => t.id.isIn(ids))).get();
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
+    } catch (_) {
       // العمود قد لا يكون موجوداً
     }
 
     // الطريقة 2: بحث عبر reason (الطريقة القديمة) إذا لم نجد عبر expense_id
     if (toDelete.isEmpty) {
       final candidates =
-          await (_db.select(
-                _db.salaryWithdrawals,
-              )..where(
+          await (_db.select(_db.salaryWithdrawals)..where(
                 (t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull(),
               ))
               .get();
@@ -478,9 +431,8 @@ class SalaryWithdrawalsRepository {
 
   /// جلب كل سحوبات الرواتب (غير المحذوفة فقط)
   Future<List<SalaryWithdrawal>> listAll() async {
-    return (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.deletedAt.isNull())).get();
+    // Returns ALL records including soft-deleted ones (for audit/recovery)
+    return _db.select(_db.salaryWithdrawals).get();
   }
 
   /// جلب سحوبات موظف معين
@@ -491,11 +443,24 @@ class SalaryWithdrawalsRepository {
         .get();
   }
 
-  /// جلب السحوبات النشطة (غير المحذوفة)
-  Future<List<SalaryWithdrawal>> listActive() async {
-    return (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.deletedAt.isNull())).get();
+  /// جلب السحوبات النشطة (غير المحذوفة) مع حد اختياري للقوائم منخفضة الذاكرة.
+  Future<List<SalaryWithdrawal>> listActive({
+    int? limit,
+    int offset = 0,
+  }) async {
+    final query = _db.select(_db.salaryWithdrawals)
+      ..where((t) => t.deletedAt.isNull())
+      ..orderBy([
+        (t) => d.OrderingTerm(
+          expression: t.withdrawDate,
+          mode: d.OrderingMode.desc,
+        ),
+        (t) => d.OrderingTerm(expression: t.id, mode: d.OrderingMode.desc),
+      ]);
+    if (limit != null) {
+      query.limit(limit, offset: offset);
+    }
+    return query.get();
   }
 
   /// حساب مفتاح اليوم الفندقي من تاريخ السحب
@@ -519,8 +484,7 @@ class SalaryWithdrawalsRepository {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
+    } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
     }
   }

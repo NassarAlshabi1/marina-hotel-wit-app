@@ -1,6 +1,9 @@
-import 'package:flutter/foundation.dart' show debugPrint;
 class Time {
   static const int earlyCheckinGraceHour = 8;
+
+  /// حد اليوم الفندقي الموحد: يبدأ اليوم الجديد عند 14:01 بالضبط.
+  static const int hotelDayBoundaryHour = 14;
+  static const int hotelDayBoundaryMinute = 1;
 
   static int nowEpoch() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
   static String nowIso() => DateTime.now().toIso8601String();
@@ -15,8 +18,8 @@ class Time {
 
   static String hotelDayKey({
     DateTime? now,
-    int cutoffHour = 14,
-    int cutoffMinute = 1, // ✅ 14:01 (not 14:00) — matches HotelTimeEngine
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final base = now ?? DateTime.now();
     final shifted = base.subtract(
@@ -27,8 +30,8 @@ class Time {
 
   static String hotelDayKeyFromIso(
     String? isoString, {
-    int cutoffHour = 14,
-    int cutoffMinute = 1, // ✅ 14:01
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     if (isoString == null || isoString.trim().isEmpty) {
       return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
@@ -41,16 +44,15 @@ class Time {
         cutoffHour: cutoffHour,
         cutoffMinute: cutoffMinute,
       );
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in time.dart: ');
+    } catch (_) {
       return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
     }
   }
 
   static DateTime hotelDayStart(
     DateTime value, {
-    int cutoffHour = 14,
-    int cutoffMinute = 1, // ✅ 14:01
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final start = DateTime(
       value.year,
@@ -74,19 +76,11 @@ class Time {
 
   static DateTime hotelDayStartForNewBooking(
     DateTime checkin, {
-    int cutoffHour = 14,
-    int cutoffMinute = 1, // ✅ 14:01
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
-    if (checkin.hour < cutoffHour ||
-        (checkin.hour == cutoffHour && checkin.minute < cutoffMinute)) {
-      return DateTime(
-        checkin.year,
-        checkin.month,
-        checkin.day,
-        cutoffHour,
-        cutoffMinute,
-      );
-    }
+    // الحجز قبل 14:01 ينتمي إلى اليوم الفندقي السابق؛ يعيد hotelDayStart
+    // بداية ذلك اليوم بدلاً من إعادة وقت قطع مستقبلي في اليوم التقويمي نفسه.
     return hotelDayStart(
       checkin,
       cutoffHour: cutoffHour,
@@ -96,8 +90,8 @@ class Time {
 
   static String hotelDayStartIso(
     String hotelDay, {
-    int cutoffHour = 14,
-    int cutoffMinute = 1, // ✅ 14:01
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final h = cutoffHour.toString().padLeft(2, '0');
     final m = cutoffMinute.toString().padLeft(2, '0');
@@ -109,8 +103,8 @@ class Time {
   /// `14:-1:59` عندما cutoffMinute = 0، لأن `padLeft` لا يعالج القيم السالبة.
   static String hotelDayEndIso(
     String hotelDay, {
-    int cutoffHour = 14,
-    int cutoffMinute = 1, // ✅ 14:01
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final next = _nextDateString(hotelDay);
     return hotelDayStartIso(
@@ -126,15 +120,23 @@ class Time {
     return d.add(const Duration(days: 1)).toIso8601String();
   }
 
+  /// ✅ OCR Review (2026-08-06): يحسب تاريخ اليوم التالي.
+  ///
+  /// [date] يجب أن يكون بصيغة `yyyy-MM-dd` أو ISO كامل.
+  ///
+  /// Returns: تاريخ اليوم التالي بصيغة `yyyy-MM-dd`.
+  ///
+  /// Throws: `FormatException` لو كان [date] غير صالح.
+  /// سابقاً، كان يُرجع `nowDateString()` عند الفشل، مما يُخفي أخطاء الـ parse.
+  /// الآن يرمي استثناء ليكتشفها المطور.
+  ///
+  /// ملاحظة حول leap year / month transitions:
+  /// `DateTime.add(Duration(days: 1))` في Dart يستخدم calendar arithmetic
+  /// صحيحاً — يتعامل مع السنة الكبيسة وانتقالات الشهور بشكل سليم.
   static String _nextDateString(String date) {
-    try {
-      final dt = DateTime.parse('${date}T00:00:00');
-      final next = dt.add(const Duration(days: 1));
-      return dateToString(next);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in time.dart: ');
-      return nowDateString();
-    }
+    final dt = DateTime.parse('${date}T00:00:00');
+    final next = dt.add(const Duration(days: 1));
+    return dateToString(next);
   }
 
   static String safeIsoToDateString(String? isoString) {
@@ -161,8 +163,8 @@ class Time {
   static int nightsWithCutoff(
     DateTime checkin, {
     DateTime? checkout,
-    int cutoffHour = 14,
-    int cutoffMinute = 1, // ✅ 14:01 — matches HotelTimeEngine boundary
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final end = checkout ?? DateTime.now();
 
@@ -190,23 +192,10 @@ class Time {
 
     const int secondsInDay = 24 * 3600;
 
-    // عدد الليالي هو ناتج قسمة الثواني الكلية على ثواني اليوم الواحد + 1
-    // إذا كان وقت المغادرة قبل الـ cutoff (أي مضاعفات 24 ساعة بالضبط
-    // مثل checkout عند 14:01 والـ cutoff عند 14:01)، لا يتم احتساب يوم جديد.
-    // لكن إذا كان وقت المغادرة عند أو بعد الـ cutoff، يجب احتساب يوم إضافي.
-    int nights = (totalSeconds ~/ secondsInDay) + 1;
-
-    // اطرح 1 فقط إذا كانت المدة مضاعف دقيق لليوم
-    // AND وقت المغادرة قبل الـ cutoff
-    if (totalSeconds > 0 && totalSeconds % secondsInDay == 0) {
-      // تحقق: هل وقت المغادرة قبل الـ cutoff؟
-      final isCheckoutBeforeCutoff = end.hour < cutoffHour ||
-          (end.hour == cutoffHour && end.minute < cutoffMinute);
-      if (isCheckoutBeforeCutoff) {
-        nights -= 1;
-      }
-    }
-
+    // عدد الليالي هو ناتج قسمة الثواني الكلية على ثواني اليوم الواحد + 1.
+    // لا نخصم عند مضاعف 24 ساعة: الوصول إلى حد 14:01 بالضبط يبدأ
+    // يوماً فندقياً جديداً ويجب أن يضيف ليلة كاملة.
+    final nights = (totalSeconds ~/ secondsInDay) + 1;
     return nights > 0 ? nights : 1;
   }
 }

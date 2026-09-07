@@ -23,7 +23,7 @@ import 'package:marina_hotel_mobile/services/salary_fix_helper.dart';
 /// 4. مصروف غير راتب يتيم → يجب تصفيره (سلوك 'employee'/'booking' القديم)
 /// 5. SharedPreferences flag يمنع التكرار
 /// 6. التأجيل عندما لا يوجد موظفون
-/// 7. تحديث lastModified + updatedAt + outbox merge بعد الإصلاح
+/// 7. إصلاح السجل المسحوب من دون تغيير lastModified/version أو إنشاء Outbox
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -199,15 +199,19 @@ void main() {
       );
       expect(
         fixed.lastModified,
-        greaterThan(1000),
-        reason: 'lastModified يجب أن يُحدّث',
+        1000,
+        reason: 'الإصلاح المشتق من السحب يجب أن يحافظ على lastModified البعيد',
       );
       expect(
         fixed.updatedAt,
         greaterThan(1000),
         reason: 'updatedAt يجب أن يُحدّث',
       );
-      expect(fixed.version, 2, reason: 'version يجب أن يُزاد');
+      expect(
+        fixed.version,
+        1,
+        reason: 'الإصلاح المشتق من السحب يحافظ على الإصدار البعيد',
+      );
     });
 
     test(
@@ -304,11 +308,11 @@ void main() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // 4. outbox merge (للرفع التلقائي)
+  // 4. لا Outbox من إصلاح السجلات المسحوبة
   // ═══════════════════════════════════════════════════════════════════════
 
-  group('SalaryFixHelper — outbox merge للرفع', () {
-    test('يُضيف الإصلاح للـ outbox للرفع للسحاب', () async {
+  group('SalaryFixHelper — صيانة ما بعد السحب', () {
+    test('لا يضيف الإصلاح للـ Outbox', () async {
       final empId = await createEmployee(localUuid: 'emp-outbox-test');
       final expenseId = await createOrphanSalaryExpense(
         expenseType: 'سحب من الراتب',
@@ -330,9 +334,9 @@ void main() {
       final helper = SalaryFixHelper(db);
       await helper.fixOrphanSalaryExpensesForTest();
 
-      // تحقق: outbox يحتوي على عملية update للمصروف
+      // تحقق: الصيانة الناتجة عن السحب لا تتحول إلى عملية رفع.
       final count = await outboxCountForExpense('exp-outbox-test-001');
-      expect(count, greaterThan(0), reason: 'يجب إضافة عملية للـ outbox للرفع');
+      expect(count, 0, reason: 'لا يجب إضافة تغيير Appwrite المشتق إلى Outbox');
     });
   });
 
@@ -435,21 +439,21 @@ void main() {
       final expenseId = await db
           .into(db.expenses)
           .insert(
-            ExpensesCompanion(
-              expenseType: const d.Value('employee'),
-              relatedId: const d.Value(999),
-              description: const d.Value('مصروف موظف قديم'),
-              amount: const d.Value(1000),
-              date: const d.Value('2026-06-01'),
-              localUuid: const d.Value('exp-employee-001'),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
-              createdAtEpoch: const d.Value(1000),
-              lastModifiedEpoch: const d.Value(1000),
-              version: const d.Value(1),
-              origin: const d.Value('local'),
-              vectorClock: const d.Value('{}'),
+            const ExpensesCompanion(
+              expenseType: d.Value('employee'),
+              relatedId: d.Value(999),
+              description: d.Value('مصروف موظف قديم'),
+              amount: d.Value(1000),
+              date: d.Value('2026-06-01'),
+              localUuid: d.Value('exp-employee-001'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
+              createdAtEpoch: d.Value(1000),
+              lastModifiedEpoch: d.Value(1000),
+              version: d.Value(1),
+              origin: d.Value('local'),
+              vectorClock: d.Value('{}'),
             ),
           );
 
@@ -474,20 +478,20 @@ void main() {
       final emp2Id = await db
           .into(db.employees)
           .insert(
-            EmployeesCompanion(
-              name: const d.Value('موظف 2'),
-              basicSalary: const d.Value(60000),
-              position: const d.Value('موظف'),
-              status: const d.Value('active'),
-              localUuid: const d.Value('emp-2'),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
-              createdAtEpoch: const d.Value(1000),
-              lastModifiedEpoch: const d.Value(1000),
-              version: const d.Value(1),
-              origin: const d.Value('local'),
-              vectorClock: const d.Value('{}'),
+            const EmployeesCompanion(
+              name: d.Value('موظف 2'),
+              basicSalary: d.Value(60000),
+              position: d.Value('موظف'),
+              status: d.Value('active'),
+              localUuid: d.Value('emp-2'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
+              createdAtEpoch: d.Value(1000),
+              lastModifiedEpoch: d.Value(1000),
+              version: d.Value(1),
+              origin: d.Value('local'),
+              vectorClock: d.Value('{}'),
             ),
           );
 
@@ -504,22 +508,22 @@ void main() {
       final exp2 = await db
           .into(db.expenses)
           .insert(
-            ExpensesCompanion(
-              expenseType: const d.Value('خصم راتب'),
-              relatedId: const d.Value(999),
-              description: const d.Value('خصم قديم'),
-              amount: const d.Value(2000),
-              date: const d.Value('2026-06-02'),
-              localUuid: const d.Value('exp-int-2'),
-              employeeUuid: const d.Value('emp-2'),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
-              createdAtEpoch: const d.Value(1000),
-              lastModifiedEpoch: const d.Value(1000),
-              version: const d.Value(1),
-              origin: const d.Value('local'),
-              vectorClock: const d.Value('{}'),
+            const ExpensesCompanion(
+              expenseType: d.Value('خصم راتب'),
+              relatedId: d.Value(999),
+              description: d.Value('خصم قديم'),
+              amount: d.Value(2000),
+              date: d.Value('2026-06-02'),
+              localUuid: d.Value('exp-int-2'),
+              employeeUuid: d.Value('emp-2'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
+              createdAtEpoch: d.Value(1000),
+              lastModifiedEpoch: d.Value(1000),
+              version: d.Value(1),
+              origin: d.Value('local'),
+              vectorClock: d.Value('{}'),
             ),
           );
 

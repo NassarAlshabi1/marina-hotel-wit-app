@@ -72,7 +72,7 @@ jobs:
         run: flutter pub get
 
       - name: 🏗️ Generate build_runner files
-        run: dart run build_runner build 
+        run: dart run build_runner build --delete-conflicting-outputs
 
       # ─────────────────────────────────────────────────────────────────────
       #  تشغيل الاختبارات مع coverage
@@ -86,7 +86,9 @@ jobs:
             --reporter compact \
             2>&1 | tee test_results.log
           exit ${PIPESTATUS[0]}
-        continue-on-error: true  # لا نُعطِّل الـ workflow لو فشلت بعض الاختبارات
+        # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
+        # فشل الاختبارات يجب أن يُكسر الـ build. إذا فشلت اختبارات بسبب
+        # إصلاحات P0، أصلحها بدلاً من إعادة continue-on-error.
 
       # ─────────────────────────────────────────────────────────────────────
       #  التحقق من وجود ملف coverage

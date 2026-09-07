@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 // ============================================================================
 //  Marina Hotel — Integration Tests for Critical Flows
 //  ============================================================================
@@ -9,13 +7,19 @@ import 'dart:io' show Platform;
 //    3. PDF export flow — توليد PDF من بيانات حقيقية
 //
 //  يستخدم drift NativeDatabase.memory() + Riverpod providers حقيقية.
+//  جميع التواريخ ديناميكية (مبنية على DateTime.now()) لضمان استقرار الاختبارات
+//  في CI في أي وقت تُشغّل فيه.
 // ============================================================================
 
 // ignore_for_file: lines_longer_than_80_chars
 
+@Tags(['integration'])
+library marina_hotel_mobile.test.integration_critical_flows_test;
+
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +30,7 @@ import 'package:marina_hotel_mobile/providers/repository_providers.dart';
 import 'package:marina_hotel_mobile/providers/room_payment_status_provider.dart';
 import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/expenses_dao.dart';
+import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/payments_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/rooms_dao.dart';
@@ -35,20 +40,22 @@ import 'package:marina_hotel_mobile/services/sync_service.dart';
 /// Helper: ينشئ DB مع بيانات حقيقية شاملة.
 Future<AppDatabase> _seedFullDatabase() async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
-  final outboxDao = OutboxDao(db);
+  AdapterRegistry.initialize(db);
+  final adapters = AdapterRegistry.testing(db);
+  final outboxDao = OutboxDao(db, adapters);
   final roomsDao = RoomsDao(db, outboxDao);
-  final bookingsDao = BookingsDao(db, outboxDao);
-  final paymentsDao = PaymentsDao(db, outboxDao);
-  final expensesDao = ExpensesDao(db, outboxDao);
+  final bookingsDao = BookingsDao(db, outboxDao, adapters);
+  final paymentsDao = PaymentsDao(db, outboxDao, adapters);
+  final expensesDao = ExpensesDao(db, outboxDao, adapters);
 
   // غرفة
   await roomsDao.insertOne(
-    RoomsCompanion(
-      roomNumber: const d.Value('101'),
-      type: const d.Value('عادية'),
-      price: const d.Value(150.0),
-      status: const d.Value('محجوزة'),
-      localUuid: const d.Value('room-101-uuid'),
+    const RoomsCompanion(
+      roomNumber: d.Value('101'),
+      type: d.Value('عادية'),
+      price: d.Value(150.0),
+      status: d.Value('محجوزة'),
+      localUuid: d.Value('room-101-uuid'),
     ),
   );
 
@@ -85,7 +92,7 @@ Future<AppDatabase> _seedFullDatabase() async {
       description: const d.Value('صيانة غرفة 101'),
       amount: const d.Value(50.0),
       date: d.Value(_nowIso()),
-      hotelDayKey: const d.Value('2026-07-21'),
+      hotelDayKey: d.Value(Time.nowDateString()),
       localUuid: const d.Value('expense-test-uuid'),
     ),
   );
@@ -123,12 +130,6 @@ Widget _buildTestWidget({required AppDatabase db, required Widget child}) {
 }
 
 void main() {
-  final isCI = Platform.environment.containsKey('CI') ||
-      Platform.environment.containsKey('GITHUB_ACTIONS');
-  if (isCI) {
-    return;
-  }
-
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
@@ -176,7 +177,7 @@ void main() {
       expect(room, isNotNull);
       await roomsDao.updateById(
         room!.id,
-        RoomsCompanion(status: const d.Value('شاغرة')),
+        const RoomsCompanion(status: d.Value('شاغرة')),
       );
 
       // 5) التحقق النهائي
@@ -205,8 +206,9 @@ void main() {
       final db = await _seedFullDatabase();
       addTearDown(() async => db.close());
 
-      final outboxDao = OutboxDao(db);
-      final expensesDao = ExpensesDao(db, outboxDao);
+      final adapters = AdapterRegistry.testing(db);
+      final outboxDao = OutboxDao(db, adapters);
+      final expensesDao = ExpensesDao(db, outboxDao, adapters);
 
       // 1) إضافة مصروف جديد
       final expenseId = await expensesDao.insertOne(
@@ -215,7 +217,7 @@ void main() {
           description: const d.Value('راتب موظف'),
           amount: const d.Value(5000.0),
           date: d.Value(_nowIso()),
-          hotelDayKey: const d.Value('2026-07-21'),
+          hotelDayKey: d.Value(Time.nowDateString()),
           localUuid: const d.Value('salary-expense-uuid'),
         ),
       );
@@ -295,9 +297,9 @@ void main() {
     test('إنشاء مصروف → تعديله → حذفه → كل عملية تُنشئ outbox', () async {
       final db = await _seedFullDatabase();
       addTearDown(() async => db.close());
-
-      final outboxDao = OutboxDao(db);
-      final expensesDao = ExpensesDao(db, outboxDao);
+      final adapters = AdapterRegistry.testing(db);
+      final outboxDao = OutboxDao(db, adapters);
+      final expensesDao = ExpensesDao(db, outboxDao, adapters);
 
       // 1) إنشاء
       final initialPending = await outboxDao.countPendingPushable();
@@ -307,7 +309,7 @@ void main() {
           description: const d.Value('مصروف جديد'),
           amount: const d.Value(100.0),
           date: d.Value(_nowIso()),
-          hotelDayKey: const d.Value('2026-07-21'),
+          hotelDayKey: d.Value(Time.nowDateString()),
           localUuid: const d.Value('e2e-create-uuid'),
         ),
       );
@@ -321,16 +323,18 @@ void main() {
       // 2) تعديل
       await expensesDao.updateById(
         expenseId,
-        ExpensesCompanion(
-          description: const d.Value('مصروف مُعدّل'),
-          amount: const d.Value(200.0),
+        const ExpensesCompanion(
+          description: d.Value('مصروف مُعدّل'),
+          amount: d.Value(200.0),
         ),
       );
       final afterUpdate = await outboxDao.countPendingPushable();
+      // Outbox coalescing updates the pending row for the same localUuid;
+      // it does not create a second row for every mutation.
       expect(
         afterUpdate,
-        greaterThan(afterCreate),
-        reason: 'التعديل يجب أن يُنشئ outbox entry',
+        greaterThanOrEqualTo(afterCreate),
+        reason: 'التعديل يجب أن يبقي outbox entry قابلاً للرفع',
       );
 
       // 3) حذف
@@ -338,17 +342,22 @@ void main() {
       final afterDelete = await outboxDao.countPendingPushable();
       expect(
         afterDelete,
-        greaterThan(afterUpdate),
-        reason: 'الحذف يجب أن يُنشئ outbox entry',
+        greaterThanOrEqualTo(afterUpdate),
+        reason: 'الحذف يجب أن يبقي outbox entry قابلاً للرفع',
+      );
+      expect(
+        afterDelete,
+        greaterThan(initialPending),
+        reason: 'يجب أن يبقى سجل المصروف في outbox بعد coalescing',
       );
 
-      // 4) التحقق من وجود 3 entries على الأقل (create + update + delete)
+      // 4) التحقق من بقاء سجل coalesced واحد على الأقل
       final totalCreated = afterDelete - initialPending;
       expect(
         totalCreated,
-        greaterThanOrEqualTo(3),
+        greaterThanOrEqualTo(1),
         reason:
-            'create + update + delete يجب أن تُنشئ 3 outbox entries على الأقل',
+            'create + update + delete يجب أن تُبقي outbox entry قابلاً للرفع',
       );
     });
   });

@@ -7,7 +7,6 @@ import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class SalaryPaymentsAdapter
     extends EntityAdapter<SalaryPayment, SalaryPaymentsCompanion> {
@@ -36,35 +35,21 @@ class SalaryPaymentsAdapter
         _asString(json, 'cycleLocalUuid', src) ??
         _asString(json, 'cycle_local_uuid', src);
 
-    // ✅ إصلاح دقيق: حل شامل للمعرّف البعيد
-    int? resolvedCycleId;
-
-    // الطريقة 1: البحث بالـ UUID
-    if (cycleUuid != null && cycleUuid.isNotEmpty) {
-      resolvedCycleId = await resolver.resolveSalaryCycle(uuid: cycleUuid);
-    }
-
-    // الطريقة 2: البحث بالـ id البعيد (كـ localId)
-    if (resolvedCycleId == null && remoteCycleId != null) {
-      resolvedCycleId = await resolver.resolveSalaryCycle(
-        localId: remoteCycleId,
-      );
-    }
-
-    // الطريقة 3: البحث بالـ serverId
-    if (resolvedCycleId == null && remoteCycleId != null) {
-      try {
-        final row =
-            await (db.select(db.salaryCycles)
-                  ..where((c) => c.serverId.equals(remoteCycleId))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (row != null) {
-          resolvedCycleId = row.id;
-        }
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in salary_payments_adapter.dart: ');}
-    }
+    // ✅ حل FK دورة الراتب عبر IdResolver: UUID → serverId → (id المحلي
+    // للمصدر المحلي فقط).
+    //
+    // ✅ إصلاح (2026-09-02): كان الترتيب id المحلي أولاً ثم serverId —
+    // مطابقة cycleId البعيد (id جهاز المصدر) مع c.id المحلي (autoIncrement
+    // يختلف بين الأجهزة) تربط الدفعة بدورة خاطئة بصمت عند التصادم الرقمي.
+    // نفس قرار resolveBooking و expenses_adapter. كما وُحّد المسار في
+    // IdResolver.resolveSalaryCycle بدل ثلاث طرق مبعثرة هنا.
+    final fromRemote = src == Source.appwrite || src == Source.drive;
+    final resolvedCycleId = await resolver.resolveSalaryCycle(
+      uuid: cycleUuid,
+      serverId: fromRemote ? remoteCycleId : null,
+      localId: fromRemote ? null : remoteCycleId,
+      fromRemote: fromRemote,
+    );
 
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);

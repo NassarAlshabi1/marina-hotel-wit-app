@@ -1,6 +1,29 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls)
-// ignore_for_file: avoid_dynamic_calls
 import 'package:drift/drift.dart';
+
+import 'local_db.dart'
+    show
+        AuditLog,
+        Booking,
+        BookingNote,
+        BookingNight,
+        BookingPriceAdjustment,
+        CashTransaction,
+        Debt,
+        Employee,
+        Expense,
+        GuestInfo,
+        HotelDayLedgerEntry,
+        InventoryItem,
+        InventoryTransaction,
+        Payment,
+        PaymentVoid,
+        PriceAdjustment,
+        Room,
+        SalaryCarryOverLog,
+        SalaryCycle,
+        SalaryPayment,
+        SalaryWithdrawal,
+        ShiftNote;
 
 /// Serializer يسمح بالتعامل مع قيم null أو أنواع غير متوقعة أثناء تحويل JSON
 /// لضمان التوافق مع النسخ الاحتياطية الأقدم.
@@ -168,28 +191,32 @@ class BackupTableData {
     required this.guestInfosData,
     required this.salaryWithdrawalsData,
     required this.salaryCarryOverLogsData,
+    required this.inventoryItemsData,
+    required this.inventoryTransactionsData,
   });
 
-  final List<dynamic> roomsData;
-  final List<dynamic> bookingsData;
-  final List<dynamic> bookingNotesData;
-  final List<dynamic> bookingNightsData;
-  final List<dynamic> ledgerData;
-  final List<dynamic> shiftNotesData;
-  final List<dynamic> employeesData;
-  final List<dynamic> expensesData;
-  final List<dynamic> cashTransactionsData;
-  final List<dynamic> paymentsData;
-  final List<dynamic> debtsData;
-  final List<dynamic> salaryCyclesData;
-  final List<dynamic> salaryPaymentsData;
-  final List<dynamic> priceAdjustmentsData;
-  final List<dynamic> bookingPriceAdjData;
-  final List<dynamic> auditLogsData;
-  final List<dynamic> paymentVoidsData;
-  final List<dynamic> guestInfosData;
-  final List<dynamic> salaryWithdrawalsData;
-  final List<dynamic> salaryCarryOverLogsData;
+  final List<Room> roomsData;
+  final List<Booking> bookingsData;
+  final List<BookingNote> bookingNotesData;
+  final List<BookingNight> bookingNightsData;
+  final List<HotelDayLedgerEntry> ledgerData;
+  final List<ShiftNote> shiftNotesData;
+  final List<Employee> employeesData;
+  final List<Expense> expensesData;
+  final List<CashTransaction> cashTransactionsData;
+  final List<Payment> paymentsData;
+  final List<Debt> debtsData;
+  final List<SalaryCycle> salaryCyclesData;
+  final List<SalaryPayment> salaryPaymentsData;
+  final List<PriceAdjustment> priceAdjustmentsData;
+  final List<BookingPriceAdjustment> bookingPriceAdjData;
+  final List<AuditLog> auditLogsData;
+  final List<PaymentVoid> paymentVoidsData;
+  final List<GuestInfo> guestInfosData;
+  final List<SalaryWithdrawal> salaryWithdrawalsData;
+  final List<SalaryCarryOverLog> salaryCarryOverLogsData;
+  final List<InventoryItem> inventoryItemsData;
+  final List<InventoryTransaction> inventoryTransactionsData;
 
   /// إجمالي عدد السجلات في جميع الجداول
   int get totalRecords =>
@@ -212,12 +239,14 @@ class BackupTableData {
       paymentVoidsData.length +
       guestInfosData.length +
       salaryWithdrawalsData.length +
-      salaryCarryOverLogsData.length;
+      salaryCarryOverLogsData.length +
+      inventoryItemsData.length +
+      inventoryTransactionsData.length;
 
   /// بناء خريطة بيانات النسخ الاحتياطي من هذه الحاوية
   Map<String, dynamic> toBackupDataMap({
     required Map<String, dynamic> metadata,
-    List<dynamic>? blacklistData,
+    List<ShiftNote>? blacklistData,
     Map<String, dynamic>? whatsappSettings,
     Map<String, dynamic>? syncStateData,
   }) {
@@ -243,6 +272,8 @@ class BackupTableData {
       guestInfosData: guestInfosData,
       salaryWithdrawalsData: salaryWithdrawalsData,
       salaryCarryOverLogsData: salaryCarryOverLogsData,
+      inventoryItemsData: inventoryItemsData,
+      inventoryTransactionsData: inventoryTransactionsData,
       blacklistData: blacklistData,
       whatsappSettings: whatsappSettings,
       syncStateData: syncStateData,
@@ -254,27 +285,29 @@ class BackupTableData {
 /// لتجنب تكرار كود تحويل الجداول إلى JSON
 Map<String, dynamic> buildBackupDataMap({
   required Map<String, dynamic> metadata,
-  required List<dynamic> roomsData,
-  required List<dynamic> bookingsData,
-  required List<dynamic> bookingNotesData,
-  required List<dynamic> bookingNightsData,
-  required List<dynamic> ledgerData,
-  required List<dynamic> shiftNotesData,
-  required List<dynamic> employeesData,
-  required List<dynamic> expensesData,
-  required List<dynamic> cashTransactionsData,
-  required List<dynamic> paymentsData,
-  required List<dynamic> debtsData,
-  required List<dynamic> salaryCyclesData,
-  required List<dynamic> salaryPaymentsData,
-  required List<dynamic> priceAdjustmentsData,
-  required List<dynamic> bookingPriceAdjData,
-  required List<dynamic> auditLogsData,
-  required List<dynamic> paymentVoidsData,
-  required List<dynamic> guestInfosData,
-  required List<dynamic> salaryWithdrawalsData,
-  required List<dynamic> salaryCarryOverLogsData,
-  List<dynamic>? blacklistData,
+  required List<Room> roomsData,
+  required List<Booking> bookingsData,
+  required List<BookingNote> bookingNotesData,
+  required List<BookingNight> bookingNightsData,
+  required List<HotelDayLedgerEntry> ledgerData,
+  required List<ShiftNote> shiftNotesData,
+  required List<Employee> employeesData,
+  required List<Expense> expensesData,
+  required List<CashTransaction> cashTransactionsData,
+  required List<Payment> paymentsData,
+  required List<Debt> debtsData,
+  required List<SalaryCycle> salaryCyclesData,
+  required List<SalaryPayment> salaryPaymentsData,
+  required List<PriceAdjustment> priceAdjustmentsData,
+  required List<BookingPriceAdjustment> bookingPriceAdjData,
+  required List<AuditLog> auditLogsData,
+  required List<PaymentVoid> paymentVoidsData,
+  required List<GuestInfo> guestInfosData,
+  required List<SalaryWithdrawal> salaryWithdrawalsData,
+  required List<SalaryCarryOverLog> salaryCarryOverLogsData,
+  required List<InventoryItem> inventoryItemsData,
+  required List<InventoryTransaction> inventoryTransactionsData,
+  List<ShiftNote>? blacklistData,
   Map<String, dynamic>? whatsappSettings,
   Map<String, dynamic>? syncStateData,
 }) {
@@ -309,6 +342,10 @@ Map<String, dynamic> buildBackupDataMap({
     'salary_withdrawals': salaryWithdrawalsData.map((s) => s.toJson()).toList(),
     'salary_carry_over_logs': salaryCarryOverLogsData
         .map((s) => s.toJson())
+        .toList(),
+    'inventory_items': inventoryItemsData.map((item) => item.toJson()).toList(),
+    'inventory_transactions': inventoryTransactionsData
+        .map((transaction) => transaction.toJson())
         .toList(),
   };
 

@@ -1,16 +1,17 @@
 import 'dart:convert';
 import 'dart:math';
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:firebase_ai/firebase_ai.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+
+import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
-import 'ai_settings_service.dart';
 import 'booking_derived_fields_service.dart';
-import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
+import 'repositories/payments_repository.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  أوامر AI
@@ -183,14 +184,11 @@ class AiReportCommand extends AiCommand {
     required super.description,
     this.dateFrom,
     this.dateTo,
-    this.roomNumber,
   });
   final String
-  reportType; // daily, revenue, occupancy, debts, expenses, room_prices,
-  // room_payments (per-room payment history — requires [roomNumber])
+  reportType; // daily, revenue, occupancy, debts, expenses, room_prices
   final String? dateFrom;
   final String? dateTo;
-  final String? roomNumber;
 }
 
 /// لا يوجد إجراء مطلوب
@@ -286,29 +284,26 @@ class GeminiService {
 
     try {
       _initError = null;
-      // ✅ استخدام إعدادات AiSettingsService القابلة للتخصيص
-      await AiSettingsService.instance.initialize();
-      final settings = AiSettingsService.instance;
-
       // FirebaseAI.googleAI() يستخدم مفتاح API المُدار من Firebase Console
+      // لا حاجة لتخزين مفتاح API في الكود أو Remote Config
       final ai = FirebaseAI.googleAI();
       _model = ai.generativeModel(
-        model: settings.model, // الموديل القابل للتخصيص
+        model: 'gemini-2.5-flash', // تم التحديث إلى Gemini 2.5 Flash
         systemInstruction: Content.system(_buildSystemPrompt()),
         generationConfig: GenerationConfig(
-          temperature: settings.temperature,
+          temperature: 0.2, // تقليل الـ temperature لزيادة الدقة في الأوامر
           topP: 0.9,
-          maxOutputTokens: settings.maxTokens,
+          maxOutputTokens: 4096, // زيادة الحد الأقصى للتوكنز للتقارير الطويلة
         ),
       );
       // إنشاء جلسة محادثة — startChat يدير سجل المحادثة تلقائياً
       _chat = _model!.startChat();
       _isInitialized = true;
       _lastError = null;
-      debugPrint('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
+      dlog('✅ تم تهيئة Gemini AI عبر Firebase AI Logic (ChatSession)');
     } catch (e) {
-      debugPrint('⚠️ فشل تهيئة Gemini AI: $e');
-      debugPrint('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
+      dlog(() => '⚠️ فشل تهيئة Gemini AI: $e');
+      dlog('ℹ️ تأكد من تفعيل AI Logic في Firebase Console');
       _initError = _describeInitError(e);
       _lastError = _initError;
     }
@@ -664,112 +659,6 @@ class GeminiService {
             s.writeln(
               '  [${b.roomNumber}] ${b.guestName} | متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال | مستحق ${b.totalDueCached.toStringAsFixed(0)} | مدفوع ${b.totalPaidCached.toStringAsFixed(0)}',
             );
-          }
-        }
-
-        // ═══════════════════════════════════════════════════════
-        //  ✅ تفصيل المدفوعات لكل حجز نشط (للإجابة على أسئلة مثل:
-        //     "آخر مدفوعات غرفة 101" أو "لماذا عليه متبقي" أو
-        //     "ما الأيام التي لم يتم الدفع عنها")
-        // ═══════════════════════════════════════════════════════
-        final unpaidBookings = activeBookings
-            .where((b) => b.remainingBalanceCached > 0.5)
-            .take(30);
-
-        if (unpaidBookings.isNotEmpty) {
-          s.writeln();
-          s.writeln('═══ تفصيل المدفوعات للحجوزات غير المكتملة ═══');
-
-          for (final b in unpaidBookings) {
-            final roomNo = b.roomNumber;
-            final guestName = b.guestName;
-            final totalDue = b.totalDueCached;
-            final totalPaid = b.totalPaidCached;
-            final remaining = b.remainingBalanceCached;
-            final nights = b.calculatedNights;
-            final roomPrice = roomMap[b.roomNumber]?.price ?? 0;
-            final checkin = b.checkinDate.split('T').first;
-
-            s.writeln('  [$roomNo] $guestName:');
-            s.writeln(
-              '    ملخص: $nights ليلة × ${roomPrice.toStringAsFixed(0)} = ${totalDue.toStringAsFixed(0)} ريال',
-            );
-            s.writeln(
-              '    مدفوع: ${totalPaid.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)} | نسبة الدفع: ${totalDue > 0 ? ((totalPaid / totalDue) * 100).toStringAsFixed(0) : 0}%',
-            );
-
-            // جلب سجل المدفوعات الفعلي لهذا الحجز
-            final payments =
-                await (db.select(db.payments)
-                      ..where((p) => p.bookingLocalId.equals(b.id))
-                      ..where((p) => p.deletedAt.isNull())
-                      ..where((p) => p.isVoided.equals(false))
-                      ..orderBy([
-                        (p) => OrderingTerm.desc(p.paymentDate),
-                      ]))
-                    .get();
-
-            if (payments.isNotEmpty) {
-              s.writeln('    سجل المدفوعات (${payments.length} دفعة):');
-              for (final p in payments.take(10)) {
-                final pDate = p.paymentDate.split('T').first;
-                final pMethod = p.paymentMethod;
-                final pAmount = p.amount;
-                final pNotes = (p.notes?.isNotEmpty ?? false)
-                    ? ' | ملاحظات: ${p.notes}'
-                    : '';
-                s.writeln(
-                  '      $pDate: ${pAmount.toStringAsFixed(0)} ريال | $pMethod$pNotes',
-                );
-              }
-              if (payments.length > 10) {
-                s.writeln('      ... (+${payments.length - 10} دفعات أخرى)');
-              }
-            } else {
-              s.writeln('    سجل المدفوعات: لا توجد دفعات مسجلة');
-            }
-
-            // حساب الأيام المدفوعة وغير المدفوعة
-            final paidNights = roomPrice > 0
-                ? (totalPaid / roomPrice).floor()
-                : nights;
-            final unpaidNights = nights - paidNights;
-            s.writeln(
-              '    تحليل الأيام: $nights إجمالي | $paidNights مدفوعة | $unpaidNights غير مدفوعة',
-            );
-            if (unpaidNights > 0) {
-              // حساب تواريخ الأيام غير المدفوعة
-              try {
-                final checkinDate = DateTime.parse(checkin);
-                s.writeln('    الأيام غير المدفوعة:');
-                for (
-                  var i = paidNights;
-                  i < nights && i < paidNights + 10;
-                  i++
-                ) {
-                  final nightDate = checkinDate.add(Duration(days: i));
-                  final nightKey =
-                      '${nightDate.year}-${nightDate.month.toString().padLeft(2, '0')}-${nightDate.day.toString().padLeft(2, '0')}';
-                  s.writeln(
-                    '      $nightKey (ليلة ${i + 1}): ${roomPrice.toStringAsFixed(0)} ريال',
-                  );
-                }
-                if (unpaidNights > 10) {
-                  s.writeln('      ... (+${unpaidNights - 10} ليالٍ أخرى)');
-                }
-              } catch (e) {
-      debugPrint('⚠️ Swallowed error in gemini_service.dart: ');
-                // تجاهل أخطاء التحليل
-              }
-            }
-
-            // سبب المتبقي
-            if (remaining > 0.5) {
-              final reason = unpaidNights > 0
-                  ? 'لم يتم دفع $unpaidNights ليلة من أصل $nights'
-                  : 'المبلغ المدفوع أقل من الإجمالي المستحق';
-              s.writeln('    سبب المتبقي: $reason');
-            }
           }
         }
       }
@@ -1622,28 +1511,21 @@ class GeminiService {
       }
 
       // BookingNights — ليالي مرحّلة
-      // ⚠️ مهم: هذه قيم "إيرادات مستحقة" (accrued revenue) لكل ليلة تم ترحيلها
-      //    على الحجوزات النشطة، وليست مدفوعات نقدية فعلية. لا تخلط بينها وبين
-      //    "الإيرادات" الحقيقية في قسم "اتجاه الإيرادات" أو "ملخص اليوم" (التي
-      //    تأتي من جدول payments فقط).
       final recentNights = await (db.select(
         db.bookingNights,
       )..orderBy([(n) => OrderingTerm.desc(n.hotelDayKey)])).get();
       if (recentNights.isNotEmpty) {
         s.writeln();
         final limit = recentNights.length < 20 ? recentNights.length : 20;
-        s.writeln('═══ آخر الليالي المُرحّلة (إيرادات مستحقة — ليست مدفوعات نقدية) ═══');
-        s.writeln('⚠️ ملاحظة: هذه قيمة "مستحقة" تُضاف لرصيد الحجز عند ترحيل اليوم الفندقي.');
-        s.writeln('   لا تعتبرها جزءاً من الإيرادات الفعلية — استخدم جدول payments فقط للإيرادات.');
-        s.writeln('   (أول $limit):');
+        s.writeln('آخر الليالي المُرحّلة (أول $limit):');
         for (final n in recentNights.take(limit)) {
           s.writeln(
-            '  ${n.hotelDayKey}: غرفة محجوزة | مستحق ${n.finalRate.toStringAsFixed(0)} ريال',
+            '  ${n.hotelDayKey}: غرفة محجوزة | سعر ${n.finalRate.toStringAsFixed(0)} ريال',
           );
         }
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
+      dlog(() => '⚠️ خطأ في بناء سياق الفندق: $e');
       s.writeln('(تعذر تحميل بعض البيانات: $e)');
     }
 
@@ -1674,8 +1556,8 @@ class GeminiService {
       final elapsed = DateTime.now().difference(_lastRequestTime!);
       if (elapsed < _minRequestInterval) {
         final waitTime = _minRequestInterval - elapsed;
-        debugPrint(
-          '⏳ انتظار ${waitTime.inSeconds + 1} ثانية قبل الطلب التالي...',
+        dlog(
+          () => '⏳ انتظار ${waitTime.inSeconds + 1} ثانية قبل الطلب التالي...',
         );
         await Future<void>.delayed(waitTime);
       }
@@ -1703,10 +1585,10 @@ class GeminiService {
       try {
         responseText = response.text ?? '';
       } on FirebaseAIException catch (e) {
-        debugPrint('⚠️ response.text رمى استثناء: $e');
+        dlog(() => '⚠️ response.text رمى استثناء: $e');
         // إذا كان الرد محظور بسبب السلامة — أعد المحاولة بدون سياق الفندق
         if (e.message.contains('SAFETY') || e.message.contains('blocked')) {
-          debugPrint('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
+          dlog('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
           try {
             final retryResponse = await _sendWithRetry(
               () => _chat!.sendMessage(Content.text(userMessage)),
@@ -1740,12 +1622,12 @@ class GeminiService {
             command is! AiNoActionCommand,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في Gemini: $e');
+      dlog(() => '❌ خطأ في Gemini: $e');
       _lastError = e.toString();
       // إعادة تعيين الجلسة عند خطأ في الأدوار
       final msg = e.toString();
       if (msg.contains('role') || msg.contains('alternat')) {
-        debugPrint('⚠️ إعادة تعيين الجلسة بسبب خطأ في الأدوار');
+        dlog('⚠️ إعادة تعيين الجلسة بسبب خطأ في الأدوار');
         _chat = _model!.startChat();
       }
       return GeminiResponse(text: _friendlyErrorMessage(e));
@@ -1825,8 +1707,9 @@ class GeminiService {
           milliseconds: delay.inMilliseconds + jitterMs,
         );
 
-        debugPrint(
-          '⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...',
+        dlog(
+          () =>
+              '⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...',
         );
 
         await Future<void>.delayed(actualDelay);
@@ -1847,21 +1730,9 @@ class GeminiService {
   //  تنفيذ الأمر على قاعدة البيانات + سجل التدقيق
   // ───────────────────────────────────────────────────────────
 
-  Future<String> executeCommand(
-    AiCommand command, {
-    bool confirmed = true,
-  }) async {
+  Future<String> executeCommand(AiCommand command) async {
     final db = DatabaseManager.instance;
     final now = DateTime.now();
-
-    // أمر الاستعلام لا يحتاج تأكيد — ينفذ مباشرة.
-    // أوامر التعديل (تغيير السعر / الخصم الجماعي) يجب تأكيدها صراحة من المستخدم
-    // عبر [confirmed = true]؛ وإلا نرفض التنفيذ ونرفع خطأ واضح.
-    if (!confirmed && command is! AiQueryCommand) {
-      throw StateError(
-        'لا يمكن تنفيذ أمر التعديل بدون تأكيد المستخدم — مرر confirmed: true',
-      );
-    }
 
     try {
       String result;
@@ -2014,7 +1885,7 @@ class GeminiService {
               db,
             ).refreshForBookingId(booking.id, forceRebuild: true);
           } catch (e) {
-            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
+            dlog(() => '⚠️ خطأ في إعادة حساب الحجز: $e');
           }
 
           final typeLabel = discountType == 'per_night' ? 'لكل ليلة' : 'إجمالي';
@@ -2074,22 +1945,6 @@ class GeminiService {
                   updatedAtIso: Value(now.toIso8601String()),
                 ),
               );
-          // ✅ تسجيل في outbox للمزامنة التلقائية مع Cloudflare D1
-          await OutboxDao(db).merge(
-            entity: 'expenses',
-            op: 'create',
-            localUuid: uuid,
-            clientTs: now.millisecondsSinceEpoch,
-            payload: {
-              'localUuid': uuid,
-              'expenseType': expenseType,
-              'description': desc,
-              'amount': amount,
-              'date': expenseDate,
-              'hotelDayKey': HotelTimeEngine.getHotelDayKey(),
-              'createdAt': now.millisecondsSinceEpoch,
-            },
-          );
           result = 'تم إضافة مصروف: $desc - ${amount.toStringAsFixed(0)} ريال';
 
         // ═══════════════════════════════════════════════════
@@ -2111,43 +1966,14 @@ class GeminiService {
             break;
           }
 
-          final uuid = _uuid.v4();
-          await db
-              .into(db.payments)
-              .insert(
-                PaymentsCompanion(
-                  bookingLocalId: Value(activeBooking.id),
-                  roomNumber: Value(roomNumber),
-                  amount: Value(amount),
-                  paymentDate: Value(now.toIso8601String().split('T')[0]),
-                  paymentMethod: const Value('cash'),
-                  revenueType: const Value('room_rent'),
-                  notes: Value(notes),
-                  localUuid: Value(uuid),
-                  createdAt: Value(now.millisecondsSinceEpoch),
-                  updatedAt: Value(now.millisecondsSinceEpoch),
-                  lastModified: Value(now.millisecondsSinceEpoch),
-                  createdAtIso: Value(now.toIso8601String()),
-                  updatedAtIso: Value(now.toIso8601String()),
-                ),
-              );
-          // ✅ تسجيل في outbox للمزامنة التلقائية مع Cloudflare D1
-          await OutboxDao(db).merge(
-            entity: 'payments',
-            op: 'create',
-            localUuid: uuid,
-            clientTs: now.millisecondsSinceEpoch,
-            payload: {
-              'localUuid': uuid,
-              'bookingLocalId': activeBooking.id,
-              'roomNumber': roomNumber,
-              'amount': amount,
-              'paymentDate': now.toIso8601String().split('T')[0],
-              'paymentMethod': 'cash',
-              'revenueType': 'room_rent',
-              'notes': notes,
-              'createdAt': now.millisecondsSinceEpoch,
-            },
+          await PaymentsRepository(db).create(
+            amount: amount,
+            paymentDate: now.toIso8601String(),
+            paymentMethod: 'cash',
+            revenueType: 'room_rent',
+            bookingLocalId: activeBooking.id,
+            roomNumber: roomNumber,
+            notes: notes,
           );
           result =
               'تم تسجيل دفعة ${amount.toStringAsFixed(0)} ريال للغرفة $roomNumber';
@@ -2221,7 +2047,7 @@ class GeminiService {
               db,
             ).refreshForBookingId(activeBooking.id, forceRebuild: true);
           } catch (e) {
-            debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
+            dlog(() => '⚠️ خطأ في إعادة حساب الحجز: $e');
             result = 'فشل إعادة حساب الحجز $roomNumber: $e';
             break;
           }
@@ -2284,9 +2110,7 @@ class GeminiService {
             )..where((d) => d.id.equals(debtId))).getSingleOrNull();
           } else {
             final debts =
-                await (db.select(
-                      db.debts,
-                    )..where(
+                await (db.select(db.debts)..where(
                       (d) =>
                           d.isSettled.equals(0) &
                           d.guestName.contains(guestName),
@@ -2385,39 +2209,6 @@ class GeminiService {
             ),
           );
 
-          // ✅ تسجيل في outbox: الحجز + تحديث الغرفة للمزامنة التلقائية
-          await OutboxDao(db).merge(
-            entity: 'bookings',
-            op: 'create',
-            localUuid: uuid,
-            clientTs: now.millisecondsSinceEpoch,
-            payload: {
-              'localUuid': uuid,
-              'roomNumber': roomNumber,
-              'guestName': guestName,
-              'guestPhone': guestPhone,
-              'guestNationality': guestNationality,
-              'checkinDate': checkinDate,
-              'status': 'checked_in',
-              'expectedNights': expectedNights,
-              'discount': 0,
-              'hotelDayCheckin': checkinDate,
-              'createdAt': now.millisecondsSinceEpoch,
-            },
-          );
-          await OutboxDao(db).merge(
-            entity: 'rooms',
-            op: 'update',
-            localUuid: rooms.first.localUuid,
-            clientTs: now.millisecondsSinceEpoch,
-            payload: {
-              'roomNumber': roomNumber,
-              'status': 'occupied',
-              'price': roomPrice,
-              'lastModified': now.millisecondsSinceEpoch,
-            },
-          );
-
           result =
               'تم حجز الغرفة $roomNumber للضيف $guestName لمدة $expectedNights ليلة (${roomPrice.toStringAsFixed(0)} ريال/ليلة)';
 
@@ -2495,7 +2286,6 @@ class GeminiService {
             reportType,
             command.dateFrom,
             command.dateTo,
-            roomNumber: command.roomNumber,
           );
 
         case AiNoActionCommand():
@@ -2504,7 +2294,7 @@ class GeminiService {
 
       return '✅ $result';
     } catch (e) {
-      debugPrint('❌ خطأ في تنفيذ الأمر: $e');
+      dlog(() => '❌ خطأ في تنفيذ الأمر: $e');
       return '❌ فشل تنفيذ الأمر: $e';
     }
   }
@@ -2558,64 +2348,17 @@ class GeminiService {
 - تنبيهات تلقائية للمشاكل والفرص
 - تنفيذ الأوامر على النظام عند طلب المستخدم
 
-═══ قواعد الاستجابة الاحترافية ═══
-- كن دقيقاً جداً ومحدداً — كل رقم تقوله يجب أن يكون من البيانات المتوفرة
-- استخدم البيانات الحالية المقدمة لك في كل طلب — لا تتخيل أرقاماً أبداً
+═══ قواعد الاستجابة ═══
+- كن مختصراً ومفيداً — أجب بتركيز عالٍ دون إطالة
+- استخدم البيانات الحالية المقدمة لك في كل طلب — لا تتخيل أرقاماً
 - عند تقديم نصائح، استخدم الأرقام الفعلية من البيانات
-- عند ذكر أرقام أو قوائم، اذكر اسم القسم الذي استندت إليه (مثال: "ملخص اليوم" أو "الحجوزات النشطة")
-
-▸ تنسيق الردود (إلزامي):
-  1. ابدأ بـ 📊 إذا كان تقريراً أو إحصائية
-  2. ابدأ بـ 💡 إذا كانت نصيحة أو توصية
-  3. ابدأ بـ ⚠️ إذا كان تنبيهاً أو تحذيراً
-  4. ابدأ بـ ✅ إذا كانت نتيجة تنفيذ أمر
-  5. ابدأ بـ ❌ إذا كان خطأ
-
-▸ هيكل الرد المهني:
-  • العنوان: سطر واحد يلخص الإجابة
-  • التفاصيل: نقاط مرقمة مع الأرقام الفعلية
-  • التوصيات: 1-3 توصيات عملية قابلة للتنفيذ (إذا لزم)
-
-▸ أمثلة على الردود الاحترافية:
-
-  سؤال: "ملخص اليوم"
-  الرد:
-  📊 ملخص اليوم الفندقي 2026-07-29
-
-  • الإيرادات: 45000 ريال (3 مدفوعات)
-  • المصروفات: 12000 ريال (ديزل + صيانة)
-  • صافي: 33000 ريال
-  • الإشغال: 8 من 15 غرفة (53%)
-  • حجوزات جديدة: 2
-  • حجوزات مكتملة: 1
-
-  💡 توصيات:
-  1. الغرفة 205 شاغرة منذ 3 أيام — يمكن تخفيض السعر
-  2. غرفة 103 متأخرة في الدفع (15000 ريال)
-
-▸ قاعدة الإيرادات الفعلية vs المستحقة (مهمة جداً):
-  - "الإيرادات" الحقيقية = مجموع المدفوعات النقدية من جدول payments فقط.
-    مصادرها في السياق: قسم "ملخص اليوم" + قسم "اتجاه الإيرادات (آخر 14 يوم)".
-  - "الليالي المُرحّلة" (booking_nights) = إيرادات **مستحقة** (accrued revenue) تُضاف
-    لرصيد الحجز عند ترحيل اليوم الفندقي. هي **ليست** مدفوعات نقدية ولا تدخل في
-    حساب "الإيرادات الفعلية".
-  - عند طلب "تقرير الأمس" أو "تقرير اليوم":
-      • الإيرادات ← من قسم "اتجاه الإيرادات" لليوم المطلوب فقط.
-      • المصروفات ← من نفس القسم.
-      • مسحوبات الرواتب ← من قسم "آخر المسحوبات" مع ذكر اسم الموظف لكل سحب.
-      • الليالي المُرحّلة ← يمكن ذكرها كمعلومة منفصلة ("إيرادات مستحقة من الليالي:
-        X ريال") لكن **لا تضفها** إلى الإيرادات الفعلية ولا تستنتج منها أي تحليل.
-  - **تحذير**: لا تقارن إجمالي الليالي المُرحّلة بالإيرادات الفعلية وتستنتج أن
-    "معظم الإيرادات كانت من إيجار الغرف" — هذا استنتاج خاطئ. الليالي المُرحّلة
-    تُضاف لرصيد الحجز وليست بالضرورة مدفوعة في نفس اليوم.
-
-▸ قواعد الأوامر:
+- عند ذكر أرقام أو قوائم، اذكر اسم القسم الذي استندت عليه (مثال: "ملخص اليوم" أو "الحجوزات النشطة")
+- اعرض النتائج بأسلوب مهني: ملخص تنفيذي (3–6 نقاط) ثم تفاصيل مرتبطة مباشرة بسؤال المستخدم ثم توصيات عملية قابلة للتنفيذ
 - إذا طلب المستخدم تعديل بيانات، أجب بالشرح المختصر ثم أضف JSON للأمر في نهاية رسالتك
 - لا تنفذ أوامر خطيرة (تعديل/حذف) بدون تأكيد المستخدم
 - أوامر التقارير تُنفذ فوراً بدون تأكيد
 - لا تضع JSON بين ``` فقط أرسله مباشرة في سطر منفصل
 - المبالغ بالريال اليمني — الأرقام بدون فواصل (50000 وليس 50,000)
-- عند ذكر التواريخ استخدم صيغة YYYY-MM-DD
 
 ═══ اليوم الفندقي — المفهوم الأساسي ═══
 هذا هو المفهوم الأهم في النظام. كل شيء يدور حوله:
@@ -2665,29 +2408,6 @@ class GeminiService {
 
 ▸ الرصيد المتبقي = الإجمالي المستحق - إجمالي المدفوعات
 ▸ الحجز مسدد بالكامل إذا remainingBalance ≤ 0
-
-▸ ✅ الأسئلة المالية المعقدة (يمكنك الإجابة عليها بالبيانات المتوفرة):
-  عند سؤال المستخدم "آخر مدفوعات غرفة 101" أو "لماذا عليه متبقي" أو
-  "ما الأيام التي لم يتم الدفع عنها" — استخدم قسم "تفصيل المدفوعات"
-  في السياق والذي يحتوي على:
-  - سجل كل دفعة (التاريخ، المبلغ، طريقة الدفع، الملاحظات)
-  - عدد الليالي المدفوعة وغير المدفوعة
-  - تواريخ الأيام غير المدفوعة
-  - سبب المتبقي وتحليله
-
-  أمثلة على الإجابات المتوقعة:
-  سؤال: "آخر مدفوعات غرفة 101"
-  → اعرض آخر دفعة من سجل المدفوعات: التاريخ، المبلغ، طريقة الدفع
-
-  سؤال: "لماذا عليه متبقي 15000؟"
-  → اشرح: إجمالي الليالي 5 × 15000 = 75000، مدفوع 60000، متبقي 15000
-    = ليلة واحدة غير مدفوعة (التاريخ: 2026-07-28)
-
-  سؤال: "ما الأيام التي لم يتم الدفع عنها؟"
-  → اعرض قائمة الأيام غير المدفوعة مع تواريخها ومبلغ كل ليلة
-
-  سؤال: "هل غرفة 101 مسددة بالكامل؟"
-  → تحقق من remainingBalance: إذا ≤ 0 → نعم مسددة، إذا > 0 → لا، متبقي X ريال
 
 ▸ تعديلات الأسعار (booking_price_adjustments):
   - تخفيض/زيادة لكل ليلة (per_night) أو إجمالي يُوزع بالتساوي (total)
@@ -2814,24 +2534,15 @@ class GeminiService {
 
 12. طلب تقرير (يُنفذ فوراً بدون تأكيد):
 {"action": "report", "report_type": "daily"}
-- report_type: daily, revenue, expenses, payroll, finance, occupancy, debts, room_prices, room_payments
+- report_type: daily, revenue, expenses, payroll, finance, occupancy, debts, room_prices
 - date_from/date_to اختياريان بصيغة YYYY-MM-DD
 - إذا أُرسل date_from فقط يتم اعتباره نفس date_to
-- يمكن استخدام date_from بقيم: today, day, this_week, last_week, this_month, last_month, week, month, last_N_days (مثال: last_10_days لآخر 10 أيام تشمل اليوم)
-
-▸ تقرير مدفوعات غرفة محددة (room_payments):
-  - **مطلوب دائماً** عند سؤال المستخدم عن مدفوعات/دفعات غرفة معينة (مثل: "مدفوعات الغرفة 401"، "آخر دفعات غرفة 101"، "ماذا دفع ضيف 205")
-  - يتطلب room_number إلزامياً
-  - يُرجع بيانات الغرفة + الحجز النشط + قائمة المدفوعات الكاملة في الفترة (مستعلم من قاعدة البيانات مباشرة)
-  - لا تعتمد على السياق العام للرد على هذه الأسئلة — السياق قد لا يحتوي على السجل الكامل للغرف المسددة بالكامل
+- يمكن استخدام date_from بقيم: today, day, this_week, last_week, this_month, last_month, week, month
 
 أمثلة:
 {"action": "report", "report_type": "finance", "date_from": "2026-05-01", "date_to": "2026-05-31"}
 {"action": "report", "report_type": "expenses", "date_from": "2026-05-10", "date_to": "2026-05-10"}
 {"action": "report", "report_type": "payroll", "date_from": "today"}
-{"action": "report", "report_type": "room_payments", "room_number": "401", "date_from": "last_10_days"}
-{"action": "report", "report_type": "room_payments", "room_number": "101", "date_from": "2026-07-01", "date_to": "2026-07-29"}
-{"action": "report", "report_type": "room_payments", "room_number": "205"}  // آخر 30 يوم افتراضياً
 
 ═══ تحذيرات مهمة ═══
 - عند اقتراح إضافة حجز، تأكد أن الغرفة شاغرة فعلاً — الغرفة المحجوزة لا تقبل حجزين نشطين
@@ -2861,19 +2572,7 @@ class GeminiService {
 ▸ النظام متصل بـ MCP Server مع: GitHub, Appwrite, Google Drive, Telegram
 ▸ يمكنك اقتراح: فحص CI/CD، إنشاء Issues، مراجعة Pull Requests
 
-- تاريخ اليوم: $today | اليوم الفندقي: $todayHotelDay
-
-═══ الاستعلام عن أي تاريخ ═══
-▸ يمكنك الإجابة عن أسئلة حول أي تاريخ (ماضٍ أو مستقبل)، ليس فقط اليوم
-▸ أمثلة:
-  - "ماذا حدث في 15 يوليو؟" → اعرض المدفوعات والمصروفات والحجوزات في ذلك اليوم
-  - "كم كان الإيراد في 1 يوليو؟" → ابحث في السياق عن ذلك التاريخ
-  - "من كان نزيلاً في غرفة 101 يوم 10 يوليو؟" → ابحث في الحجوزات
-▸ البيانات المتوفرة تشمل تواريخ محددة لكل دفعة ومصروف وحجز
-▸ إذا لم تجد بيانات للتاريخ المطلوب، قل "لا توجد بيانات مسجلة"
-
-═══ تعليمات إضافية من المستخدم ═══
-${AiSettingsService.instance.systemPromptExtra}''';
+- تاريخ اليوم: $today | اليوم الفندقي: $todayHotelDay''';
   }
 
   // ───────────────────────────────────────────────────────────
@@ -3001,15 +2700,13 @@ ${AiSettingsService.instance.systemPromptExtra}''';
             reportType: json['report_type'] as String? ?? 'daily',
             dateFrom: json['date_from'] as String?,
             dateTo: json['date_to'] as String?,
-            roomNumber: json['room_number'] as String?,
             description: 'تقرير ${json['report_type']}',
           );
 
         default:
           return null;
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in gemini_service.dart: ');
+    } catch (_) {
       return null;
     }
   }
@@ -3030,9 +2727,8 @@ ${AiSettingsService.instance.systemPromptExtra}''';
     AppDatabase db,
     String reportType,
     String? dateFrom,
-    String? dateTo, {
-    String? roomNumber,
-  }) async {
+    String? dateTo,
+  ) async {
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
 
@@ -3084,22 +2780,6 @@ ${AiSettingsService.instance.systemPromptExtra}''';
             '${lastMonthEnd.year}-${lastMonthEnd.month.toString().padLeft(2, '0')}-${lastMonthEnd.day.toString().padLeft(2, '0')}';
       }
 
-      // "last_N_days" → آخر N أيام تشمل اليوم (مثال: last_10_days)
-      if (resolvedFrom != null &&
-          resolvedFrom.startsWith('last_') &&
-          resolvedFrom.endsWith('_days')) {
-        final nStr = resolvedFrom.substring(
-          5,
-          resolvedFrom.length - 5,
-        );
-        final n = int.tryParse(nStr) ?? 10;
-        final now = DateTime.now();
-        final start = now.subtract(Duration(days: n - 1));
-        resolvedFrom =
-            '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
-        resolvedTo = today;
-      }
-
       if (resolvedFrom == null && resolvedTo == null) {
         final now = DateTime.now();
         resolvedFrom = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
@@ -3123,212 +2803,12 @@ ${AiSettingsService.instance.systemPromptExtra}''';
           return await _generateFinanceReport(db, resolvedFrom, resolvedTo);
         case 'payroll':
           return await _generatePayrollReport(db, resolvedFrom, resolvedTo);
-        case 'room_payments':
-          // تقرير مدفوعات غرفة محددة — يتطلب room_number
-          // يُستخدم عندما يسأل المستخدم: "مدفوعات الغرفة 401 لآخر 10 أيام"
-          if (roomNumber == null || roomNumber.isEmpty) {
-            return '❌ تقرير مدفوعات الغرفة يتطلب رقم الغرفة. مثال:\n'
-                '{action: "report", report_type: "room_payments", room_number: "401", date_from: "last_10_days"}';
-          }
-          return await _generateRoomPaymentsReport(
-            db,
-            roomNumber,
-            resolvedFrom,
-            resolvedTo,
-          );
         default:
           return 'نوع التقرير غير معروف: $reportType';
       }
     } catch (e) {
-      debugPrint('خطأ في توليد التقرير: $e');
+      dlog(() => 'خطأ في توليد التقرير: $e');
       return 'فشل توليد التقرير: $e';
-    }
-  }
-
-  /// تقرير مدفوعات غرفة محددة ضمن فترة زمنية.
-  ///
-  /// يحل مشكلة: "ردّ المساعد الذكي بـ 'لا توجد بيانات' رغم أن الغرفة محجوزة".
-  /// السبب الجذري: السياق العام يعرض سجل المدفوعات الكامل فقط للحجوزات
-  /// *غير المكتملة الدفع* (لأول 30 منها). فإذا كانت الغرفة مسددة بالكامل،
-  /// يختفي سجل مدفوعاتها من السياق ولا يرى المساعد شيئاً.
-  ///
-  /// هذا التقرير يستعلم مباشرة من جدول المدفوعات ويشمل:
-  /// - بيانات الغرفة (النوع، السعر، الحالة)
-  /// - الحجز النشط الحالي (إن وجد) مع ملخص مالي
-  /// - جميع المدفوعات في الفترة المطلوبة (بشكل صريح وليس من السياق)
-  /// - يتعامل مع المدفوعات المرتبطة بالغرفة مباشرةً أو عبر bookingLocalId
-  Future<String> _generateRoomPaymentsReport(
-    AppDatabase db,
-    String roomNumber,
-    String? dateFrom,
-    String? dateTo,
-  ) async {
-    final today = DateTime.now().toIso8601String().split('T')[0];
-
-    // افتراضي: آخر 30 يوماً إذا لم تُحدّد الفترة
-    final String toDate =
-        (dateTo ?? '').isNotEmpty ? dateTo!.split('T').first : today;
-    final String fromDate = (dateFrom ?? '').isNotEmpty
-        ? dateFrom!.split('T').first
-        : () {
-            final start = DateTime.now().subtract(const Duration(days: 29));
-            return '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
-          }();
-
-    final lines = <String>[];
-    lines.add('📊 مدفوعات الغرفة $roomNumber');
-    lines.add('الفترة: $fromDate ← $toDate');
-    lines.add('');
-
-    // ── بيانات الغرفة ──
-    final room =
-        await (db.select(db.rooms)
-              ..where((r) => r.roomNumber.equals(roomNumber))
-              ..where((r) => r.deletedAt.isNull()))
-            .getSingleOrNull();
-    if (room == null) {
-      lines.add('❌ الغرفة $roomNumber غير موجودة في قاعدة البيانات.');
-      lines.add('');
-      lines.add('تأكد من رقم الغرفة. الغرف المتوفرة يمكن مشاهدتها من شاشة "الغرف".');
-      return lines.join('\n');
-    }
-
-    lines.add('معلومات الغرفة:');
-    lines.add('  • النوع: ${room.type}');
-    lines.add('  • السعر الحالي: ${room.price.toStringAsFixed(0)} ريال/ليلة');
-    lines.add('  • الحالة: ${_roomStatusArabic(room.status)}');
-
-    // ── الحجز النشط ──
-    final activeBookings =
-        await (db.select(db.bookings)
-              ..where((b) => b.roomNumber.equals(roomNumber))
-              ..where((b) => b.status.equals('checked_in'))
-              ..where((b) => b.deletedAt.isNull()))
-            .get();
-
-    lines.add('');
-    if (activeBookings.isNotEmpty) {
-      final b = activeBookings.first;
-      final checkin = b.checkinDate.split('T').first;
-      final checkout = b.checkoutDate?.split('T').first ?? 'غير محدد';
-      final paidPct = b.totalDueCached > 0
-          ? ((b.totalPaidCached / b.totalDueCached) * 100).toStringAsFixed(0)
-          : '0';
-      lines.add('الحجز النشط:');
-      lines.add('  • الضيف: ${b.guestName} | ${b.guestNationality} | ${b.guestPhone}');
-      lines.add('  • دخول: $checkin | مغادرة: $checkout | ${b.calculatedNights} ليلة');
-      lines.add(
-        '  • مستحق: ${b.totalDueCached.toStringAsFixed(0)} | مدفوع: ${b.totalPaidCached.toStringAsFixed(0)} ($paidPct%) | متبقي: ${b.remainingBalanceCached.toStringAsFixed(0)} ريال',
-      );
-    } else {
-      lines.add('⚠️ لا يوجد حجز نشط حالياً للغرفة $roomNumber.');
-      lines.add('  (الغرفة قد تكون شاغرة/تنظيف/صيانة، أو الحجز مكتمل ومغلق.)');
-    }
-
-    // ── المدفوعات في الفترة ──
-    // نجمع المدفوعات بطريقتين:
-    //   (أ) مباشرةً برقم الغرفة: payments.room_number = roomNumber
-    //   (ب) عبر الحجز النشط: payments.booking_local_id IN (active bookings)
-    //       (بعض المدفوعات القديمة قد لا تملك roomNumber مُعبّأً)
-    final activeBookingIds = activeBookings.map((b) => b.id).toList();
-
-    // أبسط حل: جلب كل المدفوعات للغرفة/الحجز ثم فلترة التاريخ في Dart
-    // (تجنباً لتعقيدات isBetweenValues على النصوص في Drift)
-    final allRoomPayments =
-        await (db.select(db.payments)
-              ..where((p) => p.roomNumber.equals(roomNumber))
-              ..where((p) => p.deletedAt.isNull())
-              ..where((p) => p.isVoided.equals(false))
-              ..orderBy([(p) => OrderingTerm.desc(p.paymentDate)]))
-            .get();
-
-    final allBookingPayments = activeBookingIds.isEmpty
-        ? <Payment>[]
-        : await (db.select(db.payments)
-              ..where((p) => p.bookingLocalId.isIn(activeBookingIds))
-              ..where((p) => p.deletedAt.isNull())
-              ..where((p) => p.isVoided.equals(false))
-              ..orderBy([(p) => OrderingTerm.desc(p.paymentDate)]))
-            .get();
-
-    // دمج + إزالة التكرار + فلترة التاريخ
-    final seenIds = <int>{};
-    final payments = <Payment>[];
-    bool inRange(String paymentDate) {
-      final d = paymentDate.split('T').first;
-      return d.compareTo(fromDate) >= 0 && d.compareTo(toDate) <= 0;
-    }
-
-    for (final p in [...allRoomPayments, ...allBookingPayments]) {
-      if (seenIds.contains(p.id)) continue;
-      seenIds.add(p.id);
-      if (!inRange(p.paymentDate)) continue;
-      payments.add(p);
-    }
-    payments.sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
-
-    lines.add('');
-    lines.add('المدفوعات في الفترة $fromDate ← $toDate:');
-    if (payments.isEmpty) {
-      lines.add('  ❌ لا توجد مدفوعات مسجلة للغرفة $roomNumber في هذه الفترة.');
-      lines.add('');
-      if (activeBookings.isNotEmpty) {
-        final b = activeBookings.first;
-        lines.add('ملاحظات مهمة:');
-        lines.add(
-          '  • الغرفة محجوزة فعلاً (الضيف: ${b.guestName}) — المدفوع الإجمالي على الحجز: ${b.totalPaidCached.toStringAsFixed(0)} ريال.',
-        );
-        lines.add('  • الأسباب المحتملة لعدم ظهور المدفوعات هنا:');
-        lines.add('    - جميع المدفوعات تمت قبل $fromDate (خارج الفترة المطلوبة).');
-        lines.add('    - المدفوعات مسجلة بدون رقم غرفة (يتم ربطها عبر الحجز فقط).');
-        lines.add('    - الدفعة سُجّلت على حجز آخر مغلق لنفس الغرفة.');
-        lines.add('');
-        lines.add('💡 جرّب توسيع النطاق الزمني:');
-        lines.add(
-          '  مثال: "مدفوعات الغرفة $roomNumber لآخر 30 يوم" أو "من بداية الحجز".',
-        );
-      }
-    } else {
-      final total = payments.fold<double>(0, (s, p) => s + p.amount);
-      final countByMethod = <String, int>{};
-      for (final p in payments) {
-        countByMethod[p.paymentMethod] =
-            (countByMethod[p.paymentMethod] ?? 0) + 1;
-      }
-      lines.add(
-        '  عدد العمليات: ${payments.length} | الإجمالي: ${total.toStringAsFixed(0)} ريال',
-      );
-      lines.add(
-        '  طرق الدفع: ${countByMethod.entries.map((e) => "${e.key} (${e.value})").join(" | ")}',
-      );
-      lines.add('');
-      lines.add('التفاصيل (الأحدث أولاً):');
-      for (final p in payments) {
-        final pDate = p.paymentDate.split('T').first;
-        final note = (p.notes?.trim().isNotEmpty ?? false) ? ' | ${p.notes}' : '';
-        lines.add(
-          '  • $pDate | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.revenueType}$note',
-        );
-      }
-    }
-
-    return lines.join('\n');
-  }
-
-  /// ترجمة حالة الغرفة إلى العربية للعرض في التقارير
-  String _roomStatusArabic(String status) {
-    switch (status) {
-      case 'available':
-        return 'شاغرة';
-      case 'occupied':
-      case 'checked_in':
-        return 'محجوزة';
-      case 'cleaning':
-        return 'تنظيف';
-      case 'maintenance':
-        return 'صيانة';
-      default:
-        return status;
     }
   }
 
@@ -3973,11 +3453,6 @@ class GeminiResponse {
   final String text;
   final AiCommand? command;
   final bool requiresConfirmation;
-
-  /// True when the model returned a structured command alongside the text.
-  /// Convenience used by the chat UI to decide whether to invoke the
-  /// executor without having to repeat `command != null` checks.
-  bool get hasCommand => command != null;
 }
 
 class ChatMessage {

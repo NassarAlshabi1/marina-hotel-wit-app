@@ -19,7 +19,7 @@ if (-not (Get-Command appwrite -ErrorAction SilentlyContinue)) {
 
 if (-not $ProjectId) { $ProjectId = "690ff0da0025518570c1" }
 if (-not $Endpoint) { $Endpoint = "https://fra.cloud.appwrite.io/v1" }
-if (-not $AndroidAppId) { $AndroidAppId = "com.aden.marina" }
+if (-not $AndroidAppId) { $AndroidAppId = "com.marina.marina" }
 if (-not $IosBundleId) { $IosBundleId = "com.aden.marina" }
 if (-not $MacOsBundleId) { $MacOsBundleId = "com.aden.marina.desktop" }
 if (-not $WindowsPackage) { $WindowsPackage = "marina_hotel" }

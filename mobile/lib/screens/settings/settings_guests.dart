@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
@@ -12,6 +10,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/sync_service.dart';
+import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../bookings/booking_edit.dart';
@@ -213,7 +212,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       return guest.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           guest.phone.contains(_searchQuery) ||
           guest.email.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          guest.nationality.toLowerCase().contains(_searchQuery.toLowerCase());
+          guest.nationality.toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ) ||
+          guest.bookings.any(
+            (booking) => booking.roomNumber.contains(_searchQuery),
+          );
     }).toList();
   }
 
@@ -255,6 +259,14 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final latestBooking = guest.bookings.isNotEmpty
         ? guest.bookings.first
         : null;
+    final activeRoomNumbers =
+        guest.bookings
+            .where((booking) => StatusUtils.isActiveBooking(booking.status))
+            .map((booking) => booking.roomNumber.trim())
+            .where((roomNumber) => roomNumber.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -273,7 +285,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       ? Colors.green
                       : Colors.blueGrey,
                   child: Text(
-                    latestBooking != null ? latestBooking.roomNumber : '—',
+                    activeRoomNumbers.length > 1
+                        ? '${activeRoomNumbers.length}'
+                        : (activeRoomNumbers.firstOrNull ?? '—'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -355,6 +369,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             ),
 
             const SizedBox(height: 8),
+
+            if (activeRoomNumbers.isNotEmpty) ...[
+              _buildActiveRoomNumbers(activeRoomNumbers),
+              const SizedBox(height: 8),
+            ],
 
             if (latestBooking != null) ...[
               _buildPricePreview(latestBooking, roomPrices),
@@ -469,6 +488,43 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
+  Widget _buildActiveRoomNumbers(List<String> roomNumbers) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Icon(Icons.hotel, size: 14, color: Colors.teal),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: roomNumbers.map((roomNumber) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.teal.shade200),
+                ),
+                child: Text(
+                  'غرفة $roomNumber',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.teal.shade800,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDetailRow(String label, String value, IconData icon) {
     return Row(
       children: [
@@ -505,7 +561,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
     return _buildDetailRow(
       'سعر الغرفة',
-      basePrice.toStringAsFixed(2),
+      CurrencyFormatter.formatAmount(basePrice),
       Icons.hotel_class,
     );
   }
@@ -520,7 +576,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestHistory(BuildContext context, GuestInfo guest) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -563,7 +619,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                           TextButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
-                              _editBooking(context, booking);
+                              unawaited(_editBooking(context, booking));
                             },
                             icon: const Icon(Icons.edit, size: 16),
                             label: const Text('تعديل الحجز'),
@@ -574,7 +630,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                           TextButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
-                              _deleteBooking(context, booking, guest);
+                              unawaited(_deleteBooking(context, booking, guest));
                             },
                             icon: const Icon(Icons.delete_outline, size: 16),
                             label: const Text('حذف الحجز'),
@@ -598,19 +654,16 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   /// ✅ تعديل حجز فردي — يفتح BookingEditScreen مع `existing: booking`
   Future<void> _editBooking(BuildContext context, Booking booking) async {
-    final result =
-        await Navigator.of(
-          context,
-        ).push<bool>(
-          MaterialPageRoute<bool>(
-            builder: (_) => BookingEditScreen(existing: booking),
-          ),
-        );
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => BookingEditScreen(existing: booking),
+      ),
+    );
     if ((result ?? false) && mounted) {
       ref.invalidate(bookingsListProvider);
       ScaffoldMessenger.of(
@@ -710,9 +763,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حذف الحجز: $e'),
           backgroundColor: Colors.red,
@@ -722,7 +773,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestDetails(BuildContext context, GuestInfo guest) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -769,7 +820,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _editCheckinDate(BuildContext context, GuestInfo guest) async {
@@ -1084,9 +1135,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تعذر تعديل تاريخ الدخول: $e'),
             backgroundColor: Colors.red,
@@ -1102,8 +1151,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
     try {
       return DateTime.parse(value);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_guests.dart: ');
+    } catch (_) {
       return null;
     }
   }
@@ -1116,8 +1164,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     try {
       final dt = DateTime.parse(dateStr);
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_guests.dart: ');
+    } catch (_) {
       return '--:--';
     }
   }
@@ -1127,21 +1174,15 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final newDt = DateTime.parse(newDate);
       final oldDt = DateTime.parse(oldDate);
       return newDt.hour != oldDt.hour || newDt.minute != oldDt.minute;
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_guests.dart: ');
+    } catch (_) {
       return false;
     }
   }
 
   Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
-    final result =
-        await Navigator.of(
-          context,
-        ).push<bool>(
-          MaterialPageRoute<bool>(
-            builder: (_) => GuestEditScreen(guest: guest),
-          ),
-        );
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => GuestEditScreen(guest: guest)),
+    );
     if ((result ?? false) && mounted) {
       ScaffoldMessenger.of(
         context,
@@ -1269,9 +1310,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'تم حذف الضيف وجميع البيانات المرتبطة مع checkout للحجوزات النشطة',

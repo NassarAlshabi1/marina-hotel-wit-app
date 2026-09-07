@@ -12,6 +12,7 @@ import 'employees_adapter.dart';
 import 'expenses_adapter.dart';
 import 'guest_infos_adapter.dart';
 import 'id_resolver.dart';
+import 'inventory_adapter.dart';
 import 'nights_adapter.dart';
 import 'payment_voids_adapter.dart';
 import 'payments_adapter.dart';
@@ -130,6 +131,17 @@ class AdapterRegistry {
             db: db,
             table: db.salaryCarryOverLogs,
             adapter: SalaryCarryOverLogsAdapter(IdResolver(db)),
+          ),
+      inventoryItems = BaseRepository<InventoryItem, InventoryItemsCompanion>(
+        db: db,
+        table: db.inventoryItems,
+        adapter: InventoryItemsAdapter(IdResolver(db)),
+      ),
+      inventoryTransactions =
+          BaseRepository<InventoryTransaction, InventoryTransactionsCompanion>(
+            db: db,
+            table: db.inventoryTransactions,
+            adapter: InventoryTransactionsAdapter(IdResolver(db)),
           );
 
   static AdapterRegistry? _instance;
@@ -183,4 +195,7 @@ class AdapterRegistry {
   salaryWithdrawals;
   final BaseRepository<SalaryCarryOverLog, SalaryCarryOverLogsCompanion>
   salaryCarryOverLogs;
+  final BaseRepository<InventoryItem, InventoryItemsCompanion> inventoryItems;
+  final BaseRepository<InventoryTransaction, InventoryTransactionsCompanion>
+  inventoryTransactions;
 }

@@ -92,12 +92,29 @@ class ConflictDetector {
       return ConflictDetectionResult(
         type: ConflictType.deleteVsUpdate,
         localChangedFields: {'deletedAt'},
-        remoteChangedFields: _findChangedFields(remoteData, commonAncestor),
+        remoteChangedFields: _findChangedFields(
+          remoteData,
+          commonAncestor,
+          other: localData,
+        ),
       );
     }
     if (!localDeleted && remoteDeleted) {
-      return const ConflictDetectionResult(
-        type: ConflictType.noConflictRemoteNewer,
+      // ✅ P0-4 Audit Fix (2026-08-06): تماثل سياسة الحذف.
+      // سابقاً، كان هذا يُرجع `noConflictRemoteNewer` (يُطبّق الحذف البعيد
+      // ويُفقد التحديث المحلي بصمت). هذا غير متماثل مع `deleteVsUpdate`
+      // (الذي يحمي الحذف المحلي).
+      // الإصلاح: تصنيف كـ `deleteVsUpdate` (معكوس) ليُعالجه SmartConflictResolver
+      // بقرار واعٍ بدلاً من تطبيق الحذف صامتاً. الـ resolver يقرر: الحذف يربح
+      // (لأن الـ delete أكثر حداثة عادةً) لكن مع تسجيل في audit trail.
+      return ConflictDetectionResult(
+        type: ConflictType.deleteVsUpdate,
+        localChangedFields: _findChangedFields(
+          localData,
+          commonAncestor,
+          other: remoteData,
+        ),
+        remoteChangedFields: {'deletedAt'},
       );
     }
 
@@ -119,12 +136,20 @@ class ConflictDetector {
       if (remoteTs > localTs) {
         return ConflictDetectionResult(
           type: ConflictType.noConflictRemoteNewer,
-          remoteChangedFields: _findChangedFields(remoteData, commonAncestor),
+          remoteChangedFields: _findChangedFields(
+            remoteData,
+            commonAncestor,
+            other: localData,
+          ),
         );
       }
       return ConflictDetectionResult(
         type: ConflictType.noConflictLocalNewer,
-        localChangedFields: _findChangedFields(localData, commonAncestor),
+        localChangedFields: _findChangedFields(
+          localData,
+          commonAncestor,
+          other: remoteData,
+        ),
       );
     }
 
@@ -143,7 +168,11 @@ class ConflictDetector {
           type: ConflictType.noConflictRemoteNewer,
           localVc: localVc,
           remoteVc: remoteVc,
-          remoteChangedFields: _findChangedFields(remoteData, commonAncestor),
+          remoteChangedFields: _findChangedFields(
+            remoteData,
+            commonAncestor,
+            other: localData,
+          ),
         );
 
       case VectorClockComparison.localNewer:
@@ -151,7 +180,11 @@ class ConflictDetector {
           type: ConflictType.noConflictLocalNewer,
           localVc: localVc,
           remoteVc: remoteVc,
-          localChangedFields: _findChangedFields(localData, commonAncestor),
+          localChangedFields: _findChangedFields(
+            localData,
+            commonAncestor,
+            other: remoteData,
+          ),
         );
 
       case VectorClockComparison.concurrent:
@@ -172,8 +205,16 @@ class ConflictDetector {
     required VectorClock localVc,
     required VectorClock remoteVc,
   }) {
-    final localChanged = _findChangedFields(localData, commonAncestor);
-    final remoteChanged = _findChangedFields(remoteData, commonAncestor);
+    final localChanged = _findChangedFields(
+      localData,
+      commonAncestor,
+      other: remoteData,
+    );
+    final remoteChanged = _findChangedFields(
+      remoteData,
+      commonAncestor,
+      other: localData,
+    );
     final conflicting = localChanged.intersection(remoteChanged);
 
     return ConflictDetectionResult(
@@ -191,9 +232,9 @@ class ConflictDetector {
 
   static Set<String> _findChangedFields(
     Map<String, dynamic> current,
-    Map<String, dynamic>? ancestor,
-  ) {
-    if (ancestor == null) return current.keys.toSet();
+    Map<String, dynamic>? ancestor, {
+    Map<String, dynamic>? other,
+  }) {
     final changed = <String>{};
     for (final key in current.keys) {
       if (key.startsWith(r'$')) continue;
@@ -207,8 +248,23 @@ class ConflictDetector {
           key == 'updated_at') {
         continue;
       }
-      if (!const DeepCollectionEquality().equals(ancestor[key], current[key])) {
-        changed.add(key);
+      if (ancestor != null) {
+        // ✅ 3-way: الحقل تغيّر فقط إذا اختلف عن السلف المشترك.
+        if (!const DeepCollectionEquality().equals(
+          ancestor[key],
+          current[key],
+        )) {
+          changed.add(key);
+        }
+      } else if (other != null) {
+        // ✅ Audit Fix: عند غياب السلف (أول تعارض على السجل)، لا نُرجع كل
+        // الحقول كمتعارضة (كان يُحوّل الدمج إلى LWW على مستوى السجل). بدلاً
+        // من ذلك نحسب الفرق الفعلي بين النسختين — الحقول التي تختلف بين
+        // local و remote فقط هي المتعارضة. هذا يُبقي الدمج على مستوى الحقل
+        // يعمل حتى دون سلف، ويحمي التعديلات المحلية من المسح الصامت.
+        if (!const DeepCollectionEquality().equals(other[key], current[key])) {
+          changed.add(key);
+        }
       }
     }
     return changed;

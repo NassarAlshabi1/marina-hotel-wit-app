@@ -12,16 +12,28 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../screens/settings/error_tracker_screen.dart' show logHttpError, logError, ErrorCategory;
+import '../screens/settings/error_tracker_screen.dart'
+    show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
+import 'appwrite_models.dart' show AppwriteDevice;
+import 'booking_derived_fields_service.dart';
 import 'cloudflare_config.dart';
+import 'cloudflare_d1_service.dart';
+import 'cloudflare_dual_run_service.dart';
+import 'cloudflare_realtime_sync.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
+import 'sync/payload_normalizer.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_enums.dart';
 import 'vector_clock_service.dart';
+
+// ✅ المرحلة 3: التنفيذ الكامل للـ Realtime في cloudflare_realtime_sync.dart
+// (WebSocket على SyncLockDO) — الاستيراد أعلاه + هذا الـ export يحفظان
+// كل imports القائمة دون تغيير في بقية الملفات.
+export 'cloudflare_realtime_sync.dart';
 
 // ─── SyncResult (same interface as AppwriteSyncManager) ────────
 
@@ -49,22 +61,28 @@ class SyncResult {
 }
 
 // ─── Realtime sync state ───────────────────────────────────────
-
-class CloudflareRealtimeSync {
-  final pendingRemoteChangesCount = ValueNotifier<int>(0);
-  final hasRemoteChanges = ValueNotifier<bool>(false);
-
-  Future<void> initialize({String? deviceId}) async {}
-  Future<void> start() async {}
-  void stop() {}
-}
+// ✅ المرحلة 3: كانت هنا stub فارغة — التنفيذ الكامل أصبح في
+// cloudflare_realtime_sync.dart (مُستورد ومُعاد تصديره أعلاه).
 
 // ─── CloudflareSyncManager ─────────────────────────────────────
 
 class CloudflareSyncManager {
-  factory CloudflareSyncManager() => _instance;
+  factory CloudflareSyncManager({
+    // ✅ توافق Drop-in مع مواقع استدعاء AppwriteSyncManager القديمة
+    // (perf providers/backup services تمرّرها) — تُتجاهل: خدمة Appwrite
+    // ليست جزءاً من مسار Cloudflare، والقاعدة تُحَدَّد في initialize().
+    // (تعطيل القاعدة هنا متعمّد: المعاملات وهمية للحفاظ على توافق الاستدعاء)
+    // ignore: avoid_unused_constructor_parameters
+    dynamic appwriteService,
+    // ignore: avoid_unused_constructor_parameters
+    dynamic database,
+  }) => _instance;
   CloudflareSyncManager._internal();
-  static final CloudflareSyncManager _instance = CloudflareSyncManager._internal();
+
+  /// ✅ توافق: كود perf يستدعي `AppwriteSyncManager.instance`.
+  static CloudflareSyncManager get instance => _instance;
+  static final CloudflareSyncManager _instance =
+      CloudflareSyncManager._internal();
 
   // ─── Static device ID (same interface as AppwriteSyncManager) ──
   static String? _staticDeviceId;
@@ -107,6 +125,18 @@ class CloudflareSyncManager {
   /// في نفس الوقت وكلها تعدّل على نفس outbox.
   bool _syncInProgress = false;
 
+  // ─── إحصائيات حقيقية لدورات المزامنة (2026-09-05) ──────────
+  // ✅ كانت getSyncStatistics() تُرجع {} فارغة فتعرض شاشات الإحصائيات
+  // أصفاراً دائمة (مضللة للإنتاج). الآن تُراكم المدير عدادات دورة
+  // sync الفعلية وتُخزن في SharedPreferences لتبقى بين الجلسات.
+  int _statTotalSyncs = 0;
+  int _statSuccessfulSyncs = 0;
+  int _statFailedSyncs = 0;
+  int _statTotalPushed = 0;
+  int _statTotalPulled = 0;
+  DateTime? _statLastSyncTime;
+  static const String _kSyncStatsKey = 'cf_sync_stats_v1';
+
   bool get isAvailable => _token != null;
   String? get token => _token;
   String? get initError => _initError;
@@ -131,7 +161,10 @@ class CloudflareSyncManager {
   );
 
   // ─── Initialize ─────────────────────────────────────────────
-  Future<void> initialize({AppDatabase? database, bool forceRetry = false}) async {
+  Future<void> initialize({
+    AppDatabase? database,
+    bool forceRetry = false,
+  }) async {
     if (_token != null && !forceRetry) return;
 
     _db = database ?? DatabaseManager.instance;
@@ -152,6 +185,9 @@ class CloudflareSyncManager {
     _fullSyncCompleted = prefs.getBool(_kFullSyncCompletedKey) ?? false;
     _lastPullCursor = prefs.getInt('cf_last_pull_cursor') ?? 0;
 
+    // ✅ (2026-09-05) استعادة عدادات الإحصائيات الحقيقية بين الجلسات.
+    await _loadSyncStats();
+
     // ✅ P0-H: استعادة أي سجلات عالقة في 'processing' من جلسة سابقة
     // (crash recovery). أي سجل 'processing' قبل restart هو بالتأكيد عالق
     // لأن الـ worker الذي حجزه مات مع إنهاء التطبيق.
@@ -159,7 +195,9 @@ class CloudflareSyncManager {
       final outboxDao = OutboxDao(_db!);
       final reclaimed = await outboxDao.reclaimAllStuckProcessingOnStartup();
       if (reclaimed > 0) {
-        debugPrint('🔧 [P0-H] Reclaimed $reclaimed stuck outbox entries on init');
+        debugPrint(
+          '🔧 [P0-H] Reclaimed $reclaimed stuck outbox entries on init',
+        );
       }
     } catch (e) {
       debugPrint('⚠️ Failed to reclaim stuck outbox entries: $e');
@@ -228,12 +266,14 @@ class CloudflareSyncManager {
         }
 
         // Final attempt failed — set actionable error message
-        if (errStr.contains('Failed host lookup') || errStr.contains('No address associated with hostname')) {
+        if (errStr.contains('Failed host lookup') ||
+            errStr.contains('No address associated with hostname')) {
           _initError =
               'لا يمكن الوصول إلى خادم Cloudflare (${CloudflareConfig.workerUrl}). '
               'تأكد من اتصالك بالإنترنت وأن الشبكة لا تحظر الدومين workers.dev. '
               'الخطأ الأصلي: $e';
-        } else if (errStr.contains('SocketException') || errStr.contains('HandshakeException')) {
+        } else if (errStr.contains('SocketException') ||
+            errStr.contains('HandshakeException')) {
           _initError =
               'فشل الاتصال بخادم Cloudflare. تحقق من الشبكة وأعد المحاولة. '
               'الخطأ الأصلي: $e';
@@ -266,12 +306,35 @@ class CloudflareSyncManager {
           body: jsonEncode({
             'deviceId': _deviceId,
             'platform': 'android',
+            // ✅ (2026-09-05) هوية الصف المتزامن — تتقارب مسارات REST
+            // وoutbox على صف واحد في D1 (نفس local_uuid).
+            'localUuid': _deviceId,
           }),
         )
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       debugPrint('✅ Device registered: $_deviceId');
+      // ✅ (2026-09-05) devices كيان متزامن في النطاق الافتراضي
+      // (تعليمات المستخدم): كتابة محلية + outbox — السجل يُرفع عبر
+      // push ويُسحب عبر delta لكل الأجهزة.
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final payload = _deviceSyncPayload(platform: 'android', now: now);
+      await _writeLocalDeviceRow(payload);
+      final deviceRowUuid = payload['local_uuid'] as String?;
+      if (deviceRowUuid != null && deviceRowUuid.isNotEmpty) {
+        try {
+          await outboxDao.merge(
+            entity: 'devices',
+            op: 'create',
+            localUuid: deviceRowUuid,
+            payload: payload,
+            clientTs: now,
+          );
+        } catch (e) {
+          debugPrint('⚠️ devices outbox enqueue failed: $e');
+        }
+      }
       return _deviceId!;
     }
     // ✅ سجل في شاشة تتبع الأخطاء
@@ -304,8 +367,111 @@ class CloudflareSyncManager {
           )
           .timeout(const Duration(seconds: 10));
       debugPrint('✅ FCM token set for device: $_deviceId');
+      // ✅ (2026-09-05) devices كيان متزامن: كتابة محلية + outbox update.
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final payload = _deviceSyncPayload(
+        fcmToken: token,
+        platform: 'android',
+        now: now,
+      );
+      await _writeLocalDeviceRow(payload);
+      final deviceRowUuid = payload['local_uuid'] as String?;
+      if (deviceRowUuid != null && deviceRowUuid.isNotEmpty) {
+        try {
+          await outboxDao.merge(
+            entity: 'devices',
+            op: 'update',
+            localUuid: deviceRowUuid,
+            payload: payload,
+            clientTs: now,
+          );
+        } catch (e) {
+          debugPrint('⚠️ devices outbox enqueue failed: $e');
+        }
+      }
     } catch (e) {
       debugPrint('⚠️ Set FCM token error: $e');
+    }
+  }
+
+  // ─── Device sync row (local landing zone + outbox) ────────
+  // ✅ (2026-09-05) حمولة مزامنة devices بصيغة snake_case مطابقة لأعمدة
+  // جدول D1 (schema.sql + migrations/0004). الهوية: local_uuid =
+  // deviceId (مستقر وفريد لكل تثبيت) — عمود device_id الموحّد هو
+  // هوية الجهاز وعمود SyncFields.device_id (جهاز الكاتب) معاً.
+  Map<String, dynamic> _deviceSyncPayload({
+    required int now, String? fcmToken,
+    String? platform,
+    String? deviceName,
+  }) {
+    final deviceId = _deviceId ?? '';
+    return <String, dynamic>{
+      'local_uuid': deviceId,
+      'device_id': deviceId,
+      if (deviceName != null) 'device_name': deviceName,
+      if (platform != null) 'platform': platform,
+      if (fcmToken != null) 'fcm_token': fcmToken,
+      'status': 'active',
+      'is_active': 1,
+      'last_active': now,
+      'updated_at': now,
+      'last_modified': now,
+      'last_modified_epoch': now,
+      'version': 1,
+      'origin': 'local',
+      'vector_clock': jsonEncode(<String, int>{
+        if (deviceId.isNotEmpty) deviceId: 1,
+      }),
+    };
+  }
+
+  /// كتابة/تحديث صف الجهاز محلياً (landing zone السحب ومصدر رفع D1).
+  /// فشل الكتابة المحلية مساعد فقط — لا يُفشل التسجيل.
+  Future<void> _writeLocalDeviceRow(Map<String, dynamic> syncPayload) async {
+    try {
+      final db = _db;
+      if (db == null) return;
+      final localUuid = syncPayload['local_uuid'] as String?;
+      if (localUuid == null || localUuid.isEmpty) return;
+
+      final existingRows = await db
+          .customSelect(
+            'SELECT id, version FROM devices WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable.withString(localUuid)],
+          )
+          .get();
+      if (existingRows.isNotEmpty) {
+        final existingVersion =
+            (existingRows.first.data['version'] as int?) ?? 0;
+        final fields = Map<String, dynamic>.from(syncPayload)
+          ..remove('local_uuid')
+          ..remove('created_at')
+          ..['version'] = existingVersion + 1;
+        final setClauses = fields.keys.map((c) => '$c = ?').join(', ');
+        await db.customStatement(
+          'UPDATE devices SET $setClauses WHERE local_uuid = ?',
+          [...fields.values, localUuid],
+        );
+      } else {
+        final row = <String, dynamic>{
+          ...syncPayload,
+          'device_name': syncPayload['device_name'] ?? '',
+          'status': syncPayload['status'] ?? 'active',
+          'is_active': syncPayload['is_active'] ?? 1,
+          'created_at':
+              (syncPayload['created_at'] ?? syncPayload['updated_at']) as int,
+          'created_at_epoch': 0,
+        }..remove('id');
+        final columns = row.keys.join(', ');
+        final placeholders = row.keys.map((_) => '?').join(', ');
+        await db.customStatement(
+          'INSERT OR REPLACE INTO devices ($columns) '
+          'VALUES ($placeholders)',
+          row.values.toList(),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ devices local row write failed: $e');
     }
   }
 
@@ -319,7 +485,59 @@ class CloudflareSyncManager {
   /// ✅ P0-B: إذا لم تكن full sync مكتملة بعد، فإن sync() ينفّذ full pull
   /// (cursor=0 implicit since not completed) ولا يضع checkpoint نهائي
   /// إلا بعد اكتمال pagination حتى exhaustion.
-  Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+  Future<SyncResult> sync({
+    bool push = true,
+    bool pull = true,
+    // ✅ توافق Drop-in (perf call-sites: dashboard_screen deltaOnly،
+    // dashboard_sync_button/enhanced_sync_button forcePull):
+    // deltaOnly = سحب دلتا فقط بلا رفع ولا full-sync bootstrap —
+    // نفس عقد realtimeTriggeredPull؛ forcePull = طلب صريح من المستخدم
+    // — المدير الحالي لا يملك حارس فاصل زمني على sync() (الأداء مُدار
+    // بالـ auto-sync timer وP0-I)، فيُقبل ويُنفّذ السحب كالمعتاد.
+    bool deltaOnly = false,
+    bool forcePull = false,
+  }) async {
+    // ✅ المرحلة 6 (Dual-Run): مفتاح الإيقاف عن بُعد — disabled يعني
+    // عودة آمنة للمحلي بلا مزامنة سحابية (خطة الرجوع: دقائق).
+    if (!await CloudflareDualRunService().isCloudflareSyncEnabled()) {
+      debugPrint('⏸️ Cloudflare sync disabled remotely (kill switch)');
+      return SyncResult(
+        status: SyncStatus.idle,
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+        errorMessage: 'Cloudflare sync disabled remotely (kill switch)',
+      );
+    }
+    // ✅ (2026-09-05) مفتاح الإيقاف المحلي — «تفعيل مزامنة Appwrite»
+    // في شاشة إعدادات المزامنة (appwrite_sync_enabled، افتراضه مفعّل).
+    // سابقاً كان يوقف الحلقات الخلفية فقط بينما المزامنة اليدوية
+    // تتجاهله — سلوك إنتاج غير متوقع. OFF يعني OFF لكل المسارات.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final locallyEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      if (!locallyEnabled) {
+        debugPrint('⏸️ Sync disabled locally (appwrite_sync_enabled=false)');
+        return SyncResult(
+          status: SyncStatus.idle,
+          timestamp: DateTime.now(),
+          duration: Duration.zero,
+          errorMessage: 'Sync disabled locally (appwrite_sync_enabled=false)',
+        );
+      }
+    } catch (_) {
+      // فشل قراءة التفضيل لا يجوز أن يمنع المزامنة (fail-open مثل المفتاح البعيد).
+    }
+    if (deltaOnly) {
+      final bool ok = await realtimeTriggeredPull();
+      return SyncResult(
+        status: ok ? SyncStatus.success : SyncStatus.idle,
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+        errorMessage: ok
+            ? null
+            : 'Delta-only pull skipped (full sync not completed or sync in progress)',
+      );
+    }
     if (_token == null) {
       return SyncResult(
         status: SyncStatus.failed,
@@ -401,6 +619,16 @@ class CloudflareSyncManager {
       _syncInProgress = false;
     }
 
+    // ✅ (2026-09-05) تسجيل نتائج الدورة الفعلية في الإحصائيات —
+    // نقطة اكتمال وحيدة بعد try/catch؛ الحروب المبكرة (kill switch،
+    // deltaOnly، قفل re-entrancy) تعود قبلها فلا تُحتسب دورات.
+    await _recordSyncOutcome(
+      success: _currentStatus == SyncStatus.success,
+      pushed: recordsPushed,
+      pulled: recordsPulled,
+      startedAt: startTime,
+    );
+
     return SyncResult(
       status: _currentStatus,
       timestamp: startTime,
@@ -417,11 +645,27 @@ class CloudflareSyncManager {
 
     int totalPushed = 0;
 
+    final outboxDao = OutboxDao(_db!);
+
+    // ✅ (2026-09-06) استرجاع السجلات العالقة قبل التفريغ — reclaimForPush
+    // وُجدت لهذا الغرض تحديداً (وثيقتها في outbox_dao.dart: «يُستدعى في
+    // بداية طور الرفع») لكن الاستدعاء ضاع عند إعادة كتابة المدير السحابي.
+    // بدونه: سجلات 'processing' عالقة (جلسة رفع انقطعت) تُحصى في عدّاد زر
+    // الرفع (countUndeliveredToPrimary تشمل processing) بينما حلقة الرفع
+    // أدناه تختار pending/failed فقط → زر «رفع التغييرات» يبقى مفعّلاً
+    // للأبد ولا يفرّغ العداد. failed ≤ 5 محاولات تُعاد أيضاً إلى pending
+    // — الضغط على الزر طلب صريح من المستخدم بإعادة المحاولة.
+    try {
+      await outboxDao.reclaimForPush();
+    } catch (e) {
+      // فشل الاسترجاع لا يجوز أن يمنع رفع السجلات السليمة
+      debugPrint('⚠️ reclaimForPush failed (push continues): $e');
+    }
+
     // ✅ حلقة الرفع: تكرر حتى يفرغ outbox من كل السجلات العالقة
     // هذا يضمن أن زر "رفع التغييرات" يرفع كل التغييرات دفعة واحدة
     // وليس فقط أول 25 سجل.
     while (true) {
-      final outboxDao = OutboxDao(_db!);
       final pending =
           await (outboxDao.select(outboxDao.outbox)
                 ..where((t) => t.processingStatus.isIn(['pending', 'failed']))
@@ -456,18 +700,21 @@ class CloudflareSyncManager {
 
     final outboxDao = OutboxDao(_db!);
 
-    final operations = pending.map((item) {
-      final data = jsonDecode(item.payload) as Map<String, dynamic>;
-      return {
-        'idempotencyKey': item.idempotencyKey,
-        'entity': item.entity,
-        'operation': item.op,
-        'data': data,
-        'vectorClock': data['vector_clock'] as String? ?? '{}',
-        'updatedAt': item.clientTs,
-        if (_deviceId != null) 'deviceId': _deviceId,
-      };
-    }).toList();
+    final operations = <Map<String, dynamic>>[];
+    for (final item in pending) {
+      // ✅ عقد الدفع (2026-09-05): snake_case + local_uuid + vector_clock —
+      // البناء الكامل في buildPushOperation (sync/payload_normalizer.dart)
+      // ليُحارس العقد باختبارات تشغّل المنتجين الحقيقيين للكيانات.
+      operations.add(
+        await buildPushOperation(
+          item,
+          resolveRowVectorClock: _rowVectorClock,
+        ),
+      );
+      if (_deviceId != null) {
+        operations.last['deviceId'] = _deviceId;
+      }
+    }
 
     // ─── gzip compress the push payload for faster upload ───
     final jsonPayload = jsonEncode({'operations': operations});
@@ -502,7 +749,9 @@ class CloudflareSyncManager {
       // إعادة السجلات إلى pending (reclaim)
       for (final item in pending) {
         try {
-          await (outboxDao.update(outboxDao.outbox)..where((t) => t.id.equals(item.id))).write(
+          await (outboxDao.update(
+            outboxDao.outbox,
+          )..where((t) => t.id.equals(item.id))).write(
             const OutboxCompanion(
               processingStatus: Value('pending'),
               processingStartedAt: Value(null),
@@ -531,7 +780,9 @@ class CloudflareSyncManager {
         // auth issue — أعِد السجلات لـ pending بدل failed
         for (final item in pending) {
           try {
-            await (outboxDao.update(outboxDao.outbox)..where((t) => t.id.equals(item.id))).write(
+            await (outboxDao.update(
+              outboxDao.outbox,
+            )..where((t) => t.id.equals(item.id))).write(
               const OutboxCompanion(
                 processingStatus: Value('pending'),
                 processingStartedAt: Value(null),
@@ -552,7 +803,9 @@ class CloudflareSyncManager {
       final item = r as Map<String, dynamic>;
       final key = item['idempotencyKey'] as String?;
       final success = item['success'] as bool? ?? false;
-      final opStatus = item['status'] as String?; // ✅ P0-G: 'ok','not_found','conflict','validation_error'
+      final opStatus =
+          item['status']
+              as String?; // ✅ P0-G: 'ok','not_found','conflict','validation_error'
       final errorMsg = item['error'] as String?;
 
       if (key == null) continue;
@@ -563,7 +816,9 @@ class CloudflareSyncManager {
       );
 
       if (success) {
-        await (outboxDao.delete(outboxDao.outbox)..where((t) => t.id.equals(outboxItem.id))).go();
+        await (outboxDao.delete(
+          outboxDao.outbox,
+        )..where((t) => t.id.equals(outboxItem.id))).go();
         successCount++;
       } else {
         // ✅ P0-G: نفرّق بين أنواع الفشل
@@ -571,8 +826,12 @@ class CloudflareSyncManager {
         // - 'validation_error' (400): خطأ بيانات دائم — dead-letter
         // - 'not_found' (404): لا يمكن أن يحدث في push (يحدث في pull)
         // - أي شيء آخر: فشل مؤقت — failed + إعادة محاولة
-        final isPermanentError = opStatus == 'validation_error' || errorMsg != null && errorMsg.contains('validation');
-        final isConflict = opStatus == 'conflict' || errorMsg != null && errorMsg.contains('conflict');
+        final isPermanentError =
+            opStatus == 'validation_error' ||
+            errorMsg != null && errorMsg.contains('validation');
+        final isConflict =
+            opStatus == 'conflict' ||
+            errorMsg != null && errorMsg.contains('conflict');
 
         if (isPermanentError) {
           // ✅ P0-G: خطأ دائم — ضع السجل في dead-letter
@@ -591,7 +850,9 @@ class CloudflareSyncManager {
           );
         } else {
           // فشل مؤقت — إعادة المحاولة في الدورة القادمة
-          await (outboxDao.update(outboxDao.outbox)..where((t) => t.id.equals(outboxItem.id))).write(
+          await (outboxDao.update(
+            outboxDao.outbox,
+          )..where((t) => t.id.equals(outboxItem.id))).write(
             OutboxCompanion(
               processingStatus: const Value('failed'),
               attempts: Value(outboxItem.attempts + 1),
@@ -606,11 +867,39 @@ class CloudflareSyncManager {
     return successCount;
   }
 
+  /// يقرأ ساعة المتجه الحالية لصف الكيان المحلي — العقد المرجعي الذي
+  /// يفهمه الـ worker في OCC (database.ts detectConflict). تُعاد null
+  /// للكيانات بلا جدول محلي (blacklist) أو الصفوف المفقودة — عندها
+  /// يهيّئ الـ worker ساعة جديدة {deviceId: 1} (سلوك create الأصلي).
+  Future<String?> _rowVectorClock(String entity, String localUuid) async {
+    final table = CloudflareConfig.tableNameFor(entity);
+    if (table == null || _db == null) return null;
+    try {
+      final row = await _db!
+          .customSelect(
+            'SELECT vector_clock FROM $table WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable<String>(localUuid)],
+          )
+          .getSingleOrNull();
+      final vc = row?.data['vector_clock'] as String?;
+      if (vc == null || vc.isEmpty || vc == '{}') return null;
+      return vc;
+    } catch (_) {
+      // جدول محلي غير موجود (blacklist) أو صف محذوف — {} يهيئها الـ worker
+      return null;
+    }
+  }
+
   // ─── Pull changes from D1 ───────────────────────────────────
   Future<int> _pullChanges() async {
     if (_db == null) return 0;
 
     int totalPulled = 0;
+    // كيانات مؤثرة على الحقول المشتقة للحجوزات — يُعاد بناء الليالي
+    // والإجماليات المخزنة بعد اكتمال السحب (refreshAllActiveBookings
+    // مع enqueueOutbox:false — البيانات المشتقة تُحسب محلياً ولا تُرفع،
+    // وإلا حلقة سحب/رفع لا نهائية بين الأجهزة).
+    final pulledDerivedEntities = <String>{};
     bool hasMore = true;
     // P0-C: save initial cursor to restore on failure
     final initialCursor = _lastPullCursor;
@@ -632,10 +921,17 @@ class CloudflareSyncManager {
         try {
           response = await _httpClient
               .get(
-                Uri.parse('${CloudflareConfig.workerUrl}/api/sync/pull').replace(
+                Uri.parse(
+                  '${CloudflareConfig.workerUrl}/api/sync/pull',
+                ).replace(
                   queryParameters: {
                     'cursor': pendingCursor.toString(),
                     'limit': CloudflareConfig.batchSize.toString(),
+                    // ✅ خطة 2.5: لا تُعد إلينا سجلات دفعناها نحن (echo) —
+                    // الخادم يستثني device_id الخاص بنا من نتيجة السحب.
+                    if (_deviceId case final ownDevice?
+                        when ownDevice.isNotEmpty)
+                      'exclude_device': ownDevice,
                   },
                 ),
                 headers: {
@@ -695,24 +991,32 @@ class CloudflareSyncManager {
         }
 
         // P0-C: apply changes; one bad record should not stop the batch
+        final touchedEntities = <String>{};
         for (final change in changes) {
           try {
             final record = Map<String, dynamic>.from(change as Map);
-            final entity = record['_entity'] as String? ?? _detectEntity(record);
+            final entity =
+                record['_entity'] as String? ?? _detectEntity(record);
             record.remove('_entity'); // don't store this field in SQLite
 
             if (entity != null) {
               await _applyChange(entity, record);
               totalPulled++;
+              touchedEntities.add(entity);
             }
           } catch (e) {
             debugPrint('⚠️ Failed to apply change: $e');
           }
         }
+        pulledDerivedEntities.addAll(
+          touchedEntities.intersection(_derivedRefreshEntities),
+        );
 
         // P0-C: contradictory state - has_more=true but empty changes
         if (changes.isEmpty && hasMore) {
-          debugPrint('⚠️ Pull returned has_more=true but empty changes - stopping');
+          debugPrint(
+            '⚠️ Pull returned has_more=true but empty changes - stopping',
+          );
           hasMore = false;
         }
       }
@@ -736,12 +1040,25 @@ class CloudflareSyncManager {
         debugPrint('✅ Full sync completed - device is now delta-ready');
       }
 
-      debugPrint('📥 Pulled $totalPulled changes (cursor: $initialCursor -> $_lastPullCursor)');
+      debugPrint(
+        '📥 Pulled $totalPulled changes (cursor: $initialCursor -> $_lastPullCursor)',
+      );
+
+      // ✅ بناء مشتق بعد السحب (2026-09-05): الليالي (booking_nights)
+      // والإجماليات المخزنة صفوف مشتقة تُعاد الحسبة محلياً على كل جهاز
+      // (bookings_adapter.dart:183-186) — سحب تغييرات bookings/payments/
+      // adjustments دون إعادة بناء يترك الجهاز الآخر بأرقام قديمة.
+      // enqueueOutbox:false — مشتق لا يُرفع، وإلا حلقة لا نهائية.
+      if (pulledDerivedEntities.isNotEmpty && totalPulled > 0) {
+        await _refreshDerivedAfterPull();
+      }
     } else {
       // P0-C: on failure, do NOT advance cursor in prefs
       _lastPullCursor = initialCursor;
       _failedCollectionsInLastSync.add('pull');
-      debugPrint('⚠️ Pull failed - checkpoint NOT advanced (stayed at $initialCursor). Error: $errorMessage');
+      debugPrint(
+        '⚠️ Pull failed - checkpoint NOT advanced (stayed at $initialCursor). Error: $errorMessage',
+      );
       throw Exception('Pull failed: $errorMessage');
     }
 
@@ -759,6 +1076,20 @@ class CloudflareSyncManager {
     if (_db == null) return;
 
     if (record.isEmpty) return;
+
+    // ✅ عقد القائمة السوداء (2026-09-05): صفوف blacklist بلا جدول Drift
+    // محلي — تخزينها في shift_notes الموسومة created_by='blacklist'
+    // (blacklist_repository.dart:92). قبل هذا التحويل كان سحب صفوف
+    // blacklist من D1 يفشل صمتاً (no such table: blacklist) ولا تصل
+    // القائمة السوداء للأجهزة الأخرى أبداً.
+    if (entity == 'blacklist') {
+      final converted = CloudflareD1Service.blacklistShiftNoteRowFromD1(
+        record,
+      );
+      if (converted == null) return;
+      entity = 'shift_notes';
+      record = converted;
+    }
 
     final tableName = CloudflareConfig.tableNameFor(entity);
     if (tableName == null) return;
@@ -811,7 +1142,9 @@ class CloudflareSyncManager {
         // إذا كان موجود، فنحن في حالة "تعارض" - السجل المحلي أحدث لكنه لم
         // يُرفع بعد. السجل البعيد أقدم لكنه على الخادم. هذا تعارض محتمل
         // لكن LWW هنا يعطي الأولوية للمحلي. سنرفع المحلي في الـ sync القادمة.
-        debugPrint('  ⏭️ $entity/$localUuid: محلي أحدث ($localUpdatedAt > $remoteUpdatedAt) — تخطي');
+        debugPrint(
+          '  ⏭️ $entity/$localUuid: محلي أحدث ($localUpdatedAt > $remoteUpdatedAt) — تخطي',
+        );
         return;
       }
 
@@ -825,7 +1158,9 @@ class CloudflareSyncManager {
 
       // إذا كانت الـ vector clocks متزامنة (concurrent)، فهذا تعارض حقيقي
       // نستخدم SmartConflictResolver لحله على مستوى الحقول.
-      if (localVc.isNotEmpty && remoteVc.isNotEmpty && localVc.isConcurrent(remoteVc)) {
+      if (localVc.isNotEmpty &&
+          remoteVc.isNotEmpty &&
+          localVc.isConcurrent(remoteVc)) {
         final resolution = SmartConflictResolver.resolve(
           entity: entity,
           localData: localData,
@@ -855,9 +1190,10 @@ class CloudflareSyncManager {
               localUuid: localUuid,
               payload: mergedData,
               clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              source: 'local',
             );
-            debugPrint('  🤝 $entity/$localUuid: conflict resolved + queued for re-upload');
+            debugPrint(
+              '  🤝 $entity/$localUuid: conflict resolved + queued for re-upload',
+            );
           } catch (e) {
             debugPrint('  ⚠️ Failed to queue merged conflict result: $e');
           }
@@ -910,7 +1246,10 @@ class CloudflareSyncManager {
       final inserted = await _db!
           .customSelect(
             'SELECT 1 FROM $tableName WHERE local_uuid = ? AND updated_at = ?',
-            variables: [Variable<String>(localUuid), Variable<int>(remoteUpdatedAt)],
+            variables: [
+              Variable<String>(localUuid),
+              Variable<int>(remoteUpdatedAt),
+            ],
           )
           .getSingleOrNull();
       if (inserted != null) {
@@ -926,33 +1265,72 @@ class CloudflareSyncManager {
   }
 
   // ─── Detect entity from record fields ───────────────────────
+
+  /// الكيانات التي تؤثر صفوفها المسحوبة على الحقول المشتقة للحجوزات
+  /// (الليالي + الإجماليات المخزنة) — تستدعي إعادة بناء بعد السحب.
+  static const Set<String> _derivedRefreshEntities = {
+    'bookings',
+    'booking_nights',
+    'payments',
+    'price_adjustments',
+    'booking_price_adjustments',
+    'payment_voids',
+  };
+
+  bool _derivedRefreshRunning = false;
+
+  /// إعادة بناء الحقول المشتقة للحجوزات النشطة بعد سحب تغييرات مؤثرة.
+  /// enqueueOutbox:false إجبارياً — البيانات المشتقة تُحسب محلياً على كل
+  /// جهاز ولا تُرفع للخادم، وإلا سجّرت الأجهزة في حلقة سحب/رفع لا نهائية.
+  Future<void> _refreshDerivedAfterPull() async {
+    if (_db == null || _derivedRefreshRunning) return;
+    _derivedRefreshRunning = true;
+    try {
+      final service = BookingDerivedFieldsService(_db!);
+      final refreshed = await service.refreshAllActiveBookings(
+        enqueueOutbox: false,
+      );
+      debugPrint('🔄 Derived refresh after pull: $refreshed bookings rebuilt');
+    } catch (e) {
+      debugPrint('⚠️ Derived refresh after pull failed: $e');
+    } finally {
+      _derivedRefreshRunning = false;
+    }
+  }
+
+  // ─── Detect entity from record fields ───────────────────────
   // يحاول تحديد نوع الجدول من حقول السجل المستلم من D1
   String? _detectEntity(Map<String, dynamic> record) {
     // Core entities
     if (record.containsKey('room_number') && record.containsKey('price')) {
       return 'rooms';
     }
-    if (record.containsKey('guest_name') && record.containsKey('checkin_date')) {
+    if (record.containsKey('guest_name') &&
+        record.containsKey('checkin_date')) {
       return 'bookings';
     }
     if (record.containsKey('amount') && record.containsKey('payment_method')) {
       return 'payments';
     }
-    if (record.containsKey('expense_type') && record.containsKey('description')) {
+    if (record.containsKey('expense_type') &&
+        record.containsKey('description')) {
       return 'expenses';
     }
     if (record.containsKey('basic_salary') && record.containsKey('position')) {
       return 'employees';
     }
-    if (record.containsKey('debt_reason') && record.containsKey('remaining_amount')) {
+    if (record.containsKey('debt_reason') &&
+        record.containsKey('remaining_amount')) {
       return 'debts';
     }
 
     // Booking-related
-    if (record.containsKey('final_rate') && record.containsKey('hotel_day_key')) {
+    if (record.containsKey('final_rate') &&
+        record.containsKey('hotel_day_key')) {
       return 'booking_nights';
     }
-    if (record.containsKey('adjustment_type') && record.containsKey('effective_hotel_day')) {
+    if (record.containsKey('adjustment_type') &&
+        record.containsKey('effective_hotel_day')) {
       return 'booking_price_adjustments';
     }
     if (record.containsKey('note_text') && record.containsKey('alert_type')) {
@@ -966,33 +1344,47 @@ class CloudflareSyncManager {
     if (record.containsKey('shift_date') && record.containsKey('is_read')) {
       return 'shift_notes';
     }
-    if (record.containsKey('transaction_type') && record.containsKey('transaction_time')) {
+    if (record.containsKey('transaction_type') &&
+        record.containsKey('transaction_time')) {
       return 'cash_transactions';
     }
 
     // Salary
-    if (record.containsKey('cycle_key') && record.containsKey('expected_amount')) {
+    if (record.containsKey('cycle_key') &&
+        record.containsKey('expected_amount')) {
       return 'salary_cycles';
     }
-    if (record.containsKey('payment_date_iso') && record.containsKey('cycle_id')) {
+    if (record.containsKey('payment_date_iso') &&
+        record.containsKey('cycle_id')) {
       return 'salary_payments';
     }
     if (record.containsKey('withdrawal_type') && record.containsKey('amount')) {
       return 'salary_withdrawals';
     }
-    if (record.containsKey('previous_cycle_start') && record.containsKey('new_cycle_start')) {
+    if (record.containsKey('previous_cycle_start') &&
+        record.containsKey('new_cycle_start')) {
       return 'salary_carry_over_logs';
     }
 
     // Adjustments & audit
-    if (record.containsKey('target_type') && record.containsKey('target_uuid')) {
+    if (record.containsKey('target_type') &&
+        record.containsKey('target_uuid')) {
       return 'price_adjustments';
     }
-    if (record.containsKey('operation_type') && record.containsKey('entity_type')) {
+    if (record.containsKey('operation_type') &&
+        record.containsKey('entity_type')) {
       return 'audit_logs';
     }
     if (record.containsKey('void_reason') && record.containsKey('voided_by')) {
       return 'payment_voids';
+    }
+
+    // app_users — حسابات مستخدمي التطبيق (كيان النطاق الافتراضي
+    // 2026-09-05). الثنائي username + credentials_version فريد؛ لا
+    // جدول آخر متزامن يملك عمود username.
+    if (record.containsKey('username') &&
+        record.containsKey('credentials_version')) {
+      return 'app_users';
     }
 
     // hotel_day_ledger is local-only — should not be pulled
@@ -1039,6 +1431,11 @@ class CloudflareSyncManager {
     _autoSyncTimer = null;
   }
 
+  /// ✅ (2026-09-06) هل مؤقّت المزامنة التلقائية نشط الآن؟
+  /// يُستخدم في بطاقة «بيانات الاتصال التلقائي مع Cloudflare» لعرض
+  /// حالة المحرك الفعلية (لا نية الإعداد المخزّنة فقط).
+  bool get isAutoSyncRunning => _autoSyncTimer != null;
+
   // ─── Reset / Clear ──────────────────────────────────────────
   void reset() {
     _token = null;
@@ -1046,9 +1443,22 @@ class CloudflareSyncManager {
   }
 
   Future<void> resetSyncState() async {
+    // ✅ (2026-09-05) كانت تكتفي بضبط الحالة الظاهرة بينما الرسالة
+    // تعرض «تم إعادة تعيين مؤشر المزامنة المحلي فقط» — كذب. الآن
+    // تُصفّر cursor السحب وعلامة full-sync فعلياً (نفس clearHistory +
+    // مسح التخزين) فيبدأ السحب التالي من الصفر — «البدء من جديد».
     _currentStatus = SyncStatus.idle;
     _lastError = null;
     _statusController.add(SyncStatus.idle);
+    clearHistory();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cf_last_pull_cursor');
+      await prefs.remove(_kFullSyncCompletedKey);
+      debugPrint('🔄 resetSyncState: cursor + fullSync flag cleared');
+    } catch (e) {
+      debugPrint('⚠️ resetSyncState prefs clear failed: $e');
+    }
   }
 
   /// إعادة تعيين cursor — يُجبر الـ pull التالي على جلب كل البيانات (full sync).
@@ -1076,12 +1486,86 @@ class CloudflareSyncManager {
     await prefs.remove('cf_last_pull_cursor');
     await prefs.remove(_kFullSyncCompletedKey);
     debugPrint('🔄 Full sync: cursor reset + fullSyncCompleted flag cleared');
-    return sync(push: true, pull: true);
+    return sync();
   }
 
-  // ─── Push all local data (stub) ─────────────────────────────
-  Future<int> pushAllLocalDataToAppwrite() async {
-    return 0;
+  // ─── Push all local data ────────────────────────────────────
+  // ✅ توافق Drop-in (perf google_drive_backup_service يستدعيها
+  // بـ skipDeleted ويتوقع Map<String,int> فيه 'errors'): الرفع
+  // الفعلي للبيانات يجري عبر outbox/push العادي — هذه الدالة
+  // للتوافق وتُرجع صفراً لكل جدول.
+  Future<Map<String, int>> pushAllLocalDataToAppwrite({
+    bool skipDeleted = false,
+  }) async {
+    debugPrint(
+      '⚠️ pushAllLocalDataToAppwrite: cloudflare path uses outbox push — '
+      'returning zeroed stats (skipDeleted: $skipDeleted)',
+    );
+    return const <String, int>{'errors': 0};
+  }
+
+  /// ✅ توافق Drop-in (perf google_drive_login_screen / appwrite_settings
+  /// يستدعيها ويتوقع Future<bool>): سحب كامل — نفس sync(pull: true)
+  /// بلا رفع؛ نجاحها = لا فشل جزئي.
+  Future<bool> pullAllDataWithDisabledFK() async {
+    final result = await sync(push: false);
+    return result.isSuccess;
+  }
+
+  /// ✅ توافق Drop-in (perf providers تسجّل ref.onDispose(manager.dispose)).
+  /// singleton مشترك — لا يُغلق _statusController (broadcast stream
+  /// مستهلك من شاشات أخرى)؛ تنظيف محدود فقط.
+  void dispose() {
+    _autoSyncTimer?.cancel();
+    _autoSyncTimer = null;
+  }
+
+  /// ✅ (2026-09-05) الأجهزة المسجلة — تُقرأ الآن من جدول devices المحلي
+  /// (landing zone السحب — تُغذّى من D1 عبر pull) بدل القائمة الفارغة؛
+  /// الشاشة مبنية على D1 عبر المزامنة كما تنص الخطة المعلقة سابقاً.
+  Future<List<AppwriteDevice>> getRegisteredDevices() async {
+    final db = _db;
+    if (db == null) return const <AppwriteDevice>[];
+    try {
+      final rows = await db
+          .customSelect(
+            'SELECT * FROM devices WHERE deleted_at IS NULL '
+            'ORDER BY COALESCE(last_active, updated_at) DESC',
+          )
+          .get();
+      DateTime? epochToDateTime(dynamic v) {
+        if (v is int && v > 0) {
+          return DateTime.fromMillisecondsSinceEpoch(v * 1000);
+        }
+        return null;
+      }
+
+      DateTime? isoToDateTime(dynamic v) {
+        if (v is String && v.isNotEmpty) return DateTime.tryParse(v);
+        return null;
+      }
+
+      return rows.map((r) {
+        final d = r.data;
+        return AppwriteDevice(
+          id: (d['device_id'] as String?) ?? '',
+          deviceName: (d['device_name'] as String?) ?? '',
+          deviceModel: (d['device_model'] as String?) ?? '',
+          osVersion: (d['os_version'] as String?) ?? '',
+          lastSeen: isoToDateTime(d['last_seen']) ?? DateTime.now(),
+          lastActive: epochToDateTime(d['last_active']),
+          status: (d['status'] as String?) ?? 'active',
+          createdAt: epochToDateTime(d['created_at']) ?? DateTime.now(),
+          updatedAt: epochToDateTime(d['updated_at']) ?? DateTime.now(),
+          version: (d['version'] as int?) ?? 1,
+          origin: d['origin'] as String?,
+          localUuid: d['local_uuid'] as String?,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('⚠️ getRegisteredDevices failed: $e');
+      return const <AppwriteDevice>[];
+    }
   }
 
   // ─── Device ID generation ───────────────────────────────────
@@ -1119,11 +1603,132 @@ class CloudflareSyncManager {
 
   // ─── Stubs for methods called by existing screens ──────────
 
-  Future<int> pushLocalChanges() async => sync(pull: false).then((r) => r.recordsPushed);
-  Future<int> pushAllLocalData() async => 0;
-  Future<void> pullAllDataWithDisabledFK() async {}
+  /// ✅ (2026-09-06) عقد صادق لزر «رفع التغييرات» في dashboard.
+  ///
+  /// سابقاً: `sync(pull: false).then((r) => r.recordsPushed)` — كانت تُسقط
+  /// `SyncResult.status` بالكامل، فأي فشل (شبكة :723-751، non-200 :753-779،
+  /// kill switch :502-510، تعطيل محلي :515-526، غير مهيأ :541-548، دورة
+  /// جارية :551-559) كان يُترجم عند المستدعي إلى نجاح مع 0 سجل، لأن
+  /// `pushedCount >= 0` صادق دائماً (dashboard_sync_button.dart:536).
+  /// النتيجة الإنتاجية: snackbar أخضر «✅ تم رفع التغييرات بنجاح!» بينما
+  /// الـ outbox ما زال ممتلئاً — تضليل بنفس نمط pushAllLocalData المُصلح
+  /// أعلاه (2026-09-05).
+  ///
+  /// الآن: ترمي [StateError] عند أي حالة غير `success`، وتُرجع العدد
+  /// عند نجاح فعلي فقط. المستدعي dashboard_sync_button يلتقط الاستثناء
+  /// في try/catch لكل هدف (:539-546) فيُظهر snackbar أحمر مع «إعادة».
+  Future<int> pushLocalChanges() async {
+    final r = await sync(pull: false);
+    if (r.status != SyncStatus.success) {
+      throw StateError(r.errorMessage ?? 'Push failed (${r.status.name})');
+    }
+    return r.recordsPushed;
+  }
+
+  /// ✅ (2026-09-05) كانت تُرجع 0 دائماً (stub) بينما زر «بدء الرفع»
+  /// في الإعدادات يعرض «تم رفع البيانات بنجاح» دون رفع أي شيء —
+  /// تضليل إنتاجي. الآن تنفّذ الرفع الفعلي عبر outbox push (نفس
+  /// مسار pushLocalChanges) وتعيد عدد السجلات المرفوعة، وترمي
+  /// استثناء عند فشل الدورة ليُظهره try/catch الشاشة بدل نجاح زائف.
+  Future<int> pushAllLocalData() async {
+    final r = await sync(pull: false);
+    if (r.status == SyncStatus.failed) {
+      throw StateError(r.errorMessage ?? 'Push failed');
+    }
+    return r.recordsPushed;
+  }
+
   Future<void> pushAllEntities() async {}
-  Future<Map<String, dynamic>> getSyncStatistics() async => {};
+
+  /// ✅ (2026-09-05) إحصائيات حقيقية بدل {} — عدادات دورات المدير
+  /// (تعيش في SharedPreferences) + عدّ Outbox الفعلي (المعلّق
+  /// غير المسلَّم + الفاشل). المفاتيح هي نفسها التي تقرأها
+  /// شاشات الإحصائيات (appwrite_settings_screen، appwrite_sync_stats_screen).
+  Future<Map<String, dynamic>> getSyncStatistics() async {
+    final stats = <String, dynamic>{
+      'totalSyncs': _statTotalSyncs,
+      'successfulSyncs': _statSuccessfulSyncs,
+      'failedSyncs': _statFailedSyncs,
+      'totalRecordsPushed': _statTotalPushed,
+      'totalRecordsPulled': _statTotalPulled,
+      'totalConflicts': 0,
+      'successRate': _statTotalSyncs == 0
+          ? 0.0
+          : _statSuccessfulSyncs / _statTotalSyncs,
+      'lastSyncTime': _statLastSyncTime?.toIso8601String(),
+      'outboxCount': 0,
+      'fullSyncCompleted': _fullSyncCompleted,
+      'lastError': _lastError,
+    };
+    final db = _db;
+    if (db != null) {
+      try {
+        final pending = await OutboxDao(
+          db,
+        ).countUndeliveredToPrimary(sources: const ['local']);
+        stats['outboxCount'] = pending;
+      } catch (e) {
+        debugPrint('⚠️ getSyncStatistics outbox count failed: $e');
+      }
+    }
+    return stats;
+  }
+
+  /// تحميل عدادات الإحصائيات المحفوظة — يُستدعى من initialize().
+  Future<void> _loadSyncStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kSyncStatsKey);
+      if (raw == null) return;
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      _statTotalSyncs = (map['totalSyncs'] as num?)?.toInt() ?? 0;
+      _statSuccessfulSyncs = (map['successfulSyncs'] as num?)?.toInt() ?? 0;
+      _statFailedSyncs = (map['failedSyncs'] as num?)?.toInt() ?? 0;
+      _statTotalPushed = (map['totalPushed'] as num?)?.toInt() ?? 0;
+      _statTotalPulled = (map['totalPulled'] as num?)?.toInt() ?? 0;
+      final lastMs = (map['lastSyncMs'] as num?)?.toInt();
+      _statLastSyncTime = lastMs == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(lastMs);
+    } catch (e) {
+      debugPrint('⚠️ _loadSyncStats failed: $e');
+    }
+  }
+
+  /// تسجيل نتيجة دورة مزامنة مكتملة وحفظها.
+  Future<void> _recordSyncOutcome({
+    required bool success,
+    required int pushed,
+    required int pulled,
+    required DateTime startedAt,
+  }) async {
+    _statTotalSyncs++;
+    if (success) {
+      _statSuccessfulSyncs++;
+    } else {
+      _statFailedSyncs++;
+    }
+    _statTotalPushed += pushed;
+    _statTotalPulled += pulled;
+    _statLastSyncTime = startedAt;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _kSyncStatsKey,
+        jsonEncode(<String, dynamic>{
+          'totalSyncs': _statTotalSyncs,
+          'successfulSyncs': _statSuccessfulSyncs,
+          'failedSyncs': _statFailedSyncs,
+          'totalPushed': _statTotalPushed,
+          'totalPulled': _statTotalPulled,
+          'lastSyncMs': startedAt.millisecondsSinceEpoch,
+        }),
+      );
+    } catch (e) {
+      debugPrint('⚠️ _recordSyncOutcome persist failed: $e');
+    }
+  }
+
   Future<void> reinitializeAfterConfigChange() async {
     await initialize(forceRetry: true);
   }
@@ -1135,12 +1740,42 @@ class CloudflareSyncManager {
   }
 
   // ─── Pull ALL remote data — used by appwrite_settings_screen ──
-  Future<void> pullAllRemoteData() async {
-    await sync(push: false);
+  // ✅ توافق Drop-in: perf screen يتوقع Future<bool>.
+  Future<bool> pullAllRemoteData() async {
+    final result = await sync(push: false);
+    return result.isSuccess;
   }
+
+  /// ✅ توافق Drop-in (perf auth_local_store يستخدم manager.outboxDao
+  /// لدمج app_users من النسخ الاحتياطية): الوصول لـ OutboxDao على نفس
+  /// قاعدة drift الخاصة بالمدير.
+  OutboxDao get outboxDao => OutboxDao(_db!);
 
   // AppwriteService compatibility (some files pass this)
   dynamic get appwriteService => null;
+
+  /// ✅ المرحلة 3: مدخل السحب المُشغَّل من Realtime (عقد RemoteChangePull).
+  ///
+  /// - delta-only حصراً: لا يبدأ Full Sync أبداً من حدث realtime —
+  ///   لا يُسحب قبل اكتمال full sync الأولى (P0-B)؛ الـ full sync
+  ///   يجري عبر المسار الصريح فقط.
+  /// - حارس re-entrancy (P0-I): sync() نفسه محمي، لكن نتجنب هنا
+  ///   إهدار دورة على "already in progress".
+  /// - push أولاً ثم pull داخل sync() — الترتيب يضمن أن التغييرات
+  ///   المحلية المعلّقة تُرفع قبل الاستماع للبعيدة (نفس عقد Outbox).
+  Future<bool> realtimeTriggeredPull() async {
+    if (!_fullSyncCompleted) {
+      debugPrint('⏭️ Realtime pull skipped — full sync not completed yet');
+      return false;
+    }
+    if (_syncInProgress) {
+      debugPrint('⏭️ Realtime pull skipped — sync already in progress');
+      return false;
+    }
+    // sync() الافتراضي: push ثم pull — الترتيب الداخلي يرفع outbox أولاً
+    final result = await sync();
+    return result.isSuccess;
+  }
 }
 
 // ═══ Backward compatibility aliases ═══════════════════════════

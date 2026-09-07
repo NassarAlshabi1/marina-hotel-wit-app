@@ -6,7 +6,7 @@
 import { Database, ALL_TABLE_NAMES } from './database';
 import { authMiddleware, handleLogin, hashPassword, signToken } from './auth';
 import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate } from './sync';
-import { SyncLockDO } from './sync-lock';
+import { SyncLockDO, type RealtimeMessage } from './sync-lock';
 
 // ─── Environment bindings ─────────────────────────────────────
 
@@ -15,12 +15,34 @@ export { SyncLockDO };
 export interface Env {
   DB: D1Database;
   SYNC_LOCK: DurableObjectNamespace;
-  RATE_LIMIT: KVNamespace;
   JWT_SECRET: string;
   JWT_EXPIRY_HOURS: string;
   RATE_LIMIT_WINDOW: string;
   RATE_LIMIT_MAX: string;
   CORS_ORIGIN: string;
+}
+
+// ─── Realtime Broadcast Adapter (plan phase 3) ────────────────
+// Forwards change events to the SyncLockDO WebSocket hub so connected
+// devices pull deltas immediately. Best-effort by contract: every error
+// is swallowed here — realtime is an optimization, never a correctness
+// guarantee (auto-sync + delta cursor still converge all devices).
+function realtimeBroadcaster(env: Env): (msg: RealtimeMessage) => Promise<void> {
+  return async (msg: RealtimeMessage) => {
+    try {
+      const lockId = env.SYNC_LOCK.idFromName('global');
+      const stub = env.SYNC_LOCK.get(lockId);
+      await stub.fetch(
+        new Request('https://do.internal/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(msg),
+        })
+      );
+    } catch (err) {
+      console.error('[REALTIME] Broadcast failed (non-fatal):', err);
+    }
+  };
 }
 
 // ─── Rate Limiting ────────────────────────────────────────────
@@ -272,7 +294,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
       // ─── Sync Push ──────────────────────────────────────
       if (path === '/api/sync/push' && method === 'POST') {
-        const response = await handlePush(request, db, ctx);
+        const response = await handlePush(request, db, ctx, realtimeBroadcaster(env));
         logRequest(method, path, response.status, Date.now() - startTime, clientIp);
         return response;
       }
@@ -330,8 +352,17 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       if (path === '/api/devices/register' && method === 'POST') {
         const db = new Database(env.DB);
         try {
-          const body = await request.json() as { deviceId: string; fcmToken?: string; deviceName?: string; platform?: string };
-          await db.registerDevice(body.deviceId, body.fcmToken || null, body.deviceName, body.platform);
+          const body = await request.json() as { deviceId: string; fcmToken?: string; deviceName?: string; platform?: string; localUuid?: string };
+          // ✅ Production guard: deviceId anchors BOTH the sync identity
+          // (local_uuid) and the device row — a missing value would fail
+          // deep in D1 with NOT NULL violation (raw 500); reject clearly.
+          if (!body.deviceId || typeof body.deviceId !== 'string' || body.deviceId.trim().length === 0) {
+            logRequest(method, path, 400, Date.now() - startTime, clientIp);
+            return json({ error: 'deviceId is required' }, 400, env);
+          }
+          // localUuid anchors the sync identity — REST registration and
+          // outbox pushes (devices is a synced entity) converge on one row.
+          await db.registerDevice(body.deviceId, body.fcmToken || null, body.deviceName, body.platform, body.localUuid);
           logRequest(method, path, 200, Date.now() - startTime, clientIp);
           return json({ registered: true, deviceId: body.deviceId }, 200, env);
         } catch (err) {

@@ -1,12 +1,13 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
-import 'appwrite_sync_manager.dart';
+import 'crashlytics_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'salary_cycle_calculator.dart';
 
 class SalaryEntitlement {
   SalaryEntitlement({
@@ -236,6 +237,8 @@ class SalaryEntitlementService {
 
   /// حساب الدورة الشهرية الحالية للموظف
   Future<MonthlySalaryCycle> calculateCurrentCycle(Employee employee) async {
+    await _ensureAutomaticCarryOver(employee);
+
     final now = DateTime.now();
     final hireDate = _parseDate(employee.hireDate) ?? now;
 
@@ -265,6 +268,7 @@ class SalaryEntitlementService {
       totalWithdrawals: cycleTxns.withdrawals,
       totalDeductions: cycleTxns.deductions,
       totalAdvances: cycleTxns.advances,
+      installmentsPaid: cycleTxns.installmentsPaid,
       carriedOverFromPrevious: carriedOver,
       transactions: cycleTxns.transactions,
       carryOverLogs: carryOverLogs,
@@ -273,6 +277,8 @@ class SalaryEntitlementService {
 
   /// حساب كل الدورات الشهرية للموظف
   Future<List<MonthlySalaryCycle>> calculateAllCycles(Employee employee) async {
+    await _ensureAutomaticCarryOver(employee);
+
     final now = DateTime.now();
     final hireDate = _parseDate(employee.hireDate) ?? now;
 
@@ -311,6 +317,7 @@ class SalaryEntitlementService {
         totalWithdrawals: txns.withdrawals,
         totalDeductions: txns.deductions,
         totalAdvances: txns.advances,
+        installmentsPaid: txns.installmentsPaid,
         carriedOverFromPrevious: carriedOver,
         transactions: displayTxns,
         carryOverLogs: carryOverLogs,
@@ -325,6 +332,23 @@ class SalaryEntitlementService {
     }
 
     return cycles.reversed.toList();
+  }
+
+  /// تشغيل الترحيل كجزء من قراءة الدورة دون أن يفشل عرض الشاشة إذا تعذر
+  /// التسجيل مؤقتاً. الفشل يُسجل وتبقى عملية الحساب قابلة لإعادة المحاولة.
+  Future<void> _ensureAutomaticCarryOver(Employee employee) async {
+    try {
+      await processAutoCarryOver(employee);
+    } catch (e, stack) {
+      dlog(() => '⚠️ تعذر الترحيل التلقائي مؤقتاً: $e');
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'SalaryEntitlementService',
+        action: 'processAutoCarryOver',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.warning,
+      );
+    }
   }
 
   /// الترحيل التلقائي — ينشئ سجل عند تجاوز الراتب
@@ -346,14 +370,6 @@ class SalaryEntitlementService {
     );
     if (carriedOver <= 0) return;
 
-    // منع التكرار
-    final existing = await _checkExistingCarryOver(
-      employee.id,
-      previousCycleStart,
-      currentCycleStart,
-    );
-    if (existing) return;
-
     final currentCycleEnd = _getCycleEnd(currentCycleStart);
     final reason =
         'تم ترحيل مبلغ ${carriedOver.toStringAsFixed(0)} ريال '
@@ -362,36 +378,38 @@ class SalaryEntitlementService {
         'في دورة ${_formatDate(previousCycleStart)} إلى ${_formatDate(previousCycleEnd)}.';
 
     final nowEpoch = Time.nowEpoch();
-    final nowIso = DateTime.now().toIso8601String();
     final carryLogUuid = IdGen.uuid();
-    await _db
-        .into(_db.salaryCarryOverLogs)
-        .insert(
-          SalaryCarryOverLogsCompanion.insert(
-            employeeId: employee.id,
-            amount: carriedOver,
-            previousCycleStart: _formatDate(previousCycleStart),
-            previousCycleEnd: _formatDate(previousCycleEnd),
-            newCycleStart: _formatDate(currentCycleStart),
-            newCycleEnd: _formatDate(currentCycleEnd),
-            reason: reason,
-            carriedAt: nowEpoch,
-            localUuid: carryLogUuid,
-            createdAt: nowEpoch,
-            createdAtIso: d.Value(nowIso),
-            createdAtEpoch: d.Value(nowEpoch),
-            updatedAt: nowEpoch,
-            updatedAtIso: d.Value(nowIso),
-            lastModified: nowEpoch,
-            lastModifiedEpoch: d.Value(nowEpoch),
-            version: const d.Value(1),
-            origin: const d.Value('local'),
-            deviceId: d.Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
-          ),
-        );
 
-    // ✅ تسجيل في outbox للمزامنة مع Appwrite Cloud
-    try {
+    // SQLite transaction serializes competing calls from repeated screen opens
+    // or two local triggers. The duplicate check and insert must be atomic.
+    await _db.transaction(() async {
+      final existing = await _checkExistingCarryOver(
+        employee.id,
+        previousCycleStart,
+        currentCycleStart,
+      );
+      if (existing) return;
+
+      await _db
+          .into(_db.salaryCarryOverLogs)
+          .insert(
+            SalaryCarryOverLogsCompanion.insert(
+              employeeId: employee.id,
+              amount: carriedOver,
+              previousCycleStart: _formatDate(previousCycleStart),
+              previousCycleEnd: _formatDate(previousCycleEnd),
+              newCycleStart: _formatDate(currentCycleStart),
+              newCycleEnd: _formatDate(currentCycleEnd),
+              reason: reason,
+              carriedAt: nowEpoch,
+              localUuid: carryLogUuid,
+              createdAt: nowEpoch,
+              updatedAt: nowEpoch,
+              lastModified: nowEpoch,
+            ),
+          );
+
+      // Keep the database write and its sync intent in one transaction.
       await OutboxDao(_db).merge(
         entity: 'salary_carry_over_logs',
         op: 'create',
@@ -408,11 +426,9 @@ class SalaryEntitlementService {
           'carriedAt': nowEpoch,
         },
       );
-    } catch (e) {
-      debugPrint('⚠️ فشل تسجيل salary_carry_over_log في outbox: $e');
-    }
+    });
 
-    debugPrint('📝 ترحيل تلقائي: $carriedOver للموظف ${employee.name}');
+    dlog(() => '📝 ترحيل تلقائي: $carriedOver للموظف ${employee.name}');
   }
 
   /// جلب كل سجلات الترحيل لموظف
@@ -458,7 +474,7 @@ class SalaryEntitlementService {
               ..where((e) => e.deletedAt.isNull()))
             .get();
 
-    double withdrawals = 0, deductions = 0, advances = 0;
+    double withdrawals = 0, deductions = 0, advances = 0, installmentsPaid = 0;
     final transactions = <SalaryCycleTransaction>[];
 
     for (final expense in expenses) {
@@ -493,7 +509,9 @@ class SalaryEntitlementService {
       } else if (type == 'خصم من الراتب') {
         final isInstallment =
             expense.isAutoGenerated && expense.description.contains('قسط سلفة');
-        if (!isInstallment) {
+        if (isInstallment) {
+          installmentsPaid += expense.amount;
+        } else {
           deductions += expense.amount;
           transactions.add(
             SalaryCycleTransaction(
@@ -520,7 +538,13 @@ class SalaryEntitlementService {
     }
 
     transactions.sort((a, b) => b.date.compareTo(a.date));
-    return _CycleTxns(withdrawals, deductions, advances, transactions);
+    return _CycleTxns(
+      withdrawals,
+      deductions,
+      advances,
+      installmentsPaid,
+      transactions,
+    );
   }
 
   Future<bool> _checkExistingCarryOver(
@@ -593,12 +617,10 @@ class SalaryEntitlementService {
           ? '$normalized:00'
           : normalized;
       return DateTime.parse(withSeconds);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in salary_entitlement_service.dart: ');
+    } catch (_) {
       try {
         return DateTime.parse(dateStr.split(' ').first);
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in salary_entitlement_service.dart: ');
+      } catch (_) {
         return null;
       }
     }
@@ -622,6 +644,7 @@ class MonthlySalaryCycle {
     required this.totalWithdrawals,
     required this.totalDeductions,
     required this.totalAdvances,
+    required this.installmentsPaid,
     required this.carriedOverFromPrevious,
     required this.transactions,
     required this.carryOverLogs,
@@ -634,18 +657,28 @@ class MonthlySalaryCycle {
   final double totalWithdrawals;
   final double totalDeductions;
   final double totalAdvances;
+  final double installmentsPaid;
   final double carriedOverFromPrevious;
   final List<SalaryCycleTransaction> transactions;
   final List<SalaryCarryOverLog> carryOverLogs;
 
+  SalaryCycleResult get calculation => SalaryCycleCalculator.calculate(
+    SalaryCycleInput(
+      basicSalary: basicSalary,
+      withdrawals: totalWithdrawals,
+      advances: totalAdvances,
+      installmentsPaid: installmentsPaid,
+      deductions: totalDeductions,
+      carriedOverFromPrevious: carriedOverFromPrevious,
+    ),
+  );
+
   double get totalDeductionsAndWithdrawals =>
-      totalWithdrawals +
-      totalDeductions +
-      totalAdvances +
-      carriedOverFromPrevious;
-  double get remainingBalance => basicSalary - totalDeductionsAndWithdrawals;
-  bool get hasExceeded => remainingBalance < 0;
-  double get carryOverToNext => hasExceeded ? remainingBalance.abs() : 0.0;
+      calculation.totalBeforeCarryOver.toDouble();
+  double get remainingBalance =>
+      calculation.remainingBalance.toDouble() - calculation.carryOverToNext;
+  bool get hasExceeded => calculation.hasExceeded;
+  double get carryOverToNext => calculation.carryOverToNext.toDouble();
   double get availableToWithdraw =>
       remainingBalance > 0 ? remainingBalance : 0.0;
 
@@ -696,10 +729,12 @@ class _CycleTxns {
     this.withdrawals,
     this.deductions,
     this.advances,
+    this.installmentsPaid,
     this.transactions,
   );
   final double withdrawals;
   final double deductions;
   final double advances;
+  final double installmentsPaid;
   final List<SalaryCycleTransaction> transactions;
 }

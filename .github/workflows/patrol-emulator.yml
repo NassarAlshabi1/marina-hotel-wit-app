@@ -4,19 +4,18 @@
 #
 #  يحل محل android-emulator.yml القديم. الفروق الجوهرية:
 #
-#  1. يستخدم Patrol 4.7.x (patrolTest + $ custom finders) بدلاً من
+#  2. يستخدم Patrol 4.7.1 (patrolTest + $ custom finders) بدلاً من
 #     integration_test العادي. هذا يوفِّر:
 #       - Native automation (permissions, notifications, WebView, share sheet)
 #       - Custom finders أسرع وأوضح ($(Key).tap() بدلاً من tester.tap(find...))
 #       - Hot Restart أثناء التطوير المحلي
 #
-#  2. يُجمِّع كل اختبارات integration_test/*_test.dart في APK واحد عبر
-#     `patrol build android` ثم يشغِّلها في invocation واحد بدلاً من
-#     N invocations منفصلة (مما يقلِّل وقت الـ CI بشكل كبير).
+#  2. يشغّل كل ملف اختبار بشكل مستقل لتقليل تلوث الحالة بين مجموعات الاختبار
+#     وتحديد الملف الذي يسبب أي crash في Instrumentation.
 #
-#  3. يستخدم `patrol test` مع --retry لمعالجة flakiness تلقائياً.
+#  3. يجمع تشخيصات Android عند الفشل بدلاً من الاكتفاء برسالة Gradle العامة.
 #
-#  4. AVD caching يبقى كما هو (snapshot للـ system image).
+#  4. AVD caching يبقى كما هو مع تعطيل تحميل snapshot غير الموثوق.
 #
 #  المرجع: https://patrol.leancode.co/documentation
 # ════════════════════════════════════════════════════════════════════════════
@@ -50,7 +49,7 @@ jobs:
   #  Job 1: تشغيل اختبارات Patrol على Android emulator
   # ═════════════════════════════════════════════════════════════════════════
   patrol-test:
-    name: Patrol Tests (API ${{ matrix.api-level }})
+    name: Patrol Tests (API ${{ matrix.api-level }} — ${{ matrix.test-file }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -60,6 +59,14 @@ jobs:
         api-level: [34]
         target: [google_apis]
         arch: [x86_64]
+        test-file:
+          - app_test.dart
+          - login_validation_test.dart
+          - login_input_test.dart
+          - login_password_test.dart
+          - login_remember_me_test.dart
+          - login_rtl_test.dart
+          - booking_payment_test.dart
 
     defaults:
       run:
@@ -93,12 +100,12 @@ jobs:
           cache: gradle
 
       # ─────────────────────────────────────────────────────────────────────
-      #  5. تثبيت Flutter 3.44.4 (مطابق للإصدار المُستخدم محلياً)
+      #  5. تثبيت Flutter 3.44.9 المطابق لإصدار المشروع المحلي وCI الأساسي
       # ─────────────────────────────────────────────────────────────────────
       - name: 🐦 Set up Flutter
         uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.4'
+          flutter-version: '3.44.9'
           channel: stable
           cache: true
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
@@ -128,15 +135,16 @@ jobs:
           "$SDKMANAGER" --version
 
       # ─────────────────────────────────────────────────────────────────────
-      #  7. تثبيت patrol_cli
+      #  7. تثبيت patrol_cli المتوافق مع patrol runtime 4.7.1
       # ─────────────────────────────────────────────────────────────────────
       - name: 🔧 Install patrol_cli
-        run: dart pub global activate patrol_cli 4.5.1
+        run: dart pub global activate patrol_cli 4.6.1
 
       - name: 🩺 Patrol doctor
+        # فحص مانع: لا ينبغي إخفاء نقص Android SDK أو adb في بيئة المحاكي.
         run: |
           export PATH="$HOME/.pub-cache/bin:$PATH"
-          patrol doctor || true
+          PATROL_ANALYTICS_ENABLED=false patrol doctor
 
       # ─────────────────────────────────────────────────────────────────────
       #  8. تثبيت dependencies
@@ -148,13 +156,13 @@ jobs:
       #  9. توليد ملفات drift/freezed اللازمة قبل البناء
       # ─────────────────────────────────────────────────────────────────────
       - name: 🔧 Generate build_runner files
-        run: dart run build_runner build 
+        run: dart run build_runner build --delete-conflicting-outputs
 
       # ─────────────────────────────────────────────────────────────────────
       #  10. AVD cache — يُسرِّع الـ runs القادمة بشكل كبير
       # ─────────────────────────────────────────────────────────────────────
       - name: 💾 AVD cache
-        uses: actions/cache@v6
+        uses: actions/cache@v5
         id: avd-cache
         with:
           path: |
@@ -180,25 +188,49 @@ jobs:
             # android-emulator-runner passes the script to /usr/bin/sh -c.
             # We use a single-line command with && so cd persists to patrol test.
             # Note: patrol test doesn't have --retry (only --web-retries for web).
-            cd "${{ github.workspace }}/mobile" && export PATH="$HOME/.pub-cache/bin:$PATH" && patrol test --target integration_test/ --exclude-tags skip-ci --verbose
+            cd "${{ github.workspace }}/mobile" && export PATH="$HOME/.pub-cache/bin:$PATH" && PATROL_ANALYTICS_ENABLED=false patrol test --target "integration_test/${{ matrix.test-file }}" --exclude-tags skip-ci --verbose
 
       # ─────────────────────────────────────────────────────────────────────
-      #  12. رفع تقارير الاختبار كـ artifact (في حال الفشل)
+      #  12. جمع تشخيصات Android عند انهيار Instrumentation.
+      #      logcat المفلتر وdumpsys يحددان هل انهارت عملية التطبيق أو
+      #      test runner أو المحاكي، بدلاً من الاكتفاء برسالة Gradle العامة.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🧾 Collect Android diagnostics on failure
+        if: failure()
+        working-directory: mobile
+        run: |
+          mkdir -p build/patrol-diagnostics
+          timeout 30s adb logcat -d -b all -v threadtime -t 1000 \
+            | grep -E 'com\\.aden\\.marina|AndroidRuntime|ActivityTaskManager|FATAL EXCEPTION' \
+            > build/patrol-diagnostics/logcat-filtered.txt || true
+          timeout 30s adb shell dumpsys activity activities \
+            > build/patrol-diagnostics/dumpsys-activity.txt || true
+          timeout 30s adb shell dumpsys package com.aden.marina \
+            > build/patrol-diagnostics/dumpsys-package.txt || true
+          timeout 30s adb shell ps -A \
+            > build/patrol-diagnostics/process-list.txt || true
+          timeout 30s find build/app/outputs/androidTest-results build/app/reports/androidTests \
+            -type f -maxdepth 8 -print 2>/dev/null \
+            > build/patrol-diagnostics/test-result-files.txt || true
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  13. رفع تقارير الاختبار كـ artifact (في حال الفشل)
       # ─────────────────────────────────────────────────────────────────────
       - name: 📊 Upload test results on failure
         if: failure()
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: patrol-test-results-api-${{ matrix.api-level }}
+          name: patrol-test-results-${{ matrix.test-file }}-api-${{ matrix.api-level }}
           path: |
-            mobile/build/
-            mobile/.dart_tool/
-            mobile/patrol_test/
+            mobile/build/patrol-diagnostics/
+            mobile/build/app/outputs/androidTest-results/connected/debug/**/*.xml
+            mobile/build/app/reports/androidTests/connected/debug/**/*.xml
+            mobile/patrol_test/test_bundle.dart
           retention-days: 7
           if-no-files-found: ignore
 
       # ─────────────────────────────────────────────────────────────────────
-      #  13. ملخّص في PR — يعرض نتيجة الاختبارات
+      #  14. ملخّص في PR — يعرض نتيجة الاختبارات
       # ─────────────────────────────────────────────────────────────────────
       - name: ✅ Report success
         if: success()
@@ -209,7 +241,8 @@ jobs:
           echo "- **Target:** ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Architecture:** ${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
           echo "- **AVD cached:** ${{ steps.avd-cache.outputs.cache-hit == 'true' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Patrol CLI:** 4.5.1" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test file:** ${{ matrix.test-file }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Patrol CLI:** 4.6.1 (compatible with runtime 4.7.1)" >> $GITHUB_STEP_SUMMARY
           echo "- **Patrol runtime:** 4.7.1" >> $GITHUB_STEP_SUMMARY
 
       - name: ❌ Report failure
@@ -243,7 +276,7 @@ jobs:
       - name: 🐦 Set up Flutter
         uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.4'
+          flutter-version: '3.44.9'
           channel: stable
           cache: true
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}

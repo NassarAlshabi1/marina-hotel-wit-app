@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -19,6 +17,9 @@ bool _listsEqual(List<RoomWithPaymentStatus> a, List<RoomWithPaymentStatus> b) {
     final rb = b[i];
     if (ra.room.localUuid != rb.room.localUuid) return false;
     if (ra.isPaymentOverdue != rb.isPaymentOverdue) return false;
+    if (ra.isLatePayment != rb.isLatePayment) {
+      return false;
+    }
     if (ra.activeBooking?.localUuid != rb.activeBooking?.localUuid) {
       return false;
     }
@@ -33,9 +34,15 @@ class RoomWithPaymentStatus {
     required this.room,
     required this.isPaymentOverdue,
     this.activeBooking,
+    this.isLatePayment = false,
   });
   final Room room;
   final bool isPaymentOverdue;
+
+  /// ✅ مرحلة تحذير مبكرة (22:00-23:59): الغرفة محجوزة + رصيد متبقي +
+  /// الوقت بين 22:00 و 23:59 مساءً. في هذه المرحلة يتحول جزء من الزر
+  /// إلى اللون البرتقالي للتنبيه.
+  final bool isLatePayment;
 
   /// ✅ الحجز النشط المرتبط بالغرفة (إن وجد)
   /// يُستخدم لتحديد حالة الإشغال بدلاً من الاعتماد على room.status المخزن
@@ -44,6 +51,10 @@ class RoomWithPaymentStatus {
 
   /// ✅ هل توجد غرفة بحجز نشط فعلي؟
   bool get hasActiveBooking => activeBooking != null;
+
+  /// ✅ هل تحتاج الغرفة لإظهار المؤشر البرتقالي الجزئي؟
+  /// يصبح true عند 22:00+ مع وجود رصيد متبقي (مرحلة التحذير المبكر).
+  bool get hasLatePaymentIndicator => isLatePayment || isPaymentOverdue;
 
   Color get roomColor {
     // صيانة - الأولوية القصوى
@@ -54,12 +65,14 @@ class RoomWithPaymentStatus {
     // ✅ نعتمد على وجود حجز نشط فعلي بدلاً من room.status المخزن
     // هذا يضمن أن الغرفة تظهر باللون الصحيح حتى لو كان room.status
     // قديماً أو غير محدث بعد المزامنة مع Appwrite
+    // ✅ نعتمد على وجود حجز نشط فعلي بدلاً من room.status المخزن
+    // هذا يضمن أن الغرفة تظهر باللون الأخضر فور تسجيل المغادرة (حتى لو لم تتزامن الحالة بعد)
     if (hasActiveBooking) {
       // غرفة محجوزة بنشاط - أحمر
       return Colors.red.shade600;
     }
 
-    // لا يوجد حجز نشط - خضراء (شاغرة)
+    // لا يوجد حجز نشط أو تم تسجيل المغادرة - خضراء (شاغرة)
     return Colors.green.shade600;
   }
 
@@ -113,6 +126,7 @@ final roomsWithPaymentStatusProvider =
 
         final result = rooms.map((room) {
           bool isPaymentOverdue = false;
+          bool isLatePayment = false;
 
           // ✅ استخدام bookingByRoom لتحديد وجود حجز نشط فعلي
           // بدلاً من الاعتماد على room.status الذي قد يكون قديماً
@@ -124,8 +138,15 @@ final roomsWithPaymentStatusProvider =
 
             if (hasRemainingBalance) {
               final hour = currentTime.hour;
-              // تنبيه تأخر الدفع يبدأ من الساعة 22 (10 مساءً) إلى 5 صباحاً
-              if (hour >= 22 || hour < 5) {
+              // ✅ مرحلة التحذير المبكر: من 22:00 (10 مساءً) إلى 23:59
+              // في هذه المرحلة يظهر مؤشر برتقالي جزئي على الزر للتنبيه
+              // أن السداد سيتأخر قريباً.
+              if (hour >= 22 && hour < 23) {
+                isLatePayment = true;
+              }
+              // ✅ مرحلة التأخر الفعلي: من 23:00 (11 مساءً) إلى 05:00 (5 صباحاً)
+              // في هذه المرحلة يكون الزر بأكمله ينبض باللون البرتقالي/الأحمر.
+              if (hour >= 23 || hour < 5) {
                 isPaymentOverdue = true;
               }
             }
@@ -134,6 +155,7 @@ final roomsWithPaymentStatusProvider =
           return RoomWithPaymentStatus(
             room: room,
             isPaymentOverdue: isPaymentOverdue,
+            isLatePayment: isLatePayment,
             activeBooking: activeBooking,
           );
         }).toList();
@@ -160,10 +182,11 @@ final roomsWithPaymentStatusProvider =
         computeAndEmit();
       });
 
-      // تحديث الوقت كل 5 دقائق (بدلاً من دقيقة) لتقليل CPU على الأجهزة الضعيفة
-      // ✅ نُعيد الحساب فقط خلال نافذة التأخر (22:00-05:00)
+      // تحديث الوقت كل دقيقة لإعادة حساب حالة التأخر
+      // ✅ نُعيد الحساب فقط خلال نافذتي التحذير (22:00-23:00) والتأخر (23:00-05:00)
+      // خارج النافذتين نحدّث الوقت فقط بدون إعادة حساب مكلفة
       // تنبيه: تغييرات البيانات (غرف/حجوزات) تُعيد الحساب دائماً بغض النظر عن الوقت
-      final timer = Timer.periodic(const Duration(minutes: 5), (_) {
+      final timer = Timer.periodic(const Duration(minutes: 1), (_) {
         lastTime = DateTime.now();
         final hour = lastTime.hour;
         if (hour >= 22 || hour < 5) {
@@ -172,10 +195,10 @@ final roomsWithPaymentStatusProvider =
       });
 
       ref.onDispose(() {
-        roomsSub.cancel();
-        bookingsSub.cancel();
+        unawaited(roomsSub.cancel());
+        unawaited(bookingsSub.cancel());
         timer.cancel();
-        controller.close();
+        unawaited(controller.close());
       });
 
       return controller.stream;
@@ -220,6 +243,16 @@ final overdueRoomsCountProvider = Provider<int>((ref) {
     roomsWithPaymentStatusProvider.select(
       (rooms) =>
           rooms.valueOrNull?.where((r) => r.isPaymentOverdue).length ?? 0,
+    ),
+  );
+});
+
+/// ✅ عدد الغرف في مرحلة التحذير المبكر (22:00-23:00 + رصيد متبقي)
+/// في هذه المرحلة يظهر مؤشر برتقالي جزئي على الزر للتنبيه.
+final latePaymentRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(
+    roomsWithPaymentStatusProvider.select(
+      (rooms) => rooms.valueOrNull?.where((r) => r.isLatePayment).length ?? 0,
     ),
   );
 });

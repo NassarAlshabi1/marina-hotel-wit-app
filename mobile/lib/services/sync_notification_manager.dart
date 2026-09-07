@@ -1,5 +1,5 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -7,7 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 /// مدير الإشعارات للمزامنة التلقائية
 class SyncNotificationManager {
   SyncNotificationManager._() {
-    _initLocalNotifications();
+    _initializationFuture = _initLocalNotifications();
   }
   static SyncNotificationManager? _instance;
   // ignore: prefer_constructors_over_static_methods
@@ -16,25 +16,59 @@ class SyncNotificationManager {
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+
+  static const AndroidNotificationChannel _syncChannel =
+      AndroidNotificationChannel(
+        'marina_sync_channel',
+        'مزامنة فندق مارينا',
+        description: 'إشعارات المزامنة والتحديثات',
+        importance: Importance.high,
+      );
+
   bool _isInitialized = false;
+  bool _isAvailable = false;
+  Future<void>? _initializationFuture;
 
   Future<void> _initLocalNotifications() async {
     if (_isInitialized) {
       return;
     }
+    if (kIsWeb) {
+      // لا توجد قناة Android في Web، لكن نعتبر التهيئة منتهية حتى لا
+      // تعيد الاستدعاءات اللاحقة المحاولة بلا فائدة.
+      _isInitialized = true;
+      return;
+    }
 
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
-    const initSettings = InitializationSettings(android: androidSettings);
+    try {
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
+      const initSettings = InitializationSettings(android: androidSettings);
 
-    await _localNotifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: (details) {
-        // يمكن إضافة توجيه عند الضغط على الإشعار هنا
-      },
-    );
-    _isInitialized = true;
+      await _localNotifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: (details) {
+          // يمكن إضافة توجيه عند الضغط على الإشعار هنا.
+        },
+      );
+
+      final androidPlugin = _localNotifications
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      await androidPlugin?.createNotificationChannel(_syncChannel);
+      // Android 13+؛ في الإصدارات الأقدم تعيد الدالة null ولا تفشل.
+      await androidPlugin?.requestNotificationsPermission();
+
+      _isAvailable = true;
+    } catch (error, stackTrace) {
+      // فشل قناة النظام لا يجب أن يمنع المزامنة أو يحول إشعاراً اختيارياً
+      // إلى crash غير ملتقط، خصوصاً في اختبارات Flutter دون platform channel.
+      debugPrint('Sync notifications unavailable: $error\\n$stackTrace');
+    } finally {
+      _isInitialized = true;
+    }
   }
 
   /// إظهار إشعار النظام (يظهر حتى والتطبيق مغلق/في الخلفية)
@@ -44,14 +78,18 @@ class SyncNotificationManager {
     String? payload,
   }) async {
     if (!_isInitialized) {
-      await _initLocalNotifications();
+      _initializationFuture ??= _initLocalNotifications();
+      await _initializationFuture;
+    } else {
+      await _initializationFuture;
     }
+    if (!_isAvailable) return;
 
     const androidDetails = AndroidNotificationDetails(
-      'marina_notes_channel',
-      'الملاحظات والتنبيهات',
-      channelDescription: 'تنبيهات عند وصول ملاحظات إدارية جديدة',
-      importance: Importance.max,
+      'marina_sync_channel',
+      'مزامنة فندق مارينا',
+      channelDescription: 'إشعارات المزامنة والتحديثات',
+      importance: Importance.high,
       priority: Priority.high,
     );
 
@@ -155,12 +193,11 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 5), () {
       try {
         overlayEntry.remove();
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_notification_manager.dart: ');}
+      } catch (_) {}
     });
 
     // اهتزاز خفيف للإشعار
-    HapticFeedback.lightImpact();
+    unawaited(HapticFeedback.lightImpact());
   }
 
   /// إشعار فشل المزامنة
@@ -284,12 +321,11 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 7), () {
       try {
         overlayEntry.remove();
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_notification_manager.dart: ');}
+      } catch (_) {}
     });
 
     // اهتزاز للتنبيه
-    HapticFeedback.heavyImpact();
+    unawaited(HapticFeedback.heavyImpact());
   }
 
   /// إشعار بدء المزامنة
@@ -458,12 +494,11 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 10), () {
       try {
         overlayEntry.remove();
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_notification_manager.dart: ');}
+      } catch (_) {}
     });
 
     // اهتزاز للإشعار
-    HapticFeedback.selectionClick();
+    unawaited(HapticFeedback.selectionClick());
   }
 
   /// إشعار بوجود تضارب في البيانات تم حله تلقائياً
@@ -522,7 +557,7 @@ class SyncNotificationManager {
                 label: 'تفاصيل',
                 textColor: Colors.white,
                 onPressed: () {
-                  showDialog<void>(
+                  unawaited(showDialog<void>(
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: const Text('تفاصيل التضارب'),
@@ -534,13 +569,13 @@ class SyncNotificationManager {
                         ),
                       ],
                     ),
-                  );
+                  ));
                 },
               )
             : null,
       ),
     );
 
-    HapticFeedback.mediumImpact();
+    unawaited(HapticFeedback.mediumImpact());
   }
 }

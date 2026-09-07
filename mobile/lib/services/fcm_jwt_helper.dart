@@ -55,7 +55,9 @@ class FcmServiceAccountCredentials {
       throw const FormatException('missing project_id in service account JSON');
     }
     if (privateKey == null || privateKey.isEmpty) {
-      throw const FormatException('missing private_key in service account JSON');
+      throw const FormatException(
+        'missing private_key in service account JSON',
+      );
     }
     if (clientEmail == null || clientEmail.isEmpty) {
       throw const FormatException(
@@ -130,9 +132,11 @@ class FcmJwtHelper {
 
     // تحقق من الـ cache — نُجدّد قبل 5 دقائق من الانتهاء لتجنّب الـ edge cases
     if (_cachedToken != null &&
-        _cachedToken!.expiresAt.isAfter(DateTime.now().add(
-      const Duration(minutes: 5),
-    ))) {
+        _cachedToken!.expiresAt.isAfter(
+          DateTime.now().add(
+            const Duration(minutes: 5),
+          ),
+        )) {
       return _cachedToken!.accessToken;
     }
 
@@ -187,11 +191,15 @@ class FcmJwtHelper {
       final accessToken = body['access_token'] as String?;
       final expiresIn = body['expires_in'] as int?;
       if (accessToken == null || expiresIn == null) {
-        debugPrint('⚠️ FcmJwtHelper: malformed OAuth2 response: ${response.body}');
+        debugPrint(
+          '⚠️ FcmJwtHelper: malformed OAuth2 response: ${response.body}',
+        );
         return null;
       }
 
-      debugPrint('✅ FcmJwtHelper: OAuth2 token obtained (expires in ${expiresIn}s)');
+      debugPrint(
+        '✅ FcmJwtHelper: OAuth2 token obtained (expires in ${expiresIn}s)',
+      );
       return _TokenResponse(
         accessToken: accessToken,
         expiresAt: DateTime.now().add(Duration(seconds: expiresIn)),
@@ -476,7 +484,7 @@ _RsaComponents _extractRsaComponents(List<int> derBytes) {
       primeQ: q,
     );
   } catch (e) {
-      debugPrint('⚠️ Swallowed error in fcm_jwt_helper.dart: ');
+    debugPrint('⚠️ Swallowed error in fcm_jwt_helper.dart: ');
     // ليست PKCS#8 — جرب PKCS#1
   }
 

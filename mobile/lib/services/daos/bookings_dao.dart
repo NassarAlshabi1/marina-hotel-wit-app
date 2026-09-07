@@ -9,7 +9,6 @@ import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
 import '../fcm_sender.dart';
 import '../local_db.dart';
-import '../local_notification_service.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
@@ -99,18 +98,12 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
-    final nowIso = DateTime.now().toIso8601String();
     final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
     final comp = data.copyWith(
       localUuid: Value(uu),
       createdAt: Value(now),
-      createdAtIso: Value(nowIso),
-      createdAtEpoch: Value(now),
       updatedAt: Value(now),
-      updatedAtIso: Value(nowIso),
       lastModified: Value(now),
-      lastModifiedEpoch: Value(now),
-      version: const Value(1),
       origin: Value(originIsServer ? 'server' : 'local'),
       deviceId: originIsServer
           ? const Value.absent()
@@ -142,14 +135,6 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           guestName: comp.guestName.value,
         ),
       );
-      // ✅ إشعار محلي على نفس الجهاز (إضافة لـ FCM الذي يُرسل للأجهزة الأخرى)
-      unawaited(
-        LocalNotificationService.instance.notifyBookingCreated(
-          roomNumber: comp.roomNumber.value,
-          guestName: comp.guestName.value,
-          guestPhone: comp.guestPhone.present ? comp.guestPhone.value : null,
-        ),
-      );
     }
     return id;
   }
@@ -161,7 +146,6 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       final existing = await getById(id);
       if (existing == null) {
         return 0;
@@ -171,15 +155,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       final effectiveLastModified = originIsServer && data.lastModified.present
           ? data.lastModified
           : Value(now);
-      final effectiveLastModifiedEpoch =
-          originIsServer && data.lastModifiedEpoch.present
-          ? data.lastModifiedEpoch
-          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
-        updatedAtIso: Value(nowIso),
         lastModified: effectiveLastModified,
-        lastModifiedEpoch: effectiveLastModifiedEpoch,
         version: Value(existing.version + 1),
       );
 
@@ -223,7 +201,6 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       final existing = await getById(id);
       if (existing == null) {
         return 0;
@@ -231,11 +208,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       await (update(bookings)..where((t) => t.id.equals(id))).write(
         BookingsCompanion(
           deletedAt: Value(now),
-          deletedAtIso: Value(nowIso),
           updatedAt: Value(now),
-          updatedAtIso: Value(nowIso),
           lastModified: Value(now),
-          lastModifiedEpoch: Value(now),
           version: Value(existing.version + 1),
         ),
       );
@@ -253,22 +227,21 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> restore(int id) async {
     return db.transaction(() async {
-      final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       final existing = await getById(id);
       if (existing == null) {
         return 0;
       }
       await (update(bookings)..where((t) => t.id.equals(id))).write(
         BookingsCompanion(
-          deletedAt: const Value(null),
-          deletedAtIso: const Value(null),
-          updatedAt: Value(now),
-          updatedAtIso: Value(nowIso),
-          lastModified: Value(now),
-          lastModifiedEpoch: Value(now),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
           version: Value(existing.version + 1),
         ),
+      );
+      await _mergeOutbox(
+        op: 'update',
+        localUuid: existing.localUuid,
+        clientTs: Time.nowEpoch(),
       );
       return 1;
     });
@@ -299,11 +272,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     String localUuid,
     int serverBookingId,
   ) async {
-    return (update(
-      bookings,
-    )..where((t) => t.localUuid.equals(localUuid))).write(
-      BookingsCompanion(serverBookingId: Value(serverBookingId)),
-    );
+    return (update(bookings)..where((t) => t.localUuid.equals(localUuid)))
+        .write(BookingsCompanion(serverBookingId: Value(serverBookingId)));
   }
 
   /// عدد الحجوزات حسب الحالة
@@ -396,7 +366,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// الحصول على bookingWithNights (للنسخ الاحتياطي/المزامنة)
-  Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
+  Future<Map<String, dynamic>?> payloadForLocalUuid(String localUuid) async {
     final row =
         await (select(bookings)
               ..where((t) => t.localUuid.equals(localUuid))
@@ -414,7 +384,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     required int clientTs,
     int? serverId,
   }) async {
-    final payload = await _payloadForLocalUuid(localUuid);
+    final payload = await payloadForLocalUuid(localUuid);
     if (payload == null) {
       return;
     }

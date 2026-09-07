@@ -1,8 +1,8 @@
-import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/providers/auth_provider.dart';
 import 'package:marina_hotel_mobile/providers/custom_list_providers.dart';
 import 'package:marina_hotel_mobile/providers/repository_providers.dart';
 import 'package:marina_hotel_mobile/screens/expenses/expenses_list.dart';
@@ -35,6 +35,7 @@ Employee _testEmployee({
     createdAt: 0,
     updatedAt: 0,
     lastModified: 0,
+    syncTimestamp: 0,
     createdAtEpoch: 0,
     lastModifiedEpoch: 0,
     version: 1,
@@ -56,8 +57,27 @@ Employee _testEmployee({
 /// 5. [syncStatusProvider] — تُعيد Stream.value(SyncStatus.idle) بدل إنشاء
 ///    SyncService كاملة (7 DAOs + DeltaSyncService + PerformanceOptimizer)
 ///    مع StreamController.broadcast مفتوح لا يُغلَق.
+class _ExpenseCreateAuthNotifier extends AuthNotifier {
+  _ExpenseCreateAuthNotifier() : super() {
+    state = const AuthState(
+      isAuthenticated: true,
+      currentUser: AuthUser(
+        id: 100,
+        username: 'expense-tester',
+        fullName: 'مختبر المصروفات',
+        userType: 'employee',
+        permissions: ['expenses.view', 'expenses.create'],
+      ),
+    );
+  }
+
+  @override
+  Future<void> restoreSession() async {}
+}
+
 List<Override> _baseOverrides(AppDatabase db, {List<Employee>? employees}) {
   return [
+    authProvider.overrideWith((ref) => _ExpenseCreateAuthNotifier()),
     databaseProvider.overrideWithValue(db),
     employeesListProvider.overrideWith((ref) => Stream.value(employees ?? [])),
     customListNamesProvider(
@@ -138,7 +158,7 @@ void main() {
         _buildTestWidget(
           overrides: [
             databaseProvider.overrideWithValue(db),
-            employeesListProvider.overrideWith((ref) => Stream.empty()),
+            employeesListProvider.overrideWith((ref) => const Stream.empty()),
             customListNamesProvider(
               kListKeyExpenseType,
             ).overrideWith((ref) async => ['اخرى']),

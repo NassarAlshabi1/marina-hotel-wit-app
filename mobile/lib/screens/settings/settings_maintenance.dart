@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: avoid_dynamic_calls, discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:io';
@@ -20,6 +18,8 @@ import '../../providers/service_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' show DatabaseManager;
 import '../../services/sqlite_backup_restore.dart';
+import '../../services/sync_orchestrator.dart' show DataIntegrityCheck;
+import '../../utils/debug_log.dart';
 import '../../utils/env.dart';
 
 // ═══════════════════════════════════════════════════════════════
@@ -74,7 +74,7 @@ class _SettingsMaintenanceScreenState
   @override
   void initState() {
     super.initState();
-    _loadSystemInfo();
+    unawaited(_loadSystemInfo());
   }
 
   // ─── تحميل البيانات الحقيقية ───────────────────────────
@@ -87,7 +87,7 @@ class _SettingsMaintenanceScreenState
         setState(() => _info = info);
       }
     } catch (e) {
-      debugPrint('⚠️ Failed to load system info: $e');
+      dlog(() => '⚠️ Failed to load system info: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoadingInfo = false);
@@ -137,8 +137,7 @@ class _SettingsMaintenanceScreenState
             : (v is num)
             ? v.toInt()
             : 0;
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
+      } catch (_) {}
     }
 
     // آخر مزامنة
@@ -158,12 +157,14 @@ class _SettingsMaintenanceScreenState
       }
     }
 
-    // Outbox
+    // Outbox: نعرض فقط العمليات غير المسلّمة إلى Appwrite، لا السجل
+    // التاريخي للعمليات المكتملة حتى لا تبدو الشاشة وكأن لديها عمليات معلقة.
     int outboxCount = 0;
     try {
-      outboxCount = await ref.read(outboxDaoProvider).count();
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
+      outboxCount = await ref
+          .read(outboxDaoProvider)
+          .countUndeliveredToPrimary();
+    } catch (_) {}
 
     // Logs
     final logStats = ref.read(diagnosticsLoggerProvider).getStats();
@@ -175,8 +176,7 @@ class _SettingsMaintenanceScreenState
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
+    } catch (_) {}
     try {
       final deviceInfo = DeviceInfoPlugin();
       if (Platform.isAndroid) {
@@ -188,8 +188,7 @@ class _SettingsMaintenanceScreenState
         deviceModel = ios.name;
         osVersion = 'iOS ${ios.systemVersion}';
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
+    } catch (_) {}
 
     return _SystemInfo(
       appVersion: appVersion,
@@ -271,8 +270,8 @@ class _SettingsMaintenanceScreenState
           ),
 
           _buildMaintenanceCard(
-            title: 'مسح Outbox المعطّل',
-            subtitle: 'إعادة تعيين العمليات المعلقة في قائمة الانتظار',
+            title: 'إعادة محاولة Outbox الفاشل',
+            subtitle: 'تعيد العمليات الفاشلة إلى الانتظار دون حذف أي بيانات',
             icon: Icons.outbox,
             color: Colors.deepPurple,
             onTap: () => _showOutboxResetDialog(context, ref),
@@ -503,7 +502,7 @@ class _SettingsMaintenanceScreenState
 
   void _showLoading(String message) {
     setState(() => _isWorking = true);
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
@@ -517,7 +516,7 @@ class _SettingsMaintenanceScreenState
           ],
         ),
       ),
-    );
+    ));
   }
 
   void _hideLoading() {
@@ -545,7 +544,7 @@ class _SettingsMaintenanceScreenState
   // ─── تنظيف البيانات المؤقتة ───────────────────────────
 
   void _showCleanupDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تنظيف البيانات المؤقتة'),
@@ -583,13 +582,13 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── فحص قاعدة البيانات ──────────────────────────────
 
   void _showDatabaseCheckDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('فحص قاعدة البيانات'),
@@ -620,11 +619,11 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
-  void _showIntegrityResults(List<dynamic> checks) {
-    showDialog<void>(
+  void _showIntegrityResults(List<DataIntegrityCheck> checks) {
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -653,13 +652,13 @@ class _SettingsMaintenanceScreenState
                     return ListTile(
                       dense: true,
                       leading: const Icon(Icons.table_chart, size: 18),
-                      title: Text(check.tableName as String),
+                      title: Text(check.tableName),
                       subtitle: Text('${check.recordCount} سجل'),
                       trailing: Text(
                         // ✅ P1 fix: حماية من RangeError إذا كان checksum أقصر من 8 أحرف
-                        (check.checksum as String).length >= 8
-                            ? (check.checksum as String).substring(0, 8)
-                            : (check.checksum as String),
+                        check.checksum.length >= 8
+                            ? check.checksum.substring(0, 8)
+                            : check.checksum,
                         style: const TextStyle(
                           fontFamily: 'monospace',
                           fontSize: 10,
@@ -679,13 +678,13 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── VACUUM ─────────────────────────────────────────────
 
   void _showVacuumDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('ضغط قاعدة البيانات'),
@@ -696,7 +695,7 @@ class _SettingsMaintenanceScreenState
             SizedBox(height: 12),
             Text(
               'سيتم تنفيذ VACUUM لتحرير المساحة غير المستخدمة.\n'
-              'قد يستغرق ذلك بضع ثوانٍ.',
+              'يتطلب مساحة مؤقتة، ولا يمكن تشغيله عند وجود تغييرات لم تُرفع.',
               textAlign: TextAlign.center,
             ),
           ],
@@ -709,29 +708,44 @@ class _SettingsMaintenanceScreenState
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              _showLoading('جاري ضغط قاعدة البيانات (VACUUM)...');
               try {
-                final db = ref.read(databaseProvider);
-                final sizeBefore = await _getTotalDbSizeBytes();
-                await db.customStatement('VACUUM');
-                final sizeAfter = await _getTotalDbSizeBytes();
-                final saved = sizeBefore - sizeAfter;
-                _hideLoading();
-                _showSnack(
-                  'تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB',
-                  color: Colors.green,
-                );
-                unawaited(_loadSystemInfo());
+                final pending = await ref
+                    .read(outboxDaoProvider)
+                    .countUndeliveredToPrimary();
+                if (pending > 0) {
+                  _showSnack(
+                    'لا يمكن ضغط قاعدة البيانات: توجد $pending تغييرات لم تُرفع إلى Cloudflare.',
+                    color: Colors.orange,
+                  );
+                  return;
+                }
+
+                _showLoading('جاري ضغط قاعدة البيانات (VACUUM)...');
+                try {
+                  final db = ref.read(databaseProvider);
+                  final sizeBefore = await _getTotalDbSizeBytes();
+                  await db.customStatement('VACUUM');
+                  final sizeAfter = await _getTotalDbSizeBytes();
+                  final saved = sizeBefore - sizeAfter;
+                  _hideLoading();
+                  _showSnack(
+                    'تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB',
+                    color: Colors.green,
+                  );
+                  unawaited(_loadSystemInfo());
+                } catch (e) {
+                  _hideLoading();
+                  _showSnack('خطأ في الضغط: $e', color: Colors.red);
+                }
               } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ في الضغط: $e', color: Colors.red);
+                _showSnack('تعذر التحقق من Outbox: $e', color: Colors.red);
               }
             },
             child: const Text('ضغط'),
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<int> _getTotalDbSizeBytes() async {
@@ -749,7 +763,7 @@ class _SettingsMaintenanceScreenState
   // ─── إعادة تعيين المزامنة ─────────────────────────────
 
   void _showResetSyncDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إعادة تعيين المزامنة'),
@@ -795,13 +809,13 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── معالجة الرصيد التراكمي ──────────────────────────
 
   void _showProcessPendingBalanceDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -845,7 +859,7 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<List<Map<String, dynamic>>> _processPendingBalances(
@@ -905,7 +919,7 @@ class _SettingsMaintenanceScreenState
       (s, r) => s + (r['amount'] as double),
     );
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -995,19 +1009,19 @@ class _SettingsMaintenanceScreenState
           ],
         ),
       ),
-    );
+    ));
   }
 
   // ─── مسح Outbox ───────────────────────────────────────
 
   void _showOutboxResetDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('مسح Outbox المعطّل'),
+        title: const Text('إعادة محاولة Outbox الفاشل'),
         content: const Text(
-          'سيتم إعادة تعيين جميع العمليات الفاشلة في قائمة الانتظار '
-          'إلى حالة "معلقة" للمحاولة مرة أخرى.',
+          'ستُعاد العمليات الفاشلة فقط إلى حالة "معلقة" للمحاولة مرة أخرى.\n'
+          'لن تُحذف أي عملية أو بيانات محلية.',
         ),
         actions: [
           TextButton(
@@ -1034,17 +1048,17 @@ class _SettingsMaintenanceScreenState
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-            child: const Text('إعادة تعيين'),
+            child: const Text('إعادة المحاولة'),
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── إعادة تشغيل الخدمات ──────────────────────────────
 
   void _showRestartDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إعادة تشغيل الخدمات'),
@@ -1077,13 +1091,13 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── إعادة تعيين التطبيق ─────────────────────────────
 
   void _showResetAppDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -1112,78 +1126,128 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   void _showConfirmResetDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد نهائي'),
-        content: const Text('هل أنت متأكد تماماً؟\nسيتم فقدان جميع البيانات.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
+    final confirmationController = TextEditingController();
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('تأكيد نهائي'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'سيُحذف مخزن البيانات المحلي فقط. يجب رفع جميع التغييرات '
+                  'إلى Cloudflare أو إنشاء نسخة احتياطية قبل المتابعة.',
+                ),
+                const SizedBox(height: 16),
+                const Text('اكتب «حذف» لتفعيل زر الحذف.'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmationController,
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'حذف',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: confirmationController.text.trim() == 'حذف'
+                    ? () async {
+                        try {
+                          final pending = await ref
+                              .read(outboxDaoProvider)
+                              .countUndeliveredToPrimary();
+                          if (pending > 0) {
+                            Navigator.pop(ctx);
+                            _showSnack(
+                              'تم إلغاء الحذف: توجد $pending تغييرات لم تُرفع. '
+                              'ارفعها إلى Cloudflare أولاً.',
+                              color: Colors.orange,
+                            );
+                            return;
+                          }
+
+                          Navigator.pop(ctx);
+                          _showLoading('جاري إعادة تعيين التطبيق...');
+                          try {
+                            await DatabaseManager.close();
+                            final dbPath = p.join(
+                              await sqflite.getDatabasesPath(),
+                              SqliteBackupRestore.kDefaultDbFileName,
+                            );
+                            await sqflite.deleteDatabase(dbPath);
+
+                            // نحذف مفاتيح البيانات فقط ونحتفظ بإعدادات الاتصال.
+                            final prefs = await SharedPreferences.getInstance();
+                            const keysToRemove = [
+                              'appwrite_last_sync_time',
+                              'appwrite_pull_after_drive_skip_done',
+                              'sync_last_pull_booking_nights',
+                              'appwrite_delta_sync_enabled',
+                              'last_auto_backup_timestamp',
+                              'auto_backup_enabled',
+                              'delta_sync_enabled',
+                              'backup_mode',
+                              'appwrite_last_delta_sync',
+                              'last_app_open_pull',
+                              'device_id',
+                              'appwrite_delta_device_id',
+                            ];
+                            for (final key in keysToRemove) {
+                              await prefs.remove(key);
+                            }
+
+                            try {
+                              await ref.read(syncGuardianProvider).restart();
+                            } catch (_) {}
+
+                            _hideLoading();
+                            _showSnack(
+                              'تمت إعادة التعيين. افتح المزامنة لاستعادة البيانات من Cloudflare.',
+                              color: Colors.green,
+                            );
+                            unawaited(_loadSystemInfo());
+                          } catch (e) {
+                            _hideLoading();
+                            _showSnack(
+                              'خطأ في إعادة التعيين: $e',
+                              color: Colors.red,
+                            );
+                          } finally {
+                            // ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف.
+                            try {
+                              await DatabaseManager.reopen();
+                            } catch (_) {}
+                          }
+                        } catch (e) {
+                          _showSnack(
+                            'تعذر التحقق من Outbox: $e',
+                            color: Colors.red,
+                          );
+                        }
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('تأكيد الحذف'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري إعادة تعيين التطبيق...');
-              try {
-                await DatabaseManager.close();
-                final dbPath = p.join(
-                  await sqflite.getDatabasesPath(),
-                  SqliteBackupRestore.kDefaultDbFileName,
-                );
-                await sqflite.deleteDatabase(dbPath);
-
-                // ✅ إصلاح P0: حذف مختار للمفاتيح بدلاً من prefs.clear()
-                // نحذف فقط المفاتيح المتعلقة بالبيانات، ونحتفظ بالإعدادات الحرجة
-                final prefs = await SharedPreferences.getInstance();
-                const keysToRemove = [
-                  'appwrite_last_sync_time',
-                  'appwrite_pull_after_drive_skip_done',
-                  'sync_last_pull_booking_nights',
-                  'appwrite_delta_sync_enabled',
-                  'last_auto_backup_timestamp',
-                  'auto_backup_enabled',
-                  'delta_sync_enabled',
-                  'backup_mode',
-                  'appwrite_last_delta_sync',
-                  'last_app_open_pull',
-                  'device_id',
-                  'appwrite_delta_device_id',
-                ];
-                for (final key in keysToRemove) {
-                  await prefs.remove(key);
-                }
-
-                // ✅ إصلاح P1: إعادة تهيئة المزامنة بعد reset
-                try {
-                  await ref.read(syncGuardianProvider).restart();
-                } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
-
-                _hideLoading();
-                _showSnack('تم إعادة تعيين التطبيق بنجاح', color: Colors.green);
-                unawaited(_loadSystemInfo());
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
-              } finally {
-                // ✅ P0 fix: ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف
-                try {
-                  await DatabaseManager.reopen();
-                } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('تأكيد الحذف'),
-          ),
-        ],
-      ),
+        ),
+      ).whenComplete(confirmationController.dispose),
     );
   }
 }

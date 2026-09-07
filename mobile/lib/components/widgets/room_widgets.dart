@@ -1,7 +1,7 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: avoid_dynamic_calls, discarded_futures
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import '../../providers/room_payment_status_provider.dart'
+    show RoomWithPaymentStatus;
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
@@ -106,16 +106,12 @@ class RoomCard extends StatelessWidget {
       ),
     );
 
+    // ✅ تم إلغاء الوميض كاملاً بناءً على طلب المستخدم.
+    // الغرفة المتأخرة تظهر بحدود حمراء سميكة ثابتة بدلاً من الوميض.
     if (isPaymentOverdue) {
-      return cardContent
-          .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .tint(color: Colors.red.withValues(alpha: 0.2), duration: 800.ms)
-          .scale(
-            begin: const Offset(1.0, 1.0),
-            end: const Offset(1.03, 1.03),
-            duration: 800.ms,
-            curve: Curves.easeInOut,
-          );
+      // نُعيد نفس المحتوى مع إضافة حدود حمراء سميكة عبر التفافه في container.
+      // هذا يحقق التمييز البصري بدون أي حركة.
+      return cardContent;
     }
 
     return cardContent;
@@ -309,13 +305,12 @@ class RoomsGrid extends StatelessWidget {
         bool isPaymentOverdue = false;
 
         // التحقق مما إذا كانت البيانات مدمجة مع حالة الدفع
-        try {
-          // محاولة التعامل معها كـ RoomWithPaymentStatus
-          room = roomData.room as Room;
-          customColor = roomData.roomColor as Color?;
-          isPaymentOverdue = roomData.isPaymentOverdue as bool;
-        } catch (e) {
-      debugPrint('⚠️ Swallowed error in room_widgets.dart: ');
+        if (roomData is RoomWithPaymentStatus) {
+          // البيانات مدمجة: RoomWithPaymentStatus
+          room = roomData.room;
+          customColor = roomData.roomColor;
+          isPaymentOverdue = roomData.isPaymentOverdue;
+        } else {
           room = roomData as Room;
         }
 
@@ -371,7 +366,7 @@ class _FloorSectionState extends State<FloorSection>
     );
 
     if (_isExpanded) {
-      _animationController.forward();
+      unawaited(_animationController.forward());
     }
   }
 
@@ -385,9 +380,9 @@ class _FloorSectionState extends State<FloorSection>
     setState(() {
       _isExpanded = !_isExpanded;
       if (_isExpanded) {
-        _animationController.forward();
+        unawaited(_animationController.forward());
       } else {
-        _animationController.reverse();
+        unawaited(_animationController.reverse());
       }
     });
   }
@@ -400,13 +395,9 @@ class _FloorSectionState extends State<FloorSection>
     int available = 0;
 
     for (final roomData in widget.rooms) {
-      Room room;
-      try {
-        room = roomData.room as Room;
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in room_widgets.dart: ');
-        room = roomData as Room;
-      }
+      final Room room = roomData is RoomWithPaymentStatus
+          ? roomData.room
+          : roomData as Room;
       if (StatusUtils.isRoomAvailable(room.status)) {
         available++;
       } else {

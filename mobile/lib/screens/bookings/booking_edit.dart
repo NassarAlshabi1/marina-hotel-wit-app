@@ -1,10 +1,7 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -17,6 +14,8 @@ import '../../providers/room_payment_status_provider.dart';
 import '../../providers/service_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
+import '../../utils/debug_log.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
@@ -42,7 +41,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _guestNationality = TextEditingController(text: 'يمني');
   final _guestAddress = TextEditingController();
   final _guestIdNumber = TextEditingController();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp('[0-9]'));
   final _guestIdIssueDate = TextEditingController();
   final _guestIdIssuePlace = TextEditingController();
   final _roomNumber = TextEditingController();
@@ -193,9 +191,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final status = await Permission.contacts.request();
     if (!status.isGranted) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('يرجى منح صلاحية الوصول لجهات الاتصال')),
         );
       }
@@ -288,6 +284,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ),
                         ),
                         keyboardType: TextInputType.phone,
+                        inputFormatters: const [englishIntegerInputFormatter],
                       ),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
@@ -312,7 +309,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           labelText: 'رقم الهوية *',
                         ),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [_idNumberFormatter],
+                        inputFormatters: const [englishIntegerInputFormatter],
                         validator: _req,
                       ),
                       const SizedBox(height: 6),
@@ -488,6 +485,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _advancePayment,
                           keyboardType: TextInputType.number,
+                          inputFormatters: const [englishIntegerInputFormatter],
                           decoration: const InputDecoration(
                             labelText: 'مبلغ الدفعة المقدمة *',
                             helperText: 'أدخل المبلغ المستلم من النزيل',
@@ -561,7 +559,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   onPressed: _isSaving
                       ? null
                       : () async {
-                          if (!_formKey.currentState!.validate()) {
+                          if (_formKey.currentState == null ||
+                              !_formKey.currentState!.validate()) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
@@ -823,8 +822,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                     revenueType: 'deposit',
                                   );
                                 } catch (e) {
-                                  debugPrint(
-                                    '⚠️ خطأ في حفظ الدفعة المقدمة: $e',
+                                  dlog(
+                                    () => '⚠️ خطأ في حفظ الدفعة المقدمة: $e',
                                   );
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -871,7 +870,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                 ),
                               );
                             }
-                            debugPrint('❌ خطأ في حفظ الحجز: $e');
+                            dlog(() => '❌ خطأ في حفظ الحجز: $e');
                           } finally {
                             if (mounted) {
                               setState(() => _isSaving = false);
@@ -987,7 +986,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final checkoutDt = _parseDateTime(_checkout.text.trim());
 
     // استخدام الوقت الحالي كمرجع للمغادرة إذا لم يتم تحديد موعد خروج مخطط له
-    // لضمان تطبيق قاعدة الساعة 14:01 بشكل ديناميكي
+    // لضمان تطبيق قاعدة الساعة 14:00 بشكل ديناميكي
     final effectiveCheckout = checkoutDt ?? DateTime.now();
 
     final nights = Time.nightsWithCutoff(
@@ -1103,13 +1102,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       await roomsRepo.refreshAllRoomOccupancy();
 
       // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات (method واحد موحد)
-      unawaited(
-        ref
-            .read(centralSyncCoordinatorProvider)
-            .notifyTableChange(table: 'rooms', operation: 'batch_update_status'),
-      );
+      await ref
+          .read(centralSyncCoordinatorProvider)
+          .notifyTableChange(table: 'rooms', operation: 'batch_update_status');
     } catch (e) {
-      debugPrint('Error refreshing room occupancy: $e');
+      dlog(() => 'Error refreshing room occupancy: $e');
     }
   }
 
@@ -1121,8 +1118,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in booking_edit.dart: ');
+    } catch (_) {
       return null;
     }
   }
@@ -1161,7 +1157,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   // ignore: unused_element
   void _showDiscardDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -1186,6 +1182,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           ],
         ),
       ),
-    );
+    ));
   }
 }

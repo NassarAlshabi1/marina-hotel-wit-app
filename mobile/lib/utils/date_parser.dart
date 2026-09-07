@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show debugPrint;
 /// أداة مشتركة لتحليل التواريخ النصية.
 ///
 /// تُستخدم في عدة شاشات وخدمات لتحويل سلاسل التاريخ إلى [DateTime].
@@ -26,8 +25,7 @@ class DateParser {
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in date_parser.dart: ');
+    } catch (_) {
       return null;
     }
   }

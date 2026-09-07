@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
@@ -9,13 +7,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
-import '../providers/secondary_sync_provider.dart';
-import '../services/appwrite_health_checker.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
-import '../services/secondary_appwrite_config.dart';
-import '../services/secondary_sync_manager.dart';
+// ✅ Wave 5 (2026-08-12): secondary_sync_provider.dart و secondary_sync_manager.dart
+// أُزيلا بالكامل — Appwrite primary هو authority الوحيد.
 import '../services/sync/sync_gate.dart';
+import '../utils/debug_log.dart';
 import '../utils/loading_snackbar.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
@@ -49,14 +46,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       duration: const Duration(milliseconds: 1200),
     );
 
-    _loadPendingChangesCount();
-    _loadAppwriteEnabled();
+    unawaited(_loadPendingChangesCount());
+    unawaited(_loadAppwriteEnabled());
 
-    // مؤقت للتحديث الدوري
-    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // ✅ خفض تردد التحديث من 5 ثوان إلى 15 ثانية
+    // 5 ثوان = 12 استعلام DB في الدقيقة = ضغط على الأجهزة الضعيفة
+    // 15 ثانية = 4 استعلام DB في الدقيقة = كافي لمؤشر pending changes
+    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted && !_isPulling && !_isPushing) {
-        _loadPendingChangesCount();
-        _loadAppwriteEnabled();
+        unawaited(_loadPendingChangesCount());
+        unawaited(_loadAppwriteEnabled());
       }
     });
   }
@@ -88,7 +87,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         });
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
+      dlog(() => '❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
     }
   }
 
@@ -106,7 +105,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         _appwriteEnabled = enabled;
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');
+      dlog(() => '❌ خطأ في تحميل حالة Appwrite: $e');
       // في حالة الخطأ — نفترض مفعّل (احتياطي)
       if (mounted) {
         setState(() => _appwriteEnabled = true);
@@ -165,40 +164,31 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
-    // ✅ P2-4 fix: تحذير قبل السحب عند وجود تغييرات محلية غير مرفوعة
+    // ✅ إصلاح (2026-09-07): قراءة العدّاد مباشرة من قاعدة البيانات قبل
+    // القرار — كانت الحالة المحلية تُحدّث كل 15 ثانية فقط (مؤقّت initState)
+    // فيُحتمل حجب سحبة مطلوبة بسبب عدّاد قديم، أو العكس: عدّاد صفر بينما
+    // توجد سجلات جديدة لم تُسلّم بعد.
+    await _loadPendingChangesCount();
+
+    // سياسة Offline-first: السحب اليدوي غير متاح ما دامت تغييرات محلية
+    // غير مُسلّمة موجودة في Outbox. يُرفع المستخدم التغييرات أولاً ثم يعيد
+    // طلب السحب بعد تأكيد تفريغ الصف؛ لا يوجد خيار «سحب فقط» لتجنب دهسها.
     if (_pendingChangesCount > 0) {
       if (!mounted) return;
-      final shouldContinue = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('⚠️ تغييرات محلية غير مرفوعة'),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-            'لديك $_pendingChangesCount تغييراً محلياً لم يُرفع بعد.\n\n'
-            'سحب البيانات قبل رفع تغييراتك قد يدهس تعديلاتك المحلية.\n\n'
-            'هل تريد الرفع أولاً ثم السحب؟',
+            '⬆️ يجب رفع $_pendingChangesCount تغييراً محلياً قبل سحب البيانات',
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('سحب فقط'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('رفع ثم سحب'),
-            ),
-          ],
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'رفع الآن',
+            textColor: Colors.white,
+            onPressed: () => _pushChanges(context),
+          ),
         ),
       );
-      // null = المستخدم أغلق الحوار؛ true = رفع ثم سحب؛ false = سحب فقط
-      if (shouldContinue == null) {
-        return;
-      }
-      if (shouldContinue) {
-        // رفع ثم سحب — نخرج مؤقتاً من البوّابة الحالية لأن _pushChanges
-        // سيحاول دخولها بنفسه. البوّابة تُحرَّر هنا ويُعاد دخولها في الـ push.
-        if (!mounted) return;
-        await _pushChanges(context);
-      }
+      return;
     }
 
     _isPulling = true;
@@ -219,7 +209,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'مزامنة Appwrite معطلة - يرجى تفعيلها من الإعدادات',
+                'مزامنة Cloudflare معطلة - يرجى تفعيلها من الإعدادات',
               ),
               backgroundColor: Colors.orange,
             ),
@@ -234,11 +224,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (!appwriteConnected) {
         _isPulling = false;
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('لا يوجد اتصال بـ Appwrite'),
+              content: Text('لا يوجد اتصال بـ Cloudflare'),
               backgroundColor: Colors.red,
             ),
           );
@@ -268,60 +256,114 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-      final pullResult = await appwriteSyncManager.sync(push: false);
+      // ✅ (2026-08-31) تقليل السحب — الخطوة 2: زر التحديث اليدوي يسحب فوراً
+      // (forcePull يتجاوز حارس الدقيقتين فقط)؛ منع التوازي عبر SyncGate أعلاه
+      // وبقية الحمايات داخل sync() سارية (Outbox / SyncLocks / الاتصال).
+      final pullResult = await appwriteSyncManager.sync(
+        push: false,
+        forcePull: true,
+      );
       final pulledCount = pullResult.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
       loading?.close();
-
-      // ✅ تسجيل نجاح العملية
       stopwatch.stop();
-      await syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'pull',
-        deviceId: deviceId,
-        target: 'Appwrite',
-        status: 'success',
-        recordsPulled: pulledCount,
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
 
-      if (mounted) {
-        setState(() {
-          _lastSyncTime = DateTime.now();
-        });
-        // ✅ إغلاق إشعار "جاري" فوراً قبل إظهار النتيجة
-        loading?.close();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.cloud_done, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      '✅ تم سحب التغييرات بنجاح!',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '⬇️ استُلِم: $pulledCount سجل',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
+      // ✅✅ إصلاح جوهري (2026-09-07): sync() لا يرمي استثناءات لمسارات
+      // الخروج المبكر (kill switch / معطّلة محلياً / Not initialized /
+      // مزامنة قائمة / فشل جزئي) — بل تُعيد SyncResult بحالة failed/idle.
+      // الكود القديم كان يقرأ recordsPulled فقط فيعرض «✅ تم بنجاح!»
+      // حتى عند فشل السحب كلياً بصفر سجلات — كذب واجهة يقود المستخدم
+      // للاعتقاد أن الزر «لا يسحب بيانات» دون سبب ظاهر.
+      // الآن: نُصدّق الحالة الفعلية ونُظهر الخطأ الحقيقي.
+      if (pullResult.isSuccess) {
+        // ✅ تسجيل نجاح العملية
+        await syncLogDao.logSync(
+          syncId: syncId,
+          direction: 'pull',
+          deviceId: deviceId,
+          target: 'Appwrite',
+          status: 'success',
+          recordsPulled: pulledCount,
+          durationMs: stopwatch.elapsedMilliseconds,
         );
+
+        if (mounted) {
+          setState(() {
+            _lastSyncTime = DateTime.now();
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.cloud_done, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        '✅ تم سحب التغييرات بنجاح!',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    pulledCount == 0
+                        ? 'لا توجد تغييرات جديدة على السيرفر'
+                        : '⬇️ استُلِم: $pulledCount سجل',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        // ❌ فشل حقيقي (أو تخطّي) — نُسجل ونُظهر السبب الفعلي
+        try {
+          await syncLogDao.logSync(
+            syncId: syncId,
+            direction: 'pull',
+            deviceId: deviceId,
+            target: 'Appwrite',
+            status: 'failed',
+            errorMessage: pullResult.errorMessage,
+            durationMs: stopwatch.elapsedMilliseconds,
+          );
+        } catch (_) {}
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'تعذر سحب التغييرات: '
+                      '${_friendlyPullError(pullResult.errorMessage)}',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'إعادة',
+                textColor: Colors.white,
+                onPressed: () => _pullChanges(context),
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
-      debugPrint('❌ خطأ في سحب التغييرات: $e');
+      dlog(() => '❌ خطأ في سحب التغييرات: $e');
 
       // ✅ إغلاق إشعار "جاري" فوراً عند الفشل
       loading?.close();
@@ -340,8 +382,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           errorMessage: e.toString(),
           durationMs: stopwatch.elapsedMilliseconds,
         );
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in dashboard_sync_button.dart: ');}
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -369,6 +410,35 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
+  /// ✅ إصلاح (2026-09-07): ترجمة أخطاء sync() الداخلية إلى رسائل مفهومة.
+  /// sync() يُعيد رسائل إنجليزية تقنية في errorMessage — كانت ستُعرض
+  /// للمستخدم كما هي (أو لا تُعرض إطلاقاً قبل الإصلاح).
+  String _friendlyPullError(String? raw) {
+    if (raw == null || raw.isEmpty) {
+      return 'سبب غير معروف — جرّب مجدداً';
+    }
+    if (raw.contains('Not initialized')) {
+      return 'لم يتم تسجيل الدخول إلى سيرفر المزامنة. أعد فتح التطبيق '
+          'وتحقق من بطاقة الاتصال في الإعدادات';
+    }
+    if (raw.contains('disabled remotely')) {
+      return 'مزامنة Cloudflare معطّلة مؤقتاً من الإعدادات البعيدة';
+    }
+    if (raw.contains('disabled locally')) {
+      return 'مزامنة Cloudflare معطّلة — فعّلها من إعدادات المزامنة';
+    }
+    if (raw.contains('already in progress')) {
+      return 'توجد مزامنة جارية حالياً — انتظر انتهاءها ثم أعد المحاولة';
+    }
+    if (raw.contains('Partial sync failure')) {
+      return raw.replaceFirst(
+        'Partial sync failure — failed collections: ',
+        'فشل جزئي أثناء السحب في: ',
+      );
+    }
+    return raw;
+  }
+
   /// ✅ إيقاف وإعادة ضبط AnimationController بشكل آمن ضد Dispose.
   ///
   /// بعد dispose()، الـ controller الداخلي _ticker يصبح null، واستدعاء
@@ -379,8 +449,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       controller.stop();
       controller.reset();
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in dashboard_sync_button.dart: ');
+    } catch (_) {
       // الـ controller تم dispose — تجاهل
     }
   }
@@ -514,7 +583,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         targets.add('Google Drive');
       }
       if (appwriteEnabled && appwriteConnected) {
-        targets.add('Appwrite');
+        targets.add('Cloudflare');
       }
 
       if (targets.isEmpty) {
@@ -546,17 +615,17 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         try {
           // ✅ P1-3 fix: pushLocalChanges تُعيد عدد السجلات الفعلي
           final pushedCount = await appwriteSyncManager.pushLocalChanges();
-          results['Appwrite'] = {
+          results['Cloudflare'] = {
             'success': pushedCount >= 0,
             'pushed': pushedCount,
           };
         } catch (e) {
-          results['Appwrite'] = {
+          results['Cloudflare'] = {
             'success': false,
             'pushed': 0,
             'error': e.toString(),
           };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite: $e');
+          dlog(() => '❌ خطأ في رفع التغييرات إلى Appwrite: $e');
         }
       }
 
@@ -574,37 +643,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             'pushed': 0,
             'error': e.toString(),
           };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Google Drive: $e');
+          dlog(() => '❌ خطأ في رفع التغييرات إلى Google Drive: $e');
         }
       }
 
-      // ✅ رفع إلى Appwrite الثانوي (إذا مُفعّل)
-      // يستخدم نفس outbox الرئيسي — لا يسبب فقدان بيانات أو تكرار.
-      // السجل يُحذف من outbox فقط بعد نجاح كلا الوجهتين.
-      if (SecondaryAppwriteConfig.isEnabled &&
-          SecondaryAppwriteConfig.isPushEnabled) {
-        try {
-          final secondaryResult = await SecondarySyncManager.instance
-              .pushLocalChanges();
-          results['Appwrite الثانوي'] = {
-            'success': secondaryResult,
-            'pushed': _pendingChangesCount,
-          };
-          if (secondaryResult) {
-            ref
-                .read(secondarySyncProvider.notifier)
-                .updateLastSync(DateTime.now());
-          }
-          debugPrint('🔵 [Dashboard] Secondary sync push: $secondaryResult');
-        } catch (e) {
-          results['Appwrite الثانوي'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite الثانوي: $e');
-        }
-      }
+      // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
+      // Appwrite primary هو authority الوحيد. لا حاجة لرفع للثانوي.
 
       await _loadPendingChangesCount();
 
@@ -737,7 +781,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
-      debugPrint('❌ فشل رفع التغييرات: $e');
+      dlog(() => '❌ فشل رفع التغييرات: $e');
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
@@ -848,8 +892,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     int pendingCount,
     bool gateBusy,
   ) {
-    // زر السحب متاح دائماً طالما Appwrite مفعّل وليس جاري مزامنة محلياً،
-    // والبوّابة العامة ليست مشغولة بعملية من أي مصدر آخر.
+    // ✅ إصلاح (2026-09-07): pendingCount (عدّاد outbox المحلي) يُستخدم
+    // للتلميح فقط — كان يدخل في شرط التعطيل pullEnabled بينما النداء
+    // الفعلي يمرّر 0 دائماً (pendingRemoteCount ثابت)، فكان التلميح
+    // «السحب معطّل» يظهر والزر فعلياً مفعّلاً أو العكس.
+    // السياسة الفعلية تُفرض داخل _pullChangesInner (رسالة «رفع أولاً»
+    // مع زر إجراء) — نُبقي الزر قابلاً للضغط ليصل المستخدم إلى الرسالة.
     final bool pullEnabled =
         _appwriteEnabled && !_isPulling && !_isPushing && !gateBusy;
 
@@ -872,8 +920,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     return Tooltip(
-      message: hasRemoteChanges
-          ? 'يوجد $pendingCount تحديث من السيرفر — اضغط للسحب'
+      message: pendingCount > 0
+          ? 'السحب معطّل حتى رفع $pendingCount تغييراً محلياً'
+          : hasRemoteChanges
+          ? 'يوجد تحديث من السيرفر — اضغط للسحب'
           : 'اضغط لسحب التغييرات من السيرفر',
       child: Stack(
         clipBehavior: Clip.none,
@@ -1110,7 +1160,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     // Realtime إطلاقاً — السحب يتم فقط عبر زر المستخدم أو السحب التلقائي
     // عند فتح التطبيق.
     const hasRemoteChanges = false;
-    const pendingRemoteCount = 0;
+    // ✅ (2026-09-07) أُزيل pendingRemoteCount الثابت = 0 — كان يُمرَّر
+    // لزر السحب كعدّاد «معطّل السحب» بينما العدّاد الحقيقي هو
+    // _pendingChangesCount المُحدَّث من outbox (يُمرَّر الآن مباشرة).
 
     // ✅ P3-5 (Global SyncGate): مراقبة البوّابة العامة. إذا كانت مشغولة
     // بعملية من أي مصدر (زر آخر، سحب تلقائي، مؤقّت)، تُعطَّل الأزرار تلقائياً.
@@ -1134,10 +1186,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               mainAxisSize: MainAxisSize.min,
               children: [
                 // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات + حالة البوّابة
+                // ✅ إصلاح (2026-09-07): مرّرنا _pendingChangesCount (العدّاد
+                // المحلي الحقيقي) بدل pendingRemoteCount الثابت = 0 حتى
+                // يكون التلميح صادقاً مع وجود تغييرات معلّقة.
                 _buildPullButton(
                   hasRemoteChanges,
                   isGoogleDriveSignedIn,
-                  pendingRemoteCount,
+                  _pendingChangesCount,
                   gateBusy,
                 ),
                 const SizedBox(width: 8),
@@ -1233,49 +1288,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                             );
                           },
                         ),
-                      // ✅ مؤشر حالة Failover (Primary معطّل → قراءة من Secondary)
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final health = ref.watch(appwriteHealthProvider);
-                          if (!health.shouldFailover) {
-                            return const SizedBox.shrink();
-                          }
-                          return Container(
-                            margin: const EdgeInsets.only(top: 2),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: Colors.orange.shade400,
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.warning_amber,
-                                  size: 10,
-                                  color: Colors.orange.shade800,
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  'وضع طوارئ: قراءة من الثانوي',
-                                  style: TextStyle(
-                                    fontSize: 8,
-                                    color: Colors.orange.shade900,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
                     ],
                   ),
                 ],

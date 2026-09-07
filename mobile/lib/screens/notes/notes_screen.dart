@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -9,6 +7,8 @@ import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/shift_note_adapter.dart';
 import '../../providers/repository_providers.dart';
+import '../../utils/debug_log.dart';
+import '../../utils/performance_config.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -153,11 +153,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       onRefresh: _refreshData,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
+        // لا تنشئ عناصر بعيدة عن الشاشة على أجهزة 1GB.
+        scrollCacheExtent: optimizedScrollCacheExtent,
+        // ListView.builder يضيف RepaintBoundary افتراضياً؛ لا نضيف طبقة ثانية
+        // لكل بطاقة حتى لا تتضخم طبقات الرسم والذاكرة.
+        addAutomaticKeepAlives: false,
         itemCount: notes.length,
-        itemBuilder: (context, index) {
-          final note = notes[index];
-          return RepaintBoundary(child: _buildNoteCard(note));
-        },
+        itemBuilder: (context, index) => _buildNoteCard(notes[index]),
       ),
     );
   }
@@ -230,7 +232,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           await repo.markAsRead(note.id);
           unawaited(_refreshData());
         } catch (e) {
-          debugPrint('❌ خطأ في تحديد الملاحظة كمقروءة: $e');
+          dlog(() => '❌ خطأ في تحديد الملاحظة كمقروءة: $e');
         }
       case 'edit':
         _editNote(note);
@@ -275,9 +277,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل حذف الملاحظة: $e'),
             backgroundColor: Colors.red.shade900,
@@ -293,7 +293,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     var priority = note?.priority.name ?? 'medium';
     final shiftType = note?.shiftType.name ?? 'all';
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -343,13 +343,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               onPressed: () {
                 if (titleController.text.trim().isNotEmpty &&
                     contentController.text.trim().isNotEmpty) {
-                  _saveNote(
+                  unawaited(_saveNote(
                     note,
                     titleController.text.trim(),
                     contentController.text.trim(),
                     priority,
                     shiftType,
-                  );
+                  ));
                   Navigator.pop(context);
                 }
               },
@@ -361,7 +361,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     ).then((_) {
       titleController.dispose();
       contentController.dispose();
-    });
+    }));
   }
 
   Future<void> _saveNote(
@@ -399,9 +399,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الملاحظة: $e'),
           backgroundColor: Colors.red.shade900,

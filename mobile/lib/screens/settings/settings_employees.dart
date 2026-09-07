@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
@@ -13,6 +11,7 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../employees/salary_entitlements_screen.dart';
@@ -553,7 +552,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
     String status = employee?.status ?? 'نشط';
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -588,6 +587,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -597,6 +597,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.phone,
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -649,9 +650,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 if (nameController.text.trim().isEmpty ||
                     positionController.text.trim().isEmpty ||
                     salaryController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('يرجى تعبئة الحقول المطلوبة')),
                   );
                   return;
@@ -693,9 +692,19 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
-                  // ✅ رفع فوري لموظف جديد/محدَّث إلى Appwrite Cloud.
+                  // ✅ (2026-09-06) pushLocalChanges ترمي عند الفشل (عقد
+                  // صادق) — onError يمنع خطأ async غير معالج؛ السجلات تبقى
+                  // في outbox ويغطيها الرفع التلقائي/اليدوي اللاحق.
                   unawaited(
-                    ref.read(appwriteSyncManagerProvider).pushLocalChanges(),
+                    ref
+                        .read(appwriteSyncManagerProvider)
+                        .pushLocalChanges()
+                        .then(
+                          (_) {},
+                          onError: (Object e) {
+                            debugPrint('⚠️ فشل الرفع الفوري (موظف): $e');
+                          },
+                        ),
                   );
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -725,7 +734,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       salaryController.dispose();
       phoneController.dispose();
       hireDateController.dispose();
-    });
+    }));
   }
 
   /// حوار إنهاء خدمة موظف
@@ -739,7 +748,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     DateTime? terminationDate = HotelTimeEngine.getHotelDay(DateTime.now());
     final reasonController = TextEditingController();
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -975,9 +984,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('فشل إنهاء الخدمة: $e'),
                         backgroundColor: Colors.red,
@@ -995,7 +1002,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     ).then((_) {
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
       reasonController.dispose();
-    });
+    }));
   }
 
   /// إعادة تفعيل موظف مفصول
@@ -1061,9 +1068,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل إعادة التفعيل: $e'),
             backgroundColor: Colors.red,
@@ -1226,7 +1231,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     // إذا كانت الساعة 2 صباحاً من 4 يونيو → اليوم الفندقي = 3 يونيو
     DateTime selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -1370,6 +1375,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
 
@@ -1427,9 +1433,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               onPressed: () async {
                 final amountText = amountController.text.trim();
                 if (amountText.isEmpty) {
-                  ScaffoldMessenger.of(
-                    ctx,
-                  ).showSnackBar(
+                  ScaffoldMessenger.of(ctx).showSnackBar(
                     const SnackBar(
                       content: Text('يرجى إدخال المبلغ'),
                       backgroundColor: Colors.red,
@@ -1482,8 +1486,18 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
                   }
+                  // ✅ (2026-09-06) حماية onError — pushLocalChanges ترمي
+                  // عند الفشل (عقد صادق)؛ لا يجوز ترك خطأ async غير معالج.
                   unawaited(
-                    ref.read(appwriteSyncManagerProvider).pushLocalChanges(),
+                    ref
+                        .read(appwriteSyncManagerProvider)
+                        .pushLocalChanges()
+                        .then(
+                          (_) {},
+                          onError: (Object e) {
+                            debugPrint('⚠️ فشل الرفع الفوري (سحب): $e');
+                          },
+                        ),
                   );
 
                   if (context.mounted) {
@@ -1499,9 +1513,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   }
                 } catch (e) {
                   if (ctx.mounted) {
-                    ScaffoldMessenger.of(
-                      ctx,
-                    ).showSnackBar(
+                    ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(
                         content: Text('فشل تسجيل السحب: $e'),
                         backgroundColor: Colors.red,
@@ -1520,7 +1532,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
       amountController.dispose();
       noteController.dispose();
-    });
+    }));
   }
 
   Future<void> _deleteEmployee(
@@ -1620,9 +1632,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       );
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف'),
         ),
