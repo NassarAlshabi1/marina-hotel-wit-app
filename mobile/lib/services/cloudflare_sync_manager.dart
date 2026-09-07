@@ -931,6 +931,21 @@ class CloudflareSyncManager {
       debugPrint('🔄 Full sync in progress (cursor=$pendingCursor)');
     }
 
+    // ⚠️ FK OFF أثناء السحب (الجذر الحقيقي لتعطل full sync):
+    // أعمدة FK المحلية (مثل booking_nights.booking_local_id →
+    // Bookings.id) تحمل قيم id من D1 (auto-increment)، بينما الأرقام
+    // المحلية مختلفة تماماً (Drift يخصّص 1,2,3...) — والترتيب بسحب
+    // updated_at لا يضمن وصول الأب قبل الابن. مع PRAGMA foreign_keys=ON
+    // كانت كل إدراجات booking_nights/payments/notes تفشل صمتاً
+    // (تلتقطها try-catch فتضيع السجلات بينما يتحرك الـ cursor) —
+    // النتيجة: full sync "ينجح" بدون بيانات. نفس نمط الـ backup
+    // services (google_drive_backup_service.dart:1267).
+    try {
+      await _db!.customStatement('PRAGMA foreign_keys = OFF');
+    } catch (e) {
+      debugPrint('⚠️ Failed to disable FKs during pull: $e');
+    }
+
     try {
       while (hasMore) {
         final http.Response response;
@@ -1048,6 +1063,11 @@ class CloudflareSyncManager {
         }
       }
     } finally {
+      try {
+        await _db!.customStatement('PRAGMA foreign_keys = ON');
+      } catch (e) {
+        debugPrint('⚠️ Failed to re-enable FKs after pull: $e');
+      }
       if (wasFullSync) {
         _isFullSyncInProgress = false;
         _fullSyncRemainingPages = 0;
