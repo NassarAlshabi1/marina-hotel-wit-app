@@ -22,6 +22,7 @@ import 'providers/cloudflare_providers.dart' as cloudflare;
 import 'providers/repository_providers.dart';
 import 'providers/theme_provider.dart';
 import 'screens/ai/ai_chat_screen.dart';
+import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/bookings/bookings_list.dart';
 import 'screens/dashboard_screen.dart';
@@ -1074,19 +1075,24 @@ class RootRouter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    // ✅ (2026-09-07) أُزيلت بوابة GoogleDriveLoginScreen من مسار التوجيه
-    // (طلب المستخدم: «المزامنة بدون الحاجة إلى تسجيل الدخول»):
-    // كانت تُفرض على التثبيت الجديد حائط دخول Google Drive *قبل* شاشة
-    // دخول التطبيق نفسها (requiresDriveLogin = !isSignedIn &&
-    // !driveLoginSkipped) — مزامنة Cloudflare (المسار الوحيد المعمول
-    // به الآن) لا تحتاج أي دخول Google، والسحب الكامل عبر التوكن
-    // الافتراضي يعمل في الخلفية بغضّ النظر عن هذا الجزء من الواجهة.
-    // دخول Drive يبقى متاحاً من الإعدادات (النسخ الاحتياطي).
+    final backup = ref.watch(backupStatusProvider);
+    // ✅ (2026-09-08) بوابة GoogleDriveLoginScreen مُعادة كما كانت —
+    // طلب المستخدم: «لا تقم بإزالة بوابة GoogleDriveLoginScreen من
+    // التوجيه — كانت حائط دخول Drive قبل شاشة دخول التطبيق».
+    // ملاحظة مهمة: هذا حائط *واجهة* لدخول Google Drive (النسخ
+    // الاحتياطي) فقط؛ مزامنة Cloudflare والسحب الكامل عبر التوكن
+    // الافتراضي يعملان في الخلفية عند إطلاق التطبيق (قبل أي دخول)
+    // بغضّ النظر عن هذه الشاشة — انظر BootstrapFullPull.ensureFullPullOnLaunch
+    // في _AppState. يُتخطى الحاجز بعد تسجيل دخول Drive أو اختيار
+    // التخطي (requiresDriveLogin = !isSignedIn && !driveLoginSkipped).
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(body: Center(child: CircularProgressIndicator())),
       );
+    }
+    if (!auth.isAuthenticated && backup.requiresDriveLogin) {
+      return const GoogleDriveLoginScreen();
     }
     if (auth.isAuthenticated) {
       return const HomeShell();
