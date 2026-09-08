@@ -23,6 +23,7 @@ import 'cloudflare_dual_run_service.dart';
 import 'cloudflare_realtime_sync.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'logging/log_models.dart' show LogLevel;
 import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
 import 'sync/payload_normalizer.dart';
@@ -510,6 +511,18 @@ class CloudflareSyncManager {
       debugPrint(
         '🚨 ms-poisoned pull cursor detected ($_lastPullCursor) — '
         'resetting to 0 and forcing a fresh full sync',
+      );
+      // ✅ (2026-09-09) حدث نادر لكنه جوهري — يظهر في مركز أخطاء
+      // المزامنة حتى يعرف المستخدم لماذا بدأ الجهاز سحباً كاملاً من
+      // جديد.
+      logError(
+        title: 'مؤشر سحب مسموم (طوابع ميلي-ثانية) — تصفير وإعادة سحب كامل',
+        message:
+            'المؤشر المحفوظ $_lastPullCursor تجاوز الحد الآمن '
+            '$maxSanePullCursor. صُفّر المؤشر وعلامة full sync '
+            'ليبدأ الجهاز سحباً كاملاً نظيفاً من الـ Worker.',
+        category: ErrorCategory.sync,
+        source: 'sync:init',
       );
       _lastPullCursor = 0;
       _fullSyncCompleted = false;
@@ -1169,6 +1182,9 @@ class CloudflareSyncManager {
     final result = jsonDecode(response.body) as Map<String, dynamic>;
     final results = result['results'] as List? ?? [];
     int successCount = 0;
+    // ✅ (2026-09-09) تجميع عمليات الرفض الفردية من Worker لعرضها
+    // في مركز أخطاء المزامنة (validation_error/conflict/مؤقت).
+    final workerRejections = <String>[];
 
     for (final r in results) {
       final item = r as Map<String, dynamic>;
@@ -1192,6 +1208,9 @@ class CloudflareSyncManager {
         )..where((t) => t.id.equals(outboxItem.id))).go();
         successCount++;
       } else {
+        workerRejections.add(
+          '${opStatus ?? "unknown"} | $key | ${errorMsg ?? "بدون تفاصيل"}',
+        );
         // ✅ P0-G: نفرّق بين أنواع الفشل
         // - 'conflict' (409): تعارض إصدار — نطبّق resolveConflict لاحقاً
         // - 'validation_error' (400): خطأ بيانات دائم — dead-letter
@@ -1234,6 +1253,18 @@ class CloudflareSyncManager {
       }
     }
 
+    // ✅ (2026-09-09) تسجيل عمليات الرفض في مركز أخطاء المزامنة —
+    // أول 5 عمليات مع الحالة والمفتاح ورسالة الخادم.
+    if (workerRejections.isNotEmpty) {
+      logError(
+        title:
+            'Worker رفض ${workerRejections.length} من ${pending.length} '
+            'عملية رفع',
+        message: workerRejections.take(5).join('\n'),
+        category: ErrorCategory.worker,
+        source: 'worker:push',
+      );
+    }
     debugPrint('📤 Pushed $successCount/${pending.length} operations');
     return successCount;
   }
@@ -1409,9 +1440,10 @@ class CloudflareSyncManager {
           // والاستمرار على السليم يوهم بالاكتمال. لا يتحرك المؤشر إطلاقاً
           // (التراجع لما قبل الدورة) وترمى الدورة كفاشلة.
           hadError = true;
-          errorMessage =
+          final skipDetail =
               'Pull skipped ${tableErrors.length} remote table(s): '
               '${tableErrors.join('; ')}';
+          errorMessage = skipDetail;
           _failedCollectionsInLastSync.addAll(
             tableErrors.map((e) {
               if (e is Map && e['entity'] != null) {
@@ -1420,6 +1452,36 @@ class CloudflareSyncManager {
               return 'pull';
             }),
           );
+          // ✅ (2026-09-09) تسجيل أخطاء Worker في مركز أخطاء المزامنة:
+          // أخطاء errors[] الخادمية = الجداول التي تخطاها الـ Worker
+          // (سبب مباشر لـ«البيانات غير مكتملة») — تُعرض للمستخدم مع
+          // اسم الجدول ورسالة الخادم الأصلية.
+          logError(
+            title: 'Worker تجاوز ${tableErrors.length} جدولاً أثناء السحب',
+            message: skipDetail,
+            category: ErrorCategory.worker,
+            source: 'worker:pull',
+          );
+        }
+        // ✅ (2026-09-09) تسجيل حالة تطبيع الطوابع الزمنية الخادمية:
+        // remaining > 0 يعني أن الخادم ما زال يعالج صفوفاً مسموومة
+        // (ميلي-ثانية) — تحذير مفيد لتشخيص بطء اكتمال السحب بعد
+        // نشر worker الإصلاح، وليس فشلاً للدورة.
+        final normalization = data['normalization'];
+        if (normalization is Map) {
+          final remaining = normalization['remaining'];
+          if (remaining is int && remaining > 0) {
+            logError(
+              title: 'Worker: تطبيع الطوابع الزمنية غير مكتمل بعد',
+              message:
+                  'normalized=${normalization['normalized']}, '
+                  'remaining=$remaining — سيُستكمل تلقائياً في الدورات '
+                  'التالية.',
+              category: ErrorCategory.worker,
+              source: 'worker:pull',
+              severity: LogLevel.warning,
+            );
+          }
         }
         // P0-C: server-derived cursor is authoritative, not device time
         final serverCursor = int.tryParse(data['cursor']?.toString() ?? '0');
@@ -1508,6 +1570,16 @@ class CloudflareSyncManager {
               'retry: $errorSummary';
           _failedCollectionsInLastSync.add('pull');
           debugPrint('⚠️ $errorMessage');
+          // ✅ (2026-09-09) فشل تطبيق سجلات مؤجلة — يظهر في مركز
+          // الأخطاء مع تفاصيل أول خطأين (سبب مباشر لبيانات ناقصة).
+          logError(
+            title:
+                'فشل تطبيق ${retryErrors.length} سجلاً مؤجلاً بعد إعادة '
+                'المحاولة',
+            message: errorMessage,
+            category: ErrorCategory.sync,
+            source: 'sync:pull-apply',
+          );
         }
         if (remaining.isNotEmpty) {
           hadError = true;
@@ -1520,6 +1592,17 @@ class CloudflareSyncManager {
               'relations: ${names.join(', ')}';
           _failedCollectionsInLastSync.add('pull');
           debugPrint('⚠️ $errorMessage');
+          // ✅ (2026-09-09) سجلات علقت علاقاتها غير محلولة — تجميد
+          // المؤشر حتى يُشفي الخادم. تظهر في مركز الأخطاء بأسماء
+          // السجلات المانعة.
+          logError(
+            title:
+                '${remaining.length} سجل بعلاقات أب غير محلولة — تجميد '
+                'مؤشر السحب',
+            message: errorMessage,
+            category: ErrorCategory.sync,
+            source: 'sync:pull-apply',
+          );
         }
       }
     } finally {

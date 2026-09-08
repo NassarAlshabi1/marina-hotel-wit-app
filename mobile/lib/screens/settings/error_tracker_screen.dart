@@ -26,6 +26,10 @@ enum ErrorCategory {
   database('قاعدة البيانات', Icons.storage, Colors.red),
   auth('المصادقة', Icons.lock, Colors.indigo),
   rateLimit('تجاوز الحد', Icons.speed, Colors.deepOrange),
+  // ✅ (2026-09-09) أخطاء يبلّغ عنها الخادم نفسه (Worker) داخل جسم
+  // الاستجابة: errors[] في السحب (جداول مُتخطّاة)، ورفض سجلات الدفع
+  // الفردية (validation_error/conflict)، وتطبيع الطوابع غير المكتمل.
+  worker('الخادم (Worker)', Icons.dns, Colors.deepPurple),
   unknown('أخرى', Icons.error_outline, Colors.grey);
 
   const ErrorCategory(this.label, this.icon, this.color);
