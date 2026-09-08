@@ -22,6 +22,12 @@ export type RealtimeBroadcast = (msg: RealtimeMessage) => Promise<void>;
 const MAX_BATCH_SIZE = 100;
 const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024; // 5MB
 
+// ✅ (2026-09-09) سقف صفحة السحب مستقل عن الرفع — طلب المستخدم
+// «تسريع السحب الكامل عند أول تثبيت»: 7,300 صف ≈ 15 طلباً بدل 73
+// (العميل يطلب 400/صفحة للسحب الكامل و100 للدلتا). الرفع يبقى 100
+// عملية/دفعة لأن كل عملية تتكلف كتابات D1 متعددة.
+const MAX_PULL_BATCH_SIZE = 500;
+
 /**
  * Device attribution for pushed rows (fix discovered by test): the op
  * carries the device that produced it (cloudflare_sync_manager sends
@@ -192,11 +198,15 @@ export async function handlePull(
       return jsonResponse({ error: `Unknown entity: ${entity}` }, 400);
     }
     const limitStr = url.searchParams.get('limit') || '200';
-    // True [1, 200] clamp: 0 and negatives → 1, NaN → 200, anything
-    // larger → 200. (The old `parseInt(...) || 200` let limit=0 slip to
-    // the 200 default and return a full page for a nonsense request.)
+    // True [1, MAX_PULL_BATCH_SIZE] clamp: 0 and negatives → 1, NaN →
+    // 200, anything larger → 500. (The old `parseInt(...) || 200` let
+    // limit=0 slip to the 200 default and return a full page for a
+    // nonsense request.)
     const parsedLimit = parseInt(limitStr, 10);
-    const limit = Math.min(Math.max(Number.isFinite(parsedLimit) ? parsedLimit : 200, 1), MAX_BATCH_SIZE);
+    const limit = Math.min(
+      Math.max(Number.isFinite(parsedLimit) ? parsedLimit : 200, 1),
+      MAX_PULL_BATCH_SIZE,
+    );
     // Echo filter (plan 2.5): skip rows this device already has locally.
     const excludeDevice = url.searchParams.get('exclude_device') || undefined;
     // ✅ مراجعة #1: مسح تقارب الحذفيات — tombstones_only=1 يجلب الصفوف

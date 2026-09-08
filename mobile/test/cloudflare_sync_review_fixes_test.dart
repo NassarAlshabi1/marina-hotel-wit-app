@@ -526,4 +526,95 @@ void main() {
       );
     },
   );
+
+  // ─── تسريع السحب الكامل + فصل الرفع عن السحب (طلب المستخدم) ──
+
+  test(
+    'تسريع: السحب الكامل يطلب صفحات 400 والدلتا 100 (fullPullBatchSize)',
+    () async {
+      final capturedLimits = <String>[];
+      final client = _ReviewFakeClient(
+        pullHandler: (request) {
+          capturedLimits.add(request.url.queryParameters['limit'] ?? '');
+          return {
+            'changes': <dynamic>[],
+            'cursor': '1700000100',
+            'has_more': false,
+            'errors': <dynamic>[],
+          };
+        },
+      );
+      final manager = await makeManager(client);
+
+      // 1) جهاز جديد → wasFullSync=true → صفحة السحب الكامل.
+      await manager.sync();
+      expect(capturedLimits, isNotEmpty);
+      expect(capturedLimits.first, '400');
+
+      // 2) جهاز أتم full sync → دلتا → الصفحة العادية.
+      capturedLimits.clear();
+      manager.configureForTesting(
+        database: db,
+        httpClient: client,
+        token: 'test-token',
+        deviceId: 'review-fixes-device',
+        fullSyncCompleted: true,
+        lastPullCursor: 1700000100,
+      );
+      await manager.sync();
+      expect(capturedLimits, isNotEmpty);
+      expect(capturedLimits.first, '100');
+    },
+  );
+
+  test(
+    'فصل صريح: sync(pull:false) لا يصدر أي طلب سحب، وfullSync(push:false) لا يصدر أي طلب رفع',
+    () async {
+      // 1) زر الرفع المستقل — صفر طلبات سحب.
+      const clientTs = 1700000950;
+      await OutboxDao(db).merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'rm-push-only',
+        payload: const <String, dynamic>{'room_number': 'RN-PO'},
+        clientTs: clientTs,
+      );
+      final pushOnlyClient = _ReviewFakeClient(
+        pushHandler: (request) => {
+          'results': [
+            {
+              'idempotencyKey': 'rooms:update:rm-push-only:$clientTs',
+              'success': true,
+              'status': 'ok',
+            },
+          ],
+        },
+      );
+      final manager = await makeManager(pushOnlyClient);
+      await manager.sync(pull: false);
+      expect(pushOnlyClient.pushCalls, 1);
+      expect(
+        pushOnlyClient.normalPullCalls,
+        0,
+        reason: 'زر الرفع المستقل يجب ألا يسحب شيئاً',
+      );
+      expect(pushOnlyClient.tombstonePullCalls, 0);
+
+      // 2) السحب الكامل (مسار المتابعة بدون مزامنة) — صفر طلبات رفع.
+      final pullOnlyClient = _ReviewFakeClient();
+      manager.configureForTesting(
+        database: db,
+        httpClient: pullOnlyClient,
+        token: 'test-token',
+        deviceId: 'review-fixes-device',
+      );
+      await manager.fullSync(push: false);
+      expect(
+        pullOnlyClient.pushCalls,
+        0,
+        reason: 'السحب الكامل (المتابعة بدون مزامنة) رفع-only ممنوع',
+      );
+      expect(pullOnlyClient.normalPullCalls, 1);
+    },
+  );
 }

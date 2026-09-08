@@ -1558,6 +1558,16 @@ class CloudflareSyncManager {
       debugPrint('🔄 Full sync in progress (cursor=$pendingCursor)');
     }
 
+    // ✅ (2026-09-09) تسريع السحب الكامل (طلب المستخدم): صفحة أكبر
+    // للسحب الكامل — ~7,300 صف ≈ 18 طلباً بدل 73 (السقف الخادمي
+    // للسحب MAX_PULL_BATCH_SIZE=500). الدلتا تبقى على [batchSize].
+    final pageLimit = wasFullSync
+        ? CloudflareConfig.fullPullBatchSize
+        : CloudflareConfig.batchSize;
+    // ✅ تسريع — تداخل الشبكة مع التطبيق: الصفحة التالية تُجلَب أثناء
+    // تطبيق الحالية (prefetch) فيختفي زمن الرحلة خلف كتابة SQLite.
+    Future<http.Response>? prefetchFuture;
+
     // ⚠️ FK OFF أثناء السحب (الجذر الحقيقي لتعطل full sync):
     // أعمدة FK المحلية (مثل booking_nights.booking_local_id →
     // Bookings.id) تحمل قيم id من D1 (auto-increment)، بينما الأرقام
@@ -1577,24 +1587,13 @@ class CloudflareSyncManager {
       while (hasMore) {
         final http.Response response;
         try {
-          response = await _httpClient
-              .get(
-                Uri.parse(
-                  '${CloudflareConfig.workerUrl}/api/sync/pull',
-                ).replace(
-                  queryParameters: {
-                    'cursor': pendingCursor.toString(),
-                    'limit': CloudflareConfig.batchSize.toString(),
-                    // ✅ خطة 2.5: لا تُعد إلينا سجلات دفعناها نحن (echo) —
-                    // الخادم يستثني device_id الخاص بنا من نتيجة السحب.
-                    if (_deviceId case final ownDevice?
-                        when ownDevice.isNotEmpty)
-                      'exclude_device': ownDevice,
-                  },
-                ),
-                headers: {'Authorization': 'Bearer $_token'},
-              )
-              .timeout(const Duration(seconds: 30));
+          if (prefetchFuture != null) {
+            // الصفحة التالية انطلقت أثناء تطبيق السابقة — نقطفها الآن.
+            response = await prefetchFuture;
+            prefetchFuture = null;
+          } else {
+            response = await _fetchPullPage(pendingCursor, pageLimit);
+          }
         } catch (e) {
           // P0-G: network error (DNS, timeout) - not "sync complete"
           hadError = true;
@@ -1740,9 +1739,21 @@ class CloudflareSyncManager {
             debugPrint('⚠️ $errorMessage');
           }
         }
-        final report = await _applyPulledRecords(
-          batchRecords,
-          deferredSink: deferredRecords,
+        // ✅ تسريع — إطلاق جلب الصفحة التالية قبل تطبيق الحالية:
+        // المؤشر معروف من استجابة الصفحة الحالية قبل أي تطبيق، والتطبيق
+        // لا يمس الشبكة — التداخل آمن ويخفي زمن الرحلة كاملاً.
+        if (hasMore && !hadError) {
+          prefetchFuture = _fetchPullPage(pendingCursor, pageLimit);
+        }
+
+        // ✅ تسريع — الصفحة كلها في معاملة واحدة: commit واحد لكل صفحة
+        // بدل commit لكل صف — أكبر مكسب زمني على تخزين الجهاز
+        // (7,300 commit → ~18 commit في السحب الكامل).
+        final report = await _db!.transaction(
+          () => _applyPulledRecords(
+            batchRecords,
+            deferredSink: deferredRecords,
+          ),
         );
         totalPulled += report.appliedCount;
 
@@ -1891,6 +1902,16 @@ class CloudflareSyncManager {
         }
       }
     } finally {
+      // ✅ استهلاك أي استجابة صفحة معلّقة انطلقت ولم تُقطف (خطأ منتصف
+      // الدورة) — إغلاق نظيف دون تعطيل مسار الخطأ الحالي.
+      if (prefetchFuture != null) {
+        try {
+          await prefetchFuture.timeout(const Duration(seconds: 10));
+        } catch (_) {
+          // الجلب المعلق فاشل — لا يهم: الدورة فشلت لسبب سابق أصلأً.
+        }
+        prefetchFuture = null;
+      }
       try {
         await _db!.customStatement('PRAGMA foreign_keys = ON');
       } catch (e) {
@@ -1947,6 +1968,28 @@ class CloudflareSyncManager {
   }
 
   // ─── أدوات الفلترة وترجمة الهوية (2026-09-09) ──────────────
+
+  /// جلب صفحة واحدة من السحب — مستخرجة لتسمح بالتداخل (prefetch):
+  /// الصفحة التالية تنطلق قبل تطبيق الحالية (تسريع السحب الكامل).
+  Future<http.Response> _fetchPullPage(int cursor, int limit) {
+    return _httpClient
+        .get(
+          Uri.parse(
+            '${CloudflareConfig.workerUrl}/api/sync/pull',
+          ).replace(
+            queryParameters: {
+              'cursor': cursor.toString(),
+              'limit': limit.toString(),
+              // ✅ خطة 2.5: لا تُعد إلينا سجلات دفعناها نحن (echo) —
+              // الخادم يستثني device_id الخاص بنا من نتيجة السحب.
+              if (_deviceId case final ownDevice? when ownDevice.isNotEmpty)
+                'exclude_device': ownDevice,
+            },
+          ),
+          headers: {'Authorization': 'Bearer $_token'},
+        )
+        .timeout(const Duration(seconds: 30));
+  }
 
   /// أعمدة الجدول المحلي (PRAGMA table_info) مع كاش — أساس الفلترة
   /// ضد انحراف المخطط بين الخادم والعميل.

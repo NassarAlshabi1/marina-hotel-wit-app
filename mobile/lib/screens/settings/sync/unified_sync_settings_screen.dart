@@ -551,10 +551,10 @@ class _UnifiedSyncSettingsScreenState
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.restore, color: Colors.deepPurple),
-            title: const Text('مزامنة كاملة (Full Sync)'),
+            title: const Text('السحب الكامل من السيرفر'),
             subtitle: const Text(
-              'يرفع التغييرات المحلية المعلّقة ثم يسحب كل البيانات '
-              'من السيرفر من الصفر (يُعيد ضبط مؤشر السحب)',
+              'سحب فقط بدون رفع: يعيد ضبط مؤشر السحب ويجلب كل البيانات '
+              'من السيرفر من الصفر (صفحات أكبر وأسرع)',
             ),
             trailing: _isManualSyncing
                 ? const SizedBox(
@@ -564,6 +564,23 @@ class _UnifiedSyncSettingsScreenState
                   )
                 : const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _isManualSyncing ? null : _confirmFullSync,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.cloud_upload, color: Colors.teal),
+            title: const Text('رفع التغييرات المحلية'),
+            subtitle: const Text(
+              'رفع فقط بدون سحب: يرفع كل التغييرات المحلية المعلّقة '
+              'في outbox إلى السيرفر',
+            ),
+            trailing: _isManualSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _isManualSyncing ? null : _runPushNow,
           ),
         ],
       ),
@@ -639,7 +656,7 @@ class _UnifiedSyncSettingsScreenState
           success: false,
           message:
               '⬆️ يوجد $pending تغييراً محلياً غير مرفوع — '
-              'استخدم «مزامنة كاملة» أدناه لرفعه ثم السحب',
+              'استخدم «رفع التغييرات المحلية» أدناه أولاً',
         );
         return;
       }
@@ -686,18 +703,17 @@ class _UnifiedSyncSettingsScreenState
     }
   }
 
-  /// تأكيد قبل full sync — لأنه يصفّر مؤشر السحب ويعيد جلب كل شيء.
+  /// تأكيد قبل full pull — لأنه يصفّر مؤشر السحب ويعيد جلب كل شيء.
   Future<void> _confirmFullSync() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('مزامنة كاملة (Full Sync)؟'),
+        title: const Text('السحب الكامل من السيرفر؟'),
         content: const Text(
-          'سيقوم التطبيق بـ:\n'
-          '1. رفع كل التغييرات المحلية المعلّقة إلى السيرفر\n'
-          '2. إعادة ضبط مؤشر السحب وجلب جميع البيانات من السيرفر '
-          'من الصفر\n\n'
-          'قد يستغرق وقتاً أطول من المعتاد حسب حجم البيانات. متابعة؟',
+          'سحب فقط بدون رفع:\n'
+          '1. إعادة ضبط مؤشر السحب\n'
+          '2. جلب جميع البيانات من السيرفر من الصفر\n\n'
+          'لا يُرفع أي تغيير محلي في هذه العملية. متابعة؟',
         ),
         actions: [
           TextButton(
@@ -716,14 +732,14 @@ class _UnifiedSyncSettingsScreenState
     }
   }
 
-  /// «مزامنة كاملة» — fullSync(): تصفير مؤشر السحب + sync(push+pull).
-  /// ترفع المحلي المعلّق أولاً فتُحترم سياسة Offline-first بالكامل،
-  /// ثم تسحب كل البيانات — الحل الأكيد عندما يريد المستخدم «تحديث كل شيء».
+  /// «السحب الكامل» — fullSync(push: false): تصفير مؤشر السحب + سحب
+  /// كل البيانات من الصفر — **سحب فقط بدون أي رفع** (فصل صريح عن زر
+  /// الرفع بناء على طلب المستخدم 2026-09-09).
   Future<void> _runFullSync() async {
     if (_isManualSyncing) return;
     setState(() => _isManualSyncing = true);
 
-    // حوار تقدّم غير قابل للإغلاق — full sync قد يسحب عدة صفحات.
+    // حوار تقدّم غير قابل للإغلاق — full pull قد يسحب عدة صفحات.
     // ✅ نلتقط NavigatorState متزامناً (قبل أي await) كي نستطيع إغلاق
     // الحوار في finally حتى لو غادر المستخدم الشاشة أثناء المزامنة —
     // استخدام context بعد dispose كان سيترك الحوار محجوزاً للأبد.
@@ -733,14 +749,14 @@ class _UnifiedSyncSettingsScreenState
         context: context,
         barrierDismissible: false,
         builder: (_) => const AlertDialog(
-          title: Text('جاري المزامنة الكاملة…'),
+          title: Text('جاري السحب الكامل…'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               LinearProgressIndicator(),
               SizedBox(height: 12),
               Text(
-                'رفع التغييرات المحلية ثم سحب كل البيانات من السيرفر',
+                'سحب كل البيانات من السيرفر (بدون رفع)',
                 style: TextStyle(fontSize: 12),
               ),
             ],
@@ -758,7 +774,10 @@ class _UnifiedSyncSettingsScreenState
       final result = await SyncGate.instance.runGuarded<SyncResult>(
         operation: 'full_sync',
         source: 'settings',
-        task: manager.fullSync,
+        // ✅ فصل صريح: push:false — لا رفع إطلاقاً في السحب الكامل
+        // (كان الاعتماد على قيمة افتراضية ضمنية — الآن الصراحة عقد).
+        // ignore: avoid_redundant_argument_values
+        task: () => manager.fullSync(push: false),
       );
 
       if (result == null) {
@@ -773,27 +792,76 @@ class _UnifiedSyncSettingsScreenState
         _showSyncResultSnack(
           success: true,
           message:
-              '✅ اكتملت المزامنة الكاملة — '
-              'رُفع ${result.recordsPushed} وسُحب ${result.recordsPulled} سجل',
+              '✅ اكتمل السحب الكامل — سُحب ${result.recordsPulled} سجل '
+              'من السيرفر (بدون رفع)',
         );
       } else {
         _showSyncResultSnack(
           success: false,
           message:
-              '❌ فشلت المزامنة الكاملة: '
+              '❌ فشل السحب الكامل: '
               '${_friendlySyncError(result.errorMessage)}',
         );
       }
     } catch (e) {
       _showSyncResultSnack(
         success: false,
-        message: '❌ خطأ غير متوقع أثناء المزامنة الكاملة: $e',
+        message: '❌ خطأ غير متوقع أثناء السحب الكامل: $e',
       );
     } finally {
       if (progressDialogOpen) {
         // NavigatorState ملتقط مسبقاً — آمن حتى بعد dispose الشاشة
         navigator.pop(); // إغلاق حوار التقدّم
       }
+      if (mounted) setState(() => _isManualSyncing = false);
+    }
+  }
+
+  /// «رفع التغييرات المحلية» — زر مستقل تماماً عن السحب الكامل:
+  /// sync(push: true, pull: false) — يفرّغ outbox إلى السيرفر فقط
+  /// بلا أي سحب (فصل الرفع عن السحب الكامل — طلب المستخدم 2026-09-09).
+  Future<void> _runPushNow() async {
+    if (_isManualSyncing) return;
+    setState(() => _isManualSyncing = true);
+    try {
+      if (!await _ensureCloudflareConnected()) return;
+
+      final manager = ref.read(ap.appwriteSyncManagerProvider);
+      final result = await SyncGate.instance.runGuarded<SyncResult>(
+        operation: 'push',
+        source: 'settings',
+        // ✅ فصل صريح: الرفع وحده — الصراحة عقد لا افتراض.
+        // ignore: avoid_redundant_argument_values
+        task: () => manager.sync(push: true, pull: false),
+      );
+
+      if (result == null) {
+        _showSyncResultSnack(
+          success: false,
+          message: '⏳ المزامنة مشغولة بعملية أخرى — أعد المحاولة بعد قليل',
+        );
+        return;
+      }
+
+      if (result.isSuccess) {
+        _showSyncResultSnack(
+          success: true,
+          message: result.recordsPushed == 0
+              ? '✅ لا توجد تغييرات محلية معلّقة للرفع'
+              : '✅ اكتمل الرفع — رُفع ${result.recordsPushed} سجل إلى السيرفر',
+        );
+      } else {
+        _showSyncResultSnack(
+          success: false,
+          message: '❌ تعذر الرفع: ${_friendlySyncError(result.errorMessage)}',
+        );
+      }
+    } catch (e) {
+      _showSyncResultSnack(
+        success: false,
+        message: '❌ خطأ غير متوقع أثناء الرفع: $e',
+      );
+    } finally {
       if (mounted) setState(() => _isManualSyncing = false);
     }
   }
