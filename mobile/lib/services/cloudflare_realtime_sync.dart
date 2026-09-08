@@ -112,6 +112,13 @@ class CloudflareRealtimeSync {
   int _reconnectAttempt = 0;
   Timer? _reconnectTimer;
 
+  // ✅ (مراجعة 2026-09-09 #17) إعادة تسليح دورية بعد الاستسلام:
+  // الاستسلام حتى عودة التطبيق للواجهة كان يترك الريل تايم ميتاً
+  // طوال جلسة foreground طويلة (لا شيء يعيد المحاولة إن بقي
+  // التطبيق في الواجهة مع مقبس ميت/شبكة محظورة — المزامنة
+  // التلقائية كل 15 دقيقة لا تعوّض الفورية).
+  Timer? _rearmTimer;
+
   // ─── محرّك السحب (طابور أحداث بنمط فرع perf) ──────────────────
   RemoteChangePull? _syncTrigger;
   Timer? _debounceTimer;
@@ -131,6 +138,11 @@ class CloudflareRealtimeSync {
 
   /// نفس سقف فرع perf (appwrite_realtime_sync.dart:610).
   static const int _maxReconnectAttempts = 6;
+
+  /// ✅ (مراجعة #17) فترة إعادة التسليح الدورية بعد الاستسلام —
+  /// خفيفة عمداً: نداء connect واحد كل دقيقتين، بنفس حارسات الاتصال،
+  /// يتوقف فور أول نجاح (في _connect) أو عند stop().
+  static const Duration _rearmInterval = Duration(minutes: 2);
 
   /// Heartbeat 30s (خطة المرحلة 3.1): ping على مستوى البروتوكول —
   /// workerd يجيب تلقائياً، والمقابس الميتة تُكشف خلال pingInterval.
@@ -195,6 +207,8 @@ class CloudflareRealtimeSync {
     _isListening = false;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _rearmTimer?.cancel();
+    _rearmTimer = null;
     _debounceTimer?.cancel();
     _debounceTimer = null;
     _trailingTimer?.cancel();
@@ -224,6 +238,8 @@ class CloudflareRealtimeSync {
     unawaited(stop());
     _reconnectAttempt = 0;
     _recoveryPullPending = false;
+    _rearmTimer?.cancel();
+    _rearmTimer = null;
     _triggerInFlight = false;
     _pullQueued = false;
     _lastFireAt = null;
@@ -293,6 +309,9 @@ class CloudflareRealtimeSync {
       }
       _channel = channel;
       _reconnectAttempt = 0;
+      // ✅ (مراجعة #17) نجاح الاتصال ينهي دورة إعادة التسليح الدورية.
+      _rearmTimer?.cancel();
+      _rearmTimer = null;
       connected.value = true;
       debugPrint('✅ Cloudflare realtime connected (${uri.host})');
       await _onSubscriptionEstablished();
@@ -442,6 +461,21 @@ class CloudflareRealtimeSync {
             'realtime: giving up after $_reconnectAttempt attempts — '
             'ensureStarted() on app resume will retry',
       );
+      // ✅ (مراجعة #17) إعادة تسليح دورية خفيفة بدل الميت حتى عودة
+      // التطبيق للواجهة: نداء connect كل دقيقتين بنفس الحارسات —
+      // أول نجاح يصفّر العداد وي_cancel المؤقت (في _connect).
+      _rearmTimer ??= Timer.periodic(_rearmInterval, (_) {
+        if (_intentionallyStopped || !_isListening) {
+          _rearmTimer?.cancel();
+          _rearmTimer = null;
+          return;
+        }
+        if (isConnected || _connectInFlight || _reconnectTimer != null) {
+          return;
+        }
+        dwarn(() => 'realtime: periodic re-arm tick — retrying connect');
+        unawaited(_connect());
+      });
       return;
     }
     final Duration delay = computeBackoffDelay(_reconnectAttempt);

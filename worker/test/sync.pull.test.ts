@@ -154,8 +154,8 @@ describe('pull: echo filter (plan 2.5 — exclude_device)', () => {
   });
 });
 
-describe('pull: deleted records are excluded', () => {
-  it('does not return soft-deleted rows, even when their updated_at is newer', async () => {
+describe('pull: tombstones ride the delta stream', () => {
+  it('returns soft-deleted rows (tombstones) so other devices learn the deletion', async () => {
     const auth = await adminAuthHeader();
     const payload = roomPayload({ device_id: 'device-A' });
     const pushed = await pushOperations(auth, [pushOp('rooms', 'create', payload)]);
@@ -169,7 +169,61 @@ describe('pull: deleted records are excluded', () => {
       .run();
 
     const data = await pull(auth, { cursor: '0' });
+    const tombstone = data.changes.find(
+      (row) => row.local_uuid === payload.local_uuid,
+    );
+    // ✅ إصلاح «الحذف لا يصل إلى الأجهزة الأخرى»: الـ tombstone يُبَث في
+    //    الدلتا ويحمل deleted_at غير فارغ ليطبّقه العميل كحذف محلي.
+    expect(tombstone).toBeDefined();
+    expect(tombstone?.deleted_at).toBe(1700000100);
+  });
+
+  it('excludes the deleting device own tombstone via exclude_device (echo filter)', async () => {
+    const auth = await adminAuthHeader();
+    const payload = roomPayload({ device_id: 'device-A' });
+    await pushOperations(auth, [pushOp('rooms', 'create', payload)]);
+    await env.DB.prepare(
+      'UPDATE rooms SET deleted_at = ?, updated_at = ? WHERE local_uuid = ?',
+    )
+      .bind(1700000100, 1700000100, payload.local_uuid)
+      .run();
+
+    const data = await pull(auth, { cursor: '0', exclude_device: 'device-A' });
     expect(data.changes.some((row) => row.local_uuid === payload.local_uuid)).toBe(false);
+  });
+
+  it('tombstones_only=1 returns deleted rows exclusively (convergence sweep)', async () => {
+    const auth = await adminAuthHeader();
+    // صف حي + صف محذوف
+    const live = roomPayload({ device_id: 'device-A' });
+    const dead = roomPayload({ device_id: 'device-B' });
+    await pushOperations(auth, [
+      pushOp('rooms', 'create', live),
+      pushOp('rooms', 'create', dead),
+    ]);
+    await env.DB.prepare(
+      'UPDATE rooms SET deleted_at = ?, updated_at = ? WHERE local_uuid = ?',
+    )
+      .bind(1700000100, 1700000100, dead.local_uuid)
+      .run();
+
+    const res = await fetchWithAuth(
+      '/api/sync/pull?cursor=0&limit=200&tombstones_only=1',
+      auth,
+    );
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { changes: Array<Record<string, unknown>> };
+    expect(data.changes.length).toBeGreaterThanOrEqual(1);
+    // كل ما عاد محذوف — والصف الحي غير موجود في النتيجة
+    for (const row of data.changes) {
+      expect(row['deleted_at']).not.toBeNull();
+    }
+    expect(
+      data.changes.some((row) => row.local_uuid === live.local_uuid),
+    ).toBe(false);
+    expect(
+      data.changes.some((row) => row.local_uuid === dead.local_uuid),
+    ).toBe(true);
   });
 });
 

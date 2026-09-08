@@ -194,7 +194,7 @@ describe('push: update flow', () => {
 });
 
 describe('push: delete flow (tombstones)', () => {
-  it('soft-deletes: sets deleted_at and bumps version without pulling the row', async () => {
+  it('soft-deletes: sets deleted_at, bumps version, and the tombstone rides the delta stream', async () => {
     const auth = await adminAuthHeader();
     const payload = roomPayload();
     await pushOperations(auth, [pushOp('rooms', 'create', payload)]);
@@ -206,11 +206,12 @@ describe('push: delete flow (tombstones)', () => {
     expect(row?.['deleted_at']).not.toBeNull();
     expect(row?.['version']).toBe(2);
 
-    // Deleted rows remain as local tombstones for conflict/audit purposes,
-    // but the pull contract never returns deleted data.
+    // ✅ إصلاح «الحذف لا يصل إلى الأجهزة الأخرى» (مراجعة #1): الـ pull
+    //    يعيد tombstone بحمل deleted_at — العميل يطبّقه كحذف محلي.
     const first = await pull(auth);
     const tombstones = first.changes.filter((c) => c.local_uuid === payload.local_uuid);
-    expect(tombstones).toHaveLength(0);
+    expect(tombstones).toHaveLength(1);
+    expect(tombstones[0]?.deleted_at).not.toBeNull();
   });
 
   it('delete of a non-existent record reports deleted:false without error', async () => {

@@ -28,10 +28,18 @@ const MAX_PAYLOAD_SIZE = 5 * 1024 * 1024; // 5MB
  * `deviceId` per operation), while the JWT device_id is whatever was
  * present at LOGIN time — often empty for bootstrap-registered users.
  * The op value wins; the JWT value is the fallback.
+ *
+ * ✅ مراجعة 2026-09-09 #18: كلا المصدرين قد يكونان فارغين (توكن بلا
+ * device_id claim وop بلا deviceId) — عندها كان الصف يُختم '' والبث
+ * الواقعي يُرسل deviceId:'' فلا يستطيع أي عميل تمييز الصدى الذاتي
+ * (فلتر msg.deviceId == _currentDeviceId) ويعيد السحب هدراً. نضمن
+ * الآن أصلاً غير فارغ دائماً — الصفوف ذات الأصل المجهول تُختم
+ * 'unknown-origin' ولا تُبث أصلاً بهوية فارغة.
  */
 function opDeviceId(op: PushOperation, ctx: AuthContext): string {
   if (typeof op.deviceId === 'string' && op.deviceId.length > 0) return op.deviceId;
-  return ctx.deviceId;
+  if (typeof ctx.deviceId === 'string' && ctx.deviceId.length > 0) return ctx.deviceId;
+  return 'unknown-origin';
 }
 
 function validatePushOperation(op: PushOperation): string | null {
@@ -191,6 +199,11 @@ export async function handlePull(
     const limit = Math.min(Math.max(Number.isFinite(parsedLimit) ? parsedLimit : 200, 1), MAX_BATCH_SIZE);
     // Echo filter (plan 2.5): skip rows this device already has locally.
     const excludeDevice = url.searchParams.get('exclude_device') || undefined;
+    // ✅ مراجعة #1: مسح تقارب الحذفيات — tombstones_only=1 يجلب الصفوف
+    //    المحذوفة فقط (نافذة واحدة رخيصة) ليطبّقها العميل كحذف محلي
+    //    ما فاته أثناء نافذة العقد القديم الذي كان يفلترها.
+    const tombstonesOnly =
+      url.searchParams.get('tombstones_only') === '1';
 
     // ✅ Self-healing data repair: progressively re-stamp legacy millisecond
     // timestamps (mixed units permanently poison the integer pull cursor —
@@ -204,7 +217,13 @@ export async function handlePull(
       console.error('[SYNC/PULL] normalization failed (pull continues):', err);
     }
 
-    const result = await db.pullChanges(entity, cursor, limit, excludeDevice);
+    const result = await db.pullChanges(
+      entity,
+      cursor,
+      limit,
+      excludeDevice,
+      tombstonesOnly
+    );
 
     return jsonResponse({
       changes: result.changes,

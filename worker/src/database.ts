@@ -214,11 +214,15 @@ export class Database {
     entity: string | null,
     cursor: number,
     limit: number = 200,
-    excludeDeviceId?: string
+    excludeDeviceId?: string,
+    /** ✅ مراجعة #1: مسح تقارب لمرة واحدة — يجلب الحذفيات فقط (tombstones)
+     *  ليتصحح الجهاز ما فاته أثناء نافذة العقد القديم بأقل كلفة بيانات. */
+    tombstonesOnly: boolean = false
   ): Promise<PullResult> {
     const entities = entity ? [entity] : Object.keys(ENTITY_TABLES);
     const baseLimit = Math.max(1, limit);
     const allChanges: SyncRecord[] = [];
+    const delClause = tombstonesOnly ? 'deleted_at IS NOT NULL AND ' : '';
 
     // Echo filter (plan 2.5): a device that already applied its own push
     // must not receive its own rows back — skipping them removes the
@@ -236,12 +240,17 @@ export class Database {
     for (const ent of entities) {
       const table = ENTITY_TABLES[ent];
       try {
-        // ── Group-complete fetch window (live rows only) ──
-        // deleted_at IS NULL: the pull contract returns LIVE records only —
-        // tombstones stay server-side for audit (policy: refactor/cloudflare-
-        // sync-pipeline). NOTE: cross-device deletion propagation therefore
-        // relies on nothing else today (realtime only triggers pulls) — see
-        // the deletion-propagation gap documented in the merge commit.
+        // ── Group-complete fetch window (live rows + tombstones) ──
+        // ✅ إصلاح «الحذف لا يصل إلى الأجهزة الأخرى» (مراجعة 2026-09-09
+        //    #1 — تناقض deleteRecord ↔ pullChanges): deleteRecord يُنشئ
+        //    tombstone بـ updated_at مُخصَّص «ليسطح مرة واحدة في كل دلتا»
+        //    بينما هذا الاستعلام كان يفلتره بـ deleted_at IS NULL — فلا
+        //    يتعلم جهاز آخر الحذف أبداً ويبقى الصف حياً عليه إلى الأبد.
+        //    العقد المصحح: tombstone يُبَث في الترتيب الزمني نفسه بجوار
+        //    الصفوف الحية، والعميل يطبّقه كحذف محلي (عقد موثق في
+        //    cloudflare_sync_manager.dart _applyChange).
+        // NOTE: cross-device deletion propagation now rides the regular
+        // delta stream — tombstones are pullable exactly like live rows.
         //
         // The SQL window is limit+1: the extra probe row tells us whether
         // more rows exist. Because equal-updated_at rows are CONTIGUOUS in
@@ -261,13 +270,13 @@ export class Database {
           rows = excludeDevice
             ? await this.db
                 .prepare(
-                  `SELECT * FROM ${table} WHERE deleted_at IS NULL AND updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
                 .bind(cursor, excludeDevice, window)
                 .all<Record<string, unknown>>()
             : await this.db
                 .prepare(
-                  `SELECT * FROM ${table} WHERE deleted_at IS NULL AND updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
                 .bind(cursor, window)
                 .all<Record<string, unknown>>();

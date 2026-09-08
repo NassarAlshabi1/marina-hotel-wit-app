@@ -365,6 +365,49 @@ class CloudflareSyncManager {
   /// لا يُحرّك checkpoint لأي collection فشلت حتى تنجح في محاولة لاحقة.
   final Set<String> _failedCollectionsInLastSync = <String>{};
 
+  // ─── الحجر الصحي للصفوف اليتيمة (مراجعة 2026-09-09 #2+#16) ────
+  //
+  // المشكلة: صف واحد بأبٍ مفقود خادمياً (يتيم بنيوي — أبُه حُذف يدوياً
+  // من D1 أو لم يُنشأ أصلاً) كان يُفشل دورة السحب كلها عند كل محاولة
+  // → المؤشر لا يتحرك → full sync لا يكتمل → bootstrap يعيد المحاولة
+  // عند كل إقلاع إلى الأبد (خطأ بيانات واحد = جهاز مجمّد نهائياً).
+  //
+  // السياسة المصححة (تدرّج عادل — لا صمت مبكر ولا تجميد أبدي):
+  //   1. الدورتان الأوليان لكل سجل معتّق: الفشل كما كان — فرصة عادلة
+  //      لأبٍ متأخر (رفع جهاز آخر قيد الطريق) أن يصل بين الدورات.
+  //   2. بعد [_quarantineBlockThreshold] دورات فاشلة بنفس الهوية:
+  //      السجل يوضع في سجل الحجر (persistent) وتُطبَّق بقية الدفعة
+  //      ويتقدم المؤشر — باقي البيانات تتدفق ولا يتجمد شيء للأبد.
+  //   3. صفوف الحجر تُعاد فحصها تلقائياً: إن ظهر السجل مجدداً في السحب
+  //      (أي تحديث له يعيد بثه) وحُلّ أبُه طُبّق ومُسح من الحجر؛ وإن
+  //      وصل tombstone له طُبّق كحذف ومُسح من الحجر أيضاً.
+  static const String _kQuarantineCountsKey = 'cf_pull_orphan_block_counts';
+  static const String _kQuarantinedKey = 'cf_pull_quarantined_records';
+  static const int _quarantineBlockThreshold = 3;
+
+  /// عدد الدورات التي حُجب فيها كل سجل معتّق (identity = 'entity/uuid').
+  final Map<String, int> _orphanBlockCounts = <String, int>{};
+
+  /// سجل الحجر الصحي: identity -> بيانات التشخيص (entity/uuid/first_seen).
+  final Map<String, Map<String, dynamic>> _quarantinedRecords =
+      <String, Map<String, dynamic>>{};
+
+  /// ✅ (مراجعة #1) مسح تقارب الحذفيات لمرة واحدة — جهاز سحب أثناء
+  /// نافذة العقد القديم (worker كان يفلتر tombstones من السحب) تكون
+  /// مؤشره تجاوز حذفيات لم تُبَث أبداً. النافذة tombstones_only رخيصة
+  /// (الحذفيات قليلة بنيوياً: تدقيق 2026-09-09 = 1 صف) ولا تمس
+  /// المؤشر الرئيسي ولا تعيد سحب الصفوف الحية.
+  static const String _kTombstoneSweepDoneKey = 'cf_tombstone_sweep_v1_done';
+
+  // ✅ (مراجعة 2026-09-09 #14) سقفا المحاولات على مسار الرفع:
+  // - سقف اختيار الحلقة (يطابق reclaimForPush.maxFailedAttempts) —
+  //   failed فوقه يُترك للمؤقت الدوري retryFailedWithBackoff.
+  // - سقف الـ dead-letter: فشل مؤقت/تعارض يتجاوز هذا العدد يوضع في
+  //   الحالة النهائية dead لمراجعة يدوية بدل إعادة محاولة صامتة للأبد
+  //   (validation يصل dead من أول رفض كما كان).
+  static const int _maxFailedAttemptsPerPushCycle = 5;
+  static const int _pushDeadLetterThreshold = 10;
+
   /// ✅ P0-I: قفل متزامن لمنع ت重叠 عمليات sync المتزامنة.
   /// قبل هذا القفل، كان ممكناً أن يبدأ autoSync + manualSync + onResumeSync
   /// في نفس الوقت وكلها تعدّل على نفس outbox.
@@ -449,14 +492,16 @@ class CloudflareSyncManager {
     required http.Client httpClient,
     required String token,
     String? deviceId,
+    bool fullSyncCompleted = false,
+    int lastPullCursor = 0,
   }) {
     _db = database;
     _httpClient = httpClient;
     _token = token;
     _deviceId = deviceId ?? 'test-device';
     setStaticDeviceId(_deviceId!);
-    _fullSyncCompleted = false;
-    _lastPullCursor = 0;
+    _fullSyncCompleted = fullSyncCompleted;
+    _lastPullCursor = lastPullCursor;
     _isFullSyncInProgress = false;
     _fullSyncRemainingPages = 0;
     _failedCollectionsInLastSync.clear();
@@ -464,6 +509,9 @@ class CloudflareSyncManager {
     _currentStatus = SyncStatus.idle;
     _localColumnsCache.clear();
     _fkLogSeen.clear();
+    // ✅ (مراجعة #2+#16) عزل حالة الحجر بين الاختبارات (singleton).
+    _orphanBlockCounts.clear();
+    _quarantinedRecords.clear();
   }
 
   /// ✅ (2026-09-08) عقد القراءة: الجداول التي تخطاها الخادم في آخر
@@ -497,6 +545,10 @@ class CloudflareSyncManager {
     // ✅ P0-B: استعادة علامة "full sync مكتملة" من الجلسة السابقة
     _fullSyncCompleted = prefs.getBool(_kFullSyncCompletedKey) ?? false;
     _lastPullCursor = prefs.getInt('cf_last_pull_cursor') ?? 0;
+
+    // ✅ (مراجعة #2+#16) استعادة حالة الحجر الصحي للصفوف اليتيمة —
+    // يجب أن تعيش عبر الجلسات حتى يُقارب bootstrap خلال دورات متتالية.
+    _loadQuarantineState(prefs);
 
     // ✅ (2026-09-08) صيانة ذاتية للمؤشر المسموم بوحدات مختلطة:
     // نسخ migration قديمة خلّفت طوابع updated_at بالميلي ثانية (‎>1e11)
@@ -1056,23 +1108,50 @@ class CloudflareSyncManager {
     // ✅ حلقة الرفع: تكرر حتى يفرغ outbox من كل السجلات العالقة
     // هذا يضمن أن زر "رفع التغييرات" يرفع كل التغييرات دفعة واحدة
     // وليس فقط أول 25 سجل.
+    //
+    // ✅ (مراجعة 2026-09-09 #14) احترام سقف المحاولات: reclaimForPush
+    // يعيد failed بـ attempts ≤ 5 إلى pending عمداً ويترك الأعلى من ذلك
+    // للمؤقت الدوري retryFailedWithBackoff (backoff كل 30 دقيقة) — لكن
+    // هذا الاختيار كان يلتقط failed بأي عدد محاولات فبطل الـ backoff
+    // كلياً: سجل سام (رفض خادمي مزمن) يُدفع في كل دورة بلا تهدئة.
+    // الآن: failed فوق السقف لا يُختار هنا (كما صمّم reclaimForPush)،
+    // والفشل المؤقت المتكرر يبلغ dead-letter بعد _pushDeadLetterThreshold
+    // محاولة (في _pushBatch) فلا تبقى سجلات عالقة في failed للأبد.
+    //
+    // ✅ (مراجعة #14 — الجزء الدقيق) ما فشل في هذا الاستدعاء لا يُعاد
+    // اختياره في نفس الاستدعاء: كان الحلقة تعيد دفع الفاشل بعد كل
+    // تكرار ناجح واحد (تقدم صفّ واحد يكفي لاستمرار الحلقة) — نفس
+    // بطلان الـ backoff على المستوى الدقيق.
+    final failedThisCall = <int>{};
     while (true) {
-      final pending =
-          await (outboxDao.select(outboxDao.outbox)
-                ..where((t) => t.processingStatus.isIn(['pending', 'failed']))
-                ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
-                ..limit(CloudflareConfig.batchSize))
-              .get();
+      final query = outboxDao.select(outboxDao.outbox)
+        ..where(
+          (t) =>
+              t.processingStatus.equals('pending') |
+              (t.processingStatus.equals('failed') &
+                  t.attempts.isSmallerOrEqualValue(
+                    _maxFailedAttemptsPerPushCycle,
+                  )),
+        )
+        ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
+        ..limit(CloudflareConfig.batchSize);
+      if (failedThisCall.isNotEmpty) {
+        query.where((t) => t.id.isNotIn(failedThisCall));
+      }
+      final pending = await query.get();
 
       if (pending.isEmpty) break;
 
-      final pushed = await _pushBatch(pending);
-      totalPushed += pushed;
+      final outcome = await _pushBatch(pending);
+      totalPushed += outcome.pushed;
+      failedThisCall.addAll(outcome.failedIds);
 
       // إذا فشل الرفع (0 سجل مرفوع), توقف — ستبقى العالقة
-      if (pushed == 0) break;
+      if (outcome.pushed == 0) break;
 
-      debugPrint('📤 Pushed $pushed operations (total: $totalPushed)');
+      debugPrint(
+        '📤 Pushed ${outcome.pushed} operations (total: $totalPushed)',
+      );
     }
 
     return totalPushed;
@@ -1086,8 +1165,14 @@ class CloudflareSyncManager {
   ///   - 400 / validation → خطأ بيانات، نضع السجل في dead-letter
   ///   - 401/403 → خطأ auth، لا نلمس السجل (سينجح بعد re-auth)
   ///   - 5xx / network → فشل مؤقت، إعادة المحاولة لاحقاً
-  Future<int> _pushBatch(List<OutboxData> pending) async {
-    if (pending.isEmpty) return 0;
+  ///
+  /// يعيد (pushed, failedIds): failedIds هي السجلات التي فُصل حالها
+  /// في هذه الدفعة (failed/dead) — تحجرها الحلقة المستدعية من إعادة
+  /// اختيارها في نفس الاستدعاء (مراجعة #14).
+  Future<({int pushed, Set<int> failedIds})> _pushBatch(
+    List<OutboxData> pending,
+  ) async {
+    if (pending.isEmpty) return (pushed: 0, failedIds: const <int>{});
 
     final outboxDao = OutboxDao(_db!);
 
@@ -1189,6 +1274,20 @@ class CloudflareSyncManager {
     // ✅ (2026-09-09) تجميع عمليات الرفض الفردية من Worker لعرضها
     // في مركز أخطاء المزامنة (validation_error/conflict/مؤقت).
     final workerRejections = <String>[];
+    // ✅ (مراجعة #14) السجلات التي فُصل حالها في هذه الدفعة.
+    final failedIds = <int>{};
+
+    // ✅ (مراجعة 2026-09-09 #3) فهرسة الدفعة بمفتاح idempotencyKey:
+    // كانت firstFirst بـ orElse: () => pending.first — ناتج خادمي لمفتاح
+    // لا يعود لأي سجل في الدفعة (تكرار/تشوه) كان يحذف أول سجل في
+    // الدفعة من الـ outbox فقُدّ بياناته (نجاح خادمي لغيره!). الآن:
+    // مفتاح مجهول يُتجاهل بسجل، ولا يُحذف إلا السجل المطابق فعلاً.
+    final pendingByKey = <String, OutboxData>{
+      for (final item in pending)
+        if (item.idempotencyKey != null && item.idempotencyKey!.isNotEmpty)
+          item.idempotencyKey!: item,
+    };
+    final returnedKeys = <String>{};
 
     for (final r in results) {
       final item = r as Map<String, dynamic>;
@@ -1200,11 +1299,22 @@ class CloudflareSyncManager {
       final errorMsg = item['error'] as String?;
 
       if (key == null) continue;
+      returnedKeys.add(key);
 
-      final outboxItem = pending.firstWhere(
-        (p) => p.idempotencyKey == key,
-        orElse: () => pending.first,
-      );
+      final outboxItem = pendingByKey[key];
+      if (outboxItem == null) {
+        // ✅ (مراجعة #3) مفتاح لا يعود لأي سجل في الدفعة — يُتجاهل
+        // بلا مساس بأي صف (كان orElse يحذف pending.first)، ويُسجل
+        // في مركز الأخطاء لملاحظة أي خلل في عقد النتائج.
+        debugPrint(
+          '⚠️ Push: worker result key not in this batch — ignored (no '
+          'outbox row touched): $key',
+        );
+        workerRejections.add(
+          'unknown_key | $key | ناتج لمفتاح لا يعود لأي عملية في الدفعة',
+        );
+        continue;
+      }
 
       if (success) {
         await (outboxDao.delete(
@@ -1226,22 +1336,46 @@ class CloudflareSyncManager {
         final isConflict =
             opStatus == 'conflict' ||
             errorMsg != null && errorMsg.contains('conflict');
+        // ✅ (مراجعة #14) سقف الـ dead-letter: كل الأسباب غير الـ
+        // validation تبلغ الحالة النهائية dead بعد العتبة — لا إعادة
+        // دفع صامتة لا نهائية للتسجيلات السامّة.
+        final nextAttempts = outboxItem.attempts + 1;
+        final overDeadLetterCap = nextAttempts >= _pushDeadLetterThreshold;
 
         if (isPermanentError) {
           // ✅ P0-G: خطأ دائم — ضع السجل في dead-letter
           await outboxDao.setDead(
             outboxItem.id,
             errorMsg ?? 'Permanent validation error',
-            outboxItem.attempts + 1,
+            nextAttempts,
           );
+          failedIds.add(outboxItem.id);
         } else if (isConflict) {
           // ✅ P0-F: تعارض — علّمه كـ failed مع lastError واضح
           // conflict resolver سيلتقطه لاحقاً عبر getConflicts()
-          await outboxDao.setError(
+          if (overDeadLetterCap) {
+            await outboxDao.setDead(
+              outboxItem.id,
+              'CONFLICT تجاوز الحد الأقصى ($_pushDeadLetterThreshold '
+              'محاولة): ${errorMsg ?? "version mismatch"}',
+              nextAttempts,
+            );
+          } else {
+            await outboxDao.setError(
+              outboxItem.id,
+              'CONFLICT: ${errorMsg ?? "version mismatch"}',
+              nextAttempts,
+            );
+          }
+          failedIds.add(outboxItem.id);
+        } else if (overDeadLetterCap) {
+          await outboxDao.setDead(
             outboxItem.id,
-            'CONFLICT: ${errorMsg ?? "version mismatch"}',
-            outboxItem.attempts + 1,
+            'تجاوز الحد الأقصى للمحاولات ($_pushDeadLetterThreshold): '
+            '${errorMsg ?? "فشل مؤقت مزمن"}',
+            nextAttempts,
           );
+          failedIds.add(outboxItem.id);
         } else {
           // فشل مؤقت — إعادة المحاولة في الدورة القادمة
           await (outboxDao.update(
@@ -1249,16 +1383,61 @@ class CloudflareSyncManager {
           )..where((t) => t.id.equals(outboxItem.id))).write(
             OutboxCompanion(
               processingStatus: const Value('failed'),
-              attempts: Value(outboxItem.attempts + 1),
+              attempts: Value(nextAttempts),
               lastError: Value(errorMsg ?? 'Unknown push failure'),
             ),
           );
+          failedIds.add(outboxItem.id);
         }
       }
     }
 
+    // ✅ (مراجعة 2026-09-09 #15) مطابقة النتائج مع المُرسَل: كل مفتاح
+    // أُرسل يجب أن يعود ناتجاً — العملية التي سقطت من مصفوفة results
+    // (تشوه استجابة/سقوط خادمي) كانت تبقى في outbox بحالتها بلا أثر
+    // بينما الدورة تُحسب «ناجحة». الآن تُعامَل كفشل مؤقت (أو dead عند
+    // تجاوز السقف) فتُرى في الإحصائيات ومركز الأخطاء ولا تُفقد.
+    final missingResults = pendingByKey.keys
+        .where((k) => !returnedKeys.contains(k))
+        .toList(growable: false);
+    if (missingResults.isNotEmpty) {
+      for (final key in missingResults) {
+        final item = pendingByKey[key]!;
+        final nextAttempts = item.attempts + 1;
+        workerRejections.add(
+          'missing_result | $key | لم يُعَد ناتج لهذه العملية من الخادم',
+        );
+        if (nextAttempts >= _pushDeadLetterThreshold) {
+          await outboxDao.setDead(
+            item.id,
+            'لم يُعَد ناتج من الخادم بعد $_pushDeadLetterThreshold محاولة '
+            '(results ناقصة)',
+            nextAttempts,
+          );
+        } else {
+          await (outboxDao.update(
+            outboxDao.outbox,
+          )..where((t) => t.id.equals(item.id))).write(
+            OutboxCompanion(
+              processingStatus: const Value('failed'),
+              attempts: Value(nextAttempts),
+              lastError: const Value(
+                'لم يُعَد ناتج لهذه العملية من الخادم (results ناقصة)',
+              ),
+            ),
+          );
+        }
+        failedIds.add(item.id);
+      }
+      debugPrint(
+        '⚠️ Push: ${missingResults.length} op(s) missing from worker '
+        'results — marked for retry',
+      );
+    }
+
     // ✅ (2026-09-09) تسجيل عمليات الرفض في مركز أخطاء المزامنة —
-    // أول 5 عمليات مع الحالة والمفتاح ورسالة الخادم.
+    // أول 5 عمليات مع الحالة والمفتاح ورسالة الخادم. (بعد مطابقة
+    // missing-results حتى تُشمل عمليات السقوط من results.)
     if (workerRejections.isNotEmpty) {
       logError(
         title:
@@ -1270,7 +1449,7 @@ class CloudflareSyncManager {
       );
     }
     debugPrint('📤 Pushed $successCount/${pending.length} operations');
-    return successCount;
+    return (pushed: successCount, failedIds: failedIds);
   }
 
   /// يقرأ ساعة المتجه الحالية لصف الكيان المحلي — العقد المرجعي الذي
@@ -1315,6 +1494,43 @@ class CloudflareSyncManager {
 
   Future<int> _pullChanges() async {
     if (_db == null) return 0;
+
+    // ✅ (مراجعة 2026-09-09 #1) مسح تقارب الحذفيات لمرة واحدة —
+    // حذفيات تاريخية فاتتها الأجهزة التي سحبت أثناء نافذة العقد
+    // القديم (worker كان يفلتر tombstones). نافذة tombstones_only
+    // رخيصة ولا تمس المؤشر الرئيسي؛ فشل شبكي يؤجلها للدورة التالية
+    // (العلم لا يُضبط إلا على نجاح كامل).
+    //
+    // ✅ بوابة الأجهزة القائمة فقط: التثبيت الجديد (cursor=0 ولم
+    // يكمل full sync) سيجلب كل الحذفيات ضمن سحبه الكامل نفسه بعد
+    // نشر worker العقد الجديد — طلب مسح إضافي هنا هدر صرف.
+    try {
+      final sweepPrefs = await SharedPreferences.getInstance();
+      final needsTombstoneSweep =
+          !(sweepPrefs.getBool(_kTombstoneSweepDoneKey) ?? false) &&
+          (_lastPullCursor > 0 || _fullSyncCompleted);
+      if (needsTombstoneSweep) {
+        final swept = await _sweepHistoricalTombstones();
+        if (swept != null) {
+          await sweepPrefs.setBool(_kTombstoneSweepDoneKey, true);
+          debugPrint('🧹 Tombstone sweep done: $swept handled');
+          if (swept > 0) {
+            logError(
+              title: 'مسح حذفيات تاريخية: $swept سجلاً',
+              message:
+                  'اكتمل مسح التقارب لمرة واحدة: حذفيات جهاز آخر لم تصل '
+                  'هذا الجهاز أثناء نافذة العقد القديم طُبّقت الآن كحذف '
+                  'محلي (العدد يشمل ما لم يكن موجوداً محلياً أصلاً).',
+              category: ErrorCategory.sync,
+              source: 'sync:pull',
+              severity: LogLevel.info,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ tombstone sweep gate failed (pull continues): $e');
+    }
 
     int totalPulled = 0;
     // كيانات مؤثرة على الحقول المشتقة للحجوزات — يُعاد بناء الليالي
@@ -1586,27 +1802,92 @@ class CloudflareSyncManager {
           );
         }
         if (remaining.isNotEmpty) {
-          hadError = true;
-          final names = [
-            for (final item in remaining.take(3))
-              '${item.entity}/${item.record['local_uuid']}',
-          ];
-          errorMessage =
-              'Pull: ${remaining.length} record(s) with unresolvable parent '
-              'relations: ${names.join(', ')}';
-          _failedCollectionsInLastSync.add('pull');
-          debugPrint('⚠️ $errorMessage');
-          // ✅ (2026-09-09) سجلات علقت علاقاتها غير محلولة — تجميد
-          // المؤشر حتى يُشفي الخادم. تظهر في مركز الأخطاء بأسماء
-          // السجلات المانعة.
-          logError(
-            title:
-                '${remaining.length} سجل بعلاقات أب غير محلولة — تجميد '
-                'مؤشر السحب',
-            message: errorMessage,
-            category: ErrorCategory.sync,
-            source: 'sync:pull-apply',
-          );
+          // ✅ (مراجعة 2026-09-09 #2+#16) تدرّج الحجر الصحي: عدّاد حجب
+          // لكل هوية — الدورتان الأوليان يفشلان كما كان (فرصة عادلة
+          // لأبٍ متأخر)، وبعد العتبة يُعزل السجل ويُطبَّق ما عداه
+          // ويتقدم المؤشر — صف بنيوي فاسد المصدر لا يجمد الجهاز
+          // إلى الأبد، وباقي البيانات (7,149+ صفاً) لا تُرهق كل دورة.
+          final quarantinePrefs = await SharedPreferences.getInstance();
+          final stillBlocked =
+              <({String entity, Map<String, dynamic> record})>[];
+          final toQuarantine =
+              <({String entity, Map<String, dynamic> record})>[];
+          for (final item in remaining) {
+            final identity = _quarantineIdentity(
+              item.entity,
+              item.record['local_uuid']?.toString(),
+            );
+            final count = (_orphanBlockCounts[identity] ?? 0) + 1;
+            _orphanBlockCounts[identity] = count;
+            if (count >= _quarantineBlockThreshold) {
+              toQuarantine.add(item);
+            } else {
+              stillBlocked.add(item);
+            }
+          }
+          await _persistQuarantineState(quarantinePrefs);
+
+          if (toQuarantine.isNotEmpty) {
+            final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+            for (final item in toQuarantine) {
+              _quarantinedRecords[_quarantineIdentity(
+                item.entity,
+                item.record['local_uuid']?.toString(),
+              )] = <String, dynamic>{
+                'entity': item.entity,
+                'local_uuid': item.record['local_uuid']?.toString(),
+                'first_seen': nowSec,
+                'updated_at': item.record['updated_at'],
+              };
+            }
+            await _persistQuarantineState(quarantinePrefs);
+            final quarantinedNames = [
+              for (final item in toQuarantine.take(3))
+                '${item.entity}/${item.record['local_uuid']}',
+            ];
+            debugPrint(
+              '🏥 Pull: quarantined ${toQuarantine.length} unresolvable '
+              'record(s): ${quarantinedNames.join(', ')}',
+            );
+            logError(
+              title:
+                  '${toQuarantine.length} سجل بلا أب خادمي — عُزلت واكملت '
+                  'المزامنة بقية البيانات',
+              message:
+                  'السجلات: ${quarantinedNames.join(', ')} — أبُها مفقود '
+                  'خادمياً حتى بعد $_quarantineBlockThreshold دورات '
+                  '(يتيم بنيوي: أب محذوف يدوياً من D1 أو غير منشأ). عُزلت '
+                  'في سجل الحجر ويتقدم المؤشر — إن ظهر السجل مجدداً بحُلّ '
+                  'الأب أو وصل tombstone له يُطبَّق تلقائياً.',
+              category: ErrorCategory.sync,
+              source: 'sync:pull-apply',
+              severity: LogLevel.warning,
+            );
+          }
+
+          if (stillBlocked.isNotEmpty) {
+            hadError = true;
+            final names = [
+              for (final item in stillBlocked.take(3))
+                '${item.entity}/${item.record['local_uuid']}',
+            ];
+            errorMessage =
+                'Pull: ${stillBlocked.length} record(s) with unresolvable '
+                'parent relations: ${names.join(', ')}';
+            _failedCollectionsInLastSync.add('pull');
+            debugPrint('⚠️ $errorMessage');
+            // ✅ (2026-09-09) سجلات علقت علاقاتها غير محلولة — تجميد
+            // المؤشر حتى يُشفي الخادم. تظهر في مركز الأخطاء بأسماء
+            // السجلات المانعة.
+            logError(
+              title:
+                  '${stillBlocked.length} سجل بعلاقات أب غير محلولة — تجميد '
+                  'مؤشر السحب',
+              message: errorMessage,
+              category: ErrorCategory.sync,
+              source: 'sync:pull-apply',
+            );
+          }
         }
       }
     } finally {
@@ -1882,11 +2163,12 @@ class CloudflareSyncManager {
 
     if (record.isEmpty) return true;
 
-    // سياسة البيانات: السحب يجلب السجلات الحية فقط. هذا الحارس يبقى
-    // دفاعياً حتى لا تُطبّق tombstone قديمة إذا أعادها Worker قديم أو cache.
+    // ✅ إصلاح «الحذف لا يصل إلى الأجهزة الأخرى» (مراجعة 2026-09-09 #1):
+    // العقد المصحح — tombstone يصل في الدلتا من Worker المصلح ويُطبَّق
+    // كحذف ناعم محلي. الحارس القديم كان يتجاهله فلا يتعلم الجهاز حذف
+    // جهاز آخر أبداً (تناقض مع عقد deleteRecord الخادمي).
     if (record['deleted_at'] != null) {
-      debugPrint('⏭️ Pull: skipped deleted $entity/${record['local_uuid']}');
-      return true;
+      return _applyTombstone(entity, record);
     }
 
     // ✅ عقد القائمة السوداء (2026-09-05): صفوف blacklist بلا جدول Drift
@@ -1945,6 +2227,16 @@ class CloudflareSyncManager {
       existing: existingData,
     );
     if (!relationsResolved) {
+      // ✅ (مراجعة #2+#16) سجل معزول سابقاً وما زال أبُه مفقوداً —
+      // يُتخطى (لا يُؤجَّل ولا يُفشل الدورة): الحجر سبق أن منحه
+      // فرصته العادلة، وبقية البيانات يجب ألا تُرهق بسببه.
+      if (_isQuarantined(entity, localUuid)) {
+        debugPrint(
+          '⏭️ Pull: quarantined $entity/$localUuid still unresolvable — '
+          'skipped (parent still missing server-side)',
+        );
+        return true;
+      }
       debugPrint(
         '⏸️ Pull: deferred $entity/$localUuid — parent not pulled yet',
       );
@@ -2110,6 +2402,10 @@ class CloudflareSyncManager {
       }
     }
 
+    // ✅ (مراجعة #2+#16) تطبيق ناجح لسجل كان معزولاً — يُمسح من الحجر
+    // (بلا كتابة prefs إلا فعلاً كان في الحجر).
+    await _clearQuarantine(entity, localUuid);
+
     return true;
   }
 
@@ -2231,6 +2527,227 @@ class CloudflareSyncManager {
       if (!progressed) break;
     }
     return remaining;
+  }
+
+  // ─── تطبيق tombstone + الحجر الصحي + مسح التقارب (مراجعة 2026-09-09) ──
+
+  /// ✅ (مراجعة #1) تطبيق tombstone واردة في الدلتا: حذف ناعم للصف
+  /// المحلي المطابق بـ local_uuid — أو لا شيء إن لم يصل الصف لهذا
+  /// الجهاز قطّ. P0-E: tombstone يفوز حتى على تعديل محلي أحدث معلّق
+  /// في outbox — قرار الحذف نهائي من الجهاز المصدر (نفس دلالات
+  /// المسار الميت القديم في المسار update). blacklist يُترجم إلى
+  /// shift_notes الموسومة created_by='blacklist'.
+  Future<bool> _applyTombstone(
+    String entity,
+    Map<String, dynamic> record,
+  ) async {
+    if (_db == null) return true;
+
+    var tableName = CloudflareConfig.tableNameFor(entity);
+    var extraWhere = '';
+    if (entity == 'blacklist') {
+      tableName = 'shift_notes';
+      extraWhere =
+          " AND created_by = '${CloudflareConfig.blacklistStorageTag}'";
+    }
+    if (tableName == null) {
+      debugPrint('⏭️ Tombstone: no local table for "$entity" — skipped');
+      return true;
+    }
+    final localUuid = record['local_uuid'] as String?;
+    if (localUuid == null || localUuid.isEmpty) return true;
+
+    final deletedAt = record['deleted_at'];
+    final updatedAt = record['updated_at'] as int? ?? 0;
+    try {
+      final existing = await _db!
+          .customSelect(
+            'SELECT id FROM $tableName WHERE local_uuid = ?$extraWhere',
+            variables: [Variable<String>(localUuid)],
+          )
+          .getSingleOrNull();
+      if (existing == null) {
+        // الصف لم يصل هذا الجهاز قط — لا شيء يُحذف (idempotent).
+        debugPrint(
+          '⏭️ Tombstone: $entity/$localUuid not present locally — no-op',
+        );
+        await _clearQuarantine(entity, localUuid);
+        return true;
+      }
+      final localId = existing.data['id'];
+      final cols = await _localColumns(tableName);
+      if (cols.contains('deleted_at')) {
+        final hasLastModified = cols.contains('last_modified');
+        await _db!.customStatement(
+          'UPDATE $tableName SET deleted_at = ?, updated_at = ?'
+          '${hasLastModified ? ', last_modified = ?' : ''} WHERE id = ?',
+          [
+            deletedAt,
+            updatedAt,
+            if (hasLastModified) updatedAt,
+            localId,
+          ],
+        );
+      } else {
+        // جدول بلا حذف ناعم — الحذف الوحيد الممكن هو الصلب.
+        await _db!.customStatement('DELETE FROM $tableName WHERE id = ?', [
+          localId,
+        ]);
+      }
+      debugPrint('  🗑️ $entity/$localUuid: remote tombstone applied');
+      unawaited(
+        RemoteChangeNotifier.instance.onRemoteChangeApplied(
+          entity: entity,
+          record: record,
+          op: 'delete',
+        ),
+      );
+      await _clearQuarantine(entity, localUuid);
+    } catch (e) {
+      // فشل قاعدة بيانات حقيقي — يُفسد الدورة (لا كتم).
+      throw Exception('Tombstone apply failed for $entity/$localUuid: $e');
+    }
+    return true;
+  }
+
+  // ─── الحجر الصحي للصفوف اليتيمة (مراجعة #2+#16) ──────────────
+
+  String _quarantineIdentity(String entity, String? localUuid) =>
+      '$entity/$localUuid';
+
+  void _loadQuarantineState(SharedPreferences prefs) {
+    try {
+      final countsRaw = prefs.getString(_kQuarantineCountsKey);
+      if (countsRaw != null && countsRaw.isNotEmpty) {
+        final decoded = jsonDecode(countsRaw) as Map<String, dynamic>;
+        decoded.forEach((key, value) {
+          _orphanBlockCounts[key] = (value as num?)?.toInt() ?? 0;
+        });
+      }
+      final quarantinedRaw = prefs.getString(_kQuarantinedKey);
+      if (quarantinedRaw != null && quarantinedRaw.isNotEmpty) {
+        final decoded = jsonDecode(quarantinedRaw) as Map<String, dynamic>;
+        decoded.forEach((key, value) {
+          if (value is Map) {
+            _quarantinedRecords[key] = Map<String, dynamic>.from(value);
+          }
+        });
+      }
+      if (_orphanBlockCounts.isNotEmpty || _quarantinedRecords.isNotEmpty) {
+        debugPrint(
+          '🏥 Quarantine state restored: ${_orphanBlockCounts.length} '
+          'counter(s), ${_quarantinedRecords.length} quarantined',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ quarantine state load failed: $e');
+    }
+  }
+
+  Future<void> _persistQuarantineState(SharedPreferences prefs) async {
+    try {
+      await prefs.setString(
+        _kQuarantineCountsKey,
+        jsonEncode(_orphanBlockCounts),
+      );
+      await prefs.setString(
+        _kQuarantinedKey,
+        jsonEncode(_quarantinedRecords),
+      );
+    } catch (e) {
+      debugPrint('⚠️ quarantine state persist failed: $e');
+    }
+  }
+
+  bool _isQuarantined(String entity, String? localUuid) =>
+      _quarantinedRecords.containsKey(
+        _quarantineIdentity(entity, localUuid),
+      );
+
+  /// يمسح السجل من الحجر وعدّاد الحجب — يكتب prefs فقط حين يُزال شيء فعلاً.
+  Future<void> _clearQuarantine(String entity, String? localUuid) async {
+    final identity = _quarantineIdentity(entity, localUuid);
+    final removedLedger = _quarantinedRecords.remove(identity) != null;
+    final removedCounter = _orphanBlockCounts.remove(identity) != null;
+    if (removedLedger || removedCounter) {
+      final prefs = await SharedPreferences.getInstance();
+      await _persistQuarantineState(prefs);
+    }
+  }
+
+  /// ✅ (مراجعة #1) مسح تقارب الحذفيات لمرة واحدة: يجلب كل tombstones
+  /// الخادمية عبر نافذة tombstones_only الرخيصة (بترتيب updated_at،
+  /// بلا مساس بالمؤشر الرئيسي) ويطبّقها كحذف محلي عبر _applyChange.
+  /// يعيد null عند أي فشل شبكي/خادمي (تُعاد المحاولة في الدورة التالية).
+  Future<int?> _sweepHistoricalTombstones() async {
+    if (_db == null || _token == null) return null;
+    int handled = 0;
+    int cursor = 0;
+    try {
+      while (true) {
+        final http.Response response;
+        try {
+          response = await _httpClient
+              .get(
+                Uri.parse(
+                  '${CloudflareConfig.workerUrl}/api/sync/pull',
+                ).replace(
+                  queryParameters: <String, String>{
+                    'cursor': cursor.toString(),
+                    'limit': CloudflareConfig.batchSize.toString(),
+                    'tombstones_only': '1',
+                    if (_deviceId case final ownDevice?
+                        when ownDevice.isNotEmpty)
+                      'exclude_device': ownDevice,
+                  },
+                ),
+                headers: {'Authorization': 'Bearer $_token'},
+              )
+              .timeout(const Duration(seconds: 30));
+        } catch (e) {
+          debugPrint(
+            '⚠️ tombstone sweep network failure (retry next cycle): $e',
+          );
+          return null;
+        }
+        if (response.statusCode != 200) {
+          debugPrint(
+            '⚠️ tombstone sweep HTTP ${response.statusCode} '
+            '(retry next cycle)',
+          );
+          return null;
+        }
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final changes = data['changes'] as List? ?? [];
+        for (final change in changes) {
+          try {
+            final record = Map<String, dynamic>.from(change as Map);
+            final entity =
+                record['_entity'] as String? ?? _detectEntity(record);
+            record.remove('_entity');
+            if (entity == null) continue;
+            final ok = await _applyChange(entity, record);
+            if (ok) handled++;
+          } catch (e) {
+            debugPrint('⚠️ tombstone sweep apply failed: $e');
+          }
+        }
+        final serverCursor =
+            int.tryParse(data['cursor']?.toString() ?? '0') ?? 0;
+        final hasMore = data['has_more'] as bool? ?? false;
+        if (!hasMore || changes.isEmpty) break;
+        if (serverCursor <= cursor) {
+          // حارس تقدم: مؤشر غير متحرك مع صفوف = حلقة لا نهائية محتملة.
+          debugPrint('⚠️ tombstone sweep: cursor stalled — aborting');
+          return null;
+        }
+        cursor = serverCursor;
+      }
+      return handled;
+    } catch (e) {
+      debugPrint('⚠️ tombstone sweep failed: $e');
+      return null;
+    }
   }
 
   // ─── Detect entity from record fields ───────────────────────
