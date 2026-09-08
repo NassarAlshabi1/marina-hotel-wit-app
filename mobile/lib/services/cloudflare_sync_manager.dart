@@ -427,13 +427,12 @@ class CloudflareSyncManager {
   final _statusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _statusController.stream;
 
-  // ─── HTTP client with DoH fallback (bypasses broken ISP DNS) ──
-  // Solves DNS_PROBE_FINISHED_NXDOMAIN on Yemeni networks where ISP DNS
-  // resolvers fail to resolve *.workers.dev. Falls back to Cloudflare DoH
-  // (https://cloudflare-dns.com/dns-query) then Google DoH.
-  // Uses 30s timeout (default) — generous enough for slow networks.
-  // غير نهائي: الاختبارات العقدية لمسار السحب/الدفع تحقن MockClient
-  // عبر configureForTesting (بلا شبكة حقيقية).
+  // ─── HTTP client with DoH + tunnel fallback (bypasses broken ISP DNS/connect) ──
+  // ✅ (2026-09-09) إعادة تصميم: أي فشل في المسار السريع (DNS، حجب، تعليق،
+  // socket ميت) — وليس أخطاء DNS فقط — يُفعّل المسار البديل خلال 6 ثوانٍ:
+  // DoH متوازي (Cloudflare+Google) + نفق CONNECT محلي يربط بالـIP مباشرة
+  // مع SNI صحيح (نهج IP-in-URL القديم كان مكسوراً: Cloudflare يرفض الـTLS).
+  //breaker لكل دومين 10 دقائق حتى لا يتكرر التعليق عند كل طلب.
   http.Client _httpClient = createResilientHttpClient(
     timeout: const Duration(seconds: 30),
   );
@@ -627,8 +626,10 @@ class CloudflareSyncManager {
               'الخطأ الأصلي: $e';
         } else if (errStr.contains('TimeoutException')) {
           _initError =
-              'انتهت مهلة الاتصال بخادم Cloudflare (15 ثانية). '
-              'تحقق من سرعة الإنترنت وأعد المحاولة. الخطأ الأصلي: $e';
+              'تعذّر الوصول إلى خادم المزامنة خلال المهلة (15 ثانية). '
+              'حاول التطبيق تلقائياً المسار البديل (DoH + اتصال مباشر) — إن '
+              'استمر الفشل فالشبكة نفسها لا تصل إلى workers.dev: جرّب '
+              'تغيير الشبكة (Wi-Fi/بيانات) أو VPN. الخطأ الأصلي: $e';
         } else {
           _initError = 'Init error: $e';
         }
@@ -659,7 +660,9 @@ class CloudflareSyncManager {
             'localUuid': _deviceId,
           }),
         )
-        .timeout(const Duration(seconds: 10));
+        // 20s (كانت 10s): المسار السريع قد يستهلك حتى 6s قبل تشغيل
+        // المسار البديل (DoH + نفق) — 10s كانت تقطع البديل قبل اكتماله.
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode == 200) {
       debugPrint('✅ Device registered: $_deviceId');
@@ -713,7 +716,8 @@ class CloudflareSyncManager {
               'platform': 'android',
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          // 20s (كانت 10s) — نفس سبب registerDevice أعلاه.
+          .timeout(const Duration(seconds: 20));
       debugPrint('✅ FCM token set for device: $_deviceId');
       // ✅ (2026-09-05) devices كيان متزامن: كتابة محلية + outbox update.
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;

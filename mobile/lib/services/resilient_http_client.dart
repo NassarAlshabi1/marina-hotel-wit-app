@@ -1,37 +1,103 @@
 // ═══════════════════════════════════════════════════════════════
-//  resilient_http_client.dart — HTTP client with DoH DNS fallback
-//  Solves DNS_PROBE_FINISHED_NXDOMAIN on restrictive networks (Yemen)
+//  resilient_http_client.dart — HTTP client with DoH + tunnel fallback
+//  Solves DNS blackhole/NXDOMAIN and connect-hang on restrictive
+//  networks (Yemen) for *.workers.dev endpoints.
 // ═══════════════════════════════════════════════════════════════
 //
-//  HOW IT WORKS:
-//  1. Try normal DNS resolution first (fast path — works on most networks)
-//  2. If DNS fails (NXDOMAIN), resolve via DNS-over-HTTPS:
-//     - Cloudflare DoH: 1.1.1.1 (hardcoded IP)
-//     - Google DoH: 8.8.8.8 (hardcoded IP)
-//  3. Connect to the resolved IP using RawSecureSocket (allows separate
-//     SNI hostname from connection target IP)
-//  4. This bypasses broken ISP DNS resolvers completely
-//
+//  HOW IT WORKS (2026-09-09 redesign):
+//  1. FAST PATH: normal request via the inner client, bounded by a SHORT
+//     fast-path timeout (6s). Covers the healthy-network case with zero
+//     overhead.
+//  2. ANY fast-path failure — DNS lookup failure, DNS blackhole (timeout),
+//     dropped SYN packets (timeout), dead keep-alive socket, TLS reset —
+//     triggers the fallback. The previous design only fell back on DNS
+//     errors, so a hanging DNS/connect surfaced as TimeoutException and
+//     the fallback never ran (root cause of «المصادقة TimeoutException»).
+//  3. COOLDOWN: after one fast-path failure the host is pinned to the
+//     fallback path for 10 minutes, so subsequent requests skip the hang
+//     entirely.
+//  4. RESOLUTION: DNS-over-HTTPS via Cloudflare (1.1.1.1) and Google
+//     (8.8.8.8) — ALL endpoints raced in PARALLEL, first answer wins
+//     (sequential probing could waste 8s per blocked IP). Results cached
+//     5 min; the last known-good set is kept indefinitely as a stale
+//     last-resort. The last IP that actually served a response is retried
+//     first on subsequent fallbacks.
+//  5. CONNECTION: connect directly to the resolved IP while still doing
+//     TLS with the REAL hostname. Dart sends SNI from the URL host, and a
+//     URL like https://<ip>/… makes Cloudflare's edge abort the handshake
+//     (verified: SSLV3_ALERT_HANDSHAKE_FAILURE) — so the old
+//     IP-URL + manual Host header approach could never work. Instead we
+//     run a tiny local CONNECT tunnel on 127.0.0.1: HttpClient is pointed
+//     at it via findProxy, it forwards bytes to the pinned IP, and Dart
+//     performs the TLS handshake INSIDE the tunnel with SNI = real
+//     hostname (verified working: 200 OK in ~140ms).
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
 class ResilientHttpClient extends http.BaseClient {
-  ResilientHttpClient({http.Client? innerClient, Duration? timeout})
-    : _inner = innerClient ?? http.Client(),
-      _timeout = timeout ?? const Duration(seconds: 30);
+  ResilientHttpClient({
+    http.Client? innerClient,
+    Duration? timeout,
+    Duration? fastTimeout,
+    Future<List<String>> Function(String host)? dohResolver,
+    Future<Socket> Function(String ip, int port)? tunnelConnector,
+    SecurityContext? fallbackSecurityContext,
+  }) : _inner = innerClient ?? _createDefaultInnerClient(),
+       _timeout = timeout ?? const Duration(seconds: 30),
+       _fastTimeout = fastTimeout ?? const Duration(seconds: 6),
+       _dohResolver = dohResolver ?? _defaultDohResolver,
+       _tunnelConnector =
+           tunnelConnector ??
+           ((String ip, int port) =>
+               Socket.connect(ip, port).timeout(const Duration(seconds: 8))),
+       _fallbackSecurityContext = fallbackSecurityContext;
 
   final http.Client _inner;
   final Duration _timeout;
+  final Duration _fastTimeout;
+  final Future<List<String>> Function(String host) _dohResolver;
+  final Future<Socket> Function(String ip, int port) _tunnelConnector;
 
-  // Cache: hostname → List<IP> (TTL 5 minutes)
+  /// null = system roots (production: proper cert validation against the
+  /// real hostname via SNI). Tests inject a context trusting the test CA.
+  final SecurityContext? _fallbackSecurityContext;
+
+  // ── Shared learning across instances (single isolate) ──
+  /// Fresh DoH results (hostname → IPs), TTL 5 minutes.
   static final Map<String, _DnsCacheEntry> _dnsCache = {};
 
+  /// Last known-good DoH results — never expires; used only when fresh
+  /// resolution fails completely.
+  static final Map<String, List<String>> _staleDns = {};
+
+  /// The IP that last served a successful response per hostname — tried
+  /// first on subsequent fallbacks.
+  static final Map<String, String> _lastGoodIp = {};
+
+  /// Fast-path breaker: hostname → blocked-until timestamp (10 min).
+  static final Map<String, DateTime> _fastPathBlockedUntil = {};
+
+  // ── Fallback infrastructure (lazy, per instance) ──
+  ServerSocket? _tunnelServer;
+  http.Client? _activeFallbackClient;
+  String? _activeFallbackPin; // 'host|ip' of the active fallback client
+  final Map<String, String> _pinnedTargets = {}; // CONNECT host → pinned IP
+
+  static http.Client _createDefaultInnerClient() {
+    final hc = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    return IOClient(hc);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  send()
+  // ═══════════════════════════════════════════════════════════
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final uri = request.url;
@@ -40,120 +106,271 @@ class ResilientHttpClient extends http.BaseClient {
     if (uri.scheme != 'https' || uri.host.isEmpty) {
       return _inner.send(request);
     }
+    final host = uri.host;
 
-    // Try the normal path first (fast — usually works)
+    // Fast-path breaker open → go straight to the tunnel fallback.
+    if (_isFastPathBlocked(host)) {
+      debugPrint(
+        '↪️ [ResilientHTTP] fast path is cooling down for $host — '
+        'going straight to tunnel fallback',
+      );
+      return _sendViaTunnelFallback(request, host);
+    }
+
+    // Fast path (short budget). ANY failure → fallback.
     try {
       return await _inner
           .send(request)
           .timeout(
-            _timeout,
+            _fastTimeout,
             onTimeout: () => throw TimeoutException(
-              'Inner send timeout (after ${_timeout.inSeconds}s)',
+              'Fast path timeout after ${_fastTimeout.inSeconds}s',
             ),
           );
     } catch (e) {
-      final errStr = e.toString();
-      final isDnsFailure =
-          errStr.contains('Failed host lookup') ||
-          errStr.contains('No address associated with hostname') ||
-          errStr.contains('SocketException') ||
-          errStr.contains('Hostname not found');
-
-      if (!isDnsFailure) {
-        rethrow;
-      }
-
-      debugPrint(
-        '⚠️ DNS lookup failed for ${uri.host}, falling back to DoH: $e',
+      // DNS failure, DNS blackhole (timeout), dropped SYN (timeout), dead
+      // keep-alive socket, TLS reset — all are connectivity failures that
+      // the tunnel fallback may bypass.
+      _fastPathBlockedUntil[host] = DateTime.now().add(
+        const Duration(minutes: 10),
       );
+      debugPrint(
+        '⚠️ [ResilientHTTP] fast path failed for $host '
+        '(${e.runtimeType}) → tunnel fallback: $e',
+      );
+      return _sendViaTunnelFallback(request, host);
     }
+  }
 
-    // Fallback: resolve via DoH and connect with proper SNI
-    final ips = await _resolveViaDoh(uri.host);
+  static bool _isFastPathBlocked(String host) {
+    final until = _fastPathBlockedUntil[host];
+    return until != null && DateTime.now().isBefore(until);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  Tunnel fallback: DoH IPs + local CONNECT tunnel (SNI-correct)
+  // ═══════════════════════════════════════════════════════════
+  Future<http.StreamedResponse> _sendViaTunnelFallback(
+    http.BaseRequest request,
+    String host,
+  ) async {
+    final ips = await _candidateIps(host);
     if (ips.isEmpty) {
       throw SocketException(
-        'Could not resolve ${uri.host} via DoH — network may be offline or '
+        'Could not resolve $host via DoH — network may be offline or '
         'DoH endpoints are blocked',
       );
     }
 
-    // Try each IP until one works
     Exception? lastError;
     for (final ip in ips) {
       try {
-        final response = await _sendWithIpAndSni(request, uri, ip);
+        final response = await _sendViaTunnel(request, host, ip).timeout(
+          _timeout,
+          onTimeout: () => throw TimeoutException(
+            'Fallback attempt timeout after ${_timeout.inSeconds}s',
+          ),
+        );
+        _lastGoodIp[host] = ip;
+        debugPrint('✅ [ResilientHTTP] tunnel fallback succeeded via $ip');
         return response;
       } catch (e) {
         lastError = e is Exception ? e : Exception(e.toString());
-        debugPrint('⚠️ Failed with IP $ip: $e, trying next...');
+        debugPrint('⚠️ [ResilientHTTP] fallback via $ip failed: $e');
+        // If the local tunnel itself died (bind/port closed), force a
+        // re-bind on the next attempt.
+        final t = _tunnelServer;
+        if (t != null && e is SocketException) {
+          unawaited(
+            () async {
+              try {
+                await t.close();
+              } catch (_) {}
+            }(),
+          );
+          _tunnelServer = null;
+        }
       }
     }
-
-    throw lastError ?? SocketException('All IPs failed for ${uri.host}');
+    throw lastError ?? SocketException('All fallback IPs failed for $host');
   }
 
-  /// Send request by connecting to the IP but using the original URI host as SNI.
-  /// Uses IOClient with a custom HttpClient that has badCertificateCallback
-  /// set to accept the certificate (since the IP won't match the cert's CN).
-  Future<http.StreamedResponse> _sendWithIpAndSni(
-    http.BaseRequest originalRequest,
-    Uri originalUri,
+  /// Candidate IPs, best-first: last-good IP → fresh DoH → stale DoH.
+  Future<List<String>> _candidateIps(String host) async {
+    final candidates = <String>[];
+    final lastGood = _lastGoodIp[host];
+    if (lastGood != null) candidates.add(lastGood);
+
+    var fresh = const <String>[];
+    try {
+      fresh = await _dohResolver(host);
+    } catch (e) {
+      debugPrint('⚠️ [ResilientHTTP] DoH resolver threw for $host: $e');
+    }
+    for (final ip in fresh) {
+      if (!candidates.contains(ip)) candidates.add(ip);
+    }
+    for (final ip in _staleDns[host] ?? const <String>[]) {
+      if (!candidates.contains(ip)) candidates.add(ip);
+    }
+    return candidates.take(6).toList();
+  }
+
+  Future<http.StreamedResponse> _sendViaTunnel(
+    http.BaseRequest original,
+    String host,
     String ip,
   ) async {
-    // Build a new URI with the IP as host but preserving everything else
-    final ipUri = originalUri.replace(host: ip);
-
-    // Create a custom HttpClient
-    final httpClient = HttpClient()
-      ..badCertificateCallback = (cert, host, port) {
-        // Accept any cert — we trust the IP because we got it from DoH,
-        // and SNI is set to the original hostname via IOClient.
-        debugPrint(
-          '⚠️ Accepting cert for $host:$port (SNI: ${originalUri.host})',
-        );
-        return true;
-      };
-
-    final ioClient = IOClient(httpClient);
-
-    // Clone the request with the new IP-based URI
-    final newRequest = http.Request(originalRequest.method, ipUri);
-
-    // Copy headers (except Host which we'll set manually)
-    originalRequest.headers.forEach((key, value) {
-      final lowerKey = key.toLowerCase();
-      if (lowerKey == 'host' || lowerKey == 'content-length') return;
-      newRequest.headers[key] = value;
-    });
-
-    // Set the Host header to the original hostname (for SNI + virtual hosting)
-    newRequest.headers['Host'] = originalUri.host;
-
-    // Copy body if present
-    if (originalRequest is http.Request) {
-      newRequest.bodyBytes = originalRequest.bodyBytes;
+    final pin = '$host|$ip';
+    if (_activeFallbackClient == null || _activeFallbackPin != pin) {
+      final server = await _ensureTunnel();
+      _pinnedTargets[host] = ip;
+      // A request can only be sent once and pooled sockets belong to the
+      // previous pin — rebuild the routing client for this pin. The
+      // previous client's responses are already fully consumed by the
+      // post()/get() callers used across this app.
+      await _closeActiveFallbackClient();
+      final hc = HttpClient(context: _fallbackSecurityContext)
+        ..connectionTimeout = const Duration(seconds: 8)
+        ..findProxy = (Uri uri) => 'PROXY 127.0.0.1:${server.port}';
+      _activeFallbackClient = IOClient(hc);
+      _activeFallbackPin = pin;
     }
-
-    try {
-      final response = await ioClient.send(newRequest);
-      return response;
-    } finally {
-      // Note: ioClient.close() would close the underlying HttpClient
-      // and prevent the response stream from being read.
-      // We let it be garbage-collected after the response is consumed.
-    }
+    return _activeFallbackClient!.send(_cloneRequest(original));
   }
 
-  /// Resolve hostname via DNS-over-HTTPS (DoH) — bypasses broken ISP DNS.
-  /// Uses hardcoded IPs for DoH endpoints to avoid chicken-and-egg DNS issue.
-  Future<List<String>> _resolveViaDoh(String hostname) async {
+  Future<ServerSocket> _ensureTunnel() async {
+    final existing = _tunnelServer;
+    if (existing != null) return existing;
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen(_handleTunnelConnection, onError: (Object _) {});
+    _tunnelServer = server;
+    return server;
+  }
+
+  /// Clones a request so it can be re-sent across fallback attempts.
+  /// Only in-memory [http.Request]s are supported (all callers in this
+  /// app use post()/get() which build exactly that).
+  http.BaseRequest _cloneRequest(http.BaseRequest original) {
+    if (original is http.Request) {
+      final clone = http.Request(original.method, original.url)
+        ..followRedirects = original.followRedirects
+        ..persistentConnection = original.persistentConnection
+        ..maxRedirects = original.maxRedirects
+        ..bodyBytes = original.bodyBytes;
+      clone.headers.addAll(original.headers);
+      return clone;
+    }
+    throw ArgumentError(
+      'ResilientHttpClient fallback supports http.Request only '
+      '(got ${original.runtimeType})',
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  Local CONNECT tunnel
+  // ═══════════════════════════════════════════════════════════
+  void _handleTunnelConnection(Socket client) {
+    final buf = BytesBuilder(copy: false);
+    final staged = BytesBuilder(copy: false); // post-CONNECT bytes
+    var headersDone = false;
+    Socket? upstream;
+    var upstreamReady = false;
+
+    void tearDown() {
+      try {
+        upstream?.destroy();
+      } catch (_) {}
+      try {
+        client.destroy();
+      } catch (_) {}
+    }
+
+    client.listen(
+      (Uint8List data) {
+        if (!headersDone) {
+          buf.add(data);
+          final raw = buf.toBytes();
+          final end = _findHeaderEnd(raw);
+          if (end < 0) return;
+          headersDone = true;
+
+          final head = utf8.decode(raw.sublist(0, end), allowMalformed: true);
+          final requestLine = head.substring(0, head.indexOf('\r\n'));
+          final match = RegExp(
+            r'^CONNECT\s+([^\s:]+):(\d+)',
+          ).firstMatch(requestLine);
+          if (match == null) {
+            tearDown();
+            return;
+          }
+          final targetHost = match.group(1)!;
+          final targetPort = int.parse(match.group(2)!);
+
+          // Bytes after the CONNECT header block belong to the TLS ClientHello
+          // — stage them (binary! never route through utf8 round-trips).
+          final leftover = raw.sublist(end + 4);
+          if (leftover.isNotEmpty) staged.add(leftover);
+
+          client.add(
+            utf8.encode('HTTP/1.1 200 Connection Established\r\n\r\n'),
+          );
+
+          // Route to the pinned IP when known, else plain passthrough.
+          final connectTarget = _pinnedTargets[targetHost] ?? targetHost;
+          unawaited(
+            _tunnelConnector(connectTarget, targetPort)
+                .then((up) {
+                  upstream = up;
+                  up.listen(
+                    client.add,
+                    onDone: tearDown,
+                    onError: (Object _) => tearDown(),
+                  );
+                  upstreamReady = true;
+                  final bytes = staged.takeBytes();
+                  if (bytes.isNotEmpty) {
+                    up.add(bytes);
+                  }
+                })
+                .catchError((Object e) {
+                  debugPrint('⚠️ [ResilientHTTP] tunnel upstream failed: $e');
+                  tearDown();
+                }),
+          );
+          return;
+        }
+        if (upstreamReady) {
+          upstream!.add(data);
+        } else {
+          staged.add(data);
+        }
+      },
+      onDone: tearDown,
+      onError: (Object _) => tearDown(),
+    );
+  }
+
+  static int _findHeaderEnd(List<int> b) {
+    for (var i = 0; i + 3 < b.length; i++) {
+      if (b[i] == 13 && b[i + 1] == 10 && b[i + 2] == 13 && b[i + 3] == 10) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  DNS-over-HTTPS — all endpoints raced in parallel
+  // ═══════════════════════════════════════════════════════════
+  static Future<List<String>> _defaultDohResolver(String hostname) async {
     final cached = _dnsCache[hostname];
     if (cached != null && !cached.isExpired) {
       return cached.ips;
     }
 
-    // DoH endpoints with their canonical hostnames and hardcoded IPs.
-    final dohEndpoints = <_DohEndpoint>[
+    // DoH endpoints with hardcoded IPs (no chicken-and-egg DNS).
+    const endpoints = <_DohEndpoint>[
       _DohEndpoint(
         hostname: 'cloudflare-dns.com',
         path: '/dns-query',
@@ -166,33 +383,57 @@ class ResilientHttpClient extends http.BaseClient {
       ),
     ];
 
-    for (final endpoint in dohEndpoints) {
+    // Race ALL endpoint IPs in parallel — first non-empty answer wins.
+    // (Sequential probing burned up to 8s per blocked IP: 1.1.1.1 is
+    // commonly throttled, so a winning answer could sit 24s+ deep in the
+    // queue — far beyond every caller timeout.)
+    final first = Completer<List<String>>();
+    var remaining = 0;
+    for (final endpoint in endpoints) {
       for (final dohIp in endpoint.ips) {
-        try {
-          final ips = await _tryDohWithIp(endpoint, dohIp, hostname);
-          if (ips.isNotEmpty) {
-            _dnsCache[hostname] = _DnsCacheEntry(
-              ips: ips,
-              expiresAt: DateTime.now().add(const Duration(minutes: 5)),
-            );
-            debugPrint(
-              '✅ DoH resolved $hostname → $ips (via ${endpoint.hostname}@$dohIp)',
-            );
-            return ips;
-          }
-        } catch (e) {
-          debugPrint('⚠️ DoH ${endpoint.hostname}@$dohIp failed: $e');
-          continue;
-        }
+        remaining++;
+        unawaited(
+          _tryDohWithIp(endpoint, dohIp, hostname)
+              .then((ips) {
+                if (ips.isNotEmpty && !first.isCompleted) {
+                  first.complete(ips);
+                  debugPrint(
+                    '✅ DoH resolved $hostname → $ips '
+                    '(via ${endpoint.hostname}@$dohIp)',
+                  );
+                }
+              })
+              .catchError((Object e) {
+                debugPrint('⚠️ DoH ${endpoint.hostname}@$dohIp failed: $e');
+              })
+              .whenComplete(() {
+                remaining--;
+                if (remaining == 0 && !first.isCompleted) {
+                  first.complete(const <String>[]);
+                }
+              }),
+        );
       }
     }
 
-    return [];
+    final result = await first.future.timeout(
+      const Duration(seconds: 8),
+      onTimeout: () => const <String>[],
+    );
+
+    if (result.isNotEmpty) {
+      _dnsCache[hostname] = _DnsCacheEntry(
+        ips: result,
+        expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+      );
+      _staleDns[hostname] = result;
+      return result;
+    }
+    // Fresh resolution failed entirely — stale last-resort.
+    return _staleDns[hostname] ?? const <String>[];
   }
 
-  /// Send DoH query by connecting directly to the DoH IP with the endpoint
-  /// hostname as SNI. This avoids any DNS lookup for the DoH endpoint itself.
-  Future<List<String>> _tryDohWithIp(
+  static Future<List<String>> _tryDohWithIp(
     _DohEndpoint endpoint,
     String dohIp,
     String queryHostname,
@@ -202,9 +443,12 @@ class ResilientHttpClient extends http.BaseClient {
       'https://$dohIp${endpoint.path}?name=$queryHostname&type=A',
     );
 
-    // Create HttpClient that accepts any cert (since we're connecting to IP)
-    final httpClient = HttpClient()
-      ..badCertificateCallback = (cert, host, port) => true;
+    // Accept any cert (we connect to the IP; SNI is an IP literal so the
+    // cert name cannot match) — the DoH answer itself is used only to pick
+    // an IP for a TLS session that IS properly validated via the tunnel.
+    final httpClient = HttpClient();
+    httpClient.badCertificateCallback = (cert, host, port) => true;
+    httpClient.connectionTimeout = const Duration(seconds: 6);
 
     final ioClient = IOClient(httpClient);
 
@@ -214,10 +458,10 @@ class ResilientHttpClient extends http.BaseClient {
             dohUri,
             headers: {
               'Accept': 'application/dns-json',
-              'Host': endpoint.hostname, // SNI + Host header
+              'Host': endpoint.hostname, // Host routing
             },
           )
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 6));
 
       if (response.statusCode != 200) {
         throw Exception('DoH returned ${response.statusCode}');
@@ -242,9 +486,49 @@ class ResilientHttpClient extends http.BaseClient {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════
+  //  Lifecycle
+  // ═══════════════════════════════════════════════════════════
+  Future<void> _closeActiveFallbackClient() async {
+    final c = _activeFallbackClient;
+    _activeFallbackClient = null;
+    _activeFallbackPin = null;
+    try {
+      c?.close();
+    } catch (_) {}
+  }
+
   @override
   void close() {
     _inner.close();
+    unawaited(_closeActiveFallbackClient());
+    final t = _tunnelServer;
+    _tunnelServer = null;
+    if (t != null) {
+      unawaited(
+        () async {
+          try {
+            await t.close();
+          } catch (_) {}
+        }(),
+      );
+    }
+  }
+
+  /// Test-only: fast-path cooldown state per hostname.
+  @visibleForTesting
+  static bool isFastPathBlockedFor(String host) {
+    final until = _fastPathBlockedUntil[host];
+    return until != null && DateTime.now().isBefore(until);
+  }
+
+  /// Test-only: clear all shared learning (cooldown, caches, last-good).
+  @visibleForTesting
+  static void resetSharedState() {
+    _fastPathBlockedUntil.clear();
+    _dnsCache.clear();
+    _staleDns.clear();
+    _lastGoodIp.clear();
   }
 }
 
@@ -258,7 +542,11 @@ class _DnsCacheEntry {
 }
 
 class _DohEndpoint {
-  _DohEndpoint({required this.hostname, required this.path, required this.ips});
+  const _DohEndpoint({
+    required this.hostname,
+    required this.path,
+    required this.ips,
+  });
 
   final String hostname;
   final String path;
@@ -266,7 +554,9 @@ class _DohEndpoint {
 }
 
 /// Convenience: create a ResilientHttpClient and use it for all requests.
-/// Pass [timeout] to customize the per-request timeout (default: 30s).
+/// Pass [timeout] to customize the per-attempt fallback timeout (default:
+/// 30s). The fast path always uses a short 6s budget before switching to
+/// the tunnel fallback.
 http.Client createResilientHttpClient({Duration? timeout}) {
   return ResilientHttpClient(timeout: timeout);
 }
