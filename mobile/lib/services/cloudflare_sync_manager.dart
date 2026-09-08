@@ -35,6 +35,210 @@ import 'vector_clock_service.dart';
 // كل imports القائمة دون تغيير في بقية الملفات.
 export 'cloudflare_realtime_sync.dart';
 
+// ─── قواعد ترجمة علاقات FK بين هوية الخادم والهوية المحلية ─────
+
+/// نوع قاعدة FK:
+/// - [numericPointer]: العمود الرقمي على الابن يحمل id الأب في فضاء
+///   الخادم (D1) — تُترجم القيمة إلى id الصف المحلي عند التطبيق.
+/// - [naturalKey]: العمود نصّي يحمل مفتاحاً عالمياً ثابتاً بين الأجهزة
+///   (room_number أو local_uuid للأب) — القيمة تمر كما هي، والمطلوب
+///   فقط التأكد من وجود الأب (وإلا يؤجَّل الصف).
+enum _FkKind { numericPointer, naturalKey }
+
+class _FkRule {
+  const _FkRule({
+    required this.entity,
+    required this.column,
+    required this.kind,
+    required this.parentTable,
+    required this.parentKeyColumn,
+    this.nullable = false,
+    this.uuidCacheColumn,
+    this.legacyServerBookingId = false,
+    this.nullWhenUnresolvable = false,
+  });
+
+  /// كيان الابن (اسم جدول D1).
+  final String entity;
+
+  /// عمود FK على الابن.
+  final String column;
+
+  final _FkKind kind;
+
+  /// جدول الأب المحلي.
+  final String parentTable;
+
+  /// عمود المفتاح على الأب: 'id' للمؤشرات الرقمية، أو المفتاح الطبيعي
+  /// (room_number / local_uuid) لقواعد naturalKey.
+  final String parentKeyColumn;
+
+  /// هل يقبل العمود NULL محلياً؟ (غير القابل للـ null بلا حل = تأجيل).
+  final bool nullable;
+
+  /// عمود uuid-cache على الابن يحمل local_uuid الأب — المفتاح العالمي
+  /// الأول (مثل booking_uuid_cache / item_local_uuid).
+  final String? uuidCacheColumn;
+
+  /// جرّب أيضاً فضاء Appwrite القديم: server_booking_id على الابن ضد
+  /// server_booking_id على الأب (الصفوف المهاجرة من Appwrite تشترك
+  /// في فضاء المعرفات هذا).
+  final bool legacyServerBookingId;
+
+  /// مؤشر ثانوي غير جوهري (cash_transaction_local_id): تعذّرت الترجمة
+  /// → NULL بدل تعطيل دورة السحب كلها. لا يُستخدم إلا مع nullable.
+  final bool nullWhenUnresolvable;
+}
+
+/// خريطة علاقات FK المحلية التي تحمل هوية خادمية — مستخرجة آلياً من
+/// local_db.dart (كل .references) وschema.sql الخادمي.
+///
+/// ملاحظات:
+///  * payment_voids وprice_adjustments أعمدتها كلها uuid عالمية بلا
+///    قيود FK محلية — تمر بلا ترجمة، فلا قاعدة لها هنا.
+///  * bookings.room_number → rooms.room_number مفتاح طبيعي ثابت بين
+///    الأجهزة (نفس النص)، المطلوب وجود الغرفة فقط.
+const List<_FkRule> _fkRules = [
+  // الحجوزات: room_number مفتاح طبيعي على الغرف.
+  _FkRule(
+    entity: 'bookings',
+    column: 'room_number',
+    kind: _FkKind.naturalKey,
+    parentTable: 'rooms',
+    parentKeyColumn: 'room_number',
+  ),
+  // ليالي الحجز → الحجز.
+  _FkRule(
+    entity: 'booking_nights',
+    column: 'booking_local_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'bookings',
+    parentKeyColumn: 'id',
+    uuidCacheColumn: 'booking_uuid_cache',
+    legacyServerBookingId: true,
+  ),
+  // ملاحظات الحجز → الحجز (لا uuid-cache على السلك — الاعتماد على
+  // ظلّ server_id للأب أو فضاء Appwrite).
+  _FkRule(
+    entity: 'booking_notes',
+    column: 'booking_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'bookings',
+    parentKeyColumn: 'id',
+    legacyServerBookingId: true,
+  ),
+  // المدفوعات → الحجز (قابل للـ null — دفعة بلا حجز تمر بـ NULL).
+  _FkRule(
+    entity: 'payments',
+    column: 'booking_local_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'bookings',
+    parentKeyColumn: 'id',
+    nullable: true,
+    uuidCacheColumn: 'booking_uuid_cache',
+    legacyServerBookingId: true,
+  ),
+  // المدفوعات → معاملة الصندوق: مؤشر ثانوي بلا مفتاح عالمي على السلك
+  // (local_id المحلي للجهاز الدافع لا معنى له بين الأجهزة) — تعذّرت
+  // الترجمة → NULL ولا يُعطَّل السحب لمجرد مؤشر صندوق.
+  _FkRule(
+    entity: 'payments',
+    column: 'cash_transaction_local_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'cash_transactions',
+    parentKeyColumn: 'id',
+    nullable: true,
+    nullWhenUnresolvable: true,
+  ),
+  // تسويات السعر → الحجز (بالمعرّفين معاً).
+  _FkRule(
+    entity: 'booking_price_adjustments',
+    column: 'booking_local_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'bookings',
+    parentKeyColumn: 'id',
+    nullable: true,
+    uuidCacheColumn: 'booking_uuid',
+    legacyServerBookingId: true,
+  ),
+  _FkRule(
+    entity: 'booking_price_adjustments',
+    column: 'booking_local_uuid',
+    kind: _FkKind.naturalKey,
+    parentTable: 'bookings',
+    parentKeyColumn: 'local_uuid',
+  ),
+  // دورات الرواتب → الموظف.
+  _FkRule(
+    entity: 'salary_cycles',
+    column: 'employee_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'employees',
+    parentKeyColumn: 'id',
+  ),
+  // دفعات الدورة → الدورة (سلّتان: موظف ثم دورة — ترتيب الأولويات
+  // في إعادة المحاولة يضمن اكتمال السلسلة).
+  _FkRule(
+    entity: 'salary_payments',
+    column: 'cycle_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'salary_cycles',
+    parentKeyColumn: 'id',
+  ),
+  // السحب من الراتب → الموظف.
+  _FkRule(
+    entity: 'salary_withdrawals',
+    column: 'employee_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'employees',
+    parentKeyColumn: 'id',
+  ),
+  // سجلات ترحيل الراتب → الموظف.
+  _FkRule(
+    entity: 'salary_carry_over_logs',
+    column: 'employee_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'employees',
+    parentKeyColumn: 'id',
+  ),
+  // حركات المخزون → صنف المخزون (item_local_uuid مفتاح عالمي).
+  _FkRule(
+    entity: 'inventory_transactions',
+    column: 'item_id',
+    kind: _FkKind.numericPointer,
+    parentTable: 'inventory_items',
+    parentKeyColumn: 'id',
+    uuidCacheColumn: 'item_local_uuid',
+  ),
+];
+
+final Map<String, List<_FkRule>> _fkRulesByEntity = (() {
+  final map = <String, List<_FkRule>>{};
+  for (final rule in _fkRules) {
+    map.putIfAbsent(rule.entity, () => <_FkRule>[]).add(rule);
+  }
+  return map;
+})();
+
+/// أولوية الآباء عند إعادة محاولة الصفوف المؤجلة — الأب قبل الابن.
+const Map<String, int> _pullApplyPriority = {
+  'rooms': 0,
+  'employees': 1,
+  'inventory_items': 1,
+  'cash_transactions': 1,
+  'bookings': 2,
+  'salary_cycles': 3,
+  'booking_nights': 4,
+  'payments': 4,
+  'booking_notes': 4,
+  'guest_infos': 4,
+  'booking_price_adjustments': 4,
+  'inventory_transactions': 4,
+  'salary_withdrawals': 4,
+  'salary_carry_over_logs': 4,
+  'salary_payments': 5,
+};
+
 // ─── SyncResult (same interface as AppwriteSyncManager) ────────
 
 class SyncResult {
@@ -58,6 +262,40 @@ class SyncResult {
 
   bool get isSuccess => status == SyncStatus.success;
   bool get hasConflicts => conflicts > 0;
+}
+
+/// نتيجة تطبيق دفعة صفوف مسحوبة — عقد مسار السحب على طرف العميل.
+///
+/// ✅ (2026-09-09) الجذر (ب) — كان تطبيق الصف الفاشل يُكتَم استثناؤه
+/// (try-catch لكل صف + تقدم المؤشر) فتضيع الصفوف بينما «ينجح» السحب:
+/// الآن كل فشل تطبيق حقيقي أو علاقة غير قابلة للحل يظهر في التقرير
+/// ويُفسد الدورة (لا checkpoint ولا علامة full sync).
+@visibleForTesting
+class PullApplyReport {
+  PullApplyReport({
+    required this.appliedCount,
+    required this.deferredCount,
+    required this.touchedEntities,
+    required this.unresolvable,
+    required this.errors,
+  });
+
+  /// الصفوف التي طُبّقت فعلاً (إدراج/تحديث/تخطي بعذر).
+  final int appliedCount;
+
+  /// الصفوف المؤجلة التي لم تُحلّ علاقاتها بعد إعادة المحاولة.
+  final int deferredCount;
+
+  /// الكيانات التي وصلت منها صفوف مُطبّقة (لبناء المشتقات).
+  final Set<String> touchedEntities;
+
+  /// 'entity/local_uuid' لكل صف بقي بلا أب (يُجمّد المؤشر عنده).
+  final List<String> unresolvable;
+
+  /// 'entity/uuid: message' لكل فشل تطبيق حقيقي (خطأ قاعدة بيانات).
+  final List<String> errors;
+
+  bool get isClean => unresolvable.isEmpty && errors.isEmpty;
 }
 
 // ─── Realtime sync state ───────────────────────────────────────
@@ -131,6 +369,37 @@ class CloudflareSyncManager {
   /// في نفس الوقت وكلها تعدّل على نفس outbox.
   bool _syncInProgress = false;
 
+  // ─── إصلاح الجذري الثالث (2026-09-09): هوية الخادم وعلاقات FK ──
+  //
+  // الجذران المؤكدان من تقرير جهاز حقيقي («لم يتم سحب كل البيانات»):
+  //  (أ) الصفوف الخادمية تحمل أعمدة لا يعرفها مخطط Drift المحلي
+  //      (sync_timestamp وغيرها من بقايا مخطط D1 القديم) — كان INSERT
+  //      يفشل بـ «no such column» صمتاً (يلتقطه try-catch لكل صف) ويتقدم
+  //      المؤشر: «نجاح» بلا بيانات.
+  //  (ب) أعمدة FK الرقمية على الابن (booking_nights.booking_local_id …)
+  //      تحمل id خادم D1 (autoincrement) — كتابتها كما هي داخل الصف
+  //      المحلي تعني 31 انتهاك FK حقيقي (وكانت تفشل صمتاً قبل إطفاء
+  //      FK): العلاقات بين الحجوزات ولياليها ومدفوعاتها كلها معطوبة.
+  //
+  // الحل الثلاثي هنا:
+  //  1. فلترة أعمدة الصف الوارد ضد PRAGMA table_info للجدول المحلي —
+  //     أي عمود غريب يُسقَط (بسجل) بدل أن يفشل الصف كله.
+  //  2. ظلّ هوية الخادم: كل جدول SyncFields محلي فيه عمود server_id —
+  //     عند تطبيق صف أب نخزن فيه id الخادم، فيصير سجلَّ ترجمة دائم
+  //     «D1 id → صف محلي» داخل البيانات نفسها (بلا جدول جانبي).
+  //  3. ترجمة FK عند التطبيق: uuid-cache أولًا (المفتاح العالمي بين
+  //     الأجهزة)، ثم ظلّ server_id للأب، ثم فضاء Appwrite القديم
+  //     (server_booking_id)، ثم الصف الموجود محلياً؛ ما لم يُحلّ يُؤجَّل
+  //     لإعادة محاولة بعد اكتمال السحب (الآب قد يصل في صفحة لاحقة)،
+  //     وما بقي غير محلول = دورة فاشلة: المؤشر يتراجع ولا full sync.
+
+  /// كاش أعمدة الجداول المحلية (PRAGMA table_info) — يُمسح عند إعادة
+  /// التهيئة لأن ترحيل المخطط قد يضيف أعمدة أثناء عمر العملية.
+  final Map<String, Set<String>> _localColumnsCache = <String, Set<String>>{};
+
+  /// مفاتيح FK التي سُقِطت/عُدِّلت في هذه العملية (لمنع إغراق السجل).
+  final Set<String> _fkLogSeen = <String>{};
+
   // ─── إحصائيات حقيقية لدورات المزامنة (2026-09-05) ──────────
   // ✅ كانت getSyncStatistics() تُرجع {} فارغة فتعرض شاشات الإحصائيات
   // أصفاراً دائمة (مضللة للإنتاج). الآن تُراكم المدير عدادات دورة
@@ -193,6 +462,8 @@ class CloudflareSyncManager {
     _failedCollectionsInLastSync.clear();
     _lastError = null;
     _currentStatus = SyncStatus.idle;
+    _localColumnsCache.clear();
+    _fkLogSeen.clear();
   }
 
   /// ✅ (2026-09-08) عقد القراءة: الجداول التي تخطاها الخادم في آخر
@@ -1017,6 +1288,11 @@ class CloudflareSyncManager {
     // وإلا حلقة سحب/رفع لا نهائية بين الأجهزة).
     final pulledDerivedEntities = <String>{};
     bool hasMore = true;
+
+    // ✅ (2026-09-09) المؤجّل عبر الصفحات: صفوف أبناء علاقاتها لم تُحلّ
+    // بعد (أبهم في صفحة لاحقة أو في نهاية هذا الترتيب الزمني) — تُعاد
+    // بعد اكتمال pagination بترتيب الآباء قبل أي إعلان نجاح.
+    final deferredRecords = <({String entity, Map<String, dynamic> record})>[];
     // P0-C: save initial cursor to restore on failure
     final initialCursor = _lastPullCursor;
     int pendingCursor = _lastPullCursor;
@@ -1155,8 +1431,11 @@ class CloudflareSyncManager {
           pendingCursor = serverCursor;
         }
 
-        // P0-C: apply changes; one bad record should not stop the batch
-        final touchedEntities = <String>{};
+        // P0-C: apply changes — الدفعة كاملة تُطبّق مع ترجمة FK وفلترة
+        // أعمدة وإعادة محاولة المؤجّل (2026-09-09). الصفوف الفاشلة
+        // حقيقياً أو غير القابلة للحل تُفسد الدورة كلها أدناه — لا
+        // تبتلع صمتاً بعد اليوم.
+        final batchRecords = <({String entity, Map<String, dynamic> record})>[];
         for (final change in changes) {
           try {
             final record = Map<String, dynamic>.from(change as Map);
@@ -1165,9 +1444,7 @@ class CloudflareSyncManager {
             record.remove('_entity'); // don't store this field in SQLite
 
             if (entity != null) {
-              await _applyChange(entity, record);
-              totalPulled++;
-              touchedEntities.add(entity);
+              batchRecords.add((entity: entity, record: record));
             } else {
               debugPrint(
                 '⚠️ Pull: skipped record with unknown entity '
@@ -1175,11 +1452,28 @@ class CloudflareSyncManager {
               );
             }
           } catch (e) {
-            debugPrint('⚠️ Failed to apply change: $e');
+            // حارس تركيب السجل نفسه (ليس تطبيقه) — يُفسد الدورة أيضاً.
+            hadError = true;
+            errorMessage = 'Pull: malformed change envelope: $e';
+            debugPrint('⚠️ $errorMessage');
           }
         }
+        final report = await _applyPulledRecords(
+          batchRecords,
+          deferredSink: deferredRecords,
+        );
+        totalPulled += report.appliedCount;
+
+        if (report.errors.isNotEmpty) {
+          hadError = true;
+          final errorSummary = report.errors.take(2).join(' | ');
+          errorMessage =
+              'Pull: ${report.errors.length} apply-failure(s): $errorSummary';
+          _failedCollectionsInLastSync.add('pull');
+          debugPrint('⚠️ $errorMessage');
+        }
         pulledDerivedEntities.addAll(
-          touchedEntities.intersection(_derivedRefreshEntities),
+          report.touchedEntities.intersection(_derivedRefreshEntities),
         );
 
         // P0-C: contradictory state - has_more=true but empty changes
@@ -1188,6 +1482,44 @@ class CloudflareSyncManager {
             '⚠️ Pull returned has_more=true but empty changes - stopping',
           );
           hasMore = false;
+        }
+      }
+
+      // ✅ (2026-09-09) الجذر (ب) — إعادة محاولة المؤجّل بعد اكتمال
+      // الصفحات: الآباء وصلوا الآن (صفحات لاحقة)، فتُحلّ السلاسل
+      // (غرفة → حجز → ليلة / موظف → دورة → دفعة). من بقي غير محلول
+      // = دورة فاشلة: لا checkpoint ولا علامة full sync (المؤشر
+      // يتراجع لأول الدورة في كتلة checkpoint أدناه).
+      if (deferredRecords.isNotEmpty) {
+        final retryErrors = <String>[];
+        final remaining = await _retryDeferredRecords(
+          deferredRecords,
+          onApplied: (entity) {
+            totalPulled++;
+            pulledDerivedEntities.add(entity);
+          },
+          errors: retryErrors,
+        );
+        if (retryErrors.isNotEmpty) {
+          hadError = true;
+          final errorSummary = retryErrors.take(2).join(' | ');
+          errorMessage =
+              'Pull: ${retryErrors.length} apply-failure(s) on deferred '
+              'retry: $errorSummary';
+          _failedCollectionsInLastSync.add('pull');
+          debugPrint('⚠️ $errorMessage');
+        }
+        if (remaining.isNotEmpty) {
+          hadError = true;
+          final names = [
+            for (final item in remaining.take(3))
+              '${item.entity}/${item.record['local_uuid']}',
+          ];
+          errorMessage =
+              'Pull: ${remaining.length} record(s) with unresolvable parent '
+              'relations: ${names.join(', ')}';
+          _failedCollectionsInLastSync.add('pull');
+          debugPrint('⚠️ $errorMessage');
         }
       }
     } finally {
@@ -1246,6 +1578,207 @@ class CloudflareSyncManager {
     return totalPulled;
   }
 
+  // ─── أدوات الفلترة وترجمة الهوية (2026-09-09) ──────────────
+
+  /// أعمدة الجدول المحلي (PRAGMA table_info) مع كاش — أساس الفلترة
+  /// ضد انحراف المخطط بين الخادم والعميل.
+  Future<Set<String>> _localColumns(String tableName) async {
+    final cached = _localColumnsCache[tableName];
+    if (cached != null) return cached;
+    final rows = await _db!.customSelect('PRAGMA table_info($tableName)').get();
+    final cols = <String>{
+      for (final row in rows)
+        if (row.data['name'] != null) row.data['name'].toString(),
+    };
+    _localColumnsCache[tableName] = cols;
+    return cols;
+  }
+
+  /// يسقط من الصف الوارد كل عمود لا يوجد في الجدول المحلي.
+  ///
+  /// الجذر (أ) لـ «لم يتم سحب كل البيانات»: بقايا مخطط D1 القديم
+  /// (sync_timestamp وأشباهها) كانت تُفشل INSERT بكامل الصف بـ
+  /// «no such column» صمتاً بينما المؤشر يتقدم. الآن: العمود الغريب
+  /// يُسقَط بسجل (مرة لكل تركيبة جدول/أعمدة) والصف يُطبَّق.
+  Future<Map<String, dynamic>> _filterToLocalColumns(
+    String tableName,
+    Map<String, dynamic> record,
+  ) async {
+    final cols = await _localColumns(tableName);
+    if (cols.isEmpty) return Map<String, dynamic>.of(record);
+    final out = <String, dynamic>{};
+    final dropped = <String>[];
+    record.forEach((key, value) {
+      if (cols.contains(key)) {
+        out[key] = value;
+      } else {
+        dropped.add(key);
+      }
+    });
+    if (dropped.isNotEmpty) {
+      _logFkOnce(
+        'dropped unknown column(s) for $tableName: ${dropped.join(', ')}',
+      );
+    }
+    return out;
+  }
+
+  /// يبحث عن id الأب المحلي بعمود ومفتاح — null إن لم يوجد.
+  Future<Object?> _lookupLocalParentId(
+    String parentTable,
+    String keyColumn,
+    Object? keyValue,
+  ) async {
+    try {
+      final row = await _db!
+          .customSelect(
+            'SELECT id FROM $parentTable WHERE $keyColumn = ? LIMIT 1',
+            variables: [Variable(keyValue)],
+          )
+          .getSingleOrNull();
+      return row?.data['id'];
+    } catch (e) {
+      _logFkOnce('parent lookup failed $parentTable.$keyColumn: $e');
+      return null;
+    }
+  }
+
+  /// هل يوجد صف في [parentTable] بمفتاح طبيعي معطى؟
+  Future<bool> _parentKeyExists(
+    String parentTable,
+    String keyColumn,
+    Object? keyValue,
+  ) async {
+    try {
+      final row = await _db!
+          .customSelect(
+            'SELECT 1 AS hit FROM $parentTable WHERE $keyColumn = ? LIMIT 1',
+            variables: [Variable(keyValue)],
+          )
+          .getSingleOrNull();
+      return row != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _logFkOnce(String message) {
+    if (_fkLogSeen.add(message)) {
+      debugPrint('🔗 Pull/FK: $message');
+    }
+  }
+
+  /// يترجم مؤشرات FK الخادمية في [record] (المُفلتر) إلى الهوية المحلية
+  /// — قبل أي مسار كتابة (إدراج/تحديث/دمج تعارض).
+  ///
+  /// ترتيب الحل لكل قاعدة:
+  ///  1. uuid-cache على الابن (المفتاح العالمي بين الأجهزة).
+  ///  2. ظلّ server_id على الأب = id الخادم D1 (سُجِّل عند تطبيق الأب).
+  ///  3. فضاء Appwrite القديم: server_booking_id على الابن ضد الأب.
+  ///  4. صف موجود محلياً — تحديث لاحق: احتفظ بقيمته المحلية الحالية.
+  ///  5. مؤشر ثانوي (nullWhenUnresolvable) → NULL بدل تعطيل السحب.
+  ///  غير ذلك → false: الصف يُؤجَّل لإعادة المحاولة بعد اكتمال السحب
+  ///  (الأب قد يصل في صفحة لاحقة)، وما بقي بعد المحاولات = دورة فاشلة.
+  Future<bool> _resolveForeignKeysForRecord({
+    required String entity,
+    required Map<String, dynamic> record,
+    required Map<String, dynamic>? existing,
+  }) async {
+    final rules = _fkRulesByEntity[entity];
+    if (rules == null || rules.isEmpty) return true;
+
+    for (final rule in rules) {
+      final wireValue = record[rule.column];
+
+      if (rule.kind == _FkKind.numericPointer) {
+        if (wireValue == null) {
+          if (record.containsKey(rule.column) && !rule.nullable) {
+            // null صريح على عمود NOT NULL — علاقة مفقودة خادمياً.
+            if (existing != null) {
+              record[rule.column] = existing[rule.column];
+              continue;
+            }
+            return false;
+          }
+          continue; // غائب عن السلك أو قابل للـ null — لا مؤشر
+        }
+
+        final serverValue = wireValue is int
+            ? wireValue
+            : int.tryParse(wireValue.toString());
+        Object? resolved;
+        if (serverValue != null) {
+          // 1) uuid-cache: المفتاح العالمي.
+          final cacheKey = rule.uuidCacheColumn == null
+              ? null
+              : record[rule.uuidCacheColumn]?.toString();
+          if (cacheKey != null && cacheKey.isNotEmpty) {
+            resolved = await _lookupLocalParentId(
+              rule.parentTable,
+              'local_uuid',
+              cacheKey,
+            );
+          }
+          // 2) ظلّ server_id للأب.
+          resolved ??= await _lookupLocalParentId(
+            rule.parentTable,
+            'server_id',
+            serverValue,
+          );
+          // 3) فضاء Appwrite القديم.
+          if (resolved == null && rule.legacyServerBookingId) {
+            final legacy = record['server_booking_id'];
+            final legacyInt = legacy is int
+                ? legacy
+                : int.tryParse(legacy?.toString() ?? '');
+            if (legacyInt != null) {
+              resolved = await _lookupLocalParentId(
+                rule.parentTable,
+                'server_booking_id',
+                legacyInt,
+              );
+            }
+          }
+        }
+
+        if (resolved != null) {
+          record[rule.column] = resolved;
+          continue;
+        }
+        // 4) صف موجود محلياً — لا تفسد علاقة مثبتة سابقاً.
+        if (existing != null) {
+          record[rule.column] = existing[rule.column];
+          continue;
+        }
+        // 5) مؤشر ثانوي غير جوهري — NULL ولا يُعطَّل السحب.
+        if (rule.nullWhenUnresolvable && rule.nullable) {
+          record[rule.column] = null;
+          _logFkOnce(
+            'null-substituted $entity.${rule.column} '
+            '(wire=$wireValue, no resolvable parent)',
+          );
+          continue;
+        }
+        return false; // صف جديد بلا أب — يُؤجَّل
+      } else {
+        // naturalKey: القيمة نفسها عالمية — المطلوب وجود الأب فقط.
+        if (wireValue == null || wireValue.toString().isEmpty) continue;
+        final exists = await _parentKeyExists(
+          rule.parentTable,
+          rule.parentKeyColumn,
+          wireValue,
+        );
+        if (exists) continue;
+        if (existing != null) {
+          record[rule.column] = existing[rule.column];
+          continue;
+        }
+        return false; // الأب غير موجود بعد — يُؤجَّل
+      }
+    }
+    return true;
+  }
+
   // ─── Apply change to local Drift DB ─────────────────────────
   ///
   /// ✅ P0-F: إذا كان السجل البعيد أحدث ويسبب تعارضاً مع تعديل محلي معلّق
@@ -1253,16 +1786,20 @@ class CloudflareSyncManager {
   /// المدمجة محلياً + نُعيدها لـ outbox ليتم رفعها للخادم (end-to-end).
   /// قبل هذا الإصلاح، كان السجل المحلي الأحدث يُحتفظ به فقط دون إعادة رفع،
   /// مما يسبب "stale divergence" — الخادم لا يعرف بالقيمة المحلية النهائية.
-  Future<void> _applyChange(String entity, Map<String, dynamic> record) async {
-    if (_db == null) return;
+  ///
+  /// ✅ (2026-09-09) العقد الجديد: true = طُبّق (أو سُكت عنه بعذر)،
+  /// false = مؤجَّل (علاقة FK بلا أب بعد — يعاد بعد اكتمال السحب)،
+  /// ويرمي استثناءً على أخطاء قاعدة البيانات الحقيقية — لا تُبتلع صمتاً.
+  Future<bool> _applyChange(String entity, Map<String, dynamic> record) async {
+    if (_db == null) return true;
 
-    if (record.isEmpty) return;
+    if (record.isEmpty) return true;
 
     // سياسة البيانات: السحب يجلب السجلات الحية فقط. هذا الحارس يبقى
     // دفاعياً حتى لا تُطبّق tombstone قديمة إذا أعادها Worker قديم أو cache.
     if (record['deleted_at'] != null) {
       debugPrint('⏭️ Pull: skipped deleted $entity/${record['local_uuid']}');
-      return;
+      return true;
     }
 
     // ✅ عقد القائمة السوداء (2026-09-05): صفوف blacklist بلا جدول Drift
@@ -1272,7 +1809,7 @@ class CloudflareSyncManager {
     // القائمة السوداء للأجهزة الأخرى أبداً.
     if (entity == 'blacklist') {
       final converted = CloudflareD1Service.blacklistShiftNoteRowFromD1(record);
-      if (converted == null) return;
+      if (converted == null) return true;
       entity = 'shift_notes';
       record = converted;
     }
@@ -1280,13 +1817,27 @@ class CloudflareSyncManager {
     final tableName = CloudflareConfig.tableNameFor(entity);
     if (tableName == null) {
       debugPrint('⚠️ Pull: no local table for entity "$entity" — skipped');
-      return;
+      return true;
     }
 
     final localUuid = record['local_uuid'] as String?;
-    if (localUuid == null) return;
+    if (localUuid == null) return true;
 
     final remoteUpdatedAt = record['updated_at'] as int? ?? 0;
+
+    // ✅ (2026-09-09) الجذر (أ): فلترة الأعمدة ضد المخطط المحلي — أي
+    // عمود خادمي غريب (sync_timestamp من مخطط D1 القديم وأشباهه)
+    // يُسقَط بسجل بدل أن يُسقط الصف كله بـ «no such column» صمتاً.
+    final filtered = await _filterToLocalColumns(tableName, record);
+
+    // ✅ (2026-09-09) الجذر (ب) خطوة 1 — ظلّ هوية الخادم: id الصف على
+    // D1 يُخزَّن في عمود server_id المحلي (موجود في كل جداول SyncFields)
+    // فيصير سجلَّ ترجمة دائماً «D1 id → صف محلي» تعتمده الأبناء.
+    final wireId = filtered['id'];
+    if (wireId is int &&
+        (await _localColumns(tableName)).contains('server_id')) {
+      filtered['server_id'] = wireId;
+    }
 
     // اقرأ السجل المحلي كاملاً (للـ conflict resolution)
     final existing = await _db!
@@ -1295,6 +1846,23 @@ class CloudflareSyncManager {
           variables: [Variable<String>(localUuid)],
         )
         .getSingleOrNull();
+    final existingData = existing == null
+        ? null
+        : Map<String, dynamic>.from(existing.data);
+
+    // ✅ (2026-09-09) الجذر (ب) خطوة 2 — ترجمة مؤشرات FK الخادمية إلى
+    // الهوية المحلية قبل أي مسار كتابة. false = صف جديد بلا أب بعد.
+    final relationsResolved = await _resolveForeignKeysForRecord(
+      entity: entity,
+      record: filtered,
+      existing: existingData,
+    );
+    if (!relationsResolved) {
+      debugPrint(
+        '⏸️ Pull: deferred $entity/$localUuid — parent not pulled yet',
+      );
+      return false;
+    }
 
     if (existing != null) {
       final localData = Map<String, dynamic>.from(existing.data);
@@ -1322,7 +1890,7 @@ class CloudflareSyncManager {
             op: 'delete',
           ),
         );
-        return;
+        return true;
       }
 
       // ✅ تخطي إذا كان السجل المحلي أحدث (LWW الأساسي)
@@ -1334,7 +1902,7 @@ class CloudflareSyncManager {
         debugPrint(
           '  ⏭️ $entity/$localUuid: محلي أحدث ($localUpdatedAt > $remoteUpdatedAt) — تخطي',
         );
-        return;
+        return true;
       }
 
       // ✅ P0-F: السجل البعيد أحدث. طبّق SmartConflictResolver للتحقق
@@ -1353,7 +1921,7 @@ class CloudflareSyncManager {
         final resolution = SmartConflictResolver.resolve(
           entity: entity,
           localData: localData,
-          remoteData: record,
+          remoteData: filtered,
           commonAncestor: null, // لا نحتفظ بـ ancestor حالياً
         );
 
@@ -1396,11 +1964,11 @@ class CloudflareSyncManager {
             op: 'update',
           ),
         );
-        return;
+        return true;
       }
 
       // ✅ لا يوجد تعارض متزامن — البعيد أحدث تسلسلياً، اطبّقه مباشرة
-      final cleanRecord = Map<String, dynamic>.from(record);
+      final cleanRecord = Map<String, dynamic>.from(filtered);
       cleanRecord.remove('id');
       final setClauses = cleanRecord.keys.map((c) => '$c = ?').join(', ');
       final values = cleanRecord.values.map(_toDriftValue).toList();
@@ -1419,14 +1987,17 @@ class CloudflareSyncManager {
       );
     } else {
       // ✅ سجل جديد — أدخله
-      final cleanRecord = Map<String, dynamic>.from(record);
+      // ✅ (2026-09-09) INSERT صريح بلا OR IGNORE: تجاهل القيود صمتاً
+      // كان يعني صفوفاً تضيع بلا أثر. أعمدة الصف مُفلترة وعلاقاته
+      // مُترجمة أعلاه — أي فشل هنا حقيقي ويُفشل الدورة بدل كتمه.
+      final cleanRecord = Map<String, dynamic>.from(filtered);
       cleanRecord.remove('id');
 
       final columns = cleanRecord.keys.join(', ');
       final placeholders = cleanRecord.keys.map((_) => '?').join(', ');
       final values = cleanRecord.values.map(_toDriftValue).toList();
       await _db!.customStatement(
-        'INSERT OR IGNORE INTO $tableName ($columns) VALUES ($placeholders)',
+        'INSERT INTO $tableName ($columns) VALUES ($placeholders)',
         values,
       );
 
@@ -1451,6 +2022,128 @@ class CloudflareSyncManager {
         );
       }
     }
+
+    return true;
+  }
+
+  /// يطبّق دفعة صفوف مسحوبة مع إعادة محاولة المؤجّل بترتيب الآباء.
+  ///
+  /// تُمرّ الصفوف بثلاث محاولات كحد أقصى: الأولى بترتيب الوصول، وما دُوّن
+  /// تأجيله يعاد بترتيب أولوية الآباء (غرفة → حجز → ليلة…) حتى تكتمل
+  /// السلسلة (موظف → دورة → دفعة). من لم تُحلّ علاقته بعد المحاولات
+  /// يعود في التقرير (unresolvable) وتُفسد الدورة — سياسة «لا نجاح
+  /// مع جداول ناقصة» على طرف العميل أيضاً.
+  @visibleForTesting
+  Future<PullApplyReport> applyPulledRecords(
+    List<({String entity, Map<String, dynamic> record})> records,
+  ) => _applyPulledRecords(records);
+
+  Future<PullApplyReport> _applyPulledRecords(
+    List<({String entity, Map<String, dynamic> record})> records, {
+    List<({String entity, Map<String, dynamic> record})>? deferredSink,
+  }) async {
+    var applied = 0;
+    final touched = <String>{};
+    final errors = <String>[];
+    var pending = List.of(records);
+
+    for (var pass = 0; pass < 3 && pending.isNotEmpty; pass++) {
+      if (pass > 0) {
+        pending.sort(
+          (a, b) => (_pullApplyPriority[a.entity] ?? 9).compareTo(
+            _pullApplyPriority[b.entity] ?? 9,
+          ),
+        );
+      }
+      final stillPending = <({String entity, Map<String, dynamic> record})>[];
+      for (final item in pending) {
+        try {
+          final ok = await _applyChange(item.entity, item.record);
+          if (ok) {
+            applied++;
+            touched.add(item.entity);
+          } else {
+            stillPending.add(item);
+          }
+        } catch (e) {
+          // فشل تطبيق حقيقي — يظهر في التقرير ويُفسد الدورة (لا كتم).
+          errors.add('${item.entity}/${item.record['local_uuid']}: $e');
+        }
+      }
+      final progressed = stillPending.length < pending.length;
+      pending = stillPending;
+      if (!progressed) break;
+    }
+
+    // ✅ المؤجّل عبر الصفحات: داخل حلقة السحب يُجمَع في sink واحد
+    // ويُعاد حلّه بعد اكتمال كل الصفحات (الأب قد يكون في صفحة لاحقة)،
+    // فلا يُفشل الصفُّ النظيف دورتَه لمجرد أن أباه لم يصل بعد.
+    var unresolvableCount = 0;
+    if (deferredSink != null) {
+      deferredSink.addAll(pending);
+      unresolvableCount = 0;
+    } else {
+      unresolvableCount = pending.length;
+      if (pending.isNotEmpty) {
+        final names = [
+          for (final item in pending.take(5))
+            '${item.entity}/${item.record['local_uuid']}',
+        ];
+        debugPrint(
+          '⏸️ Pull: ${pending.length} record(s) deferred-unresolved: '
+          '${names.join(', ')}',
+        );
+      }
+    }
+
+    return PullApplyReport(
+      appliedCount: applied,
+      deferredCount: unresolvableCount,
+      touchedEntities: touched,
+      unresolvable: [
+        for (final item in pending.take(
+          deferredSink == null ? pending.length : 0,
+        ))
+          '${item.entity}/${item.record['local_uuid']}',
+      ],
+      errors: errors,
+    );
+  }
+
+  /// إعادة محاولة الصفوف المؤجلة عبر الصفحات — بعد اكتمال pagination.
+  /// يُعاد بترتيب أولوية الآباء حتى محاولتين إضافيتين، ويعيد ما بقي
+  /// غير محلول (يُفسد الدورة عند النهاية: تجميد المؤشر بلا full sync).
+  Future<List<({String entity, Map<String, dynamic> record})>>
+  _retryDeferredRecords(
+    List<({String entity, Map<String, dynamic> record})> deferred, {
+    required void Function(String entity) onApplied,
+    required List<String> errors,
+  }) async {
+    var remaining = List.of(deferred);
+    for (var pass = 0; pass < 2 && remaining.isNotEmpty; pass++) {
+      remaining.sort(
+        (a, b) => (_pullApplyPriority[a.entity] ?? 9).compareTo(
+          _pullApplyPriority[b.entity] ?? 9,
+        ),
+      );
+      final stillPending = <({String entity, Map<String, dynamic> record})>[];
+      for (final item in remaining) {
+        try {
+          final ok = await _applyChange(item.entity, item.record);
+          if (ok) {
+            onApplied(item.entity);
+          } else {
+            stillPending.add(item);
+          }
+        } catch (e) {
+          errors.add('${item.entity}/${item.record['local_uuid']}: $e');
+        }
+      }
+      final progressed = stillPending.length < remaining.length;
+      remaining = stillPending;
+      if (!progressed) break;
+    }
+    return remaining;
   }
 
   // ─── Detect entity from record fields ───────────────────────
