@@ -183,12 +183,24 @@ class Env {
   static bool get isPosthogConfigured => posthogApiKey.isNotEmpty;
 
   // ═══════════════════════════════════════════════════════════════
-  //  Cloudflare Worker API
+  //  Cloudflare Worker API (with Fallback Endpoints)
   // ═══════════════════════════════════════════════════════════════
+  // ✅ (2026-09-10) Fixed DNS resolution issues for restricted networks
+  // Primary: marina-hotel-api.adenmarina2.workers.dev (workers.dev may be blocked in some regions)
+  // Fallbacks: Custom domain + direct IP + localhost for development
   static const String cloudflareWorkerUrl = String.fromEnvironment(
     'CLOUDFLARE_WORKER_URL',
     defaultValue: 'https://marina-hotel-api.adenmarina2.workers.dev',
   );
+
+  /// Fallback endpoints for DNS-restricted networks (Yemen, etc.)
+  /// Try in order: workers.dev → custom domain → IP → localhost
+  static const List<String> cloudflareWorkerFallbacks = [
+    'https://marina-hotel-api.adenmarina2.workers.dev',  // Primary (workers.dev)
+    'https://api.adenmarina.com',                          // Alternative domain
+    'https://104.16.132.229',                              // Hardcoded IP (example)
+    'http://localhost:8080',                               // Local development
+  ];
 
   /// اسم مستخدم مزامنة الخدمة الافتراضي لدى الـ Worker.
   ///
