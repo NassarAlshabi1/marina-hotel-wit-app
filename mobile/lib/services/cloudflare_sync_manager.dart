@@ -15,7 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/settings/error_tracker_screen.dart'
     show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
-import 'appwrite_models.dart' show AppwriteDevice;
+// ✅ REMOVED: appwrite_models.dart deleted in P2-1
 import 'booking_derived_fields_service.dart';
 import 'cloudflare_config.dart';
 import 'cloudflare_d1_service.dart';
@@ -3104,9 +3104,9 @@ class CloudflareSyncManager {
   /// ✅ (2026-09-05) الأجهزة المسجلة — تُقرأ الآن من جدول devices المحلي
   /// (landing zone السحب — تُغذّى من D1 عبر pull) بدل القائمة الفارغة؛
   /// الشاشة مبنية على D1 عبر المزامنة كما تنص الخطة المعلقة سابقاً.
-  Future<List<AppwriteDevice>> getRegisteredDevices() async {
+  Future<List<dynamic>> getRegisteredDevices() async {
     final db = _db;
-    if (db == null) return const <AppwriteDevice>[];
+    if (db == null) return const [];
     try {
       final rows = await db
           .customSelect(
@@ -3145,7 +3145,7 @@ class CloudflareSyncManager {
       }).toList();
     } catch (e) {
       debugPrint('⚠️ getRegisteredDevices failed: $e');
-      return const <AppwriteDevice>[];
+      return const [];
     }
   }
 

@@ -15,7 +15,7 @@ class SyncStatusWidget extends ConsumerWidget {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey.withOpacity(0.2),
+          color: Colors.grey.withValues(alpha: 0.2),
         ),
       ),
       child: const RealtimeSyncIndicator(
@@ -48,10 +48,10 @@ class SyncStatusBottomBar extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: Colors.grey.withValues(alpha: 0.05),
         border: Border(
           top: BorderSide(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
           ),
         ),
       ),

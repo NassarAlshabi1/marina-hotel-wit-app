@@ -103,8 +103,8 @@ class DeltaSyncService {
     final nowTs = _normalizeTimestamp(Time.nowEpoch());
     final fallbackTables = <String>{};
 
-    // ✅ Get current device UUID for origin tracking
-    final currentDeviceId = state?.deviceId ?? 'unknown';
+    // ✅ Get current device UUID for origin tracking (fallback to generated UUID)
+    final currentDeviceId = state?.deviceId ?? 'device-${DateTime.now().millisecondsSinceEpoch}';
 
     final entityInputs = <_DeltaSyncEntityInput>[];
     for (final config in configs) {
@@ -371,10 +371,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Room).lastModified,
         deletedAt: (dynamic row) => (row as Room).deletedAt,
         toJson: (dynamic row) => (row as Room).toJson(),
-        vectorClock: (dynamic row) => (row as Room).vectorClock,    // ✅ From SyncFields
-        origin: (dynamic row) => (row as Room).origin,              // ✅ From SyncFields
+        vectorClock: (dynamic row) => (row as Room).vectorClock ?? "",    // ✅ From SyncFields
+        origin: (dynamic row) => (row as Room).origin ?? "unknown",              // ✅ From SyncFields
         version: (dynamic row) => (row as Room).version,            // ✅ From SyncFields
-        idempotencyKey: (dynamic row) => (row as Room).idempotencyKey, // ✅ From SyncFields
+        idempotencyKey: (dynamic row) => (row as Room).idempotencyKey ?? "", // ✅ From SyncFields
       ),
       _EntityConfig(
         entity: 'bookings',
@@ -389,10 +389,10 @@ class DeltaSyncService {
           j['amount'] = b.totalDueCached;
           return j;
         },
-        vectorClock: (dynamic row) => (row as Booking).vectorClock,
-        origin: (dynamic row) => (row as Booking).origin,
+        vectorClock: (dynamic row) => (row as Booking).vectorClock ?? "",
+        origin: (dynamic row) => (row as Booking).origin ?? "unknown",
         version: (dynamic row) => (row as Booking).version,
-        idempotencyKey: (dynamic row) => (row as Booking).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as Booking).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'booking_notes',
@@ -402,10 +402,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as BookingNote).lastModified,
         deletedAt: (dynamic row) => (row as BookingNote).deletedAt,
         toJson: (dynamic row) => (row as BookingNote).toJson(),
-        vectorClock: (dynamic row) => (row as BookingNote).vectorClock,
-        origin: (dynamic row) => (row as BookingNote).origin,
+        vectorClock: (dynamic row) => (row as BookingNote).vectorClock ?? "",
+        origin: (dynamic row) => (row as BookingNote).origin ?? "unknown",
         version: (dynamic row) => (row as BookingNote).version,
-        idempotencyKey: (dynamic row) => (row as BookingNote).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as BookingNote).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'employees',
@@ -415,10 +415,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Employee).lastModified,
         deletedAt: (dynamic row) => (row as Employee).deletedAt,
         toJson: (dynamic row) => (row as Employee).toJson(),
-        vectorClock: (dynamic row) => (row as Employee).vectorClock,
-        origin: (dynamic row) => (row as Employee).origin,
+        vectorClock: (dynamic row) => (row as Employee).vectorClock ?? "",
+        origin: (dynamic row) => (row as Employee).origin ?? "unknown",
         version: (dynamic row) => (row as Employee).version,
-        idempotencyKey: (dynamic row) => (row as Employee).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as Employee).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'inventory_items',
@@ -428,10 +428,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as InventoryItem).lastModified,
         deletedAt: (dynamic row) => (row as InventoryItem).deletedAt,
         toJson: (dynamic row) => (row as InventoryItem).toJson(),
-        vectorClock: (dynamic row) => (row as InventoryItem).vectorClock,
-        origin: (dynamic row) => (row as InventoryItem).origin,
+        vectorClock: (dynamic row) => (row as InventoryItem).vectorClock ?? "",
+        origin: (dynamic row) => (row as InventoryItem).origin ?? "unknown",
         version: (dynamic row) => (row as InventoryItem).version,
-        idempotencyKey: (dynamic row) => (row as InventoryItem).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as InventoryItem).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'inventory_transactions',
@@ -442,10 +442,10 @@ class DeltaSyncService {
             (row as InventoryTransaction).lastModified,
         deletedAt: (dynamic row) => (row as InventoryTransaction).deletedAt,
         toJson: (dynamic row) => (row as InventoryTransaction).toJson(),
-        vectorClock: (dynamic row) => (row as InventoryTransaction).vectorClock,
-        origin: (dynamic row) => (row as InventoryTransaction).origin,
+        vectorClock: (dynamic row) => (row as InventoryTransaction).vectorClock ?? "",
+        origin: (dynamic row) => (row as InventoryTransaction).origin ?? "unknown",
         version: (dynamic row) => (row as InventoryTransaction).version,
-        idempotencyKey: (dynamic row) => (row as InventoryTransaction).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as InventoryTransaction).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'expenses',
@@ -455,10 +455,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Expense).lastModified,
         deletedAt: (dynamic row) => (row as Expense).deletedAt,
         toJson: (dynamic row) => (row as Expense).toJson(),
-        vectorClock: (dynamic row) => (row as Expense).vectorClock,
-        origin: (dynamic row) => (row as Expense).origin,
+        vectorClock: (dynamic row) => (row as Expense).vectorClock ?? "",
+        origin: (dynamic row) => (row as Expense).origin ?? "unknown",
         version: (dynamic row) => (row as Expense).version,
-        idempotencyKey: (dynamic row) => (row as Expense).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as Expense).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'cash_transactions',
@@ -468,10 +468,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as CashTransaction).lastModified,
         deletedAt: (dynamic row) => (row as CashTransaction).deletedAt,
         toJson: (dynamic row) => (row as CashTransaction).toJson(),
-        vectorClock: (dynamic row) => (row as CashTransaction).vectorClock,
-        origin: (dynamic row) => (row as CashTransaction).origin,
+        vectorClock: (dynamic row) => (row as CashTransaction).vectorClock ?? "",
+        origin: (dynamic row) => (row as CashTransaction).origin ?? "unknown",
         version: (dynamic row) => (row as CashTransaction).version,
-        idempotencyKey: (dynamic row) => (row as CashTransaction).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as CashTransaction).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'payments',
@@ -481,10 +481,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Payment).lastModified,
         deletedAt: (dynamic row) => (row as Payment).deletedAt,
         toJson: (dynamic row) => (row as Payment).toJson(),
-        vectorClock: (dynamic row) => (row as Payment).vectorClock,
-        origin: (dynamic row) => (row as Payment).origin,
+        vectorClock: (dynamic row) => (row as Payment).vectorClock ?? "",
+        origin: (dynamic row) => (row as Payment).origin ?? "unknown",
         version: (dynamic row) => (row as Payment).version,
-        idempotencyKey: (dynamic row) => (row as Payment).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as Payment).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'debts',
@@ -494,10 +494,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Debt).lastModified,
         deletedAt: (dynamic row) => (row as Debt).deletedAt,
         toJson: (dynamic row) => (row as Debt).toJson(),
-        vectorClock: (dynamic row) => (row as Debt).vectorClock,
-        origin: (dynamic row) => (row as Debt).origin,
+        vectorClock: (dynamic row) => (row as Debt).vectorClock ?? "",
+        origin: (dynamic row) => (row as Debt).origin ?? "unknown",
         version: (dynamic row) => (row as Debt).version,
-        idempotencyKey: (dynamic row) => (row as Debt).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as Debt).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'booking_nights',
@@ -507,10 +507,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as BookingNight).lastModified,
         deletedAt: (dynamic row) => (row as BookingNight).deletedAt,
         toJson: (dynamic row) => (row as BookingNight).toJson(),
-        vectorClock: (dynamic row) => (row as BookingNight).vectorClock,
-        origin: (dynamic row) => (row as BookingNight).origin,
+        vectorClock: (dynamic row) => (row as BookingNight).vectorClock ?? "",
+        origin: (dynamic row) => (row as BookingNight).origin ?? "unknown",
         version: (dynamic row) => (row as BookingNight).version,
-        idempotencyKey: (dynamic row) => (row as BookingNight).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as BookingNight).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'guest_infos',
@@ -520,10 +520,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as GuestInfo).lastModified,
         deletedAt: (dynamic row) => (row as GuestInfo).deletedAt,
         toJson: (dynamic row) => (row as GuestInfo).toJson(),
-        vectorClock: (dynamic row) => (row as GuestInfo).vectorClock,
-        origin: (dynamic row) => (row as GuestInfo).origin,
+        vectorClock: (dynamic row) => (row as GuestInfo).vectorClock ?? "",
+        origin: (dynamic row) => (row as GuestInfo).origin ?? "unknown",
         version: (dynamic row) => (row as GuestInfo).version,
-        idempotencyKey: (dynamic row) => (row as GuestInfo).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as GuestInfo).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'salary_withdrawals',
@@ -533,10 +533,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as SalaryWithdrawal).lastModified,
         deletedAt: (dynamic row) => (row as SalaryWithdrawal).deletedAt,
         toJson: (dynamic row) => (row as SalaryWithdrawal).toJson(),
-        vectorClock: (dynamic row) => (row as SalaryWithdrawal).vectorClock,
-        origin: (dynamic row) => (row as SalaryWithdrawal).origin,
+        vectorClock: (dynamic row) => (row as SalaryWithdrawal).vectorClock ?? "",
+        origin: (dynamic row) => (row as SalaryWithdrawal).origin ?? "unknown",
         version: (dynamic row) => (row as SalaryWithdrawal).version,
-        idempotencyKey: (dynamic row) => (row as SalaryWithdrawal).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as SalaryWithdrawal).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'salary_carry_over_logs',
@@ -546,10 +546,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as SalaryCarryOverLog).lastModified,
         deletedAt: (dynamic row) => (row as SalaryCarryOverLog).deletedAt,
         toJson: (dynamic row) => (row as SalaryCarryOverLog).toJson(),
-        vectorClock: (dynamic row) => (row as SalaryCarryOverLog).vectorClock,
-        origin: (dynamic row) => (row as SalaryCarryOverLog).origin,
+        vectorClock: (dynamic row) => (row as SalaryCarryOverLog).vectorClock ?? "",
+        origin: (dynamic row) => (row as SalaryCarryOverLog).origin ?? "unknown",
         version: (dynamic row) => (row as SalaryCarryOverLog).version,
-        idempotencyKey: (dynamic row) => (row as SalaryCarryOverLog).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as SalaryCarryOverLog).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'shift_notes',
@@ -559,10 +559,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as ShiftNote).lastModified,
         deletedAt: (dynamic row) => (row as ShiftNote).deletedAt,
         toJson: (dynamic row) => (row as ShiftNote).toJson(),
-        vectorClock: (dynamic row) => (row as ShiftNote).vectorClock,
-        origin: (dynamic row) => (row as ShiftNote).origin,
+        vectorClock: (dynamic row) => (row as ShiftNote).vectorClock ?? "",
+        origin: (dynamic row) => (row as ShiftNote).origin ?? "unknown",
         version: (dynamic row) => (row as ShiftNote).version,
-        idempotencyKey: (dynamic row) => (row as ShiftNote).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as ShiftNote).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'salary_cycles',
@@ -572,10 +572,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as SalaryCycle).lastModified,
         deletedAt: (dynamic row) => (row as SalaryCycle).deletedAt,
         toJson: (dynamic row) => (row as SalaryCycle).toJson(),
-        vectorClock: (dynamic row) => (row as SalaryCycle).vectorClock,
-        origin: (dynamic row) => (row as SalaryCycle).origin,
+        vectorClock: (dynamic row) => (row as SalaryCycle).vectorClock ?? "",
+        origin: (dynamic row) => (row as SalaryCycle).origin ?? "unknown",
         version: (dynamic row) => (row as SalaryCycle).version,
-        idempotencyKey: (dynamic row) => (row as SalaryCycle).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as SalaryCycle).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'salary_payments',
@@ -585,10 +585,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as SalaryPayment).lastModified,
         deletedAt: (dynamic row) => (row as SalaryPayment).deletedAt,
         toJson: (dynamic row) => (row as SalaryPayment).toJson(),
-        vectorClock: (dynamic row) => (row as SalaryPayment).vectorClock,
-        origin: (dynamic row) => (row as SalaryPayment).origin,
+        vectorClock: (dynamic row) => (row as SalaryPayment).vectorClock ?? "",
+        origin: (dynamic row) => (row as SalaryPayment).origin ?? "unknown",
         version: (dynamic row) => (row as SalaryPayment).version,
-        idempotencyKey: (dynamic row) => (row as SalaryPayment).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as SalaryPayment).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'price_adjustments',
@@ -598,10 +598,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as PriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as PriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as PriceAdjustment).toJson(),
-        vectorClock: (dynamic row) => (row as PriceAdjustment).vectorClock,
-        origin: (dynamic row) => (row as PriceAdjustment).origin,
+        vectorClock: (dynamic row) => (row as PriceAdjustment).vectorClock ?? "",
+        origin: (dynamic row) => (row as PriceAdjustment).origin ?? "unknown",
         version: (dynamic row) => (row as PriceAdjustment).version,
-        idempotencyKey: (dynamic row) => (row as PriceAdjustment).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as PriceAdjustment).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'audit_logs',
@@ -611,10 +611,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as AuditLog).createdAt,
         deletedAt: (dynamic row) => null,
         toJson: (dynamic row) => (row as AuditLog).toJson(),
-        vectorClock: (dynamic row) => (row as AuditLog).vectorClock,
-        origin: (dynamic row) => (row as AuditLog).origin,
+        vectorClock: (dynamic row) => (row as AuditLog).vectorClock ?? "",
+        origin: (dynamic row) => (row as AuditLog).origin ?? "unknown",
         version: (dynamic row) => (row as AuditLog).version,
-        idempotencyKey: (dynamic row) => (row as AuditLog).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as AuditLog).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'payment_voids',
@@ -624,10 +624,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as PaymentVoid).lastModified,
         deletedAt: (dynamic row) => (row as PaymentVoid).deletedAt,
         toJson: (dynamic row) => (row as PaymentVoid).toJson(),
-        vectorClock: (dynamic row) => (row as PaymentVoid).vectorClock,
-        origin: (dynamic row) => (row as PaymentVoid).origin,
+        vectorClock: (dynamic row) => (row as PaymentVoid).vectorClock ?? "",
+        origin: (dynamic row) => (row as PaymentVoid).origin ?? "unknown",
         version: (dynamic row) => (row as PaymentVoid).version,
-        idempotencyKey: (dynamic row) => (row as PaymentVoid).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as PaymentVoid).idempotencyKey ?? "",
       ),
       _EntityConfig(
         entity: 'booking_price_adjustments',
@@ -638,10 +638,10 @@ class DeltaSyncService {
             (row as BookingPriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
-        vectorClock: (dynamic row) => (row as BookingPriceAdjustment).vectorClock,
-        origin: (dynamic row) => (row as BookingPriceAdjustment).origin,
+        vectorClock: (dynamic row) => (row as BookingPriceAdjustment).vectorClock ?? "",
+        origin: (dynamic row) => (row as BookingPriceAdjustment).origin ?? "unknown",
         version: (dynamic row) => (row as BookingPriceAdjustment).version,
-        idempotencyKey: (dynamic row) => (row as BookingPriceAdjustment).idempotencyKey,
+        idempotencyKey: (dynamic row) => (row as BookingPriceAdjustment).idempotencyKey ?? "",
       ),
     ];
   }
@@ -684,10 +684,11 @@ class _EntityConfig {
   final int? Function(dynamic row) lastModified;
   final int? Function(dynamic row) deletedAt;
   final Map<String, dynamic> Function(dynamic row) toJson;
-  final String Function(dynamic row) vectorClock;    // ✅ SyncFields.vectorClock
-  final String Function(dynamic row) origin;         // ✅ SyncFields.origin
-  final int Function(dynamic row) version;           // ✅ SyncFields.version
-  final String Function(dynamic row) idempotencyKey; // ✅ SyncFields.idempotencyKey
+  // ✅ Use String? and handle nulls in code
+  final String? Function(dynamic row) vectorClock;    // ✅ SyncFields.vectorClock
+  final String? Function(dynamic row) origin;         // ✅ SyncFields.origin
+  final int Function(dynamic row) version;            // ✅ SyncFields.version
+  final String? Function(dynamic row) idempotencyKey; // ✅ SyncFields.idempotencyKey
 }
 
 /// ✅ Row data with Cloudflare sync fields

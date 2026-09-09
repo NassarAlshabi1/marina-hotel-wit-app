@@ -4,7 +4,8 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'package:battery_plus/battery_plus.dart';
+// ✅ REMOVED: battery_plus is no longer in pubspec.yaml
+// import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
