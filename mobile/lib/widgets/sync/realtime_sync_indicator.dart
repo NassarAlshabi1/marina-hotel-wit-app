@@ -87,21 +87,21 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
     BuildContext context,
     SyncHealthReport health,
   ) {
-    final isSyncing = health.outboxPending > 0;
-    final totalPending = health.outboxPending +
-        health.outboxFailed +
-        health.outboxStuck;
-    final progress = health.outboxProcessed /
-        (health.outboxProcessed + totalPending).toDouble()
+    final isSyncing = health.pendingCount > 0;
+    final totalPending = health.pendingCount +
+        health.failedCount +
+        health.stuckProcessingCount;
+    final progress = health.completedCount /
+        (health.completedCount + totalPending).toDouble()
         .clamp(0, 1);
 
     Color statusColor;
     IconData statusIcon;
 
-    if (health.outboxFailed > 0) {
+    if (health.failedCount > 0) {
       statusColor = Colors.red;
       statusIcon = Icons.error_outline;
-    } else if (health.overallStatus == 'حرج') {
+    } else if (health.status == 'critical') {
       statusColor = Colors.orange;
       statusIcon = Icons.warning;
     } else if (isSyncing) {
@@ -132,7 +132,7 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.2),
+                color: statusColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -155,12 +155,12 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
     BuildContext context,
     SyncHealthReport health,
   ) {
-    final isSyncing = health.outboxPending > 0;
-    final totalPending = health.outboxPending +
-        health.outboxFailed +
-        health.outboxStuck;
+    final isSyncing = health.pendingCount > 0;
+    final totalPending = health.pendingCount +
+        health.failedCount +
+        health.stuckProcessingCount;
     final progress =
-        health.outboxProcessed / (health.outboxProcessed + totalPending)
+        health.completedCount / (health.completedCount + totalPending)
             .toDouble()
             .clamp(0, 1);
 
@@ -180,7 +180,7 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                     Row(
                       children: [
                         AnimatedBuilder(
-                          animation: isSyncing ? _pulseController : AlwaysStoppedAnimation(0),
+                          animation: isSyncing ? _pulseController : const AlwaysStoppedAnimation(0),
                           builder: (_, __) {
                             return ScaleTransition(
                               scale: Tween<double>(begin: 0.8, end: 1.2)
@@ -194,7 +194,7 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                                   boxShadow: [
                                     if (isSyncing)
                                       BoxShadow(
-                                        color: Colors.blue.withOpacity(0.5),
+                                        color: Colors.blue.withValues(alpha: 0.5),
                                         blurRadius: 8,
                                       ),
                                   ],
@@ -212,10 +212,10 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             Text(
-                              health.overallStatus,
+                              health.status,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: _getStatusColor(health.overallStatus),
+                                color: _getStatusColor(health.status),
                               ),
                             ),
                           ],
@@ -232,7 +232,7 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
+                            color: Colors.blue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -275,7 +275,7 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 8,
-                        backgroundColor: Colors.grey.withOpacity(0.2),
+                        backgroundColor: Colors.grey.withValues(alpha: 0.2),
                         valueColor: AlwaysStoppedAnimation<Color>(
                           isSyncing ? Colors.blue : Colors.green,
                         ),
@@ -303,28 +303,28 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                 context,
                 icon: Icons.upload,
                 label: 'مرفوع',
-                value: health.outboxProcessed.toString(),
+                value: health.completedCount.toString(),
                 color: Colors.green,
               ),
               _buildStatCard(
                 context,
                 icon: Icons.download,
                 label: 'معلق',
-                value: health.outboxPending.toString(),
+                value: health.pendingCount.toString(),
                 color: Colors.blue,
               ),
               _buildStatCard(
                 context,
                 icon: Icons.error_outline,
                 label: 'فاشل',
-                value: health.outboxFailed.toString(),
+                value: health.failedCount.toString(),
                 color: Colors.red,
               ),
               _buildStatCard(
                 context,
                 icon: Icons.hourglass_empty,
                 label: 'عالق',
-                value: health.outboxStuck.toString(),
+                value: health.stuckProcessingCount.toString(),
                 color: Colors.orange,
               ),
             ],
@@ -350,8 +350,8 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              color.withOpacity(0.1),
-              color.withOpacity(0.05),
+              color.withValues(alpha: 0.1),
+              color.withValues(alpha: 0.05),
             ],
           ),
         ),
@@ -399,7 +399,7 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
   /// حالة الخطأ
   Widget _buildErrorView(String error) {
     return Card(
-      color: Colors.red.withOpacity(0.1),
+      color: Colors.red.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -424,13 +424,13 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
   /// الحصول على لون الحالة
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'صحي':
+      case 'healthy':
         return Colors.green;
-      case 'تحذير':
+      case 'warning':
         return Colors.orange;
-      case 'خطأ':
+      case 'error':
         return Colors.deepOrange;
-      case 'حرج':
+      case 'critical':
         return Colors.red;
       default:
         return Colors.grey;
@@ -441,20 +441,20 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
   String _buildStatusMessage(SyncHealthReport health) {
     final parts = <String>[];
 
-    if (health.overallStatus == 'صحي') {
+    if (health.status == 'healthy') {
       parts.add('✅ النظام صحي');
     } else {
-      parts.add('⚠️ ${health.overallStatus}');
+      parts.add('⚠️ ${health.status}');
     }
 
-    if (health.outboxPending > 0) {
-      parts.add('${health.outboxPending} معلق');
+    if (health.pendingCount > 0) {
+      parts.add('${health.pendingCount} معلق');
     }
-    if (health.outboxFailed > 0) {
-      parts.add('${health.outboxFailed} فاشل');
+    if (health.failedCount > 0) {
+      parts.add('${health.failedCount} فاشل');
     }
-    if (health.outboxStuck > 0) {
-      parts.add('${health.outboxStuck} عالق');
+    if (health.stuckProcessingCount > 0) {
+      parts.add('${health.stuckProcessingCount} عالق');
     }
 
     return parts.join('\n');
@@ -471,15 +471,15 @@ class CompactSyncDot extends ConsumerWidget {
 
     return healthAsync.when(
       data: (health) {
-        final isSyncing = health.outboxPending > 0;
-        final hasFailed = health.outboxFailed > 0;
+        final isSyncing = health.pendingCount > 0;
+        final hasFailed = health.failedCount > 0;
 
         Color color;
         if (hasFailed) {
           color = Colors.red;
         } else if (isSyncing) {
           color = Colors.blue;
-        } else if (health.overallStatus == 'صحي') {
+        } else if (health.status == 'صحي') {
           color = Colors.green;
         } else {
           color = Colors.orange;
@@ -494,7 +494,7 @@ class CompactSyncDot extends ConsumerWidget {
             boxShadow: [
               if (isSyncing)
                 BoxShadow(
-                  color: color.withOpacity(0.5),
+                  color: color.withValues(alpha: 0.5),
                   blurRadius: 4,
                   spreadRadius: 1,
                 ),
