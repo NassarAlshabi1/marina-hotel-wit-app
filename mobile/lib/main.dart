@@ -992,6 +992,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('Error disposing SyncGuardian: $e');
     }
+    // ✅ P0-2 (2026-09-09): حُذفت CentralSyncCoordinator من هنا —
+    // كان معرفاً لكن لا يُستدعى في أي مكان آخر (orphan dependency).
+    // UnifiedSyncOrchestrator هو مصدر الحقيقة الوحيد.
     debugPrint('✅ All singleton services disposed');
   }
 
