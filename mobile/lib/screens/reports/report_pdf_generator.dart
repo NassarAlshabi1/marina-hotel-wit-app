@@ -115,7 +115,10 @@ class ReportPdfGenerator {
       border: pw.TableBorder.all(),
       children: [
         _buildSummaryRow('إجمالي الدخل', _formatCurrency(data.incomeTotal)),
-        _buildSummaryRow('إجمالي المصروفات', _formatCurrency(data.expenseTotal)),
+        _buildSummaryRow(
+          'إجمالي المصروفات',
+          _formatCurrency(data.expenseTotal),
+        ),
         _buildSummaryRow('إجمالي الرواتب', _formatCurrency(data.salaryTotal)),
         _buildSummaryRow('الصافي', _formatCurrency(data.net)),
       ],
@@ -164,7 +167,10 @@ class ReportPdfGenerator {
     return pw.Table(
       border: pw.TableBorder.all(),
       children: [
-        _buildSummaryRow('الديون غير المسددة', _formatCurrency(data.unsettledDebtsAmount)),
+        _buildSummaryRow(
+          'الديون غير المسددة',
+          _formatCurrency(data.unsettledDebtsAmount),
+        ),
         _buildSummaryRow('عدد الديون', data.unsettledDebtsCount.toString()),
         _buildSummaryRow(
           'الديون في الفترة',

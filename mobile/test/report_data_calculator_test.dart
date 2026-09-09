@@ -23,25 +23,27 @@ void main() {
       expect(calculator, isNotNull);
     });
 
-    test('getGroupLabel returns correct format for different groupBy values',
-        () {
-      final date = DateTime(2026, 9, 10);
+    test(
+      'getGroupLabel returns correct format for different groupBy values',
+      () {
+        final date = DateTime(2026, 9, 10);
 
-      expect(
-        calculator.getGroupLabel(date, 'day'),
-        contains('2026-09-10'),
-      );
+        expect(
+          calculator.getGroupLabel(date, 'day'),
+          contains('2026-09-10'),
+        );
 
-      expect(
-        calculator.getGroupLabel(date, 'month'),
-        contains('2026'),
-      );
+        expect(
+          calculator.getGroupLabel(date, 'month'),
+          contains('2026'),
+        );
 
-      expect(
-        calculator.getGroupLabel(date, 'year'),
-        '2026',
-      );
-    });
+        expect(
+          calculator.getGroupLabel(date, 'year'),
+          '2026',
+        );
+      },
+    );
 
     test('getArabicDayName returns correct Arabic day names', () {
       // Monday

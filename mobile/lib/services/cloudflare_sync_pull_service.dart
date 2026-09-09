@@ -9,7 +9,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../screens/settings/error_tracker_screen.dart' show logError, ErrorCategory;
+import '../screens/settings/error_tracker_screen.dart'
+    show logError, ErrorCategory;
 import 'cloudflare_config.dart';
 import 'local_db.dart';
 
@@ -86,10 +87,15 @@ class CloudflareSyncPullService {
 
         // Apply records
         final report = await applyPulledRecords(
-          records.cast<Map<String, dynamic>>().map((r) => (
-            entity: r['entity'] as String,
-            record: r,
-          )).toList(),
+          records
+              .cast<Map<String, dynamic>>()
+              .map(
+                (r) => (
+                  entity: r['entity'] as String,
+                  record: r,
+                ),
+              )
+              .toList(),
         );
 
         totalPulled += report.appliedCount;
@@ -115,13 +121,15 @@ class CloudflareSyncPullService {
       return Future.error('Not initialized');
     }
 
-    return httpClient.get(
-      Uri.parse(
-        '${CloudflareConfig.workerUrl}/api/sync/pull'
-        '?cursor=$cursor&limit=$limit',
-      ),
-      headers: {'Authorization': 'Bearer $_token'},
-    ).timeout(const Duration(seconds: 30));
+    return httpClient
+        .get(
+          Uri.parse(
+            '${CloudflareConfig.workerUrl}/api/sync/pull'
+            '?cursor=$cursor&limit=$limit',
+          ),
+          headers: {'Authorization': 'Bearer $_token'},
+        )
+        .timeout(const Duration(seconds: 30));
   }
 
   /// Apply pulled records to local database
@@ -226,9 +234,11 @@ class CloudflareSyncPullService {
   /// Get local column names for table
   Future<Set<String>> _localColumns(String tableName) async {
     try {
-      final result = await database.customSelect(
-        'PRAGMA table_info($tableName)',
-      ).get();
+      final result = await database
+          .customSelect(
+            'PRAGMA table_info($tableName)',
+          )
+          .get();
 
       return {
         for (final row in result) row.data['name'] as String,

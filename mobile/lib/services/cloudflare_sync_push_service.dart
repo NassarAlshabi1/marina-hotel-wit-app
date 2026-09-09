@@ -21,8 +21,7 @@ class CloudflareSyncPushService {
     required this.httpClient,
     required this.database,
     VectorClockService? vectorClockService,
-  }) : vectorClockService =
-           vectorClockService ?? VectorClockService(database);
+  }) : vectorClockService = vectorClockService ?? VectorClockService(database);
 
   final http.Client httpClient;
   final AppDatabase database;
@@ -90,7 +89,10 @@ class CloudflareSyncPushService {
 
     for (final record in batch) {
       try {
-        final vectorClock = await rowVectorClock(record.entity, record.localUuid);
+        final vectorClock = await rowVectorClock(
+          record.entity,
+          record.localUuid,
+        );
         final decodedPayload = jsonDecode(record.payload);
         final payload = <String, dynamic>{
           'vector_clock': vectorClock,

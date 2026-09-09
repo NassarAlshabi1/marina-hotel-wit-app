@@ -36,8 +36,9 @@ class GuestValidationController {
   /// Validate email format
   static bool validateEmail(String email) {
     if (email.isEmpty) return true; // Optional field
-    return RegExp(r'^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-        .hasMatch(email);
+    return RegExp(
+      r'^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(email);
   }
 
   /// Sanitize phone number for storage

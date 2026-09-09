@@ -166,16 +166,13 @@ void main() {
       final records = [
         (
           entity: 'booking_nights',
-          record: <String, dynamic>{'local_uuid': 'night-1'}
+          record: <String, dynamic>{'local_uuid': 'night-1'},
         ),
         (
           entity: 'bookings',
-          record: <String, dynamic>{'local_uuid': 'booking-1'}
+          record: <String, dynamic>{'local_uuid': 'booking-1'},
         ),
-        (
-          entity: 'rooms',
-          record: <String, dynamic>{'local_uuid': 'room-1'}
-        ),
+        (entity: 'rooms', record: <String, dynamic>{'local_uuid': 'room-1'}),
       ];
 
       // Records should be reordered by priority
@@ -250,4 +247,3 @@ void main() {
     });
   });
 }
-

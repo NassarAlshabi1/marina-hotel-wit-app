@@ -257,15 +257,21 @@ void main() {
     });
 
     test('bookings come before booking_nights', () {
-      expect(pullApplyPriority['bookings']!, lessThan(
-        pullApplyPriority['booking_nights']!,
-      ));
+      expect(
+        pullApplyPriority['bookings']!,
+        lessThan(
+          pullApplyPriority['booking_nights']!,
+        ),
+      );
     });
 
     test('salary_cycles before salary_withdrawals', () {
-      expect(pullApplyPriority['salary_cycles']!, lessThan(
-        pullApplyPriority['salary_withdrawals']!,
-      ));
+      expect(
+        pullApplyPriority['salary_cycles']!,
+        lessThan(
+          pullApplyPriority['salary_withdrawals']!,
+        ),
+      );
     });
   });
 
@@ -313,16 +319,22 @@ void main() {
 
     test('loadFromPrefs restores state', () async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(QuarantineState.countsKey, jsonEncode({
-        'bookings/uuid-1': 2,
-      }));
-      await prefs.setString(QuarantineState.recordsKey, jsonEncode({
-        'bookings/uuid-1': {
-          'entity': 'bookings',
-          'local_uuid': 'uuid-1',
-          'first_seen': 1000,
-        },
-      }));
+      await prefs.setString(
+        QuarantineState.countsKey,
+        jsonEncode({
+          'bookings/uuid-1': 2,
+        }),
+      );
+      await prefs.setString(
+        QuarantineState.recordsKey,
+        jsonEncode({
+          'bookings/uuid-1': {
+            'entity': 'bookings',
+            'local_uuid': 'uuid-1',
+            'first_seen': 1000,
+          },
+        }),
+      );
 
       final loaded = QuarantineState();
       loaded.loadFromPrefs(prefs);
@@ -430,14 +442,17 @@ void main() {
 
     test('loadFromPrefs restores stats', () async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('cf_sync_stats_v1', jsonEncode({
-        'totalSyncs': 5,
-        'successfulSyncs': 4,
-        'failedSyncs': 1,
-        'totalPushed': 20,
-        'totalPulled': 50,
-        'lastSyncMs': DateTime(2026, 9, 10).millisecondsSinceEpoch,
-      }));
+      await prefs.setString(
+        'cf_sync_stats_v1',
+        jsonEncode({
+          'totalSyncs': 5,
+          'successfulSyncs': 4,
+          'failedSyncs': 1,
+          'totalPushed': 20,
+          'totalPulled': 50,
+          'lastSyncMs': DateTime(2026, 9, 10).millisecondsSinceEpoch,
+        }),
+      );
 
       final loaded = SyncStats();
       loaded.loadFromPrefs(prefs);

@@ -73,7 +73,10 @@ void main() {
       });
 
       test('rejects email without domain', () {
-        expect(GuestValidationController.validateEmail('invalid@domain'), false);
+        expect(
+          GuestValidationController.validateEmail('invalid@domain'),
+          false,
+        );
       });
     });
 

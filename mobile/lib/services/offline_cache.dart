@@ -36,8 +36,10 @@ class OfflineCache {
         prefs.setInt('$_ttlPrefix$key', expiresAt),
       ]);
 
-      dlog(() =>
-          '💾 OfflineCache: Saved $key (TTL: ${ttl.inHours}h, expires at $expiresAt)');
+      dlog(
+        () =>
+            '💾 OfflineCache: Saved $key (TTL: ${ttl.inHours}h, expires at $expiresAt)',
+      );
     } catch (e) {
       derr(() => '❌ OfflineCache save failed for $key: $e');
     }
@@ -99,8 +101,7 @@ class OfflineCache {
       final keys = prefs.getKeys();
       final cacheKeys = keys
           .where(
-            (k) =>
-                k.startsWith(_cachePrefix) || k.startsWith(_ttlPrefix),
+            (k) => k.startsWith(_cachePrefix) || k.startsWith(_ttlPrefix),
           )
           .toList();
 

@@ -250,8 +250,8 @@ class QuarantineState {
   QuarantineState({
     Map<String, int>? blockCounts,
     Map<String, Map<String, dynamic>>? quarantinedRecords,
-  })  : blockCounts = blockCounts ?? {},
-        quarantinedRecords = quarantinedRecords ?? {};
+  }) : blockCounts = blockCounts ?? {},
+       quarantinedRecords = quarantinedRecords ?? {};
 
   final Map<String, int> blockCounts;
   final Map<String, Map<String, dynamic>> quarantinedRecords;
@@ -382,7 +382,11 @@ class SyncStats {
     } catch (_) {}
   }
 
-  Map<String, dynamic> toMap({int outboxCount = 0, bool? fullSyncCompleted, String? lastError}) {
+  Map<String, dynamic> toMap({
+    int outboxCount = 0,
+    bool? fullSyncCompleted,
+    String? lastError,
+  }) {
     return <String, dynamic>{
       'totalSyncs': totalSyncs,
       'successfulSyncs': successfulSyncs,
@@ -411,22 +415,22 @@ class CloudflareSyncManagerCore {
     required AppDatabase database,
     required http.Client httpClient,
     required VectorClockService vectorClockService,
-  })  : database = database,
-        httpClient = httpClient,
-        deviceService = CloudflareSyncDeviceService(
-          httpClient: httpClient,
-          database: database,
-        ),
-        pushService = CloudflareSyncPushService(
-          httpClient: httpClient,
-          database: database,
-          vectorClockService: vectorClockService,
-        ),
-        pullService = CloudflareSyncPullService(
-          httpClient: httpClient,
-          database: database,
-        ),
-        vectorClockService = vectorClockService;
+  }) : database = database,
+       httpClient = httpClient,
+       deviceService = CloudflareSyncDeviceService(
+         httpClient: httpClient,
+         database: database,
+       ),
+       pushService = CloudflareSyncPushService(
+         httpClient: httpClient,
+         database: database,
+         vectorClockService: vectorClockService,
+       ),
+       pullService = CloudflareSyncPullService(
+         httpClient: httpClient,
+         database: database,
+       ),
+       vectorClockService = vectorClockService;
 
   final AppDatabase database;
   final http.Client httpClient;
@@ -566,9 +570,11 @@ class CloudflareSyncManagerCore {
   Future<Set<String>> localColumns(String tableName) async {
     final cached = _localColumnsCache[tableName];
     if (cached != null) return cached;
-    final rows = await database.customSelect(
-      'PRAGMA table_info($tableName)',
-    ).get();
+    final rows = await database
+        .customSelect(
+          'PRAGMA table_info($tableName)',
+        )
+        .get();
     final cols = <String>{
       for (final row in rows)
         if (row.data['name'] != null) row.data['name'].toString(),
@@ -597,7 +603,9 @@ class CloudflareSyncManagerCore {
       }
     });
     if (dropped.isNotEmpty) {
-      _logFkOnce('dropped unknown column(s) for $tableName: ${dropped.join(', ')}');
+      _logFkOnce(
+        'dropped unknown column(s) for $tableName: ${dropped.join(', ')}',
+      );
     }
     return out;
   }
@@ -811,8 +819,9 @@ class CloudflareSyncManagerCore {
           variables: [Variable.withString(localUuid)],
         )
         .getSingleOrNull();
-    final existingData =
-        existing == null ? null : Map<String, dynamic>.from(existing.data);
+    final existingData = existing == null
+        ? null
+        : Map<String, dynamic>.from(existing.data);
 
     // Resolve FK relations
     final relationsResolved = await resolveForeignKeysForRecord(
@@ -883,8 +892,7 @@ class CloudflareSyncManagerCore {
         );
 
         final mergedData = resolution.mergedData;
-        final cleanRecord = Map<String, dynamic>.from(mergedData)
-          ..remove('id');
+        final cleanRecord = Map<String, dynamic>.from(mergedData)..remove('id');
         final setClauses = cleanRecord.keys.map((c) => '$c = ?').join(', ');
         final values = cleanRecord.values.map(toDriftValue).toList();
         await database.customStatement(
@@ -1057,8 +1065,9 @@ class CloudflareSyncManagerCore {
     for (var pass = 0; pass < 3 && pending.isNotEmpty; pass++) {
       if (pass > 0) {
         pending.sort(
-          (a, b) => (pullApplyPriority[a.entity] ?? 9)
-              .compareTo(pullApplyPriority[b.entity] ?? 9),
+          (a, b) => (pullApplyPriority[a.entity] ?? 9).compareTo(
+            pullApplyPriority[b.entity] ?? 9,
+          ),
         );
       }
       final stillPending = <({String entity, Map<String, dynamic> record})>[];
@@ -1113,7 +1122,7 @@ class CloudflareSyncManagerCore {
 
   /// Retry deferred records after full pagination.
   Future<List<({String entity, Map<String, dynamic> record})>>
-      retryDeferredRecords(
+  retryDeferredRecords(
     List<({String entity, Map<String, dynamic> record})> deferred, {
     required void Function(String entity) onApplied,
     required List<String> errors,
@@ -1121,8 +1130,9 @@ class CloudflareSyncManagerCore {
     var remaining = List.of(deferred);
     for (var pass = 0; pass < 2 && remaining.isNotEmpty; pass++) {
       remaining.sort(
-        (a, b) => (pullApplyPriority[a.entity] ?? 9)
-            .compareTo(pullApplyPriority[b.entity] ?? 9),
+        (a, b) => (pullApplyPriority[a.entity] ?? 9).compareTo(
+          pullApplyPriority[b.entity] ?? 9,
+        ),
       );
       final stillPending = <({String entity, Map<String, dynamic> record})>[];
       for (final item in remaining) {

@@ -227,22 +227,34 @@ void main() {
 
       // رفع ناجح → الـ outbox استُنزف.
       expect(client.pushCalls, 1, reason: 'الرفعة أُرسلت');
-      expect(await _outboxDrained(outboxId), isTrue,
-          reason: 'الرفعة الناجحة حُذفت من الـ outbox');
+      expect(
+        await _outboxDrained(outboxId),
+        isTrue,
+        reason: 'الرفعة الناجحة حُذفت من الـ outbox',
+      );
 
       // السحب: جهاز جديد → سحب كامل limit=400، بلا نافذة حذفيات.
       expect(client.normalPullCalls, 1);
-      expect(client.pullLimits.first, 400,
-          reason: 'السحب الكامل لجهاز جديد يطلب 400');
-      expect(client.tombstonePullCalls, 0,
-          reason: 'جهاز جديد لا يطلب نافذة حذفيات (جلبها ضمن السحب)');
+      expect(
+        client.pullLimits.first,
+        400,
+        reason: 'السحب الكامل لجهاز جديد يطلب 400',
+      );
+      expect(
+        client.tombstonePullCalls,
+        0,
+        reason: 'جهاز جديد لا يطلب نافذة حذفيات (جلبها ضمن السحب)',
+      );
 
       // التطبيق: الغرفة البعيدة وُضعت محلياً بهوية الخادم.
       final applied = await _roomRowOf('rm-remote-1');
       expect(applied.containsKey('local_uuid'), isTrue);
       expect(applied['server_id'], 101);
-      expect(await _roomRowOf('rm-my-1'), isEmpty,
-          reason: 'الرفعة المحلية لم تُعاد كصف محلي ضِدّها');
+      expect(
+        await _roomRowOf('rm-my-1'),
+        isEmpty,
+        reason: 'الرفعة المحلية لم تُعاد كصف محلي ضِدّها',
+      );
 
       // المؤشر تفقّد وعلم اكتمال السحب الكامل ضُبط.
       expect(await pref('cf_last_pull_cursor'), 1700000101);
@@ -253,8 +265,11 @@ void main() {
       expect(r2.status, SyncStatus.success);
       expect(client.normalPullCalls, 2);
       expect(client.pullLimits.last, 100, reason: 'الدلتا تطلب 100');
-      expect(client.tombstonePullCalls, 1,
-          reason: 'العلم مضبوط → نافذة الحذفيات الرخيصة تُطلب مرة واحدة');
+      expect(
+        client.tombstonePullCalls,
+        1,
+        reason: 'العلم مضبوط → نافذة الحذفيات الرخيصة تُطلب مرة واحدة',
+      );
       expect(await pref('cf_tombstone_sweep_v1_done'), isTrue);
 
       // 4) الدورة الثالثة: لا نافذة حذفيات مجدداً (العلم مضبوط).
@@ -264,10 +279,14 @@ void main() {
 
       // 5) إحصائيات المزامنة تعكس الرحلة الفعلية.
       final stats = await manager.getSyncStatistics();
-      expect((stats['totalRecordsPushed'] as num?) ?? 0,
-          greaterThanOrEqualTo(1));
-      expect((stats['totalRecordsPulled'] as num?) ?? 0,
-          greaterThanOrEqualTo(1));
+      expect(
+        (stats['totalRecordsPushed'] as num?) ?? 0,
+        greaterThanOrEqualTo(1),
+      );
+      expect(
+        (stats['totalRecordsPulled'] as num?) ?? 0,
+        greaterThanOrEqualTo(1),
+      );
       expect(stats['fullSyncCompleted'], true);
     },
   );
@@ -282,8 +301,11 @@ void main() {
 
       final r1 = await manager.sync();
       expect(r1.status, SyncStatus.failed);
-      expect(await pref('cf_last_pull_cursor'), isNull,
-          reason: 'لا يُثبَّت مؤشر من دورة لم تصل صفحة سليمة');
+      expect(
+        await pref('cf_last_pull_cursor'),
+        isNull,
+        reason: 'لا يُثبَّت مؤشر من دورة لم تصل صفحة سليمة',
+      );
       expect(client.normalPullCalls, greaterThanOrEqualTo(1));
 
       // تجهيز الشبكة ثم إعادة الدورة.

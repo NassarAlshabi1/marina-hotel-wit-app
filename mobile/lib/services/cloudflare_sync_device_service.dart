@@ -189,8 +189,7 @@ class CloudflareSyncDeviceService {
         .get();
 
     if (existingRows.isNotEmpty) {
-      final existingVersion =
-          (existingRows.first.data['version'] as int?) ?? 0;
+      final existingVersion = (existingRows.first.data['version'] as int?) ?? 0;
       final fields = Map<String, dynamic>.from(syncPayload)
         ..remove('local_uuid')
         ..remove('created_at')

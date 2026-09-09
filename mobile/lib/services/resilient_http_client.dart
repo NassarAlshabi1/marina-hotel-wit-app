@@ -139,7 +139,8 @@ class ResilientHttpClient extends http.BaseClient {
     try {
       // استخدم endpoint planner المحقون (للاختبارات) أو مرشحي
       // EndpointManager في التشغيل العادي
-      final candidates = _endpointPlanner?.call(uri) ??
+      final candidates =
+          _endpointPlanner?.call(uri) ??
           EndpointManager.candidates.map(Uri.parse).toList();
 
       if (candidates.length > 1) {
@@ -151,8 +152,10 @@ class ResilientHttpClient extends http.BaseClient {
     } catch (e) {
       // Network completely failed — try offline cache
       // (استخدم cache إذا كانت العملية تحتاج بيانات محفوظة)
-      dlog(() =>
-          '⚠️ ResilientHttpClient: Network failed, offline cache fallback: $e');
+      dlog(
+        () =>
+            '⚠️ ResilientHttpClient: Network failed, offline cache fallback: $e',
+      );
       rethrow;
     }
   }
@@ -240,14 +243,19 @@ class ResilientHttpClient extends http.BaseClient {
       // جرّب DNS resolver كـ fallback إذا كان الفشل عن DNS
       if (e is SocketException && e.toString().contains('Could not resolve')) {
         try {
-          dlog(() => '🔍 DNSResolver: Attempting alternative resolution for $host');
+          dlog(
+            () => '🔍 DNSResolver: Attempting alternative resolution for $host',
+          );
           final ip = await DNSResolver.resolve(host);
           // جاهز للاتصال عبر IP
           debugPrint('✅ DNSResolver: Resolved $host → $ip');
           // استمرّ إلى tunnel مع الـ IP المحلول
           return _sendViaTunnelFallback(request, host, resolvedIp: ip);
         } catch (dnsError) {
-          dlog(() => '⚠️ DNSResolver also failed: $dnsError — using tunnel fallback');
+          dlog(
+            () =>
+                '⚠️ DNSResolver also failed: $dnsError — using tunnel fallback',
+          );
           // كلاهما فشل، استمرّ إلى tunnel مع الـ host الأصلي
         }
       }

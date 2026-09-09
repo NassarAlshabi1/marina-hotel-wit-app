@@ -113,7 +113,9 @@ class ReportExportService {
 
     // Header
     lines.add('تقرير الدخل والمصروفات');
-    lines.add('${_dateFormat.format(fromDate)} إلى ${_dateFormat.format(toDate)}');
+    lines.add(
+      '${_dateFormat.format(fromDate)} إلى ${_dateFormat.format(toDate)}',
+    );
     lines.add('');
 
     // Summary

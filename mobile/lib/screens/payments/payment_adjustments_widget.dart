@@ -42,10 +42,12 @@ class _PaymentAdjustmentsWidgetState extends State<PaymentAdjustmentsWidget> {
     super.initState();
     _currentDiscount = widget.initialDiscount;
     _currentSurcharge = widget.initialSurcharge;
-    _discountController =
-        TextEditingController(text: _currentDiscount.toString());
-    _surchargeController =
-        TextEditingController(text: _currentSurcharge.toString());
+    _discountController = TextEditingController(
+      text: _currentDiscount.toString(),
+    );
+    _surchargeController = TextEditingController(
+      text: _currentSurcharge.toString(),
+    );
   }
 
   @override
@@ -80,7 +82,8 @@ class _PaymentAdjustmentsWidgetState extends State<PaymentAdjustmentsWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final adjustedTotal = widget.totalAmount - _currentDiscount + _currentSurcharge;
+    final adjustedTotal =
+        widget.totalAmount - _currentDiscount + _currentSurcharge;
 
     return Card(
       elevation: 2,

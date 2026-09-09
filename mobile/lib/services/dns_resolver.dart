@@ -73,8 +73,7 @@ class DNSResolver {
     // 4. IP المسجل مسبقاً (آخر خيار)
     if (hardcodedIPs.containsKey(hostname)) {
       final ip = hardcodedIPs[hostname]!;
-      dwarn(() =>
-          '⚠️ DNS: Using hardcoded IP for $hostname: $ip (fallback)');
+      dwarn(() => '⚠️ DNS: Using hardcoded IP for $hostname: $ip (fallback)');
       return ip;
     }
 
@@ -97,13 +96,15 @@ class DNSResolver {
       final uri = Uri.parse(dohEndpoint).replace(
         queryParameters: {
           'name': hostname,
-          'type': 'A',  // IPv4 address
+          'type': 'A', // IPv4 address
         },
       );
 
-      final request = await client.getUrl(uri).timeout(
-        const Duration(seconds: 5),
-      );
+      final request = await client
+          .getUrl(uri)
+          .timeout(
+            const Duration(seconds: 5),
+          );
       request.headers.set('Accept', 'application/dns-json');
 
       final response = await request.close().timeout(

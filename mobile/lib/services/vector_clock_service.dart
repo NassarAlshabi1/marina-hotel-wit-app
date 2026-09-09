@@ -261,10 +261,12 @@ class VectorClockService {
     final table = CloudflareConfig.tableNameFor(entity);
     if (table == null) return {};
     try {
-      final row = await _database.customSelect(
-        'SELECT vector_clock FROM $table WHERE local_uuid = ? LIMIT 1',
-        variables: [Variable<String>(localUuid)],
-      ).getSingleOrNull();
+      final row = await _database
+          .customSelect(
+            'SELECT vector_clock FROM $table WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable<String>(localUuid)],
+          )
+          .getSingleOrNull();
       final vc = row?.data['vector_clock'] as String?;
       if (vc == null || vc.isEmpty || vc == '{}') return {};
       final decoded = jsonDecode(vc);

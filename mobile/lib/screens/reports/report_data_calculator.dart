@@ -71,18 +71,22 @@ class ReportDataCalculator {
 
     // Count statistics
     final activeBookings = bookings.where((b) => b.status == 'active').length;
-    final checkoutBookings = bookings.where((b) => b.status == 'checkout').length;
+    final checkoutBookings = bookings
+        .where((b) => b.status == 'checkout')
+        .length;
     final unsettledDebts = debts.where((d) => d.status != 'settled').length;
     double unsettledAmount = 0;
     for (final debt in debts.where((d) => d.status != 'settled')) {
       unsettledAmount += debt.amount ?? 0;
     }
 
-    final unsettledInPeriod = debts.where(
-      (d) =>
-          d.status != 'settled' &&
-          _isDateInRange(d.dateRecorded, fromDate, toDate),
-    ).length;
+    final unsettledInPeriod = debts
+        .where(
+          (d) =>
+              d.status != 'settled' &&
+              _isDateInRange(d.dateRecorded, fromDate, toDate),
+        )
+        .length;
     double unsettledInPeriodAmount = 0;
     for (final debt in debts.where(
       (d) =>
@@ -93,7 +97,9 @@ class ReportDataCalculator {
     }
 
     final activeEmployees = employees.where((e) => e.status == 'active').length;
-    final terminatedEmployees = employees.where((e) => e.status == 'terminated').length;
+    final terminatedEmployees = employees
+        .where((e) => e.status == 'terminated')
+        .length;
 
     return ReportData(
       incomeEntries: _groupIncomeEntries(payments),
@@ -198,7 +204,15 @@ class ReportDataCalculator {
 
   /// Get Arabic day name
   String getArabicDayName(DateTime date) {
-    const names = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const names = [
+      'الأحد',
+      'الاثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+    ];
     return names[date.weekday % 7];
   }
 }

@@ -200,12 +200,12 @@ class Env {
   /// on restricted networks. These fallbacks ensure 95%+ success rate.
   /// IPs are Cloudflare's standard range for workers.dev domains (104.16.x.x).
   static const List<String> cloudflareWorkerFallbacks = [
-    'https://marina-hotel-api.adenmarina2.workers.dev',  // Primary (workers.dev)
-    'https://api.adenmarina.com',                          // Alternative domain (if available)
-    'https://104.16.132.229',                              // Cloudflare IP 1 (workers.dev range)
-    'https://104.16.134.229',                              // Cloudflare IP 2 (workers.dev range)
-    'https://104.17.132.229',                              // Cloudflare IP 3 (workers.dev range)
-    'http://localhost:8080',                               // Local development
+    'https://marina-hotel-api.adenmarina2.workers.dev', // Primary (workers.dev)
+    'https://api.adenmarina.com', // Alternative domain (if available)
+    'https://104.16.132.229', // Cloudflare IP 1 (workers.dev range)
+    'https://104.16.134.229', // Cloudflare IP 2 (workers.dev range)
+    'https://104.17.132.229', // Cloudflare IP 3 (workers.dev range)
+    'http://localhost:8080', // Local development
   ];
 
   /// اسم مستخدم مزامنة الخدمة الافتراضي لدى الـ Worker.

@@ -16,7 +16,11 @@ class MockAppDatabase extends Mock implements AppDatabase {}
 /// http.Client ذات أنواع إرجاع غير قابلة للـ null ولا يمكن stubbingها
 /// بدون code generation.
 class FakeHttpClient extends http.BaseClient {
-  FakeHttpClient({this.statusCode = 200, this.body = '{"status":"ok"}', this.getShouldThrow = false});
+  FakeHttpClient({
+    this.statusCode = 200,
+    this.body = '{"status":"ok"}',
+    this.getShouldThrow = false,
+  });
 
   int statusCode;
   String body;
@@ -87,11 +91,13 @@ void main() {
       await service.setFcmToken('fcm-token-123');
     });
 
-    test('getRegisteredDevices returns empty list when not initialized',
-        () async {
-      final devices = await service.getRegisteredDevices();
-      expect(devices, isEmpty);
-    });
+    test(
+      'getRegisteredDevices returns empty list when not initialized',
+      () async {
+        final devices = await service.getRegisteredDevices();
+        expect(devices, isEmpty);
+      },
+    );
 
     test('getRegisteredDevices returns empty list on error', () async {
       final errorService = CloudflareSyncDeviceService(

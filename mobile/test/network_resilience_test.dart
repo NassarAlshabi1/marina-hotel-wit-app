@@ -39,7 +39,7 @@ void main() {
       EndpointManager.recordSuccess(fallback);
 
       final candidates = EndpointManager.candidates;
-      expect(candidates[0], fallback);  // Sticky comes first
+      expect(candidates[0], fallback); // Sticky comes first
       expect(candidates.contains(primary), true);
     });
 

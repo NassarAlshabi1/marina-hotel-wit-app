@@ -5,7 +5,9 @@ import '../lib/screens/payments/payment_adjustments_widget.dart';
 
 void main() {
   group('PaymentAdjustmentsWidget', () {
-    testWidgets('renders discount and surcharge sections', (WidgetTester tester) async {
+    testWidgets('renders discount and surcharge sections', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -44,7 +46,9 @@ void main() {
       expect(changedValue, 100);
     });
 
-    testWidgets('updates surcharge value on input', (WidgetTester tester) async {
+    testWidgets('updates surcharge value on input', (
+      WidgetTester tester,
+    ) async {
       double? changedValue;
       await tester.pumpWidget(
         MaterialApp(
@@ -87,7 +91,9 @@ void main() {
       expect(find.text('الإجمالي'), findsOneWidget);
     });
 
-    testWidgets('tapping preset amount updates discount', (WidgetTester tester) async {
+    testWidgets('tapping preset amount updates discount', (
+      WidgetTester tester,
+    ) async {
       double? changedValue;
       await tester.pumpWidget(
         MaterialApp(
@@ -111,7 +117,9 @@ void main() {
       }
     });
 
-    testWidgets('shows breakdown when discount applied', (WidgetTester tester) async {
+    testWidgets('shows breakdown when discount applied', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -150,7 +158,9 @@ void main() {
   });
 
   group('AdjustmentHistoryWidget', () {
-    testWidgets('renders empty when no adjustments', (WidgetTester tester) async {
+    testWidgets('renders empty when no adjustments', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -196,7 +206,9 @@ void main() {
       expect(find.text('رسوم إضافية'), findsOneWidget);
     });
 
-    testWidgets('shows correct symbols for discount and surcharge', (WidgetTester tester) async {
+    testWidgets('shows correct symbols for discount and surcharge', (
+      WidgetTester tester,
+    ) async {
       final adjustments = [
         AdjustmentRecord(
           label: 'خصم',

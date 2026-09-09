@@ -38,16 +38,20 @@ class EndpointManager {
     _currentIndex = all.indexOf(endpoint);
     _lastFailures.remove(endpoint);
 
-    dlog(() =>
-        '✅ EndpointManager: Sticky endpoint → $endpoint (index: $_currentIndex)');
+    dlog(
+      () =>
+          '✅ EndpointManager: Sticky endpoint → $endpoint (index: $_currentIndex)',
+    );
   }
 
   /// تسجيل فشل على endpoint معين.
   static void recordFailure(String endpoint) {
     _lastFailures[endpoint] = DateTime.now();
 
-    dwarn(() =>
-        '⚠️ EndpointManager: Failure recorded for $endpoint — will try alternatives');
+    dwarn(
+      () =>
+          '⚠️ EndpointManager: Failure recorded for $endpoint — will try alternatives',
+    );
 
     // إذا كان endpoint الحالي قد فشل، انتقل للتالي
     if (_current == endpoint) {
@@ -59,8 +63,9 @@ class EndpointManager {
   static void _moveToNextEndpoint() {
     final available = all.where(_isAvailable).toList();
     if (available.isEmpty) {
-      dwarn(() =>
-          '⚠️ EndpointManager: No available endpoints — will retry all');
+      dwarn(
+        () => '⚠️ EndpointManager: No available endpoints — will retry all',
+      );
       _lastFailures.clear();
       _current = Env.cloudflareWorkerUrl;
       _currentIndex = 0;
@@ -72,8 +77,7 @@ class EndpointManager {
       if (_isAvailable(all[i])) {
         _current = all[i];
         _currentIndex = i;
-        dlog(() =>
-            '🔄 EndpointManager: Switched to ${all[i]} (index: $i)');
+        dlog(() => '🔄 EndpointManager: Switched to ${all[i]} (index: $i)');
         return;
       }
     }
@@ -84,8 +88,10 @@ class EndpointManager {
       if (index < _currentIndex) {
         _current = endpoint;
         _currentIndex = index;
-        dlog(() =>
-            '🔄 EndpointManager: Wrapped around to $endpoint (index: $index)');
+        dlog(
+          () =>
+              '🔄 EndpointManager: Wrapped around to $endpoint (index: $index)',
+        );
         return;
       }
     }
@@ -130,7 +136,8 @@ class EndpointManager {
   }
 
   /// معلومات تشخيص.
-  static String get diagnostics => '''
+  static String get diagnostics =>
+      '''
 Current: $_current (index: $_currentIndex)
 All: ${all.join(', ')}
 Last failures: ${_lastFailures.entries.map((e) => '${e.key} @ ${e.value}').join(', ')}
