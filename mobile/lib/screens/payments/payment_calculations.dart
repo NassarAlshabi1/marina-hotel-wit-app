@@ -116,7 +116,7 @@ class PaymentCalculations {
     for (final debt in debts) {
       if (remaining <= 0) break;
 
-      final toSettle = remaining.clamp(0, debt.amount.toDouble());
+      final toSettle = remaining.clamp(0, debt.amount ?? 0);
       settled += toSettle;
       remaining -= toSettle;
     }

@@ -30,15 +30,25 @@ class ReportDataCalculator {
     final paymentsDao = PaymentsDao(database, outboxDao);
     final expensesDao = ExpensesDao(database, outboxDao);
     final bookingsDao = BookingsDao(database, outboxDao);
-    final debtsDao = DebtsDao(database);
+    final debtsDao = DebtsDao(database, outboxDao);
     final employeesDao = EmployeesDao(database, outboxDao);
 
     // Fetch data for period
-    final payments = await paymentsDao.getPaymentsInRange(fromDate, toDate);
-    final expenses = await expensesDao.getExpensesInRange(fromDate, toDate);
-    final bookings = await bookingsDao.allBookings();
-    final debts = await debtsDao.allDebts();
-    final employees = await employeesDao.allEmployees();
+    // التواريخ مخزّنة كنصوص: paymentDate بصيغة ISO الزمنية، و date للمصروفات
+    // بصيغة yyyy-MM-dd — لذا تُمرّر حدود النطاق كسلاسل مقارنة معجمية صحيحة.
+    final fromStr = _formatDate(fromDate);
+    // حد أعلى حصري (يوم لاحق): يشمل كل دفعات toDate ذات التنسيق الزمني
+    final toStr = _formatDate(toDate.add(const Duration(days: 1)));
+    final payments = await paymentsDao.listForReport(from: fromStr, to: toStr);
+    // تاريخ المصروف مخزّن yyyy-MM-dd بالضبط — المقارنة المباشرة كافية
+    final allExpenses = await expensesDao.listFiltered(
+      from: fromStr,
+      to: _formatDate(toDate),
+    );
+
+    final bookings = await bookingsDao.list();
+    final debts = await debtsDao.list();
+    final employees = await employeesDao.list();
 
     // Calculate totals
     double incomeTotal = 0;
@@ -46,14 +56,14 @@ class ReportDataCalculator {
     double salaryTotal = 0;
 
     for (final payment in payments) {
-      incomeTotal += payment.amount ?? 0;
+      incomeTotal += payment.amount;
     }
 
-    for (final expense in expenses) {
+    for (final expense in allExpenses) {
       if (expense.expenseType == 'salary') {
-        salaryTotal += expense.amount ?? 0;
+        salaryTotal += expense.amount;
       } else {
-        expenseTotal += expense.amount ?? 0;
+        expenseTotal += expense.amount;
       }
     }
 
@@ -69,13 +79,15 @@ class ReportDataCalculator {
     }
 
     final unsettledInPeriod = debts.where(
-      (d) => d.status != 'settled' &&
-          _isInRange(d.dateCreated, fromDate, toDate),
+      (d) =>
+          d.status != 'settled' &&
+          _isDateInRange(d.dateRecorded, fromDate, toDate),
     ).length;
     double unsettledInPeriodAmount = 0;
     for (final debt in debts.where(
-      (d) => d.status != 'settled' &&
-          _isInRange(d.dateCreated, fromDate, toDate),
+      (d) =>
+          d.status != 'settled' &&
+          _isDateInRange(d.dateRecorded, fromDate, toDate),
     )) {
       unsettledInPeriodAmount += debt.amount ?? 0;
     }
@@ -85,7 +97,7 @@ class ReportDataCalculator {
 
     return ReportData(
       incomeEntries: _groupIncomeEntries(payments),
-      expenseEntries: _groupExpenseEntries(expenses),
+      expenseEntries: _groupExpenseEntries(allExpenses),
       incomeTotal: incomeTotal,
       expenseTotal: expenseTotal,
       salaryTotal: salaryTotal,
@@ -104,24 +116,25 @@ class ReportDataCalculator {
   }
 
   /// Group income entries by date
-  List<IncomeEntry> _groupIncomeEntries(List<dynamic> payments) {
+  List<IncomeEntry> _groupIncomeEntries(List<Payment> payments) {
     final grouped = <String, IncomeEntry>{};
 
     for (final payment in payments) {
-      final dateStr = _formatDate(payment.paymentDate ?? DateTime.now());
+      final paidAt = DateTime.tryParse(payment.paymentDate) ?? DateTime.now();
+      final dateStr = _formatDate(paidAt);
       final key = dateStr;
 
       if (!grouped.containsKey(key)) {
         grouped[key] = IncomeEntry(
-          date: payment.paymentDate ?? DateTime.now(),
+          date: paidAt,
           dateStr: dateStr,
           totalAmount: 0,
-          paymentMethod: payment.paymentMethod ?? 'unknown',
+          paymentMethod: payment.paymentMethod,
           count: 0,
         );
       }
 
-      grouped[key]!.totalAmount += payment.amount ?? 0;
+      grouped[key]!.totalAmount += payment.amount;
       grouped[key]!.count += 1;
     }
 
@@ -129,11 +142,11 @@ class ReportDataCalculator {
   }
 
   /// Group expense entries by category
-  List<ExpenseEntry> _groupExpenseEntries(List<dynamic> expenses) {
+  List<ExpenseEntry> _groupExpenseEntries(List<Expense> expenses) {
     final grouped = <String, ExpenseEntry>{};
 
     for (final expense in expenses) {
-      final category = expense.expenseType ?? 'other';
+      final category = expense.expenseType;
 
       if (!grouped.containsKey(category)) {
         grouped[category] = ExpenseEntry(
@@ -143,7 +156,7 @@ class ReportDataCalculator {
         );
       }
 
-      grouped[category]!.totalAmount += expense.amount ?? 0;
+      grouped[category]!.totalAmount += expense.amount;
       grouped[category]!.count += 1;
     }
 
@@ -155,10 +168,15 @@ class ReportDataCalculator {
     return DateFormat('yyyy-MM-dd').format(date);
   }
 
-  /// Check if date is in range
-  bool _isInRange(DateTime? date, DateTime from, DateTime to) {
-    if (date == null) return false;
-    return date.isAfter(from) && date.isBefore(to);
+  /// Check if date is in range (inclusive bounds).
+  ///
+  /// يقبل صيغ التاريخ المخزنة نصياً ('yyyy-MM-dd' أو ISO-8601)،
+  /// ويعيد false للقيم الفارغة أو غير القابلة للتحليل.
+  bool _isDateInRange(String? dateStr, DateTime from, DateTime to) {
+    if (dateStr == null || dateStr.isEmpty) return false;
+    final parsed = DateTime.tryParse(dateStr);
+    if (parsed == null) return false;
+    return !parsed.isBefore(from) && !parsed.isAfter(to);
   }
 
   /// Get group label for grouping strategy

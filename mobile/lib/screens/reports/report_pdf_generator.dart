@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../utils/enhanced_pdf_utils.dart';
-import '../../utils/status_utils.dart';
 import 'report_data_calculator.dart';
 
 /// PDF generation service for income/expense reports
@@ -23,8 +22,11 @@ class ReportPdfGenerator {
     required DateTime fromDate,
     required DateTime toDate,
   }) async {
-    final pdf = pw.Document();
-    final fonts = ArabicPdfFonts();
+    // خطوط عربية مطلوبة لعرض النصوص العربية داخل الـ PDF
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+    );
 
     // Title page
     pdf.addPage(
@@ -81,7 +83,10 @@ class ReportPdfGenerator {
     required DateTime fromDate,
     required DateTime toDate,
   }) async {
-    final pdf = pw.Document();
+    final fonts = await EnhancedPdfUtils.loadArabicFonts();
+    final pdf = pw.Document(
+      theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+    );
 
     pdf.addPage(
       pw.Page(

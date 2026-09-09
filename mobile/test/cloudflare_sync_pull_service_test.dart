@@ -57,11 +57,11 @@ void main() {
       expect(result, 0);
     });
 
-    test('_fetchPullPage throws when not initialized', () async {
-      expect(
-        () => service.pullChanges(),
-        throwsA(isA<Object>()),
-      );
+    test('pullChanges handles uninitialized fetch error gracefully', () async {
+      // بدون setCredentials تُعيد _fetchPullPage مستقبلاً خاطئاً —
+      // يلتقطه pullChanges داخلياً ويعيد 0 دون رمي استثناء
+      final result = await service.pullChanges();
+      expect(result, 0);
     });
 
     test('applyPulledRecords with empty list returns clean report', () async {
@@ -154,13 +154,4 @@ void main() {
       );
     });
   });
-}
-
-// Expose protected members for testing
-extension PullServiceTestHelper on CloudflareSyncPullService {
-  static Map<String, int> get pullApplyPriority =>
-      CloudflareSyncPullService._pullApplyPriority;
-
-  String? get token => token;
-  String? get deviceId => deviceId;
 }

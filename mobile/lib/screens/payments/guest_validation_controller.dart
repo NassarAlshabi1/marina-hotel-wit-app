@@ -3,8 +3,6 @@
 /// Extracted from booking_payment_screen.dart (4,118 LOC)
 /// This module handles guest data validation and debt management.
 
-import 'package:flutter/material.dart';
-
 import '../../services/local_db.dart' as db;
 
 /// Guest validation controller
@@ -63,12 +61,12 @@ class GuestValidationController {
 
   /// Calculate total unsettled debt for guest
   static double calculateTotalDebt(List<db.Debt> debts) {
-    return debts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    return debts.fold<double>(0, (sum, debt) => sum + (debt.amount ?? 0));
   }
 
   /// Filter unsettled debts (not yet paid)
   static List<db.Debt> getUnsettledDebts(List<db.Debt> debts) {
-    return debts.where((d) => !d.settled).toList();
+    return debts.where((d) => d.isSettled != 1).toList();
   }
 
   /// Get debts for specific booking
@@ -76,7 +74,7 @@ class GuestValidationController {
     required int bookingId,
     required List<db.Debt> allDebts,
   }) {
-    return allDebts.where((d) => d.bookingId == bookingId).toList();
+    return allDebts.where((d) => d.bookingLocalId == bookingId).toList();
   }
 
   /// Check if guest can pay via specific method
@@ -129,28 +127,28 @@ class GuestValidationController {
     bool requireEmail = false,
   }) {
     if (!validateGuestName(name)) {
-      return ValidateResult(
+      return const ValidateResult(
         isValid: false,
         error: 'Name must be at least 2 characters',
       );
     }
 
     if (requirePhone && !validatePhoneNumber(phone)) {
-      return ValidateResult(
+      return const ValidateResult(
         isValid: false,
         error: 'Phone number is invalid',
       );
     }
 
     if (requireEmail && !validateEmail(email)) {
-      return ValidateResult(
+      return const ValidateResult(
         isValid: false,
         error: 'Email address is invalid',
       );
     }
 
     if (idNumber.isNotEmpty && !validateGuestId(idNumber)) {
-      return ValidateResult(
+      return const ValidateResult(
         isValid: false,
         error: 'ID number is invalid',
       );

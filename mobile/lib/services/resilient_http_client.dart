@@ -41,9 +41,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
+import '../utils/debug_log.dart';
 import 'dns_resolver.dart';
 import 'endpoint_manager.dart';
-import 'offline_cache.dart';
 import 'worker_endpoints.dart';
 
 /// ✅ (2026-09-09) مخطط نقاط النهاية — يعيد قائمة مرشحين مرتّبة لطلب
@@ -137,10 +137,10 @@ class ResilientHttpClient extends http.BaseClient {
     // 3. على الفشل الكامل، استخدم offline cache كـ fallback
 
     try {
-      // استخدم endpoint candidates من EndpointManager
-      final candidates = EndpointManager.candidates
-          .map((e) => Uri.parse(e))
-          .toList();
+      // استخدم endpoint planner المحقون (للاختبارات) أو مرشحي
+      // EndpointManager في التشغيل العادي
+      final candidates = _endpointPlanner?.call(uri) ??
+          EndpointManager.candidates.map(Uri.parse).toList();
 
       if (candidates.length > 1) {
         return _sendWithEndpointRotation(request, candidates);

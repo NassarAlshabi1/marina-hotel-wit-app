@@ -5,7 +5,6 @@
 
 import 'package:flutter/material.dart';
 
-import '../../utils/currency_formatter.dart';
 import 'payment_calculations.dart';
 
 /// Payment adjustments widget - displays and manages price adjustments
@@ -125,7 +124,7 @@ class _PaymentAdjustmentsWidgetState extends State<PaymentAdjustmentsWidget> {
             // Breakdown
             Container(
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.grey.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               padding: const EdgeInsets.all(12),
@@ -155,7 +154,7 @@ class _PaymentAdjustmentsWidgetState extends State<PaymentAdjustmentsWidget> {
                       color: Colors.orange,
                     ),
                   ],
-                  Divider(height: 16),
+                  const Divider(height: 16),
                   _buildBreakdownLine(
                     'الإجمالي',
                     adjustedTotal,
@@ -224,7 +223,7 @@ class _PaymentAdjustmentsWidgetState extends State<PaymentAdjustmentsWidget> {
             return ElevatedButton(
               onPressed: () => onPreset(amount),
               style: ElevatedButton.styleFrom(
-                backgroundColor: color.withOpacity(0.2),
+                backgroundColor: color.withValues(alpha: 0.2),
                 foregroundColor: color,
                 elevation: 0,
               ),
@@ -265,12 +264,12 @@ class _PaymentAdjustmentsWidgetState extends State<PaymentAdjustmentsWidget> {
 
   List<double> _getPresetAmounts() {
     final total = widget.totalAmount;
-    return [
+    return <double>{
       50,
       100,
       (total * 0.05).roundToDouble(),
       (total * 0.10).roundToDouble(),
-    ].toSet().toList()..sort();
+    }.toList()..sort();
   }
 }
 

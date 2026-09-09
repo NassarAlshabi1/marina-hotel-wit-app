@@ -12,7 +12,22 @@ class MockHttpClient extends Mock implements http.Client {}
 
 class MockAppDatabase extends Mock implements AppDatabase {}
 
-class MockVectorClockService extends Mock implements VectorClockService {}
+/// Fake يدوي بدلاً من mockito Mock — لأن getVectorClock يعيد نوعاً
+/// غير قابل للـ null ولا يمكن stubbingه عبر when() بدون code generation.
+class FakeVectorClockService implements VectorClockService {
+  FakeVectorClockService({this.shouldThrow = false});
+
+  bool shouldThrow;
+
+  @override
+  Future<Map<String, dynamic>> getVectorClock(
+    String entity,
+    String localUuid,
+  ) async {
+    if (shouldThrow) throw Exception('Clock error');
+    return <String, dynamic>{};
+  }
+}
 
 void main() {
   group('Sync Integration Tests', () {
@@ -21,12 +36,12 @@ void main() {
     late CloudflareSyncPullService pullService;
     late MockHttpClient mockHttpClient;
     late MockAppDatabase mockDatabase;
-    late MockVectorClockService mockVectorClockService;
+    late FakeVectorClockService fakeVectorClockService;
 
     setUp(() {
       mockHttpClient = MockHttpClient();
       mockDatabase = MockAppDatabase();
-      mockVectorClockService = MockVectorClockService();
+      fakeVectorClockService = FakeVectorClockService();
 
       deviceService = CloudflareSyncDeviceService(
         httpClient: mockHttpClient,
@@ -36,7 +51,7 @@ void main() {
       pushService = CloudflareSyncPushService(
         httpClient: mockHttpClient,
         database: mockDatabase,
-        vectorClockService: mockVectorClockService,
+        vectorClockService: fakeVectorClockService,
       );
 
       pullService = CloudflareSyncPullService(
@@ -101,12 +116,12 @@ void main() {
     late CloudflareSyncPullService pullService;
     late MockHttpClient mockHttpClient;
     late MockAppDatabase mockDatabase;
-    late MockVectorClockService mockVectorClockService;
+    late FakeVectorClockService fakeVectorClockService;
 
     setUp(() {
       mockHttpClient = MockHttpClient();
       mockDatabase = MockAppDatabase();
-      mockVectorClockService = MockVectorClockService();
+      fakeVectorClockService = FakeVectorClockService();
 
       deviceService = CloudflareSyncDeviceService(
         httpClient: mockHttpClient,
@@ -116,7 +131,7 @@ void main() {
       pushService = CloudflareSyncPushService(
         httpClient: mockHttpClient,
         database: mockDatabase,
-        vectorClockService: mockVectorClockService,
+        vectorClockService: fakeVectorClockService,
       );
 
       pullService = CloudflareSyncPullService(
@@ -179,12 +194,12 @@ void main() {
     late CloudflareSyncPullService pullService;
     late MockHttpClient mockHttpClient;
     late MockAppDatabase mockDatabase;
-    late MockVectorClockService mockVectorClockService;
+    late FakeVectorClockService fakeVectorClockService;
 
     setUp(() {
       mockHttpClient = MockHttpClient();
       mockDatabase = MockAppDatabase();
-      mockVectorClockService = MockVectorClockService();
+      fakeVectorClockService = FakeVectorClockService();
 
       deviceService = CloudflareSyncDeviceService(
         httpClient: mockHttpClient,
@@ -194,7 +209,7 @@ void main() {
       pushService = CloudflareSyncPushService(
         httpClient: mockHttpClient,
         database: mockDatabase,
-        vectorClockService: mockVectorClockService,
+        vectorClockService: fakeVectorClockService,
       );
 
       pullService = CloudflareSyncPullService(
@@ -218,8 +233,7 @@ void main() {
     test('Vector clock resolution handles errors gracefully', () async {
       pushService.setCredentials('token', 'device-123');
 
-      when(mockVectorClockService.getVectorClock(any, any))
-          .thenThrow(Exception('Clock error'));
+      fakeVectorClockService.shouldThrow = true;
 
       // Should still return a valid clock JSON
       final clock = await pushService.rowVectorClock('bookings', 'uuid-1');
@@ -237,8 +251,3 @@ void main() {
   });
 }
 
-// Extension to expose private methods for testing
-extension SyncTestHelper on CloudflareSyncPushService {
-  Future<String> rowVectorClock(String entity, String localUuid) =>
-      _rowVectorClock(entity, localUuid);
-}

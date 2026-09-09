@@ -2,6 +2,11 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:drift/drift.dart';
+
+import 'cloudflare_config.dart';
+import 'local_db.dart';
+
 /// Vector Clock حقيقي لحل تعارضات المزامنة عبر الأجهزة.
 ///
 /// يحل مشكلة clock skew بين الأجهزة بشكل صحيح (عكس Last-Write-Wins
@@ -233,5 +238,41 @@ class VectorClockComparator {
     final merged = localVc.copy();
     merged.merge(remoteVc);
     return merged;
+  }
+}
+
+/// خدمة قراءة ساعة التوجيه (Vector Clock) للسجلات المحلية.
+///
+/// تُستخدم عند الـ push نحو Cloudflare D1 لإرفاق ساعة السجل الحالية،
+/// وترث منطق القراءة نفسه من cloudflare_sync_manager._rowVectorClock.
+class VectorClockService {
+  VectorClockService(this._database);
+
+  final AppDatabase _database;
+
+  /// يقرأ ساعة التوجيه للسجل [localUuid] من جدول [entity] المحلي.
+  ///
+  /// يعيد خريطة فارغة إذا لم يوجد السجل، أو كانت الساعة فارغة
+  /// ({})، أو الجدول غير موجود محلياً (blacklist).
+  Future<Map<String, dynamic>> getVectorClock(
+    String entity,
+    String localUuid,
+  ) async {
+    final table = CloudflareConfig.tableNameFor(entity);
+    if (table == null) return {};
+    try {
+      final row = await _database.customSelect(
+        'SELECT vector_clock FROM $table WHERE local_uuid = ? LIMIT 1',
+        variables: [Variable<String>(localUuid)],
+      ).getSingleOrNull();
+      final vc = row?.data['vector_clock'] as String?;
+      if (vc == null || vc.isEmpty || vc == '{}') return {};
+      final decoded = jsonDecode(vc);
+      if (decoded is Map<String, dynamic>) return decoded;
+      return {};
+    } catch (_) {
+      // جدول محلي غير موجود أو صف محذوف — {} والـ worker يهيئها
+      return {};
+    }
   }
 }

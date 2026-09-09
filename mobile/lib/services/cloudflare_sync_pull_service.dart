@@ -6,7 +6,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
@@ -35,9 +34,11 @@ class CloudflareSyncPullService {
 
   void setLastPullCursor(int cursor) => _lastPullCursor = cursor;
   int get lastPullCursor => _lastPullCursor;
+  String? get deviceId => _deviceId;
+  String? get token => _token;
 
   // Foreign key resolution rules (entity → priority)
-  static const Map<String, int> _pullApplyPriority = {
+  static const Map<String, int> pullApplyPriority = {
     'devices': 1,
     'rooms': 2,
     'room_types': 2,
@@ -85,9 +86,9 @@ class CloudflareSyncPullService {
 
         // Apply records
         final report = await applyPulledRecords(
-          records.map((r) => (
+          records.cast<Map<String, dynamic>>().map((r) => (
             entity: r['entity'] as String,
-            record: r as Map<String, dynamic>
+            record: r,
           )).toList(),
         );
 
@@ -136,8 +137,8 @@ class CloudflareSyncPullService {
     for (var pass = 0; pass < 3 && pending.isNotEmpty; pass++) {
       if (pass > 0) {
         pending.sort(
-          (a, b) => (_pullApplyPriority[a.entity] ?? 9).compareTo(
-            _pullApplyPriority[b.entity] ?? 9,
+          (a, b) => (pullApplyPriority[a.entity] ?? 9).compareTo(
+            pullApplyPriority[b.entity] ?? 9,
           ),
         );
       }
@@ -234,19 +235,6 @@ class CloudflareSyncPullService {
       };
     } catch (e) {
       return {};
-    }
-  }
-
-  /// Apply tombstone (deletion marker)
-  Future<bool> _applyTombstone(String entity, String localUuid) async {
-    try {
-      await database.customStatement(
-        'DELETE FROM $entity WHERE local_uuid = ?',
-        [localUuid],
-      );
-      return true;
-    } catch (e) {
-      return false;
     }
   }
 }

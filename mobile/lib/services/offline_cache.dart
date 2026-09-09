@@ -105,7 +105,7 @@ class OfflineCache {
           .toList();
 
       await Future.wait(
-        cacheKeys.map((k) => prefs.remove(k)),
+        cacheKeys.map(prefs.remove),
       );
 
       dlog(() => '🗑️ OfflineCache: Cleared ${cacheKeys.length} entries');

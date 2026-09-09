@@ -114,7 +114,7 @@ class DNSResolver {
         throw Exception('DoH returned ${response.statusCode}');
       }
 
-      final body = await response.transform(_UTF8()).join();
+      final body = await response.transform(_utf8()).join();
       // بسيط جداً: نتوقع JSON بـ structure: {"Answer":[{"data":"1.2.3.4"},...]}
       // في الممارسة العملية، استخدم json decode للموثوقية
       if (body.contains('"data"')) {
@@ -132,7 +132,7 @@ class DNSResolver {
   }
 
   /// تحويل stream من bytes إلى UTF-8 strings.
-  static StreamTransformer<List<int>, String> _UTF8() {
+  static StreamTransformer<List<int>, String> _utf8() {
     return StreamTransformer<List<int>, String>.fromHandlers(
       handleData: (data, sink) {
         try {

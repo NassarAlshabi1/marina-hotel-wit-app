@@ -4,6 +4,7 @@
 /// Handles PDF export, CSV export, and printing
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -41,7 +42,7 @@ class ReportExportService {
         toDate: toDate,
       );
 
-      final fileName = _getFilename(suffix: 'pdf');
+      final fileName = getFilename(suffix: 'pdf');
       final file = await _saveFile(fileName, await pdf.save());
 
       return file;
@@ -58,8 +59,8 @@ class ReportExportService {
     required DateTime toDate,
   }) async {
     try {
-      final csv = _buildCsvContent(data, fromDate, toDate);
-      final fileName = _getFilename(suffix: 'csv');
+      final csv = buildCsvContent(data, fromDate, toDate);
+      final fileName = getFilename(suffix: 'csv');
       final file = await _saveFile(fileName, utf8.encode(csv));
 
       return file;
@@ -103,7 +104,7 @@ class ReportExportService {
   }
 
   /// Build CSV content
-  String _buildCsvContent(
+  String buildCsvContent(
     ReportData data,
     DateTime fromDate,
     DateTime toDate,
@@ -117,10 +118,10 @@ class ReportExportService {
 
     // Summary
     lines.add('الملخص');
-    lines.add('إجمالي الدخل,${_formatCurrency(data.incomeTotal)}');
-    lines.add('إجمالي المصروفات,${_formatCurrency(data.expenseTotal)}');
-    lines.add('إجمالي الرواتب,${_formatCurrency(data.salaryTotal)}');
-    lines.add('الصافي,${_formatCurrency(data.net)}');
+    lines.add('إجمالي الدخل,${formatCurrency(data.incomeTotal)}');
+    lines.add('إجمالي المصروفات,${formatCurrency(data.expenseTotal)}');
+    lines.add('إجمالي الرواتب,${formatCurrency(data.salaryTotal)}');
+    lines.add('الصافي,${formatCurrency(data.net)}');
     lines.add('');
 
     // Income entries
@@ -128,7 +129,7 @@ class ReportExportService {
     lines.add('التاريخ,طريقة الدفع,المبلغ,العدد');
     for (final entry in data.incomeEntries) {
       lines.add(
-        '${entry.dateStr},${entry.paymentMethod},${_formatCurrency(entry.totalAmount)},${entry.count}',
+        '${entry.dateStr},${entry.paymentMethod},${formatCurrency(entry.totalAmount)},${entry.count}',
       );
     }
     lines.add('');
@@ -138,7 +139,7 @@ class ReportExportService {
     lines.add('الفئة,المبلغ,العدد');
     for (final entry in data.expenseEntries) {
       lines.add(
-        '${entry.category},${_formatCurrency(entry.totalAmount)},${entry.count}',
+        '${entry.category},${formatCurrency(entry.totalAmount)},${entry.count}',
       );
     }
     lines.add('');
@@ -150,7 +151,7 @@ class ReportExportService {
     lines.add('حجوزات المغادرة,${data.checkoutBookingsCount}');
     lines.add('إجمالي الديون,${data.totalDebtsCount}');
     lines.add(
-      'الديون غير المسددة,${data.unsettledDebtsCount} (${_formatCurrency(data.unsettledDebtsAmount)})',
+      'الديون غير المسددة,${data.unsettledDebtsCount} (${formatCurrency(data.unsettledDebtsAmount)})',
     );
     lines.add('الموظفون النشطون,${data.activeEmployeesCount}');
     lines.add('الموظفون المنتهون,${data.terminatedEmployeesCount}');
@@ -159,7 +160,7 @@ class ReportExportService {
   }
 
   /// Get filename for export
-  String _getFilename({String suffix = ''}) {
+  String getFilename({String suffix = ''}) {
     final now = DateTime.now();
     final timestamp = _dateFormat.format(now);
     final ext = suffix.isEmpty ? 'pdf' : suffix;
@@ -174,7 +175,7 @@ class ReportExportService {
   }
 
   /// Format currency for CSV
-  String _formatCurrency(double amount) {
+  String formatCurrency(double amount) {
     return '${_currencyFormat.format(amount)} ر.ي';
   }
 }

@@ -190,7 +190,8 @@ void main() {
 
     test('_formatCurrency formats amounts correctly', () {
       final formatted = service.formatCurrency(1500.5);
-      expect(formatted, contains('1,500'));
+      // NumberFormat('#,##0') يقرب لأقرب عدد صحيح (نفس سلوك الشاشة الأصلية)
+      expect(formatted, contains('1,501'));
       expect(formatted, contains('ر.ي'));
     });
 
@@ -259,18 +260,4 @@ void main() {
       expect(data.unsettledDebtsAmount, 1000);
     });
   });
-}
-
-// Extension to expose private methods for testing
-extension ExportServiceTestHelper on ReportExportService {
-  String buildCsvContent(
-    ReportData data,
-    DateTime from,
-    DateTime to,
-  ) =>
-      _buildCsvContent(data, from, to);
-
-  String formatCurrency(double amount) => _formatCurrency(amount);
-
-  String getFilename({String suffix = ''}) => _getFilename(suffix: suffix);
 }

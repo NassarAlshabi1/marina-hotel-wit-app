@@ -10,24 +10,40 @@ class MockHttpClient extends Mock implements http.Client {}
 
 class MockAppDatabase extends Mock implements AppDatabase {}
 
-class MockVectorClockService extends Mock implements VectorClockService {}
+/// Fake يدوي بدلاً من mockito Mock — لأن getVectorClock يعيد نوعاً
+/// غير قابل للـ null ولا يمكن stubbingه عبر when() بدون code generation.
+class FakeVectorClockService implements VectorClockService {
+  FakeVectorClockService({this.clock, this.shouldThrow = false});
+
+  Map<String, dynamic>? clock;
+  bool shouldThrow;
+
+  @override
+  Future<Map<String, dynamic>> getVectorClock(
+    String entity,
+    String localUuid,
+  ) async {
+    if (shouldThrow) throw Exception('Test error');
+    return clock ?? <String, dynamic>{};
+  }
+}
 
 void main() {
   group('CloudflareSyncPushService', () {
     late CloudflareSyncPushService service;
     late MockHttpClient mockHttpClient;
     late MockAppDatabase mockDatabase;
-    late MockVectorClockService mockVectorClockService;
+    late FakeVectorClockService fakeVectorClockService;
 
     setUp(() {
       mockHttpClient = MockHttpClient();
       mockDatabase = MockAppDatabase();
-      mockVectorClockService = MockVectorClockService();
+      fakeVectorClockService = FakeVectorClockService();
 
       service = CloudflareSyncPushService(
         httpClient: mockHttpClient,
         database: mockDatabase,
-        vectorClockService: mockVectorClockService,
+        vectorClockService: fakeVectorClockService,
       );
     });
 
@@ -48,24 +64,20 @@ void main() {
       expect(result, isA<int>());
     });
 
-    test('_rowVectorClock returns valid JSON clock', () async {
+    test('rowVectorClock returns valid JSON clock', () async {
       service.setCredentials('test-token', 'device-123');
+      fakeVectorClockService.clock = {'device-123': 1};
 
-      when(mockVectorClockService.getVectorClock(any, any))
-          .thenAnswer((_) async => {'device-123': 1});
-
-      final clock = await service._rowVectorClock('bookings', 'uuid-123');
+      final clock = await service.rowVectorClock('bookings', 'uuid-123');
       expect(clock, isNotEmpty);
       expect(clock.contains('device-123'), true);
     });
 
-    test('_rowVectorClock returns minimal clock on error', () async {
+    test('rowVectorClock returns minimal clock on error', () async {
       service.setCredentials('test-token', 'device-123');
+      fakeVectorClockService.shouldThrow = true;
 
-      when(mockVectorClockService.getVectorClock(any, any))
-          .thenThrow(Exception('Test error'));
-
-      final clock = await service._rowVectorClock('bookings', 'uuid-123');
+      final clock = await service.rowVectorClock('bookings', 'uuid-123');
       expect(clock, isNotEmpty);
     });
 
@@ -110,10 +122,4 @@ void main() {
       expect(record.payload, isNull);
     });
   });
-}
-
-// Extension to expose private methods for testing
-extension TestHelper on CloudflareSyncPushService {
-  Future<String> _rowVectorClock(String entity, String localUuid) =>
-      super._rowVectorClock(entity, localUuid);
 }

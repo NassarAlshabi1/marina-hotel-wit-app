@@ -275,7 +275,7 @@ void main() {
       expect(label1, isNotEmpty);
       expect(label2, isNotEmpty);
       expect(label3, isNotEmpty);
-      expect(label1, isNotEqualTo(label2));
+      expect(label1, isNot(equals(label2)));
     });
 
     test('Arabic day names are consistent', () {
@@ -288,18 +288,4 @@ void main() {
       expect(name1, name2); // Same day of week = same name
     });
   });
-}
-
-// Extension to expose private methods for testing
-extension ReportTestHelper on ReportExportService {
-  String buildCsvContent(
-    ReportData data,
-    DateTime from,
-    DateTime to,
-  ) =>
-      _buildCsvContent(data, from, to);
-
-  String formatCurrency(double amount) => _formatCurrency(amount);
-
-  String getFilename({String suffix = ''}) => _getFilename(suffix: suffix);
 }

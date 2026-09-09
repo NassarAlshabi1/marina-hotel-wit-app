@@ -6,7 +6,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
@@ -14,7 +13,6 @@ import '../screens/settings/error_tracker_screen.dart' show logHttpError;
 import 'cloudflare_config.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
-import 'logging/log_models.dart' show LogLevel;
 import 'vector_clock_service.dart';
 
 /// Push operations (outbox) for Cloudflare sync.
@@ -22,8 +20,9 @@ class CloudflareSyncPushService {
   CloudflareSyncPushService({
     required this.httpClient,
     required this.database,
-    required this.vectorClockService,
-  });
+    VectorClockService? vectorClockService,
+  }) : vectorClockService =
+           vectorClockService ?? VectorClockService(database);
 
   final http.Client httpClient;
   final AppDatabase database;
@@ -31,6 +30,9 @@ class CloudflareSyncPushService {
 
   String? _token;
   String? _deviceId;
+
+  String? get token => _token;
+  String? get deviceId => _deviceId;
 
   void setCredentials(String token, String deviceId) {
     _token = token;
@@ -45,15 +47,12 @@ class CloudflareSyncPushService {
     try {
       int totalPushed = 0;
       const batchSize = 50;
+      final outboxDao = OutboxDao(database);
 
       while (true) {
-        final outboxDao = OutboxDao(database);
-
-        // Fetch next batch ready to push
-        final batch = await outboxDao.getNextBatch(
-          deviceId: _deviceId!,
-          limit: batchSize,
-        );
+        // Claim the next pending batch (takeBatch atomically marks it
+        // as processing so concurrent workers don't double-push)
+        final batch = await outboxDao.takeBatch(batchSize);
 
         if (batch.isEmpty) break;
 
@@ -61,8 +60,9 @@ class CloudflareSyncPushService {
         totalPushed += result.pushed;
 
         if (result.failedIds.isNotEmpty) {
-          // Mark failed records for retry
-          await outboxDao.markFailedForRetry(result.failedIds);
+          // Mark failed records for retry (status='failed' — يُعاد
+          // التقاطها في الجلسة التالية عبر retryFailed)
+          await outboxDao.markFailed(result.failedIds.toList());
         }
 
         // Small delay between batches
@@ -78,7 +78,7 @@ class CloudflareSyncPushService {
 
   /// Push a batch of outbox records
   Future<({int pushed, Set<int> failedIds})> _pushBatch(
-    List<OutboxRecord> batch,
+    List<OutboxData> batch,
   ) async {
     if (_token == null) {
       return (pushed: 0, failedIds: batch.map((r) => r.id).toSet());
@@ -86,13 +86,15 @@ class CloudflareSyncPushService {
 
     int pushed = 0;
     final failedIds = <int>{};
+    final outboxDao = OutboxDao(database);
 
     for (final record in batch) {
       try {
-        final vectorClock = await _rowVectorClock(record.entity, record.localUuid);
-        final payload = {
-          ...?record.payload as Map<String, dynamic>,
+        final vectorClock = await rowVectorClock(record.entity, record.localUuid);
+        final decodedPayload = jsonDecode(record.payload);
+        final payload = <String, dynamic>{
           'vector_clock': vectorClock,
+          if (decodedPayload is Map<String, dynamic>) ...decodedPayload,
         };
 
         final response = await httpClient
@@ -116,7 +118,7 @@ class CloudflareSyncPushService {
             .timeout(const Duration(seconds: 30));
 
         if (response.statusCode == 200 || response.statusCode == 201) {
-          await OutboxDao(database).remove(record.id);
+          await outboxDao.removeById(record.id);
           pushed++;
         } else {
           logHttpError(
@@ -136,15 +138,19 @@ class CloudflareSyncPushService {
     return (pushed: pushed, failedIds: failedIds);
   }
 
-  /// Get vector clock for a record
-  Future<String> _rowVectorClock(String entity, String localUuid) async {
+  /// Get vector clock for a record.
+  ///
+  /// يقرأ ساعة التوجيه من الجدول المحلي عبر [VectorClockService] —
+  /// وإذا لم يجدها يعيد ساعة دنيا لهذا الجهاز.
+  Future<String> rowVectorClock(String entity, String localUuid) async {
     try {
       final clock = await vectorClockService.getVectorClock(entity, localUuid);
-      return jsonEncode(clock);
-    } catch (e) {
-      // Return minimal clock
-      return jsonEncode({'${_deviceId}': 1});
+      if (clock.isNotEmpty) return jsonEncode(clock);
+    } catch (_) {
+      // سقوط إلى الساعة الدنيا أدناه
     }
+    // Return minimal clock for this device
+    return jsonEncode(<String, dynamic>{_deviceId ?? 'unknown': 1});
   }
 
   /// Push all local data to server
@@ -180,14 +186,9 @@ class CloudflareSyncPushService {
 
     return result;
   }
-
-  /// Log push operation
-  void _logPush(String message, LogLevel level) {
-    debugPrint('📤 Push: $message');
-  }
 }
 
-/// Outbox record model
+/// Outbox record model — نموذج نقل مستقل عن Drift لطلبات الـ push.
 class OutboxRecord {
   OutboxRecord({
     required this.id,

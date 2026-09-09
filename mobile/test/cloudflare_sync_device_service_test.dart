@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +11,30 @@ import '../lib/services/local_db.dart';
 class MockHttpClient extends Mock implements http.Client {}
 
 class MockAppDatabase extends Mock implements AppDatabase {}
+
+/// عميل HTTP وهمي حقيقي — بديل عن stubbing عبر mockito لأن دوال
+/// http.Client ذات أنواع إرجاع غير قابلة للـ null ولا يمكن stubbingها
+/// بدون code generation.
+class FakeHttpClient extends http.BaseClient {
+  FakeHttpClient({this.statusCode = 200, this.body = '{"status":"ok"}', this.getShouldThrow = false});
+
+  int statusCode;
+  String body;
+  bool getShouldThrow;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (getShouldThrow) {
+      throw Exception('Network error');
+    }
+    final bytes = utf8.encode(body);
+    return http.StreamedResponse(
+      Stream<List<int>>.value(bytes),
+      statusCode,
+      contentLength: bytes.length,
+    );
+  }
+}
 
 void main() {
   group('CloudflareSyncDeviceService', () {
@@ -38,17 +65,21 @@ void main() {
     });
 
     test('registerDevice returns deviceId on success', () async {
-      service.setCredentials('test-token', 'device-123');
+      // قاعدة بيانات حقيقية في الذاكرة لمسار النجاح الكامل
+      // (transaction + كتابة صف الجهاز محلياً + merge في الـ outbox)
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final successService = CloudflareSyncDeviceService(
+        httpClient: FakeHttpClient(statusCode: 200),
+        database: db,
+      );
+      successService.setCredentials('test-token', 'device-123');
 
-      when(mockHttpClient.post(
-        any,
-        headers: anyNamed('headers'),
-        body: anyNamed('body'),
-      )).thenAnswer((_) async => http.Response('{"status":"ok"}', 200));
+      addTearDown(() async {
+        await db.close();
+      });
 
-      // Would need proper mocking of database transaction
-      // For now, just verify the logic
-      expect(service.deviceId, 'device-123');
+      final id = await successService.registerDevice();
+      expect(id, 'device-123');
     });
 
     test('setFcmToken handles missing credentials gracefully', () async {
@@ -63,14 +94,13 @@ void main() {
     });
 
     test('getRegisteredDevices returns empty list on error', () async {
-      service.setCredentials('test-token', 'device-123');
+      final errorService = CloudflareSyncDeviceService(
+        httpClient: FakeHttpClient(getShouldThrow: true),
+        database: mockDatabase,
+      );
+      errorService.setCredentials('test-token', 'device-123');
 
-      when(mockHttpClient.get(
-        any,
-        headers: anyNamed('headers'),
-      )).thenThrow(Exception('Network error'));
-
-      final devices = await service.getRegisteredDevices();
+      final devices = await errorService.getRegisteredDevices();
       expect(devices, isEmpty);
     });
   });

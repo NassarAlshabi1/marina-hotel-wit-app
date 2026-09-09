@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../lib/services/cloudflare_sync_manager_core.dart';
 import '../lib/services/local_db.dart';
+import '../lib/services/sync_enums.dart';
 import '../lib/services/vector_clock_service.dart';
 
 class MockHttpClient extends Mock implements http.Client {}

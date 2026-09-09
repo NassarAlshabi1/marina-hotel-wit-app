@@ -20,8 +20,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../screens/settings/error_tracker_screen.dart'
-    show logError, ErrorCategory;
 import 'booking_derived_fields_service.dart';
 import 'cloudflare_config.dart';
 import 'cloudflare_sync_device_service.dart';
@@ -29,7 +27,6 @@ import 'cloudflare_sync_pull_service.dart';
 import 'cloudflare_sync_push_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
-import 'logging/log_models.dart' show LogLevel;
 import 'remote_change_notifier.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_enums.dart';
@@ -408,7 +405,7 @@ class SyncStats {
 ///
 /// Handles record application with FK resolution, quarantine management,
 /// entity detection, and statistics tracking. The main
-/// [CloudflareSyncManager] delegates complex operations here.
+/// CloudflareSyncManager delegates complex operations here.
 class CloudflareSyncManagerCore {
   CloudflareSyncManagerCore({
     required AppDatabase database,
@@ -882,6 +879,7 @@ class CloudflareSyncManagerCore {
           entity: entity,
           localData: localData,
           remoteData: filtered,
+          commonAncestor: null,
         );
 
         final mergedData = resolution.mergedData;
@@ -969,7 +967,7 @@ class CloudflareSyncManagerCore {
       }
     }
 
-    await quarantine.clearRecord(entity, localUuid);
+    quarantine.clearRecord(entity, localUuid);
     return true;
   }
 
@@ -1005,7 +1003,7 @@ class CloudflareSyncManagerCore {
         debugPrint(
           '⏭️ Tombstone: $entity/$localUuid not present locally — no-op',
         );
-        await quarantine.clearRecord(entity, localUuid);
+        quarantine.clearRecord(entity, localUuid);
         return true;
       }
       final localId = existing.data['id'];
@@ -1036,7 +1034,7 @@ class CloudflareSyncManagerCore {
           op: 'delete',
         ),
       );
-      await quarantine.clearRecord(entity, localUuid);
+      quarantine.clearRecord(entity, localUuid);
     } catch (e) {
       throw Exception('Tombstone apply failed for $entity/$localUuid: $e');
     }

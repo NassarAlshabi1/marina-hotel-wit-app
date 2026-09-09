@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import '../utils/debug_log.dart';
 import '../utils/env.dart';
 
@@ -59,7 +57,7 @@ class EndpointManager {
 
   /// محاولة الـ endpoint التالي في القائمة.
   static void _moveToNextEndpoint() {
-    final available = all.where((e) => _isAvailable(e)).toList();
+    final available = all.where(_isAvailable).toList();
     if (available.isEmpty) {
       dwarn(() =>
           '⚠️ EndpointManager: No available endpoints — will retry all');
