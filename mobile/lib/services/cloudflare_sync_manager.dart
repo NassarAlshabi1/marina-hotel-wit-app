@@ -240,6 +240,22 @@ const Map<String, int> _pullApplyPriority = {
   'salary_payments': 5,
 };
 
+/// ✅ (2026-09-09) إصلاح تجميد السحب (398 ليلة): المفاتيح الطبيعية
+/// الفريدة محلياً لكل كيان (uniqueKeys في local_db.dart). صف خادمي
+/// يصل بـ local_uuid جديد لكن بمفتاح طبيعي موجود محلياً = نسخة
+/// مكررة منطقياً (أصل: سطر restore نسخة احتياطية بـ idempotency_key
+/// «backup_*»، أو إعادة بناء مشتقات محلية origin='auto_fix' مقابل
+/// نسخ خادمية لنفس الليلة). INSERT عليها كان يرمي SqliteException(2067)
+/// فيُفشل كل دورة سحب إلى الأبد.
+///
+/// العقد: قبل INSERT نبحث بالمفتاح الطبيعي — إن وُجد صف محلي فالوارد
+/// نسخة مكررة تُدمج بـ LWW (الأحدث بيانات يفوز، هوية الصف المحلي
+/// تبقى) ولا يُدرج صف ثانٍ. UNIQUE المحلي يبقى ضامناً لصف واحد لكل
+/// ليلة، والدورة تكمل بدل أن تتجمد.
+const Map<String, List<String>> _naturalUniqueKeys = {
+  'booking_nights': ['booking_local_id', 'hotel_day_key'],
+};
+
 // ─── SyncResult (same interface as AppwriteSyncManager) ────────
 
 class SyncResult {
@@ -1544,6 +1560,11 @@ class CloudflareSyncManager {
     // بعد (أبهم في صفحة لاحقة أو في نهاية هذا الترتيب الزمني) — تُعاد
     // بعد اكتمال pagination بترتيب الآباء قبل أي إعلان نجاح.
     final deferredRecords = <({String entity, Map<String, dynamic> record})>[];
+    // ✅ (2026-09-09) المتعارضة قيداً فريداً حتمياً (UNIQUE) — تُجمَع من
+    // التطبيق الأولي وإعادة محاولة المؤجّل معاً وتذهب لسلّم الحجر الصحي
+    // (فرصة عادلة ثم عزل) بدل تجميد المؤشر إلى الأبد.
+    final conflictedRecords =
+        <({String entity, Map<String, dynamic> record})>[];
     // P0-C: save initial cursor to restore on failure
     final initialCursor = _lastPullCursor;
     int pendingCursor = _lastPullCursor;
@@ -1592,7 +1613,13 @@ class CloudflareSyncManager {
             response = await prefetchFuture;
             prefetchFuture = null;
           } else {
-            response = await _fetchPullPage(pendingCursor, pageLimit);
+            response = await _fetchPullPage(
+              pendingCursor,
+              pageLimit,
+              // ✅ (2026-09-09) السحب الكامل يشمل صفوف الجهاز نفسه
+              // لتعلّم ظلّ server_id (إصلاح 107 علاقة غير محلولة).
+              excludeOwnDevice: !wasFullSync,
+            );
           }
         } catch (e) {
           // P0-G: network error (DNS, timeout) - not "sync complete"
@@ -1743,7 +1770,11 @@ class CloudflareSyncManager {
         // المؤشر معروف من استجابة الصفحة الحالية قبل أي تطبيق، والتطبيق
         // لا يمس الشبكة — التداخل آمن ويخفي زمن الرحلة كاملاً.
         if (hasMore && !hadError) {
-          prefetchFuture = _fetchPullPage(pendingCursor, pageLimit);
+          prefetchFuture = _fetchPullPage(
+            pendingCursor,
+            pageLimit,
+            excludeOwnDevice: !wasFullSync,
+          );
         }
 
         // ✅ تسريع — الصفحة كلها في معاملة واحدة: commit واحد لكل صفحة
@@ -1753,6 +1784,7 @@ class CloudflareSyncManager {
           () => _applyPulledRecords(
             batchRecords,
             deferredSink: deferredRecords,
+            conflictedSink: conflictedRecords,
           ),
         );
         totalPulled += report.appliedCount;
@@ -1783,7 +1815,7 @@ class CloudflareSyncManager {
       // (غرفة → حجز → ليلة / موظف → دورة → دفعة). من بقي غير محلول
       // = دورة فاشلة: لا checkpoint ولا علامة full sync (المؤشر
       // يتراجع لأول الدورة في كتلة checkpoint أدناه).
-      if (deferredRecords.isNotEmpty) {
+      if (deferredRecords.isNotEmpty || conflictedRecords.isNotEmpty) {
         final retryErrors = <String>[];
         final remaining = await _retryDeferredRecords(
           deferredRecords,
@@ -1792,6 +1824,7 @@ class CloudflareSyncManager {
             pulledDerivedEntities.add(entity);
           },
           errors: retryErrors,
+          conflictedSink: conflictedRecords,
         );
         if (retryErrors.isNotEmpty) {
           hadError = true;
@@ -1812,7 +1845,16 @@ class CloudflareSyncManager {
             source: 'sync:pull-apply',
           );
         }
-        if (remaining.isNotEmpty) {
+        // ✅ (2026-09-09) سلّم الحجر الصحي يشمل الآن الصفوف المتعارضة
+        // قيداً فريداً (conflictedRecords من التطبيق الأولي ومن إعادة
+        // محاولة المؤجّل معاً) إلى جانب ما بقي بعلاقات أب غير محلولة
+        // (remaining) — الفئتان حتميتان لن تُشفيا بإعادة المحاولة
+        // إلى الأبد، فلا يجوز أن تتجمد عليهما الدورة (398 ليلة).
+        final quarantinePool = <({String entity, Map<String, dynamic> record})>[
+          ...remaining,
+          ...conflictedRecords,
+        ];
+        if (quarantinePool.isNotEmpty) {
           // ✅ (مراجعة 2026-09-09 #2+#16) تدرّج الحجر الصحي: عدّاد حجب
           // لكل هوية — الدورتان الأوليان يفشلان كما كان (فرصة عادلة
           // لأبٍ متأخر)، وبعد العتبة يُعزل السجل ويُطبَّق ما عداه
@@ -1823,7 +1865,7 @@ class CloudflareSyncManager {
               <({String entity, Map<String, dynamic> record})>[];
           final toQuarantine =
               <({String entity, Map<String, dynamic> record})>[];
-          for (final item in remaining) {
+          for (final item in quarantinePool) {
             final identity = _quarantineIdentity(
               item.entity,
               item.record['local_uuid']?.toString(),
@@ -1840,11 +1882,19 @@ class CloudflareSyncManager {
 
           if (toQuarantine.isNotEmpty) {
             final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+            final newlyQuarantined =
+                <({String entity, Map<String, dynamic> record})>[];
             for (final item in toQuarantine) {
-              _quarantinedRecords[_quarantineIdentity(
+              final identity = _quarantineIdentity(
                 item.entity,
                 item.record['local_uuid']?.toString(),
-              )] = <String, dynamic>{
+              );
+              // ✅ (2026-09-09) إشعار الحجر فقط للهويات المعزولة حديثاً —
+              // السجل المعزول سابقاً يعاد عزله صامتاً كل دورة بلا إزعاج.
+              if (!_quarantinedRecords.containsKey(identity)) {
+                newlyQuarantined.add(item);
+              }
+              _quarantinedRecords[identity] = <String, dynamic>{
                 'entity': item.entity,
                 'local_uuid': item.record['local_uuid']?.toString(),
                 'first_seen': nowSec,
@@ -1852,28 +1902,33 @@ class CloudflareSyncManager {
               };
             }
             await _persistQuarantineState(quarantinePrefs);
-            final quarantinedNames = [
-              for (final item in toQuarantine.take(3))
-                '${item.entity}/${item.record['local_uuid']}',
-            ];
-            debugPrint(
-              '🏥 Pull: quarantined ${toQuarantine.length} unresolvable '
-              'record(s): ${quarantinedNames.join(', ')}',
-            );
-            logError(
-              title:
-                  '${toQuarantine.length} سجل بلا أب خادمي — عُزلت واكملت '
-                  'المزامنة بقية البيانات',
-              message:
-                  'السجلات: ${quarantinedNames.join(', ')} — أبُها مفقود '
-                  'خادمياً حتى بعد $_quarantineBlockThreshold دورات '
-                  '(يتيم بنيوي: أب محذوف يدوياً من D1 أو غير منشأ). عُزلت '
-                  'في سجل الحجر ويتقدم المؤشر — إن ظهر السجل مجدداً بحُلّ '
-                  'الأب أو وصل tombstone له يُطبَّق تلقائياً.',
-              category: ErrorCategory.sync,
-              source: 'sync:pull-apply',
-              severity: LogLevel.warning,
-            );
+            if (newlyQuarantined.isNotEmpty) {
+              final quarantinedNames = [
+                for (final item in newlyQuarantined.take(3))
+                  '${item.entity}/${item.record['local_uuid']}',
+              ];
+              debugPrint(
+                '🏥 Pull: quarantined ${newlyQuarantined.length} unresolvable '
+                'record(s): ${quarantinedNames.join(', ')}',
+              );
+              logError(
+                title:
+                    'سجلات يتيماً أو متعارضة المفتاح الفريد '
+                    '(${newlyQuarantined.length}) — عُزلت واكملت المزامنة '
+                    'بقية البيانات',
+                message:
+                    'السجلات: ${quarantinedNames.join(', ')} — أبُها مفقود '
+                    'خادمياً أو مفتاحها الفريد مشغول بصف محلي حتى بعد '
+                    '$_quarantineBlockThreshold دورات (يتيم بنيوي: أب محذوف '
+                    'يدوياً من D1، أو نسخة مكررة من استعادة نسخة احتياطية). '
+                    'عُزلت في سجل الحجر ويتقدم المؤشر — إن شُفي سبب الحجب '
+                    '(وصول الأب أو تفريغ المفتاح) أو وصل tombstone يُطبَّق '
+                    'تلقائياً.',
+                category: ErrorCategory.sync,
+                source: 'sync:pull-apply',
+                severity: LogLevel.warning,
+              );
+            }
           }
 
           if (stillBlocked.isNotEmpty) {
@@ -1883,8 +1938,9 @@ class CloudflareSyncManager {
                 '${item.entity}/${item.record['local_uuid']}',
             ];
             errorMessage =
-                'Pull: ${stillBlocked.length} record(s) with unresolvable '
-                'parent relations: ${names.join(', ')}';
+                'Pull: ${stillBlocked.length} record(s) blocked by '
+                'unresolvable parents or unique-key conflicts: '
+                '${names.join(', ')}';
             _failedCollectionsInLastSync.add('pull');
             debugPrint('⚠️ $errorMessage');
             // ✅ (2026-09-09) سجلات علقت علاقاتها غير محلولة — تجميد
@@ -1892,8 +1948,8 @@ class CloudflareSyncManager {
             // السجلات المانعة.
             logError(
               title:
-                  '${stillBlocked.length} سجل بعلاقات أب غير محلولة — تجميد '
-                  'مؤشر السحب',
+                  '${stillBlocked.length} سجل محجوب (أب غير محلول أو تعارض '
+                  'مفتاح فريد) — تجميد مؤشر السحب',
               message: errorMessage,
               category: ErrorCategory.sync,
               source: 'sync:pull-apply',
@@ -1971,7 +2027,21 @@ class CloudflareSyncManager {
 
   /// جلب صفحة واحدة من السحب — مستخرجة لتسمح بالتداخل (prefetch):
   /// الصفحة التالية تنطلق قبل تطبيق الحالية (تسريع السحب الكامل).
-  Future<http.Response> _fetchPullPage(int cursor, int limit) {
+  ///
+  /// ✅ (2026-09-09) إصلاح «107 سجلاً بعلاقات أب غير محلولة»:
+  /// استبعاد صفوف الجهاز نفسه (echo filter خطة 2.5) كان يمنع الجهاز
+  /// أبداً من تعلّم ظلّ server_id لصفوفه هو (مثلاً: موظف أنشأه محلياً
+  /// ورفعه — الـ D1 عيّن له id لا يعرفه الجهاز لأن السحب يستبقه).
+  /// سحبات رواتب/دورات هذا الجهاز المسحوبة لاحقاً تحمل employee_id
+  /// بفضاء D1 — تبحث عن employees.server_id ولا تجده → تأجيل →
+  /// تجميد المؤشر. الآن: السحب الكامل يشمل صفوف الجهاز (تُطبَّق
+  /// idempotent عبر local_uuid مع LWW) فيُبنى الظلّ لكل الأباء —
+  /// والدلتا تستمر باستبعاد الصدى حفاظاً على خفة النافذة.
+  Future<http.Response> _fetchPullPage(
+    int cursor,
+    int limit, {
+    required bool excludeOwnDevice,
+  }) {
     return _httpClient
         .get(
           Uri.parse(
@@ -1982,8 +2052,10 @@ class CloudflareSyncManager {
               'limit': limit.toString(),
               // ✅ خطة 2.5: لا تُعد إلينا سجلات دفعناها نحن (echo) —
               // الخادم يستثني device_id الخاص بنا من نتيجة السحب.
-              if (_deviceId case final ownDevice? when ownDevice.isNotEmpty)
-                'exclude_device': ownDevice,
+              // السحب الكامل وحده يستثني هذا الفلتر (تعليق الدالة).
+              if (excludeOwnDevice)
+                if (_deviceId case final ownDevice? when ownDevice.isNotEmpty)
+                  'exclude_device': ownDevice,
             },
           ),
           headers: {'Authorization': 'Bearer $_token'},
@@ -2409,6 +2481,20 @@ class CloudflareSyncManager {
       );
     } else {
       // ✅ سجل جديد — أدخله
+      // ✅ (2026-09-09) إصلاح تجميد السحب (398 ليلة): نسخة خادمية مكررة
+      // منطقياً (local_uuid جديد على مفتاح طبيعي موجود محلياً) لا تُدرج —
+      // تُدمج بـ LWW في الصف المحلي الموجود. كان INSERT يرمي
+      // SqliteException(2067) فيُفشل كل دورة سحب بلا شفاء (المراجعة
+      // كانت تُثبّت «لا OR IGNORE» — وهذا مختلف: تعارض هوية محتوى
+      // مكرر وليس فقدان بيانات، والصف المحلي واحد يبقى ضماناً).
+      final dedupHandled = await _dedupNaturalKeyOnInsert(
+        entity: entity,
+        tableName: tableName,
+        filtered: filtered,
+        remoteUpdatedAt: remoteUpdatedAt,
+      );
+      if (dedupHandled) return true;
+
       // ✅ (2026-09-09) INSERT صريح بلا OR IGNORE: تجاهل القيود صمتاً
       // كان يعني صفوفاً تضيع بلا أثر. أعمدة الصف مُفلترة وعلاقاته
       // مُترجمة أعلاه — أي فشل هنا حقيقي ويُفشل الدورة بدل كتمه.
@@ -2452,6 +2538,88 @@ class CloudflareSyncManager {
     return true;
   }
 
+  /// ✅ (2026-09-09) مسبار المفتاح الطبيعي قبل INSERT — إصلاح تجميد
+  /// السحب (398 ليلة + 381 مجموعة مكررة مؤكدة على D1).
+  ///
+  /// صف وارد بـ local_uuid جديد لكن مفتاحه الطبيعي ([_naturalUniqueKeys])
+  /// موجود محلياً = نسخة مكررة منطقياً لنفس الصف (سطر restore نسخة
+  /// احتياطية، أو نسخة خادمية مقابل إعادة بناء محلية origin='auto_fix').
+  /// العقد:
+  ///  • الوارد أحدث (updated_at) → بياناته تُدمج في الصف المحلي الموجود
+  ///    (هويته id/local_uuid/server_id تبقى — الظل يخص نسخته الأصلية).
+  ///  • الوارد أقدم أو يساوي → يُتخطى (المحلي الأحدث يفوز).
+  ///  • لا صف محلي بالمفتاح → false: يُكمل إلى INSERT الطبيعي.
+  ///
+  /// يعيد true إذا عولج الصف كنسخة مكررة (تطبيق/تخطٍّ بعذر) — لا INSERT.
+  Future<bool> _dedupNaturalKeyOnInsert({
+    required String entity,
+    required String tableName,
+    required Map<String, dynamic> filtered,
+    required int remoteUpdatedAt,
+  }) async {
+    final keys = _naturalUniqueKeys[entity];
+    if (keys == null || keys.isEmpty) return false;
+
+    final keyValues = <Object?>[];
+    for (final key in keys) {
+      final value = filtered[key];
+      if (value == null || value.toString().isEmpty) {
+        // مفتاح طبيعي ناقص على السلك — لا مسبار (سيكمل INSERT العادي
+        // وسيُحارَب فشله بالمسار الاعتيادي).
+        return false;
+      }
+      keyValues.add(value);
+    }
+
+    final whereClause = keys.map((k) => '$k = ?').join(' AND ');
+    final existingRow = await _db!
+        .customSelect(
+          'SELECT id, updated_at FROM $tableName WHERE $whereClause LIMIT 1',
+          variables: [for (final v in keyValues) Variable(v)],
+        )
+        .getSingleOrNull();
+    if (existingRow == null) return false;
+
+    final localId = existingRow.data['id'];
+    final localUpdatedAt =
+        (existingRow.data['updated_at'] as num?)?.toInt() ?? 0;
+
+    if (remoteUpdatedAt > localUpdatedAt) {
+      // LWW: الوارد أحدث — بياناته تُدمج في الصف المحلي. أعمدة الهوية
+      // (id/local_uuid/server_id) لا تُمسّ: الهوية المحلية هي المرجع،
+      // والظلّ يخص نسخة الصف الأصلية على الخادم.
+      final data = Map<String, dynamic>.of(filtered)
+        ..remove('id')
+        ..remove('local_uuid')
+        ..remove('server_id');
+      if (data.isNotEmpty) {
+        final setClauses = data.keys.map((c) => '$c = ?').join(', ');
+        await _db!.customStatement(
+          'UPDATE $tableName SET $setClauses WHERE id = ?',
+          [...data.values.map(_toDriftValue), localId],
+        );
+      }
+      debugPrint(
+        '  ♻️ $entity: نسخة مكررة منطقياً دُمجت LWW في الصف المحلي '
+        '#$localId (wire updated_at=$remoteUpdatedAt > local=$localUpdatedAt)',
+      );
+    } else {
+      debugPrint(
+        '  ⏭️ $entity: نسخة مكررة منطقياً أقدم من المحلي — تخطٍّ '
+        '(wire updated_at=$remoteUpdatedAt <= local=$localUpdatedAt)',
+      );
+    }
+    // ✅ إشعار المستمعين — بيانات الليلة قد تغيّرت بالدمج.
+    unawaited(
+      RemoteChangeNotifier.instance.onRemoteChangeApplied(
+        entity: entity,
+        record: filtered,
+        op: 'update',
+      ),
+    );
+    return true;
+  }
+
   /// يطبّق دفعة صفوف مسحوبة مع إعادة محاولة المؤجّل بترتيب الآباء.
   ///
   /// تُمرّ الصفوف بثلاث محاولات كحد أقصى: الأولى بترتيب الوصول، وما دُوّن
@@ -2459,6 +2627,11 @@ class CloudflareSyncManager {
   /// السلسلة (موظف → دورة → دفعة). من لم تُحلّ علاقته بعد المحاولات
   /// يعود في التقرير (unresolvable) وتُفسد الدورة — سياسة «لا نجاح
   /// مع جداول ناقصة» على طرف العميل أيضاً.
+  ///
+  /// ✅ (2026-09-09) الصفوف التي ترمي تعارض قيد فريد حتمي (UNIQUE) لا
+  /// تُفشل الدورة مباشرة بعد اليوم — تُجمَع في conflictedSink وتذهب
+  /// إلى سلّم الحجر الصحي في المستدعي (فرصة عادلة ثم عزل) بدل تجميد
+  /// المؤشر إلى الأبد (السلوك الذي جمّد 398 ليلة).
   @visibleForTesting
   Future<PullApplyReport> applyPulledRecords(
     List<({String entity, Map<String, dynamic> record})> records,
@@ -2467,6 +2640,7 @@ class CloudflareSyncManager {
   Future<PullApplyReport> _applyPulledRecords(
     List<({String entity, Map<String, dynamic> record})> records, {
     List<({String entity, Map<String, dynamic> record})>? deferredSink,
+    List<({String entity, Map<String, dynamic> record})>? conflictedSink,
   }) async {
     var applied = 0;
     final touched = <String>{};
@@ -2492,8 +2666,14 @@ class CloudflareSyncManager {
             stillPending.add(item);
           }
         } catch (e) {
-          // فشل تطبيق حقيقي — يظهر في التقرير ويُفسد الدورة (لا كتم).
-          errors.add('${item.entity}/${item.record['local_uuid']}: $e');
+          // ✅ (2026-09-09) تعارض قيد فريد حتمي → سلّم الحجر في المستدعي
+          // بدل فشل الدورة إلى الأبد.
+          if (conflictedSink != null && _isUniqueConstraintError(e)) {
+            conflictedSink.add(item);
+          } else {
+            // فشل تطبيق حقيقي — يظهر في التقرير ويُفسد الدورة (لا كتم).
+            errors.add('${item.entity}/${item.record['local_uuid']}: $e');
+          }
         }
       }
       final progressed = stillPending.length < pending.length;
@@ -2539,11 +2719,17 @@ class CloudflareSyncManager {
   /// إعادة محاولة الصفوف المؤجلة عبر الصفحات — بعد اكتمال pagination.
   /// يُعاد بترتيب أولوية الآباء حتى محاولتين إضافيتين، ويعيد ما بقي
   /// غير محلول (يُفسد الدورة عند النهاية: تجميد المؤشر بلا full sync).
+  ///
+  /// ✅ (2026-09-09) الصفوف التي ترمي تعارض قيد فريد (UNIQUE) تُجمَع
+  /// في [conflictedSink] وتذهب لسلّم الحجر الصحي — لم تعد ترمي الدورة
+  /// إلى تجميد أبدي (كان سبب تجميد 398 ليلة: تُحلّ علاقتها في إعادة
+  /// المحاولة ثم يصطدم INSERT بالمفتاح الفريد فيرمي استثناءً).
   Future<List<({String entity, Map<String, dynamic> record})>>
   _retryDeferredRecords(
     List<({String entity, Map<String, dynamic> record})> deferred, {
     required void Function(String entity) onApplied,
     required List<String> errors,
+    List<({String entity, Map<String, dynamic> record})>? conflictedSink,
   }) async {
     var remaining = List.of(deferred);
     for (var pass = 0; pass < 2 && remaining.isNotEmpty; pass++) {
@@ -2562,7 +2748,11 @@ class CloudflareSyncManager {
             stillPending.add(item);
           }
         } catch (e) {
-          errors.add('${item.entity}/${item.record['local_uuid']}: $e');
+          if (conflictedSink != null && _isUniqueConstraintError(e)) {
+            conflictedSink.add(item);
+          } else {
+            errors.add('${item.entity}/${item.record['local_uuid']}: $e');
+          }
         }
       }
       final progressed = stillPending.length < remaining.length;
@@ -2571,6 +2761,12 @@ class CloudflareSyncManager {
     }
     return remaining;
   }
+
+  /// ✅ (2026-09-09) كشف تعارض القيد الفريد (SqliteException 2067 —
+  /// SQLITE_CONSTRAINT_UNIQUE وأخواتها). مطابقة نصية على رسالة SQLite
+  /// القياسية لأن حزمة sqlite3 تلف الاستثناء بمشتقات متعددة عبر drift.
+  bool _isUniqueConstraintError(Object error) =>
+      error.toString().contains('UNIQUE constraint failed');
 
   // ─── تطبيق tombstone + الحجر الصحي + مسح التقارب (مراجعة 2026-09-09) ──
 
