@@ -977,12 +977,17 @@ class CloudflareSyncManager {
             : 'Delta-only pull skipped (full sync not completed or sync in progress)',
       );
     }
-    if (_token == null) {
+    if (_token == null && _db != null) {
       // ✅ (2026-09-10) إعادة تهيئة كسولة: كان فشل تسجيل الدخول عند
       // الإقلاع (شبكة محجوبة/DoH معطّل) يتطلب إعادة فتح التطبيق حرفياً —
       // أي سحب لاحق ينتهي بـ«Not initialized» حتى لو شفيت الشبكة
       // والتطبيق مفتوح. الآن sync() يجرّب تسجيل الدخول مرة واحدة
       // (محاولة واحدة + تبريد 60 ثانية) قبل إعلان الفشل.
+      //
+      // ⚠️ الحارس _db != null مقصود: يعمل فقط بعد تهيئة كاملة سابقة
+      // (سيناريو الإنتاج: login الإقلاع فشل والبقية تمّت). مدير عذراء
+      // بلا تهيئة يبقى «Not initialized» فوراً — لا قاعدة بيانات ولا
+      // IO ثقيل من مسار مزامنة لم يُهيأ (عقد اختبارات الويدجت).
       final now = DateTime.now();
       final last = _lastLazyInitAttempt;
       if (last == null || now.difference(last) >= lazyInitCooldown) {
