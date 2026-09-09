@@ -1,9 +1,37 @@
 # Phase 3 Completion Report: Quality Improvement Refactoring
 
-**Status**: ✅ COMPLETE (100%)
+**Status**: 🔶 PARTIAL — modular services written, **integration pending**
 **Duration**: 3 Weeks  
 **Date**: 2026-09-10  
 **Overall Objective**: Increase code quality through modularization, testing, and complexity reduction
+
+> ## ⚠️ تحديث تشخيصي 2026-09-09 (تصحيح الحقائق — بدقة موثقة بالسطور)
+>
+> مراجعة بالعين البرمجية للملفات الفعلية كشفت أن تقريرَي Week 2A و"100% COMPLETE"
+> أدناه يبالغان في إنجاز تفكيك `cloudflare_sync_manager.dart`:
+>
+> 1. **لم يُنقص أي سطر من المدير**: `cloudflare_sync_manager.dart` ما زال **3,370 سطراً**
+>    يحتوي كل المنطق الإنتاجي سطراً بسطر، ووارداته (السطور 6–32) **لا تشير** لأي من
+>    الخدمات الثلاث ولا للملف الأساسي الجديد. الصيغة الصحيحة: 3370 → **غير متغير**.
+> 2. **الخدمات المعزولة نسخ جانبية لا تُستدعى**: `cloudflare_sync_device_service.dart`
+>    (241) مؤتمنة الاستخراج، أما `cloudflare_sync_push_service.dart` (209) و
+>    `cloudflare_sync_pull_service.dart` (280) **مبسّطة** — تفتقد dead-letter وسقف
+>    المحاولات ومطابقة النتائج وgzip ونافذة `tombstones_only` والحجر الصحي والجلب المسبق.
+>    إعادة الربط الأعمى بها ستُفقد سلوكاً إنتاجياً مؤكداً.
+> 3. **الملف الأساسي الجديد `cloudflare_sync_manager_core.dart` (1,202 سطر) يتيم**:
+>    لا يوجد أي `import` له في `lib/`؛ ينفرد بتجميع مسار التطبيق (FK + حجر صحي +
+>    tombstones + إحصائيات) لكنه لا يملك منطق الشبكة المتقدم.
+> 4. **LOC grew وليس shrink**: إجمالي كود المزامنة 3370 → **~5,302** (3370 + 241 + 209
+>    + 280 + 1202). عمود "Reduction: 3,370 → 730 (78% ↓)" أدناه **غير دقيق**.
+> 5. **خلاف داخلي في التقرير نفسه**: السطر "Status: 3/4 modules extracted, core
+>    orchestrator implementation pending" هو الصحيح؛ عنوان "100% COMPLETE" وعلامات ✅
+>    في القائمة أدناه غير دقيقة.
+>
+> **القرار**: أولاً اختبار دورة المزامنة الكاملة عبر المدير الحقيقي
+> (`test/cloudflare_sync_full_cycle_test.dart` — شُحن مع هذا التحديث) كشبكة أمان،
+> ثم ربط المدير بالـ core والخدمات المأمونة التطبيق (جهاز + مسار التطبيق) — **يُؤجَّل
+> إلى بيئة Flutter قادرة على التحقق** لأن التعديل الأعمى على 3,370 سطراً إنتاجياً بلا
+> تشغيل يُعد مخاطرة غير مهنية.
 
 ---
 
@@ -44,24 +72,26 @@ Marina Hotel Mobile's codebase has been successfully refactored across three pha
 
 ---
 
-### Week 2A: Cloudflare Sync Split ✅ 100% COMPLETE
+### Week 2A: Cloudflare Sync Split 🔶 EXTRACTION WRITTEN, INTEGRATION PENDING
 
 **Original**: `cloudflare_sync_manager.dart` (3,370 LOC)  
-**Target**: 4 modular services (4/4 extracted)
+**Target**: 4 modular services (4/4 written — see diagnostic update above)
 
-#### Extracted Modules:
+#### Written Modules:
 
 | Module | LOC | Purpose | Tests |
 |--------|-----|---------|-------|
-| **cloudflare_sync_device_service.dart** | 241 | Device registration & FCM | 7 ✅ |
-| **cloudflare_sync_push_service.dart** | 209 | Outbox push operations | 8 ✅ |
-| **cloudflare_sync_pull_service.dart** | 280 | Pull & apply changes | 10 ✅ |
-| **cloudflare_sync_manager_core.dart** | 520 | Main orchestrator (FK, apply, quarantine, stats) | 48 ✅ |
+| **cloudflare_sync_device_service.dart** | 241 | Device registration & FCM (faithful) | 7 ✅ |
+| **cloudflare_sync_push_service.dart** | 209 | Outbox push (simplified — NOT wired) | 8 ✅ |
+| **cloudflare_sync_pull_service.dart** | 280 | Pull & apply (simplified — NOT wired) | 10 ✅ |
+| **cloudflare_sync_manager_core.dart** | 1202 | Apply orchestrator (FK, quarantine, stats) | 48 ✅ |
 | **WEEK_2_REFACTORING_GUIDE.md** | 100 | Migration documentation | - |
-| **Subtotal** | **1,350** | - | **73** |
+| **Subtotal** | **2,032** | - | **73** |
+| **cloudflare_sync_manager.dart** (unchanged) | **3,370** | All production logic still inline | - |
 
-**Reduction**: 3,370 → 730 (78% ↓)  
-**Status**: 3/4 modules extracted, core orchestrator implementation pending
+**Reality**: 3,370 → 3,370 (0% ↓) — no lines were removed from the manager.
+The "78% reduction" figure published earlier was incorrect; ~1,350 LOC of the
+extracted code is duplicated, not removed.
 
 #### Key Features:
 - ✅ Device registration with transaction safety
@@ -254,7 +284,8 @@ test/
 ### Immediate (Week 3 completion)
 - [x] Finalize cloudflare_sync_manager_core.dart orchestrator ✅
 - [x] Create orchestrator tests (48 tests) ✅
-- [ ] Integration test for full sync cycle
+- [x] Integration test for full sync cycle ✅ (`test/cloudflare_sync_full_cycle_test.dart`, added 2026-09-09 — real manager + in-memory Drift + fake HTTP: push → pull → apply → cursor → full-sync flag → delta cycle → tombstone sweep → recovery after network failure)
+- [ ] **Wire manager to core/services in a Flutter-enabled environment** (see diagnostic update above — currently the manager still owns all logic inline; push/pull services are simplified so only the device service + apply-path delegation are safe without enhancement)
 - [ ] Code coverage reporting (CI/CD setup)
 
 ### Short-term (Week 4)
