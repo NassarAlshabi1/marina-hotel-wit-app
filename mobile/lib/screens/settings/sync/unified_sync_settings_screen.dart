@@ -322,12 +322,23 @@ class _UnifiedSyncSettingsScreenState
               ),
             ),
             const SizedBox(height: UIConstants.spacingSM),
+            // ✅ (2026-09-09) isExpandable + ellipsis: المضيف رمز واحد
+            // غير قابل للكسر (لا فراغات) — كان مكشوفاً بلا قيد فيفجّر
+            // الـRow في بيئة الاختبار (خط Ahem: كل محرف 14px) بفارق
+            // 140px. مع Expanded يأخذ المضيف كل المساحة المتبقية بعد
+            // التسمية، والاقتصاص النظيف هو العرض الصحيح لنطاق طويل.
             InfoRow(
               label: 'النقطة الفعّالة الآن',
               value:
                   Uri.tryParse(WorkerEndpoints.active)?.host ??
                   WorkerEndpoints.active,
               icon: Icons.public,
+              isExpandable: true,
+              valueStyle: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             const SizedBox(height: UIConstants.spacingSM),
             TextField(

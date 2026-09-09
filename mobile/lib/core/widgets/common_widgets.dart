@@ -61,16 +61,26 @@ class InfoRow extends StatelessWidget {
                       textAlign: TextAlign.end,
                     ),
                   )
+                // ✅ (2026-09-09) Flexible بدل Text مكشوف: قيمة أطول من
+                // المساحة كانت تفجّر الـRow (RenderFlex overflowed) —
+                // فشل CI الفعلي في sync_settings_rebrand_test (انزلاق
+                // 140px لعرض مضيف workers.dev طويل بجانب تسمية عربية،
+                // وخط الاختبار Ahem يجعل كل محرف 14px فيضخّم النصين).
+                // التخطيط مطابق تماماً عندما يتسع المحتوى (Flexible
+                // loose = الحجم الطبيعي)، وعندما لا يتسع يلتفّ النص
+                // بسلالات إضافية بدل انهيار التخطيط.
                 else
-                  Text(
-                    value,
-                    style:
-                        valueStyle ??
-                        const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                    textAlign: TextAlign.end,
+                  Flexible(
+                    child: Text(
+                      value,
+                      style:
+                          valueStyle ??
+                          const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                      textAlign: TextAlign.end,
+                    ),
                   ),
               ],
             ),
