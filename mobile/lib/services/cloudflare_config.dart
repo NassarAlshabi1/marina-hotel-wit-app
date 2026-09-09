@@ -4,12 +4,19 @@
 // ═══════════════════════════════════════════════════════════════
 
 import '../utils/env.dart';
+import 'worker_endpoints.dart';
 
 class CloudflareConfig {
   CloudflareConfig._();
 
-  /// Worker URL
-  static String get workerUrl => Env.cloudflareWorkerUrl;
+  /// ✅ (2026-09-09) Worker URL — ديناميكي الآن: يعيد النقطة الفعّالة
+  /// من [WorkerEndpoints] (النطاق المخصّص للمستخدم إن وُضع، وإلا
+  /// workers.dev، مع تثبيت آخر نقطة نجحت). كل بُناة الروابط في
+  /// المدير/الخدمات تقرأ هذا getter — التبديل بين النقاط شفاف تماماً.
+  static String get workerUrl => WorkerEndpoints.active;
+
+  /// النطاق المدمج من بيئة البناء (workers.dev) — للعرض والتشخيص فقط.
+  static String get builtinWorkerUrl => WorkerEndpoints.builtin;
 
   /// Login credentials
   static String get username => Env.cloudflareUsername;

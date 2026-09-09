@@ -76,6 +76,7 @@ import 'services/sync_performance_optimizer.dart';
 import 'services/sync_queue_service.dart';
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
+import 'services/worker_endpoints.dart';
 import 'utils/auto_sync_preferences.dart';
 import 'utils/debug_log.dart';
 import 'utils/env.dart';
@@ -86,6 +87,18 @@ import 'utils/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ─── ✅ (2026-09-09) سجل نقاط نهاية Worker: تحميل مبكر قبل أي
+  // مزامنة/اتصال — النطاق المخصّص (تجاوز حجب workers.dev في اليمن)
+  // وآخر نقطة نجحت sticky. fail-open: فشل التحميل = المدمج.
+  try {
+    await WorkerEndpoints.load();
+    debugPrint(
+      '✅ WorkerEndpoints loaded (active: ${WorkerEndpoints.active})',
+    );
+  } catch (e) {
+    debugPrint('⚠️ WorkerEndpoints load failed (fail-open): $e');
+  }
 
   // ─── Performance: تحسينات الأداء للأجهزة الضعيفة ───
   configurePerformance();

@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../components/app_scaffold.dart';
@@ -12,6 +13,7 @@ import '../../../providers/repository_providers.dart' show databaseProvider;
 import '../../../services/appwrite_sync_manager.dart';
 import '../../../services/daos/outbox_dao.dart';
 import '../../../services/sync/sync_gate.dart';
+import '../../../services/worker_endpoints.dart';
 
 /// Unified Sync Settings Screen
 ///
@@ -45,6 +47,12 @@ class _UnifiedSyncSettingsScreenState
   /// يعطّل صفوف الأدوات ويُظهر مؤشر تحميل في trailing.
   bool _isManualSyncing = false;
 
+  /// ✅ (2026-09-09) نطاق Worker مخصّص (تجاوز حجب workers.dev في اليمن).
+  final TextEditingController _customUrlController = TextEditingController();
+  bool _isProbingEndpoint = false;
+  String? _endpointProbeResult;
+  bool _endpointProbeOk = false;
+
   static const _autoSyncKey = 'appwrite_auto_sync_enabled';
   static const _syncOnStartupKey = 'appwrite_sync_on_startup';
   // ✅ (2026-09-05) تصحيح المفاتيح الميتة: كانت هذه المفاتيح تُكتب
@@ -67,8 +75,16 @@ class _UnifiedSyncSettingsScreenState
     unawaited(_loadSettings());
   }
 
+  @override
+  void dispose() {
+    _customUrlController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    // ✅ السجل قد لا يكون حُمّل بعد إن فُتحت الشاشة مبكراً — idempotent.
+    await WorkerEndpoints.load(prefs: prefs);
     if (!mounted) return;
 
     setState(() {
@@ -80,6 +96,7 @@ class _UnifiedSyncSettingsScreenState
       _appwriteSyncEnabled = prefs.getBool(_appwriteSyncKey) ?? true;
       _realtimeSyncEnabled = prefs.getBool(_realtimeSyncKey) ?? true;
       _syncIntervalMinutes = prefs.getInt(_syncIntervalKey) ?? 15;
+      _customUrlController.text = WorkerEndpoints.custom ?? '';
     });
   }
 
@@ -182,6 +199,12 @@ class _UnifiedSyncSettingsScreenState
 
           const SizedBox(height: UIConstants.spacingLG),
 
+          // ✅ (2026-09-09) نطاق Worker مخصّص — تجاوز حجب workers.dev
+          // (اليمن) عبر دومين المستخدم المربوط بنفس الـ worker.
+          _buildWorkerEndpointSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
           // ✅ (2026-09-07) أدوات السحب اليدوي — طلب المستخدم:
           // «شاشة الاعدادات لا يوجد زر سحب full sync»
           _buildManualActionsSection(),
@@ -251,6 +274,268 @@ class _UnifiedSyncSettingsScreenState
         ),
       ),
     );
+  }
+
+  /// ✅ (2026-09-09) قسم نطاق Worker المخصّص.
+  ///
+  /// الخلفية: شبكات اليمن تحجب *.workers.dev بفلترة SNI/IP — لا يوجد
+  /// إصلاح برمجي بحت يتجاوز حجب SNI. الحل الصحيح: دومين يملكه المستخدم
+  /// مربوط بنفس الـ worker (Cloudflare Custom Domain) — SNI مسموح،
+  /// فيعمل التطبيق عبره تلقائياً (تبديل فوري + تثبيت sticky + رجوع
+  /// تلقائي للمدمج إن تعذّر المخصّص).
+  Widget _buildWorkerEndpointSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(UIConstants.spacingMD),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons.dns_outlined,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
+                SizedBox(width: UIConstants.spacingSM),
+                Expanded(
+                  child: Text(
+                    'نطاق Worker مخصّص (تجاوز الحجب)',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: UIConstants.spacingSM),
+            Text(
+              'إذا كان اتصال المزامنة محبوساً (workers.dev محجوب في '
+              'بعض الشبكات مثل اليمن): ربط دومينك بحساب Cloudflare '
+              'ووجّهه لنفس الـ Worker، ثم ضعه هنا — يعمل التطبيق عبره '
+              'تلقائياً ويرجع للمدمج إن تعذّر.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: UIConstants.spacingSM),
+            InfoRow(
+              label: 'النقطة الفعّالة الآن',
+              value:
+                  Uri.tryParse(WorkerEndpoints.active)?.host ??
+                  WorkerEndpoints.active,
+              icon: Icons.public,
+            ),
+            const SizedBox(height: UIConstants.spacingSM),
+            TextField(
+              controller: _customUrlController,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: InputDecoration(
+                labelText: 'النطاق المخصّص (اختياري)',
+                hintText: 'api.mydomain.com',
+                border: const OutlineInputBorder(),
+                suffixIcon: WorkerEndpoints.hasCustom
+                    ? Tooltip(
+                        message: 'نطاق مخصّص مضبوط',
+                        child: Icon(
+                          Icons.verified_outlined,
+                          color: Colors.green.shade700,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+            if (_endpointProbeResult != null) ...[
+              const SizedBox(height: UIConstants.spacingSM),
+              Row(
+                children: [
+                  Icon(
+                    _endpointProbeOk ? Icons.check_circle : Icons.error_outline,
+                    size: 16,
+                    color: _endpointProbeOk
+                        ? Colors.green
+                        : Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _endpointProbeResult!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _endpointProbeOk
+                            ? Colors.green.shade700
+                            : Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: UIConstants.spacingSM),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isProbingEndpoint
+                        ? null
+                        : () => unawaited(_probeCustomEndpoint()),
+                    icon: _isProbingEndpoint
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.network_check),
+                    label: const Text('فحص الاتصال'),
+                  ),
+                ),
+                const SizedBox(width: UIConstants.spacingSM),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _isProbingEndpoint
+                        ? null
+                        : () => unawaited(_saveCustomEndpoint()),
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('حفظ'),
+                  ),
+                ),
+              ],
+            ),
+            if (WorkerEndpoints.hasCustom)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton.icon(
+                  onPressed: () => unawaited(_clearCustomEndpoint()),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('مسح النطاق المخصّص'),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// حفظ النطاق المُدخل (تطبيع + تخزين) — ثم فحص فوري.
+  Future<void> _saveCustomEndpoint() async {
+    try {
+      final normalized = await WorkerEndpoints.setCustomUrl(
+        _customUrlController.text,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (normalized != null) {
+          _customUrlController.text = normalized;
+        }
+        _endpointProbeResult = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            normalized == null
+                ? 'تم مسح النطاق المخصّص — الرجوع للنطاق المدمج'
+                : 'تم حفظ النطاق: $normalized',
+          ),
+        ),
+      );
+      if (normalized != null) await _probeCustomEndpoint();
+    } on FormatException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('تعذر الحفظ: $e')));
+    }
+  }
+
+  /// مسح النطاق المخصّص والرجوع للمدمج.
+  Future<void> _clearCustomEndpoint() async {
+    try {
+      await WorkerEndpoints.setCustomUrl(null);
+      if (!mounted) return;
+      setState(() {
+        _customUrlController.clear();
+        _endpointProbeResult = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم المسح — الرجوع للنطاق المدمج workers.dev'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('تعذر المسح: $e')));
+    }
+  }
+
+  /// فحص صريح للنطاق المُدخل (أو الفعّال إن كان الحقل فارغاً):
+  /// GET /api/ping بمهلة 8s — عميل عادي بلا تدوير لنقيس العنوان نفسه.
+  Future<void> _probeCustomEndpoint() async {
+    final raw = _customUrlController.text.trim().isNotEmpty
+        ? _customUrlController.text.trim()
+        : WorkerEndpoints.active;
+    String? normalized;
+    try {
+      normalized = WorkerEndpoints.normalizeCustomUrl(raw);
+    } on FormatException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _endpointProbeOk = false;
+        _endpointProbeResult = e.message;
+      });
+      return;
+    }
+    if (normalized == null) {
+      if (!mounted) return;
+      setState(() {
+        _endpointProbeOk = false;
+        _endpointProbeResult = 'أدخل نطاقاً أولاً';
+      });
+      return;
+    }
+
+    setState(() => _isProbingEndpoint = true);
+    try {
+      final sw = Stopwatch()..start();
+      final response = await http
+          .get(Uri.parse('$normalized/api/ping'))
+          .timeout(const Duration(seconds: 8));
+      sw.stop();
+      if (!mounted) return;
+      setState(() {
+        _endpointProbeOk = response.statusCode == 200;
+        _endpointProbeResult = _endpointProbeOk
+            ? 'نجح الاتصال (${response.statusCode}) في '
+                  '${sw.elapsedMilliseconds}ms'
+            : 'استجابة غير متوقعة: HTTP ${response.statusCode}';
+      });
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _endpointProbeOk = false;
+        _endpointProbeResult =
+            'انتهت المهلة (8s) — النطاق غير قابل للوصول من هذه الشبكة';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _endpointProbeOk = false;
+        _endpointProbeResult = 'فشل الاتصال: ${e.runtimeType}';
+      });
+    } finally {
+      if (mounted) setState(() => _isProbingEndpoint = false);
+    }
   }
 
   Widget _buildGeneralSettingsSection() {

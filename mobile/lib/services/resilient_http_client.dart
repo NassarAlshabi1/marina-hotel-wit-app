@@ -41,6 +41,14 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
+import 'worker_endpoints.dart';
+
+/// ✅ (2026-09-09) مخطط نقاط النهاية — يعيد قائمة مرشحين مرتّبة لطلب
+/// نحو [requestUrl]. قائمة بعنصر واحد = لا تدوير (السلوك السابق).
+/// الإنتاج: [WorkerEndpoints.candidatesFor] — النطاق المخصّص ثم
+/// workers.dev، مع عزل الطلبات خارج عائلة نقاط الـ worker.
+typedef EndpointPlanner = List<Uri> Function(Uri requestUrl);
+
 class ResilientHttpClient extends http.BaseClient {
   ResilientHttpClient({
     http.Client? innerClient,
@@ -49,6 +57,9 @@ class ResilientHttpClient extends http.BaseClient {
     Future<List<String>> Function(String host)? dohResolver,
     Future<Socket> Function(String ip, int port)? tunnelConnector,
     SecurityContext? fallbackSecurityContext,
+    EndpointPlanner? endpointPlanner,
+    void Function(Uri base)? onEndpointSuccess,
+    void Function(Uri base)? onEndpointFailure,
   }) : _inner = innerClient ?? _createDefaultInnerClient(),
        _timeout = timeout ?? const Duration(seconds: 30),
        _fastTimeout = fastTimeout ?? const Duration(seconds: 6),
@@ -57,7 +68,10 @@ class ResilientHttpClient extends http.BaseClient {
            tunnelConnector ??
            ((String ip, int port) =>
                Socket.connect(ip, port).timeout(const Duration(seconds: 8))),
-       _fallbackSecurityContext = fallbackSecurityContext;
+       _fallbackSecurityContext = fallbackSecurityContext,
+       _endpointPlanner = endpointPlanner,
+       _onEndpointSuccess = onEndpointSuccess,
+       _onEndpointFailure = onEndpointFailure;
 
   final http.Client _inner;
   final Duration _timeout;
@@ -68,6 +82,13 @@ class ResilientHttpClient extends http.BaseClient {
   /// null = system roots (production: proper cert validation against the
   /// real hostname via SNI). Tests inject a context trusting the test CA.
   final SecurityContext? _fallbackSecurityContext;
+
+  /// ✅ (2026-09-09) تدوير نقاط النهاية (جزء A): فشل كامل على نقطة
+  /// (مسار سريع + نفق) → إعادة كتابة الطلب على المرشح التالي.
+  /// null = السلوك السابق بلا تدوير (الاختبارات).
+  final EndpointPlanner? _endpointPlanner;
+  final void Function(Uri base)? _onEndpointSuccess;
+  final void Function(Uri base)? _onEndpointFailure;
 
   // ── Shared learning across instances (single isolate) ──
   /// Fresh DoH results (hostname → IPs), TTL 5 minutes.
@@ -106,6 +127,70 @@ class ResilientHttpClient extends http.BaseClient {
     if (uri.scheme != 'https' || uri.host.isEmpty) {
       return _inner.send(request);
     }
+
+    // ✅ (2026-09-09) تدوير نقاط النهاية (جزء A): مخطط يعيد أكثر من
+    // مرشح → نجرّب كل نقطة كاملة (مسار سريع + نفق DoH) بالترتيب،
+    // وأول نجاح يثبّت نقطته. يغطي حالة اليمن: workers.dev محجوب
+    // بـSNI فلا ينجو حتى النفق (SNI حقيقي محجوب) → التدوير للنطاق
+    // المخصّص ينجح فوراً.
+    final planner = _endpointPlanner;
+    if (planner != null) {
+      final candidates = planner(uri);
+      if (candidates.length > 1) {
+        return _sendWithEndpointRotation(request, candidates);
+      }
+    }
+
+    return _sendWithFastPathAndTunnel(request, uri);
+  }
+
+  /// حلقة التدوير بين مرشحي نقاط النهاية.
+  /// ملاحظة عقد الأمان: الطلب الأصلي لا يُرسَل مطلقاً هنا — كل مرشح
+  /// يعمل على نسخة جديدة (http.Request يُرسَل مرة واحدة؛ النسخة الأولى
+  /// تطابق URL الأصلي تماماً).
+  Future<http.StreamedResponse> _sendWithEndpointRotation(
+    http.BaseRequest request,
+    List<Uri> candidates,
+  ) async {
+    Object? lastError;
+    for (final base in candidates) {
+      final targetUrl = _mergeUrl(base, request.url);
+      final http.BaseRequest attempt;
+      try {
+        attempt = _cloneRequestTo(request, targetUrl);
+      } on ArgumentError {
+        rethrow; // نوع طلب غير مدعوم للنسخ — خطأ برمجي لا تدوير شبكي.
+      }
+      try {
+        final response = await _sendWithFastPathAndTunnel(attempt, targetUrl);
+        _onEndpointSuccess?.call(base);
+        debugPrint('✅ [ResilientHTTP] endpoint ${base.host} succeeded');
+        return response;
+      } catch (e) {
+        _onEndpointFailure?.call(base);
+        lastError = e;
+        debugPrint(
+          '🔁 [ResilientHTTP] endpoint ${base.host} failed '
+          '(${e.runtimeType}) → next candidate',
+        );
+      }
+    }
+    throw lastError is Exception
+        ? lastError
+        : SocketException(
+            'All ${candidates.length} worker endpoints failed',
+          );
+  }
+
+  /// المسار الكامل لنقطة واحدة — breaker + مسار سريع + نفق DoH.
+  /// ✅ (جزء B) أي استثناء فشل اتصالي يخرج من هنا بلا ابتلاع:
+  /// SocketException (reset/refused)، TimeoutException (أسود/بطيء)،
+  /// HandshakeException (TLS/SNI مرفوض)، ClientException — كلها
+  /// تصل حلقة التدوير فوق مباشرة.
+  Future<http.StreamedResponse> _sendWithFastPathAndTunnel(
+    http.BaseRequest request,
+    Uri uri,
+  ) async {
     final host = uri.host;
 
     // Fast-path breaker open → go straight to the tunnel fallback.
@@ -141,6 +226,14 @@ class ResilientHttpClient extends http.BaseClient {
       return _sendViaTunnelFallback(request, host);
     }
   }
+
+  /// دمج مسار/استعلام الطلب الأصلي على قاعدة مرشح.
+  /// القواعد بلا مسار (https://host[:port]) — replace يورّث المنفذ
+  /// الضمني من القاعدة ويستبدل المسار والاستعلام فقط.
+  Uri _mergeUrl(Uri base, Uri original) => base.replace(
+    path: original.path,
+    query: original.query.isEmpty ? null : original.query,
+  );
 
   static bool _isFastPathBlocked(String host) {
     final until = _fastPathBlockedUntil[host];
@@ -251,9 +344,14 @@ class ResilientHttpClient extends http.BaseClient {
   /// Clones a request so it can be re-sent across fallback attempts.
   /// Only in-memory [http.Request]s are supported (all callers in this
   /// app use post()/get() which build exactly that).
-  http.BaseRequest _cloneRequest(http.BaseRequest original) {
+  http.BaseRequest _cloneRequest(http.BaseRequest original) =>
+      _cloneRequestTo(original, original.url);
+
+  /// ✅ (2026-09-09) نسخة تدعم إعادة كتابة الـURL — أساس تدوير نقاط
+  /// النهاية: نفس الجسم والترويسات على نطاق المرشح التالي.
+  http.BaseRequest _cloneRequestTo(http.BaseRequest original, Uri url) {
     if (original is http.Request) {
-      final clone = http.Request(original.method, original.url)
+      final clone = http.Request(original.method, url)
         ..followRedirects = original.followRedirects
         ..persistentConnection = original.persistentConnection
         ..maxRedirects = original.maxRedirects
@@ -557,6 +655,15 @@ class _DohEndpoint {
 /// Pass [timeout] to customize the per-attempt fallback timeout (default:
 /// 30s). The fast path always uses a short 6s budget before switching to
 /// the tunnel fallback.
+///
+/// ✅ (2026-09-09) يوصل تدوير نقاط الـ worker تلقائياً (جزء A):
+/// المرشحون من [WorkerEndpoints] — النطاق المخصّص (إن ضبطه المستخدم)
+/// ثم workers.dev؛ النجاح يثبّت النقطة (sticky) والفشل يمرّر للتالي.
 http.Client createResilientHttpClient({Duration? timeout}) {
-  return ResilientHttpClient(timeout: timeout);
+  return ResilientHttpClient(
+    timeout: timeout,
+    endpointPlanner: WorkerEndpoints.candidatesFor,
+    onEndpointSuccess: WorkerEndpoints.reportSuccess,
+    onEndpointFailure: WorkerEndpoints.reportFailure,
+  );
 }

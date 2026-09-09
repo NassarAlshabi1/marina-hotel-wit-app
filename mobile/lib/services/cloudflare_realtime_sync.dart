@@ -31,6 +31,7 @@ import 'package:web_socket_channel/io.dart';
 
 import '../utils/debug_log.dart';
 import 'cloudflare_dual_run_service.dart';
+import 'worker_endpoints.dart';
 
 /// callback السحب الفعلي المُحقن من main.dart — نفس عقد فرع perf:
 /// العائد `true` = السحب أُكمل فعلاً؛ `false` = تخطّى/فشل (outbox
@@ -271,8 +272,8 @@ class CloudflareRealtimeSync {
 
     final String? token = await _tokenProvider?.call();
     if (!_isListening || _intentionallyStopped) return;
-    final String baseUrl = _baseUrl ?? '';
-    if (token == null || token.isEmpty || baseUrl.isEmpty) {
+    final String configuredBase = _baseUrl ?? '';
+    if (token == null || token.isEmpty || configuredBase.isEmpty) {
       // لم يكتمل login بعد — أعادة محاولة بأُسّية (start() بعد login
       // عبر ensureStarted() يقطع الطريق أيضاً).
       dwarn('realtime: connect skipped (no token/url yet)');
@@ -282,39 +283,77 @@ class CloudflareRealtimeSync {
 
     _connectInFlight = true;
     try {
-      final Uri uri = Uri.parse('$baseUrl/api/realtime').replace(
-        queryParameters: <String, String>{
-          'deviceId': _currentDeviceId ?? 'unknown',
-          'entity': '*',
-        },
-      );
-      final IOWebSocketChannel channel = IOWebSocketChannel.connect(
-        uri,
-        headers: <String, String>{'Authorization': 'Bearer $token'},
-        pingInterval: _heartbeat,
-      );
-      // يُخزَّن فوراً حتى لو فشل ready — مسار الخطأ يلغيه صراحةً
-      // (يلبي cancel_subscriptions بلا تسريب).
-      _socketSub = channel.stream.listen(
-        _onData,
-        onDone: _onSocketClosed,
-        onError: (Object error) => _onSocketClosed(),
-      );
-      try {
-        await channel.ready;
-      } catch (_) {
-        await _socketSub?.cancel();
-        _socketSub = null;
-        rethrow;
+      // ✅ (2026-09-09) تدوير نقاط النهاية للـ WebSocket (جزء A):
+      // الـ configure يأخذ القاعدة مرة واحدة عند الربط — لو أضاف
+      // المستخدم نطاقاً مخصّصاً لاحقاً (أو تغيّر الفائز sticky) يبقى
+      // الـsocket على القاعدة القديمة إلى الأبد. الآن: القاعدة
+      // الفعّالة تُقرأ عند كل اتصال، وفشلها يجرب بقية المرشحين.
+      final configuredUri = Uri.tryParse(configuredBase);
+      final Uri primary;
+      if (configuredUri != null &&
+          WorkerEndpoints.isWorkerEndpoint(configuredUri)) {
+        primary = Uri.parse(WorkerEndpoints.active);
+      } else {
+        primary = configuredUri ?? Uri.parse(configuredBase);
       }
-      _channel = channel;
-      _reconnectAttempt = 0;
-      // ✅ (مراجعة #17) نجاح الاتصال ينهي دورة إعادة التسليح الدورية.
-      _rearmTimer?.cancel();
-      _rearmTimer = null;
-      connected.value = true;
-      debugPrint('✅ Cloudflare realtime connected (${uri.host})');
-      await _onSubscriptionEstablished();
+      final candidates = WorkerEndpoints.candidatesFor(primary);
+      Object? lastError;
+      var established = false;
+      for (final base in candidates) {
+        if (!_isListening || _intentionallyStopped) return;
+        final Uri uri = base.replace(
+          path: '/api/realtime',
+          query:
+              'deviceId=${Uri.encodeQueryComponent(_currentDeviceId ?? 'unknown')}'
+              '&entity=*',
+        );
+        try {
+          final IOWebSocketChannel channel = IOWebSocketChannel.connect(
+            uri,
+            headers: <String, String>{'Authorization': 'Bearer $token'},
+            pingInterval: _heartbeat,
+          );
+          // يُخزَّن فوراً حتى لو فشل ready — مسار الخطأ يلغيه صراحةً
+          // (يلبي cancel_subscriptions بلا تسريب).
+          _socketSub = channel.stream.listen(
+            _onData,
+            onDone: _onSocketClosed,
+            onError: (Object error) => _onSocketClosed(),
+          );
+          try {
+            await channel.ready;
+          } catch (_) {
+            await _socketSub?.cancel();
+            _socketSub = null;
+            rethrow;
+          }
+          _channel = channel;
+          _reconnectAttempt = 0;
+          // ✅ (مراجعة #17) نجاح الاتصال ينهي دورة إعادة التسليح الدورية.
+          _rearmTimer?.cancel();
+          _rearmTimer = null;
+          connected.value = true;
+          WorkerEndpoints.reportSuccess(base);
+          debugPrint('✅ Cloudflare realtime connected (${uri.host})');
+          established = true;
+          await _onSubscriptionEstablished();
+          break;
+        } catch (e) {
+          lastError = e;
+          WorkerEndpoints.reportFailure(base);
+          dwarn(
+            () =>
+                'realtime: connect failed on ${base.host} '
+                '(${e.runtimeType}) — trying next endpoint',
+          );
+        }
+      }
+      if (!established) {
+        final Object? err = lastError;
+        if (err is Exception) throw err;
+        if (err is Error) throw err;
+        throw StateError('realtime: all worker endpoints failed');
+      }
     } catch (e, st) {
       dwarn(() => 'realtime: connect failed: $e\n$st');
       connected.value = false;
