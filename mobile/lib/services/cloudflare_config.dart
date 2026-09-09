@@ -3,6 +3,10 @@
 //  Replaces AppwriteConfig
 // ═══════════════════════════════════════════════════════════════
 
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/debug_log.dart';
 import '../utils/env.dart';
 import 'worker_endpoints.dart';
 
@@ -18,9 +22,92 @@ class CloudflareConfig {
   /// النطاق المدمج من بيئة البناء (workers.dev) — للعرض والتشخيص فقط.
   static String get builtinWorkerUrl => WorkerEndpoints.builtin;
 
-  /// Login credentials
-  static String get username => Env.cloudflareUsername;
-  static String get password => Env.cloudflarePassword;
+  /// Login credentials — ✅ (2026-09-10) قابلة للتغطية وقت التشغيل الآن:
+  /// شاشة تسجيل الدخول (CloudflareLoginScreen) تحفظ overrides في
+  /// SharedPreferences فتعمل أولويةً على قيم --dart-define المدمجة.
+  static String? _usernameOverride;
+  static String? _passwordOverride;
+
+  /// مفاتيح التخزين — عامة للاختبارات وشاشة الدخول (قراءة حالة موجودة).
+  static const String usernameOverrideKey = 'cf_username_override';
+  static const String passwordOverrideKey = 'cf_password_override';
+
+  static String get username => _usernameOverride ?? Env.cloudflareUsername;
+  static String get password => _passwordOverride ?? Env.cloudflarePassword;
+
+  /// هل وُضعت اعتمادات مخصّصة من التطبيق (بدل المدمجة)؟
+  static bool get hasCredentialOverrides =>
+      _usernameOverride != null || _passwordOverride != null;
+
+  /// تحميل الاعتمادات المخصّصة من التفضيلات — يُستدعى مرة واحدة مبكراً
+  /// في main() قبل أي initialize() للمدير. fail-open: أي فشل = المدمج.
+  static Future<void> loadCredentialOverrides({
+    SharedPreferences? prefs,
+  }) async {
+    try {
+      final sp = prefs ?? await SharedPreferences.getInstance();
+      final u = sp.getString(usernameOverrideKey);
+      final p = sp.getString(passwordOverrideKey);
+      _usernameOverride = (u != null && u.trim().isNotEmpty) ? u : null;
+      _passwordOverride = (p != null && p.isNotEmpty) ? p : null;
+      if (hasCredentialOverrides) {
+        debugPrint(
+          '✅ CloudflareConfig: credential overrides loaded '
+          '(username: $username)',
+        );
+      }
+    } catch (e) {
+      dwarn(() => 'CloudflareConfig.loadCredentialOverrides failed: $e');
+    }
+  }
+
+  /// حفظ اعتمادات مخصّصة (من شاشة تسجيل الدخول).
+  /// - [username] فارغ = إبقاء المدمج؛ [password] فارغ/null = إبقاء
+  ///   المدمج أو الكلمة المحفوظة سابقاً (لا نمسحها عبثاً).
+  /// - لا يرمي استثناءات على التخزين الفاشل — يحدّث الذاكرة على الأقل.
+  static Future<void> setCredentialOverrides({
+    String? username,
+    String? password,
+  }) async {
+    final trimmedUser = username?.trim() ?? '';
+    _usernameOverride = trimmedUser.isNotEmpty ? trimmedUser : null;
+    if (password != null && password.isNotEmpty) {
+      _passwordOverride = password;
+    }
+    try {
+      final sp = await SharedPreferences.getInstance();
+      if (_usernameOverride != null) {
+        await sp.setString(usernameOverrideKey, _usernameOverride!);
+      } else {
+        await sp.remove(usernameOverrideKey);
+      }
+      if (_passwordOverride != null) {
+        await sp.setString(passwordOverrideKey, _passwordOverride!);
+      }
+    } catch (e) {
+      dwarn(() => 'CloudflareConfig.setCredentialOverrides persist: $e');
+    }
+  }
+
+  /// مسح الاعتمادات المخصّصة والرجوع للمدمجة (--dart-define).
+  static Future<void> clearCredentialOverrides() async {
+    _usernameOverride = null;
+    _passwordOverride = null;
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.remove(usernameOverrideKey);
+      await sp.remove(passwordOverrideKey);
+    } catch (e) {
+      dwarn(() => 'CloudflareConfig.clearCredentialOverrides: $e');
+    }
+  }
+
+  /// Test-only: تفريغ الحالة الساكنة (توازي WorkerEndpoints.resetForTests).
+  @visibleForTesting
+  static void resetCredentialOverridesForTests() {
+    _usernameOverride = null;
+    _passwordOverride = null;
+  }
 
   /// Entity → D1 table name mapping (1:1, same names as Drift)
   ///

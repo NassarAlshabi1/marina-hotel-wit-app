@@ -1,193 +1,117 @@
+// ═══════════════════════════════════════════════════════════════
+//  sync_indicator.dart — مؤشر حالة المزامنة الحيّ في شريط التطبيق
+//  ✅ (2026-09-10) إصلاح «مؤشرات المزامنة لا تعمل»:
+//
+//  الجذر: النسخة القديمة كانت تستمع إلى `syncStateProvider` من
+//  SyncOrchestrator — مكوّن لا يُهيّأ في التطبيق أبداً (لا adapters
+//  تُسجَّل ولا أحد يستدعي initialize) فبقي المؤشر فارغاً إلى الأبد،
+//  بينما التدفق الحقيقي (CloudflareSyncManager.syncStatusStream الذي
+//  يبثّ syncing/success/failed/idle من دورة sync() الفعلية) لم يكن
+//  يستمعه أحد.
+//
+//  الآن: SyncIndicator يستمع إلى cloudflareSyncStatusProvider
+//  (جسر Riverpod فوق التدفق الحقيقي) + عدّاد الـ Outbox — وعند
+//  الفشل/عدم تسجيل الدخول يفتح شاشة تسجيل الدخول إلى Cloudflare
+//  (CloudflareLoginScreen) بنقرة واحدة.
+// ═══════════════════════════════════════════════════════════════
+
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/sync/core/sync_orchestrator.dart';
-import '../../services/sync/models/sync_state.dart';
+import '../../providers/appwrite_providers.dart';
+import '../../screens/auth/cloudflare_login_screen.dart';
+import '../../services/appwrite_sync_manager.dart' show SyncStatus;
+import '../../services/sync/sync_gate.dart';
 
-/// مؤشر حالة المزامنة في شريط التطبيق
+/// مؤشر حالة المزامنة الحيّ — يُعرض في AppBar الرئيسي.
+///
+/// حالة العرض (بالأولوية):
+///  1. مزامنة جارية (syncing) → قرص دوّار + عدّاد التغييرات المعلقة
+///  2. مزامنة مزروعة في بوابة SyncGate (عملية أخرى شغّالة) → قرص دوّار
+///  3. فشل آخر دورة (failed) → أيقونة تحذير برتقالية — نقرة تفتح شاشة
+///     تسجيل الدخول/التشخيص
+///  4. تغييرات محلية معلّقة (outbox > 0) → شارة عدّاد زرقاء على أيقونة
+///     السحابة
+///  5. آخر دورة نجحت (success) → صحّة خضراء (تُثبَّت حتى idle التالية)
+///  6. خامل (idle) → سحابة خضراء «متصل»
+///
+/// نقرة على المؤشر تفتح شاشة تسجيل الدخول إلى Cloudflare دائماً.
 class SyncIndicator extends ConsumerWidget {
   const SyncIndicator({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final syncStateAsync = ref.watch(syncStateProvider);
+    final statusAsync = ref.watch(cloudflareSyncStatusProvider);
+    final pendingAsync = ref.watch(outboxCountProvider);
 
-    return syncStateAsync.when(
-      data: (state) => _buildIndicator(context, state),
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const Icon(Icons.error_outline, color: Colors.red),
+    // الحالة الفعّالة: نُبقي آخر success ظاهراً أثناء idle (لأن المدير
+    // يعيد idle بعد كل دورة) — map بسيط بلا مؤقّتات ولا setState.
+    final status = statusAsync.when(
+      data: (s) => s,
+      loading: () => SyncStatus.idle,
+      error: (_, __) => SyncStatus.failed,
     );
-  }
+    final pending = pendingAsync.asData?.value ?? 0;
+    final gateBusy = SyncGate.instance.state.isBusy;
 
-  Widget _buildIndicator(BuildContext context, SyncState state) {
-    if (state.isSyncing) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              value: state.progress > 0 ? state.progress / 100 : null,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            state.message ?? 'جاري المزامنة...',
-            style: const TextStyle(fontSize: 12),
-          ),
-        ],
-      );
-    }
-
-    if (state.hasError) {
-      return const Tooltip(
-        message: 'خطأ في المزامنة',
-        child: Icon(Icons.sync_problem, color: Colors.orange),
-      );
-    }
-
-    if (state.isOffline) {
-      return const Tooltip(
-        message: 'وضع عدم الاتصال',
-        child: Icon(Icons.offline_bolt, color: Colors.grey),
-      );
-    }
-
-    if (state.pendingChanges > 0) {
-      return Badge(
-        label: Text('${state.pendingChanges}'),
-        child: const Icon(Icons.sync, color: Colors.blue),
-      );
-    }
-
-    return const Tooltip(
-      message: 'تمت المزامنة',
-      child: Icon(Icons.sync, color: Colors.green),
-    );
-  }
-}
-
-/// زر المزامنة المحسن
-class EnhancedSyncButton extends ConsumerWidget {
-  const EnhancedSyncButton({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final syncStateAsync = ref.watch(syncStateProvider);
-    final orchestrator = ref.read(syncOrchestratorProvider);
-
-    return syncStateAsync.when(
-      data: (state) {
-        return _SyncButtonContent(
-          state: state,
-          onPressed: state.isSyncing
-              ? null
-              : () => _showSyncOptions(context, orchestrator),
-        );
-      },
-      loading: () => const _SyncButtonContent(),
-      error: (_, __) => _SyncButtonContent(
-        onPressed: () => _showSyncOptions(context, orchestrator),
-        isError: true,
+    return Tooltip(
+      message: _tooltipFor(status, pending, gateBusy),
+      child: IconButton(
+        visualDensity: VisualDensity.compact,
+        onPressed: () => _openLoginScreen(context),
+        icon: _iconFor(context, status, pending, gateBusy),
       ),
     );
   }
 
-  void _showSyncOptions(BuildContext context, SyncOrchestrator orchestrator) {
+  void _openLoginScreen(BuildContext context) {
     unawaited(
-      showModalBottomSheet<void>(
-        context: context,
-        builder: (context) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.sync),
-                title: const Text('مزامنة كاملة'),
-                subtitle: const Text('دفع + سحب'),
-                onTap: () {
-                  Navigator.pop(context);
-                  unawaited(orchestrator.syncNow());
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.upload),
-                title: const Text('رفع التغييرات فقط'),
-                subtitle: const Text('Push Only'),
-                onTap: () {
-                  Navigator.pop(context);
-                  unawaited(orchestrator.pushOnly());
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.download),
-                title: const Text('سحب التغييرات فقط'),
-                subtitle: const Text('Pull Only'),
-                onTap: () {
-                  Navigator.pop(context);
-                  unawaited(orchestrator.pullOnly());
-                },
-              ),
-            ],
-          ),
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const CloudflareLoginScreen(),
         ),
       ),
     );
   }
-}
 
-class _SyncButtonContent extends StatelessWidget {
-  const _SyncButtonContent({this.state, this.onPressed, this.isError = false});
-  final SyncState? state;
-  final VoidCallback? onPressed;
-  final bool isError;
-
-  @override
-  Widget build(BuildContext context) {
-    IconData icon;
-    Color color;
-    String tooltip;
-
-    if (isError) {
-      icon = Icons.sync_problem;
-      color = Colors.orange;
-      tooltip = 'خطأ في المزامنة';
-    } else if (state?.isSyncing ?? false) {
-      icon = Icons.sync;
-      color = Colors.blue;
-      tooltip = 'جاري المزامنة...';
-    } else if (state?.pendingChanges != null && state!.pendingChanges > 0) {
-      icon = Icons.sync;
-      color = Colors.orange;
-      tooltip = '${state!.pendingChanges} تغييرات معلقة';
-    } else if (state?.isOffline ?? false) {
-      icon = Icons.offline_bolt;
-      color = Colors.grey;
-      tooltip = 'وضع عدم الاتصال';
-    } else {
-      icon = Icons.sync;
-      color = Colors.green;
-      tooltip = 'النقر للمزامنة';
+  String _tooltipFor(SyncStatus status, int pending, bool gateBusy) {
+    if (status == SyncStatus.syncing || gateBusy) return 'جاري المزامنة...';
+    if (status == SyncStatus.failed) {
+      return 'فشلت آخر مزامنة — اضغط للتفاصيل وتسجيل الدخول';
     }
+    if (pending > 0) return '$pending تغييراً معلّقاً — اضغط للمزامنة';
+    if (status == SyncStatus.success) return 'تمت المزامنة بنجاح';
+    return 'اتصال Cloudflare — اضغط لإدارة تسجيل الدخول';
+  }
 
-    return Tooltip(
-      message: tooltip,
-      child: IconButton(
-        icon: state?.isSyncing ?? false
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
-              )
-            : Icon(icon, color: color),
-        onPressed: onPressed,
-      ),
-    );
+  Widget _iconFor(
+    BuildContext context,
+    SyncStatus status,
+    int pending,
+    bool gateBusy,
+  ) {
+    final theme = Theme.of(context);
+    if (status == SyncStatus.syncing || gateBusy) {
+      return const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    if (status == SyncStatus.failed) {
+      return const Icon(Icons.cloud_off, color: Colors.orange, size: 22);
+    }
+    if (pending > 0) {
+      return Badge(
+        label: Text('$pending'),
+        child: Icon(Icons.cloud_sync, color: theme.colorScheme.primary),
+      );
+    }
+    if (status == SyncStatus.success) {
+      return const Icon(Icons.cloud_done, color: Colors.green, size: 22);
+    }
+    return Icon(Icons.cloud_done_outlined, color: Colors.green.shade400);
   }
 }

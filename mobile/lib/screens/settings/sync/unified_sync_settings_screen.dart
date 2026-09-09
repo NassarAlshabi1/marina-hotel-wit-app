@@ -11,9 +11,11 @@ import '../../../core/core.dart';
 import '../../../providers/appwrite_providers.dart' as ap;
 import '../../../providers/repository_providers.dart' show databaseProvider;
 import '../../../services/appwrite_sync_manager.dart';
+import '../../../services/cloudflare_config.dart';
 import '../../../services/daos/outbox_dao.dart';
 import '../../../services/sync/sync_gate.dart';
 import '../../../services/worker_endpoints.dart';
+import '../../auth/cloudflare_login_screen.dart';
 
 /// Unified Sync Settings Screen
 ///
@@ -179,6 +181,12 @@ class _UnifiedSyncSettingsScreenState
 
           const SizedBox(height: UIConstants.spacingLG),
 
+          // ✅ (2026-09-10) تسجيل الدخول إلى Cloudflare — طلب المستخدم:
+          // «اضف شاشة تسجيل الدخول الى cloudflare»
+          _buildCloudflareLoginSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
           // الإعدادات العامة
           _buildGeneralSettingsSection(),
 
@@ -269,6 +277,86 @@ class _UnifiedSyncSettingsScreenState
               value: '$pending',
               icon: Icons.pending,
               iconColor: pending > 0 ? Colors.orange : Colors.green,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ✅ (2026-09-10) بطاقة تسجيل الدخول إلى Cloudflare — طلب المستخدم:
+  /// «اضف شاشة تسجيل الدخول الى cloudflare». تعرض حالة الدخول الفعلية
+  /// (token/initError) وتفتح الشاشة الكاملة بنقرة.
+  Widget _buildCloudflareLoginSection() {
+    final manager = ref.watch(ap.appwriteSyncManagerProvider);
+    final loggedIn = manager.isAvailable;
+    final hasError = manager.initError != null;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(UIConstants.spacingMD),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons.login,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
+                SizedBox(width: UIConstants.spacingSM),
+                Expanded(
+                  child: Text(
+                    'تسجيل الدخول إلى Cloudflare',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: UIConstants.spacingMD),
+            InfoRow(
+              label: 'حالة الحساب',
+              value: loggedIn ? 'مسجَّل الدخول' : 'غير مسجَّل',
+              icon: loggedIn ? Icons.check_circle : Icons.error_outline,
+              iconColor: loggedIn ? Colors.green : Colors.red,
+            ),
+            InfoRow(
+              label: 'اسم المستخدم',
+              value: CloudflareConfig.username,
+              icon: Icons.person_outline,
+            ),
+            if (hasError)
+              InfoRow(
+                label: 'آخر خطأ',
+                value: manager.initError!,
+                icon: Icons.warning_amber,
+                iconColor: Colors.orange,
+              ),
+            const SizedBox(height: UIConstants.spacingSM),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  unawaited(
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CloudflareLoginScreen(),
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.manage_accounts),
+                label: const Text('إدارة تسجيل الدخول'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: UIConstants.syncColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
           ],
         ),

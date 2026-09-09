@@ -100,6 +100,16 @@ Future<void> main() async {
     debugPrint('⚠️ WorkerEndpoints load failed (fail-open): $e');
   }
 
+  // ─── ✅ (2026-09-10) اعتمادات تسجيل الدخول المخصّصة: تحميل مبكر قبل
+  // أي initialize() للمدير — شاشة تسجيل الدخول إلى Cloudflare تحفظ
+  // username/password بديلة عن المدمجة في SharedPreferences (تفادي
+  // «لم يتم تسجيل الدخول» دون إعادة بناء APK). fail-open = المدمج.
+  try {
+    await CloudflareConfig.loadCredentialOverrides();
+  } catch (e) {
+    debugPrint('⚠️ Cloudflare credential overrides load failed: $e');
+  }
+
   // ─── Performance: تحسينات الأداء للأجهزة الضعيفة ───
   configurePerformance();
 

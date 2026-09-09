@@ -23,6 +23,7 @@ import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
+import '../widgets/sync/sync_indicator.dart';
 import 'bookings/booking_edit.dart';
 import 'finance/finance_screen.dart';
 import 'payments/booking_payment_screen.dart';
@@ -275,6 +276,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         const DashboardConflictsBadge(),
         const SizedBox(width: 8),
+        // ✅ (2026-09-10) مؤشر المزامنة الحيّ — يستمع إلى
+        // CloudflareSyncManager.syncStatusStream (كان فارغاً إلى الأبد
+        // لأنه استمع لـ SyncOrchestrator غير المهيّأ) — نقرة تفتح شاشة
+        // تسجيل الدخول إلى Cloudflare.
+        const SyncIndicator(),
+        const SizedBox(width: 4),
         const DashboardSyncButton(),
       ],
     );

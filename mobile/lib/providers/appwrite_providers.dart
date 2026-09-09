@@ -12,8 +12,6 @@ import '../services/providers.dart';
 import '../services/smart_sync_manager.dart';
 import '../services/unified_sync_orchestrator.dart';
 
-// ============ Service Providers ============
-
 /// مزود مدير المزامنة
 /// ✅ (2026-09-05) Cloudflare-only: AppwriteSyncManager هو
 /// CloudflareSyncManager (typedef) — لا خدمة Appwrite بعد الآن.
@@ -24,6 +22,49 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   ref.onDispose(manager.dispose);
 
   return manager;
+});
+
+/// ✅ (2026-09-10) مؤشرات المزامنة الحيّة — تدفق حالة
+/// [CloudflareSyncManager] الحقيقية (syncing/success/failed/idle).
+///
+/// كان `SyncIndicator` يستمع إلى `syncStateProvider` من SyncOrchestrator
+/// الذي لا يُهيّأ أبداً (لا adapters تسجَّل ولا أحد يستدعي initialize)
+/// فبقي المؤشر فارغاً إلى الأبد — بينما التدفق الحقيقي للمدير
+/// (syncStatusStream) لا يستمعه أحد. هذا الـ Provider هو الجسر:
+/// UI ← StreamProvider ← syncStatusStream ← دورة sync() الفعلية.
+///
+/// نبثّ الحالة الحالية فور الاشتراك (الـ broadcast stream الأصلي لا
+/// يُعيد آخر حدث، فبقي UI على AsyncLoading إلى الأبد قبل هذا).
+final cloudflareSyncStatusProvider = StreamProvider<SyncStatus>((ref) {
+  final manager = ref.watch(appwriteSyncManagerProvider);
+  late StreamController<SyncStatus> controller;
+  controller = StreamController<SyncStatus>(
+    onListen: () {
+      controller.add(manager.currentStatus);
+      manager.syncStatusStream.listen(
+        controller.add,
+        onError: controller.addError,
+        cancelOnError: false,
+      );
+    },
+  );
+  ref.onDispose(controller.close);
+  return controller.stream;
+});
+
+/// مزود لقطة حالة تسجيل الدخول للمدير (token/initError/جهاز) —
+/// تُقرأ كل مرة تُبنى فيها الشاشة (غير تفاعلية: Manger لا يبثّ تغيّر
+/// token كبثّ، لذا تُحدَّث عند إعادة القراءة بعد initialize اليدوي).
+final cloudflareLoginSnapshotProvider = Provider<Map<String, Object?>>((ref) {
+  final manager = ref.watch(appwriteSyncManagerProvider);
+  return <String, Object?>{
+    'isLoggedIn': manager.isAvailable,
+    'initError': manager.initError,
+    'lastError': manager.lastError,
+    'deviceId': manager.currentDeviceId,
+    'username': CloudflareConfig.username,
+    'workerUrl': CloudflareConfig.workerUrl,
+  };
 });
 
 final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
