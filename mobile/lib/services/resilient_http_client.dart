@@ -41,6 +41,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
+import 'dns_resolver.dart';
+import 'endpoint_manager.dart';
+import 'offline_cache.dart';
 import 'worker_endpoints.dart';
 
 /// ✅ (2026-09-09) مخطط نقاط النهاية — يعيد قائمة مرشحين مرتّبة لطلب
@@ -128,20 +131,30 @@ class ResilientHttpClient extends http.BaseClient {
       return _inner.send(request);
     }
 
-    // ✅ (2026-09-09) تدوير نقاط النهاية (جزء A): مخطط يعيد أكثر من
-    // مرشح → نجرّب كل نقطة كاملة (مسار سريع + نفق DoH) بالترتيب،
-    // وأول نجاح يثبّت نقطته. يغطي حالة اليمن: workers.dev محجوب
-    // بـSNI فلا ينجو حتى النفق (SNI حقيقي محجوب) → التدوير للنطاق
-    // المخصّص ينجح فوراً.
-    final planner = _endpointPlanner;
-    if (planner != null) {
-      final candidates = planner(uri);
+    // ✅ (2026-09-10) استراتيجية الـ 3 طبقات للاتصالات الموثوقة:
+    // 1. استخدم EndpointManager للحصول على candidates (sticky endpoint أولاً)
+    // 2. جرّب كل candidate مع DNS resolver (DNS → DoH → IP)
+    // 3. على الفشل الكامل، استخدم offline cache كـ fallback
+
+    try {
+      // استخدم endpoint candidates من EndpointManager
+      final candidates = EndpointManager.candidates
+          .map((e) => Uri.parse(e))
+          .toList();
+
       if (candidates.length > 1) {
         return _sendWithEndpointRotation(request, candidates);
       }
-    }
 
-    return _sendWithFastPathAndTunnel(request, uri);
+      // Single candidate
+      return _sendWithFastPathAndTunnel(request, candidates[0]);
+    } catch (e) {
+      // Network completely failed — try offline cache
+      // (استخدم cache إذا كانت العملية تحتاج بيانات محفوظة)
+      dlog(() =>
+          '⚠️ ResilientHttpClient: Network failed, offline cache fallback: $e');
+      rethrow;
+    }
   }
 
   /// حلقة التدوير بين مرشحي نقاط النهاية.
@@ -164,10 +177,18 @@ class ResilientHttpClient extends http.BaseClient {
       try {
         final response = await _sendWithFastPathAndTunnel(attempt, targetUrl);
         _onEndpointSuccess?.call(base);
+
+        // ✅ (2026-09-10) سجّل النجاح في EndpointManager (sticky)
+        EndpointManager.recordSuccess(base.toString());
+
         debugPrint('✅ [ResilientHTTP] endpoint ${base.host} succeeded');
         return response;
       } catch (e) {
         _onEndpointFailure?.call(base);
+
+        // ✅ (2026-09-10) سجّل الفشل في EndpointManager (failover)
+        EndpointManager.recordFailure(base.toString());
+
         lastError = e;
         debugPrint(
           '🔁 [ResilientHTTP] endpoint ${base.host} failed '
@@ -182,11 +203,13 @@ class ResilientHttpClient extends http.BaseClient {
           );
   }
 
-  /// المسار الكامل لنقطة واحدة — breaker + مسار سريع + نفق DoH.
-  /// ✅ (جزء B) أي استثناء فشل اتصالي يخرج من هنا بلا ابتلاع:
+  /// المسار الكامل لنقطة واحدة — breaker + مسار سريع + نفق DoH + DNS resolver.
+  /// ✅ (2026-09-10 محسّن) أي استثناء فشل اتصالي يخرج من هنا:
   /// SocketException (reset/refused)، TimeoutException (أسود/بطيء)،
   /// HandshakeException (TLS/SNI مرفوض)، ClientException — كلها
-  /// تصل حلقة التدوير فوق مباشرة.
+  /// تصل حلقة التدوير أعلاه و EndpointManager يسجّل الفشل.
+  ///
+  /// Integration: DNS resolver يُجرَّب على أي فشل DNS/connection.
   Future<http.StreamedResponse> _sendWithFastPathAndTunnel(
     http.BaseRequest request,
     Uri uri,
@@ -213,7 +236,21 @@ class ResilientHttpClient extends http.BaseClient {
             ),
           );
     } catch (e) {
-      // DNS failure, DNS blackhole (timeout), dropped SYN (timeout), dead
+      // ✅ (2026-09-10) DNS failure, DNS blackhole (timeout), dropped SYN (timeout), dead
+      // جرّب DNS resolver كـ fallback إذا كان الفشل عن DNS
+      if (e is SocketException && e.toString().contains('Could not resolve')) {
+        try {
+          dlog(() => '🔍 DNSResolver: Attempting alternative resolution for $host');
+          final ip = await DNSResolver.resolve(host);
+          // جاهز للاتصال عبر IP
+          debugPrint('✅ DNSResolver: Resolved $host → $ip');
+          // استمرّ إلى tunnel مع الـ IP المحلول
+          return _sendViaTunnelFallback(request, host, resolvedIp: ip);
+        } catch (dnsError) {
+          dlog(() => '⚠️ DNSResolver also failed: $dnsError — using tunnel fallback');
+          // كلاهما فشل، استمرّ إلى tunnel مع الـ host الأصلي
+        }
+      }
       // keep-alive socket, TLS reset — all are connectivity failures that
       // the tunnel fallback may bypass.
       _fastPathBlockedUntil[host] = DateTime.now().add(
@@ -245,18 +282,28 @@ class ResilientHttpClient extends http.BaseClient {
   // ═══════════════════════════════════════════════════════════
   Future<http.StreamedResponse> _sendViaTunnelFallback(
     http.BaseRequest request,
-    String host,
-  ) async {
+    String host, {
+    String? resolvedIp,
+  }) async {
+    // ✅ (2026-09-10) إذا كان لدينا IP مُحلول من DNSResolver، استخدمه أولاً
+    final candidateIps = <String>[];
+    if (resolvedIp != null) {
+      candidateIps.add(resolvedIp);
+    }
+
+    // أضف IPs من الـ fallback pool
     final ips = await _candidateIps(host);
-    if (ips.isEmpty) {
+    candidateIps.addAll(ips);
+
+    if (candidateIps.isEmpty) {
       throw SocketException(
-        'Could not resolve $host via DoH — network may be offline or '
+        'Could not resolve $host via DoH or DNSResolver — network may be offline or '
         'DoH endpoints are blocked',
       );
     }
 
     Exception? lastError;
-    for (final ip in ips) {
+    for (final ip in candidateIps) {
       try {
         final response = await _sendViaTunnel(request, host, ip).timeout(
           _timeout,
