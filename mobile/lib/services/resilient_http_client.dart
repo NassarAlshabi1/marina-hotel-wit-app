@@ -184,9 +184,7 @@ class ResilientHttpClient extends http.BaseClient {
     }
     throw lastError is Exception
         ? lastError
-        : SocketException(
-            'All ${candidates.length} worker endpoints failed',
-          );
+        : SocketException('All ${candidates.length} worker endpoints failed');
   }
 
   /// المسار الكامل لنقطة واحدة — breaker + مسار سريع + نفق DoH.
@@ -263,12 +261,12 @@ class ResilientHttpClient extends http.BaseClient {
       throw SocketException(
         isWorkersDev
             ? 'Could not resolve $host via DoH — الحجب كامل على هذه '
-                'الشبكة: فشل كل مزوّدي DoH وDNS النظام. الحل المضمون: '
-                'أضف نطاقاً مخصّصاً للـ Worker من الإعدادات («نطاق Worker '
-                'مخصص») — حجب workers.dev في اليمن على مستوى الشبكة لا '
-                'يُتجاوَز تطبيقياً'
+                  'الشبكة: فشل كل مزوّدي DoH وDNS النظام. الحل المضمون: '
+                  'أضف نطاقاً مخصّصاً للـ Worker من الإعدادات («نطاق Worker '
+                  'مخصص») — حجب workers.dev في اليمن على مستوى الشبكة لا '
+                  'يُتجاوَز تطبيقياً'
             : 'Could not resolve $host via DoH — network may be offline or '
-                'DoH endpoints are blocked',
+                  'DoH endpoints are blocked',
       );
     }
 
@@ -291,13 +289,11 @@ class ResilientHttpClient extends http.BaseClient {
         // re-bind on the next attempt.
         final t = _tunnelServer;
         if (t != null && e is SocketException) {
-          unawaited(
-            () async {
-              try {
-                await t.close();
-              } catch (_) {}
-            }(),
-          );
+          unawaited(() async {
+            try {
+              await t.close();
+            } catch (_) {}
+          }());
           _tunnelServer = null;
         }
       }
@@ -340,9 +336,7 @@ class ResilientHttpClient extends http.BaseClient {
           );
         }
       } catch (e) {
-        debugPrint(
-          '⚠️ [ResilientHTTP] system-DNS bridge failed for $host: $e',
-        );
+        debugPrint('⚠️ [ResilientHTTP] system-DNS bridge failed for $host: $e');
       }
     }
     return candidates.take(6).toList();
@@ -680,13 +674,11 @@ class ResilientHttpClient extends http.BaseClient {
     final t = _tunnelServer;
     _tunnelServer = null;
     if (t != null) {
-      unawaited(
-        () async {
-          try {
-            await t.close();
-          } catch (_) {}
-        }(),
-      );
+      unawaited(() async {
+        try {
+          await t.close();
+        } catch (_) {}
+      }());
     }
   }
 

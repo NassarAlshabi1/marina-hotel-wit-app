@@ -226,9 +226,7 @@ void main() {
       expect(seenBodies.first, seenBodies.last);
       expect(seenAuth, everyElement('Bearer tok'));
       expect(failures.map((u) => u.host).toList(), <String>['primary.test']);
-      expect(successes.map((u) => u.host).toList(), <String>[
-        'secondary.test',
-      ]);
+      expect(successes.map((u) => u.host).toList(), <String>['secondary.test']);
     });
 
     test(
@@ -244,7 +242,7 @@ void main() {
           innerClient: inner,
           fastTimeout: const Duration(milliseconds: 200),
           dohResolver: (_) async => const <String>[],
-        systemResolver: (_) async => const <String>[],
+          systemResolver: (_) async => const <String>[],
           endpointPlanner: WorkerEndpoints.candidatesFor,
           onEndpointFailure: failures.add,
         );
@@ -302,7 +300,7 @@ void main() {
           innerClient: inner,
           fastTimeout: const Duration(milliseconds: 300),
           dohResolver: (_) async => const <String>[],
-        systemResolver: (_) async => const <String>[],
+          systemResolver: (_) async => const <String>[],
           endpointPlanner: WorkerEndpoints.candidatesFor,
           onEndpointSuccess: WorkerEndpoints.reportSuccess,
           onEndpointFailure: WorkerEndpoints.reportFailure,
