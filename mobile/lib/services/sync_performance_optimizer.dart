@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
-import 'appwrite_config.dart';
 
 /// مُحسِّن أداء المزامنة
 /// يراقب حالة الاتصال ويحسن أداء المزامنة بناءً على نوع الشبكة
@@ -220,7 +219,7 @@ class SyncPerformanceOptimizer {
     // ✅ إعادة استخدام HttpClient بدلاً من إنشاء واحد جديد كل مرة
     final client = _getOrCreateHttpClient();
     try {
-      final uri = Uri.parse(AppwriteConfig.endpoint);
+      final uri = Uri.parse('https://www.google.com');
       final request = await client
           .getUrl(uri)
           .timeout(const Duration(seconds: 2));

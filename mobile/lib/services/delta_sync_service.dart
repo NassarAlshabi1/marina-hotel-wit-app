@@ -598,10 +598,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as PriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as PriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as PriceAdjustment).toJson(),
-        vectorClock: (dynamic row) => (row as PriceAdjustment).vectorClock ?? "",
-        origin: (dynamic row) => (row as PriceAdjustment).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as PriceAdjustment).vectorClock,
+        origin: (dynamic row) => (row as PriceAdjustment).origin,
         version: (dynamic row) => (row as PriceAdjustment).version,
-        idempotencyKey: (dynamic row) => (row as PriceAdjustment).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) => (row as PriceAdjustment).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'audit_logs',

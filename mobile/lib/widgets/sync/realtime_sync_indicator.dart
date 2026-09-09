@@ -69,15 +69,15 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
 
     if (widget.compact) {
       return syncHealthAsync.when(
-        data: (health) => _buildCompactIndicator(context, health),
-        loading: () => _buildCompactLoading(),
+        data: _buildCompactIndicator,
+        loading: _buildCompactLoading,
         error: (_, __) => const Icon(Icons.error_outline, color: Colors.red),
       );
     }
 
     return syncHealthAsync.when(
-      data: (health) => _buildFullIndicator(context, health),
-      loading: () => _buildFullLoading(),
+      data: _buildFullIndicator,
+      loading: _buildFullLoading,
       error: (e, __) => _buildErrorView(e.toString()),
     );
   }
@@ -91,9 +91,6 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
     final totalPending = health.pendingCount +
         health.failedCount +
         health.stuckProcessingCount;
-    final progress = health.completedCount /
-        (health.completedCount + totalPending).toDouble()
-        .clamp(0, 1);
 
     Color statusColor;
     IconData statusIcon;
@@ -101,7 +98,7 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
     if (health.failedCount > 0) {
       statusColor = Colors.red;
       statusIcon = Icons.error_outline;
-    } else if (health.status == 'critical') {
+    } else if (health.status == SyncHealthStatus.critical) {
       statusColor = Colors.orange;
       statusIcon = Icons.warning;
     } else if (isSyncing) {
@@ -212,7 +209,7 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             Text(
-                              health.status,
+                              health.status.name,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: _getStatusColor(health.status),
@@ -236,7 +233,7 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            '${totalPending} معلق',
+                            '$totalPending معلق',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -422,17 +419,18 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
   }
 
   /// الحصول على لون الحالة
-  Color _getStatusColor(String status) {
+  Color _getStatusColor(SyncHealthStatus status) {
     switch (status) {
-      case 'healthy':
+      case SyncHealthStatus.healthy:
+      case SyncHealthStatus.ok:
         return Colors.green;
-      case 'warning':
+      case SyncHealthStatus.warning:
         return Colors.orange;
-      case 'error':
+      case SyncHealthStatus.error:
         return Colors.deepOrange;
-      case 'critical':
+      case SyncHealthStatus.critical:
         return Colors.red;
-      default:
+      case SyncHealthStatus.unknown:
         return Colors.grey;
     }
   }
@@ -441,10 +439,10 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
   String _buildStatusMessage(SyncHealthReport health) {
     final parts = <String>[];
 
-    if (health.status == 'healthy') {
+    if (health.status == SyncHealthStatus.healthy) {
       parts.add('✅ النظام صحي');
     } else {
-      parts.add('⚠️ ${health.status}');
+      parts.add('⚠️ ${health.status.name}');
     }
 
     if (health.pendingCount > 0) {
@@ -479,7 +477,7 @@ class CompactSyncDot extends ConsumerWidget {
           color = Colors.red;
         } else if (isSyncing) {
           color = Colors.blue;
-        } else if (health.status == 'صحي') {
+        } else if (health.status == SyncHealthStatus.healthy) {
           color = Colors.green;
         } else {
           color = Colors.orange;
