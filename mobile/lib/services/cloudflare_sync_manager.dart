@@ -721,23 +721,28 @@ class CloudflareSyncManager {
       // ✅ (2026-09-05) devices كيان متزامن في النطاق الافتراضي
       // (تعليمات المستخدم): كتابة محلية + outbox — السجل يُرفع عبر
       // push ويُسحب عبر delta لكل الأجهزة.
+      // ✅ P0-3 (2026-09-09): wrap في transaction — منع crash-gap
+      // بين local write و outbox enqueue
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final payload = _deviceSyncPayload(platform: 'android', now: now);
-      await _writeLocalDeviceRow(payload);
-      final deviceRowUuid = payload['local_uuid'] as String?;
-      if (deviceRowUuid != null && deviceRowUuid.isNotEmpty) {
-        try {
-          await outboxDao.merge(
-            entity: 'devices',
-            op: 'create',
-            localUuid: deviceRowUuid,
-            payload: payload,
-            clientTs: now,
-          );
-        } catch (e) {
-          debugPrint('⚠️ devices outbox enqueue failed: $e');
+      await _db!.transaction(() async {
+        await _writeLocalDeviceRow(payload);
+        final deviceRowUuid = payload['local_uuid'] as String?;
+        if (deviceRowUuid != null && deviceRowUuid.isNotEmpty) {
+          try {
+            await outboxDao.merge(
+              entity: 'devices',
+              op: 'create',
+              localUuid: deviceRowUuid,
+              payload: payload,
+              clientTs: now,
+            );
+          } catch (e) {
+            debugPrint('⚠️ devices outbox enqueue failed: $e');
+            rethrow; // إعادة رمي الاستثناء ليعيد المعاملة كاملة
+          }
         }
-      }
+      });
       return _deviceId!;
     }
     // ✅ سجل في شاشة تتبع الأخطاء
@@ -778,21 +783,26 @@ class CloudflareSyncManager {
         platform: 'android',
         now: now,
       );
-      await _writeLocalDeviceRow(payload);
-      final deviceRowUuid = payload['local_uuid'] as String?;
-      if (deviceRowUuid != null && deviceRowUuid.isNotEmpty) {
-        try {
-          await outboxDao.merge(
-            entity: 'devices',
-            op: 'update',
-            localUuid: deviceRowUuid,
-            payload: payload,
-            clientTs: now,
-          );
-        } catch (e) {
-          debugPrint('⚠️ devices outbox enqueue failed: $e');
+      // ✅ P0-3 (2026-09-09): wrap في transaction — منع crash-gap
+      // بين local write و outbox enqueue
+      await _db!.transaction(() async {
+        await _writeLocalDeviceRow(payload);
+        final deviceRowUuid = payload['local_uuid'] as String?;
+        if (deviceRowUuid != null && deviceRowUuid.isNotEmpty) {
+          try {
+            await outboxDao.merge(
+              entity: 'devices',
+              op: 'update',
+              localUuid: deviceRowUuid,
+              payload: payload,
+              clientTs: now,
+            );
+          } catch (e) {
+            debugPrint('⚠️ devices outbox enqueue failed: $e');
+            rethrow; // إعادة رمي الاستثناء ليعيد المعاملة كاملة
+          }
         }
-      }
+      });
     } catch (e) {
       debugPrint('⚠️ Set FCM token error: $e');
     }
