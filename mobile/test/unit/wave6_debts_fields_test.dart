@@ -19,7 +19,6 @@ import 'package:marina_hotel_mobile/services/adapters/debts_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/id_resolver.dart';
 import 'package:marina_hotel_mobile/services/adapters/resolve_result.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
-import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync/payload_mapper.dart';
 
@@ -307,50 +306,11 @@ void main() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // المجموعة 4: filterPayload يسمح بالحقول الأربعة
+  // المجموعة 4: (أزيلت 2026-09-09 — إصلاح CI)
+  // كانت تختبر AppwriteSyncUtils.filterPayloadForCollection التي حُذفت
+  // مع مخلفات Appwrite القديمة (P2-1). التصفية الآن داخل debtToRemote
+  // (sanitizePayload داخلياً) وتغطيها المجموعتان 1 و 6.
   // ═══════════════════════════════════════════════════════════════════════
-  group('filterPayload: debts يسمح بالحقول الأربعة', () {
-    test('4a. filterPayload يحتفظ بـ bookingUuidCache', () {
-      final payload = {
-        'localUuid': 'x',
-        'bookingUuidCache': 'booking-1',
-        'unknownField': 'should-be-removed',
-      };
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection(
-        'debts',
-        payload,
-      );
-      expect(filtered.containsKey('bookingUuidCache'), isTrue);
-      expect(filtered['bookingUuidCache'], 'booking-1');
-      expect(
-        filtered.containsKey('unknownField'),
-        isFalse,
-        reason: 'الحقول غير المدرجة يجب أن تُزال',
-      );
-    });
-
-    test('4b. filterPayload يحتفظ بـ debtorName', () {
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', {
-        'debtorName': 'X',
-      });
-      expect(filtered.containsKey('debtorName'), isTrue);
-    });
-
-    test('4c. filterPayload يحتفظ بـ amount', () {
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', {
-        'amount': 100.0,
-      });
-      expect(filtered.containsKey('amount'), isTrue);
-    });
-
-    test('4d. filterPayload يحتفظ بـ date', () {
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', {
-        'date': '2026-08-12',
-      });
-      expect(filtered.containsKey('date'), isTrue);
-    });
-  });
-
   // ═══════════════════════════════════════════════════════════════════════
   // المجموعة 5: Drive sync (toJson) يرسل الحقول الأربعة
   // ═══════════════════════════════════════════════════════════════════════
@@ -409,12 +369,10 @@ void main() {
       );
       // 1. push payload (debtToRemote + sanitizePayload)
       final payload = payloadMapper.debtToRemote(debt);
-      // 2. filterPayload يحتفظ بالحقول المسموح بها فقط
-      // (debtToRemote يستدعي sanitizePayload داخلياً، لكن نختبر مرة أخرى)
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection(
-        'debts',
-        payload,
-      );
+      // 2. ✅ (2026-09-09) إصلاح CI: استبدال AppwriteSyncUtils.filterPayload
+      // (محذوفة مع مخلفات Appwrite P2-1) بالاستخدام المباشر للـ payload —
+      // debtToRemote يطبّق sanitizePayload داخلياً.
+      final filtered = payload;
       // 3. محاكاة pull على جهاز ثانٍ/قاعدة خالية. لا يستخدم Drift
       // localUuid كمفتاح conflict، لذلك insertOnConflictUpdate لا يصلح
       // لمحاكاة upsert عبر UUID في هذا الاختبار.

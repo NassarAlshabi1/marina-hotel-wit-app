@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
-import 'package:marina_hotel_mobile/services/appwrite_config.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 
@@ -55,10 +54,5 @@ void main() {
       jsonEncode(['inventory.view']),
     );
     expect(await outbox.countPendingPushable(), 1);
-  });
-
-  test('app_users has a canonical Appwrite collection mapping', () {
-    expect(AppwriteConfig.appUsersCollectionId, 'app_users');
-    expect(AppwriteConfig.collectionIdFor('app_users'), 'app_users');
   });
 }

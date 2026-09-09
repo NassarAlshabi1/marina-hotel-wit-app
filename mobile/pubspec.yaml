@@ -8,10 +8,12 @@ environment:
   flutter: '>=3.44.0'
 dependencies:
   android_alarm_manager_plus: ^4.0.5
+  battery_plus: ^6.2.3
   characters: any
   clock: ^1.1.1
   collection: ^1.18.0
   connectivity_plus: ^6.1.0
+  crypto: ^3.0.3
   device_info_plus: ^12.3.0
   dio: ^5.7.0
   drift: ^2.31.0
@@ -39,6 +41,7 @@ dependencies:
   freezed_annotation: ^3.1.0
   google_sign_in: ^6.2.1
   googleapis: ^13.2.0
+  http: ^1.2.2
   intl: ^0.20.2
   json_annotation: ^4.12.0
   package_info_plus: ^8.1.1
@@ -46,6 +49,7 @@ dependencies:
   path_provider: ^2.1.4
   pdf: ^3.11.1
   permission_handler: ^11.3.1
+  pointycastle: ^3.9.1
   posthog_flutter: ^4.0.0
   printing: ^5.13.2
   share_plus: ^10.1.1

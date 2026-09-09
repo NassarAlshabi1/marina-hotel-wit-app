@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
-// ✅ REMOVED: battery_plus is no longer in pubspec.yaml
-// import 'package:battery_plus/battery_plus.dart';
+import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/debug_log.dart';

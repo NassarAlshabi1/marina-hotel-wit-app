@@ -79,9 +79,12 @@ void main() {
         findsOneWidget,
         reason: 'size=$size',
       );
+      // ✅ (2026-09-09) تحديث التوقع بعد ac64ba14: خيار 'المزامنة السحابية'
+      // أُزيل من شاشة الإعدادات لكونه مكرراً ('المزامنة بين الأجهزة'
+      // يفتح نفس الشاشة) — يجب ألا يظهر مرة أخرى (حماية من التراجع).
       expect(
         find.text('المزامنة السحابية'),
-        findsOneWidget,
+        findsNothing,
         reason: 'size=$size',
       );
       expect(tester.takeException(), isNull, reason: 'size=$size');

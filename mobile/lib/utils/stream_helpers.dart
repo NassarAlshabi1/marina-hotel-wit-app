@@ -63,4 +63,3 @@ class StreamToValueNotifier<T> extends ValueNotifier<T> {
     super.dispose();
   }
 }
-

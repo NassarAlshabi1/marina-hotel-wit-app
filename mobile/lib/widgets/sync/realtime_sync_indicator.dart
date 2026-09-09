@@ -40,12 +40,14 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
     _progressController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
-    )..repeat();
+    );
+    unawaited(_progressController.repeat());
 
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
-    )..repeat();
+    );
+    unawaited(_pulseController.repeat());
 
     // تحديث الإحصائيات كل 100ms للحصول على تحديثات حيّة
     _statsTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
@@ -83,14 +85,10 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
   }
 
   /// مؤشر مضغوط للـ app bar
-  Widget _buildCompactIndicator(
-    BuildContext context,
-    SyncHealthReport health,
-  ) {
+  Widget _buildCompactIndicator(SyncHealthReport health) {
     final isSyncing = health.pendingCount > 0;
-    final totalPending = health.pendingCount +
-        health.failedCount +
-        health.stuckProcessingCount;
+    final totalPending =
+        health.pendingCount + health.failedCount + health.stuckProcessingCount;
 
     Color statusColor;
     IconData statusIcon;
@@ -148,18 +146,13 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
   }
 
   /// مؤشر كامل مفصّل
-  Widget _buildFullIndicator(
-    BuildContext context,
-    SyncHealthReport health,
-  ) {
+  Widget _buildFullIndicator(SyncHealthReport health) {
     final isSyncing = health.pendingCount > 0;
-    final totalPending = health.pendingCount +
-        health.failedCount +
-        health.stuckProcessingCount;
+    final totalPending =
+        health.pendingCount + health.failedCount + health.stuckProcessingCount;
     final progress =
-        health.completedCount / (health.completedCount + totalPending)
-            .toDouble()
-            .clamp(0, 1);
+        health.completedCount /
+        (health.completedCount + totalPending).toDouble().clamp(0, 1);
 
     return Column(
       children: [
@@ -177,11 +170,15 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                     Row(
                       children: [
                         AnimatedBuilder(
-                          animation: isSyncing ? _pulseController : const AlwaysStoppedAnimation(0),
+                          animation: isSyncing
+                              ? _pulseController
+                              : const AlwaysStoppedAnimation(0),
                           builder: (_, __) {
                             return ScaleTransition(
-                              scale: Tween<double>(begin: 0.8, end: 1.2)
-                                  .animate(_pulseController),
+                              scale: Tween<double>(
+                                begin: 0.8,
+                                end: 1.2,
+                              ).animate(_pulseController),
                               child: Container(
                                 width: 16,
                                 height: 16,
@@ -191,7 +188,9 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                                   boxShadow: [
                                     if (isSyncing)
                                       BoxShadow(
-                                        color: Colors.blue.withValues(alpha: 0.5),
+                                        color: Colors.blue.withValues(
+                                          alpha: 0.5,
+                                        ),
                                         blurRadius: 8,
                                       ),
                                   ],
@@ -221,8 +220,10 @@ class _RealtimeSyncIndicatorState extends ConsumerState<RealtimeSyncIndicator>
                     ),
                     if (widget.showDetailedStats)
                       ScaleTransition(
-                        scale: Tween<double>(begin: 0.9, end: 1.1)
-                            .animate(_pulseController),
+                        scale: Tween<double>(
+                          begin: 0.9,
+                          end: 1.1,
+                        ).animate(_pulseController),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,

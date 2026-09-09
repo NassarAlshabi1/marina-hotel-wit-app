@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart';
 import '../utils/debug_log.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
+import 'vector_clock_helper.dart' show VectorClockHelper;
 
 /// ✅ Cloudflare D1 Compatible Delta Sync Service
 ///
@@ -31,22 +33,22 @@ class DeltaSyncChange {
     required this.rowHash,
     required this.localUuid,
     required this.clientTimestamp,
-    required this.vectorClock,      // ✅ Vector Clock for conflict resolution
-    required this.origin,            // ✅ Device origin
-    required this.version,           // ✅ Version for conflict detection
-    required this.idempotencyKey,    // ✅ Retry safety
+    required this.vectorClock, // ✅ Vector Clock for conflict resolution
+    required this.origin, // ✅ Device origin
+    required this.version, // ✅ Version for conflict detection
+    required this.idempotencyKey, // ✅ Retry safety
   });
 
   final String entity;
-  final String operation;              // insert | update | delete
+  final String operation; // insert | update | delete
   final Map<String, dynamic> data;
-  final String rowHash;                // SHA-1 hash of normalized payload
-  final String localUuid;              // local_uuid from SyncFields
-  final int clientTimestamp;           // client-side timestamp
-  final String vectorClock;            // ✅ Vector Clock: "device1:5,device2:3,..."
-  final String origin;                 // ✅ Origin device UUID
-  final int version;                   // ✅ Monotonic version counter
-  final String idempotencyKey;         // ✅ For deduplication on retry
+  final String rowHash; // SHA-1 hash of normalized payload
+  final String localUuid; // local_uuid from SyncFields
+  final int clientTimestamp; // client-side timestamp
+  final String vectorClock; // ✅ Vector Clock: "device1:5,device2:3,..."
+  final String origin; // ✅ Origin device UUID
+  final int version; // ✅ Monotonic version counter
+  final String idempotencyKey; // ✅ For deduplication on retry
 
   /// Convert to Cloudflare D1 API payload
   Map<String, dynamic> toMap() {
@@ -57,9 +59,9 @@ class DeltaSyncChange {
       'row_hash': rowHash,
       'local_uuid': localUuid,
       'client_timestamp': clientTimestamp,
-      'vector_clock': vectorClock,     // ✅ Cloudflare will merge clocks
-      'origin': origin,                 // ✅ Device tracking
-      'version': version,               // ✅ Conflict resolution
+      'vector_clock': vectorClock, // ✅ Cloudflare will merge clocks
+      'origin': origin, // ✅ Device tracking
+      'version': version, // ✅ Conflict resolution
       'idempotency_key': idempotencyKey, // ✅ Deduplication
     };
   }
@@ -92,9 +94,9 @@ class DeltaSyncService {
   /// Returns all changes since [since] timestamp (default: lastPushTs from DB)
   /// including Vector Clock info for each change.
   Future<DeltaSyncComputation> compute({int? since}) async {
-    final state = await (db.select(db.syncState)
-        ..where((t) => t.id.equals(1)))
-        .getSingleOrNull();
+    final state = await (db.select(
+      db.syncState,
+    )..where((t) => t.id.equals(1))).getSingleOrNull();
 
     final baseSince = since ?? state?.lastPushTs ?? 0;
     final normalizedSince = _normalizeTimestamp(baseSince);
@@ -104,7 +106,9 @@ class DeltaSyncService {
     final fallbackTables = <String>{};
 
     // ✅ Get current device UUID for origin tracking (fallback to generated UUID)
-    final currentDeviceId = state?.deviceId ?? 'device-${DateTime.now().millisecondsSinceEpoch}';
+    // ✅ (2026-09-09) إصلاح CI: جدول SyncState لا يحتوي عمود deviceId —
+    // نقرأ معرف الجهاز من SharedPreferences (نفس مفتاح VectorClockHelper)
+    final currentDeviceId = await _resolveDeviceId();
 
     final entityInputs = <_DeltaSyncEntityInput>[];
     for (final config in configs) {
@@ -113,7 +117,8 @@ class DeltaSyncService {
       if (!hasMirror) {
         fallbackTables.add(config.entity);
         dlog(
-          () => '⚠️ جدول ${config.entity}: لا توجد مرآة، سيتم الاعتماد على '
+          () =>
+              '⚠️ جدول ${config.entity}: لا توجد مرآة، سيتم الاعتماد على '
               'lastModified فقط',
         );
       }
@@ -130,10 +135,10 @@ class DeltaSyncService {
             createdAt: config.createdAt(row),
             lastModified: config.lastModified(row),
             deletedAt: config.deletedAt(row),
-            vectorClock: config.vectorClock(row),  // ✅ Vector Clock
-            origin: config.origin(row),             // ✅ Origin device
-            version: config.version(row),           // ✅ Version
-            idempotencyKey: config.idempotencyKey(row), // ✅ Idempotency
+            vectorClock: config.vectorClock(row) ?? '{}', // ✅ Vector Clock
+            origin: config.origin(row) ?? 'local', // ✅ Origin device
+            version: config.version(row), // ✅ Version
+            idempotencyKey: config.idempotencyKey(row) ?? '', // ✅ Idempotency
           ),
         );
       }
@@ -153,7 +158,7 @@ class DeltaSyncService {
       normalizedSince: normalizedSince,
       nowTs: nowTs,
       fallbackTables: fallbackTables,
-      currentDeviceId: currentDeviceId,  // ✅ Pass device ID
+      currentDeviceId: currentDeviceId, // ✅ Pass device ID
     );
 
     final output = await Isolate.run(
@@ -170,8 +175,8 @@ class DeltaSyncService {
             localUuid: m['local_uuid'] as String,
             clientTimestamp: m['client_ts'] as int,
             vectorClock: m['vector_clock'] as String, // ✅ From isolate
-            origin: m['origin'] as String,             // ✅ From isolate
-            version: m['version'] as int,              // ✅ From isolate
+            origin: m['origin'] as String, // ✅ From isolate
+            version: m['version'] as int, // ✅ From isolate
             idempotencyKey: m['idempotency_key'] as String, // ✅ From isolate
           ),
         )
@@ -371,10 +376,12 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Room).lastModified,
         deletedAt: (dynamic row) => (row as Room).deletedAt,
         toJson: (dynamic row) => (row as Room).toJson(),
-        vectorClock: (dynamic row) => (row as Room).vectorClock ?? "",    // ✅ From SyncFields
-        origin: (dynamic row) => (row as Room).origin ?? "unknown",              // ✅ From SyncFields
-        version: (dynamic row) => (row as Room).version,            // ✅ From SyncFields
-        idempotencyKey: (dynamic row) => (row as Room).idempotencyKey ?? "", // ✅ From SyncFields
+        vectorClock: (dynamic row) =>
+            (row as Room).vectorClock, // ✅ From SyncFields
+        origin: (dynamic row) => (row as Room).origin, // ✅ From SyncFields
+        version: (dynamic row) => (row as Room).version, // ✅ From SyncFields
+        idempotencyKey: (dynamic row) =>
+            (row as Room).idempotencyKey ?? '', // ✅ From SyncFields
       ),
       _EntityConfig(
         entity: 'bookings',
@@ -389,10 +396,10 @@ class DeltaSyncService {
           j['amount'] = b.totalDueCached;
           return j;
         },
-        vectorClock: (dynamic row) => (row as Booking).vectorClock ?? "",
-        origin: (dynamic row) => (row as Booking).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as Booking).vectorClock,
+        origin: (dynamic row) => (row as Booking).origin,
         version: (dynamic row) => (row as Booking).version,
-        idempotencyKey: (dynamic row) => (row as Booking).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) => (row as Booking).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'booking_notes',
@@ -402,10 +409,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as BookingNote).lastModified,
         deletedAt: (dynamic row) => (row as BookingNote).deletedAt,
         toJson: (dynamic row) => (row as BookingNote).toJson(),
-        vectorClock: (dynamic row) => (row as BookingNote).vectorClock ?? "",
-        origin: (dynamic row) => (row as BookingNote).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as BookingNote).vectorClock,
+        origin: (dynamic row) => (row as BookingNote).origin,
         version: (dynamic row) => (row as BookingNote).version,
-        idempotencyKey: (dynamic row) => (row as BookingNote).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as BookingNote).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'employees',
@@ -415,10 +423,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Employee).lastModified,
         deletedAt: (dynamic row) => (row as Employee).deletedAt,
         toJson: (dynamic row) => (row as Employee).toJson(),
-        vectorClock: (dynamic row) => (row as Employee).vectorClock ?? "",
-        origin: (dynamic row) => (row as Employee).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as Employee).vectorClock,
+        origin: (dynamic row) => (row as Employee).origin,
         version: (dynamic row) => (row as Employee).version,
-        idempotencyKey: (dynamic row) => (row as Employee).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) => (row as Employee).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'inventory_items',
@@ -428,10 +436,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as InventoryItem).lastModified,
         deletedAt: (dynamic row) => (row as InventoryItem).deletedAt,
         toJson: (dynamic row) => (row as InventoryItem).toJson(),
-        vectorClock: (dynamic row) => (row as InventoryItem).vectorClock ?? "",
-        origin: (dynamic row) => (row as InventoryItem).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as InventoryItem).vectorClock,
+        origin: (dynamic row) => (row as InventoryItem).origin,
         version: (dynamic row) => (row as InventoryItem).version,
-        idempotencyKey: (dynamic row) => (row as InventoryItem).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as InventoryItem).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'inventory_transactions',
@@ -442,10 +451,11 @@ class DeltaSyncService {
             (row as InventoryTransaction).lastModified,
         deletedAt: (dynamic row) => (row as InventoryTransaction).deletedAt,
         toJson: (dynamic row) => (row as InventoryTransaction).toJson(),
-        vectorClock: (dynamic row) => (row as InventoryTransaction).vectorClock ?? "",
-        origin: (dynamic row) => (row as InventoryTransaction).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as InventoryTransaction).vectorClock,
+        origin: (dynamic row) => (row as InventoryTransaction).origin,
         version: (dynamic row) => (row as InventoryTransaction).version,
-        idempotencyKey: (dynamic row) => (row as InventoryTransaction).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as InventoryTransaction).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'expenses',
@@ -455,10 +465,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Expense).lastModified,
         deletedAt: (dynamic row) => (row as Expense).deletedAt,
         toJson: (dynamic row) => (row as Expense).toJson(),
-        vectorClock: (dynamic row) => (row as Expense).vectorClock ?? "",
-        origin: (dynamic row) => (row as Expense).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as Expense).vectorClock,
+        origin: (dynamic row) => (row as Expense).origin,
         version: (dynamic row) => (row as Expense).version,
-        idempotencyKey: (dynamic row) => (row as Expense).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) => (row as Expense).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'cash_transactions',
@@ -468,10 +478,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as CashTransaction).lastModified,
         deletedAt: (dynamic row) => (row as CashTransaction).deletedAt,
         toJson: (dynamic row) => (row as CashTransaction).toJson(),
-        vectorClock: (dynamic row) => (row as CashTransaction).vectorClock ?? "",
-        origin: (dynamic row) => (row as CashTransaction).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as CashTransaction).vectorClock,
+        origin: (dynamic row) => (row as CashTransaction).origin,
         version: (dynamic row) => (row as CashTransaction).version,
-        idempotencyKey: (dynamic row) => (row as CashTransaction).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as CashTransaction).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'payments',
@@ -481,10 +492,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Payment).lastModified,
         deletedAt: (dynamic row) => (row as Payment).deletedAt,
         toJson: (dynamic row) => (row as Payment).toJson(),
-        vectorClock: (dynamic row) => (row as Payment).vectorClock ?? "",
-        origin: (dynamic row) => (row as Payment).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as Payment).vectorClock,
+        origin: (dynamic row) => (row as Payment).origin,
         version: (dynamic row) => (row as Payment).version,
-        idempotencyKey: (dynamic row) => (row as Payment).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) => (row as Payment).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'debts',
@@ -494,10 +505,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Debt).lastModified,
         deletedAt: (dynamic row) => (row as Debt).deletedAt,
         toJson: (dynamic row) => (row as Debt).toJson(),
-        vectorClock: (dynamic row) => (row as Debt).vectorClock ?? "",
-        origin: (dynamic row) => (row as Debt).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as Debt).vectorClock,
+        origin: (dynamic row) => (row as Debt).origin,
         version: (dynamic row) => (row as Debt).version,
-        idempotencyKey: (dynamic row) => (row as Debt).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) => (row as Debt).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'booking_nights',
@@ -507,10 +518,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as BookingNight).lastModified,
         deletedAt: (dynamic row) => (row as BookingNight).deletedAt,
         toJson: (dynamic row) => (row as BookingNight).toJson(),
-        vectorClock: (dynamic row) => (row as BookingNight).vectorClock ?? "",
-        origin: (dynamic row) => (row as BookingNight).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as BookingNight).vectorClock,
+        origin: (dynamic row) => (row as BookingNight).origin,
         version: (dynamic row) => (row as BookingNight).version,
-        idempotencyKey: (dynamic row) => (row as BookingNight).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as BookingNight).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'guest_infos',
@@ -520,10 +532,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as GuestInfo).lastModified,
         deletedAt: (dynamic row) => (row as GuestInfo).deletedAt,
         toJson: (dynamic row) => (row as GuestInfo).toJson(),
-        vectorClock: (dynamic row) => (row as GuestInfo).vectorClock ?? "",
-        origin: (dynamic row) => (row as GuestInfo).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as GuestInfo).vectorClock,
+        origin: (dynamic row) => (row as GuestInfo).origin,
         version: (dynamic row) => (row as GuestInfo).version,
-        idempotencyKey: (dynamic row) => (row as GuestInfo).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as GuestInfo).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'salary_withdrawals',
@@ -533,10 +546,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as SalaryWithdrawal).lastModified,
         deletedAt: (dynamic row) => (row as SalaryWithdrawal).deletedAt,
         toJson: (dynamic row) => (row as SalaryWithdrawal).toJson(),
-        vectorClock: (dynamic row) => (row as SalaryWithdrawal).vectorClock ?? "",
-        origin: (dynamic row) => (row as SalaryWithdrawal).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as SalaryWithdrawal).vectorClock,
+        origin: (dynamic row) => (row as SalaryWithdrawal).origin,
         version: (dynamic row) => (row as SalaryWithdrawal).version,
-        idempotencyKey: (dynamic row) => (row as SalaryWithdrawal).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as SalaryWithdrawal).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'salary_carry_over_logs',
@@ -546,10 +560,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as SalaryCarryOverLog).lastModified,
         deletedAt: (dynamic row) => (row as SalaryCarryOverLog).deletedAt,
         toJson: (dynamic row) => (row as SalaryCarryOverLog).toJson(),
-        vectorClock: (dynamic row) => (row as SalaryCarryOverLog).vectorClock ?? "",
-        origin: (dynamic row) => (row as SalaryCarryOverLog).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as SalaryCarryOverLog).vectorClock,
+        origin: (dynamic row) => (row as SalaryCarryOverLog).origin,
         version: (dynamic row) => (row as SalaryCarryOverLog).version,
-        idempotencyKey: (dynamic row) => (row as SalaryCarryOverLog).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as SalaryCarryOverLog).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'shift_notes',
@@ -559,10 +574,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as ShiftNote).lastModified,
         deletedAt: (dynamic row) => (row as ShiftNote).deletedAt,
         toJson: (dynamic row) => (row as ShiftNote).toJson(),
-        vectorClock: (dynamic row) => (row as ShiftNote).vectorClock ?? "",
-        origin: (dynamic row) => (row as ShiftNote).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as ShiftNote).vectorClock,
+        origin: (dynamic row) => (row as ShiftNote).origin,
         version: (dynamic row) => (row as ShiftNote).version,
-        idempotencyKey: (dynamic row) => (row as ShiftNote).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as ShiftNote).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'salary_cycles',
@@ -572,10 +588,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as SalaryCycle).lastModified,
         deletedAt: (dynamic row) => (row as SalaryCycle).deletedAt,
         toJson: (dynamic row) => (row as SalaryCycle).toJson(),
-        vectorClock: (dynamic row) => (row as SalaryCycle).vectorClock ?? "",
-        origin: (dynamic row) => (row as SalaryCycle).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as SalaryCycle).vectorClock,
+        origin: (dynamic row) => (row as SalaryCycle).origin,
         version: (dynamic row) => (row as SalaryCycle).version,
-        idempotencyKey: (dynamic row) => (row as SalaryCycle).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as SalaryCycle).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'salary_payments',
@@ -585,10 +602,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as SalaryPayment).lastModified,
         deletedAt: (dynamic row) => (row as SalaryPayment).deletedAt,
         toJson: (dynamic row) => (row as SalaryPayment).toJson(),
-        vectorClock: (dynamic row) => (row as SalaryPayment).vectorClock ?? "",
-        origin: (dynamic row) => (row as SalaryPayment).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as SalaryPayment).vectorClock,
+        origin: (dynamic row) => (row as SalaryPayment).origin,
         version: (dynamic row) => (row as SalaryPayment).version,
-        idempotencyKey: (dynamic row) => (row as SalaryPayment).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as SalaryPayment).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'price_adjustments',
@@ -601,7 +619,8 @@ class DeltaSyncService {
         vectorClock: (dynamic row) => (row as PriceAdjustment).vectorClock,
         origin: (dynamic row) => (row as PriceAdjustment).origin,
         version: (dynamic row) => (row as PriceAdjustment).version,
-        idempotencyKey: (dynamic row) => (row as PriceAdjustment).idempotencyKey ?? '',
+        idempotencyKey: (dynamic row) =>
+            (row as PriceAdjustment).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'audit_logs',
@@ -611,10 +630,10 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as AuditLog).createdAt,
         deletedAt: (dynamic row) => null,
         toJson: (dynamic row) => (row as AuditLog).toJson(),
-        vectorClock: (dynamic row) => (row as AuditLog).vectorClock ?? "",
-        origin: (dynamic row) => (row as AuditLog).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as AuditLog).vectorClock,
+        origin: (dynamic row) => (row as AuditLog).origin,
         version: (dynamic row) => (row as AuditLog).version,
-        idempotencyKey: (dynamic row) => (row as AuditLog).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) => (row as AuditLog).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'payment_voids',
@@ -624,10 +643,11 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as PaymentVoid).lastModified,
         deletedAt: (dynamic row) => (row as PaymentVoid).deletedAt,
         toJson: (dynamic row) => (row as PaymentVoid).toJson(),
-        vectorClock: (dynamic row) => (row as PaymentVoid).vectorClock ?? "",
-        origin: (dynamic row) => (row as PaymentVoid).origin ?? "unknown",
+        vectorClock: (dynamic row) => (row as PaymentVoid).vectorClock,
+        origin: (dynamic row) => (row as PaymentVoid).origin,
         version: (dynamic row) => (row as PaymentVoid).version,
-        idempotencyKey: (dynamic row) => (row as PaymentVoid).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as PaymentVoid).idempotencyKey ?? '',
       ),
       _EntityConfig(
         entity: 'booking_price_adjustments',
@@ -638,10 +658,12 @@ class DeltaSyncService {
             (row as BookingPriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
-        vectorClock: (dynamic row) => (row as BookingPriceAdjustment).vectorClock ?? "",
-        origin: (dynamic row) => (row as BookingPriceAdjustment).origin ?? "unknown",
+        vectorClock: (dynamic row) =>
+            (row as BookingPriceAdjustment).vectorClock,
+        origin: (dynamic row) => (row as BookingPriceAdjustment).origin,
         version: (dynamic row) => (row as BookingPriceAdjustment).version,
-        idempotencyKey: (dynamic row) => (row as BookingPriceAdjustment).idempotencyKey ?? "",
+        idempotencyKey: (dynamic row) =>
+            (row as BookingPriceAdjustment).idempotencyKey ?? '',
       ),
     ];
   }
@@ -671,10 +693,10 @@ class _EntityConfig {
     required this.lastModified,
     required this.deletedAt,
     required this.toJson,
-    required this.vectorClock,      // ✅ Vector Clock accessor
-    required this.origin,            // ✅ Origin device accessor
-    required this.version,           // ✅ Version accessor
-    required this.idempotencyKey,    // ✅ Idempotency key accessor
+    required this.vectorClock, // ✅ Vector Clock accessor
+    required this.origin, // ✅ Origin device accessor
+    required this.version, // ✅ Version accessor
+    required this.idempotencyKey, // ✅ Idempotency key accessor
   });
 
   final String entity;
@@ -685,10 +707,11 @@ class _EntityConfig {
   final int? Function(dynamic row) deletedAt;
   final Map<String, dynamic> Function(dynamic row) toJson;
   // ✅ Use String? and handle nulls in code
-  final String? Function(dynamic row) vectorClock;    // ✅ SyncFields.vectorClock
-  final String? Function(dynamic row) origin;         // ✅ SyncFields.origin
-  final int Function(dynamic row) version;            // ✅ SyncFields.version
-  final String? Function(dynamic row) idempotencyKey; // ✅ SyncFields.idempotencyKey
+  final String? Function(dynamic row) vectorClock; // ✅ SyncFields.vectorClock
+  final String? Function(dynamic row) origin; // ✅ SyncFields.origin
+  final int Function(dynamic row) version; // ✅ SyncFields.version
+  final String? Function(dynamic row)
+  idempotencyKey; // ✅ SyncFields.idempotencyKey
 }
 
 /// ✅ Row data with Cloudflare sync fields
@@ -699,10 +722,10 @@ class _EntityRowData {
     required this.createdAt,
     required this.lastModified,
     required this.deletedAt,
-    required this.vectorClock,      // ✅ Vector Clock
-    required this.origin,            // ✅ Origin device
-    required this.version,           // ✅ Version
-    required this.idempotencyKey,    // ✅ Idempotency key
+    required this.vectorClock, // ✅ Vector Clock
+    required this.origin, // ✅ Origin device
+    required this.version, // ✅ Version
+    required this.idempotencyKey, // ✅ Idempotency key
   });
 
   final String localUuid;
@@ -710,10 +733,10 @@ class _EntityRowData {
   final int? createdAt;
   final int? lastModified;
   final int? deletedAt;
-  final String vectorClock;        // ✅ "device1:5,device2:3,..."
-  final String origin;              // ✅ Origin device UUID
-  final int version;                // ✅ Monotonic version
-  final String idempotencyKey;      // ✅ For deduplication
+  final String vectorClock; // ✅ "device1:5,device2:3,..."
+  final String origin; // ✅ Origin device UUID
+  final int version; // ✅ Monotonic version
+  final String idempotencyKey; // ✅ For deduplication
 }
 
 /// ✅ Isolate input with device context
@@ -724,7 +747,7 @@ class _DeltaSyncIsolateInput {
     required this.normalizedSince,
     required this.nowTs,
     required this.fallbackTables,
-    required this.currentDeviceId,  // ✅ Current device UUID
+    required this.currentDeviceId, // ✅ Current device UUID
   });
 
   final List<_DeltaSyncEntityInput> entities;
@@ -732,7 +755,7 @@ class _DeltaSyncIsolateInput {
   final int normalizedSince;
   final int nowTs;
   final Set<String> fallbackTables;
-  final String currentDeviceId;     // ✅ For origin tracking
+  final String currentDeviceId; // ✅ For origin tracking
 }
 
 class _DeltaSyncEntityInput {
@@ -754,7 +777,8 @@ class _DeltaSyncIsolateOutput {
     required this.mirrorSnapshot,
   });
 
-  final List<Map<String, dynamic>> changes;  // ✅ Each includes vectorClock, origin, version
+  final List<Map<String, dynamic>>
+  changes; // ✅ Each includes vectorClock, origin, version
   final Map<String, Map<String, MirrorRow>> mirrorSnapshot;
 }
 
@@ -789,23 +813,27 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       final clientTs = input.nowTs;
 
       // ✅ Extract Vector Clock fields
-      final vectorClock = row.vectorClock;      // From SyncFields
-      final origin = row.origin;                // From SyncFields
-      final version = row.version;              // From SyncFields
+      final vectorClock = row.vectorClock; // From SyncFields
+      final origin = row.origin; // From SyncFields
+      final version = row.version; // From SyncFields
       final idempotencyKey = row.idempotencyKey; // From SyncFields
 
       if (deletedAt != null && deletedAt > input.normalizedSince) {
         payload['deleted_at'] = deletedAt;
+        // ✅ (2026-09-09) إصلاح CI/اختبارات: الحذف الناعم يُبعث كـ update
+        // يحمل deleted_at (وليس delete) — السيرفر يحتفظ بالصف مع العلم
+        // deleted_at (نموذج soft-delete في D1)، والاختبارات 5 و 6
+        // تعتمد هذا الدلالة صراحة.
         changes.add({
           'entity': entityData.entity,
-          'operation': 'delete',
+          'operation': 'update',
           'data': payload,
           'row_hash': rowHash,
           'local_uuid': localUuid,
           'client_ts': clientTs,
-          'vector_clock': vectorClock,      // ✅ Include Vector Clock
-          'origin': origin,                  // ✅ Include origin device
-          'version': version,                // ✅ Include version
+          'vector_clock': vectorClock, // ✅ Include Vector Clock
+          'origin': origin, // ✅ Include origin device
+          'version': version, // ✅ Include version
           'idempotency_key': idempotencyKey, // ✅ Include idempotency key
         });
       } else {
@@ -815,7 +843,8 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
         final createdAfterLastSync =
             createdAt != null && createdAt > input.normalizedSince;
 
-        final shouldInsert = isFirstSyncForTable ||
+        final shouldInsert =
+            isFirstSyncForTable ||
             (hasMirror && isNewRecordInMirror) ||
             createdAfterLastSync;
 
@@ -827,9 +856,9 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
             'row_hash': rowHash,
             'local_uuid': localUuid,
             'client_ts': clientTs,
-            'vector_clock': vectorClock,      // ✅ Include Vector Clock
-            'origin': origin,                  // ✅ Include origin device
-            'version': version,                // ✅ Include version
+            'vector_clock': vectorClock, // ✅ Include Vector Clock
+            'origin': origin, // ✅ Include origin device
+            'version': version, // ✅ Include version
             'idempotency_key': idempotencyKey, // ✅ Include idempotency key
           });
         } else if (previous != null &&
@@ -842,9 +871,9 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
             'row_hash': rowHash,
             'local_uuid': localUuid,
             'client_ts': clientTs,
-            'vector_clock': vectorClock,      // ✅ Include Vector Clock
-            'origin': origin,                  // ✅ Include origin device
-            'version': version,                // ✅ Include version
+            'vector_clock': vectorClock, // ✅ Include Vector Clock
+            'origin': origin, // ✅ Include origin device
+            'version': version, // ✅ Include version
             'idempotency_key': idempotencyKey, // ✅ Include idempotency key
           });
         }
@@ -883,22 +912,25 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
         payload['row_hash'] = previous.rowHash;
 
         // ✅ Extract Vector Clock fields from payload (stored in mirror)
-        final vectorClock = payload['vector_clock'] as String? ??
-            '${input.currentDeviceId}:0';
+        final vectorClock =
+            payload['vector_clock'] as String? ?? '${input.currentDeviceId}:0';
         final origin = payload['origin'] as String? ?? input.currentDeviceId;
         final version = _asInt(payload['version']) ?? 0;
         final idempotencyKey = payload['idempotency_key'] as String? ?? '';
 
         changes.add({
           'entity': entityData.entity,
-          'operation': 'delete',
+          // ✅ (2026-09-09) إصلاح CI/اختبارات: الحذف الفعلي يُبعث كـ update
+          // يحمل deleted_at (نموذج soft-delete في D1) — انظر الاختبار 6:
+          // "hard-deleted row emits delete only once" يتحقق أن العملية update.
+          'operation': 'update',
           'data': payload,
           'row_hash': previous.rowHash,
           'local_uuid': uuid,
           'client_ts': deleteStamp,
-          'vector_clock': vectorClock,      // ✅ From mirror
-          'origin': origin,                  // ✅ From mirror
-          'version': version,                // ✅ From mirror
+          'vector_clock': vectorClock, // ✅ From mirror
+          'origin': origin, // ✅ From mirror
+          'version': version, // ✅ From mirror
           'idempotency_key': idempotencyKey, // ✅ From mirror
         });
       }
@@ -919,6 +951,25 @@ int _normalizeTimestamp(int value) {
     return value;
   }
   return value < 1000000000000 ? value * 1000 : value;
+}
+
+/// ✅ (2026-09-09) إصلاح CI: جلب معرف الجهاز لغرض تتبع المنشأ (origin).
+///
+/// يقرأ من SharedPreferences بنفس المفتاح الذي يستخدمه
+/// [VectorClockHelper] (`appwrite_delta_device_id`)؛ وعند غيابه
+/// يولّد معرفاً مؤقتاً محلياً بدلاً من الاعتماد على عمود
+/// `SyncState.deviceId` غير الموجود في المخطط.
+Future<String> _resolveDeviceId() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('appwrite_delta_device_id');
+    if (stored != null && stored.isNotEmpty) {
+      return stored;
+    }
+  } catch (_) {
+    // تجاهل أخطاء التخزين — سنستخدم المعرف الاحتياطي أدناه
+  }
+  return 'device-${DateTime.now().millisecondsSinceEpoch}';
 }
 
 /// حقول الطوابع الزمنية التي تحتاج تحويل من ثوانٍ إلى مللي ثانية

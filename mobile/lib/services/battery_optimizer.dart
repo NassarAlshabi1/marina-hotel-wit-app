@@ -4,8 +4,7 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
-// ✅ REMOVED: battery_plus is no longer in pubspec.yaml
-// import 'package:battery_plus/battery_plus.dart';
+import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
@@ -148,7 +147,9 @@ class BatteryOptimizer extends ChangeNotifier {
     _isMonitoring = true;
 
     // مراقبة حالة البطارية
-    _batterySubscription = _battery.onBatteryStateChanged.listen((state) {
+    _batterySubscription = _battery.onBatteryStateChanged.listen((
+      BatteryState state,
+    ) {
       _batteryState = state;
       _isCharging = state == BatteryState.charging;
       _updateOptimizationLevel();

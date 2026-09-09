@@ -16,7 +16,6 @@ import 'package:marina_hotel_mobile/services/posthog_service.dart';
 import 'package:marina_hotel_mobile/services/export_service.dart';
 import 'package:marina_hotel_mobile/utils/secure_storage.dart';
 import 'package:marina_hotel_mobile/utils/hotel_time_engine.dart';
-import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
 
 void main() {
   group('🔧 Integration Tests — Critical Flows', () {
@@ -144,41 +143,9 @@ void main() {
     });
 
     group('5. Sync Utils Flow', () {
-      test(
-        'booking_price_adjustments schema should have all required fields',
-        () {
-          final schema = AppwriteSyncUtils.collectionSchema;
-          final bpa = schema['booking_price_adjustments']!;
-
-          // Required fields for Appwrite Cloud
-          expect(bpa.containsKey('localUuid'), isTrue);
-          expect(bpa.containsKey('hotelDayKey'), isTrue);
-          expect(bpa.containsKey('appliedDate'), isTrue);
-          expect(bpa.containsKey('adjustmentType'), isTrue);
-          expect(bpa.containsKey('createdAt'), isTrue);
-          expect(bpa.containsKey('updatedAt'), isTrue);
-          expect(bpa.containsKey('lastModified'), isTrue);
-          expect(bpa.containsKey('lastModifiedEpoch'), isTrue);
-          expect(bpa.containsKey('version'), isTrue);
-          expect(bpa.containsKey('syncTimestamp'), isTrue);
-        },
-      );
-
-      test('filterPayloadForCollection should filter unknown fields', () {
-        final payload = <String, dynamic>{
-          'localUuid': 'test',
-          'hotelDayKey': '2026-07-27',
-          'unknownField': 'should be removed',
-        };
-
-        final filtered = AppwriteSyncUtils.filterPayloadForCollection(
-          'booking_price_adjustments',
-          payload,
-        );
-
-        expect(filtered.containsKey('unknownField'), isFalse);
-        expect(filtered.containsKey('hotelDayKey'), isTrue);
-      });
+      // ✅ (2026-09-09) إصلاح CI: أزيلت اختبارات AppwriteSyncUtils
+      // (P2-1 حذف ملفات Appwrite القديمة — الفئة لم تعد موجودة).
+      // التغطية البديلة: payload_mapper_test و wave6_debts_fields_test.
     });
 
     group('6. PostHog + Crashlytics Integration', () {

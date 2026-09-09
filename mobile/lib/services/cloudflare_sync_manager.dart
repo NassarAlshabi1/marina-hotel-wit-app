@@ -251,8 +251,8 @@ const Map<String, int> _pullApplyPriority = {
   // المرحلة 5: الرواتب (الآباء قبل الأطفال)
   'salary_cycles': 5,
   'salary_payments': 5,
-  'salary_withdrawals': 6,  // يعتمد على salary_cycles و salary_payments
-  'salary_carry_over_logs': 6,  // يعتمد على salary_cycles
+  'salary_withdrawals': 6, // يعتمد على salary_cycles و salary_payments
+  'salary_carry_over_logs': 6, // يعتمد على salary_cycles
 };
 
 // ─── SyncResult (same interface as AppwriteSyncManager) ────────
@@ -3128,20 +3128,23 @@ class CloudflareSyncManager {
 
       return rows.map((r) {
         final d = r.data;
-        return AppwriteDevice(
-          id: (d['device_id'] as String?) ?? '',
-          deviceName: (d['device_name'] as String?) ?? '',
-          deviceModel: (d['device_model'] as String?) ?? '',
-          osVersion: (d['os_version'] as String?) ?? '',
-          lastSeen: isoToDateTime(d['last_seen']) ?? DateTime.now(),
-          lastActive: epochToDateTime(d['last_active']),
-          status: (d['status'] as String?) ?? 'active',
-          createdAt: epochToDateTime(d['created_at']) ?? DateTime.now(),
-          updatedAt: epochToDateTime(d['updated_at']) ?? DateTime.now(),
-          version: (d['version'] as int?) ?? 1,
-          origin: d['origin'] as String?,
-          localUuid: d['local_uuid'] as String?,
-        );
+        // ✅ (2026-09-09) إصلاح CI: AppwriteDevice أُزيلت مع هجرة
+        // Appwrite→Cloudflare — نعيد Map متوافقاً مع نفس المفاتيح
+        // بدل فئة لم تعد موجودة (getRegisteredDevices ليس مستخدَماً حالياً).
+        return <String, dynamic>{
+          'id': (d['device_id'] as String?) ?? '',
+          'deviceName': (d['device_name'] as String?) ?? '',
+          'deviceModel': (d['device_model'] as String?) ?? '',
+          'osVersion': (d['os_version'] as String?) ?? '',
+          'lastSeen': isoToDateTime(d['last_seen']) ?? DateTime.now(),
+          'lastActive': epochToDateTime(d['last_active']),
+          'status': (d['status'] as String?) ?? 'active',
+          'createdAt': epochToDateTime(d['created_at']) ?? DateTime.now(),
+          'updatedAt': epochToDateTime(d['updated_at']) ?? DateTime.now(),
+          'version': (d['version'] as int?) ?? 1,
+          'origin': d['origin'] as String?,
+          'localUuid': d['local_uuid'] as String?,
+        };
       }).toList();
     } catch (e) {
       debugPrint('⚠️ getRegisteredDevices failed: $e');

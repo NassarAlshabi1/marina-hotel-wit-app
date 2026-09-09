@@ -18,10 +18,7 @@ class SyncStatusWidget extends ConsumerWidget {
           color: Colors.grey.withValues(alpha: 0.2),
         ),
       ),
-      child: const RealtimeSyncIndicator(
-        compact: false,
-        showDetailedStats: true,
-      ),
+      child: const RealtimeSyncIndicator(),
     );
   }
 }
@@ -81,8 +78,8 @@ class SyncStatusBottomBar extends ConsumerWidget {
 /// مؤشر سريع في FloatingActionButton
 class SyncFAB extends ConsumerWidget {
   const SyncFAB({
-    super.key,
     required this.onPressed,
+    super.key,
   });
 
   final VoidCallback onPressed;
