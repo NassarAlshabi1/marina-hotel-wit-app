@@ -223,21 +223,36 @@ final Map<String, List<_FkRule>> _fkRulesByEntity = (() {
 
 /// أولوية الآباء عند إعادة محاولة الصفوف المؤجلة — الأب قبل الابن.
 const Map<String, int> _pullApplyPriority = {
+  // ✅ P3-FIX (2026-09-09): تحسين ترتيب الأولويات لمنع unresolvable relations
+  // الخطأ: 107 salary_withdrawals بدون salary_cycles آباء
+  // السبب: salary_withdrawals (4) بعد salary_cycles (3) لكن الأطفال قد يعتمدون على جيل أعلى
+
+  // المرحلة 0: الكيانات المستقلة
   'rooms': 0,
+
+  // المرحلة 1: الموارد الأساسية
   'employees': 1,
   'inventory_items': 1,
   'cash_transactions': 1,
+
+  // المرحلة 2: الحجوزات والدفعات
   'bookings': 2,
-  'salary_cycles': 3,
-  'booking_nights': 4,
-  'payments': 4,
-  'booking_notes': 4,
-  'guest_infos': 4,
-  'booking_price_adjustments': 4,
+  'payments': 2,
+
+  // المرحلة 3: بيانات الحجوزات المشتقة
+  'booking_nights': 3,
+  'booking_notes': 3,
+  'guest_infos': 3,
+  'booking_price_adjustments': 3,
+
+  // المرحلة 4: الجرود والمخزون
   'inventory_transactions': 4,
-  'salary_withdrawals': 4,
-  'salary_carry_over_logs': 4,
+
+  // المرحلة 5: الرواتب (الآباء قبل الأطفال)
+  'salary_cycles': 5,
   'salary_payments': 5,
+  'salary_withdrawals': 6,  // يعتمد على salary_cycles و salary_payments
+  'salary_carry_over_logs': 6,  // يعتمد على salary_cycles
 };
 
 // ─── SyncResult (same interface as AppwriteSyncManager) ────────
@@ -2419,9 +2434,10 @@ class CloudflareSyncManager {
       );
     } else {
       // ✅ سجل جديد — أدخله
-      // ✅ (2026-09-09) INSERT صريح بلا OR IGNORE: تجاهل القيود صمتاً
-      // كان يعني صفوفاً تضيع بلا أثر. أعمدة الصف مُفلترة وعلاقاته
-      // مُترجمة أعلاه — أي فشل هنا حقيقي ويُفشل الدورة بدل كتمه.
+      // ✅ (2026-09-09) P3-FIX: استخدم INSERT OR REPLACE لتجنب UNIQUE violations
+      // عند إعادة محاولة السجلات المؤجلة (retry deferred records).
+      // السياق: عند إعادة محاولة booking_nights المؤجلة، قد يكون السجل موجوداً بالفعل
+      // إذا تم تطبيقه في محاولة سابقة. بدلاً من رمي error، نستبدله برفق.
       final cleanRecord = Map<String, dynamic>.from(filtered);
       cleanRecord.remove('id');
 
@@ -2429,7 +2445,7 @@ class CloudflareSyncManager {
       final placeholders = cleanRecord.keys.map((_) => '?').join(', ');
       final values = cleanRecord.values.map(_toDriftValue).toList();
       await _db!.customStatement(
-        'INSERT INTO $tableName ($columns) VALUES ($placeholders)',
+        'INSERT OR REPLACE INTO $tableName ($columns) VALUES ($placeholders)',
         values,
       );
 
