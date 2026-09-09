@@ -205,6 +205,7 @@ void main() {
         timeout: const Duration(seconds: 3),
         // بلا DoH — فشل النفق فوري ومحدد (لا شبكة حقيقية في الوحدة).
         dohResolver: (_) async => const <String>[],
+        systemResolver: (_) async => const <String>[],
         endpointPlanner: (url) => <Uri>[
           Uri.parse('https://primary.test'),
           Uri.parse('https://secondary.test'),
@@ -243,6 +244,7 @@ void main() {
           innerClient: inner,
           fastTimeout: const Duration(milliseconds: 200),
           dohResolver: (_) async => const <String>[],
+        systemResolver: (_) async => const <String>[],
           endpointPlanner: WorkerEndpoints.candidatesFor,
           onEndpointFailure: failures.add,
         );
@@ -266,6 +268,7 @@ void main() {
         timeout: const Duration(milliseconds: 300),
         // بلا DoH: فشل النفق فوري SocketException — محدد بلا شبكة.
         dohResolver: (_) async => const <String>[],
+        systemResolver: (_) async => const <String>[],
         endpointPlanner: (url) => <Uri>[
           Uri.parse('https://a.test'),
           Uri.parse('https://b.test'),
@@ -299,6 +302,7 @@ void main() {
           innerClient: inner,
           fastTimeout: const Duration(milliseconds: 300),
           dohResolver: (_) async => const <String>[],
+        systemResolver: (_) async => const <String>[],
           endpointPlanner: WorkerEndpoints.candidatesFor,
           onEndpointSuccess: WorkerEndpoints.reportSuccess,
           onEndpointFailure: WorkerEndpoints.reportFailure,

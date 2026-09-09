@@ -97,6 +97,7 @@ void main() {
   ResilientHttpClient buildClient({
     required http.Client inner,
     Future<List<String>> Function(String host)? dohResolver,
+    Future<List<String>> Function(String host)? systemResolver,
   }) {
     // العميل يثق بـCA الاختبارية فقط — التحقق من الشهادة + اسم المضيف
     // (عبر SNI داخل النفق) يجري بآلية Dart القياسية دون أي تجاوز.
@@ -109,6 +110,9 @@ void main() {
       timeout: const Duration(seconds: 10),
       fastTimeout: const Duration(milliseconds: 800),
       dohResolver: dohResolver ?? (_) async => ['127.0.0.1'],
+      // جسر DNS النظام: افتراضياً محقون فارغاً (hermetic) — لا شبكة
+      // حقيقية في الوحدة؛ الاختبارات التي تحتاجه تمرّره صراحةً.
+      systemResolver: systemResolver ?? (_) async => const <String>[],
       // النفق يُوجَّه إلى خادم الاختبار الحلقي بغض النظر عن المنفذ القادم
       // في CONNECT (443) — حقن الواجهة فقط.
       tunnelConnector: (ip, port) =>
@@ -252,6 +256,7 @@ void main() {
       final client = buildClient(
         inner: hangingInner,
         dohResolver: (_) async => <String>[],
+        systemResolver: (_) async => <String>[],
       );
 
       await expectLater(
@@ -266,6 +271,33 @@ void main() {
       );
       client.close();
     });
+
+    test(
+      'كل مزوّدي DoH محجوبون → جسر DNS النظام ينقل الطلب للنفق',
+      () async {
+        // ✅ (2026-09-10) عقود تقرير «via DoH» المبلّغ: حتى لو حُجب كل
+        // مزوّدي DoH (Cloudflare/Google/Quad9/dns.sb/AdGuard/ControlD)
+        // يبقى جسر محلّل النظام يحمل الطلب — وهذا ما ينقذ النطاق
+        // المخصّص لأن الحجب يستهدف *.workers.dev تحديداً.
+        final hangingInner = MockClient.streaming((request, bodyStream) async {
+          return Completer<http.StreamedResponse>().future;
+        });
+
+        final client = buildClient(
+          inner: hangingInner,
+          dohResolver: (_) async => const <String>[],
+          systemResolver: (_) async => const <String>['127.0.0.1'],
+        );
+
+        final response = await runRealHttp(
+          () => client.get(Uri.parse('https://$testHost/api/ping')),
+        );
+        expect(response.statusCode, 200);
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        expect(body['status'], 'ok');
+        client.close();
+      },
+    );
 
     test(
       'fallback reuses last-good route across requests (no hang tax)',

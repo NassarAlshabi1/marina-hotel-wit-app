@@ -16,12 +16,16 @@
 //  3. COOLDOWN: after one fast-path failure the host is pinned to the
 //     fallback path for 10 minutes, so subsequent requests skip the hang
 //     entirely.
-//  4. RESOLUTION: DNS-over-HTTPS via Cloudflare (1.1.1.1) and Google
-//     (8.8.8.8) — ALL endpoints raced in PARALLEL, first answer wins
-//     (sequential probing could waste 8s per blocked IP). Results cached
-//     5 min; the last known-good set is kept indefinitely as a stale
-//     last-resort. The last IP that actually served a response is retried
-//     first on subsequent fallbacks.
+//  4. RESOLUTION: DNS-over-HTTPS via 6 providers — Cloudflare (1.1.1.1),
+//     Google (8.8.8.8), Quad9:5053, dns.sb, AdGuard, ControlD — ALL
+//     endpoints raced in PARALLEL, first answer wins (sequential probing
+//     could waste 8s per blocked IP). ✅ (2026-09-10) تنويع المزوّدين:
+//     اليمن يحجب 1.1.1.1/8.8.8.8 غالباً — مزوّدون أقل شهرةً ينجون من
+//     قوائم الحجب نفسها. Results cached 5 min; the last known-good set is
+//     kept indefinitely as a stale last-resort. The last IP that actually
+//     served a response is retried first on subsequent fallbacks.
+//     4b. إذا فشل كل مزوّدي DoH → جسر أخير عبر محلّل النظام نفسه
+//     (ينجح للنطاق المخصّص لأن الحجب يستهدف *.workers.dev تحديداً).
 //  5. CONNECTION: connect directly to the resolved IP while still doing
 //     TLS with the REAL hostname. Dart sends SNI from the URL host, and a
 //     URL like https://<ip>/… makes Cloudflare's edge abort the handshake
@@ -55,6 +59,7 @@ class ResilientHttpClient extends http.BaseClient {
     Duration? timeout,
     Duration? fastTimeout,
     Future<List<String>> Function(String host)? dohResolver,
+    Future<List<String>> Function(String host)? systemResolver,
     Future<Socket> Function(String ip, int port)? tunnelConnector,
     SecurityContext? fallbackSecurityContext,
     EndpointPlanner? endpointPlanner,
@@ -64,6 +69,7 @@ class ResilientHttpClient extends http.BaseClient {
        _timeout = timeout ?? const Duration(seconds: 30),
        _fastTimeout = fastTimeout ?? const Duration(seconds: 6),
        _dohResolver = dohResolver ?? _defaultDohResolver,
+       _systemResolver = systemResolver ?? _defaultSystemResolver,
        _tunnelConnector =
            tunnelConnector ??
            ((String ip, int port) =>
@@ -77,6 +83,7 @@ class ResilientHttpClient extends http.BaseClient {
   final Duration _timeout;
   final Duration _fastTimeout;
   final Future<List<String>> Function(String host) _dohResolver;
+  final Future<List<String>> Function(String host) _systemResolver;
   final Future<Socket> Function(String ip, int port) _tunnelConnector;
 
   /// null = system roots (production: proper cert validation against the
@@ -249,9 +256,19 @@ class ResilientHttpClient extends http.BaseClient {
   ) async {
     final ips = await _candidateIps(host);
     if (ips.isEmpty) {
+      // ✅ (2026-09-10) رسالة قابلة للتنفيذ: workers.dev محجوب شبكياً في
+      // اليمن — إن فشل الحلّ هنا فالمخرج الوحيد نطاق مخصّص، فنوجّه
+      // المستخدم له مباشرة بدل تشخيص إنجليزي عامّ.
+      final isWorkersDev = host.endsWith('.workers.dev');
       throw SocketException(
-        'Could not resolve $host via DoH — network may be offline or '
-        'DoH endpoints are blocked',
+        isWorkersDev
+            ? 'Could not resolve $host via DoH — الحجب كامل على هذه '
+                'الشبكة: فشل كل مزوّدي DoH وDNS النظام. الحل المضمون: '
+                'أضف نطاقاً مخصّصاً للـ Worker من الإعدادات («نطاق Worker '
+                'مخصص») — حجب workers.dev في اليمن على مستوى الشبكة لا '
+                'يُتجاوَز تطبيقياً'
+            : 'Could not resolve $host via DoH — network may be offline or '
+                'DoH endpoints are blocked',
       );
     }
 
@@ -306,7 +323,42 @@ class ResilientHttpClient extends http.BaseClient {
     for (final ip in _staleDns[host] ?? const <String>[]) {
       if (!candidates.contains(ip)) candidates.add(ip);
     }
+    if (candidates.isEmpty) {
+      // ✅ (2026-09-10) الجسر الأخير: محلّل النظام نفسه. سيناريوهين:
+      // (1) DoH محجوب بالكامل لكن DNS النظام يمرّ عبر الشبكة؛
+      // (2) النطاق المخصّص — الحجب يستهدف *.workers.dev تحديداً،
+      // فمحلّل الشبكة قد يجيب عليه صحيحاً. الأفضلية للأخير دائماً.
+      try {
+        final system = await _systemResolver(host);
+        for (final ip in system) {
+          if (!candidates.contains(ip)) candidates.add(ip);
+        }
+        if (candidates.isNotEmpty) {
+          debugPrint(
+            '✅ [ResilientHTTP] system-DNS bridge resolved '
+            '$host → $candidates',
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          '⚠️ [ResilientHTTP] system-DNS bridge failed for $host: $e',
+        );
+      }
+    }
     return candidates.take(6).toList();
+  }
+
+  /// جسر DNS النظام — آخر طبقة بعد استنفاد كل مزوّدي DoH.
+  /// IPv4 فقط (النفق يربط A-records)، مهلة قصيرة حتى لا يطيل الفشل.
+  static Future<List<String>> _defaultSystemResolver(String host) async {
+    final results = await InternetAddress.lookup(
+      host,
+      type: InternetAddressType.IPv4,
+    ).timeout(const Duration(seconds: 4));
+    return [
+      for (final a in results)
+        if (!a.isLoopback && !a.isLinkLocal) a.address,
+    ].take(4).toList();
   }
 
   Future<http.StreamedResponse> _sendViaTunnel(
@@ -468,6 +520,9 @@ class ResilientHttpClient extends http.BaseClient {
     }
 
     // DoH endpoints with hardcoded IPs (no chicken-and-egg DNS).
+    // ✅ (2026-09-10) 6 مزوّدين بدل 2 — اليمن يحجب Cloudflare/Google
+    // تحديداً؛ الصغار ينجون من نفس قوائم الحجب. الكل JSON-API مؤكد
+    // (application/dns-json) — من لا يدعمه يرمي داخل السباق بلا ضرر.
     const endpoints = <_DohEndpoint>[
       _DohEndpoint(
         hostname: 'cloudflare-dns.com',
@@ -478,6 +533,27 @@ class ResilientHttpClient extends http.BaseClient {
         hostname: 'dns.google',
         path: '/resolve',
         ips: ['8.8.8.8', '8.8.4.4'],
+      ),
+      _DohEndpoint(
+        hostname: 'dns.quad9.net',
+        port: 5053, // JSON API حصرياً هنا؛ 443 = wireformat فقط
+        path: '/dns-query',
+        ips: ['9.9.9.9', '149.112.112.112'],
+      ),
+      _DohEndpoint(
+        hostname: 'dns.sb',
+        path: '/dns-query',
+        ips: ['185.222.222.222', '45.11.45.11'],
+      ),
+      _DohEndpoint(
+        hostname: 'dns.adguard-dns.com',
+        path: '/dns-query',
+        ips: ['94.140.14.14', '94.140.15.15'],
+      ),
+      _DohEndpoint(
+        hostname: 'freedns.controld.com',
+        path: '/dns-query',
+        ips: ['76.76.2.0', '76.76.10.0'],
       ),
     ];
 
@@ -536,9 +612,10 @@ class ResilientHttpClient extends http.BaseClient {
     String dohIp,
     String queryHostname,
   ) async {
-    // Build URI using the IP directly
+    // Build URI using the IP directly (+ port when non-default).
+    final portPart = endpoint.port == 443 ? '' : ':${endpoint.port}';
     final dohUri = Uri.parse(
-      'https://$dohIp${endpoint.path}?name=$queryHostname&type=A',
+      'https://$dohIp$portPart${endpoint.path}?name=$queryHostname&type=A',
     );
 
     // Accept any cert (we connect to the IP; SNI is an IP literal so the
@@ -644,11 +721,13 @@ class _DohEndpoint {
     required this.hostname,
     required this.path,
     required this.ips,
+    this.port = 443,
   });
 
   final String hostname;
   final String path;
   final List<String> ips;
+  final int port;
 }
 
 /// Convenience: create a ResilientHttpClient and use it for all requests.
