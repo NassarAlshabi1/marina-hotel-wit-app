@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/appwrite_realtime_sync.dart';
+// ✅ P2-1 (2026-09-09): appwrite_realtime_sync.dart حُذف - استخدم cloudflare_realtime_sync
+// AppwriteRealtimeSync هو typedef لـ CloudflareRealtimeSync (cloudflare_sync_manager.dart)
+// import '../services/appwrite_realtime_sync.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 import '../services/payment_session_context.dart';
 import '../utils/app_logger.dart';

@@ -5,9 +5,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/appwrite_realtime_sync.dart';
+// ✅ P2-1 (2026-09-09): appwrite_realtime_sync.dart حُذف
+// AppwriteRealtimeSync هو typedef لـ CloudflareRealtimeSync (من appwrite_sync_manager)
+import '../services/appwrite_sync_manager.dart' show AppwriteRealtimeSync;
 
-/// مزود مزامنة Appwrite Realtime (Singleton)
+/// مزود مزامنة Cloudflare Realtime (Singleton)
 final appwriteRealtimeSyncProvider = Provider<AppwriteRealtimeSync>((ref) {
   final sync = AppwriteRealtimeSync();
 

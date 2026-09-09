@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:http/http.dart' as http;
 
-import '../services/appwrite_cache_manager.dart';
+// ✅ P2-1 (2026-09-09): appwrite_cache_manager.dart حُذف - legacy Appwrite artifact
+// كان يُستخدم لـ caching لكن الآن نستخدم Cloudflare D1 مع Drift cache
+// import '../services/appwrite_cache_manager.dart';
 import '../services/appwrite_logger.dart';
 import '../services/appwrite_sync_manager.dart';
 import '../services/cloudflare_config.dart';
@@ -46,10 +48,10 @@ final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
   return orch.stateStream;
 });
 
-/// مزود مدير الذاكرة المؤقتة
-final appwriteCacheManagerProvider = Provider<AppwriteCacheManager>((ref) {
-  return AppwriteCacheManager();
-});
+// ✅ P2-1 (2026-09-09): حُذف appwriteCacheManagerProvider - لا يُستخدم
+// final appwriteCacheManagerProvider = Provider<AppwriteCacheManager>((ref) {
+//   return AppwriteCacheManager();
+// });
 
 /// مزود المسجل
 final appwriteLoggerProvider = Provider<AppwriteLogger>((ref) {

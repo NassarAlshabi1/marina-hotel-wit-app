@@ -3,7 +3,8 @@ import 'dart:convert';
 import '../../utils/debug_log.dart';
 import '../../utils/time.dart';
 import '../appwrite_config.dart';
-import '../appwrite_sync_utils.dart';
+// ✅ P2-1 (2026-09-09): appwrite_sync_utils.dart حُذف - legacy Appwrite reference
+// import '../appwrite_sync_utils.dart';
 import '../local_db.dart';
 
 /// PayloadMapper — يحوّل كيانات Drift المحلية إلى Map<String, dynamic>
@@ -322,10 +323,9 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'dueDate', debt.dueDate);
     putIfStringNotEmpty(data, 'idempotencyKey', debt.idempotencyKey);
 
-    // ✅ Wave 6 (2026-08-12): حقول إضافية مطلوبة من Appwrite Cloud لـ debts.
-    // موجودة في schemaAttributeTypes و filterPayload لكنها كانت مفقودة من الـ push.
-    // انظر appwrite_sync_utils.dart:362-411 (whitelist) و
-    // appwrite_schema_verifier.dart:301-304 (Cloud schema).
+    // ✅ Wave 6 (2026-08-12): حقول إضافية مطلوبة من Cloudflare D1 لـ debts.
+    // موجودة في schema.sql و filterPayload لكنها كانت مفقودة من الـ push.
+    // ✅ P2-1 (2026-09-09): أزيلت مراجع appwrite_sync_utils و appwrite_schema_verifier
     // bookingUuidCache: يُرسل دائماً للسماح للترابط بين الأجهزة (لا يعتمد على bookingLocalId الذي يختلف بين الأجهزة)
     putIfStringNotEmpty(data, 'bookingUuidCache', debt.bookingUuidCache);
     // debtorName: قد يختلف عن guestName في حالات الديون غير المرتبطة بنزلاء

@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter/painting.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
-import '../services/appwrite_cache_manager.dart';
+// ✅ P2-1 (2026-09-09): appwrite_cache_manager.dart حُذف - Drift يتولى الآن caching
+// import '../services/appwrite_cache_manager.dart';
 import 'debug_log.dart';
 import 'weak_device_optimizer.dart';
 
@@ -16,24 +17,12 @@ void configurePerformance() {
   PaintingBinding.instance.imageCache.maximumSizeBytes =
       optimizer.maxImageCacheBytes;
 
-  // تطبيق الحدود نفسها على cache بيانات Appwrite. هذه القيم كانت موجودة في
-  // WeakDeviceOptimizer ولكنها لم تكن موصولة بمسار التنفيذ.
-  final dataCache = AppwriteCacheManager.instance;
-  dataCache.setMaxEntries(optimizer.maxCacheEntries);
-  dataCache.setMaxSizeMB(optimizer.maxDataCacheSizeMB);
-  // الاستجابات البعيدة قصيرة العمر على الأجهزة الضعيفة؛ المصدر الدائم
-  // للبيانات غير المتصلة هو Drift وليس Cache الذاكرة.
-  dataCache.setDefaultTTL(
-    optimizer.isWeakDevice
-        ? const Duration(minutes: 2)
-        : const Duration(minutes: 5),
-  );
-  // يزيل النتائج منتهية الصلاحية حتى إن لم يُعاد فتح الشاشة نفسها.
-  dataCache.startCleanup(
-    interval: optimizer.isWeakDevice
-        ? const Duration(minutes: 5)
-        : const Duration(minutes: 15),
-  );
+  // ✅ P2-1 (2026-09-09): حُذفت إدارة cache الـ Appwrite
+  // Drift ORM يتولى الآن جميع caching (WAL mode + mmap)
+  // AppwriteCacheManager كان مستخدماً قديماً عندما كان Appwrite الخادم.
+  // // final dataCache = AppwriteCacheManager.instance;
+  // // dataCache.setMaxEntries(optimizer.maxCacheEntries);
+  // // dataCache.setMaxSizeMB(optimizer.maxDataCacheSizeMB);
 
   if (Platform.isAndroid) {
     dlog(
