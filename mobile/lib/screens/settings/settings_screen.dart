@@ -241,18 +241,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'المزامنة السحابية',
-            subtitle: 'رفع وسحب البيانات عبر Cloudflare D1 وحالة الأجهزة',
-            icon: Icons.cloud_sync,
-            color: Colors.pink,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const UnifiedSyncSettingsScreen(),
-              ),
-            ),
-          ),
-          _SettingsItem(
             title: 'حالة المزامنة',
             subtitle: 'مراقبة صحة النظام والعمليات المعلقة',
             icon: Icons.health_and_safety,
