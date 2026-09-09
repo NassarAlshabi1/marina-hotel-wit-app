@@ -418,8 +418,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return 'سبب غير معروف — جرّب مجدداً';
     }
     if (raw.contains('Not initialized')) {
-      return 'لم يتم تسجيل الدخول إلى سيرفر المزامنة. أعد فتح التطبيق '
-          'وتحقق من بطاقة الاتصال في الإعدادات';
+      return 'لم يتم تسجيل الدخول إلى سيرفر المزامنة. تحقق من بطاقة '
+          'الاتصال في الإعدادات ثم أعد المحاولة — التطبيق يجرّب تسجيل '
+          'الدخول تلقائياً مع كل سحب';
     }
     if (raw.contains('disabled remotely')) {
       return 'مزامنة Cloudflare معطّلة مؤقتاً من الإعدادات البعيدة';

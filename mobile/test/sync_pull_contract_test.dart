@@ -105,6 +105,50 @@ class _PushBrokenClient extends http.BaseClient {
   }
 }
 
+/// عميل وهمي لعقد الشفاء الكسول (2026-09-10):
+/// POST /api/auth/login → يفوّض [onLogin] (يعيد Response أو يرمي)؛
+/// GET /api/sync/pull → يخدم [pullPages] بالترتيب؛ أي شيء آخر = خطأ
+/// برمجي ظاهر يكشف نداءات غير متوقعة.
+class _LazyHealClient extends http.BaseClient {
+  final http.Response Function()? onLogin;
+  final List<Map<String, dynamic>> pullPages;
+  int _served = 0;
+  _LazyHealClient({
+    this.onLogin,
+    this.pullPages = const <Map<String, dynamic>>[],
+  });
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (request.method == 'POST' && request.url.path == '/api/auth/login') {
+      final fn = onLogin;
+      if (fn == null) {
+        throw StateError('unexpected login call: ${request.url}');
+      }
+      final r = fn();
+      return http.StreamedResponse(
+        Stream.value(utf8.encode(r.body)),
+        r.statusCode,
+        headers: r.headers,
+      );
+    }
+    if (request.method == 'GET' && request.url.path == '/api/sync/pull') {
+      if (_served >= pullPages.length) {
+        throw StateError('_LazyHealClient exhausted');
+      }
+      final body = jsonEncode(pullPages[_served++]);
+      return http.StreamedResponse(
+        Stream.value(utf8.encode(body)),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    throw StateError(
+      '_LazyHealClient got unexpected ${request.method} ${request.url}',
+    );
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -121,9 +165,11 @@ void main() {
   Future<CloudflareSyncManager> makeManager(
     http.Client client, {
     Map<String, Object> prefsInit = const <String, Object>{},
+    bool tokenless = false,
   }) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'cloudflare_sync_local_override': true, // تجاوز مفتاح الإيقاف البعيد
+      'cf_device_id': 'contract-device', // للشفاء الكسول: نفس هوية الجهاز
       ...prefsInit,
     });
     final manager = CloudflareSyncManager();
@@ -131,7 +177,7 @@ void main() {
     manager.configureForTesting(
       database: db,
       httpClient: client,
-      token: 'test-token',
+      token: tokenless ? null : 'test-token',
       deviceId: 'contract-device',
     );
     return manager;
@@ -221,9 +267,7 @@ void main() {
         final manager = await makeManager(
           _PullQueueClient([
             {
-              'changes': [
-                _roomRow('uuid-a', updatedAt: 1700000050),
-              ],
+              'changes': [_roomRow('uuid-a', updatedAt: 1700000050)],
               'cursor': '1700000100',
               'has_more': true,
               'errors': <dynamic>[],
@@ -262,9 +306,7 @@ void main() {
         final manager = await makeManager(
           _PushBrokenClient([
             {
-              'changes': [
-                _roomRow('uuid-pull', updatedAt: 1700000100),
-              ],
+              'changes': [_roomRow('uuid-pull', updatedAt: 1700000100)],
               'cursor': '1700000100',
               'has_more': false,
               'errors': <dynamic>[],
@@ -322,9 +364,7 @@ void main() {
           database: db,
           httpClient: _PullQueueClient([
             {
-              'changes': [
-                _roomRow('uuid-healed', updatedAt: 1700000100),
-              ],
+              'changes': [_roomRow('uuid-healed', updatedAt: 1700000100)],
               'cursor': '1700000100',
               'has_more': false,
               'errors': <dynamic>[],
@@ -343,5 +383,109 @@ void main() {
         expect(await pref('cf_full_sync_completed'), true);
       },
     );
+  });
+
+  // ═════════════════════════════════════════════════════════════
+  // عقد الشفاء الكسول (2026-09-10) — تقرير جهاز «تعذر سحب التغييرات:
+  // لم يتم تسجيل الدخول إلى سيرفر المزامنة. أعد فتح التطبيق»:
+  // فشل تسجيل الدخول عند الإقلاع كان يتطلب إعادة فتح التطبيق حرفياً —
+  // sync() كان يعلن «Not initialized» للأبد حتى لو شُفيت الشبكة
+  // والتطبيق مفتوح. العقد الجديد: sync() يجرب تسجيل الدخول ذاتياً
+  // (محاولة واحدة + تبريد 60 ثانية) قبل إعلان الفشل.
+  // ═════════════════════════════════════════════════════════════
+  group('عقد الشفاء الكسول: sync() يعيد تسجيل الدخول ذاتياً', () {
+    test('توكن مفقود → دخول كسول ناجح → السحب يكتمل طبيعياً', () async {
+      var loginCalls = 0;
+      final manager = await makeManager(
+        _LazyHealClient(
+          onLogin: () {
+            loginCalls++;
+            return _json({'token': 'lazy-token'});
+          },
+          pullPages: [
+            {
+              'changes': [_roomRow('uuid-lazy', updatedAt: 1700000100)],
+              'cursor': '1700000100',
+              'has_more': false,
+              'errors': <dynamic>[],
+            },
+          ],
+        ),
+        tokenless: true,
+      );
+
+      final result = await manager.sync();
+
+      expect(loginCalls, 1, reason: 'محاولة دخول كسولة واحدة (بلا حلقة 3×)');
+      expect(manager.token, 'lazy-token');
+      expect(result.status, SyncStatus.success);
+      expect(result.recordsPulled, 1);
+      expect(await roomsCount(), 1);
+      expect(await pref('cf_last_pull_cursor'), 1700000100);
+      expect(await pref('cf_full_sync_completed'), true);
+    });
+
+    test(
+      'فشل الدخول → التبريد يمنع محاولة ثانية فورية (لا طرق شبكة محجوبة)',
+      () async {
+        var loginCalls = 0;
+        final manager = await makeManager(
+          _LazyHealClient(
+            onLogin: () {
+              loginCalls++;
+              throw http.ClientException('DNS blackhole (simulated)');
+            },
+          ),
+          tokenless: true,
+        );
+
+        final r1 = await manager.sync();
+        final r2 = await manager.sync(); // خلال التبريد — بلا login ثانية
+
+        expect(loginCalls, 1, reason: 'التبريد 60 ثانية يمنع الطرق المتكرر');
+        expect(r1.status, SyncStatus.failed);
+        expect(r1.errorMessage, contains('Not initialized'));
+        expect(r2.status, SyncStatus.failed);
+        expect(r2.errorMessage, contains('Not initialized'));
+      },
+    );
+
+    test('الشفاء عبر الدورات: فشل ثم نجاح بعد انقضاء التبريد', () async {
+      var loginCalls = 0;
+      final manager = await makeManager(
+        _LazyHealClient(
+          onLogin: () {
+            loginCalls++;
+            if (loginCalls == 1) {
+              throw http.ClientException('transient outage (simulated)');
+            }
+            return _json({'token': 'lazy-token-2'});
+          },
+          pullPages: [
+            {
+              'changes': [_roomRow('uuid-healed', updatedAt: 1700000100)],
+              'cursor': '1700000100',
+              'has_more': false,
+              'errors': <dynamic>[],
+            },
+          ],
+        ),
+        tokenless: true,
+      );
+      // تقصير التبريد لصيانة سرعة الاختبار فقط (عنصر visibleForTesting).
+      manager.lazyInitCooldown = Duration.zero;
+
+      final r1 = await manager.sync();
+      expect(r1.status, SyncStatus.failed);
+      expect(r1.errorMessage, contains('Not initialized'));
+      expect(manager.token, isNull);
+
+      final r2 = await manager.sync();
+      expect(loginCalls, 2, reason: 'الدورة الثانية تجرّب الدخول مجدداً');
+      expect(manager.token, 'lazy-token-2');
+      expect(r2.status, SyncStatus.success);
+      expect(r2.recordsPulled, 1);
+      expect(await roomsCount(), 1);
+    });
   });
 }

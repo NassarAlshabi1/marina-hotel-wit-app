@@ -496,6 +496,16 @@ class CloudflareSyncManager {
     timeout: const Duration(seconds: 30),
   );
 
+  /// ✅ (2026-09-10) طابع آخر محاولة إعادة تهيئة كسولة — تبريد 60
+  /// ثانية يمنع طرق شبكة محجوبة عند كل سحب، مع السماح بالشفاء
+  /// التلقائي خلال دقيقة دون إعادة فتح التطبيق.
+  DateTime? _lastLazyInitAttempt;
+
+  /// سقف التبريد بين محاولات إعادة تسجيل الدخول الكسولة
+  /// (visibleForTesting ليضبطه الاختبار على صفر).
+  @visibleForTesting
+  Duration lazyInitCooldown = const Duration(seconds: 60);
+
   /// ✅ (2026-09-08) حقن اختباري مباشر: قاعدة بيانات + عميل HTTP وهمي
   /// + توكن — بلا login شبكي. يُتيح اختبارات عقدية لحلقة السحب كاملة
   /// (ترحيل المؤشر، أعطال الجداول الخادمية، فصل الدفع عن السحب).
@@ -506,7 +516,7 @@ class CloudflareSyncManager {
   void configureForTesting({
     required AppDatabase database,
     required http.Client httpClient,
-    required String token,
+    String? token,
     String? deviceId,
     bool fullSyncCompleted = false,
     int lastPullCursor = 0,
@@ -528,6 +538,9 @@ class CloudflareSyncManager {
     // ✅ (مراجعة #2+#16) عزل حالة الحجر بين الاختبارات (singleton).
     _orphanBlockCounts.clear();
     _quarantinedRecords.clear();
+    // ✅ (2026-09-10) عزل حالة إعادة التهيئة الكسولة بين الاختبارات.
+    _lastLazyInitAttempt = null;
+    lazyInitCooldown = const Duration(seconds: 60);
   }
 
   /// ✅ (2026-09-08) عقد القراءة: الجداول التي تخطاها الخادم في آخر
@@ -541,10 +554,11 @@ class CloudflareSyncManager {
   Future<void> initialize({
     AppDatabase? database,
     bool forceRetry = false,
+    int loginAttempts = 3,
   }) async {
     if (_token != null && !forceRetry) return;
 
-    _db = database ?? DatabaseManager.instance;
+    _db = database ?? _db ?? DatabaseManager.instance;
 
     final prefs = await SharedPreferences.getInstance();
     _deviceId = prefs.getString('cf_device_id');
@@ -618,8 +632,10 @@ class CloudflareSyncManager {
       debugPrint('⚠️ Failed to reclaim stuck outbox entries: $e');
     }
 
-    // Retry login up to 3 times for transient network failures (DNS, socket).
-    const maxAttempts = 3;
+    // Retry login up to N times for transient network failures (DNS,
+    // socket). المسار الكسول من sync() يمرر 1 حتى لا يحجب زر السحب
+    // 45 ثانية كاملة على شبكة محجوبة.
+    final maxAttempts = loginAttempts.clamp(1, 10);
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         final response = await _httpClient
@@ -639,6 +655,8 @@ class CloudflareSyncManager {
           _token = data['token'] as String?;
           Env.cloudflareAuthToken = _token;
           _initError = null;
+          // ✅ نجاح تسجيل الدخول يصفّر تبريد المحاولة الكسولة.
+          _lastLazyInitAttempt = null;
           debugPrint(
             '✅ CloudflareSyncManager initialized — device: $_deviceId '
             '(attempt $attempt/$maxAttempts)',
@@ -958,6 +976,27 @@ class CloudflareSyncManager {
             ? null
             : 'Delta-only pull skipped (full sync not completed or sync in progress)',
       );
+    }
+    if (_token == null) {
+      // ✅ (2026-09-10) إعادة تهيئة كسولة: كان فشل تسجيل الدخول عند
+      // الإقلاع (شبكة محجوبة/DoH معطّل) يتطلب إعادة فتح التطبيق حرفياً —
+      // أي سحب لاحق ينتهي بـ«Not initialized» حتى لو شفيت الشبكة
+      // والتطبيق مفتوح. الآن sync() يجرّب تسجيل الدخول مرة واحدة
+      // (محاولة واحدة + تبريد 60 ثانية) قبل إعلان الفشل.
+      final now = DateTime.now();
+      final last = _lastLazyInitAttempt;
+      if (last == null || now.difference(last) >= lazyInitCooldown) {
+        _lastLazyInitAttempt = now;
+        debugPrint(
+          '🔄 [Sync] token is null — lazy re-login attempt '
+          '(cooldown ${lazyInitCooldown.inSeconds}s)',
+        );
+        try {
+          await initialize(loginAttempts: 1);
+        } catch (e) {
+          debugPrint('⚠️ [Sync] lazy re-login failed: $e');
+        }
+      }
     }
     if (_token == null) {
       return SyncResult(
@@ -2044,9 +2083,7 @@ class CloudflareSyncManager {
   }) {
     return _httpClient
         .get(
-          Uri.parse(
-            '${CloudflareConfig.workerUrl}/api/sync/pull',
-          ).replace(
+          Uri.parse('${CloudflareConfig.workerUrl}/api/sync/pull').replace(
             queryParameters: {
               'cursor': cursor.toString(),
               'limit': limit.toString(),
@@ -2820,12 +2857,7 @@ class CloudflareSyncManager {
         await _db!.customStatement(
           'UPDATE $tableName SET deleted_at = ?, updated_at = ?'
           '${hasLastModified ? ', last_modified = ?' : ''} WHERE id = ?',
-          [
-            deletedAt,
-            updatedAt,
-            if (hasLastModified) updatedAt,
-            localId,
-          ],
+          [deletedAt, updatedAt, if (hasLastModified) updatedAt, localId],
         );
       } else {
         // جدول بلا حذف ناعم — الحذف الوحيد الممكن هو الصلب.
@@ -2889,19 +2921,14 @@ class CloudflareSyncManager {
         _kQuarantineCountsKey,
         jsonEncode(_orphanBlockCounts),
       );
-      await prefs.setString(
-        _kQuarantinedKey,
-        jsonEncode(_quarantinedRecords),
-      );
+      await prefs.setString(_kQuarantinedKey, jsonEncode(_quarantinedRecords));
     } catch (e) {
       debugPrint('⚠️ quarantine state persist failed: $e');
     }
   }
 
   bool _isQuarantined(String entity, String? localUuid) =>
-      _quarantinedRecords.containsKey(
-        _quarantineIdentity(entity, localUuid),
-      );
+      _quarantinedRecords.containsKey(_quarantineIdentity(entity, localUuid));
 
   /// يمسح السجل من الحجر وعدّاد الحجب — يكتب prefs فقط حين يُزال شيء فعلاً.
   Future<void> _clearQuarantine(String entity, String? localUuid) async {
@@ -3191,6 +3218,7 @@ class CloudflareSyncManager {
   void reset() {
     _token = null;
     _currentStatus = SyncStatus.idle;
+    _lastLazyInitAttempt = null;
   }
 
   Future<void> resetSyncState() async {
