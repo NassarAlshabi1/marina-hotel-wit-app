@@ -9,6 +9,11 @@
 //   • رسالة آخر خطأ تهيئة (initError) إن وُجدت — بنص عربي مفهوم
 //
 //  ماذا تفعل:
+//   • ✅ (2026-09-11) طلب المستخدم: «شاشة تسجيل الدخول اجعلها تلقائي
+//     admin/admin» — تُملأ الحقول تلقائياً (admin/admin) ويُنفَّذ
+//     تسجيل الدخول تلقائياً مرة واحدة عند فتح الشاشة إن لم تكن
+//     المزامنة جاهزة بالفعل (isAvailable). عند الفشل يبقى النموذج
+//     قابلاً للتعديل اليدوي وإعادة المحاولة كالسابق.
 //   • تُدخل اسم مستخدم/كلمة مرور بديلة (overrides) تُحفظ محلياً
 //     وتعمل على حساب المدمج --dart-define — فيصلح «لم يتم تسجيل
 //     الدخول إلى سيرفر المزامنة» دون إعادة بناء APK
@@ -16,6 +21,8 @@
 //   • زر «فحص الاتصال»: يصيب /health ويعرض النتيجة
 //   • زر «الرجوع للاعتمادات المدمجة»: يمسح overrides
 // ═══════════════════════════════════════════════════════════════
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,13 +51,42 @@ class _CloudflareLoginScreenState extends ConsumerState<CloudflareLoginScreen> {
   Color? _messageColor;
   String? _healthResult;
 
+  /// حارس ضد تكرار الدخول التلقائي (فشل الشبكة مثلاً) — المحاولة
+  /// التالية تبقى يدوية بضغط الزر.
+  bool _autoLoginAttempted = false;
+
+  /// اعتمادات الدخول التلقائي — طلب المستخدم الصريح (2026-09-11).
+  static const String _autoUsername = 'admin';
+  static const String _autoPassword = 'admin';
+
   @override
   void initState() {
     super.initState();
-    // نملأ اسم المستخدم بالقيمة الفعّالة (override أو مدمج) ليعدّل
-    // فوقها بدل الكتابة من الصفر. كلمة المرور لا تُعاد أبداً — الحقل
-    // فارغ = «إبقاء الحالية» كما هو موثّق أسفل الحقل.
-    _usernameController.text = CloudflareConfig.username;
+    // ✅ (2026-09-11) الاسم يُملأ بالقيمة الفعّالة إن وُجدت overrides
+    // (العرف السابق)، وإلا فباعتمادات الدخول التلقائي المطلوبة.
+    // كلمة المرور تُملأ تلقائياً بـ admin (طلب صريح) بدل الفراغ.
+    _usernameController.text = CloudflareConfig.hasCredentialOverrides
+        ? CloudflareConfig.username
+        : _autoUsername;
+    _passwordController.text = _autoPassword;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoLoginIfNeeded();
+    });
+  }
+
+  /// دخول تلقائي واحد عند فتح الشاشة إن لم تكن المزامنة جاهزة.
+  void _autoLoginIfNeeded() {
+    if (_autoLoginAttempted || !mounted) return;
+    _autoLoginAttempted = true;
+    final manager = ref.read(appwriteSyncManagerProvider);
+    if (manager.isAvailable) {
+      setState(() {
+        _message = '✅ المزامنة جاهزة بالفعل — الدخول تلقائي';
+        _messageColor = AppColors.successColor;
+      });
+      return;
+    }
+    unawaited(_login());
   }
 
   @override
