@@ -1121,6 +1121,49 @@ class _UnifiedSyncSettingsScreenState
     }
   }
 
+  /// شريط تقدم حيّ للسحب الأولي لا يحجب التنقل بين الشاشات.
+  /// يعتمد على اللقطات الحقيقية من CloudflareSyncManager بعد كل صفحة،
+  /// وليس على مؤقت أو نسبة تقديرية محلية.
+  void _showFullPullProgressSnackBar(CloudflareSyncManager manager) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          duration: const Duration(hours: 1),
+          behavior: SnackBarBehavior.floating,
+          content: StreamBuilder<SyncPullProgress>(
+            stream: manager.syncPullProgressStream,
+            initialData: manager.lastPullProgress,
+            builder: (context, snapshot) {
+              final progress = snapshot.data ?? manager.lastPullProgress;
+              final fraction = progress.fraction;
+              final remaining = progress.remainingRows;
+              final label = fraction == null
+                  ? 'سُحب ${progress.pulledRows} سجل — الصفحة ${progress.pages}'
+                  : 'سُحب ${progress.pulledRows} من ${progress.pulledRows + (remaining ?? 0)} سجل — ${(fraction * 100).round()}%';
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('جاري السحب الأولي من السيرفر…'),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(value: fraction),
+                  const SizedBox(height: 6),
+                  Text(label, style: const TextStyle(fontSize: 12)),
+                  if (remaining != null)
+                    Text(
+                      'المتبقي: $remaining',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      );
+  }
+
   /// «السحب الكامل» — fullSync(push: false): تصفير مؤشر السحب + سحب
   /// كل البيانات من الصفر — **سحب فقط بدون أي رفع** (فصل صريح عن زر
   /// الرفع بناء على طلب المستخدم 2026-09-09).
@@ -1128,38 +1171,11 @@ class _UnifiedSyncSettingsScreenState
     if (_isManualSyncing) return;
     setState(() => _isManualSyncing = true);
 
-    // حوار تقدّم غير قابل للإغلاق — full pull قد يسحب عدة صفحات.
-    // ✅ نلتقط NavigatorState متزامناً (قبل أي await) كي نستطيع إغلاق
-    // الحوار في finally حتى لو غادر المستخدم الشاشة أثناء المزامنة —
-    // استخدام context بعد dispose كان سيترك الحوار محجوزاً للأبد.
-    var progressDialogOpen = false;
-    unawaited(
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const AlertDialog(
-          title: Text('جاري السحب الكامل…'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              LinearProgressIndicator(),
-              SizedBox(height: 12),
-              Text(
-                'سحب كل البيانات من السيرفر (بدون رفع)',
-                style: TextStyle(fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    progressDialogOpen = true;
-    final navigator = Navigator.of(context);
-
     try {
       if (!await _ensureCloudflareConnected()) return;
 
       final manager = ref.read(ap.appwriteSyncManagerProvider);
+      _showFullPullProgressSnackBar(manager);
       final result = await SyncGate.instance.runGuarded<SyncResult>(
         operation: 'full_sync',
         source: 'settings',
@@ -1198,10 +1214,7 @@ class _UnifiedSyncSettingsScreenState
         message: '❌ خطأ غير متوقع أثناء السحب الكامل: $e',
       );
     } finally {
-      if (progressDialogOpen) {
-        // NavigatorState ملتقط مسبقاً — آمن حتى بعد dispose الشاشة
-        navigator.pop(); // إغلاق حوار التقدّم
-      }
+      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
       if (mounted) setState(() => _isManualSyncing = false);
     }
   }

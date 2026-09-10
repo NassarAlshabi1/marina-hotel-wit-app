@@ -2814,13 +2814,15 @@ class CloudflareSyncManager {
     var pending = List.of(records);
 
     for (var pass = 0; pass < 3 && pending.isNotEmpty; pass++) {
-      if (pass > 0) {
-        pending.sort(
-          (a, b) => (_pullApplyPriority[a.entity] ?? 9).compareTo(
-            _pullApplyPriority[b.entity] ?? 9,
-          ),
-        );
-      }
+      // رتّب كل محاولة، بما فيها الأولى، حتى لا يعتمد نجاح السحب على
+      // ترتيب updated_at العابر الذي يعيده الخادم. هذا يضمن وصول الآباء
+      // (rooms/employees/bookings) قبل الأبناء (nights/payments/salary_*),
+      // ويقلل دورات التأجيل وإعادة المحاولة في السحب الأولي.
+      pending.sort(
+        (a, b) => (_pullApplyPriority[a.entity] ?? 9).compareTo(
+          _pullApplyPriority[b.entity] ?? 9,
+        ),
+      );
       final stillPending = <({String entity, Map<String, dynamic> record})>[];
       for (final item in pending) {
         try {
