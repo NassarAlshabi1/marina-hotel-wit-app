@@ -21,6 +21,20 @@ import '../../services/sqlite_backup_restore.dart';
 import '../../services/sync_orchestrator.dart' show DataIntegrityCheck;
 import '../../utils/debug_log.dart';
 import '../../utils/env.dart';
+import '../../widgets/settings/collapsible_section.dart';
+// ✅ (2026-09-10) إعادة تنظيم UI: شاشات تشخيصية كانت يتيمة (بلا مدخل
+// تنقل) — استعادة الوصول إليها من قسم مطوي أدناه، بلا تغيير وظائف.
+import 'auto_sync_engine_monitor_screen.dart';
+import 'data_protection_screen.dart';
+import 'database_fixer_screen.dart';
+import 'restore_fix_screen.dart';
+import 'schema_comparison_screen.dart';
+import 'server_id_fixer_screen.dart';
+import 'smart_sync_settings_screen.dart';
+import 'sync_conflicts_screen.dart';
+import 'sync_debug_logs_screen.dart';
+import 'sync_history_screen.dart';
+import 'sync_performance_settings_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  نموذج البيانات الحقيقية
@@ -295,11 +309,128 @@ class _SettingsMaintenanceScreenState
 
           const SizedBox(height: 24),
 
+          // ✅ (2026-09-10) إعادة تنظيم UI/UX — استعادة الوصول لأدوات
+          // تشخيصية موجودة فعلاً لكنها كانت شاشات يتيمة بلا أي مدخل
+          // تنقل (نفس الوظائف حرفياً — navigation فقط، لا منطق جديد).
+          // مطوي افتراضياً: صفر حِمل بصري عند الإغلاق.
+          CollapsibleSection(
+            title: 'أدوات تشخيصية متقدمة',
+            icon: Icons.biotech,
+            count: _buildDiagnosticTools().length,
+            subtitle: 'تعارضات وسجل المزامنة · إصلاح قاعدة البيانات · أداء',
+            children: _buildDiagnosticTools(),
+          ),
+
+          const SizedBox(height: 24),
+
           // ─── تحذير ───
           _buildWarningBanner(),
         ],
       ),
     );
+  }
+
+  /// ✅ (2026-09-10) مداخل شاشات التشخيص — كل شاشة موجودة مسبقاً
+  /// وتعمل بنفس المنطق؛ هذا القسم يضيف لها مسار وصول فقط.
+  List<Widget> _buildDiagnosticTools() {
+    Widget tile(
+      String title,
+      String subtitle,
+      IconData icon,
+      Color color,
+      Widget screen,
+    ) {
+      return _buildMaintenanceCard(
+        title: title,
+        subtitle: subtitle,
+        icon: icon,
+        color: color,
+        onTap: () => Navigator.push<void>(
+          context,
+          MaterialPageRoute<void>(builder: (_) => screen),
+        ),
+      );
+    }
+
+    return [
+      tile(
+        'تعارضات المزامنة',
+        'عرض وحل تعارضات البيانات بين الأجهزة',
+        Icons.merge_type,
+        Colors.deepOrange,
+        const SyncConflictsScreen(),
+      ),
+      tile(
+        'سجل المزامنة',
+        'تاريخ عمليات الرفع والسحب مع الفلترة',
+        Icons.history,
+        Colors.blue,
+        const SyncHistoryScreen(),
+      ),
+      tile(
+        'سجلات المزامنة والدمج',
+        'سجلات تفصيلية لعمليات المزامنة مع النسخ',
+        Icons.bug_report,
+        Colors.blueGrey,
+        const SyncDebugLogsScreen(),
+      ),
+      tile(
+        'إصلاح قاعدة البيانات',
+        'فحص شامل وإصلاح مشاكل قاعدة البيانات المحلية',
+        Icons.build_circle,
+        Colors.green,
+        const DatabaseFixerScreen(),
+      ),
+      tile(
+        'إصلاح Server IDs للغرف',
+        'مواءمة معرفات الغرف مع الخادم',
+        Icons.format_list_numbered,
+        Colors.teal,
+        const ServerIdFixerScreen(),
+      ),
+      tile(
+        'الإصلاح التلقائي للنسخة الاحتياطية',
+        'تشغيل الإصلاح اليدوي وتصدير سجل الإصلاح',
+        Icons.healing,
+        Colors.indigo,
+        const RestoreFixScreen(),
+      ),
+      tile(
+        'مقارنة بنية قاعدة البيانات',
+        'مراجعة تطابق الجداول والأعمدة',
+        Icons.compare_arrows,
+        Colors.purple,
+        const SchemaComparisonScreen(),
+      ),
+      tile(
+        'محرك المزامنة التلقائي',
+        'مراقبة محرك المزامنة وإحصائيات التضارب',
+        Icons.speed,
+        Colors.amber.shade700,
+        const AutoSyncEngineMonitorScreen(),
+      ),
+      tile(
+        'المزامنة التلقائية الذكية',
+        'حالة المزامنة الذكية وفترة الفحص وأولوية الجهاز',
+        Icons.auto_mode,
+        Colors.blue,
+        const SmartSyncSettingsScreen(),
+      ),
+      tile(
+        'تحسين أداء المزامنة',
+        'ملفات الأداء الجاهزة والفترة التكيفية والبطارية',
+        Icons.battery_saver,
+        Colors.green,
+        const SyncPerformanceSettingsScreen(),
+      ),
+      tile(
+        'إدارة النسخ والمزامنة',
+        'لوحة مجمعة لحالة النسخ الاحتياطي والمزامنة السحابية',
+        Icons.admin_panel_settings,
+        Colors.deepPurple,
+        const DataProtectionScreen(),
+      ),
+    ];
   }
 
   // ─── بطاقة معلومات النظام ─────────────────────────────

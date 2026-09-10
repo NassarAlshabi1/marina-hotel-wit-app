@@ -15,6 +15,7 @@ import '../../../services/cloudflare_config.dart';
 import '../../../services/daos/outbox_dao.dart';
 import '../../../services/sync/sync_gate.dart';
 import '../../../services/worker_endpoints.dart';
+import '../../../widgets/settings/collapsible_section.dart';
 import '../../auth/cloudflare_login_screen.dart';
 
 /// Unified Sync Settings Screen
@@ -192,24 +193,27 @@ class _UnifiedSyncSettingsScreenState
 
           const SizedBox(height: UIConstants.spacingLG),
 
-          // إعدادات الأداء
-          _buildPerformanceSection(),
-
-          const SizedBox(height: UIConstants.spacingLG),
-
-          // المزامنة الذكية
-          _buildSmartSyncSection(),
+          // ✅ (2026-09-10) إعادة تنظيم UI/UX — Progressive Disclosure:
+          // بطاقات الأداء/المزامنة الذكية/نطاق Worker أقل استخداماً —
+          // طُويت في قسم واحد قابل للفتح، بلا أي تغيير في وظائفها
+          // (نفس دوال البناء السابقة حرفياً داخل القسم المطوي).
+          CollapsibleSection(
+            title: 'خيارات متقدمة',
+            icon: Icons.tune,
+            subtitle: 'الأداء والبطارية · المزامنة الذكية · نطاق Worker',
+            children: [
+              _buildPerformanceSection(),
+              const SizedBox(height: UIConstants.spacingLG),
+              _buildSmartSyncSection(),
+              const SizedBox(height: UIConstants.spacingLG),
+              _buildWorkerEndpointSection(),
+            ],
+          ),
 
           const SizedBox(height: UIConstants.spacingLG),
 
           // Appwrite Sync
           _buildAppwriteSyncSection(),
-
-          const SizedBox(height: UIConstants.spacingLG),
-
-          // ✅ (2026-09-09) نطاق Worker مخصّص — تجاوز حجب workers.dev
-          // (اليمن) عبر دومين المستخدم المربوط بنفس الـ worker.
-          _buildWorkerEndpointSection(),
 
           const SizedBox(height: UIConstants.spacingLG),
 

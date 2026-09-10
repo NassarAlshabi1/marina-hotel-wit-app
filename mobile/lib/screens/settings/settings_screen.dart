@@ -10,6 +10,7 @@ import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
+import '../../widgets/settings/collapsible_section.dart';
 import '../ai/ai_chat_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../security/blacklist_screen.dart';
@@ -93,20 +94,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildSettingsContent(BuildContext context) {
+    // ✅ (2026-09-10) إعادة تنظيم UI/UX — Progressive Disclosure:
+    // كانت الأقسام الأربعة ظاهرة دائماً (24 بطاقة دفعة واحدة) مما
+    // يسبب تزاحماً بصرياً. الآن: قسم إدارة البيانات (الأكثر استخداماً)
+    // مفتوح افتراضياً، والأقسام الأخرى مطوية بعناوين + عدّادات — كل
+    // الخيارات على بعد نقرة واحدة، ولا حذف ولا تعطيل لأي وظيفة
+    // (نفس _getSectionItems ونفس _buildSettingsGrid حرفياً).
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
-        _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+        CollapsibleSection(
+          title: 'إدارة البيانات',
+          icon: Icons.manage_accounts,
+          count: _getSectionItems(context, 'data').length,
+          initiallyExpanded: true,
+          children: [
+            _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+          ],
+        ),
         const SizedBox(height: 20),
-        _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
-        _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+        CollapsibleSection(
+          title: 'المزامنة والنسخ الاحتياطي',
+          icon: Icons.sync,
+          count: _getSectionItems(context, 'sync').length,
+          subtitle: 'Cloudflare · Google Drive · حالة المزامنة',
+          children: [
+            _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+          ],
+        ),
         const SizedBox(height: 20),
-        _buildSectionTitle('الإشعارات والتقارير', Icons.notifications),
-        _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
+        CollapsibleSection(
+          title: 'الإشعارات والتقارير',
+          icon: Icons.notifications,
+          count: _getSectionItems(context, 'whatsapp').length,
+          subtitle: 'إقفال اليوم · WhatsApp · Telegram',
+          children: [
+            _buildSettingsGrid(
+              context,
+              _getSectionItems(context, 'whatsapp'),
+            ),
+          ],
+        ),
         const SizedBox(height: 20),
-        _buildSectionTitle('التطبيق والخدمات', Icons.apps),
-        _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+        CollapsibleSection(
+          title: 'التطبيق والخدمات',
+          icon: Icons.apps,
+          count: _getSectionItems(context, 'app').length,
+          subtitle: 'المظهر · المساعد الذكي · الأخطاء · Remote Config',
+          children: [
+            _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+          ],
+        ),
       ],
     );
   }
@@ -530,32 +568,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           textAlign: TextAlign.center,
         ),
       ],
-    );
-  }
-
-  // ─── عناوين الأقسام ───
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.blue, size: 24),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
