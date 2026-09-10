@@ -649,6 +649,9 @@ CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle ON salary_payments(cycle_id
 CREATE TABLE IF NOT EXISTS salary_withdrawals (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   employee_id INTEGER NOT NULL,
+  -- ✅ (2026-09-10) مرجع الأب المستقر عبر الأجهزة — migration 0006.
+  -- employee_id وحده رقمي محلي على جهاز المصدر ولا يحل عبر الأجهزة.
+  employee_uuid TEXT,
   amount REAL NOT NULL,
   withdraw_date TEXT NOT NULL,
   reason TEXT,

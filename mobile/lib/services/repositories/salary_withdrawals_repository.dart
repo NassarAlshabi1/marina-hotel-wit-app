@@ -16,6 +16,30 @@ class SalaryWithdrawalsRepository {
   final AppDatabase _db;
   final OutboxDao _outboxDao;
 
+  /// ✅ (2026-09-10) جذر «107 سجل محجوب: أب غير محلول» — جلب
+  /// local_uuid الموظف لحقنه في حمولات outbox كمرجع مستقر عبر
+  /// الأجهزة. employee_id وحده رقم محلي على جهاز المصدر ولا يحل
+  /// خادمياً (D1 server_id عمود هجرة فقط، createRecord يجبره null
+  /// وecho-filter يمنع عودة صف الأب لجهاز مصدره). يُرجع null إن
+  /// غاب الموظف (يتيم بنيوي) فيغيب المفتاح من الحمولة بلا ضرر —
+  /// الحجر التدريجي على العميل يعزل السجلات اليتيمة تلقائياً.
+  Future<String?> _employeeUuidRef(int employeeId) async {
+    if (employeeId <= 0) {
+      return null;
+    }
+    try {
+      final row = await _db
+          .customSelect(
+            'SELECT local_uuid FROM employees WHERE id = ? LIMIT 1',
+            variables: [d.Variable.withInt(employeeId)],
+          )
+          .getSingleOrNull();
+      return row?.data['local_uuid'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// ✅ كتابة expense_id في عمود SQL خام بعد كل إدراج/تحديث
   /// العمود أُضيف عبر Migration 40 ولا يوجد في الـ data class المُولّد
   Future<void> _setExpenseIdRaw(int salaryWithdrawalId, int expenseId) async {
@@ -81,6 +105,13 @@ class SalaryWithdrawalsRepository {
           'withdrawalType': withdrawalType,
           'description': description,
         };
+        // ✅ (2026-09-10) جذر «107 سجل محجوب»: الحمولة يجب أن تحمل
+        // employeeUuid (مرجع مستقر عبر الأجهزة) — employee_id وحده رقم
+        // محلي على جهاز المصدر ولا يحل خادمياً (server_id عمود هجرة فقط).
+        final employeeUuidRef = await _employeeUuidRef(employeeId);
+        if (employeeUuidRef != null) {
+          payload['employeeUuid'] = employeeUuidRef;
+        }
         if (expenseId > 0) {
           payload['expenseId'] = expenseId;
         }
@@ -208,7 +239,9 @@ class SalaryWithdrawalsRepository {
           // ✅ إصلاح حرج: استخدام op:'update' بدلاً من op:'delete'
           // الحذف الناعم (soft-delete) يجب أن يستخدم 'update' لكي يُحدث سجل Appwrite
           // بدلاً من حذفه نهائياً — هذا يضمن رؤية deletedAt على الأجهزة الأخرى
-          // ✅ إصلاح: إضافة employeeId للحمولة لضمان مزامنة relatedId/employeeId بشكل صحيح
+          // ✅ إصلاح: إضافة employeeId/employeeUuid للحمولة لضمان مزامنة
+          // relatedId/employeeId وحلّ الأب عبر الأجهزة بشكل صحيح
+          final staleUuidRef = await _employeeUuidRef(stale.employeeId);
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'update',
@@ -216,6 +249,7 @@ class SalaryWithdrawalsRepository {
             serverId: stale.serverId,
             payload: {
               'employeeId': stale.employeeId,
+              if (staleUuidRef != null) 'employeeUuid': staleUuidRef,
               'deletedAt': now,
               'lastModified': now,
             },
@@ -252,6 +286,7 @@ class SalaryWithdrawalsRepository {
         await _setExpenseIdRaw(matchedId, expenseId);
 
         if (!originIsServer) {
+          final employeeUuidRef = await _employeeUuidRef(employeeId);
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'update',
@@ -259,6 +294,7 @@ class SalaryWithdrawalsRepository {
             serverId: matchedServerId,
             payload: {
               'employeeId': employeeId,
+              if (employeeUuidRef != null) 'employeeUuid': employeeUuidRef,
               'amount': amount,
               'withdrawDate': date,
               'reason': reasonText,
@@ -332,12 +368,14 @@ class SalaryWithdrawalsRepository {
         );
 
         if (!originIsServer) {
+          final employeeUuidRef = await _employeeUuidRef(employeeId);
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'create',
             localUuid: uuid,
             payload: {
               'employeeId': employeeId,
+              if (employeeUuidRef != null) 'employeeUuid': employeeUuidRef,
               'amount': amount,
               'withdrawDate': date,
               'reason': reasonText,
@@ -410,8 +448,10 @@ class SalaryWithdrawalsRepository {
         // ✅ إصلاح حرج: استخدام op:'update' بدلاً من op:'delete'
         // الحذف الناعم (soft-delete) يجب أن يستخدم 'update' لكي يُحدث سجل Appwrite
         // بدلاً من حذفه نهائياً — هذا يضمن رؤية deletedAt على الأجهزة الأخرى
-        // ✅ إصلاح: إضافة employeeId للحمولة لضمان مزامنة relatedId/employeeId بشكل صحيح
+        // ✅ إصلاح: إضافة employeeId/employeeUuid للحمولة لضمان مزامنة
+        // relatedId/employeeId وحلّ الأب عبر الأجهزة بشكل صحيح
         if (!originIsServer) {
+          final itemUuidRef = await _employeeUuidRef(item.employeeId);
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'update',
@@ -419,6 +459,7 @@ class SalaryWithdrawalsRepository {
             serverId: item.serverId,
             payload: {
               'employeeId': item.employeeId,
+              if (itemUuidRef != null) 'employeeUuid': itemUuidRef,
               'deletedAt': now,
               'lastModified': now,
             },
