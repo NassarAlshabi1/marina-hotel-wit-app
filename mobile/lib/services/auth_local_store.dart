@@ -10,7 +10,10 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'password_hasher.dart';
 
-enum AuthType { local }
+/// ✅ (2026-09-10) أُضيف `cloudflare`: جلسة دخول تم التحقق منها ضد
+/// Worker (`POST /api/auth/login`) مع JWT محفوظ. `local` يبقى أولاً
+/// لضمان توافق القيم القديمة المحفوظة في SharedPreferences.
+enum AuthType { local, cloudflare }
 
 class AuthLocalStore {
   String _cloudDocumentId(String username) {
@@ -83,6 +86,25 @@ class AuthLocalStore {
   static const _kCustomAccounts = 'custom_accounts';
   static const _kRememberMe = 'remember_me';
   static const _kAuthType = 'auth_type';
+
+  /// ✅ (2026-09-10) JWT الناتج من دخول Cloudflare — جلسة المستخدم.
+  /// منفصل عن token المزامنة عمداً (انظر cloudflare_auth_service.dart).
+  static const _kCfAuthToken = 'cf_auth_token';
+
+  Future<void> saveAuthToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kCfAuthToken, token);
+  }
+
+  Future<String?> getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_kCfAuthToken);
+  }
+
+  Future<void> clearAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kCfAuthToken);
+  }
 
   static const List<String> permissionKeys = [
     'dashboard',

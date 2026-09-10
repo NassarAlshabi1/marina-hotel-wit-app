@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // ✅ P2-1 (2026-09-09): appwrite_realtime_sync.dart حُذف - استخدم cloudflare_realtime_sync
 // AppwriteRealtimeSync هو typedef لـ CloudflareRealtimeSync (cloudflare_sync_manager.dart)
 import '../services/appwrite_sync_manager.dart' show AppwriteRealtimeSync;
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
+import '../services/cloudflare_auth_service.dart'
+    show CloudflareAuthService, CloudflareAuthResult, CloudflareAuthStatus;
 import '../services/payment_session_context.dart';
 import '../utils/app_logger.dart';
 import '../utils/debug_log.dart';
+import '../utils/env.dart';
 
 class AuthUser {
   const AuthUser({
@@ -263,6 +267,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
     PaymentSessionContext.clear();
     state = state.copyWith();
 
+    // ✅ (2026-09-10) Cloudflare-first: عند ضبط Worker في البنية
+    // يُتحقق من بيانات الدخول ضد الخادم (`POST /api/auth/login`) ويُخزَّن
+    // JWT الجلسة. السقوط للمصادقة المحلية في الحالات التالية:
+    //  - invalidCredentials: الحسابات الثابتة (admin) قد لا توجد في
+    //    جدول users بـ D1 — الحكم النهائي بعد فحص المخزن المحلي.
+    //  - networkError/serverError: التطبيق offline-first — انقطاع
+    //    الشبكة لا يمنع الدخول.
+    // أما rateLimited فالخادم حجب صراحة — يُعرض العدّاد ولا يُجرب محلياً.
+    if (Env.isCloudflareConfigured) {
+      final deviceId = await _currentDeviceId();
+      final cf = await CloudflareAuthService().login(
+        username: username,
+        password: password,
+        deviceId: deviceId,
+      );
+      if (cf.status == CloudflareAuthStatus.rateLimited) {
+        state = AuthState(
+          isAuthenticated: false,
+          error: cf.userMessage,
+          rememberMe: rememberMe,
+        );
+        return;
+      }
+      if (cf.isSuccess) {
+        await _completeCloudLogin(cf, username, rememberMe);
+        return;
+      }
+      // invalidCredentials / networkError / serverError → استمر محلياً.
+    }
+
     final data = await _store.validateCredentials(username, password);
     if (data == null) {
       state = const AuthState(
@@ -297,8 +331,98 @@ class AuthNotifier extends StateNotifier<AuthState> {
     unawaited(_resumeCloudSyncAfterLogin());
   }
 
+  /// إنهاء جلسة دخول سحابية ناجحة: بناء [AuthUser] من رد الـ Worker
+  /// مع إثرائه من المخزن المحلي (صلاحيات/اسم كامل) عند توافق الحساب،
+  /// ثم حفظ الجلسة وJWT وبدء فحص الجلسة والمزامنة الفورية.
+  Future<void> _completeCloudLogin(
+    CloudflareAuthResult cf,
+    String username,
+    bool rememberMe,
+  ) async {
+    // إثراء البيانات من الحسابات المزامنة محلياً (app_users) — قراءة
+    // خالصة بلا فحص كلمة مرور؛ الخادم هو من قرّر بصحة الاعتمادات.
+    Map<String, dynamic>? localData;
+    try {
+      localData = (await _store.loadCloudAccounts())[username];
+    } catch (_) {
+      localData = null;
+    }
+    List<String> localPerms = const <String>[];
+    if (localData != null) {
+      try {
+        final parsed = jsonDecode(
+          localData['permissions_json'] as String? ?? '[]',
+        );
+        if (parsed is List) {
+          localPerms = parsed.map((e) => e.toString()).toList();
+        }
+      } catch (_) {
+        localPerms = const <String>[];
+      }
+    }
+    final isAdmin = cf.role == 'admin';
+    final user = AuthUser(
+      id: localData?['id'] as int? ?? int.tryParse(cf.userId ?? '') ?? 0,
+      username: username,
+      fullName: (localData?['full_name'] ?? username).toString(),
+      userType: isAdmin
+          ? 'admin'
+          : (localData?['user_type'] ?? 'user').toString(),
+      cloudUserId: cf.userId ?? localData?['cloud_user_id']?.toString(),
+      permissions: isAdmin ? const ['all'] : localPerms,
+    );
+
+    if (cf.token != null && cf.token!.isNotEmpty) {
+      await _store.saveAuthToken(cf.token!);
+    }
+    await _store.saveCurrentUser(user.toJson());
+    await _store.setRememberMe(rememberMe);
+    await _store.setAuthType(AuthType.cloudflare);
+
+    state = AuthState(
+      isAuthenticated: true,
+      currentUser: user,
+      rememberMe: rememberMe,
+      authType: AuthType.cloudflare,
+    );
+    PaymentSessionContext.start(
+      userId: user.id,
+      userName: user.name,
+      cloudUserId: user.cloudUserId,
+    );
+    AppLogger.info(
+      'تم تسجيل الدخول عبر Cloudflare: $username (role: ${cf.role})',
+      tag: 'AUTH',
+    );
+
+    // المستخدم السحابي — فحص دوري للجلسة كما في المسار المحلي.
+    await _startCloudSessionCheckIfNeeded(user);
+
+    unawaited(_resumeCloudSyncAfterLogin());
+  }
+
+  /// معرّف الجهاز المُسجّل (نفس مفاتيح طبقة المزامنة) — يُرسل مع الدخول
+  /// ليربط الـ Worker الـ JWT بالجهاز (عمود device_id في الـ token).
+  Future<String> _currentDeviceId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('appwrite_device_id') ??
+          prefs.getString('appwrite_realtime_device_id') ??
+          '';
+    } catch (_) {
+      return '';
+    }
+  }
+
   Future<void> logout() async {
     _stopSessionCheck();
+    // ✅ (2026-09-10) مسح JWT جلسة Cloudflare عند الخروج — JWT عديم
+    // الحالة على الخادم فالإبطال محلي فقط.
+    try {
+      await _store.clearAuthToken();
+    } catch (e) {
+      dwarn(() => 'clear auth token on logout error: $e');
+    }
     PaymentSessionContext.clear();
 
     // ✅ V-4 (تدقيق معماري — perf 014cc156): إيقاف مستمع Realtime عند

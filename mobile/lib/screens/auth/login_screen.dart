@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
+import '../../services/cloudflare_auth_service.dart';
+import '../../utils/env.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
@@ -23,10 +25,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _submitting = false;
   bool _rememberMe = true;
 
+  // ✅ (2026-09-10) حالة اتصال Cloudflare — مؤشر حي أعلى الشاشة.
+  // null = جاري الفحص، true = متصل، false = وضع محلي.
+  bool? _cloudOnline;
+  CloudflareAuthService? _cfAuth;
+
   @override
   void initState() {
     super.initState();
     unawaited(_loadRememberMe());
+    unawaited(_checkCloudConnection());
+  }
+
+  /// فحص توفر الـ Worker — فقط عند ضبطه في البنية؛ وإلا الشاشة محلية
+  /// منذ البداية (بيئات الاختبار/البنيات بلا سحابة لا تتصل إطلاقاً).
+  Future<void> _checkCloudConnection() async {
+    if (!Env.isCloudflareConfigured) {
+      if (mounted) setState(() => _cloudOnline = false);
+      return;
+    }
+    _cfAuth ??= CloudflareAuthService();
+    final online = await _cfAuth!.checkHealth();
+    if (mounted) setState(() => _cloudOnline = online);
   }
 
   Future<void> _loadRememberMe() async {
@@ -41,7 +61,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void dispose() {
     _usernameCtrl.dispose();
     _passwordCtrl.dispose();
+    _cfAuth?.dispose();
     super.dispose();
+  }
+
+  /// شريط حالة الاتصال بـ Cloudflare — نقطة ملونة + نص، وزر إعادة
+  /// فحص عند الفشل. بلا حواف ملوّنة صارخة: التطبيق offline-first
+  /// والوضع المحلي ليس خطأً بل تدهور مقصود للخدمة.
+  Widget _buildCloudStatusBanner() {
+    final checking = _cloudOnline == null;
+    final online = _cloudOnline == true;
+    final color = checking
+        ? Colors.grey
+        : (online ? AppColors.successColor : Colors.orange);
+    final label = checking
+        ? 'جاري فحص الاتصال بـ Cloudflare…'
+        : online
+        ? 'متصل بـ Cloudflare — التحقق عبر الخادم'
+        : 'وضع محلي — تحقق محلي من بيانات الدخول';
+    return Row(
+      children: [
+        if (checking)
+          const SizedBox(
+            width: 10,
+            height: 10,
+            child: CircularProgressIndicator(strokeWidth: 1.6),
+          )
+        else
+          Icon(Icons.circle, size: 10, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12.5, color: color),
+          ),
+        ),
+        if (!checking && !online && Env.isCloudflareConfigured)
+          GestureDetector(
+            onTap: () {
+              setState(() => _cloudOnline = null);
+              unawaited(_checkCloudConnection());
+            },
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6),
+              child: Icon(Icons.refresh, size: 18, color: Colors.grey),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -85,6 +152,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 12),
+                          _buildCloudStatusBanner(),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _usernameCtrl,

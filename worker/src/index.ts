@@ -202,7 +202,14 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         cors.forEach((val: string, key: string) => headers.set(key, val));
         headers.set('Retry-After', String(Math.max(1, retryAfterSec)));
         return new Response(
-          JSON.stringify({ error: 'Too many login attempts', retry_after: loginLimit.resetAt }),
+          JSON.stringify({
+            error: 'Too many login attempts',
+            // ✅ (2026-09-10) retry_after كان epoch-millis (resetAt) —
+            // مضلل للمستهلكين. أُضيف retry_after_sec صريح بالثواني،
+            // مع إبقاء retry_after للتوافق مع العملاء الحاليين.
+            retry_after: loginLimit.resetAt,
+            retry_after_sec: Math.max(1, retryAfterSec),
+          }),
           { status: 429, headers }
         );
       }
