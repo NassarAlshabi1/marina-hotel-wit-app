@@ -34,32 +34,42 @@ class SyncGateState {
   /// وقت بدء العملية (للكشف عن العمليات المتعثرة).
   final DateTime? startedAt;
 
+  /// عدد مرات رفض الدخول (البوابة مشغولة) — لتشخيص الازدحام.
+  final int rejectedCount;
+
   /// مدة العملية الحالية بالمللي ثانية، أو null إذا لم تكن مشغولة.
   int? get elapsedMs => isBusy && startedAt != null
       ? DateTime.now().difference(startedAt!).inMilliseconds
       : null;
+
+  /// هل العملية الحالية متعثرة (>5 دقائق بدون خروج)؟
+  bool get isStuck => isBusy && (elapsedMs ?? 0) > _stuckThresholdMs;
+  static const int _stuckThresholdMs = 300000; // 5 دقائق
 
   SyncGateState copyWith({
     bool? isBusy,
     String? operation,
     String? source,
     DateTime? startedAt,
+    int? rejectedCount,
     bool clearOperation = false,
     bool clearSource = false,
     bool clearStartedAt = false,
+    bool clearRejectedCount = false,
   }) {
     return SyncGateState(
       isBusy: isBusy ?? this.isBusy,
       operation: clearOperation ? null : (operation ?? this.operation),
       source: clearSource ? null : (source ?? this.source),
       startedAt: clearStartedAt ? null : (startedAt ?? this.startedAt),
+      rejectedCount: clearRejectedCount ? 0 : (rejectedCount ?? this.rejectedCount),
     );
   }
 
   @override
   String toString() =>
       'SyncGateState(isBusy=$isBusy, operation=$operation, source=$source, '
-      'startedAt=$startedAt)';
+      'startedAt=$startedAt, rejected=$rejectedCount, isStuck=$isStuck)';
 }
 
 /// البوّابة العامة للمزامنة — منع التزامن العابر للمسارات.
@@ -103,16 +113,37 @@ class SyncGate {
   /// محاولة دخول البوّابة. تُرجع true إذا نجح الدخول، false إذا كانت
   /// البوّابة مشغولة بعملية أخرى.
   ///
+  /// ✅ (P0) استرداد تلقائي للعمليات المتعثرة: إذا كانت البوابة
+  /// مشغولة منذ >5 دقائق نُحررهاomma (العملية السابقة فشلت ولم
+  /// تُطلق exit). همچنین نعدّ الرفضات في [rejectedCount] لتشخيص الازدحام.
+  ///
   /// يجب أن تُستدعى **متزامناً قبل أي await** لمنع إعادة الدخول.
   bool tryEnter({required String operation, required String source}) {
+    // ✅ P0: استرداد تلقائي للعمليات المتعثرة
+    if (notifier.value.isBusy && notifier.value.isStuck) {
+      if (kDebugMode) {
+        dlog(
+          () =>
+              '⚠️ [SyncGate] استرداد تلقائي لعملية متعثرة: '
+              '${notifier.value.operation} من ${notifier.value.source} '
+              '(${notifier.value.elapsedMs}ms بدون خروج)',
+        );
+      }
+      notifier.value = const SyncGateState();
+    }
+
     if (notifier.value.isBusy) {
       if (kDebugMode) {
         dlog(
           () =>
-              '🚫 [SyncGate] rejected entry: already busy with '
-              '${notifier.value.operation} from ${notifier.value.source}',
+              '🚫 [SyncGate] رفض دخول: مشغولة بـ '
+              '${notifier.value.operation} من ${notifier.value.source}',
         );
       }
+      // ✅ P0: تتبع عدد الرفضات
+      notifier.value = notifier.value.copyWith(
+        rejectedCount: notifier.value.rejectedCount + 1,
+      );
       return false;
     }
     notifier.value = SyncGateState(
@@ -122,7 +153,7 @@ class SyncGate {
       startedAt: DateTime.now(),
     );
     if (kDebugMode) {
-      dlog(() => '🔒 [SyncGate] entered: $operation from $source');
+      dlog(() => '🔒 [SyncGate] دخول: $operation من $source');
     }
     return true;
   }
@@ -135,10 +166,11 @@ class SyncGate {
     }
     if (kDebugMode) {
       final elapsed = notifier.value.elapsedMs;
+      final rejected = notifier.value.rejectedCount;
       dlog(
         () =>
-            '🔓 [SyncGate] exited: ${notifier.value.operation} from '
-            '${notifier.value.source} (took ${elapsed}ms)',
+            '🔓 [SyncGate] خروج: ${notifier.value.operation} من '
+            '${notifier.value.source} (استغرقت ${elapsed}ms، رُفعت $rejected مرة)',
       );
     }
     notifier.value = const SyncGateState();

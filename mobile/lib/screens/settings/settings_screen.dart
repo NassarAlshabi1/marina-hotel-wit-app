@@ -59,8 +59,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return AppScaffold(
       title: 'الإعدادات',
-      // ✅ P0 fix: إزالة زر المزامنة المكرر — AppScaffold يضيف SyncActionButton تلقائياً
-      actions: const [],
+      // ✅ (2026-09-11) P0: لا يوجد actions هنا — SyncActionButton موجود في AppScaffold
       body: Column(
         children: [
           // ✅ بطاقة الإحصائيات السريعة

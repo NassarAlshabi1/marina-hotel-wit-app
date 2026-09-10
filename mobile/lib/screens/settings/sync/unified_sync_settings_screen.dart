@@ -58,13 +58,8 @@ class _UnifiedSyncSettingsScreenState
 
   static const _autoSyncKey = 'appwrite_auto_sync_enabled';
   static const _syncOnStartupKey = 'appwrite_sync_on_startup';
-  // ✅ (2026-09-05) تصحيح المفاتيح الميتة: كانت هذه المفاتيح تُكتب
-  // هنا ولا يقرؤها أحد (القارئات الحقيقية في sync_performance_optimizer
-  // وsmart_sync_manager تستخدم المفاتيح أدناه) — مفاتيح تبدو
-  // فعّالة للمستخدم وهي معطّلة. الآن نفس مفتاح القارئ الحقيقي.
-  // _batteryOptimizationKey → sync_performance_optimizer.dart:345,372
-  // _wifiOnlyKey → sync_performance_optimizer.dart:259,297
-  // _smartSyncKey → smart_sync_manager.dart:54 (_prefsEnabledKey)
+  // ✅ (2026-09-11) P0: هذه المفاتيح متوافقة مع القارئات الحقيقية في
+  // sync_performance_optimizer.dart و smart_sync_manager.dart — لا مفاتيح ميتة.
   static const _batteryOptimizationKey = 'battery_optimization_enabled';
   static const _wifiOnlyKey = 'wifi_only_sync';
   static const _smartSyncKey = 'smart_sync_enabled';
