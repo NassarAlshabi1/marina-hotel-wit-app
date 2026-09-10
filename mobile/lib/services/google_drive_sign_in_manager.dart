@@ -3,6 +3,12 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:shared_preferences/shared_preferences.dart';
 
+export 'google_sign_in_error_mapper.dart'
+    show
+        describeGoogleSignInFailure,
+        kRegisteredPackageName,
+        kRegisteredSigningSha1;
+
 const List<String> kGoogleDriveScopes = [
   drive.DriveApi.driveFileScope,
   drive.DriveApi.driveAppdataScope,
@@ -29,6 +35,17 @@ class GoogleDriveSignInManager {
   static final GoogleDriveSignInManager instance = GoogleDriveSignInManager._();
 
   GoogleSignIn? _client;
+
+  /// ✅ (2026-09-10) آخر خطأ حقيقي وقع أثناء تسجيل الدخول.
+  ///
+  /// تاريخياً كانت دوال الدخول تبتلع الاستثناءات وتعيد null، فلا يصل
+  /// سبب الفشل (DEVELOPER_ERROR / NETWORK_ERROR / إلغاء...) إلى أي UI.
+  /// الآن يُسجَّل هنا ويقرأه GoogleDriveBackupService.signInForDrive
+  /// ويُترجم عبر describeGoogleSignInFailure لعرضه للمستخدم.
+  Object? _lastError;
+
+  /// آخر خطأ خام من آخر محاولة دخول (null = لا خطأ / آخر محاولة نجحت).
+  Object? get lastError => _lastError;
 
   /// كائن [GoogleSignIn] الموحّد — يتضمن جميع الصلاحيات و serverClientId
   GoogleSignIn get client {
@@ -89,12 +106,17 @@ class GoogleDriveSignInManager {
   /// تحفظ حالة الجلسة تلقائياً عند النجاح.
   Future<GoogleSignInAccount?> signInSilently() async {
     try {
-      final account = await client.signInSilently();
+      // ✅ suppressErrors: false — السلوك الافتراضي للحزمة يبتلع الاستثناء
+      // ويعيد null فلا نعرف أبداً لماذا فشل الدخول (channel-error /
+      // DEVELOPER_ERROR / شبكة). نرميه لنفسنا لنُسجّله في _lastError.
+      final account = await client.signInSilently(suppressErrors: false);
       if (account != null) {
+        _lastError = null;
         await persistSignInState(account);
       }
       return account;
     } catch (e) {
+      _lastError = e;
       return null;
     }
   }
@@ -105,14 +127,22 @@ class GoogleDriveSignInManager {
   /// يحفظ حالة الجلسة عند النجاح.
   Future<GoogleSignInAccount?> signIn() async {
     try {
-      // محاولة صامتة أولاً
-      var account = await client.signInSilently();
+      // محاولة صامتة أولاً — فشلها (لا جلسة) متوقع فنُسجّله ونكمل للتفاعلي
+      GoogleSignInAccount? account;
+      try {
+        account = await client.signInSilently(suppressErrors: false);
+      } catch (e) {
+        _lastError = e;
+      }
+      // التفاعلي: فشله الحقيقي (DEVELOPER_ERROR/شبكة/إلغاء) يرمي من الحزمة
       account ??= await client.signIn();
       if (account != null) {
+        _lastError = null;
         await persistSignInState(account);
       }
       return account;
     } catch (e) {
+      _lastError = e;
       return null;
     }
   }
@@ -121,6 +151,7 @@ class GoogleDriveSignInManager {
   Future<void> signOut() async {
     try {
       await client.signOut();
+      _lastError = null;
     } catch (e) {
       debugPrint('⚠️ Swallowed error in google_drive_sign_in_manager.dart: ');
     }

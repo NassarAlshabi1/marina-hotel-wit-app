@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/bootstrap_full_pull.dart';
+import '../../services/google_drive_sign_in_manager.dart'
+    show kRegisteredPackageName, kRegisteredSigningSha1;
 import '../../utils/debug_log.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
@@ -167,6 +170,14 @@ class _GoogleDriveLoginScreenState
     }
   }
 
+  /// نسخ رسالة التشخيص إلى الحافظة — ليستطيع المستخدم لصقها في التقرير
+  void _copyDiagnostics(String text) {
+    unawaited(Clipboard.setData(ClipboardData(text: text)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم نسخ تفاصيل الخطأ')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // أثناء فحص تسجيل الدخول الصامت — إظهار مؤشر تحميل
@@ -311,7 +322,58 @@ class _GoogleDriveLoginScreenState
                               ],
                             ),
                           ),
+                          Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: TextButton.icon(
+                              onPressed: () => _copyDiagnostics(
+                                'خطأ تسجيل الدخول: $_errorMessage',
+                              ),
+                              icon: const Icon(Icons.copy, size: 16),
+                              label: const Text('نسخ تفاصيل الخطأ'),
+                            ),
+                          ),
                         ],
+                        const SizedBox(height: 8),
+                        // ✅ (2026-09-10) قسم تشخيصي: يساعد على تحديد سبب
+                        // DEVELOPER_ERROR مباشرة عند مقارنة الشهادات.
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'معلومات تشخيصية',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'اسم الحزمة: $kRegisteredPackageName',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'SHA-1 المسجّل: $kRegisteredSigningSha1',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
                           onPressed: _isSigningIn ? null : _handleSignIn,

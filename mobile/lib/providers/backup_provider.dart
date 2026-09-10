@@ -503,9 +503,15 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       }
     } catch (e) {
       dlog(() => '❌ خطأ في تسجيل الدخول: $e');
+      // ✅ (2026-09-10) الرسالة القادمة من signInForDrive مُترجمة عربياً —
+      // نزيل بادئة «Exception: » ليعرضها الشاشة نظيفة وبتفاصيل الرمز.
+      final String clean = e
+          .toString()
+          .replaceFirst(RegExp(r'^Exception:\s*'), '')
+          .replaceFirst(RegExp(r'^Bad state:\s*'), '');
       state = state.copyWith(
         status: BackupStatus.error,
-        message: 'خطأ في تسجيل الدخول: $e',
+        message: 'تعذّر تسجيل الدخول: $clean',
       );
     }
   }

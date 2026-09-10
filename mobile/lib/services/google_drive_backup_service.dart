@@ -5,7 +5,6 @@ import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
-import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
@@ -150,28 +149,7 @@ class GoogleDriveBackupService {
   static const String _backupFolderName = 'MarinaHotelBackups';
   static const String _backupFilePrefix = 'marina_hotel_backup_';
   // الصلاحيات مُعرَّفة في GoogleDriveSignInManager كنسخة موحّدة
-
-  /// تحويل رموز خطأ Google Sign-In إلى رسائل عربية واضحة
-  static String _getArabicErrorMessage(Object error) {
-    if (error is PlatformException) {
-      switch (error.code) {
-        case 'sign_in_failed':
-          if (error.message?.contains('10') ?? false) {
-            return 'خطأ في إعدادات التطبيق. تم إصلاح هذا الخطأ في التحديث الجديد.';
-          }
-          return 'فشل في تسجيل الدخول. تأكد من اتصال الإنترنت وأعد المحاولة.';
-        case 'network_error':
-          return 'خطأ في الشبكة. تحقق من اتصال الإنترنت وأعد المحاولة.';
-        case 'sign_in_canceled':
-          return 'تم إلغاء تسجيل الدخول من قبل المستخدم.';
-        case 'sign_in_required':
-          return 'مطلوب تسجيل الدخول للوصول إلى هذه الميزة.';
-        default:
-          return 'خطأ في تسجيل الدخول: ${error.code}';
-      }
-    }
-    return 'خطأ غير متوقع في تسجيل الدخول: $error';
-  }
+  // (ترجمة أخطاء تسجيل الدخول العربية في google_sign_in_error_mapper.dart)
 
   static const String _prefsLastBackupKey = 'last_backup_timestamp';
   static const String _prefsAutoBackupKey = 'auto_backup_enabled';
@@ -241,37 +219,50 @@ class GoogleDriveBackupService {
     throw StateError('unreachable');
   }
 
+  /// ✅ (2026-09-10) إصلاح «لا أستطيع تسجيل الدخول إلى Google Drive»:
+  /// كان المدير [GoogleDriveSignInManager] يبتلع الاستثناء الحقيقي ويُعيد
+  /// null، فتنتهي هذه الدالة بـ null ويعرض المزوّد «فشل تسجيل الدخول»
+  /// بلا سبب. الآن نرمي رسالة عربية مبنية على lastError الحقيقي
+  /// عبر describeGoogleSignInFailure — رمز ApiException يصل للمستخدم.
   Future<GoogleSignInAccount?> signInForDrive() async {
+    // المرحلة 1 — المحاولة الصامتة ثم التفاعلية
+    GoogleSignInAccount? account;
     try {
       _log('🔄 محاولة تسجيل الدخول الصامت...');
-      GoogleSignInAccount? account = await _signInManager.signInSilently();
-
+      account = await _signInManager.signInSilently();
       if (account == null) {
         _log('🔄 تسجيل الدخول الصامت فشل، بدء تسجيل الدخول التفاعلي...');
         account = await _signInManager.signIn();
       }
-
-      if (account != null) {
-        _log('🔑 الحصول على رؤوس المصادقة...');
-        final headers = await account.authHeaders;
-        final client = GoogleAuthClient(headers);
-        _driveApi = drive.DriveApi(client);
-
-        _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
-        _log('🔧 النطاقات المطلوبة: ${kGoogleDriveScopes.join(', ')}');
-      } else {
-        _log('⚠️ تم إلغاء تسجيل الدخول أو فشل');
-      }
-
-      return account;
     } catch (e) {
-      final arabicError = _getArabicErrorMessage(e);
-      _log('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
-      _log('❌ تفاصيل الخطأ التقنية: $e');
-
-      // رمي الخطأ مع الرسالة العربية
-      throw Exception(arabicError);
+      final Object cause = _signInManager.lastError ?? e;
+      _log('❌ خطأ في تسجيل الدخول في Google Drive: $e');
+      throw Exception(describeGoogleSignInFailure(cause));
     }
+
+    // المرحلة 2 — لا حساب ولا استثناء: السبب مُسجّل في lastError
+    // ✅ (2026-09-10) كان هذا المسار يعيد null صامتاً فتُعرض «فشل تسجيل
+    // الدخول» عامة بلا سبب — الآن يُترجم lastError لرسالة قابلة للتنفيذ.
+    if (account == null) {
+      final Object? cause = _signInManager.lastError;
+      _log('❌ فشل تسجيل الدخول بلا استثناء: $cause');
+      throw Exception(describeGoogleSignInFailure(cause));
+    }
+
+    // المرحلة 3 — الحصول على رؤوس المصادقة وتجهيز DriveApi
+    try {
+      _log('🔑 الحصول على رؤوس المصادقة...');
+      final headers = await account.authHeaders;
+      final client = GoogleAuthClient(headers);
+      _driveApi = drive.DriveApi(client);
+    } catch (e) {
+      _log('❌ فشل الحصول على تفويض Drive: $e');
+      throw Exception(describeGoogleSignInFailure(e));
+    }
+
+    _log('✅ تم تسجيل الدخول بنجاح في Google Drive: ${account.email}');
+    _log('🔧 النطاقات المطلوبة: ${kGoogleDriveScopes.join(', ')}');
+    return account;
   }
 
   /// محاولة استعادة جلسة تسجيل الدخول بشكل صامت
