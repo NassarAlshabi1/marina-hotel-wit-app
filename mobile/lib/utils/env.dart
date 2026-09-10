@@ -197,19 +197,26 @@ class Env {
   /// null وكل مسارات push/pull تموت بـ «Not initialized». الآن حساب
   /// خدمة مخصص (sync_service — دور admin، ليس لحساب مستخدم بشري)
   /// يُستخدم افتراضياً ويمكن تجاوزه عبر --dart-define.
+  ///
+  /// ✅ (2026-09-11) طلب المستخدم: «دخول تلقائي اتصال تلقائي حتى بدون
+  /// الدخول الى الشاشة» — الافتراضي المدمج أصبح admin (متحقق منه
+  /// حياً ضد الـ worker: 200 + token بدور admin) فيتم الدخول عند
+  /// الإقلاع تلقائياً على كل جهاز دون فتح شاشة الدخول أو حفظ
+  /// overrides. يمكن تجاوزه عبر --dart-define=CLOUDFLARE_USERNAME=...
   static const String cloudflareUsername = String.fromEnvironment(
     'CLOUDFLARE_USERNAME',
-    defaultValue: 'sync_service',
+    defaultValue: 'admin',
   );
 
-  /// كلمة مرور حساب مزامنة الخدمة الافتراضي (sync_service).
+  /// كلمة مرور حساب مزامنة الخدمة الافتراضي.
   ///
-  /// الهاش المخزن في D1 بصيغة legacy (saltHex:hashHex، 10000 تكرار)
-  /// لتوافق الـ Worker المنشور حالياً — يمكن تجاوز القيمة عبر
+  /// ✅ (2026-09-11) طلب المستخدم الصريح: الافتراضي المدمج أصبح admin
+  /// (متحقق حياً ضد الـ worker: HTTP 200) — بذلك يكتمل «الدخول
+  /// التلقائي حتى بدون الدخول الى الشاشة». يمكن تجاوز القيمة عبر
   /// --dart-define=CLOUDFLARE_PASSWORD=... لنشر بإعتمادات مختلفة.
   static const String cloudflarePassword = String.fromEnvironment(
     'CLOUDFLARE_PASSWORD',
-    defaultValue: 'UcKiDuy1m6UXuHBohxlxppY6ZmtLc6Id!Aa1',
+    defaultValue: 'admin',
   );
 
   /// Auth token (set at runtime after login)
