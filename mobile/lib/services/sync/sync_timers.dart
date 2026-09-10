@@ -185,25 +185,29 @@ class SyncTimers {
     _failedRetryTimer?.cancel();
     _failedRetryTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       unawaited(
-        _tracked('failed_retry', () async {
-          final failedCount = await outboxDao.count();
-          if (failedCount == 0) return;
+        _tracked(
+          'failed_retry',
+          () async {
+            final failedCount = await outboxDao.count();
+            if (failedCount == 0) return;
 
-          final resetCount = await outboxDao.retryFailedWithBackoff();
-          if (resetCount == 0) return;
+            final resetCount = await outboxDao.retryFailedWithBackoff();
+            if (resetCount == 0) return;
 
-          dlog(
-            () =>
-                '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)',
-          );
+            dlog(
+              () =>
+                  '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)',
+            );
 
-          final result = await onPushOnly();
-          if (result) {
-            dlog('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
-          }
-        }, onError: (e, _) {
-          dlog(() => '⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
-        }),
+            final result = await onPushOnly();
+            if (result) {
+              dlog('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
+            }
+          },
+          onError: (e, _) {
+            dlog(() => '⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
+          },
+        ),
       );
     });
     dlog('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
@@ -212,17 +216,21 @@ class SyncTimers {
     _stuckRecoveryTimer?.cancel();
     _stuckRecoveryTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       unawaited(
-        _tracked('stuck_recovery', () async {
-          final recovered = await outboxDao.cleanupStuckEntries();
-          if (recovered > 0) {
-            logger.info(
-              '🔧 تم استعادة $recovered عنصر عالق في outbox من "processing" إلى "pending"',
-              tag: 'SYNC',
-            );
-          }
-        }, onError: (e, _) {
-          logger.warning('⚠️ فشل استعادة العناصر العالقة: $e', tag: 'SYNC');
-        }),
+        _tracked(
+          'stuck_recovery',
+          () async {
+            final recovered = await outboxDao.cleanupStuckEntries();
+            if (recovered > 0) {
+              logger.info(
+                '🔧 تم استعادة $recovered عنصر عالق في outbox من "processing" إلى "pending"',
+                tag: 'SYNC',
+              );
+            }
+          },
+          onError: (e, _) {
+            logger.warning('⚠️ فشل استعادة العناصر العالقة: $e', tag: 'SYNC');
+          },
+        ),
       );
     });
     dlog('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
@@ -231,12 +239,16 @@ class SyncTimers {
     _cleanupTimer?.cancel();
     _cleanupTimer = Timer.periodic(const Duration(hours: 24), (_) {
       unawaited(
-        _tracked('cleanup', () async {
-          await outboxDao.cleanupCompleted();
-          await outboxDao.cleanupOrphanedEntries();
-        }, onError: (e, _) {
-          logger.warning('⚠️ فشل تنظيف outbox الدوري: $e', tag: 'SYNC');
-        }),
+        _tracked(
+          'cleanup',
+          () async {
+            await outboxDao.cleanupCompleted();
+            await outboxDao.cleanupOrphanedEntries();
+          },
+          onError: (e, _) {
+            logger.warning('⚠️ فشل تنظيف outbox الدوري: $e', tag: 'SYNC');
+          },
+        ),
       );
     });
   }
@@ -249,15 +261,19 @@ class SyncTimers {
     _debouncePushTimer?.cancel();
     _debouncePushTimer = Timer(_debounceWindow, () {
       unawaited(
-        _tracked('debounced_push', () async {
-          logger.debug('Debounced push triggered', tag: 'SYNC');
-          final result = await onPushOnly();
-          if (!result) {
-            logger.warning('Debounced push failed', tag: 'SYNC');
-          }
-        }, onError: (e, _) {
-          logger.warning('Debounced push error: $e', tag: 'SYNC');
-        }),
+        _tracked(
+          'debounced_push',
+          () async {
+            logger.debug('Debounced push triggered', tag: 'SYNC');
+            final result = await onPushOnly();
+            if (!result) {
+              logger.warning('Debounced push failed', tag: 'SYNC');
+            }
+          },
+          onError: (e, _) {
+            logger.warning('Debounced push error: $e', tag: 'SYNC');
+          },
+        ),
       );
     });
   }
