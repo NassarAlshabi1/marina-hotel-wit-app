@@ -214,6 +214,10 @@ export async function handlePull(
     //    ما فاته أثناء نافذة العقد القديم الذي كان يفلترها.
     const tombstonesOnly =
       url.searchParams.get('tombstones_only') === '1';
+    // ✅ (2026-09-10) مؤشر تقدم السحب الكامل — العميل الكامل فقط يطلب
+    //    remaining (COUNT فهرسي batch واحد)؛ الدلتا بلا كلفة إضافية.
+    const includeRemaining =
+      url.searchParams.get('include_remaining') === '1';
 
     // ✅ Self-healing data repair: progressively re-stamp legacy millisecond
     // timestamps (mixed units permanently poison the integer pull cursor —
@@ -232,13 +236,15 @@ export async function handlePull(
       cursor,
       limit,
       excludeDevice,
-      tombstonesOnly
+      tombstonesOnly,
+      includeRemaining
     );
 
     return jsonResponse({
       changes: result.changes,
       cursor: result.cursor.toString(),
       has_more: result.has_more,
+      remaining: result.remaining,
       errors: result.errors,
       normalization,
       server_time: Math.floor(Date.now() / 1000),

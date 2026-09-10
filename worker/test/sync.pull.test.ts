@@ -104,6 +104,52 @@ describe('pull: pagination + cursor', () => {
     expect(data.cursor).toBe('99999999999'); // cursor preserved, not rewound
   });
 
+  // ✅ (2026-09-10) مؤشر تقدم السحب الكامل — «حجم السحب والمتبقي»
+  describe('remaining (include_remaining=1 — full-pull progress)', () => {
+    it('is null by default (delta pulls stay cheap)', async () => {
+      const auth = await adminAuthHeader();
+      await seedRooms(5);
+      const data = await pull(auth, { limit: '3' });
+      expect(data.remaining).toBeNull();
+    });
+
+    it('counts rows left after the page across all tables', async () => {
+      const auth = await adminAuthHeader();
+      await seedRooms(10);
+      const first = await pull(auth, { limit: '4', include_remaining: '1' });
+      expect(first.changes).toHaveLength(4);
+      expect(first.remaining).toBe(6);
+
+      const second = await pull(auth, {
+        cursor: first.cursor,
+        limit: '4',
+        include_remaining: '1',
+      });
+      expect(second.remaining).toBe(2);
+
+      const last = await pull(auth, {
+        cursor: second.cursor,
+        limit: '4',
+        include_remaining: '1',
+      });
+      expect(last.remaining).toBe(0);
+      expect(last.has_more).toBe(false);
+    });
+
+    it('is 0 on an empty page at tail cursor', async () => {
+      const auth = await adminAuthHeader();
+      await seedRooms(3);
+      const drained = await pull(auth, { include_remaining: '1' });
+      expect(drained.remaining).toBe(0);
+      const tail = await pull(auth, {
+        cursor: drained.cursor,
+        include_remaining: '1',
+      });
+      expect(tail.changes).toEqual([]);
+      expect(tail.remaining).toBe(0);
+    });
+  });
+
   it('every pulled record carries _entity and server-sync fields', async () => {
     const auth = await adminAuthHeader();
     await seedRooms(2);

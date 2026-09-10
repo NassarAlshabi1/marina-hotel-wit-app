@@ -170,6 +170,8 @@ export interface PullResponseBody {
   changes: Array<Record<string, unknown>>;
   cursor: string;
   has_more: boolean;
+  /** ✅ (2026-09-10) مؤشر التقدم — null إلا مع include_remaining=1 */
+  remaining: number | null;
   errors: Array<{ entity: string; error: string }>;
   normalization: {
     normalized: number;

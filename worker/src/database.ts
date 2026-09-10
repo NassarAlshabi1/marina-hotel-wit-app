@@ -27,6 +27,14 @@ export interface PullResult {
   cursor: number;
   has_more: boolean;
   /**
+   * ✅ (2026-09-10) طلب المستخدم: «مؤشر السحب الكامل يجب أن أعرف حجم
+   * السحب والمتبقي». عدد الصفوف الباقية بعد cursor (عبر كل الجداول،
+   * بنفس فلاتر الطلب) ناقص ما أعيد في هذه الصفحة.
+   * null = لم يُطلب الحساب (include_remaining=1 فقط — السحب الكامل)
+   * حتى تبقى delta pulls رخيصة بلا COUNT إضافي.
+   */
+  remaining: number | null;
+  /**
    * Tables that failed this round (typically schema drift: a migration
    * applied to code but not to live D1). Their rows are skipped for now.
    * The mobile client treats a non-empty list as a failed sync and does not
@@ -217,7 +225,10 @@ export class Database {
     excludeDeviceId?: string,
     /** ✅ مراجعة #1: مسح تقارب لمرة واحدة — يجلب الحذفيات فقط (tombstones)
      *  ليتصحح الجهاز ما فاته أثناء نافذة العقد القديم بأقل كلفة بيانات. */
-    tombstonesOnly: boolean = false
+    tombstonesOnly: boolean = false,
+    /** ✅ (2026-09-10) مؤشر تقدم السحب الكامل: COUNT فهرسي واحد عبر
+     *  batch لكل الجداول — السحب الكامل يطلبه، الدلتا لا (صفر كلفة). */
+    includeRemaining: boolean = false
   ): Promise<PullResult> {
     const entities = entity ? [entity] : Object.keys(ENTITY_TABLES);
     const baseLimit = Math.max(1, limit);
@@ -348,10 +359,45 @@ export class Database {
     // every record between the page boundary and that max).
     const nextCursor = page.length > 0 ? page[page.length - 1].updated_at : cursor;
 
+    // ─── ✅ (2026-09-10) remaining للمؤشر التقدمي ───
+    // COUNT فهرسي عبر batch (مرور شبكي واحد) على كل الجداول بنفس شروط
+    // الجلب (cursor + exclude_device + tombstones). remaining = الإجمالي
+    // ناقص الصفحة المعادة — دقيق لمحمل البيانات أثناء الطلب نفسه.
+    // الدلتا (بلا include_remaining) تحصل على null بلا أي كلفة.
+    let remaining: number | null = null;
+    if (includeRemaining) {
+      try {
+        const tables = Object.values(ENTITY_TABLES);
+        const counts = await this.db.batch(
+          tables.map((t) =>
+            excludeDevice
+              ? this.db
+                  .prepare(
+                    `SELECT COUNT(*) AS c FROM ${t} WHERE ${delClause}updated_at > ? AND (device_id IS NULL OR device_id != ?)`
+                  )
+                  .bind(cursor, excludeDevice)
+              : this.db
+                  .prepare(`SELECT COUNT(*) AS c FROM ${t} WHERE ${delClause}updated_at > ?`)
+                  .bind(cursor)
+          )
+        );
+        const totalPending = counts.reduce<number>(
+          (sum, r) => sum + Number((r.results?.[0] as { c?: number } | undefined)?.c ?? 0),
+          0
+        );
+        remaining = Math.max(0, totalPending - page.length);
+      } catch (err) {
+        // فشل العدّاد لا يُفسد السحب أبداً — المؤشر يعمل بلا remaining.
+        console.error('[SYNC/PULL] remaining count failed (pull continues):', err);
+        remaining = null;
+      }
+    }
+
     return {
       changes: page,
       cursor: nextCursor,
       has_more: hasMore,
+      remaining,
       errors,
     };
   }

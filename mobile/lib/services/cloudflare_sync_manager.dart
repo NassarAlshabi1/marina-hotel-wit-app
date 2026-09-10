@@ -256,6 +256,61 @@ const Map<String, List<String>> _naturalUniqueKeys = {
   'booking_nights': ['booking_local_id', 'hotel_day_key'],
 };
 
+// ─── SyncPullProgress (2026-09-10 مؤشر تقدم السحب) ─────────────
+
+/// لقطة تقدم السحب الحيّ — يبثّها المدير بعد كل صفحة تُطبَّق.
+///
+/// طلب المستخدم: «مؤشر السحب الكامل يجب أن أعرف مسار حجم السحب
+/// والمتبقي ويجب أن لا يعيق الانتقال إلى الشاشات الأخرى»:
+/// - [pulledRows]: ما طُبِّق فعلياً على قاعدة الجهاز (عدّاد تراكمي).
+/// - [remainingRows]: ما بقي على الخادم (من COUNT خادمي في السحب
+///   الكامل؛ null = غير متاح — worker قديم أو دلتا) فيظهر المؤشر
+///   غير-محدد مع العدّاد.
+/// - [isFullSync]: دلالة «سحب كامل» لتمييزه عن دلتا روتينية.
+/// البثّ من broadcast stream — لا يحجب ولا ينتظر أي UI.
+class SyncPullProgress {
+  SyncPullProgress({
+    required this.pulledRows,
+    this.remainingRows,
+    this.pages = 0,
+    this.isFullSync = false,
+    this.isDone = false,
+    this.errorMessage,
+  });
+
+  final int pulledRows;
+  final int? remainingRows;
+  final int pages;
+  final bool isFullSync;
+  final bool isDone;
+  final String? errorMessage;
+
+  /// نسبة التقدم 0..1 — null عند غياب remaining (لا يُعرف الإجمالي).
+  double? get fraction {
+    final remaining = remainingRows;
+    if (remaining == null) return null;
+    final total = pulledRows + remaining;
+    if (total <= 0) return isDone ? 1.0 : null;
+    return (pulledRows / total).clamp(0.0, 1.0);
+  }
+
+  SyncPullProgress copyWith({
+    int? pulledRows,
+    int? Function()? remainingRows,
+    int? pages,
+    bool? isFullSync,
+    bool? isDone,
+    String? errorMessage,
+  }) => SyncPullProgress(
+    pulledRows: pulledRows ?? this.pulledRows,
+    remainingRows: remainingRows != null ? remainingRows() : this.remainingRows,
+    pages: pages ?? this.pages,
+    isFullSync: isFullSync ?? this.isFullSync,
+    isDone: isDone ?? this.isDone,
+    errorMessage: errorMessage ?? this.errorMessage,
+  );
+}
+
 // ─── SyncResult (same interface as AppwriteSyncManager) ────────
 
 class SyncResult {
@@ -486,6 +541,25 @@ class CloudflareSyncManager {
   final _statusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _statusController.stream;
 
+  // ─── Pull progress stream (2026-09-10 مؤشر تقدم السحب) ────────
+  /// يبثّ [SyncPullProgress] بعد كل صفحة تُطبَّق — مستمعو UI فقط،
+  /// لا أحد ينتظر البثّ (لاحجاب صفر للتنقل بين الشاشات).
+  final _pullProgressController =
+      StreamController<SyncPullProgress>.broadcast();
+  Stream<SyncPullProgress> get syncPullProgressStream =>
+      _pullProgressController.stream;
+
+  /// آخر لقطة تقدم (للواجهات التي تفتح متأخراً — لا تنتظر البثّ القادم).
+  SyncPullProgress _lastPullProgress = SyncPullProgress(pulledRows: 0);
+  SyncPullProgress get lastPullProgress => _lastPullProgress;
+
+  void _emitPullProgress(SyncPullProgress progress) {
+    _lastPullProgress = progress;
+    if (!_pullProgressController.isClosed) {
+      _pullProgressController.add(progress);
+    }
+  }
+
   // ─── HTTP client with DoH + tunnel fallback (bypasses broken ISP DNS/connect) ──
   // ✅ (2026-09-09) إعادة تصميم: أي فشل في المسار السريع (DNS، حجب، تعليق،
   // socket ميت) — وليس أخطاء DNS فقط — يُفعّل المسار البديل خلال 6 ثوانٍ:
@@ -541,6 +615,8 @@ class CloudflareSyncManager {
     // ✅ (2026-09-10) عزل حالة إعادة التهيئة الكسولة بين الاختبارات.
     _lastLazyInitAttempt = null;
     lazyInitCooldown = const Duration(seconds: 60);
+    // ✅ (2026-09-10) عزل لقطة تقدم السحب بين الاختبارات (singleton).
+    _lastPullProgress = SyncPullProgress(pulledRows: 0);
   }
 
   /// ✅ (2026-09-08) عقد القراءة: الجداول التي تخطاها الخادم في آخر
@@ -1593,6 +1669,8 @@ class CloudflareSyncManager {
     }
 
     int totalPulled = 0;
+    // ✅ (2026-09-10) عدّاد صفحات السحب المنجزة — يغذّي مؤشر التقدم.
+    int pagesDone = 0;
     // كيانات مؤثرة على الحقول المشتقة للحجوزات — يُعاد بناء الليالي
     // والإجماليات المخزنة بعد اكتمال السحب (refreshAllActiveBookings
     // مع enqueueOutbox:false — البيانات المشتقة تُحسب محلياً ولا تُرفع،
@@ -1623,12 +1701,24 @@ class CloudflareSyncManager {
       debugPrint('🔄 Full sync in progress (cursor=$pendingCursor)');
     }
 
+    // ✅ (2026-09-10) بثّ لقطة البداية فوراً — المؤشر يظهر الصفر قبل
+    // أول صفحة، والمستخدم يعرف أن السحب بدأ فعلاً.
+    _emitPullProgress(
+      SyncPullProgress(
+        pulledRows: 0,
+        isFullSync: wasFullSync,
+      ),
+    );
+
     // ✅ (2026-09-09) تسريع السحب الكامل (طلب المستخدم): صفحة أكبر
     // للسحب الكامل — ~7,300 صف ≈ 18 طلباً بدل 73 (السقف الخادمي
     // للسحب MAX_PULL_BATCH_SIZE=500). الدلتا تبقى على [batchSize].
     final pageLimit = wasFullSync
         ? CloudflareConfig.fullPullBatchSize
         : CloudflareConfig.batchSize;
+    // ✅ (2026-09-10) السحب الكامل يطلب remaining الخادمي للمؤشر الدقيق
+    // (COUNT batch واحد) — الدلتا بلا كلفة إضافية.
+    final wantRemaining = wasFullSync;
     // ✅ تسريع — تداخل الشبكة مع التطبيق: الصفحة التالية تُجلَب أثناء
     // تطبيق الحالية (prefetch) فيختفي زمن الرحلة خلف كتابة SQLite.
     Future<http.Response>? prefetchFuture;
@@ -1663,6 +1753,7 @@ class CloudflareSyncManager {
               // ✅ (2026-09-09) السحب الكامل يشمل صفوف الجهاز نفسه
               // لتعلّم ظلّ server_id (إصلاح 107 علاقة غير محلولة).
               excludeOwnDevice: !wasFullSync,
+              includeRemaining: wantRemaining,
             );
           }
         } catch (e) {
@@ -1818,6 +1909,7 @@ class CloudflareSyncManager {
             pendingCursor,
             pageLimit,
             excludeOwnDevice: !wasFullSync,
+            includeRemaining: wantRemaining,
           );
         }
 
@@ -1832,6 +1924,21 @@ class CloudflareSyncManager {
           ),
         );
         totalPulled += report.appliedCount;
+
+        // ✅ (2026-09-10) بثّ التقدم بعد كل صفحة — «حجم السحب والمتبقي»:
+        // pulled = المطبّق تراكمياً، remaining = خادمي (null إن لم يتوفر).
+        // بثّ لا ينتظره أحد (broadcast) — صفر تأثير على زمن الدورة.
+        pagesDone++;
+        _emitPullProgress(
+          SyncPullProgress(
+            pulledRows: totalPulled,
+            remainingRows: data['remaining'] is int
+                ? data['remaining'] as int
+                : null,
+            pages: pagesDone,
+            isFullSync: wasFullSync,
+          ),
+        );
 
         if (report.errors.isNotEmpty) {
           hadError = true;
@@ -2021,6 +2128,19 @@ class CloudflareSyncManager {
         _isFullSyncInProgress = false;
         _fullSyncRemainingPages = 0;
       }
+      // ✅ (2026-09-10) لقطة النهاية في finally — تُبثّ في النجاح والفشل
+      // معاً (throw المسار الفاشل يحدث بعد هذا الكتلة): remaining صفر
+      // عند النجاح، ورسالة الخطأ عند الفشل. نفس التدفق غير الحاجب.
+      _emitPullProgress(
+        SyncPullProgress(
+          pulledRows: totalPulled,
+          remainingRows: hadError ? null : 0,
+          pages: pagesDone,
+          isFullSync: wasFullSync,
+          isDone: true,
+          errorMessage: hadError ? errorMessage : null,
+        ),
+      );
     }
 
     // P0-C: only advance checkpoint in prefs on full success
@@ -2085,6 +2205,7 @@ class CloudflareSyncManager {
     int cursor,
     int limit, {
     required bool excludeOwnDevice,
+    bool includeRemaining = false,
   }) {
     return _httpClient
         .get(
@@ -2098,6 +2219,9 @@ class CloudflareSyncManager {
               if (excludeOwnDevice)
                 if (_deviceId case final ownDevice? when ownDevice.isNotEmpty)
                   'exclude_device': ownDevice,
+              // ✅ (2026-09-10) السحب الكامل فقط: COUNT خادمي للمتبقي
+              // (مؤشر التقدم الدقيق) — الدلتا بلا كلفة إضافية.
+              if (includeRemaining) 'include_remaining': '1',
             },
           ),
           headers: {'Authorization': 'Bearer $_token'},

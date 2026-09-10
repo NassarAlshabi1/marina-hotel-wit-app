@@ -67,6 +67,32 @@ final cloudflareLoginSnapshotProvider = Provider<Map<String, Object?>>((ref) {
   };
 });
 
+/// ✅ (2026-09-10) مؤشر تقدم السحب الكامل — طلب المستخدم: «مؤشر السحب
+/// الكامل يجب أن أعرف مسار حجم السحب والمتبقي ويجب أن لا يعيق الانتقال».
+/// تدفق [SyncPullProgress] الحقيقي (pulled/remaining/pages) — بثّ غير
+/// حاجب: الشاشات تتنقل بحرية والمؤشر يحدّث نفسه من الخلفية.
+///
+/// نبثّ lastPullProgress فور الاشتراك (الشاشة المتأخرة لا تنتظر الصفحة
+/// القادمة)، ثم كل تحديث لاحق من دورة السحب.
+final cloudflarePullProgressProvider = StreamProvider<SyncPullProgress>((
+  ref,
+) {
+  final manager = ref.watch(appwriteSyncManagerProvider);
+  late StreamController<SyncPullProgress> controller;
+  controller = StreamController<SyncPullProgress>(
+    onListen: () {
+      controller.add(manager.lastPullProgress);
+      manager.syncPullProgressStream.listen(
+        controller.add,
+        onError: controller.addError,
+        cancelOnError: false,
+      );
+    },
+  );
+  ref.onDispose(controller.close);
+  return controller.stream;
+});
+
 final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
   ref,
 ) {
