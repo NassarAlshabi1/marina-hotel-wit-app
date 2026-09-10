@@ -117,6 +117,9 @@ class AdminSidebar extends ConsumerWidget {
           ),
 
           // Menu Items - exactly matching PHP sidebar
+          // ✅ (2026-09-10) UI/UX: فواصل قسمية بصرية (Visual Hierarchy)
+          // — نفس العناصر الـ12 بنفس الترتيب والوظائف حرفياً، فقط عناوين
+          // مجموعات صغيرة تفصل التشغيل اليومي عن الإدارة والنظام.
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -130,6 +133,7 @@ class AdminSidebar extends ConsumerWidget {
                     onTap: () => onRouteSelected('/dashboard'),
                     context: context,
                   ),
+                _buildSectionLabel('التشغيل اليومي'),
                 if (can('rooms'))
                   _buildMenuItem(
                     icon: Icons.bed,
@@ -193,6 +197,7 @@ class AdminSidebar extends ConsumerWidget {
                     onTap: () => onRouteSelected('/reports'),
                     context: context,
                   ),
+                _buildSectionLabel('الإدارة والمتابعة'),
                 if (can('notes'))
                   _buildMenuItem(
                     icon: Icons.note,
@@ -220,6 +225,7 @@ class AdminSidebar extends ConsumerWidget {
                     onTap: () => onRouteSelected('/information'),
                     context: context,
                   ),
+                _buildSectionLabel('النظام'),
                 if (can('settings'))
                   _buildMenuItem(
                     icon: Icons.smart_toy,
@@ -265,6 +271,23 @@ class AdminSidebar extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// عنوان فاصل صغير يجمّع عناصر الشريط الجانبي بصرياً — بلا أي
+  /// تأثير وظيفي ولا تفاعل (Decorative only).
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.45),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }

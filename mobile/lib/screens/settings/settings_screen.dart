@@ -93,20 +93,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildSettingsContent(BuildContext context) {
+    // ✅ (2026-09-10) UI/UX Refactoring — Progressive Disclosure:
+    // كانت الأقسام الأربعة ممتدة دائماً (22 بطاقة ظاهرة معاً) — تزاحم
+    // بصري ويشتت. الآن كل قسم [ExpansionTile] قابل للطي:
+    // - «إدارة البيانات» (الأكثر استخداماً) يبقى مفتوحاً افتراضياً.
+    // - «المزامنة» و«الإشعارات» و«التطبيق» مطوية افتراضياً — متاحة
+    //   بنقرة واحدة.
+    // ⚠️ لا حذف ولا نقل بين الأقسام ولا تغيير وظيفة: كل [_SettingsItem]
+    // بقي بنفس العنوان/الأيقونة/الهدف حرفياً (انظر _getSectionItems).
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
-        _buildSettingsGrid(context, _getSectionItems(context, 'data')),
-        const SizedBox(height: 20),
-        _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
-        _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
-        const SizedBox(height: 20),
-        _buildSectionTitle('الإشعارات والتقارير', Icons.notifications),
-        _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
-        const SizedBox(height: 20),
-        _buildSectionTitle('التطبيق والخدمات', Icons.apps),
-        _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+        _SettingsSection(
+          title: 'إدارة البيانات',
+          icon: Icons.manage_accounts,
+          initiallyExpanded: true,
+          items: _getSectionItems(context, 'data'),
+        ),
+        _SettingsSection(
+          title: 'المزامنة والنسخ الاحتياطي',
+          icon: Icons.sync,
+          items: _getSectionItems(context, 'sync'),
+        ),
+        _SettingsSection(
+          title: 'الإشعارات والتقارير',
+          icon: Icons.notifications,
+          items: _getSectionItems(context, 'whatsapp'),
+        ),
+        _SettingsSection(
+          title: 'التطبيق والخدمات',
+          icon: Icons.apps,
+          items: _getSectionItems(context, 'app'),
+        ),
+        const SizedBox(height: 12),
       ],
     );
   }
@@ -521,95 +540,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // ─── عناوين الأقسام ───
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.blue, size: 24),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── شبكة الإعدادات ───
-
-  Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // نفس تخطيط فرع A: بطاقات صغيرة ثابتة بثلاثة أعمدة.
-        const crossAxisCount = 3;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            mainAxisExtent: 130,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return Card(
-              elevation: 1,
-              child: InkWell(
-                onTap: item.onTap,
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(item.icon, size: 20, color: item.color),
-                      const SizedBox(height: 8),
-                      Text(
-                        item.title,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   // ─── Dialogs ───
 
   /// ✅ إقفال اليوم (Night Audit) — يُغلق اليوم الفندقي ويرسل التقرير
@@ -783,4 +713,111 @@ class _SettingsItem {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+}
+
+/// ✅ (2026-09-10) قسم إعدادات قابل للطي (Accordion) — Progressive
+/// Disclosure دون فقدان أي خيار:
+/// - نفس عنوان القسم القديم (أيقونة زرقاء + نص bold 18) داخل رأس
+///   [ExpansionTile] مع مؤشر طيّ واضح.
+/// - الشبكة الداخلية نفسها (3 أعمدة، بطاقة 130px) — شكل البطاقات
+///   والأسماء والأيقونات والأهداف لم تتغير إطلاقاً.
+/// - `initiallyExpanded`: «إدارة البيانات» فقط يبدأ مفتوحاً.
+/// - `maintainState` يحفظ العناصر مبنية ولا يفقد حالتها أثناء الطي.
+class _SettingsSection extends StatelessWidget {
+  const _SettingsSection({
+    required this.title,
+    required this.icon,
+    required this.items,
+    this.initiallyExpanded = false,
+  });
+
+  final String title;
+  final IconData icon;
+  final List<_SettingsItem> items;
+  final bool initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        maintainState: true,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        leading: Icon(icon, color: Colors.blue, size: 24),
+        title: Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue,
+          ),
+        ),
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const crossAxisCount = 3;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  mainAxisExtent: 130,
+                ),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return Card(
+                    elevation: 1,
+                    child: InkWell(
+                      onTap: item.onTap,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(item.icon, size: 20, color: item.color),
+                            const SizedBox(height: 8),
+                            Text(
+                              item.title,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              item.subtitle,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
