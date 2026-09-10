@@ -4,7 +4,7 @@
 //  isolation, create/update/delete flows for ALL 23 entities.
 // ═══════════════════════════════════════════════════════════════
 
-import { env } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetDb, adminAuthHeader, pull, pushOp, pushOperations, roomPayload, uniqueUuid, type PushResponseBody } from './helpers';
 
@@ -14,6 +14,23 @@ beforeEach(async () => {
 
 
 describe('push: validation', () => {
+  it('does not write data when the request body is truncated or invalid JSON', async () => {
+    const auth = await adminAuthHeader();
+    const res = await SELF.fetch('https://example.com/api/sync/push', {
+      method: 'POST',
+      headers: {
+        Authorization: auth,
+        'Content-Type': 'application/json',
+      },
+      body: '{"operations":[',
+    });
+    expect(res.status).toBe(500);
+
+    const count = await env.DB.prepare('SELECT COUNT(*) AS c FROM rooms')
+      .first<{ c: number }>();
+    expect(count?.c).toBe(0);
+  });
+
   it('rejects a batch with >100 operations (400)', async () => {
     const auth = await adminAuthHeader();
     const ops = Array.from({ length: 101 }, (_, i) =>

@@ -242,6 +242,7 @@ export class Database {
     const excludeDevice =
       excludeDeviceId && excludeDeviceId.length > 0 ? excludeDeviceId : null;
     const errors: Array<{ entity: string; error: string }> = [];
+    let windowTruncated = false;
 
     // Safety cap for the group-completion loop below. A legacy dataset
     // whose rows share one updated_at can force large windows; past this
@@ -302,6 +303,11 @@ export class Database {
               `[SYNC/PULL] table ${table}: duplicate-ts group exceeds ` +
                 `${MAX_PULL_WINDOW} rows — page may truncate mid-group`
             );
+            errors.push({
+              entity: ent,
+              error: `duplicate updated_at group exceeds ${MAX_PULL_WINDOW} rows`,
+            });
+            windowTruncated = true;
             break;
           }
         }
@@ -351,13 +357,18 @@ export class Database {
       }
     }
     const page = allChanges.slice(0, cut);
-    const hasMore = allChanges.length > cut;
+    const safeToAdvance = errors.length === 0 && !windowTruncated;
+    const hasMore = safeToAdvance && allChanges.length > cut;
 
     // ✅ CRITICAL FIX: cursor must be the updated_at of the LAST record
     // actually returned in this page — never the max across all fetched
     // rows (the old code returned the global max, permanently skipping
     // every record between the page boundary and that max).
-    const nextCursor = page.length > 0 ? page[page.length - 1].updated_at : cursor;
+    // Never advance across an incomplete page: a client that only persists
+    // the numeric cursor must not skip rows from a failed/truncated table.
+    // Replaying successful rows is safe because local application is idempotent.
+    const nextCursor =
+      safeToAdvance && page.length > 0 ? page[page.length - 1].updated_at : cursor;
 
     // ─── ✅ (2026-09-10) remaining للمؤشر التقدمي ───
     // COUNT فهرسي عبر batch (مرور شبكي واحد) على كل الجداول بنفس شروط

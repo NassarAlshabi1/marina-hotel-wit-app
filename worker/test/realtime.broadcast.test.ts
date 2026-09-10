@@ -181,4 +181,20 @@ describe('push → realtime broadcast', () => {
 
     socket.close();
   });
+
+  it('does not relay client-injected change messages', { timeout: 30000 }, async () => {
+    const { socket, received } = await connectRealtime('attacker-device');
+
+    socket.send(JSON.stringify({
+      type: 'change',
+      entity: 'rooms',
+      entityId: 'forged-room',
+      operation: 'update',
+      deviceId: 'attacker-device',
+    }));
+    await sleep(500);
+
+    expect(changeEvents(received)).toHaveLength(0);
+    socket.close();
+  });
 });

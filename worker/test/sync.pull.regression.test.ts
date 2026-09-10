@@ -176,7 +176,7 @@ describe('pull: boundary-extension (duplicate updated_at loss guard)', () => {
 // ─── C) Degraded drain contract: errors[] on every page ─────────
 
 describe('pull: degraded multi-page drain contract (per-table isolation)', () => {
-  it('reports the broken table on EVERY page while healthy tables drain losslessly', async () => {
+  it('reports the broken table and never advances past an incomplete page', async () => {
     const auth = await adminAuthHeader();
     // 7 healthy rooms at distinct timestamps → 3 pages at limit=3.
     for (let i = 0; i < 7; i++) {
@@ -187,23 +187,12 @@ describe('pull: degraded multi-page drain contract (per-table isolation)', () =>
 
     let cursor = '0';
     const seen = new Set<string>();
-    let pages = 0;
-    let errorPages = 0;
-    for (let page = 0; page < 10; page++) {
-      const data = await pull(auth, { cursor, limit: '3' });
-      pages++;
-      if (data.errors.some((e) => e.entity === 'devices')) errorPages++;
-      for (const c of data.changes) seen.add(c.local_uuid as string);
-      cursor = data.cursor;
-      if (!data.has_more) break;
-    }
-    // Healthy rows flow to exhaustion despite the broken table…
-    expect(seen.size).toBe(7);
-    // …and the client-visible contract holds: the broken table is named
-    // on every page, so a client that persists its cursor while errors[]
-    // is non-empty will never silently miss data.
-    expect(errorPages).toBe(pages);
-    expect(pages).toBeGreaterThan(1);
+    const data = await pull(auth, { cursor, limit: '3' });
+    for (const c of data.changes) seen.add(c.local_uuid as string);
+    expect(seen.size).toBe(3);
+    expect(data.errors.some((e) => e.entity === 'devices')).toBe(true);
+    expect(data.cursor).toBe('0');
+    expect(data.has_more).toBe(false);
   });
 });
 

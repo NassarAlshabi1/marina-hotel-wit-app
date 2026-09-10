@@ -6,7 +6,16 @@
 
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { resetDb, adminAuthHeader, pull, pushOp, pushOperations, roomPayload, type PushResponseBody } from './helpers';
+import {
+  resetDb,
+  adminAuthHeader,
+  pull,
+  pushOp,
+  pushOperations,
+  roomPayload,
+  type PullResponseBody,
+  type PushResponseBody,
+} from './helpers';
 
 beforeEach(async () => {
   await resetDb();
@@ -102,6 +111,23 @@ describe('pull: pagination + cursor', () => {
     expect(data.changes).toEqual([]);
     expect(data.has_more).toBe(false);
     expect(data.cursor).toBe('99999999999'); // cursor preserved, not rewound
+  });
+
+  it('does not advance cursor when one entity table fails', async () => {
+    const auth = await adminAuthHeader();
+    await seedRooms(1);
+
+    // Simulate a transient D1 schema/table failure after data already exists.
+    // A client must be able to retry from the same checkpoint; advancing past
+    // this table would make its rows permanently invisible to that client.
+    await env.DB.prepare('DROP TABLE rooms').run();
+
+    const res = await fetchWithAuth('/api/sync/pull?cursor=0&limit=200', auth);
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as PullResponseBody;
+    expect(data.errors.some((error) => error.entity === 'rooms')).toBe(true);
+    expect(data.cursor).toBe('0');
+    expect(data.has_more).toBe(false);
   });
 
   // ✅ (2026-09-10) مؤشر تقدم السحب الكامل — «حجم السحب والمتبقي»

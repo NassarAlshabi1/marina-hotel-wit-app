@@ -316,13 +316,12 @@ export class SyncLockDO {
 
     // Handle incoming messages
     server.addEventListener('message', (event: MessageEvent) => {
-      try {
-        const msg = JSON.parse(event.data as string) as RealtimeMessage;
-        // Broadcast to other clients
-        this.broadcast({ ...msg, timestamp: Date.now() }, server);
-      } catch {
-        // Ignore malformed messages
-      }
+      // Realtime is a server-originated invalidation channel.  Never relay
+      // client-supplied JSON: an authenticated client could otherwise forge
+      // `change` events and force every other device into needless pulls.
+      // Clients only need to receive events; protocol-level ping/pong is
+      // handled by the WebSocket implementation and does not arrive here.
+      void event;
     });
 
     // Handle close
