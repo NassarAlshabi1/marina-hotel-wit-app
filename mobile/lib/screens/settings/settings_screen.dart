@@ -9,6 +9,7 @@ import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/local_db.dart';
+import '../../services/sync/sync_gate.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
 import '../inventory/inventory_screen.dart';
@@ -70,6 +71,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             employeesAsync,
             usersCountAsync,
           ),
+
+          // ✅ (2026-09-11) P1: مؤشر حالة المزامنة الحي — يراقب
+          // [syncGateStateProvider] ويظهر العملية الجارية/الجاهزية،
+          // والضغط عليه يفتح شاشة «حالة المزامنة» الموجودة مسبقاً.
+          _buildSyncStatusStrip(context),
 
           // ✅ العرض السابق: الأقسام ظاهرة دائماً بدون طيّ.
           // يحافظ ذلك على قابلية اكتشاف كل الوظائف مع إبقاء التمرير واحداً.
@@ -441,6 +447,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     AsyncValue<List<Employee>> employeesAsync,
     AsyncValue<int> usersCountAsync,
   ) {
+    // ✅ (2026-09-11) P1: مؤشر صحة المزامنة في رأس البطاقة + تذييل
+    // «تُحدّث تلقائياً» — القيم الأربعة نفسها لم تتغير إطلاقاً.
+    final gateAsync = ref.watch(syncGateStateProvider);
+    final gateState = gateAsync.value ?? const SyncGateState();
+
     // ✅ بطاقة مُصغّرة: padding/margin/icon/font sizes كلها مُقلّصة
     return Card(
       elevation: 2,
@@ -462,6 +473,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   'إحصائيات سريعة',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
+                const Spacer(),
+                _buildSyncHealthChip(gateState),
               ],
             ),
             const SizedBox(height: 8),
@@ -507,8 +520,127 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
+            // ✅ (2026-09-11) P1: تذييل يوضّح أن القيم تتحدث تلقائياً
+            // عبر مزودات Riverpod (دون زر تحديث يدوي).
+            const SizedBox(height: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.autorenew,
+                  size: 10,
+                  color: Colors.grey.shade500,
+                ),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    'القيم تُحدّث تلقائياً',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Colors.grey.shade500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// ✅ (2026-09-11) P1: شارة صحة المزامنة المصغّرة في رأس بطاقة
+  /// الإحصائيات — مشتقة من حالة بوّابة المزامنة (تشغيل/جاهزية).
+  Widget _buildSyncHealthChip(SyncGateState gateState) {
+    final busy = gateState.isBusy;
+    final color = busy ? Colors.orange : Colors.green;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(busy ? Icons.sync : Icons.check_circle, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            busy ? 'مزامنة الآن' : 'جاهزة',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ✅ (2026-09-11) P1: شريط حالة المزامنة الحي — يراقب
+  /// [syncGateStateProvider] (بث حالة [SyncGate] العامة):
+  /// - أثناء العمل: مؤشر دوّار + العملية والمصدر والمدة المنقضية.
+  /// - عند الجاهزية: أيقونة سحابة خضراء.
+  /// الضغط يفتح شاشة «حالة المزامنة» الموجودة مسبقاً (SyncHealthScreen)
+  /// — لا وظيفة جديدة ولا منطق جديد، مجرد مراقبة ومدخل إضافي.
+  Widget _buildSyncStatusStrip(BuildContext context) {
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      child: Consumer(
+        builder: (context, ref, _) {
+          final gateAsync = ref.watch(syncGateStateProvider);
+          final gate = gateAsync.value ?? const SyncGateState();
+          final busy = gate.isBusy;
+          final elapsedMs = gate.elapsedMs;
+          final elapsedText = elapsedMs == null
+              ? ''
+              : ' • ${(elapsedMs / 1000).round()}ث';
+          return ListTile(
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            leading: busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(
+                    Icons.cloud_done,
+                    color: Colors.green,
+                    size: 20,
+                  ),
+            title: Text(
+              busy ? 'مزامنة جارية...' : 'المزامنة جاهزة',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              busy
+                  ? '${gate.operation ?? 'مزامنة'} • ${gate.source ?? 'يدوي'}'
+                        '$elapsedText'
+                  : 'لا توجد عمليات مزامنة نشطة الآن',
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: const Icon(
+              Icons.chevron_left,
+              size: 18,
+              color: Colors.grey,
+            ),
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const SyncHealthScreen(),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

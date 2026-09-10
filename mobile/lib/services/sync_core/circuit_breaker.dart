@@ -9,11 +9,22 @@ class CircuitBreakerConfig {
     this.timeout = const Duration(seconds: 30),
     this.resetTimeout = const Duration(minutes: 1),
     this.successThreshold = 2,
+    this.halfOpenMaxAttempts = 3,
   });
   final int failureThreshold;
   final Duration timeout;
   final Duration resetTimeout;
   final int successThreshold;
+
+  /// ✅ P1: أقصى عدد محاولات (تنفيذات) مسموح داخل حالة half-open قبل
+  /// إجبار الدائرة على العودة إلى open. يمنع بقاء الدائرة في half-open
+  /// للأبد إذا كان successThreshold غير قابل للبلوغ (سوء تكوين)
+  /// أو تكرار دورات فتح/نصف-فتح المتذبذبة.
+  ///
+  /// مع الإعدادات الافتراضية (successThreshold=2) لا يُفعَّل هذا الحد
+  /// أبداً في المسار الطبيعي: نجاحان يغلقان الدائرة، وأي فشل يعيدها
+  /// إلى open مباشرة.
+  final int halfOpenMaxAttempts;
 }
 
 class CircuitBreaker {
@@ -28,6 +39,17 @@ class CircuitBreaker {
   DateTime? _lastFailureTime;
   Timer? _resetTimer;
 
+  // ✅ P1-9 fix: latch لمنع thundering herd في half-open
+  bool _halfOpenProbeInFlight = false;
+
+  // ✅ P1: عدّاد التنفيذات داخل episode الحالي لـ half-open
+  int _halfOpenExecutions = 0;
+
+  // ✅ P1: سجل أوقات الانتقال بين الحالات (أحدث 20 انتقالاً)
+  static const int _maxTransitionsLog = 20;
+  final List<Map<String, dynamic>> _transitionsLog = <Map<String, dynamic>>[];
+  DateTime? _lastTransitionAt;
+
   final _stateController = StreamController<CircuitState>.broadcast();
   Stream<CircuitState> get stateStream => _stateController.stream;
 
@@ -35,8 +57,16 @@ class CircuitBreaker {
   int get failureCount => _failureCount;
   int get successCount => _successCount;
 
-  // ✅ P1-9 fix: latch لمنع thundering herd في half-open
-  bool _halfOpenProbeInFlight = false;
+  /// ✅ P1: عدد التنفيذات داخل episode half-open الحالي.
+  int get halfOpenExecutions => _halfOpenExecutions;
+
+  /// ✅ P1: وقت آخر انتقال بين الحالات (null إذا لم يحدث انتقال بعد).
+  DateTime? get lastTransitionAt => _lastTransitionAt;
+
+  /// ✅ P1: آخر انتقالات الحالة (من → إلى + الوقت) — للعرض في شاشات
+  /// التشخيص. الأحدث أخيراً، بحد أقصى 20 سجلاً.
+  List<Map<String, dynamic>> get recentTransitions =>
+      List<Map<String, dynamic>>.unmodifiable(_transitionsLog);
 
   Future<T> execute<T>(Future<T> Function() operation) async {
     if (_state == CircuitState.open) {
@@ -54,6 +84,21 @@ class CircuitBreaker {
       if (_halfOpenProbeInFlight) {
         throw CircuitBreakerOpenException(
           'Circuit breaker [$name] half-open — مسبار قيد التنفيذ',
+        );
+      }
+      // ✅ P1: حد محاولات half-open — تجاوزه يعيد الدائرة إلى open
+      // فوراً بدلاً من البقاء في half-open إلى ما لا نهاية.
+      _halfOpenExecutions++;
+      if (_halfOpenExecutions > config.halfOpenMaxAttempts) {
+        dlog(
+          () =>
+              '⛔ [CircuitBreaker] [$name] تجاوز حد محاولات half-open '
+              '(${config.halfOpenMaxAttempts}) — العودة إلى open',
+        );
+        _transitionTo(CircuitState.open);
+        throw CircuitBreakerOpenException(
+          'Circuit breaker [$name] تجاوز حد محاولات half-open '
+          '(${config.halfOpenMaxAttempts})',
         );
       }
       _halfOpenProbeInFlight = true;
@@ -146,11 +191,24 @@ class CircuitBreaker {
 
     dlog(() => '🔄 [CircuitBreaker] [$name] $oldState → $newState');
 
+    // ✅ P1: تسجيل وقت الانتقال بين الحالات
+    _lastTransitionAt = DateTime.now();
+    _transitionsLog.add({
+      'from': oldState.name,
+      'to': newState.name,
+      'at': _lastTransitionAt!.toIso8601String(),
+    });
+    if (_transitionsLog.length > _maxTransitionsLog) {
+      _transitionsLog.removeAt(0);
+    }
+
     _stateController.add(newState);
 
     if (newState == CircuitState.open) {
+      _halfOpenExecutions = 0;
       _scheduleReset();
     } else if (newState == CircuitState.closed) {
+      _halfOpenExecutions = 0;
       _cancelReset();
       _failureCount = 0;
       _successCount = 0;
@@ -177,6 +235,7 @@ class CircuitBreaker {
     _failureCount = 0;
     _successCount = 0;
     _lastFailureTime = null;
+    _halfOpenExecutions = 0;
     _transitionTo(CircuitState.closed);
   }
 
@@ -187,6 +246,11 @@ class CircuitBreaker {
       'failureCount': _failureCount,
       'successCount': _successCount,
       'lastFailureTime': _lastFailureTime?.toIso8601String(),
+      // ✅ P1: حقول المراقبة الجديدة
+      'halfOpenExecutions': _halfOpenExecutions,
+      'halfOpenMaxAttempts': config.halfOpenMaxAttempts,
+      'lastTransitionAt': _lastTransitionAt?.toIso8601String(),
+      'recentTransitions': List<Map<String, dynamic>>.from(_transitionsLog),
     };
   }
 
