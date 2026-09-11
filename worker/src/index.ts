@@ -85,6 +85,15 @@ async function checkRateLimit(
   }
 }
 
+// Cloudflare adds the request country through request.cf at the edge.
+// Yemen traffic is exempt from Worker rate limits so sync connectivity is
+// not interrupted by the edge/WAF allow-list configuration. Authentication
+// and authorization remain enforced below.
+function isYemenRequest(request: Request): boolean {
+  const country = (request as Request & { cf?: { country?: string } }).cf?.country;
+  return country?.toUpperCase() === 'YE';
+}
+
 // ─── CORS Headers ─────────────────────────────────────────────
 
 function corsHeaders(origin: string): Headers {
@@ -164,11 +173,14 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
     const rateLimitWindow = parseInt(env.RATE_LIMIT_WINDOW, 10) || 60;
     const rateLimitMax = parseInt(env.RATE_LIMIT_MAX, 10) || 1000;
+    const isYemen = isYemenRequest(request);
 
     // ─── Rate limit check (D1-based, no KV daily limit) ─────
     const rateDb = new Database(env.DB);
-    const rateResult = await checkRateLimit(rateDb, clientIp, rateLimitWindow, rateLimitMax);
-    if (!rateResult.allowed) {
+    const rateResult = isYemen
+      ? { allowed: true, remaining: rateLimitMax, resetAt: Date.now() + rateLimitWindow * 1000 }
+      : await checkRateLimit(rateDb, clientIp, rateLimitWindow, rateLimitMax);
+    if (!isYemen && !rateResult.allowed) {
       logRequest(method, path, 429, Date.now() - startTime, clientIp);
       // ✅ Add Retry-After header (seconds) for proper HTTP 429 semantics.
       // Client should respect this header and not retry before it elapses.
@@ -188,13 +200,15 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       // ✅ Dedicated brute-force bucket per IP — far stricter than the
       // global limit (20 attempts/window) so password guessing is not
       // drowned in the 1000/min global budget.
-      const loginLimit = await checkRateLimit(
-        new Database(env.DB),
-        `login:${clientIp}`,
-        rateLimitWindow,
-        20
-      );
-      if (!loginLimit.allowed) {
+      const loginLimit = isYemen
+        ? { allowed: true, remaining: 20, resetAt: Date.now() + rateLimitWindow * 1000 }
+        : await checkRateLimit(
+            new Database(env.DB),
+            `login:${clientIp}`,
+            rateLimitWindow,
+            20
+          );
+      if (!isYemen && !loginLimit.allowed) {
         logRequest(method, path, 429, Date.now() - startTime, clientIp);
         const retryAfterSec = Math.ceil((loginLimit.resetAt - Date.now()) / 1000);
         const headers = new Headers({ 'Content-Type': 'application/json' });
