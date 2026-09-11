@@ -33,6 +33,7 @@ import '../../utils/loading_snackbar.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import 'widgets/actions_tab.dart';
+import 'widgets/last_payment_card.dart';
 import 'widgets/payment_summary_card.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
@@ -507,6 +508,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ),
               ),
+              // ✅ بطاقة صغيرة: آخر مبلغ مدفوع (تختفي تلقائياً إن لا توجد مدفوعات)
+              LastPaymentCard(payments: dbPayments, currencyFmt: _currencyFmt),
               const SizedBox(height: 8),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
