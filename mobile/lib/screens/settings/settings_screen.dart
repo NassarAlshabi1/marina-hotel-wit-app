@@ -9,6 +9,7 @@ import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/local_db.dart';
+import '../../services/sync/sync_gate.dart';
 import '../../utils/status_utils.dart';
 import '../../widgets/settings/collapsible_section.dart';
 import '../ai/ai_chat_screen.dart';
@@ -40,6 +41,38 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  // ✅ P1 (تقرير 2026-09-11): تحديث تلقائي لبطاقة الإحصائيات + طابع زمني
+  // لآخر تحديث — التذيل يعرضه مع زر تحديث يدوي.
+  Timer? _statsAutoRefreshTimer;
+  DateTime? _lastStatsRefreshAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastStatsRefreshAt = DateTime.now();
+    _statsAutoRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) {
+        _refreshQuickStats();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _statsAutoRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _refreshQuickStats() {
+    setState(() {
+      _lastStatsRefreshAt = DateTime.now();
+    });
+    ref.invalidate(roomsListProvider);
+    ref.invalidate(bookingsListProvider);
+    ref.invalidate(employeesListProvider);
+    ref.invalidate(usersCountProvider);
+  }
+
   /// ✅ قراءة رقم الإصدار ديناميكياً من package_info_plus
   Future<String> _getAppVersion() async {
     try {
@@ -56,6 +89,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final bookingsAsync = ref.watch(bookingsListProvider);
     final employeesAsync = ref.watch(employeesListProvider);
     final usersCountAsync = ref.watch(usersCountProvider);
+    // ✅ P1: مراقبة بوابة المزامنة — مؤشر الحالة الحيّ في شاشة الإعدادات
+    final gateAsync = ref.watch(syncGateStateProvider);
+    final gateState = gateAsync.valueOrNull ?? SyncGate.instance.state;
 
     return AppScaffold(
       title: 'الإعدادات',
@@ -69,7 +105,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             bookingsAsync,
             employeesAsync,
             usersCountAsync,
+            gateState,
           ),
+
+          // ✅ P1: مؤشر حالة المزامنة الحيّ (بوابة SyncGate) — نقرة
+          // تفتح شاشة صحة المزامنة
+          _buildSyncStatusStrip(context, gateState),
 
           // ✅ العرض السابق: الأقسام ظاهرة دائماً بدون طيّ.
           // يحافظ ذلك على قابلية اكتشاف كل الوظائف مع إبقاء التمرير واحداً.
@@ -470,6 +511,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     AsyncValue<List<Booking>> bookingsAsync,
     AsyncValue<List<Employee>> employeesAsync,
     AsyncValue<int> usersCountAsync,
+    SyncGateState gateState,
   ) {
     // ✅ بطاقة مُصغّرة: padding/margin/icon/font sizes كلها مُقلّصة
     return Card(
@@ -537,6 +579,55 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            // ✅ P1: مؤشر صحة المزامنة + تذييل التحديث التلقائي
+            // التسمية Expanded مع ellipsis — لا overflow حتى مع الخطوط العريضة
+            Row(
+              children: [
+                Icon(
+                  gateState.isBusy ? Icons.sync : Icons.cloud_done,
+                  size: 11,
+                  color: gateState.isBusy ? Colors.orange : Colors.green,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    gateState.isBusy ? 'مزامنة جارية الآن' : 'المزامنة جاهزة',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: gateState.isBusy ? Colors.orange : Colors.green,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _lastStatsRefreshAt == null
+                      ? ''
+                      : 'آخر تحديث: ${_formatTime(_lastStatsRefreshAt!)}',
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+                const SizedBox(width: 2),
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
+                    iconSize: 14,
+                    tooltip: 'تحديث الإحصائيات',
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _refreshQuickStats,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -567,6 +658,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+
+  // ─── ✅ P1: مؤشر حالة المزامنة الحيّ ───
+
+  String _formatTime(DateTime t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  /// شريط حالة المزامنة الحيّ — يراقب بوابة SyncGate عبر
+  /// syncGateStateProvider: أثناء العملية يعرض النوع/المصدر/المدة،
+  /// والنقرة تفتح شاشة صحة المزامنة.
+  Widget _buildSyncStatusStrip(BuildContext context, SyncGateState gate) {
+    final busy = gate.isBusy;
+    final elapsed = gate.elapsedMs;
+    final elapsedText = elapsed == null
+        ? ''
+        : ' · ${(elapsed / 1000).round()}s';
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: ListTile(
+        dense: true,
+        visualDensity: VisualDensity.compact,
+        onTap: () => Navigator.push<void>(
+          context,
+          MaterialPageRoute<void>(
+            builder: (context) => const SyncHealthScreen(),
+          ),
+        ),
+        leading: busy
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.cloud_done, color: Colors.green, size: 20),
+        title: Text(
+          busy ? 'جارٍ تنفيذ مزامنة الآن...' : 'لا مزامنة جارية — جاهزة',
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+        subtitle: busy
+            ? Text(
+                '${gate.operation ?? '-'} · ${gate.source ?? '-'}$elapsedText',
+                style: const TextStyle(fontSize: 10),
+              )
+            : null,
+        trailing: const Icon(Icons.chevron_right, size: 18),
+      ),
     );
   }
 

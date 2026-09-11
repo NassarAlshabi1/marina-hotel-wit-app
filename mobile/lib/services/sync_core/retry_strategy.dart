@@ -12,6 +12,8 @@ class RetryConfig {
     this.backoffType = RetryBackoffType.exponential,
     this.backoffMultiplier = 2.0,
     this.jitterFactor = 0.1,
+    this.retryableErrors = const <Type>[],
+    this.retryableErrorTest,
   });
   final int maxAttempts;
   final Duration initialDelay;
@@ -19,6 +21,19 @@ class RetryConfig {
   final RetryBackoffType backoffType;
   final double backoffMultiplier;
   final double jitterFactor;
+
+  /// ✅ P1 (تقرير 2026-09-11): قائمة أنواع الأخطاء القابلة لإعادة
+  /// المحاولة. فارغة = كل الأخطاء قابلة (السلوك السابق تماماً — القرار
+  /// يبقى لـ shouldRetry الخاص بالمتصل). غير فارغة = الخطأ يُعاد رفعه
+  /// فوراً دون استهلاك محاولات إذا لم يطابق أي نوع.
+  ///
+  /// المطابقة بنوع runtimeType الدقيق — للتسلسلات الهرمية أو شروط أعمق
+  /// استخدم [retryableErrorTest].
+  final List<Type> retryableErrors;
+
+  /// ✅ P1: مسند اختياري أعمق للتحكم في قابلية إعادة المحاولة — له
+  /// الأولوية على [retryableErrors] عند تعيينه.
+  final bool Function(dynamic error)? retryableErrorTest;
 
   static const conservative = RetryConfig(
     maxAttempts: 3,
@@ -41,6 +56,86 @@ class RetryStrategy {
   RetryStrategy({RetryConfig? config}) : config = config ?? const RetryConfig();
   final RetryConfig config;
   final Random _random = Random();
+
+  // ✅ P1 (تقرير 2026-09-11): إحصائيات إعادة المحاولة لهذه النسخة.
+  int _totalExecutions = 0;
+  int _totalAttempts = 0;
+  int _totalRetries = 0;
+  int _totalExhausted = 0;
+  int _totalBlockedByPolicy = 0;
+  DateTime? _lastErrorAt;
+  String? _lastErrorMessage;
+
+  /// إجمالي عمليات execute المكتملة (نجاحاً أو فشلاً).
+  int get totalExecutions => _totalExecutions;
+
+  /// إجمالي المحاولات الفردية (المحاولة الأولى + إعادات المحاولة).
+  int get totalAttempts => _totalAttempts;
+
+  /// إجمالي مرات إعادة المحاولة المجدولة (بعد فشل قابل للإعادة).
+  int get totalRetries => _totalRetries;
+
+  /// إجمالي مرات استنفاد كل المحاولات دون نجاح.
+  int get totalExhausted => _totalExhausted;
+
+  /// إجمالي الأخطاء المرفوضة من سياسة الإعادة (رُفعت فوراً دون إعادة).
+  int get totalBlockedByPolicy => _totalBlockedByPolicy;
+
+  /// وقت آخر خطأ ورسالته.
+  DateTime? get lastErrorAt => _lastErrorAt;
+  String? get lastErrorMessage => _lastErrorMessage;
+
+  /// لقطة إحصائية شاملة — للتشخيص والاختبارات.
+  Map<String, dynamic> get stats => {
+    'totalExecutions': _totalExecutions,
+    'totalAttempts': _totalAttempts,
+    'totalRetries': _totalRetries,
+    'totalExhausted': _totalExhausted,
+    'totalBlockedByPolicy': _totalBlockedByPolicy,
+    'lastErrorAt': _lastErrorAt?.toIso8601String(),
+    'lastErrorMessage': _lastErrorMessage,
+    'maxAttempts': config.maxAttempts,
+  };
+
+  /// تصفير الإحصائيات (لا يمس التكوين).
+  void resetStats() {
+    _totalExecutions = 0;
+    _totalAttempts = 0;
+    _totalRetries = 0;
+    _totalExhausted = 0;
+    _totalBlockedByPolicy = 0;
+    _lastErrorAt = null;
+    _lastErrorMessage = null;
+  }
+
+  /// ✅ P1: هل هذا الخطأ قابل لإعادة المحاولة وفق سياسة التكوين؟
+  ///
+  /// - إذا عُيّن [RetryConfig.retryableErrorTest] فهو الحاكم حصرياً.
+  /// - وإلا إذا كانت [RetryConfig.retryableErrors] فارغة: كل الأخطاء
+  ///   قابلة (السلوك السابق).
+  /// - وإلا: مطابقة runtimeType الدقيق ضد القائمة.
+  bool isRetryableError(dynamic error) {
+    final test = config.retryableErrorTest;
+    if (test != null) {
+      return test(error);
+    }
+    final types = config.retryableErrors;
+    if (types.isEmpty) {
+      return true;
+    }
+    return types.any((t) => error.runtimeType == t);
+  }
+
+  /// الجمع بين سياسة المتصل وسياسة التكوين — الاثنان معاً يجب أن يسمحا.
+  bool shouldRetryError(
+    dynamic error,
+    bool Function(dynamic error) callerPolicy,
+  ) {
+    if (!callerPolicy(error)) {
+      return false;
+    }
+    return isRetryableError(error);
+  }
 
   Duration calculateDelay(int attemptNumber) {
     if (attemptNumber <= 0) {
@@ -102,15 +197,19 @@ class RetryStrategy {
   }) async {
     int attempt = 0;
     dynamic lastError;
+    _totalExecutions++;
 
     while (attempt < config.maxAttempts) {
       attempt++;
+      _totalAttempts++;
 
       try {
         dlog(() => '🔄 [Retry] محاولة $attempt من ${config.maxAttempts}');
         return await operation();
       } catch (error) {
         lastError = error;
+        _lastErrorAt = DateTime.now();
+        _lastErrorMessage = error.toString();
         dlog(() => '⚠️ [Retry] فشلت المحاولة $attempt: $error');
 
         if (!shouldRetry(error)) {
@@ -118,11 +217,25 @@ class RetryStrategy {
           rethrow;
         }
 
+        // ✅ P1: سياسة التكوين — الخطأ غير المدرج يُرفع فوراً دون
+        // استهلاك باقي المحاولات أو انتظارات backoff.
+        if (!isRetryableError(error)) {
+          _totalBlockedByPolicy++;
+          dlog(
+            () =>
+                '❌ [Retry] سياسة retryableErrors تمنع إعادة المحاولة '
+                'للخطأ ${error.runtimeType}',
+          );
+          rethrow;
+        }
+
         if (attempt >= config.maxAttempts) {
+          _totalExhausted++;
           dlog('❌ [Retry] تم تجاوز الحد الأقصى للمحاولات');
           rethrow;
         }
 
+        _totalRetries++;
         final delay = calculateDelay(attempt);
         dlog(
           () =>

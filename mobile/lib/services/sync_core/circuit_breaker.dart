@@ -1,7 +1,28 @@
 import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
 import '../../utils/debug_log.dart';
 
 enum CircuitState { closed, open, halfOpen }
+
+/// ✅ P1 (تقرير 2026-09-11): انتقال حالة مختوم زمنياً — يُسجَّل في
+/// سجل محدود داخل قاطع الدائرة لأغراض التشخيص والمراقبة.
+@immutable
+class CircuitTransition {
+  const CircuitTransition({
+    required this.from,
+    required this.to,
+    required this.at,
+  });
+
+  final CircuitState from;
+  final CircuitState to;
+  final DateTime at;
+
+  @override
+  String toString() => '$from → $to @ ${at.toIso8601String()}';
+}
 
 class CircuitBreakerConfig {
   const CircuitBreakerConfig({
@@ -9,11 +30,22 @@ class CircuitBreakerConfig {
     this.timeout = const Duration(seconds: 30),
     this.resetTimeout = const Duration(minutes: 1),
     this.successThreshold = 2,
+    this.halfOpenMaxConsecutiveFailures = 1,
+    this.maxTransitionHistory = 20,
   });
   final int failureThreshold;
   final Duration timeout;
   final Duration resetTimeout;
   final int successThreshold;
+
+  /// ✅ P1: أقصى عدد للإخفاقات المتتالية المسموح في half-open قبل
+  /// العودة إلى open. الافتراضي 1 = السلوك السابق تماماً (أي فشل في
+  /// المسبار يعيد الفتح). قيمة أكبر تسمح بعدة محاولات مسبار متتالية
+  /// قبل الاستسلام — مفيدة عند شبكات متقلبة تعطي نجاحاً متقطعاً.
+  final int halfOpenMaxConsecutiveFailures;
+
+  /// أقصى حجم لسجل انتقالات الحالة (الأقدم يُحذف أولاً).
+  final int maxTransitionHistory;
 }
 
 class CircuitBreaker {
@@ -28,12 +60,32 @@ class CircuitBreaker {
   DateTime? _lastFailureTime;
   Timer? _resetTimer;
 
+  // ✅ P1 (تقرير 2026-09-11): مراقبة half-open وسجل الانتقالات.
+  int _halfOpenConsecutiveFailures = 0;
+  int _transitionCount = 0;
+  DateTime? _lastStateChangeAt;
+  final List<CircuitTransition> _transitions = <CircuitTransition>[];
+
   final _stateController = StreamController<CircuitState>.broadcast();
   Stream<CircuitState> get stateStream => _stateController.stream;
 
   CircuitState get state => _state;
   int get failureCount => _failureCount;
   int get successCount => _successCount;
+
+  /// ✅ P1: الإخفاقات المتتالية الحالية في half-open.
+  int get halfOpenConsecutiveFailures => _halfOpenConsecutiveFailures;
+
+  /// ✅ P1: وقت آخر انتقال حالة (أو null إذا لم يحدث انتقال بعد).
+  DateTime? get lastStateChangeAt => _lastStateChangeAt;
+
+  /// ✅ P1: إجمالي عدد انتقالات الحالة منذ الإنشاء/آخر reset.
+  int get transitionCount => _transitionCount;
+
+  /// ✅ P1: سجل الانتقالات الأخيرة (الأقدم أولاً، محدود بـ
+  /// [CircuitBreakerConfig.maxTransitionHistory]).
+  List<CircuitTransition> get transitions =>
+      List<CircuitTransition>.unmodifiable(_transitions);
 
   // ✅ P1-9 fix: latch لمنع thundering herd في half-open
   bool _halfOpenProbeInFlight = false;
@@ -98,6 +150,8 @@ class CircuitBreaker {
 
     if (_state == CircuitState.halfOpen) {
       _successCount++;
+      // ✅ P1: نجاح المسبار يصفّر عدّاد الإخفاقات المتتالية.
+      _halfOpenConsecutiveFailures = 0;
       dlog(
         () =>
             '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
@@ -121,7 +175,20 @@ class CircuitBreaker {
     );
 
     if (_state == CircuitState.halfOpen) {
-      _transitionTo(CircuitState.open);
+      // ✅ P1: عتبة الإخفاقات المتتالية في half-open — الافتراضي 1
+      // يحافظ على السلوك السابق (فشل واحد = إعادة الفتح).
+      _halfOpenConsecutiveFailures++;
+      if (_halfOpenConsecutiveFailures >=
+          config.halfOpenMaxConsecutiveFailures) {
+        _halfOpenConsecutiveFailures = 0;
+        _transitionTo(CircuitState.open);
+      } else {
+        dlog(
+          () =>
+              '⚠️ [CircuitBreaker] [$name] فشل مسبار half-open '
+              '($_halfOpenConsecutiveFailures/${config.halfOpenMaxConsecutiveFailures})',
+        );
+      }
     } else if (_failureCount >= config.failureThreshold) {
       _transitionTo(CircuitState.open);
     }
@@ -144,6 +211,16 @@ class CircuitBreaker {
     final oldState = _state;
     _state = newState;
 
+    // ✅ P1: ختم زمني + سجل محدود لكل انتقال حالة.
+    _lastStateChangeAt = DateTime.now();
+    _transitionCount++;
+    _transitions.add(
+      CircuitTransition(from: oldState, to: newState, at: _lastStateChangeAt!),
+    );
+    while (_transitions.length > config.maxTransitionHistory) {
+      _transitions.removeAt(0);
+    }
+
     dlog(() => '🔄 [CircuitBreaker] [$name] $oldState → $newState');
 
     _stateController.add(newState);
@@ -154,6 +231,7 @@ class CircuitBreaker {
       _cancelReset();
       _failureCount = 0;
       _successCount = 0;
+      _halfOpenConsecutiveFailures = 0;
     }
   }
 
@@ -176,6 +254,7 @@ class CircuitBreaker {
     dlog(() => '🔄 [CircuitBreaker] [$name] إعادة تعيين يدوية');
     _failureCount = 0;
     _successCount = 0;
+    _halfOpenConsecutiveFailures = 0;
     _lastFailureTime = null;
     _transitionTo(CircuitState.closed);
   }
@@ -187,6 +266,13 @@ class CircuitBreaker {
       'failureCount': _failureCount,
       'successCount': _successCount,
       'lastFailureTime': _lastFailureTime?.toIso8601String(),
+      // ✅ P1: مراقبة الانتقالات وhalf-open.
+      'lastStateChangeAt': _lastStateChangeAt?.toIso8601String(),
+      'transitionCount': _transitionCount,
+      'halfOpenConsecutiveFailures': _halfOpenConsecutiveFailures,
+      'recentTransitions': [
+        for (final t in _transitions) t.toString(),
+      ],
     };
   }
 
