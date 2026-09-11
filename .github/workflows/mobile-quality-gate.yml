@@ -283,13 +283,17 @@ jobs:
         #      - تستغرق 15+ دقيقة وتُلغى بسبب job timeout
         #    هذه الاختبارات benchmarks وليست unit tests، تُشغّل يدوياً
         #    عبر: flutter test test/performance/ --include-tags performance
-        # ✅ FIX: --concurrency=2 (بدل 4) لتقليل ضغط الذاكرة على CI runner
+        # ✅ FIX: --concurrency=1 + بلا --coverage — منذ bbd70be6 (+14 ملف اختبار)
+        #    ينهار flutter_tester بsegfault عشوائي عندما تُجمع coverage مع التشغيل
+        #    المتوازي، فيعلق المنسّق حتى job timeout (سجل CI 4e906555: «00:43 +96 -2»
+        #    ثم تجمّد 40 دقيقة؛ وانهارت كل محاولات coverage محلياً حتى مع concurrency=1،
+        #    بينما اكتملت المجموعة بلا coverage 3 مرات في 2:24 د). خطوة المعالجة
+        #    أدناه تتخطى غياب الملف بأمان (Skipped).
         # ✅ FIX: --timeout=180s (بدل 120s) لمنع timeout على PBKDF2 tests
         run: |
-          echo "🧪 Running unit tests with coverage (excluding performance)..."
+          echo "🧪 Running unit tests (excluding performance; coverage suspended — flutter_tester segfault)"
           flutter test \
-            --coverage \
-            --concurrency=2 \
+            --concurrency=1 \
             --timeout=180s \
             --exclude-tags performance,slow,integration \
             --test-randomize-ordering-seed random \

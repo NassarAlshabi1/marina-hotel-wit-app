@@ -55,12 +55,19 @@ jobs:
       #    - integration: اختبارات tagged بـ @Tags(['integration'])
       #    - performance: اختبارات test/performance/* التي تحتاج Appwrite
       #      حقيقي وتسبب "Timer is still pending" hang + timeout في CI
-      #  --concurrency=2: تقليل ضغط الذاكرة
+      #  --concurrency=1 + بلا --coverage: منع segfault في flutter_tester — منذ bbd70be6
+      #    (+14 ملف اختبار +3538 سطراً) ينهار flutter_tester بsegfault عشوائي (ملفات مختلفة
+      #    كل تشغيل) عندما تُجمع coverage مع تشغيل متوازٍ، فيعلق المنسّق حتى timeout.
+      #    الأدلة: سجل CI 4e906555 «00:43 +96 -2» ثم تجمّد حتى المهلة؛ والمجموعة
+      #    كاملة (1498 اختباراً) تمرّ محلياً 3 مرات بلا coverage في 2:24 د، بينما
+      #    انهارت في كل محاولات coverage حتى مع concurrency=1.
+      #    التغطية تُستعاد لاحقاً عبر job مجدول/يدوي مخصص عند حل الخلل الأعلى.
+      #    خطوات الملخص أدناه تتخطى غياب coverage/lcov.info بأمان (Skipped).
       #  --timeout=60s: timeout قصير لمنع التعليق
       #  test/flutter_test_config.dart يُهيِّئ sqfliteFfiInit() تلقائياً
       # ═══════════════════════════════════════════════════════════
       - name: Run tests
-        run: flutter test --coverage --concurrency=2 --timeout=180s --exclude-tags integration,performance,slow --reporter compact
+        run: flutter test --concurrency=1 --timeout=180s --exclude-tags integration,performance,slow --reporter compact
         # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
         # فشل الاختبارات يجب أن يُكسر الـ build لمنع دفع كود مكسور للإنتاج.
 
