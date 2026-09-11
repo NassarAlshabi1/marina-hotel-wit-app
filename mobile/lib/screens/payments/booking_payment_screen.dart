@@ -403,6 +403,24 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paidAmount = dbPayments
         .where((p) => !p.isVoided)
         .fold<double>(0, (s, p) => s + p.amount);
+
+    // ✅ بطاقة «آخر مبلغ مدفوع»: أحدث دفعة غير ملغاة. الـ provider
+    // (paymentsByBooking) يُرتّب المدفوعات تنازلياً بتاريخ الدفع، ومع ذلك
+    // نتحقق صراحةً بمقارنة التواريخ لضمان الصحيح حتى لو تغيّر الترتيب
+    // مستقبلاً أو وُجد تاريخ بتنسيق غير قابل للتحليل.
+    db.Payment? lastPayment;
+    for (final p in dbPayments) {
+      if (p.isVoided) continue;
+      if (lastPayment == null) {
+        lastPayment = p;
+        continue;
+      }
+      final pd = DateTime.tryParse(p.paymentDate);
+      final ld = DateTime.tryParse(lastPayment.paymentDate);
+      if (pd != null && (ld == null || pd.isAfter(ld))) {
+        lastPayment = p;
+      }
+    }
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPaidAmount = dbPayments
         .where(
@@ -507,6 +525,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ),
               ),
+              // ✅ بطاقة صغيرة: آخر مبلغ مدفوع — تظهر فقط عند وجود دفعات فعلية
+              if (lastPayment != null)
+                RepaintBoundary(child: _buildLastPaymentCard(lastPayment)),
               const SizedBox(height: 8),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -579,6 +600,63 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// ✅ بطاقة صغيرة تعرض آخر مبلغ مدفوع (أحدث دفعة غير ملغاة) مع طريقة
+  /// الدفع وتاريخها — تُبنى فقط عند وجود دفعات، ومخفية تماماً غير ذلك.
+  Widget _buildLastPaymentCard(db.Payment lastPayment) {
+    final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
+    final paidAt = DateTime.tryParse(lastPayment.paymentDate);
+    final dateText = paidAt != null
+        ? dateFmt.format(paidAt)
+        : lastPayment.paymentDate;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 13,
+            backgroundColor: Colors.green.shade100,
+            child: Icon(Icons.payments, size: 15, color: Colors.green.shade700),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'آخر مبلغ مدفوع',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                Text(
+                  '${_currencyFmt.format(lastPayment.amount)} • ${lastPayment.paymentMethod}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            dateText,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+          ),
+        ],
       ),
     );
   }

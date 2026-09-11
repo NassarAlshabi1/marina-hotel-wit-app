@@ -186,7 +186,9 @@ class SyncGate {
   /// ✅ P0-1: المهلة التي تُعتبر بعدها العملية الحالية «متعثرة» وتُحرَّر
   /// البوّابة تلقائياً. قابلة للتعديل للاختبارات (الافتراضي 5 دقائق
   /// حسب توصية التقرير).
-  Duration stuckTimeout = const Duration(milliseconds: _defaultStuckThresholdMs);
+  Duration stuckTimeout = const Duration(
+    milliseconds: _defaultStuckThresholdMs,
+  );
 
   /// ✅ P0-2: رد نداء اختياري يُستدعى عند كل رفض دخول — لتوصيل مسجّل
   /// خارجي (AppwriteLogger مثلاً) دون إدخال تبعيات في هذه الوحدة.
