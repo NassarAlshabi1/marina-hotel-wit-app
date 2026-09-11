@@ -525,7 +525,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ),
               ),
-              // ✅ بطاقة صغيرة: آخر مبلغ مدفوع — تظهر فقط عند وجود دفعات فعلية
+              // ✅ بطاقة صغيرة: آخر مبلغ مدفوع — المبلغ فقط بدون زيادات
               if (lastPayment != null)
                 RepaintBoundary(child: _buildLastPaymentCard(lastPayment)),
               const SizedBox(height: 8),
@@ -604,17 +604,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-  /// ✅ بطاقة صغيرة تعرض آخر مبلغ مدفوع (أحدث دفعة غير ملغاة) مع طريقة
-  /// الدفع وتاريخها — تُبنى فقط عند وجود دفعات، ومخفية تماماً غير ذلك.
+  /// ✅ بطاقة صغيرة تعرض آخر مبلغ مدفوع — المبلغ فقط، بدون أي زيادات
+  /// (لا طريقة دفع، لا تاريخ، لا أيقونات).
   Widget _buildLastPaymentCard(db.Payment lastPayment) {
-    final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
-    final paidAt = DateTime.tryParse(lastPayment.paymentDate);
-    final dateText = paidAt != null
-        ? dateFmt.format(paidAt)
-        : lastPayment.paymentDate;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.green.shade50,
         borderRadius: BorderRadius.circular(10),
@@ -622,39 +617,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 13,
-            backgroundColor: Colors.green.shade100,
-            child: Icon(Icons.payments, size: 15, color: Colors.green.shade700),
-          ),
-          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'آخر مبلغ مدفوع',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                Text(
-                  '${_currencyFmt.format(lastPayment.amount)} • ${lastPayment.paymentMethod}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade800,
-                  ),
-                ),
-              ],
+            child: Text(
+              'آخر مبلغ مدفوع',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
             ),
           ),
           Text(
-            dateText,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+            _currencyFmt.format(lastPayment.amount),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Colors.green.shade800,
+            ),
           ),
         ],
       ),
