@@ -245,7 +245,9 @@ jobs:
   test:
     name: Unit Tests & Coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 40 دقيقة: نمت المجموعة (P0/P1 hardening + بطاقة آخر مبلغ مدفوع) —
+    # تجاوزت المهلة القديمة (25) وأُلغيت عند 25m26s فعلياً
+    timeout-minutes: 40
     needs: [setup, analyze]
     if: ${{ inputs.run_tests != false || inputs.check_level != 'performance' }}
     

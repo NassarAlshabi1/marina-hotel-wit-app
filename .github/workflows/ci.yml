@@ -18,10 +18,10 @@ on:
 jobs:
   lint-test:
     runs-on: ubuntu-latest
-    # 30 دقيقة: نمت المجموعة إلى 1581+ اختباراً (Phase 3 + الإصلاحات)
-    # وflutter test --coverage --concurrency=2 على ubuntu-latest
-    # يحتاج ~20-25 دقيقة — كان يتجاوز الحد القديم (20) ويُلغى
-    timeout-minutes: 30
+    # 45 دقيقة: نمت المجموعة أكثر (P0/P1 hardening + اختبارات بطاقة آخر مبلغ مدفوع)
+    # وflutter test --coverage --concurrency=2 على ubuntu-latest تجاوز 30 دقيقة
+    # وأُلغيت عند المهلة القديمة (كانت 20 ثم 30) — نفس نمط الرفع السابق
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: mobile
