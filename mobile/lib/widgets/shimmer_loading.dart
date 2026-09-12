@@ -371,7 +371,7 @@ class ShimmerSummaryCard extends StatelessWidget {
         children: List.generate(itemCount, (index) {
           // البطاقات في صفين (2 في كل صف)
           final width =
-              (MediaQuery.of(context).size.width - 44) /
+              (MediaQuery.sizeOf(context).width - 44) /
               (itemCount > 2 ? 2 : itemCount);
           return SizedBox(
             width: width,

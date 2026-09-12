@@ -251,7 +251,7 @@ class AdminSidebar extends ConsumerWidget {
               onTap: () async {
                 // إغلاق الـ Drawer في الموبايل قبل تسجيل الخروج
                 try {
-                  final isTablet = MediaQuery.of(context).size.width >= 768;
+                  final isTablet = MediaQuery.sizeOf(context).width >= 768;
                   if (!isTablet && Navigator.of(context).canPop()) {
                     Navigator.of(context).pop();
                   }
@@ -301,7 +301,7 @@ class AdminSidebar extends ConsumerWidget {
           if (context != null) {
             try {
               // تحقق مما إذا كان هناك drawer مفتوح وأغلقه
-              final isTablet = MediaQuery.of(context).size.width >= 768;
+              final isTablet = MediaQuery.sizeOf(context).width >= 768;
               if (!isTablet && Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
               }
