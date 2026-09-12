@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../utils/performance_config.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
@@ -99,6 +100,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     ref.invalidate(employeesListProvider);
                   },
                   child: ListView.builder(
+                    // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+                    scrollCacheExtent: optimizedScrollCacheExtent,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: employees.length,
                     itemBuilder: (context, index) {

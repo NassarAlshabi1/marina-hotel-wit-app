@@ -10,6 +10,7 @@ class MainActivity : FlutterActivity() {
     private companion object {
         const val MEMORY_CHANNEL = "com.aden.marina/device_memory"
         const val GET_TOTAL_MEMORY_BYTES = "getTotalMemoryBytes"
+        const val IS_LOW_RAM_DEVICE = "isLowRamDevice"
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -19,6 +20,7 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     GET_TOTAL_MEMORY_BYTES -> result.success(totalMemoryBytes())
+                    IS_LOW_RAM_DEVICE -> result.success(isLowRamDevice())
                     else -> result.notImplemented()
                 }
             }
@@ -31,5 +33,15 @@ class MainActivity : FlutterActivity() {
         val memoryInfo = ActivityManager.MemoryInfo()
         activityManager.getMemoryInfo(memoryInfo)
         return memoryInfo.totalMem.takeIf { it > 0L }
+    }
+
+    /// إشارة أندرويد الرسمية لجهاز منخفض الذاكرة (1GB / Android Go).
+    /// موثوقة أكثر من قراءة totalMem وحدها لأن النظام نفسه يعتمدها
+    /// في قرارات قتل العمليات وحدود الكاش.
+    private fun isLowRamDevice(): Boolean {
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE)
+            as? ActivityManager
+            ?: return false
+        return activityManager.isLowRamDevice
     }
 }
