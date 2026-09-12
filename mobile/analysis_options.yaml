@@ -35,3 +35,8 @@ linter:
     close_sinks: true
     prefer_const_constructors: true
     use_key_in_widget_constructors: true
+    # Performance (docs/PERFORMANCE.md §2.1): const everywhere + whitespace hygiene.
+    prefer_const_literals_to_create_immutables: true
+    prefer_const_declarations: true
+    avoid_unnecessary_containers: true
+    sized_box_for_whitespace: true

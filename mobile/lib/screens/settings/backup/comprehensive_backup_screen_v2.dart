@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
 import 'tabs/appwrite_backup_tab.dart';
+import 'tabs/cloudflare_d1_tab.dart';
 import 'tabs/local_backups_tab.dart';
 
 /// Comprehensive Backup Screen - الشاشة الرئيسية للنسخ الاحتياطي
@@ -35,7 +36,7 @@ class _ComprehensiveBackupScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -67,6 +68,7 @@ class _ComprehensiveBackupScreenState
               indicatorColor: UIConstants.backupColor,
               tabs: const [
                 Tab(icon: Icon(Icons.cloud_upload), text: 'Appwrite'),
+                Tab(icon: Icon(Icons.dns), text: 'Cloudflare D1'),
                 Tab(icon: Icon(Icons.phone_android), text: 'النسخ المحلية'),
               ],
             ),
@@ -76,7 +78,11 @@ class _ComprehensiveBackupScreenState
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [AppwriteBackupTab(), LocalBackupsTab()],
+              children: const [
+                AppwriteBackupTab(),
+                CloudflareD1Tab(),
+                LocalBackupsTab(),
+              ],
             ),
           ),
         ],
@@ -96,6 +102,9 @@ class _ComprehensiveBackupScreenState
             '  - ينشئ ملف JSON من البيانات المحلية\n'
             '  - يرفعه إلى Appwrite بعد تأكيد صريح\n'
             '  - لا يُسمح به ما دام Outbox يحتوي تغييرات غير مُسلّمة\n\n'
+            '• Cloudflare D1: رفع جميع البيانات المحلية إلى قاعدة D1\n'
+            '  - كتابة آمنة بأسلوب INSERT OR REPLACE\n'
+            '  - اختيار الجداول وعرض التقدم والإيقاف\n\n'
             '• النسخ المحلية: نسخ على ذاكرة الجهاز\n'
             '  - إنشاء نسخة احتياطية محلية\n'
             '  - استعادة من نسخة محلية\n'

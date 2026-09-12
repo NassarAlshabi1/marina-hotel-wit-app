@@ -115,6 +115,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         await smartSyncManager.forceSyncNow();
       }
 
+      // تفاعل يدوي صريح — دفع وسحب عبر المحرك الموحد (دلتا checkpoints)
       await appwriteSyncManager.sync();
 
       if (mounted) {
@@ -456,6 +457,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
       await smartSyncManager.pullRemoteChanges();
+      // تفاعل يدوي صريح — سحب عبر المحرك الموحد (دلتا checkpoints)
       await appwriteSyncManager.sync(push: false);
 
       if (mounted) {

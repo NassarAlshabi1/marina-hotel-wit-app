@@ -13,6 +13,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/appwrite_cache_manager.dart';
+import '../../services/appwrite_logger.dart';
 import '../../services/appwrite_models.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
@@ -36,6 +37,15 @@ class _AppwriteSettingsScreenState
   bool _logFile = false;
   bool _isLoading = false;
 
+  /// تنفيذ آمن لـ setState — يتحقق من mounted قبل الاستدعاء.
+  void _safeSetState(VoidCallback fn) {
+    if (mounted) {
+      setState(fn);
+    } else {
+      fn();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +55,9 @@ class _AppwriteSettingsScreenState
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _cacheEnabled = prefs.getBool('appwrite_cache_enabled') ?? true;
       _cacheTTLHours = prefs.getInt('appwrite_cache_ttl') ?? 6;
@@ -53,6 +66,33 @@ class _AppwriteSettingsScreenState
       _logConsole = prefs.getBool('appwrite_log_console') ?? true;
       _logFile = prefs.getBool('appwrite_log_file') ?? false;
     });
+    await _applyLoggerSettings();
+  }
+
+  LogLevel _selectedLogLevel() {
+    switch (_logLevel) {
+      case 'debug':
+        return LogLevel.debug;
+      case 'warning':
+        return LogLevel.warning;
+      case 'error':
+        return LogLevel.error;
+      case 'critical':
+        return LogLevel.critical;
+      case 'info':
+      default:
+        return LogLevel.info;
+    }
+  }
+
+  Future<void> _applyLoggerSettings() {
+    return ref
+        .read(ap.appwriteLoggerProvider)
+        .initialize(
+          minLevel: _selectedLogLevel(),
+          enableConsole: _logConsole,
+          enableFile: _logFile,
+        );
   }
 
   Future<void> _saveLocalSettings() async {
@@ -526,7 +566,7 @@ class _AppwriteSettingsScreenState
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _clearCache,
+                onPressed: _isLoading ? null : _clearCache,
                 icon: const Icon(Icons.delete_sweep),
                 label: const Text('مسح الذاكرة المؤقتة'),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -572,10 +612,12 @@ class _AppwriteSettingsScreenState
                     child: Text(value.toUpperCase()),
                   );
                 }).toList(),
-                onChanged: (value) {
+                onChanged: (value) async {
                   if (value != null) {
                     setState(() => _logLevel = value);
-                    _saveLocalSettings();
+                    await _saveLocalSettings();
+                    if (!mounted) return;
+                    await _applyLoggerSettings();
                   }
                 },
               ),
@@ -586,9 +628,11 @@ class _AppwriteSettingsScreenState
               title: 'تسجيل في Console',
               subtitle: 'عرض السجلات في وحدة التحكم',
               value: _logConsole,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _logConsole = value);
-                _saveLocalSettings();
+                await _saveLocalSettings();
+                if (!mounted) return;
+                await _applyLoggerSettings();
               },
             ),
 
@@ -597,9 +641,11 @@ class _AppwriteSettingsScreenState
               title: 'تسجيل في الملفات',
               subtitle: 'حفظ السجلات في ملفات نصية',
               value: _logFile,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _logFile = value);
-                _saveLocalSettings();
+                await _saveLocalSettings();
+                if (!mounted) return;
+                await _applyLoggerSettings();
               },
             ),
 
@@ -659,7 +705,7 @@ class _AppwriteSettingsScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _exportLogs,
+                    onPressed: _isLoading ? null : _exportLogs,
                     icon: const Icon(Icons.file_download),
                     label: const Text('تصدير'),
                   ),
@@ -667,7 +713,7 @@ class _AppwriteSettingsScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _clearLogs,
+                    onPressed: _isLoading ? null : _clearLogs,
                     icon: const Icon(Icons.delete),
                     label: const Text('مسح'),
                     style: ElevatedButton.styleFrom(
@@ -776,9 +822,9 @@ class _AppwriteSettingsScreenState
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  ref.invalidate(ap.devicesListProvider);
-                },
+                onPressed: _isLoading
+                    ? null
+                    : () => ref.invalidate(ap.devicesListProvider),
                 icon: const Icon(Icons.refresh),
                 label: const Text('تحديث قائمة الأجهزة'),
               ),
@@ -1137,7 +1183,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1163,6 +1209,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed ?? false) {
       ref.read(ap.appwriteCacheManagerProvider).clear();
+      ref.invalidate(ap.cacheStatsProvider);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -1193,6 +1240,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed ?? false) {
       ref.read(ap.appwriteLoggerProvider).clearLogs();
+      ref.invalidate(ap.logStatsProvider);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -1241,7 +1289,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1385,11 +1433,7 @@ class _AppwriteSettingsScreenState
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1460,11 +1504,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1504,12 +1544,16 @@ class _AppwriteSettingsScreenState
     setState(() => _isLoading = true);
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
-      await manager.pullAllRemoteData();
+      final pulledChanges = await manager.pullAllRemoteData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم سحب البيانات بنجاح'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              pulledChanges
+                  ? 'تم سحب التغييرات من السحابة بنجاح'
+                  : 'اكتمل الفحص دون تغييرات مطبقة؛ قد لا توجد تغييرات جديدة أو توجد تغييرات محلية غير مرفوعة',
+            ),
+            backgroundColor: pulledChanges ? Colors.green : Colors.orange,
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
@@ -1535,15 +1579,15 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
   Future<void> _resetSync() async {
+    if (_isLoading) {
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1563,14 +1607,33 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed ?? false) {
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
       await ref.read(ap.appwriteSyncManagerProvider).resetSyncState();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم إعادة تعيين المزامنة')),
+          const SnackBar(
+            content: Text('تم إعادة تعيين مؤشر المزامنة المحلي فقط'),
+            backgroundColor: Colors.green,
+          ),
         );
         ref.invalidate(ap.syncStatsProvider);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل إعادة تعيين المزامنة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1579,9 +1642,11 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _testSync() async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
+    }
     await _syncNow();
   }
 

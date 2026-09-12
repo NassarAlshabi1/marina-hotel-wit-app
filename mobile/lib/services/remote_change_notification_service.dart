@@ -83,6 +83,11 @@ class RemoteChangeNotificationService {
   /// Key: deviceId, Value: count of changes from that device.
   final Map<String, int> _pendingChanges = {};
 
+  /// Generation barrier for async callbacks that are in-flight during a
+  /// failed sync. clearPending() advances it so stale callbacks cannot
+  /// repopulate the notification batch after it has been cleared.
+  int _pendingGeneration = 0;
+
   /// ✅ Wave 7 tighten: Track entities for richer notification body.
   final Set<String> _pendingEntities = {};
 
@@ -108,6 +113,8 @@ class RemoteChangeNotificationService {
     required String? currentDeviceId,
     required int? lastModified,
   }) async {
+    final pendingGeneration = _pendingGeneration;
+
     // ✅ Filter: skip if change is from this device
     if (currentDeviceId != null &&
         currentDeviceId.isNotEmpty &&
@@ -154,7 +161,9 @@ class RemoteChangeNotificationService {
       // Continue anyway — better to show duplicate than miss a change
     }
 
-    // ✅ Batch: collect change, don't show immediately
+    // ✅ Batch: collect change, don't show immediately. If clearPending()
+    // ran while the async dedup work was in flight, discard this stale event.
+    if (pendingGeneration != _pendingGeneration) return;
     _pendingChanges[remoteDeviceId] =
         (_pendingChanges[remoteDeviceId] ?? 0) + 1;
     _pendingEntities.add(entity);
@@ -234,6 +243,7 @@ class RemoteChangeNotificationService {
 
   /// Clear all pending changes (e.g., when sync fails).
   void clearPending() {
+    _pendingGeneration++;
     _pendingChanges.clear();
     _pendingEntities.clear();
   }

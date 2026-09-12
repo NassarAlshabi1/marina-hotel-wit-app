@@ -197,7 +197,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: MediaQuery.of(context).size.width > 600
+                      crossAxisCount: MediaQuery.sizeOf(context).width > 600
                           ? 5
                           : 3,
                       childAspectRatio: 0.85,

@@ -15,6 +15,7 @@ import '../inventory/inventory_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
+import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'remote_config_settings_screen.dart';
 import 'settings_custom_lists.dart';
@@ -258,6 +259,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               context,
               MaterialPageRoute<void>(
                 builder: (context) => const SyncHealthScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'النسخ الاحتياطي - Google Drive',
+            subtitle: 'نسخ احتياطي واستعادة من Google Drive',
+            icon: Icons.cloud_upload,
+            color: Colors.teal,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const GoogleDriveBackupScreen(),
               ),
             ),
           ),

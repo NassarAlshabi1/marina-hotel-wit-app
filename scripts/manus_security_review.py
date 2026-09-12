@@ -22,7 +22,12 @@ from typing import Any
 API_BASE = os.environ.get("MANUS_API_BASE", "https://api.manus.ai").rstrip("/")
 POLL_SECONDS = 5
 MAX_POLLS = 240
-MAX_DIFF_CHUNK_CHARS = 12_000
+# ✅ 2026-08-31: خُفِّض من 12_000 إلى 5_000 حرف.
+# الـ Manus API يحدّ "message content" بـ 5000 estimated tokens، والمحتوى
+# العربي (تعليقات YAML/Dart) يستهلك توكنات أكثر من الإنجليزية (~2 حرف/توكن)،
+# فجزء 12K حرف قد يتجاوز الحد ويفشل الطلب بـ HTTP 400 (run 33440645636).
+# حدّ 5_000 حرف يبقى دائماً تحت سقف الـ API حتى مع نص عربي كثيف.
+MAX_DIFF_CHUNK_CHARS = 5_000
 
 SCHEMA: dict[str, Any] = {
     "type": "object",

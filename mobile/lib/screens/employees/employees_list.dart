@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../utils/performance_config.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/auth_provider.dart';
@@ -117,6 +118,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                   },
                   child: ListView.builder(
                     key: ValueKey(_refreshCounter),
+                    // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+                    scrollCacheExtent: optimizedScrollCacheExtent,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 8,

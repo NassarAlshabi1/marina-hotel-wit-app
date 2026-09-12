@@ -69,20 +69,41 @@ class WeakDeviceOptimizer {
   ///
   /// لا يعرّض `device_info_plus` حجم RAM الفعلي بشكل ثابت على كل إصداراته،
   /// لذلك لا يعتمد التطبيق على عدد الأنوية إلا عند فشل القناة الأصلية.
+  ///
+  /// ✅ Low-RAM: إذا أبلغ أندرويد رسمياً `isLowRamDevice == true`
+  /// (أجهزة 1GB / أندرويد Go)، نفرض سقف 1024MB حتى لو أبلغت الذاكرة
+  /// عن قيمة أعلى — حماية من تهنيج على الأجهزة المستهدفة.
   Future<int> _detectMemoryMB() async {
     if (Platform.isAndroid) {
+      var detected = 0;
       try {
         final totalBytes = await _memoryChannel.invokeMethod<int>(
           'getTotalMemoryBytes',
         );
         if (totalBytes != null && totalBytes > 0) {
-          return totalBytes ~/ _bytesPerMb;
+          detected = totalBytes ~/ _bytesPerMb;
         }
       } on PlatformException catch (error) {
         dlog(() => 'Native RAM probe unavailable: ${error.code}');
       } catch (error) {
         dlog(() => 'Native RAM probe failed: $error');
       }
+
+      try {
+        final lowRam = await _memoryChannel.invokeMethod<bool>(
+          'isLowRamDevice',
+        );
+        if (lowRam == true && (detected == 0 || detected > 1024)) {
+          detected = 1024;
+          dlog(() => 'Android flags this device as isLowRamDevice → cap 1GB');
+        }
+      } on PlatformException catch (error) {
+        dlog(() => 'Low-RAM probe unavailable: ${error.code}');
+      } catch (error) {
+        dlog(() => 'Low-RAM probe failed: $error');
+      }
+
+      if (detected > 0) return detected;
       return _conservativeAndroidFallback(_processorCount);
     }
 
@@ -120,6 +141,15 @@ class WeakDeviceOptimizer {
   bool get shouldUseLazyLoading => _optimizationLevel >= 1;
   bool get shouldLimitListItems => _optimizationLevel >= 2;
   bool get shouldDeferHeavyOps => _optimizationLevel >= 1;
+
+  /// انتقالات صفحات أرخص (FadeUpwards بدل Zoom الثقيل) على الأجهزة الضعيفة —
+  /// Zoom يحرّك كامل الشاشة بمقياس وتحت شجرة الاستهداف، مصدر تعليق واضح
+  /// على معالجات ضعيفة.
+  bool get useCheapPageTransitions => _optimizationLevel >= 2;
+
+  /// تعطيل الحركات المستمرة (shimmer أثناء التحميل) على أجهزة 1GB —
+  /// حركة مستمرة = إعادة رسم دائمة تستنزف CPU/GPU وتمنع الجهاز من الالتقاط.
+  bool get disableContinuousAnimations => _optimizationLevel >= 3;
 
   /// حجم دفعة المزامنة؛ يجب أن يستهلكه منسق المزامنة عند تنفيذ I/O.
   int get syncBatchSize {

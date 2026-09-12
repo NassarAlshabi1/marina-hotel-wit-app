@@ -18,6 +18,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/weak_device_optimizer.dart';
 
 class InformationScreen extends ConsumerStatefulWidget {
   const InformationScreen({super.key});
@@ -30,6 +31,18 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     with SyncOnExitMixin {
   bool _exportingPdf = false;
   final _verticalScrollController = ScrollController();
+
+  // ✅ إصلاح (2026-09-13): عرض مرقّم — حجم الصفحة الافتراضي من مستوى الجهاز
+  // (15 على أجهزة 1GB) مع إمكانية رفعه حتى 100 من عناصر التحكم أسفل الجدول.
+  // الجدول يبني صفوف الصفحة المرئية فقط، فتُعرض كل السجلات المسحوبة
+  // دون قصّ صامت ودون استنزاف ذاكرة على الأجهزة الضعيفة.
+  static const List<int> _availableRowsPerPage = [10, 15, 20, 30, 50, 100];
+  late int _rowsPerPage = _initialRowsPerPage();
+
+  static int _initialRowsPerPage() {
+    final preferred = WeakDeviceOptimizer.instance.maxListItemsBeforePagination;
+    return _availableRowsPerPage.contains(preferred) ? preferred : 15;
+  }
 
   @override
   void dispose() {
@@ -74,7 +87,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             tooltip: 'تصدير إلى PDF',
             onPressed: _exportingPdf || currentEntries.isEmpty
                 ? null
-                : () => _handleExport(currentEntries),
+                : _handleExport,
             icon: _exportingPdf
                 ? const SizedBox(
                     width: 20,
@@ -166,135 +179,105 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   Widget _buildTable(List<GuestInfo> entries) {
+    final source = _GuestInfoTableSource(
+      rows: entries,
+      onEdit: (info) => _openEditor(context, existing: info),
+      onDelete: _confirmDelete,
+    );
+
     return Card(
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(
-            Theme.of(context).colorScheme.primary,
-          ),
-          headingTextStyle: const TextStyle(color: Colors.white),
-          columns: const [
-            DataColumn(
-              label: Text('#', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            DataColumn(label: SizedBox.shrink()),
-            DataColumn(
-              label: Text(
-                'الغرفة',
-                style: TextStyle(fontWeight: FontWeight.bold),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 900),
+          // headingTextStyle غير متاح على PaginatedDataTable — نمرر تنسيق
+          // رأس الأعمدة (نص أبيض) عبر DataTableTheme داخل Theme محلي.
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              dataTableTheme: const DataTableThemeData(
+                headingTextStyle: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            DataColumn(
-              label: Text(
-                'اسم النزيل',
-                style: TextStyle(fontWeight: FontWeight.bold),
+            child: PaginatedDataTable(
+              header: Text('عدد السجلات: ${entries.length}'),
+              headingRowColor: WidgetStateProperty.all(
+                Theme.of(context).colorScheme.primary,
               ),
-            ),
-            DataColumn(
-              label: Text(
-                'الجنسية',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'رقم الهوية',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'نوع الهوية',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'تاريخ الإصدار',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'مكان الإصدار',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'المحافظة',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'الملاحظات',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-          rows: List.generate(entries.length, (index) {
-            final info = entries[index];
-            return DataRow(
-              cells: [
-                DataCell(Text('${index + 1}')),
-                DataCell(
-                  PopupMenuButton<String>(
-                    tooltip: 'إجراءات',
-                    icon: const Icon(Icons.more_vert, size: 20),
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _openEditor(context, existing: info);
-                      } else if (value == 'delete') {
-                        _confirmDelete(info);
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 18),
-                            SizedBox(width: 8),
-                            Text('تعديل'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.delete_outline,
-                              size: 18,
-                              color: Colors.red,
-                            ),
-                            SizedBox(width: 8),
-                            Text('حذف', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
+              columns: const [
+                DataColumn(
+                  label: Text(
+                    '#',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                DataCell(
-                  Text(
-                    info.roomNumber,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                DataColumn(label: SizedBox.shrink()),
+                DataColumn(
+                  label: Text(
+                    'الغرفة',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-                DataCell(Text(info.guestName)),
-                DataCell(Text(info.nationality)),
-                DataCell(Text(info.idNumber)),
-                DataCell(Text(info.idType)),
-                DataCell(Text(info.issueDate ?? '-')),
-                DataCell(Text(info.issuePlace ?? '-')),
-                DataCell(Text(info.governorate ?? '-')),
-                DataCell(Text(info.notes ?? '-')),
+                DataColumn(
+                  label: Text(
+                    'اسم النزيل',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'الجنسية',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'رقم الهوية',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'نوع الهوية',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'تاريخ الإصدار',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'مكان الإصدار',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'المحافظة',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                DataColumn(
+                  label: Text(
+                    'الملاحظات',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
-            );
-          }),
+              source: source,
+              rowsPerPage: _rowsPerPage,
+              availableRowsPerPage: _availableRowsPerPage,
+              onRowsPerPageChanged: (value) {
+                if (value == null) return;
+                setState(() => _rowsPerPage = value);
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -562,7 +545,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     }
   }
 
-  Future<void> _handleExport(List<GuestInfo> entries) async {
+  Future<void> _handleExport() async {
+    // ✅ إصلاح (2026-09-13): تصدير كل السجلات النشطة من القاعدة مباشرة —
+    // لا قصّ على حجم الصفحة المعروضة.
+    final entries = await ref.read(guestInfoRepoProvider).listAll();
     if (entries.isEmpty) {
       _showSnack('لا توجد بيانات للتصدير');
       return;
@@ -796,4 +782,92 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       dlog(() => '⚠️ فشلت المزامنة الفورية: $e');
     }
   }
+}
+
+/// ✅ مصدر بيانات PaginatedDataTable (2026-09-13) — يبني صفوف الصفحة
+/// المرئية فقط بدل بناء كل صفوف الجدول دفعة واحدة. هذا ما يسمح بإزالة
+/// حد SQLite القديم (15/100 سجل) الذي كان يُخفي السجلات المسحوبة
+/// بعد تجاوز الحد، مع الحفاظ على حماية ذاكرة الأجهزة الضعيفة.
+class _GuestInfoTableSource extends DataTableSource {
+  _GuestInfoTableSource({
+    required List<GuestInfo> rows,
+    required this.onEdit,
+    required this.onDelete,
+  }) : _rows = rows;
+
+  final List<GuestInfo> _rows;
+  final void Function(GuestInfo info) onEdit;
+  final void Function(GuestInfo info) onDelete;
+
+  @override
+  DataRow? getRow(int index) {
+    if (index < 0 || index >= _rows.length) {
+      return null;
+    }
+    final info = _rows[index];
+    return DataRow(
+      cells: [
+        // الرقم تسلسلي عام عبر كل الصفحات (لا يبدأ من 1 في كل صفحة).
+        DataCell(Text('${index + 1}')),
+        DataCell(
+          PopupMenuButton<String>(
+            tooltip: 'إجراءات',
+            icon: const Icon(Icons.more_vert, size: 20),
+            onSelected: (value) {
+              if (value == 'edit') {
+                onEdit(info);
+              } else if (value == 'delete') {
+                onDelete(info);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 18),
+                    SizedBox(width: 8),
+                    Text('تعديل'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('حذف', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        DataCell(
+          Text(
+            info.roomNumber,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        DataCell(Text(info.guestName)),
+        DataCell(Text(info.nationality)),
+        DataCell(Text(info.idNumber)),
+        DataCell(Text(info.idType)),
+        DataCell(Text(info.issueDate ?? '-')),
+        DataCell(Text(info.issuePlace ?? '-')),
+        DataCell(Text(info.governorate ?? '-')),
+        DataCell(Text(info.notes ?? '-')),
+      ],
+    );
+  }
+
+  @override
+  bool get isRowCountApproximate => false;
+
+  @override
+  int get rowCount => _rows.length;
+
+  @override
+  int get selectedRowCount => 0;
 }

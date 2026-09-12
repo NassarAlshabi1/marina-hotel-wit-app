@@ -276,6 +276,8 @@ class Payments extends Table with SyncFields {
   IntColumn get receivedByUserId => integer().nullable()();
   TextColumn get receivedByName => text().nullable()();
   TextColumn get receivedSessionUuid => text().nullable()();
+  // معرّف مستخدم Appwrite Cloud الثابت بين الأجهزة.
+  TextColumn get receivedByCloudId => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -1073,6 +1075,27 @@ class AncestorCache extends Table {
   ];
 }
 
+/// ✅ (2026-08-30) الفجوتان 3+4 — خريطة $updatedAt البعيدة لكل مستند مُسحوب.
+///
+/// تُستخدم في السحب الكامل (metadata-first): نسحب ($id + $updatedAt) فقط من
+/// الخادم ونقارنها بهذه الخريطة، ثم نُنزّل المستند الكامل فقط لما تغيّر فعلاً.
+/// تُحدَّث في `_checkpointEntity` بعد نجاح تطبيق كل دفعة سحب (delta أو full)،
+/// لذا وجود صف بطابع زمني يعني أن المحلي يملك محتوى ذلك الإصدار من الخادم.
+@DataClassName('SyncRemoteMetaRow')
+class SyncRemoteMeta extends Table {
+  /// معرّف كولكشن Appwrite (مثل 'bookings')
+  TextColumn get collection => text()();
+
+  /// معرّف المستند على الخادم ($id)
+  TextColumn get docId => text()();
+
+  /// $updatedAt بالثواني لآخر إصدار جُلب وطبّق بنجاح (سلطة الخادم)
+  IntColumn get remoteUpdatedAtSec => integer()();
+
+  @override
+  Set<Column> get primaryKey => {collection, docId};
+}
+
 @DriftDatabase(
   tables: [
     Rooms,
@@ -1107,6 +1130,7 @@ class AncestorCache extends Table {
     InventoryItems,
     InventoryTransactions,
     AncestorCache,
+    SyncRemoteMeta,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1116,7 +1140,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 63;
+  int get schemaVersion => 65;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1145,6 +1169,12 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-08-30) الإصدار 65: جدول sync_remote_meta للسحب metadata-first.
+      // يُنشأ لكل الترقيات (من أي إصدار) — فارغ مبدئياً فأول سحب كامل بعد
+      // الترقية يبنيه تدريجياً من دفعات checkpoint الناجحة.
+      if (from < 65) {
+        await m.createTable(syncRemoteMeta);
+      }
       if (from < 62) {
         await m.createTable(inventoryItems);
         await m.createTable(inventoryTransactions);
@@ -1162,6 +1192,11 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(payments, payments.receivedByUserId);
         await m.addColumn(payments, payments.receivedByName);
         await m.addColumn(payments, payments.receivedSessionUuid);
+      }
+      // الإصدار 64: هوية Appwrite Cloud الثابتة لاستلام الدفعة.
+      // Nullable عمداً؛ لا نعيد نسب السجلات القديمة إلى مستخدم دون دليل.
+      if (from < 64) {
+        await m.addColumn(payments, payments.receivedByCloudId);
       }
       if (from < 2) {
         await m.addColumn(bookings, bookings.guestIdType);
@@ -3519,6 +3554,58 @@ class AppDatabase extends _$AppDatabase {
           name: 'AppDatabase',
         );
       }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ✅ (2026-08-30) SyncRemoteMeta — helpers للسحب metadata-first (الفجوة 3+4)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// خريطة docId → $updatedAt (بالثواني) لكل مستندات كولكشن معروفة محلياً.
+  Future<Map<String, int>> getRemoteMetaMap(String collection) async {
+    final rows = await (select(
+      syncRemoteMeta,
+    )..where((t) => t.collection.equals(collection))).get();
+    return {for (final r in rows) r.docId: r.remoteUpdatedAtSec};
+  }
+
+  /// تحديث/إدراج خريطة $updatedAt البعيدة لكولكشن (دفعة واحدة على شرائح).
+  Future<void> upsertRemoteMeta(
+    String collection,
+    Map<String, int> meta,
+  ) async {
+    if (meta.isEmpty) return;
+    final entries = meta.entries.toList(growable: false);
+    // شرائح 500 لتجنب معاملات ضخمة على أجهزة ضعيفة
+    const chunkSize = 500;
+    for (var i = 0; i < entries.length; i += chunkSize) {
+      final end = (i + chunkSize < entries.length)
+          ? i + chunkSize
+          : entries.length;
+      final chunk = entries.sublist(i, end);
+      await batch((b) {
+        b.insertAllOnConflictUpdate(syncRemoteMeta, [
+          for (final e in chunk)
+            SyncRemoteMetaCompanion.insert(
+              collection: collection,
+              docId: e.key,
+              remoteUpdatedAtSec: e.value,
+            ),
+        ]);
+      });
+    }
+  }
+
+  /// مسح خريطة الـ metadata للكولكشن المحدد أو للكل.
+  /// يُستدعى من resetSyncState — مسحه إلزامي وإلا اعتبر السحب الكامل
+  /// التالي أن كل شيء محفوظ وتخطى الجلب.
+  Future<void> clearRemoteMeta({String? collection}) async {
+    if (collection == null) {
+      await delete(syncRemoteMeta).go();
+    } else {
+      await (delete(
+        syncRemoteMeta,
+      )..where((t) => t.collection.equals(collection))).go();
     }
   }
 }

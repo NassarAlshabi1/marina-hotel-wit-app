@@ -26,6 +26,7 @@ import 'package:marina_hotel_mobile/services/appwrite_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/rooms_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/services/payment_session_context.dart';
 import 'package:marina_hotel_mobile/services/repositories/bookings_repository.dart';
 import 'package:marina_hotel_mobile/services/repositories/payments_repository.dart';
 
@@ -49,6 +50,16 @@ void main() {
     final bookingsRepository = BookingsRepository(db);
     final paymentsRepository = PaymentsRepository(db);
     final outbox = OutboxDao(db, adapters);
+
+    // ✅ PaymentsRepository.create يتطلب جلسة مستخدم نشطة (guard حماية
+    // في الإنتاج — commit 5c267bf2). الاختبار يبدأ جلسة محلية كما تفعل
+    // بقية الاختبارات (payment_session_receipts_test.dart).
+    PaymentSessionContext.start(
+      userId: 1,
+      userName: 'Stress Tester',
+      sessionUuid: 'stress-session-1',
+    );
+    addTearDown(PaymentSessionContext.clear);
 
     AppwriteSyncManager? syncManager;
     if (_runRemoteSync) {

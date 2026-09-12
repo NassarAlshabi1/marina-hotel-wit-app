@@ -190,6 +190,8 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                         // ─── القائمة ───
                         Expanded(
                           child: ListView.separated(
+                            // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+                            scrollCacheExtent: optimizedScrollCacheExtent,
                             padding: const EdgeInsets.only(
                               top: 8,
                               right: 12,

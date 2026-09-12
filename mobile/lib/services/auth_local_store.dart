@@ -226,7 +226,9 @@ class AuthLocalStore {
           'password': (d['password'] ?? '').toString(),
           'full_name': (d['full_name'] ?? username).toString(),
           'user_type': (d['user_type'] ?? d['role'] ?? 'employee').toString(),
+          // id محلي للتوافق فقط؛ doc.$id هوية Cloud الثابتة بين الأجهزة.
           'id': doc.$id.hashCode,
+          'cloud_user_id': doc.$id,
           'doc_id': doc.$id,
           'is_cloud': true,
           'permissions_json': (d['permissions'] ?? '[]').toString(),
@@ -342,6 +344,7 @@ class AuthLocalStore {
 
     return {
       'id': account['id'] ?? 0,
+      'cloud_user_id': account['cloud_user_id'],
       'username': normalized,
       'full_name': (account['full_name'] ?? normalized).toString(),
       'user_type': (account['user_type'] ?? 'employee').toString(),
@@ -895,7 +898,7 @@ class AuthLocalStore {
 
   Future<bool> getRememberMe() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_kRememberMe) ?? false;
+    return prefs.getBool(_kRememberMe) ?? true;
   }
 
   Future<void> setAuthType(AuthType type) async {

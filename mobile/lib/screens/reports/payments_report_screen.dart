@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
+import '../../utils/performance_config.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
@@ -473,6 +474,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               icon: Icons.receipt_long,
             )
           : ListView.separated(
+              // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+              scrollCacheExtent: optimizedScrollCacheExtent,
               padding: const EdgeInsets.only(bottom: 8),
               itemCount: _rows.length,
               separatorBuilder: (_, _) => const SizedBox(height: 5),

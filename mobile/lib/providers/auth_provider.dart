@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/appwrite_realtime_sync.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 import '../services/payment_session_context.dart';
 import '../utils/app_logger.dart';
@@ -11,6 +13,7 @@ class AuthUser {
     required this.username,
     required this.fullName,
     required this.userType,
+    this.cloudUserId,
     this.permissions = const [],
   });
 
@@ -30,6 +33,7 @@ class AuthUser {
       username: (json['username'] ?? '').toString(),
       fullName: (json['full_name'] ?? json['name'] ?? '').toString(),
       userType: (json['user_type'] ?? '').toString(),
+      cloudUserId: json['cloud_user_id']?.toString(),
       permissions: rawPerms is List
           ? rawPerms.map((e) => e.toString()).toList()
           : const <String>[],
@@ -39,6 +43,7 @@ class AuthUser {
   final String username;
   final String fullName;
   final String userType;
+  final String? cloudUserId;
   final List<String> permissions;
 
   String get name => fullName.isNotEmpty ? fullName : username;
@@ -115,12 +120,15 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier()
-    : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
-    restoreSession();
+  AuthNotifier({AuthLocalStore? store, bool restoreSessionOnCreate = true})
+    : _store = store ?? AuthLocalStore(),
+      super(const AuthState(isAuthenticated: false, isRestoring: true)) {
+    if (restoreSessionOnCreate) {
+      restoreSession();
+    }
   }
 
-  final _store = AuthLocalStore();
+  final AuthLocalStore _store;
   Timer? _sessionCheckTimer;
 
   /// فحص دوري لصلاحية الجلسة — كل 30 ثانية
@@ -230,16 +238,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
       rememberMe: rememberMe,
       authType: authType,
     );
-    PaymentSessionContext.start(userId: user.id, userName: user.name);
+    PaymentSessionContext.start(
+      userId: user.id,
+      userName: user.name,
+      cloudUserId: user.cloudUserId,
+    );
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);
+
+    // ✅ V-4: استئناف مستمع Realtime بعد الدخول/الاستعادة (أُوقف في
+    // logout). Idempotent: start() تعود مبكراً إن كان الاستماع جارياً.
+    unawaited(_resumeCloudSyncAfterLogin());
   }
 
   Future<void> login(
     String username,
     String password, {
-    bool rememberMe = false,
+    bool rememberMe = true,
   }) async {
     PaymentSessionContext.clear();
     state = state.copyWith();
@@ -263,17 +279,57 @@ class AuthNotifier extends StateNotifier<AuthState> {
       currentUser: user,
       rememberMe: rememberMe,
     );
-    PaymentSessionContext.start(userId: user.id, userName: user.name);
+    PaymentSessionContext.start(
+      userId: user.id,
+      userName: user.name,
+      cloudUserId: user.cloudUserId,
+    );
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);
+
+    // ✅ V-4: استئناف مستمع Realtime بعد الدخول/الاستعادة (أُوقف في
+    // logout). Idempotent: start() تعود مبكراً إن كان الاستماع جارياً.
+    unawaited(_resumeCloudSyncAfterLogin());
   }
 
   Future<void> logout() async {
     _stopSessionCheck();
     PaymentSessionContext.clear();
+
+    // ✅ V-4 (تدقيق معماري): إيقاف مستمع Realtime عند الخروج — stop()
+    // تغلق الاشتراك وتفرّغ طابور الأحداث وتمنع إعادة الاتصال الإرادية.
+    // الاستئناف عند تسجيل الدخول التالي (_resumeCloudSyncAfterLogin).
+    await AppwriteRealtimeSync().stop();
+
     await _store.clearSession();
     state = const AuthState(isAuthenticated: false);
+  }
+
+  /// استئناف مستمع Realtime بعد الدخول/الاستعادة.
+  ///
+  /// قاعدة البيانات لا تُعاد إنشاؤها عند تسجيل الدخول
+  /// (DatabaseManager.instance ثابت) لذا لا توجد نقطة إعادة تشغيل
+  /// أخرى في دورة الحياة. العملية idempotent بالكامل:
+  /// - initialize() تضمن جاهزية Appwrite client وقناة Realtime.
+  /// - start() تعود مبكراً إذا كان الاستماع جارياً (_isListening).
+  /// - بلا deviceId محفوظ (تثبيت أول) نتخطى — مسار main.dart يسجّل
+  ///   الجهاز لاحقاً ويشغّل الاستماع من مساره الأساسي.
+  Future<void> _resumeCloudSyncAfterLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final deviceId =
+          prefs.getString('appwrite_device_id') ??
+          prefs.getString('appwrite_realtime_device_id');
+      if (deviceId == null) {
+        return;
+      }
+      final realtime = AppwriteRealtimeSync();
+      await realtime.initialize(deviceId: deviceId);
+      await realtime.start();
+    } catch (e) {
+      dwarn(() => 'Resume realtime after login error: $e');
+    }
   }
 
   Future<bool> updateUserPermissions(
