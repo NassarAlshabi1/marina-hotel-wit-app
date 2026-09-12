@@ -52,6 +52,7 @@ import 'sync_core/sync_checkpoint_store.dart';
 import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
 import 'sync_core/sync_pull_service.dart';
+import 'sync_core/tombstone_parents_repull.dart';
 import 'sync_core/unified_pull_engine.dart';
 import 'sync_enums.dart';
 import 'sync_locks.dart';
@@ -283,6 +284,33 @@ class AppwriteSyncManager {
       // ✅ نطاق السحب: تحميل الجداول المعطّلة من الإعدادات قبل أي دورة سحب
       // (الفلترة نفسها داخل _buildPullTasks — يغطي كل مسارات السحب).
       await SyncPullScope.load();
+
+      // ✅ إصلاح تسليم الآباء المحذوفين (2026-09-13): إعادة ضبط checkpoint
+      // الموظفين مرة واحدة بعد الترقية — الدورة التالية تسحبهم شاملين
+      // tombstones (الموظفون أصل FK للسحوبات القديمة بلا employeeUuid).
+      // قبل بدء أي مزامنة تلقائية ليضمن الدورة القادمة جلبهم قبل السحوبات
+      // (ترتيب المهام: employees أولاً).
+      try {
+        final repullPrefs = await SharedPreferences.getInstance();
+        final repulled = await TombstoneParentsRepull.runIfNeeded(
+          checkpoints: _checkpointStore,
+          prefs: repullPrefs,
+        );
+        if (repulled) {
+          _logger.info(
+            '🔄 employees checkpoint reset once — next pull re-downloads '
+            'employees including soft-deleted parents (FK parents of legacy '
+            'salary withdrawals without employeeUuid)',
+            tag: 'SYNC',
+          );
+        }
+      } catch (e) {
+        // لا يُفشل التهيئة — يُعاد المحاولة في التشغيل التالي (العلم لم يُكتب).
+        _logger.warning(
+          '⚠️ tombstone parents repull reset failed — will retry next init: $e',
+          tag: 'SYNC',
+        );
+      }
 
       // Fix potential stuck states
       // ✅ إصلاح: عند بدء التطبيق لا يوجد أي رفع جارٍ، لذا نستعيد كل السجلات
