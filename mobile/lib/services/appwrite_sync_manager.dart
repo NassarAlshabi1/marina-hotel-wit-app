@@ -3891,6 +3891,10 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
+    // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
+    // (بيانات قديمة بلا employeeUuid — تُشفى عبر
+    // scripts/appwrite/backfill_salary_withdrawals_employee_uuid.js)
+    final orphans = <String>[];
 
     for (final doc in documents) {
       try {
@@ -3957,9 +3961,9 @@ class AppwriteSyncManager {
         }
 
         if (employee == null) {
-          _logger.warning(
-            '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
-            tag: 'SYNC',
+          // ✅ تقليل السبام: تجميع بدل تحذير لكل سجل (قد تصل 70+ سجل/دورة)
+          orphans.add(
+            '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
           );
           continue;
         }
@@ -4016,6 +4020,16 @@ class AppwriteSyncManager {
           tag: 'SYNC',
         );
       }
+    }
+
+    // ✅ تقليل السبام: تحذير واحد ملخص لكل السجلات اليتيمة في هذه الدورة
+    if (orphans.isNotEmpty) {
+      final preview = orphans.take(5).join(', ');
+      _logger.warning(
+        '⏭️ تم تخطي ${orphans.length} سجل salary_withdrawals يتيم — الموظف غير موجود محلياً '
+        '(uuid/id/serverId): $preview${orphans.length > 5 ? " ..." : ""}',
+        tag: 'SYNC',
+      );
     }
 
     // ✅ إعادة محاولة السجلات المؤجلة بعد اكتمال باقي السجلات
@@ -7219,6 +7233,8 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
+    // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
+    final orphans = <String>[];
 
     for (final doc in documents) {
       try {
@@ -7285,9 +7301,9 @@ class AppwriteSyncManager {
         }
 
         if (employee == null) {
-          _logger.warning(
-            '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
-            tag: 'SYNC',
+          // ✅ تقليل السبام: تجميع بدل تحذير لكل سجل
+          orphans.add(
+            '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
           );
           continue;
         }
@@ -7329,6 +7345,16 @@ class AppwriteSyncManager {
           tag: 'SYNC',
         );
       }
+    }
+
+    // ✅ تقليل السبام: تحذير واحد ملخص لكل السجلات اليتيمة في هذه الدورة
+    if (orphans.isNotEmpty) {
+      final preview = orphans.take(5).join(', ');
+      _logger.warning(
+        '⏭️ تم تخطي ${orphans.length} سجل salary_cycles يتيم — الموظف غير موجود محلياً '
+        '(uuid/id/serverId): $preview${orphans.length > 5 ? " ..." : ""}',
+        tag: 'SYNC',
+      );
     }
 
     // ✅ إعادة محاولة السجلات المؤجلة
