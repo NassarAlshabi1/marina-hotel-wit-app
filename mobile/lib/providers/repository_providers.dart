@@ -281,13 +281,16 @@ final employeesListProvider = StreamProvider.autoDispose<List<Employee>>(
   ),
 );
 
+// ✅ إصلاح (2026-09-13): إزالة حد SQL من قائمة guest infos.
+// الحد القديم (maxListItemsBeforePagination = 15/20/50/100 حسب مستوى الجهاز)
+// كان يقصّ السجلات بصمت على مستوى SQLite — بعد سحب ناجح كان المستخدم يرى
+// أول 15 سجلاً فقط (أجهزة 1GB) وتبدو باقي البيانات "مفقودة" رغم أنها
+// موجودة كاملة في القاعدة. سجلات guest infos نصية صغيرة (~1KB)، وتحميل
+// الكل آمن ذاكرياً؛ حماية الأداء انتقلت للشاشة عبر PaginatedDataTable
+// (يبني صفوف الصفحة المرئية فقط).
 final guestInfoListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref
-        .watch(guestInfoRepoProvider)
-        .watchAll(
-          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
-        ),
+    ref.watch(guestInfoRepoProvider).watchAll(),
     const Duration(milliseconds: 150),
   ),
 );
