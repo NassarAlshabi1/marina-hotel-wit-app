@@ -38,6 +38,7 @@ class _UnifiedSyncSettingsScreenState
   int _syncIntervalMinutes = 15;
   bool _isSaving = false;
   Set<String> _pullDisabled = <String>{};
+  bool _isPullingNow = false;
 
   static const _autoSyncKey = 'appwrite_auto_sync_enabled';
   static const _syncOnStartupKey = 'appwrite_sync_on_startup';
@@ -467,6 +468,64 @@ class _UnifiedSyncSettingsScreenState
 
   // ─── نطاق السحب: اختيار الجداول المسحوبة من Appwrite ───
 
+  /// نص حالة آخر سحب — يُحدَّث مع كل setState بعد دورة مكتملة.
+  String get _lastPullSubtitle {
+    final manager = AppwriteSyncManager.instance;
+    final at = manager?.lastPullAt;
+    if (at == null) return 'لم يُنفّذ سحب بعد في هذه الجلسة';
+    final n = manager!.lastPullRecordsCount;
+    final relative = DateTimeFormatter.getRelativeTime(at.toIso8601String());
+    return n > 0
+        ? 'آخر سحب: $relative — $n سجل'
+        : 'آخر سحب: $relative — لا جديد';
+  }
+
+  /// سحب فوري عند الطلب من المستخدم (زر «سحب الآن»).
+  Future<void> _pullNow() async {
+    if (_isPullingNow) return;
+    setState(() => _isPullingNow = true);
+    try {
+      final manager = AppwriteSyncManager.instance;
+      if (manager == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'مدير المزامنة غير مهيّأ بعد — أعد المحاولة بعد فتح التطبيق',
+            ),
+          ),
+        );
+        return;
+      }
+      final changed = await manager.pullRemoteChanges();
+      if (!mounted) return;
+      if (changed) {
+        final n = manager.lastPullRecordsCount;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('تم السحب بنجاح — $n سجل جديد')));
+      } else {
+        // false يغطي: لا تغييرات، أو السحب مؤجل لوجود تغييرات محلية لم تُرفع.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'لا توجد تغييرات جديدة — أو السحب مؤجل حتى تُرفع تغييراتك المحلية المعلّقة',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('فشل السحب — تحقق من الاتصال بـ Appwrite وحاول مجدداً'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isPullingNow = false);
+    }
+  }
+
   Widget _buildPullScopeSection() {
     final total = SyncPullScope.catalog.length;
     final enabled = total - _pullDisabled.length;
@@ -506,6 +565,19 @@ class _UnifiedSyncSettingsScreenState
             leading: const Icon(Icons.checklist_rtl),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _isSaving ? null : _showPullScopeDialog,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('سحب الآن'),
+            subtitle: Text(_lastPullSubtitle),
+            leading: _isPullingNow
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  )
+                : const Icon(Icons.cloud_download),
+            onTap: (_isPullingNow || _isSaving) ? null : _pullNow,
           ),
           const Divider(height: 1),
           const Padding(

@@ -192,6 +192,12 @@ class AppwriteSyncManager {
   /// الوصول المباشر للـ instance (يُستخدم من شاشات الإعدادات)
   static AppwriteSyncManager? get instance => _instance;
 
+  /// عدد السجلات التي طبّقتها آخر دورة سحب مكتملة (0 = لا تغييرات).
+  int get lastPullRecordsCount => _lastPullRecords;
+
+  /// وقت اكتمال آخر دورة سحب (null = لم تكتمل دورة بعد في هذه الجلسة).
+  DateTime? get lastPullAt => _lastPullAt;
+
   /// إعادة تهيئة المزامنة بعد تغيير إعدادات Secondary
   Future<void> reinitializeAfterConfigChange() async {
     try {
@@ -248,6 +254,10 @@ class AppwriteSyncManager {
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
   DateTime? _lastSyncTime;
+
+  // ✅ نتيجة آخر دورة سحب مكتملة — للعرض في شاشة الإعدادات (زر سحب الآن).
+  int _lastPullRecords = 0;
+  DateTime? _lastPullAt;
   String? _currentDeviceId;
   String? _deviceLocalUuid;
   int? _deviceVersion;
@@ -5324,6 +5334,12 @@ class AppwriteSyncManager {
           recordsPulled = result.recordsPulled;
           failedCollections.addAll(result.failedCollections);
         });
+
+        // ✅ تسجيل نتيجة الدورة للعرض في شاشة الإعدادات (زر «سحب الآن»).
+        // يُسجَّل حتى مع فشل جزئي (failedCollections) لأن السجلات المطبَّقة
+        // حقيقية — الفشل الكامل (استثناء) لا يصل هنا أصلاً.
+        _lastPullRecords = recordsPulled;
+        _lastPullAt = DateTime.now();
 
         // ✅ P1-5 fix: تحديث المؤشر العام فقط إذا نجحت كل الكولكشنات
         // (توافق خلفي مع قراءة SyncState في أماكن أخرى — المؤشرات الفعلية
