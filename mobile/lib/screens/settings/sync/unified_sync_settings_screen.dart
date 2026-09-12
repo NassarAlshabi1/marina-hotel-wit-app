@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../components/app_scaffold.dart';
 import '../../../services/appwrite_realtime_sync.dart';
 import '../../../services/appwrite_sync_manager.dart';
+import '../../../services/sync_pull_scope.dart';
 import '../../../core/core.dart';
 
 /// Unified Sync Settings Screen
@@ -34,6 +37,7 @@ class _UnifiedSyncSettingsScreenState
   bool _realtimeSyncEnabled = true;
   int _syncIntervalMinutes = 15;
   bool _isSaving = false;
+  Set<String> _pullDisabled = <String>{};
 
   static const _autoSyncKey = 'appwrite_auto_sync_enabled';
   static const _syncOnStartupKey = 'appwrite_sync_on_startup';
@@ -52,6 +56,8 @@ class _UnifiedSyncSettingsScreenState
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    // ✅ نطاق السحب: تحميل الجداول المعطّلة (قد لم يُهيّئ المدير بعد).
+    await SyncPullScope.load();
     if (!mounted) return;
 
     setState(() {
@@ -63,6 +69,7 @@ class _UnifiedSyncSettingsScreenState
       _appwriteSyncEnabled = prefs.getBool(_appwriteSyncKey) ?? true;
       _realtimeSyncEnabled = prefs.getBool(_realtimeSyncKey) ?? true;
       _syncIntervalMinutes = prefs.getInt(_syncIntervalKey) ?? 15;
+      _pullDisabled = SyncPullScope.disabledSnapshot();
     });
   }
 
@@ -163,6 +170,11 @@ class _UnifiedSyncSettingsScreenState
 
           // Appwrite Sync
           _buildAppwriteSyncSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
+          // جداول السحب من Appwrite
+          _buildPullScopeSection(),
         ],
       ),
     );
@@ -451,6 +463,200 @@ class _UnifiedSyncSettingsScreenState
         ],
       ),
     );
+  }
+
+  // ─── نطاق السحب: اختيار الجداول المسحوبة من Appwrite ───
+
+  Widget _buildPullScopeSection() {
+    final total = SyncPullScope.catalog.length;
+    final enabled = total - _pullDisabled.length;
+    final subtitle = enabled == total
+        ? 'كل الجداول مفعّلة للسحب ($total)'
+        : enabled == 0
+        ? '⚠️ لا يُسحب أي جدول — السحب معطّل بالكامل'
+        : '$enabled من $total جدول مفعّل للسحب';
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.dataset,
+                  color: Colors.indigo,
+                  size: UIConstants.iconSizeMD,
+                ),
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
+                  'جداول السحب من Appwrite',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('اختيار الجداول المسحوبة'),
+            subtitle: Text(subtitle),
+            leading: const Icon(Icons.checklist_rtl),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _isSaving ? null : _showPullScopeDialog,
+          ),
+          const Divider(height: 1),
+          const Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: UIConstants.spacingMD,
+              vertical: UIConstants.spacingSM,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                'الجدول المعطّل لا يُسحب من السحابة، وعند إعادة تفعيله '
+                'يُسحب ما فاته تلقائياً من نقطة توقفه الأخيرة دون فقدان بيانات.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPullScopeDialog() async {
+    final working = Set<String>.from(_pullDisabled);
+    final saved = await showDialog<Set<String>>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('الجداول المسحوبة من Appwrite'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 460),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final entry
+                          in SyncPullScope.catalogByCategory.entries) ...[
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(
+                            top: UIConstants.spacingSM,
+                            bottom: UIConstants.spacingXS,
+                            start: UIConstants.spacingXS,
+                          ),
+                          child: Text(
+                            entry.key,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.indigo,
+                            ),
+                          ),
+                        ),
+                        for (final meta in entry.value)
+                          CheckboxListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: Text(meta.label),
+                            subtitle: meta.core
+                                ? const Text(
+                                    'أصل مرجعي — تعطيله قد يسبب سجلات يتيمة',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.orange,
+                                    ),
+                                  )
+                                : null,
+                            value: !working.contains(meta.name),
+                            onChanged: (checked) {
+                              setDialogState(() {
+                                if (checked ?? true) {
+                                  working.remove(meta.name);
+                                } else {
+                                  working.add(meta.name);
+                                }
+                              });
+                            },
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => setDialogState(working.clear),
+                  child: const Text('تحديد الكل'),
+                ),
+                TextButton(
+                  onPressed: () => setDialogState(
+                    () => working.addAll(SyncPullScope.catalogNames),
+                  ),
+                  child: const Text('إلغاء الكل'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('إلغاء'),
+                ),
+                FilledButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext, Set<String>.from(working)),
+                  child: const Text('حفظ'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (saved == null) return;
+    await _savePullScope(saved);
+  }
+
+  Future<void> _savePullScope(Set<String> disabled) async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      await SyncPullScope.setDisabled(disabled);
+      if (!mounted) return;
+      setState(() => _pullDisabled = Set<String>.from(disabled));
+
+      final enabledCount = SyncPullScope.catalog.length - disabled.length;
+      // سحب فوري لالتقاط ما فات الجداول التي أُعيد تفعيلها (ولو كان خاملاً
+      // فهو رخيص: Delta من checkpoint القديم لا يُرجع شيئاً).
+      final manager = AppwriteSyncManager.instance;
+      if (manager != null && _appwriteSyncEnabled) {
+        unawaited(manager.pullRemoteChanges().catchError((_) => false));
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabledCount == 0
+                ? 'تم حفظ النطاق — السحب معطّل لكل الجداول'
+                : 'تم حفظ النطاق: $enabledCount من '
+                      '${SyncPullScope.catalog.length} جدول مفعّل للسحب',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ نطاق السحب. حاول مرة أخرى.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   Future<void> _selectSyncInterval(int minutes) async {

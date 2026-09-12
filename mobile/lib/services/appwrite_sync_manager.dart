@@ -42,6 +42,7 @@ import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
 import 'sync_guard.dart';
+import 'sync_pull_scope.dart';
 import 'sync_performance_optimizer.dart';
 import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
@@ -268,6 +269,10 @@ class AppwriteSyncManager {
     try {
       await appwriteService.initialize();
       await _loadSettings();
+
+      // ✅ نطاق السحب: تحميل الجداول المعطّلة من الإعدادات قبل أي دورة سحب
+      // (الفلترة نفسها داخل _buildPullTasks — يغطي كل مسارات السحب).
+      await SyncPullScope.load();
 
       // Fix potential stuck states
       // ✅ إصلاح: عند بدء التطبيق لا يوجد أي رفع جارٍ، لذا نستعيد كل السجلات
@@ -5246,7 +5251,25 @@ class AppwriteSyncManager {
       );
     }
 
-    return tasks;
+    // ✅ نطاق السحب (2026-09-12): استبعاد الجداول التي عطّلها المستخدم من
+    // إعدادات المزامنة. التعطيل لا يلمس checkpoint الجدول — عند إعادة
+    // التفعيل يُسحب ما فاته من نقطة توقفه القديمة فلا تُفقد بيانات.
+    final scoped = tasks
+        .where((t) => !SyncPullScope.isDisabled(t.name))
+        .toList(growable: false);
+    final skippedCount = tasks.length - scoped.length;
+    if (skippedCount > 0) {
+      final skippedNames = tasks
+          .map((t) => t.name)
+          .where(SyncPullScope.isDisabled)
+          .join(', ');
+      _logger.info(
+        'Pull scope: skipped $skippedCount disabled collection(s) '
+        '($skippedNames) — enabled: ${scoped.length}',
+        tag: 'SYNC',
+      );
+    }
+    return scoped;
   }
 
   /// سحب التغييرات من Appwrite
