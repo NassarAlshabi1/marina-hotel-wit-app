@@ -479,6 +479,18 @@ class CloudflareSyncManager {
   static const int _maxFailedAttemptsPerPushCycle = 5;
   static const int _pushDeadLetterThreshold = 10;
 
+  /// ✅ (fix M4) رسائل رفض خادمية دائمة قد تصل بلا حقل status (عقد قديم
+  /// أو مسار غير موسوم) — نمط تصنيف فوري كخطأ دائم بدل إعادة الدفع
+  /// حتى عتبة dead-letter بلا فائدة (الخادم سيرفضها في كل مرة).
+  static final RegExp _permanentPushErrorPattern = RegExp(
+    r'is required|Invalid operation|must be|Unknown entity|not in whitelist|invalid entity',
+    caseSensitive: false,
+  );
+
+  /// ✅ (fix R1) تهدئة 429: عند ردّ الخادم 429 مع Retry-After نوقف محاولات
+  /// الدفع حتى انتهاء المدة بدل اختراق الحد في كل دورة.
+  DateTime _pushCooldownUntil = DateTime.fromMillisecondsSinceEpoch(0);
+
   /// ✅ P0-I: قفل متزامن لمنع ت重叠 عمليات sync المتزامنة.
   /// قبل هذا القفل، كان ممكناً أن يبدأ autoSync + manualSync + onResumeSync
   /// في نفس الوقت وكلها تعدّل على نفس outbox.
@@ -1222,6 +1234,15 @@ class CloudflareSyncManager {
   Future<int> _pushOutbox() async {
     if (_db == null) return 0;
 
+    // ✅ (fix R1) احترام تهدئة 429 — نفحص قبل أي reclaim حتى لا تبقى
+    // السجلات عالقة في حالة processing طوال فترة التهدئة.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs < _pushCooldownUntil.millisecondsSinceEpoch) {
+      final remaining = _pushCooldownUntil.difference(DateTime.now()).inSeconds;
+      debugPrint('⏳ Push: rate-limit cooldown نشط — تخطي الدفعة ($remaining(s) متبقية)');
+      return 0;
+    }
+
     int totalPushed = 0;
 
     final outboxDao = OutboxDao(_db!);
@@ -1340,7 +1361,8 @@ class CloudflareSyncManager {
               'Authorization': 'Bearer $_token',
               'Content-Type': 'application/json',
               'Content-Encoding': 'gzip',
-              'Content-Length': compressedBytes.length.toString(),
+              // ✅ (fix R-min5) أزلنا Content-Length اليدوي — حزمة http تحسبه
+              // من الجسم فعلياً، والتكرار مع gzip يربك بعض البروكسيات.
             },
             body: compressedBytes,
           )
@@ -1383,6 +1405,32 @@ class CloudflareSyncManager {
         responseBody: response.body,
         source: 'sync:push',
       );
+
+      // ✅ (fix R1) 429 — نقرأ Retry-After (هيدر بالثواني، أو epoch في الجسم)
+      // ونبرمج تهدئة قبل إعادة المحاولة بدل العضّ على الحد في كل دورة.
+      if (response.statusCode == 429) {
+        int? cooldownSec;
+        final raHeader = response.headers['retry-after'] ??
+            response.headers['Retry-After'];
+        if (raHeader != null) cooldownSec = int.tryParse(raHeader.trim());
+        if (cooldownSec == null) {
+          try {
+            final errBody = jsonDecode(response.body);
+            if (errBody is Map && errBody['retry_after'] is num) {
+              final ra = (errBody['retry_after'] as num).toInt();
+              final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+              // الخادم يرسل epoch (ثوانٍ) في الجسم — نحوّله لمدة نسبية
+              cooldownSec = ra > nowSec ? (ra - nowSec) : ra;
+            }
+          } catch (_) {}
+        }
+        if (cooldownSec == null || cooldownSec <= 0) cooldownSec = 60;
+        if (cooldownSec > 600) cooldownSec = 600;
+        _pushCooldownUntil =
+            DateTime.now().add(Duration(seconds: cooldownSec));
+        debugPrint('⏳ Push: 429 — تهدئة ${cooldownSec}ث قبل المحاولة القادمة');
+      }
+
       // ✅ P0-G: 401/403 → لا نلمس السجلات (ستُعاد المحاولة بعد re-auth)
       // 5xx → نعيد السجلات لـ pending
       if (response.statusCode == 401 || response.statusCode == 403) {
@@ -1468,7 +1516,8 @@ class CloudflareSyncManager {
         // - أي شيء آخر: فشل مؤقت — failed + إعادة محاولة
         final isPermanentError =
             opStatus == 'validation_error' ||
-            errorMsg != null && errorMsg.contains('validation');
+            errorMsg != null && errorMsg.contains('validation') ||
+            errorMsg != null && _permanentPushErrorPattern.hasMatch(errorMsg);
         final isConflict =
             opStatus == 'conflict' ||
             errorMsg != null && errorMsg.contains('conflict');
@@ -2555,14 +2604,28 @@ class CloudflareSyncManager {
 
       // ✅ تخطي إذا كان السجل المحلي أحدث (LWW الأساسي)
       if (localUpdatedAt > remoteUpdatedAt) {
-        // ✅ P0-F: تحقق هل يوجد تعديل محلي معلّق في outbox.
-        // إذا كان موجود، فنحن في حالة "تعارض" - السجل المحلي أحدث لكنه لم
-        // يُرفع بعد. السجل البعيد أقدم لكنه على الخادم. هذا تعارض محتمل
-        // لكن LWW هنا يعطي الأولوية للمحلي. سنرفع المحلي في الـ sync القادمة.
+        // ✅ (fix M3) حارس انزياح الساعة: الطابع المحلي الأحدث لا يعني أن
+        // المحتوى أحدث — ساعة الجهاز قد تكون متقدمة. الخادم يزيد version
+        // عند كل كتابة، فإن كان الوارد من نسخة أعلى فهذا دليل مستقل عن
+        // الساعات على أنه الأحدث ونمضي به إلى مسار التطبيق/الدمج أدناه.
+        // بدون هذا: الجهاز متباعد الساعة يُسقط كل الوارد دائماً بينما
+        // المؤشر يتقدم فوقه فيلا لن يعود الصف في أي دلتا قادمة (فقد دائم).
+        final localVersion = localData['version'] as int? ?? 0;
+        final remoteVersion = record['version'] as int? ?? 0;
+        if (remoteVersion <= localVersion) {
+          // ✅ P0-F: تحقق هل يوجد تعديل محلي معلّق في outbox.
+          // إذا كان موجود، فنحن في حالة "تعارض" - السجل المحلي أحدث لكنه لم
+          // يُرفع بعد. السجل البعيد أقدم لكنه على الخادم. هذا تعارض محتمل
+          // لكن LWW هنا يعطي الأولوية للمحلي. سنرفع المحلي في الـ sync القادمة.
+          debugPrint(
+            '  ⏭️ $entity/$localUuid: محلي أحدث ($localUpdatedAt > $remoteUpdatedAt, v$localVersion >= v$remoteVersion) — تخطي',
+          );
+          return true;
+        }
         debugPrint(
-          '  ⏭️ $entity/$localUuid: محلي أحدث ($localUpdatedAt > $remoteUpdatedAt) — تخطي',
+          '  ↩️ $entity/$localUuid: طابع محلي أحدث لكن version الوارد أعلى '
+          '(v$remoteVersion > v$localVersion) — احتمال انزياح ساعة: تطبيق الوارد',
         );
-        return true;
       }
 
       // ✅ P0-F: السجل البعيد أحدث. طبّق SmartConflictResolver للتحقق

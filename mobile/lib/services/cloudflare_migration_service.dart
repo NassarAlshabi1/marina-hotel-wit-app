@@ -487,7 +487,8 @@ class CloudflareMigrationService {
             'Authorization': 'Bearer $token',
             'Content-Type': 'application/sql',
             'Content-Encoding': 'gzip',
-            'Content-Length': compressedBytes.length.toString(),
+            // ✅ (fix R-min5) أزلنا Content-Length اليدوي — حزمة http تحسبه
+            // من الجسم فعلياً، والتكرار مع gzip يربك بعض البروكسيات.
           },
           body: compressedBytes,
         );

@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
@@ -32,6 +33,14 @@ class CloudflareConfig {
   static const String usernameOverrideKey = 'cf_username_override';
   static const String passwordOverrideKey = 'cf_password_override';
 
+  /// ✅ (fix M2) كلمة مرور المزامنة لا تُكتب نصاً صريحاً في
+  /// SharedPreferences بعد اليوم (كانت تُقرأ من أي جهاز بنسخة احتياطية
+  /// أو بدخول adb). التخزين الآمن (Keystore/Keychain/DPAPI) هو المكان
+  /// الأساسي، وprefs تبقى ملاذاً أخيراً للمنصات/بيئات الاختبار بلا
+  /// Keystore مع تحذير — سلوك الاختبارات العقدية hermetic لا يتغير.
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  static const String _securePasswordKey = 'cf_password_override_secure';
+
   static String get username => _usernameOverride ?? Env.cloudflareUsername;
   static String get password => _passwordOverride ?? Env.cloudflarePassword;
 
@@ -39,17 +48,51 @@ class CloudflareConfig {
   static bool get hasCredentialOverrides =>
       _usernameOverride != null || _passwordOverride != null;
 
-  /// تحميل الاعتمادات المخصّصة من التفضيلات — يُستدعى مرة واحدة مبكراً
+  /// تحميل الاعتمادات المخصّصة — يُستدعى مرة واحدة مبكراً
   /// في main() قبل أي initialize() للمدير. fail-open: أي فشل = المدمج.
+  ///
+  /// ✅ (fix M2) كلمة المرور تُقرأ من التخزين الآمن حصراً مع ترحيل
+  /// لمرة واحدة من prefs القديمة (نقرأ → نكتب آمناً → نمسح النص الصريح).
   static Future<void> loadCredentialOverrides({
     SharedPreferences? prefs,
   }) async {
     try {
       final sp = prefs ?? await SharedPreferences.getInstance();
       final u = sp.getString(usernameOverrideKey);
-      final p = sp.getString(passwordOverrideKey);
       _usernameOverride = (u != null && u.trim().isNotEmpty) ? u : null;
-      _passwordOverride = (p != null && p.isNotEmpty) ? p : null;
+
+      String? passwordValue;
+      String? legacyPlain;
+      try {
+        passwordValue = await _secureStorage.read(key: _securePasswordKey);
+      } catch (e) {
+        // بيئة بلا Keystore (اختبارات/منصة نادرة) — نعتمد الملاذ أدناه
+        dwarn(() => 'CloudflareConfig secure read unavailable: $e');
+      }
+
+      // ترحيل لمرة واحدة: قيمة قديمة نصاً صريحاً في prefs → التخزين الآمن
+      legacyPlain = sp.getString(passwordOverrideKey);
+      if ((passwordValue == null || passwordValue.isEmpty) &&
+          legacyPlain != null &&
+          legacyPlain.isNotEmpty) {
+        passwordValue = legacyPlain;
+        bool migrated = false;
+        try {
+          await _secureStorage.write(key: _securePasswordKey, value: legacyPlain);
+          migrated = true;
+        } catch (_) {}
+        if (migrated) {
+          try {
+            await sp.remove(passwordOverrideKey);
+            debugPrint(
+              '✅ CloudflareConfig: كلمة مرور مزامنة قديمة رُحّلت للتخزين الآمن',
+            );
+          } catch (_) {}
+        }
+      }
+
+      _passwordOverride =
+          (passwordValue != null && passwordValue.isNotEmpty) ? passwordValue : null;
       if (hasCredentialOverrides) {
         debugPrint(
           '✅ CloudflareConfig: credential overrides loaded '
@@ -81,11 +124,34 @@ class CloudflareConfig {
       } else {
         await sp.remove(usernameOverrideKey);
       }
-      if (_passwordOverride != null) {
-        await sp.setString(passwordOverrideKey, _passwordOverride!);
-      }
     } catch (e) {
-      dwarn(() => 'CloudflareConfig.setCredentialOverrides persist: $e');
+      dwarn(() => 'CloudflareConfig.setCredentialOverrides persist(user): $e');
+    }
+    if (_passwordOverride != null) {
+      await _persistPassword(_passwordOverride!);
+    }
+  }
+
+  /// ✅ (fix M2) تثبيت كلمة المرور: التخزين الآمن أولاً، وإن لم يتوفر
+  /// (اختبارات hermetic بلا Keystore) نكتب prefs القديمة كي لا تنكسر
+  /// عقود الاستعادة — مع تحذير واضح.
+  static Future<void> _persistPassword(String value) async {
+    try {
+      await _secureStorage.write(key: _securePasswordKey, value: value);
+      // نجاح التخزين الآمن ⇒ نمسح أي بقايا نص صريح في prefs
+      try {
+        final sp = await SharedPreferences.getInstance();
+        await sp.remove(passwordOverrideKey);
+      } catch (_) {}
+      return;
+    } catch (e) {
+      dwarn(() => 'CloudflareConfig secure write unavailable, falling back: $e');
+    }
+    try {
+      final sp = await SharedPreferences.getInstance();
+      await sp.setString(passwordOverrideKey, value);
+    } catch (e) {
+      dwarn(() => 'CloudflareConfig.setCredentialOverrides persist(pass): $e');
     }
   }
 
@@ -93,6 +159,9 @@ class CloudflareConfig {
   static Future<void> clearCredentialOverrides() async {
     _usernameOverride = null;
     _passwordOverride = null;
+    try {
+      await _secureStorage.delete(key: _securePasswordKey);
+    } catch (_) {}
     try {
       final sp = await SharedPreferences.getInstance();
       await sp.remove(usernameOverrideKey);

@@ -24,7 +24,15 @@ void autoSyncCallbackDispatcher() {
       final googleDriveEnabled =
           prefs.getBool('google_drive_sync_enabled') ?? false;
 
-      if (!googleDriveEnabled) {
+      // ✅ (fix M5) البوابة كانت تُخرج مبكراً إن لم يكن مزامنة Google Drive
+      // مفعّلاً — فجهاز على مسار Cloudflare فقط (appwrite_sync_enabled هو
+      // المفتاح الرئيسي للمسار السحابي ويغطي Cloudflare) ظل بلا مزامنة
+      // خلفية إطلاقاً. الآن نكمل إذا كان أي مسار سحابي مفعّلاً — مفتاح
+      // الإيقاف الداخلي في syncNow() يبقى صاحب القرار النهائي.
+      final cloudPathEnabled =
+          prefs.getBool('appwrite_sync_enabled') ?? true;
+
+      if (!googleDriveEnabled && !cloudPathEnabled) {
         return true;
       }
 

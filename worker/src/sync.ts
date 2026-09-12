@@ -303,6 +303,8 @@ export async function handlePush(
       entityId?: string;
       error?: string;
       skipped?: boolean;
+      /** ✅ (fix M4) تصنيف الرفض — يتيح للعميل فصل الأخطاء الدائمة عن المؤقتة */
+      status?: 'validation_error' | 'conflict' | 'internal_error';
     }> = [];
 
     // Distinct entities touched by SUCCESSFUL, non-skipped ops — one change
@@ -322,6 +324,9 @@ export async function handlePush(
           results.push({
             idempotencyKey: op.idempotencyKey || 'unknown',
             success: false,
+            // ✅ (fix M4) العميل كان يقرأ status ولا يجده → الرفض الدائم يُعاد
+            // حتى عتبة dead-letter بلا فائدة. الآن يُعلَم صراحةً.
+            status: 'validation_error',
             error: validationError,
           });
           continue;
@@ -450,7 +455,8 @@ export async function handleSyncLog(
 ): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
+    // ✅ (fix W-min2) منع القيم السالبة: LIMIT سالب في SQLite = بلا حدّ
+    const limit = Math.max(1, Math.min(parseInt(url.searchParams.get('limit') || '50', 10) || 50, 200));
     const offset = parseInt(url.searchParams.get('offset') || '0', 10);
 
     // Note: sync log reads go through the typed Database layer
@@ -638,7 +644,8 @@ export async function handleConflicts(
 ): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
+    // ✅ (fix W-min2) منع القيم السالبة: LIMIT سالب في SQLite = بلا حدّ
+    const limit = Math.max(1, Math.min(parseInt(url.searchParams.get('limit') || '50', 10) || 50, 200));
 
     // Note: conflicts reads go through the typed Database layer
     const conflicts = await db.getConflicts(limit);

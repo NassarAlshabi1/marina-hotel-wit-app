@@ -193,6 +193,12 @@ export class Database {
   /** Advance the sync clock past a foreign timestamp (e.g. after bulk migration). */
   async advanceSyncClock(minTs: number): Promise<void> {
     if (!Number.isFinite(minTs) || minTs <= 0) return;
+    // ✅ (fix W-M1) حارس نطاق: طابع في نطاق الميلي ثانية (> 1e11) تسلّل من
+    // عميل ترحيل قديم يجب ألا يُسمّم الساعة الخادمية — وإلا صارت كل
+    // الطوابع الجديدة «سيئة» في نظر normalizeTimestamps فلا تلتئم دورة
+    // السحب أبداً (إعادة ختم 500 صف/سحب بلا تقارب). نتجاهل القيمة:
+    // normalizeTimestamps هو المسؤول عن تحويل هذه الصفوف إلى نطاق الثواني.
+    if (minTs > Database.MS_TIMESTAMP_THRESHOLD) return;
     await this.db
       .prepare('UPDATE sync_clock SET last_ts = MAX(last_ts, ?) WHERE id = 1')
       .bind(Math.floor(minTs))
@@ -885,17 +891,21 @@ export class Database {
   // ─── Sync Log / Conflicts queries (typed, no private-field hacks) ─
 
   async getSyncLog(limit: number, offset: number): Promise<unknown[]> {
+    // ✅ (fix W-min2) LIMIT سالب في SQLite = بلا حدّ — نقيّد إجبارياً [1, 500]
+    const safeLimit = Math.max(1, Math.min(Math.floor(limit) || 50, 500));
     const result = await this.db
       .prepare('SELECT * FROM sync_log ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?')
-      .bind(limit, offset)
+      .bind(safeLimit, offset)
       .all();
     return result.results;
   }
 
   async getConflicts(limit: number): Promise<unknown[]> {
+    // ✅ (fix W-min2) نفس حارس LIMIT السالب
+    const safeLimit = Math.max(1, Math.min(Math.floor(limit) || 50, 500));
     const result = await this.db
       .prepare('SELECT * FROM sync_conflicts ORDER BY created_at DESC, id DESC LIMIT ?')
-      .bind(limit)
+      .bind(safeLimit)
       .all();
     return result.results;
   }
