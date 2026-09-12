@@ -522,9 +522,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               RepaintBoundary(child: _buildLastPaidAmountCard(lastPaidPayment)),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
@@ -605,19 +605,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
-          Icon(Icons.payments_rounded, size: 20, color: colorScheme.primary),
-          const SizedBox(width: 8),
+          Icon(Icons.payments_rounded, size: 15, color: colorScheme.primary),
+          const SizedBox(width: 6),
           Text(
             'آخر مبلغ مدفوع',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
               color: colorScheme.onSurfaceVariant,
             ),
@@ -628,7 +628,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 ? 'لا يوجد'
                 : _currencyFmt.format(lastPaidPayment.amount),
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
               color: colorScheme.primary,
             ),
