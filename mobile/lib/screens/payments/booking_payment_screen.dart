@@ -612,8 +612,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       ),
       child: Row(
         children: [
-          Icon(Icons.payments_rounded, size: 15, color: colorScheme.primary),
-          const SizedBox(width: 6),
           Text(
             'آخر مبلغ مدفوع',
             style: TextStyle(
