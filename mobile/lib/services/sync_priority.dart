@@ -1,5 +1,3 @@
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../utils/debug_log.dart';
 
 /// ✅ Prioritized sync — prevents lower-priority syncs from

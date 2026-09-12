@@ -64,7 +64,7 @@ class SyncCircuitBreaker {
       dlog(
         () =>
             '🟢 Circuit breaker CLOSED after successful sync '
-            '(${_consecutiveFailures} failures resolved)',
+            '($_consecutiveFailures failures resolved)',
       );
     }
     _consecutiveFailures = 0;

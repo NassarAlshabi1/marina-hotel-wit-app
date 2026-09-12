@@ -241,7 +241,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
         SizedBox(
           width: 170,
           child: DropdownButtonFormField<String?>(
-            value: _selectedCategory,
+            initialValue: _selectedCategory,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'التصنيف',

@@ -60,7 +60,6 @@ class AppwriteRealtimeSync {
   final pendingRemoteChangesCount = ValueNotifier<int>(0);
   final hasRemoteChanges = ValueNotifier<bool>(false);
   DateTime? _lastServerUpdate;
-  bool _hasPendingChanges = false;
 
   static const Duration _debounceWindow = Duration(milliseconds: 500);
   static const Duration _pollingInterval = Duration(seconds: 30);
@@ -225,7 +224,6 @@ class AppwriteRealtimeSync {
       event: event,
     );
     hasRemoteChanges.value = true;
-    _hasPendingChanges = true;
     pendingRemoteChangesCount.value = remoteChangeQueue.length;
     dlog('[Realtime] queued: $collection/$documentId');
     _debounceTimer?.cancel();
@@ -246,7 +244,7 @@ class AppwriteRealtimeSync {
       final changed = await _deltaPull!();
       dlog(() => '[DeltaSync] pull completed (changed=$changed)');
       resetRemoteChangesFlag();
-    } catch (e, st) {
+    } catch (e) {
       remoteChangeQueue.restore(queuedChanges);
       dlog(() => '[DeltaSync] pull failed: $e');
       await CrashlyticsService.instance.recordSyncError(
@@ -286,7 +284,6 @@ class AppwriteRealtimeSync {
 
   void resetRemoteChangesFlag() {
     hasRemoteChanges.value = false;
-    _hasPendingChanges = false;
     pendingRemoteChangesCount.value = 0;
   }
 

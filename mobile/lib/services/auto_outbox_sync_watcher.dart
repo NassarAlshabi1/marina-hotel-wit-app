@@ -143,7 +143,9 @@ class AutoOutboxSyncWatcher {
 
     _pushing = true;
     try {
-      final fn = _pushFn;
+      // ✅ يُفضّل الدفع المُجمّع (دفعات أصغر تمنع طلبات API ضخمة تفشل
+      // على الاتصالات البطيئة)، مع الرجوع إلى الدفع العادي إن لم يُضبط.
+      final fn = _pushFnBatched ?? _pushFn;
       if (fn == null) return;
       final result = await fn();
       if (result > 0) {
