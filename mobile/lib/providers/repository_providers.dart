@@ -409,11 +409,13 @@ final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   final repo = ref.watch(expensesRepoProvider);
-  // ✅ استبعاد السلفة — تسبب تكرار بيانات
+  // ✅ (2026-09-14) العقد النقدي: السلفة نقد خرج فعلاً — تُحسب ضمن
+  // مصروفات اليوم بدلاً من استبعادها (يتطابق سلوكها هنا مع
+  // todayExpensesProvider). ملاحظة: أقساط «خصم من الراتب» المؤرخة بمستقبل
+  // تُحسب عند استحقاقها كسجلات — هي خارج نطاق هذا المزود التاريخي.
   final expenses = await repo.listFilteredByHotelDay(
     fromHotelDay: hotelDay,
     toHotelDay: hotelDay,
-    excludeAdvance: true,
   );
   final total = expenses.fold<double>(0, (sum, e) => sum + e.amount);
   return (count: expenses.length, total: total);

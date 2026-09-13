@@ -16,6 +16,7 @@ import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
+import '../../utils/salary_expense_classification.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 
@@ -253,12 +254,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final showAll = selectedType == null;
 
     // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي
-    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
+    // ✅ (2026-09-14) العقد النقدي: السلفة نقد خرج فعلاً فتُعرض وتُحسب
+    // مرة واحدة — إزالة التكرار مع السحوبات مقبول عبر مطابقة expense_id/reason
+    // أدناه، وأقساط «خصم من الراتب» تظهر كسجلات معلوماتية في مجموعتها الخاصة.
     var expenses = await expensesDao.listFilteredByHotelDay(
       fromHotelDay: fromHotelDay,
       toHotelDay: toHotelDay,
       expenseType: selectedType,
-      excludeAdvance: true,
     );
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
@@ -387,14 +389,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final Set<int> addedWithdrawalIds =
         {}; // معرفات السحوبات المضافة (لتجنب التكرار)
 
-    // ─── أولاً: إضافة جميع المصروفات من جدول expenses (باستثناء السلفة) ───
+    // ─── أولاً: إضافة جميع المصروفات من جدول expenses ───
+    // ✅ (2026-09-14) العقد النقدي: السلفة تُعرض وتُحسب مرة واحدة —
+    // سجل السلفة المقترن بسحب يُطابق عبر expense_id/reason (أدناه) فلا
+    // يتكرر، بينما أقساط «خصم من الراتب» تظهر كسجلات في مجموعتها
+    // الخاصة دون دخول ملخص سحوبات الرواتب النقدي.
     for (final expense in expenses) {
-      // ✅ إلغاء عرض السلفة من تقرير المصروفات لأنها تسبب تكرار البيانات
-      // السلفة تُسجّل تلقائياً مع سحوبات الرواتب وأقساط الخصم
-      // فظهورها هنا يُكرر المبالغ في الإجماليات
-      if (expense.expenseType == 'سلفة') {
-        continue;
-      }
       final employee = expense.relatedId != null
           ? employeeMap[expense.relatedId!]
           : null;
@@ -658,8 +658,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           }
 
           // ملخص الرواتب مقابل المصروفات التشغيلية
+          // ✅ (2026-09-14) ملخص نقدي: سحوبات الرواتب = النقد الخارج فعلاً
+          // (رواتب/سحب راتب/سحب من الراتب/سلفة) — الخصوم والأقساط غير
+          // نقدية فتقع مع المصروفات التشغيلية ولا تُضخم هذا الملخص.
           final salaryTotal = _rows
-              .where((r) => _isSalaryType(r.type))
+              .where(
+                (r) => SalaryExpenseClassification.isCashSalaryExpense(r.type),
+              )
               .fold<double>(0, (sum, r) => sum + r.amount);
           final nonSalaryTotal = _totalAmount - salaryTotal;
 

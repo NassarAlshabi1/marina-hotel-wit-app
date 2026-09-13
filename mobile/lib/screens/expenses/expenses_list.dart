@@ -142,7 +142,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 if (expensesData == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                // ✅ السلفة مُستبعدة من قاعدة البيانات (excludeAdvance: true)
+                // ✅ (2026-09-14) العقد النقدي: السلفة نقد خرج فعلاً — تُعرض
+                // في القائمة وتُحسب مع مصروفات اليوم (بلا استبعاد)
                 final filteredExpenses = expensesData;
                 // ✅ إصلاح: حساب الإحصائيات من القائمة المفلترة فعلياً
                 // بدلاً من todayExpensesSummaryProvider الذي يعرض بيانات اليوم الحالي فقط
@@ -267,7 +268,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           toHotelDay: hotelDay,
           expenseType: _selectedFilterType,
           search: _searchQuery.isNotEmpty ? _searchQuery : null,
-          excludeAdvance: true,
         ),
       );
     }
@@ -281,7 +281,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         toHotelDay: toHotelDay,
         expenseType: _selectedFilterType,
         search: _searchQuery.isNotEmpty ? _searchQuery : null,
-        excludeAdvance: true,
       ),
     );
   }

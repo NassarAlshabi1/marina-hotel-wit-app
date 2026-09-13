@@ -25,6 +25,7 @@ import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/performance_config.dart';
+import '../../utils/salary_expense_classification.dart';
 import '../../utils/status_utils.dart';
 import '../../widgets/report_date_filter.dart';
 
@@ -126,11 +127,13 @@ class _IncomeExpenseReportScreenState
         excludePendingBalance: true,
       );
 
-      // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
+      // ✅ (2026-09-14) العقد النقدي «مصروفات الرواتب = استحقاقات الموظف»:
+      // السلفة نقد خرج فعلاً فتُجلب وتُحسب مصروف رواتب. الازدواج القديم
+      // (سلفة + أقساطها) محلول في _processReportData: صفوف الخصوم
+      // والأقساط غير النقدية تُستبعد من التقرير النقدي كلياً.
       final expenses = await expensesDao.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,
-        excludeAdvance: true,
       );
 
       // بيانات إضافية للتقرير التفصيلي للدورة المالية
@@ -2846,15 +2849,13 @@ _ReportResult _processReportData(_ReportParams params) {
   // المصروفات: مُفلترة بـ hotelDayKey من expensesDao.listFilteredByHotelDay()
   // لا حاجة لإعادة الفلترة في Dart — كان يسبب استبعاد بيانات صحيحة
 
-  bool isSalaryExpense(String type) {
-    final normalized = type.trim();
-    return normalized == 'رواتب' ||
-        normalized == 'سحب راتب' ||
-        normalized == 'سحب من الراتب' ||
-        normalized == 'خصم راتب' ||
-        normalized == 'خصم من الراتب' ||
-        normalized.contains('راتب');
-  }
+  // ✅ (2026-09-14) توحيد التصنيف عبر SalaryExpenseClassification:
+  // مصروفات الرواتب = النقد الخارج فعلاً (رواتب/سحب راتب/سحب من الراتب/سلفة)
+  // حُذف wildcard ‏contains('راتب') الذي كان يحسب الخصوم (خصم راتب/خصم من
+  // الراتب) مصروفات رغم أنه لا يخرج منها نقد — وهي الآن مستبعدة من
+  // القائمة أدناه كلياً (تُخصم من الاستحقاق فقط).
+  bool isSalaryExpense(String type) =>
+      SalaryExpenseClassification.isCashSalaryExpense(type);
 
   final incomeList = <_IncomeEntry>[];
   for (final p in params.payments) {
@@ -2888,6 +2889,14 @@ _ReportResult _processReportData(_ReportParams params) {
 
   final expenseList = <_ExpenseEntry>[];
   for (final e in params.expenses) {
+    final type = (e['type'] ?? '').toString();
+    // ✅ (2026-09-14) العقد النقدي: الخصوم والأقساط (خصم راتب / خصم من
+    // الراتب / خصم / غياب) لا يخرج منها نقد — تُخصم من استحقاق الموظف
+    // فقط (شاشة الاستحقاقات) ولا تُحسب مصروفات هنا. هذا يمنع أيضاً
+    // ازدواج السلفة: السلفة تُحسب عند خروج النقد وأقساطها لا تُحسب.
+    if (SalaryExpenseClassification.isNonCashDeduction(type)) {
+      continue;
+    }
     final dateStr = (e['date'] ?? '').toString().trim();
     if (dateStr.isEmpty) {
       continue;
@@ -2901,7 +2910,6 @@ _ReportResult _processReportData(_ReportParams params) {
       continue;
     }
     // ✅ إزالة isWithinRange — البيانات مُفلترة مسبقاً من SQL
-    final type = (e['type'] ?? '').toString();
     expenseList.add(
       _ExpenseEntry(
         date: dt,
