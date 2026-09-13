@@ -1479,6 +1479,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
                   try {
                     final repo = ref.read(salaryWithdrawalsRepoProvider);
+                    final expensesRepo = ref.read(expensesRepoProvider);
                     // ✅ إصلاح: استخدام selectedDate (اليوم الفندقي) بدلاً من DateTime.now()
                     final dateStr =
                         '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
@@ -1494,17 +1495,45 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       ),
                     );
 
+                    // ✅ (2026-09-13) جذر «مصروفات الرواتب يجب أن تساوي
+                    // استحقاقات الموظف»: السحب المباشر كان يسجل
+                    // salary_withdrawals فقط (expenseId: 0) بلا مصروف مقابل —
+                    // فلا يُحتسب في شاشة استحقاقات الرواتب (تقرأ expenses عبر
+                    // relatedId) ولا في مصروفات الرواتب (تقرير الإيرادات
+                    // والمصروفات)، بينما يظهر في تقرير المصروفات كسحب يتيم =
+                    // ثلاث شاشات متناقضة. الإصلاح: زواج السحب المباشر بمصروف
+                    // مرتبط بالموظف — نفس النمط المثبت في شاشة المصروفات.
+                    final note = noteController.text.trim();
+                    // «أخرى» ليست نوعاً معترفاً به محاسبياً في الاستحقاقات —
+                    // تُسجل كسحب راتب والوصف يحمل التفصيل؛ سجل السحب يحفظ
+                    // النوع الأصلي كما اختاره المستخدم.
+                    final expenseType = withdrawalType == 'أخرى'
+                        ? 'سحب راتب'
+                        : withdrawalType;
+                    final expenseId = await expensesRepo.create(
+                      expenseType: expenseType,
+                      relatedId: employee.id,
+                      description: note,
+                      amount: amount,
+                      date: dateStr,
+                      hotelDayKey: hotelDayKey,
+                      employeeUuid: employee.localUuid,
+                    );
+
                     await repo.createFromExpense(
-                      expenseId: 0, // لا يوجد مصروف مرتبط — سحب مباشر
+                      expenseId: expenseId,
                       employeeId: employee.id,
-                      reason: 'direct_withdrawal_${employee.localUuid}',
+                      // اتفاق saveFromExpense: reason = exp_<expenseId> —
+                      // تقرير المصروفات يطابق المصروف عبر expense_id
+                      // فلا يُعرض السحب مكرراً
+                      reason: 'exp_$expenseId',
                       amount: amount,
                       date: dateStr,
                       hotelDayKey: hotelDayKey,
                       withdrawalType: withdrawalType,
-                      description: noteController.text.trim().isNotEmpty
-                          ? noteController.text.trim()
-                          : null,
+                      description: note.isNotEmpty ? note : null,
+                      // المصروف أرسل الإشعار بالفعل — منع الازدواج
+                      notify: false,
                     );
 
                     if (ctx.mounted) {

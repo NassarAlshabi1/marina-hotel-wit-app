@@ -6,9 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 // local_db.dart exports ExpensesCompanion, EmployeesCompanion, etc.
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/repositories/employees_repository.dart';
+import 'package:marina_hotel_mobile/services/repositories/expenses_repository.dart';
 import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
 import 'package:marina_hotel_mobile/services/salary_entitlement_service.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
+import 'package:marina_hotel_mobile/utils/expense_reason_matcher.dart';
 import 'package:marina_hotel_mobile/utils/status_utils.dart';
 
 /// اختبارات تكاملية فعلية لـ:
@@ -22,6 +24,7 @@ void main() {
   late AppDatabase db;
   late EmployeesRepository empRepo;
   late SalaryWithdrawalsRepository swRepo;
+  late ExpensesRepository expensesRepo;
   late SalaryEntitlementService entService;
   late OutboxDao outboxDao;
 
@@ -31,6 +34,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     empRepo = EmployeesRepository(db);
     swRepo = SalaryWithdrawalsRepository(db);
+    expensesRepo = ExpensesRepository(db);
     entService = SalaryEntitlementService(db);
     outboxDao = OutboxDao(db);
   });
@@ -493,5 +497,152 @@ void main() {
       expect(names, isNot(contains('موظف محذوف')));
       expect(names, isNot(contains('موظف مفصول')));
     });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // زواج السحب المباشر بمصروف — عقد «مصروفات الرواتب = استحقاقات الموظف»
+  // شاشة الموظفين (سحب مباشر) بعد الإصلاح تنتج نفس أثر شاشة المصروفات:
+  // مصروف مرتبط بالموظف (relatedId) + سجل سحب مربوط عبر expense_id/reason
+  // ═══════════════════════════════════════════════════════════════════
+
+  group('السحب المباشر المقترن بمصروف — عقد الاستحقاقات', () {
+    test('سحب راتب مباشر يُحتسب في السحبيات ويخفض صافي المستحقات', () async {
+      final empId = await empRepo.create(
+        name: 'سحب مباشر 1',
+        basicSalary: 50000,
+        hireDate: '2026-01-01',
+        status: 'active',
+      );
+
+      // نفس ما تفعله شاشة الموظفين بعد الإصلاح: مصروف ثم سحب مرتبط
+      final expenseId = await expensesRepo.create(
+        expenseType: 'سحب راتب',
+        relatedId: empId,
+        description: '',
+        amount: 10000,
+        date: '2026-07-01',
+      );
+      await swRepo.createFromExpense(
+        expenseId: expenseId,
+        employeeId: empId,
+        reason: 'exp_$expenseId',
+        amount: 10000,
+        date: '2026-07-01',
+        withdrawalType: 'سحب راتب',
+        notify: false,
+      );
+
+      final emp = await (db.select(
+        db.employees,
+      )..where((t) => t.id.equals(empId))).getSingle();
+      final ent = await entService.calculateEmployeeEntitlement(emp);
+
+      expect(
+        ent.totalWithdrawals,
+        10000,
+        reason: 'مصروف سحب راتب مرتبط بالموظف يجب أن يُحتسب في السحبيات',
+      );
+      expect(ent.netEntitlement, ent.totalEntitlement - 10000);
+    });
+
+    test('سلفة مباشرة تُحتسب ضمن السلف وتخفض الصافي', () async {
+      final empId = await empRepo.create(
+        name: 'سحب مباشر 2',
+        basicSalary: 50000,
+        hireDate: '2026-01-01',
+        status: 'active',
+      );
+
+      final expenseId = await expensesRepo.create(
+        expenseType: 'سلفة',
+        relatedId: empId,
+        description: 'سلفة عاجلة',
+        amount: 5000,
+        date: '2026-07-01',
+      );
+      await swRepo.createFromExpense(
+        expenseId: expenseId,
+        employeeId: empId,
+        reason: 'exp_$expenseId',
+        amount: 5000,
+        date: '2026-07-01',
+        withdrawalType: 'سلفة',
+        notify: false,
+      );
+
+      final emp = await (db.select(
+        db.employees,
+      )..where((t) => t.id.equals(empId))).getSingle();
+      final ent = await entService.calculateEmployeeEntitlement(emp);
+
+      expect(ent.totalAdvances, 5000, reason: 'سلفة مرتبطة تُحتسب ضمن السلف');
+      expect(ent.netEntitlement, ent.totalEntitlement - 5000);
+    });
+
+    test(
+      'نوع «أخرى» يُسجل مصروفه كسحب راتب والسجل يحفظ النوع الأصلي',
+      () async {
+        final empId = await empRepo.create(
+          name: 'سحب مباشر 3',
+          basicSalary: 50000,
+          hireDate: '2026-01-01',
+          status: 'active',
+        );
+
+        // نفس تحويل الشاشة: أخرى → سحب راتب (النوع المعترف به محاسبياً)
+        const withdrawalType = 'أخرى';
+        final expenseType = withdrawalType == 'أخرى'
+            ? 'سحب راتب'
+            : withdrawalType;
+        final expenseId = await expensesRepo.create(
+          expenseType: expenseType,
+          relatedId: empId,
+          description: 'مصاريف تشغيلية من الراتب',
+          amount: 3000,
+          date: '2026-07-01',
+        );
+        await swRepo.createFromExpense(
+          expenseId: expenseId,
+          employeeId: empId,
+          reason: 'exp_$expenseId',
+          amount: 3000,
+          date: '2026-07-01',
+          withdrawalType: withdrawalType,
+          notify: false,
+        );
+
+        final sw =
+            await (db.select(db.salaryWithdrawals)..where(
+                  (t) =>
+                      t.employeeId.equals(empId) &
+                      t.reason.like('exp_%') &
+                      t.deletedAt.isNull(),
+                ))
+                .getSingle();
+        expect(
+          sw.withdrawalType,
+          'أخرى',
+          reason: 'سجل السحب يحفظ النوع الأصلي',
+        );
+
+        // عمود expense_id الخام مُضبوط — به يطابق تقرير المصروفات فلا ازدواج
+        final raw = await db
+            .customSelect(
+              'SELECT expense_id FROM salary_withdrawals WHERE id = ?',
+              variables: [d.Variable.withInt(sw.id)],
+            )
+            .getSingle();
+        expect(raw.data['expense_id'], expenseId);
+
+        // reason باتفاق exp_<id> تطابقه matchesExpenseRef (شبكة الأمان)
+        expect(matchesExpenseRef(sw.reason, expenseId), isTrue);
+
+        final emp = await (db.select(
+          db.employees,
+        )..where((t) => t.id.equals(empId))).getSingle();
+        final ent = await entService.calculateEmployeeEntitlement(emp);
+        expect(ent.totalWithdrawals, 3000);
+      },
+    );
   });
 }

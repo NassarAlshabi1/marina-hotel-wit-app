@@ -54,6 +54,8 @@ class SalaryWithdrawalsRepository {
   }
 
   /// إنشاء سجل سحب راتب مرتبط بمصروف
+  /// [notify] = false عندما أنشأ المستدعي المصروف المقابل بنفسه وأرسل
+  /// الإشعار (زواج السحب المباشر بمصروف — شاشة الموظفين) لمنع ازدواج الإشعارات
   Future<int> createFromExpense({
     required int expenseId,
     required int employeeId,
@@ -64,6 +66,7 @@ class SalaryWithdrawalsRepository {
     String? withdrawalType,
     String? description,
     bool originIsServer = false,
+    bool notify = true,
   }) async {
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
@@ -129,7 +132,7 @@ class SalaryWithdrawalsRepository {
 
     // الإشعارات لا تدخل في المعاملة حتى لا تطيل قفل SQLite أو تُرسل قبل
     // نجاح حفظ السجل وoutbox. لا نرسلها للبيانات المسحوبة من الخادم.
-    if (!originIsServer) {
+    if (!originIsServer && notify) {
       unawaited(
         WhatsAppNotificationService.instance.notifyNewExpense(
           category: 'سحب راتب',
