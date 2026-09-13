@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: 🐦 Set up Flutter
         uses: subosito/flutter-action@v2.23.0
@@ -130,7 +130,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: 🐦 Set up Flutter
         uses: subosito/flutter-action@v2.23.0
@@ -141,7 +141,7 @@ jobs:
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: ☕ Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -279,7 +279,7 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────
       - name: 📤 Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: performance-benchmark-${{ github.run_id }}
           path: |
@@ -303,7 +303,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # للحصول على tags/branches للمقارنة
 
@@ -322,7 +322,7 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: 📥 Download current benchmark results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: performance-benchmark-${{ github.run_id }}
           path: current-perf
@@ -352,7 +352,7 @@ jobs:
 
       - name: 💾 Save baseline for future comparisons
         if: github.ref == 'refs/heads/main'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: current-perf
           key: perf-baseline-${{ github.sha }}
