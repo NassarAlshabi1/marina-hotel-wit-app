@@ -20,7 +20,7 @@ dependencies:
   encrypt: ^5.0.3
   excel: ^4.0.6
   file_picker: ^8.1.2
-  firebase_ai: ^3.6.0
+  firebase_ai: ^4.0.0
   firebase_analytics: ^12.3.0
   firebase_core: ^4.7.0
   firebase_crashlytics: ^5.2.0
