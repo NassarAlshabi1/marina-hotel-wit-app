@@ -24,6 +24,7 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_expense_classifier.dart';
+import '../../services/salary_mirror_matcher.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/performance_config.dart';
@@ -145,6 +146,7 @@ class _IncomeExpenseReportScreenState
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,
         linkedExpenseIds: expenses.map((e) => e.id).toSet(),
+        readExpenses: expenses,
       );
 
       // بيانات إضافية للتقرير التفصيلي للدورة المالية
@@ -341,15 +343,19 @@ class _IncomeExpenseReportScreenState
   ///
   /// مصدرها زر «سحب راتب» في شاشة الموظفين — سجلات salary_withdrawals فقط
   /// (expenseId = 0). تُدرَج هنا ضمن مصروفات الرواتب حتى تتطابق مصروفات
-  /// التقرير مع ما يُخصم من استحقاق الموظف. dedup عبر:
+  /// التقرير مع ما يُخصم من استحقاق الموظف. dedup عبر SalaryMirrorMatcher
+  /// (مصدر الحقيقة الموحّد):
   ///   1. عمود expense_id الخام — إن أشار لمصروف مقروء ضمن النطاق.
-  ///   2. نمط reason القديم "exp_N".
+  ///   2. نمط reason القديم "exp_N" (id المحلي أو serverId جهاز المصدر).
+  ///   3. مطابقة بيانات حتمية (موظف + نقدي + مبلغ + يوم) — تُغلق ثغرة العد
+  ///      المزدوج عبر الأجهزة (حالة «الاورمو محمد» 2026-09-14).
   /// المرايا السالبة (خصوم) تُهمل — الخصوم ليست تدفق نقدي.
   Future<List<Map<String, dynamic>>> _loadDirectWithdrawalRows(
     AppDatabase db, {
     required String fromHotelDay,
     required String toHotelDay,
     required Set<int> linkedExpenseIds,
+    List<Expense> readExpenses = const [],
   }) async {
     final rows = <Map<String, dynamic>>[];
     try {
@@ -374,22 +380,30 @@ class _IncomeExpenseReportScreenState
       if (withdrawals.isEmpty) return rows;
 
       for (final sw in withdrawals) {
-        // المرايا المرتبطة بمصروف مقروء (عمود expense_id) — لا ازدواج
-        final linked = sw.expenseId;
-        if (linked != null && linked > 0 && linkedExpenseIds.contains(linked)) {
-          continue;
-        }
-
-        // الرابط القديم عبر reason: exp_N
-        final reason = sw.reason ?? '';
-        final match = RegExp(r'exp_(\d+)').firstMatch(reason);
-        if (match != null) {
-          final expId = int.tryParse(match.group(1)!);
-          if (expId != null && linkedExpenseIds.contains(expId)) continue;
-        }
-
         // الخصوم ليست تدفق نقدي — تُقرأ من جدول المصروفات كتسويات استحقاق
         if (sw.amount <= 0) continue;
+
+        final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+          expenseId: sw.expenseId,
+          reason: sw.reason,
+          amount: sw.amount,
+          hotelDayKey: sw.hotelDayKey,
+          withdrawDate: sw.withdrawDate,
+          employeeId: sw.employeeId,
+          expenses: readExpenses
+              .map(
+                (e) => MirrorExpenseCandidate(
+                  id: e.id,
+                  serverId: e.serverId,
+                  expenseType: e.expenseType,
+                  amount: e.amount,
+                  date: e.date,
+                  hotelDayKey: e.hotelDayKey,
+                  relatedId: e.relatedId,
+                ),
+              ),
+        );
+        if (isMirror) continue;
 
         final type = (sw.withdrawalType ?? '').trim();
         rows.add({

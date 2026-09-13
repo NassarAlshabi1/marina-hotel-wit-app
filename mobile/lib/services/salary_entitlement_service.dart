@@ -8,6 +8,7 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'salary_cycle_calculator.dart';
 import 'salary_expense_classifier.dart';
+import 'salary_mirror_matcher.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SalaryEntitlement {
@@ -194,6 +195,7 @@ class SalaryEntitlementService {
     final directWithdrawals = await _getUnlinkedWithdrawals(
       employee.id,
       linkedExpenseIds,
+      employeeExpenses: expenses,
     );
     for (final w in directWithdrawals) {
       if (SalaryExpenseClassifier.isAdvanceWithdrawal(w.withdrawalType)) {
@@ -594,6 +596,7 @@ class SalaryEntitlementService {
       linkedExpenseIds,
       cycleStart: cycleStart,
       cycleEnd: cycleEnd,
+      employeeExpenses: expenses,
     );
     for (final w in directWithdrawals) {
       if (SalaryExpenseClassifier.isAdvanceWithdrawal(w.withdrawalType)) {
@@ -635,15 +638,20 @@ class SalaryEntitlementService {
   ///
   /// مصدرها زر «سحب راتب» في شاشة الموظفين (settings_employees) الذي ينشئ
   /// سجلاً في salary_withdrawals فقط بلا مصروف مقابل (expenseId = 0).
-  /// dedup بأمرين:
+  /// dedup عبر SalaryMirrorMatcher (مصدر الحقيقة الموحّد):
   ///   1. عمود expense_id الخام (Migration 40) — إن أشار لمصروف مقروء.
-  ///   2. نمط reason القديم "exp_N" — إن كان N مصروفاً مقروءاً.
+  ///   2. نمط reason القديم "exp_N" — إن كان N مصروفاً مقروءاً (id أو serverId).
+  ///   3. مطابقة بيانات حتمية (موظف + نقدي + مبلغ + يوم) — تُغلق ثغرة العد
+  ///      المزدوج عبر الأجهزة: المصروف السحابي بلا معرف رقمي فيأخذ id محلياً
+  ///      جديداً بينما السحبة المرآة تبقى على exp_N لجهاز المصدر (حالة
+  ///      «الاورمو محمد» المثبتة 2026-09-14).
   /// المرايا السالبة (خصوم) تُهمل — الخصم يُقرأ من جدول المصروفات فقط.
   Future<List<_DirectWithdrawalData>> _getUnlinkedWithdrawals(
     int employeeId,
     Set<int> linkedExpenseIds, {
     DateTime? cycleStart,
     DateTime? cycleEnd,
+    List<Expense>? employeeExpenses,
   }) async {
     final rows =
         await (_db.select(_db.salaryWithdrawals)
@@ -652,27 +660,38 @@ class SalaryEntitlementService {
             .get();
     if (rows.isEmpty) return const [];
 
+    // مرشحو المستوى 3: مصروفات الموظف النقدي فقط (بنطاق القراءة المطلوب)
+    final candidates = (employeeExpenses ?? const <Expense>[])
+        .map(
+          (e) => MirrorExpenseCandidate(
+            id: e.id,
+            serverId: e.serverId,
+            expenseType: e.expenseType,
+            amount: e.amount,
+            date: e.date,
+            hotelDayKey: e.hotelDayKey,
+            relatedId: e.relatedId,
+          ),
+        )
+        .toList(growable: false);
+
     final result = <_DirectWithdrawalData>[];
     for (final sw in rows) {
-      // 1) المرايا المرتبطة بمصروف مقروء (عمود expense_id، Migration 40/42)
-      //    — لا ازدواج
-      final linked = sw.expenseId;
-      if (linked != null && linked > 0 && linkedExpenseIds.contains(linked)) {
-        continue;
-      }
-
-      // 2) الرابط القديم عبر reason: exp_N
-      final reason = sw.reason ?? '';
-      final match = RegExp(r'exp_(\d+)').firstMatch(reason);
-      if (match != null) {
-        final expId = int.tryParse(match.group(1)!);
-        if (expId != null && linkedExpenseIds.contains(expId)) continue;
-      }
-
-      // 3) المرايا السالبة للخصوم — تُقرأ من المصروفات
+      // المرايا السالبة للخصوم — تُقرأ من المصروفات (ليست نقداً)
       if (sw.amount <= 0) continue;
 
-      // 4) فلترة نطاق الدورة الزمني عند الطلب
+      final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+        expenseId: sw.expenseId,
+        reason: sw.reason,
+        amount: sw.amount,
+        hotelDayKey: sw.hotelDayKey,
+        withdrawDate: sw.withdrawDate,
+        employeeId: employeeId,
+        expenses: candidates,
+      );
+      if (isMirror) continue;
+
+      // فلترة نطاق الدورة الزمني عند الطلب
       if (cycleStart != null && cycleEnd != null) {
         final dt = _parseDate(sw.withdrawDate);
         if (dt == null) continue;
