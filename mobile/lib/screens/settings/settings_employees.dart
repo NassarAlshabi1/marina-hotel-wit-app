@@ -696,7 +696,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                         status: status,
                       );
                     } else {
-                      await repo.updateByLocalUuid(
+                      final updatedRows = await repo.updateByLocalUuid(
                         employee.localUuid,
                         name: nameController.text.trim(),
                         position: positionController.text.trim(),
@@ -705,6 +705,20 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                         hireDate: hireDateController.text,
                         status: status,
                       );
+                      if (updatedRows == 0) {
+                        // ✅ (2026-09-14) صدق الواجهة: تحديث صامت بـ 0 صفوف =
+                        // الموظف لم يعد موجوداً محلياً (حُذف من جهاز آخر ومُسحت
+                        // نسخته) — لا نجاح زائف، ولا تسوية سجلات على هوية مفقودة
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'تعذر التحديث: لم يُعثر على الموظف محلياً — حدّث القائمة ثم أعد المحاولة',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
                     }
                     // ✅ (2026-09-06) pushLocalChanges ترمي عند الفشل (عقد
                     // صادق) — onError يمنع خطأ async غير معالج؛ السجلات تبقى
