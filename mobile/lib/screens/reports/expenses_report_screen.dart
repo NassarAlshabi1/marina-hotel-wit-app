@@ -12,6 +12,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
+import '../../services/salary_expense_classifier.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
@@ -253,12 +254,15 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final showAll = selectedType == null;
 
     // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي
-    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
+    // ✅ إصلاح المعادلة «مصروفات الرواتب = استحقاقات الموظف»:
+    // أُزيل excludeAdvance — السلفة نقد استلمه الموظف فعلاً وتظهر الآن
+    // مرة واحدة فقط (مرايا سحبها تُطابَق بها ولا تُكرَّر)، بينما الخصوم
+    // (خصم من الراتب / خصم راتب / خصم / غياب) تسويات بلا نقد وتُستبعد
+    // كلياً من هذا التقرير النقدي أدناه.
     var expenses = await expensesDao.listFilteredByHotelDay(
       fromHotelDay: fromHotelDay,
       toHotelDay: toHotelDay,
       expenseType: selectedType,
-      excludeAdvance: true,
     );
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
@@ -387,12 +391,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final Set<int> addedWithdrawalIds =
         {}; // معرفات السحوبات المضافة (لتجنب التكرار)
 
-    // ─── أولاً: إضافة جميع المصروفات من جدول expenses (باستثناء السلفة) ───
+    // ─── أولاً: إضافة جميع المصروفات من جدول expenses ───
     for (final expense in expenses) {
-      // ✅ إلغاء عرض السلفة من تقرير المصروفات لأنها تسبب تكرار البيانات
-      // السلفة تُسجّل تلقائياً مع سحوبات الرواتب وأقساط الخصم
-      // فظهورها هنا يُكرر المبالغ في الإجماليات
-      if (expense.expenseType == 'سلفة') {
+      // ✅ إصلاح المعادلة: الخصوم تسويات استحقاق بلا تدفق نقدي (تُقرأ من
+      // شاشة استحقاقات الرواتب فقط) — كانت تُحسب مصروفات وتضخّم المجموع.
+      // أما السلفة فنقد خارج فعلاً وتُدرج هنا (كانت تُستبعد ظلماً).
+      if (SalaryExpenseClassifier.isSalaryDeduction(expense.expenseType)) {
         continue;
       }
       final employee = expense.relatedId != null
@@ -494,7 +498,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           final wType = sw.withdrawalType ?? 'سحب راتب';
           final isDeduction =
               wType.contains('خصم') || wType.contains('deduction');
-          final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
+
+          // ✅ إصلاح المعادلة: مرايا الخصوم (سحوبات سالبة أو نوع خصم)
+          // تسويات استحقاق بلا تدفق نقدي — تُستبعد من التقرير النقدي
+          if (isDeduction || sw.amount <= 0) {
+            continue;
+          }
+
+          final displayType =
+              SalaryExpenseClassifier.isAdvanceWithdrawal(wType)
+              ? 'سلفة'
+              : 'سحب راتب';
 
           final descParts = <String>[];
           if (sw.reason != null &&

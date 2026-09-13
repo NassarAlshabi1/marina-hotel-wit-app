@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -21,6 +22,8 @@ import '../../services/daos/employees_dao.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
+import '../../services/local_db.dart';
+import '../../services/salary_expense_classifier.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/performance_config.dart';
@@ -126,11 +129,22 @@ class _IncomeExpenseReportScreenState
         excludePendingBalance: true,
       );
 
-      // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
+      // ✅ إصلاح المعادلة «مصروفات الرواتب = استحقاقات الموظف»:
+      // أُزيل excludeAdvance — السلفة نقد استلمه الموظف فعلاً ويجب أن تظهر
+      // ضمن مصروفات الرواتب (وكانت تُستبعد هنا بينما تُخصم من الاستحقاق)
       final expenses = await expensesDao.listFilteredByHotelDay(
         fromHotelDay: fromHotelDay,
         toHotelDay: toHotelDay,
-        excludeAdvance: true,
+      );
+
+      // ✅ إدخال السحوبات المباشرة (بلا مصروف مقابل) في التقرير:
+      // السحب من شاشة الموظفين يُنشأ في salary_withdrawals فقط، لذلك كان
+      // يظهر في تقرير المصروفات كمصروف يتيم لكنه مفقود من هذا التقرير.
+      final directWithdrawalRows = await _loadDirectWithdrawalRows(
+        db,
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
+        linkedExpenseIds: expenses.map((e) => e.id).toSet(),
       );
 
       // بيانات إضافية للتقرير التفصيلي للدورة المالية
@@ -251,16 +265,17 @@ class _IncomeExpenseReportScreenState
                 },
               )
               .toList(),
-          expenses: expenses
-              .map(
-                (e) => {
-                  'date': e.date,
-                  'type': e.expenseType,
-                  'description': e.description,
-                  'amount': e.amount,
-                },
-              )
-              .toList(),
+          expenses: [
+            ...expenses.map(
+              (e) => {
+                'date': e.date,
+                'type': e.expenseType,
+                'description': e.description,
+                'amount': e.amount,
+              },
+            ),
+            ...directWithdrawalRows,
+          ],
           fromDate: _fromDate!,
           toDate: _toDate!,
           bookingsCount: bookings.length,
@@ -318,6 +333,76 @@ class _IncomeExpenseReportScreenState
         setState(() => _loading = false);
       }
     }
+  }
+
+  // ===== جلب السحوبات المباشرة للتقرير =====
+
+  /// جلب السحوبات المباشرة (بلا مصروف مقابل) ضمن النطاق الفندقي.
+  ///
+  /// مصدرها زر «سحب راتب» في شاشة الموظفين — سجلات salary_withdrawals فقط
+  /// (expenseId = 0). تُدرَج هنا ضمن مصروفات الرواتب حتى تتطابق مصروفات
+  /// التقرير مع ما يُخصم من استحقاق الموظف. dedup عبر:
+  ///   1. عمود expense_id الخام — إن أشار لمصروف مقروء ضمن النطاق.
+  ///   2. نمط reason القديم "exp_N".
+  /// المرايا السالبة (خصوم) تُهمل — الخصوم ليست تدفق نقدي.
+  Future<List<Map<String, dynamic>>> _loadDirectWithdrawalRows(
+    AppDatabase db, {
+    required String fromHotelDay,
+    required String toHotelDay,
+    required Set<int> linkedExpenseIds,
+  }) async {
+    final rows = <Map<String, dynamic>>[];
+    try {
+      var q = db.select(db.salaryWithdrawals)
+        ..where((tbl) => tbl.deletedAt.isNull());
+      q = q
+        ..where(
+          (tbl) =>
+              (tbl.hotelDayKey.isNotNull() &
+                  tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+              (tbl.hotelDayKey.isNull() &
+                  tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)),
+        )
+        ..where(
+          (tbl) =>
+              (tbl.hotelDayKey.isNotNull() &
+                  tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+              (tbl.hotelDayKey.isNull() &
+                  tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)),
+        );
+      final withdrawals = await q.get();
+      if (withdrawals.isEmpty) return rows;
+
+      for (final sw in withdrawals) {
+        // المرايا المرتبطة بمصروف مقروء (عمود expense_id) — لا ازدواج
+        final linked = sw.expenseId;
+        if (linked != null && linked > 0 && linkedExpenseIds.contains(linked)) {
+          continue;
+        }
+
+        // الرابط القديم عبر reason: exp_N
+        final reason = sw.reason ?? '';
+        final match = RegExp(r'exp_(\d+)').firstMatch(reason);
+        if (match != null) {
+          final expId = int.tryParse(match.group(1)!);
+          if (expId != null && linkedExpenseIds.contains(expId)) continue;
+        }
+
+        // الخصوم ليست تدفق نقدي — تُقرأ من جدول المصروفات كتسويات استحقاق
+        if (sw.amount <= 0) continue;
+
+        final type = (sw.withdrawalType ?? '').trim();
+        rows.add({
+          'date': sw.withdrawDate,
+          'type': type.contains('سلفة') ? 'سلفة' : 'سحب راتب',
+          'description': sw.description ?? 'سحب مباشر من شاشة الموظفين',
+          'amount': sw.amount,
+        });
+      }
+    } catch (e) {
+      dlog(() => '⚠️ تعذر جلب السحوبات المباشرة للتقرير: $e');
+    }
+    return rows;
   }
 
   // ===== أسماء الأيام والشهور بالعربي =====
@@ -2845,13 +2930,9 @@ _ReportResult _processReportData(_ReportParams params) {
   // لا حاجة لإعادة الفلترة في Dart — كان يسبب استبعاد بيانات صحيحة
 
   bool isSalaryExpense(String type) {
-    final normalized = type.trim();
-    return normalized == 'رواتب' ||
-        normalized == 'سحب راتب' ||
-        normalized == 'سحب من الراتب' ||
-        normalized == 'خصم راتب' ||
-        normalized == 'خصم من الراتب' ||
-        normalized.contains('راتب');
+    // ✅ توحيد التعريف مع خدمة استحقاقات الموظف (SalaryExpenseClassifier):
+    // مصروفات الرواتب = النقد الخارج للموظف فعلاً (سحب + سلفة).
+    return SalaryExpenseClassifier.isSalaryCashOut(type);
   }
 
   final incomeList = <_IncomeEntry>[];
@@ -2900,6 +2981,14 @@ _ReportResult _processReportData(_ReportParams params) {
     }
     // ✅ إزالة isWithinRange — البيانات مُفلترة مسبقاً من SQL
     final type = (e['type'] ?? '').toString();
+
+    // ✅ إصلاح المعادلة: الخصوم (خصم من الراتب / خصم راتب / خصم / غياب)
+    // تسويات استحقاق بلا تدفق نقدي — لا تدخل قائمة المصروفات النقدية
+    // إطلاقاً (كانت تُحسب مصروفات رواتب وتضخّم إجمالي المصروفات بلا نقد خارج).
+    if (SalaryExpenseClassifier.isSalaryDeduction(type)) {
+      continue;
+    }
+
     expenseList.add(
       _ExpenseEntry(
         date: dt,
