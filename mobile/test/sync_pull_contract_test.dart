@@ -450,6 +450,49 @@ void main() {
       },
     );
 
+    test(
+      '✅ (2026-09-13) السحب اليدوي forcePull يتجاوز التبريد: يعيد محاولة '
+      'الدخول فوراً وينجح رغم فشل سابق — إصلاح «لا يسجل دخول تلقائياً»',
+      () async {
+        var loginCalls = 0;
+        final manager = await makeManager(
+          _LazyHealClient(
+            onLogin: () {
+              loginCalls++;
+              if (loginCalls == 1) {
+                throw http.ClientException('transient outage (simulated)');
+              }
+              return _json({'token': 'manual-token'});
+            },
+            pullPages: [
+              {
+                'changes': [_roomRow('uuid-manual', updatedAt: 1700000100)],
+                'cursor': '1700000100',
+                'has_more': false,
+                'errors': <dynamic>[],
+              },
+            ],
+          ),
+          tokenless: true,
+        );
+
+        final r1 = await manager.sync(); // فشل الإقلاع + تبريد 60 ثانية
+        expect(r1.status, SyncStatus.failed);
+        expect(r1.errorMessage, contains('Not initialized'));
+        expect(manager.token, isNull);
+
+        // المستخدم يضغط زر السحب اليدوي خلال التبريد — يجب أن يُجرَّب
+        // الدخول فوراً (لا يُمنع بالتبريد المخصص لحلقات الخلفية).
+        final r2 = await manager.sync(push: false, forcePull: true);
+
+        expect(loginCalls, 2, reason: 'اليدوي يتجاوز التبريد ويجرّب مجدداً');
+        expect(manager.token, 'manual-token');
+        expect(r2.status, SyncStatus.success);
+        expect(r2.recordsPulled, 1);
+        expect(await roomsCount(), 1);
+      },
+    );
+
     test('الشفاء عبر الدورات: فشل ثم نجاح بعد انقضاء التبريد', () async {
       var loginCalls = 0;
       final manager = await makeManager(

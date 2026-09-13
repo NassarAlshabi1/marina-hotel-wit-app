@@ -17,10 +17,13 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:marina_hotel_mobile/providers/appwrite_providers.dart'
     as sync_providers;
 import 'package:marina_hotel_mobile/providers/repository_providers.dart';
 import 'package:marina_hotel_mobile/providers/smart_sync_provider.dart';
+import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart'
+    as cfm;
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/widgets/dashboard_sync_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,6 +36,15 @@ class _AlwaysConnectedNotifier extends sync_providers.ConnectionStatusNotifier {
   @override
   Future<void> checkConnection() async {
     state = sync_providers.ConnectionState(isConnected: true);
+  }
+}
+
+/// عميل يفشل دائماً — محاكاة «backend غير متاح» بحتة بلا شبكة حقيقية
+/// (testWidgets يحجب HTTP ويعيد 400 — هذا العميل أدق: استثناء فوري).
+class _FailingBackendClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    throw http.ClientException('backend unavailable (simulated)');
   }
 }
 
@@ -198,6 +210,20 @@ void main() {
       // StateError → يُلتقط في try/catch هدف Cloudflare → snackbar أحمر.
       // قبل الإصلاح: pushedCount=0 وكان `0 >= 0` صادقاً → snackbar أخضر
       // «تم رفع التغييرات بنجاح!» مع بقاء الصف في outbox — تضليل إنتاجي.
+      // ✅ (2026-09-13) تهيئة المدير singleton بحقن اختباري: توكن جاهز +
+      // عميل يفشل دائماً + قاعدة in-memory — فيصل الضغط فعلياً إلى دورة
+      // الرفع ضد «backend غير متاح» فترمي StateError الصادقة وتُلتقط في
+      // try/catch هدف Cloudflare → snackbar أحمر.
+      // قبل إصلاح «لا يسجل دخول تلقائياً» كان الاختبار يعتمد على فشل
+      // المدير العذراء السريع (Not initialized) — لكن المسار الآن يجرّب
+      // الدخول فعلياً (forcePull)، وسلسلة التهيئة تلمس قنوات منصات
+      // (sqflite) لا تكتمل مستقبلاً في بيئة testWidgets — لذا الحقن
+      // المباشر يختبر العقد المقصود بعيداً عن قيود البيئة.
+      cfm.AppwriteSyncManager.instance.configureForTesting(
+        database: db,
+        httpClient: _FailingBackendClient(),
+        token: 'test-token',
+      );
       await tester.tap(find.text('رفع التغييرات'));
       // تفريغ سلسلة async كاملة (prefs/dao/manager كلها في الذاكرة) —
       // لا pumpAndSettle لأن repeat() للأنيميشن لا يستقر إلا بعد الـ finally.

@@ -483,7 +483,7 @@ class CloudflareSyncManager {
   /// أو مسار غير موسوم) — نمط تصنيف فوري كخطأ دائم بدل إعادة الدفع
   /// حتى عتبة dead-letter بلا فائدة (الخادم سيرفضها في كل مرة).
   static final RegExp _permanentPushErrorPattern = RegExp(
-    r'is required|Invalid operation|must be|Unknown entity|not in whitelist|invalid entity',
+    'is required|Invalid operation|must be|Unknown entity|not in whitelist|invalid entity',
     caseSensitive: false,
   );
 
@@ -1065,24 +1065,39 @@ class CloudflareSyncManager {
             : 'Delta-only pull skipped (full sync not completed or sync in progress)',
       );
     }
-    if (_token == null && _db != null) {
+    if (_token == null && (forcePull || _db != null)) {
       // ✅ (2026-09-10) إعادة تهيئة كسولة: كان فشل تسجيل الدخول عند
       // الإقلاع (شبكة محجوبة/DoH معطّل) يتطلب إعادة فتح التطبيق حرفياً —
       // أي سحب لاحق ينتهي بـ«Not initialized» حتى لو شفيت الشبكة
       // والتطبيق مفتوح. الآن sync() يجرّب تسجيل الدخول مرة واحدة
       // (محاولة واحدة + تبريد 60 ثانية) قبل إعلان الفشل.
       //
-      // ⚠️ الحارس _db != null مقصود: يعمل فقط بعد تهيئة كاملة سابقة
-      // (سيناريو الإنتاج: login الإقلاع فشل والبقية تمّت). مدير عذراء
-      // بلا تهيئة يبقى «Not initialized» فوراً — لا قاعدة بيانات ولا
-      // IO ثقيل من مسار مزامنة لم يُهيأ (عقد اختبارات الويدجت).
+      // ✅ (2026-09-13) إصلاح «لا يسجل دخول تلقائياً» — تقرير مستخدم
+      // بلقطة شاشة (v1.2.0.4541): السحب اليدوي كان يُصطدم بحارسين
+      // يمنعان أي محاولة دخول رغم أن الشبكة والاعتمادات المدمجة سليمتان:
+      //  1) حارس _db != null: مدير لم يكتمل تهيئته بعد (ضغط المستخدم
+      //     سحباً خلال ثوانٍ الإقلاع الأولى) يفشل فوراً بلا أي محاولة.
+      //  2) تبريد 60 ثانية: محاولة إقلاع فاشلة واحدة تُصمّد كل السحب
+      //     اليدوي لدقيقة كاملة حتى مع شفاء الشبكة (وهذا ما ظهر في
+      //     اللقطة: فحص الاتصال نجح والسحب رُفض).
+      // الآن: forcePull (طلب المستخدم الصريح) يتجاوز التبريد ويسمح
+      // بتهيئة مدير عذراء كاملة — بينما حلقات الخلفية/الدلتا تبقى
+      // خاضعة للحارسين كما هي (عقود الاختبارات Hermetic سليمة:
+      // كل اختبارات التبريد تنادي sync() بلا forcePull).
+      //
+      // ⚠️ حارس _db != null يبقى للمسار العادي (بلا forcePull): مدير
+      // عذراء بلا تهيئة يبقى «Not initialized» فوراً — لا قاعدة بيانات
+      // ولا IO ثقيل من مسار مزامنة لم يُهيأ (عقد اختبارات الويدجت).
       final now = DateTime.now();
       final last = _lastLazyInitAttempt;
-      if (last == null || now.difference(last) >= lazyInitCooldown) {
+      final cooldownPassed =
+          last == null || now.difference(last) >= lazyInitCooldown;
+      if (forcePull || cooldownPassed) {
         _lastLazyInitAttempt = now;
         debugPrint(
           '🔄 [Sync] token is null — lazy re-login attempt '
-          '(cooldown ${lazyInitCooldown.inSeconds}s)',
+          '(cooldown ${lazyInitCooldown.inSeconds}s'
+          '${forcePull ? ', bypassed: manual forcePull' : ''})',
         );
         try {
           await initialize(loginAttempts: 1);
@@ -1239,7 +1254,9 @@ class CloudflareSyncManager {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     if (nowMs < _pushCooldownUntil.millisecondsSinceEpoch) {
       final remaining = _pushCooldownUntil.difference(DateTime.now()).inSeconds;
-      debugPrint('⏳ Push: rate-limit cooldown نشط — تخطي الدفعة ($remaining(s) متبقية)');
+      debugPrint(
+        '⏳ Push: rate-limit cooldown نشط — تخطي الدفعة ($remaining(s) متبقية)',
+      );
       return 0;
     }
 
@@ -1410,8 +1427,8 @@ class CloudflareSyncManager {
       // ونبرمج تهدئة قبل إعادة المحاولة بدل العضّ على الحد في كل دورة.
       if (response.statusCode == 429) {
         int? cooldownSec;
-        final raHeader = response.headers['retry-after'] ??
-            response.headers['Retry-After'];
+        final raHeader =
+            response.headers['retry-after'] ?? response.headers['Retry-After'];
         if (raHeader != null) cooldownSec = int.tryParse(raHeader.trim());
         if (cooldownSec == null) {
           try {
@@ -1426,9 +1443,8 @@ class CloudflareSyncManager {
         }
         if (cooldownSec == null || cooldownSec <= 0) cooldownSec = 60;
         if (cooldownSec > 600) cooldownSec = 600;
-        _pushCooldownUntil =
-            DateTime.now().add(Duration(seconds: cooldownSec));
-        debugPrint('⏳ Push: 429 — تهدئة ${cooldownSec}ث قبل المحاولة القادمة');
+        _pushCooldownUntil = DateTime.now().add(Duration(seconds: cooldownSec));
+        debugPrint('⏳ Push: 429 — تهدئة $cooldownSecث قبل المحاولة القادمة');
       }
 
       // ✅ P0-G: 401/403 → لا نلمس السجلات (ستُعاد المحاولة بعد re-auth)
@@ -3591,7 +3607,11 @@ class CloudflareSyncManager {
   /// عند نجاح فعلي فقط. المستدعي dashboard_sync_button يلتقط الاستثناء
   /// في try/catch لكل هدف (:539-546) فيُظهر snackbar أحمر مع «إعادة».
   Future<int> pushLocalChanges() async {
-    final r = await sync(pull: false);
+    // ✅ (2026-09-13) forcePull: الرفع اليدوي طلب مستخدم صريح — يتجاوز
+    // تبريد الدخول الكسول في sync() فيجرّب admin/admin المدمجة فوراً
+    // بدل StateError('Not initialized') رغم أن الشبكة سليمة (نفس عقد
+    // زر السحب اليدوي forcePull: true).
+    final r = await sync(pull: false, forcePull: true);
     if (r.status != SyncStatus.success) {
       throw StateError(r.errorMessage ?? 'Push failed (${r.status.name})');
     }

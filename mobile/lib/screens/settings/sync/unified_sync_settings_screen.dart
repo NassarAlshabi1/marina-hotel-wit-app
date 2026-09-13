@@ -1050,10 +1050,13 @@ class _UnifiedSyncSettingsScreenState
 
       // 3) السحب عبر البوّابة العامة (منع التصادم مع أي مزامنة أخرى)
       final manager = ref.read(ap.appwriteSyncManagerProvider);
+      // ✅ (2026-09-13) forcePull: طلب مستخدم صريح — يتجاوز تبريد الدخول
+      // الكسول في sync() فيجرّب admin/admin المدمجة فوراً بدل رفض
+      // «لم يتم تسجيل الدخول» رغم أن الشبكة سليمة.
       final result = await SyncGate.instance.runGuarded<SyncResult>(
         operation: 'pull',
         source: 'settings',
-        task: () => manager.sync(push: false),
+        task: () => manager.sync(push: false, forcePull: true),
       );
 
       if (result == null) {
@@ -1228,8 +1231,10 @@ class _UnifiedSyncSettingsScreenState
         operation: 'push',
         source: 'settings',
         // ✅ فصل صريح: الرفع وحده — الصراحة عقد لا افتراض.
+        // ✅ (2026-09-13) forcePull: طلب مستخدم صريح — يتجاوز تبريد الدخول
+        // الكسول في sync() (نفس عقد زر السحب أعلاه).
         // ignore: avoid_redundant_argument_values
-        task: () => manager.sync(push: true, pull: false),
+        task: () => manager.sync(push: true, pull: false, forcePull: true),
       );
 
       if (result == null) {
