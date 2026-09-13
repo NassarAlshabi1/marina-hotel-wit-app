@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../services/gemini_service.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/performance_monitor.dart';
 
 /// مزود AI النشط
@@ -43,7 +45,11 @@ class ChatMessage {
   final String? executionResult;
   final DateTime timestamp;
 
-  ChatMessage copyWith({String? text, bool? isExecuted, String? executionResult}) {
+  ChatMessage copyWith({
+    String? text,
+    bool? isExecuted,
+    String? executionResult,
+  }) {
     return ChatMessage(
       id: id,
       text: text ?? this.text,
@@ -64,7 +70,8 @@ class AiChatScreen extends StatefulWidget {
   State<AiChatScreen> createState() => _AiChatScreenState();
 }
 
-class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderStateMixin {
+class _AiChatScreenState extends State<AiChatScreen>
+    with SingleTickerProviderStateMixin {
   final List<ChatMessage> _messages = [];
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -84,7 +91,7 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _initializeProviders();
+    unawaited(_initializeProviders());
     _addWelcomeMessage();
   }
 
@@ -127,10 +134,12 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+        unawaited(
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          ),
         );
       }
     });
@@ -144,7 +153,13 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
     _lastUserMessage = text;
 
     setState(() {
-      _messages.add(ChatMessage(id: 'user_${DateTime.now().millisecondsSinceEpoch}', text: text, isUser: true));
+      _messages.add(
+        ChatMessage(
+          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          text: text,
+          isUser: true,
+        ),
+      );
       _isLoading = true;
       _loadingText = 'يفكر...';
     });
@@ -156,7 +171,9 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
       if (_isGeminiAvailable) {
         response = await GeminiService.instance.chat(text);
       } else {
-        response = const GeminiResponse(text: 'Gemini AI غير متاح. تأكد من اتصالك بالإنترنت ومفتاح API.');
+        response = const GeminiResponse(
+          text: 'Gemini AI غير متاح. تأكد من اتصالك بالإنترنت ومفتاح API.',
+        );
       }
 
       if (mounted) {
@@ -165,7 +182,9 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
             ChatMessage(
               id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
               text: response.text,
-              pendingCommand: response.requiresConfirmation ? response.command : null,
+              pendingCommand: response.requiresConfirmation
+                  ? response.command
+                  : null,
             ),
           );
           _isLoading = false;
@@ -173,12 +192,13 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
         _scrollToBottom();
       }
     } catch (e) {
-      debugPrint('❌ Chat Error: $e');
+      dlog(() => '❌ Chat Error: $e');
       if (mounted) {
         String errorMsg = 'عذراً، حدث خطأ أثناء الاتصال.';
         if (e.toString().contains('API_KEY') || e.toString().contains('401')) {
           errorMsg = 'خطأ في مفتاح API.';
-        } else if (e.toString().contains('QUOTA') || e.toString().contains('429')) {
+        } else if (e.toString().contains('QUOTA') ||
+            e.toString().contains('429')) {
           errorMsg = 'تم تجاوز حد الطلبات المسموح به.';
         }
 
@@ -202,11 +222,15 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
     setState(() {
       final idx = _messages.indexOf(message);
       if (idx >= 0) {
-        _messages[idx] = message.copyWith(text: '${message.text}\n⏳ جاري التنفيذ...');
+        _messages[idx] = message.copyWith(
+          text: '${message.text}\n⏳ جاري التنفيذ...',
+        );
       }
     });
 
-    final result = await GeminiService.instance.executeCommand(message.pendingCommand!);
+    final result = await GeminiService.instance.executeCommand(
+      message.pendingCommand!,
+    );
 
     // تسجيل في سجل التدقيق
     GeminiService.instance.logToAudit(
@@ -246,7 +270,9 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
       setState(() {
         final idx = _messages.indexOf(message);
         if (idx >= 0) {
-          _messages[idx] = message.copyWith(text: '${message.text}\n❌ تم الإلغاء');
+          _messages[idx] = message.copyWith(
+            text: '${message.text}\n❌ تم الإلغاء',
+          );
         }
       });
     }
@@ -254,112 +280,158 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
 
   void _showAuditLog() {
     final log = GeminiService.instance.auditLog;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.history, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('سجل عمليات AI'),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: log.isEmpty
-                ? const Center(
-                    child: Text('لا توجد عمليات مسجلة بعد', style: TextStyle(color: Colors.grey)),
-                  )
-                : ListView.builder(
-                    itemCount: log.length,
-                    itemBuilder: (context, index) {
-                      final entry = log[log.length - 1 - index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: entry.wasConfirmed
-                                          ? Colors.green.withValues(alpha: 0.15)
-                                          : Colors.orange.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      entry.wasConfirmed ? 'تم' : 'ألغي',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: entry.wasConfirmed ? Colors.green : Colors.orange,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  if (entry.commandType != null)
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.history, color: Colors.amber),
+                SizedBox(width: 8),
+                Text('سجل عمليات AI'),
+              ],
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: log.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'لا توجد عمليات مسجلة بعد',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: log.length,
+                      itemBuilder: (context, index) {
+                        final entry = log[log.length - 1 - index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.blue.withValues(alpha: 0.1),
+                                        color: entry.wasConfirmed
+                                            ? Colors.green.withValues(
+                                                alpha: 0.15,
+                                              )
+                                            : Colors.orange.withValues(
+                                                alpha: 0.15,
+                                              ),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        entry.commandType!.replaceAll('Ai', '').replaceAll('Command', ''),
-                                        style: const TextStyle(fontSize: 10, color: Colors.blue),
+                                        entry.wasConfirmed ? 'تم' : 'ألغي',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: entry.wasConfirmed
+                                              ? Colors.green
+                                              : Colors.orange,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  const Spacer(),
-                                  Text(
-                                    DateFormat('HH:mm').format(entry.timestamp),
-                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                entry.userMessage,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                entry.executionResult,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: entry.executionResult.startsWith('✅') ? Colors.green : Colors.red,
+                                    const SizedBox(width: 8),
+                                    if (entry.commandType != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          entry.commandType!
+                                              .replaceAll('Ai', '')
+                                              .replaceAll('Command', ''),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
+                                      ),
+                                    const Spacer(),
+                                    Text(
+                                      DateFormat(
+                                        'HH:mm',
+                                      ).format(entry.timestamp),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  entry.userMessage,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  entry.executionResult,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: entry.executionResult.startsWith('✅')
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              if (log.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    GeminiService.instance.clearAuditLog();
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم مسح السجل')),
+                    );
+                  },
+                  child: const Text(
+                    'مسح السجل',
+                    style: TextStyle(color: Colors.red),
                   ),
-          ),
-          actions: [
-            if (log.isNotEmpty)
+                ),
               TextButton(
-                onPressed: () {
-                  GeminiService.instance.clearAuditLog();
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم مسح السجل')));
-                },
-                child: const Text('مسح السجل', style: TextStyle(color: Colors.red)),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إغلاق'),
               ),
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -400,19 +472,29 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
               if (_isAnyAvailable) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.green.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(_activeProvider.displayName, style: const TextStyle(color: Colors.green, fontSize: 11)),
+                  child: Text(
+                    _activeProvider.displayName,
+                    style: const TextStyle(color: Colors.green, fontSize: 11),
+                  ),
                 ),
               ],
             ],
           ),
           actions: [
             // سجل التدقيق
-            IconButton(icon: const Icon(Icons.history), tooltip: 'سجل العمليات', onPressed: _showAuditLog),
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'سجل العمليات',
+              onPressed: _showAuditLog,
+            ),
           ],
         ),
         body: Column(
@@ -421,15 +503,24 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
             if (!_isAnyAvailable)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.orange.shade50,
-                  border: Border(bottom: BorderSide(color: Colors.orange.shade200)),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.orange.shade200),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
+                    Icon(
+                      Icons.warning_amber,
+                      color: Colors.orange.shade700,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -437,13 +528,20 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                         children: [
                           Text(
                             'المساعد الذكي غير متاح',
-                            style: TextStyle(color: Colors.orange.shade800, fontSize: 13, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           if (GeminiService.instance.initError != null) ...[
                             const SizedBox(height: 4),
                             Text(
                               'Gemini: ${GeminiService.instance.initError}',
-                              style: TextStyle(color: Colors.orange.shade700, fontSize: 11),
+                              style: TextStyle(
+                                color: Colors.orange.shade700,
+                                fontSize: 11,
+                              ),
                             ),
                           ],
 
@@ -453,12 +551,19 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                             child: ElevatedButton.icon(
                               onPressed: _retryInit,
                               icon: const Icon(Icons.refresh, size: 14),
-                              label: const Text('إعادة المحاولة', style: TextStyle(fontSize: 11)),
+                              label: const Text(
+                                'إعادة المحاولة',
+                                style: TextStyle(fontSize: 11),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.orange.shade700,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
                             ),
                           ),
@@ -487,7 +592,8 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
             ),
 
             // اقتراحات سريعة
-            if (_messages.length <= 1 && !_isAnyAvailable) _buildQuickSuggestions(),
+            if (_messages.length <= 1 && !_isAnyAvailable)
+              _buildQuickSuggestions(),
 
             // حقل الإدخال
             _buildInputField(theme),
@@ -504,7 +610,10 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
         children: [
           Icon(Icons.smart_toy_outlined, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
-          Text('ابدأ محادثة مع المساعد الذكي', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+          Text(
+            'ابدأ محادثة مع المساعد الذكي',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+          ),
         ],
       ),
     );
@@ -519,9 +628,13 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.82,
+        ),
         decoration: BoxDecoration(
-          color: isUser ? theme.colorScheme.primary.withValues(alpha: 0.1) : theme.cardColor,
+          color: isUser
+              ? theme.colorScheme.primary.withValues(alpha: 0.1)
+              : theme.cardColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -529,7 +642,11 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
             bottomRight: isUser ? Radius.zero : const Radius.circular(4),
           ),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 2)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
         child: Column(
@@ -542,29 +659,50 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.smart_toy, size: 14, color: Colors.amber.shade700),
+                    Icon(
+                      Icons.smart_toy,
+                      size: 14,
+                      color: Colors.amber.shade700,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       _activeProvider.displayName,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber.shade700),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber.shade700,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       DateFormat('HH:mm').format(message.timestamp),
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade400,
+                      ),
                     ),
                   ],
                 ),
               ),
 
             // محتوى الرسالة
-            Text(message.text, style: TextStyle(fontSize: 14, height: 1.5, color: theme.textTheme.bodyMedium?.color)),
+            Text(
+              message.text,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
+            ),
 
             // نتيجة التنفيذ
             if (message.isExecuted && message.executionResult != null) ...[
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: message.executionResult!.startsWith('✅')
                       ? Colors.green.withValues(alpha: 0.1)
@@ -580,9 +718,13 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      message.executionResult!.startsWith('✅') ? Icons.check_circle : Icons.error,
+                      message.executionResult!.startsWith('✅')
+                          ? Icons.check_circle
+                          : Icons.error,
                       size: 14,
-                      color: message.executionResult!.startsWith('✅') ? Colors.green : Colors.red,
+                      color: message.executionResult!.startsWith('✅')
+                          ? Colors.green
+                          : Colors.red,
                     ),
                     const SizedBox(width: 6),
                     Flexible(
@@ -591,7 +733,9 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: message.executionResult!.startsWith('✅') ? Colors.green.shade800 : Colors.red.shade800,
+                          color: message.executionResult!.startsWith('✅')
+                              ? Colors.green.shade800
+                              : Colors.red.shade800,
                         ),
                       ),
                     ),
@@ -609,12 +753,20 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                   ElevatedButton.icon(
                     onPressed: () => _confirmCommand(message),
                     icon: const Icon(Icons.check, size: 16),
-                    label: const Text('تأكيد التنفيذ', style: TextStyle(fontSize: 12)),
+                    label: const Text(
+                      'تأكيد التنفيذ',
+                      style: TextStyle(fontSize: 12),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -624,8 +776,13 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                     label: const Text('إلغاء', style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                 ],
@@ -657,10 +814,16 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
             SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber.shade600),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.amber.shade600,
+              ),
             ),
             const SizedBox(width: 8),
-            Text(_loadingText, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+            Text(
+              _loadingText,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
           ],
         ),
       ),
@@ -690,7 +853,7 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
             label: Text(s.$2, style: const TextStyle(fontSize: 11)),
             onPressed: () {
               _controller.text = s.$3;
-              _sendMessage();
+              unawaited(_sendMessage());
             },
           );
         }).toList(),
@@ -715,7 +878,11 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
               height: 32,
               child: IconButton(
                 onPressed: _clearChat,
-                icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey.shade500),
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: Colors.grey.shade500,
+                ),
                 tooltip: 'مسح المحادثة',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -730,7 +897,10 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                 style: const TextStyle(fontSize: 16, height: 1.4),
                 decoration: InputDecoration(
                   hintText: 'اكتب هنا...',
-                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                  hintStyle: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade400,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(22),
                     borderSide: BorderSide(color: Colors.grey.shade200),
@@ -741,9 +911,15 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.5), width: 1.5),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                      width: 1.5,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   isDense: true,
                   filled: true,
                   fillColor: theme.scaffoldBackgroundColor,
@@ -764,12 +940,17 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.send, size: 20),
               style: IconButton.styleFrom(
                 padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),
