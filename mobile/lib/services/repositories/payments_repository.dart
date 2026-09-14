@@ -125,6 +125,11 @@ class PaymentsRepository {
 
   /// إجماليات استلامات كل مستخدم عبر كل جلساته ضمن اليوم الفندقي —
   /// سطر واحد لكل مستخدم بغضّ النظر عن عدد جلسات تسجيل الدخول/النوبات.
+  ///
+  /// ✅ لا نشترط وجود جلسة: الدفعات القديمة/المستعادة من نسخ احتياطية
+  /// التي فقدت received_session_uuid تُحسب ضمن مستلمها طالما الاسم أو
+  /// المعرّف السحابي موجود (التطبيق أصلاً لا يسمح بتسجيل دفعة دون
+  /// جلسة مستخدم نشطة). الوحيدة المستثناة: صف بلا أي مستلم معروف.
   /// التجميع يتم في SQLite حتى لا تُحمّل جميع صفوف المدفوعات إلى Dart.
   Stream<List<PaymentShiftSummary>> watchPaymentShiftSummaries(
     String hotelDayKey, {
@@ -147,8 +152,6 @@ class PaymentsRepository {
           'FROM payments '
           'WHERE deleted_at IS NULL AND is_voided = 0 '
           'AND is_pending_balance = 0 '
-          'AND received_by_user_id IS NOT NULL '
-          'AND received_session_uuid IS NOT NULL '
           'AND (received_by_cloud_id IS NOT NULL OR received_by_name IS NOT NULL) '
           '${excludedUserId == null ? '' : 'AND received_by_user_id != ? '} '
           '$excludedNameFilter'

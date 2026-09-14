@@ -72,8 +72,10 @@ class ShiftReceiptsCloudService {
   ///
   /// الفلاتر مطابقة لاستعلام SQL المحلي:
   /// - تُستبعد الدفعات المحذوفة/الملغاة/رصيد السحب المؤجل
-  /// - تُستبعد الدفعات غير المنسوبة إلى جلسة (receivedSessionUuid فارغ)
-  /// - تُستبعد الدفعات بلا مستلم (اسم فارغ وcloudId فارغ)
+  /// - لا نشترط وجود جلسة: الدفعات القديمة/المستعادة بلا
+  ///   receivedSessionUuid تُحسب ضمن مستلمها (التطبيق لا يسمح أصلاً
+  ///   بتسجيل دفعة دون جلسة مستخدم نشطة)
+  /// - تُستبعد الدفعات بلا مستلم إطلاقاً (اسم فارغ وcloudId فارغ)
   /// - الاسم الفارغ يُعرض «مستخدم غير معروف» (مطابق لـ COALESCE المحلي)
   static List<PaymentShiftSummary> aggregatePayments(
     List<models.Document> docs, {
@@ -90,10 +92,6 @@ class ShiftReceiptsCloudService {
         continue;
       }
       if (data['isPendingBalance'] == true) {
-        continue;
-      }
-      final sessionUuid = (data['receivedSessionUuid'] ?? '').toString();
-      if (sessionUuid.isEmpty) {
         continue;
       }
       final rawName = (data['receivedByName'] ?? '').toString().trim();

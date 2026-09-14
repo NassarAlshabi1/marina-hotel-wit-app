@@ -87,14 +87,26 @@ void main() {
       expect(rows.first.userName, 'المستخدم 1');
     });
 
-    test('يستبعد المحذوف/الملغى/رصيد السحب المؤجل/بلا جلسة', () {
+    test('يستبعد المحذوف/الملغى/رصيد السحب المؤجل', () {
       final docs = [
         _doc('d1', _payment(deletedAt: '2026-09-14T10:00:00.000Z')),
         _doc('d2', _payment(id: 'd2', voided: true)),
         _doc('d3', _payment(id: 'd3', pendingBalance: true)),
-        _doc('d4', _payment(id: 'd4', sessionUuid: '')),
       ];
       expect(ShiftReceiptsCloudService.aggregatePayments(docs), isEmpty);
+    });
+
+    test('الدفعة بلا جلسة (قديمة/مستعادة) تُحسب ضمن مستلمها', () {
+      // التطبيق لا يسمح بتسجيل دفعة دون جلسة نشطة — فأي صف بلا جلسة
+      // هو بيانات قديمة/مستعادة ولا يجب إخفاؤه من البطاقة.
+      final docs = [
+        _doc('p1', _payment(amount: 400, sessionUuid: '')),
+        _doc('p2', _payment(id: 'p2', amount: 600)),
+      ];
+      final rows = ShiftReceiptsCloudService.aggregatePayments(docs);
+      expect(rows, hasLength(1));
+      expect(rows.first.totalAmount, 1000);
+      expect(rows.first.paymentCount, 2);
     });
 
     test('يستبعد الدفعات بلا مستلم (اسم وcloudId فارغان)', () {
