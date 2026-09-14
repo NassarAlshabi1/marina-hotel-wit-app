@@ -261,6 +261,16 @@ class PayloadMapper {
 
     putIfStringNotEmpty(data, 'voidReason', payment.voidReason);
     putIfNotNull(data, 'isImmutable', payment.isImmutable);
+    // هوية المستخدم الذي استلم الدفعة — مطلوبة لتجميع بطاقة
+    // «استلامات المستخدمين الآخرين» على أجهزة المدير/المشرف.
+    putIfNotNull(data, 'receivedByUserId', payment.receivedByUserId);
+    putIfStringNotEmpty(data, 'receivedByName', payment.receivedByName);
+    putIfStringNotEmpty(
+      data,
+      'receivedSessionUuid',
+      payment.receivedSessionUuid,
+    );
+    putIfStringNotEmpty(data, 'receivedByCloudId', payment.receivedByCloudId);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);
 
     putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);

@@ -85,17 +85,22 @@ class ShiftReceiptsCloudService {
     final buckets = <String, _Bucket>{};
     for (final doc in docs) {
       final data = doc.data;
-      if (data['deletedAt'] != null) {
+      if (_value(data, 'deletedAt', 'deleted_at') != null) {
         continue;
       }
-      if (data['isVoided'] == true) {
+      if (_asBool(_value(data, 'isVoided', 'is_voided'))) {
         continue;
       }
-      if (data['isPendingBalance'] == true) {
+      if (_asBool(_value(data, 'isPendingBalance', 'is_pending_balance'))) {
         continue;
       }
-      final rawName = (data['receivedByName'] ?? '').toString().trim();
-      final cloudId = (data['receivedByCloudId'] ?? '').toString();
+      final rawName =
+          (_value(data, 'receivedByName', 'received_by_name') ?? '')
+              .toString()
+              .trim();
+      final cloudId =
+          (_value(data, 'receivedByCloudId', 'received_by_cloud_id') ?? '')
+              .toString();
       if (rawName.isEmpty && cloudId.isEmpty) {
         continue;
       }
@@ -112,8 +117,11 @@ class ShiftReceiptsCloudService {
         continue;
       }
 
-      final userId = (data['receivedByUserId'] as num?)?.toInt() ?? 0;
-      final amount = (data['amount'] as num?)?.toDouble() ?? 0;
+      final userId = _asNum(
+            _value(data, 'receivedByUserId', 'received_by_user_id'),
+          )?.toInt() ??
+          0;
+      final amount = _asNum(_value(data, 'amount', 'amount'))?.toDouble() ?? 0;
 
       // مفتاح التجميع مطابق لـ GROUP BY المحلي: مستخدم واحد = سطر واحد
       // بغضّ النظر عن عدد جلساته في اليوم الفندقي.
@@ -140,6 +148,23 @@ class ShiftReceiptsCloudService {
           ..sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
     dlog(() => '☁️ [ShiftReceipts] مستخلَصات سحابية: ${summaries.length}');
     return summaries;
+  }
+
+  static dynamic _value(
+    Map<String, dynamic> data,
+    String primary,
+    String alternate,
+  ) =>
+      data[primary] ?? data[alternate];
+
+  static num? _asNum(dynamic value) {
+    if (value is num) return value;
+    return num.tryParse(value?.toString() ?? '');
+  }
+
+  static bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    return value == 1 || value?.toString().toLowerCase() == 'true';
   }
 }
 

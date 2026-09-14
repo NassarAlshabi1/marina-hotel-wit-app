@@ -463,9 +463,16 @@ final cloudEmployeeShiftPaymentSummariesProvider =
             excludedUserName: user.name,
             excludedUserCloudId: user.cloudUserId,
           );
-          lastEmitted = rows;
+          // بعض سجلات Cloud القديمة (أو التي رُفعت قبل إضافة حقول المستلم)
+          // تحتوي payments صحيحة لكن حقول receivedBy* فيها null. عندها
+          // تكون نتيجة التجميع السحابية فارغة رغم أن القاعدة المحلية تحمل
+          // إجمالي الاستلام الحقيقي، لذلك لا نمسح البطاقة بقيمة فارغة.
+          final effectiveRows = rows.isEmpty && lastLocal.isNotEmpty
+              ? lastLocal
+              : rows;
+          lastEmitted = effectiveRows;
           if (!controller.isClosed) {
-            controller.add(rows);
+            controller.add(effectiveRows);
           }
         } catch (e) {
           dlog(() => '☁️ [ShiftReceipts] فشل السحب السحابي: $e — احتياط محلي');

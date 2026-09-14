@@ -139,6 +139,37 @@ void main() {
       expect(rows.first.totalAmount, 250);
     });
 
+    test('يتعامل مع payload قديم بصيغة snake_case وقيم flags رقمية', () {
+      final rows = ShiftReceiptsCloudService.aggregatePayments([
+        _doc('p1', {
+          'amount': '400',
+          'received_by_user_id': '11',
+          'received_by_name': 'مستخدم قديم',
+          'received_by_cloud_id': 'cloud-old',
+          'is_voided': 0,
+          'is_pending_balance': 0,
+        }),
+      ]);
+
+      expect(rows, hasLength(1));
+      expect(rows.first.userName, 'مستخدم قديم');
+      expect(rows.first.totalAmount, 400);
+    });
+
+    test('لا يجمع السجل الملغى عندما تكون isVoided رقمية', () {
+      final rows = ShiftReceiptsCloudService.aggregatePayments([
+        _doc('p1', {
+          'amount': 400,
+          'receivedByUserId': 11,
+          'receivedByName': 'مستخدم',
+          'receivedByCloudId': 'cloud-1',
+          'isVoided': 1,
+        }),
+      ]);
+
+      expect(rows, isEmpty);
+    });
+
     test('يرتب السطور تنازلياً حسب الإجمالي', () {
       final docs = [
         _doc(
