@@ -1055,7 +1055,7 @@ class CloudflareSyncManager {
       // فشل قراءة التفضيل لا يجوز أن يمنع المزامنة (fail-open مثل المفتاح البعيد).
     }
     if (deltaOnly) {
-      final bool ok = await realtimeTriggeredPull();
+      final bool ok = await realtimeTriggeredPull(forcePull: forcePull);
       return SyncResult(
         status: ok ? SyncStatus.success : SyncStatus.idle,
         timestamp: DateTime.now(),
@@ -1768,12 +1768,7 @@ class CloudflareSyncManager {
 
     // ✅ (2026-09-10) بثّ لقطة البداية فوراً — المؤشر يظهر الصفر قبل
     // أول صفحة، والمستخدم يعرف أن السحب بدأ فعلاً.
-    _emitPullProgress(
-      SyncPullProgress(
-        pulledRows: 0,
-        isFullSync: wasFullSync,
-      ),
-    );
+    _emitPullProgress(SyncPullProgress(pulledRows: 0, isFullSync: wasFullSync));
 
     // ✅ (2026-09-09) تسريع السحب الكامل (طلب المستخدم): صفحة أكبر
     // للسحب الكامل — ~7,300 صف ≈ 18 طلباً بدل 73 (السقف الخادمي
@@ -3400,7 +3395,7 @@ class CloudflareSyncManager {
       // Fire-and-forget: sync errors are handled by catchError, not awaited
       // because Timer.periodic callback is synchronous.
       unawaited(
-        sync().catchError((Object e) {
+        sync(deltaOnly: true).catchError((Object e) {
           debugPrint('⚠️ Auto-sync error: $e');
           return SyncResult(
             status: SyncStatus.failed,
@@ -3756,7 +3751,7 @@ class CloudflareSyncManager {
   ///   إهدار دورة على "already in progress".
   /// - push أولاً ثم pull داخل sync() — الترتيب يضمن أن التغييرات
   ///   المحلية المعلّقة تُرفع قبل الاستماع للبعيدة (نفس عقد Outbox).
-  Future<bool> realtimeTriggeredPull() async {
+  Future<bool> realtimeTriggeredPull({bool forcePull = false}) async {
     if (!_fullSyncCompleted) {
       debugPrint('⏭️ Realtime pull skipped — full sync not completed yet');
       return false;
@@ -3765,8 +3760,9 @@ class CloudflareSyncManager {
       debugPrint('⏭️ Realtime pull skipped — sync already in progress');
       return false;
     }
-    // sync() الافتراضي: push ثم pull — الترتيب الداخلي يرفع outbox أولاً
-    final result = await sync();
+    // Delta pull فقط: الرفع الفوري مسؤولية AutoOutboxSyncWatcher،
+    // ولا يجوز لمسار السحب التفاضلي أن يبدأ Full Sync أو يرفع بيانات.
+    final result = await sync(push: false, forcePull: forcePull);
     return result.isSuccess;
   }
 }

@@ -93,9 +93,7 @@ Future<void> main() async {
   // وآخر نقطة نجحت sticky. fail-open: فشل التحميل = المدمج.
   try {
     await WorkerEndpoints.load();
-    debugPrint(
-      '✅ WorkerEndpoints loaded (active: ${WorkerEndpoints.active})',
-    );
+    debugPrint('✅ WorkerEndpoints loaded (active: ${WorkerEndpoints.active})');
   } catch (e) {
     debugPrint('⚠️ WorkerEndpoints load failed (fail-open): $e');
   }
@@ -573,25 +571,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           AutoOutboxSyncWatcher.instance.start(DatabaseManager.instance),
         );
 
-        // ✅ (2026-09-07) «المزامنة بدون الحاجة إلى تسجيل الدخول» (طلب
-        // المستخدم الحرفي): السحب الكامل من D1 كان محبوساً خلف شرطين
-        // تسجيليين (أدلة: bootstrap_full_pull.dart — شرط drive_login_skipped
-        // في evaluate() + نداء اللا مشغّل الوحيد في HomeShell بعد الدخول).
-        // النتيجة: تثبيت أول يبقى فارغاً حتى يسجّل المستخدم دخولاً،
-        // والمستخدمون السحابيون (app_users) لا يصلون إلا عبر نفس السحب
-        // — حلقة دجاجة-والبيضة. الآن: السحب يعمل هنا عند تهيئة القاعدة
-        // (قبل شاشة الدخول) عبر التوكن الافتراضي (sync_service في
-        // الـ worker)، ويُعاد تلقائياً كل إطلاق حتى ينجح (idempotent —
-        // in-flight guard + pullDoneFlag يمنعان الازدواج مع نداء
-        // HomeShell/شاشة التخطي).
-        unawaited(
-          BootstrapFullPull.ensureFullPullOnLaunch(
-            manager: ref.read(appwrite.appwriteSyncManagerProvider),
-          ).catchError((Object e, StackTrace s) {
-            debugPrint('⚠️ Bootstrap full pull (pre-login) error: $e\n$s');
-            return false;
-          }),
-        );
+        // لا نبدأ Full Sync تلقائياً عند الإقلاع. السحب الكامل الأول
+        // يُنفّذ مرة واحدة فقط من مسار «المتابعة بدون مزامنة».
+        // قبل اكتماله تبقى دورات الإقلاع/الخلفية Delta-only ولا تُحوّل
+        // الفشل الصامت إلى Full Sync متكرر.
 
         // ✅ Cloudflare migration: push local data to D1 on first run
         if (!await CloudflareMigrationService.instance.isMigrationComplete()) {
@@ -688,13 +671,16 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             debugPrint(
               '📥 Pulling latest data from Cloudflare D1 on app start...',
             );
-            // push + pull معاً — لا نرفع بدون سحب
+            // سحب دلتا فقط — لا نرفع ولا نبدأ Full Sync من مسار الإقلاع.
             // ✅ (2026-09-14) المفتاح يُكتب عند النجاح الفعلي فقط:
             // sync() لا يرمي استثناءً عند فشل السحب (يعيد SyncResult
             // failed) — الكتابة غير المشروطة كانت تختم «آخر سحب ناجح»
             // رغم فشله فيمنع أي سحب تلقائي لمدة ساعة كاملة (فحص
             // appOpenSyncInterval) = «لا يسحب عند فتح التطبيق».
-            final bootResult = await syncManager.sync();
+            final bootResult = await syncManager.sync(
+              push: false,
+              deltaOnly: true,
+            );
             if (bootResult.isSuccess) {
               await prefs.setInt(
                 SyncConstants.lastAppOpenPullKey,
@@ -1114,10 +1100,9 @@ class RootRouter extends ConsumerWidget {
     // طلب المستخدم: «لا تقم بإزالة بوابة GoogleDriveLoginScreen من
     // التوجيه — كانت حائط دخول Drive قبل شاشة دخول التطبيق».
     // ملاحظة مهمة: هذا حائط *واجهة* لدخول Google Drive (النسخ
-    // الاحتياطي) فقط؛ مزامنة Cloudflare والسحب الكامل عبر التوكن
-    // الافتراضي يعملان في الخلفية عند إطلاق التطبيق (قبل أي دخول)
-    // بغضّ النظر عن هذه الشاشة — انظر BootstrapFullPull.ensureFullPullOnLaunch
-    // في _AppState. يُتخطى الحاجز بعد تسجيل دخول Drive أو اختيار
+    // الاحتياطي) فقط؛ سحب Cloudflare الكامل لا يبدأ من هذا الحاجز، بل
+    // من اختيار «المتابعة بدون مزامنة» مرة واحدة. يُتخطى الحاجز بعد
+    // تسجيل دخول Drive أو اختيار
     // التخطي (requiresDriveLogin = !isSignedIn && !driveLoginSkipped).
     if (auth.isRestoring) {
       return const Directionality(

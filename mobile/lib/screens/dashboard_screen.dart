@@ -269,12 +269,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   /// ✅ (2026-09-14) سحب سحابي متين صامت — المسار الرئيسي
-  /// sync(push:false, forcePull:true): نفس عقد زر «سحب التغييرات»
+  /// sync(push:false, deltaOnly:true, forcePull:true): عقد زر «سحب التغييرات»
   /// دون الرفع (الرفع مغطى فورياً عبر AutoOutboxSyncWatcher ~3 ثوانٍ):
   /// - forcePull يتجاوز تبريد الدخول الكسول (60 ثانية) فيعمل حتى لو
   ///   فشل تسجيل دخول الإقلاع قبل لحظات (كان deltaOnly يفشل هنا).
-  /// - إن لم تكتمل الـ bootstrap بعد يُكملها المسار الرئيسي (P0-B)
-  ///   بدل التخطي الصامت الذي كان يحدث مع deltaOnly.
+  /// - إذا لم تكتمل الـ bootstrap بعد يُرجع تخطياً واضحاً؛ Full Sync
+  ///   الأول محصور في مسار «المتابعة بدون مزامنة».
   /// - إعادة محاولة محدودة (3 محاولات بفاصل 10 ثوانٍ) تعالج سباق
   ///   «مزامنة قائمة» عند الفتح (سحب الإقلاع في main.dart) والفشل
   ///   العابر — بدل التخلي الفوري عن الدورة حتى الساعة التالية.
@@ -283,7 +283,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final syncManager = ref.read(appwriteSyncManagerProvider);
     SyncResult? last;
     for (int attempt = 1; attempt <= 3; attempt++) {
-      last = await syncManager.sync(push: false, forcePull: true);
+      last = await syncManager.sync(
+        push: false,
+        deltaOnly: true,
+        forcePull: true,
+      );
       if (last.isSuccess) return last;
       if (attempt == 3) return last;
       await Future<void>.delayed(const Duration(seconds: 10));
