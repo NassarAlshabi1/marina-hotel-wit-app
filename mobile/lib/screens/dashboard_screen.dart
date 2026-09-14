@@ -929,17 +929,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         user?.userType == 'supervisor';
     if (!canViewOtherEmployees) return const SizedBox.shrink();
 
-    final summariesAsync = ref.watch(employeeShiftPaymentSummariesProvider);
+    // ✅ (2026-09-14) مصدر سحابي مباشر — المبالغ تُقرأ من Appwrite
+    // وتتحدث تلقائياً (كل 60 ثانية + مع أحداث المزامنة + زر التحديث).
+    final summariesAsync = ref.watch(
+      cloudEmployeeShiftPaymentSummariesProvider,
+    );
+    // ✅ ربط البطاقة بـ Outbox: دفعات هذا الجهاز التي لم تصل السحابة
+    // بعد — تُرفع تلقائياً فور توفر الشبكة دون أي تدخل يدوي.
+    final pendingUploads =
+        ref.watch(paymentsOutboxPendingProvider).valueOrNull ?? 0;
     final currencyFmt = NumberFormat('#,##0', 'en_US');
     return summariesAsync.when(
-      loading: () =>
-          _buildEmployeeShiftCard(const [], currencyFmt, isLoading: true),
+      loading: () => _buildEmployeeShiftCard(
+        const [],
+        currencyFmt,
+        isLoading: true,
+        pendingUploads: pendingUploads,
+      ),
       error: (error, _) => _buildEmployeeShiftCard(
         const [],
         currencyFmt,
         errorMessage: 'تعذر تحميل استلامات الموظفين',
+        pendingUploads: pendingUploads,
       ),
-      data: (summaries) => _buildEmployeeShiftCard(summaries, currencyFmt),
+      data: (summaries) => _buildEmployeeShiftCard(
+        summaries,
+        currencyFmt,
+        pendingUploads: pendingUploads,
+      ),
     );
   }
 
@@ -948,6 +965,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     NumberFormat currencyFmt, {
     bool isLoading = false,
     String? errorMessage,
+    int pendingUploads = 0,
   }) {
     return Container(
       width: double.infinity,
@@ -987,9 +1005,50 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 'اليوم الفندقي الحالي',
                 style: TextStyle(fontSize: 9, color: Colors.grey),
               ),
+              const SizedBox(width: 4),
+              // ✅ تحديث فوري من السحابة عند الطلب.
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 16,
+                  tooltip: 'تحديث من السحابة الآن',
+                  icon: Icon(Icons.refresh, color: Colors.blue.shade700),
+                  onPressed: () => ref
+                      .read(shiftReceiptsManualRefreshProvider.notifier)
+                      .state++,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
+          // ✅ مؤشر الربط بـ Outbox — يظهر فقط حين توجد دفعات لم تُرفع
+          // بعد؛ يختفي تلقائياً بمجرد اكتمال الرفع التلقائي.
+          if (pendingUploads > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 13,
+                    color: Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'دفعة/دفعات على هذا الجهاز بانتظار الرفع التلقائي '
+                      'إلى السحابة ($pendingUploads)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (isLoading)
             const LinearProgressIndicator(minHeight: 2)
           else if (errorMessage != null)

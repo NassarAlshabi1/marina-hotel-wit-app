@@ -37,6 +37,19 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return query.map((row) => row.read(countExp) ?? 0).watchSingle();
   }
 
+  /// مشاهدة عدد عناصر outbox المعلقة/الفاشلة لكيان محدد (مثل 'payments').
+  ///
+  /// تُستخدم في بطاقة الاستلامات بالداشبورد لإظهار مؤشر «بانتظار الرفع
+  /// التلقائي» — يحدّث لحظياً عبر drift stream عند كل تغيير في الجدول.
+  Stream<int> watchEntityCount(String entity) {
+    final countExp = outbox.id.count();
+    final query = selectOnly(outbox)
+      ..addColumns([countExp])
+      ..where(outbox.processingStatus.isIn(['pending', 'failed']))
+      ..where(outbox.entity.equals(entity));
+    return query.map((row) => row.read(countExp) ?? 0).watchSingle();
+  }
+
   /// عدد عناصر outbox المعلقة/الفاشلة
   /// [sources] — إذا حُدد، يقتصر العد على هذه المصادر فقط
   Future<int> count({List<String>? sources}) async {
