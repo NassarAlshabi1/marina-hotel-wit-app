@@ -32,8 +32,7 @@ class TombstoneParentsRepull {
   TombstoneParentsRepull._();
 
   /// مفتاح العلم — v1 للسماح بإصدارات مستقبلية لكيانات أخرى.
-  static const String doneKey =
-      'sync_tombstone_parents_repull_employees_v1';
+  static const String doneKey = 'sync_tombstone_parents_repull_employees_v1';
 
   /// المجموعة الوحيدة المصنفة "أصل مرجعي" حالياً (نفس قرار
   /// [SyncPullService.entityNeedsTombstoneParents]).

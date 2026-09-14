@@ -65,7 +65,9 @@ class EmployeeLinkConsistencyService {
 
   /// يفحص ويُصلح كل السجلات المرتبطة بالموظف [employeeId].
   /// آمن للاستدعاء المتكرر: الصف السليم لا يُمسّ إطلاقاً (صفر ضوضاء outbox).
-  Future<EmployeeLinkRepairReport> repairLinksForEmployee(int employeeId) async {
+  Future<EmployeeLinkRepairReport> repairLinksForEmployee(
+    int employeeId,
+  ) async {
     final report = EmployeeLinkRepairReport();
 
     final emp = await (db.select(
@@ -78,9 +80,7 @@ class EmployeeLinkConsistencyService {
 
     // خريطة هوية كل الموظفين (بما فيهم المنتهيون — الهوية لا تتأثر بالحالة)
     final allEmployees = await db.select(db.employees).get();
-    final employeeByUuid = {
-      for (final e in allEmployees) e.localUuid: e,
-    };
+    final employeeByUuid = {for (final e in allEmployees) e.localUuid: e};
     final aliveEmployeeIds = allEmployees.map((e) => e.id).toSet();
 
     // ═══ 1) المصروفات — الروابط المزدوجة (رقمي + uuid) ═══
@@ -138,16 +138,15 @@ class EmployeeLinkConsistencyService {
     // أولاً: أف[id] المصروفات المملوكة لهذا الموظف (بعد إصلاحها أعلاه)
     final ownedExpenseIds =
         (await (db.select(db.expenses)
-              ..where((t) => t.relatedId.equals(employeeId))
-              ..where((t) => t.deletedAt.isNull()))
-            .get())
-        .map((e) => e.id)
-        .toSet();
+                  ..where((t) => t.relatedId.equals(employeeId))
+                  ..where((t) => t.deletedAt.isNull()))
+                .get())
+            .map((e) => e.id)
+            .toSet();
 
-    final orphanWithdrawals =
-        await (db.select(db.salaryWithdrawals)
-              ..where((t) => t.deletedAt.isNull()))
-            .get();
+    final orphanWithdrawals = await (db.select(
+      db.salaryWithdrawals,
+    )..where((t) => t.deletedAt.isNull())).get();
     for (final sw in orphanWithdrawals) {
       if (aliveEmployeeIds.contains(sw.employeeId)) continue; // سليمة
 
@@ -192,10 +191,9 @@ class EmployeeLinkConsistencyService {
     }
 
     // ═══ 3) الدورات والترحيلات اليتيمة — تقرير فقط (لا uuid للإنقاذ) ═══
-    final orphanCycles =
-        await (db.select(db.salaryCycles)
-              ..where((t) => t.employeeId.isNotIn(aliveEmployeeIds)))
-            .get();
+    final orphanCycles = await (db.select(
+      db.salaryCycles,
+    )..where((t) => t.employeeId.isNotIn(aliveEmployeeIds))).get();
     report.orphanCycles = orphanCycles.length;
 
     return report;

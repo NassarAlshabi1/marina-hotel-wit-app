@@ -390,18 +390,17 @@ class _IncomeExpenseReportScreenState
           hotelDayKey: sw.hotelDayKey,
           withdrawDate: sw.withdrawDate,
           employeeId: sw.employeeId,
-          expenses: readExpenses
-              .map(
-                (e) => MirrorExpenseCandidate(
-                  id: e.id,
-                  serverId: e.serverId,
-                  expenseType: e.expenseType,
-                  amount: e.amount,
-                  date: e.date,
-                  hotelDayKey: e.hotelDayKey,
-                  relatedId: e.relatedId,
-                ),
-              ),
+          expenses: readExpenses.map(
+            (e) => MirrorExpenseCandidate(
+              id: e.id,
+              serverId: e.serverId,
+              expenseType: e.expenseType,
+              amount: e.amount,
+              date: e.date,
+              hotelDayKey: e.hotelDayKey,
+              relatedId: e.relatedId,
+            ),
+          ),
         );
         if (isMirror) continue;
 

@@ -55,120 +55,118 @@ void main() {
 
   tearDown(() async => db.close());
 
-  group('الإصلاح A — توصيل entityNeedsTombstoneParents في UnifiedPullEngine', () {
-    test(
-      'employees: خطة Full pull بلا فلتر tombstones (استثناء الآباء موصول)',
-      () async {
-        final plan = await engine.plan('employees');
-        expect(plan.isFullSync, isTrue, reason: 'checkpoint غير موجود → Full');
-        expect(
-          plan.queries,
-          isEmpty,
-          reason:
-              'يجب ألا يوجد فلتر deletedAt — tombstones الموظفين (الآباء '
-              'المرجعيين لسحوبات الرواتب القديمة) تُسحب حتى في Full pull',
-        );
-      },
-    );
+  group(
+    'الإصلاح A — توصيل entityNeedsTombstoneParents في UnifiedPullEngine',
+    () {
+      test(
+        'employees: خطة Full pull بلا فلتر tombstones (استثناء الآباء موصول)',
+        () async {
+          final plan = await engine.plan('employees');
+          expect(
+            plan.isFullSync,
+            isTrue,
+            reason: 'checkpoint غير موجود → Full',
+          );
+          expect(
+            plan.queries,
+            isEmpty,
+            reason:
+                'يجب ألا يوجد فلتر deletedAt — tombstones الموظفين (الآباء '
+                'المرجعيين لسحوبات الرواتب القديمة) تُسحب حتى في Full pull',
+          );
+        },
+      );
 
-    test(
-      'salary_withdrawals: خطة Full pull مع فلتر استبعاد tombstones (كما كان)',
-      () async {
-        final plan = await engine.plan('salary_withdrawals');
-        expect(plan.isFullSync, isTrue);
-        expect(plan.queries, hasLength(1));
-        expect(plan.queries.single, contains('deletedAt'));
-      },
-    );
+      test(
+        'salary_withdrawals: خطة Full pull مع فلتر استبعاد tombstones (كما كان)',
+        () async {
+          final plan = await engine.plan('salary_withdrawals');
+          expect(plan.isFullSync, isTrue);
+          expect(plan.queries, hasLength(1));
+          expect(plan.queries.single, contains('deletedAt'));
+        },
+      );
 
-    test(
-      'bookings: تبقى مستبعدة tombstones (ليست أباً مرجعياً)',
-      () async {
+      test('bookings: تبقى مستبعدة tombstones (ليست أباً مرجعياً)', () async {
         final plan = await engine.plan('bookings');
         expect(plan.isFullSync, isTrue);
         expect(plan.queries.single, contains('deletedAt'));
-      },
-    );
+      });
 
-    test(
-      'بعد اكتمال checkpoint: employees تتحول إلى Delta كأي مجموعة',
-      () async {
-        await checkpoints.setLastPullTs('employees', 1785000000);
-        final plan = await engine.plan('employees');
-        expect(plan.isFullSync, isFalse);
-        expect(plan.sinceTs, 1785000000);
-        expect(plan.queries.single, contains(r'$updatedAt'));
-      },
-    );
-  });
+      test(
+        'بعد اكتمال checkpoint: employees تتحول إلى Delta كأي مجموعة',
+        () async {
+          await checkpoints.setLastPullTs('employees', 1785000000);
+          final plan = await engine.plan('employees');
+          expect(plan.isFullSync, isFalse);
+          expect(plan.sinceTs, 1785000000);
+          expect(plan.queries.single, contains(r'$updatedAt'));
+        },
+      );
+    },
+  );
 
   group('الإصلاح B — TombstoneParentsRepull (إعادة سحب لمرة واحدة)', () {
-    test(
-      'أول استدعاء: يعيد ضبط checkpoint الموظفين ويعيد true',
-      () async {
-        SharedPreferences.setMockInitialValues({});
-        final prefs = await SharedPreferences.getInstance();
+    test('أول استدعاء: يعيد ضبط checkpoint الموظفين ويعيد true', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
 
-        // جهاز موجود: checkpoint موظفين مكتمل بمؤشر أحدث من تواريخ الحذف
-        await checkpoints.setLastPullTs('employees', 1786000000);
-        expect(await checkpoints.isFullSyncComplete('employees'), isTrue);
-        expect(await checkpoints.getLastPullTs('employees'), 1786000000);
+      // جهاز موجود: checkpoint موظفين مكتمل بمؤشر أحدث من تواريخ الحذف
+      await checkpoints.setLastPullTs('employees', 1786000000);
+      expect(await checkpoints.isFullSyncComplete('employees'), isTrue);
+      expect(await checkpoints.getLastPullTs('employees'), 1786000000);
 
-        final ran = await TombstoneParentsRepull.runIfNeeded(
+      final ran = await TombstoneParentsRepull.runIfNeeded(
+        checkpoints: checkpoints,
+        prefs: prefs,
+      );
+
+      expect(ran, isTrue);
+      expect(
+        await checkpoints.getLastPullTs('employees'),
+        0,
+        reason: 'المؤشر صفّر → الدورة القادمة Full pull شامل tombstones',
+      );
+      expect(
+        await checkpoints.isFullSyncComplete('employees'),
+        isFalse,
+        reason: 'علامة الاكتمال صفّرت أيضاً',
+      );
+      expect(
+        prefs.getBool(TombstoneParentsRepull.doneKey),
+        isTrue,
+        reason: 'العلم يُكتب بعد نجاح إعادة الضبط',
+      );
+    });
+
+    test('استدعاء ثانٍ: لا يعيد التنفيذ (idempotent عبر العلم)', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      await checkpoints.setLastPullTs('employees', 1786000000);
+      expect(
+        await TombstoneParentsRepull.runIfNeeded(
           checkpoints: checkpoints,
           prefs: prefs,
-        );
+        ),
+        isTrue,
+      );
 
-        expect(ran, isTrue);
-        expect(
-          await checkpoints.getLastPullTs('employees'),
-          0,
-          reason: 'المؤشر صفّر → الدورة القادمة Full pull شامل tombstones',
-        );
-        expect(
-          await checkpoints.isFullSyncComplete('employees'),
-          isFalse,
-          reason: 'علامة الاكتمال صفّرت أيضاً',
-        );
-        expect(
-          prefs.getBool(TombstoneParentsRepull.doneKey),
-          isTrue,
-          reason: 'العلم يُكتب بعد نجاح إعادة الضبط',
-        );
-      },
-    );
+      // الجهاز أعاد السحب واكتمل بمؤشر جديد
+      await checkpoints.setLastPullTs('employees', 1786100000);
 
-    test(
-      'استدعاء ثانٍ: لا يعيد التنفيذ (idempotent عبر العلم)',
-      () async {
-        SharedPreferences.setMockInitialValues({});
-        final prefs = await SharedPreferences.getInstance();
+      final ranAgain = await TombstoneParentsRepull.runIfNeeded(
+        checkpoints: checkpoints,
+        prefs: prefs,
+      );
 
-        await checkpoints.setLastPullTs('employees', 1786000000);
-        expect(
-          await TombstoneParentsRepull.runIfNeeded(
-            checkpoints: checkpoints,
-            prefs: prefs,
-          ),
-          isTrue,
-        );
-
-        // الجهاز أعاد السحب واكتمل بمؤشر جديد
-        await checkpoints.setLastPullTs('employees', 1786100000);
-
-        final ranAgain = await TombstoneParentsRepull.runIfNeeded(
-          checkpoints: checkpoints,
-          prefs: prefs,
-        );
-
-        expect(ranAgain, isFalse);
-        expect(
-          await checkpoints.getLastPullTs('employees'),
-          1786100000,
-          reason: 'المؤشر الجديد لا يُمس بعد اكتمال الإصلاح لمرة واحدة',
-        );
-      },
-    );
+      expect(ranAgain, isFalse);
+      expect(
+        await checkpoints.getLastPullTs('employees'),
+        1786100000,
+        reason: 'المؤشر الجديد لا يُمس بعد اكتمال الإصلاح لمرة واحدة',
+      );
+    });
 
     test(
       'فشل إعادة الضبط: العلم لا يُكتب (يُعاد المحاولة في التشغيل التالي)',

@@ -52,14 +52,21 @@ void main() {
   }
 
   group('watchAll بلا حد — الإصلاح', () {
-    test('يرجع كل السجلات النشطة ($kTotal سجلاً) رغم تجاوز حدود الأجهزة', () async {
-      await seedRecords(kTotal);
+    test(
+      'يرجع كل السجلات النشطة ($kTotal سجلاً) رغم تجاوز حدود الأجهزة',
+      () async {
+        await seedRecords(kTotal);
 
-      final all = await repo.watchAll().first;
-      expect(all.length, kTotal, reason:
-          'watchAll بلا حد يجب أن يرجع كل السجلات — الحد القديم (15/20/50/100) '
-          'كان يُخفي الباقي بعد السحب الناجح');
-    });
+        final all = await repo.watchAll().first;
+        expect(
+          all.length,
+          kTotal,
+          reason:
+              'watchAll بلا حد يجب أن يرجع كل السجلات — الحد القديم (15/20/50/100) '
+              'كان يُخفي الباقي بعد السحب الناجح',
+        );
+      },
+    );
 
     test('السجلات كلها غير محذوفة وبياناتها سليمة', () async {
       await seedRecords(5);

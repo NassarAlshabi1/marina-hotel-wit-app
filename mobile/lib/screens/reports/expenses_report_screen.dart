@@ -461,8 +461,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             continue;
           }
 
-          final displayType =
-              SalaryExpenseClassifier.isAdvanceWithdrawal(wType)
+          final displayType = SalaryExpenseClassifier.isAdvanceWithdrawal(wType)
               ? 'سلفة'
               : 'سحب راتب';
 

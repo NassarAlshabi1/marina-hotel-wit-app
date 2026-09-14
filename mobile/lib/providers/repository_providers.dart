@@ -482,7 +482,10 @@ final cloudEmployeeShiftPaymentSummariesProvider =
         // تغيّر محلي (وصول مزامنة/دفعات جديدة) → إعادة سحب سحابية مؤجلة
         // حتى تكتسب الدفعات المرفوعة وقتاً للوصول إلى السحابة.
         debounce?.cancel();
-        debounce = Timer(const Duration(seconds: 2), () => unawaited(pullCloud()));
+        debounce = Timer(
+          const Duration(seconds: 2),
+          () => unawaited(pullCloud()),
+        );
       });
 
       periodic = Timer.periodic(

@@ -76,14 +76,8 @@ void main() {
     test('يجمع كل جلسات اليوم الفندقي للمستخدم نفسه في سطر واحد', () {
       final docs = [
         _doc('p1', _payment(amount: 500)),
-        _doc(
-          'p2',
-          _payment(id: 'p2', amount: 700, sessionUuid: 'sess-2'),
-        ),
-        _doc(
-          'p3',
-          _payment(id: 'p3', amount: 300, sessionUuid: 'sess-3'),
-        ),
+        _doc('p2', _payment(id: 'p2', amount: 700, sessionUuid: 'sess-2')),
+        _doc('p3', _payment(id: 'p3', amount: 300, sessionUuid: 'sess-3')),
       ];
       final rows = ShiftReceiptsCloudService.aggregatePayments(docs);
       // ثلاث جلسات = سطر واحد بإجمالي مدفوعات اليوم الفندقي للمستخدم.
@@ -100,18 +94,12 @@ void main() {
         _doc('d3', _payment(id: 'd3', pendingBalance: true)),
         _doc('d4', _payment(id: 'd4', sessionUuid: '')),
       ];
-      expect(
-        ShiftReceiptsCloudService.aggregatePayments(docs),
-        isEmpty,
-      );
+      expect(ShiftReceiptsCloudService.aggregatePayments(docs), isEmpty);
     });
 
     test('يستبعد الدفعات بلا مستلم (اسم وcloudId فارغان)', () {
       final docs = [_doc('p1', _payment(name: '', cloudId: ''))];
-      expect(
-        ShiftReceiptsCloudService.aggregatePayments(docs),
-        isEmpty,
-      );
+      expect(ShiftReceiptsCloudService.aggregatePayments(docs), isEmpty);
     });
 
     test('يستثني المستخدم الحالي بالمعرّف السحابي أو بالاسم', () {
@@ -167,10 +155,7 @@ void main() {
         ),
       ];
       final rows = ShiftReceiptsCloudService.aggregatePayments(docs);
-      expect(
-        rows.map((r) => r.totalAmount).toList(),
-        [900, 600, 300],
-      );
+      expect(rows.map((r) => r.totalAmount).toList(), [900, 600, 300]);
     });
   });
 }

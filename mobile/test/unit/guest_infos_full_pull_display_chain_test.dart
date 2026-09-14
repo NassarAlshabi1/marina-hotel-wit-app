@@ -78,46 +78,54 @@ void main() {
   Future<void> simulateFullPull() async {
     for (var i = 1; i <= kTotalDocs; i++) {
       final deleted = i > kActiveCount ? 1760000000 + i : null;
-      final doc = remoteDoc(
-        uuid: 'pull-uuid-$i',
-        seq: i,
-        deletedAt: deleted,
-      );
+      final doc = remoteDoc(uuid: 'pull-uuid-$i', seq: i, deletedAt: deleted);
       // مطابق لفرع _syncGuestInfos: data['localUuid'] ??= doc.$id
       doc['localUuid'] ??= 'pull-doc-$i';
       await registry.guestInfos.upsertFromJson(doc, src: Source.appwrite);
     }
   }
 
-  test('سحب $kTotalDocs مستنداً → كل السجلات النشطة تصل للعرض (الإصلاح)', () async {
-    await simulateFullPull();
+  test(
+    'سحب $kTotalDocs مستنداً → كل السجلات النشطة تصل للعرض (الإصلاح)',
+    () async {
+      await simulateFullPull();
 
-    // ما تراه الشاشة الآن (المزوّد بعد الإصلاح — بلا حد SQL):
-    final displayed = await repo.watchAll().first;
-    expect(displayed.length, kActiveCount,
-        reason: 'كل السجلات النشطة يجب أن تصل للشاشة — '
-            'الحد القديم (15) كان يخفي الباقي');
+      // ما تراه الشاشة الآن (المزوّد بعد الإصلاح — بلا حد SQL):
+      final displayed = await repo.watchAll().first;
+      expect(
+        displayed.length,
+        kActiveCount,
+        reason:
+            'كل السجلات النشطة يجب أن تصل للشاشة — '
+            'الحد القديم (15) كان يخفي الباقي',
+      );
 
-    // كل سجل نشط حاضر ببياناته.
-    final names = displayed.map((r) => r.guestName).toSet();
-    for (var i = 1; i <= kActiveCount; i++) {
-      expect(names.contains('نزيل سحب $i'), isTrue, reason: 'السجل $i غائب');
-    }
+      // كل سجل نشط حاضر ببياناته.
+      final names = displayed.map((r) => r.guestName).toSet();
+      for (var i = 1; i <= kActiveCount; i++) {
+        expect(names.contains('نزيل سحب $i'), isTrue, reason: 'السجل $i غائب');
+      }
 
-    // الـ tombstones في القاعدة (للإسناد التراخي) لكنها مستبعدة من العرض.
-    final rawCount = await (db.select(db.guestInfos)).get();
-    expect(rawCount.length, kTotalDocs);
-  });
+      // الـ tombstones في القاعدة (للإسناد التراخي) لكنها مستبعدة من العرض.
+      final rawCount = await (db.select(db.guestInfos)).get();
+      expect(rawCount.length, kTotalDocs);
+    },
+  );
 
-  test('مسار العرض القديم (limit=15 على أجهزة 1GB) كان يعرض 15 فقط — توثيق',
-      () async {
-    await simulateFullPull();
+  test(
+    'مسار العرض القديم (limit=15 على أجهزة 1GB) كان يعرض 15 فقط — توثيق',
+    () async {
+      await simulateFullPull();
 
-    final oldPath = await repo.watchAll(limit: 15).first;
-    expect(oldPath.length, 15);
-    expect(oldPath.length, lessThan(kActiveCount),
-        reason: 'يثبت أن limit=15 كان يقطع ما يراه المستخدم');
-  });
+      final oldPath = await repo.watchAll(limit: 15).first;
+      expect(oldPath.length, 15);
+      expect(
+        oldPath.length,
+        lessThan(kActiveCount),
+        reason: 'يثبت أن limit=15 كان يقطع ما يراه المستخدم',
+      );
+    },
+  );
 
   test('مسار تصدير PDF (listAll بلا حد) يشمل كل السجلات النشطة', () async {
     await simulateFullPull();
@@ -126,19 +134,18 @@ void main() {
     expect(exported.length, kActiveCount);
   });
 
-  test('tombstone بعيد يُطبَّق محلياً ويُستبعد من العرض (لا ظهور شبحي)',
-      () async {
-    await simulateFullPull();
+  test(
+    'tombstone بعيد يُطبَّق محلياً ويُستبعد من العرض (لا ظهور شبحي)',
+    () async {
+      await simulateFullPull();
 
-    final all = await repo.watchAll().first;
-    expect(
-      all.every((r) => r.deletedAt == null),
-      isTrue,
-      reason: 'العرض يستبعد المحذوفة ناعماً — الحذف يتوصل عبر tombstone',
-    );
-    expect(
-      all.every((r) => r.guestName.isNotEmpty),
-      isTrue,
-    );
-  });
+      final all = await repo.watchAll().first;
+      expect(
+        all.every((r) => r.deletedAt == null),
+        isTrue,
+        reason: 'العرض يستبعد المحذوفة ناعماً — الحذف يتوصل عبر tombstone',
+      );
+      expect(all.every((r) => r.guestName.isNotEmpty), isTrue);
+    },
+  );
 }

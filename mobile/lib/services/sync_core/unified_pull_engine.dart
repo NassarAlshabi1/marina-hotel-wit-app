@@ -107,8 +107,9 @@ class UnifiedPullEngine {
         collectionName: collectionName,
         isFullSync: true,
         queries: SyncPullService.buildFullSyncQueries(
-          includeTombstones:
-              SyncPullService.entityNeedsTombstoneParents(collectionName),
+          includeTombstones: SyncPullService.entityNeedsTombstoneParents(
+            collectionName,
+          ),
         ),
         sinceTs: 0,
       );
