@@ -13,6 +13,12 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    // ✅ (2026-09-15) المدير singleton — بترتيب اختبارات عشوائي
+    // (--test-randomize-ordering-seed) قد يصل الاختبار بعد اختبار
+    // أنجز initialize() فيبقى _deviceId/_token على النسخة الواحدة.
+    // reset() يعزل حالة الـsingleton بين الاختبارات (لا مستدعٍ
+    // إنتاجياً لـreset() — آمن).
+    CloudflareSyncManager().reset();
   });
   group('CloudflareSyncManager', () {
     test('is a singleton — same instance returned', () {

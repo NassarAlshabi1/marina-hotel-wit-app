@@ -3650,6 +3650,8 @@ class CloudflareSyncManager {
   // ─── Reset / Clear ──────────────────────────────────────────
   void reset() {
     _token = null;
+    _deviceId = null;
+    _lastError = null;
     _currentStatus = SyncStatus.idle;
     _lastLazyInitAttempt = null;
   }
