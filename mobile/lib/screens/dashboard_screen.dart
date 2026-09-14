@@ -60,16 +60,18 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  /// ✅ (2026-09-14) تحديث سحابي دوري لبطاقة «استلامات المستخدمين الآخرين
-  /// في النوبات»: أي دفعة يسجّلها موظف على أي جهاز تصل هنا خلال ~30
-  /// ثانية (دلتا-سحب خفيف) فيتحدّث إجمالي المستخدم تلقائياً 500→1000
-  /// وهكذا لبقية المستخدمين — دون انتظار المؤقّت العام (15 دقيقة)
-  /// ولا اعتماداً حصرياً على WebSocket الفوري.
+  /// ✅ (2026-09-14) ربط بطاقة «استلامات المستخدمين الآخرين في النوبات»
+  /// بالمزوّد السحابي عبر outbox الرفع التلقائي:
+  /// - الجهاز المُستلِم: أي دفعة → outbox → رفع تلقائي فوري (~3 ثوانٍ
+  ///   عبر AutoOutboxSyncWatcher) → D1 → بثّ change للجميع
+  /// - جهاز المدير/المشرف: حدث change يشغّل دلتا-سحباً عبر WebSocket
+  ///   فيتحدّث إجمالي المستخدم تلقائياً 500→1000 وهكذا لبقية المستخدمين
+  /// - شبكة أمان فقط: سحب دوري صامت كل ساعة (طلب المستخدم الحرفي:
+  ///   «التحديث الدوري في dashboard ليس كل 30 ثانية انما كل ساعة»)
+  ///   يعوّض أي فقدان لحدث WebSocket (انقطاع/إغلاق socket)
   /// صامت تماماً: لا SnackBar ولا مؤشر — البطاقة تُحدّث نفسها بالبث.
   Timer? _dashboardCloudRefreshTimer;
-  static const Duration _dashboardCloudRefreshInterval = Duration(
-    seconds: 30,
-  );
+  static const Duration _dashboardCloudRefreshInterval = Duration(hours: 1);
 
   @override
   void initState() {
@@ -89,8 +91,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_autoPullFromAppwrite());
     });
-    // ✅ (2026-09-14) نبض سحابي دوري طوال عرض الشاشة (تفاصيل
-    // [_dashboardCloudRefreshTimer])
+    // ✅ (2026-09-14) شبكة أمان سحابية كل ساعة طوال عرض الشاشة
+    // (الفورية عبر outbox/WS — التفاصيل في [_dashboardCloudRefreshTimer])
     _dashboardCloudRefreshTimer = Timer.periodic(
       _dashboardCloudRefreshInterval,
       (_) => unawaited(_dashboardCloudRefreshTick()),
@@ -209,11 +211,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  /// ✅ (2026-09-14) نبضة السحب الدورية — شروط التنفيذ:
+  /// ✅ (2026-09-14) السحب الأمني الساعي — شروط التنفيذ:
   /// 1. الشاشة معروضة (mounted) والتطبيق في المقدمة (resumed)
   /// 2. بوّابة المزامنة حرة (لا مزامنة يدوي/مؤقت/realtime جارية)
-  /// السحب نفسه دلتا خفيفة push:false + deltaOnly:true — نفس نداء
-  /// السحب عند الفتح تماماً، بلا أي إشعارات مرئية.
+  /// السحب نفسه دلتا خفيفة push:false + deltaOnly:true — الرفع لا
+  /// يحتاجه هنا لأنه مغطى فورياً عبر outbox (AutoOutboxSyncWatcher).
   Future<void> _dashboardCloudRefreshTick() async {
     if (!mounted) return;
     if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
@@ -227,15 +229,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (!executed) {
       dlog(
         () =>
-            'ℹ️ [DashboardPeriodicPull] skipped — SyncGate busy with '
+            'ℹ️ [DashboardHourlyPull] skipped — SyncGate busy with '
             '${SyncGate.instance.state.operation} from '
             '${SyncGate.instance.state.source}',
       );
     }
   }
 
-  /// السحب الدلتا الصامت — يكتب جداول المزامنة (payments ضمنها) في
-  /// القاعدة المحلية، وبثّ Drift يُحدّث بطاقة الاستلامات تلقائياً.
+  /// السحب الدلتا الصامت الساعي — يكتب جداول المزامنة (payments ضمنها)
+  /// في القاعدة المحلية، وبثّ Drift يُحدّث بطاقة الاستلامات تلقائياً.
   Future<void> _dashboardDeltaPull() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -244,9 +246,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
       final syncManager = ref.read(appwriteSyncManagerProvider);
       await syncManager.sync(push: false, deltaOnly: true);
-      dlog(() => '✅ [DashboardPeriodicPull] دورة سحب دوري اكتملت');
+      dlog(() => '✅ [DashboardHourlyPull] دورة السحب الساعي اكتملت');
     } catch (e) {
-      dlog(() => '❌ [DashboardPeriodicPull] فشل السحب الدوري: $e');
+      dlog(() => '❌ [DashboardHourlyPull] فشل السحب الساعي: $e');
     }
   }
 
