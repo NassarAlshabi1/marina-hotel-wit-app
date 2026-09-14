@@ -15,6 +15,7 @@ import '../../services/appwrite_backup_service.dart';
 import '../../services/appwrite_cache_manager.dart';
 import '../../services/appwrite_logger.dart';
 import '../../services/appwrite_models.dart';
+import '../../services/appwrite_xlsx_export_service.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
@@ -869,6 +870,23 @@ class _AppwriteSettingsScreenState
             ),
             const SizedBox(height: 12),
             _buildDataActionCard(
+              icon: Icons.grid_on,
+              color: Colors.teal,
+              title: 'تصدير قاعدة البيانات إلى Excel (XLSX)',
+              subtitle:
+                  'سحب جميع الجداول من Appwrite Cloud إلى ملف Excel واحد '
+                  'على ذاكرة الهاتف',
+              details: const [
+                'ورقة لكل جدول بأسماء عربية + ورقة ملخص بالأعداد',
+                'قراءة فقط من السحابة — لا تعدل أي بيانات',
+                'يُستثنى الجداول التقنية (devices، sync_logs)',
+                'يمكنك اختيار مكان الحفظ ثم مشاركة الملف',
+              ],
+              actionLabel: 'تصدير إلى Excel',
+              onPressed: _exportDatabaseToXlsx,
+            ),
+            const SizedBox(height: 12),
+            _buildDataActionCard(
               icon: Icons.cloud_upload,
               color: Colors.blue,
               title: 'رفع البيانات إلى Appwrite',
@@ -1288,6 +1306,157 @@ class _AppwriteSettingsScreenState
           ),
         );
       }
+    } finally {
+      _safeSetState(() => _isLoading = false);
+    }
+  }
+
+  // ==================== تصدير قاعدة البيانات إلى Excel ====================
+
+  Future<void> _exportDatabaseToXlsx() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تصدير قاعدة البيانات إلى Excel'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'سيتم سحب جميع الجداول التجارية من Appwrite Cloud وإنشاء ملف XLSX.',
+            ),
+            SizedBox(height: 8),
+            Text('• ورقة لكل جدول بأسماء عربية + ورقة ملخص بالأعداد'),
+            Text('• قراءة فقط — لن تُعدَّل أي بيانات'),
+            Text('• قد يستغرق وقتاً حسب حجم البيانات'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            child: const Text('تصدير'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    final suggestedName =
+        'marina_appwrite_export_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+    final chosenPath = await FilePicker.platform.saveFile(
+      dialogTitle: 'اختر مكان حفظ ملف Excel',
+      fileName: suggestedName,
+    );
+    if (chosenPath == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إلغاء اختيار مسار الحفظ')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final progress = ValueNotifier<XlsxExportProgress>(
+      const XlsxExportProgress(0, 1, 'تحضير التصدير...'),
+    );
+
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('جاري التصدير إلى Excel...'),
+          content: ValueListenableBuilder<XlsxExportProgress>(
+            valueListenable: progress,
+            builder: (context, p, _) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LinearProgressIndicator(value: p.fraction),
+                const SizedBox(height: 12),
+                Text('${p.done} / ${p.total} — ${p.currentLabel}'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final service = AppwriteXlsxExportService(
+        fetcher: AppwriteXlsxExportService.fetcherOf(
+          ref.read(ap.appwriteServiceProvider),
+        ),
+      );
+      final result = await service.export(
+        targetPath: chosenPath,
+        onProgress: (p) => progress.value = p,
+      );
+      navigator.pop(); // إغلاق حوار التقدم
+      progress.dispose();
+      if (!mounted) {
+        return;
+      }
+
+      final sortedCounts = result.counts.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      unawaited(
+        showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('تم تصدير قاعدة البيانات'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('المسار: ${result.file.path}'),
+                  const SizedBox(height: 12),
+                  Text('إجمالي السجلات: ${result.totalRecords}'),
+                  const SizedBox(height: 8),
+                  const Text('تفاصيل الجداول:'),
+                  const SizedBox(height: 6),
+                  ...sortedCounts.map((e) => Text('• ${e.key}: ${e.value}')),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await Share.shareXFiles([XFile(result.file.path)]);
+                },
+                child: const Text('مشاركة'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      navigator.pop(); // إغلاق حوار التقدم
+      progress.dispose();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل تصدير قاعدة البيانات: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       _safeSetState(() => _isLoading = false);
     }
