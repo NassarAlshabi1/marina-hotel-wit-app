@@ -813,7 +813,9 @@ class PayloadMapper {
     data['date'] = effectiveWithdrawDate;
     data['action'] = withdrawal.withdrawalType ?? 'withdrawal';
     data['note'] = withdrawal.description ?? '';
-    data['name'] = '';
+    // ✅ (2026-09-14) name = اسم من سجّل السحبة (recorderName) — كان يُرسل
+    // فارغاً دائماً. يظهر على السحابة والتقارير عبر الأجهزة الأخرى.
+    data['name'] = withdrawal.recorderName ?? '';
 
     return data;
   }

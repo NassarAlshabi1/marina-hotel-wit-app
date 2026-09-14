@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../utils/performance_config.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
@@ -1471,6 +1472,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     date: dateStr,
                     hotelDayKey: hotelDayKey,
                     withdrawalType: withdrawalType,
+                    // ✅ (2026-09-14) إسناد السحبة لمسجّلها — يظهر في التقرير
+                    recorderName: ref.read(authProvider).currentUser?.name,
                     description: noteController.text.trim().isNotEmpty
                         ? noteController.text.trim()
                         : null,

@@ -740,6 +740,10 @@ class SalaryWithdrawals extends Table with SyncFields {
   // الآن مُعلن ومتاح عبر ORM. (migration 42 يضمن وجوده في DBs القديمة)
   IntColumn get expenseId => integer().nullable()();
 
+  // ✅ (migration 66) اسم المستخدم الذي سجّل السحبة — للإسناد في التقارير.
+  // Nullable لأن السجلات القديمة بلا إسناد ولا نجتهي عليها.
+  TextColumn get recorderName => text().nullable()();
+
   List<Index> get indexes => [
     Index(
       'idx_salary_withdrawals_employee',
@@ -1140,7 +1144,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 65;
+  int get schemaVersion => 66;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1169,6 +1173,12 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-09-14) الإصدار 66: إسناد سحوبات الرواتب لمسجّلها.
+      // recorder_name على salary_withdrawals — من سجّل السحبة (اسم المستخدم).
+      // Nullable عمداً؛ السجلات القديمة تبقى بلا إسناد ولا نجتهي عليها.
+      if (from < 66) {
+        await m.addColumn(salaryWithdrawals, salaryWithdrawals.recorderName);
+      }
       // ✅ (2026-08-30) الإصدار 65: جدول sync_remote_meta للسحب metadata-first.
       // يُنشأ لكل الترقيات (من أي إصدار) — فارغ مبدئياً فأول سحب كامل بعد
       // الترقية يبنيه تدريجياً من دفعات checkpoint الناجحة.

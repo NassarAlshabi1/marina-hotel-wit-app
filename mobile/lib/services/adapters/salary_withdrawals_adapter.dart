@@ -126,6 +126,10 @@ class SalaryWithdrawalsAdapter
     if (reasonVal == null && appwriteExpenseId != null) {
       reasonVal = 'exp_$appwriteExpenseId';
     }
+    // ✅ (2026-09-14) اسم من سجّل السحبة — الحقل السحابي name (أو recorderName
+    // في نسخ أقدم من الحمولة). فارغ للسجلات القديمة فنبقيه absent.
+    final recorderName =
+        _asString(json, 'recorderName', src) ?? _asString(json, 'name', src);
 
     return SalaryWithdrawalsCompanion(
       id: _vInt(json, 'id', src),
@@ -158,6 +162,9 @@ class SalaryWithdrawalsAdapter
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       withdrawalType: wt != null ? d.Value(wt) : const d.Value.absent(),
       description: desc != null ? d.Value(desc) : const d.Value.absent(),
+      recorderName: recorderName != null && recorderName.isNotEmpty
+          ? d.Value(recorderName)
+          : const d.Value.absent(),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -258,7 +265,8 @@ class SalaryWithdrawalsAdapter
     map['note'] = model.description ?? '';
     map['expenseId'] = expenseId;
     // ✅ إضافة name فارغ (optional لكن بعض إصدارات المخطط تتوقعه)
-    map['name'] = '';
+    // ✅ (2026-09-14) name = اسم من سجّل السحبة (كان يُرسل فارغاً دائماً)
+    map['name'] = model.recorderName ?? '';
 
     return map;
   }

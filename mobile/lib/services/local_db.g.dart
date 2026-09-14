@@ -37263,6 +37263,17 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _recorderNameMeta = const VerificationMeta(
+    'recorderName',
+  );
+  @override
+  late final GeneratedColumn<String> recorderName = GeneratedColumn<String>(
+    'recorder_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -37291,6 +37302,7 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     withdrawalType,
     description,
     expenseId,
+    recorderName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -37510,6 +37522,15 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         expenseId.isAcceptableOrUnknown(data['expense_id']!, _expenseIdMeta),
       );
     }
+    if (data.containsKey('recorder_name')) {
+      context.handle(
+        _recorderNameMeta,
+        recorderName.isAcceptableOrUnknown(
+          data['recorder_name']!,
+          _recorderNameMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -37623,6 +37644,10 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         DriftSqlType.int,
         data['${effectivePrefix}expense_id'],
       ),
+      recorderName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recorder_name'],
+      ),
     );
   }
 
@@ -37660,6 +37685,7 @@ class SalaryWithdrawal extends DataClass
   final String? withdrawalType;
   final String? description;
   final int? expenseId;
+  final String? recorderName;
   const SalaryWithdrawal({
     required this.localUuid,
     this.serverId,
@@ -37687,6 +37713,7 @@ class SalaryWithdrawal extends DataClass
     this.withdrawalType,
     this.description,
     this.expenseId,
+    this.recorderName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -37738,6 +37765,9 @@ class SalaryWithdrawal extends DataClass
     }
     if (!nullToAbsent || expenseId != null) {
       map['expense_id'] = Variable<int>(expenseId);
+    }
+    if (!nullToAbsent || recorderName != null) {
+      map['recorder_name'] = Variable<String>(recorderName);
     }
     return map;
   }
@@ -37792,6 +37822,9 @@ class SalaryWithdrawal extends DataClass
       expenseId: expenseId == null && nullToAbsent
           ? const Value.absent()
           : Value(expenseId),
+      recorderName: recorderName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recorderName),
     );
   }
 
@@ -37827,6 +37860,7 @@ class SalaryWithdrawal extends DataClass
       withdrawalType: serializer.fromJson<String?>(json['withdrawalType']),
       description: serializer.fromJson<String?>(json['description']),
       expenseId: serializer.fromJson<int?>(json['expenseId']),
+      recorderName: serializer.fromJson<String?>(json['recorderName']),
     );
   }
   @override
@@ -37859,6 +37893,7 @@ class SalaryWithdrawal extends DataClass
       'withdrawalType': serializer.toJson<String?>(withdrawalType),
       'description': serializer.toJson<String?>(description),
       'expenseId': serializer.toJson<int?>(expenseId),
+      'recorderName': serializer.toJson<String?>(recorderName),
     };
   }
 
@@ -37889,6 +37924,7 @@ class SalaryWithdrawal extends DataClass
     Value<String?> withdrawalType = const Value.absent(),
     Value<String?> description = const Value.absent(),
     Value<int?> expenseId = const Value.absent(),
+    Value<String?> recorderName = const Value.absent(),
   }) => SalaryWithdrawal(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -37920,6 +37956,7 @@ class SalaryWithdrawal extends DataClass
         : this.withdrawalType,
     description: description.present ? description.value : this.description,
     expenseId: expenseId.present ? expenseId.value : this.expenseId,
+    recorderName: recorderName.present ? recorderName.value : this.recorderName,
   );
   SalaryWithdrawal copyWithCompanion(SalaryWithdrawalsCompanion data) {
     return SalaryWithdrawal(
@@ -37977,6 +38014,9 @@ class SalaryWithdrawal extends DataClass
           ? data.description.value
           : this.description,
       expenseId: data.expenseId.present ? data.expenseId.value : this.expenseId,
+      recorderName: data.recorderName.present
+          ? data.recorderName.value
+          : this.recorderName,
     );
   }
 
@@ -38008,7 +38048,8 @@ class SalaryWithdrawal extends DataClass
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('withdrawalType: $withdrawalType, ')
           ..write('description: $description, ')
-          ..write('expenseId: $expenseId')
+          ..write('expenseId: $expenseId, ')
+          ..write('recorderName: $recorderName')
           ..write(')'))
         .toString();
   }
@@ -38041,6 +38082,7 @@ class SalaryWithdrawal extends DataClass
     withdrawalType,
     description,
     expenseId,
+    recorderName,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -38071,7 +38113,8 @@ class SalaryWithdrawal extends DataClass
           other.hotelDayKey == this.hotelDayKey &&
           other.withdrawalType == this.withdrawalType &&
           other.description == this.description &&
-          other.expenseId == this.expenseId);
+          other.expenseId == this.expenseId &&
+          other.recorderName == this.recorderName);
 }
 
 class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
@@ -38101,6 +38144,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<String?> withdrawalType;
   final Value<String?> description;
   final Value<int?> expenseId;
+  final Value<String?> recorderName;
   const SalaryWithdrawalsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -38128,6 +38172,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
     this.expenseId = const Value.absent(),
+    this.recorderName = const Value.absent(),
   });
   SalaryWithdrawalsCompanion.insert({
     required String localUuid,
@@ -38156,6 +38201,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
     this.expenseId = const Value.absent(),
+    this.recorderName = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -38190,6 +38236,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<String>? withdrawalType,
     Expression<String>? description,
     Expression<int>? expenseId,
+    Expression<String>? recorderName,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -38218,6 +38265,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (withdrawalType != null) 'withdrawal_type': withdrawalType,
       if (description != null) 'description': description,
       if (expenseId != null) 'expense_id': expenseId,
+      if (recorderName != null) 'recorder_name': recorderName,
     });
   }
 
@@ -38248,6 +38296,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<String?>? withdrawalType,
     Value<String?>? description,
     Value<int?>? expenseId,
+    Value<String?>? recorderName,
   }) {
     return SalaryWithdrawalsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -38276,6 +38325,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       withdrawalType: withdrawalType ?? this.withdrawalType,
       description: description ?? this.description,
       expenseId: expenseId ?? this.expenseId,
+      recorderName: recorderName ?? this.recorderName,
     );
   }
 
@@ -38360,6 +38410,9 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (expenseId.present) {
       map['expense_id'] = Variable<int>(expenseId.value);
     }
+    if (recorderName.present) {
+      map['recorder_name'] = Variable<String>(recorderName.value);
+    }
     return map;
   }
 
@@ -38391,7 +38444,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('withdrawalType: $withdrawalType, ')
           ..write('description: $description, ')
-          ..write('expenseId: $expenseId')
+          ..write('expenseId: $expenseId, ')
+          ..write('recorderName: $recorderName')
           ..write(')'))
         .toString();
   }
@@ -62394,6 +62448,7 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<String?> withdrawalType,
       Value<String?> description,
       Value<int?> expenseId,
+      Value<String?> recorderName,
     });
 typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
     SalaryWithdrawalsCompanion Function({
@@ -62423,6 +62478,7 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<String?> withdrawalType,
       Value<String?> description,
       Value<int?> expenseId,
+      Value<String?> recorderName,
     });
 
 final class $$SalaryWithdrawalsTableReferences
@@ -62590,6 +62646,11 @@ class $$SalaryWithdrawalsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get recorderName => $composableBuilder(
+    column: $table.recorderName,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$EmployeesTableFilterComposer get employeeId {
     final $$EmployeesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -62748,6 +62809,11 @@ class $$SalaryWithdrawalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get recorderName => $composableBuilder(
+    column: $table.recorderName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$EmployeesTableOrderingComposer get employeeId {
     final $$EmployeesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -62882,6 +62948,11 @@ class $$SalaryWithdrawalsTableAnnotationComposer
   GeneratedColumn<int> get expenseId =>
       $composableBuilder(column: $table.expenseId, builder: (column) => column);
 
+  GeneratedColumn<String> get recorderName => $composableBuilder(
+    column: $table.recorderName,
+    builder: (column) => column,
+  );
+
   $$EmployeesTableAnnotationComposer get employeeId {
     final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -62965,6 +63036,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<int?> expenseId = const Value.absent(),
+                Value<String?> recorderName = const Value.absent(),
               }) => SalaryWithdrawalsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -62992,6 +63064,7 @@ class $$SalaryWithdrawalsTableTableManager
                 withdrawalType: withdrawalType,
                 description: description,
                 expenseId: expenseId,
+                recorderName: recorderName,
               ),
           createCompanionCallback:
               ({
@@ -63021,6 +63094,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<int?> expenseId = const Value.absent(),
+                Value<String?> recorderName = const Value.absent(),
               }) => SalaryWithdrawalsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -63048,6 +63122,7 @@ class $$SalaryWithdrawalsTableTableManager
                 withdrawalType: withdrawalType,
                 description: description,
                 expenseId: expenseId,
+                recorderName: recorderName,
               ),
           withReferenceMapper: (p0) => p0
               .map(
