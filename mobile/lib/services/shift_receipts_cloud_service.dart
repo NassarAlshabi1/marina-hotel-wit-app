@@ -3,7 +3,8 @@
 //
 // تجعل بطاقة «استلامات المستخدمين الآخرين في النوبات» على الداشبورد تعمل
 // سحابياً: تُسحب دفعات اليوم الفندقي الحالي مباشرة من السحابة وتُجمَّع
-// حسب (المستخدم، الاسم، جلسة النوبة) — بمطابقة سلوك استعلام SQL المحلي
+// حسب المستخدم — إجمالي واحد لكل مستخدم عبر كل جلسات اليوم الفندقي —
+// بمطابقة سلوك استعلام SQL المحلي
 // في PaymentsRepository.watchPaymentShiftSummaries.
 //
 // الفرق الجوهري: المبالغ تُقرأ من السحابة مباشرة، فإذا استلم المستخدم 500
@@ -46,7 +47,7 @@ class ShiftReceiptsCloudService {
       Query.equal('hotelDayKey', [hotelDayKey]);
 
   /// يسحب دفعات اليوم الفندقي [hotelDayKey] من السحابة ويجمعها حسب
-  /// المستخدم/الجلسة مستثنياً المستخدم الحالي (يُعرض استلامه في بطاقة
+  /// المستخدم مستثنياً المستخدم الحالي (يُعرض استلامه في بطاقة
   /// أخرى).
   ///
   /// يرمي الاستثناء عند فشل الشبكة — والمستدعي (المزود) يتحول حينها
@@ -66,7 +67,8 @@ class ShiftReceiptsCloudService {
     );
   }
 
-  /// تجميع مستندات دفعات سحابية إلى ملخصات حسب (المستخدم، الاسم، الجلسة).
+  /// تجميع مستندات دفعات سحابية إلى ملخصات — سطر واحد لكل مستخدم
+  /// يجمع كل جلساته ضمن اليوم الفندقي نفسه.
   ///
   /// الفلاتر مطابقة لاستعلام SQL المحلي:
   /// - تُستبعد الدفعات المحذوفة/الملغاة/رصيد السحب المؤجل
@@ -115,13 +117,13 @@ class ShiftReceiptsCloudService {
       final userId = (data['receivedByUserId'] as num?)?.toInt() ?? 0;
       final amount = (data['amount'] as num?)?.toDouble() ?? 0;
 
-      // مفتاح التجميع مطابق لـ GROUP BY المحلي الثلاثي.
-      final key = '$userId|$rawName|$sessionUuid';
+      // مفتاح التجميع مطابق لـ GROUP BY المحلي: مستخدم واحد = سطر واحد
+      // بغضّ النظر عن عدد جلساته في اليوم الفندقي.
+      final key = '$userId|$rawName';
       final bucket = buckets.putIfAbsent(key, _Bucket.new);
       bucket
         ..userId = userId
         ..rawName = rawName
-        ..sessionUuid = sessionUuid
         ..totalAmount += amount
         ..paymentCount += 1;
     }
@@ -132,7 +134,6 @@ class ShiftReceiptsCloudService {
               (b) => PaymentShiftSummary(
                 userId: b.userId,
                 userName: b.rawName.isEmpty ? 'مستخدم غير معروف' : b.rawName,
-                sessionUuid: b.sessionUuid,
                 totalAmount: b.totalAmount,
                 paymentCount: b.paymentCount,
               ),
@@ -144,11 +145,10 @@ class ShiftReceiptsCloudService {
   }
 }
 
-/// حاوية تجميع داخلية لكل (مستخدم، جلسة).
+/// حاوية تجميع داخلية لكل مستخدم ضمن اليوم الفندقي.
 class _Bucket {
   int userId = 0;
   String rawName = '';
-  String sessionUuid = '';
   double totalAmount = 0;
   int paymentCount = 0;
 }

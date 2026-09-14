@@ -70,22 +70,27 @@ void main() {
       expect(rows.first.userName, 'المستخدم 1');
       expect(rows.first.totalAmount, 1500);
       expect(rows.first.paymentCount, 2);
-      expect(rows.first.sessionUuid, 'sess-1');
       expect(rows.first.userId, 11);
     });
 
-    test('يفصل الجلسات المختلفة إلى سطور مستقلة', () {
+    test('يجمع كل جلسات اليوم الفندقي للمستخدم نفسه في سطر واحد', () {
       final docs = [
         _doc('p1', _payment(amount: 500)),
         _doc(
           'p2',
           _payment(id: 'p2', amount: 700, sessionUuid: 'sess-2'),
         ),
+        _doc(
+          'p3',
+          _payment(id: 'p3', amount: 300, sessionUuid: 'sess-3'),
+        ),
       ];
       final rows = ShiftReceiptsCloudService.aggregatePayments(docs);
-      expect(rows, hasLength(2));
-      final total = rows.fold<double>(0, (s, r) => s + r.totalAmount);
-      expect(total, 1200);
+      // ثلاث جلسات = سطر واحد بإجمالي مدفوعات اليوم الفندقي للمستخدم.
+      expect(rows, hasLength(1));
+      expect(rows.first.totalAmount, 1500);
+      expect(rows.first.paymentCount, 3);
+      expect(rows.first.userName, 'المستخدم 1');
     });
 
     test('يستبعد المحذوف/الملغى/رصيد السحب المؤجل/بلا جلسة', () {
