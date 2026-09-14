@@ -253,6 +253,16 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         // تغيّرت فعلاً — إعادة الضبط غير الشرطية كانت تُلغي ضغط الدفعات
         // (coalescing) وترفع نفس المحتوى مرتين؛ الشرطية تعيد الضبط فقط
         // عند تغيّر المحتوى = أمان perf + كفاءة P0-D معاً.
+        //
+        // ✅ إصلاح فقدان بيانات (اكتشاف cloudflare_full_chain_contract_test
+        // 2026-09-14): الحمولات الجزئية فوق عنصر create معلّق كانت
+        // تستبدل حمولة الإنشاء الكاملة — فيُرفع update بلا amount أصلاً
+        // ويهبط على D1 بقيم NOT NULL الافتراضية (amount=0).
+        // ⚠️ العقد هنا يبقى استبدالاً مقصوداً: بعض الصانعات تعتمد حذف
+        // مفتاح بالحذف لتصغير الحمولة عمداً (app_users: تعديل الصلاحيات
+        // لا يعيد رفع حقول credentials — auth_users_management_test).
+        // لذلك لا دمج عميق في merge؛ الصانع الجزئي يجب أن يرسل لقطة
+        // صف كاملة — أُصلح PaymentVoidService على هذا الأساس.
         final payloadChanged = existing.payload != payloadJson;
         final opChanged = existing.op != op && existing.op != 'delete';
         final contentChanged = payloadChanged || opChanged;

@@ -5,6 +5,8 @@ import 'package:drift/drift.dart' as drift;
 import '../utils/debug_log.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
+import 'adapters/adapter_registry.dart';
+import 'adapters/source.dart';
 import 'appwrite_sync_manager.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
@@ -189,18 +191,25 @@ class PaymentVoidService {
         );
 
         // 5) تحديث outbox للدفعة المُلغاة (لأن isVoided تغيّر)
+        // ✅ إصلاح فقدان بيانات (اكتشاف cloudflare_full_chain_contract_test
+        // 2026-09-14): كانت الحمولة هنا جزئية ({isVoided, voided_*} فقط)
+        // — وعند وجود عنصر create معلّق لنفس الدفعة (نافذة تجميع 3s أو
+        // دون اتصال) كان الاستبدال يُسقط amount/payment_method كلياً،
+        // فيتحول push إلى updateRecord بلا صف على D1 → createRecord
+        // بقيم NOT NULL الافتراضية = دفعة تهبط بمبلغ 0. العقد: لقطة
+        // صف كاملة عبر نفس محوّل PaymentsDao (toJsonForSource) — الصف
+        // المقروء بعد التحديث يحمل حقول الإبطال أصلاً.
+        final freshPayment = await (_db.select(
+          _db.payments,
+        )..where((t) => t.localUuid.equals(paymentUuid))).getSingle();
         await _outboxDao.merge(
           entity: 'payments',
           op: 'update',
           localUuid: paymentUuid,
           clientTs: nowEpoch,
-          payload: {
-            'isVoided': true,
-            'voidedAt': nowEpoch,
-            'voidedBy': voidedBy,
-            'voidReason': voidReason,
-            'isImmutable': true,
-          },
+          payload: AdapterRegistry(
+            _db,
+          ).payments.toJsonForSource(freshPayment, src: Source.appwrite),
         );
 
         dlog(() => '✅ PaymentVoid: تم إلغاء الدفعة $paymentUuid بنجاح');
