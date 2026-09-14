@@ -61,8 +61,8 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  /// ✅ (2026-09-14) ربط بطاقة «استلامات المستخدمين الآخرين في النوبات»
-  /// بالمزوّد السحابي عبر outbox الرفع التلقائي:
+  /// ✅ (2026-09-15) ربط بطاقة «استلامات المستخدمين الآخرين بحسب
+  /// اليوم الفندقي» بالمزوّد السحابي عبر outbox الرفع التلقائي:
   /// - الجهاز المُستلِم: أي دفعة → outbox → رفع تلقائي فوري (~3 ثوانٍ
   ///   عبر AutoOutboxSyncWatcher) → D1 → بثّ change للجميع
   /// - جهاز المدير/المشرف: حدث change يشغّل دلتا-سحباً عبر WebSocket
@@ -317,7 +317,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(height: 12),
               _buildMyShiftReceipts(),
               const SizedBox(height: 12),
-              _buildEmployeeShiftPayments(),
+              _buildOtherUsersHotelDayReceipts(),
             ],
           ),
         ),
@@ -1134,7 +1134,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildEmployeeShiftPayments() {
+  Widget _buildOtherUsersHotelDayReceipts() {
     final user = ref.watch(authProvider).currentUser;
     final canViewOtherEmployees =
         user?.isAdmin == true ||
@@ -1142,22 +1142,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         user?.userType == 'supervisor';
     if (!canViewOtherEmployees) return const SizedBox.shrink();
 
-    final summariesAsync = ref.watch(employeeShiftPaymentSummariesProvider);
+    final summariesAsync = ref.watch(otherUsersHotelDayReceiptsProvider);
     final currencyFmt = NumberFormat('#,##0', 'en_US');
     return summariesAsync.when(
       loading: () =>
-          _buildEmployeeShiftCard(const [], currencyFmt, isLoading: true),
-      error: (error, _) => _buildEmployeeShiftCard(
+          _buildOtherUsersReceiptsCard(const [], currencyFmt, isLoading: true),
+      error: (error, _) => _buildOtherUsersReceiptsCard(
         const [],
         currencyFmt,
         errorMessage: 'تعذر تحميل استلامات الموظفين',
       ),
-      data: (summaries) => _buildEmployeeShiftCard(summaries, currencyFmt),
+      data: (summaries) => _buildOtherUsersReceiptsCard(summaries, currencyFmt),
     );
   }
 
-  Widget _buildEmployeeShiftCard(
-    List<PaymentShiftSummary> summaries,
+  Widget _buildOtherUsersReceiptsCard(
+    List<PaymentUserHotelDaySummary> summaries,
     NumberFormat currencyFmt, {
     bool isLoading = false,
     String? errorMessage,
@@ -1192,12 +1192,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'استلامات المستخدمين الآخرين في النوبات',
+                  'استلامات المستخدمين الآخرين بحسب اليوم الفندقي',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
               const Text(
-                'الإجمالي عبر كل الجلسات (اليومان الفندقيان الأخيران)',
+                'إجمالي اليوم الفندقي الحالي مهما كان عدد الجلسات',
                 style: TextStyle(fontSize: 9, color: Colors.grey),
               ),
             ],
@@ -1212,7 +1212,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             )
           else if (summaries.isEmpty)
             const Text(
-              'لا توجد استلامات منسوبة إلى نوبات مسجلة بعد',
+              'لا توجد استلامات في اليوم الفندقي الحالي بعد',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             )
           else

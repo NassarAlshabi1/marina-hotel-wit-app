@@ -104,7 +104,7 @@ class TelegramReportService {
       if (!await TelegramConfig.isEnabled()) return false;
       final data = await _gatherReportData();
       if (data == null) return false;
-      return _api.sendToDefaultChat(text: _buildReportMessage(data));
+      return await _api.sendToDefaultChat(text: _buildReportMessage(data));
     } catch (e) {
       dlog(() => '❌ Telegram: خطأ في إرسال التقرير التجريبي: $e');
       return false;

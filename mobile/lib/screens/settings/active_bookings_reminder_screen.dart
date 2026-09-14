@@ -12,6 +12,7 @@ import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/debug_log.dart';
 import '../../utils/status_utils.dart';
+
 // ✅ whatsapp_template_manager ملغي — البناء مباشر
 
 /// شاشة إرسال تذكير واتساب بالمبلغ المتبقي للحجوزات النشطة

@@ -14,16 +14,18 @@ import '../payment_session_context.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
 
-class PaymentShiftSummary {
-  const PaymentShiftSummary({
+/// ملخّص استلامات هوية مستخدم واحدة بحسب اليوم الفندقي — سطر واحد
+/// في بطاقة «استلامات المستخدمين الآخرين بحسب اليوم الفندقي».
+class PaymentUserHotelDaySummary {
+  const PaymentUserHotelDaySummary({
     required this.userId,
     required this.userName,
     required this.totalAmount,
     required this.paymentCount,
   });
 
-  factory PaymentShiftSummary.fromRow(Map<String, dynamic> row) {
-    return PaymentShiftSummary(
+  factory PaymentUserHotelDaySummary.fromRow(Map<String, dynamic> row) {
+    return PaymentUserHotelDaySummary(
       userId: (row['user_id'] as num?)?.toInt() ?? 0,
       userName: row['user_name']?.toString() ?? 'مستخدم غير معروف',
       totalAmount: (row['total_amount'] as num?)?.toDouble() ?? 0,
@@ -124,35 +126,32 @@ class PaymentsRepository {
         .map((result) => (result.data['total'] as num).toDouble());
   }
 
-  /// إجماليات استلامات المستخدمين الآخرين في اليومين الفندقيين
-  /// (الحالي + السابق عبر [HotelTimeEngine.previousHotelDayKey]).
-  /// التجميع يتم في SQLite حتى لا تُحمّل جميع صفوف المدفوعات إلى Dart.
-  ///
-  /// ✅ (2026-09-14) عقد «سطر واحد لكل مستخدم» بهوية ثابتة: مفتاح
-  /// التجميع = COALESCE(cloud_id, 'legacy:'+user_id) —
-  /// • الصفوف السحابية تُجمَّع بالـ cloud_id (المعرّف الثابت عبر
-  ///   الأجهزة): نفس الشخص بأسماء مختلفة (أحمد/أحمد محمد) أو بمعرفات
-  ///   محلية مختلفة على أجهزة مختلفة = سطر واحد.
-  /// • صفوف الإرث بلا cloud_id تُجمَّع بالمعرّف المحلي (شخص الجهاز).
-  /// • شخصان مختلفان يشتركان في نفس المعرّف المحلي عبر جهازين لكن
-  ///   cloud_id مختلف = سطران منفصلان (لا خلط إجماليات).
-  /// الاسم المعروض = MAX(received_by_name) اسم تمثيلي، والنافذة
-  /// اليومان الفندقيان (الحالي + السابق) لتغطية النوبة العابرة 14:01.
-  /// سجلات الإرث بلا session UUID تبقى مستبعدة، وصفوف الإرث بلا
-  /// hotel_day_key تُشمل بـ LIKE على مفتاحي النافذة.
-  Stream<List<PaymentShiftSummary>> watchPaymentShiftSummaries(
+  /// ✅ (2026-09-15) استلامات المستخدمين الآخرين بحسب اليوم الفندقي
+  /// فقط — طلب المستخدم الحرفي. العقد:
+  /// • النافذة = اليوم الفندقي [hotelDayKey] حصراً (لا نافذة يومين):
+  ///   سطر واحد لكل مستخدم = إجمالي كل ما استلمه في هذا اليوم الفندقي
+  ///   مهما كان عدد جلساته. النوبة العابرة لحد 14:01 تُقتطع عمداً عند
+  ///   حدود اليوم الفندقي: جزء الأمس الفندقي يظهر في يومه هو.
+  /// • لا شرط session UUID: «بحسب اليوم الفندقي فقط» يعني أن الجلسة
+  ///   ليست بُعد تجميع هنا — حتى الإرث بلا جلسة يُحسب لمستلمه في يومه
+  ///   (بطاقة «نوبتي الحالية» أعلاه هي وحدها المعتمدة على الجلسة).
+  /// • التجميع بهوية ثابتة (2026-09-14): COALESCE(cloud_id,
+  ///   'legacy:'+user_id) — نفس الشخص بأسماء مختلفة (أحمد/أحمد محمد)
+  ///   أو بمعرفات محلية مختلفة عبر أجهزة = سطر واحد؛ ومعرف محلي
+  ///   مشترك عبر جهازين بـ cloud_id مختلف = سطران (لا خلط إجماليات).
+  /// • الاستبعاد بهوية ثابتة (2026-09-14): الاسم لا يستبعد صفاً
+  ///   سحابياً أبداً — صفوف الإرث بلا cloud_id تُستبعد بالمعرّف
+  ///   المحلي أولاً ثم بالاسم احتياطاً (هي وُلدت على هذا الجهاز
+  ///   فمعرّفها موثوق).
+  /// الاسم المعروض = MAX(received_by_name) اسم تمثيلي، وصفوف الإرث
+  /// بلا hotel_day_key تُشمل بـ LIKE على مفتاح اليوم. التجميع في
+  /// SQLite حتى لا تُحمّل صفوف المدفوعات إلى Dart.
+  Stream<List<PaymentUserHotelDaySummary>> watchPaymentUserHotelDaySummaries(
     String hotelDayKey, {
     int? excludedUserId,
     String? excludedUserName,
     String? excludedUserCloudId,
   }) {
-    final previousKey = HotelTimeEngine.previousHotelDayKey(hotelDayKey);
-    // ✅ (2026-09-14) الاستبعاد بهوية ثابتة (تقرير تشخيص المستخدم):
-    // • الصفوف السحابية (cloud_id ليس NULL) تُستبعد بمطابقة cloud_id
-    //   فقط — الاسم لا يستبعد صفاً سحابياً أبداً (إصلاح: مستخدمان
-    //   بالاسم نفسه لم يعودا يختلطان).
-    // • صفوف الإرث بلا cloud_id تُستبعد بالمعرّف المحلي أولاً ثم
-    //   بالاسم احتياطاً (هي وُلدت على هذا الجهاز فمعرّفها موثوق).
     final excludedUserIdFilter = excludedUserId == null
         ? ''
         : 'AND (received_by_cloud_id IS NOT NULL OR received_by_user_id != ?) ';
@@ -173,13 +172,12 @@ class PaymentsRepository {
           'WHERE deleted_at IS NULL AND is_voided = 0 '
           'AND is_pending_balance = 0 '
           'AND received_by_user_id IS NOT NULL '
-          'AND received_session_uuid IS NOT NULL '
           'AND (received_by_cloud_id IS NOT NULL OR received_by_name IS NOT NULL) '
           '$excludedUserIdFilter'
           '$excludedNameFilter'
           '$excludedCloudIdFilter'
-          'AND (hotel_day_key IN (?, ?) '
-          'OR (hotel_day_key IS NULL AND (payment_date LIKE ? OR payment_date LIKE ?))) '
+          'AND (hotel_day_key = ? '
+          'OR (hotel_day_key IS NULL AND payment_date LIKE ?)) '
           "GROUP BY COALESCE(received_by_cloud_id, 'legacy:' || received_by_user_id) "
           'ORDER BY total_amount DESC',
           variables: [
@@ -189,16 +187,14 @@ class PaymentsRepository {
             if (excludedUserCloudId != null)
               d.Variable.withString(excludedUserCloudId),
             d.Variable.withString(hotelDayKey),
-            d.Variable.withString(previousKey ?? hotelDayKey),
             d.Variable.withString('$hotelDayKey%'),
-            d.Variable.withString('${previousKey ?? hotelDayKey}%'),
           ],
           readsFrom: {db.payments},
         )
         .watch()
         .map(
           (rows) => rows
-              .map((row) => PaymentShiftSummary.fromRow(row.data))
+              .map((row) => PaymentUserHotelDaySummary.fromRow(row.data))
               .toList(growable: false),
         );
   }

@@ -375,14 +375,14 @@ final currentUserSessionPaymentsProvider = StreamProvider.autoDispose<double>((
   return paymentsRepo.watchTotalByCurrentPaymentSession();
 });
 
-final employeeShiftPaymentSummariesProvider =
-    StreamProvider.autoDispose<List<PaymentShiftSummary>>((ref) {
+final otherUsersHotelDayReceiptsProvider =
+    StreamProvider.autoDispose<List<PaymentUserHotelDaySummary>>((ref) {
       final user = ref.watch(authProvider).currentUser;
-      // كل مستخدم مسجل يرى استلامات المستخدمين الآخرين في النوبات.
+      // كل مستخدم مسجل يرى استلامات الآخرين بحسب اليوم الفندقي.
       // لا نعرض إجمالي جلسة المستخدم الحالي هنا؛ المدير يرى بقية المستخدمين
       // والموظفين بالطريقة نفسها، دون بطاقة منفصلة لاستلامه الشخصي.
       if (user == null) {
-        return Stream.value(const <PaymentShiftSummary>[]);
+        return Stream.value(const <PaymentUserHotelDaySummary>[]);
       }
 
       ref.watch(hotelDayTickerProvider);
@@ -392,7 +392,7 @@ final employeeShiftPaymentSummariesProvider =
       // cloud_id، والاسم احتياط أخير للإرث — لا يستبعد صفاً سحابياً.
       return ref
           .watch(paymentsRepoProvider)
-          .watchPaymentShiftSummaries(
+          .watchPaymentUserHotelDaySummaries(
             hotelDay,
             excludedUserId: user.id,
             excludedUserName: user.name,
