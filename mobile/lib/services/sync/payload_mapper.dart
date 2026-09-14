@@ -261,6 +261,16 @@ class PayloadMapper {
 
     putIfStringNotEmpty(data, 'voidReason', payment.voidReason);
     putIfNotNull(data, 'isImmutable', payment.isImmutable);
+    // هوية المستخدم الذي استلم الدفعة — مطلوبة لتجميع بطاقة
+    // «استلامات المستخدمين الآخرين» على أجهزة المدير/المشرف.
+    putIfNotNull(data, 'receivedByUserId', payment.receivedByUserId);
+    putIfStringNotEmpty(data, 'receivedByName', payment.receivedByName);
+    putIfStringNotEmpty(
+      data,
+      'receivedSessionUuid',
+      payment.receivedSessionUuid,
+    );
+    putIfStringNotEmpty(data, 'receivedByCloudId', payment.receivedByCloudId);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);
 
     putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
@@ -813,7 +823,9 @@ class PayloadMapper {
     data['date'] = effectiveWithdrawDate;
     data['action'] = withdrawal.withdrawalType ?? 'withdrawal';
     data['note'] = withdrawal.description ?? '';
-    data['name'] = '';
+    // ✅ (2026-09-14) name = اسم من سجّل السحبة (recorderName) — كان يُرسل
+    // فارغاً دائماً. يظهر على السحابة والتقارير عبر الأجهزة الأخرى.
+    data['name'] = withdrawal.recorderName ?? '';
 
     return data;
   }

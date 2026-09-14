@@ -251,7 +251,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-      final pullResult = await appwriteSyncManager.sync(push: false);
+      // زر التحديث اليدوي يسحب فوراً — المحرك الموحد يضبط اتساع السحب عبر
+      // checkpoints لكل مجموعة؛ منع التوازي عبر SyncGate أعلاه وبقية
+      // الحمايات داخل sync() سارية (Outbox / SyncLocks / الاتصال).
+      final pullResult = await appwriteSyncManager.sync(
+        push: false,
+        pull: true,
+      );
       final pulledCount = pullResult.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة

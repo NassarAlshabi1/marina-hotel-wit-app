@@ -68,16 +68,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         screenClass: 'DashboardScreen',
       ),
     );
-    // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
+    // ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
+    // refactor/performance-fixes-v2: فحص ساعة + SyncGate + إشعار تحميل.
+    // التكييف مع معمارية هذا الفرع: deltaOnly:true — فتح الشاشة لا يبدأ
+    // Full Sync أبداً (Bootstrap الصريح فقط)؛ الدلتا تكفي لتحديث قسم
+    // "استلامات المستخدمين" وأقسام اليوم الفندقي بأحدث بيانات الخادم.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoPullFromAppwrite();
     });
   }
 
+  /// ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
+  /// refactor/performance-fixes-v2 (SyncGate + فحص ساعة + إشعار تحميل)
+  /// مع تكييف المعمارية: deltaOnly فقط — لا Full Sync من الشاشة أبداً.
   Future<void> _autoPullFromAppwrite() async {
-    // ✅ P3-5 (Global SyncGate): السحب التلقائي عند الفتح يمرّ عبر البوّابة
-    // العامة. إذا كان المستخدم قد ضغط زر مزامنة يدوياً، أو كان المؤقّت
-    // يعمل، فإن السحب التلقائي يُلغى بصمت دون منافسة على الموارد.
+    // ✅ SyncGate: إذا كانت مزامنة يدوية/مؤقت/realtime يعمل — يُلغى بصمت
+    // دون منافسة على الموارد (نفس نمط DashboardSyncButton).
     final executed = await SyncGate.instance.runGuardedVoid(
       operation: 'auto_pull',
       source: 'auto_open',
@@ -102,7 +108,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return;
       }
 
-      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
+      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب عند الفتح؟ ───
+      // نفس مفتاح فحص إقلاع التطبيق (lastAppOpenPullKey) — مصدر واحد للحقيقة.
       final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
       if (lastPullEpochMs != null) {
         final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
@@ -129,7 +136,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       final syncManager = ref.read(appwriteSyncManagerProvider);
-      final result = await syncManager.sync(push: false);
+      // المحرك الموحد: pull هنا دلتا عبر checkpoints لكل مجموعة —
+      // لا Full Sync ضمنياً (Bootstrap الصريح وحده مسؤول عنه).
+      final result = await syncManager.sync(push: false, pull: true);
       final pulledCount = result.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء السحب
@@ -166,7 +175,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
         );
-      } else if (mounted) {
+      } else {
         // إشعار صامت بأن البيانات محدثة
         dlog('✅ البيانات محدثة — لا توجد سجلات جديدة');
       }
@@ -190,8 +199,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _buildStatisticsCards(),
               const SizedBox(height: 20),
               _buildRoomsSection(),
-              const SizedBox(height: 12),
-              _buildColorInstructions(),
               const SizedBox(height: 12),
               _buildEmployeeShiftPayments(),
             ],
@@ -922,17 +929,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         user?.userType == 'supervisor';
     if (!canViewOtherEmployees) return const SizedBox.shrink();
 
-    final summariesAsync = ref.watch(employeeShiftPaymentSummariesProvider);
+    // ✅ (2026-09-14) مصدر سحابي مباشر — المبالغ تُقرأ من Appwrite
+    // وتتحدث تلقائياً (كل 60 ثانية + مع أحداث المزامنة + زر التحديث).
+    final summariesAsync = ref.watch(
+      cloudEmployeeShiftPaymentSummariesProvider,
+    );
+    // ✅ ربط البطاقة بـ Outbox: دفعات هذا الجهاز التي لم تصل السحابة
+    // بعد — تُرفع تلقائياً فور توفر الشبكة دون أي تدخل يدوي.
+    final pendingUploads =
+        ref.watch(paymentsOutboxPendingProvider).valueOrNull ?? 0;
     final currencyFmt = NumberFormat('#,##0', 'en_US');
     return summariesAsync.when(
-      loading: () =>
-          _buildEmployeeShiftCard(const [], currencyFmt, isLoading: true),
+      loading: () => _buildEmployeeShiftCard(
+        const [],
+        currencyFmt,
+        isLoading: true,
+        pendingUploads: pendingUploads,
+      ),
       error: (error, _) => _buildEmployeeShiftCard(
         const [],
         currencyFmt,
         errorMessage: 'تعذر تحميل استلامات الموظفين',
+        pendingUploads: pendingUploads,
       ),
-      data: (summaries) => _buildEmployeeShiftCard(summaries, currencyFmt),
+      data: (summaries) => _buildEmployeeShiftCard(
+        summaries,
+        currencyFmt,
+        pendingUploads: pendingUploads,
+      ),
     );
   }
 
@@ -941,6 +965,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     NumberFormat currencyFmt, {
     bool isLoading = false,
     String? errorMessage,
+    int pendingUploads = 0,
   }) {
     return Container(
       width: double.infinity,
@@ -973,16 +998,57 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const Expanded(
                 child: Text(
                   'استلامات المستخدمين الآخرين في النوبات',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
               const Text(
                 'اليوم الفندقي الحالي',
                 style: TextStyle(fontSize: 9, color: Colors.grey),
               ),
+              const SizedBox(width: 4),
+              // ✅ تحديث فوري من السحابة عند الطلب.
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 16,
+                  tooltip: 'تحديث من السحابة الآن',
+                  icon: Icon(Icons.refresh, color: Colors.blue.shade700),
+                  onPressed: () => ref
+                      .read(shiftReceiptsManualRefreshProvider.notifier)
+                      .state++,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
+          // ✅ مؤشر الربط بـ Outbox — يظهر فقط حين توجد دفعات لم تُرفع
+          // بعد؛ يختفي تلقائياً بمجرد اكتمال الرفع التلقائي.
+          if (pendingUploads > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 13,
+                    color: Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'دفعة/دفعات على هذا الجهاز بانتظار الرفع التلقائي '
+                      'إلى السحابة ($pendingUploads)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (isLoading)
             const LinearProgressIndicator(minHeight: 2)
           else if (errorMessage != null)
@@ -1037,47 +1103,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
         ],
       ),
-    );
-  }
-
-  Widget _buildColorInstructions() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Wrap(
-        alignment: WrapAlignment.end,
-        spacing: 8,
-        runSpacing: 4,
-        children: [
-          _buildInstructionDot(Colors.green.shade600, 'شاغرة'),
-          _buildInstructionDot(Colors.red.shade600, 'محجوزة'),
-          _buildInstructionDot(
-            Colors.orange.shade500,
-            'تنبيه (22:00-23:00): جزء برتقالي',
-          ),
-          _buildInstructionDot(
-            Colors.red.shade800,
-            'متأخر (23:00-05:00): أحمر داكن + حدود',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInstructionDot(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 3),
-        Text(label, style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
-      ],
     );
   }
 

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../utils/performance_config.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/auth_provider.dart';
@@ -157,6 +158,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     _refreshExpensesStream();
                   },
                   child: CustomScrollView(
+                    // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+                    scrollCacheExtent: optimizedScrollCacheExtent,
                     slivers: [
                       SliverToBoxAdapter(
                         child: Padding(

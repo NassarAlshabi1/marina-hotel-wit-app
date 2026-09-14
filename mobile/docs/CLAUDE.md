@@ -1,5 +1,8 @@
 # Marina Hotel Mobile App - Analysis Report
 
+## Mandatory Performance Reference
+- **اتبع `docs/PERFORMANCE.md` في كل تغيير** — دليل أداء الأجهزة الضعيفة (1GB RAM) وقائمة PR Gate في §10 إلزامية لكل PR. (`AGENTS.md` في جذر mobile/ يلخّص القواعد.)
+
 ## Architecture
 - **Pattern**: Offline-First + Modified Clean Architecture
 - **Layers**: screens/ (28), services/ (118), providers/ (22), models/ (5), components/ (12), widgets/ (7), utils/ (31), core/ (5)

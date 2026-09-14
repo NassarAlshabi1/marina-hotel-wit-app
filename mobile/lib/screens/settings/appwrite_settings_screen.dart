@@ -13,7 +13,9 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/appwrite_cache_manager.dart';
+import '../../services/appwrite_logger.dart';
 import '../../services/appwrite_models.dart';
+import '../../services/appwrite_xlsx_export_service.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
@@ -36,6 +38,15 @@ class _AppwriteSettingsScreenState
   bool _logFile = false;
   bool _isLoading = false;
 
+  /// تنفيذ آمن لـ setState — يتحقق من mounted قبل الاستدعاء.
+  void _safeSetState(VoidCallback fn) {
+    if (mounted) {
+      setState(fn);
+    } else {
+      fn();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +56,9 @@ class _AppwriteSettingsScreenState
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _cacheEnabled = prefs.getBool('appwrite_cache_enabled') ?? true;
       _cacheTTLHours = prefs.getInt('appwrite_cache_ttl') ?? 6;
@@ -53,6 +67,33 @@ class _AppwriteSettingsScreenState
       _logConsole = prefs.getBool('appwrite_log_console') ?? true;
       _logFile = prefs.getBool('appwrite_log_file') ?? false;
     });
+    await _applyLoggerSettings();
+  }
+
+  LogLevel _selectedLogLevel() {
+    switch (_logLevel) {
+      case 'debug':
+        return LogLevel.debug;
+      case 'warning':
+        return LogLevel.warning;
+      case 'error':
+        return LogLevel.error;
+      case 'critical':
+        return LogLevel.critical;
+      case 'info':
+      default:
+        return LogLevel.info;
+    }
+  }
+
+  Future<void> _applyLoggerSettings() {
+    return ref
+        .read(ap.appwriteLoggerProvider)
+        .initialize(
+          minLevel: _selectedLogLevel(),
+          enableConsole: _logConsole,
+          enableFile: _logFile,
+        );
   }
 
   Future<void> _saveLocalSettings() async {
@@ -526,7 +567,7 @@ class _AppwriteSettingsScreenState
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _clearCache,
+                onPressed: _isLoading ? null : _clearCache,
                 icon: const Icon(Icons.delete_sweep),
                 label: const Text('مسح الذاكرة المؤقتة'),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -572,10 +613,12 @@ class _AppwriteSettingsScreenState
                     child: Text(value.toUpperCase()),
                   );
                 }).toList(),
-                onChanged: (value) {
+                onChanged: (value) async {
                   if (value != null) {
                     setState(() => _logLevel = value);
-                    _saveLocalSettings();
+                    await _saveLocalSettings();
+                    if (!mounted) return;
+                    await _applyLoggerSettings();
                   }
                 },
               ),
@@ -586,9 +629,11 @@ class _AppwriteSettingsScreenState
               title: 'تسجيل في Console',
               subtitle: 'عرض السجلات في وحدة التحكم',
               value: _logConsole,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _logConsole = value);
-                _saveLocalSettings();
+                await _saveLocalSettings();
+                if (!mounted) return;
+                await _applyLoggerSettings();
               },
             ),
 
@@ -597,9 +642,11 @@ class _AppwriteSettingsScreenState
               title: 'تسجيل في الملفات',
               subtitle: 'حفظ السجلات في ملفات نصية',
               value: _logFile,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _logFile = value);
-                _saveLocalSettings();
+                await _saveLocalSettings();
+                if (!mounted) return;
+                await _applyLoggerSettings();
               },
             ),
 
@@ -659,7 +706,7 @@ class _AppwriteSettingsScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _exportLogs,
+                    onPressed: _isLoading ? null : _exportLogs,
                     icon: const Icon(Icons.file_download),
                     label: const Text('تصدير'),
                   ),
@@ -667,7 +714,7 @@ class _AppwriteSettingsScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _clearLogs,
+                    onPressed: _isLoading ? null : _clearLogs,
                     icon: const Icon(Icons.delete),
                     label: const Text('مسح'),
                     style: ElevatedButton.styleFrom(
@@ -776,9 +823,9 @@ class _AppwriteSettingsScreenState
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  ref.invalidate(ap.devicesListProvider);
-                },
+                onPressed: _isLoading
+                    ? null
+                    : () => ref.invalidate(ap.devicesListProvider),
                 icon: const Icon(Icons.refresh),
                 label: const Text('تحديث قائمة الأجهزة'),
               ),
@@ -820,6 +867,23 @@ class _AppwriteSettingsScreenState
               ],
               actionLabel: 'إنشاء النسخة',
               onPressed: _exportFullCloudBackup,
+            ),
+            const SizedBox(height: 12),
+            _buildDataActionCard(
+              icon: Icons.grid_on,
+              color: Colors.teal,
+              title: 'تصدير قاعدة البيانات إلى Excel (XLSX)',
+              subtitle:
+                  'سحب جميع الجداول من Appwrite Cloud إلى ملف Excel واحد '
+                  'على ذاكرة الهاتف',
+              details: const [
+                'ورقة لكل جدول بأسماء عربية + ورقة ملخص بالأعداد',
+                'قراءة فقط من السحابة — لا تعدل أي بيانات',
+                'يُستثنى الجداول التقنية (devices، sync_logs)',
+                'يمكنك اختيار مكان الحفظ ثم مشاركة الملف',
+              ],
+              actionLabel: 'تصدير إلى Excel',
+              onPressed: _exportDatabaseToXlsx,
             ),
             const SizedBox(height: 12),
             _buildDataActionCard(
@@ -1137,7 +1201,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1163,6 +1227,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed ?? false) {
       ref.read(ap.appwriteCacheManagerProvider).clear();
+      ref.invalidate(ap.cacheStatsProvider);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -1193,6 +1258,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed ?? false) {
       ref.read(ap.appwriteLoggerProvider).clearLogs();
+      ref.invalidate(ap.logStatsProvider);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -1241,7 +1307,158 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      _safeSetState(() => _isLoading = false);
+    }
+  }
+
+  // ==================== تصدير قاعدة البيانات إلى Excel ====================
+
+  Future<void> _exportDatabaseToXlsx() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تصدير قاعدة البيانات إلى Excel'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'سيتم سحب جميع الجداول التجارية من Appwrite Cloud وإنشاء ملف XLSX.',
+            ),
+            SizedBox(height: 8),
+            Text('• ورقة لكل جدول بأسماء عربية + ورقة ملخص بالأعداد'),
+            Text('• قراءة فقط — لن تُعدَّل أي بيانات'),
+            Text('• قد يستغرق وقتاً حسب حجم البيانات'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            child: const Text('تصدير'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    final suggestedName =
+        'marina_appwrite_export_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+    final chosenPath = await FilePicker.platform.saveFile(
+      dialogTitle: 'اختر مكان حفظ ملف Excel',
+      fileName: suggestedName,
+    );
+    if (chosenPath == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إلغاء اختيار مسار الحفظ')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final progress = ValueNotifier<XlsxExportProgress>(
+      const XlsxExportProgress(0, 1, 'تحضير التصدير...'),
+    );
+
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('جاري التصدير إلى Excel...'),
+          content: ValueListenableBuilder<XlsxExportProgress>(
+            valueListenable: progress,
+            builder: (context, p, _) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LinearProgressIndicator(value: p.fraction),
+                const SizedBox(height: 12),
+                Text('${p.done} / ${p.total} — ${p.currentLabel}'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final service = AppwriteXlsxExportService(
+        fetcher: AppwriteXlsxExportService.fetcherOf(
+          ref.read(ap.appwriteServiceProvider),
+        ),
+      );
+      final result = await service.export(
+        targetPath: chosenPath,
+        onProgress: (p) => progress.value = p,
+      );
+      navigator.pop(); // إغلاق حوار التقدم
+      progress.dispose();
+      if (!mounted) {
+        return;
+      }
+
+      final sortedCounts = result.counts.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      unawaited(
+        showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('تم تصدير قاعدة البيانات'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('المسار: ${result.file.path}'),
+                  const SizedBox(height: 12),
+                  Text('إجمالي السجلات: ${result.totalRecords}'),
+                  const SizedBox(height: 8),
+                  const Text('تفاصيل الجداول:'),
+                  const SizedBox(height: 6),
+                  ...sortedCounts.map((e) => Text('• ${e.key}: ${e.value}')),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await Share.shareXFiles([XFile(result.file.path)]);
+                },
+                child: const Text('مشاركة'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      navigator.pop(); // إغلاق حوار التقدم
+      progress.dispose();
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل تصدير قاعدة البيانات: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1385,11 +1602,7 @@ class _AppwriteSettingsScreenState
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1460,11 +1673,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1504,12 +1713,16 @@ class _AppwriteSettingsScreenState
     setState(() => _isLoading = true);
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
-      await manager.pullAllRemoteData();
+      final pulledChanges = await manager.pullAllRemoteData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم سحب البيانات بنجاح'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              pulledChanges
+                  ? 'تم سحب التغييرات من السحابة بنجاح'
+                  : 'اكتمل الفحص دون تغييرات مطبقة؛ قد لا توجد تغييرات جديدة أو توجد تغييرات محلية غير مرفوعة',
+            ),
+            backgroundColor: pulledChanges ? Colors.green : Colors.orange,
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
@@ -1535,15 +1748,15 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
   Future<void> _resetSync() async {
+    if (_isLoading) {
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1563,14 +1776,33 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed ?? false) {
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
       await ref.read(ap.appwriteSyncManagerProvider).resetSyncState();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم إعادة تعيين المزامنة')),
+          const SnackBar(
+            content: Text('تم إعادة تعيين مؤشر المزامنة المحلي فقط'),
+            backgroundColor: Colors.green,
+          ),
         );
         ref.invalidate(ap.syncStatsProvider);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل إعادة تعيين المزامنة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1579,9 +1811,11 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _testSync() async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
+    }
     await _syncNow();
   }
 

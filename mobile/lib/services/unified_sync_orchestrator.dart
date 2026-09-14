@@ -504,7 +504,12 @@ class UnifiedSyncOrchestrator {
       success = (pushed >= 0) && success;
     }
     if (pull) {
-      success = await manager.pullRemoteChanges() && success;
+      // تفويض السحب للمسار الموحد: pull خلفي/تلقائي = دلتا عبر
+      // checkpoints لكل مجموعة — لا Full Sync من الخلفية أبداً
+      // (Bootstrap الصريح وحده يبدأ السحب الكامل). اليدوي يمر عبر فرع
+      // push&&pull أعلاه حيث يبقى السحب الكامل قراراً مرئياً.
+      final result = await manager.sync(push: false, pull: true);
+      success = result.isSuccess && success;
     }
 
     return success;

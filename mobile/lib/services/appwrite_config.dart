@@ -124,6 +124,17 @@ class AppwriteConfig {
     return _entityToCollection[entity];
   }
 
+  /// ⚡ (2026-08-31) العكس: collection ID → اسم الكيان — يغذّي المسار
+  /// السريع على مستوى السجل من أحداث Realtime (تطبيق السجل من حمولة
+  /// الحدث مباشرة). يُرجع null للمجموعات غير المُخزَّنة محلياً كصفوف
+  /// مزامنة (devices, sync_logs) فتسقط تلك الأحداث إلى دورة السحب.
+  static String? entityForCollectionId(String collectionId) {
+    for (final entry in _entityToCollection.entries) {
+      if (entry.value == collectionId) return entry.key;
+    }
+    return null;
+  }
+
   // إعدادات المزامنة
   static const Duration syncInterval = Duration(minutes: 15);
   static const Duration cacheExpiry = Duration(hours: 6);

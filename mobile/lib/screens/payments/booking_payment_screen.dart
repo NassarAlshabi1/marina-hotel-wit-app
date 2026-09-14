@@ -403,6 +403,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paidAmount = dbPayments
         .where((p) => !p.isVoided)
         .fold<double>(0, (s, p) => s + p.amount);
+
+    // آخر مبلغ مدفوع: أحدث دفعة غير ملغاة لهذا الحجز
+    db.Payment? lastPaidPayment;
+    final activeDbPayments = dbPayments.where((p) => !p.isVoided).toList();
+    if (activeDbPayments.isNotEmpty) {
+      activeDbPayments.sort((a, b) {
+        final dateA = DateTime.tryParse(a.paymentDate);
+        final dateB = DateTime.tryParse(b.paymentDate);
+        final cmp = (dateB ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+          dateA ?? DateTime.fromMillisecondsSinceEpoch(0),
+        );
+        if (cmp != 0) return cmp;
+        return b.id.compareTo(a.id);
+      });
+      lastPaidPayment = activeDbPayments.first;
+    }
+
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPaidAmount = dbPayments
         .where(
@@ -505,7 +522,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
+              RepaintBoundary(child: _buildLastPaidAmountCard(lastPaidPayment)),
+              const SizedBox(height: 6),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
@@ -577,6 +596,42 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// بطاقة «آخر مبلغ مدفوع» — تعرض آخر دفعة غير ملغاة لهذا الحجز فقط.
+  Widget _buildLastPaidAmountCard(db.Payment? lastPaidPayment) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Text(
+            'آخر مبلغ مدفوع',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            lastPaidPayment == null
+                ? 'لا يوجد'
+                : _currencyFmt.format(lastPaidPayment.amount),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.primary,
+            ),
+          ),
+        ],
       ),
     );
   }

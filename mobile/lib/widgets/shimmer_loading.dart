@@ -1,6 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../utils/weak_device_optimizer.dart';
+
+/// هل حركات التحميل المستمرة معطلة (أجهزة 1GB — مستوى تحسين 3)؟
+/// shimmer حركة لا تتوقف أثناء التحميل → إعادة رسم دائمة تستنزف
+/// CPU/GPU الضعيف. البديل: نفس الهيكل بلون رمادي ثابت واحد.
+bool get _continuousAnimationsDisabled =>
+    WeakDeviceOptimizer.instance.disableContinuousAnimations;
+
+/// غلاف ثابت بديل عن Shimmer على الأجهزة الضعيفة جداً:
+/// يرسم نفس الأشكال بلون رمادي موحّد بدون أي حركة، ويُخزّن
+/// في raster cache فلا تكلفة متكررة.
+Widget _weakDeviceShimmerFallback({required Widget child}) {
+  return ColorFiltered(
+    colorFilter: const ColorFilter.mode(Color(0xFFBDBDBD), BlendMode.srcATop),
+    child: child,
+  );
+}
+
 /// ويدجت تحميل متوهج لاستخدامه في التقارير والقوائم
 ///
 /// يوفر تأثير shimmer احترافي كبديل لـ CircularProgressIndicator.
@@ -64,22 +82,28 @@ class ShimmerLoading extends StatelessWidget {
       return customShimmer!;
     }
 
+    final shimmerChild = Padding(
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        children: List.generate(itemCount, (index) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: index < itemCount - 1 ? spacing : 0,
+            ),
+            child: _buildDefaultShimmerItem(context),
+          );
+        }),
+      ),
+    );
+
+    if (_continuousAnimationsDisabled) {
+      return _weakDeviceShimmerFallback(child: shimmerChild);
+    }
+
     return Shimmer.fromColors(
       baseColor: effectiveBaseColor,
       highlightColor: effectiveHighlightColor,
-      child: Padding(
-        padding: padding ?? const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          children: List.generate(itemCount, (index) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index < itemCount - 1 ? spacing : 0,
-              ),
-              child: _buildDefaultShimmerItem(context),
-            );
-          }),
-        ),
-      ),
+      child: shimmerChild,
     );
   }
 
@@ -218,31 +242,37 @@ class ShimmerTableRow extends StatelessWidget {
         highlightColor ??
         (isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5));
 
+    final tableChild = Padding(
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        children: [
+          // رأس وهمي
+          if (showHeader)
+            Padding(
+              padding: EdgeInsets.only(bottom: spacing),
+              child: _buildRow(height: headerHeight, isHeader: true),
+            ),
+          // صفوف وهمية
+          ...List.generate(rowCount, (index) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: index < rowCount - 1 ? spacing : 0,
+              ),
+              child: _buildRow(height: rowHeight),
+            );
+          }),
+        ],
+      ),
+    );
+
+    if (_continuousAnimationsDisabled) {
+      return _weakDeviceShimmerFallback(child: tableChild);
+    }
+
     return Shimmer.fromColors(
       baseColor: effectiveBaseColor,
       highlightColor: effectiveHighlightColor,
-      child: Padding(
-        padding: padding ?? const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          children: [
-            // رأس وهمي
-            if (showHeader)
-              Padding(
-                padding: EdgeInsets.only(bottom: spacing),
-                child: _buildRow(height: headerHeight, isHeader: true),
-              ),
-            // صفوف وهمية
-            ...List.generate(rowCount, (index) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: index < rowCount - 1 ? spacing : 0,
-                ),
-                child: _buildRow(height: rowHeight),
-              );
-            }),
-          ],
-        ),
-      ),
+      child: tableChild,
     );
   }
 
@@ -333,57 +363,63 @@ class ShimmerSummaryCard extends StatelessWidget {
         highlightColor ??
         (isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5));
 
+    final cardsChild = Padding(
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: List.generate(itemCount, (index) {
+          // البطاقات في صفين (2 في كل صف)
+          final width =
+              (MediaQuery.sizeOf(context).width - 44) /
+              (itemCount > 2 ? 2 : itemCount);
+          return SizedBox(
+            width: width,
+            height: 90,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // عنوان وهمي صغير
+                  Container(
+                    height: 10,
+                    width: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  // مبلغ وهمي كبير
+                  Container(
+                    height: 22,
+                    width: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+
+    if (_continuousAnimationsDisabled) {
+      return _weakDeviceShimmerFallback(child: cardsChild);
+    }
+
     return Shimmer.fromColors(
       baseColor: effectiveBaseColor,
       highlightColor: effectiveHighlightColor,
-      child: Padding(
-        padding: padding ?? const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: List.generate(itemCount, (index) {
-            // البطاقات في صفين (2 في كل صف)
-            final width =
-                (MediaQuery.of(context).size.width - 44) /
-                (itemCount > 2 ? 2 : itemCount);
-            return SizedBox(
-              width: width,
-              height: 90,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // عنوان وهمي صغير
-                    Container(
-                      height: 10,
-                      width: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                    // مبلغ وهمي كبير
-                    Container(
-                      height: 22,
-                      width: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
+      child: cardsChild,
     );
   }
 }

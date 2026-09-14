@@ -10,6 +10,7 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/device_attribution.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
@@ -26,6 +27,10 @@ class _SalaryTxRow {
     required this.reason,
     required this.description,
     required this.employee,
+    this.createdAt,
+    this.recorderName,
+    this.deviceId,
+    this.deviceHint,
   });
 
   final int id;
@@ -35,6 +40,21 @@ class _SalaryTxRow {
   final String reason;
   final String description;
   final Employee? employee;
+
+  /// ✅ وقت الإنشاء الفعلي (epoch) — سابقاً كان التقرير يعرض 00:00 وهمية
+  /// لأنه يحلل withdrawDate (نص تاريخ بلا وقت) كمنتصف الليل.
+  final DateTime? createdAt;
+
+  /// ✅ اسم المستخدم الذي سجّل السحبة (migration 66) — فارغ للسجلات القديمة
+  final String? recorderName;
+
+  /// هوية الجهاز المسجّل (عمود SyncFields الموجود أصلاً)
+  final String? deviceId;
+
+  /// تلميح الجهاز من الساعة الاتجاهية — يكشف جهاز التسجيل للسجلات القديمة
+  /// التي رُفعت قبل وسم deviceId (مثل: "marina_HNBRC-M1_be06acca" →
+  /// "HNBRC-M1 (be06acca)").
+  final String? deviceHint;
 }
 
 /// بيانات مجمعة لموظف واحد
@@ -190,6 +210,10 @@ class _SalaryWithdrawalsReportScreenState
     for (final sw in withdrawals) {
       final employee = employeeMap[sw.employeeId];
       final date = _parseDate(sw.withdrawDate);
+      // ✅ وقت الإنشاء الفعلي من عمود createdAt (epoch) — إن وُجد
+      final createdAt = sw.createdAt > 0
+          ? DateTime.fromMillisecondsSinceEpoch(sw.createdAt * 1000)
+          : null;
       rows.add(
         _SalaryTxRow(
           id: sw.id,
@@ -199,12 +223,24 @@ class _SalaryWithdrawalsReportScreenState
           reason: sw.reason ?? '',
           description: sw.description ?? '',
           employee: employee,
+          createdAt: createdAt,
+          recorderName: (sw.recorderName ?? '').trim().isEmpty
+              ? null
+              : sw.recorderName,
+          deviceId: sw.deviceId.trim().isEmpty ? null : sw.deviceId,
+          deviceHint: deviceHintFromVectorClock(sw.vectorClock),
         ),
       );
     }
 
-    // ترتيب حسب التاريخ الأحدث
-    rows.sort((a, b) => b.date.compareTo(a.date));
+    // ترتيب حسب التاريخ الأحدث، ثم وقت الإنشاء الفعلي الأحدث داخل اليوم
+    rows.sort((a, b) {
+      final byDate = b.date.compareTo(a.date);
+      if (byDate != 0) return byDate;
+      final aCreated = a.createdAt?.millisecondsSinceEpoch ?? 0;
+      final bCreated = b.createdAt?.millisecondsSinceEpoch ?? 0;
+      return bCreated.compareTo(aCreated);
+    });
 
     // تجميع حسب الموظف
     final groups = <int, _EmployeeSalaryGroup>{};
@@ -712,6 +748,23 @@ class _SalaryWithdrawalsReportScreenState
     );
   }
 
+  /// تسمية الإسناد: من سجّل السحبة / أي جهاز — null إن لا معلومة متاحة
+  String? _attributionLabel(_SalaryTxRow tx) {
+    final recorder = (tx.recorderName ?? '').trim();
+    if (recorder.isNotEmpty) {
+      return 'سجّله: $recorder';
+    }
+    final device = (tx.deviceId ?? '').trim();
+    if (device.isNotEmpty) {
+      return 'الجهاز: $device';
+    }
+    final hint = tx.deviceHint;
+    if (hint != null && hint.isNotEmpty) {
+      return 'الجهاز: $hint';
+    }
+    return null;
+  }
+
   /// صف معاملة واحد
   Widget _buildTransactionRow(_SalaryTxRow tx) {
     final isDeduction =
@@ -787,20 +840,24 @@ class _SalaryWithdrawalsReportScreenState
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      Icons.access_time,
-                      size: 11,
-                      color: Colors.grey.shade300,
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      _timeFormat.format(tx.date),
-                      style: TextStyle(
-                        fontSize: 10,
+                    // ✅ (2026-09-14) الوقت الفعلي للتسجيل من createdAt —
+                    // سابقاً كان يظهر 00:00 وهمية لأن withdrawDate نص بلا وقت
+                    if (tx.createdAt != null) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.access_time,
+                        size: 11,
                         color: Colors.grey.shade400,
                       ),
-                    ),
+                      const SizedBox(width: 3),
+                      Text(
+                        _timeFormat.format(tx.createdAt!),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -843,6 +900,37 @@ class _SalaryWithdrawalsReportScreenState
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade700,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          // ✅ (2026-09-14) الإسناد: من سجّل السحبة وعلى أي جهاز
+          // الأولوية: الاسم → عمود deviceId → تلميح من الساعة الاتجاهية
+          // (السجلات القديمة قبل وسم deviceId يكشفها الساعة الاتجاهية)
+          if (tx.recorderName != null ||
+              tx.deviceId != null ||
+              tx.deviceHint != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.person_outline,
+                  size: 12,
+                  color: Colors.grey.shade400,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    _attributionLabel(tx) ?? '',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
                       height: 1.4,
                     ),
                     maxLines: 2,

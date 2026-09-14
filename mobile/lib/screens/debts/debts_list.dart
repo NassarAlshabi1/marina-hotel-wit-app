@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../utils/performance_config.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
@@ -353,6 +354,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         ref.invalidate(debtsListProvider);
       },
       child: ListView.builder(
+        // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة (يمنع البناء المفرط).
+        scrollCacheExtent: optimizedScrollCacheExtent,
         padding: const EdgeInsets.all(16),
         itemCount: filteredDebts.length,
         itemBuilder: (context, index) {

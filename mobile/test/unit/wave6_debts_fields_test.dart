@@ -298,8 +298,11 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 63', () {
-      expect(db.schemaVersion, 63);
+    test('3e. أحدث schemaVersion = 66', () {
+      // ✅ (2026-09-14) محاذاة بعد bump إلى 66 (recorder_name على
+      // salary_withdrawals — إسناد السحبة لمسجّلها). القيمة مقصودة صريحة:
+      // كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
+      expect(db.schemaVersion, 66);
     });
   });
 
@@ -467,6 +470,7 @@ class _StubResolver implements IdResolver {
     String? uuid,
     int? serverId,
     int? employeeId,
+    bool fromRemote = false,
   }) async => localId;
 
   @override
@@ -474,6 +478,7 @@ class _StubResolver implements IdResolver {
     int? localId,
     int? serverId,
     String? uuid,
+    bool fromRemote = false,
   }) async => localId;
 
   @override

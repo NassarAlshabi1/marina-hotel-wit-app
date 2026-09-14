@@ -20,7 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
   bool _submitting = false;
-  bool _rememberMe = false;
+  bool _rememberMe = true;
 
   @override
   void initState() {

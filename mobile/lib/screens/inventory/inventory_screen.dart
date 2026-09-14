@@ -5,16 +5,34 @@ import '../../components/app_scaffold.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
+
+/// ✅ رسالة خطأ ودّية بدل عرض الاستثناء الخام للمستخدم (Issue: كانت
+/// شاشة المخزون تعرض SqliteException(11) الخام). التفاصيل الكاملة تُسجّل
+/// في السجل فقط (dwarn) عبر مواقع الاستدعاء.
+String _friendlyErrorMessage(Object error) {
+  final text = error.toString();
+  final isDbCorruption =
+      text.contains('malformed') ||
+      text.contains('database disk image') ||
+      (text.contains('SqliteException') && text.contains('code 11'));
+  if (isDbCorruption) {
+    return 'قاعدة البيانات المحلية بحاجة إلى إصلاح. أعد تشغيل التطبيق '
+        'ليتم فحصها وإصلاحها تلقائياً وإعادة مزامنة البيانات من السحابة. '
+        'إذا استمرت المشكلة تواصل مع الدعم الفني.';
+  }
+  return 'حدث خطأ غير متوقع. حاول مرة أخرى، وإذا تكرر أعد تشغيل التطبيق.';
+}
 
 class InventoryScreen extends ConsumerWidget {
   const InventoryScreen({super.key});
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(inventoryItemsProvider);
     final user = ref.watch(authProvider).currentUser;
     final canCreate = user?.canPerform('inventory', 'create') ?? false;
     final canUpdate = user?.canPerform('inventory', 'update') ?? false;
+
     return AppScaffold(
       title: 'المخزون',
       actions: [
@@ -31,12 +49,7 @@ class InventoryScreen extends ConsumerWidget {
       ),
       body: itemsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Text(
-            'تعذر تحميل المخزون: $error',
-            textAlign: TextAlign.center,
-          ),
-        ),
+        error: (error, _) => _buildErrorWidget(context, ref, error),
         data: (items) {
           if (items.isEmpty) {
             return const Center(
@@ -53,6 +66,92 @@ class InventoryScreen extends ConsumerWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// ✅ User-friendly error widget that detects SQLite corruption
+  /// and offers recovery options.
+  static Widget _buildErrorWidget(
+    BuildContext context,
+    WidgetRef ref,
+    Object error,
+  ) {
+    final isCorruption =
+        error.toString().contains('malformed') ||
+        error.toString().contains('code 11') ||
+        error.toString().contains('SqliteException(11)');
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isCorruption ? Icons.broken_image : Icons.error_outline,
+              size: 64,
+              color: isCorruption
+                  ? Colors.red.shade400
+                  : Colors.orange.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isCorruption ? 'تعذّر تحميل المخزون' : 'تعذر تحميل المخزون',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isCorruption
+                  ? 'قاعدة البيانات بها مشكلة في البيانات. '
+                        'يمكنك محاولة إعادة المزامنة من السحاب لإصلاح المشكلة.'
+                  : 'حدث خطأ غير متوقع أثناء تحميل بيانات المخزون.',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            if (isCorruption) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'جاري إعادة المزامنة... قد يستغرق هذا بضع دقائق.',
+                        ),
+                      ),
+                    );
+                    // Refresh the provider to retry
+                    ref.invalidate(inventoryItemsProvider);
+                  },
+                  icon: const Icon(Icons.sync),
+                  label: const Text('إعادة المزامنة'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.all(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  ref.invalidate(inventoryItemsProvider);
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('إعادة المحاولة'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.all(16),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -75,7 +174,6 @@ class InventoryScreen extends ConsumerWidget {
     final categoryController = TextEditingController();
     final initialController = TextEditingController(text: '0');
     final minimumController = TextEditingController(text: '0');
-
     try {
       final values = await showDialog<Map<String, String>>(
         context: context,
@@ -147,7 +245,6 @@ class InventoryScreen extends ConsumerWidget {
         ),
       );
       if (values == null) return;
-
       await ref
           .read(inventoryRepoProvider)
           .createItem(
@@ -161,7 +258,14 @@ class InventoryScreen extends ConsumerWidget {
         _showMessage(context, 'تمت إضافة الصنف');
       }
     } catch (error) {
-      if (context.mounted) _showMessage(context, 'تعذر إضافة الصنف: $error');
+      // ✅ لا نعرض الاستثناء الخام — رسالة ودّية + التفاصيل في السجل
+      dwarn(() => 'Inventory createItem error: $error');
+      if (context.mounted) {
+        _showMessage(
+          context,
+          'تعذر إضافة الصنف: ${_friendlyErrorMessage(error)}',
+        );
+      }
     } finally {
       nameController.dispose();
       unitController.dispose();
@@ -311,190 +415,188 @@ class _InventoryItemCard extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Future<void> _showMovementDialog(
-    BuildContext context,
-    WidgetRef ref,
-    InventoryItem item,
-    String movementType,
-  ) async {
-    if (!(ref
-            .read(authProvider)
-            .currentUser
-            ?.canPerform('inventory', 'create') ??
-        false)) {
-      _showMessage(context, 'ليست لديك صلاحية تسجيل حركات المخزون');
-      return;
-    }
-    final quantityController = TextEditingController();
-    final noteController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    try {
-      final values = await showDialog<Map<String, String>>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(movementType == 'in' ? 'إضافة وارد' : 'تسجيل صرف'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('الصنف: ${item.name} (${item.quantity} ${item.unit})'),
-                TextFormField(
-                  controller: quantityController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'الكمية (${item.unit})',
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    final parsed = int.tryParse(value?.trim() ?? '');
-                    return parsed == null || parsed <= 0
-                        ? 'أدخل كمية أكبر من صفر'
-                        : null;
-                  },
+Future<void> _showMovementDialog(
+  BuildContext context,
+  WidgetRef ref,
+  InventoryItem item,
+  String movementType,
+) async {
+  if (!(ref.read(authProvider).currentUser?.canPerform('inventory', 'create') ??
+      false)) {
+    InventoryScreen._showMessage(
+      context,
+      'ليست لديك صلاحية تسجيل حركات المخزون',
+    );
+    return;
+  }
+  final quantityController = TextEditingController();
+  final noteController = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+  try {
+    final values = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(movementType == 'in' ? 'إضافة وارد' : 'تسجيل صرف'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('الصنف: ${item.name} (${item.quantity} ${item.unit})'),
+              TextFormField(
+                controller: quantityController,
+                autofocus: true,
+                decoration: InputDecoration(labelText: 'الكمية (${item.unit})'),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  final parsed = int.tryParse(value?.trim() ?? '');
+                  return parsed == null || parsed <= 0
+                      ? 'أدخل كمية أكبر من صفر'
+                      : null;
+                },
+              ),
+              TextFormField(
+                controller: noteController,
+                decoration: const InputDecoration(
+                  labelText: 'ملاحظة (اختياري)',
                 ),
-                TextFormField(
-                  controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'ملاحظة (اختياري)',
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  Navigator.pop(dialogContext, {
-                    'quantity': quantityController.text,
-                    'note': noteController.text,
-                  });
-                }
-              },
-              child: const Text('حفظ'),
-            ),
-          ],
         ),
-      );
-      if (values == null) return;
-      final user = ref.read(authProvider).currentUser;
-      await ref
-          .read(inventoryRepoProvider)
-          .recordMovement(
-            itemId: item.id,
-            movementType: movementType,
-            quantity: int.parse(values['quantity']!),
-            note: values['note'],
-            userId: user?.id,
-            userName: user?.name,
-          );
-      if (context.mounted) {
-        _showMessage(
-          context,
-          movementType == 'in' ? 'تم تسجيل الوارد' : 'تم تسجيل الصرف',
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dialogContext, {
+                  'quantity': quantityController.text,
+                  'note': noteController.text,
+                });
+              }
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+    if (values == null) return;
+    final user = ref.read(authProvider).currentUser;
+    await ref
+        .read(inventoryRepoProvider)
+        .recordMovement(
+          itemId: item.id,
+          movementType: movementType,
+          quantity: int.parse(values['quantity']!),
+          note: values['note'],
+          userId: user?.id,
+          userName: user?.name,
         );
-      }
-    } catch (error) {
-      if (context.mounted) _showMessage(context, 'تعذر تسجيل الحركة: $error');
-    } finally {
-      quantityController.dispose();
-      noteController.dispose();
-    }
-  }
-
-  Future<void> _showStockDialog(
-    BuildContext context,
-    WidgetRef ref,
-    InventoryItem item,
-  ) async {
-    if (!(ref
-            .read(authProvider)
-            .currentUser
-            ?.canPerform('inventory', 'update') ??
-        false)) {
-      _showMessage(context, 'ليست لديك صلاحية اعتماد جرد المخزون');
-      return;
-    }
-    final quantityController = TextEditingController(text: '${item.quantity}');
-    final noteController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    try {
-      final values = await showDialog<Map<String, String>>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('جرد المخزون'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('الرصيد الحالي: ${item.quantity} ${item.unit}'),
-                TextFormField(
-                  controller: quantityController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'الرصيد الفعلي (${item.unit})',
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: InventoryScreen._validateNonNegativeInteger,
-                ),
-                TextFormField(
-                  controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'ملاحظة (اختياري)',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  Navigator.pop(dialogContext, {
-                    'quantity': quantityController.text,
-                    'note': noteController.text,
-                  });
-                }
-              },
-              child: const Text('اعتماد الجرد'),
-            ),
-          ],
-        ),
+    if (context.mounted) {
+      InventoryScreen._showMessage(
+        context,
+        movementType == 'in' ? 'تم تسجيل الوارد' : 'تم تسجيل الصرف',
       );
-      if (values == null) return;
-      final user = ref.read(authProvider).currentUser;
-      await ref
-          .read(inventoryRepoProvider)
-          .setStock(
-            itemId: item.id,
-            actualQuantity: int.parse(values['quantity']!),
-            note: values['note'],
-            userId: user?.id,
-            userName: user?.name,
-          );
-      if (context.mounted) _showMessage(context, 'تم اعتماد الجرد');
-    } catch (error) {
-      if (context.mounted) _showMessage(context, 'تعذر اعتماد الجرد: $error');
-    } finally {
-      quantityController.dispose();
-      noteController.dispose();
     }
+  } catch (error) {
+    if (context.mounted) {
+      InventoryScreen._showMessage(context, 'تعذر تسجيل الحركة: $error');
+    }
+  } finally {
+    quantityController.dispose();
+    noteController.dispose();
   }
+}
 
-  static void _showMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+Future<void> _showStockDialog(
+  BuildContext context,
+  WidgetRef ref,
+  InventoryItem item,
+) async {
+  if (!(ref.read(authProvider).currentUser?.canPerform('inventory', 'update') ??
+      false)) {
+    InventoryScreen._showMessage(
+      context,
+      'ليست لديك صلاحية اعتماد جرد المخزون',
+    );
+    return;
+  }
+  final quantityController = TextEditingController(text: '${item.quantity}');
+  final noteController = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+  try {
+    final values = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('جرد المخزون'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('الرصيد الحالي: ${item.quantity} ${item.unit}'),
+              TextFormField(
+                controller: quantityController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'الرصيد الفعلي (${item.unit})',
+                ),
+                keyboardType: TextInputType.number,
+                validator: InventoryScreen._validateNonNegativeInteger,
+              ),
+              TextFormField(
+                controller: noteController,
+                decoration: const InputDecoration(
+                  labelText: 'ملاحظة (اختياري)',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dialogContext, {
+                  'quantity': quantityController.text,
+                  'note': noteController.text,
+                });
+              }
+            },
+            child: const Text('اعتماد الجرد'),
+          ),
+        ],
+      ),
+    );
+    if (values == null) return;
+    final user = ref.read(authProvider).currentUser;
+    await ref
+        .read(inventoryRepoProvider)
+        .setStock(
+          itemId: item.id,
+          actualQuantity: int.parse(values['quantity']!),
+          note: values['note'],
+          userId: user?.id,
+          userName: user?.name,
+        );
+    if (context.mounted) {
+      InventoryScreen._showMessage(context, 'تم اعتماد الجرد');
+    }
+  } catch (error) {
+    if (context.mounted) {
+      InventoryScreen._showMessage(context, 'تعذر اعتماد الجرد: $error');
+    }
+  } finally {
+    quantityController.dispose();
+    noteController.dispose();
   }
 }

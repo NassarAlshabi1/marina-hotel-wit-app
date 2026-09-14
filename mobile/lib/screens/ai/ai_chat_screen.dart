@@ -294,7 +294,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           ),
           content: SizedBox(
             width: double.maxFinite,
-            height: MediaQuery.of(context).size.height * 0.6,
+            height: MediaQuery.sizeOf(context).height * 0.6,
             child: log.isEmpty
                 ? const Center(
                     child: Text(
@@ -618,7 +618,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.82,
+          maxWidth: MediaQuery.sizeOf(context).width * 0.82,
         ),
         decoration: BoxDecoration(
           color: isUser
