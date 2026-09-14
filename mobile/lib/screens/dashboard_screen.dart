@@ -11,6 +11,7 @@ import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
+import '../services/cloudflare_sync_manager.dart' show SyncResult;
 import '../services/local_db.dart';
 import '../services/payment_session_context.dart';
 import '../services/repositories/payments_repository.dart';
@@ -66,9 +67,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   ///   عبر AutoOutboxSyncWatcher) → D1 → بثّ change للجميع
   /// - جهاز المدير/المشرف: حدث change يشغّل دلتا-سحباً عبر WebSocket
   ///   فيتحدّث إجمالي المستخدم تلقائياً 500→1000 وهكذا لبقية المستخدمين
-  /// - شبكة أمان فقط: سحب دوري صامت كل ساعة (طلب المستخدم الحرفي:
-  ///   «التحديث الدوري في dashboard ليس كل 30 ثانية انما كل ساعة»)
-  ///   يعوّض أي فقدان لحدث WebSocket (انقطاع/إغلاق socket)
+  /// - السحب التلقائي (عند فتح الشاشة + شبكة أمان كل ساعة — طلب
+  ///   المستخدم الحرفي: «السحب الدوري كل ساعة») يعبر المسار المتين
+  ///   sync(push:false, forcePull:true) نفس عقد زر «سحب التغييرات».
+  ///   ✅ إصلاح (2026-09-14): المسار السابق deltaOnly كان يُتخطى صامتاً
+  ///   عند أي مزامنة جارية أو قبل اكتمال الـ bootstrap أو مع تبريد
+  ///   الدخول الكسول — لهذا كان «السحب عند فتح التطبيق لا يعمل» ولا
+  ///   يصل التحديث إلا بأحداث WS على مستوى السجلات أو من الزر.
   /// صامت تماماً: لا SnackBar ولا مؤشر — البطاقة تُحدّث نفسها بالبث.
   Timer? _dashboardCloudRefreshTimer;
   static const Duration _dashboardCloudRefreshInterval = Duration(hours: 1);
@@ -162,24 +167,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
 
-      final syncManager = ref.read(appwriteSyncManagerProvider);
-      // ✅ deltaOnly: true — في حالة التهيئة يُتخطى السحب (Bootstrap الصريح
-      // مسؤول عنه)؛ وفي الحالة المستقرة دلتا خفيفة metadata-first تكفي.
-      final result = await syncManager.sync(push: false, deltaOnly: true);
-      final pulledCount = result.recordsPulled;
+      // ✅ (2026-09-14) المسار المتين [_runRobustSilentPull] بدل
+      // deltaOnly الذي كان يُتخطى صامتاً. المفتاح يُكتب عند النجاح
+      // الفعلي فقط حتى لا يُعطّل سحب فاشل سحبات الساعة التالية
+      // (سبب «لا يسحب عند فتح التطبيق» المؤكد).
+      final result = await _runRobustSilentPull();
+      final pulledCount = result?.recordsPulled ?? 0;
+      final pullSucceeded = result?.isSuccess ?? false;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء السحب
       if (mounted) {
         loading?.close();
       }
 
-      // ─── تسجيل وقت هذا السحب التلقائي ───
-      await prefs.setInt(
-        SyncConstants.lastAppOpenPullKey,
-        DateTime.now().millisecondsSinceEpoch,
-      );
+      // ─── تسجيل وقت السحب عند النجاح الفعلي فقط ───
+      if (pullSucceeded) {
+        await prefs.setInt(
+          SyncConstants.lastAppOpenPullKey,
+          DateTime.now().millisecondsSinceEpoch,
+        );
+      }
 
-      if (mounted && pulledCount > 0) {
+      if (mounted && pullSucceeded && pulledCount > 0) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -214,8 +223,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// ✅ (2026-09-14) السحب الأمني الساعي — شروط التنفيذ:
   /// 1. الشاشة معروضة (mounted) والتطبيق في المقدمة (resumed)
   /// 2. بوّابة المزامنة حرة (لا مزامنة يدوي/مؤقت/realtime جارية)
-  /// السحب نفسه دلتا خفيفة push:false + deltaOnly:true — الرفع لا
-  /// يحتاجه هنا لأنه مغطى فورياً عبر outbox (AutoOutboxSyncWatcher).
+  /// السحب نفسه عبر المسار المتين [_runRobustSilentPull] (كان deltaOnly
+  /// يتخطى صامتاً عند أي مزامنة جارية فيبطل الشبك الأمني عملياً)،
+  /// والرفع لا يحتاجه هنا لأنه مغطى فورياً عبر AutoOutboxSyncWatcher.
   Future<void> _dashboardCloudRefreshTick() async {
     if (!mounted) return;
     if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
@@ -236,7 +246,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  /// السحب الدلتا الصامت الساعي — يكتب جداول المزامنة (payments ضمنها)
+  /// السحب الصامت الساعي — يكتب جداول المزامنة (payments ضمنها)
   /// في القاعدة المحلية، وبثّ Drift يُحدّث بطاقة الاستلامات تلقائياً.
   Future<void> _dashboardDeltaPull() async {
     try {
@@ -244,12 +254,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
         return;
       }
-      final syncManager = ref.read(appwriteSyncManagerProvider);
-      await syncManager.sync(push: false, deltaOnly: true);
-      dlog(() => '✅ [DashboardHourlyPull] دورة السحب الساعي اكتملت');
+      final result = await _runRobustSilentPull();
+      dlog(() {
+        final outcome = result == null
+            ? 'أُجهض (خلفية/إغلاق)'
+            : result.isSuccess
+            ? 'اكتمل (${result.recordsPulled} سجلاً)'
+            : 'فشل: ${result.errorMessage}';
+        return '✅ [DashboardHourlyPull] دورة السحب الساعي: $outcome';
+      });
     } catch (e) {
       dlog(() => '❌ [DashboardHourlyPull] فشل السحب الساعي: $e');
     }
+  }
+
+  /// ✅ (2026-09-14) سحب سحابي متين صامت — المسار الرئيسي
+  /// sync(push:false, forcePull:true): نفس عقد زر «سحب التغييرات»
+  /// دون الرفع (الرفع مغطى فورياً عبر AutoOutboxSyncWatcher ~3 ثوانٍ):
+  /// - forcePull يتجاوز تبريد الدخول الكسول (60 ثانية) فيعمل حتى لو
+  ///   فشل تسجيل دخول الإقلاع قبل لحظات (كان deltaOnly يفشل هنا).
+  /// - إن لم تكتمل الـ bootstrap بعد يُكملها المسار الرئيسي (P0-B)
+  ///   بدل التخطي الصامت الذي كان يحدث مع deltaOnly.
+  /// - إعادة محاولة محدودة (3 محاولات بفاصل 10 ثوانٍ) تعالج سباق
+  ///   «مزامنة قائمة» عند الفتح (سحب الإقلاع في main.dart) والفشل
+  ///   العابر — بدل التخلي الفوري عن الدورة حتى الساعة التالية.
+  /// يُرجع آخر [SyncResult] أو null إذا أُجهض الانتظار (إغلاق/خلفية).
+  Future<SyncResult?> _runRobustSilentPull() async {
+    final syncManager = ref.read(appwriteSyncManagerProvider);
+    SyncResult? last;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      last = await syncManager.sync(push: false, forcePull: true);
+      if (last.isSuccess) return last;
+      if (attempt == 3) return last;
+      await Future<void>.delayed(const Duration(seconds: 10));
+      if (!mounted) return null;
+      if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        return null;
+      }
+    }
+    return last;
   }
 
   @override
@@ -1150,7 +1193,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               const Text(
-                'إجمالي النوبة كاملة (اليومان الفندقيان الأخيران)',
+                'الإجمالي عبر كل الجلسات (اليومان الفندقيان الأخيران)',
                 style: TextStyle(fontSize: 9, color: Colors.grey),
               ),
             ],

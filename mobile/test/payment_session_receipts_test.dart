@@ -171,11 +171,13 @@ void main() {
   );
 
   test(
-    'shift summaries show full session total across the 14:01 boundary',
+    'shift summaries show full user total across the 14:01 boundary',
     () async {
       // ✅ (2026-09-05) نوبة تعبر حد 14:01: استلامات قبل الحد تحمل
       // مفتاح اليوم السابق وبعده مفتاح اليوم — يجب أن تُجمع في صف
       // واحد بإجمالي النوبة الكامل، لا أن يُقتطع جزء النوبة.
+      // ✅ (2026-09-14) التجميع أصبح بلا تفريق جلسات: سطر واحد
+      // لكل مستخدم بغضّ النظر عن عدد جلساته.
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(() async {
         PaymentSessionContext.clear();
@@ -221,7 +223,7 @@ void main() {
           .first;
 
       expect(summaries, hasLength(1));
-      expect(summaries.single.sessionUuid, 'session-night-shift');
+      expect(summaries.single.userId, 7);
       expect(summaries.single.totalAmount, 700);
       expect(summaries.single.paymentCount, 2);
     },
@@ -329,6 +331,65 @@ void main() {
       expect(summaries.single.userId, 1);
       expect(summaries.single.userName, 'المستخدم 1');
       expect(summaries.single.totalAmount, 17000);
+    },
+  );
+
+  test(
+    'shift summaries aggregate all sessions of a user into one row',
+    () async {
+      // ✅ (2026-09-14) عقد المستخدم الحرفي: سطر واحد لكل مستخدم =
+      // إجمالي كل ما استلمه في اليوم الفندقي مهما كان عدد جلساته
+      // (500 من جلسة صباحية + 500 من جلسة مسائية → سطر واحد 1000).
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(() async {
+        PaymentSessionContext.clear();
+        await db.close();
+      });
+
+      AdapterRegistry.initialize(db);
+      final repository = PaymentsRepository(db);
+      const paymentDate = '2026-08-21T15:00:00.000Z';
+      final hotelDay = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
+
+      PaymentSessionContext.start(
+        userId: 1,
+        userName: 'المدير',
+        sessionUuid: 'session-admin',
+      );
+
+      // نفس الموظف بجلستين مختلفتين ضمن نفس النافذة الفندقية.
+      PaymentSessionContext.start(
+        userId: 7,
+        userName: 'موظف الاستقبال',
+        sessionUuid: 'session-morning',
+      );
+      await repository.create(
+        amount: 500,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+      PaymentSessionContext.start(
+        userId: 7,
+        userName: 'موظف الاستقبال',
+        sessionUuid: 'session-evening',
+      );
+      await repository.create(
+        amount: 500,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+
+      final summaries = await repository
+          .watchPaymentShiftSummaries(hotelDay, excludedUserId: 1)
+          .first;
+
+      expect(summaries, hasLength(1));
+      expect(summaries.single.userId, 7);
+      expect(summaries.single.userName, 'موظف الاستقبال');
+      expect(summaries.single.totalAmount, 1000);
+      expect(summaries.single.paymentCount, 2);
     },
   );
 }

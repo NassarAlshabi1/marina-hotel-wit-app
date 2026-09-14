@@ -18,7 +18,6 @@ class PaymentShiftSummary {
   const PaymentShiftSummary({
     required this.userId,
     required this.userName,
-    required this.sessionUuid,
     required this.totalAmount,
     required this.paymentCount,
   });
@@ -27,7 +26,6 @@ class PaymentShiftSummary {
     return PaymentShiftSummary(
       userId: (row['user_id'] as num?)?.toInt() ?? 0,
       userName: row['user_name']?.toString() ?? 'مستخدم غير معروف',
-      sessionUuid: row['session_uuid']?.toString() ?? '',
       totalAmount: (row['total_amount'] as num?)?.toDouble() ?? 0,
       paymentCount: (row['payment_count'] as num?)?.toInt() ?? 0,
     );
@@ -35,7 +33,6 @@ class PaymentShiftSummary {
 
   final int userId;
   final String userName;
-  final String sessionUuid;
   final double totalAmount;
   final int paymentCount;
 }
@@ -127,16 +124,17 @@ class PaymentsRepository {
         .map((result) => (result.data['total'] as num).toDouble());
   }
 
-  /// إجماليات استلامات المستخدمين الآخرين حسب جلسة تسجيل الدخول/النوبة.
+  /// إجماليات استلامات المستخدمين الآخرين في اليومين الفندقيين
+  /// (الحالي + السابق عبر [HotelTimeEngine.previousHotelDayKey]).
   /// التجميع يتم في SQLite حتى لا تُحمّل جميع صفوف المدفوعات إلى Dart.
   ///
-  /// ✅ (2026-09-05) نافذة «إجمالي النوبة الكاملة»: نوبة تعبر حد
-  /// 14:01 تتوزع استلاماتها بين مفتاحي اليوم الفندقي (اليومي والسابق)،
-  /// فلتر اليوم الواحد كان يقتطع جزء النوبة — الآن تغطي النافذة
-  /// اليومين (الحالي + السابق عبر [HotelTimeEngine.previousHotelDayKey])
-  /// فتظهر كل (مستخدم، جلسة) صفّاً واحداً بإجمالي نوبتها الكامل،
-  /// والجلسات الأقدم من ذلك تستبعد (لا تراكم تاريخي بلا حدود).
-  /// صفوف الإرث بلا hotel_day_key تُشمل بـ LIKE على مفتاحي النافذة.
+  /// ✅ (2026-09-14) عقد «سطر واحد لكل مستخدم»: الإجمالي = كل ما استلمه
+  /// المستخدم في النافذة مهما كان عدد جلساته (GROUP BY المستخدم فقط
+  /// بلا تفريق جلسات) — المستخدم الذي استلم 500 في جلسة و500 في أخرى
+  /// يظهر سطراً واحداً بإجمالي 1000. نافذة اليومين تبقى لتغطية النوبة
+  /// العابرة لحد 14:01. سجلات الإرث بلا session UUID تبقى مستبعدة
+  /// (لا نسبة أثر رجعي)، وصفوف الإرث بلا hotel_day_key تُشمل بـ LIKE
+  /// على مفتاحي النافذة.
   Stream<List<PaymentShiftSummary>> watchPaymentShiftSummaries(
     String hotelDayKey, {
     int? excludedUserId,
@@ -154,7 +152,6 @@ class PaymentsRepository {
         .customSelect(
           'SELECT received_by_user_id AS user_id, '
           "COALESCE(NULLIF(TRIM(received_by_name), ''), 'مستخدم غير معروف') AS user_name, "
-          'received_session_uuid AS session_uuid, '
           'COALESCE(SUM(amount), 0.0) AS total_amount, '
           'COUNT(*) AS payment_count '
           'FROM payments '
@@ -168,7 +165,7 @@ class PaymentsRepository {
           '$excludedCloudIdFilter'
           'AND (hotel_day_key IN (?, ?) '
           'OR (hotel_day_key IS NULL AND (payment_date LIKE ? OR payment_date LIKE ?))) '
-          'GROUP BY received_by_user_id, received_by_name, received_session_uuid '
+          'GROUP BY received_by_user_id, received_by_name '
           'ORDER BY total_amount DESC',
           variables: [
             if (excludedUserId != null) d.Variable.withInt(excludedUserId),

@@ -689,13 +689,24 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               '📥 Pulling latest data from Cloudflare D1 on app start...',
             );
             // push + pull معاً — لا نرفع بدون سحب
-            await syncManager.sync();
-            // تسجيل وقت هذا السحب
-            await prefs.setInt(
-              SyncConstants.lastAppOpenPullKey,
-              DateTime.now().millisecondsSinceEpoch,
-            );
-            debugPrint('✅ Initial sync on app start completed');
+            // ✅ (2026-09-14) المفتاح يُكتب عند النجاح الفعلي فقط:
+            // sync() لا يرمي استثناءً عند فشل السحب (يعيد SyncResult
+            // failed) — الكتابة غير المشروطة كانت تختم «آخر سحب ناجح»
+            // رغم فشله فيمنع أي سحب تلقائي لمدة ساعة كاملة (فحص
+            // appOpenSyncInterval) = «لا يسحب عند فتح التطبيق».
+            final bootResult = await syncManager.sync();
+            if (bootResult.isSuccess) {
+              await prefs.setInt(
+                SyncConstants.lastAppOpenPullKey,
+                DateTime.now().millisecondsSinceEpoch,
+              );
+              debugPrint('✅ Initial sync on app start completed');
+            } else {
+              debugPrint(
+                '⚠️ Initial sync on app start failed: '
+                '${bootResult.errorMessage} — سيعاد السحب في الفتح/الدورة التالية',
+              );
+            }
           }
         } catch (e) {
           debugPrint('Initial sync on app start failed: $e');
