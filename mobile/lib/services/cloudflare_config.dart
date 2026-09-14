@@ -78,7 +78,10 @@ class CloudflareConfig {
         passwordValue = legacyPlain;
         bool migrated = false;
         try {
-          await _secureStorage.write(key: _securePasswordKey, value: legacyPlain);
+          await _secureStorage.write(
+            key: _securePasswordKey,
+            value: legacyPlain,
+          );
           migrated = true;
         } catch (_) {}
         if (migrated) {
@@ -91,8 +94,9 @@ class CloudflareConfig {
         }
       }
 
-      _passwordOverride =
-          (passwordValue != null && passwordValue.isNotEmpty) ? passwordValue : null;
+      _passwordOverride = (passwordValue != null && passwordValue.isNotEmpty)
+          ? passwordValue
+          : null;
       if (hasCredentialOverrides) {
         debugPrint(
           '✅ CloudflareConfig: credential overrides loaded '
@@ -145,7 +149,9 @@ class CloudflareConfig {
       } catch (_) {}
       return;
     } catch (e) {
-      dwarn(() => 'CloudflareConfig secure write unavailable, falling back: $e');
+      dwarn(
+        () => 'CloudflareConfig secure write unavailable, falling back: $e',
+      );
     }
     try {
       final sp = await SharedPreferences.getInstance();

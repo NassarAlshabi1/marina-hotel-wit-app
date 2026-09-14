@@ -29,8 +29,7 @@ void autoSyncCallbackDispatcher() {
       // المفتاح الرئيسي للمسار السحابي ويغطي Cloudflare) ظل بلا مزامنة
       // خلفية إطلاقاً. الآن نكمل إذا كان أي مسار سحابي مفعّلاً — مفتاح
       // الإيقاف الداخلي في syncNow() يبقى صاحب القرار النهائي.
-      final cloudPathEnabled =
-          prefs.getBool('appwrite_sync_enabled') ?? true;
+      final cloudPathEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!googleDriveEnabled && !cloudPathEnabled) {
         return true;
