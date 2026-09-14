@@ -436,32 +436,58 @@ class CloudflareSyncManager {
   /// لا يُحرّك checkpoint لأي collection فشلت حتى تنجح في محاولة لاحقة.
   final Set<String> _failedCollectionsInLastSync = <String>{};
 
-  // ─── الحجر الصحي للصفوف اليتيمة (مراجعة 2026-09-09 #2+#16) ────
+  // ─── الحجر الصحي وسجل الانتظار للصفوف اليتيمة (2026-09-09 → 2026-09-15) ──
   //
   // المشكلة: صف واحد بأبٍ مفقود خادمياً (يتيم بنيوي — أبُه حُذف يدوياً
   // من D1 أو لم يُنشأ أصلاً) كان يُفشل دورة السحب كلها عند كل محاولة
   // → المؤشر لا يتحرك → full sync لا يكتمل → bootstrap يعيد المحاولة
   // عند كل إقلاع إلى الأبد (خطأ بيانات واحد = جهاز مجمّد نهائياً).
   //
-  // السياسة المصححة (تدرّج عادل — لا صمت مبكر ولا تجميد أبدي):
-  //   1. الدورتان الأوليان لكل سجل معتّق: الفشل كما كان — فرصة عادلة
-  //      لأبٍ متأخر (رفع جهاز آخر قيد الطريق) أن يصل بين الدورات.
-  //   2. بعد [_quarantineBlockThreshold] دورات فاشلة بنفس الهوية:
-  //      السجل يوضع في سجل الحجر (persistent) وتُطبَّق بقية الدفعة
-  //      ويتقدم المؤشر — باقي البيانات تتدفق ولا يتجمد شيء للأبد.
-  //   3. صفوف الحجر تُعاد فحصها تلقائياً: إن ظهر السجل مجدداً في السحب
-  //      (أي تحديث له يعيد بثه) وحُلّ أبُه طُبّق ومُسح من الحجر؛ وإن
-  //      وصل tombstone له طُبّق كحذف ومُسح من الحجر أيضاً.
+  // السياسة القديمة (2026-09-09): تدرّج 3 دورات لكن عبر «تراجع المؤشر» —
+  // كل دورة بهوية محجوبة تعيد سحب كل الصفحات وتطبيقها من أول الدورة
+  // (7,300+ صف) حتى تكتمل العتبة. مكلف زمنياً جداً على شبكة يمن، ويولّد
+  // تكراراً مزعجاً في مركز الأخطاء (تقرير 2026-09-14: 55 سجلاً محجوباً).
+  //
+  // السياسة المصححة (2026-09-15 — طلب المستخدم: تسريع السحب وإصلاح
+  // تجميد المؤشر): «سجل انتظار» بالحمولات الكاملة —
+  //   1. المؤشر يتقدم في نفس الدورة طالما الصفحات نفسها سليمة (لا شبكة/
+  //      HTTP/JSON/جداول متخطاة) — الصفحات طبّقت كلها فعلاً.
+  //   2. كل سجل محجوب (أب غير محلول أو تعارض مفتاح فريد) تُحفظ حمولته
+  //      كاملة في [_blockedPending] (persistent) ويُعاد حلّه من الحمولة
+  //      في كل دورة — بلا إعادة سحب أي صفحة إطلاقاً.
+  //   3. بعد [_quarantineBlockThreshold] دورات بنفس الهوية: يُنقل لسجل
+  //      الحجر [_quarantinedRecords] (مع حمولته أيضاً) ويتوقف عن إثقال
+  //      الدورة نهائياً.
+  //   4. الشفاء تلقائي من الحمولة: وصول الأب أو تفريغ المفتاح أو وصول
+  //      tombstone → التطبيق ينجح في إعادة المحاولة الدورية → يُمسح من
+  //      السجلين معاً. (وعد السابق كان معلقاً على إعادة بث الصف من
+  //      الخادم — الآن محقق دائماً لأن الحمولة محلية.)
   static const String _kQuarantineCountsKey = 'cf_pull_orphan_block_counts';
   static const String _kQuarantinedKey = 'cf_pull_quarantined_records';
+  static const String _kBlockedPendingKey = 'cf_pull_blocked_pending';
   static const int _quarantineBlockThreshold = 3;
 
   /// عدد الدورات التي حُجب فيها كل سجل معتّق (identity = 'entity/uuid').
   final Map<String, int> _orphanBlockCounts = <String, int>{};
 
-  /// سجل الحجر الصحي: identity -> بيانات التشخيص (entity/uuid/first_seen).
+  /// سجل الحجر الصحي: identity -> بيانات التشخيص + حمولة السجل (record)
+  /// لإعادة المحاولة الدورية (الشفاء من الحمولة المحلية).
   final Map<String, Map<String, dynamic>> _quarantinedRecords =
       <String, Map<String, dynamic>>{};
+
+  /// ✅ (2026-09-15) سجل الانتظار: المحجوبون تحت العتبة مع حمولاتهم —
+  /// يُعاد حلّهم من الحمولة كل دورة بدل إعادة سحب الصفحات عبر تراجع
+  /// المؤشر. السقف يمنع انفجار التخزين في حالات مرضية قصوى.
+  final Map<String, ({String entity, Map<String, dynamic> record})>
+  _blockedPending = <String, ({String entity, Map<String, dynamic> record})>{};
+
+  /// سقف سجل الانتظار (عدد السجلات). تجاوزه = عزل فوري للفائض الأقرب
+  /// للعتبة (صمام أمان — الحالة الواقعية عشرات).
+  static const int _blockedPendingCap = 300;
+
+  /// سقف محاولات الشفاء الدورية للمعزولين في كل دورة (تكلفة محلية صفرية
+  /// تقريباً لكن بلا سقف قد تنمو مع تاريخ الحجب الطويل).
+  static const int _quarantineHealRetryLimit = 100;
 
   /// ✅ (مراجعة #1) مسح تقارب الحذفيات لمرة واحدة — جهاز سحب أثناء
   /// نافذة العقد القديم (worker كان يفلتر tombstones من السحب) تكون
@@ -624,6 +650,8 @@ class CloudflareSyncManager {
     // ✅ (مراجعة #2+#16) عزل حالة الحجر بين الاختبارات (singleton).
     _orphanBlockCounts.clear();
     _quarantinedRecords.clear();
+    // ✅ (2026-09-15) عزل سجل الانتظار بين الاختبارات (singleton).
+    _blockedPending.clear();
     // ✅ (2026-09-10) عزل حالة إعادة التهيئة الكسولة بين الاختبارات.
     _lastLazyInitAttempt = null;
     lazyInitCooldown = const Duration(seconds: 60);
@@ -1771,11 +1799,14 @@ class CloudflareSyncManager {
     _emitPullProgress(SyncPullProgress(pulledRows: 0, isFullSync: wasFullSync));
 
     // ✅ (2026-09-09) تسريع السحب الكامل (طلب المستخدم): صفحة أكبر
-    // للسحب الكامل — ~7,300 صف ≈ 18 طلباً بدل 73 (السقف الخادمي
-    // للسحب MAX_PULL_BATCH_SIZE=500). الدلتا تبقى على [batchSize].
+    // للسحب الكامل — ~7,300 صف على السقف الخادمي للسحب
+    // MAX_PULL_BATCH_SIZE=500.
+    // ✅ (2026-09-15) الدلتا تصعد إلى [deltaPullBatchSize] (طلب
+    // المستخدم: تسريع الدلتا أيضاً) — مستقلة عن [batchSize] الذي يبقى
+    // سقف دفع outbox.
     final pageLimit = wasFullSync
         ? CloudflareConfig.fullPullBatchSize
-        : CloudflareConfig.batchSize;
+        : CloudflareConfig.deltaPullBatchSize;
     // ✅ (2026-09-10) السحب الكامل يطلب remaining الخادمي للمؤشر الدقيق
     // (COUNT batch واحد) — الدلتا بلا كلفة إضافية.
     final wantRemaining = wasFullSync;
@@ -2023,12 +2054,15 @@ class CloudflareSyncManager {
 
       // ✅ (2026-09-09) الجذر (ب) — إعادة محاولة المؤجّل بعد اكتمال
       // الصفحات: الآباء وصلوا الآن (صفحات لاحقة)، فتُحلّ السلاسل
-      // (غرفة → حجز → ليلة / موظف → دورة → دفعة). من بقي غير محلول
-      // = دورة فاشلة: لا checkpoint ولا علامة full sync (المؤشر
-      // يتراجع لأول الدورة في كتلة checkpoint أدناه).
+      // (غرفة → حجز → ليلة / موظف → دورة → دفعة).
+      // ✅ (2026-09-15) من بقي بعد هذه المحاولة لا يُفشل الدورة بعد
+      // اليوم — يذهب إلى سجل الانتظار أدناه (الحمولة محفوظة والمؤشر
+      // يتقدم) بدل تراجع المؤشر وإعادة سحب كل الصفحات كل دورة.
+      var unresolvedAfterRetry =
+          const <({String entity, Map<String, dynamic> record})>[];
       if (deferredRecords.isNotEmpty || conflictedRecords.isNotEmpty) {
         final retryErrors = <String>[];
-        final remaining = await _retryDeferredRecords(
+        unresolvedAfterRetry = await _retryDeferredRecords(
           deferredRecords,
           onApplied: (entity) {
             totalPulled++;
@@ -2056,117 +2090,275 @@ class CloudflareSyncManager {
             source: 'sync:pull-apply',
           );
         }
-        // ✅ (2026-09-09) سلّم الحجر الصحي يشمل الآن الصفوف المتعارضة
-        // قيداً فريداً (conflictedRecords من التطبيق الأولي ومن إعادة
-        // محاولة المؤجّل معاً) إلى جانب ما بقي بعلاقات أب غير محلولة
-        // (remaining) — الفئتان حتميتان لن تُشفيا بإعادة المحاولة
-        // إلى الأبد، فلا يجوز أن تتجمد عليهما الدورة (398 ليلة).
-        final quarantinePool = <({String entity, Map<String, dynamic> record})>[
-          ...remaining,
-          ...conflictedRecords,
-        ];
-        if (quarantinePool.isNotEmpty) {
-          // ✅ (مراجعة 2026-09-09 #2+#16) تدرّج الحجر الصحي: عدّاد حجب
-          // لكل هوية — الدورتان الأوليان يفشلان كما كان (فرصة عادلة
-          // لأبٍ متأخر)، وبعد العتبة يُعزل السجل ويُطبَّق ما عداه
-          // ويتقدم المؤشر — صف بنيوي فاسد المصدر لا يجمد الجهاز
-          // إلى الأبد، وباقي البيانات (7,149+ صفاً) لا تُرهق كل دورة.
-          final quarantinePrefs = await SharedPreferences.getInstance();
-          final stillBlocked =
+      }
+
+      // ✅ (2026-09-15) سجل الانتظار — تسريع السحب وإصلاح تجميد المؤشر
+      // (تقرير 2026-09-14: «55 سجل محجوب — تجميد مؤشر السحب»):
+      // • محجوبو دورات سابقة (حمولاتهم في [_blockedPending]) يُعاد
+      //   حلّهم من حمولتهم هنا — محلي صفر شبكة.
+      // • المعزولون سابقاً يُجَرَّب شفاؤهم من حمولاتهم — تحقيق وعد
+      //   رسالة الحجر («وصل الأب أو تفريغ المفتاح → يُطبَّق تلقائياً»)
+      //   بلا انتظار إعادة بث الصف من الخادم.
+      // فشل الدورة يبقى حصراً للأخطاء الحقيقية (شبكة/HTTP/JSON/جداول
+      // متخطاة/فشل تطبيق فعلي) — المحجوبون العلاقيون لا يعيدون سحب
+      // الصفحات ولا يجمّدون المؤشر بعد اليوم.
+      var ledgerDirty = false;
+      final quarantinePrefs = await SharedPreferences.getInstance();
+      if (_blockedPending.isNotEmpty || _quarantinedRecords.isNotEmpty) {
+        if (_blockedPending.isNotEmpty) {
+          final ledgerItems = List.of(_blockedPending.values);
+          final ledgerErrors = <String>[];
+          final ledgerErrored =
               <({String entity, Map<String, dynamic> record})>[];
-          final toQuarantine =
-              <({String entity, Map<String, dynamic> record})>[];
-          for (final item in quarantinePool) {
+          final ledgerRemaining = await _retryDeferredRecords(
+            ledgerItems,
+            onApplied: (entity) {
+              totalPulled++;
+              pulledDerivedEntities.add(entity);
+            },
+            errors: ledgerErrors,
+            conflictedSink: conflictedRecords,
+            erroredSink: ledgerErrored,
+          );
+          // الأخطاء الفعلية (لا تعارض ولا تأجيل) تدخل المحاسبة أيضاً،
+          // وما بقي مؤجلاً من السجل كذلك — ليزداد عدّاد حجبه نحو
+          // العتبة بدل البقاء في الانتظار إلى الأبد.
+          unresolvedAfterRetry = [
+            ...unresolvedAfterRetry,
+            ...ledgerErrored,
+            ...ledgerRemaining,
+          ];
+          final failedIds = {
+            for (final item in ledgerRemaining)
+              _quarantineIdentity(
+                item.entity,
+                item.record['local_uuid']?.toString(),
+              ),
+          };
+          for (final item in ledgerItems) {
             final identity = _quarantineIdentity(
               item.entity,
               item.record['local_uuid']?.toString(),
             );
-            final count = (_orphanBlockCounts[identity] ?? 0) + 1;
-            _orphanBlockCounts[identity] = count;
-            if (count >= _quarantineBlockThreshold) {
-              toQuarantine.add(item);
-            } else {
-              stillBlocked.add(item);
+            if (!failedIds.contains(identity)) {
+              // شُفي (أب وصل/مفتاح تحرر) — أو أصبح متعارضاً وسيُحاسب
+              // أدناه على نفس الهوية (عدّاده يبقى معلقاً حتى العتبة).
+              if (_blockedPending.remove(identity) != null) {
+                ledgerDirty = true;
+                if (!conflictedRecords.any(
+                  (c) =>
+                      _quarantineIdentity(
+                        c.entity,
+                        c.record['local_uuid']?.toString(),
+                      ) ==
+                      identity,
+                )) {
+                  _orphanBlockCounts.remove(identity);
+                }
+              }
             }
           }
-          await _persistQuarantineState(quarantinePrefs);
+        }
+        // شفاء المعزولين من حمولاتهم (بسقف لكل دورة).
+        if (_quarantinedRecords.isNotEmpty) {
+          final retryItems = <({String entity, Map<String, dynamic> record})>[];
+          for (final entry in _quarantinedRecords.entries) {
+            if (retryItems.length >= _quarantineHealRetryLimit) break;
+            final raw = entry.value['record'];
+            final entity = entry.value['entity']?.toString();
+            if (raw is Map && raw.isNotEmpty && entity != null) {
+              retryItems.add((
+                entity: entity,
+                record: Map<String, dynamic>.from(raw),
+              ));
+            }
+          }
+          for (final item in retryItems) {
+            try {
+              final ok = await _applyChange(item.entity, item.record);
+              if (ok) {
+                final identity = _quarantineIdentity(
+                  item.entity,
+                  item.record['local_uuid']?.toString(),
+                );
+                if (_quarantinedRecords.remove(identity) != null) {
+                  _orphanBlockCounts.remove(identity);
+                  ledgerDirty = true;
+                  totalPulled++;
+                  pulledDerivedEntities.add(item.entity);
+                  debugPrint(
+                    '🏥 Pull: quarantined ${item.entity}/'
+                    '${item.record['local_uuid']} healed — parent arrived '
+                    'or key freed',
+                  );
+                }
+              }
+            } catch (_) {
+              // ما زال محجوباً — يبقى معزولاً بصمت (المحاولة محلية
+              // صفرية الكلفة).
+            }
+          }
+        }
+      }
 
-          if (toQuarantine.isNotEmpty) {
-            final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-            final newlyQuarantined =
-                <({String entity, Map<String, dynamic> record})>[];
-            for (final item in toQuarantine) {
-              final identity = _quarantineIdentity(
+      // ✅ (2026-09-15) المحاسبة — سلّم الانتظار ثم الحجر بلا تجميد
+      // مؤشر: كل المحجوبين (بقية المؤجّل + المتعارضون من التطبيق
+      // الأولي وإعادة المحاولات) يُحاسبون مرة واحدة لكل هوية في
+      // الدورة، وتُحفظ حمولتهم في سجل الانتظار؛ وبعد العتبة ينتقلون
+      // لسجل الحجر. لا hadError هنا: الصفحات سليمة والمؤشر يتقدم —
+      // الفئتان لا تُشفيان بإعادة سحب الصفحات أصلاً، وإعادة المحاولة
+      // من الحمولة أوفر وأصح.
+      final quarantinePoolByIdentity =
+          <String, ({String entity, Map<String, dynamic> record})>{
+            for (final item in [
+              ...unresolvedAfterRetry,
+              ...conflictedRecords,
+            ])
+              _quarantineIdentity(
                 item.entity,
                 item.record['local_uuid']?.toString(),
-              );
-              // ✅ (2026-09-09) إشعار الحجر فقط للهويات المعزولة حديثاً —
-              // السجل المعزول سابقاً يعاد عزله صامتاً كل دورة بلا إزعاج.
-              if (!_quarantinedRecords.containsKey(identity)) {
-                newlyQuarantined.add(item);
-              }
-              _quarantinedRecords[identity] = <String, dynamic>{
-                'entity': item.entity,
-                'local_uuid': item.record['local_uuid']?.toString(),
-                'first_seen': nowSec,
-                'updated_at': item.record['updated_at'],
-              };
+              ): item,
+          };
+      if (quarantinePoolByIdentity.isNotEmpty) {
+        final toWait = <({String entity, Map<String, dynamic> record})>[];
+        final toQuarantine = <({String entity, Map<String, dynamic> record})>[];
+        for (final entry in quarantinePoolByIdentity.entries) {
+          final count = (_orphanBlockCounts[entry.key] ?? 0) + 1;
+          _orphanBlockCounts[entry.key] = count;
+          if (count >= _quarantineBlockThreshold) {
+            toQuarantine.add(entry.value);
+          } else {
+            toWait.add(entry.value);
+          }
+        }
+
+        if (toQuarantine.isNotEmpty) {
+          final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          final newlyQuarantined =
+              <({String entity, Map<String, dynamic> record})>[];
+          for (final item in toQuarantine) {
+            final identity = _quarantineIdentity(
+              item.entity,
+              item.record['local_uuid']?.toString(),
+            );
+            // ✅ (2026-09-09) إشعار الحجر فقط للهويات المعزولة حديثاً —
+            // السجل المعزول سابقاً يعاد عزله صامتاً بلا إزعاج.
+            if (!_quarantinedRecords.containsKey(identity)) {
+              newlyQuarantined.add(item);
             }
-            await _persistQuarantineState(quarantinePrefs);
-            if (newlyQuarantined.isNotEmpty) {
-              final quarantinedNames = [
-                for (final item in newlyQuarantined.take(3))
-                  '${item.entity}/${item.record['local_uuid']}',
-              ];
-              debugPrint(
-                '🏥 Pull: quarantined ${newlyQuarantined.length} unresolvable '
-                'record(s): ${quarantinedNames.join(', ')}',
-              );
-              logError(
-                title:
-                    'سجلات يتيماً أو متعارضة المفتاح الفريد '
-                    '(${newlyQuarantined.length}) — عُزلت واكملت المزامنة '
-                    'بقية البيانات',
-                message:
-                    'السجلات: ${quarantinedNames.join(', ')} — أبُها مفقود '
-                    'خادمياً أو مفتاحها الفريد مشغول بصف محلي حتى بعد '
-                    '$_quarantineBlockThreshold دورات (يتيم بنيوي: أب محذوف '
-                    'يدوياً من D1، أو نسخة مكررة من استعادة نسخة احتياطية). '
-                    'عُزلت في سجل الحجر ويتقدم المؤشر — إن شُفي سبب الحجب '
-                    '(وصول الأب أو تفريغ المفتاح) أو وصل tombstone يُطبَّق '
-                    'تلقائياً.',
-                category: ErrorCategory.sync,
-                source: 'sync:pull-apply',
-                severity: LogLevel.warning,
-              );
+            // ✅ (2026-09-15) الحمولة تُحفظ مع الحجر — أساس الشفاء
+            // الدوري من الحمولة أعلاه.
+            _quarantinedRecords[identity] = <String, dynamic>{
+              'entity': item.entity,
+              'local_uuid': item.record['local_uuid']?.toString(),
+              'first_seen': nowSec,
+              'updated_at': item.record['updated_at'],
+              'record': item.record,
+            };
+            // خرج من سجل الانتظار (إن كان فيه) — الحجر يحل محله.
+            if (_blockedPending.remove(identity) != null) {
+              ledgerDirty = true;
             }
           }
-
-          if (stillBlocked.isNotEmpty) {
-            hadError = true;
-            final names = [
-              for (final item in stillBlocked.take(3))
+          if (newlyQuarantined.isNotEmpty) {
+            final quarantinedNames = [
+              for (final item in newlyQuarantined.take(3))
                 '${item.entity}/${item.record['local_uuid']}',
             ];
-            errorMessage =
-                'Pull: ${stillBlocked.length} record(s) blocked by '
-                'unresolvable parents or unique-key conflicts: '
-                '${names.join(', ')}';
-            _failedCollectionsInLastSync.add('pull');
-            debugPrint('⚠️ $errorMessage');
-            // ✅ (2026-09-09) سجلات علقت علاقاتها غير محلولة — تجميد
-            // المؤشر حتى يُشفي الخادم. تظهر في مركز الأخطاء بأسماء
-            // السجلات المانعة.
+            debugPrint(
+              '🏥 Pull: quarantined ${newlyQuarantined.length} unresolvable '
+              'record(s): ${quarantinedNames.join(', ')}',
+            );
             logError(
               title:
-                  '${stillBlocked.length} سجل محجوب (أب غير محلول أو تعارض '
-                  'مفتاح فريد) — تجميد مؤشر السحب',
-              message: errorMessage,
+                  'سجلات يتيماً أو متعارضة المفتاح الفريد '
+                  '(${newlyQuarantined.length}) — عُزلت واكملت المزامنة '
+                  'بقية البيانات',
+              message:
+                  'السجلات: ${quarantinedNames.join(', ')} — أبُها مفقود '
+                  'خادمياً أو مفتاحها الفريد مشغول بصف محلي حتى بعد '
+                  '$_quarantineBlockThreshold دورات من سجل الانتظار '
+                  '(يتيم بنيوي: أب محذوف يدوياً من D1، أو نسخة مكررة من '
+                  'استعادة نسخة احتياطية). عُزلت في سجل الحجر مع حمولتها '
+                  'ويتقدم المؤشر — وصول الأب أو تفريغ المفتاح أو وصول '
+                  'tombstone يُطبّقها تلقائياً من الحمولة في دورة لاحقة.',
               category: ErrorCategory.sync,
               source: 'sync:pull-apply',
+              severity: LogLevel.warning,
             );
           }
         }
+
+        if (toWait.isNotEmpty) {
+          // ✅ (2026-09-15) تحت العتبة = حمولة محفوظة في سجل الانتظار،
+          // تُعاد محاولتها من الحمولة في بداية كل دورة سحب — لا تراجع
+          // مؤشر ولا إعادة سحب صفحات (التصميم القديم كان يجمّد المؤشر
+          // هنا ويعيد سحب كل شيء حتى تكتمل العتبة).
+          final newEntries = <String>{};
+          for (final item in toWait) {
+            final identity = _quarantineIdentity(
+              item.entity,
+              item.record['local_uuid']?.toString(),
+            );
+            if (!_blockedPending.containsKey(identity)) {
+              newEntries.add(identity);
+            }
+            _blockedPending[identity] = item;
+          }
+          ledgerDirty = true;
+          // صمام الأمان: سقف السجل — الفائض الأقرب للعتبة يُعزل فوراً
+          // (حمولته تبقى في الحجر للشفاء الدوري).
+          if (_blockedPending.length > _blockedPendingCap) {
+            final overflow =
+                (_blockedPending.keys.toList()..sort(
+                      (a, b) => (_orphanBlockCounts[b] ?? 0).compareTo(
+                        _orphanBlockCounts[a] ?? 0,
+                      ),
+                    ))
+                    .take(_blockedPending.length - _blockedPendingCap)
+                    .toList();
+            final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+            for (final identity in overflow) {
+              final item = _blockedPending.remove(identity)!;
+              if (!_quarantinedRecords.containsKey(identity)) {
+                _quarantinedRecords[identity] = <String, dynamic>{
+                  'entity': item.entity,
+                  'local_uuid': item.record['local_uuid']?.toString(),
+                  'first_seen': nowSec,
+                  'updated_at': item.record['updated_at'],
+                  'record': item.record,
+                };
+              }
+            }
+            debugPrint(
+              '🏥 Pull: waiting-ledger cap $_blockedPendingCap exceeded — '
+              'force-quarantined ${overflow.length} record(s)',
+            );
+          }
+          if (newEntries.isNotEmpty) {
+            final names = newEntries.take(3).toList();
+            logError(
+              title:
+                  '${newEntries.length} سجل مؤجل (أب غير محلول أو تعارض '
+                  'مفتاح فريد) — في سجل الانتظار والمؤشر يتقدم',
+              message:
+                  'السجلات: ${names.join(', ')} — حُفظت حمولتها كاملة في '
+                  'سجل الانتظار وسيُعاد حلّها من الحمولة في بداية كل دورة '
+                  'سحب دون إعادة سحب أي صفحة (التصميم قبل 2026-09-15 كان '
+                  'يراجع المؤشر ويعيد سحب كل البيانات كل دورة حتى اكتمال '
+                  'عتبة الحجر). بعد $_quarantineBlockThreshold دورات تُنقل '
+                  'لسجل الحجر تلقائياً.',
+              category: ErrorCategory.sync,
+              source: 'sync:pull-apply',
+              severity: LogLevel.warning,
+            );
+          }
+        }
+
+        ledgerDirty = true;
+      }
+      if (ledgerDirty) {
+        await _persistQuarantineState(quarantinePrefs);
       }
     } finally {
       // ✅ استهلاك أي استجابة صفحة معلّقة انطلقت ولم تُقطف (خطأ منتصف
@@ -2972,6 +3164,7 @@ class CloudflareSyncManager {
     required void Function(String entity) onApplied,
     required List<String> errors,
     List<({String entity, Map<String, dynamic> record})>? conflictedSink,
+    List<({String entity, Map<String, dynamic> record})>? erroredSink,
   }) async {
     var remaining = List.of(deferred);
     for (var pass = 0; pass < 2 && remaining.isNotEmpty; pass++) {
@@ -2994,6 +3187,10 @@ class CloudflareSyncManager {
             conflictedSink.add(item);
           } else {
             errors.add('${item.entity}/${item.record['local_uuid']}: $e');
+            // ✅ (2026-09-15) الصف الفاشل فعلياً يصل للمستدعي عبر
+            // [erroredSink] ليدخل محاسبة سجل الانتظار بدل التسرب
+            // الصامت من القوائم (فشل ≠ مؤجل ≠ متعارض).
+            erroredSink?.add(item);
           }
         }
       }
@@ -3109,10 +3306,30 @@ class CloudflareSyncManager {
           }
         });
       }
-      if (_orphanBlockCounts.isNotEmpty || _quarantinedRecords.isNotEmpty) {
+      // ✅ (2026-09-15) استعادة سجل الانتظار (الحمولات المحجوبة تحت
+      // العتبة) — تعيش عبر الجلسات كالحجر، وإلا فُقدت حمولة سجل
+      // محجوب عند إعادة تشغيل التطبيق وعاد الحجب من الصفر.
+      final pendingRaw = prefs.getString(_kBlockedPendingKey);
+      if (pendingRaw != null && pendingRaw.isNotEmpty) {
+        final decoded = jsonDecode(pendingRaw) as Map<String, dynamic>;
+        decoded.forEach((key, value) {
+          if (value is Map &&
+              value['entity'] != null &&
+              value['record'] is Map) {
+            _blockedPending[key] = (
+              entity: value['entity'].toString(),
+              record: Map<String, dynamic>.from(value['record'] as Map),
+            );
+          }
+        });
+      }
+      if (_orphanBlockCounts.isNotEmpty ||
+          _quarantinedRecords.isNotEmpty ||
+          _blockedPending.isNotEmpty) {
         debugPrint(
           '🏥 Quarantine state restored: ${_orphanBlockCounts.length} '
-          'counter(s), ${_quarantinedRecords.length} quarantined',
+          'counter(s), ${_quarantinedRecords.length} quarantined, '
+          '${_blockedPending.length} pending',
         );
       }
     } catch (e) {
@@ -3127,6 +3344,17 @@ class CloudflareSyncManager {
         jsonEncode(_orphanBlockCounts),
       );
       await prefs.setString(_kQuarantinedKey, jsonEncode(_quarantinedRecords));
+      // ✅ (2026-09-15) حمولات سجل الانتظار تُخزَّن كاملة (persistent).
+      await prefs.setString(
+        _kBlockedPendingKey,
+        jsonEncode({
+          for (final entry in _blockedPending.entries)
+            entry.key: {
+              'entity': entry.value.entity,
+              'record': entry.value.record,
+            },
+        }),
+      );
     } catch (e) {
       debugPrint('⚠️ quarantine state persist failed: $e');
     }

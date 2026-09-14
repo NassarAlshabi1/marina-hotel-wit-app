@@ -280,7 +280,7 @@ void main() {
   // ─── #2+#16: الحجر الصحي للصفوف اليتيمة ─────────────────────
 
   test(
-    '#2b/#16 اليتيم يفشل دورتين ثم يُعزل وتكتمل الدورة ويتقدم المؤشر',
+    '#2b/#16 اليتيم يمر بسجل الانتظار (دورات ناجحة) ثم يُعزل — المؤشر يتقدم من الأول',
     () async {
       final client = _ReviewFakeClient(
         pullHandler: (request) => {
@@ -292,23 +292,29 @@ void main() {
       );
       final manager = await makeManager(client);
 
-      // الدورة 1 و 2: فشل (فرصة عادلة للأب المتأخر).
+      // ✅ عقد 2026-09-15: الصفحات سليمة = كل الدورات ناجحة والمؤشر
+      // يتقدم من الدورة الأولى — اليتيم في سجل الانتظار (حمولته
+      // محفوظة) ولا يعيد سحب الصفحات ولا يجمّد الجهاز.
       final r1 = await manager.sync();
-      expect(r1.status, SyncStatus.failed);
+      expect(r1.status, SyncStatus.success);
+      expect(await pref('cf_last_pull_cursor'), 1700000300);
       final r2 = await manager.sync();
-      expect(r2.status, SyncStatus.failed);
-      expect(await pref('cf_last_pull_cursor'), isNull);
+      expect(r2.status, SyncStatus.success);
+      // العدّاد يتدرّج عبر سجل الانتظار (هوية واحدة = دورة واحدة).
+      final countsMid = await pref('cf_pull_orphan_block_counts');
+      expect(countsMid.toString(), contains('booking_nights/night-orphan-1'));
 
-      // الدورة 3: العتبة (3) اكتملت — العزل واكتمال الدورة.
+      // الدورة 3: العتبة (3) اكتملت — العزل والدورة تكتملان كالعادة.
       final r3 = await manager.sync();
       expect(r3.status, SyncStatus.success);
       expect(await pref('cf_last_pull_cursor'), 1700000300);
       expect(await pref('cf_full_sync_completed'), isTrue);
 
-      // السجل في ledger الحجر ولم يُطبَّق محلياً.
+      // السجل في ledger الحجر مع حمولته ولم يُطبَّق محلياً.
       final ledgerRaw = await pref('cf_pull_quarantined_records') as String?;
       expect(ledgerRaw, isNotNull);
       expect(ledgerRaw, contains('booking_nights/night-orphan-1'));
+      expect(ledgerRaw, contains('night-orphan-1'));
       final nightCount = await db
           .customSelect(
             'SELECT COUNT(*) AS n FROM booking_nights WHERE local_uuid = ?',
@@ -325,7 +331,8 @@ void main() {
         isTrue,
       );
 
-      // الدورة 4: المعزول يُتخطى بصمت موثق والدورة سليمة.
+      // الدورة 4: محاولة الشفاء من الحمولة تفشل بصمت (الأب لم يصل)
+      // والدورة سليمة.
       final r4 = await manager.sync();
       expect(r4.status, SyncStatus.success);
     },
@@ -530,12 +537,16 @@ void main() {
   // ─── تسريع السحب الكامل + فصل الرفع عن السحب (طلب المستخدم) ──
 
   test(
-    'تسريع: السحب الكامل يطلب صفحات 400 والدلتا 100 (fullPullBatchSize)',
+    'تسريع: السحب الكامل 500 والدلتا 250 — بلا طلبات المسح (عقد 2026-09-15)',
     () async {
-      final capturedLimits = <String>[];
+      final capturedLimits = <String>{};
       final client = _ReviewFakeClient(
         pullHandler: (request) {
-          capturedLimits.add(request.url.queryParameters['limit'] ?? '');
+          // نستبعد طلبات مسح الحذفيات (tombstones_only) — عقدنا هنا
+          // سقوف صفحات السحب الفعلية (الكامل/الدلتا) حصراً.
+          if (!request.url.queryParameters.containsKey('tombstones_only')) {
+            capturedLimits.add(request.url.queryParameters['limit'] ?? '');
+          }
           return {
             'changes': <dynamic>[],
             'cursor': '1700000100',
@@ -546,12 +557,12 @@ void main() {
       );
       final manager = await makeManager(client);
 
-      // 1) جهاز جديد → wasFullSync=true → صفحة السحب الكامل.
+      // 1) جهاز جديد → wasFullSync=true → السقف الخادمي 500.
       await manager.sync();
       expect(capturedLimits, isNotEmpty);
-      expect(capturedLimits.first, '400');
+      expect(capturedLimits, contains('500'));
 
-      // 2) جهاز أتم full sync → دلتا → الصفحة العادية.
+      // 2) جهاز أتم full sync → دلتا → 250 (أسرع من 100 القديمة).
       capturedLimits.clear();
       manager.configureForTesting(
         database: db,
@@ -563,7 +574,8 @@ void main() {
       );
       await manager.sync();
       expect(capturedLimits, isNotEmpty);
-      expect(capturedLimits.first, '100');
+      expect(capturedLimits, contains('250'));
+      expect(capturedLimits, isNot(contains('100')));
     },
   );
 

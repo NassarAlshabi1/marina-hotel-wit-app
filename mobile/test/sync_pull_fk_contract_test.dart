@@ -14,8 +14,10 @@
 //    • ظلّ هوية الخادم: id D1 يُخزَّن في server_id المحلي.
 //    • ترجمة FK: uuid-cache → ظلّ server_id → فضاء Appwrite القديم.
 //    • الابن قبل الأب = تأجيل وإعادة محاولة بعد اكتمال الصفحات.
-//    • ما بقي غير محلول = دورة فاشلة: المؤشر لا يتحرك ولا full sync
-//      (سياسة «لا نجاح مع جداول ناقصة» على طرف العميل أيضاً).
+//    • ما بقي غير محلول (عقد 2026-09-15) = سجل انتظار بالحمولة
+//      الكاملة والمؤشر يتقدم — إعادة الحلول من الحمولة كل دورة بلا
+//      إعادة سحب الصفحات (السياسة القديمة كانت تجمّد المؤشر وتعيد
+//      سحب كل شيء حتى عتبة الحجر).
 // ═══════════════════════════════════════════════════════════════
 
 import 'dart:convert';
@@ -521,33 +523,51 @@ void main() {
     );
   });
 
-  group('يتيم بلا أب = فشل صريح وتجميد المؤشر (لا نجاح مع ناقص)', () {
-    test('ليلة بلا حجز: الدورة تفشل والمؤشر لا يتحرك والصف لا يُدرج', () async {
-      final manager = await makeManager(
-        _PullQueueClient([
-          {
-            'changes': [
-              _nightRow('n-orphan', bookingLocalId: 424242),
-            ],
-            'cursor': '1700000300',
-            'has_more': false,
-            'errors': <dynamic>[],
-          },
-        ]),
-      );
+  group('يتيم بلا أب = سجل انتظار بالحمولة والمؤشر يتقدم (عقد 2026-09-15)', () {
+    test(
+      'ليلة بلا حجز: الدورة تنجح والمؤشر يتقدم والحمولة في سجل الانتظار',
+      () async {
+        final manager = await makeManager(
+          _PullQueueClient([
+            {
+              'changes': [
+                _nightRow('n-orphan', bookingLocalId: 424242),
+              ],
+              'cursor': '1700000300',
+              'has_more': false,
+              'errors': <dynamic>[],
+            },
+          ]),
+        );
 
-      final result = await manager.sync();
+        final result = await manager.sync();
 
-      expect(result.status, SyncStatus.failed);
-      expect(result.errorMessage, contains('unresolvable'));
-      expect(result.errorMessage, contains('booking_nights/n-orphan'));
-      // ⚠️ العقد: لا checkpoint ولا علامة full sync إطلاقاً — المؤشر
-      // مجمد عند نقطة البداية حتى يُشفى الخادم/يصل الأب.
-      expect(await pref('cf_last_pull_cursor'), isNull);
-      expect(await pref('cf_full_sync_completed'), isNull);
-      expect(manager.failedCollectionsInLastSync, contains('pull'));
-      // الصف اليتيم لا يُدرج بعلاقة مكذوبة.
-      expect(await count('booking_nights'), 0);
-    });
+        // ✅ عقد 2026-09-15: الصفحات سليمة = الدورة ناجحة والمؤشر يتقدم —
+        // اليتيم لا يعيد سحب الصفحات ولا يجمّد الجهاز (كان يُفشل الدورة
+        // ويراجع المؤشر حتى اكتمال عتبة الحجر).
+        expect(result.status, SyncStatus.success);
+        expect(await pref('cf_last_pull_cursor'), 1700000300);
+        expect(await pref('cf_full_sync_completed'), true);
+        expect(manager.failedCollectionsInLastSync, isEmpty);
+        // الصف اليتيم لا يُدرج بعلاقة مكذوبة، وحمولته كاملة في سجل
+        // الانتظار (persistent) لإعادة الحلول من الحمولة كل دورة.
+        expect(await count('booking_nights'), 0);
+        final pendingRaw = await pref('cf_pull_blocked_pending');
+        expect(pendingRaw, isNotNull);
+        final pending =
+            jsonDecode(pendingRaw.toString()) as Map<String, dynamic>;
+        expect(pending.keys, contains('booking_nights/n-orphan'));
+        final entry =
+            pending['booking_nights/n-orphan'] as Map<String, dynamic>;
+        expect(entry['entity'], 'booking_nights');
+        expect(
+          (entry['record'] as Map<String, dynamic>)['local_uuid'],
+          'n-orphan',
+        );
+        // عدّاد الحجب بدأ (1 من 3).
+        final countsRaw = await pref('cf_pull_orphan_block_counts');
+        expect(countsRaw.toString(), contains('booking_nights/n-orphan'));
+      },
+    );
   });
 }

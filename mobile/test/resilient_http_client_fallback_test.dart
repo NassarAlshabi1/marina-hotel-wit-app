@@ -273,6 +273,50 @@ void main() {
     });
 
     test(
+      'قاطع فشل الحل الكامل: تخطي ساحة DoH أثناء التبريد مع بقاء جسر النظام',
+      () async {
+        // ✅ (2026-09-15) تقرير «3 محاولات دخول محروقة في 38 ثانية»:
+        // الفشل الكامل (DoH + النظام) يُسجَّل — الطلبات التالية خلال
+        // نافذة التبريد تفشل بسرعة بلا إعادة الساحة المكلفة، لكن جسر
+        // النظام (مسار تعافي النطاق المخصص) يبقى محاولاً في كل طلب.
+        var dohCalls = 0;
+        var systemCalls = 0;
+        final hangingInner = MockClient.streaming((request, bodyStream) async {
+          return Completer<http.StreamedResponse>().future;
+        });
+
+        final client = buildClient(
+          inner: hangingInner,
+          dohResolver: (_) async {
+            dohCalls++;
+            return const <String>[];
+          },
+          systemResolver: (_) async {
+            systemCalls++;
+            return const <String>[];
+          },
+        );
+
+        // المحاولة 1: ساحة DoH كاملة + جسر النظام — فشل كامل.
+        await expectLater(
+          client.get(Uri.parse('https://$testHost/api/ping')),
+          throwsA(isA<SocketException>()),
+        );
+        expect(dohCalls, 1);
+        expect(systemCalls, 1);
+
+        // المحاولة 2 (خلال نافذة التبريد): بلا ساحة DoH — الجسر فقط.
+        await expectLater(
+          client.get(Uri.parse('https://$testHost/api/ping')),
+          throwsA(isA<SocketException>()),
+        );
+        expect(dohCalls, 1, reason: 'ساحة DoH مُتخطاة أثناء التبريد');
+        expect(systemCalls, 2, reason: 'جسر النظام يبقى محاولاً في كل طلب');
+        client.close();
+      },
+    );
+
+    test(
       'كل مزوّدي DoH محجوبون → جسر DNS النظام ينقل الطلب للنفق',
       () async {
         // ✅ (2026-09-10) عقود تقرير «via DoH» المبلّغ: حتى لو حُجب كل

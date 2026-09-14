@@ -334,7 +334,9 @@ void main() {
 
       final result = await manager.sync();
 
-      expect(result.status, SyncStatus.failed);
+      // ✅ عقد 2026-09-15: الصفحات سليمة = الدورة ناجحة — اليتيم يُسجَّل
+      // كتحذير «سجل انتظار» (وليس فشل دورة) من المصدر نفسه sync:pull-apply.
+      expect(result.status, SyncStatus.success);
       expect(
         _hasEntry(
           category: ErrorCategory.sync,

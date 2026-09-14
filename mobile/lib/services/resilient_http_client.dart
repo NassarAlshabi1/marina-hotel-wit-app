@@ -112,6 +112,17 @@ class ResilientHttpClient extends http.BaseClient {
   /// Fast-path breaker: hostname → blocked-until timestamp (10 min).
   static final Map<String, DateTime> _fastPathBlockedUntil = {};
 
+  /// ✅ (2026-09-15) قاطع فشل الحل الكامل: hostname → blocked-until
+  /// timestamp (3 min). عندما يفشل كل شيء (DoH + DNS النظام) — شبكة
+  /// تحجب workers.dev كلياً — كان كل طلب لاحق يعيد ساحة DoH كاملة
+  /// (10-45 ثانية) قبل رمي نفس الخطأ. الآن الفشل الكامل يُسجَّل والطلبات
+  /// التالية خلال 3 دقائق تفشل فوراً بنفس الرسالة القابلة للتنفيذ —
+  /// تقرير 2026-09-14: 3 محاولات دخول محروقة في 38 ثانية على شبكة محجوبة.
+  static final Map<String, DateTime> _resolutionBlockedUntil = {};
+
+  /// مدة تبريد فشل الحل الكامل قبل إعادة تجربة ساحة DoH.
+  static const Duration _resolutionBlockCooldown = Duration(minutes: 3);
+
   // ── Fallback infrastructure (lazy, per instance) ──
   ServerSocket? _tunnelServer;
   http.Client? _activeFallbackClient;
@@ -302,22 +313,37 @@ class ResilientHttpClient extends http.BaseClient {
   }
 
   /// Candidate IPs, best-first: last-good IP → fresh DoH → stale DoH.
+  /// ✅ (2026-09-15) قاطع فشل الحل الكامل: عند فشل ساحة DoH كاملة
+  /// مؤخراً خلال [_resolutionBlockCooldown] تُتخطى الساحة المكلفة
+  /// (10-45 ثانية) — لكن الجسر الأخير (محلّل النظام) يبقى محاولاً في
+  /// كل طلب لأنه رخيص وهو مسار تعافي النطاق المخصص الوحيد؛ أي نجاح
+  /// حلّ يرفع القاطع فوراً، وفشل كامل (DoH + نظام) يجدّده.
   Future<List<String>> _candidateIps(String host) async {
     final candidates = <String>[];
-    final lastGood = _lastGoodIp[host];
-    if (lastGood != null) candidates.add(lastGood);
+    final blockedUntil = _resolutionBlockedUntil[host];
+    final dohCoolingDown =
+        blockedUntil != null && DateTime.now().isBefore(blockedUntil);
+    if (dohCoolingDown) {
+      debugPrint(
+        '↪️ [ResilientHTTP] DoH gauntlet cooling down for $host — '
+        'system bridge only (failing fast)',
+      );
+    } else {
+      final lastGood = _lastGoodIp[host];
+      if (lastGood != null) candidates.add(lastGood);
 
-    var fresh = const <String>[];
-    try {
-      fresh = await _dohResolver(host);
-    } catch (e) {
-      debugPrint('⚠️ [ResilientHTTP] DoH resolver threw for $host: $e');
-    }
-    for (final ip in fresh) {
-      if (!candidates.contains(ip)) candidates.add(ip);
-    }
-    for (final ip in _staleDns[host] ?? const <String>[]) {
-      if (!candidates.contains(ip)) candidates.add(ip);
+      var fresh = const <String>[];
+      try {
+        fresh = await _dohResolver(host);
+      } catch (e) {
+        debugPrint('⚠️ [ResilientHTTP] DoH resolver threw for $host: $e');
+      }
+      for (final ip in fresh) {
+        if (!candidates.contains(ip)) candidates.add(ip);
+      }
+      for (final ip in _staleDns[host] ?? const <String>[]) {
+        if (!candidates.contains(ip)) candidates.add(ip);
+      }
     }
     if (candidates.isEmpty) {
       // ✅ (2026-09-10) الجسر الأخير: محلّل النظام نفسه. سيناريوهين:
@@ -339,7 +365,18 @@ class ResilientHttpClient extends http.BaseClient {
         debugPrint('⚠️ [ResilientHTTP] system-DNS bridge failed for $host: $e');
       }
     }
-    return candidates.take(6).toList();
+    final resolved = candidates.take(6).toList();
+    if (resolved.isEmpty) {
+      // ✅ (2026-09-15) فشل الحل الكامل (DoH + النظام) — سجّل القاطع
+      // ليفشل الطلبات التالية فوراً خلال نافذة التبريد بدل إعادة
+      // الساحة الكاملة في كل طلب.
+      _resolutionBlockedUntil[host] = DateTime.now().add(
+        _resolutionBlockCooldown,
+      );
+    } else {
+      _resolutionBlockedUntil.remove(host);
+    }
+    return resolved;
   }
 
   /// جسر DNS النظام — آخر طبقة بعد استنفاد كل مزوّدي DoH.
@@ -696,6 +733,7 @@ class ResilientHttpClient extends http.BaseClient {
     _dnsCache.clear();
     _staleDns.clear();
     _lastGoodIp.clear();
+    _resolutionBlockedUntil.clear();
   }
 }
 

@@ -495,69 +495,95 @@ void main() {
     },
   );
 
-  group('الإصلاح 3: تعارض UNIQUE يمر بسلّم الحجر ولا يجمّد المؤشر للأبد', () {
-    test('دورتان فرصة عادلة ثم عزل واكتمال full sync — الصف المحلي سليم', () async {
-      // محلياً: موظف بلا ظلّ + دورة لشهر 2026-09.
-      await db.customStatement(
-        "INSERT INTO employees (local_uuid, name, basic_salary, position,"
-        " status, created_at, updated_at, last_modified, origin)"
-        " VALUES ('emp-1', 'موظف', 1000.0, 'موظف', 'active', 1, 1, 1, 'local')",
-      );
-      await db.customStatement(
-        "INSERT INTO salary_cycles (employee_id, cycle_key, expected_amount,"
-        " actual_paid, remaining_amount, status, local_uuid, created_at,"
-        " updated_at, last_modified, origin)"
-        " VALUES (1, '2026-09', 1000, 0, 1000, 'draft', 'sc-local',"
-        " 1, 1, 1, 'local')",
-      );
+  group('الإصلاح 3: تعارض UNIQUE يمر بسجل الانتظار ثم الحجر — المؤشر يتقدم', () {
+    test(
+      'دورتان في سجل الانتظار (نجاحان) ثم عزل في الثالثة — الصف المحلي سليم',
+      () async {
+        // محلياً: موظف بلا ظلّ + دورة لشهر 2026-09.
+        await db.customStatement(
+          "INSERT INTO employees (local_uuid, name, basic_salary, position,"
+          " status, created_at, updated_at, last_modified, origin)"
+          " VALUES ('emp-1', 'موظف', 1000.0, 'موظف', 'active', 1, 1, 1, 'local')",
+        );
+        await db.customStatement(
+          "INSERT INTO salary_cycles (employee_id, cycle_key, expected_amount,"
+          " actual_paid, remaining_amount, status, local_uuid, created_at,"
+          " updated_at, last_modified, origin)"
+          " VALUES (1, '2026-09', 1000, 0, 1000, 'draft', 'sc-local',"
+          " 1, 1, 1, 'local')",
+        );
 
-      // الخادم: نسخة مكررة منطقياً (local_uuid جديد على نفس
-      // employee_id+cycle_key بعد حلّ الموظف) — كانت ترمي SqliteException(2067)
-      // في كل دورة بلا سلّم حجر = تجميد أبدِ.
-      final cyclic = _CyclicQueueClient([
-        {
-          'changes': [_salaryCycleRow('sc-dup', employeeId: 55)],
-          'cursor': '1700000600',
-          'has_more': true,
-          'errors': <dynamic>[],
-        },
-        {
-          'changes': [_employeeRow('emp-1', serverId: 55)],
-          'cursor': '1700000610',
-          'has_more': false,
-          'errors': <dynamic>[],
-        },
-      ]);
-      final manager = await makeManager(cyclic);
+        // الخادم: نسخة مكررة منطقياً (local_uuid جديد على نفس
+        // employee_id+cycle_key بعد حلّ الموظف) — كانت ترمي
+        // SqliteException(2067) وتجمّد المؤشر حتى اكتمال العتبة.
+        final cyclic = _CyclicQueueClient([
+          {
+            'changes': [_salaryCycleRow('sc-dup', employeeId: 55)],
+            'cursor': '1700000600',
+            'has_more': true,
+            'errors': <dynamic>[],
+          },
+          {
+            'changes': [_employeeRow('emp-1', serverId: 55)],
+            'cursor': '1700000610',
+            'has_more': false,
+            'errors': <dynamic>[],
+          },
+        ]);
+        final manager = await makeManager(cyclic);
 
-      // الدورة 1: التأجيل ثم الاصطدام في إعادة المحاولة — فشل معلن.
-      final first = await manager.sync();
-      expect(first.status, SyncStatus.failed);
-      expect(first.errorMessage, contains('unique-key conflicts'));
-      expect(
-        await pref('cf_last_pull_cursor'),
-        isNull,
-        reason: 'المؤشر لا يتحرك أثناء فترة الفرصة العادلة',
-      );
+        // الدورة 1: الاصطدام يُسجَّل في سجل الانتظار بالحمولة — الدورة
+        // ✅ تنجح والمؤشر يتقدم (عقد 2026-09-15: لا تجميد ولا إعادة سحب).
+        final first = await manager.sync();
+        expect(first.status, SyncStatus.success);
+        expect(await pref('cf_last_pull_cursor'), 1700000610);
+        final pending1 =
+            (jsonDecode(
+                  (await pref('cf_pull_blocked_pending')).toString(),
+                )
+                as Map<String, dynamic>);
+        expect(pending1.keys, contains('salary_cycles/sc-dup'));
 
-      // الدورة 2: الظلّ جاهز — الاصطدام من التطبيق الأولي — فشل ثانٍ.
-      final second = await manager.sync();
-      expect(second.status, SyncStatus.failed);
+        // الدورة 2: إعادة المحاولة من الحمولة تصطدم مجدداً — عدّاد 2،
+        // لا تزال في سجل الانتظار، والدورة تنجح.
+        final second = await manager.sync();
+        expect(second.status, SyncStatus.success);
+        expect(
+          (await pref('cf_pull_orphan_block_counts')).toString(),
+          contains('salary_cycles/sc-dup'),
+        );
 
-      // الدورة 3: تجاوزت العتبة (3) — عُزل والمؤشر تقدّم واكتمل full sync.
-      final third = await manager.sync();
-      expect(third.status, SyncStatus.success);
-      expect(
-        await count('salary_cycles'),
-        1,
-        reason: 'الصف المحلي الوحيد باقٍ — النسخة المعزولة لم تُدرج',
-      );
-      expect(await cell('salary_cycles', 'local_uuid', byId: 1), 'sc-local');
-      expect(await pref('cf_last_pull_cursor'), 1700000610);
-      expect(await pref('cf_full_sync_completed'), true);
-      // العدّاد وصل العتبة على هوية النسخة المكررة تحديداً.
-      final countsRaw = await pref('cf_pull_orphan_block_counts');
-      expect(countsRaw.toString(), contains('salary_cycles/sc-dup'));
-    });
+        // الدورة 3: تجاوزت العتبة (3) — عُزل (حمولته في الحجر للشفاء
+        // الدوري) وخرج من سجل الانتظار.
+        final third = await manager.sync();
+        expect(third.status, SyncStatus.success);
+        expect(
+          await count('salary_cycles'),
+          1,
+          reason: 'الصف المحلي الوحيد باقٍ — النسخة المعزولة لم تُدرج',
+        );
+        expect(await cell('salary_cycles', 'local_uuid', byId: 1), 'sc-local');
+        expect(
+          (jsonDecode(
+                (await pref('cf_pull_blocked_pending')).toString(),
+              )
+              as Map<String, dynamic>),
+          isNot(contains('salary_cycles/sc-dup')),
+        );
+        final quarantined =
+            (jsonDecode(
+                  (await pref('cf_pull_quarantined_records')).toString(),
+                )
+                as Map<String, dynamic>);
+        expect(quarantined.keys, contains('salary_cycles/sc-dup'));
+        // حمولة المعزول محفوظة — أساس الشفاء الدوري من الحمولة.
+        expect(
+          ((quarantined['salary_cycles/sc-dup']
+                  as Map<String, dynamic>)['record']
+              as Map<String, dynamic>)['local_uuid'],
+          'sc-dup',
+        );
+      },
+    );
   });
 }
