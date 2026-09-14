@@ -104,40 +104,46 @@ void main() {
   testWidgets('لا ينفذ إجراءات البيانات قبل تأكيد المستخدم', (tester) async {
     await tester.pumpWidget(_buildSettingsScreen());
     await tester.pump();
-    await tester.scrollUntilVisible(
-      find.text('إنشاء النسخة'),
-      500,
-      scrollable: find
-          .descendant(
-            of: find.byType(ListView).first,
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
 
-    await tester.tap(find.text('إنشاء النسخة'));
-    await tester.pump();
+    // ✅ إصلاح: إضافة بطاقة «تصدير إلى Excel» زادت ارتفاع قسم إدارة
+    // البيانات — لذا يجب جلب كل زر إلى الشاشة قبل لمسه؛ الاعتماد على
+    // موضع التمرير الأول يجعل الأزرار السفلية خارج نطاق hit-test.
+    Future<void> tapDataAction(String label) async {
+      await tester.scrollUntilVisible(
+        find.text(label),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byType(ListView).first,
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.ensureVisible(find.text(label));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pump();
+    }
+
+    await tapDataAction('إنشاء النسخة');
     expect(find.text('نسخة احتياطية شاملة من Appwrite'), findsOneWidget);
     await tester.tap(find.text('إلغاء'));
     await tester.pump();
     expect(find.text('نسخة احتياطية شاملة من Appwrite'), findsNothing);
 
-    await tester.tap(find.text('بدء الرفع'));
-    await tester.pump();
+    await tapDataAction('بدء الرفع');
     expect(find.text('تأكيد الرفع'), findsOneWidget);
     await tester.tap(find.text('إلغاء'));
     await tester.pump();
     expect(find.text('تأكيد الرفع'), findsNothing);
 
-    await tester.tap(find.text('بدء السحب'));
-    await tester.pump();
+    await tapDataAction('بدء السحب');
     expect(find.text('تأكيد السحب'), findsOneWidget);
     await tester.tap(find.text('إلغاء'));
     await tester.pump();
     expect(find.text('تأكيد السحب'), findsNothing);
 
-    await tester.tap(find.text('إعادة تعيين المزامنة'));
-    await tester.pump();
+    await tapDataAction('إعادة تعيين المزامنة');
     expect(find.text('هل تريد إعادة تعيين حالة المزامنة؟'), findsOneWidget);
     await tester.tap(find.text('إلغاء'));
     await tester.pump();
