@@ -128,13 +128,18 @@ class PaymentsRepository {
   /// (الحالي + السابق عبر [HotelTimeEngine.previousHotelDayKey]).
   /// التجميع يتم في SQLite حتى لا تُحمّل جميع صفوف المدفوعات إلى Dart.
   ///
-  /// ✅ (2026-09-14) عقد «سطر واحد لكل مستخدم»: الإجمالي = كل ما استلمه
-  /// المستخدم في النافذة مهما كان عدد جلساته (GROUP BY المستخدم فقط
-  /// بلا تفريق جلسات) — المستخدم الذي استلم 500 في جلسة و500 في أخرى
-  /// يظهر سطراً واحداً بإجمالي 1000. نافذة اليومين تبقى لتغطية النوبة
-  /// العابرة لحد 14:01. سجلات الإرث بلا session UUID تبقى مستبعدة
-  /// (لا نسبة أثر رجعي)، وصفوف الإرث بلا hotel_day_key تُشمل بـ LIKE
-  /// على مفتاحي النافذة.
+  /// ✅ (2026-09-14) عقد «سطر واحد لكل مستخدم» بهوية ثابتة: مفتاح
+  /// التجميع = COALESCE(cloud_id, 'legacy:'+user_id) —
+  /// • الصفوف السحابية تُجمَّع بالـ cloud_id (المعرّف الثابت عبر
+  ///   الأجهزة): نفس الشخص بأسماء مختلفة (أحمد/أحمد محمد) أو بمعرفات
+  ///   محلية مختلفة على أجهزة مختلفة = سطر واحد.
+  /// • صفوف الإرث بلا cloud_id تُجمَّع بالمعرّف المحلي (شخص الجهاز).
+  /// • شخصان مختلفان يشتركان في نفس المعرّف المحلي عبر جهازين لكن
+  ///   cloud_id مختلف = سطران منفصلان (لا خلط إجماليات).
+  /// الاسم المعروض = MAX(received_by_name) اسم تمثيلي، والنافذة
+  /// اليومان الفندقيان (الحالي + السابق) لتغطية النوبة العابرة 14:01.
+  /// سجلات الإرث بلا session UUID تبقى مستبعدة، وصفوف الإرث بلا
+  /// hotel_day_key تُشمل بـ LIKE على مفتاحي النافذة.
   Stream<List<PaymentShiftSummary>> watchPaymentShiftSummaries(
     String hotelDayKey, {
     int? excludedUserId,
@@ -142,16 +147,26 @@ class PaymentsRepository {
     String? excludedUserCloudId,
   }) {
     final previousKey = HotelTimeEngine.previousHotelDayKey(hotelDayKey);
+    // ✅ (2026-09-14) الاستبعاد بهوية ثابتة (تقرير تشخيص المستخدم):
+    // • الصفوف السحابية (cloud_id ليس NULL) تُستبعد بمطابقة cloud_id
+    //   فقط — الاسم لا يستبعد صفاً سحابياً أبداً (إصلاح: مستخدمان
+    //   بالاسم نفسه لم يعودا يختلطان).
+    // • صفوف الإرث بلا cloud_id تُستبعد بالمعرّف المحلي أولاً ثم
+    //   بالاسم احتياطاً (هي وُلدت على هذا الجهاز فمعرّفها موثوق).
+    final excludedUserIdFilter = excludedUserId == null
+        ? ''
+        : 'AND (received_by_cloud_id IS NOT NULL OR received_by_user_id != ?) ';
     final excludedNameFilter = excludedUserName == null
         ? ''
-        : "AND COALESCE(NULLIF(TRIM(received_by_name), ''), 'مستخدم غير معروف') != ? ";
+        : 'AND (received_by_cloud_id IS NOT NULL OR '
+              "COALESCE(NULLIF(TRIM(received_by_name), ''), 'مستخدم غير معروف') != ?) ";
     final excludedCloudIdFilter = excludedUserCloudId == null
         ? ''
         : 'AND (received_by_cloud_id IS NULL OR received_by_cloud_id != ?) ';
     return db
         .customSelect(
-          'SELECT received_by_user_id AS user_id, '
-          "COALESCE(NULLIF(TRIM(received_by_name), ''), 'مستخدم غير معروف') AS user_name, "
+          'SELECT MIN(received_by_user_id) AS user_id, '
+          "COALESCE(NULLIF(TRIM(MAX(received_by_name)), ''), 'مستخدم غير معروف') AS user_name, "
           'COALESCE(SUM(amount), 0.0) AS total_amount, '
           'COUNT(*) AS payment_count '
           'FROM payments '
@@ -160,12 +175,12 @@ class PaymentsRepository {
           'AND received_by_user_id IS NOT NULL '
           'AND received_session_uuid IS NOT NULL '
           'AND (received_by_cloud_id IS NOT NULL OR received_by_name IS NOT NULL) '
-          '${excludedUserId == null ? '' : 'AND received_by_user_id != ? '} '
+          '$excludedUserIdFilter'
           '$excludedNameFilter'
           '$excludedCloudIdFilter'
           'AND (hotel_day_key IN (?, ?) '
           'OR (hotel_day_key IS NULL AND (payment_date LIKE ? OR payment_date LIKE ?))) '
-          'GROUP BY received_by_user_id, received_by_name '
+          "GROUP BY COALESCE(received_by_cloud_id, 'legacy:' || received_by_user_id) "
           'ORDER BY total_amount DESC',
           variables: [
             if (excludedUserId != null) d.Variable.withInt(excludedUserId),

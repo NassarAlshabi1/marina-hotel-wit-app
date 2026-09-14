@@ -392,4 +392,122 @@ void main() {
       expect(summaries.single.paymentCount, 2);
     },
   );
+
+  test(
+    'same cloud user with different name spellings appears as one row',
+    () async {
+      // ✅ (2026-09-14) تقرير التشخيص — «أحمد / أحمد / أحمد محمد»: نفس
+      // الهوية السحابية باختلاف صياغة الاسم بين الجلسات = سطر واحد
+      // (التجميع بالـ cloud_id الثابت لا بالاسم).
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(() async {
+        PaymentSessionContext.clear();
+        await db.close();
+      });
+
+      AdapterRegistry.initialize(db);
+      final repository = PaymentsRepository(db);
+      const paymentDate = '2026-08-21T15:00:00.000Z';
+      final hotelDay = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
+
+      PaymentSessionContext.start(
+        userId: 1,
+        userName: 'المدير',
+        sessionUuid: 'session-admin',
+      );
+
+      PaymentSessionContext.start(
+        userId: 7,
+        userName: 'أحمد',
+        cloudUserId: 'cloud-ahmad',
+        sessionUuid: 'session-a',
+      );
+      await repository.create(
+        amount: 300,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+      PaymentSessionContext.start(
+        userId: 7,
+        userName: 'أحمد محمد',
+        cloudUserId: 'cloud-ahmad',
+        sessionUuid: 'session-b',
+      );
+      await repository.create(
+        amount: 450,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+
+      final summaries = await repository
+          .watchPaymentShiftSummaries(hotelDay, excludedUserId: 1)
+          .first;
+
+      expect(summaries, hasLength(1));
+      expect(summaries.single.totalAmount, 750);
+      expect(summaries.single.paymentCount, 2);
+    },
+  );
+
+  test(
+    'another cloud user sharing the current user name is not excluded',
+    () async {
+      // ✅ (2026-09-14) تقرير التشخيص — «مستخدمان لهما الاسم نفسه»:
+      // الاستبعاد بالاسم كان يُخفي استلامات الزميل الذي يشترك مع
+      // المستخدم الحالي في الاسم. الآن الاسم لا يستبعد صفاً سحابياً —
+      // cloud_id هو أساس الاستبعاد للصفوف السحابية.
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(() async {
+        PaymentSessionContext.clear();
+        await db.close();
+      });
+
+      AdapterRegistry.initialize(db);
+      final repository = PaymentsRepository(db);
+      const paymentDate = '2026-08-21T15:00:00.000Z';
+      final hotelDay = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
+
+      PaymentSessionContext.start(
+        userId: 1,
+        userName: 'المدير',
+        cloudUserId: 'cloud-admin',
+        sessionUuid: 'session-admin',
+      );
+      await repository.create(
+        amount: 900,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+
+      // زميل آخر يحمل الاسم نفسه تماماً لكنه مستخدم سحابي مختلف.
+      PaymentSessionContext.start(
+        userId: 2,
+        userName: 'المدير',
+        cloudUserId: 'cloud-manager-2',
+        sessionUuid: 'session-manager-2',
+      );
+      await repository.create(
+        amount: 400,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+
+      final summaries = await repository
+          .watchPaymentShiftSummaries(
+            hotelDay,
+            excludedUserId: 1,
+            excludedUserName: 'المدير',
+            excludedUserCloudId: 'cloud-admin',
+          )
+          .first;
+
+      expect(summaries, hasLength(1));
+      expect(summaries.single.userId, 2);
+      expect(summaries.single.totalAmount, 400);
+    },
+  );
 }

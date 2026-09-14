@@ -387,10 +387,14 @@ final employeeShiftPaymentSummariesProvider =
 
       ref.watch(hotelDayTickerProvider);
       final hotelDay = HotelTimeEngine.getHotelDayKey();
+      // ✅ (2026-09-14) الاستبعاد بهوية ثابتة (تقرير التشخيص): cloud_id
+      // هو الأساس للصفوف السحابية، والمعرّف المحلي للصفوف الإرثية بلا
+      // cloud_id، والاسم احتياط أخير للإرث — لا يستبعد صفاً سحابياً.
       return ref
           .watch(paymentsRepoProvider)
           .watchPaymentShiftSummaries(
             hotelDay,
+            excludedUserId: user.id,
             excludedUserName: user.name,
             excludedUserCloudId: user.cloudUserId,
           );
