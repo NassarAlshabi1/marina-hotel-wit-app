@@ -60,6 +60,17 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  /// ✅ (2026-09-14) تحديث سحابي دوري لبطاقة «استلامات المستخدمين الآخرين
+  /// في النوبات»: أي دفعة يسجّلها موظف على أي جهاز تصل هنا خلال ~30
+  /// ثانية (دلتا-سحب خفيف) فيتحدّث إجمالي المستخدم تلقائياً 500→1000
+  /// وهكذا لبقية المستخدمين — دون انتظار المؤقّت العام (15 دقيقة)
+  /// ولا اعتماداً حصرياً على WebSocket الفوري.
+  /// صامت تماماً: لا SnackBar ولا مؤشر — البطاقة تُحدّث نفسها بالبث.
+  Timer? _dashboardCloudRefreshTimer;
+  static const Duration _dashboardCloudRefreshInterval = Duration(
+    seconds: 30,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +89,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_autoPullFromAppwrite());
     });
+    // ✅ (2026-09-14) نبض سحابي دوري طوال عرض الشاشة (تفاصيل
+    // [_dashboardCloudRefreshTimer])
+    _dashboardCloudRefreshTimer = Timer.periodic(
+      _dashboardCloudRefreshInterval,
+      (_) => unawaited(_dashboardCloudRefreshTick()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _dashboardCloudRefreshTimer?.cancel();
+    super.dispose();
   }
 
   /// ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
@@ -183,6 +206,47 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     } catch (e) {
       dlog(() => '❌ فشل السحب التلقائي عند الفتح: $e');
+    }
+  }
+
+  /// ✅ (2026-09-14) نبضة السحب الدورية — شروط التنفيذ:
+  /// 1. الشاشة معروضة (mounted) والتطبيق في المقدمة (resumed)
+  /// 2. بوّابة المزامنة حرة (لا مزامنة يدوي/مؤقت/realtime جارية)
+  /// السحب نفسه دلتا خفيفة push:false + deltaOnly:true — نفس نداء
+  /// السحب عند الفتح تماماً، بلا أي إشعارات مرئية.
+  Future<void> _dashboardCloudRefreshTick() async {
+    if (!mounted) return;
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    final executed = await SyncGate.instance.runGuardedVoid(
+      operation: 'auto_pull',
+      source: 'dashboard_periodic',
+      task: _dashboardDeltaPull,
+    );
+    if (!executed) {
+      dlog(
+        () =>
+            'ℹ️ [DashboardPeriodicPull] skipped — SyncGate busy with '
+            '${SyncGate.instance.state.operation} from '
+            '${SyncGate.instance.state.source}',
+      );
+    }
+  }
+
+  /// السحب الدلتا الصامت — يكتب جداول المزامنة (payments ضمنها) في
+  /// القاعدة المحلية، وبثّ Drift يُحدّث بطاقة الاستلامات تلقائياً.
+  Future<void> _dashboardDeltaPull() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
+        return;
+      }
+      final syncManager = ref.read(appwriteSyncManagerProvider);
+      await syncManager.sync(push: false, deltaOnly: true);
+      dlog(() => '✅ [DashboardPeriodicPull] دورة سحب دوري اكتملت');
+    } catch (e) {
+      dlog(() => '❌ [DashboardPeriodicPull] فشل السحب الدوري: $e');
     }
   }
 
