@@ -360,6 +360,10 @@ final hotelDayTickerProvider = StreamProvider<String>((ref) {
 // Daily Statistics Providers — تحديث فوري عبر Stream من قاعدة البيانات
 final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   final paymentsRepo = ref.watch(paymentsRepoProvider);
+  // ✅ إعادة البناء عند عبور بداية اليوم الفندقي (14:01) — بدون هذا
+  // الاستماع تبقى البطاقة على إجمالي اليوم الفندقي السابق إذا بقي
+  // الداشبورد مفتوحاً عند انقلاب اليوم الفندقي.
+  ref.watch(hotelDayTickerProvider);
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   // الفلتر على مستوى قاعدة البيانات بدلاً من تحميل كل المدفوعات
@@ -524,6 +528,9 @@ final paymentsOutboxPendingProvider = StreamProvider.autoDispose<int>((ref) {
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
+  // ✅ إعادة البناء عند عبور بداية اليوم الفندقي (14:01) — مطابق
+  // لسلوك todayPaymentsProvider لتفادي عرض يوم فندقي قديم.
+  ref.watch(hotelDayTickerProvider);
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   // ✅ SQL SUM() على مستوى قاعدة البيانات بدلاً من تحميل جميع المصروفات
@@ -532,6 +539,8 @@ final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
 });
 
 final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
+  // ✅ إعادة البناء عند عبور بداية اليوم الفندقي (14:01)
+  ref.watch(hotelDayTickerProvider);
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   final repo = ref.watch(expensesRepoProvider);
