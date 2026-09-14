@@ -20,11 +20,15 @@
 // ```
 
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:drift/drift.dart' show DriftSqlType, GeneratedColumn;
 import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import 'local_db.dart';
 
 /// نموذج بيانات سحب راتب للتصدير
 class SalaryExportData {
@@ -493,6 +497,213 @@ class ExportService {
     await file.writeAsBytes(bytes);
 
     return file;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  XLSX Export — قاعدة البيانات كاملة
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تصدير قاعدة البيانات كاملة إلى ملف Excel واحد.
+  ///
+  /// بنية الملف:
+  /// - ورقة "نظرة عامة" أول الملف: وقت التصدير + قائمة الجداول وعدد صفوفها
+  /// - ورقة لكل جدول باسمه الفعلي في SQLite: صف عناوين + جميع الصفوف
+  ///
+  /// قواعد تحويل القيم (مطابقة لما هو مخزَّن فعلياً في SQLite):
+  /// - NULL → خلية فارغة
+  /// - أعمدة Bool المخزَّنة 0/1 → قيمة منطقية حقيقية
+  /// - أعمدة DateTime المخزَّنة كطابع زمني بالثواني → نص مقروء
+  /// - أعمدة BLOB → نص وصفّي بالحجم فقط (لا تُضمَّن البيانات الثنائية)
+  ///
+  /// [db] يُمرَّر صراحةً (وليس عبر DatabaseManager) لدعم الاختبار المعزول.
+  /// [outputDirectory] مجلد الإخراج — افتراضياً مجلد مستندات التطبيق.
+  Future<File> exportFullDatabase(
+    AppDatabase db, {
+    Directory? outputDirectory,
+  }) async {
+    final excel = Excel.createExcel();
+
+    // ورقة النظرة العامة — تُنشأ أولاً لتصبح الورقة الأولى بعد حذف Sheet1
+    final overview = excel['نظرة عامة'];
+    overview.isRTL = true;
+    overview.cell(CellIndex.indexByString('A1'))
+      ..value = TextCellValue('فندق مارينا — تصدير قاعدة البيانات')
+      ..cellStyle = CellStyle(
+        bold: true,
+        fontSize: 16,
+        fontColorHex: ExcelColor.fromHexString('FFB46B00'),
+        horizontalAlign: HorizontalAlign.Center,
+      );
+    overview.merge(
+      CellIndex.indexByString('A1'),
+      CellIndex.indexByString('C1'),
+    );
+
+    final tableStats = <({String name, int rows})>[];
+
+    // أسماء الجداول تأتي من المخطط نفسه (وليس من المستخدم) — آمنة في SQL
+    for (final table in db.allTables) {
+      final tableName = table.actualTableName;
+      final rows = await db.customSelect('SELECT * FROM "$tableName"').get();
+      tableStats.add((name: tableName, rows: rows.length));
+
+      final sheet = excel[_sanitizeSheetName(tableName)];
+      sheet.isRTL = true;
+
+      final columns = table.$columns;
+
+      // صف العناوين من المخطط — ثابت حتى لو كان الجدول فارغاً
+      for (var i = 0; i < columns.length; i++) {
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+          ..value = TextCellValue(columns[i].name)
+          ..cellStyle = CellStyle(
+            bold: true,
+            fontSize: 11,
+            fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+            backgroundColorHex: ExcelColor.fromHexString('FF1B3A5C'),
+            horizontalAlign: HorizontalAlign.Center,
+          );
+      }
+
+      // صفوف البيانات
+      for (var r = 0; r < rows.length; r++) {
+        final data = rows[r].data;
+        for (var c = 0; c < columns.length; c++) {
+          sheet
+              .cell(
+                CellIndex.indexByColumnRow(
+                  columnIndex: c,
+                  rowIndex: r + 1,
+                ),
+              )
+              .value = _exportCellValue(
+            columns[c],
+            data[columns[c].name],
+          );
+        }
+      }
+    }
+
+    // ─── تعبئة النظرة العامة بعد جمع إحصائيات كل الجداول ───
+    final totalRecords = tableStats.fold<int>(0, (sum, t) => sum + t.rows);
+    var infoRowIndex = 2;
+    void infoRow(String label, String value) {
+      overview.cell(
+          CellIndex.indexByColumnRow(
+            columnIndex: 0,
+            rowIndex: infoRowIndex,
+          ),
+        )
+        ..value = TextCellValue(label)
+        ..cellStyle = CellStyle(bold: true, fontSize: 11);
+      overview.cell(
+          CellIndex.indexByColumnRow(
+            columnIndex: 1,
+            rowIndex: infoRowIndex,
+          ),
+        )
+        ..value = TextCellValue(value)
+        ..cellStyle = CellStyle(fontSize: 11);
+      infoRowIndex++;
+    }
+
+    infoRow(
+      'وقت التصدير',
+      DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now()),
+    );
+    infoRow('عدد الجداول', '${tableStats.length}');
+    infoRow('إجمالي السجلات', '$totalRecords');
+
+    // صفوف إحصائيات الجداول
+    infoRowIndex++; // صف فارغ فاصل
+    final statsHeaderStyle = CellStyle(
+      bold: true,
+      fontSize: 11,
+      fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+      backgroundColorHex: ExcelColor.fromHexString('FF1B3A5C'),
+      horizontalAlign: HorizontalAlign.Center,
+    );
+    overview.cell(
+        CellIndex.indexByColumnRow(
+          columnIndex: 0,
+          rowIndex: infoRowIndex,
+        ),
+      )
+      ..value = TextCellValue('الجدول')
+      ..cellStyle = statsHeaderStyle;
+    overview.cell(
+        CellIndex.indexByColumnRow(
+          columnIndex: 1,
+          rowIndex: infoRowIndex,
+        ),
+      )
+      ..value = TextCellValue('عدد الصفوف')
+      ..cellStyle = statsHeaderStyle;
+    infoRowIndex++;
+
+    for (final stat in tableStats) {
+      overview.cell(
+          CellIndex.indexByColumnRow(
+            columnIndex: 0,
+            rowIndex: infoRowIndex,
+          ),
+        )
+        ..value = TextCellValue(stat.name)
+        ..cellStyle = CellStyle(fontSize: 10);
+      overview.cell(
+          CellIndex.indexByColumnRow(
+            columnIndex: 1,
+            rowIndex: infoRowIndex,
+          ),
+        )
+        ..value = IntCellValue(stat.rows)
+        ..cellStyle = CellStyle(fontSize: 10);
+      infoRowIndex++;
+    }
+
+    excel.delete('Sheet1');
+
+    final bytes = excel.save();
+    if (bytes == null) throw Exception('Failed to generate Excel file');
+
+    final dir = outputDirectory ?? await getApplicationDocumentsDirectory();
+    final fileName =
+        'marina_hotel_database_'
+        '${DateFormat('yyyy-MM-dd_HHmm').format(DateTime.now())}.xlsx';
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsBytes(bytes);
+
+    return file;
+  }
+
+  /// تحويل قيمة SQLite خام إلى خلية Excel حسب نوع العمود في المخطط.
+  CellValue _exportCellValue(GeneratedColumn column, Object? value) {
+    if (value == null) return TextCellValue('');
+    if (column.type == DriftSqlType.bool && value is int) {
+      // قيم Boolean تُخزَّن 0/1 في SQLite
+      return BoolCellValue(value != 0);
+    }
+    if (column.type == DriftSqlType.dateTime && value is int) {
+      // Drift يخزّن DateTime كطابع زمني بالثواني افتراضياً
+      return TextCellValue(
+        DateFormat(
+          'yyyy-MM-dd HH:mm',
+        ).format(DateTime.fromMillisecondsSinceEpoch(value * 1000)),
+      );
+    }
+    if (value is int) return IntCellValue(value);
+    if (value is double) return DoubleCellValue(value);
+    if (value is bool) return BoolCellValue(value);
+    if (value is Uint8List) return TextCellValue('<${value.length} بايت>');
+    if (value is BigInt) return TextCellValue(value.toString());
+    return TextCellValue(value.toString());
+  }
+
+  /// تنقية اسم الجدول ليصلح كاسم ورقة Excel (≤31 حرفاً وبدون رموز محظورة).
+  String _sanitizeSheetName(String name) {
+    var safe = name.replaceAll(RegExp(r'[\\/*?:\[\]]'), '_');
+    if (safe.length > 31) safe = safe.substring(0, 31);
+    return safe;
   }
 
   // ═══════════════════════════════════════════════════════════════

@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/core.dart';
 import '../../../../providers/backup_provider.dart';
+import '../../../../services/export_service.dart';
 import '../../../../services/local_backup_service.dart';
+import '../../../../services/local_db.dart';
 
 /// Local Backups Tab - إدارة النسخ المحلية
 ///
@@ -16,6 +21,8 @@ class LocalBackupsTab extends ConsumerStatefulWidget {
 }
 
 class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
+  bool _exportingExcel = false;
+
   @override
   void initState() {
     super.initState();
@@ -151,35 +158,62 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   Widget _buildQuickActionsRow(BackupState backupState) {
-    return Row(
+    final busy = backupState.isWorking || _exportingExcel;
+    return Column(
       children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: backupState.isWorking ? null : _createLocalBackup,
-            icon: backupState.isWorking
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: busy ? null : _createLocalBackup,
+                icon: backupState.isWorking
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.backup),
+                label: const Text('نسخ الآن'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: UIConstants.backupColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.all(UIConstants.spacingMD),
+                ),
+              ),
+            ),
+            const SizedBox(width: UIConstants.spacingMD),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: busy ? null : _importBackup,
+                icon: const Icon(Icons.file_download),
+                label: const Text('استيراد نسخة'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.all(UIConstants.spacingMD),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: UIConstants.spacingMD),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: busy ? null : _exportDatabaseToExcel,
+            icon: _exportingExcel
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.backup),
-            label: const Text('نسخ الآن'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: UIConstants.backupColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.all(UIConstants.spacingMD),
+                : const Icon(Icons.grid_on),
+            label: Text(
+              _exportingExcel
+                  ? 'جاري التصدير...'
+                  : 'تصدير قاعدة البيانات إلى Excel',
             ),
-          ),
-        ),
-        const SizedBox(width: UIConstants.spacingMD),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: backupState.isWorking ? null : _importBackup,
-            icon: const Icon(Icons.file_download),
-            label: const Text('استيراد نسخة'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.all(UIConstants.spacingMD),
             ),
@@ -452,6 +486,44 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  /// تصدير قاعدة البيانات كاملة إلى ملف Excel ثم مشاركته
+  Future<void> _exportDatabaseToExcel() async {
+    setState(() => _exportingExcel = true);
+    File? file;
+    try {
+      file = await ExportService.instance.exportFullDatabase(
+        DatabaseManager.instance,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم إنشاء الملف: ${file.uri.pathSegments.last} — اختر مكان المشاركة',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      await ExportService.instance.shareFile(
+        file,
+        subject: 'قاعدة بيانات فندق مارينا',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل التصدير: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _exportingExcel = false);
       }
     }
   }
