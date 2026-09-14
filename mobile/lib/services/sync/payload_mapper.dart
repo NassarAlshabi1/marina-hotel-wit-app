@@ -238,6 +238,22 @@ class PayloadMapper {
     putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
     putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
     putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
+    // ✅ إصلاح (بلاغ 2026-09-15): حقول هوية مستلم الدفعة لم تكن تُرسل
+    // إلى السحابة — تصل الدفعات بلا نسبة لمستلمها فتظهر بطاقة «استلامات
+    // المستخدمين الآخرين بحسب اليوم الفندقي» فارغة على أجهزة المدير/المشرف.
+    // ملاحظة معمارية: مسار Cloudflare الحيّ يبني حمولة الدفع عبر
+    // PaymentsAdapter.toJson (يشمل هذه الحقول أصلاً ويحرسها
+    // cloudflare_push_contract_test) — هذا المحوّل يبقى احتياطياً
+    // متسقاً مع نفس العقد، والقائمتان في AppwriteSyncUtils
+    // (filterPayloadForCollection + خريطة الأنواع) تتضمنانها أصلاً.
+    putIfNotNull(data, 'receivedByUserId', payment.receivedByUserId);
+    putIfStringNotEmpty(data, 'receivedByName', payment.receivedByName);
+    putIfStringNotEmpty(
+      data,
+      'receivedSessionUuid',
+      payment.receivedSessionUuid,
+    );
+    putIfStringNotEmpty(data, 'receivedByCloudId', payment.receivedByCloudId);
     putIfStringNotEmpty(data, 'notes', payment.notes);
     putIfNotNull(
       data,

@@ -306,6 +306,14 @@ void main() {
           paymentMethod: const d.Value('cash'),
           revenueType: const d.Value('room'),
           isPendingBalance: const d.Value(false),
+          // ✅ (بلاغ 2026-09-15) هوية المستلم — بنفس ما يمرره
+          // PaymentsRepository.create عبر PaymentSessionContext، ليثبت
+          // أن بطاقة «استلامات المستخدمين الآخرين» على الأجهزة الأخرى
+          // تقرأ بيانات وصلت فعلاً إلى D1.
+          receivedByUserId: const d.Value(7),
+          receivedByName: const d.Value('موظف الاستقبال'),
+          receivedSessionUuid: const d.Value('session-contract-1'),
+          receivedByCloudId: const d.Value('cloud-user-7'),
         ),
       );
       final ops = await pushedOperations();
@@ -315,6 +323,11 @@ void main() {
       expect(data['amount'], 500.0);
       expect(data['payment_method'], 'cash');
       expect(data.containsKey('paymentMethod'), isFalse);
+      // ✅ حقول المستلم تصل السحابة بأسماء أعمدة D1 (لا إسقاط صامت)
+      expect(data['received_by_user_id'], 7);
+      expect(data['received_by_name'], 'موظف الاستقبال');
+      expect(data['received_session_uuid'], 'session-contract-1');
+      expect(data['received_by_cloud_id'], 'cloud-user-7');
     });
 
     test('expenses — adapter camelCase', () async {
