@@ -1027,10 +1027,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         (Object e, StackTrace s) =>
             derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
       );
-      SyncGuardian.instance.onAppForeground().catchError(
-        (Object e, StackTrace s) =>
-            derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
-      );
       // ✅ المرحلة 3.3: إعادة فتح Realtime عند العودة للواجهة
       // (+ استرداد دلتا لما فات أثناء الخمول عبر recovery pull)
       unawaited(

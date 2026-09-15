@@ -166,6 +166,7 @@ void main() {
     http.Client client, {
     Map<String, Object> prefsInit = const <String, Object>{},
     bool tokenless = false,
+    bool fullSyncCompleted = false,
   }) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'cloudflare_sync_local_override': true, // تجاوز مفتاح الإيقاف البعيد
@@ -179,6 +180,7 @@ void main() {
       httpClient: client,
       token: tokenless ? null : 'test-token',
       deviceId: 'contract-device',
+      fullSyncCompleted: fullSyncCompleted,
     );
     return manager;
   }
@@ -489,6 +491,42 @@ void main() {
         expect(manager.token, 'manual-token');
         expect(r2.status, SyncStatus.success);
         expect(r2.recordsPulled, 1);
+        expect(await roomsCount(), 1);
+      },
+    );
+
+    test(
+      'Delta-only مع full sync مكتملة يعيد تسجيل الدخول الكسول قبل السحب',
+      () async {
+        var loginCalls = 0;
+        final manager = await makeManager(
+          _LazyHealClient(
+            onLogin: () {
+              loginCalls++;
+              return _json({'token': 'delta-token'});
+            },
+            pullPages: [
+              {
+                'changes': [_roomRow('uuid-delta', updatedAt: 1700000200)],
+                'cursor': '1700000200',
+                'has_more': false,
+                'errors': <dynamic>[],
+              },
+            ],
+          ),
+          tokenless: true,
+          fullSyncCompleted: true,
+        );
+
+        final result = await manager.sync(
+          push: false,
+          deltaOnly: true,
+          forcePull: true,
+        );
+
+        expect(loginCalls, 1);
+        expect(result.status, SyncStatus.success);
+        expect(result.recordsPulled, 1);
         expect(await roomsCount(), 1);
       },
     );

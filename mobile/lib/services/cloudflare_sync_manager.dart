@@ -1082,17 +1082,6 @@ class CloudflareSyncManager {
     } catch (_) {
       // فشل قراءة التفضيل لا يجوز أن يمنع المزامنة (fail-open مثل المفتاح البعيد).
     }
-    if (deltaOnly) {
-      final bool ok = await realtimeTriggeredPull(forcePull: forcePull);
-      return SyncResult(
-        status: ok ? SyncStatus.success : SyncStatus.idle,
-        timestamp: DateTime.now(),
-        duration: Duration.zero,
-        errorMessage: ok
-            ? null
-            : 'Delta-only pull skipped (full sync not completed or sync in progress)',
-      );
-    }
     if (_token == null && (forcePull || _db != null)) {
       // ✅ (2026-09-10) إعادة تهيئة كسولة: كان فشل تسجيل الدخول عند
       // الإقلاع (شبكة محجوبة/DoH معطّل) يتطلب إعادة فتح التطبيق حرفياً —
@@ -1140,6 +1129,20 @@ class CloudflareSyncManager {
         timestamp: DateTime.now(),
         duration: Duration.zero,
         errorMessage: 'Not initialized',
+      );
+    }
+    // يجب أن يسبق Delta-only تهيئة الدخول الكسولة. قبل هذا الترتيب كان
+    // التطبيق العائد من الخلفية يملك full-sync مكتملة لكن توكنه غير محمّل،
+    // فيعود المسار مبكراً ولا يحاول تسجيل الدخول حتى مع forcePull اليدوي.
+    if (deltaOnly) {
+      final bool ok = await realtimeTriggeredPull(forcePull: forcePull);
+      return SyncResult(
+        status: ok ? SyncStatus.success : SyncStatus.idle,
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+        errorMessage: ok
+            ? null
+            : 'Delta-only pull skipped (full sync not completed or sync in progress)',
       );
     }
 

@@ -256,12 +256,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-      // ✅ (2026-08-31) تقليل السحب — الخطوة 2: زر التحديث اليدوي يسحب فوراً
-      // (forcePull يتجاوز حارس الدقيقتين فقط)؛ منع التوازي عبر SyncGate أعلاه
-      // وبقية الحمايات داخل sync() سارية (Outbox / SyncLocks / الاتصال).
+      // بعد اكتمال Bootstrap لا ينبغي أن يتحول زر «سحب التغييرات» إلى
+      // Full Sync. في أول تشغيل فقط نسمح بالـ bootstrap الصريح؛ بعد ذلك
+      // يمر الطلب عبر deltaOnly، مع إبقاء forcePull لتجاوز تبريد السحب.
+      final deltaOnly = appwriteSyncManager.isFullSyncCompleted;
       final pullResult = await appwriteSyncManager.sync(
         push: false,
         forcePull: true,
+        deltaOnly: deltaOnly,
       );
       final pulledCount = pullResult.recordsPulled;
 

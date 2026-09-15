@@ -268,6 +268,7 @@ class UnifiedSyncOrchestrator {
     bool pull = true,
     String reason = 'manual',
     bool forceSnapshot = false,
+    bool verifyIntegrity = false,
   }) async {
     if (_syncing) {
       dlog(() => '⏸️ syncNow: مشغول — تخطي (ليس فشل)');
@@ -309,7 +310,10 @@ class UnifiedSyncOrchestrator {
         await snapshotNow();
       }
 
-      if (success) {
+      // فحص التكامل يقرأ جداول التطبيق كاملة، لذلك لا يكون جزءاً من كل
+      // دورة Delta/foreground. يُطلب صراحةً للدورات التشخيصية أو مع
+      // Snapshot فقط حتى تظهر السجلات فور اكتمال السحب.
+      if (success && (verifyIntegrity || forceSnapshot)) {
         await _verifySyncIntegrity();
       }
 
