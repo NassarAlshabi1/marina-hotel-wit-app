@@ -171,6 +171,14 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'cloudflare_sync_local_override': true, // تجاوز مفتاح الإيقاف البعيد
       'cf_device_id': 'contract-device', // للشفاء الكسول: نفس هوية الجهاز
+      // ✅ (2026-09-15) حقن الحالة يجب أن يصمد عبر حدود إعادة التحميل:
+      // _initializeInternal يعيد قراءة العلامة من prefs بعد login الكسول،
+      // فكان يمسح الحقن في الذاكرة ويعيد الاختبار «idle» بدل «success».
+      if (fullSyncCompleted) 'cf_full_sync_completed': true,
+      // ✅ (2026-09-15) عقد السحب هنا لا يختبر صيانة الحذفيات التاريخية —
+      // sweep يستهلك صفحات pull الوهمية فيُنهك _LazyHealClient. عقد الـ
+      // sweep له ملفه المستقل.
+      'cf_tombstone_sweep_v1_done': true,
       ...prefsInit,
     });
     final manager = CloudflareSyncManager();
@@ -517,7 +525,6 @@ void main() {
           tokenless: true,
           fullSyncCompleted: true,
         );
-
         final result = await manager.sync(
           push: false,
           deltaOnly: true,

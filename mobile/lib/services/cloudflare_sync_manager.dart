@@ -888,12 +888,17 @@ class CloudflareSyncManager {
         utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
       );
       final exp = (payload as Map<String, dynamic>)['exp'];
-      // Cloudflare issues an explicitly non-expiring token by omitting exp.
-      // It remains valid until the credentials/JWT secret are changed or the
-      // server rejects it; do not silently rotate it on an arbitrary timer.
+      // ✅ (2026-09-15) مواءمة عقد التوكن طويل الأجل: غياب exp مقصود —
+      // JWT_EXPIRY_HOURS="0" يصدر توكنات بلا exp والقبول بالتوقيع وحده
+      // (مطابق لـ verifyToken في worker). اعتبارها منتهية هنا كان سيصنع
+      // حلقة دخول لانهائية: null → login → توكن بلا exp → «منتهي» → null.
+      // الإبطال المقصود يدوي فقط (تدوير JWT_SECRET) فيُكشف عبر 401.
       if (exp == null) return false;
+      // قيمة exp مشوهة (ليست رقمًا) → نعاملها كمنتهية لعدم الثقة فيها،
+      // فتشعل إعادة الدخول بدل الاعتماد على توكن غير مفهوم.
       if (exp is! num) return true;
-      // هامش دقيقة يمنع بدء دورة طويلة بتوكن سينتهي أثناءها.
+      // هامش دقيقة يمنع بدء دورة طويلة بتوكن سينتهي أثناءها — للتوكنات
+      // القديمة المحمّلة exp فقط (توافق خلفي قبل نشر العقد الجديد).
       return exp.toInt() <= DateTime.now().millisecondsSinceEpoch ~/ 1000 + 60;
     } catch (_) {
       return true;
@@ -1205,9 +1210,13 @@ class CloudflareSyncManager {
       }
       _syncInProgress = true;
       bool ok = false;
+      // ✅ (2026-09-15) عدّاد السحب يجب أن يصل للنتيجة — كان الإصلاح
+      // السابق يهمل القيمة المرجعة من _pullChanges فيُبلّغ الواجهة
+      // «0 سجلات» بعد كل سحب دلتا ناجح (عقد sync_pull_contract_test).
+      int pulled = 0;
       String? deltaError;
       try {
-        await _pullChanges(deltaOnly: true);
+        pulled = await _pullChanges(deltaOnly: true);
         ok = true;
       } catch (e) {
         deltaError = e.toString();
@@ -1218,6 +1227,7 @@ class CloudflareSyncManager {
         status: ok ? SyncStatus.success : SyncStatus.idle,
         timestamp: DateTime.now(),
         duration: Duration.zero,
+        recordsPulled: pulled,
         errorMessage: ok ? null : deltaError,
       );
     }

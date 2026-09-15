@@ -12,8 +12,10 @@
 //     (never the global max of fetched rows).
 //
 //  B) Legacy millisecond-scale updated_at values (1.7e12) poisoned
-//     the seconds-scale cursor domain forever. Fix: progressive
-//     normalizeTimestamps() re-stamping driven by the pull handler.
+//     the seconds-scale cursor domain forever. Fix: normalizeTimestamps()
+//     re-stamping — ✅ (2026-09-15, 72b75a79) now an EXPLICIT opt-in
+//     maintenance pass via `normalize_timestamps=1`; ordinary delta
+//     pulls never scan the entity tables for legacy rows.
 // ═══════════════════════════════════════════════════════════════
 
 import { env } from 'cloudflare:test';
@@ -213,7 +215,13 @@ describe('pull: normalizeTimestamps (legacy ms → seconds repair)', () => {
     // One healthy seconds-scale row that must be LEFT ALONE.
     const healthy = await seedRoomAt(1_700_000_100, { roomNumber: 'OK1', lastModified: 1_700_000_100 });
 
-    const data = (await pull(auth, { cursor: '0', limit: '200' })) as PullResponseBody;
+    const data = (await pull(auth, {
+      cursor: '0',
+      limit: '200',
+      // ✅ (2026-09-15) العقد الجديد: التسوية صيانة صريحة opt-in —
+      // السحب الاعتيادي (delta) لا يمسح جداول الكيانات بحثًا عن طوابع قديمة.
+      normalize_timestamps: '1',
+    })) as PullResponseBody;
     expect(data.normalization).toBeTruthy();
     expect(data.normalization!.normalized).toBe(6);
     expect(data.normalization!.remaining).toBe(0);
@@ -245,7 +253,11 @@ describe('pull: normalizeTimestamps (legacy ms → seconds repair)', () => {
     expect(clock!.last_ts).toBeGreaterThanOrEqual(Math.max(...seenTs));
 
     // Idempotent: a second pull reports nothing left to repair.
-    const again = (await pull(auth, { cursor: '0', limit: '200' })) as PullResponseBody;
+    const again = (await pull(auth, {
+      cursor: '0',
+      limit: '200',
+      normalize_timestamps: '1',
+    })) as PullResponseBody;
     expect(again.normalization!.normalized).toBe(0);
     expect(again.normalization!.remaining).toBe(0);
   });
@@ -257,7 +269,11 @@ describe('pull: normalizeTimestamps (legacy ms → seconds repair)', () => {
       lastModified: 1_700_000_123, // seconds-scale → must survive
     });
 
-    const data = (await pull(auth, { cursor: '0', limit: '200' })) as PullResponseBody;
+    const data = (await pull(auth, {
+      cursor: '0',
+      limit: '200',
+      normalize_timestamps: '1',
+    })) as PullResponseBody;
     expect(data.normalization!.normalized).toBe(1);
 
     const row = await env.DB.prepare(
@@ -278,11 +294,19 @@ describe('pull: normalizeTimestamps (legacy ms → seconds repair)', () => {
       await seedRoomAt(1_900_000_000_000 + i, { roomNumber: `BG${i}` });
     }
 
-    const first = (await pull(auth, { cursor: '0', limit: '200' })) as PullResponseBody;
+    const first = (await pull(auth, {
+      cursor: '0',
+      limit: '200',
+      normalize_timestamps: '1',
+    })) as PullResponseBody;
     expect(first.normalization!.normalized).toBe(12);
     expect(first.normalization!.remaining).toBe(0);
 
-    const second = (await pull(auth, { cursor: '0', limit: '200' })) as PullResponseBody;
+    const second = (await pull(auth, {
+      cursor: '0',
+      limit: '200',
+      normalize_timestamps: '1',
+    })) as PullResponseBody;
     expect(second.normalization!.normalized).toBe(0);
     expect(second.normalization!.remaining).toBe(0);
   });
@@ -293,8 +317,13 @@ describe('pull: normalizeTimestamps (legacy ms → seconds repair)', () => {
     for (let i = 0; i < 3; i++) {
       await seedRoomAt(1_700_000_000_000 + i, { roomNumber: `PZ${i}` });
     }
-    // …the first pull triggers normalization…
-    const pre = (await pull(auth, { cursor: '0', limit: '200' })) as PullResponseBody;
+    // …the first pull triggers normalization (explicit opt-in under the
+    // 2026-09-15 contract — ordinary delta pulls never scan for legacy rows)…
+    const pre = (await pull(auth, {
+      cursor: '0',
+      limit: '200',
+      normalize_timestamps: '1',
+    })) as PullResponseBody;
     expect(pre.normalization!.normalized).toBe(3);
 
     // …and a NEW push (seconds-stamped by the allocator) is immediately
@@ -311,5 +340,27 @@ describe('pull: normalizeTimestamps (legacy ms → seconds repair)', () => {
     for (const c of after.changes) {
       expect(c.updated_at as number).toBeLessThan(100_000_000_000);
     }
+  });
+
+  it('ordinary delta pull (no flag) does NOT trigger normalization — explicit opt-in contract', async () => {
+    const auth = await adminAuthHeader();
+    for (let i = 0; i < 2; i++) {
+      await seedRoomAt(1_700_000_000_000 + i, { roomNumber: `OPT${i}` });
+    }
+
+    // بلا normalize_timestamps=1: لا مسح صيانة، ولا حقل normalization في الرد،
+    // والصفوف القديمة تبقى كما هي — هذا العقد المثبّت في 72b75a79.
+    const plain = (await pull(auth, { cursor: '0', limit: '200' })) as PullResponseBody;
+    expect(plain.normalization).toBeFalsy();
+
+    const rows = await env.DB.prepare(
+      'SELECT updated_at FROM rooms WHERE room_number LIKE ? ORDER BY updated_at'
+    )
+      .bind('OPT%')
+      .all<{ updated_at: number }>();
+    expect(rows.results).toHaveLength(2);
+    // الطوابع الميلّية بقيت كما هي (لم تُلمس بالسحب الاعتيادي).
+    expect(rows.results[0].updated_at).toBe(1_700_000_000_000);
+    expect(rows.results[1].updated_at).toBe(1_700_000_000_001);
   });
 });
