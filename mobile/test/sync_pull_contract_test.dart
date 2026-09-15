@@ -531,6 +531,27 @@ void main() {
       },
     );
 
+    test('تهيئة التوكن المتزامنة تستخدم طلب login واحداً فقط', () async {
+      var loginCalls = 0;
+      final manager = await makeManager(
+        _LazyHealClient(
+          onLogin: () {
+            loginCalls++;
+            return _json({'token': 'single-flight-token'});
+          },
+        ),
+        tokenless: true,
+      );
+
+      await Future.wait([
+        manager.initialize(database: db, loginAttempts: 1),
+        manager.initialize(database: db, loginAttempts: 1),
+      ]);
+
+      expect(loginCalls, 1);
+      expect(manager.token, 'single-flight-token');
+    });
+
     test('الشفاء عبر الدورات: فشل ثم نجاح بعد انقضاء التبريد', () async {
       var loginCalls = 0;
       final manager = await makeManager(

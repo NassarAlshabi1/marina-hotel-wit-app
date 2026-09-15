@@ -99,6 +99,12 @@ class UnifiedSyncOrchestrator {
       _appwrite = appwrite;
       await _appwrite!.initialize();
     }
+    // تهيئة Cloudflare جزء من بدء المنسق نفسه، لا تؤجل لأول ضغط زر أو
+    // أول foreground. هذا يضمن أن التوكن موجود قبل أي مسار Delta.
+    if (_appwrite == null) {
+      _appwrite = AppwriteSyncManager(database: database);
+      await _appwrite!.initialize(database: database);
+    }
     if (driveCoordinator != null) {
       _driveCoordinator = driveCoordinator;
     }

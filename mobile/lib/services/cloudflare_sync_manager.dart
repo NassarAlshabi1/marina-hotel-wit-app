@@ -617,6 +617,8 @@ class CloudflareSyncManager {
   /// (visibleForTesting ليضبطه الاختبار على صفر).
   @visibleForTesting
   Duration lazyInitCooldown = const Duration(seconds: 60);
+  /// عملية تهيئة واحدة مشتركة؛ تمنع عدة شاشات من إرسال login متزامن.
+  Future<void>? _initializeInFlight;
 
   /// ✅ (2026-09-08) حقن اختباري مباشر: قاعدة بيانات + عميل HTTP وهمي
   /// + توكن — بلا login شبكي. يُتيح اختبارات عقدية لحلقة السحب كاملة
@@ -671,8 +673,36 @@ class CloudflareSyncManager {
     AppDatabase? database,
     bool forceRetry = false,
     int loginAttempts = 3,
+  }) {
+    final inFlight = _initializeInFlight;
+    if (inFlight != null) return inFlight;
+    if (_token != null && !forceRetry && !_isTokenExpired(_token!)) {
+      return Future<void>.value();
+    }
+    final operation = _initializeInternal(
+      database: database,
+      forceRetry: forceRetry,
+      loginAttempts: loginAttempts,
+    );
+    _initializeInFlight = operation;
+    return operation.whenComplete(() {
+      if (identical(_initializeInFlight, operation)) {
+        _initializeInFlight = null;
+      }
+    });
+  }
+
+  Future<void> _initializeInternal({
+    AppDatabase? database,
+    bool forceRetry = false,
+    int loginAttempts = 3,
   }) async {
-    if (_token != null && !forceRetry) return;
+    if (_token != null && !forceRetry && !_isTokenExpired(_token!)) return;
+    if (_token != null && _isTokenExpired(_token!)) {
+      debugPrint('🔄 Cloudflare token expired/near expiry — refreshing');
+      _token = null;
+      Env.cloudflareAuthToken = null;
+    }
 
     _db = database ?? _db ?? DatabaseManager.instance;
 
@@ -838,6 +868,24 @@ class CloudflareSyncManager {
         debugPrint('⚠️ CloudflareSyncManager init error: $e');
         return;
       }
+    }
+  }
+
+  bool _isTokenExpired(String token) {
+    try {
+      final parts = token.split('.');
+      // التوكنات المحقونة في اختبارات العقد ليست JWT؛ يتركها هذا الحارس
+      // كما هي، بينما كل توكن Worker الحقيقي يمر عبر فحص exp أدناه.
+      if (parts.length != 3) return false;
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+      );
+      final exp = (payload as Map<String, dynamic>)['exp'];
+      if (exp is! num) return true;
+      // هامش دقيقة يمنع بدء دورة طويلة بتوكن سينتهي أثناءها.
+      return exp.toInt() <= DateTime.now().millisecondsSinceEpoch ~/ 1000 + 60;
+    } catch (_) {
+      return true;
     }
   }
 
@@ -1082,7 +1130,8 @@ class CloudflareSyncManager {
     } catch (_) {
       // فشل قراءة التفضيل لا يجوز أن يمنع المزامنة (fail-open مثل المفتاح البعيد).
     }
-    if (_token == null && (forcePull || _db != null)) {
+    if ((_token == null || _isTokenExpired(_token!)) &&
+        (forcePull || _db != null)) {
       // ✅ (2026-09-10) إعادة تهيئة كسولة: كان فشل تسجيل الدخول عند
       // الإقلاع (شبكة محجوبة/DoH معطّل) يتطلب إعادة فتح التطبيق حرفياً —
       // أي سحب لاحق ينتهي بـ«Not initialized» حتى لو شفيت الشبكة
@@ -1112,7 +1161,7 @@ class CloudflareSyncManager {
       if (forcePull || cooldownPassed) {
         _lastLazyInitAttempt = now;
         debugPrint(
-          '🔄 [Sync] token is null — lazy re-login attempt '
+          '🔄 [Sync] token missing/expired — lazy re-login attempt '
           '(cooldown ${lazyInitCooldown.inSeconds}s'
           '${forcePull ? ', bypassed: manual forcePull' : ''})',
         );
