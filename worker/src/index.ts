@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { Database, ALL_TABLE_NAMES } from './database';
-import { authMiddleware, handleLogin, hashPassword, signToken } from './auth';
+import { authMiddleware, handleLogin, hashPassword, resolveExpiryHours, signToken } from './auth';
 import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate } from './sync';
 import { SyncLockDO, type RealtimeMessage } from './sync-lock';
 
@@ -222,7 +222,12 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       }
 
       const db = new Database(env.DB);
-      const response = await handleLogin(request, db, env.JWT_SECRET);
+      const response = await handleLogin(
+        request,
+        db,
+        env.JWT_SECRET,
+        resolveExpiryHours(env.JWT_EXPIRY_HOURS)
+      );
       // Add CORS headers
       const corsHeaders_ = corsHeaders(env.CORS_ORIGIN);
       const newResponse = new Response(response.body, {
@@ -269,7 +274,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         const token = await signToken(
           { sub: userId, username, role },
           env.JWT_SECRET,
-          parseInt(env.JWT_EXPIRY_HOURS, 10) || 24
+          resolveExpiryHours(env.JWT_EXPIRY_HOURS)
         );
 
         return json(

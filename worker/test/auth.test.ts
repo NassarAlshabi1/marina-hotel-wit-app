@@ -114,7 +114,7 @@ describe('auth: bootstrap registration', () => {
 });
 
 describe('auth: login + JWT', () => {
-  it('logs in with valid credentials and embeds role/exp in the JWT', async () => {
+  it('logs in with valid credentials, embeds role, and is long-lived (no exp)', async () => {
     const { token } = (await (
       await SELF.fetch(REGISTER_URL, {
         method: 'POST',
@@ -137,7 +137,9 @@ describe('auth: login + JWT', () => {
     expect(payload.username).toBe('jwt-user');
     expect(payload.role).toBe('manager');
     expect(payload.device_id).toBe('device-X');
-    expect((payload.exp as number) - (payload.iat as number)).toBe(24 * 3600);
+    // ✅ (2026-09-15) العقد الجديد: JWT_EXPIRY_HOURS="0" → توكن طويل الأجل
+    // بلا حقل exp — الإبطال يدوي فقط (تدوير JWT_SECRET).
+    expect(payload.exp).toBeUndefined();
   });
 
   it('rejects wrong password and unknown user with 401 + identical error', async () => {

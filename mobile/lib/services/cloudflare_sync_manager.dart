@@ -1557,6 +1557,13 @@ class CloudflareSyncManager {
       // ✅ P0-G: 401/403 → لا نلمس السجلات (ستُعاد المحاولة بعد re-auth)
       // 5xx → نعيد السجلات لـ pending
       if (response.statusCode == 401 || response.statusCode == 403) {
+        // ✅ (2026-09-15) عقد التوكن طويل الأجل: 401 هنا يعني التوكن
+        // أُبطل يدوياً (تدوير JWT_SECRET) — أَبطلُه محلياً فوراً ليشعل
+        // البوابة `if (_token == null)` إعادة الدخول الكسولة في المزامنة
+        // القادمة، بدل حلقة 401 دائمة حتى إعادة تشغيل التطبيق.
+        _token = null;
+        Env.cloudflareAuthToken = null;
+        _lastLazyInitAttempt = null;
         // auth issue — أعِد السجلات لـ pending بدل failed
         for (final item in pending) {
           try {

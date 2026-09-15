@@ -13,7 +13,10 @@ export interface JwtPayload {
   role: string;
   device_id?: string;
   iat: number; // issued at
-  exp?: number; // optional expiration; absent means explicitly non-expiring
+  exp?: number; // optional expiration; absent means explicitly non-expiring.
+  // ✅ (2026-09-15) العقد الجديد: التوكن طويل الأجل بلا انتهاء تلقائي.
+  // الإبطال المقصود = يدوي فقط: تدوير JWT_SECRET (wrangler secret put
+  // JWT_SECRET) يُبطل كل التوكنات الصادرة سابقاً دفعة واحدة.
 }
 
 export interface AuthContext {
@@ -183,6 +186,19 @@ export async function verifyPassword(password: string, storedHash: string): Prom
 
 // ─── JWT Token ────────────────────────────────────────────────
 
+/**
+ * ✅ (2026-09-15) عقد مدة الصلاحية: "0" يعني توكن طويل الأجل بلا
+ * انتهاء تلقائي (لا حقل exp)؛ القيمة المفقودة/غير القابلة للتحويل
+ * ترجع للافتراضي التاريخي 24. ملاحظة: الصيغة القديمة
+ * `parseInt(x, 10) || 24` كانت تبتلع 0 الصريح وتعيد 24 — لهذا
+ * المُساعد الجديد.
+ */
+export function resolveExpiryHours(raw?: string): number | null {
+  const parsed = parseInt(raw ?? '', 10);
+  if (!Number.isFinite(parsed)) return 24; // مفقود/غير صالح → الافتراضي التاريخي
+  return parsed > 0 ? parsed : null; // "0" → طويل الأجل بلا انتهاء تلقائي
+}
+
 export async function signToken(
   payload: Omit<JwtPayload, 'iat' | 'exp'>,
   secret: string,
@@ -192,6 +208,8 @@ export async function signToken(
   const fullPayload: JwtPayload = {
     ...payload,
     iat: now,
+    // expiryHours == null → توكن طويل الأجل: لا حقل exp إطلاقاً؛
+    // القيمة الموجبة تُحمّل exp كما في العقد القديم (توافق خلفي).
     ...(expiryHours == null ? {} : { exp: now + expiryHours * 3600 }),
   };
 
@@ -217,6 +235,8 @@ export async function verifyToken(token: string, secret: string): Promise<JwtPay
   try {
     const payload = JSON.parse(base64UrlDecode(payloadB64)) as JwtPayload;
     const now = Math.floor(Date.now() / 1000);
+    // ✅ (2026-09-15) التوكن طويل الأجل (بلا exp) يمرّ بالتوقيع وحده؛
+    // التوكن المحمّل exp يُرفض عند تجاوزه صراحة (توافق مع القديم).
     if (typeof payload.exp === 'number' && payload.exp < now) return null;
     return payload;
   } catch {
@@ -258,7 +278,8 @@ export async function authMiddleware(
 export async function handleLogin(
   request: Request,
   db: Database,
-  jwtSecret: string
+  jwtSecret: string,
+  expiryHours: number | null = null
 ): Promise<Response> {
   try {
     const body = await request.json() as { username?: string; password?: string; device_id?: string };
@@ -284,7 +305,8 @@ export async function handleLogin(
         role: user.role,
         device_id: body.device_id || '',
       },
-      jwtSecret
+      jwtSecret,
+      expiryHours
     );
 
     return json({

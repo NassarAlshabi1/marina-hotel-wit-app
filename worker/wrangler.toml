@@ -29,7 +29,10 @@ new_sqlite_classes = ["SyncLockDO"]
 # JWT_SECRET is stored as a Cloudflare Secret (not in plaintext here)
 # Set via: wrangler secret put JWT_SECRET
 [vars]
-JWT_EXPIRY_HOURS = "24"
+# ✅ (2026-09-15) عقد المصادقة: "0" = توكن طويل الأجل بلا انتهاء تلقائي.
+# الإبطال المقصود يدوي فقط: تدوير JWT_SECRET يُبطل كل التوكنات دفعة واحدة.
+# أي قيمة أخرى > 0 تعني ساعات صلاحية (توافق خلفي)، والمفقودة تعود لـ 24.
+JWT_EXPIRY_HOURS = "0"
 RATE_LIMIT_WINDOW = "60"
 RATE_LIMIT_MAX = "1000"
 CORS_ORIGIN = "*"
