@@ -802,6 +802,121 @@ class AuthLocalStore {
     }
   }
 
+  /// ✅ (2026-09-16) ردّم الحسابات المحلية المخصصة إلى السحابة (D1).
+  ///
+  /// الفجوة: حسابات أُنشئت محلياً (custom_accounts) قبل اكتمال مسار
+  /// Cloudflare أو فشل رفعها حينها — لا صف لها في مرآة app_users
+  /// المحلية ولا هوية سحابية، فتبقى دخولها محلياً على جهاز الإنشاء
+  /// فقط ولا تصل لبقية الأجهزة، ولا يمكن نسب مدفوعاتها إلى هوية
+  /// سحابية ثابتة (received_by_cloud_id).
+  ///
+  /// العقد:
+  /// • لكل حساب مخصص بلا صف حي في app_users (باسم المستخدم أو
+  ///   local_uuid الحتمي [_cloudDocumentId]) → حمولة create كاملة
+  ///   (كلمة المرور المخزنة كما هي — PBKDF2 مسبقاً، لا تشفير مزدوج
+  ///   وإلا انكسر الدخول من بقية الأجهزة) + كتابة الصف المحلي +
+  ///   حجز العملية في Outbox.
+  /// • صف حي موجود → تخطٍ صامت: نسخة D1 هي المرجع، ولا إعادة كتابة
+  ///   كلمة مرور/صلاحيات من هذا الجهاز فوق ما عدّله جهاز آخر.
+  /// • الحسابات الثابتة (admin) مستثناة دائماً — صفها السحابي
+  ///   يُدار بمساره الخاص ولا يُصادر عن هذا الجهاز.
+  /// • الأثر جانبي فقط (كتابة محلية + Outbox) — لا شبكة، ولا يرمي
+  ///   استثناءً أبداً. يعيد عدد الحسابات المردّمة فعلاً.
+  /// • idempotent: الاستدعاء المتكرر آمن (المتزامن مسبقاً يُتخطى).
+  Future<int> backfillLocalAccountsToCloud() async {
+    try {
+      if (!DatabaseManager.isInitialized) return 0;
+      final accounts = await _loadCustomAccounts();
+      if (accounts.isEmpty) return 0;
+
+      final db = DatabaseManager.instance;
+      final deviceId = await _getDeviceId();
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      var backfilled = 0;
+
+      for (final entry in accounts.entries) {
+        final username = entry.key.trim();
+        if (username.isEmpty || _fixedAccounts.containsKey(username)) {
+          continue;
+        }
+        final data = entry.value;
+        if (data is! Map) continue;
+
+        try {
+          final docId = _cloudDocumentId(username);
+          final existing = await db
+              .customSelect(
+                'SELECT local_uuid FROM app_users '
+                'WHERE (username = ? OR local_uuid = ?) '
+                'AND deleted_at IS NULL LIMIT 1',
+                variables: [
+                  Variable.withString(username),
+                  Variable.withString(docId),
+                ],
+              )
+              .get();
+          // متزامن مسبقاً (رفع هذا الجهاز أو سحب جهاز آخر) — لا إعادة كتابة
+          if (existing.isNotEmpty) continue;
+
+          final fullName = (data['full_name'] ?? username).toString();
+          final userType = (data['user_type'] ?? 'employee').toString();
+          final storedPassword = (data['password'] ?? '').toString();
+          final permissions = await getPermissions(username);
+
+          final syncPayload = AuthLocalStore.appUsersSyncPayload(
+            localUuid: docId,
+            username: username,
+            password: storedPassword,
+            fullName: fullName,
+            userType: userType,
+            permissionsJson: jsonEncode(permissions),
+            active: true,
+            lastLogin: 0,
+            credentialsVersion: 1,
+            role: userType,
+            now: now,
+            deviceId: deviceId,
+          );
+          await _writeLocalAppUsersRow(syncPayload);
+          await _enqueueAppUsersOp(
+            op: 'create',
+            docId: docId,
+            payload: syncPayload,
+          );
+          backfilled++;
+          AppLogger.info(
+            'Backfilled local account "$username" to cloud outbox '
+            '(doc: $docId)',
+            tag: 'AUTH',
+          );
+        } catch (e, st) {
+          // فشل حساب واحد لا يوقف ردّم البقية — يُعاد في الدخول القادم
+          AppLogger.warning(
+            'تعذر ردّم الحساب المحلي "$username" — سيُعاد في الدخول القادم',
+            tag: 'AUTH',
+            error: e,
+            stackTrace: st,
+          );
+        }
+      }
+      if (backfilled > 0) {
+        AppLogger.info(
+          'Local accounts backfill complete: $backfilled queued',
+          tag: 'AUTH',
+        );
+      }
+      return backfilled;
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر ردّم الحسابات المحلية إلى السحابة',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+      return 0;
+    }
+  }
+
   /// حفظ credentials_version عند تسجيل الدخول
   static const _kCredVersion = 'credentials_version';
 

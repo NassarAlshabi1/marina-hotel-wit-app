@@ -321,6 +321,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
   ///   الجهاز لاحقاً ويشغّل الاستماع من مساره الأساسي.
   Future<void> _resumeCloudSyncAfterLogin() async {
     try {
+      // ✅ (2026-09-16) ردّم الحسابات المحلية المخصصة إلى السحابة قبل
+      // استئناف المزامنة — أي حساب أُنشئ محلياً ولم يصل إلى app_users/D1
+      // يُحجز في Outbox ليُرفع مع أول دفعة مزامنة (idempotent: المتزامن
+      // مسبقاً يُتخطى، وفشله لا يُعطّل استئناف المزامنة). يغطي مساري
+      // login وrestoreSession — كلاهما يستدعي هذه الدالة.
+      final backfilled = await _store.backfillLocalAccountsToCloud();
+      if (backfilled > 0) {
+        AppLogger.info(
+          'Backfilled $backfilled local account(s) to cloud after login',
+          tag: 'AUTH',
+        );
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final deviceId =
           prefs.getString('appwrite_device_id') ??
