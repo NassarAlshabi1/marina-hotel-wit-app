@@ -214,6 +214,54 @@ class PaymentsRepository {
         .map((result) => (result.data['total'] as num).toDouble());
   }
 
+  /// ✅ (2026-09-16) هوية مستلم الدفعة السحابية الثابتة.
+  ///
+  /// المشكلة: cloud_user_id لا يُحفظ في جلسة الدخول الدائمة
+  /// (AuthUser.toJson لا يضمّنه) — بعد إعادة تشغيل التطبيق تُستعاد
+  /// الجلسة بلا هوية سحابية فتُسجّل الدفعة بـ received_by_cloud_id
+  /// NULL، ويظهر صاحبها تحت هوية 'legacy:' زائفة في بطاقة الاستلامات
+  /// (نفس الشخص بسطرين على جهازين، والاستبعاد بالمعرّف يفشل).
+  ///
+  /// ترتيب الحل (الأدق أولاً):
+  /// 1. هوية الجلسة إن وُجدت — موثوقة دائماً وتُعاد كما هي.
+  /// 2. مطابقة الاسم في مرآة app_users المحلية (landing zone للسحب
+  ///    من D1): userName مصدره full_name ?? username — نفس مصدر
+  ///    التجميع في البطاقة. القبول فقط عند تطابق صف حي واحد بالضبط
+  ///    (DISTINCT local_uuid) — أي غموض (أكثر من هوية) أو لا مطابقة
+  ///    يعيد NULL = السلوك السابق، لا إسناد خاطئ أبداً.
+  ///
+  /// ملاحظة أمان: لا مطابقة بـ app_users.id عمداً — معرّف الحساب
+  /// المخصص المحلي تسلسل جهازي قد يصادف id صف مستخدم سحابي آخر
+  /// فيُنسب الدفع للشخص الخطأ.
+  Future<String?> _resolveReceiverCloudId() async {
+    final sessionCloudId = PaymentSessionContext.cloudUserId?.trim();
+    if (sessionCloudId != null && sessionCloudId.isNotEmpty) {
+      return sessionCloudId;
+    }
+    final displayName = PaymentSessionContext.userName?.trim() ?? '';
+    if (displayName.isEmpty) return null;
+    try {
+      final rows = await db
+          .customSelect(
+            'SELECT DISTINCT local_uuid FROM app_users '
+            'WHERE deleted_at IS NULL '
+            'AND (TRIM(full_name) = ? OR TRIM(username) = ?) '
+            'LIMIT 2',
+            variables: [
+              d.Variable.withString(displayName),
+              d.Variable.withString(displayName),
+            ],
+          )
+          .get();
+      if (rows.length != 1) return null;
+      final cloudId = (rows.first.data['local_uuid'] ?? '').toString().trim();
+      return cloudId.isEmpty ? null : cloudId;
+    } catch (e) {
+      dlog(() => '⚠️ تعذر تحديد هوية مستلم الدفعة السحابية: $e');
+      return null;
+    }
+  }
+
   Future<int> create({
     required double amount,
     required String paymentDate,
@@ -230,6 +278,10 @@ class PaymentsRepository {
         throw StateError('لا يمكن تسجيل دفعة دون جلسة مستخدم نشطة');
       }
       final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
+      // ✅ (2026-09-16) الهوية السحابية تُحسم قبل المعاملة — انظر
+      // [_resolveReceiverCloudId]: الجلسة أولاً، وإلا مطابقة الاسم
+      // الفريدة في مرآة app_users (الجلسة المستعادة تفقد cloud_user_id).
+      final receiverCloudId = await _resolveReceiverCloudId();
 
       String? bookingUuidCache;
       if (bookingLocalId != null) {
@@ -257,7 +309,7 @@ class PaymentsRepository {
             receivedByUserId: d.Value(PaymentSessionContext.userId),
             receivedByName: d.Value(PaymentSessionContext.userName),
             receivedSessionUuid: d.Value(PaymentSessionContext.sessionUuid),
-            receivedByCloudId: d.Value(PaymentSessionContext.cloudUserId),
+            receivedByCloudId: d.Value(receiverCloudId),
           ),
         );
         if (bookingLocalId != null) {
