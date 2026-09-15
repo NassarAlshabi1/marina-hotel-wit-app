@@ -219,16 +219,18 @@ export async function handlePull(
     const includeRemaining =
       url.searchParams.get('include_remaining') === '1';
 
-    // ✅ Self-healing data repair: progressively re-stamp legacy millisecond
-    // timestamps (mixed units permanently poison the integer pull cursor —
-    // see Database.normalizeTimestamps). Bounded per request so latency and
-    // CPU stay acceptable; repeated pulls drain the backlog to zero, after
-    // which this is a handful of indexed COUNT queries.
+    // ✅ Self-healing data repair is an explicit, one-time maintenance pass.
+    // Ordinary delta pulls must not scan every entity table just to discover
+    // that no legacy millisecond timestamps remain.
+    const normalizeTimestamps =
+      url.searchParams.get('normalize_timestamps') === '1';
     let normalization: Awaited<ReturnType<Database['normalizeTimestamps']>> | null = null;
-    try {
-      normalization = await db.normalizeTimestamps(500);
-    } catch (err) {
-      console.error('[SYNC/PULL] normalization failed (pull continues):', err);
+    if (normalizeTimestamps) {
+      try {
+        normalization = await db.normalizeTimestamps(500);
+      } catch (err) {
+        console.error('[SYNC/PULL] normalization failed (pull continues):', err);
+      }
     }
 
     const result = await db.pullChanges(

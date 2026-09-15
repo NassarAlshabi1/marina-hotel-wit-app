@@ -500,8 +500,15 @@ class UnifiedSyncOrchestrator {
     }
 
     if (push && pull) {
-      final result = await manager.sync();
-      return result.isSuccess;
+      // Pull first so a slow local outbox cannot delay visibility of remote
+      // changes when the app returns to the foreground. Bootstrap is explicit
+      // via fullSync(); foreground cycles are always delta-only.
+      final pullResult = await manager.sync(
+        push: false,
+        deltaOnly: true,
+      );
+      final pushResult = await manager.sync(pull: false);
+      return pullResult.isSuccess && pushResult.isSuccess;
     }
 
     var success = true;

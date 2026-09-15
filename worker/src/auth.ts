@@ -13,7 +13,7 @@ export interface JwtPayload {
   role: string;
   device_id?: string;
   iat: number; // issued at
-  exp: number; // expiration
+  exp?: number; // optional expiration; absent means explicitly non-expiring
 }
 
 export interface AuthContext {
@@ -183,12 +183,16 @@ export async function verifyPassword(password: string, storedHash: string): Prom
 
 // ─── JWT Token ────────────────────────────────────────────────
 
-export async function signToken(payload: Omit<JwtPayload, 'iat' | 'exp'>, secret: string, expiryHours: number = 24): Promise<string> {
+export async function signToken(
+  payload: Omit<JwtPayload, 'iat' | 'exp'>,
+  secret: string,
+  expiryHours: number | null = null,
+): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const fullPayload: JwtPayload = {
     ...payload,
     iat: now,
-    exp: now + expiryHours * 3600,
+    ...(expiryHours == null ? {} : { exp: now + expiryHours * 3600 }),
   };
 
   const header = { alg: 'HS256', typ: 'JWT' };
@@ -213,7 +217,7 @@ export async function verifyToken(token: string, secret: string): Promise<JwtPay
   try {
     const payload = JSON.parse(base64UrlDecode(payloadB64)) as JwtPayload;
     const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) return null;
+    if (typeof payload.exp === 'number' && payload.exp < now) return null;
     return payload;
   } catch {
     return null;

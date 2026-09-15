@@ -416,6 +416,9 @@ class CloudflareSyncManager {
   /// تُخزَّن في SharedPreferences لتعيش بين جلسات التطبيق.
   bool _fullSyncCompleted = false;
   static const String _kFullSyncCompletedKey = 'cf_full_sync_completed';
+  bool? _timestampNormalizationDone;
+  static const String _kTimestampNormalizationDoneKey =
+      'cf_timestamp_normalization_v1_done';
 
   /// ✅ (2026-09-08) السقف المعقول لمؤشر السحب: عتبة فصل وحدات الطوابع
   /// الزمنية (ثوانٍ مقابل ميلي ثانية). ثواني الـ epoch تبقى تحت 1e11 حتى
@@ -617,6 +620,7 @@ class CloudflareSyncManager {
   /// (visibleForTesting ليضبطه الاختبار على صفر).
   @visibleForTesting
   Duration lazyInitCooldown = const Duration(seconds: 60);
+
   /// عملية تهيئة واحدة مشتركة؛ تمنع عدة شاشات من إرسال login متزامن.
   Future<void>? _initializeInFlight;
 
@@ -641,6 +645,7 @@ class CloudflareSyncManager {
     _deviceId = deviceId ?? 'test-device';
     setStaticDeviceId(_deviceId!);
     _fullSyncCompleted = fullSyncCompleted;
+    _timestampNormalizationDone = false;
     _lastPullCursor = lastPullCursor;
     _isFullSyncInProgress = false;
     _fullSyncRemainingPages = 0;
@@ -720,6 +725,8 @@ class CloudflareSyncManager {
 
     // ✅ P0-B: استعادة علامة "full sync مكتملة" من الجلسة السابقة
     _fullSyncCompleted = prefs.getBool(_kFullSyncCompletedKey) ?? false;
+    _timestampNormalizationDone =
+        prefs.getBool(_kTimestampNormalizationDoneKey) ?? false;
     _lastPullCursor = prefs.getInt('cf_last_pull_cursor') ?? 0;
 
     // ✅ (مراجعة #2+#16) استعادة حالة الحجر الصحي للصفوف اليتيمة —
@@ -881,6 +888,10 @@ class CloudflareSyncManager {
         utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
       );
       final exp = (payload as Map<String, dynamic>)['exp'];
+      // Cloudflare issues an explicitly non-expiring token by omitting exp.
+      // It remains valid until the credentials/JWT secret are changed or the
+      // server rejects it; do not silently rotate it on an arbitrary timer.
+      if (exp == null) return false;
       if (exp is! num) return true;
       // هامش دقيقة يمنع بدء دورة طويلة بتوكن سينتهي أثناءها.
       return exp.toInt() <= DateTime.now().millisecondsSinceEpoch ~/ 1000 + 60;
@@ -1184,14 +1195,30 @@ class CloudflareSyncManager {
     // التطبيق العائد من الخلفية يملك full-sync مكتملة لكن توكنه غير محمّل،
     // فيعود المسار مبكراً ولا يحاول تسجيل الدخول حتى مع forcePull اليدوي.
     if (deltaOnly) {
-      final bool ok = await realtimeTriggeredPull(forcePull: forcePull);
+      if (_syncInProgress) {
+        return SyncResult(
+          status: SyncStatus.idle,
+          timestamp: DateTime.now(),
+          duration: Duration.zero,
+          errorMessage: 'Sync already in progress',
+        );
+      }
+      _syncInProgress = true;
+      bool ok = false;
+      String? deltaError;
+      try {
+        await _pullChanges(deltaOnly: true);
+        ok = true;
+      } catch (e) {
+        deltaError = e.toString();
+      } finally {
+        _syncInProgress = false;
+      }
       return SyncResult(
         status: ok ? SyncStatus.success : SyncStatus.idle,
         timestamp: DateTime.now(),
         duration: Duration.zero,
-        errorMessage: ok
-            ? null
-            : 'Delta-only pull skipped (full sync not completed or sync in progress)',
+        errorMessage: ok ? null : deltaError,
       );
     }
 
@@ -1246,7 +1273,7 @@ class CloudflareSyncManager {
       }
       if (pull) {
         try {
-          recordsPulled = await _pullChanges();
+          recordsPulled = await _pullChanges(deltaOnly: deltaOnly);
         } catch (e) {
           pullError = e.toString();
           // _pullChanges يسجّل أخطاءه بنفسه (شبكة/HTTP/JSON) —
@@ -1773,7 +1800,7 @@ class CloudflareSyncManager {
     }
   }
 
-  Future<int> _pullChanges() async {
+  Future<int> _pullChanges({bool deltaOnly = false}) async {
     if (_db == null) return 0;
 
     // ✅ (مراجعة 2026-09-09 #1) مسح تقارب الحذفيات لمرة واحدة —
@@ -1838,8 +1865,9 @@ class CloudflareSyncManager {
     bool hadError = false;
     String? errorMessage;
 
-    // P0-B: if full sync not yet completed, run to exhaustion
-    final wasFullSync = !_fullSyncCompleted;
+    // Full Sync is explicit (fullSync()). Normal foreground/manual pulls are
+    // bounded delta pulls even before the first Bootstrap.
+    final wasFullSync = !deltaOnly && !_fullSyncCompleted;
     if (wasFullSync) {
       _isFullSyncInProgress = true;
       _fullSyncRemainingPages = -1;
@@ -1994,6 +2022,11 @@ class CloudflareSyncManager {
         final normalization = data['normalization'];
         if (normalization is Map) {
           final remaining = normalization['remaining'];
+          if (remaining is num && remaining <= 0) {
+            _timestampNormalizationDone = true;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool(_kTimestampNormalizationDoneKey, true);
+          }
           if (remaining is int && remaining > 0) {
             logError(
               title: 'Worker: تطبيع الطوابع الزمنية غير مكتمل بعد',
@@ -2511,6 +2544,7 @@ class CloudflareSyncManager {
     required bool excludeOwnDevice,
     bool includeRemaining = false,
   }) {
+    final normalizationRequested = !(_timestampNormalizationDone ?? false);
     return _httpClient
         .get(
           Uri.parse('${CloudflareConfig.workerUrl}/api/sync/pull').replace(
@@ -2526,6 +2560,7 @@ class CloudflareSyncManager {
               // ✅ (2026-09-10) السحب الكامل فقط: COUNT خادمي للمتبقي
               // (مؤشر التقدم الدقيق) — الدلتا بلا كلفة إضافية.
               if (includeRemaining) 'include_remaining': '1',
+              if (normalizationRequested) 'normalize_timestamps': '1',
             },
           ),
           headers: {'Authorization': 'Bearer $_token'},
@@ -4026,25 +4061,23 @@ class CloudflareSyncManager {
 
   /// ✅ المرحلة 3: مدخل السحب المُشغَّل من Realtime (عقد RemoteChangePull).
   ///
-  /// - delta-only حصراً: لا يبدأ Full Sync أبداً من حدث realtime —
-  ///   لا يُسحب قبل اكتمال full sync الأولى (P0-B)؛ الـ full sync
-  ///   يجري عبر المسار الصريح فقط.
+  /// - delta-only حصراً: لا يبدأ Full Sync أبداً من حدث realtime.
   /// - حارس re-entrancy (P0-I): sync() نفسه محمي، لكن نتجنب هنا
   ///   إهدار دورة على "already in progress".
   /// - push أولاً ثم pull داخل sync() — الترتيب يضمن أن التغييرات
   ///   المحلية المعلّقة تُرفع قبل الاستماع للبعيدة (نفس عقد Outbox).
   Future<bool> realtimeTriggeredPull({bool forcePull = false}) async {
-    if (!_fullSyncCompleted) {
-      debugPrint('⏭️ Realtime pull skipped — full sync not completed yet');
-      return false;
-    }
     if (_syncInProgress) {
       debugPrint('⏭️ Realtime pull skipped — sync already in progress');
       return false;
     }
     // Delta pull فقط: الرفع الفوري مسؤولية AutoOutboxSyncWatcher،
     // ولا يجوز لمسار السحب التفاضلي أن يبدأ Full Sync أو يرفع بيانات.
-    final result = await sync(push: false, forcePull: forcePull);
+    final result = await sync(
+      push: false,
+      forcePull: forcePull,
+      deltaOnly: true,
+    );
     return result.isSuccess;
   }
 }

@@ -256,10 +256,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-      // بعد اكتمال Bootstrap لا ينبغي أن يتحول زر «سحب التغييرات» إلى
-      // Full Sync. في أول تشغيل فقط نسمح بالـ bootstrap الصريح؛ بعد ذلك
-      // يمر الطلب عبر deltaOnly، مع إبقاء forcePull لتجاوز تبريد السحب.
-      final deltaOnly = appwriteSyncManager.isFullSyncCompleted;
+      // زر «سحب التغييرات» هو Delta فقط دائماً. Bootstrap عملية صريحة من
+      // شاشة/إجراء Full Sync منفصل، ولا يجوز أن يبدأ هنا بشكل صامت.
+      const deltaOnly = true;
       final pullResult = await appwriteSyncManager.sync(
         push: false,
         forcePull: true,
