@@ -23,7 +23,6 @@ import 'providers/cloudflare_providers.dart' as cloudflare;
 import 'providers/repository_providers.dart';
 import 'providers/theme_provider.dart';
 import 'screens/ai/ai_chat_screen.dart';
-import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/bookings/bookings_list.dart';
 import 'screens/dashboard_screen.dart';
@@ -41,7 +40,6 @@ import 'screens/settings/settings_screen.dart';
 import 'services/alarm_backup.dart';
 import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
-import 'services/auto_backup_manager.dart';
 import 'services/auto_outbox_sync_watcher.dart';
 import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
@@ -56,11 +54,6 @@ import 'services/crashlytics_service.dart';
 import 'services/database_sync_coordinator.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/fcm_service.dart';
-import 'services/google_drive_auto_sync_engine.dart';
-import 'services/google_drive_backup_service.dart';
-import 'services/google_drive_conflict_resolver.dart';
-import 'services/google_drive_logger.dart';
-import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/hotel_day_key_fix_service.dart';
 import 'services/local_db.dart';
 import 'services/local_notification_service.dart';
@@ -68,17 +61,14 @@ import 'services/logging/log_models.dart';
 import 'services/posthog_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/seed.dart';
-import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';
 import 'services/sync_constants.dart';
 import 'services/sync_continuation_service.dart';
 import 'services/sync_guardian.dart';
 import 'services/sync_performance_optimizer.dart';
-import 'services/sync_queue_service.dart';
-// AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
 import 'services/worker_endpoints.dart';
-import 'utils/auto_sync_preferences.dart';
+import 'utils/connection_snackbar.dart';
 import 'utils/debug_log.dart';
 import 'utils/env.dart';
 import 'utils/hotel_day_ticker.dart';
@@ -294,9 +284,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
   try {
     final prefs = await SharedPreferences.getInstance();
-    if (!prefs.containsKey('google_drive_sync_enabled')) {
-      await prefs.setBool('google_drive_sync_enabled', false);
-    }
     if (!prefs.containsKey('appwrite_sync_enabled')) {
       await prefs.setBool('appwrite_sync_enabled', true);
     }
@@ -308,87 +295,17 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
     await unifiedOrchestrator.initialize(database: database);
 
-    // ✅ Google Drive — LAZY: only if user has previously signed in
-    final driveEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
-    if (driveEnabled) {
-      debugPrint('📝 Initializing Google Drive (enabled in settings)...');
-      final driveLogger = GoogleDriveLogger();
-      await driveLogger.initialize(minLevel: LogLevel.debug);
-
-      final backupService = GoogleDriveBackupService();
-      try {
-        final account = await backupService.attemptSilentSignIn();
-        if (account != null) {
-          debugPrint('✅ Google Drive session restored');
-          final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
-          await coordinator.initialize(
-            backupService: backupService,
-            database: database,
-            logger: driveLogger,
-          );
-          final conflictResolver = GoogleDriveConflictResolver.instance;
-          conflictResolver.initialize(driveLogger);
-          await conflictResolver.setStrategy(
-            ConflictResolutionStrategy.newerWins,
-          );
-          await conflictResolver.setConflictThreshold(30);
-
-          // SmartSync + AutoSyncEngine only if Drive is active
-          final smartSync = SmartSyncManager.instance;
-          await smartSync.initialize(backupService);
-          await unifiedOrchestrator.initialize(
-            smart: smartSync,
-            driveCoordinator: coordinator,
-            database: database,
-          );
-
-          // SyncGuardian (non-fatal)
-          try {
-            await SyncGuardian.instance.initialize(database: database);
-          } catch (e) {
-            debugPrint('SyncGuardian init (non-fatal): $e');
-          }
-
-          // WorkManager (non-fatal)
-          try {
-            await Workmanager().initialize(_unifiedCallbackDispatcher);
-            await SyncContinuationService.initialize(debug: kDebugMode);
-            await SyncContinuationService.schedulePeriodicCheck();
-          } catch (e) {
-            debugPrint('WorkManager init (non-fatal): $e');
-          }
-
-          // AutoSyncEngine
-          final autoSyncEngine = AutoSyncEngine.instance;
-          await autoSyncEngine.initialize(
-            backupService: backupService,
-            database: database,
-            logger: driveLogger,
-          );
-          await _configureAutoSyncEngine(autoSyncEngine);
-
-          final driveSyncEnabled =
-              prefs.getBool('google_drive_sync_enabled') ?? false;
-          if (backupService.isSignedIn && driveSyncEnabled) {
-            await autoSyncEngine.start();
-            await autoSyncEngine.onSignInChanged(true);
-            await smartSync.onGoogleDriveSignInChanged(true);
-          }
-
-          await SyncQueueService.instance.initialize();
-          _startEngineMonitoring(autoSyncEngine);
-          DatabaseSyncCoordinator.initialize();
-          DatabaseSyncCoordinator.registerStopCallback(() async {
-            autoSyncEngine.stop();
-          });
-        } else {
-          debugPrint('ℹ️ No Google Drive session — skipping Drive sync init');
-        }
-      } catch (e) {
-        debugPrint('Google Drive init (non-fatal): $e');
-      }
-    } else {
-      debugPrint('ℹ️ Google Drive sync disabled — skipping all Drive init');
+    // ✅ (2026-09-17) WorkManager — إكمال المزامنة في الخلفية (Cloudflare).
+    // كان تهيئة Workmanager() محصورة داخل فرع Google Drive — والافتراضي
+    // (Drive معطّل) كان يُبقي SyncContinuationService غير مهيأ فتُهمل
+    // جدولة إكمال المزامنة الخلفية بصمت عند الخروج من التطبيق.
+    // الآن يُهيّأ دائماً (مهام Cloudflare فقط بعد إزالة Drive كاملاً).
+    try {
+      await Workmanager().initialize(_unifiedCallbackDispatcher);
+      await SyncContinuationService.initialize(debug: kDebugMode);
+      await SyncContinuationService.schedulePeriodicCheck();
+    } catch (e) {
+      debugPrint('WorkManager init (non-fatal): $e');
     }
 
     // ✅ SyncGuardian + Database callbacks — always (Cloudflare sync needs these)
@@ -403,71 +320,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
   } catch (e) {
     debugPrint('❌ Sync system init failed: $e');
   }
-}
-
-Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
-  debugPrint('⚙️ Configuring Auto Sync Engine...');
-
-  const engineDebounceKey = 'auto_sync_engine_debounce';
-  const legacyDebounceKey = 'auto_sync_debounce';
-  const enginePullIntervalKey = 'auto_sync_engine_pull_interval';
-  const legacyPullIntervalKey = 'auto_sync_pull_interval';
-  const engineRetryKey = 'auto_sync_engine_retry_enabled';
-  const legacyRetryKey = 'auto_sync_retry_enabled';
-
-  final prefs = await SharedPreferences.getInstance();
-
-  final debounceSeconds = await migrateAutoSyncPreference<int>(
-    prefs: prefs,
-    newKey: engineDebounceKey,
-    legacyKey: legacyDebounceKey,
-    defaultValue: 5,
-    apply: (value) => engine.setDebounceSeconds(value),
-  );
-  debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
-
-  final pullInterval = await migrateAutoSyncPreference<int>(
-    prefs: prefs,
-    newKey: enginePullIntervalKey,
-    legacyKey: legacyPullIntervalKey,
-    defaultValue: 2,
-    apply: (value) => engine.setPullInterval(value),
-  );
-  debugPrint('   ⏰ Pull interval: ${pullInterval}min');
-
-  final retryEnabled = await migrateAutoSyncPreference<bool>(
-    prefs: prefs,
-    newKey: engineRetryKey,
-    legacyKey: legacyRetryKey,
-    defaultValue: true,
-    apply: (value) => engine.setRetryEnabled(value),
-  );
-  debugPrint('   🔁 Auto-retry: $retryEnabled');
-
-  final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
-  final strategy = ConflictResolutionStrategy.values.firstWhere(
-    (s) => s.name == conflictStrategy,
-    orElse: () => ConflictResolutionStrategy.newerWins,
-  );
-  await engine.setConflictStrategy(strategy);
-  debugPrint('   🤝 Conflict strategy: ${strategy.name}');
-
-  debugPrint('✅ Configuration complete');
-}
-
-/// يخزن اشتراك مراقبة المحرك لاستخدامه في Dispose
-StreamSubscription<void>? _globalEngineMonitoringSub;
-
-void _startEngineMonitoring(AutoSyncEngine engine) {
-  _globalEngineMonitoringSub?.cancel();
-  _globalEngineMonitoringSub = engine.stateStream.listen((state) {
-    debugPrint(
-      '📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
-      'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
-      'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
-      'Pending: ${state.pendingChangesCount}',
-    );
-  });
 }
 
 class App extends ConsumerStatefulWidget {
@@ -530,7 +382,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         AppSessionManager.configure(
           database: DatabaseManager.instance,
           deviceIdResolver: () async =>
-              GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
+              ref.read(cloudflare.cloudflareSyncManagerProvider).currentDeviceId,
           syncManager: ref.read(cloudflare.cloudflareSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
@@ -706,8 +558,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           debugPrint('Initial sync on app start failed: $e');
         }
 
-        var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
-        deviceId ??= syncManager.currentDeviceId;
+        var deviceId = syncManager.currentDeviceId;
         if (deviceId == null) {
           final prefs = await SharedPreferences.getInstance();
           deviceId = prefs.getString('appwrite_realtime_device_id');
@@ -903,7 +754,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   @override
   void dispose() {
     // Realtime sync stopped
-    _globalEngineMonitoringSub?.cancel();
     _localAutoSyncSub?.cancel();
     _conflictSubscription?.cancel();
     _localAutoSyncDebounce?.cancel();
@@ -950,11 +800,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('Error disposing SyncPerformanceOptimizer: $e');
     }
     try {
-      await SmartSyncManager.disposeInstance();
-    } catch (e, st) {
-      debugPrint('Error disposing SmartSyncManager: $e');
-    }
-    try {
       ConnectivityService.instance.dispose();
     } catch (e, st) {
       debugPrint('Error disposing ConnectivityService: $e');
@@ -965,19 +810,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint('Error disposing HotelDayTicker: $e');
     }
     try {
-      AutoSyncEngine.disposeInstance();
-    } catch (e, st) {
-      debugPrint('Error disposing GoogleDriveAutoSyncEngine: $e');
-    }
-    try {
       UnifiedSyncOrchestrator.disposeInstance();
     } catch (e, st) {
       debugPrint('Error disposing UnifiedSyncOrchestrator: $e');
-    }
-    try {
-      GoogleDriveUnifiedSyncCoordinator.disposeInstance();
-    } catch (e, st) {
-      debugPrint('Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
     }
     try {
       CentralSyncCoordinator.disposeInstance();
@@ -995,12 +830,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e, st) {
       debugPrint('Error disposing SyncConflictEventBus: $e');
     }
-    // ✅ Batch 3: تنظيف AutoBackupManager timers + SmartSyncManager timers
-    try {
-      AutoBackupManager.disposeInstance();
-    } catch (e, st) {
-      debugPrint('Error disposing AutoBackupManager: $e');
-    }
+    // ✅ (2026-09-17) أُزيل تنظيف AutoBackupManager/SmartSyncManager —
+    // نظام Google Drive محذوف بالكامل.
     // ✅ Batch 3: تنظيف SyncGuardian timer + StreamController
     try {
       await SyncGuardian.disposeInstance();
@@ -1030,13 +861,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       AppSessionManager.onAppOpen().catchError(
         (Object e, StackTrace s) => derr(() => 'Error in onAppOpen: $e\n$s'),
       );
-      ref
-          .read(backupStatusProvider.notifier)
-          .refreshSignInStatus()
-          .catchError(
-            (Object e, StackTrace s) =>
-                derr(() => 'Error in refreshSignInStatus: $e\n$s'),
-          );
       // ✅ P0-2 (تدقيق معماري 2026-09-07): مشغّل وحيد للعودة من الخلفية —
       // دورة واحدة متسلسلة (رفع ثم سحب) تحت الموتكس مرة واحدة.
       // كانت هنا _syncOnResume() (push) + onAppForeground() (pull)
@@ -1109,23 +933,16 @@ class RootRouter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    final backup = ref.watch(backupStatusProvider);
-    // ✅ (2026-09-08) بوابة GoogleDriveLoginScreen مُعادة كما كانت —
-    // طلب المستخدم: «لا تقم بإزالة بوابة GoogleDriveLoginScreen من
-    // التوجيه — كانت حائط دخول Drive قبل شاشة دخول التطبيق».
-    // ملاحظة مهمة: هذا حائط *واجهة* لدخول Google Drive (النسخ
-    // الاحتياطي) فقط؛ سحب Cloudflare الكامل لا يبدأ من هذا الحاجز، بل
-    // من اختيار «المتابعة بدون مزامنة» مرة واحدة. يُتخطى الحاجز بعد
-    // تسجيل دخول Drive أو اختيار
-    // التخطي (requiresDriveLogin = !isSignedIn && !driveLoginSkipped).
+    // ✅ (2026-09-17) أُزيلت بوابة GoogleDriveLoginScreen كاملة بطلب
+    // المستخدم («مزامنة appwrite و sync google drive لا احتاجها نهائياً"):
+    // لم يبقَ أي تكامل Drive في التطبيق. السحب الكامل الأول يعمل عبر
+    // BootstrapFullPull.ensureFullPullOnLaunch (توكن الخدمة الافتراضي)
+    // فيصل بيانات Cloudflare D1 حتى قبل تسجيل دخول المستخدم.
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(body: Center(child: CircularProgressIndicator())),
       );
-    }
-    if (!auth.isAuthenticated && backup.requiresDriveLogin) {
-      return const GoogleDriveLoginScreen();
     }
     if (auth.isAuthenticated) {
       return const HomeShell();
@@ -1143,26 +960,26 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   String _currentRoute = '/dashboard';
 
+  // ✅ (2026-09-17) إشعار الاتصال الحقيقي في الشاشة الرئيسية — حالة
+  // العرض وقرار التغيّر (التفاصيل في utils/connection_snackbar.dart).
+  ConnectionSignature? _lastShownConnectionSignature;
+  DateTime? _lastConnectionSnackbarAt;
+
   @override
   void initState() {
     super.initState();
-    // ✅ (2026-09-06) طلب المستخدم: «عند تثبيت التطبيق والضغط على زر
-    // المتابعة بدون مزامنة يتم سحب full sync» — إعادة محاولة تلقائية
-    // للسحب الكامل عند كل إطلاق إذا اختار المستخدم التخطي ولم يكتمل
-    // السحب بعد. ثغرة ما قبل الإصلاح: محاولة التخطي الوحيدة كانت
-    // fire-and-forget لحظة التخطي، وفشلها (لا شبكة / worker غير متاح)
-    // كان يترك قاعدة البيانات فارغة إلى ما لا نهاية لأن شاشة الدخول
-    // لا تظهر مجدداً بعد التخطي (requiresDriveLogin=false) والمسارات
-    // الخلفية deltaOnly ترفض بدء full sync على جهاز bootstrap.
-    // BootstrapFullPull idempotent: لا تنفّذ إذا سبق إنجاز السحب
-    // بأي مسار، والاستدعاء المتداخل مع نداء التخطي الفوري محمي
-    // بـ in-flight guard.
-    unawaited(_bootstrapFullPullAfterSkip());
+    // ✅ (2026-09-06→2026-09-17) السحب الكامل عند الإطلاق: كان مسار
+    // «المتابعة بدون مزامنة» (شاشة Drive المحذوفة) هو مُحرّك السحب
+    // الكامل الأول. بعد إزالة بوابة Drive صار مسار الإطلاق
+    // ensureFullPullOnLaunch هو المدخل: يعمل عبر توكن الخدمة الافتراضي
+    // دون شرط تخطٍ، idempotent (علامة الإتمام/isFullSyncCompleted
+    // تقرّب أي مسار سابق)، والفشل يُعاد عند الإطلاق التالي.
+    unawaited(_bootstrapFullPullOnLaunch());
   }
 
-  Future<void> _bootstrapFullPullAfterSkip() async {
+  Future<void> _bootstrapFullPullOnLaunch() async {
     try {
-      await BootstrapFullPull.ensureFullPullAfterSkip(
+      await BootstrapFullPull.ensureFullPullOnLaunch(
         manager: ref.read(appwrite.appwriteSyncManagerProvider),
       );
     } catch (e) {
@@ -1238,6 +1055,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ (2026-09-17) طلب المستخدم: «واشعار snake bar يجب ان يكون حقيقي
+    // في الشاشة الرئيسية» — استماع لنتيجة فحص الاتصال التلقائي (Worker +
+    // D1 — المهمة 7) وعرض SnackBar تحمل النتيجة الفعلية: أول فحص مكتمل
+    // بعد الفتح/الاستئناف يُعرض دائماً، ثم عند تغيّر الحالة فقط (دورة
+    // الـ 60 ث بنفس الحالة صامتة) — القرار والرسائل في connection_snackbar.dart.
+    ref.listen<appwrite.ConnectionState>(
+      appwrite.connectionStatusProvider,
+      (previous, next) => _maybeShowConnectionSnackbar(next),
+    );
+
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
     final body = allowed
@@ -1251,6 +1078,64 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       body: body,
       actions: actions,
       onRouteSelected: _navigateToRoute,
+    );
+  }
+
+  /// عرض إشعار الاتصال الحقيقي عند اكتمال فحص (أول مرة أو بعد تغيّر).
+  void _maybeShowConnectionSnackbar(appwrite.ConnectionState next) {
+    // أثناء الفحص أو قبل اكتمال أول فحص — لا شيء بعد (لا وميض كاذب).
+    if (next.isChecking || next.lastCheckedAt == null) {
+      return;
+    }
+    final current = (
+      next.isConnected,
+      next.isD1Connected,
+    );
+    final now = DateTime.now();
+    if (!shouldShowConnectionSnackbar(
+      previous: _lastShownConnectionSignature,
+      current: current,
+      lastShownAt: _lastConnectionSnackbarAt,
+      now: now,
+    )) {
+      return;
+    }
+
+    _lastShownConnectionSignature = current;
+    _lastConnectionSnackbarAt = now;
+
+    final view = buildConnectionSnackbar(
+      connectionSnackbarKindFor(
+        isConnected: next.isConnected,
+        isD1Connected: next.isD1Connected,
+      ),
+      d1LatencyMs: next.d1LatencyMs,
+      d1Error: next.d1Error,
+    );
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      return;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(view.icon, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                view.message,
+                style: const TextStyle(fontFamily: 'Tajawal'),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: view.backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        duration: view.duration,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
     );
   }
 
@@ -1326,14 +1211,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 // المهام المُغطّاة:
 // - marina_sync_completion_immediate (SyncContinuationService)
 // - marina_sync_completion (SyncContinuationService periodic)
-// - marina_auto_sync_now (AutoSyncTask)
-// - marina_auto_sync_periodic (AutoSyncTask)
+// - marina_auto_sync_now (AutoSyncTask — مزامنة Cloudflare الخلفية)
+// - marina_auto_sync_periodic (AutoSyncTask — الدورية)
 // - backupAfterInactivity (AppSessionManager)
 // - marina-hotel-background-sync (BackgroundSyncService legacy)
 // - marina-hotel-periodic-sync (BackgroundSyncService legacy)
 // - marina-hotel-battery-aware-sync (BackgroundSyncService legacy)
 // - autoBackup / autoBackupTask
 // - default → محاولة المزامنة كـ fallback
+//
+// ✅ (2026-09-17) مهام AutoSyncTask بقيت (يُسجلها SyncGuardian) لكنها
+// Cloudflare-only بعد إزالة Google Drive كاملاً.
 
 @pragma('vm:entry-point')
 void _unifiedCallbackDispatcher() {
@@ -1480,19 +1368,19 @@ Future<bool> _executeSyncCompletionTask(
   }
 }
 
-/// تنفيذ مهمة AutoSyncTask (Google Drive)
+/// تنفيذ مهمة AutoSyncTask (مزامنة Cloudflare الخلفية)
 Future<bool> _executeAutoSyncTask(
   String task,
   Map<String, dynamic>? inputData,
 ) async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    final googleDriveEnabled =
-        prefs.getBool('google_drive_sync_enabled') ?? false;
+    final cloudflareEnabled =
+        prefs.getBool('appwrite_sync_enabled') ?? true;
 
-    if (!googleDriveEnabled) {
+    if (!cloudflareEnabled) {
       developer.log(
-        'ℹ️ [AutoSyncTask] Google Drive معطّل — تخطّي',
+        'ℹ️ [AutoSyncTask] مزامنة Cloudflare معطلة — تخطّي',
         name: 'AutoSyncTask',
       );
       return true;

@@ -9,8 +9,8 @@ import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/backup_serializers.dart';
-import 'package:marina_hotel_mobile/services/google_drive_backup_service.dart'
-    show BackupFormat, BackupMetadata, GoogleDriveBackupService;
+import 'package:marina_hotel_mobile/services/backup_data_service.dart'
+    show BackupFormat, BackupMetadata, BackupDataService;
 import 'package:marina_hotel_mobile/services/local_backup_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sqlite_backup_restore.dart';
@@ -231,13 +231,13 @@ void main() {
       expect(backupData, containsPair('inventory_items', isEmpty));
       expect(backupData, containsPair('inventory_transactions', isEmpty));
 
-      final hash = GoogleDriveBackupService.computeBackupChecksum(backupData);
+      final hash = BackupDataService.computeBackupChecksum(backupData);
       (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = hash;
-      expect(GoogleDriveBackupService.verifyBackupChecksum(backupData), isTrue);
+      expect(BackupDataService.verifyBackupChecksum(backupData), isTrue);
 
       (backupData['inventory_items'] as List<dynamic>).add({'name': 'تعديل'});
       expect(
-        GoogleDriveBackupService.verifyBackupChecksum(backupData),
+        BackupDataService.verifyBackupChecksum(backupData),
         isFalse,
       );
     });

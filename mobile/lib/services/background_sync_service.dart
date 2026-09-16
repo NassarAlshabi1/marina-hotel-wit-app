@@ -9,8 +9,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'analytics_service.dart';
+import 'appwrite_sync_manager.dart';
 import 'battery_optimizer.dart';
-import 'smart_sync_manager.dart';
 
 /// معرف مهمة المزامنة في الخلفية
 const String backgroundSyncTask = 'marina-hotel-background-sync';
@@ -273,8 +273,10 @@ class BackgroundSyncService {
       }
 
       // تنفيذ المزامنة
-      final syncManager = SmartSyncManager.instance;
-      await syncManager.syncNow();
+      // ✅ (2026-09-17) Cloudflare-only: كان الرفع عبر SmartSyncManager
+      // (Google Drive) — بعد حذف Drive صار المسار مدير Cloudflare الحقيقي.
+      final syncManager = CloudflareSyncManager.instance;
+      await syncManager.sync();
 
       stopwatch.stop();
 

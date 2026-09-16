@@ -9,8 +9,6 @@ import '../services/booking_price_adjustment_service.dart';
 import '../services/conflict_manager.dart';
 import '../services/daos/sync_log_dao.dart';
 import '../services/gemini_service.dart';
-import '../services/google_drive_backup_service.dart';
-import '../services/google_drive_conflict_resolver.dart';
 import '../services/local_backup_service.dart';
 import '../services/price_adjustment_service.dart';
 import '../services/repositories/payments_repository.dart';
@@ -58,23 +56,12 @@ final geminiServiceProvider = Provider<GeminiService>((ref) {
   return GeminiService.instance;
 });
 
-final googleDriveConflictResolverProvider =
-    Provider<GoogleDriveConflictResolver>((ref) {
-      return GoogleDriveConflictResolver.instance;
-    });
-
 final alarmBackupProvider = Provider<AlarmBackup>((ref) {
   return AlarmBackup();
 });
 
 final appwriteLoggerProvider = Provider<AppwriteLogger>((ref) {
   return AppwriteLogger();
-});
-
-final googleDriveBackupServiceProvider = Provider<GoogleDriveBackupService>((
-  ref,
-) {
-  return GoogleDriveBackupService();
 });
 
 final bookingPriceAdjustmentServiceProvider =

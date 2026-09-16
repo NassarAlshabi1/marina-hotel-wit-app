@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
-import '../../providers/backup_provider.dart';
 import '../../services/appwrite_logger.dart';
 import '../../services/logging/log_models.dart';
 import '../../utils/debug_logs.dart';
@@ -88,7 +87,6 @@ class _ErrorCenterScreenState extends ConsumerState<ErrorCenterScreen> {
     List<TrackedError> cloudflare,
     List<TrackedError> sync,
     List<LogEntry> appwrite,
-    List<LogEntry> drive,
     List<String> debug,
   ) {
     final buffer = StringBuffer();
@@ -102,10 +100,7 @@ class _ErrorCenterScreenState extends ConsumerState<ErrorCenterScreen> {
       buffer.writeln('[SYNC] ${e.toFormattedString()}');
     }
     for (final e in appwrite) {
-      buffer.writeln('[APPWRITE] ${e.toFormattedString()}');
-    }
-    for (final e in drive) {
-      buffer.writeln('[DRIVE] ${e.toFormattedString()}');
+      buffer.writeln('[CLOUDFLARE] ${e.toFormattedString()}');
     }
     for (final e in debug) {
       buffer.writeln('[DEBUG] $e');
@@ -116,10 +111,8 @@ class _ErrorCenterScreenState extends ConsumerState<ErrorCenterScreen> {
   @override
   Widget build(BuildContext context) {
     final appwriteLogs = ref.watch(appwriteLogsProvider);
-    final driveLogs = ref.watch(googleDriveLogsProvider);
 
     final appwriteErrors = _onlyErrors(appwriteLogs);
-    final driveErrors = _onlyErrors(driveLogs);
     final debugEntries = DebugLogs.entries;
 
     final workerErrors = _storeByCategories([ErrorCategory.worker]);
@@ -146,7 +139,6 @@ class _ErrorCenterScreenState extends ConsumerState<ErrorCenterScreen> {
             cloudflareErrors,
             syncErrors,
             appwriteErrors,
-            driveErrors,
             debugEntries,
           ),
         ),
@@ -157,7 +149,6 @@ class _ErrorCenterScreenState extends ConsumerState<ErrorCenterScreen> {
             DebugLogs.clear();
             ErrorTrackerStore.instance.clear();
             ref.read(appwriteLoggerProvider).clearLogs();
-            ref.read(googleDriveLoggerProvider).clearLogs();
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات.')));
@@ -185,14 +176,9 @@ class _ErrorCenterScreenState extends ConsumerState<ErrorCenterScreen> {
                 color: Colors.indigo,
               ),
               (
-                label: 'Appwrite',
+                label: 'Cloudflare (سجل التطبيق)',
                 count: appwriteErrors.length,
                 color: Colors.teal,
-              ),
-              (
-                label: 'Google Drive',
-                count: driveErrors.length,
-                color: Colors.deepOrange,
               ),
             ],
             debugCount: debugEntries.length,
@@ -217,15 +203,9 @@ class _ErrorCenterScreenState extends ConsumerState<ErrorCenterScreen> {
           ),
           const SizedBox(height: 12),
           _ErrorSection(
-            title: 'أخطاء Appwrite',
+            title: 'أخطاء Cloudflare (سجل التطبيق)',
             color: Colors.teal,
             entries: appwriteErrors.map(_toViewEntry).toList(),
-          ),
-          const SizedBox(height: 12),
-          _ErrorSection(
-            title: 'أخطاء Google Drive',
-            color: Colors.deepOrange,
-            entries: driveErrors.map(_toViewEntry).toList(),
           ),
           const SizedBox(height: 12),
           _ErrorSection(

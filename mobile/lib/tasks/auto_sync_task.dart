@@ -20,23 +20,19 @@ void autoSyncCallbackDispatcher() {
       WidgetsFlutterBinding.ensureInitialized();
       DartPluginRegistrant.ensureInitialized();
 
+      // ✅ (2026-09-17) Cloudflare-only: أُزيلت بوابة Google Drive —
+      // المسار السحابي الوحيد هو appwrite_sync_enabled (مفتاح مزامنة
+      // Cloudflare التاريخي). مفتاح الإيقاف الداخلي في syncNow() يبقى
+      // صاحب القرار النهائي.
       final prefs = await SharedPreferences.getInstance();
-      final googleDriveEnabled =
-          prefs.getBool('google_drive_sync_enabled') ?? false;
-
-      // ✅ (fix M5) البوابة كانت تُخرج مبكراً إن لم يكن مزامنة Google Drive
-      // مفعّلاً — فجهاز على مسار Cloudflare فقط (appwrite_sync_enabled هو
-      // المفتاح الرئيسي للمسار السحابي ويغطي Cloudflare) ظل بلا مزامنة
-      // خلفية إطلاقاً. الآن نكمل إذا كان أي مسار سحابي مفعّلاً — مفتاح
-      // الإيقاف الداخلي في syncNow() يبقى صاحب القرار النهائي.
       final cloudPathEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
-      if (!googleDriveEnabled && !cloudPathEnabled) {
+      if (!cloudPathEnabled) {
         return true;
       }
 
       final success = await UnifiedSyncOrchestrator.instance.syncNow(
-        reason: 'google_drive_background_task',
+        reason: 'cloudflare_background_task',
       );
 
       if (success) {
@@ -67,14 +63,13 @@ class AutoSyncTask {
   static bool _initialized = false;
 
   /// ✅ P0-7 fix: تهيئة موحّدة — لا نُهيّئ Workmanager هنا
-  /// Workmanager يُهيّأ مرة واحدة فقط من BackgroundSyncService
+  /// Workmanager يُهيّأ مرة واحدة فقط من المُوزّع الموحّد في main.dart
   /// هذا يمنع تعدّد المُوزّعات الذي يكسر المهام الخلفية
   static Future<void> initialize({bool debug = false}) async {
     if (_initialized) {
       return;
     }
     WidgetsFlutterBinding.ensureInitialized();
-    // ✅ P0-7: لا نُهيّئ Workmanager هنا — يُهيّأ من مكان واحد موحّد
     _initialized = true;
   }
 

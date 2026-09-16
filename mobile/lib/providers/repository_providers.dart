@@ -41,11 +41,10 @@ import '../utils/weak_device_optimizer.dart';
 import 'auth_provider.dart';
 
 // إضافة Auto Backup Providers
-export '../providers/auto_backup_provider.dart';
 // إضافة Backup Providers
 export '../providers/backup_provider.dart';
-// إضافة Smart Sync Providers
-export '../providers/smart_sync_provider.dart';
+// ✅ (2026-09-17) أُزيلت تصديرات auto_backup_provider و smart_sync_provider
+// — نظام Google Drive محذوف بالكامل بطلب المستخدم.
 
 final syncGuardianProvider = Provider<SyncGuardian>(
   (ref) => SyncGuardian.instance,

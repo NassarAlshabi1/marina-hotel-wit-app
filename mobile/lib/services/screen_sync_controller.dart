@@ -5,7 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/debug_log.dart';
 // ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
 // بالكامل. لا حاجة لاستيراده هنا.
-import 'smart_sync_manager.dart';
+import 'appwrite_sync_manager.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_core/retry_strategy.dart';
 import 'sync_core/sync_error_handler.dart';
@@ -107,8 +107,8 @@ class ScreenSyncController {
         return false;
       }
 
-      if (!SmartSyncManager.instance.isDriveSignedIn) {
-        dlog(() => '🔒 [$screenId] المستخدم غير مسجل في Google Drive');
+      if (!hasConnection) {
+        dlog(() => '📴 [$screenId] لا يوجد اتصال — سيُرفع لاحقاً عبر Outbox');
         return false;
       }
 
@@ -122,7 +122,12 @@ class ScreenSyncController {
         operation: () async {
           return _circuitBreaker.execute(() async {
             dlog(() => '🌐 [$screenId] بدء المزامنة مع الحماية...');
-            return SmartSyncManager.instance.pushLocalChanges();
+            // ✅ (2026-09-17) Cloudflare-only: كان الرفع عبر SmartSyncManager
+            // (Google Drive) — بعد حذف Drive صار الرفع لمدير Cloudflare
+            // الحقيقي. pushLocalChanges ترمي عند الفشل (يُفعّل إعادة
+            // المحاولة) وتُنجز بنجاح عند اكتمال الرفع.
+            await CloudflareSyncManager.instance.pushLocalChanges();
+            return true;
           });
         },
         shouldRetry: (error) {

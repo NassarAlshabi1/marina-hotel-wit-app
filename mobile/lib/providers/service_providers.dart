@@ -44,9 +44,8 @@ import '../services/sync_orchestrator.dart';
 import '../services/sync_performance_optimizer.dart';
 import 'repository_providers.dart';
 
-// إعادة تصدير googleDriveBackupServiceProvider من backup_provider
-// لأنه مُعرَّف هناك بالفعل مع ref.keepAlive() ويُستخدم في مزودات أخرى.
-export 'backup_provider.dart' show googleDriveBackupServiceProvider;
+// ✅ (2026-09-17) أُزيل إعادة تصدير googleDriveBackupServiceProvider —
+// نظام Google Drive محذوف بالكامل بطلب المستخدم.
 // إعادة تصدير diagnosticsLoggerProvider من repository_providers
 // لأنه مُعرَّف هناك بالفعل كـ ChangeNotifierProvider.
 export 'repository_providers.dart' show diagnosticsLoggerProvider;

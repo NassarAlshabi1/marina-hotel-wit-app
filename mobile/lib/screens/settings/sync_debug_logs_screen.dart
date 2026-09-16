@@ -4,9 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../providers/smart_sync_provider.dart';
+import '../../providers/appwrite_providers.dart';
+import '../../services/cloudflare_config.dart';
 import '../../utils/debug_logs.dart';
 
+/// ✅ (2026-09-17) Cloudflare-only: كانت هذه الشاشة تعرض حالة/أزرار
+/// SmartSync (Google Drive) — أُزيل نظام Drive كاملاً بطلب المستخدم.
+/// عُيدت كتابتها لتعرض الحالة الحقيقية لمزامنة Cloudflare D1 (المدير
+/// الفعلي) مع بقية عارض السجلات كما هو.
 class SyncDebugLogsScreen extends ConsumerStatefulWidget {
   const SyncDebugLogsScreen({super.key});
 
@@ -37,24 +42,33 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
     }
   }
 
-  Future<void> _forceSync() async {
+  Future<void> _syncNow() async {
     await _withBusy(() async {
-      await ref.read(smartSyncManagerProvider).forceSyncNow();
-      ref.invalidate(smartSyncStatusProvider);
+      final manager = ref.read(appwriteSyncManagerProvider);
+      if (manager.token == null) {
+        await manager.initialize();
+      }
+      await manager.sync();
     });
   }
 
   Future<void> _pushLocal() async {
     await _withBusy(() async {
-      await ref.read(smartSyncManagerProvider).pushLocalChanges();
-      ref.invalidate(smartSyncStatusProvider);
+      final manager = ref.read(appwriteSyncManagerProvider);
+      if (manager.token == null) {
+        await manager.initialize();
+      }
+      await manager.sync(pull: false);
     });
   }
 
   Future<void> _pullRemote() async {
     await _withBusy(() async {
-      await ref.read(smartSyncManagerProvider).pullRemoteChanges();
-      ref.invalidate(smartSyncStatusProvider);
+      final manager = ref.read(appwriteSyncManagerProvider);
+      if (manager.token == null) {
+        await manager.initialize();
+      }
+      await manager.sync(push: false, deltaOnly: true, forcePull: true);
     });
   }
 
@@ -138,55 +152,47 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
   }
 
   Widget _buildStatusCard(BuildContext context) {
-    final statusAsync = ref.watch(smartSyncStatusProvider);
+    final connection = ref.watch(connectionStatusProvider);
+    final manager = ref.read(appwriteSyncManagerProvider);
+    final checked = connection.lastCheckedAt != null;
     return Card(
       margin: const EdgeInsets.all(16),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: statusAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('خطأ: $e')),
-          data: (status) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.memory,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'حالة مدير المزامنة',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildStatusRow(
-                'معرف الجهاز',
-                (status['device_id'] ?? '---') as String,
-              ),
-              _buildStatusRow(
-                'تفعيل المزامنة',
-                (status['enabled'] as bool? ?? false) ? 'مفعل' : 'معطل',
-              ),
-              _buildStatusRow(
-                'تسجيل الدخول',
-                (status['signed_in'] as bool? ?? false) ? 'متصل' : 'غير متصل',
-              ),
-              _buildStatusRow(
-                'المراقبة الدورية',
-                (status['monitoring_active'] as bool? ?? false)
-                    ? 'نشطة'
-                    : 'متوقفة',
-              ),
-              _buildStatusRow(
-                'آخر فحص',
-                (status['last_sync_check'] ?? '---') as String,
-              ),
-            ],
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.memory,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'حالة مزامنة Cloudflare',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildStatusRow('معرف الجهاز', manager.currentDeviceId ?? '---'),
+            _buildStatusRow('نقطة النهاية', CloudflareConfig.workerUrl),
+            _buildStatusRow(
+              'Worker',
+              checked
+                  ? (connection.isConnected ? 'متصل' : 'غير متصل')
+                  : 'لم يُفحص بعد',
+            ),
+            _buildStatusRow(
+              'قاعدة D1',
+              connection.isD1Connected == null
+                  ? 'لم تُفحص بعد'
+                  : (connection.isD1Connected!
+                        ? 'تستجيب${connection.d1LatencyMs == null ? '' : ' (${connection.d1LatencyMs}ms)'}'
+                        : (connection.d1Error ?? 'لا تستجيب')),
+            ),
+          ],
         ),
       ),
     );
@@ -198,9 +204,18 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
       child: Row(
         children: [
           Expanded(
-            child: Text(label, style: const TextStyle(color: Colors.grey)),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13),
+            ),
           ),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -208,34 +223,34 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
 
   Widget _buildActionsRow(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
         children: [
-          _buildActionButton(Icons.sync, 'مزامنة الآن', _forceSync),
-          _buildActionButton(Icons.cloud_upload, 'رفع محلي', _pushLocal),
-          _buildActionButton(Icons.cloud_download, 'سحب جديد', _pullRemote),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _isBusy ? null : _syncNow,
+              icon: const Icon(Icons.sync, size: 18),
+              label: const Text('مزامنة كاملة'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FilledButton.tonalIcon(
+              onPressed: _isBusy ? null : _pushLocal,
+              icon: const Icon(Icons.upload, size: 18),
+              label: const Text('رفع'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FilledButton.tonalIcon(
+              onPressed: _isBusy ? null : _pullRemote,
+              icon: const Icon(Icons.download, size: 18),
+              label: const Text('سحب'),
+            ),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildActionButton(
-    IconData icon,
-    String label,
-    Future<void> Function() onPressed,
-  ) {
-    return ElevatedButton.icon(
-      onPressed: _isBusy ? null : () => onPressed(),
-      icon: _isBusy
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(icon, size: 18),
-      label: Text(label),
     );
   }
 }

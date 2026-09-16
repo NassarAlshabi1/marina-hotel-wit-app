@@ -6,7 +6,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
-import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
 import 'telegram/telegram_config.dart';
 import 'telegram/telegram_report_service.dart';
@@ -96,7 +95,6 @@ class AlarmBackup {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final enableGoogleDrive = prefs.getBool('auto_backup_enabled') ?? false;
       final enableLocal = prefs.getBool('auto_local_backup_enabled') ?? true;
 
       final localService = LocalBackupService();
@@ -110,24 +108,6 @@ class AlarmBackup {
           dlog(() => '❌ Local backup error: $e');
         }
       }
-
-      if (enableGoogleDrive) {
-        try {
-          final drive = GoogleDriveBackupService();
-
-          // حاول تسجيل الدخول بهدوء
-          final signed = await drive.signInSilentlyIfNeeded();
-          if (signed) {
-            await drive.performAutoBackup();
-            dlog('✅ Drive backup done from alarm');
-          } else {
-            dlog('⚠️ Drive not signed in (alarm). Notifying user...');
-            await _showOpenAppNotification();
-          }
-        } catch (e) {
-          dlog(() => '❌ Drive backup error: $e');
-        }
-      }
     } catch (e) {
       dlog(() => '❌ Alarm backup general error: $e');
     } finally {
@@ -139,23 +119,6 @@ class AlarmBackup {
       final minute = int.tryParse(parts[1]) ?? 0;
       await scheduleDailyAlarm(hour, minute);
     }
-  }
-
-  static Future<void> _showOpenAppNotification() async {
-    const androidDetails = AndroidNotificationDetails(
-      'backup_channel',
-      'النسخ الاحتياطي',
-      channelDescription: 'إشعارات النسخ الاحتياطي',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-    const details = NotificationDetails(android: androidDetails);
-    await _notif.show(
-      0,
-      '🔐 تسجيل الدخول لمزامنة Google Drive',
-      'يرجى فتح التطبيق لتسجيل الدخول وإكمال النسخة الاحتياطية',
-      details,
-    );
   }
 
   /// إلغاء الإنذار

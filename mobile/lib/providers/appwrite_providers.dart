@@ -11,7 +11,6 @@ import '../services/appwrite_sync_manager.dart';
 import '../services/cloudflare_config.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/providers.dart';
-import '../services/smart_sync_manager.dart';
 import '../services/unified_sync_orchestrator.dart';
 import '../services/worker_endpoints.dart';
 import '../utils/env.dart';
@@ -103,11 +102,8 @@ final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
   // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
-  final smart = SmartSyncManager.instance;
   final orch = UnifiedSyncOrchestrator.instance;
-  unawaited(
-    orch.initialize(appwrite: appwriteSync, smart: smart, database: db),
-  );
+  unawaited(orch.initialize(appwrite: appwriteSync, database: db));
   return orch;
 });
 

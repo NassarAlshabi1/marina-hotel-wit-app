@@ -12,7 +12,6 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
-import '../../providers/auto_sync_engine_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
@@ -24,13 +23,12 @@ import '../../utils/env.dart';
 import '../../widgets/settings/collapsible_section.dart';
 // ✅ (2026-09-10) إعادة تنظيم UI: شاشات تشخيصية كانت يتيمة (بلا مدخل
 // تنقل) — استعادة الوصول إليها من قسم مطوي أدناه، بلا تغيير وظائف.
-import 'auto_sync_engine_monitor_screen.dart';
+// ✅ (2026-09-17) أُزيلت شاشات Drive/Appwrite الميتة (مقارنة مخطط
+// Appwrite/مراقبة محرك Drive/إعدادات المزامنة الذكية) — نظام Drive محذوف.
 import 'data_protection_screen.dart';
 import 'database_fixer_screen.dart';
 import 'restore_fix_screen.dart';
-import 'schema_comparison_screen.dart';
 import 'server_id_fixer_screen.dart';
-import 'smart_sync_settings_screen.dart';
 import 'sync_conflicts_screen.dart';
 import 'sync_debug_logs_screen.dart';
 import 'sync_history_screen.dart';
@@ -394,27 +392,6 @@ class _SettingsMaintenanceScreenState
         Icons.healing,
         Colors.indigo,
         const RestoreFixScreen(),
-      ),
-      tile(
-        'مقارنة بنية قاعدة البيانات',
-        'مراجعة تطابق الجداول والأعمدة',
-        Icons.compare_arrows,
-        Colors.purple,
-        const SchemaComparisonScreen(),
-      ),
-      tile(
-        'محرك المزامنة التلقائي',
-        'مراقبة محرك المزامنة وإحصائيات التضارب',
-        Icons.speed,
-        Colors.amber.shade700,
-        const AutoSyncEngineMonitorScreen(),
-      ),
-      tile(
-        'المزامنة التلقائية الذكية',
-        'حالة المزامنة الذكية وفترة الفحص وأولوية الجهاز',
-        Icons.auto_mode,
-        Colors.blue,
-        const SmartSyncSettingsScreen(),
       ),
       tile(
         'تحسين أداء المزامنة',
@@ -1229,7 +1206,6 @@ class _SettingsMaintenanceScreenState
                 _showLoading('جاري إعادة تشغيل الخدمات...');
                 try {
                   await ref.read(syncGuardianProvider).restart();
-                  await ref.read(autoSyncEngineProvider).restart();
                   _hideLoading();
                   _showSnack(
                     'تم إعادة تشغيل الخدمات بنجاح',

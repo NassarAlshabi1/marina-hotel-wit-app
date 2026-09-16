@@ -91,6 +91,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
+  /// ✅ (2026-09-17) تسمية صادقة: المفتاح التاريخي appwrite_sync_enabled
+  /// يبوّب مزامنة Cloudflare (لا وجود لخدمة Appwrite) — القراءة كما هي
+  /// حفاظاً على إعدادات التركيبات القائمة.
   Future<bool> _isAppwriteSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('appwrite_sync_enabled') ?? true;
@@ -105,7 +108,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         _appwriteEnabled = enabled;
       }
     } catch (e) {
-      dlog(() => '❌ خطأ في تحميل حالة Appwrite: $e');
+      dlog(() => '❌ خطأ في تحميل حالة مزامنة Cloudflare: $e');
       // في حالة الخطأ — نفترض مفعّل (احتياطي)
       if (mounted) {
         setState(() => _appwriteEnabled = true);
@@ -241,7 +244,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         syncId: syncId,
         direction: 'pull',
         deviceId: deviceId,
-        target: 'Appwrite',
+        target: 'Cloudflare',
         status: 'in_progress',
       );
 
@@ -251,7 +254,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (mounted) {
         loading = LoadingSnackBar.show(
           context,
-          message: '⬇️ جاري سحب التغييرات من السيرفر...',
+          message: '⬇️ جاري سحب التغييرات من Cloudflare...',
         );
       }
 
@@ -283,7 +286,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           syncId: syncId,
           direction: 'pull',
           deviceId: deviceId,
-          target: 'Appwrite',
+          target: 'Cloudflare',
           status: 'success',
           recordsPulled: pulledCount,
           durationMs: stopwatch.elapsedMilliseconds,
@@ -330,7 +333,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             syncId: syncId,
             direction: 'pull',
             deviceId: deviceId,
-            target: 'Appwrite',
+            target: 'Cloudflare',
             status: 'failed',
             errorMessage: pullResult.errorMessage,
             durationMs: stopwatch.elapsedMilliseconds,
@@ -378,7 +381,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           syncId: syncId,
           direction: 'pull',
           deviceId: deviceId,
-          target: 'Appwrite',
+          target: 'Cloudflare',
           status: 'failed',
           errorMessage: e.toString(),
           durationMs: stopwatch.elapsedMilliseconds,
@@ -537,7 +540,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       syncId: syncId,
       direction: 'push',
       deviceId: deviceId,
-      target: 'Appwrite',
+      target: 'Cloudflare',
       status: 'in_progress',
     );
 
@@ -545,16 +548,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     // _isPushing ضُبط بالفعل في الأعلى (P1-2 fix)
 
     try {
-      final smartSyncManager = ref.read(smartSyncManagerProvider);
+      // ✅ (2026-09-17) وجهة وحيدة حقيقية: Cloudflare D1 — أُزيل مسار
+      // Google Drive/SmartSync كاملاً (طلب المستخدم). الإشعارات تعرض
+      // النتيجة الفعلية للرفع الواحد الحقيقي فقط.
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-
-      final smartEnabled = await smartSyncManager.isEnabled();
-      final isGoogleDriveSignedIn = ref.read(
-        smartSyncGoogleDriveSignInStatusProvider,
-      );
       final appwriteEnabled = await _isAppwriteSyncEnabled();
 
-      if (!smartEnabled && !appwriteEnabled) {
+      if (!appwriteEnabled) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -577,110 +577,56 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         return;
       }
 
-      bool appwriteConnected = false;
-      if (appwriteEnabled) {
-        await ref.read(connectionStatusProvider.notifier).checkConnection();
-        appwriteConnected = ref.read(connectionStatusProvider).isConnected;
-      }
+      await ref.read(connectionStatusProvider.notifier).checkConnection();
+      final cloudflareConnected =
+          ref.read(connectionStatusProvider).isConnected;
 
-      final targets = <String>[];
-      if (smartEnabled && isGoogleDriveSignedIn) {
-        targets.add('Google Drive');
-      }
-      if (appwriteEnabled && appwriteConnected) {
-        targets.add('Cloudflare');
-      }
-
-      if (targets.isEmpty) {
+      if (!cloudflareConnected) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('لا توجد وجهات مزامنة متاحة حالياً'),
-              backgroundColor: Colors.orange,
+              content: Text('لا يوجد اتصال بـ Cloudflare'),
+              backgroundColor: Colors.red,
             ),
           );
         }
         return;
       }
 
-      // ✅ إشعار دائم: يُحفظ مثيل ScaffoldMessengerState للتحكم بالإغلاق
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? pushLoading;
       if (mounted) {
         pushLoading = LoadingSnackBar.show(
           context,
-          message: '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...',
+          message: '⬆️ جاري رفع التغييرات إلى Cloudflare...',
         );
       }
 
-      final results = <String, Map<String, dynamic>>{};
-
-      // رفع إلى Cloudflare
-      if (appwriteEnabled && appwriteConnected) {
-        try {
-          // ✅ pushLocalChanges ترمي عند أي فشل — الوصول هنا يعني نجاحاً
-          // فعلياً (الشرط السابق pushedCount >= 0 كان صادقاً دائماً).
-          final pushedCount = await appwriteSyncManager.pushLocalChanges();
-          results['Cloudflare'] = {'success': true, 'pushed': pushedCount};
-        } catch (e) {
-          results['Cloudflare'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
-          dlog(() => '❌ خطأ في رفع التغييرات إلى Appwrite: $e');
-        }
+      int totalPushed = 0;
+      var pushSucceeded = false;
+      String? pushError;
+      try {
+        // ✅ pushLocalChanges ترمي عند أي فشل — الوصول بعد هذا السطر
+        // يعني نجاحاً فعلياً (pushedCount من الدورة الحقيقية).
+        totalPushed = await appwriteSyncManager.pushLocalChanges();
+        pushSucceeded = true;
+      } catch (e) {
+        pushError = e.toString();
+        dlog(() => '❌ خطأ في رفع التغييرات إلى Cloudflare: $e');
       }
-
-      // رفع إلى Google Drive (بدون سحب - نسخ احتياطي فقط)
-      if (smartEnabled && isGoogleDriveSignedIn) {
-        try {
-          final result = await smartSyncManager.pushLocalChanges();
-          results['Google Drive'] = {
-            'success': result,
-            'pushed': _pendingChangesCount,
-          };
-        } catch (e) {
-          results['Google Drive'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
-          dlog(() => '❌ خطأ في رفع التغييرات إلى Google Drive: $e');
-        }
-      }
-
-      // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
-      // Appwrite primary هو authority الوحيد. لا حاجة لرفع للثانوي.
 
       await _loadPendingChangesCount();
 
-      // حساب الإحصائيات
-      int totalPushed = 0;
-      final successTargets = <String>[];
-      final failedTargets = <String>[];
-
-      for (final entry in results.entries) {
-        final data = entry.value;
-        if (data['success'] == true) {
-          successTargets.add(entry.key);
-          totalPushed += (data['pushed'] as int?) ?? 0;
-        } else {
-          failedTargets.add(entry.key);
-        }
-      }
-
-      // ✅ تسجيل نجاح العملية
+      // ✅ تسجيل نتيجة العملية الحقيقية الوحيدة
       stopwatch.stop();
       await syncLogDao.logSync(
         syncId: syncId,
         direction: 'push',
         deviceId: deviceId,
-        target: successTargets.join('+'),
-        status: failedTargets.isEmpty
-            ? 'success'
-            : (successTargets.isNotEmpty ? 'partial' : 'failed'),
+        target: 'Cloudflare',
+        status: pushSucceeded ? 'success' : 'failed',
         recordsPushed: totalPushed,
+        errorMessage: pushError,
         durationMs: stopwatch.elapsedMilliseconds,
       );
 
@@ -689,7 +635,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           _lastSyncTime = DateTime.now();
         });
 
-        if (failedTargets.isEmpty) {
+        if (pushSucceeded) {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً قبل إظهار النتيجة
           pushLoading?.close();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -715,16 +661,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     '⬆️ أُرسل: $totalPushed',
                     style: const TextStyle(fontSize: 12),
                   ),
-                  Text(
-                    '☁️ عبر: ${successTargets.join(' + ')}',
-                    style: const TextStyle(fontSize: 11),
+                  const Text(
+                    '☁️ عبر: Cloudflare D1',
+                    style: TextStyle(fontSize: 11),
                   ),
                 ],
               ),
               backgroundColor: Colors.green,
             ),
           );
-        } else if (successTargets.isEmpty) {
+        } else {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً عند الفشل
           pushLoading?.close();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -737,6 +683,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 ],
               ),
               backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
               action: SnackBarAction(
                 label: 'إعادة',
                 textColor: Colors.white,
@@ -744,45 +691,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               ),
             ),
           );
-        } else {
-          // ✅ إغلاق إشعار "جاري الرفع" فوراً للنتيجة الجزئية
-          pushLoading?.close();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.warning, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text('⚠️ نجح جزئياً'),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '✅ نجح: ${successTargets.join(', ')}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  Text(
-                    '❌ فشل: ${failedTargets.join(', ')}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  if (totalPushed > 0)
-                    Text(
-                      '⬆️ أُرسل: $totalPushed',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                ],
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
         }
       }
-
-      ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
       dlog(() => '❌ فشل رفع التغييرات: $e');
 
@@ -792,7 +702,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         syncId: syncId,
         direction: 'push',
         deviceId: deviceId,
-        target: 'Appwrite+GoogleDrive',
+        target: 'Cloudflare',
         status: 'failed',
         errorMessage: e.toString(),
         durationMs: stopwatch.elapsedMilliseconds,
@@ -891,7 +801,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // ✅ تحسين: إضافة معامل pendingCount لعرض عدد التغييرات
   Widget _buildPullButton(
     bool hasRemoteChanges,
-    bool isGoogleDriveSignedIn,
     int pendingCount,
     bool gateBusy,
   ) {
@@ -1025,7 +934,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   Widget _buildPushButton(
     bool hasChanges,
-    bool isGoogleDriveSignedIn,
     bool gateBusy,
   ) {
     // زر الدفع متاح فقط إذا كان يوجد تغييرات محلية، والبوّابة العامة
@@ -1152,10 +1060,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   @override
   Widget build(BuildContext context) {
-    final isGoogleDriveSignedIn = ref.watch(
-      smartSyncGoogleDriveSignInStatusProvider,
-    );
-
     // ✅ Appwrite Realtime معطّل في dashboard — استخدم قيمًا ثابتة بدلاً من
     // ValueListenableBuilder على hasRemoteChanges/pendingRemoteChangesCount.
     // قبل الإصلاح: كانت الـ widget تُعاد بناؤها كلما غيّر Realtime قيمة
@@ -1194,7 +1098,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 // يكون التلميح صادقاً مع وجود تغييرات معلّقة.
                 _buildPullButton(
                   hasRemoteChanges,
-                  isGoogleDriveSignedIn,
                   _pendingChangesCount,
                   gateBusy,
                 ),
@@ -1202,7 +1105,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 // زر الدفع إلى السيرفر
                 _buildPushButton(
                   hasLocalChanges,
-                  isGoogleDriveSignedIn,
                   gateBusy,
                 ),
               ],

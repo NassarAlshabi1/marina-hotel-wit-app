@@ -17,12 +17,12 @@ import '../utils/debug_log.dart';
 import '../utils/json_isolate.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
+import 'backup_data_service.dart';
 import 'backup_serializers.dart';
-import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 import 'sqlite_backup_restore.dart';
 
-export 'google_drive_backup_service.dart' show BackupFormat;
+export 'backup_data_service.dart' show BackupFormat;
 
 class LocalBackupFile {
   LocalBackupFile({
@@ -264,7 +264,7 @@ class LocalBackupService {
           backupData['metadata'] as Map,
         );
         backupMetadata['data_hash'] =
-            GoogleDriveBackupService.computeBackupChecksum(backupData);
+            BackupDataService.computeBackupChecksum(backupData);
         backupData['metadata'] = backupMetadata;
 
         final filePath = '${backupDir.path}/$baseName.json.gz';
@@ -589,7 +589,7 @@ class LocalBackupService {
       );
     }
 
-    if (!GoogleDriveBackupService.verifyBackupChecksum(backupData)) {
+    if (!BackupDataService.verifyBackupChecksum(backupData)) {
       throw StateError(
         'النسخة الاحتياطية المحلية تالفة: تجزئة البيانات غير مطابقة',
       );
@@ -1014,7 +1014,7 @@ class LocalBackupService {
             'سيتم استيراده بوضع التوافق',
           );
         }
-        if (!GoogleDriveBackupService.verifyBackupChecksum(jsonData)) {
+        if (!BackupDataService.verifyBackupChecksum(jsonData)) {
           throw StateError('الملف المختار تالف: تجزئة البيانات غير مطابقة');
         }
 

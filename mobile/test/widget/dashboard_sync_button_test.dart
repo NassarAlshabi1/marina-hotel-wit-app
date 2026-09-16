@@ -21,7 +21,6 @@ import 'package:http/http.dart' as http;
 import 'package:marina_hotel_mobile/providers/appwrite_providers.dart'
     as sync_providers;
 import 'package:marina_hotel_mobile/providers/repository_providers.dart';
-import 'package:marina_hotel_mobile/providers/smart_sync_provider.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart'
     as cfm;
 import 'package:marina_hotel_mobile/services/local_db.dart';
@@ -65,7 +64,6 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(db),
-          smartSyncGoogleDriveSignInStatusProvider.overrideWithValue(false),
         ],
         child: const MaterialApp(
           localizationsDelegates: [],
@@ -83,7 +81,6 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(db),
-          smartSyncGoogleDriveSignInStatusProvider.overrideWithValue(false),
           sync_providers.connectionStatusProvider.overrideWith(
             (ref) => _AlwaysConnectedNotifier(ref),
           ),

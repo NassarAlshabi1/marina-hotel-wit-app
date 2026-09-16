@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../utils/debug_log.dart';
-import 'google_drive_backup_service.dart';
+import 'backup_data_service.dart';
 import 'local_backup_service.dart';
 
 class FileManagementService {
@@ -57,7 +57,7 @@ class FileManagementService {
       final timestamp = DateTime.now();
 
       // إنشاء البيانات الخلاصة
-      final backupService = GoogleDriveBackupService();
+      final backupService = BackupDataService.instance;
       final backupData = await backupService.exportDatabaseToJson();
       final backupMetadata = backupData['metadata'] as Map<String, dynamic>;
 
@@ -326,7 +326,7 @@ class FileManagementService {
   ) async {
     try {
       // الحصول على البيانات من الخدمة
-      final backupService = GoogleDriveBackupService();
+      final backupService = BackupDataService.instance;
       final backupData = await backupService.exportDatabaseToJson();
 
       if (!backupData.containsKey(tableKey) || backupData[tableKey] is! List) {
