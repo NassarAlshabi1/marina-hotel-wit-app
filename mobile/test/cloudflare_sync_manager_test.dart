@@ -244,6 +244,77 @@ void main() {
     );
   });
 
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ (2026-09-17) حواجز المؤشر المسموم — عقد التهيئة لكلا صنفي
+  // التسمم (sentinel 9999999999 من سكربت الاستعادة + طوابع الميلي)،
+  // عبر مسار التهيئة الفعلي (توكن فارغ ← حارس السم ← محاولة دخول).
+  // ═══════════════════════════════════════════════════════════════
+  group('poisoned pull cursor guards (2026-09-17)', () {
+    Future<Map<String, Object>> bootWithCursor(int? storedCursor) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        if (storedCursor != null) 'cf_last_pull_cursor': storedCursor,
+        'cf_full_sync_completed': true,
+      });
+      final manager = CloudflareSyncManager();
+      // loginAttempts: 1 — مسار التهيئة الفعلي يمر بحارس السم قبل محاولة
+      // الدخول (حقيقية أو فاشلة — كلاهما يصل الحارس أولاً ويرجع سريعاً).
+      await manager.initialize(loginAttempts: 1);
+      final prefs = await SharedPreferences.getInstance();
+      return <String, Object>{
+        'cursor': prefs.getInt('cf_last_pull_cursor') ?? -1,
+        'fullSyncFlag': prefs.getBool('cf_full_sync_completed') ?? false,
+        'manager': manager,
+      };
+    }
+
+    test('sentinel-class cursor (9999999999) is reset at init', () async {
+      final state = await bootWithCursor(9999999999);
+      expect(state['cursor'], 0);
+      expect(state['fullSyncFlag'], isFalse);
+      expect((state['manager'] as CloudflareSyncManager).isFullSyncCompleted,
+          isFalse);
+    });
+
+    test('ms-class cursor (>1e11) is reset at init', () async {
+      final state = await bootWithCursor(100000000001);
+      expect(state['cursor'], 0);
+      expect(state['fullSyncFlag'], isFalse);
+    });
+
+    test('boundary: cursor exactly at maxSanePullCursorFuture survives (strict >)', () async {
+      // الحدّ الحرفي (سنة 2033) ليس سماً — المقارنة strict فوق الحد فقط.
+      final state =
+          await bootWithCursor(CloudflareSyncManager.maxSanePullCursorFuture);
+      expect(state['cursor'],
+          CloudflareSyncManager.maxSanePullCursorFuture);
+      expect(state['fullSyncFlag'], isTrue);
+    });
+
+    test('sane current-epoch cursor survives init untouched', () async {
+      final state = await bootWithCursor(1789532217);
+      expect(state['cursor'], 1789532217);
+      expect(state['fullSyncFlag'], isTrue);
+    });
+
+    test('thresholds: future bound (2e9) sits below sentinel and ms classes', () {
+      // عقد العتبات: الحد المستقبلي يفصل الثواني السليمة عن الصنفين
+      // المسمومين معاً — sentinel (1e10) فوقه، والميلي (1.78e12) فوقه.
+      expect(
+        CloudflareSyncManager.maxSanePullCursorFuture,
+        lessThan(9999999999),
+      );
+      expect(
+        CloudflareSyncManager.maxSanePullCursorFuture,
+        lessThan(CloudflareSyncManager.maxSanePullCursor),
+      );
+      // والهامش الديناميكي على server_time سنة كاملة (يقرأه حارس التشغيل).
+      expect(
+        CloudflareSyncManager.maxCursorAheadOfServerSec,
+        greaterThan(0),
+      );
+    });
+  });
+
   group('SyncStatus enum', () {
     test('has all expected values', () {
       expect(SyncStatus.values, contains(SyncStatus.idle));

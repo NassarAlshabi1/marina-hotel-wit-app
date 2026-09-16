@@ -102,6 +102,58 @@ void main() {
     });
   });
 
+  group('toWebSocketUri (https→wss scheme conversion, 2026-09-17)', () {
+    test('https → wss: host preserved, implicit port stays implicit', () {
+      final uri = CloudflareRealtimeSync.toWebSocketUri(
+        Uri.parse('https://marina-hotel-api.adenmarina2.workers.dev'),
+      );
+      expect(uri.scheme, 'wss');
+      expect(uri.host, 'marina-hotel-api.adenmarina2.workers.dev');
+      // Uri.port تعيد 0 للمنفذ الضمني (سلوك Dart المعروف) — التوصيل
+      // الفعلي يذهب لمنفذ wss الافتراضي 443.
+      expect(uri.port, 0);
+    });
+
+    test('http → ws: plain scheme converted too', () {
+      final uri = CloudflareRealtimeSync.toWebSocketUri(
+        Uri.parse('http://worker.example.com'),
+      );
+      expect(uri.scheme, 'ws');
+      expect(uri.host, 'worker.example.com');
+    });
+
+    test('wss passes through unchanged (idempotent)', () {
+      const raw = 'wss://marina-hotel-api.adenmarina2.workers.dev';
+      final uri = CloudflareRealtimeSync.toWebSocketUri(Uri.parse(raw));
+      expect(uri.scheme, 'wss');
+      expect(uri.toString(), raw);
+    });
+
+    test('explicit custom port survives the conversion', () {
+      final uri = CloudflareRealtimeSync.toWebSocketUri(
+        Uri.parse('https://custom.example.com:8443'),
+      );
+      expect(uri.scheme, 'wss');
+      expect(uri.port, 8443);
+      expect(uri.host, 'custom.example.com');
+    });
+
+    test('path/query of the endpoint survive (realtime URL shape)', () {
+      final converted = CloudflareRealtimeSync.toWebSocketUri(
+        Uri.parse('https://marina-hotel-api.adenmarina2.workers.dev'),
+      );
+      // نفس بناء _connect: الاستبدال بعد التحويل
+      final uri = converted.replace(
+        path: '/api/realtime',
+        query: 'deviceId=device-A&entity=*',
+      );
+      expect(uri.scheme, 'wss');
+      expect(uri.path, '/api/realtime');
+      expect(uri.query, 'deviceId=device-A&entity=*');
+      expect(uri.host, 'marina-hotel-api.adenmarina2.workers.dev');
+    });
+  });
+
   group('event queue (no network)', () {
     test('foreign change event fires exactly one debounced pull per burst', () {
       fakeAsync((async) {

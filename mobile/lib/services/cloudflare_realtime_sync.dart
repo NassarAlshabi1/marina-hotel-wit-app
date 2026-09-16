@@ -149,6 +149,11 @@ class CloudflareRealtimeSync {
   /// workerd يجيب تلقائياً، والمقابس الميتة تُكشف خلال pingInterval.
   static const Duration _heartbeat = Duration(seconds: 30);
 
+  /// ✅ (2026-09-17) مهلة إنشاء الاتصال 15ث — مقبس شبه مفتوح على شبكة
+  /// محجوبة كان يعلّق `await channel.ready` إلى ما لا نهاية ويحجب
+  /// _connectInFlight للأبد فتتوقف كل محاولات إعادة الاتصال اللاحقة.
+  static const Duration _connectTimeout = Duration(seconds: 15);
+
   bool get isListening => _isListening;
 
   bool get isConnected =>
@@ -164,6 +169,27 @@ class CloudflareRealtimeSync {
           ? _maxBackoff.inSeconds
           : seconds,
     );
+  }
+
+  /// ✅ (2026-09-17) تحويل مخطط نقطة النهاية إلى مخطط WebSocket — جذر
+  /// فشل الريل-تايم الكامل: `_connect()` كان يمرر URI بخطاط `https://`
+  /// إلى `IOWebSocketChannel.connect`، وDart 3.12 (Flutter 3.44) يرفضه
+  /// حرفياً: `WebSocketException: Unsupported URL scheme 'https'` (الإصدارات
+  /// الأقدم كانت تقبل الترقية الضمنية — سلوك مُزال). مدخل `configure()`
+  /// دائماً https لأن `WorkerEndpoints.normalizeCustomUrl` يطبّع أي إدخال
+  /// إلى https — التحويل هنا إذن إلزامي لكل مسار إنتاجي.
+  ///
+  /// wss/ws يمرّان كما هما (idempotent)، والمنفذ الصريح (إن وُجد) محفوظ.
+  @visibleForTesting
+  static Uri toWebSocketUri(Uri uri) {
+    switch (uri.scheme) {
+      case 'https':
+        return uri.replace(scheme: 'wss');
+      case 'http':
+        return uri.replace(scheme: 'ws');
+      default:
+        return uri;
+    }
   }
 
   // ─── التهيئة والتوصيل ────────────────────────────────────────
@@ -301,7 +327,9 @@ class CloudflareRealtimeSync {
       var established = false;
       for (final base in candidates) {
         if (!_isListening || _intentionallyStopped) return;
-        final Uri uri = base.replace(
+        // ✅ (2026-09-17) المخطط يُحوَّل قبل التمرير للقناة — see
+        // toWebSocketUri: https مرفوض حرفياً من Dart 3.12.
+        final Uri uri = toWebSocketUri(base).replace(
           path: '/api/realtime',
           query:
               'deviceId=${Uri.encodeQueryComponent(_currentDeviceId ?? 'unknown')}'
@@ -312,6 +340,7 @@ class CloudflareRealtimeSync {
             uri,
             headers: <String, String>{'Authorization': 'Bearer $token'},
             pingInterval: _heartbeat,
+            connectTimeout: _connectTimeout,
           );
           // يُخزَّن فوراً حتى لو فشل ready — مسار الخطأ يلغيه صراحةً
           // (يلبي cancel_subscriptions بلا تسريب).

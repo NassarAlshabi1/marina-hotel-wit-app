@@ -426,6 +426,22 @@ class CloudflareSyncManager {
   /// قديمة أو worker قديم يرجّع global-max) ويجب ألا يُخزَّن أبداً.
   static const int maxSanePullCursor = 100000000000; // 1e11
 
+  /// ✅ (2026-09-17) عتبة صنف التسمم الثاني (المستقبلي/‎sentinel): حارس
+  /// الميلي أعلاه (‎1e11) لا يلتقط الـ sentinel 9999999999 (‎1e10 — أثر
+  /// سكربت appwrite_cloud_restore.py) لأنه تحتها! ثواني الـ epoch الحالية
+  /// (~1.79e9) تبقى تحت 2e9 حتى سنة 2033، فأي مؤشر فوق ذلك مسموم بأحد
+  /// الصنفين معاً (sentinel أو ميلي) ويُعمي الجهاز للأبد (كل كتابة لاحقة
+  /// ~1.79e9 دونه في WHERE updated_at > cursor). مرآة عتبة الخادم
+  /// FUTURE_TIMESTAMP_THRESHOLD (worker/src/database.ts) — تقرأها حركات
+  /// التهيئة والتشغيل والتثبيت أدناه.
+  static const int maxSanePullCursorFuture = 2000000000; // 2e9 — سنة 2033
+
+  /// ✅ (2026-09-17) هامش تقديم المؤشر المقبول على وقت الخادم المُعلن في
+  /// ردود السحب (server_time): سنة كاملة تسع انحرافات ساعة الأجهزة
+  /// والتقديم المشروع للقيم السليمة — ومؤشر يتجاوز ذلك (sentinel/ميلي
+  /// من worker غير مُصلح) يُرفض فوراً في مسار التشغيل قبل تثبيته.
+  static const int maxCursorAheadOfServerSec = 31536000; // سنة
+
   /// ✅ P0-B: عدد صفحات full sync المتبقية (للتشخيص فقط).
   /// تُستخدم لعرض "full sync in progress (page 3/?)"
   int get fullSyncRemainingPages => _fullSyncRemainingPages;
@@ -762,9 +778,10 @@ class CloudflareSyncManager {
     // سنة ~5138 — أي مؤشر محفوظ أكبر من ذلك = تسمم مؤكد → تصفير كامل
     // (cursor + علامة full sync + علم bootstrap) ليعيد الجهاز سحباً
     // كاملاً نظيفاً بعد نشر worker الإصلاح.
-    if (_lastPullCursor > maxSanePullCursor) {
+    if (_lastPullCursor > maxSanePullCursorFuture) {
       debugPrint(
-        '🚨 ms-poisoned pull cursor detected ($_lastPullCursor) — '
+        '🚨 poisoned pull cursor detected ($_lastPullCursor — ms/sentinel '
+        'class, bound $maxSanePullCursorFuture) — '
         'resetting to 0 and forcing a fresh full sync',
       );
       // ✅ (2026-09-09) حدث نادر لكنه جوهري — يظهر في مركز أخطاء
@@ -2110,7 +2127,36 @@ class CloudflareSyncManager {
         // البيانات ناقصة؛ لا نتابع pagination ولا نحرّك checkpoint.
         if (hadError) hasMore = false;
 
+        // ✅ (2026-09-17) حارس التسمم أثناء التشغيل: مؤشر خادم يتجاوز
+        // server_time المُعلن في الرد نفسه بأكثر من هامش سنة = صفوف مسمومة
+        // (sentinel 9999999999 أو ميلي) ما زالت تُقدَّم من worker غير مُصلح —
+        // لا تُثبَّت أبداً: نُفسد الدورة فوراً (المؤشر يبقى كما كان والدورة
+        // القادمة تعيد المحاولة) بدل تعمية الجهاز للأبد. صفوف هذه الصفحة لا
+        // تُطبَّق أيضاً — طوابعها المسمومة كانت ستفوز بكل قرارات LWW المحلية
+        // (سنة 2286!) إلى الأبد. (مرآة العتبة الخادمية FUTURE_TIMESTAMP_THRESHOLD.)
+        final int? serverTime = (data['server_time'] as num?)?.toInt();
         if (serverCursor != null && serverCursor > pendingCursor) {
+          final bool cursorSane =
+              serverTime == null ||
+              serverCursor <= serverTime + maxCursorAheadOfServerSec;
+          if (!cursorSane) {
+            hadError = true;
+            errorMessage =
+                'Pull: poisoned server cursor rejected ($serverCursor vs '
+                'server_time=$serverTime)';
+            logError(
+              title: 'مؤشر خادم مسموم رُفض أثناء السحب ($serverCursor)',
+              message:
+                  'رد السحب يحمل مؤشراً يتجاوز وقت الخادم المُعلن بسنوات — '
+                  'صفوف بطوابع sentinel/ميلي ما زالت تُقدَّم (worker غير مُصلح '
+                  'أو بيانات مستعادة قديمة). أُفشلت الدورة ولم يتقدم المؤشر، '
+                  'ولم تُطبَّق صفوف الصفحة؛ الدورة القادمة تعيد المحاولة '
+                  'تلقائياً بعد شفاء الخادم.',
+              category: ErrorCategory.sync,
+              source: 'sync:pull',
+            );
+            break;
+          }
           pendingCursor = serverCursor;
         }
 
@@ -2146,13 +2192,13 @@ class CloudflareSyncManager {
         // لا يمس الشبكة — التداخل آمن ويخفي زمن الرحلة كاملاً.
         if (hasMore && !hadError) {
           // ✅ الجلب المسبق بلا تطبيع: الصفحة الأولى وحدها تطلب الإصلاح
-          // الخادمي — بقية الصفحات سحب صافٍ.
+          // الخادمي — بقية الصفحات سحب صافٍ (includeNormalization الافتراضي
+          // false — أُزيل الوسيط الصريح المطابق للقيمة الافتراضية).
           prefetchFuture = _fetchPullPage(
             pendingCursor,
             pageLimit,
             excludeOwnDevice: !wasFullSync,
             includeRemaining: wantRemaining,
-            includeNormalization: false,
           );
         }
 
@@ -2594,21 +2640,47 @@ class CloudflareSyncManager {
     // P0-C: only advance checkpoint in prefs on full success
     final prefs = await SharedPreferences.getInstance();
     if (!hadError) {
-      _lastPullCursor = pendingCursor;
-      await prefs.setInt('cf_last_pull_cursor', _lastPullCursor);
+      // ✅ (2026-09-17) حارس التثبيت النهائي (طبقة دفاع ثالثة): حارس
+      // التشغيل أعلاه يحتاج server_time للحكم الديناميكي — worker قديم
+      // بلا الحقل كان سيمرر السم. هنا حد ثابت صرف (مرآة عتبة الخادم
+      // 2e9): pendingCursor فوقه لا يُخزَّن أبداً بل يُصفَّر مع علامة
+      // full sync ليبدأ الجهاز سحباً كاملاً نظيفاً في الدورة القادمة.
+      if (pendingCursor > maxSanePullCursorFuture) {
+        logError(
+          title: 'منع تثبيت مؤشر مسموم في نهاية الدورة ($pendingCursor)',
+          message:
+              'المؤشر المرشح للتثبيت تجاوز الحد الثابت الآمن '
+              '$maxSanePullCursorFuture (سنة 2033) رغم نجاح الدورة الظاهري — '
+              'طوابع sentinel/ميلي من worker غير مُصلح. صُفّر المؤشر وعلامة '
+              'full sync لتعاد المزامنة الكاملة نظيفة بعد شفاء الخادم.',
+          category: ErrorCategory.sync,
+          source: 'sync:pull',
+        );
+        _lastPullCursor = 0;
+        _fullSyncCompleted = false;
+        await prefs.setInt('cf_last_pull_cursor', 0);
+        await prefs.remove(_kFullSyncCompletedKey);
+        debugPrint(
+          '🚨 install guard: poisoned pendingCursor $pendingCursor rejected '
+          '— cursor reset to 0, full sync flag cleared',
+        );
+      } else {
+        _lastPullCursor = pendingCursor;
+        await prefs.setInt('cf_last_pull_cursor', _lastPullCursor);
 
-      // P0-B: mark full sync as completed only on full success
-      // ✅ سقف الصفحات (H2) ليس نفاداً — علامة full-sync تبقى false
-      // والدورة القادمة تُكمل من المؤشر المتقدم.
-      if (wasFullSync && !hitPageCap) {
-        _fullSyncCompleted = true;
-        await prefs.setBool(_kFullSyncCompletedKey, true);
-        debugPrint('✅ Full sync completed - device is now delta-ready');
+        // P0-B: mark full sync as completed only on full success
+        // ✅ سقف الصفحات (H2) ليس نفاداً — علامة full-sync تبقى false
+        // والدورة القادمة تُكمل من المؤشر المتقدم.
+        if (wasFullSync && !hitPageCap) {
+          _fullSyncCompleted = true;
+          await prefs.setBool(_kFullSyncCompletedKey, true);
+          debugPrint('✅ Full sync completed - device is now delta-ready');
+        }
+
+        debugPrint(
+          '📥 Pulled $totalPulled changes (cursor: $initialCursor -> $_lastPullCursor)',
+        );
       }
-
-      debugPrint(
-        '📥 Pulled $totalPulled changes (cursor: $initialCursor -> $_lastPullCursor)',
-      );
     } else {
       // ✅ (2026-09-08) محور 2 — سياسة «لا نجاح مع جداول ناقصة»:
       // لا يتحرك checkpoint إطلاقاً عند أي خطأ (شبكة/HTTP/JSON أو
