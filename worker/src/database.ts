@@ -276,48 +276,97 @@ export class Database {
         // edge is provably complete when either (a) the window exhausted
         // the table, or (b) the probe row's timestamp differs from the
         // last used row's timestamp. If probe.ts == last.ts the group
-        // continues beyond the window — we double the window and refetch
-        // until the edge group is fully visible. Skipping this loop let a
+        // continues beyond the window — we complete THAT group only via a
+        // COUNT-guarded equality fetch plus one beyond-probe row (the old
+        // double-and-refetch ladder re-scanned full rows on every step and
+        // blew Worker CPU/memory limits → HTTP 503 / error 1102).
+        // Skipping completion let a
         // group larger than the window be cut by the SQL LIMIT itself:
         // has_more went false while same-ts rows were still unfetched,
         // and the strict `>` cursor skipped them forever (the exact
         // data-loss this page guard exists to prevent).
-        let window = baseLimit + 1;
-        let rows: { results: Record<string, unknown>[] };
-        for (;;) {
-          rows = excludeDevice
-            ? await this.db
+        const window = baseLimit + 1;
+        const devFilter = excludeDevice
+          ? ' AND (device_id IS NULL OR device_id != ?)'
+          : '';
+        const devBind: unknown[] = excludeDevice ? [excludeDevice] : [];
+        const fullFetch = (afterTs: number, lim: number) =>
+          excludeDevice
+            ? this.db
                 .prepare(
-                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ?${devFilter} ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
-                .bind(cursor, excludeDevice, window)
+                .bind(afterTs, ...devBind, lim)
                 .all<Record<string, unknown>>()
-            : await this.db
+            : this.db
                 .prepare(
                   `SELECT * FROM ${table} WHERE ${delClause}updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
-                .bind(cursor, window)
+                .bind(afterTs, lim)
                 .all<Record<string, unknown>>();
-          if (rows.results.length < window) break; // table exhausted
-          const n = rows.results.length;
-          const lastTs = Number(rows.results[n - 1].updated_at);
-          const prevTs = Number(rows.results[n - 2].updated_at);
-          if (lastTs !== prevTs) break; // edge group fully contained
-          window = window * 2;
-          if (window > MAX_PULL_WINDOW) {
-            console.error(
-              `[SYNC/PULL] table ${table}: duplicate-ts group exceeds ` +
-                `${MAX_PULL_WINDOW} rows — page may truncate mid-group`
+        let tableRows: Record<string, unknown>[] = [];
+        const first = await fullFetch(cursor, window);
+        if (first.results.length < window) {
+          tableRows = first.results; // table exhausted
+        } else {
+          const n = first.results.length;
+          const lastTs = Number(first.results[n - 1].updated_at);
+          const prevTs = Number(first.results[n - 2].updated_at);
+          if (lastTs !== prevTs) {
+            tableRows = first.results; // edge group fully contained
+          } else {
+            // Window cuts inside the equal-ts group `lastTs` — complete
+            // that group only, guarded by MAX_PULL_WINDOW.
+            const before = first.results.filter(
+              (r) => Number(r.updated_at) < lastTs
             );
-            errors.push({
-              entity: ent,
-              error: `duplicate updated_at group exceeds ${MAX_PULL_WINDOW} rows`,
-            });
-            windowTruncated = true;
-            break;
+            const cntRow = excludeDevice
+              ? await this.db
+                  .prepare(
+                    `SELECT COUNT(*) AS c FROM ${table} WHERE ${delClause}updated_at = ?${devFilter}`
+                  )
+                  .bind(lastTs, ...devBind)
+                  .first<{ c: number }>()
+              : await this.db
+                  .prepare(
+                    `SELECT COUNT(*) AS c FROM ${table} WHERE ${delClause}updated_at = ?`
+                  )
+                  .bind(lastTs)
+                  .first<{ c: number }>();
+            const groupCount = Number(cntRow?.c ?? 0);
+            if (groupCount > MAX_PULL_WINDOW) {
+              console.error(
+                `[SYNC/PULL] table ${table}: duplicate-ts group exceeds ` +
+                  `${MAX_PULL_WINDOW} rows — page may truncate mid-group`
+              );
+              errors.push({
+                entity: ent,
+                error: `duplicate updated_at group exceeds ${MAX_PULL_WINDOW} rows`,
+              });
+              windowTruncated = true;
+              tableRows = before;
+            } else {
+              const group = excludeDevice
+                ? await this.db
+                    .prepare(
+                      `SELECT * FROM ${table} WHERE ${delClause}updated_at = ?${devFilter} ORDER BY local_uuid ASC LIMIT ?`
+                    )
+                    .bind(lastTs, ...devBind, groupCount + 1)
+                    .all<Record<string, unknown>>()
+                : await this.db
+                    .prepare(
+                      `SELECT * FROM ${table} WHERE ${delClause}updated_at = ? ORDER BY local_uuid ASC LIMIT ?`
+                    )
+                    .bind(lastTs, groupCount + 1)
+                    .all<Record<string, unknown>>();
+              // One row beyond the group (if any) preserves the probe
+              // semantics for has_more detection downstream.
+              const beyond = await fullFetch(lastTs, 1);
+              tableRows = [...before, ...group.results, ...beyond.results];
+            }
           }
         }
-        for (const row of rows.results) {
+        for (const row of tableRows) {
           const record = row as unknown as SyncRecord;
           // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
           // بدون الحاجة لتخمين نوعه من الحقول

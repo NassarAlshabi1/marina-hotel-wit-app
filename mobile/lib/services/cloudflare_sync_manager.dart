@@ -488,9 +488,24 @@ class CloudflareSyncManager {
   /// للعتبة (صمام أمان — الحالة الواقعية عشرات).
   static const int _blockedPendingCap = 300;
 
+  /// ✅ (M2) سقف سجل الحجر الصحي — كان بلا حد والحمولات الكاملة تُخزَّن
+  /// في SharedPreferences (بطء كل initialize + خطر TransactionTooLarge
+  /// على أندرويد). الإخلاء بالأقدم first_seen مع عدّاده (بداية نظيفة
+  /// إن عاد الصف ببث خادمي لاحق).
+  static const int _quarantineCap = 300;
+
   /// سقف محاولات الشفاء الدورية للمعزولين في كل دورة (تكلفة محلية صفرية
   /// تقريباً لكن بلا سقف قد تنمو مع تاريخ الحجب الطويل).
   static const int _quarantineHealRetryLimit = 100;
+
+  /// ✅ سقف صفحات السحب في الدورة الواحدة — حلقة `while (hasMore)` بلا سقف
+  /// كانت قد تعلق إلى الأبد أمام كاتب ساخن ينتج صفوفاً بلا توقف، حاجبةً
+  /// كل مزامنة لاحقة عبر قفل re-entrancy ومستنزفةً البطارية. 100 صفحة ×
+  /// 500 صف = 50k صف — فوق أي حمل واقعي (~7,300 صف للكامل) بفارق مريح.
+  /// عند بلوغه تتوقف الدورة بنجاح جزئي (المؤشر تقدم عبر صفحات سليمة
+  /// فقط) وتُستأنف البقية الدورة القادمة — بلا تجميد وبلا فقد
+  /// (التطبيق idempotent عبر local_uuid).
+  static const int _maxPullPagesPerCycle = 100;
 
   /// ✅ (مراجعة #1) مسح تقارب الحذفيات لمرة واحدة — جهاز سحب أثناء
   /// نافذة العقد القديم (worker كان يفلتر tombstones من السحب) تكون
@@ -702,6 +717,12 @@ class CloudflareSyncManager {
     bool forceRetry = false,
     int loginAttempts = 3,
   }) async {
+    if (forceRetry) {
+      // ✅ كاش أعمدة الجداول (PRAGMA) قد يَعْتَق بعد ترحيل مخطط أثناء عمر
+      // العملية — إعادة التهيئة الصريحة تُبطلُه فيُعاد قراءته طازجاً
+      // (يطابق العقد الموثق على [_localColumnsCache]).
+      _localColumnsCache.clear();
+    }
     if (_token != null && !forceRetry && !_isTokenExpired(_token!)) return;
     if (_token != null && _isTokenExpired(_token!)) {
       debugPrint('🔄 Cloudflare token expired/near expiry — refreshing');
@@ -1247,17 +1268,14 @@ class CloudflareSyncManager {
     final startTime = DateTime.now();
     _currentStatus = SyncStatus.syncing;
     _statusController.add(SyncStatus.syncing);
-    // كل دورة لها نتيجة مستقلة؛ لا تورّث فشل دورة سابقة إلى الدورات التالية.
-    _failedCollectionsInLastSync.clear();
-    int recordsPushed = 0;
-    int recordsPulled = 0;
-    String? errorMessage;
-
     // ✅ (2026-09-08) عقد «فشل الدورة السابقة لا يلوّث هذه الدورة»:
     // تُفرَّغ المجموعة عند بداية كل دورة، فتصف «فشل آخر مزامنة» حرفياً.
     // قبل هذا: خطأ جدول عابر واحد كان يجعل كل الدورات اللاحقة
     // «فاشلة جزئياً» إلى الأبد حتى بعد شفاء الجدول.
     _failedCollectionsInLastSync.clear();
+    int recordsPushed = 0;
+    int recordsPulled = 0;
+    String? errorMessage;
 
     // ✅ (2026-09-08) فصل دورة الدفع عن السحب — محاور إعادة الهيكلة:
     // كان الدفع والسحب في try واحدة: أي استثناء من _pushOutbox (مثل
@@ -1860,6 +1878,8 @@ class CloudflareSyncManager {
     int totalPulled = 0;
     // ✅ (2026-09-10) عدّاد صفحات السحب المنجزة — يغذّي مؤشر التقدم.
     int pagesDone = 0;
+    // ✅ سقف الصفحات (H2): يُكسر حلقة pagination عند بلوغه — تُضبط أدناه.
+    var hitPageCap = false;
     // كيانات مؤثرة على الحقول المشتقة للحجوزات — يُعاد بناء الليالي
     // والإجماليات المخزنة بعد اكتمال السحب (refreshAllActiveBookings
     // مع enqueueOutbox:false — البيانات المشتقة تُحسب محلياً ولا تُرفع،
@@ -1928,6 +1948,28 @@ class CloudflareSyncManager {
 
     try {
       while (hasMore) {
+        // ✅ سقف الصفحات (H2): كاتب ساخن بلا توقف يجب ألا يحبس الدورة —
+        // نخرج بنجاح جزئي والمؤشر تقدم عبر ما طُبِّق بسلامة.
+        if (pagesDone >= _maxPullPagesPerCycle) {
+          hitPageCap = true;
+          hasMore = false;
+          debugPrint(
+            '⚠️ Pull: page cap $_maxPullPagesPerCycle reached — '
+            'stopping cycle cleanly, remainder resumes next cycle '
+            '(cursor=$pendingCursor)',
+          );
+          logError(
+            title: 'السحب بلغ سقف الصفحات ($_maxPullPagesPerCycle) — يُستأنف تلقائياً',
+            message:
+                'طُبِّق $totalPulled سجلاً عبر $pagesDone صفحة سليمة وتقدم '
+                'المؤشر إلى $pendingCursor. البقية تُستأنف في الدورة القادمة '
+                'تلقائياً (استمرار إنتاج الخادم لصفحات جديدة).',
+            category: ErrorCategory.sync,
+            source: 'sync:pull',
+            severity: LogLevel.warning,
+          );
+          break;
+        }
         final http.Response response;
         try {
           if (prefetchFuture != null) {
@@ -1942,6 +1984,11 @@ class CloudflareSyncManager {
               // لتعلّم ظلّ server_id (إصلاح 107 علاقة غير محلولة).
               excludeOwnDevice: !wasFullSync,
               includeRemaining: wantRemaining,
+              // ✅ إصلاح البطء: التطبيع الخادمي (مسح 23 جدولاً) يُطلب في
+              // الصفحة الأولى فقط — طلبُه في كل صفحة كان يضاعف زمن السحب
+              // ويتجاوز مهلة 30 ثانية فيبدو السحب متوقفاً.
+              includeNormalization:
+                  pagesDone == 0 && !(_timestampNormalizationDone ?? false),
             );
           }
         } catch (e) {
@@ -2098,11 +2145,14 @@ class CloudflareSyncManager {
         // المؤشر معروف من استجابة الصفحة الحالية قبل أي تطبيق، والتطبيق
         // لا يمس الشبكة — التداخل آمن ويخفي زمن الرحلة كاملاً.
         if (hasMore && !hadError) {
+          // ✅ الجلب المسبق بلا تطبيع: الصفحة الأولى وحدها تطلب الإصلاح
+          // الخادمي — بقية الصفحات سحب صافٍ.
           prefetchFuture = _fetchPullPage(
             pendingCursor,
             pageLimit,
             excludeOwnDevice: !wasFullSync,
             includeRemaining: wantRemaining,
+            includeNormalization: false,
           );
         }
 
@@ -2222,6 +2272,26 @@ class CloudflareSyncManager {
             conflictedSink: conflictedRecords,
             erroredSink: ledgerErrored,
           );
+          // ✅ (M1) أخطاء التطبيق الحقيقية هنا كانت تُبتلع بصمت (القائمة
+          // تُملأ ولا تُقرأ): الآن تظهر في مركز الأخطاء — لكنها لا تُفشل
+          // الدورة عمداً: سجلات السجل معروفة-الإشكال وحمولتها محفوظة،
+          // وإفشال الدورة عليها يعيد تجميد المؤشر الذي بُني الحجر لمنعه.
+          // التوجيه للحجر/الانتظار مقصود، والرؤية للخطأ مقصودة أيضاً.
+          if (ledgerErrors.isNotEmpty) {
+            final ledgerSummary = ledgerErrors.take(2).join(' | ');
+            debugPrint(
+              '⚠️ Pull ledger retry: ${ledgerErrors.length} apply-failure(s): '
+              '$ledgerSummary',
+            );
+            logError(
+              title:
+                  'فشل تطبيق ${ledgerErrors.length} سجلاً من سجل الانتظار '
+                  '— بقيت في الحجر/الانتظار',
+              message: ledgerSummary,
+              category: ErrorCategory.sync,
+              source: 'sync:pull-apply',
+            );
+          }
           // الأخطاء الفعلية (لا تعارض ولا تأجيل) تدخل المحاسبة أيضاً،
           // وما بقي مؤجلاً من السجل كذلك — ليزداد عدّاد حجبه نحو
           // العتبة بدل البقاء في الانتظار إلى الأبد.
@@ -2459,6 +2529,28 @@ class CloudflareSyncManager {
 
         ledgerDirty = true;
       }
+
+      // ✅ (M2) فرض سقف الحجر بعد كل محاسبة — الإخلاء بالأقدم first_seen.
+      if (_quarantinedRecords.length > _quarantineCap) {
+        final ordered = _quarantinedRecords.entries.toList()
+          ..sort(
+            (a, b) => _quarantineFirstSeen(
+              a.value,
+            ).compareTo(_quarantineFirstSeen(b.value)),
+          );
+        final victims = ordered
+            .take(_quarantinedRecords.length - _quarantineCap)
+            .toList();
+        for (final victim in victims) {
+          _quarantinedRecords.remove(victim.key);
+          _orphanBlockCounts.remove(victim.key);
+        }
+        ledgerDirty = true;
+        debugPrint(
+          '🏥 Pull: quarantine cap $_quarantineCap exceeded — '
+          'evicted ${victims.length} oldest record(s)',
+        );
+      }
       if (ledgerDirty) {
         await _persistQuarantineState(quarantinePrefs);
       }
@@ -2488,7 +2580,9 @@ class CloudflareSyncManager {
       _emitPullProgress(
         SyncPullProgress(
           pulledRows: totalPulled,
-          remainingRows: hadError ? null : 0,
+          // ✅ سقف الصفحات (H2) = نهاية دورة لا نهاية بيانات: remaining
+          // مجهول لا صفر — المؤشر يبقى غير-محدد بصدق.
+          remainingRows: (hadError || hitPageCap) ? null : 0,
           pages: pagesDone,
           isFullSync: wasFullSync,
           isDone: true,
@@ -2504,7 +2598,9 @@ class CloudflareSyncManager {
       await prefs.setInt('cf_last_pull_cursor', _lastPullCursor);
 
       // P0-B: mark full sync as completed only on full success
-      if (wasFullSync) {
+      // ✅ سقف الصفحات (H2) ليس نفاداً — علامة full-sync تبقى false
+      // والدورة القادمة تُكمل من المؤشر المتقدم.
+      if (wasFullSync && !hitPageCap) {
         _fullSyncCompleted = true;
         await prefs.setBool(_kFullSyncCompletedKey, true);
         debugPrint('✅ Full sync completed - device is now delta-ready');
@@ -2560,8 +2656,8 @@ class CloudflareSyncManager {
     int limit, {
     required bool excludeOwnDevice,
     bool includeRemaining = false,
+    bool includeNormalization = false,
   }) {
-    final normalizationRequested = !(_timestampNormalizationDone ?? false);
     return _httpClient
         .get(
           Uri.parse('${CloudflareConfig.workerUrl}/api/sync/pull').replace(
@@ -2577,7 +2673,7 @@ class CloudflareSyncManager {
               // ✅ (2026-09-10) السحب الكامل فقط: COUNT خادمي للمتبقي
               // (مؤشر التقدم الدقيق) — الدلتا بلا كلفة إضافية.
               if (includeRemaining) 'include_remaining': '1',
-              if (normalizationRequested) 'normalize_timestamps': '1',
+              if (includeNormalization) 'normalize_timestamps': '1',
             },
           ),
           headers: {'Authorization': 'Bearer $_token'},
@@ -3379,6 +3475,16 @@ class CloudflareSyncManager {
           op: 'delete',
         ),
       );
+      // ✅ (H1) الحذفية البعيدة بأولوية P0-E — أي عملية outbox معلقة لنفس
+      // الصف (تعديل محلي متزامن لم يُرفع) صارت لاغية منطقياً: دفعها لاحقاً
+      // يُحدِّث صفاً محذوفاً على الخادم (churn نسخة + إعادة بث الحذفية لكل
+      // الأجهزة) دون أي أثر مرئي. تُستبدل بحذف تأكيدي idempotent.
+      await _supersedePendingOpsWithTombstone(
+        entity: entity,
+        localUuid: localUuid,
+        deletedAt: deletedAt,
+        updatedAt: updatedAt,
+      );
       await _clearQuarantine(entity, localUuid);
     } catch (e) {
       // فشل قاعدة بيانات حقيقي — يُفسد الدورة (لا كتم).
@@ -3387,10 +3493,75 @@ class CloudflareSyncManager {
     return true;
   }
 
+  /// ✅ (H1) إبطال عمليات outbox المعلقة عند تطبيق حذفية بعيدة.
+  ///
+  /// العقد المعتمد (مؤكد من `OutboxDao.merge`):
+  ///  • صف واحد لكل (entity, local_uuid) في pending/processing، وعملية
+  ///    'delete' معلقة لا يستبدلها update أبداً — والـ update المعلقة
+  ///    يستبدلها delete (نفس عقد الحذف المحلي في الـ DAOs).
+  ///  • حمولة الحذف الرقيقة صالحة: `buildPushOperation` يضمّن local_uuid
+  ///    تلقائياً، و`deleteRecord` الخادمي idempotent على صف محذوف.
+  ///
+  /// لذلك: الاستبدال يحدث **فقط** عند وجود عملية معلقة غير-حذف فعلاً —
+  /// لا يُنشأ أي op جديد لكل tombstone تُسحب (لا دفع زائف)، ودفع الحذف
+  /// التأكيدي أرخص من دفع تحديث قديم فوق صف محذوف (الذي كان يقفز
+  /// بالنسخة ويعيد بث الحذفية لكل الأجهزة).
+  /// مساعد بحت: فشله لا يُفشل الحذفية (التقارب سليم بدونه).
+  Future<void> _supersedePendingOpsWithTombstone({
+    required String entity,
+    required String localUuid,
+    required Object? deletedAt,
+    required int updatedAt,
+  }) async {
+    final db = _db;
+    if (db == null) return;
+    try {
+      final rows = await db
+          .customSelect(
+            'SELECT op FROM outbox WHERE entity = ? AND local_uuid = ? '
+            'AND processing_status IN (?, ?) LIMIT 1',
+            variables: [
+              Variable.withString(entity),
+              Variable.withString(localUuid),
+              Variable.withString('pending'),
+              Variable.withString('processing'),
+            ],
+          )
+          .get();
+      final hasLiveOp = rows.any(
+        (row) => (row.data['op'] as String?) != 'delete',
+      );
+      if (!hasLiveOp) return;
+      final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await OutboxDao(db).merge(
+        entity: entity,
+        op: 'delete',
+        localUuid: localUuid,
+        payload: <String, dynamic>{
+          'local_uuid': localUuid,
+          'deleted_at': deletedAt,
+          'updated_at': updatedAt,
+        },
+        clientTs: nowSec,
+      );
+      debugPrint(
+        '  🗑️ $entity/$localUuid: remote tombstone superseded pending '
+        'local op(s) — confirmatory delete queued',
+      );
+    } catch (e) {
+      debugPrint('⚠️ tombstone outbox supersede skipped: $e');
+    }
+  }
+
   // ─── الحجر الصحي للصفوف اليتيمة (مراجعة #2+#16) ──────────────
 
   String _quarantineIdentity(String entity, String? localUuid) =>
       '$entity/$localUuid';
+
+  /// ✅ (M2) طابع first_seen للمقارنة أثناء الإخلاء — غياب/تشوه = 0
+  /// (الأقدم) فيُخلى أولاً بأمان.
+  int _quarantineFirstSeen(Map<String, dynamic> entry) =>
+      (entry['first_seen'] as num?)?.toInt() ?? 0;
 
   void _loadQuarantineState(SharedPreferences prefs) {
     try {
@@ -3443,6 +3614,14 @@ class CloudflareSyncManager {
 
   Future<void> _persistQuarantineState(SharedPreferences prefs) async {
     try {
+      // ✅ (M2) تقليم عدّادات يتيمة لا تنتمي لأي سجل — تمنع نمو الخريطة
+      // بلا حد عبر الجلسات (الشفاء/الإخلاء يزيلان السجلات وقد يُبقيان
+      // العدّاد).
+      _orphanBlockCounts.removeWhere(
+        (key, _) =>
+            !_quarantinedRecords.containsKey(key) &&
+            !_blockedPending.containsKey(key),
+      );
       await prefs.setString(
         _kQuarantineCountsKey,
         jsonEncode(_orphanBlockCounts),
@@ -3467,12 +3646,15 @@ class CloudflareSyncManager {
   bool _isQuarantined(String entity, String? localUuid) =>
       _quarantinedRecords.containsKey(_quarantineIdentity(entity, localUuid));
 
-  /// يمسح السجل من الحجر وعدّاد الحجب — يكتب prefs فقط حين يُزال شيء فعلاً.
+  /// يمسح السجل من الحجر وسجل الانتظار وعدّاد الحجب — يكتب prefs فقط
+  /// حين يُزال شيء فعلاً. (M3: إغفال سجل الانتظار هنا كان يُبقي حمولة
+  /// ميتة تُعاد محاولتها دورة إضافية هدراً.)
   Future<void> _clearQuarantine(String entity, String? localUuid) async {
     final identity = _quarantineIdentity(entity, localUuid);
     final removedLedger = _quarantinedRecords.remove(identity) != null;
+    final removedPending = _blockedPending.remove(identity) != null;
     final removedCounter = _orphanBlockCounts.remove(identity) != null;
-    if (removedLedger || removedCounter) {
+    if (removedLedger || removedPending || removedCounter) {
       final prefs = await SharedPreferences.getInstance();
       await _persistQuarantineState(prefs);
     }
