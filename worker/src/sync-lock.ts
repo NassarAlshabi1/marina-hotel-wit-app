@@ -1,11 +1,18 @@
 // ═══════════════════════════════════════════════════════════════
-//  sync-lock.ts — Durable Object for Distributed Sync Locks + Realtime
+//  sync-lock.ts — Durable Object for Distributed Sync Locks
 //
 //  Each entity (room, booking, payment, etc.) gets its own DO instance.
 //  The DO provides:
 //    1. Mutex lock — prevents concurrent writes to the same entity
-//    2. Realtime notifications — broadcasts changes to connected clients
-//    3. Cursor tracking — tracks the last sync cursor per device
+//    2. Cursor tracking — tracks the last sync cursor per device
+//
+//  ✅ (2026-09-17) Realtime notifications moved OUT of this class into
+//  the dedicated RealtimeHubDO (src/realtime-hub.ts) on the WebSocket
+//  Hibernation API — sessions now survive worker deploys/DO evictions,
+//  which the in-memory sessions Map here could not guarantee.
+//  The broadcast/WebSocket paths below remain for backward
+//  compatibility with direct DO callers (tests); production routes
+//  (/api/realtime, push broadcasts) target RealtimeHubDO.
 // ═══════════════════════════════════════════════════════════════
 
 export interface SyncLockRequest {

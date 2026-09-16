@@ -7,14 +7,16 @@ import { Database, ALL_TABLE_NAMES } from './database';
 import { authMiddleware, handleLogin, hashPassword, resolveExpiryHours, signToken } from './auth';
 import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate } from './sync';
 import { SyncLockDO, type RealtimeMessage } from './sync-lock';
+import { RealtimeHubDO } from './realtime-hub';
 
 // ─── Environment bindings ─────────────────────────────────────
 
-export { SyncLockDO };
+export { SyncLockDO, RealtimeHubDO };
 
 export interface Env {
   DB: D1Database;
   SYNC_LOCK: DurableObjectNamespace;
+  REALTIME_HUB: DurableObjectNamespace;
   JWT_SECRET: string;
   JWT_EXPIRY_HOURS: string;
   RATE_LIMIT_WINDOW: string;
@@ -23,15 +25,17 @@ export interface Env {
 }
 
 // ─── Realtime Broadcast Adapter (plan phase 3) ────────────────
-// Forwards change events to the SyncLockDO WebSocket hub so connected
+// Forwards change events to the RealtimeHubDO WebSocket hub so connected
 // devices pull deltas immediately. Best-effort by contract: every error
 // is swallowed here — realtime is an optimization, never a correctness
 // guarantee (auto-sync + delta cursor still converge all devices).
+// ✅ (2026-09-17) Targets the dedicated hibernation hub — sessions survive
+// deploys, so a push right after `wrangler deploy` still reaches devices.
 function realtimeBroadcaster(env: Env): (msg: RealtimeMessage) => Promise<void> {
   return async (msg: RealtimeMessage) => {
     try {
-      const lockId = env.SYNC_LOCK.idFromName('global');
-      const stub = env.SYNC_LOCK.get(lockId);
+      const hubId = env.REALTIME_HUB.idFromName('global');
+      const stub = env.REALTIME_HUB.get(hubId);
       await stub.fetch(
         new Request('https://do.internal/broadcast', {
           method: 'POST',
@@ -435,15 +439,28 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         return response;
       }
 
-      // ─── Durable Object: Realtime WebSocket ───────────────
+      // ─── Durable Object: Realtime WebSocket Hub ───────────────
+      // GET /api/realtime/status — ops/live-verify view of the hub
+      // (hibernated session count, per-entity breakdown, device ids).
+      if (path === '/api/realtime/status' && method === 'GET') {
+        const hubId = env.REALTIME_HUB.idFromName('global');
+        const stub = env.REALTIME_HUB.get(hubId);
+        const response = await stub.fetch(
+          new Request('https://do.internal/status', { method: 'GET', headers: request.headers })
+        );
+        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
+        return response;
+      }
+
       // GET /api/realtime — WebSocket upgrade for realtime sync
+      // (Hibernation API — sessions survive worker deploys/DO evictions)
       if (path === '/api/realtime' && method === 'GET') {
         const upgradeHeader = request.headers.get('Upgrade');
         if (upgradeHeader !== 'websocket') {
           return json({ error: 'WebSocket upgrade required' }, 400, env);
         }
-        const lockId = env.SYNC_LOCK.idFromName('global');
-        const stub = env.SYNC_LOCK.get(lockId);
+        const hubId = env.REALTIME_HUB.idFromName('global');
+        const stub = env.REALTIME_HUB.get(hubId);
         const response = await stub.fetch(request);
         logRequest(method, path, response.status, Date.now() - startTime, clientIp);
         return response;

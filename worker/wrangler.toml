@@ -16,14 +16,28 @@ database_id = "607f1090-83b1-4281-975f-d81b8f6154e7"
 # 1000 writes/day cap, no eventual consistency). The former dead
 # RATE_LIMIT KV binding was removed — it was never read by the code.
 
-# ─── Durable Objects (sync locks + realtime) ──────────────────
+# ─── Durable Objects ─────────────────────────────────────────
+# SYNC_LOCK: entity locks + cursors (dormant — no client callers today).
+# REALTIME_HUB (2026-09-17): dedicated realtime WebSocket hub on the
+# Hibernation API — sessions survive deploys/evictions; split out of
+# SyncLockDO('global') whose in-memory Map dropped every device on
+# each `wrangler deploy`.
 [[durable_objects.bindings]]
 name = "SYNC_LOCK"
 class_name = "SyncLockDO"
 
+[[durable_objects.bindings]]
+name = "REALTIME_HUB"
+class_name = "RealtimeHubDO"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["SyncLockDO"]
+
+# v2 (additive — v1 state untouched): registers the realtime hub class.
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["RealtimeHubDO"]
 
 # ─── Environment Variables ────────────────────────────────────
 # JWT_SECRET is stored as a Cloudflare Secret (not in plaintext here)
