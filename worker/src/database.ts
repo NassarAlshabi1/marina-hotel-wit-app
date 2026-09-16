@@ -193,12 +193,14 @@ export class Database {
   /** Advance the sync clock past a foreign timestamp (e.g. after bulk migration). */
   async advanceSyncClock(minTs: number): Promise<void> {
     if (!Number.isFinite(minTs) || minTs <= 0) return;
-    // ✅ (fix W-M1) حارس نطاق: طابع في نطاق الميلي ثانية (> 1e11) تسلّل من
-    // عميل ترحيل قديم يجب ألا يُسمّم الساعة الخادمية — وإلا صارت كل
-    // الطوابع الجديدة «سيئة» في نظر normalizeTimestamps فلا تلتئم دورة
-    // السحب أبداً (إعادة ختم 500 صف/سحب بلا تقارب). نتجاهل القيمة:
-    // normalizeTimestamps هو المسؤول عن تحويل هذه الصفوف إلى نطاق الثواني.
-    if (minTs > Database.MS_TIMESTAMP_THRESHOLD) return;
+    // ✅ (fix W-M1 → 2026-09-17 تعميم) حارس نطاق لكلا صنفي التسمم: طابع
+    // الميلي (>1e11) أو الـ sentinel المستقبلي (9999999999) تسلّل من عميل
+    // ترحيل/استعادة قديم يجب ألا يُسمّم الساعة الخادمية — وإلا صارت كل
+    // الطوابع الجديدة مسمومة بدورها (‎last_ts+1 فوق 1e10) فيعمى كل جهاز
+    // بسحبها، وnormalizeTimestamps لا يستطيع التمييز لأن القيم تحت 1e11.
+    // نتجاهل القيمة: الإصلاح الذاتي في pullChanges + normalizeTimestamps
+    // (المُعمّم بمعامل عتبة) مسؤولان عن إعادة ختم هذه الصفوف للثواني.
+    if (minTs > Database.FUTURE_TIMESTAMP_THRESHOLD) return;
     await this.db
       .prepare('UPDATE sync_clock SET last_ts = MAX(last_ts, ?) WHERE id = 1')
       .bind(Math.floor(minTs))
@@ -412,18 +414,74 @@ export class Database {
       }
     }
     const page = allChanges.slice(0, cut);
-    const safeToAdvance = errors.length === 0 && !windowTruncated;
-    const hasMore = safeToAdvance && allChanges.length > cut;
 
-    // ✅ CRITICAL FIX: cursor must be the updated_at of the LAST record
+    // ─── ✅ (2026-09-17) الإصلاح الذاتي: صف مسموم لا يصل عميلاً أبداً ───
+    // صف updated_at فوق FUTURE_TIMESTAMP_THRESHOLD (sentinel 9999999999 أو
+    // ميلي) لو قُدّم لعميل ثبت مؤشره عليه فعمي للأبد (كل كتابة لاحقة
+    // ~1.79e9 دونه). الاكتشاف مجاني — مسح رقمي على الصفحة في الذاكرة —
+    // والإصلاح يعيد ختم الصفوف المسمومة بطوابع ثوانٍ جديدة مخصصة من
+    // sync_clock (تصبح الأحدث فتصل كل جهاز مرة واحدة بالضبط عبر
+    // دلتا عادية). الصفوف المُصلحة تُحذف من هذه الصفحة والمؤشر المعاد
+    // يقف عند آخر صف سليم؛ has_more تبقى true فتسحبها الدورة التالية فوراً.
+    let healedPoison = 0;
+    let servedPage = page;
+    const poisoned = page.filter(
+      (r) => Number(r.updated_at) > Database.FUTURE_TIMESTAMP_THRESHOLD
+    );
+    if (poisoned.length > 0) {
+      servedPage = page.filter(
+        (r) => Number(r.updated_at) <= Database.FUTURE_TIMESTAMP_THRESHOLD
+      );
+      const byEntity = new Map<string, SyncRecord[]>();
+      for (const rec of poisoned) {
+        const ent = String((rec as Record<string, unknown>)._entity ?? '');
+        if (!ent) continue;
+        const list = byEntity.get(ent);
+        if (list) list.push(rec);
+        else byEntity.set(ent, [rec]);
+      }
+      for (const [ent, recs] of byEntity) {
+        const table = ENTITY_TABLES[ent];
+        if (!table) continue;
+        try {
+          healedPoison += await this.reStampPoisoned(table, recs);
+        } catch (err) {
+          // فشل الإصلاح يُفسد الدورة تحفظياً: السم استُبعد من الصفحة
+          // بالفعل، والمؤشر لا يتقدم (errors غير فارغة)، والعميل يعيد
+          // المحاولة في دورته التالية حتى يُشفي الخادم.
+          errors.push({
+            entity: ent,
+            error: `poison self-heal failed: ${String(err).slice(0, 200)}`,
+          });
+        }
+      }
+      if (healedPoison > 0) {
+        console.log(
+          `[SYNC/PULL] self-healed ${healedPoison} poisoned row(s) ` +
+            `(updated_at > ${Database.FUTURE_TIMESTAMP_THRESHOLD}) — ` +
+            `re-stamped to fresh sync_clock seconds`
+        );
+      }
+    }
+
+    const safeToAdvance = errors.length === 0 && !windowTruncated;
+    // healedPoison > 0 → has_more true حتى لو نفدت الصفوف: النسخ المُصلحة
+    // (الأحدث الآن) تُسلّم للعميل في الصفحة التالية فوراً بدل انتظار دورة.
+    const hasMore =
+      safeToAdvance && (allChanges.length > cut || healedPoison > 0);
+
+    // ✅ CRITICAL FIX: cursor must be the updated_at of the LAST SANE record
     // actually returned in this page — never the max across all fetched
     // rows (the old code returned the global max, permanently skipping
-    // every record between the page boundary and that max).
+    // every record between the page boundary and that max), and never a
+    // poisoned stamp (2026-09-17: servedPage excludes healed rows).
     // Never advance across an incomplete page: a client that only persists
     // the numeric cursor must not skip rows from a failed/truncated table.
     // Replaying successful rows is safe because local application is idempotent.
     const nextCursor =
-      safeToAdvance && page.length > 0 ? page[page.length - 1].updated_at : cursor;
+      safeToAdvance && servedPage.length > 0
+        ? servedPage[servedPage.length - 1].updated_at
+        : cursor;
 
     // ─── ✅ (2026-09-10) remaining للمؤشر التقدمي ───
     // COUNT فهرسي عبر batch (مرور شبكي واحد) على كل الجداول بنفس شروط
@@ -460,7 +518,7 @@ export class Database {
     }
 
     return {
-      changes: page,
+      changes: servedPage,
       cursor: nextCursor,
       has_more: hasMore,
       remaining,
@@ -481,9 +539,26 @@ export class Database {
   static readonly MS_TIMESTAMP_THRESHOLD = 100_000_000_000; // 1e11
 
   /**
-   * Progressively repair legacy millisecond timestamps in entity tables.
+   * ✅ (2026-09-17) الفاصل بين الثواني السليمة والطوابع المسمومة كلا صنفيها
+   * (sentinel 9999999999 من سكربت appwrite_cloud_restore.py القديم، وطوابع
+   * الميلي 1.78e12 معاً): الحقبة الحالية بالثواني (~1.79e9) تظل تحت 2e9
+   * حتى سنة 2033 — أي updated_at فوق هذا الحد مسموم بلا لباسة، ومؤشر
+   * دلتا يستقر عليه (WHERE updated_at > cursor) يعمي الجهاز للأبد لأن كل
+   * كتابة مستقبلية (~1.79e9) دونه. الحارس هنا + الإصلاح الذاتي في
+   * pullChanges (أدناه) يمنعان وصول السم لأي عميل مهما كان مصدره.
+   */
+  static readonly FUTURE_TIMESTAMP_THRESHOLD = 2_000_000_000;
+
+  /**
+   * Progressively repair poisoned timestamps in entity tables.
    *
-   * Re-stamps up to `maxRows` ms-scale rows per call with fresh, strictly
+   * ✅ (2026-09-17) مُعمّم بمعامل `threshold`: العتبة الافتراضية
+   * MS_TIMESTAMP_THRESHOLD (1e11) تحافظ على عقد 2026-09-15 (مسح طوابع
+   * الميلي فقط عند normalize_timestamps=1 الصريح)، بينما عتبة
+   * FUTURE_TIMESTAMP_THRESHOLD (2e9) يمررها الإصلاح الذاتي داخل
+   * pullChanges تشمل الـ sentinel (9999999999) أيضاً.
+   *
+   * Re-stamps up to `maxRows` poisoned rows per call with fresh, strictly
    * increasing SECOND-based values allocated past the sync clock (order
    * preserving), so repeated calls eventually drain all bad rows. Idempotent
    * and safe under concurrency: the final clock advance uses MAX(), matching
@@ -500,7 +575,8 @@ export class Database {
    * over a few requests without a manual maintenance step.
    */
   async normalizeTimestamps(
-    maxRows: number = 500
+    maxRows: number = 500,
+    threshold: number = Database.MS_TIMESTAMP_THRESHOLD
   ): Promise<{
     normalized: number;
     remaining: number;
@@ -517,7 +593,7 @@ export class Database {
           .prepare(
             `SELECT COUNT(*) AS c FROM ${table} WHERE updated_at > ?`
           )
-          .bind(Database.MS_TIMESTAMP_THRESHOLD)
+          .bind(threshold)
           .first<{ c: number }>();
         const bad = countRow?.c ?? 0;
         if (bad > 0) {
@@ -532,64 +608,20 @@ export class Database {
              WHERE updated_at > ?
              ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
           )
-          .bind(Database.MS_TIMESTAMP_THRESHOLD, take)
+          .bind(threshold, take)
           .all<{ local_uuid: string; updated_at: number; last_modified: number | null }>();
 
         if (rows.results.length === 0) continue;
 
-        // Allocate a contiguous, strictly-increasing second-based range past
-        // the current clock. The range must be reserved ATOMICALLY (single
-        // UPDATE … RETURNING): two concurrent pull requests could otherwise
-        // read the same clock base and assign overlapping timestamps — the
-        // exact duplicate-timestamp disease this routine cures.
-        const alloc = await this.db
-          .prepare(
-            'UPDATE sync_clock SET last_ts = MAX(last_ts, ?) + ? WHERE id = 1 RETURNING last_ts'
-          )
-          .bind(Math.floor(Date.now() / 1000), rows.results.length)
-          .first<{ last_ts: number }>();
-        if (!alloc || typeof alloc.last_ts !== 'number') {
-          throw new Error('normalize: sync_clock allocation failed');
-        }
-        const rangeEnd = alloc.last_ts;
-        const rangeStart = rangeEnd - rows.results.length + 1;
-
-        const statements: D1PreparedStatement[] = [];
-        rows.results.forEach((row, i) => {
-          const newTs = rangeStart + i;
-          // Re-stamp last_modified only when it carries the same legacy ms
-          // scale — seconds-scale values (server allocator output) stay.
-          statements.push(
-            this.db
-              .prepare(
-                `UPDATE ${table}
-                 SET updated_at = ?,
-                     last_modified = CASE WHEN last_modified > ? THEN ? ELSE last_modified END
-                 WHERE local_uuid = ?`
-              )
-              .bind(
-                newTs,
-                Database.MS_TIMESTAMP_THRESHOLD,
-                newTs,
-                row.local_uuid
-              )
-          );
-        });
-
-        // D1 batch is atomic per call — 50 statements per batch mirrors the
-        // migrate handler's chunking. Re-stamping is idempotent per batch:
-        // a retried batch re-stamps already-repaired rows only if they still
-        // match the ms filter, which they no longer do.
-        for (let start = 0; start < statements.length; start += 50) {
-          await this.db.batch(statements.slice(start, start + 50));
-        }
-
-        // The clock was already advanced atomically by the RETURNING
-        // statement above — no separate advance needed.
-
-        normalized += rows.results.length;
-        perTable[table] = rows.results.length;
-        remainingTotal = Math.max(0, remainingTotal - rows.results.length);
+        // ✅ (2026-09-17) نفس ميكانيكية إعادة الختم المشتركة مع الإصلاح
+        // الذاتي في pullChanges — التخصيص الذري (‎UPDATE…RETURNING) للنطاق
+        // المتزايد الصارم فوق الساعة يبقى كما هو، وlast_modified يُعاد
+        // ختمه فقط إذا كان هو نفسه فوق عتبة التسميم FUTURE (الثواني
+        // السليمة ~1.79e9 تبقى محفوظة دائماً).
+        const fixed = await this.reStampPoisoned(table, rows.results);
+        normalized += fixed;
+        perTable[table] = fixed;
+        remainingTotal = Math.max(0, remainingTotal - fixed);
       } catch (err) {
         // Normalization is best-effort repair — never block the pull.
         console.error(`[SYNC/PULL] normalize ${table} failed:`, String(err).slice(0, 200));
@@ -597,6 +629,66 @@ export class Database {
     }
 
     return { normalized, remaining: remainingTotal, perTable };
+  }
+
+  /**
+   * ✅ (2026-09-17) إعادة ختم الصفوف المسمومة بطوابع ثوانٍ جديدة — الميكانيكية
+   * المشتركة بين normalizeTimestamps (مسح الصيانة) والإصلاح الذاتي داخل
+   * pullChanges (الصفوف التي صادفتها الصفحة فعلاً).
+   *
+   * تحجز نطاقاً متزايداً صارماً فوق sync_clock ذرياً (عبارة واحدة
+   * ‎RETURNING واحدة — لا يمكن لطلبي سحب متزامنين أن يتقاسا النطاق نفسه
+   * فتنشأ طوابع مكررة)، ثم تعيد ختم updated_at لكل صف ضمن النطاق و
+   * last_modified فقط إذا كان هو نفسه مسموماً (فوق 2e9). الدفعات
+   * بـ db.batch ذرّية (50 عبارة/دفعة) — إعادة المحاولة آمنة: صف خُتم
+   * فعلاً لم يعد يطابق مرشّح السم فلا يُلمس مجدداً (idempotent).
+   */
+  private async reStampPoisoned(
+    table: string,
+    rows: ReadonlyArray<{ local_uuid: unknown }>
+  ): Promise<number> {
+    const targets = rows
+      .map((r) => String(r.local_uuid ?? ''))
+      .filter((u) => u.length > 0);
+    if (targets.length === 0) return 0;
+
+    // Allocate a contiguous, strictly-increasing second-based range past
+    // the current clock — ATOMICALLY (single UPDATE … RETURNING): two
+    // concurrent healers could otherwise read the same clock base and
+    // assign overlapping timestamps (the duplicate-ts disease).
+    const alloc = await this.db
+      .prepare(
+        'UPDATE sync_clock SET last_ts = MAX(last_ts, ?) + ? WHERE id = 1 RETURNING last_ts'
+      )
+      .bind(Math.floor(Date.now() / 1000), targets.length)
+      .first<{ last_ts: number }>();
+    if (!alloc || typeof alloc.last_ts !== 'number') {
+      throw new Error('sync_clock allocation failed (poison re-stamp)');
+    }
+    const rangeStart = alloc.last_ts - targets.length + 1;
+
+    const statements: D1PreparedStatement[] = targets.map((uuid, i) => {
+      const newTs = rangeStart + i;
+      // last_modified يُعاد ختمه فقط إذا كان هو نفسه مسموماً — الثواني
+      // السليمة (مخرجات المخصّص الخادمي) تبقى كما هي.
+      return this.db
+        .prepare(
+          `UPDATE ${table}
+           SET updated_at = ?,
+               last_modified = CASE WHEN last_modified > ? THEN ? ELSE last_modified END
+           WHERE local_uuid = ?`
+        )
+        .bind(newTs, Database.FUTURE_TIMESTAMP_THRESHOLD, newTs, uuid);
+    });
+
+    // D1 batch is atomic per call — 50 statements per batch mirrors the
+    // migrate handler's chunking. Re-stamping is idempotent per batch: a
+    // retried batch re-stamps already-repaired rows only if they still
+    // exceed the poison filter, which they no longer do.
+    for (let start = 0; start < statements.length; start += 50) {
+      await this.db.batch(statements.slice(start, start + 50));
+    }
+    return targets.length;
   }
 
   // ─── Push: Create ──────────────────────────────────────────

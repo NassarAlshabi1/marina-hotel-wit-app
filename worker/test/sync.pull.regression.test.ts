@@ -342,25 +342,102 @@ describe('pull: normalizeTimestamps (legacy ms → seconds repair)', () => {
     }
   });
 
-  it('ordinary delta pull (no flag) does NOT trigger normalization — explicit opt-in contract', async () => {
+  it('ordinary delta pull self-heals poisoned rows it encounters — never serves them (2026-09-17)', async () => {
     const auth = await adminAuthHeader();
     for (let i = 0; i < 2; i++) {
       await seedRoomAt(1_700_000_000_000 + i, { roomNumber: `OPT${i}` });
     }
 
-    // بلا normalize_timestamps=1: لا مسح صيانة، ولا حقل normalization في الرد،
-    // والصفوف القديمة تبقى كما هي — هذا العقد المثبّت في 72b75a79.
-    const plain = (await pull(auth, { cursor: '0', limit: '200' })) as PullResponseBody;
+    // ✅ العقد الجديد (2026-09-17): السحب الاعتيادي لم يعد يقدّم صفوفاً
+    // مسمومة (ميلي/sentinel) للعميل إطلاقاً — الاكتشاف مجاني (مسح الصفحة
+    // في الذاكرة) والإصلاح الذاتي يعيد ختمها فوراً. حقل normalization يبقى
+    // غائباً (لا مسح صيانة كامل — عقد 2026-09-15 قائم للطلب الصريح).
+    const plain = (await pull(auth, { cursor: '0', limit: '200', entity: 'rooms' })) as PullResponseBody;
     expect(plain.normalization).toBeFalsy();
+    expect(plain.changes).toHaveLength(0); // السم لم يُقدَّم
+    expect(plain.has_more).toBe(true); // النسخ المُصلحة تُسلَّم بالصفحة التالية
+    expect(parseInt(plain.cursor, 10)).toBe(0); // المؤشر لم يتقدم فوق أي سم
 
+    // والصفوف أُصلحت فعلاً في D1 — طوابع ثوانٍ فريدة جديدة فوق الساعة
     const rows = await env.DB.prepare(
       'SELECT updated_at FROM rooms WHERE room_number LIKE ? ORDER BY updated_at'
     )
       .bind('OPT%')
       .all<{ updated_at: number }>();
     expect(rows.results).toHaveLength(2);
-    // الطوابع الميلّية بقيت كما هي (لم تُلمس بالسحب الاعتيادي).
-    expect(rows.results[0].updated_at).toBe(1_700_000_000_000);
-    expect(rows.results[1].updated_at).toBe(1_700_000_000_001);
+    expect(rows.results[0].updated_at).toBeGreaterThan(0);
+    expect(rows.results[0].updated_at).toBeLessThan(2_000_000_000);
+    expect(rows.results[1].updated_at).toBeGreaterThan(0);
+    expect(rows.results[1].updated_at).toBeLessThan(2_000_000_000);
+    expect(rows.results[0].updated_at).not.toBe(rows.results[1].updated_at);
+
+    // الصفحة التالية تُسلّم الصفين المُصلحين ثم تنضب
+    const next = (await pull(auth, { cursor: plain.cursor, limit: '200', entity: 'rooms' })) as PullResponseBody;
+    expect(next.changes).toHaveLength(2);
+    for (const c of next.changes) {
+      expect(c.updated_at as number).toBeLessThan(2_000_000_000);
+    }
+    expect(next.has_more).toBe(false);
+  });
+});
+
+// ─── D) Sentinel poison self-heal (2026-09-17) ─────────────────
+
+describe('pull: sentinel poison self-heal (9999999999 → fresh seconds)', () => {
+  it('sentinel rows are healed in-page and never served; cursor stops at the last sane row', async () => {
+    const auth = await adminAuthHeader();
+    // صفان سليمان + صف sentinel (ختم سكربت appwrite_cloud_restore.py القديم)
+    const sane1 = await seedRoomAt(1_700_000_100, { roomNumber: 'S1' });
+    const poison = await seedRoomAt(9_999_999_999, {
+      roomNumber: 'SNT1',
+      lastModified: 9_999_999_999, // مسموم أيضاً — يجب أن يُعاد ختمه
+    });
+    const sane2 = await seedRoomAt(1_700_000_200, { roomNumber: 'S2' });
+
+    const data = (await pull(auth, { cursor: '0', limit: '200', entity: 'rooms' })) as PullResponseBody;
+
+    // الصفان السليمان وحدهما قُدِّما — السم شُفي وأُخفي
+    expect(data.changes.map((c) => c.local_uuid)).toEqual([sane1, sane2]);
+    for (const c of data.changes) {
+      expect(c.updated_at as number).toBeLessThan(2_000_000_000);
+    }
+    expect(parseInt(data.cursor, 10)).toBe(1_700_000_200); // آخر صف سليم
+    expect(data.has_more).toBe(true); // الصف المُصلح ينتظر الصفحة التالية
+
+    // D1: السم استُبدل بطابع ثوانٍ جديد فوق الساعة، وlast_modified كذلك
+    const healed = await env.DB.prepare(
+      'SELECT updated_at, last_modified FROM rooms WHERE local_uuid = ?'
+    )
+      .bind(poison)
+      .first<{ updated_at: number; last_modified: number }>();
+    expect(healed!.updated_at).toBeGreaterThan(1_700_000_200);
+    expect(healed!.updated_at).toBeLessThan(2_000_000_000);
+    expect(healed!.last_modified).toBeLessThan(2_000_000_000);
+
+    // الدورة التالية تستلم الصف المُصلح وتنضب — بلا فقد ولا تكرار
+    const next = (await pull(auth, { cursor: data.cursor, limit: '200', entity: 'rooms' })) as PullResponseBody;
+    expect(next.changes.map((c) => c.local_uuid)).toEqual([poison]);
+    expect(next.has_more).toBe(false);
+    expect(parseInt(next.cursor, 10)).toBe(healed!.updated_at);
+  });
+
+  it('a delta pull from a sane cursor heals new poison without ever exposing it', async () => {
+    // جهاز مؤشره سليم (1_700_000_100) — صف sentinel يُزرع بعده: الدلتا
+    // تشفيه في الصفحة نفسها ولا تعيد مؤشراً مسموماً أبداً.
+    const auth = await adminAuthHeader();
+    const base = await seedRoomAt(1_700_000_100, { roomNumber: 'B1' });
+    const first = (await pull(auth, { cursor: '0', limit: '200', entity: 'rooms' })) as PullResponseBody;
+    expect(first.changes.map((c) => c.local_uuid)).toEqual([base]);
+
+    await seedRoomAt(9_999_999_999, { roomNumber: 'LATE1' });
+    const delta = (await pull(auth, { cursor: first.cursor, limit: '200', entity: 'rooms' })) as PullResponseBody;
+    expect(delta.changes).toHaveLength(0); // لم يُقدَّم
+    expect(parseInt(delta.cursor, 10)).toBe(parseInt(first.cursor, 10)); // لم يتقدم فوق السم
+    expect(delta.has_more).toBe(true); // الشفاء جاهز للسحب التالي
+
+    const afterHeal = (await pull(auth, { cursor: delta.cursor, limit: '200', entity: 'rooms' })) as PullResponseBody;
+    expect(afterHeal.changes).toHaveLength(1);
+    expect(afterHeal.changes[0].updated_at as number).toBeLessThan(2_000_000_000);
+    expect(afterHeal.has_more).toBe(false);
   });
 });

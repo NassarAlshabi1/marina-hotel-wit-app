@@ -190,19 +190,32 @@ describe('migrate: atomic chunk execution (plan 2.6)', () => {
 });
 
 describe('migrate: sync_clock advancement', () => {
-  it('advances sync_clock past migrated updated_at values', async () => {
+  it('advances past sane migrated updated_at but ignores future-class poison (2026-09-17)', async () => {
     const auth = await adminAuthHeader();
     const before = await env.DB.prepare('SELECT last_ts FROM sync_clock WHERE id = 1').first<{ last_ts: number }>();
 
-    const bigTs = 4_000_000_000; // far in the future
-    const sql = `INSERT OR REPLACE INTO rooms (local_uuid, room_number, type, price, status, created_at, updated_at, last_modified) VALUES ('${uniqueUuid('clock')}', 'C-1', 'double', 5, 'available', 1, ${bigTs}, 1);`;
-    await postMigrate(auth, sql);
+    // ✅ العقد الجديد: القيم السليمة (تحت 2e9 = سنة 2033) تُقدّم الساعة
+    // كالسابق — الحارس الجديد يقصّ فقط صنف التسمم المستقبلي/الميلي.
+    const saneTs = 1_790_000_000;
+    const sqlSane = `INSERT OR REPLACE INTO rooms (local_uuid, room_number, type, price, status, created_at, updated_at, last_modified) VALUES ('${uniqueUuid('clock')}', 'C-1', 'double', 5, 'available', 1, ${saneTs}, 1);`;
+    await postMigrate(auth, sqlSane);
 
-    const after = await env.DB.prepare('SELECT last_ts FROM sync_clock WHERE id = 1').first<{ last_ts: number }>();
-    expect(after!.last_ts).toBeGreaterThanOrEqual(bigTs);
-    expect(after!.last_ts).toBeGreaterThan(before?.last_ts ?? 0);
+    const afterSane = await env.DB.prepare('SELECT last_ts FROM sync_clock WHERE id = 1').first<{ last_ts: number }>();
+    expect(afterSane!.last_ts).toBeGreaterThanOrEqual(saneTs);
+    expect(afterSane!.last_ts).toBeGreaterThan(before?.last_ts ?? 0);
 
-    // A subsequent push allocates strictly-greater updated_at
+    // sentinel من سكربت الاستعادة القديم (9999999999): يجب ألا يجرّ الساعة
+    // إلى نطاق السم — وإلا صارت كل تخصيصات لاحقة (last_ts+1) مسمومة
+    // بدورها فيعمى كل جهاز يسحبها للأبد (جذر حادثة دلتا 2026-09-17).
+    const sentinel = 9_999_999_999;
+    const sqlPoison = `INSERT OR REPLACE INTO rooms (local_uuid, room_number, type, price, status, created_at, updated_at, last_modified) VALUES ('${uniqueUuid('sentinel')}', 'C-P', 'double', 5, 'available', 1, ${sentinel}, 1);`;
+    await postMigrate(auth, sqlPoison);
+
+    const afterPoison = await env.DB.prepare('SELECT last_ts FROM sync_clock WHERE id = 1').first<{ last_ts: number }>();
+    expect(afterPoison!.last_ts).toBeLessThan(2_000_000_000); // لم يقفز إلى الـ sentinel
+    expect(afterPoison!.last_ts).toBeGreaterThanOrEqual(saneTs); // وما زال فوق الطابع السليم
+
+    // A subsequent push allocates normal ~now stamps — not sentinel-range ones
     const createRes = await SELF.fetch('https://example.com/api/sync/push', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: auth },
@@ -232,6 +245,7 @@ describe('migrate: sync_clock advancement', () => {
     const pushed = await env.DB.prepare(
       "SELECT MAX(updated_at) AS m FROM rooms WHERE room_number = 'C-2'"
     ).first<{ m: number }>();
-    expect(pushed!.m).toBeGreaterThan(bigTs);
+    expect(pushed!.m).toBeGreaterThan(afterPoison!.last_ts ?? 0);
+    expect(pushed!.m).toBeLessThan(2_000_000_000); // نطاق ثوانٍ سليم
   });
 });
