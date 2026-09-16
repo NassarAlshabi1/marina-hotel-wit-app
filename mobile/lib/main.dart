@@ -18,6 +18,7 @@ import 'package:workmanager/workmanager.dart';
 import 'components/admin_layout.dart';
 import 'providers/appwrite_providers.dart' as appwrite;
 import 'providers/auth_provider.dart';
+import 'providers/cloudflare_connection_providers.dart' as cfconn;
 import 'providers/cloudflare_providers.dart' as cloudflare;
 import 'providers/repository_providers.dart';
 import 'providers/theme_provider.dart';
@@ -490,6 +491,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // ✅ (2026-09-17) طلب المستخدم: «عند فتح التطبيق يفترض يفحص تلقائيا
+    // الاتصال مع cloudflare worker d1» — تفعيل مراقب فحص الاتصال لحظة
+    // الإقلاع (keepAlive لجلسة التطبيق كاملة): فحص فوري /health ثم
+    // /api/health/d1 (المسار الكامل)، إعادة بعد 15ث بانتظار توكن الدخول،
+    // فحص عند عودة الشبكة، ودورة كل 60 ث. الحالة تنعكس في
+    // connectionStatusProvider (SyncIndicator + بطاقة الاتصال + الأزرار).
+    ref.read(cfconn.startupConnectionWatcherProvider);
     ref.listen<AppDatabase>(databaseProvider, (previous, database) {
       if (_sessionConfigured &&
           previous != null &&
@@ -1004,6 +1012,16 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // ✅ (2026-09-17) «فتح التطبيق» يشمل العودة من الخلفية: فحص اتصال
+    // فوري (Worker + D1) غير مشروط بجلسة قاعدة بيانات — تحديث المؤشر
+    // فور عودة المستخدم قبل أي مزامنة.
+    if (state == AppLifecycleState.resumed) {
+      unawaited(
+        ref
+            .read(appwrite.connectionStatusProvider.notifier)
+            .checkConnection(),
+      );
+    }
     if (!_sessionConfigured) {
       return;
     }

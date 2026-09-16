@@ -308,6 +308,39 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       const ctx = authResult.context!;
       const db = new Database(env.DB);
 
+      // ─── D1 Health Probe ────────────────────────────────
+      // ✅ (2026-09-17) طلب المستخدم: «عند فتح التطبيق يفترض يفحص تلقائيا
+      // الاتصال مع cloudflare worker d1». /health يثبت حياة الـ Worker فقط
+      // (بلا D1) — هذه النقطة تكمل المسار: شبكة → worker → مصادقة → D1
+      // عبر أبسط استعلام ممكن (SELECT 1) مع قياس زمن الاستجابة خادمياً.
+      // محمية بالمصادقة (تمر من بوابة 401 أعلاه) وخاضعة لتحديد المعدل
+      // العام مثل بقية /api/* — استدعاء واحد عند كل فتح تطبيق لا يُذكر.
+      if (path === '/api/health/d1' && method === 'GET') {
+        const d1Start = Date.now();
+        try {
+          await db.raw.prepare('SELECT 1 AS ok').first<{ ok: number }>();
+          logRequest(method, path, 200, Date.now() - startTime, clientIp);
+          return json(
+            {
+              status: 'ok',
+              d1: 'ok',
+              latency_ms: Date.now() - d1Start,
+              server_time: Math.floor(Date.now() / 1000),
+              timestamp: Date.now(),
+            },
+            200,
+            env
+          );
+        } catch (err) {
+          logRequest(method, path, 503, Date.now() - startTime, clientIp);
+          return json(
+            { status: 'error', d1: 'unreachable', detail: String(err) },
+            503,
+            env
+          );
+        }
+      }
+
       // ─── Sync Pull ──────────────────────────────────────
       if (path === '/api/sync/pull' && method === 'GET') {
         const response = await handlePull(request, db, ctx);

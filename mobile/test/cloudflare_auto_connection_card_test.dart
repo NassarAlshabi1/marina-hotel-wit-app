@@ -39,13 +39,15 @@ void main() {
     await db.close();
   });
 
-  Widget buildCard() {
+  Widget buildCard({ConnectionStatusNotifier Function(Ref)? connectionOverride}) {
     return ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),
         // بلا مؤقّت حقيقي في الاختبارات.
         connectionAutoRefreshProvider.overrideWith((ref) {}),
-        connectionStatusProvider.overrideWith(_FakeConnectionNotifier.new),
+        connectionStatusProvider.overrideWith(
+          connectionOverride ?? _FakeConnectionNotifier.new,
+        ),
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -140,11 +142,69 @@ void main() {
     expect(find.text('لا توجد بعد'), findsOneWidget);
     expect(find.text('0'), findsOneWidget);
   });
+
+  // ✅ (2026-09-17) فحص المسار الكامل (طلب: «يفحص تلقائيا الاتصال مع
+  // cloudflare worker d1») — صف الاتصال يفصّل حالة D1 نفسها.
+  testWidgets('فحص D1 ناجح → الصف يذكر استجابة القاعدة وزمنها', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(
+      buildCard(
+        connectionOverride: _D1OkFakeNotifier.new,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('قاعدة D1 تستجيب'), findsOneWidget);
+    expect(find.textContaining('12 ms'), findsOneWidget);
+  });
+
+  testWidgets('D1 لا يستجيب → الصف يعرض تحذيرا برتقاليا مع السبب', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(
+      buildCard(
+        connectionOverride: _D1DownFakeNotifier.new,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('قاعدة D1 لا تستجيب'), findsOneWidget);
+    expect(find.textContaining('انتهت صلاحية الجلسة'), findsOneWidget);
+  });
 }
 
 /// حالة اتصال ثابتة (متصل) بلا طلبات شبكة حقيقية.
 class _FakeConnectionNotifier extends ConnectionStatusNotifier {
   _FakeConnectionNotifier(super.ref) {
     state = ConnectionState(isConnected: true);
+  }
+}
+
+/// متصل + فحص D1 ناجح مع زمن استجابة.
+class _D1OkFakeNotifier extends ConnectionStatusNotifier {
+  _D1OkFakeNotifier(super.ref) {
+    state = ConnectionState(
+      isConnected: true,
+      isD1Connected: true,
+      d1LatencyMs: 12,
+      lastCheckedAt: DateTime.now(),
+    );
+  }
+}
+
+/// متصل بالسحابة لكن D1 لا يستجيب (جلسة منتهية).
+class _D1DownFakeNotifier extends ConnectionStatusNotifier {
+  _D1DownFakeNotifier(super.ref) {
+    state = ConnectionState(
+      isConnected: true,
+      isD1Connected: false,
+      d1Error: 'انتهت صلاحية الجلسة — أعد تسجيل الدخول',
+      lastCheckedAt: DateTime.now(),
+    );
   }
 }

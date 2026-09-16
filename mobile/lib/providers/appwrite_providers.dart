@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:http/http.dart' as http;
@@ -11,6 +13,8 @@ import '../services/daos/outbox_dao.dart';
 import '../services/providers.dart';
 import '../services/smart_sync_manager.dart';
 import '../services/unified_sync_orchestrator.dart';
+import '../services/worker_endpoints.dart';
+import '../utils/env.dart';
 
 /// مزود مدير المزامنة
 /// ✅ (2026-09-05) Cloudflare-only: AppwriteSyncManager هو
@@ -136,20 +140,47 @@ class ConnectionState {
     required this.isConnected,
     this.isChecking = false,
     this.errorMessage,
+    this.isD1Connected,
+    this.d1LatencyMs,
+    this.d1Error,
+    this.lastCheckedAt,
   });
   final bool isConnected;
   final bool isChecking;
   final String? errorMessage;
 
+  /// ✅ (2026-09-17) فحص المسار الكامل: هل قاعدة D1 نفسها تستجيب عبر
+  /// /api/health/d1 (شبكة → worker → مصادقة → D1)؟
+  /// null = لم يُفحص بعد (لا جلسة دخول بعد، أو الـ Worker غير قابل للوصول).
+  final bool? isD1Connected;
+
+  /// زمن استجابة استعلام D1 بالميلي ثانية (من الخادم) — null عند الغياب.
+  final int? d1LatencyMs;
+
+  /// سبب نصي عند فشل فحص D1 (مثل انتهاء صلاحية الجلسة).
+  final String? d1Error;
+
+  /// وقت آخر فحص مكتمل — null يعني «لم يُنفّذ أي فحص بعد» (يمنع وميض
+  /// الأحمر عند الإقلاع قبل اكتمال أول فحص تلقائي).
+  final DateTime? lastCheckedAt;
+
   ConnectionState copyWith({
     bool? isConnected,
     bool? isChecking,
     String? errorMessage,
+    bool? isD1Connected,
+    int? d1LatencyMs,
+    String? d1Error,
+    DateTime? lastCheckedAt,
   }) {
     return ConnectionState(
       isConnected: isConnected ?? this.isConnected,
       isChecking: isChecking ?? this.isChecking,
       errorMessage: errorMessage ?? this.errorMessage,
+      isD1Connected: isD1Connected ?? this.isD1Connected,
+      d1LatencyMs: d1LatencyMs ?? this.d1LatencyMs,
+      d1Error: d1Error ?? this.d1Error,
+      lastCheckedAt: lastCheckedAt ?? this.lastCheckedAt,
     );
   }
 }
@@ -177,28 +208,108 @@ final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
 });
 
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
-  ConnectionStatusNotifier(this.ref)
-    : super(ConnectionState(isConnected: false));
+  ConnectionStatusNotifier(this.ref, {http.Client? client})
+    : _client = client ?? http.Client(),
+      super(ConnectionState(isConnected: false));
   final Ref ref;
+  final http.Client _client;
 
   /// ✅ (2026-09-05) Cloudflare-only: فحص الاتصال يصيب /health على
   /// Cloudflare Worker — كان يفحص Appwrite Cloud (primary+secondary).
+  ///
+  /// ✅ (2026-09-17) فحص المسار الكامل للبيانات: بعد /health (حياة الـ
+  /// Worker) وإن كان حياً وتوفرت جلسة دخول، يُفحص D1 نفسه عبر
+  /// /api/health/d1 بمصادقة Bearer — نفس المسار الذي تمر به المزامنة
+  /// فعلياً. النجاح/الفشل يُبلَّغان لـ [WorkerEndpoints] فيشارك الفحص
+  /// في تثبيت/تدوير نقطة النهاية (sticky failover) كطلبات المزامنة.
   Future<void> checkConnection() async {
     state = state.copyWith(isChecking: true);
+    final healthUri = Uri.parse('${CloudflareConfig.workerUrl}/health');
     try {
-      final res = await http
-          .get(Uri.parse('${CloudflareConfig.workerUrl}/health'))
+      final res = await _client
+          .get(healthUri)
           .timeout(const Duration(seconds: 8));
       final isConnected = res.statusCode == 200;
+      if (isConnected) {
+        WorkerEndpoints.reportSuccess(healthUri);
+      } else {
+        WorkerEndpoints.reportFailure(healthUri);
+      }
+
+      // فحص D1 لا معنى له إلا إذا أجاب الـ Worker أصلاً.
+      final d1 = isConnected ? await _probeD1() : null;
+
       state = ConnectionState(
         isConnected: isConnected,
         errorMessage: isConnected ? null : 'فشل الاتصال بـ Cloudflare Worker',
+        isD1Connected: d1?.connected,
+        d1LatencyMs: d1?.latencyMs,
+        d1Error: d1?.error,
+        lastCheckedAt: DateTime.now(),
       );
     } catch (e) {
+      WorkerEndpoints.reportFailure(healthUri);
       state = ConnectionState(
         isConnected: false,
         errorMessage: 'خطأ في الاتصال: $e',
+        lastCheckedAt: DateTime.now(),
       );
     }
   }
+
+  /// فحص D1 عبر النقطة المحمية /api/health/d1 بتوكن الجلسة الحالية
+  /// ([Env.cloudflareAuthToken] — يُصدَّر عند الدخول من مدير المزامنة).
+  /// يعيد null عند غياب الجلسة (D1 «لم يُفحص» وليس «فاشلاً»).
+  Future<_D1ProbeResult?> _probeD1() async {
+    final token = Env.cloudflareAuthToken;
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+    final uri = Uri.parse('${CloudflareConfig.workerUrl}/api/health/d1');
+    try {
+      final res = await _client
+          .get(uri, headers: {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        if (body is Map<String, dynamic> && body['d1'] == 'ok') {
+          final latency = body['latency_ms'];
+          return _D1ProbeResult(
+            connected: true,
+            latencyMs: latency is num ? latency.toInt() : null,
+          );
+        }
+        return const _D1ProbeResult(
+          connected: false,
+          error: 'استجابة غير متوقعة من فحص D1',
+        );
+      }
+      if (res.statusCode == 401) {
+        return const _D1ProbeResult(
+          connected: false,
+          error: 'انتهت صلاحية الجلسة — أعد تسجيل الدخول',
+        );
+      }
+      return _D1ProbeResult(
+        connected: false,
+        error: 'فحص D1 فشل (HTTP ${res.statusCode})',
+      );
+    } catch (e) {
+      return _D1ProbeResult(connected: false, error: 'خطأ فحص D1: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _client.close();
+    super.dispose();
+  }
+}
+
+/// نتيجة فحص D1 الداخلية — connected/latencyMs/error فقط.
+class _D1ProbeResult {
+  const _D1ProbeResult({required this.connected, this.latencyMs, this.error});
+  final bool connected;
+  final int? latencyMs;
+  final String? error;
 }

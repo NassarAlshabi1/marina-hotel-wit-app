@@ -101,8 +101,23 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
       dotColor = Colors.orange;
       label = 'جارٍ فحص الاتصال…';
     } else if (connection.isConnected) {
-      dotColor = colorScheme.primary;
-      label = 'متصل بسحابة Cloudflare';
+      // ✅ (2026-09-17) فحص المسار الكامل: تفصيل حالة D1 نفسها عند توفره
+      // (null = لم يُفحص بعد — التوكن كان غائباً عند آخر فحص).
+      if (connection.isD1Connected == true) {
+        dotColor = colorScheme.primary;
+        final ms = connection.d1LatencyMs;
+        label =
+            'متصل بسحابة Cloudflare — قاعدة D1 تستجيب'
+            '${ms == null ? '' : ' ($ms ms)'}';
+      } else if (connection.isD1Connected == false) {
+        dotColor = Colors.orange;
+        label =
+            'السحابة متصلة — قاعدة D1 لا تستجيب'
+            '${connection.d1Error == null ? '' : ' (${connection.d1Error})'}';
+      } else {
+        dotColor = colorScheme.primary;
+        label = 'متصل بسحابة Cloudflare';
+      }
     } else {
       dotColor = colorScheme.error;
       label =

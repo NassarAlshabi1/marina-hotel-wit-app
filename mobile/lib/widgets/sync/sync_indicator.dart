@@ -15,12 +15,21 @@
 //     وتلميح «تم X / المتبقي Y» — من cloudflarePullProgressProvider.
 //   • نقرة أثناء السحب تفتح لوحة التقدم (غير حاجبة — قابلة للإغلاق
 //     والتنقل حر تماماً)؛ نقرة في غيره تفتح شاشة تسجيل الدخول.
+//
+//  ✅ (2026-09-17) طلب المستخدم: «عند فتح التطبيق يفترض يفحص تلقائيا
+//  الاتصال مع cloudflare worker d1» — المؤشر يعكس الآن نتيجة فحص
+//  الاتصال التلقائي (connectionStatusProvider الذي يملؤه مراقب الإقلاع):
+//   • فحص مكتمل والـ Worker غير قابل للوصول → سحابة حمراء معلّقة.
+//   • الـ Worker حي لكن قاعدة D1 لا تستجيب → سحابة برتقالية.
+//   • لم يُنفّذ فحص بعد (lastCheckedAt == null) → السلوك السابق كما هو
+//     (لا وميض أحمر قبل اكتمال أول فحص عند الإقلاع).
 // ═══════════════════════════════════════════════════════════════
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide ConnectionState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../providers/appwrite_providers.dart';
 import '../../screens/auth/cloudflare_login_screen.dart';
@@ -33,12 +42,13 @@ import 'full_pull_progress_sheet.dart';
 ///
 /// حالة العرض (بالأولوية):
 ///  1. مزامنة جارية (syncing) → حلقة تقدّم (دقيقة عند توفر remaining)
-///  2. مزامنة مزروعة في بوابة SyncGate (عملية أخرى شغّالة) → قرص دوّار
+///  2. فحص اتصال مكتمل والسحابة غير قابلة للوصول → سحابة حمراء معلّقة
 ///  3. فشل آخر دورة (failed) → أيقونة تحذير برتقالية — نقرة تفتح شاشة
 ///     تسجيل الدخول/التشخيص
-///  4. تغييرات محلية معلّقة (outbox > 0) → شارة عدّاد زرقاء
-///  5. آخر دورة نجحت (success) → صحّة خضراء
-///  6. خامل (idle) → سحابة خضراء «متصل»
+///  4. السحابة حية لكن D1 لا يستجيب → سحابة برتقالية
+///  5. تغييرات محلية معلّقة (outbox > 0) → شارة عدّاد زرقاء
+///  6. آخر دورة نجحت (success) → صحّة خضراء
+///  7. خامل (idle) → سحابة خضراء «متصل» (التلميح يذكر زمن D1 إن توفر)
 class SyncIndicator extends ConsumerWidget {
   const SyncIndicator({super.key});
 
@@ -47,6 +57,7 @@ class SyncIndicator extends ConsumerWidget {
     final statusAsync = ref.watch(cloudflareSyncStatusProvider);
     final pendingAsync = ref.watch(outboxCountProvider);
     final progressAsync = ref.watch(cloudflarePullProgressProvider);
+    final connection = ref.watch(connectionStatusProvider);
 
     final status = statusAsync.when(
       data: (s) => s,
@@ -60,12 +71,33 @@ class SyncIndicator extends ConsumerWidget {
         ref.read(appwriteSyncManagerProvider).lastPullProgress;
     final pulling = status == SyncStatus.syncing || gateBusy;
 
+    // نتيجة فحص الاتصال التلقائي (startup watcher). null = لم يُفحص بعد.
+    final checked = connection.lastCheckedAt != null;
+    final cloudUnreachable = checked && !connection.isConnected;
+    final d1Down =
+        checked && connection.isConnected && connection.isD1Connected == false;
+
     return Tooltip(
-      message: _tooltipFor(status, pending, gateBusy, progress),
+      message: _tooltipFor(
+        status,
+        pending,
+        gateBusy,
+        progress,
+        connection,
+        checked,
+      ),
       child: IconButton(
         visualDensity: VisualDensity.compact,
         onPressed: () => _handleTap(context, pulling),
-        icon: _iconFor(context, status, pending, gateBusy, progress),
+        icon: _iconFor(
+          context,
+          status,
+          pending,
+          gateBusy,
+          progress,
+          cloudUnreachable,
+          d1Down,
+        ),
       ),
     );
   }
@@ -91,6 +123,8 @@ class SyncIndicator extends ConsumerWidget {
     int pending,
     bool gateBusy,
     SyncPullProgress progress,
+    ConnectionState connection,
+    bool checked,
   ) {
     if (status == SyncStatus.syncing || gateBusy) {
       final buf = StringBuffer('جاري السحب — تم ${progress.pulledRows} سجل');
@@ -100,11 +134,24 @@ class SyncIndicator extends ConsumerWidget {
       }
       return buf.toString();
     }
+    if (checked && !connection.isConnected) {
+      final when = connection.lastCheckedAt;
+      final hhmm = when == null ? '' : ' — ${DateFormat.Hm().format(when)}';
+      return 'تعذر الوصول لخادم Cloudflare$hhmm — اضغط للتفاصيل والتشخيص';
+    }
     if (status == SyncStatus.failed) {
       return 'فشلت آخر مزامنة — اضغط للتفاصيل وتسجيل الدخول';
     }
-    if (pending > 0) return '$pending تغييراً معلّقاً — اضغط للمزامنة';
+    if (checked && connection.isD1Connected == false) {
+      return 'قاعدة D1 لا تستجيب (${connection.d1Error ?? 'غير معروف'}) — اضغط للتفاصيل';
+    }
+    if (pending > 0) return '$pending تغييراً معلقاً — اضغط للمزامنة';
     if (status == SyncStatus.success) return 'تمت المزامنة بنجاح';
+    if (checked && connection.isD1Connected == true) {
+      final ms = connection.d1LatencyMs;
+      return 'اتصال Cloudflare سليم — D1 يستجيب'
+          '${ms == null ? '' : ' ($ms ms)'} — اضغط لإدارة تسجيل الدخول';
+    }
     return 'اتصال Cloudflare — اضغط لإدارة تسجيل الدخول';
   }
 
@@ -114,6 +161,8 @@ class SyncIndicator extends ConsumerWidget {
     int pending,
     bool gateBusy,
     SyncPullProgress progress,
+    bool cloudUnreachable,
+    bool d1Down,
   ) {
     final theme = Theme.of(context);
     if (status == SyncStatus.syncing || gateBusy) {
@@ -129,8 +178,16 @@ class SyncIndicator extends ConsumerWidget {
         ),
       );
     }
+    // ✅ فحص الإقلاع مكتمل والسحابة غير قابلة للوصول — أعلى أولوية بعد
+    // المزامنة الجارية: كل ما بعده معلومات قديمة على أي حال.
+    if (cloudUnreachable) {
+      return const Icon(Icons.cloud_off, color: Colors.red, size: 22);
+    }
     if (status == SyncStatus.failed) {
       return const Icon(Icons.cloud_off, color: Colors.orange, size: 22);
+    }
+    if (d1Down) {
+      return const Icon(Icons.cloud, color: Colors.orange, size: 22);
     }
     if (pending > 0) {
       return Badge(

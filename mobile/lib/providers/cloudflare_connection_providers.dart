@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/cloudflare_d1_service.dart';
 import '../services/cloudflare_direct_api_service.dart';
 import '../services/cloudflare_sync_manager.dart';
+import '../services/connectivity_service.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/local_db.dart';
 import 'appwrite_providers.dart' show connectionStatusProvider;
@@ -93,6 +94,95 @@ final connectionAutoRefreshProvider = Provider.autoDispose<void>((ref) {
   final timer = Timer.periodic(const Duration(seconds: 30), (_) => check());
   ref.onDispose(timer.cancel);
 });
+
+/// ✅ (2026-09-17) طلب المستخدم: «عند فتح التطبيق يفترض يفحص تلقائيا
+/// الاتصال مع cloudflare worker d1».
+///
+/// مراقب فحص الاتصال عند الإقلاع — يُفعَّل مرة واحدة من
+/// `App.initState` (غير autoDispose: يعيش بجلسة التطبيق كاملة):
+///  1) تهيئة [ConnectivityService] (كانت مساراً ميتاً — لا أحد يستدعي
+///     initialize() فلا تنبعث أحداث انتقال الشبكة لأي مستمع).
+///  2) فحص فوري لحظة فتح التطبيق: /health للـ Worker ثم — مع توفر
+///     جلسة الدخول — /api/health/d1 لقاعدة D1 نفسها (المسار الكامل
+///     الذي تمر به المزامنة فعلياً).
+///  3) إن لم يُفحص D1 بعد (توكن الدخول يصدر بعد ثوانٍ من الإقلاع)
+///     → إعادة فحص واحدة بعد 15 ثانية تلقط الجلسة الجاهزة.
+///  4) عودة الشبكة بعد انقطاع (offline→online) → فحص فوري.
+///  5) فحص دوري كل 60 ثانية — يتخطى الجهاز بلا نقل شبكي أصلاً.
+final startupConnectionWatcherProvider = Provider<void>((ref) {
+  final watch = _StartupConnectionWatch(ref)..start();
+  ref.onDispose(watch.dispose);
+});
+
+class _StartupConnectionWatch {
+  _StartupConnectionWatch(this._ref);
+
+  final Ref _ref;
+  bool _closed = false;
+  Timer? _periodicTimer;
+  Timer? _d1RetryTimer;
+  StreamSubscription<ConnectionStatus>? _connectivitySub;
+
+  void start() {
+    unawaited(_runInitialCheck());
+  }
+
+  Future<void> _runInitialCheck() async {
+    // (أ) إحياء مراقبة الشبكة — idempotent؛ أي فشل (بيئة بلا plugin)
+    // لا يوقف بقية المراقب.
+    try {
+      await ConnectivityService.instance.initialize();
+    } catch (_) {}
+    if (_closed) return;
+    _listenConnectivity();
+
+    // (ب) الفحص الفوري — جوهر طلب «عند فتح التطبيق».
+    await _check();
+    if (_closed) return;
+
+    // (ج) إعادة واحدة بعد 15 ث إذا لم يُفحص D1 (التوكن كان غائباً).
+    if (_ref.read(connectionStatusProvider).isD1Connected == null) {
+      _d1RetryTimer?.cancel();
+      _d1RetryTimer = Timer(const Duration(seconds: 15), () {
+        if (!_closed) unawaited(_check());
+      });
+    }
+
+    // (د) دورة خفيفة كل 60 ث — تتخطى الجهاز بلا نقل شبكي.
+    _periodicTimer?.cancel();
+    _periodicTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (_closed) return;
+      if (!ConnectivityService.instance.isOnline) return;
+      unawaited(_check());
+    });
+  }
+
+  void _listenConnectivity() {
+    unawaited(_connectivitySub?.cancel());
+    _connectivitySub = ConnectivityService.instance.statusStream.listen(
+      (status) {
+        if (_closed) return;
+        // عودة الشبكة فقط تستدعي فحصاً فورياً — انتقال wifi↔mobile لا يحتاجه.
+        if (status.isOnline) {
+          unawaited(_check());
+        }
+      },
+      onError: (Object _) {},
+      cancelOnError: false,
+    );
+  }
+
+  Future<void> _check() async {
+    await _ref.read(connectionStatusProvider.notifier).checkConnection();
+  }
+
+  void dispose() {
+    _closed = true;
+    _periodicTimer?.cancel();
+    _d1RetryTimer?.cancel();
+    unawaited(_connectivitySub?.cancel());
+  }
+}
 
 /// بيانات الربط مع Cloudflare (معرّف الحساب / معرّف قاعدة D1 / التوكن).
 /// نفس مصدر الحقيقة الذي يكتبه تبويب Cloudflare D1: المعرّفات في
