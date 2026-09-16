@@ -16,6 +16,14 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../employees/salary_entitlements_screen.dart';
 
+/// إظهار/إخفاء المُنهية خدماتهم في قائمة إعدادات الموظفين.
+/// افتراضياً مخفيون: عند فصل موظف أو الاستغناء عنه يختفي من القائمة
+/// فوراً (تدفق Drift ينبض تلقائياً بعد terminate) — يبقى سجله في قاعدة
+/// البيانات واستحقاقاته سالمة، ويُستعاد عبر مفتاح الإظهار بالأسفل.
+final _showTerminatedEmployeesProvider = StateProvider.autoDispose<bool>(
+  (ref) => false,
+);
+
 class SettingsEmployeesScreen extends ConsumerWidget {
   const SettingsEmployeesScreen({super.key});
 
@@ -60,6 +68,17 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           ),
         ),
         data: (employees) {
+          // ✅ (2026-09-17) المُنهية خدماتهم (فصل/استغناء/استقالة) مخفيون
+          // افتراضياً — يختفون من القائمة فور إنهاء الخدمة، ويظهرون عند
+          // تفعيل مفتاح الإظهار (لإعادة التفعيل أو عرض الاستحقاق).
+          final showTerminated = ref.watch(_showTerminatedEmployeesProvider);
+          final terminatedCount =
+              SettingsEmployeesScreen.countTerminated(employees);
+          final visibleEmployees = SettingsEmployeesScreen.filterVisible(
+            employees,
+            includeTerminated: showTerminated,
+          );
+
           if (employees.isEmpty) {
             return Center(
               child: Column(
@@ -86,11 +105,81 @@ class SettingsEmployeesScreen extends ConsumerWidget {
             );
           }
 
+          // موظفون موجودون لكن كلهم مُنهية خدماتهم ومخفيون حالياً
+          if (visibleEmployees.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.person_off, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'كل الموظفين مُنهية خدماتهم — مخفيون من القائمة',
+                    style: TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        ref.read(_showTerminatedEmployeesProvider.notifier).state =
+                            true,
+                    icon: const Icon(Icons.visibility),
+                    label: Text('إظهار المُنهية خدمتهم ($terminatedCount)'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           return Column(
             children: [
-              // إحصائيات الموظفين
+              // إحصائيات الموظفين — على القائمة الكاملة (الحقيقة المجردة)
               _buildEmployeeStats(employees),
               const SizedBox(height: 16),
+
+              // مفتاح إظهار/إخفاء المُنهية خدماتهم (فصل/استغناء/استقالة)
+              if (terminatedCount > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      FilterChip(
+                        selected: showTerminated,
+                        showCheckmark: false,
+                        onSelected: (_) => ref
+                            .read(_showTerminatedEmployeesProvider.notifier)
+                            .state = !showTerminated,
+                        avatar: Icon(
+                          showTerminated
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          size: 18,
+                          color: showTerminated ? Colors.red : Colors.blue,
+                        ),
+                        label: Text(
+                          showTerminated
+                              ? 'إخفاء المُنهية خدمتهم ($terminatedCount)'
+                              : 'إظهار المُنهية خدمتهم ($terminatedCount)',
+                        ),
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: showTerminated ? Colors.red : Colors.blue,
+                        ),
+                        backgroundColor: (showTerminated
+                                ? Colors.red
+                                : Colors.blue)
+                            .withValues(alpha: 0.05),
+                        side: BorderSide(
+                          color: (showTerminated
+                                  ? Colors.red
+                                  : Colors.blue)
+                              .withValues(alpha: 0.3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // قائمة الموظفين
               Expanded(
@@ -100,9 +189,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: employees.length,
+                    itemCount: visibleEmployees.length,
                     itemBuilder: (context, index) {
-                      final employee = employees[index];
+                      final employee = visibleEmployees[index];
                       return RepaintBoundary(
                         child: _buildEmployeeCard(context, ref, employee),
                       );
@@ -116,6 +205,28 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       ),
     );
   }
+
+  // ─── تصفية المُنهية خدماتهم (نواة نقية قابلة للاختبار) ──────────
+
+  /// عدد الموظفين المُنهية خدماتهم (فصل/استغناء/استقالة).
+  @visibleForTesting
+  static int countTerminated(List<Employee> employees) => employees
+      .where((e) => StatusUtils.isEmployeeTerminated(e.status))
+      .length;
+
+  /// الموظفون الظاهرون في قائمة الإعدادات: افتراضياً يُخفى المُنهية
+  /// خدماتهم فيختفي الموظف فور فصله أو الاستغناء عنه؛ مع
+  /// [includeTerminated] تُعرض جميع الحالات (للإعادة أو الاستحقاق).
+  @visibleForTesting
+  static List<Employee> filterVisible(
+    List<Employee> employees, {
+    required bool includeTerminated,
+  }) =>
+      includeTerminated
+          ? employees
+          : employees
+              .where((e) => !StatusUtils.isEmployeeTerminated(e.status))
+              .toList();
 
   Widget _buildEmployeeStats(List<Employee> employees) {
     final activeEmployees = employees
