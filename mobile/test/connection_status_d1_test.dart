@@ -97,18 +97,21 @@ void main() {
       },
     );
 
-    test('Worker حي بلا توكن جلسة → D1 «لم يُفحص» (null) لا «فاشلاً»', () async {
-      Env.cloudflareAuthToken = null;
-      final container = createContainer(workingClient());
-      final notifier = container.read(connectionStatusProvider.notifier);
+    test(
+      'Worker حي بلا توكن جلسة → D1 «لم يُفحص» (null) لا «فاشلاً»',
+      () async {
+        Env.cloudflareAuthToken = null;
+        final container = createContainer(workingClient());
+        final notifier = container.read(connectionStatusProvider.notifier);
 
-      await notifier.checkConnection();
-      final state = container.read(connectionStatusProvider);
+        await notifier.checkConnection();
+        final state = container.read(connectionStatusProvider);
 
-      expect(state.isConnected, isTrue);
-      expect(state.isD1Connected, isNull);
-      expect(state.lastCheckedAt, isNotNull);
-    });
+        expect(state.isConnected, isTrue);
+        expect(state.isD1Connected, isNull);
+        expect(state.lastCheckedAt, isNotNull);
+      },
+    );
 
     test('توكن منتهي الصلاحية → D1 فاشل برسالة الجلسة المنتهية', () async {
       Env.cloudflareAuthToken = 'expired-jwt';
@@ -152,70 +155,86 @@ void main() {
       expect(state.lastCheckedAt, isNotNull);
     });
 
-    test('استثناء شبكة (حجب/انقطاع) → حالة عدم اتصال صادقة لا انفجار', () async {
-      final client = MockClient(
-        (request) async => throw http.ClientException('blocked', request.url),
-      );
-      final container = createContainer(client);
-      final notifier = container.read(connectionStatusProvider.notifier);
+    test(
+      'استثناء شبكة (حجب/انقطاع) → حالة عدم اتصال صادقة لا انفجار',
+      () async {
+        final client = MockClient(
+          (request) async => throw http.ClientException('blocked', request.url),
+        );
+        final container = createContainer(client);
+        final notifier = container.read(connectionStatusProvider.notifier);
 
-      await notifier.checkConnection();
-      final state = container.read(connectionStatusProvider);
+        await notifier.checkConnection();
+        final state = container.read(connectionStatusProvider);
 
-      expect(state.isConnected, isFalse);
-      expect(state.errorMessage, contains('خطأ في الاتصال'));
-      expect(state.lastCheckedAt, isNotNull);
-    });
+        expect(state.isConnected, isFalse);
+        expect(state.errorMessage, contains('خطأ في الاتصال'));
+        expect(state.lastCheckedAt, isNotNull);
+      },
+    );
   });
 
   group('startupConnectionWatcherProvider — فحص الإقلاع التلقائي', () {
-    test('تفعيل المراقب عند فتح التطبيق ينفّذ فحصاً فورياً كامل المسار', () async {
-      Env.cloudflareAuthToken = 'valid-jwt';
-      final container = createContainer(workingClient());
+    test(
+      'تفعيل المراقب عند فتح التطبيق ينفّذ فحصاً فورياً كامل المسار',
+      () async {
+        Env.cloudflareAuthToken = 'valid-jwt';
+        final container = createContainer(workingClient());
 
-      // نقرة «فتح التطبيق»: التفعيل من initState.
-      container.read(startupConnectionWatcherProvider);
+        // نقرة «فتح التطبيق»: التفعيل من initState.
+        container.read(startupConnectionWatcherProvider);
 
-      // تصريف سلسلة الإقلاع (تهيئة الاتصال ثم الفحص الفوري).
-      await pumpEventQueue();
+        // تصريف سلسلة الإقلاع (تهيئة الاتصال ثم الفحص الفوري).
+        await pumpEventQueue();
 
-      final state = container.read(connectionStatusProvider);
-      expect(state.lastCheckedAt, isNotNull,
-          reason: 'يجب أن يُنفّذ فحص فوري بمجرد التفعيل');
-      expect(state.isConnected, isTrue);
-      expect(state.isD1Connected, isTrue);
-      expect(state.d1LatencyMs, 12);
-    });
+        final state = container.read(connectionStatusProvider);
+        expect(
+          state.lastCheckedAt,
+          isNotNull,
+          reason: 'يجب أن يُنفّذ فحص فوري بمجرد التفعيل',
+        );
+        expect(state.isConnected, isTrue);
+        expect(state.isD1Connected, isTrue);
+        expect(state.d1LatencyMs, 12);
+      },
+    );
 
-    test('D1 لم يُفحص عند الإقلاع (لا توكن) → إعادة واحدة بعد 15 ثانية', () async {
-      Env.cloudflareAuthToken = null;
-      var d1Requested = false;
-      final client = MockClient((request) async {
-        if (request.url.path == '/api/health/d1') {
-          d1Requested = true;
-          return http.Response(jsonEncode({'d1': 'ok'}), 200);
-        }
-        return http.Response(jsonEncode({'status': 'ok'}), 200);
-      });
-      final container = createContainer(client);
+    test(
+      'D1 لم يُفحص عند الإقلاع (لا توكن) → إعادة واحدة بعد 15 ثانية',
+      () async {
+        Env.cloudflareAuthToken = null;
+        var d1Requested = false;
+        final client = MockClient((request) async {
+          if (request.url.path == '/api/health/d1') {
+            d1Requested = true;
+            return http.Response(jsonEncode({'d1': 'ok'}), 200);
+          }
+          return http.Response(jsonEncode({'status': 'ok'}), 200);
+        });
+        final container = createContainer(client);
 
-      container.read(startupConnectionWatcherProvider);
-      await pumpEventQueue();
+        container.read(startupConnectionWatcherProvider);
+        await pumpEventQueue();
 
-      // لا توكن → D1 لم يُطلب أصلاً في الفحص الأول.
-      expect(d1Requested, isFalse);
-      expect(container.read(connectionStatusProvider).isD1Connected, isNull);
+        // لا توكن → D1 لم يُطلب أصلاً في الفحص الأول.
+        expect(d1Requested, isFalse);
+        expect(container.read(connectionStatusProvider).isD1Connected, isNull);
 
-      // جلسة الدخول اكتملت أثناء الـ 15 ثانية...
-      Env.cloudflareAuthToken = 'valid-jwt';
-      // ...المؤقت ينفّذ الإعادة (fakeAsync غير ضروري: ننتظر مباشرة).
-      await Future<void>.delayed(const Duration(seconds: 16));
-      await pumpEventQueue();
+        // جلسة الدخول اكتملت أثناء الـ 15 ثانية...
+        Env.cloudflareAuthToken = 'valid-jwt';
+        // ...المؤقت ينفّذ الإعادة (fakeAsync غير ضروري: ننتظر مباشرة).
+        await Future<void>.delayed(const Duration(seconds: 16));
+        await pumpEventQueue();
 
-      // لكن العميل الوهمي لا يتحقق من التوكن هنا → استجابة 200 d1:ok
-      // تُفسر «متصل» فقط إن نطابق عقد jsonDecode — الطلب أُرسل هو المهم.
-      expect(d1Requested, isTrue,
-          reason: 'إعادة الـ 15 ث يجب أن تفحص D1 بعد اكتمال الجلسة');
-    }, timeout: const Timeout(Duration(seconds: 30)));
+        // لكن العميل الوهمي لا يتحقق من التوكن هنا → استجابة 200 d1:ok
+        // تُفسر «متصل» فقط إن نطابق عقد jsonDecode — الطلب أُرسل هو المهم.
+        expect(
+          d1Requested,
+          isTrue,
+          reason: 'إعادة الـ 15 ث يجب أن تفحص D1 بعد اكتمال الجلسة',
+        );
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
   });
 }

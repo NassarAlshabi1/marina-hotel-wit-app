@@ -34,7 +34,9 @@ void main() {
     return ProviderScope(
       overrides: [
         // مدير خفيف (مصنع singleton بلا initialize) — يمنع بناء القاعدة.
-        appwriteSyncManagerProvider.overrideWith((ref) => AppwriteSyncManager()),
+        appwriteSyncManagerProvider.overrideWith(
+          (ref) => AppwriteSyncManager(),
+        ),
         cloudflareSyncStatusProvider.overrideWith(
           (ref) => Stream.value(syncStatus),
         ),

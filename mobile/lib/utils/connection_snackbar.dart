@@ -71,8 +71,7 @@ bool shouldShowConnectionSnackbar({
     return false;
   }
   // الحالة تغيّرت — احترم مهلة الإزعاج فقط.
-  if (lastShownAt != null &&
-      now.difference(lastShownAt).abs() < minInterval) {
+  if (lastShownAt != null && now.difference(lastShownAt).abs() < minInterval) {
     return false;
   }
   return true;
@@ -103,7 +102,9 @@ ConnectionSnackbarView buildConnectionSnackbar(
 }) {
   switch (kind) {
     case ConnectionSnackbarKind.connected:
-      final d1Part = d1LatencyMs == null ? '' : ' — D1 يستجيب ($d1LatencyMs ms)';
+      final d1Part = d1LatencyMs == null
+          ? ''
+          : ' — D1 يستجيب ($d1LatencyMs ms)';
       return ConnectionSnackbarView(
         message: '☁️ متصل بخادم Cloudflare$d1Part',
         backgroundColor: const Color(0xFF2E7D32),
@@ -111,8 +112,7 @@ ConnectionSnackbarView buildConnectionSnackbar(
         duration: const Duration(seconds: 3),
       );
     case ConnectionSnackbarKind.d1Down:
-      final reason =
-          (d1Error == null || d1Error.isEmpty) ? '' : ' ($d1Error)';
+      final reason = (d1Error == null || d1Error.isEmpty) ? '' : ' ($d1Error)';
       return ConnectionSnackbarView(
         message: '⚠️ الخادم يعمل لكن قاعدة البيانات لا تستجيب$reason',
         backgroundColor: const Color(0xFFEF6C00),
@@ -121,7 +121,8 @@ ConnectionSnackbarView buildConnectionSnackbar(
       );
     case ConnectionSnackbarKind.unreachable:
       return const ConnectionSnackbarView(
-        message: '📡 لا يوجد اتصال بخادم Cloudflare — '
+        message:
+            '📡 لا يوجد اتصال بخادم Cloudflare — '
             'البيانات تعمل محلياً حتى عودة الاتصال',
         backgroundColor: Color(0xFFC62828),
         icon: Icons.cloud_off,

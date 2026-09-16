@@ -271,8 +271,10 @@ void main() {
       final state = await bootWithCursor(9999999999);
       expect(state['cursor'], 0);
       expect(state['fullSyncFlag'], isFalse);
-      expect((state['manager'] as CloudflareSyncManager).isFullSyncCompleted,
-          isFalse);
+      expect(
+        (state['manager'] as CloudflareSyncManager).isFullSyncCompleted,
+        isFalse,
+      );
     });
 
     test('ms-class cursor (>1e11) is reset at init', () async {
@@ -281,14 +283,17 @@ void main() {
       expect(state['fullSyncFlag'], isFalse);
     });
 
-    test('boundary: cursor exactly at maxSanePullCursorFuture survives (strict >)', () async {
-      // الحدّ الحرفي (سنة 2033) ليس سماً — المقارنة strict فوق الحد فقط.
-      final state =
-          await bootWithCursor(CloudflareSyncManager.maxSanePullCursorFuture);
-      expect(state['cursor'],
-          CloudflareSyncManager.maxSanePullCursorFuture);
-      expect(state['fullSyncFlag'], isTrue);
-    });
+    test(
+      'boundary: cursor exactly at maxSanePullCursorFuture survives (strict >)',
+      () async {
+        // الحدّ الحرفي (سنة 2033) ليس سماً — المقارنة strict فوق الحد فقط.
+        final state = await bootWithCursor(
+          CloudflareSyncManager.maxSanePullCursorFuture,
+        );
+        expect(state['cursor'], CloudflareSyncManager.maxSanePullCursorFuture);
+        expect(state['fullSyncFlag'], isTrue);
+      },
+    );
 
     test('sane current-epoch cursor survives init untouched', () async {
       final state = await bootWithCursor(1789532217);
@@ -296,23 +301,26 @@ void main() {
       expect(state['fullSyncFlag'], isTrue);
     });
 
-    test('thresholds: future bound (2e9) sits below sentinel and ms classes', () {
-      // عقد العتبات: الحد المستقبلي يفصل الثواني السليمة عن الصنفين
-      // المسمومين معاً — sentinel (1e10) فوقه، والميلي (1.78e12) فوقه.
-      expect(
-        CloudflareSyncManager.maxSanePullCursorFuture,
-        lessThan(9999999999),
-      );
-      expect(
-        CloudflareSyncManager.maxSanePullCursorFuture,
-        lessThan(CloudflareSyncManager.maxSanePullCursor),
-      );
-      // والهامش الديناميكي على server_time سنة كاملة (يقرأه حارس التشغيل).
-      expect(
-        CloudflareSyncManager.maxCursorAheadOfServerSec,
-        greaterThan(0),
-      );
-    });
+    test(
+      'thresholds: future bound (2e9) sits below sentinel and ms classes',
+      () {
+        // عقد العتبات: الحد المستقبلي يفصل الثواني السليمة عن الصنفين
+        // المسمومين معاً — sentinel (1e10) فوقه، والميلي (1.78e12) فوقه.
+        expect(
+          CloudflareSyncManager.maxSanePullCursorFuture,
+          lessThan(9999999999),
+        );
+        expect(
+          CloudflareSyncManager.maxSanePullCursorFuture,
+          lessThan(CloudflareSyncManager.maxSanePullCursor),
+        );
+        // والهامش الديناميكي على server_time سنة كاملة (يقرأه حارس التشغيل).
+        expect(
+          CloudflareSyncManager.maxCursorAheadOfServerSec,
+          greaterThan(0),
+        );
+      },
+    );
   });
 
   group('SyncStatus enum', () {

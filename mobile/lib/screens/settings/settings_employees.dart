@@ -72,8 +72,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           // افتراضياً — يختفون من القائمة فور إنهاء الخدمة، ويظهرون عند
           // تفعيل مفتاح الإظهار (لإعادة التفعيل أو عرض الاستحقاق).
           final showTerminated = ref.watch(_showTerminatedEmployeesProvider);
-          final terminatedCount =
-              SettingsEmployeesScreen.countTerminated(employees);
+          final terminatedCount = SettingsEmployeesScreen.countTerminated(
+            employees,
+          );
           final visibleEmployees = SettingsEmployeesScreen.filterVisible(
             employees,
             includeTerminated: showTerminated,
@@ -121,7 +122,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
                     onPressed: () =>
-                        ref.read(_showTerminatedEmployeesProvider.notifier).state =
+                        ref
+                                .read(_showTerminatedEmployeesProvider.notifier)
+                                .state =
                             true,
                     icon: const Icon(Icons.visibility),
                     label: Text('إظهار المُنهية خدمتهم ($terminatedCount)'),
@@ -146,9 +149,13 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       FilterChip(
                         selected: showTerminated,
                         showCheckmark: false,
-                        onSelected: (_) => ref
-                            .read(_showTerminatedEmployeesProvider.notifier)
-                            .state = !showTerminated,
+                        onSelected: (_) =>
+                            ref
+                                    .read(
+                                      _showTerminatedEmployeesProvider.notifier,
+                                    )
+                                    .state =
+                                !showTerminated,
                         avatar: Icon(
                           showTerminated
                               ? Icons.visibility_off
@@ -166,14 +173,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                           color: showTerminated ? Colors.red : Colors.blue,
                         ),
-                        backgroundColor: (showTerminated
-                                ? Colors.red
-                                : Colors.blue)
-                            .withValues(alpha: 0.05),
+                        backgroundColor:
+                            (showTerminated ? Colors.red : Colors.blue)
+                                .withValues(alpha: 0.05),
                         side: BorderSide(
-                          color: (showTerminated
-                                  ? Colors.red
-                                  : Colors.blue)
+                          color: (showTerminated ? Colors.red : Colors.blue)
                               .withValues(alpha: 0.3),
                         ),
                       ),
@@ -210,9 +214,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
   /// عدد الموظفين المُنهية خدماتهم (فصل/استغناء/استقالة).
   @visibleForTesting
-  static int countTerminated(List<Employee> employees) => employees
-      .where((e) => StatusUtils.isEmployeeTerminated(e.status))
-      .length;
+  static int countTerminated(List<Employee> employees) =>
+      employees.where((e) => StatusUtils.isEmployeeTerminated(e.status)).length;
 
   /// الموظفون الظاهرون في قائمة الإعدادات: افتراضياً يُخفى المُنهية
   /// خدماتهم فيختفي الموظف فور فصله أو الاستغناء عنه؛ مع
@@ -221,12 +224,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
   static List<Employee> filterVisible(
     List<Employee> employees, {
     required bool includeTerminated,
-  }) =>
-      includeTerminated
-          ? employees
-          : employees
-              .where((e) => !StatusUtils.isEmployeeTerminated(e.status))
-              .toList();
+  }) => includeTerminated
+      ? employees
+      : employees
+            .where((e) => !StatusUtils.isEmployeeTerminated(e.status))
+            .toList();
 
   Widget _buildEmployeeStats(List<Employee> employees) {
     final activeEmployees = employees

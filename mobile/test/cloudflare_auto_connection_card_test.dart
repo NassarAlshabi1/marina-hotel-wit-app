@@ -39,7 +39,9 @@ void main() {
     await db.close();
   });
 
-  Widget buildCard({ConnectionStatusNotifier Function(Ref)? connectionOverride}) {
+  Widget buildCard({
+    ConnectionStatusNotifier Function(Ref)? connectionOverride,
+  }) {
     return ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),

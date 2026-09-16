@@ -578,8 +578,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       await ref.read(connectionStatusProvider.notifier).checkConnection();
-      final cloudflareConnected =
-          ref.read(connectionStatusProvider).isConnected;
+      final cloudflareConnected = ref
+          .read(connectionStatusProvider)
+          .isConnected;
 
       if (!cloudflareConnected) {
         if (mounted) {

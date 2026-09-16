@@ -263,8 +263,9 @@ class LocalBackupService {
         final backupMetadata = Map<String, dynamic>.from(
           backupData['metadata'] as Map,
         );
-        backupMetadata['data_hash'] =
-            BackupDataService.computeBackupChecksum(backupData);
+        backupMetadata['data_hash'] = BackupDataService.computeBackupChecksum(
+          backupData,
+        );
         backupData['metadata'] = backupMetadata;
 
         final filePath = '${backupDir.path}/$baseName.json.gz';

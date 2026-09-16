@@ -59,7 +59,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       await ref
           .read(backupStatusProvider.notifier)
           .updateAutoBackupSettings(
-            ref.read(backupStatusProvider).autoSettings.copyWith(
+            ref
+                .read(backupStatusProvider)
+                .autoSettings
+                .copyWith(
                   isEnabled: enabled,
                   enableLocalBackup: enabled,
                   time: '${_scheduledTime.hour}:${_scheduledTime.minute}',
@@ -346,7 +349,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           children: [
             const Text(
               'النسخ الاحتياطي المحلي',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.indigo,
+              ),
             ),
             const SizedBox(height: 8),
             Text(

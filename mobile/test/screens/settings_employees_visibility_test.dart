@@ -110,28 +110,31 @@ void main() {
       expect(visible.map((e) => e.name), isNot(contains('خالد المستغنى عنه')));
     });
 
-    test('الحالات غير المنهية (مجمد/غير نشط) تبقى ظاهرة — لا يُخفى غير المُنهية', () async {
-      final ids = await seedEmployees();
-      await empRepo.terminate(
-        id: ids[1],
-        terminationType: 'استقالة',
-        terminationDate: '2026-09-17',
-      );
+    test(
+      'الحالات غير المنهية (مجمد/غير نشط) تبقى ظاهرة — لا يُخفى غير المُنهية',
+      () async {
+        final ids = await seedEmployees();
+        await empRepo.terminate(
+          id: ids[1],
+          terminationType: 'استقالة',
+          terminationDate: '2026-09-17',
+        );
 
-      final all = await empRepo.watchAll().first;
-      final visible = SettingsEmployeesScreen.filterVisible(
-        all,
-        includeTerminated: false,
-      );
-      // الإنهاء كان استقالة لسالم فقط. الظاهرون: النشط (أحمد وخالد —
-      // خالد لم يُنهَ في هذا السيناريو) + المجمد (منصور) = 3.
-      expect(
-        visible.map((e) => e.name),
-        containsAll(['أحمد النشط', 'خالد المستغنى عنه', 'منصور المجمد']),
-      );
-      expect(visible.map((e) => e.name), isNot(contains('سالم المفصول')));
-      expect(visible.length, 3);
-    });
+        final all = await empRepo.watchAll().first;
+        final visible = SettingsEmployeesScreen.filterVisible(
+          all,
+          includeTerminated: false,
+        );
+        // الإنهاء كان استقالة لسالم فقط. الظاهرون: النشط (أحمد وخالد —
+        // خالد لم يُنهَ في هذا السيناريو) + المجمد (منصور) = 3.
+        expect(
+          visible.map((e) => e.name),
+          containsAll(['أحمد النشط', 'خالد المستغنى عنه', 'منصور المجمد']),
+        );
+        expect(visible.map((e) => e.name), isNot(contains('سالم المفصول')));
+        expect(visible.length, 3);
+      },
+    );
 
     test('includeTerminated يُظهر الجميع (مسار الإعادة/الاستحقاق)', () async {
       final ids = await seedEmployees();
@@ -166,8 +169,10 @@ void main() {
       // قبل الإعادة: مخفي
       var all = await empRepo.watchAll().first;
       expect(
-        SettingsEmployeesScreen.filterVisible(all, includeTerminated: false)
-            .map((e) => e.name),
+        SettingsEmployeesScreen.filterVisible(
+          all,
+          includeTerminated: false,
+        ).map((e) => e.name),
         isNot(contains('سالم المفصول')),
       );
 

@@ -1976,7 +1976,8 @@ class CloudflareSyncManager {
             '(cursor=$pendingCursor)',
           );
           logError(
-            title: 'السحب بلغ سقف الصفحات ($_maxPullPagesPerCycle) — يُستأنف تلقائياً',
+            title:
+                'السحب بلغ سقف الصفحات ($_maxPullPagesPerCycle) — يُستأنف تلقائياً',
             message:
                 'طُبِّق $totalPulled سجلاً عبر $pagesDone صفحة سليمة وتقدم '
                 'المؤشر إلى $pendingCursor. البقية تُستأنف في الدورة القادمة '

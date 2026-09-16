@@ -72,8 +72,7 @@ class AutoBackupManager {
       }
 
       final lastMs = prefs.getInt(_lastAutoBackupKey) ?? 0;
-      final elapsed =
-          DateTime.now().millisecondsSinceEpoch - lastMs;
+      final elapsed = DateTime.now().millisecondsSinceEpoch - lastMs;
       if (elapsed < _minInterval.inMilliseconds) {
         dlog(
           () =>

@@ -381,8 +381,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
         AppSessionManager.configure(
           database: DatabaseManager.instance,
-          deviceIdResolver: () async =>
-              ref.read(cloudflare.cloudflareSyncManagerProvider).currentDeviceId,
+          deviceIdResolver: () async => ref
+              .read(cloudflare.cloudflareSyncManagerProvider)
+              .currentDeviceId,
           syncManager: ref.read(cloudflare.cloudflareSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
@@ -848,9 +849,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     // فور عودة المستخدم قبل أي مزامنة.
     if (state == AppLifecycleState.resumed) {
       unawaited(
-        ref
-            .read(appwrite.connectionStatusProvider.notifier)
-            .checkConnection(),
+        ref.read(appwrite.connectionStatusProvider.notifier).checkConnection(),
       );
     }
     if (!_sessionConfigured) {
@@ -1375,8 +1374,7 @@ Future<bool> _executeAutoSyncTask(
 ) async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    final cloudflareEnabled =
-        prefs.getBool('appwrite_sync_enabled') ?? true;
+    final cloudflareEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
     if (!cloudflareEnabled) {
       developer.log(
