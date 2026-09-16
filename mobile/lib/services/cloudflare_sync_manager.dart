@@ -2750,7 +2750,13 @@ class CloudflareSyncManager {
           ),
           headers: {'Authorization': 'Bearer $_token'},
         )
-        .timeout(const Duration(seconds: 30));
+        // ✅ (2026-09-17) 60 ثانية بدل 30: العميل المرِن قد ينفق 6 ثوانٍ
+        // في المسار السريع ثم حتى 30 ثانية في نفق CONNECT الاحتياطي
+        // (36 ثانية إجمالاً) — المهلة الخارجية 30 كانت تُجهض مسار
+        // الاحتياط قبل اكتماله بـ TimeoutException «Future not completed»
+        // على الشبكات المتدهورة (تقرير الإنتاج 2026-09-16 05:43). الصفحة
+        // 200 صف × 22 جدولاً + تطبيع الصفحة الأولى تستحق الرحلة الكاملة.
+        .timeout(const Duration(seconds: 60));
   }
 
   /// أعمدة الجدول المحلي (PRAGMA table_info) مع كاش — أساس الفلترة
@@ -3127,8 +3133,21 @@ class CloudflareSyncManager {
         final mergedData = resolution.mergedData;
         final cleanRecord = Map<String, dynamic>.from(mergedData);
         cleanRecord.remove('id');
-        final setClauses = cleanRecord.keys.map((c) => '$c = ?').join(', ');
-        final values = cleanRecord.values.map(_toDriftValue).toList();
+        // ✅ (2026-09-17) حارس عقد الأعمدة: مخرجات المحلّل تُكتب في UPDATE
+        // خام مباشرة — أي مفتاح ليس عموداً فيزيائياً في الجدول المحلي
+        // (بقايا camelCase أو حقول مستقبلية غريبة) يُسقَط هنا بدل أن
+        // يُسقط الصف كله بـ SqliteException «no such column» (مرآة جذر
+        // (أ) على مسار الدمج — عطل app_users/user_1 الإنتاجي).
+        final safeRecord = await _filterToLocalColumns(tableName, cleanRecord);
+        if (safeRecord.isEmpty) {
+          debugPrint(
+            '  ⏭️ $entity/$localUuid: merged record has no local columns '
+            '— skipped',
+          );
+          return true;
+        }
+        final setClauses = safeRecord.keys.map((c) => '$c = ?').join(', ');
+        final values = safeRecord.values.map(_toDriftValue).toList();
         await _db!.customStatement(
           'UPDATE $tableName SET $setClauses WHERE id = ?',
           [...values, localId],
@@ -3760,7 +3779,9 @@ class CloudflareSyncManager {
                 ),
                 headers: {'Authorization': 'Bearer $_token'},
               )
-              .timeout(const Duration(seconds: 30));
+              // ✅ (2026-09-17) 60 ثانية — نفس عقلية _fetchPullPage:
+              // headroom فوق مسار fast(6s)+tunnel(30s) للعميل المرِن.
+              .timeout(const Duration(seconds: 60));
         } catch (e) {
           debugPrint(
             '⚠️ tombstone sweep network failure (retry next cycle): $e',
