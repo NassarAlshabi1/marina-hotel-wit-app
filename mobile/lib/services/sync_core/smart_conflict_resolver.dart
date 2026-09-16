@@ -418,7 +418,8 @@ class SmartConflictResolver {
     final warnings = <String>[];
 
     for (final field in detection.conflictingFields) {
-      final rule = policy.rules[field] ?? policy.defaultRule;
+      // ✅ (2026-09-17) استرجاع القاعدة بأي اصطلاح — انظر _ruleFor.
+      final rule = _ruleFor(policy, field);
       final result = _resolveField(
         field: field,
         rule: rule,
@@ -432,19 +433,33 @@ class SmartConflictResolver {
       }
     }
 
+    // ✅ (2026-09-17) عقد snake_case: القراءة تقبل camelCase القديم
+    // (إرث Appwrite) لكن الكتابة snake_case فقط — أعمدة Drift الفعلية.
+    // الكتابة camelCase السابقة كانت تُدخل في UPDATE خام مفاتيح
+    // vectorClock/lastModified غير موجودة فيزيائياً → SqliteException(1)
+    // «no such column: vectorClock» تُفشل دورة السحب كاملة
+    // (تقرير الإنتاج 2026-09-16: app_users/user_1).
     final localVc = VectorClock.fromString(
-      (localData['vectorClock'] as String?) ?? '{}',
+      (localData['vector_clock'] as String?) ??
+          (localData['vectorClock'] as String?) ??
+          '{}',
     );
     final remoteVc = VectorClock.fromString(
-      (remoteData['vectorClock'] as String?) ?? '{}',
+      (remoteData['vector_clock'] as String?) ??
+          (remoteData['vectorClock'] as String?) ??
+          '{}',
     );
     final mergedVc = localVc.copy();
     mergedVc.merge(remoteVc);
-    merged['vectorClock'] = mergedVc.toString();
+    // ساعة متجهة مدمجة فعلياً (كانت تُدمج من '{}' حين لا توجد
+    // المفاتيح camelCase — فتُفقد تاريخ كلا الجهازين في الرفع اللاحق).
+    merged.remove('vectorClock'); // إزالة أي مفتاح قديم مكرر
+    merged['vector_clock'] = mergedVc.toString();
 
     final localTs = _extractTs(localData);
     final remoteTs = _extractTs(remoteData);
-    merged['lastModified'] = localTs > remoteTs ? localTs : remoteTs;
+    merged.remove('lastModified'); // إزالة أي مفتاح قديم مكرر
+    merged['last_modified'] = localTs > remoteTs ? localTs : remoteTs;
     merged['version'] = ((merged['version'] as int?) ?? 0) + 1;
 
     return ResolutionResult(
@@ -453,6 +468,34 @@ class SmartConflictResolver {
       warnings: warnings,
       pushedToRemote: true,
     );
+  }
+
+  /// ✅ (2026-09-17) استرجاع قاعدة السياسة بأي اصطلاح: القواعد كُتبت
+  /// بإرث Appwrite (camelCase) بينما حقول صفوف Drift الإنتاجية
+  /// snake_case — البحث المباشر وحده لم يكن يصيب شيئاً فتسقط كل الحقول
+  /// إلى defaultRule (newerWins) ويفقد concat لحقول الملاحظات خصائصه.
+  static FieldResolutionRule _ruleFor(
+    EntityResolutionPolicy policy,
+    String field,
+  ) {
+    final direct = policy.rules[field];
+    if (direct != null) return direct;
+    final camel = _snakeToCamel(field);
+    return policy.rules[camel] ?? policy.defaultRule;
+  }
+
+  /// snake_case → camelCase (note_text → noteText). لا يغير المفاتيح
+  /// الخالية من الشرطة السفلية.
+  static String _snakeToCamel(String key) {
+    if (!key.contains('_')) return key;
+    final parts = key.split('_');
+    final buf = StringBuffer(parts.first);
+    for (final part in parts.skip(1)) {
+      if (part.isEmpty) continue;
+      buf.write(part[0].toUpperCase());
+      buf.write(part.substring(1));
+    }
+    return buf.toString();
   }
 
   /// حل حقل واحد حسب قاعدة السياسة
@@ -480,8 +523,17 @@ class SmartConflictResolver {
         } else if (remoteTs < localTs) {
           remoteWins = false;
         } else {
-          final remoteDev = (remoteData['deviceId'] as String?) ?? '';
-          final localDev = (localData['deviceId'] as String?) ?? '';
+          // ✅ (2026-09-17) قراءة device_id بأي اصطلاح (إرث Appwrite
+          // camelCase ↔ عمود Drift snake_case) — وإلا يصبح التعادل غير
+          // حتمي على بيانات الإنتاج.
+          final remoteDev =
+              (remoteData['device_id'] as String?) ??
+              (remoteData['deviceId'] as String?) ??
+              '';
+          final localDev =
+              (localData['device_id'] as String?) ??
+              (localData['deviceId'] as String?) ??
+              '';
           remoteWins = remoteDev.compareTo(localDev) < 0;
         }
         return _FieldResolution(
@@ -535,6 +587,7 @@ class SmartConflictResolver {
     return (data['lastModified'] as int?) ??
         (data['last_modified'] as int?) ??
         (data['lastModifiedEpoch'] as int?) ??
+        (data['last_modified_epoch'] as int?) ??
         0;
   }
 

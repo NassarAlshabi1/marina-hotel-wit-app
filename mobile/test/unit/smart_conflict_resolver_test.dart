@@ -113,9 +113,10 @@ void main() {
         expect(result.mergedData['cleaningStatus'], equals('dirty'));
         // remote changed price → take remote value
         expect(result.mergedData['price'], equals(150.0));
-        // VC should be merged
+        // ✅ (2026-09-17) عقد snake_case: الدمج يكتب vector_clock لا
+        // vectorClock — انظر حزمة «snake_case contract» أدناه.
         final mergedVc = VectorClock.fromString(
-          result.mergedData['vectorClock'],
+          result.mergedData['vector_clock'],
         );
         expect(mergedVc.get('d1'), equals(1));
         expect(mergedVc.get('d2'), equals(1));
@@ -208,7 +209,9 @@ void main() {
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
         // lastModified should be max(5000, 3000) = 5000
-        expect(result.mergedData['lastModified'], equals(5000));
+        // ✅ (2026-09-17) العقد snake_case: الدمج يكتب last_modified.
+        expect(result.mergedData['last_modified'], equals(5000));
+        expect(result.mergedData.containsKey('lastModified'), isFalse);
       });
 
       test('merged lastModified is remote when remote is newer', () {
@@ -231,7 +234,7 @@ void main() {
             'price': 100.0,
           },
         );
-        expect(result.mergedData['lastModified'], equals(9000));
+        expect(result.mergedData['last_modified'], equals(9000));
       });
 
       test('version is incremented by 1', () {
@@ -493,13 +496,170 @@ void main() {
           },
         );
         final mergedVc = VectorClock.fromString(
-          result.mergedData['vectorClock'],
+          result.mergedData['vector_clock'],
         );
         expect(mergedVc.get('d1'), equals(5)); // max(5, 2)
         expect(mergedVc.get('d2'), equals(7)); // max(3, 7)
         expect(mergedVc.get('d3'), equals(1)); // only local
         expect(mergedVc.get('d4'), equals(4)); // only remote
       });
+    });
+
+    // ✅ (2026-09-17) اختبار انحدار عطل الإنتاج 2026-09-16:
+    // «SqliteException(1): no such column: vectorClock» على app_users.
+    // صف محلي Drift (snake_case كامل بترتيب الأعمدة الفيزيائية) + صف
+    // سلك D1 (snake_case) بساعتين متزامنتين → الدمج يجب أن يُخرج مفاتيح
+    // snake_case فقط صالحة لـ UPDATE خام مباشرة.
+    group('snake_case contract — production app_users regression', () {
+      test(
+        'merged output has NO camelCase sync keys and merges real clocks',
+        () {
+          // صف محلي كما يقرأه Drift (existing.data) — snake_case فيزيائي.
+          final localData = <String, dynamic>{
+            'id': 7,
+            'local_uuid': 'user_1',
+            'server_id': 1,
+            'created_at': 1788920188,
+            'updated_at': 1789435400,
+            'deleted_at': null,
+            'last_modified': 1789435271,
+            'created_at_iso': null,
+            'updated_at_iso': null,
+            'deleted_at_iso': null,
+            'created_at_epoch': 0,
+            'last_modified_epoch': 0,
+            'version': 3,
+            'origin': 'local',
+            'vector_clock': '{"cf_dev_mu07yt34":2}',
+            'device_id': 'cf_dev_mu07yt34',
+            'sync_timestamp': 0,
+            'idempotency_key': null,
+            'username': '1',
+            'password': null,
+            'full_name': 'علي',
+            'user_type': 'employee',
+            'permissions': '[]',
+            'active': 1,
+            'last_login': 1789435300,
+            'credentials_version': 0,
+            'role': 'employee',
+          };
+          // صف سلك D1 (SELECT *) — ساعة جهاز آخر → متزامنة مع المحلية.
+          final remoteData = <String, dynamic>{
+            'id': 1,
+            'local_uuid': 'user_1',
+            'username': '1',
+            'full_name': 'علي المنقّح',
+            'user_type': 'employee',
+            'permissions': '["dashboard"]',
+            'active': 1,
+            'last_login': 1789435400,
+            'credentials_version': 0,
+            'role': 'employee',
+            'server_id': 1,
+            'created_at': 1788920188,
+            'updated_at': 1789435489,
+            'deleted_at': null,
+            'last_modified': 1789435344,
+            'created_at_epoch': 0,
+            'last_modified_epoch': 0,
+            'version': 2,
+            'origin': 'local',
+            'vector_clock': '{"cf_dev_mttgnjm2":1}',
+            'device_id': 'cf_dev_mu07yt34',
+            'sync_timestamp': 0,
+            'idempotency_key': null,
+          };
+
+          final result = SmartConflictResolver.resolve(
+            entity: 'app_users',
+            localData: localData,
+            remoteData: remoteData,
+            commonAncestor: null,
+          );
+
+          expect(
+            result.strategy,
+            equals(ResolutionStrategy.fieldLevelMerge),
+            reason: 'ساعتان متزامنتان لمختلف الأجهزة → دمج على مستوى الحقل',
+          );
+
+          // العقد الحاسم: لا مفاتيح camelCase للمزامنة في الخرج — أي مفتاح
+          // كهذا كان يُسقط UPDATE كاملاً بـ «no such column».
+          expect(
+            result.mergedData.containsKey('vectorClock'),
+            isFalse,
+            reason: 'camelCase vectorClock يكسر UPDATE المحلي',
+          );
+          expect(
+            result.mergedData.containsKey('lastModified'),
+            isFalse,
+            reason: 'camelCase lastModified يكسر UPDATE المحلي',
+          );
+
+          // الساعة المدمجة تحتوي عدّادي كلا الجهازين (كانت تُدمج من '{}'
+          // لأن الكود القديم قرأ المفاتيح camelCase غير الموجودة أصلاً).
+          final mergedVc = VectorClock.fromString(
+            result.mergedData['vector_clock'] as String,
+          );
+          expect(mergedVc.get('cf_dev_mu07yt34'), equals(2));
+          expect(mergedVc.get('cf_dev_mttgnjm2'), equals(1));
+
+          // last_modified = max(محلي 1789435271، بعيد 1789435344).
+          expect(result.mergedData['last_modified'], equals(1789435344));
+
+          // دمج الحقول: البعيد غيّر full_name و last_login فقط.
+          expect(result.mergedData['full_name'], equals('علي المنقّح'));
+          expect(result.mergedData['last_login'], equals(1789435400));
+          // المحلي لم يُمسّ والمحتوى متطابق → يبقى.
+          expect(result.mergedData['role'], equals('employee'));
+
+          // version المحلي +1.
+          expect(result.mergedData['version'], equals(4));
+        },
+      );
+
+      test(
+        'كل مفاتيح الخرج آمنة كأعمدة فيزيائية (لا camelCase مطلقاً)',
+        () {
+          final localData = <String, dynamic>{
+            'id': 1,
+            'local_uuid': 'r1',
+            'note_text': 'محلي',
+            'vector_clock': '{"a":1}',
+            'last_modified': 100,
+            'version': 1,
+            'device_id': 'dev-a',
+          };
+          final remoteData = <String, dynamic>{
+            'id': 9,
+            'local_uuid': 'r1',
+            'note_text': 'بعيد',
+            'vector_clock': '{"b":1}',
+            'last_modified': 200,
+            'version': 1,
+            'device_id': 'dev-b',
+          };
+          final result = SmartConflictResolver.resolve(
+            entity: 'booking_notes',
+            localData: localData,
+            remoteData: remoteData,
+            commonAncestor: null,
+          );
+          final camelKeys = result.mergedData.keys
+              .where((k) => RegExp('[A-Z]').hasMatch(k))
+              .toList();
+          expect(
+            camelKeys,
+            isEmpty,
+            reason: 'أي مفتاح بحرف كبير يهدد UPDATE الخام: $camelKeys',
+          );
+          // سياسة note_text (snake) تصيب قاعدة concat المكتوبة camelCase.
+          final mergedNote = result.mergedData['note_text'] as String;
+          expect(mergedNote, contains('محلي'));
+          expect(mergedNote, contains('بعيد'));
+        },
+      );
     });
   });
 }

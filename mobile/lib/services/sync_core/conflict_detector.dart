@@ -82,8 +82,14 @@ class ConflictDetector {
       );
     }
 
-    final localDeleted = localData['deletedAt'] != null;
-    final remoteDeleted = remoteData['deletedAt'] != null;
+    // ✅ (2026-09-17) قراءة الحذف بأي اصطلاح: صفوف Drift الإنتاجية
+    // تحمل deleted_at (snake) بينما كان الكشف يقرأ deletedAt (camel —
+    // إرث Appwrite) فقط — الصف المحذوف محلياً لم يُكتشف كمحذوف فيمرّ
+    // إلى مقارنة الساعات وقد يُبعث حياً بدمج لاحق.
+    final localDeleted =
+        localData['deletedAt'] != null || localData['deleted_at'] != null;
+    final remoteDeleted =
+        remoteData['deletedAt'] != null || remoteData['deleted_at'] != null;
 
     if (localDeleted && remoteDeleted) {
       return const ConflictDetectionResult(type: ConflictType.deleteVsDelete);
@@ -274,6 +280,7 @@ class ConflictDetector {
     return (data['lastModified'] as int?) ??
         (data['last_modified'] as int?) ??
         (data['lastModifiedEpoch'] as int?) ??
+        (data['last_modified_epoch'] as int?) ??
         0;
   }
 
