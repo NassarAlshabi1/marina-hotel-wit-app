@@ -1,11 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import '../services/local_db.dart';
-import '../services/sync_service.dart';
 
-final syncProvider = Provider<SyncService>(
-  (ref) => SyncService(DatabaseManager.instance),
-);
+// ✅ (2026-09-17) syncProvider أُزيل — كان غلافاً مكرراً لـ SyncService
+// (المعرّف في sync_service.dart كـ syncServiceProvider). المستهلك الوحيد
+// (reports_screen) تحوّل إلى syncServiceProvider الموحّد.
 
 /// ✅ إصدار التطبيق الكامل (version+buildNumber) — يُقرأ من package_info_plus.
 ///

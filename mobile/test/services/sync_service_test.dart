@@ -1,7 +1,10 @@
 // test/services/sync_service_test.dart
 //
-// اختبارات DAOs المستخدمة في SyncService (roomsDao, bookingsDao, ...)
+// اختبارات DAOs المستخدمة في مسار المزامنة (roomsDao, bookingsDao, ...)
 // ونمذجة تدفق push/pull عبر عمليات DB مباشرة
+//
+// ✅ (2026-09-17) SyncService لم يعد يملك حقول DAO — أُنشئت DAOs مباشرة
+// (نفس نمط بقية الاختبارات) بعد تحويل الخدمة لغلاف Cloudflare رفيع.
 //
 // ignore_for_file: lines_longer_than_80_chars, avoid_redundant_argument_values, prefer_const_constructors, unnecessary_parenthesis
 
@@ -10,9 +13,13 @@
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
+import 'package:marina_hotel_mobile/services/daos/employees_dao.dart';
+import 'package:marina_hotel_mobile/services/daos/expenses_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
+import 'package:marina_hotel_mobile/services/daos/payments_dao.dart';
+import 'package:marina_hotel_mobile/services/daos/rooms_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
-import 'package:marina_hotel_mobile/services/sync_service.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 
 /// اختصار لإنشاء RoomsCompanion بدون استدعاء .insert()
@@ -133,19 +140,27 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppDatabase db;
-  late SyncService syncService;
+  late RoomsDao roomsDao;
+  late BookingsDao bookingsDao;
+  late EmployeesDao employeesDao;
+  late ExpensesDao expensesDao;
+  late PaymentsDao paymentsDao;
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    syncService = SyncService(db);
+    final outbox = OutboxDao(db);
+    roomsDao = RoomsDao(db, outbox);
+    bookingsDao = BookingsDao(db, outbox);
+    employeesDao = EmployeesDao(db, outbox);
+    expensesDao = ExpensesDao(db, outbox);
+    paymentsDao = PaymentsDao(db, outbox);
   });
 
   tearDown(() async {
-    syncService.dispose();
     await db.close();
   });
 
-  group('SyncService — ربط serverId بالكيانات المحلية', () {
+  group('DAOs — ربط serverId بالكيانات المحلية', () {
     test('تحديث serverId للغرفة', () async {
       await db.into(db.rooms).insert(_room(number: '101', uuid: 'room-001'));
 
@@ -178,7 +193,7 @@ void main() {
     });
   });
 
-  group('SyncService — محاكاة applyIncoming عبر DAOs', () {
+  group('DAOs — محاكاة applyIncoming', () {
     group('rooms', () {
       test('تحديث غرفة موجودة', () async {
         await db
@@ -193,7 +208,7 @@ void main() {
               ),
             );
 
-        await syncService.roomsDao.updateByNumber(
+        await roomsDao.updateByNumber(
           '101',
           RoomsCompanion(
             type: const d.Value('double'),
@@ -237,7 +252,7 @@ void main() {
       });
 
       test('إدراج غرفة جديدة', () async {
-        await syncService.roomsDao.insertOne(
+        await roomsDao.insertOne(
           _room(
             number: '201',
             type: 'double',
@@ -258,7 +273,7 @@ void main() {
       test('soft delete للغرفة', () async {
         await db.into(db.rooms).insert(_room(number: '301', uuid: 'room-301'));
 
-        await syncService.roomsDao.softDelete('301', originIsServer: true);
+        await roomsDao.softDelete('301', originIsServer: true);
 
         final room = await (db.select(
           db.rooms,
@@ -271,7 +286,7 @@ void main() {
       test('إدراج حجز جديد', () async {
         await db.into(db.rooms).insert(_room(number: '401', uuid: 'r401'));
 
-        await syncService.bookingsDao.insertOne(
+        await bookingsDao.insertOne(
           _booking(
             uuid: 'bkg-401',
             roomNumber: '401',
@@ -322,7 +337,7 @@ void main() {
 
     group('employees', () {
       test('إدراج موظف جديد', () async {
-        await syncService.employeesDao.insertOne(
+        await employeesDao.insertOne(
           _employee(name: 'موظف جديد', salary: 5000, serverId: 500),
           originIsServer: true,
         );
@@ -337,7 +352,7 @@ void main() {
 
     group('expenses', () {
       test('إدراج مصروف جديد', () async {
-        await syncService.expensesDao.insertOne(
+        await expensesDao.insertOne(
           _expense(type: 'كهرباء', amount: 1500, serverId: 600),
           originIsServer: true,
         );
@@ -363,7 +378,7 @@ void main() {
               ),
             );
 
-        await syncService.paymentsDao.insertOne(
+        await paymentsDao.insertOne(
           _payment(
             serverPaymentId: 800,
             serverBookingId: 700,
@@ -382,7 +397,7 @@ void main() {
     });
   });
 
-  group('SyncService — إدارة syncState', () {
+  group('DB — إدارة syncState', () {
     test('يمكن إدراج syncState وقراءته', () async {
       await db
           .into(db.syncState)
@@ -422,7 +437,7 @@ void main() {
     });
   });
 
-  group('SyncService — دورة حياة كاملة مع outbox', () {
+  group('Outbox — دورة حياة كاملة مع DAOs', () {
     test('إنشاء سجل محلي ← إضافة إلى outbox ← ربط serverId', () async {
       final outboxDao = OutboxDao(db);
 
@@ -465,7 +480,7 @@ void main() {
     });
 
     test('سحب غرفتين من السيرفر وإنشاءهما محلياً', () async {
-      await syncService.roomsDao.insertOne(
+      await roomsDao.insertOne(
         _room(
           number: 'A1',
           uuid: 'pull-A1',
@@ -476,7 +491,7 @@ void main() {
         ),
         originIsServer: true,
       );
-      await syncService.roomsDao.insertOne(
+      await roomsDao.insertOne(
         _room(
           number: 'A2',
           uuid: 'pull-A2',
