@@ -26,10 +26,15 @@
 //
 // الاستخدام: flutter test test/unit/cloudflare_d1_upload_fields_test.dart
 
-import 'package:drift/drift.dart' show Value;
+import 'dart:convert';
+
+import 'package:drift/drift.dart' show Value, Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:marina_hotel_mobile/screens/settings/backup/tabs/cloudflare_d1_tab.dart';
+import 'package:marina_hotel_mobile/services/cloudflare_d1_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 
 /// الخريطة المرجعية — اسم الحقل بصيغة Dart/Appwrite (camelCase) إلى اسم
@@ -75,30 +80,26 @@ void main() {
     return rows.map((r) => r.data['name'].toString()).toSet();
   }
 
-  test(
-    'خريطة الحقول الـ 17 مكتملة وصحيحة كمرجع للاختبار',
-    () {
-      // حماية من التعديل العارض للخريطة المرجعية نفسها.
-      expect(kExpectedSyncFieldMapping, hasLength(17));
-      for (final entry in kExpectedSyncFieldMapping.entries) {
-        final snake = entry.value;
-        // كل اسم هدف يجب أن يكون snake_case خالصاً (بلا أحرف كبيرة).
-        expect(
-          snake,
-          equals(snake.toLowerCase()),
-          reason:
-              '${entry.key} → $snake: الاسم المستهدف يجب أن يكون snake_case',
-        );
-        // والمصدر camelCase (بلا شرطة سفلية) — عدا origin/version أحادية الكلمة.
-        expect(
-          entry.key.contains('_'),
-          isFalse,
-          reason:
-              '${entry.key}: اسم حقل Dart/Appwrite يجب أن يكون camelCase بلا "_"',
-        );
-      }
-    },
-  );
+  test('خريطة الحقول الـ 17 مكتملة وصحيحة كمرجع للاختبار', () {
+    // حماية من التعديل العارض للخريطة المرجعية نفسها.
+    expect(kExpectedSyncFieldMapping, hasLength(17));
+    for (final entry in kExpectedSyncFieldMapping.entries) {
+      final snake = entry.value;
+      // كل اسم هدف يجب أن يكون snake_case خالصاً (بلا أحرف كبيرة).
+      expect(
+        snake,
+        equals(snake.toLowerCase()),
+        reason: '${entry.key} → $snake: الاسم المستهدف يجب أن يكون snake_case',
+      );
+      // والمصدر camelCase (بلا شرطة سفلية) — عدا origin/version أحادية الكلمة.
+      expect(
+        entry.key.contains('_'),
+        isFalse,
+        reason:
+            '${entry.key}: اسم حقل Dart/Appwrite يجب أن يكون camelCase بلا "_"',
+      );
+    }
+  });
 
   test(
     'كل جدول مزامنة يحمل الأعمدة الـ 17 بصيغة snake_case (مسار رفع D1)',
@@ -166,29 +167,31 @@ void main() {
       // محاكاة المسار الكامل: الإدراج عبر drift ثم القراءة بنفس استعلام
       // CloudflareD1Tab._upload (SELECT * FROM "table" LIMIT ? OFFSET ?)
       // والتحقق أن مفاتيح الخريطة هي أسماء snake_case الـ 17 نفسها.
-      await db.into(db.rooms).insert(
-        RoomsCompanion.insert(
-          localUuid: 'room-101-uuid',
-          createdAt: 1735689600000,
-          updatedAt: 1735776000000,
-          lastModified: 1735776001000,
-          roomNumber: '101',
-          type: 'double',
-          price: 100,
-          status: 'شاغرة',
-          serverId: const Value(7),
-          createdAtIso: const Value('2026-01-01T00:00:00.000Z'),
-          updatedAtIso: const Value('2026-01-02T00:00:00.000Z'),
-          createdAtEpoch: const Value(1735689600),
-          lastModifiedEpoch: const Value(1735776000),
-          version: const Value(3),
-          origin: const Value('local'),
-          vectorClock: const Value('{"dev-a":1}'),
-          deviceId: const Value('dev-a'),
-          syncTimestamp: const Value(1735776001),
-          idempotencyKey: const Value('idem-key-1'),
-        ),
-      );
+      await db
+          .into(db.rooms)
+          .insert(
+            RoomsCompanion.insert(
+              localUuid: 'room-101-uuid',
+              createdAt: 1735689600000,
+              updatedAt: 1735776000000,
+              lastModified: 1735776001000,
+              roomNumber: '101',
+              type: 'double',
+              price: 100,
+              status: 'شاغرة',
+              serverId: const Value(7),
+              createdAtIso: const Value('2026-01-01T00:00:00.000Z'),
+              updatedAtIso: const Value('2026-01-02T00:00:00.000Z'),
+              createdAtEpoch: const Value(1735689600),
+              lastModifiedEpoch: const Value(1735776000),
+              version: const Value(3),
+              origin: const Value('local'),
+              vectorClock: const Value('{"dev-a":1}'),
+              deviceId: const Value('dev-a'),
+              syncTimestamp: const Value(1735776001),
+              idempotencyKey: const Value('idem-key-1'),
+            ),
+          );
 
       // نفس قراءة التبويب: SELECT * — مفاتيح r.data هي ما يُرفع حرفياً إلى D1.
       final rows = await db.customSelect('SELECT * FROM "rooms"').get();
@@ -218,6 +221,147 @@ void main() {
       expect(uploaded['origin'], 'local');
       expect(uploaded['version'], 3);
       expect(uploaded['idempotency_key'], 'idem-key-1');
+    },
+  );
+
+  test(
+    'uploadData الفعلي: SQL بأسامي snake_case وقيم محفوظة حرفياً + إعادة رفع مطابقة',
+    () async {
+      // إدراج صف بقيم مميزة قابلة للتتبع في نص SQL.
+      await db
+          .into(db.rooms)
+          .insert(
+            RoomsCompanion.insert(
+              localUuid: 'room-102-uuid',
+              createdAt: 1735603200000,
+              updatedAt: 1735689600000,
+              lastModified: 1735776123456,
+              roomNumber: '102',
+              type: 'suite',
+              price: 250,
+              status: 'شاغرة',
+              serverId: const Value(77),
+              createdAtIso: const Value('2025-12-31T00:00:00.000Z'),
+              updatedAtIso: const Value('2026-01-01T00:00:00.000Z'),
+              createdAtEpoch: const Value(1735603200),
+              lastModifiedEpoch: const Value(1735689600),
+              version: const Value(42),
+              origin: const Value('remote'),
+              vectorClock: const Value('{"dev-b":9}'),
+              deviceId: const Value('dev-b'),
+              syncTimestamp: const Value(1735776999),
+              idempotencyKey: const Value('idem-rooms-102'),
+            ),
+          );
+
+      // نفس readChunk الذي يستخدمه CloudflareD1Tab._upload حرفياً.
+      Future<List<Map<String, Object?>>> readChunk(
+        int limit,
+        int offset,
+      ) async {
+        final rows = await db
+            .customSelect(
+              'SELECT * FROM "rooms" LIMIT ? OFFSET ?',
+              variables: [Variable.withInt(limit), Variable.withInt(offset)],
+            )
+            .get();
+        return rows.map((r) => r.data).toList();
+      }
+
+      // مرآة لـ _sqlLiteral في CloudflareD1Service (نفس المنطق حرفياً).
+      String lit(Object? v) {
+        if (v == null) return 'NULL';
+        if (v is int) return v.toString();
+        if (v is double) return v.toString();
+        if (v is bool) return v ? '1' : '0';
+        return "'${v.toString().replaceAll("'", "''")}'";
+      }
+
+      Future<List<String>> runUpload() async {
+        final captured = <String>[];
+        final client = MockClient((request) async {
+          captured.add(request.body);
+          return http.Response('{"success": true, "result": []}', 200);
+        });
+        final service = CloudflareD1Service(
+          const CloudflareD1Config(
+            accountId: 'a',
+            databaseId: 'b',
+            apiToken: 't',
+          ),
+          client: client,
+        );
+        final result = await service.uploadData(
+          tables: [
+            CloudflareD1SourceTable(
+              name: 'rooms',
+              rowCount: 1,
+              createSqlList: const [],
+              readChunk: readChunk,
+            ),
+          ],
+          deviceLabel: 'test-device',
+        );
+        expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+        expect(result.rowsUploaded, 1);
+
+        // استخراج عبارات INSERT الخاصة بـ rooms من أجسام النداءات.
+        final inserts = captured
+            .map(
+              (b) => (jsonDecode(b) as Map<String, dynamic>)['sql'] as String,
+            )
+            .expand((sql) => sql.split(';\n'))
+            .map((s) => s.trim())
+            .where((s) => s.startsWith('INSERT OR REPLACE INTO "rooms"'))
+            .toList();
+        expect(
+          inserts,
+          hasLength(1),
+          reason: 'المتوقع عبارة INSERT واحدة لـ rooms',
+        );
+        return inserts;
+      }
+
+      final firstRun = await runUpload();
+      final sql = firstRun.single;
+
+      // 1) أسماء الأعمدة الـ 17 بصيغة snake_case داخل نص SQL
+      //    (الإنتاج يكتب قائمة الأعمدة بدون اقتباس — أسماء صالحة لـ SQLite).
+      final colList = sql
+          .substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES'))
+          .split(',');
+      expect(colList.toSet(), containsAll(kExpectedSyncFieldMapping.values));
+      expect(colList, isNot(contains('localUuid')));
+      expect(colList, isNot(contains('idempotencyKey')));
+      expect(colList, isNot(contains('syncTimestamp')));
+      expect(sql, isNot(contains('localUuid')));
+
+      // 2) القيم محفوظة حرفياً — timestamps/version/idempotency_key لم تُعد إنشاؤها.
+      final row =
+          (await db.customSelect('SELECT * FROM "rooms"').get()).first.data;
+      final cols = row.keys.toList();
+      final expectedSql =
+          'INSERT OR REPLACE INTO "rooms" '
+          '(${cols.join(',')}) '
+          'VALUES (${cols.map((c) => lit(row[c])).join(',')})';
+      expect(
+        sql,
+        expectedSql,
+        reason: 'العبارة المرسلة لا تطابق القيم الحرفية للصف',
+      );
+      // تحقق صريح بأثر واضح:
+      expect(sql, contains('1735776123456')); // last_modified
+      expect(sql, contains('1735776999')); // sync_timestamp
+      expect(sql, contains('42')); // version — ليس 1
+      expect(sql, contains("'idem-rooms-102'"));
+
+      // 3) إعادة الرفع: نفس العبارة حرفياً — لا تُولَّد قيم جديدة.
+      final secondRun = await runUpload();
+      expect(
+        secondRun.single,
+        sql,
+        reason: 'إعادة الرفع غيّرت العبارة — يتم إعادة إنشاء قيم بشكل خاطئ',
+      );
     },
   );
 }
