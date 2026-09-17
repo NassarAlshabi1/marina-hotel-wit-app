@@ -252,9 +252,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       case 'sync':
         return [
           _SettingsItem(
-            title: 'المزامنة بين الأجهزة',
-            subtitle: 'التحكم في مزامنة Cloudflare والأداء والشبكة',
-            icon: Icons.sync,
+            title: 'المزامنة السحابية بين الأجهزة',
+            subtitle: 'رفع وسحب البيانات عبر Cloudflare D1 — الإعدادات والأداء والشبكة',
+            icon: Icons.cloud_sync,
             color: Colors.blue,
             onTap: () => Navigator.push<void>(
               context,
@@ -273,18 +273,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               MaterialPageRoute<void>(
                 builder: (context) =>
                     const backup_v2.ComprehensiveBackupScreen(),
-              ),
-            ),
-          ),
-          _SettingsItem(
-            title: 'المزامنة السحابية',
-            subtitle: 'رفع وسحب البيانات عبر Cloudflare D1 وحالة الأجهزة',
-            icon: Icons.cloud_sync,
-            color: Colors.pink,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const UnifiedSyncSettingsScreen(),
               ),
             ),
           ),
