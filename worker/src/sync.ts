@@ -550,8 +550,12 @@ export async function handleMigrate(
       );
     }
 
+    // ✅ (ملحق المراجعة 2026-09-17): جمع الجداول الملموسة أثناء التحقق —
+    // تُستخدم لاحقاً لتمريرة تطهير version بعد التنفيذ (انظر أسفل).
+    const touchedTables = new Set<string>();
     for (let i = 0; i < statements.length; i++) {
-      if (!isAllowedMigrateStatement(statements[i] ?? '', validTargets)) {
+      const stmt = statements[i] ?? '';
+      if (!isAllowedMigrateStatement(stmt, validTargets)) {
         return jsonResponse(
           {
             error:
@@ -561,6 +565,8 @@ export async function handleMigrate(
           400
         );
       }
+      const target = MIGRATE_INSERT_RE.exec(stmt)?.[1];
+      if (target) touchedTables.add(target);
     }
 
     // ─── Execute via D1 batch API in atomic chunks (plan 2.6) ─
@@ -618,12 +624,35 @@ export async function handleMigrate(
       console.warn('[MIGRATE] sync_clock advance failed:', clockErr);
     }
 
+    // ✅ (ملحق المراجعة 2026-09-17): تمريرة تطهير بعد الترحيل —
+    // INSERT OR REPLACE يحمل version العميل حرفياً (دليل حي: rooms
+    // 1e12+n، وإعادة حقن 9999 في payments بتاريخ 2026-09-17 01:27 UTC
+    // بلا أثر في sync_log). القيم فوق MAX_SANE_VERSION تُعاد إلى 1
+    // بعد كل دفعة كي لا يُعاد تلويث الصفوف المصحَّحة يدوياً. الفشل هنا
+    // غير فادح (الحارس في updateRecord يلتقطها لاحقاً عند أول تعديل).
+    let versionsSanitized = 0;
+    if (touchedTables.size > 0) {
+      try {
+        versionsSanitized = await db.sanitizeMigrateVersions([
+          ...touchedTables,
+        ]);
+        if (versionsSanitized > 0) {
+          console.warn(
+            `[MIGRATE] sanitized ${versionsSanitized} row(s) with polluted version (>1e6) across ${touchedTables.size} table(s)`
+          );
+        }
+      } catch (sanErr) {
+        console.warn('[MIGRATE] version sanitize pass failed:', sanErr);
+      }
+    }
+
     return jsonResponse({
       success: errors.length === 0,
       rowsInserted,
       statementsExecuted,
       statementsTotal: statements.length,
       abortedEarly: statementsExecuted < statements.length,
+      versionsSanitized,
       errors: errors.slice(0, 20), // Limit errors to first 20 to avoid huge response
       totalErrors: errors.length,
       server_time: Math.floor(Date.now() / 1000),

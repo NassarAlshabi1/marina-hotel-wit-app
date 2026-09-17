@@ -249,3 +249,64 @@ describe('migrate: sync_clock advancement', () => {
     expect(pushed!.m).toBeLessThan(2_000_000_000); // نطاق ثوانٍ سليم
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  Post-migrate version sanitization (review addendum 2026-09-17)
+//  INSERT OR REPLACE carries the client's version verbatim — the
+//  production rooms table was polluted this way (1e12+n). The pass
+//  clamps >MAX_SANE_VERSION back to 1 after each migrate batch.
+// ═══════════════════════════════════════════════════════════════
+describe('migrate: post-migrate version sanitization', () => {
+  it('clamps a polluted version (>1e6) to 1 after raw import', async () => {
+    const auth = await adminAuthHeader();
+    const u = uniqueUuid('vfix-hi');
+    const sql =
+      `INSERT OR REPLACE INTO rooms (local_uuid, room_number, type, price, status, created_at, updated_at, last_modified, version) ` +
+      `VALUES ('${u}', 'V-901', 'suite', 10, 'available', 1700000000, 1700000000, 1700000000, 1000000000070);`;
+    const res = await postMigrate(auth, sql);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { success: boolean; versionsSanitized: number };
+    expect(body.success).toBe(true);
+    expect(body.versionsSanitized).toBeGreaterThanOrEqual(1);
+    const row = await env.DB.prepare(
+      'SELECT version FROM rooms WHERE local_uuid = ?'
+    ).bind(u).first<{ version: number }>();
+    expect(row?.version).toBe(1);
+  });
+
+  it('leaves sub-threshold versions untouched (9999/10000 policy)', async () => {
+    const auth = await adminAuthHeader();
+    const u = uniqueUuid('vfix-lo');
+    const sql =
+      `INSERT OR REPLACE INTO rooms (local_uuid, room_number, type, price, status, created_at, updated_at, last_modified, version) ` +
+      `VALUES ('${u}', 'V-902', 'suite', 10, 'available', 1700000000, 1700000000, 1700000000, 9999);`;
+    const res = await postMigrate(auth, sql);
+    expect(res.status).toBe(200);
+    const row = await env.DB.prepare(
+      'SELECT version FROM rooms WHERE local_uuid = ?'
+    ).bind(u).first<{ version: number }>();
+    expect(row?.version).toBe(9999);
+  });
+
+  it('re-sanitizes on re-import (protects manual data corrections from re-pollution)', async () => {
+    const auth = await adminAuthHeader();
+    const u = uniqueUuid('vfix-re');
+    const mk = () =>
+      `INSERT OR REPLACE INTO rooms (local_uuid, room_number, type, price, status, created_at, updated_at, last_modified, version) ` +
+      `VALUES ('${u}', 'V-903', 'suite', 10, 'available', 1700000000, 1700000000, 1700000000, 1000000000042);`;
+    // First import pollutes, pass clamps to 1.
+    const first = await postMigrate(auth, mk());
+    expect(first.status).toBe(200);
+    // Second import re-pollutes the SAME row (device re-bootstrap with a
+    // still-polluted local DB — the exact 2026-09-17 01:27 UTC pattern),
+    // the pass must clamp it again.
+    const second = await postMigrate(auth, mk());
+    expect(second.status).toBe(200);
+    const body = (await second.json()) as { versionsSanitized: number };
+    expect(body.versionsSanitized).toBeGreaterThanOrEqual(1);
+    const row = await env.DB.prepare(
+      'SELECT version FROM rooms WHERE local_uuid = ?'
+    ).bind(u).first<{ version: number }>();
+    expect(row?.version).toBe(1);
+  });
+});

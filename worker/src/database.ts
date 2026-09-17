@@ -1153,6 +1153,32 @@ export class Database {
     return Number.isFinite(v) && v <= Database.MAX_SANE_VERSION ? v : 1;
   }
 
+  /**
+   * ✅ (ملحق مراجعة 2026-09-17 — تمريرة ما بعد الترحيل الخام):
+   * `handleMigrate` ينفّذ `INSERT OR REPLACE` بقيم أعمدة العميل حرفياً،
+   * بما فيها `version` — محصّنٌ من التطهير الذاتي الذي يفعله
+   * `updateRecord`/`deleteRecord` عبر `sanitizeVersion()` (الحقن الأصلي
+   * لجدول `rooms` جاء من هنا: 1e12+n، ودليل حي 2026-09-17 01:27 UTC
+   * أعاد حقن `version=9999` في 12 دفعة بلا أي أثر في `sync_log`).
+   * هذه التمريرة تُطبِّق نفس عتبة `MAX_SANE_VERSION` بعد كل دفعة
+   * ترحيل ناجحة (تحديث واحد لكل جدول ملموس) كي لا يعاد تلويث الصفوف
+   * التي صُحِّحت يدوياً. القيم دون العتبة (9999/10000) تبقى كما هي —
+   * نفس سياسة `sanitizeVersion` المتعمَّدة.
+   */
+  async sanitizeMigrateVersions(tables: string[]): Promise<number> {
+    let sanitized = 0;
+    for (const table of tables) {
+      // Defense-in-depth: never interpolate an unvalidated name into SQL.
+      if (!SYNC_ENTITY_TABLES.includes(table)) continue;
+      const res = await this.db
+        .prepare(`UPDATE ${table} SET version = 1 WHERE version > ?`)
+        .bind(Database.MAX_SANE_VERSION)
+        .run();
+      sanitized += res.meta.changes ?? 0;
+    }
+    return sanitized;
+  }
+
   private parseVectorClock(vc: string): Record<string, number> {
     try {
       const parsed: unknown = JSON.parse(vc);
