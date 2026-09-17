@@ -94,10 +94,9 @@ class ShiftReceiptsCloudService {
       if (_asBool(_value(data, 'isPendingBalance', 'is_pending_balance'))) {
         continue;
       }
-      final rawName =
-          (_value(data, 'receivedByName', 'received_by_name') ?? '')
-              .toString()
-              .trim();
+      final rawName = (_value(data, 'receivedByName', 'received_by_name') ?? '')
+          .toString()
+          .trim();
       final cloudId =
           (_value(data, 'receivedByCloudId', 'received_by_cloud_id') ?? '')
               .toString();
@@ -117,7 +116,8 @@ class ShiftReceiptsCloudService {
         continue;
       }
 
-      final userId = _asNum(
+      final userId =
+          _asNum(
             _value(data, 'receivedByUserId', 'received_by_user_id'),
           )?.toInt() ??
           0;
@@ -154,8 +154,7 @@ class ShiftReceiptsCloudService {
     Map<String, dynamic> data,
     String primary,
     String alternate,
-  ) =>
-      data[primary] ?? data[alternate];
+  ) => data[primary] ?? data[alternate];
 
   static num? _asNum(dynamic value) {
     if (value is num) return value;
