@@ -878,7 +878,10 @@ export class Database {
     const timestampLoss =
       incomingTimestamp < existing.updated_at ||
       (incomingTimestamp === existing.updated_at &&
-        !this.incomingVersionWins(existing.version, data.version));
+        !this.incomingVersionWins(
+          this.sanitizeVersion(existing.version),
+          data.version
+        ));
 
     if (conflict === 'concurrent') {
       // Save conflict for audit
@@ -902,7 +905,7 @@ export class Database {
 
     // ─── Apply update ────────────────────────────────────────
     const now = await this.allocateUpdatedAt();
-    const newVersion = existing.version + 1;
+    const newVersion = this.sanitizeVersion(existing.version) + 1;
 
     // Merge vector clocks
     const mergedVc = this.mergeVectorClocks(existing.vector_clock || '{}', vectorClock);
@@ -972,7 +975,7 @@ export class Database {
       return { deleted: false };
     }
 
-    const newVersion = existing.version + 1;
+    const newVersion = this.sanitizeVersion(existing.version) + 1;
 
     await this.db
       .prepare(
@@ -1115,6 +1118,39 @@ export class Database {
   ): boolean {
     const v = Number(incomingVersion);
     return Number.isFinite(v) && v > existingVersion;
+  }
+
+  /**
+   * ✅ (2026-09-17 مراجعة Delta Sync × Cloudflare بند #5،
+   * DELTA_SYNC_CLOUDFLARE_REVIEW.md): سقف عقلاني لـ `version` قبل زيادته.
+   *
+   * فحص حي على قاعدة الإنتاج كشف أن 100% من صفوف جدول `rooms` (20/20) —
+   * وصفوفاً متفرقة في `payments`/`bookings` — تحمل قيم `version` اصطناعية
+   * مستديرة تماماً (9999, 10000, 1,000,000,000+n)، بينما `createRecord`/
+   * `updateRecord` في هذا الملف يفرضان `version` الخادم دائماً (السطر يُكتب
+   * بعد `...data spread` فيتجاوز أي قيمة عميل) — أي أن الحقن الفعلي جاء من
+   * مسار مختلف تماماً: `handleMigrate` (sync.ts) ينفّذ عبارات `INSERT`
+   * الخام من العميل حرفياً (سرعة الترحيل الأولي) بلا أي تحقق من قيم
+   * الأعمدة، بما فيها `version`.
+   *
+   * `version` هو كاسر التعادل الوحيد في `detectConflict`/`incomingVersionWins`
+   * عند تساوي `updated_at` — قيمة ملوَّثة تبقى صحيحة حسابياً (ضمن
+   * Number.MAX_SAFE_INTEGER) لكنها تُفسد قراءة "عدد التعديلات الحقيقي"
+   * للأبد إن استمر البناء عليها بلا نهاية. هذا الحارس يلتقط أي صف ملوَّث
+   * تلقائياً عند أول تعديل شرعي لاحق عبر `/api/sync/push` (المسار الوحيد
+   * الذي يستدعي updateRecord/deleteRecord) ويعيد تعيين النسخة لبداية سليمة
+   * — تعافٍ تدريجي بلا أي لمسة SQL يدوية على بيانات الإنتاج الحالية.
+   *
+   * ملاحظة نطاق: العتبة عمداً أعلى بكثير من أعلى `version` شرعي رُصد فعلياً
+   * (128 لحجز) لتكون حاسمة فقط مع فساد لا لبس فيه (rooms: 1,000,077 —
+   * 1,000,000,000,070). القيم الحدّية الأصغر المرصودة (9999 في 12 دفعة،
+   * 10000 في حجز واحد) تبقى دون هذه العتبة عمداً — ليست خطيرة حسابياً
+   * ويُفضَّل عدم المخاطرة بلمس أي `version` قد يكون شرعياً ضمن نطاق غامض.
+   */
+  private static readonly MAX_SANE_VERSION = 1_000_000;
+
+  private sanitizeVersion(v: number): number {
+    return Number.isFinite(v) && v <= Database.MAX_SANE_VERSION ? v : 1;
   }
 
   private parseVectorClock(vc: string): Record<string, number> {

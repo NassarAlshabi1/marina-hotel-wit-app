@@ -7,7 +7,6 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/repositories/blacklist_repository.dart';
-import '../../services/sync_service.dart';
 import '../../utils/english_digits_input_formatter.dart';
 
 class BlacklistScreen extends ConsumerStatefulWidget {
@@ -24,7 +23,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
   @override
   Widget build(BuildContext context) {
     final repo = ref.watch(blacklistRepoProvider);
-    final syncService = ref.watch(syncServiceProvider);
 
     return AppScaffold(
       title: 'القائمة السوداء',
@@ -42,7 +40,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.sync),
-          onPressed: _isSyncing ? null : () => _performSync(syncService),
+          onPressed: _isSyncing ? null : () => _performSync(),
           tooltip: 'مزامنة',
         ),
       ],
@@ -131,8 +129,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                   ),
                 Expanded(
                   child: RefreshIndicator(
-                    onRefresh: () =>
-                        _performSync(ref.read(syncServiceProvider)),
+                    onRefresh: () => _performSync(),
                     child: ListView.builder(
                       padding: const EdgeInsets.all(12),
                       itemCount: entries.length,
@@ -422,19 +419,37 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
     );
   }
 
-  Future<void> _performSync(SyncService syncService) async {
+  /// ✅ إصلاح (مراجعة Delta Sync × Cloudflare بند #1): كانت تستدعي
+  /// `SyncService` القديم (REST/PHP معطّل، منفصل كلياً عن Cloudflare) —
+  /// الآن تُنفّذ دورة مزامنة Cloudflare حقيقية (دفع + سحب) عبر
+  /// `CloudflareSyncManager.sync()`، نفس المدير المستخدم فعلياً في
+  /// باقي هذه الشاشة (حذف عنصر من القائمة السوداء، سطر ~316).
+  Future<void> _performSync() async {
     setState(() => _isSyncing = true);
     try {
-      await syncService.runSync();
+      final result = await ref
+          .read(appwriteSyncManagerProvider)
+          .sync(forcePull: true);
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تمت المزامنة بنجاح'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (result.isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تمت المزامنة بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'فشلت المزامنة: ${result.errorMessage ?? result.status.name}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) {
         return;

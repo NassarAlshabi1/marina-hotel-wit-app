@@ -10,7 +10,7 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
 import '../../services/local_db.dart';
-import '../../services/sync_service.dart';
+import '../../utils/manual_sync_trigger.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
@@ -130,9 +130,11 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
             }
 
             return RefreshIndicator(
-              onRefresh: () async {
-                await ref.read(syncServiceProvider).runSync();
-              },
+              onRefresh: () => triggerManualCloudflareSync(
+                context,
+                ref,
+                showSuccessSnackbar: false,
+              ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 900;

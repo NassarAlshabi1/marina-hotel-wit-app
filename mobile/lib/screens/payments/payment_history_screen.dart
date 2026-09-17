@@ -7,9 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
-import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/debug_log.dart';
+import '../../utils/manual_sync_trigger.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/time.dart';
 
@@ -116,7 +116,13 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   // ✅ إعادة المحاولة تُشغّل مزامنة فعلية من المصدر بدل مجرد
                   // setState الذي قد لا يُغيّر شيئاً لو كان الخطأ ثابتاً.
                   onPressed: () {
-                    unawaited(ref.read(syncServiceProvider).runSync());
+                    unawaited(
+                      triggerManualCloudflareSync(
+                        context,
+                        ref,
+                        showSuccessSnackbar: false,
+                      ),
+                    );
                     setState(() {});
                   },
                   child: const Text('إعادة المحاولة'),
@@ -213,7 +219,11 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => ref.read(syncServiceProvider).runSync(),
+                onRefresh: () => triggerManualCloudflareSync(
+                  context,
+                  ref,
+                  showSuccessSnackbar: false,
+                ),
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   scrollCacheExtent: optimizedScrollCacheExtent,

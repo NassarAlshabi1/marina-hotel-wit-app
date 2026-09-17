@@ -1,6 +1,6 @@
 // Delta sync service unit tests — regression baseline for the diff sync
-// algorithm. These tests characterise the CURRENT behavior (including
-// known bugs) so future fixes don't silently change semantics.
+// algorithm. These tests characterise the CURRENT behavior so future
+// changes don't silently regress semantics.
 //
 // Coverage:
 //   1. Empty DB → no changes, but mirror snapshot is empty too.
@@ -8,9 +8,10 @@
 //   3. Second sync (mirror present) with no changes → no changes emitted.
 //   4. Local row update → single 'update' change emitted.
 //   5. Local soft-delete after sync → 'update' with deleted_at set.
-//   6. ⚠️ Known bug: hard-deleted row keeps emitting 'update' forever
-//      (missing-row path always emits with nowTs). This test documents
-//      the behavior; a fix must change this test.
+//   6. ✅ FIXED: hard-deleted row emits a 'delete'/tombstone update exactly
+//      once — the missing-row path no longer re-emits on every subsequent
+//      compute() once the server has already seen the deletion (see the
+//      "missing forever" fix in delta_sync_service.dart's missing-uuid loop).
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';

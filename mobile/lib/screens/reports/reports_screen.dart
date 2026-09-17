@@ -7,12 +7,12 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
-import '../../providers/core_providers.dart';
 import '../../providers/performance_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart' show Room;
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/manual_sync_trigger.dart';
 import '../../utils/status_utils.dart';
 import 'debts_report_screen.dart';
 import 'expenses_report_screen.dart';
@@ -214,7 +214,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           tooltip: 'تحديث',
         ),
         IconButton(
-          onPressed: () => ref.read(syncProvider).runSync(),
+          onPressed: () => triggerManualCloudflareSync(context, ref),
           icon: const Icon(Icons.sync),
           tooltip: 'مزامنة',
         ),

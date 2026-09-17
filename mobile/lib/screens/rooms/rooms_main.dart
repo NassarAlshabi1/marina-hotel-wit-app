@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../services/sync_service.dart';
+import '../../utils/manual_sync_trigger.dart';
 import 'rooms_dashboard.dart';
 import 'rooms_list.dart';
 
@@ -36,7 +36,7 @@ class _RoomsMainScreenState extends ConsumerState<RoomsMainScreen>
       title: 'إدارة الغرف',
       actions: [
         IconButton(
-          onPressed: () => ref.read(syncServiceProvider).runSync(),
+          onPressed: () => triggerManualCloudflareSync(context, ref),
           icon: const Icon(Icons.sync),
           tooltip: 'مزامنة',
         ),

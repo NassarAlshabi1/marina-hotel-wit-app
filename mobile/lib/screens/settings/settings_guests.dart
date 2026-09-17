@@ -9,8 +9,8 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
-import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/manual_sync_trigger.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../bookings/booking_edit.dart';
@@ -44,7 +44,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       title: 'إدارة الضيوف',
       actions: [
         IconButton(
-          onPressed: () => ref.read(syncServiceProvider).runSync(),
+          onPressed: () => triggerManualCloudflareSync(context, ref),
           icon: const Icon(Icons.sync),
           tooltip: 'مزامنة',
         ),
