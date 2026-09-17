@@ -530,6 +530,16 @@ class CloudflareSyncManager {
   /// المؤشر الرئيسي ولا تعيد سحب الصفوف الحية.
   static const String _kTombstoneSweepDoneKey = 'cf_tombstone_sweep_v1_done';
 
+  /// ✅ إصلاح بطء السحب (تقرير مستخدم: «يتأخر كثيراً أثناء سحب التغييرات»):
+  /// مؤشر تقدّم مسح الحذفيات التاريخي — يُحفظ بعد كل صفحة مطبَّقة بنجاح.
+  /// قبل هذا الإصلاح كان `_sweepHistoricalTombstones` يبدأ دائماً من
+  /// cursor=0 عند أي استئناف (أي فشل شبكي جزئي لا يُثبِّت العلم `_done`)،
+  /// فيُعيد جلب وتطبيق كل الصفحات التي أُنجزت فعلاً من جديد في كل محاولة
+  /// سحب لاحقة — على شبكات ضعيفة (النفق الاحتياطي قد يستغرق حتى 36 ثانية
+  /// للطلب الواحد، انظر `_fetchPullPage`) هذا يعني أن كل ضغطة على زر
+  /// «سحب التغييرات» قد تُعيد نفس العمل غير المكتمل من الصفر إلى الأبد.
+  static const String _kTombstoneSweepCursorKey = 'cf_tombstone_sweep_v1_cursor';
+
   // ✅ (مراجعة 2026-09-09 #14) سقفا المحاولات على مسار الرفع:
   // - سقف اختيار الحلقة (يطابق reclaimForPush.maxFailedAttempts) —
   //   failed فوقه يُترك للمؤقت الدوري retryFailedWithBackoff.
@@ -1873,6 +1883,10 @@ class CloudflareSyncManager {
         final swept = await _sweepHistoricalTombstones();
         if (swept != null) {
           await sweepPrefs.setBool(_kTombstoneSweepDoneKey, true);
+          // ✅ إصلاح البطء: تنظيف مؤشر الاستئناف بعد الاكتمال الكامل —
+          // العلم أعلاه كافٍ لمنع أي تشغيل لاحق، والمؤشر القديم لا فائدة
+          // من إبقائه في التخزين.
+          await sweepPrefs.remove(_kTombstoneSweepCursorKey);
           debugPrint('🧹 Tombstone sweep done: $swept handled');
           if (swept > 0) {
             logError(
@@ -3754,12 +3768,30 @@ class CloudflareSyncManager {
 
   /// ✅ (مراجعة #1) مسح تقارب الحذفيات لمرة واحدة: يجلب كل tombstones
   /// الخادمية عبر نافذة tombstones_only الرخيصة (بترتيب updated_at،
-  /// بلا مساس بالمؤشر الرئيسي) ويطبّقها كحذف محلي عبر _applyChange.
+  /// بلا مساس بالمؤشر الرئيسي) ويطبّقها كحذف محلي.
   /// يعيد null عند أي فشل شبكي/خادمي (تُعاد المحاولة في الدورة التالية).
+  ///
+  /// ✅ إصلاح بطء (تقرير مستخدم: «يتأخر كثيراً أثناء سحب التغييرات»)
+  /// — ثلاثة تغييرات مقابل النسخة السابقة:
+  /// 1. حجم الصفحة كان [CloudflareConfig.batchSize] (100) — وهو سقف
+  ///    دفع outbox وليس حجم صفحة سحب — الآن [CloudflareConfig.deltaPullBatchSize]
+  ///    (250): رحلات شبكية أقل، وكل رحلة على الشبكات الضعيفة (النفق
+  ///    الاحتياطي في resilient_http_client.dart قد يستغرق حتى 36 ثانية)
+  ///    مكلفة جداً لتُهدَر على صفحات صغيرة.
+  /// 2. التطبيق كان صفاً بصف عبر `_applyChange` بلا معاملة (commit
+  ///    منفصل لكل صف) — الآن دفعة الصفحة كاملة عبر `_applyPulledRecords`
+  ///    داخل معاملة واحدة، بنفس نمط الحلقة الرئيسية في `_pullChanges`.
+  /// 3. الأهم: كان يبدأ من cursor=0 دائماً عند كل استدعاء (العلم `_done`
+  ///    لا يُثبَّت إلا عند اكتمال كامل بلا أي خطأ) — أي فشل شبكي جزئي
+  ///    كان يُعيد المسح بالكامل من الصفر في الدورة التالية، فتتكرر نفس
+  ///    التكلفة الشبكية الثقيلة عند كل ضغطة «سحب التغييرات» على شبكة غير
+  ///    مستقرة إلى الأبد. الآن يُحفَظ المؤشر بعد كل صفحة ناجحة
+  ///    ([_kTombstoneSweepCursorKey]) ويُستأنف منه، لا من الصفر.
   Future<int?> _sweepHistoricalTombstones() async {
     if (_db == null || _token == null) return null;
     int handled = 0;
-    int cursor = 0;
+    final prefs = await SharedPreferences.getInstance();
+    int cursor = prefs.getInt(_kTombstoneSweepCursorKey) ?? 0;
     try {
       while (true) {
         final http.Response response;
@@ -3771,7 +3803,7 @@ class CloudflareSyncManager {
                 ).replace(
                   queryParameters: <String, String>{
                     'cursor': cursor.toString(),
-                    'limit': CloudflareConfig.batchSize.toString(),
+                    'limit': CloudflareConfig.deltaPullBatchSize.toString(),
                     'tombstones_only': '1',
                     if (_deviceId case final ownDevice?
                         when ownDevice.isNotEmpty)
@@ -3785,19 +3817,23 @@ class CloudflareSyncManager {
               .timeout(const Duration(seconds: 60));
         } catch (e) {
           debugPrint(
-            '⚠️ tombstone sweep network failure (retry next cycle): $e',
+            '⚠️ tombstone sweep network failure (resumable from '
+            'cursor=$cursor next cycle): $e',
           );
           return null;
         }
         if (response.statusCode != 200) {
           debugPrint(
             '⚠️ tombstone sweep HTTP ${response.statusCode} '
-            '(retry next cycle)',
+            '(resumable from cursor=$cursor next cycle)',
           );
           return null;
         }
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final changes = data['changes'] as List? ?? [];
+
+        final batchRecords =
+            <({String entity, Map<String, dynamic> record})>[];
         for (final change in changes) {
           try {
             final record = Map<String, dynamic>.from(change as Map);
@@ -3805,26 +3841,46 @@ class CloudflareSyncManager {
                 record['_entity'] as String? ?? _detectEntity(record);
             record.remove('_entity');
             if (entity == null) continue;
-            final ok = await _applyChange(entity, record);
-            if (ok) handled++;
+            batchRecords.add((entity: entity, record: record));
           } catch (e) {
-            debugPrint('⚠️ tombstone sweep apply failed: $e');
+            debugPrint('⚠️ tombstone sweep malformed record: $e');
           }
         }
+        if (batchRecords.isNotEmpty) {
+          final report = await _db!.transaction(
+            () => _applyPulledRecords(
+              batchRecords,
+              deferredSink: <({String entity, Map<String, dynamic> record})>[],
+              conflictedSink: <({String entity, Map<String, dynamic> record})>[],
+            ),
+          );
+          handled += report.appliedCount;
+          if (report.errors.isNotEmpty) {
+            debugPrint(
+              '⚠️ tombstone sweep: ${report.errors.length} apply-failure(s) '
+              '(best-effort — continuing): ${report.errors.take(2).join(' | ')}',
+            );
+          }
+        }
+
         final serverCursor =
             int.tryParse(data['cursor']?.toString() ?? '0') ?? 0;
         final hasMore = data['has_more'] as bool? ?? false;
-        if (!hasMore || changes.isEmpty) break;
-        if (serverCursor <= cursor) {
+        if (serverCursor > cursor) {
+          cursor = serverCursor;
+          // ✅ إصلاح البطء: احفظ التقدم فوراً — فشل شبكي لاحق يستأنف من
+          // هنا بدل إعادة المسح بالكامل من الصفر.
+          await prefs.setInt(_kTombstoneSweepCursorKey, cursor);
+        } else if (hasMore && changes.isNotEmpty) {
           // حارس تقدم: مؤشر غير متحرك مع صفوف = حلقة لا نهائية محتملة.
           debugPrint('⚠️ tombstone sweep: cursor stalled — aborting');
           return null;
         }
-        cursor = serverCursor;
+        if (!hasMore || changes.isEmpty) break;
       }
       return handled;
     } catch (e) {
-      debugPrint('⚠️ tombstone sweep failed: $e');
+      debugPrint('⚠️ tombstone sweep failed (resumable from cursor=$cursor): $e');
       return null;
     }
   }
