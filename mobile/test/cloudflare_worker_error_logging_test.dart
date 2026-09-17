@@ -18,6 +18,7 @@
 
 import 'dart:convert';
 
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -233,7 +234,7 @@ void main() {
     'رفض Worker لسجل دفع (validation_error) يُسجل بتصنيف worker (worker:push)',
     () async {
       const clientTs = 1700000900;
-      await OutboxDao(db).merge(
+      final outboxId = await OutboxDao(db).merge(
         entity: 'rooms',
         op: 'update',
         localUuid: 'rm-push-reject',
@@ -243,6 +244,16 @@ void main() {
         },
         clientTs: clientTs,
       );
+      // ✅ (2026-09-17) مفتاح idempotency أصبح يحمل لاحقة UUID عشوائية
+      // (إغلاق فجوة idempotency) — نقرأ المفتاح الفعلي من صف الـ outbox
+      // بدل ترتيبه يدوياً بصيغة قديمة لم يعد الـ manager يفهمها.
+      final rejectKey = await db
+          .customSelect(
+            'SELECT idempotency_key FROM outbox WHERE id = ?',
+            variables: [Variable<int>(outboxId)],
+          )
+          .getSingle()
+          .then((row) => row.read<String>('idempotency_key'));
 
       final manager = await makeManager(
         _FakeWorkerClient(
@@ -250,7 +261,7 @@ void main() {
           pushBody: {
             'results': [
               {
-                'idempotencyKey': 'rooms:update:rm-push-reject:$clientTs',
+                'idempotencyKey': rejectKey,
                 'success': false,
                 'status': 'validation_error',
                 'error': 'no such column: ghost_col',

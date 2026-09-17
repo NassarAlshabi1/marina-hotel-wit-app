@@ -329,6 +329,60 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
   return store.getUsersCount();
 });
 
+// ═══════════════════════════════════════════════════════════════
+// ✅ (2026-09-17) عدّادات صحيحة لبطاقة «إحصائيات سريعة» في الإعدادات
+//
+// كانت البطاقة تعدّ عناصر القوائم المعروضة (roomsListProvider /
+// bookingsListProvider / employeesListProvider) — وهذه مقيّدة بحد
+// الترقيم maxListItemsBeforePagination (15..100 حسب قوة الجهاز)
+// فكانت الأرقام مبتورة على الأجهزة الضعيفة (فندق بـ 40 غرفة يعرض
+// «15» مثلاً). هذه الـ providers تعدّ في SQL مباشرة (COUNT) وتتفاعل
+// مع أي تغيير في الجداول عبر readsFrom — بدون تحميل أي صفوف، وبدون
+// تجاهل الحذف الناعم (deleted_at IS NULL) مثل قوائم العرض تماماً.
+// ═══════════════════════════════════════════════════════════════
+
+/// عدد الغرف الكلي — COUNT تفاعلي من جدول rooms.
+final roomsCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db
+      .customSelect(
+        'SELECT COUNT(*) AS c FROM rooms WHERE deleted_at IS NULL',
+        readsFrom: {db.rooms},
+      )
+      .watchSingle()
+      .map((row) => row.read<int>('c'));
+});
+
+/// عدد الحجوزات النشطة — بنفس تعريف StatusUtils.isActiveBooking
+/// (القائمة الخام activeBookingStatuses مُعدّة أصلاً للاستخدام في SQL).
+final activeBookingsCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final db = ref.watch(databaseProvider);
+  // قيم ثابتة من StatusUtils — تُهرَّب دفاعياً فقط (لا مدخلات مستخدم).
+  final statuses = StatusUtils.activeBookingStatuses
+      .map((s) => "'${s.replaceAll("'", "''")}'")
+      .join(',');
+  return db
+      .customSelect(
+        'SELECT COUNT(*) AS c FROM bookings '
+        'WHERE deleted_at IS NULL AND status IN ($statuses)',
+        readsFrom: {db.bookings},
+      )
+      .watchSingle()
+      .map((row) => row.read<int>('c'));
+});
+
+/// عدد الموظفين الكلي — COUNT تفاعلي من جدول employees.
+final employeesCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db
+      .customSelect(
+        'SELECT COUNT(*) AS c FROM employees WHERE deleted_at IS NULL',
+        readsFrom: {db.employees},
+      )
+      .watchSingle()
+      .map((row) => row.read<int>('c'));
+});
+
 /// يبث مفتاح اليوم الفندقي عند عبور وقت بداية اليوم الفندقي.
 /// يستخدم فقط لإعادة بناء مؤشرات Dashboard التي تعتمد على اليوم الحالي.
 final hotelDayTickerProvider = StreamProvider<String>((ref) {

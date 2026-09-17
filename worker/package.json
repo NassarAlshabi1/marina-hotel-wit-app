@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.5.40",
+    "@cloudflare/vitest-pool-workers": "^0.12.21",
     "@cloudflare/workers-types": "^5.20260916.1",
     "typescript": "^5.7.2",
     "vitest": "~2.1.9",
@@ -24,9 +24,12 @@
     "workerd@1.20241230.0": true,
     "workerd@1.20250718.0": true,
     "workerd@1.20260916.1": true,
+    "workerd@1.20260310.1": true,
     "esbuild@0.17.19": true,
     "esbuild@0.21.5": true,
     "esbuild@0.28.1": true,
-    "sharp@0.33.5": true
+    "esbuild@0.27.3": true,
+    "sharp@0.33.5": true,
+    "sharp@0.34.5": true
   }
 }

@@ -8,9 +8,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
-import '../../services/local_db.dart';
-import '../../utils/status_utils.dart';
-import '../../widgets/settings/collapsible_section.dart';
+import '../../widgets/settings/settings_section_header.dart';
 import '../ai/ai_chat_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../security/blacklist_screen.dart';
@@ -51,9 +49,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final roomsAsync = ref.watch(roomsListProvider);
-    final bookingsAsync = ref.watch(bookingsListProvider);
-    final employeesAsync = ref.watch(employeesListProvider);
+    // ✅ (2026-09-17) عدّادات SQL تفاعلية — كانت القوائم المحدودة بحد
+    // الترقيم (15..100 صف) تُبتَر أرقام «إحصائيات سريعة» على الأجهزة
+    // الضعيفة. انظر roomsCountProvider وأخواتها للتفاصيل.
+    final roomsCountAsync = ref.watch(roomsCountProvider);
+    final activeBookingsCountAsync = ref.watch(activeBookingsCountProvider);
+    final employeesCountAsync = ref.watch(employeesCountProvider);
     final usersCountAsync = ref.watch(usersCountProvider);
 
     return AppScaffold(
@@ -64,9 +65,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // ✅ بطاقة الإحصائيات السريعة
           _buildQuickStatsCard(
             context,
-            roomsAsync,
-            bookingsAsync,
-            employeesAsync,
+            roomsCountAsync,
+            activeBookingsCountAsync,
+            employeesCountAsync,
             usersCountAsync,
           ),
 
@@ -92,57 +93,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildSettingsContent(BuildContext context) {
-    // ✅ (2026-09-10) إعادة تنظيم UI/UX — Progressive Disclosure:
-    // كانت الأقسام الأربعة ظاهرة دائماً (24 بطاقة دفعة واحدة) مما
-    // يسبب تزاحماً بصرياً. الآن: قسم إدارة البيانات (الأكثر استخداماً)
-    // مفتوح افتراضياً، والأقسام الأخرى مطوية بعناوين + عدّادات — كل
-    // الخيارات على بعد نقرة واحدة، ولا حذف ولا تعطيل لأي وظيفة
-    // (نفس _getSectionItems ونفس _buildSettingsGrid حرفياً).
+    // ✅ (2026-09-17) طلب المستخدم: إلغاء «الأقسام المخفية» — كل الأقسام
+    // ظاهرة دائماً بعناوين ثابتة (SettingsSectionHeader) بلا أي طيّ.
+    // نفس _getSectionItems ونفس _buildSettingsGrid حرفياً — لا تغيير
+    // في الوظائف، فقط لا يُخفى شيء خلف نقرة.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CollapsibleSection(
+        SettingsSectionHeader(
           title: 'إدارة البيانات',
           icon: Icons.manage_accounts,
           count: _getSectionItems(context, 'data').length,
-          initiallyExpanded: true,
-          children: [
-            _buildSettingsGrid(context, _getSectionItems(context, 'data')),
-          ],
         ),
+        _buildSettingsGrid(context, _getSectionItems(context, 'data')),
         const SizedBox(height: 20),
-        CollapsibleSection(
+        SettingsSectionHeader(
           title: 'المزامنة والنسخ الاحتياطي',
           icon: Icons.sync,
           count: _getSectionItems(context, 'sync').length,
           subtitle: 'Cloudflare · حالة المزامنة · النسخ المحلي',
-          children: [
-            _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
-          ],
         ),
+        _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
         const SizedBox(height: 20),
-        CollapsibleSection(
+        SettingsSectionHeader(
           title: 'الإشعارات والتقارير',
           icon: Icons.notifications,
           count: _getSectionItems(context, 'whatsapp').length,
           subtitle: 'إقفال اليوم · WhatsApp · Telegram',
-          children: [
-            _buildSettingsGrid(
-              context,
-              _getSectionItems(context, 'whatsapp'),
-            ),
-          ],
+        ),
+        _buildSettingsGrid(
+          context,
+          _getSectionItems(context, 'whatsapp'),
         ),
         const SizedBox(height: 20),
-        CollapsibleSection(
+        SettingsSectionHeader(
           title: 'التطبيق والخدمات',
           icon: Icons.apps,
           count: _getSectionItems(context, 'app').length,
           subtitle: 'المظهر · المساعد الذكي · الأخطاء · Remote Config',
-          children: [
-            _buildSettingsGrid(context, _getSectionItems(context, 'app')),
-          ],
         ),
+        _buildSettingsGrid(context, _getSectionItems(context, 'app')),
       ],
     );
   }
@@ -253,7 +243,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return [
           _SettingsItem(
             title: 'المزامنة السحابية بين الأجهزة',
-            subtitle: 'رفع وسحب البيانات عبر Cloudflare D1 — الإعدادات والأداء والشبكة',
+            subtitle:
+                'رفع وسحب البيانات عبر Cloudflare D1 — الإعدادات والأداء والشبكة',
             icon: Icons.cloud_sync,
             color: Colors.blue,
             onTap: () => Navigator.push<void>(
@@ -324,8 +315,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'ربط وقوالب WhatsApp',
-            subtitle: 'إعداد الاتصال وتخصيص نص رسالة الدفع',
+            // ✅ (2026-09-17) طلب المستخدم: إزالة «قوالب رسائل الواتساب» —
+            // الشاشة الآن للربط/الاتصال فقط (بلا تبويب القالب).
+            title: 'ربط WhatsApp',
+            subtitle: 'إعداد اتصال WhatsApp لإرسال الرسائل',
             icon: Icons.message,
             color: Colors.green,
             onTap: () => Navigator.push<void>(
@@ -441,9 +434,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildQuickStatsCard(
     BuildContext context,
-    AsyncValue<List<Room>> roomsAsync,
-    AsyncValue<List<Booking>> bookingsAsync,
-    AsyncValue<List<Employee>> employeesAsync,
+    AsyncValue<int> roomsCountAsync,
+    AsyncValue<int> activeBookingsCountAsync,
+    AsyncValue<int> employeesCountAsync,
     AsyncValue<int> usersCountAsync,
   ) {
     // ✅ بطاقة مُصغّرة: padding/margin/icon/font sizes كلها مُقلّصة
@@ -475,7 +468,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Expanded(
                   child: _buildStatItem(
                     'الغرف',
-                    roomsAsync.value?.length.toString() ?? '---',
+                    roomsCountAsync.value?.toString() ?? '---',
                     Icons.hotel,
                     Colors.blue,
                   ),
@@ -483,13 +476,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Expanded(
                   child: _buildStatItem(
                     'النشطة',
-                    bookingsAsync.value
-                            ?.where(
-                              (b) => StatusUtils.isActiveBooking(b.status),
-                            )
-                            .length
-                            .toString() ??
-                        '---',
+                    activeBookingsCountAsync.value?.toString() ?? '---',
                     Icons.assignment,
                     Colors.green,
                   ),
@@ -497,7 +484,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Expanded(
                   child: _buildStatItem(
                     'الموظفين',
-                    employeesAsync.value?.length.toString() ?? '---',
+                    employeesCountAsync.value?.toString() ?? '---',
                     Icons.people,
                     Colors.orange,
                   ),

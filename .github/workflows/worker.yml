@@ -33,7 +33,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 24 (LTS) — bundles npm 11, required because:
+          #  1) wrangler ^4.133 declares engines.node >=22 (Node 20 → EBADENGINE).
+          #  2) npm 10 `npm ci` mishandles *optional* peerDeps
+          #     (nested wrangler@4.72 under vitest-pool-workers peers on
+          #     workers-types ^4 — optional, but npm 10 still demands it in
+          #     the lock → EUSAGE). npm 11 resolves this correctly.
+          node-version: 24
           cache: npm
           cache-dependency-path: worker/package-lock.json
 

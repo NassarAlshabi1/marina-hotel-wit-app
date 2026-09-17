@@ -173,6 +173,19 @@ void main() {
     return prefs.get(key);
   }
 
+  /// ✅ (2026-09-17) مفتاح idempotency الفعلي المخزّن في صف الـ outbox.
+  /// merge() يولّد لاحقة UUID عشوائية لكل دفعة (إغلاق فجوة idempotency)
+  /// لذا لا يمكن للعميل الوهمي ترتيب المفتاح يدوياً — نقرأه من القاعدة.
+  Future<String> idempotencyKeyOf(int id) async {
+    final row = await db
+        .customSelect(
+          'SELECT idempotency_key FROM outbox WHERE id = ?',
+          variables: [Variable<int>(id)],
+        )
+        .getSingle();
+    return row.read<String>('idempotency_key');
+  }
+
   Future<bool> _roomSoftDeleted(String uuid) async {
     final row = await db
         .customSelect(
@@ -437,11 +450,14 @@ void main() {
       const OutboxCompanion(attempts: Value(9)),
     );
 
+    // ✅ (2026-09-17) نرد المفتاح الفعلي (بلاحقة UUID) حتى يصل ناتج
+    // server_error الحقيقي للسجل بدل مسار missing_result.
+    final toxicKey = await idempotencyKeyOf(outboxId);
     final client = _ReviewFakeClient(
       pushHandler: (request) => {
         'results': [
           {
-            'idempotencyKey': 'rooms:update:rm-toxic:1700000902',
+            'idempotencyKey': toxicKey,
             'success': false,
             'status': 'server_error',
             'error': 'upstream timeout',
@@ -486,11 +502,14 @@ void main() {
         clientTs: tsB,
       );
 
+      // ✅ (2026-09-17) نرد المفتاح الفعلي للعملية A فقط — B تسقط من
+      // results عمداً (عقد #15) بمفتاح حقيقي حتى لا تُفسر كـ unknown_key.
+      final keyA = await idempotencyKeyOf(idA);
       final client = _ReviewFakeClient(
         pushHandler: (request) => {
           'results': [
             {
-              'idempotencyKey': 'rooms:update:rm-missing-a:$tsA',
+              'idempotencyKey': keyA,
               'success': true,
               'status': 'ok',
             },
@@ -584,18 +603,21 @@ void main() {
     () async {
       // 1) زر الرفع المستقل — صفر طلبات سحب.
       const clientTs = 1700000950;
-      await OutboxDao(db).merge(
+      final pushOnlyId = await OutboxDao(db).merge(
         entity: 'rooms',
         op: 'update',
         localUuid: 'rm-push-only',
         payload: const <String, dynamic>{'room_number': 'RN-PO'},
         clientTs: clientTs,
       );
+      // ✅ (2026-09-17) المفتاح الفعلي حتى يُصبّح ناتج success على السجل
+      // ويُحذف من الـ outbox (كان يُحسب missing_result بالمفتاح القديم).
+      final pushOnlyKey = await idempotencyKeyOf(pushOnlyId);
       final pushOnlyClient = _ReviewFakeClient(
         pushHandler: (request) => {
           'results': [
             {
-              'idempotencyKey': 'rooms:update:rm-push-only:$clientTs',
+              'idempotencyKey': pushOnlyKey,
               'success': true,
               'status': 'ok',
             },

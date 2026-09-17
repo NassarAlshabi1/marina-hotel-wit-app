@@ -330,17 +330,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final versionLabel = versionAsync.valueOrNull ?? '...';
     return Row(
       children: [
+        // ✅ (2026-09-17) طلب المستخدم: أيقونة أصغر وأخف — حاوية مضغوطة.
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [Colors.blue.shade600, Colors.blue.shade400],
             ),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(9),
           ),
-          child: const Icon(Icons.hotel, color: Colors.white, size: 18),
+          child: const Icon(Icons.hotel, color: Colors.white, size: 14),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,9 +352,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               Row(
                 children: [
+                  // ✅ (2026-09-17) طلب المستخدم: خط «لوحة التحكم» أصغر وأخفت.
                   const Text(
                     'لوحة التحكم',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                   const SizedBox(width: 6),
                   // ✅ رقم إصدار APK — يُقرأ ديناميكياً من package_info_plus.

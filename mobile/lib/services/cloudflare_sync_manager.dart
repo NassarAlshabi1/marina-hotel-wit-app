@@ -538,7 +538,8 @@ class CloudflareSyncManager {
   /// سحب لاحقة — على شبكات ضعيفة (النفق الاحتياطي قد يستغرق حتى 36 ثانية
   /// للطلب الواحد، انظر `_fetchPullPage`) هذا يعني أن كل ضغطة على زر
   /// «سحب التغييرات» قد تُعيد نفس العمل غير المكتمل من الصفر إلى الأبد.
-  static const String _kTombstoneSweepCursorKey = 'cf_tombstone_sweep_v1_cursor';
+  static const String _kTombstoneSweepCursorKey =
+      'cf_tombstone_sweep_v1_cursor';
 
   // ✅ (مراجعة 2026-09-09 #14) سقفا المحاولات على مسار الرفع:
   // - سقف اختيار الحلقة (يطابق reclaimForPush.maxFailedAttempts) —
@@ -3832,8 +3833,7 @@ class CloudflareSyncManager {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final changes = data['changes'] as List? ?? [];
 
-        final batchRecords =
-            <({String entity, Map<String, dynamic> record})>[];
+        final batchRecords = <({String entity, Map<String, dynamic> record})>[];
         for (final change in changes) {
           try {
             final record = Map<String, dynamic>.from(change as Map);
@@ -3851,7 +3851,8 @@ class CloudflareSyncManager {
             () => _applyPulledRecords(
               batchRecords,
               deferredSink: <({String entity, Map<String, dynamic> record})>[],
-              conflictedSink: <({String entity, Map<String, dynamic> record})>[],
+              conflictedSink:
+                  <({String entity, Map<String, dynamic> record})>[],
             ),
           );
           handled += report.appliedCount;
@@ -3880,7 +3881,9 @@ class CloudflareSyncManager {
       }
       return handled;
     } catch (e) {
-      debugPrint('⚠️ tombstone sweep failed (resumable from cursor=$cursor): $e');
+      debugPrint(
+        '⚠️ tombstone sweep failed (resumable from cursor=$cursor): $e',
+      );
       return null;
     }
   }

@@ -28,14 +28,21 @@ class Env {
   //  Telegram Secrets
   // ═══════════════════════════════════════════════════════════════
 
-  /// Telegram Bot Token — يجب تمريره عبر --dart-define
+  /// Telegram Bot Token — ✓ (2026-09-17) قيمة افتراضية مدمجة (طلب المالك) —
+  /// --dart-define يتجاوزها عند الحاجة
   static const String telegramBotToken = String.fromEnvironment(
     'TELEGRAM_BOT_TOKEN',
+    // (2026-09-17) built-in default per owner request - hotel bot.
+    // --dart-define=TELEGRAM_BOT_TOKEN still overrides this.
+    defaultValue: '7602573830:AAHkWt9k9nBMJ8NhlpkyTs9wAJn_zAL79Ac',
   );
 
-  /// Telegram Chat ID — يجب تمريره عبر --dart-define
+  /// Telegram Chat ID — ✓ (2026-09-17) قيمة افتراضية مدمجة (طلب المالك)
   static const String telegramChatId = String.fromEnvironment(
     'TELEGRAM_CHAT_ID',
+    // (2026-09-17) built-in default chat id per owner request.
+    // --dart-define=TELEGRAM_CHAT_ID still overrides this.
+    defaultValue: '5944227208',
   );
 
   // ═══════════════════════════════════════════════════════════════

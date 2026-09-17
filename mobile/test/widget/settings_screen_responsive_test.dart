@@ -15,9 +15,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          roomsListProvider.overrideWith((ref) => Stream.value(const [])),
-          bookingsListProvider.overrideWith((ref) => Stream.value(const [])),
-          employeesListProvider.overrideWith((ref) => Stream.value(const [])),
+          // ✅ (2026-09-17) بطاقة الإحصائيات تعتمد الآن على عدّادات SQL
+          // تفاعلية بدل القوائم المحدودة بحد الترقيم.
+          roomsCountProvider.overrideWith((ref) => Stream.value(0)),
+          activeBookingsCountProvider.overrideWith((ref) => Stream.value(0)),
+          employeesCountProvider.overrideWith((ref) => Stream.value(0)),
           usersCountProvider.overrideWith((ref) async => 0),
           simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
         ],
@@ -80,7 +82,9 @@ void main() {
         reason: 'size=$size',
       );
       expect(
-        find.text('المزامنة السحابية'),
+        // ✅ (2026-09-17) دُمج البندان المكرران في «المزامنة السحابية بين
+        // الأجهزة» — كلاهما كان يفتح UnifiedSyncSettingsScreen.
+        find.text('المزامنة السحابية بين الأجهزة'),
         findsOneWidget,
         reason: 'size=$size',
       );

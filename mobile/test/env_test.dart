@@ -17,12 +17,17 @@ void main() {
   // في بيئة CI، لا تُمرّر أي --dart-define، لذا جميعها يجب أن تكون فارغة.
 
   group('Env - default values (no --dart-define)', () {
-    test('telegramBotToken فارغ افتراضياً', () {
-      expect(Env.telegramBotToken, isEmpty);
+    // ✅ (2026-09-17) طلب المالك: توكن/محادثة بوت الفندق مدمجة كقيم
+    // افتراضية حتى تعمل إشعارات Telegram من أول تشغيل بلا --dart-define
+    // (تمرير --dart-define يظل يتجاوزها).
+    test('telegramBotToken له قيمة افتراضية مدمجة (بوت الفندق)', () {
+      expect(Env.telegramBotToken, isNotEmpty);
+      expect(Env.telegramBotToken, startsWith('7602573830:'));
     });
 
-    test('telegramChatId فارغ افتراضياً', () {
-      expect(Env.telegramChatId, isEmpty);
+    test('telegramChatId له قيمة افتراضية مدمجة', () {
+      expect(Env.telegramChatId, isNotEmpty);
+      expect(Env.telegramChatId, '5944227208');
     });
 
     test('whatsappPhoneNumber فارغ افتراضياً', () {
@@ -69,8 +74,10 @@ void main() {
   });
 
   group('Env - convenience checks', () {
-    test('isTelegramConfigured = false افتراضياً', () {
-      expect(Env.isTelegramConfigured, isFalse);
+    // ✅ (2026-09-17) مع القيم الافتراضية المدمجة أعلاه صار Telegram
+    // مهيأاً من اللحظة الأولى (isConfigured = true بلا --dart-define).
+    test('isTelegramConfigured = true افتراضياً (قيم مدمجة)', () {
+      expect(Env.isTelegramConfigured, isTrue);
     });
 
     test('isWhatsAppCallMeBotConfigured = false افتراضياً', () {

@@ -67,41 +67,72 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
       );
     }
 
+    // ✅ (2026-09-17) إعادة تصميم مدمجة واحترافية: شريط هوية المستخدم
+    // الحالي بعنوان أصغر (15px) وبطاقات صلاحيات مضغوطة — نفس المنطق
+    // والبيانات تماماً (بلا أي بيانات وهمية).
     return AppScaffold(
       title: 'إدارة المستخدمين والصلاحيات',
+      titleFontSize: 15,
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
+          // ── المستخدم الحالي ──
           Card(
+            elevation: 0,
+            margin: EdgeInsets.zero,
+            color: Theme.of(context).colorScheme.primaryContainer.withValues(
+              alpha: 0.35,
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.account_circle,
-                    size: 32,
-                    color: Colors.blue,
+                  CircleAvatar(
+                    radius: 17,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    child: Text(
+                      _initials(
+                        auth.currentUser?.name ?? auth.currentUser?.username,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           auth.currentUser?.name ?? 'غير معروف',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
                           isAdmin
-                              ? 'مدير النظام'
+                              ? 'مدير النظام — هذا الحساب'
                               : (auth.currentUser?.userType ?? ''),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: Theme.of(context).hintColor,
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  if (isAdmin)
+                    const Icon(Icons.verified, size: 18, color: Colors.blue)
+                  else
+                    const Icon(Icons.person, size: 18, color: Colors.grey),
                 ],
               ),
             ),
@@ -124,21 +155,36 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
               ),
             )
           else ...[
+            // ── رأس قسم الصلاحيات + زر إضافة مدمج ──
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'صلاحيات المستخدمين',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                const Icon(
+                  Icons.admin_panel_settings,
+                  size: 18,
+                  color: Colors.blue,
                 ),
-                ElevatedButton.icon(
+                const SizedBox(width: 6),
+                const Expanded(
+                  child: Text(
+                    'صلاحيات المستخدمين',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                FilledButton.tonalIcon(
                   onPressed: _openAddUserDialog,
-                  icon: const Icon(Icons.person_add),
-                  label: const Text('إضافة مستخدم'),
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  icon: const Icon(Icons.person_add_alt, size: 16),
+                  label: const Text(
+                    'إضافة',
+                    style: TextStyle(fontSize: 12.5),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             FutureBuilder<List<_UserAccountSummary>>(
               future: _accountsFuture,
               builder: (context, snapshot) {
@@ -149,16 +195,56 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                   );
                 }
                 if (snapshot.hasError) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('تعذر تحميل المستخدمين'),
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.cloud_off,
+                          size: 36,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text('تعذر تحميل المستخدمين'),
+                        const SizedBox(height: 4),
+                        TextButton.icon(
+                          onPressed: _refreshAccounts,
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: const Text('إعادة المحاولة'),
+                        ),
+                      ],
+                    ),
                   );
                 }
                 final accounts = snapshot.data ?? [];
                 if (accounts.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('لا يوجد مستخدمون مسجلون'),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.group_add,
+                          size: 40,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'لا يوجد مستخدمون بعد',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'اضغط «إضافة» بالأعلى لإنشاء أول مستخدم',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).hintColor,
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 }
                 return Column(
@@ -923,110 +1009,128 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
     final isAdminUser =
         widget.username == 'admin' || widget.userType.toLowerCase() == 'admin';
     final allKeys = AuthLocalStore.permissionEditorKeys;
+    final hintColor = Theme.of(context).hintColor;
 
+    // ✅ (2026-09-17) بطاقة مدمجة: رأس (صورة رمزية + هوية + شارات) ثم
+    // فاصل ثم صلاحيات مضغوطة — نفس منطق التحميل/الحفظ حرفياً.
     return Card(
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.person),
-                const SizedBox(width: 8),
+                CircleAvatar(
+                  radius: 15,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
+                  foregroundColor: Theme.of(
+                    context,
+                  ).colorScheme.onPrimaryContainer,
+                  child: Text(
+                    _initials(widget.displayName),
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         widget.displayName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         '@${widget.username}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
+                        style: TextStyle(fontSize: 11.5, color: hintColor),
                       ),
                     ],
                   ),
                 ),
                 if (widget.isCloudUser)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue),
-                    ),
-                    child: const Text(
-                      'سحابي',
-                      style: TextStyle(color: Colors.blue, fontSize: 11),
-                    ),
+                  const _MiniBadge(
+                    icon: Icons.cloud_done_outlined,
+                    label: 'سحابي',
+                    color: Colors.blue,
                   ),
-                const SizedBox(width: 6),
-                Chip(
-                  avatar: Icon(
-                    widget.isLocked
-                        ? Icons.lock
-                        : widget.isActive
-                        ? Icons.check_circle
-                        : Icons.block,
-                    size: 15,
-                    color: widget.isLocked
-                        ? Colors.orange
-                        : widget.isActive
-                        ? Colors.green
-                        : Colors.red,
-                  ),
-                  label: Text(
-                    widget.isLocked
-                        ? 'مقفل'
-                        : widget.isActive
-                        ? 'نشط'
-                        : 'معطل',
-                  ),
+                _MiniBadge(
+                  icon: widget.isLocked
+                      ? Icons.lock
+                      : widget.isActive
+                      ? Icons.check_circle
+                      : Icons.block,
+                  label: widget.isLocked
+                      ? 'مقفل'
+                      : widget.isActive
+                      ? 'نشط'
+                      : 'معطل',
+                  color: widget.isLocked
+                      ? Colors.orange
+                      : widget.isActive
+                      ? Colors.green
+                      : Colors.red,
                 ),
-                const SizedBox(width: 6),
-                Chip(
-                  label: Text(
-                    widget.userType.isEmpty
-                        ? 'مستخدم'
-                        : _typeLabel(widget.userType),
-                  ),
+                _MiniBadge(
+                  label: widget.userType.isEmpty
+                      ? 'مستخدم'
+                      : _typeLabel(widget.userType),
+                  color: Colors.blueGrey,
                 ),
                 if (widget.isFixedAccount)
                   const Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: Icon(Icons.lock, size: 16),
+                    padding: EdgeInsets.only(right: 4),
+                    child: Icon(
+                      Icons.push_pin,
+                      size: 13,
+                      color: Colors.grey,
+                    ),
                   ),
                 // زر التعديل للمستخدمين غير الثابتين
                 if (!widget.isFixedAccount)
                   IconButton(
-                    icon: const Icon(Icons.edit, size: 20),
+                    icon: const Icon(Icons.edit_outlined, size: 17),
                     tooltip: 'تعديل',
+                    visualDensity: VisualDensity.compact,
                     onPressed: _openEditDialog,
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            const Divider(height: 14),
             if (_loading || _savingPermissions)
               const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: CircularProgressIndicator(),
+                padding: EdgeInsets.all(8),
+                child: SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               )
             else ...[
               Wrap(
-                spacing: 8,
-                runSpacing: 4,
+                spacing: 6,
+                runSpacing: 6,
                 children: allKeys.map((k) {
                   final checked = isAdminUser ? true : _perms.contains(k);
                   return FilterChip(
-                    label: Text(_permLabel(k)),
+                    label: Text(
+                      _permLabel(k),
+                      style: const TextStyle(fontSize: 11.5),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     selected: checked,
                     onSelected: isAdminUser || _savingPermissions
                         ? null
@@ -1046,10 +1150,15 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      foregroundColor: Colors.red.shade700,
+                      textStyle: const TextStyle(fontSize: 11.5),
+                    ),
                     onPressed: _savingPermissions
                         ? null
                         : () => _savePermissions(const <String>[]),
-                    icon: const Icon(Icons.clear),
+                    icon: const Icon(Icons.clear, size: 14),
                     label: const Text('إزالة جميع الصلاحيات'),
                   ),
                 ),
@@ -1059,6 +1168,51 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
       ),
     );
   }
+}
+
+/// شارة مدمجة (بديل Chip الأقل كثافة) — أيقونة اختيارية + نص 10.5px.
+class _MiniBadge extends StatelessWidget {
+  const _MiniBadge({required this.label, required this.color, this.icon});
+
+  final String label;
+  final Color color;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 10.5, color: color),
+            const SizedBox(width: 2),
+          ],
+          Text(
+            label,
+            style: TextStyle(fontSize: 10.5, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// الأحرف الأولى من الاسم (آمن للعربية عبر حزم characters — مجموعة
+/// الكتابة الأولى من أول كلمة).
+String _initials(String? name) {
+  final trimmed = name?.trim() ?? '';
+  if (trimmed.isEmpty) return '؟';
+  final firstWord = trimmed.split(RegExp(r'\s+')).first;
+  final chars = firstWord.characters.toList();
+  return chars.isEmpty ? '؟' : chars.first;
 }
 
 String _permLabel(String key) {

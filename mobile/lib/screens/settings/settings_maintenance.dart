@@ -20,7 +20,7 @@ import '../../services/sqlite_backup_restore.dart';
 import '../../services/sync_orchestrator.dart' show DataIntegrityCheck;
 import '../../utils/debug_log.dart';
 import '../../utils/env.dart';
-import '../../widgets/settings/collapsible_section.dart';
+import '../../widgets/settings/settings_section_header.dart';
 // ✅ (2026-09-10) إعادة تنظيم UI: شاشات تشخيصية كانت يتيمة (بلا مدخل
 // تنقل) — استعادة الوصول إليها من قسم مطوي أدناه، بلا تغيير وظائف.
 // ✅ (2026-09-17) أُزيلت شاشات Drive/Appwrite الميتة (مقارنة مخطط
@@ -307,17 +307,18 @@ class _SettingsMaintenanceScreenState
 
           const SizedBox(height: 24),
 
-          // ✅ (2026-09-10) إعادة تنظيم UI/UX — استعادة الوصول لأدوات
-          // تشخيصية موجودة فعلاً لكنها كانت شاشات يتيمة بلا أي مدخل
-          // تنقل (نفس الوظائف حرفياً — navigation فقط، لا منطق جديد).
-          // مطوي افتراضياً: صفر حِمل بصري عند الإغلاق.
-          CollapsibleSection(
+          // ✅ (2026-09-10) استعادة الوصول لأدوات تشخيصية موجودة فعلاً لكنها
+          // كانت شاشات يتيمة بلا أي مدخل تنقل (نفس الوظائف حرفياً —
+          // navigation فقط، لا منطق جديد).
+          // ✅ (2026-09-17) طلب المستخدم: لا أقسام مخفية — العنوان ثابت
+          // والمحتوى ظاهر دائماً.
+          SettingsSectionHeader(
             title: 'أدوات تشخيصية متقدمة',
             icon: Icons.biotech,
             count: _buildDiagnosticTools().length,
             subtitle: 'تعارضات وسجل المزامنة · إصلاح قاعدة البيانات · أداء',
-            children: _buildDiagnosticTools(),
           ),
+          ..._buildDiagnosticTools(),
 
           const SizedBox(height: 24),
 

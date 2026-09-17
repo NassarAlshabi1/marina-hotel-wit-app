@@ -20,6 +20,7 @@ class AppScaffold extends ConsumerWidget {
     this.titleColor,
     this.subtitleColor,
     this.titleAlign,
+    this.titleFontSize,
   });
   final String title;
   final Widget body;
@@ -29,6 +30,10 @@ class AppScaffold extends ConsumerWidget {
   /// عنوان ثانوي يظهر أسفل العنوان الرئيسي في الـ AppBar
   /// (مثال: عنوان التقرير بخط أصغر وتوسيط)
   final String? subtitle;
+
+  /// ✅ (2026-09-17) حجم خط العنوان الرئيسي — null = نمط الثيم الافتراضي.
+  /// يُستخدم لتصغير عناوين الشاشات الطويلة (مثل: المستخدمون والصلاحيات).
+  final double? titleFontSize;
 
   /// لون خلفية الـ AppBar (إذا لم يُحدد يستخدم لون الثيم)
   final Color? appBarBackgroundColor;
@@ -95,7 +100,15 @@ class AppScaffold extends ConsumerWidget {
                     ),
                   ],
                 )
-              : Text(title),
+              : Text(
+                  title,
+                  style: titleFontSize != null
+                      ? TextStyle(
+                          fontSize: titleFontSize,
+                          fontWeight: FontWeight.bold,
+                        )
+                      : null,
+                ),
           actions: [
             IconButton(
               onPressed: () async {

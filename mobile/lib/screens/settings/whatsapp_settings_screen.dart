@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/whatsapp_service.dart';
-import '../../utils/message_templates.dart';
 import '../../utils/snackbar_helper.dart';
 
 class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
@@ -18,9 +17,11 @@ class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
       _WhatsAppSettingsScreenState();
 }
 
-class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
-    with SingleTickerProviderStateMixin {
-  final _templateController = TextEditingController();
+/// ✅ (2026-09-17) طلب المستخدم: إزالة «قوالب رسائل الواتساب» — الشاشة
+/// الآن لإعداد الاتصال (API) فقط. القوالب الافتراضية تُستخدم داخلياً
+/// من utils/message_templates.dart عند الإرسال — بلا تخصيص مستخدم.
+class _WhatsAppSettingsScreenState
+    extends ConsumerState<WhatsAppSettingsScreen> {
   final _baseUrlController = TextEditingController();
   final _instanceIdController = TextEditingController();
   final _tokenController = TextEditingController();
@@ -29,7 +30,6 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   bool _isTesting = false;
   bool _isSaving = false;
   final bool _isSyncing = false;
-  late TabController _tabController;
   bool _obscureToken = true;
 
   WhatsAppApiType _selectedApiType = WhatsAppApiType.custom;
@@ -42,18 +42,15 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     unawaited(_loadSettings());
   }
 
   @override
   void dispose() {
-    _templateController.dispose();
     _baseUrlController.dispose();
     _instanceIdController.dispose();
     _tokenController.dispose();
     _customUrlController.dispose();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -63,10 +60,6 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       return;
     }
     setState(() {
-      // ✅ حمّل القالب المحفوظ من prefs (إن وُجد) بدل الكتابة فوقه بالـ default
-      // دائماً — كان هذا bug يُفقِد المستخدم تخصيصاته بعد إعادة فتح الشاشة.
-      _templateController.text =
-          prefs.getString('wa_template') ?? whatsappPaymentTemplate;
       _baseUrlController.text =
           prefs.getString('wa_api_base_url') ?? _defaultBaseUrl;
       _instanceIdController.text =
@@ -107,31 +100,6 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     SnackBarHelper.showSuccess(context, 'تم حفظ إعدادات API بنجاح');
   }
 
-  Future<void> _saveTemplate() async {
-    setState(() => _isSaving = true);
-    final prefs = await SharedPreferences.getInstance();
-    // ✅ BUG FIX: كان الكود يُظهر رسالة "تم الحفظ بنجاح" دون حفظ أي شيء فعلياً!
-    // نحفظ القالب تحت مفتاح 'wa_template' (مطابق لما يقرأه _loadSettings).
-    // ✅ نفحص نتيجة الكتابة — لا نُظهر رسالة نجاح إن فشلت فعلاً.
-    final ok = await prefs.setString(
-      'wa_template',
-      _templateController.text.trim(),
-    );
-
-    if (!mounted) {
-      return;
-    }
-    setState(() => _isSaving = false);
-    if (!ok) {
-      SnackBarHelper.showError(
-        context,
-        'تعذّر حفظ إعدادات الرسالة، حاول مرة أخرى',
-      );
-      return;
-    }
-    SnackBarHelper.showSuccess(context, 'تم حفظ إعدادات الرسالة بنجاح');
-  }
-
   Future<void> _resetApiToDefault() async {
     setState(() {
       _baseUrlController.text = _defaultBaseUrl;
@@ -139,12 +107,6 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       _tokenController.text = _defaultToken;
       _customUrlController.text = '';
       _selectedApiType = WhatsAppApiType.custom;
-    });
-  }
-
-  Future<void> _resetTemplateToDefault() async {
-    setState(() {
-      _templateController.text = whatsappPaymentTemplate;
     });
   }
 
@@ -176,7 +138,6 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       _baseUrlController.text = _defaultBaseUrl;
       _instanceIdController.text = _defaultInstanceId;
       _tokenController.text = _defaultToken;
-      _templateController.text = whatsappPaymentTemplate;
       _customUrlController.text = '';
       _selectedApiType = WhatsAppApiType.custom;
     });
@@ -340,48 +301,13 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ✅ (2026-09-17) طلب المستخدم: إزالة تبويب «قالب الرسالة» — الشاشة
+    // تعرض إعدادات الاتصال (API) مباشرة بلا تبويبات.
     return AppScaffold(
       title: 'إعدادات الواتساب',
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.transparent,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Theme.of(context).colorScheme.primary,
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                    tabs: const [
-                      Tab(text: 'إعدادات API'),
-                      Tab(text: 'قالب الرسالة'),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [_buildApiSettingsTab(), _buildTemplateTab()],
-                  ),
-                ),
-              ],
-            ),
+          : _buildApiSettingsTab(),
     );
   }
 
@@ -893,136 +819,28 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
               ],
             ),
             const SizedBox(height: 10),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _resetAllToDefault,
+                icon: const Icon(Icons.restart_alt, size: 16),
+                label: const Text(
+                  'استعادة جميع الإعدادات الافتراضية',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
-      ),
-    );
-  }
-
-  // ─── تبويب قالب الرسالة ───
-  Widget _buildTemplateTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.code, color: Colors.purple, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'المتغيرات المتاحة:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _buildVariableChip('{name}', 'اسم الضيف'),
-                  _buildVariableChip('{amount}', 'المبلغ المدفوع'),
-                  _buildVariableChip('{room}', 'رقم الغرفة'),
-                  _buildVariableChip('{remaining}', 'المبلغ المتبقي'),
-                  _buildVariableChip(
-                    '{extra_nights}',
-                    'تفاصيل الليالي الإضافية',
-                  ),
-                  _buildVariableChip('{new_checkout}', 'تاريخ المغادرة الجديد'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'نص الرسالة:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _templateController,
-            maxLines: 10,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            decoration: InputDecoration(
-              border: const OutlineInputBorder(),
-              hintText: 'أدخل نص الرسالة هنا...',
-              filled: true,
-              fillColor: Colors.grey.shade50,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isSaving ? null : _saveTemplate,
-                  icon: const Icon(Icons.save, size: 18),
-                  label: const Text(
-                    'حفظ القالب',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _resetTemplateToDefault,
-                  icon: const Icon(Icons.restore, size: 16),
-                  label: const Text(
-                    'القالب الافتراضي',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.orange,
-                    side: const BorderSide(color: Colors.orange),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _resetAllToDefault,
-              icon: const Icon(Icons.restart_alt, size: 16),
-              label: const Text(
-                'استعادة جميع الإعدادات الافتراضية',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-        ],
       ),
     );
   }
