@@ -2,8 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 // ✅ (2026-09-17) syncProvider أُزيل — كان غلافاً مكرراً لـ SyncService
-// (المعرّف في sync_service.dart كـ syncServiceProvider). المستهلك الوحيد
-// (reports_screen) تحوّل إلى syncServiceProvider الموحّد.
+// (المعرّف في sync_service.dart كـ syncServiceProvider). كل أزرار المزامنة
+// اليدوية الآن تستدعي triggerManualCloudflareSync (utils/manual_sync_trigger.dart)
+// مباشرة — syncServiceProvider يبقى معرَّفاً لتوافق الاختبارات فقط.
 
 /// ✅ إصدار التطبيق الكامل (version+buildNumber) — يُقرأ من package_info_plus.
 ///

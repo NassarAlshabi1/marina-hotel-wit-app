@@ -8,8 +8,8 @@ import '../../components/widgets/room_widgets.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
 import '../../services/local_db.dart';
-import '../../services/sync_service.dart';
 import '../../utils/debug_log.dart';
+import '../../utils/manual_sync_trigger.dart';
 import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
@@ -44,7 +44,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       title: 'حالة الغرف',
       actions: [
         IconButton(
-          onPressed: () => ref.read(syncServiceProvider).runSync(),
+          onPressed: () => triggerManualCloudflareSync(context, ref),
           icon: const Icon(Icons.sync),
           tooltip: 'مزامنة',
         ),

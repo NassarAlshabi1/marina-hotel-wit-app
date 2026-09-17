@@ -198,6 +198,27 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return rows;
   }
 
+  /// ✅ إصلاح (مراجعة Delta Sync × Cloudflare بند #2 —
+  /// DELTA_SYNC_CLOUDFLARE_REVIEW.md): المفتاح السابق `entity:op:uuid:clientTs`
+  /// كان يعتمد على `clientTs` بدقة الثانية فقط كعنصر تمييز وحيد. سيناريو
+  /// فقدان صامت حقيقي: تعديل1 يُدفع بنجاح ويُحذف من outbox ضمن الثانية T،
+  /// ثم يصل تعديل2 لنفس (entity, op, localUuid) ضمن نفس الثانية T بالضبط —
+  /// المفتاحان يتطابقان حرفياً. الخادم يرى المفتاح مُستخدَماً من قبل في
+  /// idempotency_log (سجل دائم) ويُعيد `success:true, skipped:true` **دون**
+  /// تطبيق بيانات تعديل2 فعلياً على D1، والعميل يحذف الصف ظانّاً نجاح الرفع.
+  ///
+  /// الإصلاح: عنصر عشوائي فريد (UUID v4) يُضاف عند كل استدعاء فعلي لـ
+  /// merge()/​_mergeSingle() (إدراج صف جديد أو تحديث محتوى صف قائم). هذا لا
+  /// يكسر دلالة "إعادة المحاولة الآمنة": إعادة محاولة نفس الصف بعد فشل دفع
+  /// (بلا merge() جديد بينهما) تقرأ نفس القيمة المخزَّنة في عمود
+  /// `idempotency_key` كما هي — فقط تعديل محتوى جديد فعلي يُنتج مفتاحاً جديداً.
+  String _buildIdempotencyKey(
+    String entity,
+    String op,
+    String localUuid,
+    int clientTs,
+  ) => '$entity:$op:$localUuid:$clientTs:${_uuid.v4()}';
+
   /// إدراج أو تحديث عنصر outbox
   /// [source] — مصدر العنصر: 'local' = تغيير محلي (افتراضي)، 'restore' = استعادة من نسخة احتياطية
   /// هذا يفصل بين التغييرات المحلية والعمليات البعيدة
@@ -216,7 +237,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     String source = 'local',
   }) async {
     final payloadJson = jsonEncode(payload);
-    final idempKey = '$entity:$op:$localUuid:$clientTs';
+    final idempKey = _buildIdempotencyKey(entity, op, localUuid, clientTs);
 
     // ✅ إصلاح P0-1 (2026-06-28): احسب delivered_to_secondary ديناميكياً
     // القيمة الافتراضية في schema هي true (لمنع الحجب عند تعطيل Secondary).
@@ -1160,7 +1181,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     String source = 'local',
   }) async {
     final payloadJson = jsonEncode(payload);
-    final idempKey = '$entity:$op:$localUuid:$clientTs';
+    final idempKey = _buildIdempotencyKey(entity, op, localUuid, clientTs);
 
     // ✅ Sync Simplification: Secondary sync disabled — always true
     const deliveredToSecondary = true;

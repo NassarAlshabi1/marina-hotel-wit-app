@@ -10,9 +10,9 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
-import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/english_digits_input_formatter.dart';
+import '../../utils/manual_sync_trigger.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
 import '../../utils/theme.dart';
@@ -47,7 +47,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         title: 'الموظفون',
         actions: [
           IconButton(
-            onPressed: () => ref.read(syncServiceProvider).runSync(),
+            onPressed: () => triggerManualCloudflareSync(context, ref),
             icon: const Icon(Icons.sync),
             tooltip: 'مزامنة',
           ),
@@ -92,7 +92,13 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                         // ✅ زر إعادة محاولة يُشغّل مزامنة فعلية ويُعيد بناء الـ stream
                         ElevatedButton.icon(
                           onPressed: () {
-                            unawaited(ref.read(syncServiceProvider).runSync());
+                            unawaited(
+                              triggerManualCloudflareSync(
+                                context,
+                                ref,
+                                showSuccessSnackbar: false,
+                              ),
+                            );
                             setState(() => _refreshCounter++);
                           },
                           icon: const Icon(Icons.refresh),

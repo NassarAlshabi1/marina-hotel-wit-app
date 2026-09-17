@@ -9,10 +9,10 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
-import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/manual_sync_trigger.dart';
 import '../../utils/status_utils.dart';
 import '../employees/salary_entitlements_screen.dart';
 
@@ -45,7 +45,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           tooltip: 'استحقاقات الرواتب',
         ),
         IconButton(
-          onPressed: () => ref.read(syncServiceProvider).runSync(),
+          onPressed: () => triggerManualCloudflareSync(context, ref),
           icon: const Icon(Icons.sync),
           tooltip: 'مزامنة',
         ),
