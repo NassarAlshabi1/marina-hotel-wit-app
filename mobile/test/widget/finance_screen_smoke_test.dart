@@ -74,10 +74,10 @@ void main() {
           bookingsRepoProvider.overrideWithValue(
             _FakeBookingsRepository(database),
           ),
-          simpleNotesUnreadCountProvider.overrideWith(
-            (ref) => Stream.value(0),
+          simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
+          syncStatusProvider.overrideWith(
+            (ref) => Stream.value(SyncStatus.idle),
           ),
-          syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
           roomsWithPaymentStatusProvider.overrideWith(
             (ref) => Stream.value(const <RoomWithPaymentStatus>[]),
           ),

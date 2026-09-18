@@ -458,13 +458,6 @@ void main() {
           ),
         ],
         settleTimeoutSec: 5,
-        extraOverrides: [
-          liveBookingProvider(booking.id).overrideWith((ref) => Stream.value(booking)),
-          liveRoomByNumberProvider(booking.roomNumber).overrideWith((ref) => Stream.value(null)),
-          bookingPriceAdjustmentsProvider(booking.id).overrideWith((ref) => Stream.value(const [])),
-          bookingNightsProvider(booking.id).overrideWith((ref) => Stream.value(const [])),
-          bookingPaymentsDirectProvider(booking.id).overrideWith((ref) => Stream.value(const [])),
-        ],
       );
       allMetrics.add(metrics);
       debugPrint('✓ $metrics');
