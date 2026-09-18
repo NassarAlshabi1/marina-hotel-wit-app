@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/payment_models.dart';
+import '../../utils/performance_config.dart';
 import '../../providers/appwrite_providers.dart' hide ConnectionState;
 import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
@@ -439,6 +440,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         final isOverdueWindow = hour >= 23 || hour < 5;
 
         return ListView.builder(
+          // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+          scrollCacheExtent: optimizedScrollCacheExtent,
           padding: const EdgeInsets.all(12),
           itemCount: activeBookings.length,
           itemBuilder: (context, index) {

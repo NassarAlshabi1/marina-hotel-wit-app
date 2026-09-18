@@ -421,6 +421,12 @@ class GoogleDriveBackupService {
       final salaryCarryOverLogsData = await _loadTableBatched<dynamic>(
         db.salaryCarryOverLogs,
       );
+      final inventoryItemsData = await _loadTableBatched<dynamic>(
+        db.inventoryItems,
+      );
+      final inventoryTransactionsData = await _loadTableBatched<dynamic>(
+        db.inventoryTransactions,
+      );
 
       // استخراج عناصر القائمة السوداء بشكل منفصل (createdBy = 'blacklist')
       final blacklistQuery = db.select(db.shiftNotes)
@@ -448,6 +454,8 @@ class GoogleDriveBackupService {
         guestInfosData: guestInfosData,
         salaryWithdrawalsData: salaryWithdrawalsData,
         salaryCarryOverLogsData: salaryCarryOverLogsData,
+        inventoryItemsData: inventoryItemsData,
+        inventoryTransactionsData: inventoryTransactionsData,
       );
 
       final totalRecords = tableData.totalRecords + blacklistData.length;
@@ -519,6 +527,8 @@ class GoogleDriveBackupService {
           guestInfosData: guestInfosData,
           salaryWithdrawalsData: salaryWithdrawalsData,
           salaryCarryOverLogsData: salaryCarryOverLogsData,
+          inventoryItemsData: inventoryItemsData,
+          inventoryTransactionsData: inventoryTransactionsData,
           blacklistData: blacklistData,
           whatsappSettings: whatsappSettings,
         );
@@ -614,7 +624,7 @@ class GoogleDriveBackupService {
   }
 
   /// حساب تجزئة SHA-256 لبيانات النسخة الاحتياطية (باستثناء حقل data_hash نفسه)
-  static String _computeBackupChecksum(Map<String, dynamic> backupData) {
+  static String computeBackupChecksum(Map<String, dynamic> backupData) {
     // إزالة data_hash مؤقتاً من البيانات الوصفية قبل الحساب
     final metadata = Map<String, dynamic>.from(backupData['metadata'] as Map);
     metadata.remove('data_hash');
@@ -637,7 +647,7 @@ class GoogleDriveBackupService {
       return true; // نسخ قديمة بدون تجزئة = تجاوز التحقق
     }
 
-    final computedHash = _computeBackupChecksum(backupData);
+    final computedHash = computeBackupChecksum(backupData);
     return storedHash == computedHash;
   }
 
@@ -855,6 +865,7 @@ class GoogleDriveBackupService {
     addIfPresent('device_id', metadata['device_id']); // معرف الجهاز للمزامنة
     addIfPresent('backup_type', metadata['backup_type']);
     addIfPresent('changes_count', metadata['changes_count']);
+    addIfPresent('data_hash', metadata['data_hash']);
     props['compression'] = 'gzip';
 
     return props;
@@ -930,6 +941,11 @@ class GoogleDriveBackupService {
 
       final jsonString = utf8.decode(decodedBytes);
       final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+      if (!verifyBackupChecksum(backupData)) {
+        throw StateError(
+          'النسخة الاحتياطية المنزّلة تالفة: تجزئة البيانات غير مطابقة',
+        );
+      }
 
       _log('✅ تم تنزيل النسخة الاحتياطية: $fileId');
       return backupData;
@@ -1169,19 +1185,29 @@ class GoogleDriveBackupService {
   Future<void> restoreFromBackup(
     Map<String, dynamic> backupData, {
     void Function(int current, int total, String tableName)? onProgress,
+    bool syncToCloud = false,
   }) async {
     if (!DatabaseManager.isRestoring) {
       // Self-guard to avoid accidental destructive calls while keeping safety
       return DatabaseManager.runWithRestoreGuard(
-        () => _restoreFromBackupInternal(backupData, onProgress: onProgress),
+        () => _restoreFromBackupInternal(
+          backupData,
+          onProgress: onProgress,
+          syncToCloud: syncToCloud,
+        ),
       );
     }
-    return _restoreFromBackupInternal(backupData, onProgress: onProgress);
+    return _restoreFromBackupInternal(
+      backupData,
+      onProgress: onProgress,
+      syncToCloud: syncToCloud,
+    );
   }
 
   Future<void> _restoreFromBackupInternal(
     Map<String, dynamic> backupData, {
     void Function(int current, int total, String tableName)? onProgress,
+    required bool syncToCloud,
   }) async {
     try {
       final db = DatabaseManager.instance;
@@ -1259,10 +1285,14 @@ class GoogleDriveBackupService {
               .go(); // FK → employees, salaryCycles
           await db.delete(db.salaryWithdrawals).go(); // FK → employees
           await db.delete(db.salaryCarryOverLogs).go(); // FK → employees
+          await db
+              .delete(db.inventoryTransactions)
+              .go(); // FK → inventory_items
           await db.delete(db.expenses).go();
           await db.delete(db.cashTransactions).go();
           await db.delete(db.auditLogs).go();
           await db.delete(db.guestInfos).go();
+          await db.delete(db.inventoryItems).go();
           // Level 1 – آباء رئيسية (يُشار إليها من جداول أعلاه)
           await db.delete(db.bookings).go();
           await db.delete(db.rooms).go();
@@ -1286,6 +1316,27 @@ class GoogleDriveBackupService {
             for (final roomJson in roomsData) {
               await adapterRegistry.rooms.upsertFromJson(
                 Map<String, dynamic>.from(roomJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('inventory_items')) {
+            final itemsData = backupData['inventory_items'] as List<dynamic>;
+            for (final itemJson in itemsData) {
+              await adapterRegistry.inventoryItems.upsertFromJson(
+                Map<String, dynamic>.from(itemJson as Map),
+                src: Source.drive,
+              );
+            }
+          }
+
+          if (backupData.containsKey('inventory_transactions')) {
+            final movementsData =
+                backupData['inventory_transactions'] as List<dynamic>;
+            for (final movementJson in movementsData) {
+              await adapterRegistry.inventoryTransactions.upsertFromJson(
+                Map<String, dynamic>.from(movementJson as Map),
                 src: Source.drive,
               );
             }
@@ -1804,7 +1855,12 @@ class GoogleDriveBackupService {
       await _relinkPaymentsToBookings(db);
       await _relinkDebtsToBookings(db);
 
-      // مزامنة البيانات المستعادة مع Appwrite
+      // مزامنة البيانات المستعادة مع Appwrite فقط عند طلبها صراحةً.
+      // الاستعادة من Drive لا تغيّر Cloud افتراضياً.
+      if (!syncToCloud) {
+        _log('ℹ️ تم تخطي مزامنة Appwrite بعد الاستعادة بناءً على الوضع الآمن');
+        return;
+      }
       try {
         _log('🔄 بدء مزامنة البيانات مع Appwrite...');
         final prefs = await SharedPreferences.getInstance();

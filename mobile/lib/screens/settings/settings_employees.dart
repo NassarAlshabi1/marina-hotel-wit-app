@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../utils/performance_config.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
@@ -99,6 +101,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     ref.invalidate(employeesListProvider);
                   },
                   child: ListView.builder(
+                    // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+                    scrollCacheExtent: optimizedScrollCacheExtent,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: employees.length,
                     itemBuilder: (context, index) {
@@ -151,7 +155,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               SizedBox(width: 8),
               Text(
                 'إحصائيات الموظفين',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -199,7 +203,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 Text(
                   'إجمالي الرواتب: ${CurrencyFormatter.formatAmount(totalSalaries)}',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: Colors.green,
                   ),
@@ -225,7 +229,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
           Text(
             count.toString(),
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -276,7 +280,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       Text(
                         employee.name,
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           decoration: isTerminated
                               ? TextDecoration.lineThrough
@@ -286,7 +290,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       Text(
                         employee.position,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: Colors.grey,
                         ),
                       ),
@@ -1468,6 +1472,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     date: dateStr,
                     hotelDayKey: hotelDayKey,
                     withdrawalType: withdrawalType,
+                    // ✅ (2026-09-14) إسناد السحبة لمسجّلها — يظهر في التقرير
+                    recorderName: ref.read(authProvider).currentUser?.name,
                     description: noteController.text.trim().isNotEmpty
                         ? noteController.text.trim()
                         : null,

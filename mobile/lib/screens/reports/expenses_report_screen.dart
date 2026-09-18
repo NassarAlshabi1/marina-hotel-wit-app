@@ -12,6 +12,8 @@ import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
+import '../../services/salary_expense_classifier.dart';
+import '../../services/salary_mirror_matcher.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
@@ -253,12 +255,15 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final showAll = selectedType == null;
 
     // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي
-    // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
+    // ✅ إصلاح المعادلة «مصروفات الرواتب = استحقاقات الموظف»:
+    // أُزيل excludeAdvance — السلفة نقد استلمه الموظف فعلاً وتظهر الآن
+    // مرة واحدة فقط (مرايا سحبها تُطابَق بها ولا تُكرَّر)، بينما الخصوم
+    // (خصم من الراتب / خصم راتب / خصم / غياب) تسويات بلا نقد وتُستبعد
+    // كلياً من هذا التقرير النقدي أدناه.
     var expenses = await expensesDao.listFilteredByHotelDay(
       fromHotelDay: fromHotelDay,
       toHotelDay: toHotelDay,
       expenseType: selectedType,
-      excludeAdvance: true,
     );
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
@@ -355,44 +360,35 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // ═══════════════════════════════════════════════════════════════════════
 
     // ─── قراءة expense_id من جدول salary_withdrawals عبر SQL خام ───
-    // عمود expense_id أُضيف عبر ترحيل قاعدة البيانات (schema v40+)
-    // ولا يوجد في الـ data class المُولّد لذلك نقرأه يدوياً
-    final swExpenseIdMap = <int, int>{}; // salary_withdrawal.id → expense_id
-    if (shouldFetchSalaryWithdrawals && salaryWithdrawals.isNotEmpty) {
-      try {
-        final swIds = salaryWithdrawals.map((sw) => sw.id).toList();
-        final placeholders = List.filled(swIds.length, '?').join(',');
-        final rows = await db
-            .customSelect(
-              'SELECT id, expense_id FROM salary_withdrawals WHERE id IN ($placeholders)',
-              variables: swIds.map(Variable.withInt).toList(),
-            )
-            .get();
-        for (final row in rows) {
-          final swId = row.read<int>('id');
-          // QueryRow لا يملك readOrNull — نستخدم read مع try-catch
-          // لأن expense_id قد يكون NULL
-          final expId = _readNullableInt(row, 'expense_id');
-          if (expId != null && expId > 0) {
-            swExpenseIdMap[swId] = expId;
-          }
-        }
-      } catch (_) {
-        // العمود قد لا يكون موجوداً بعد في الإصدارات القديمة — نتخطى
-      }
-    }
+    // (أُلغيت: عمود expense_id مُعلن في Drift منذ Migration 42 وسوّقه
+    // SalaryMirrorMatcher مباشرة من sw.expenseId — مصدر الحقيقة الموحّد)
 
     // ─── بناء مجموعة من المصروفات التي تمت إضافتها بالفعل ───
     final Set<int> addedExpenseIds = {}; // معرفات المصروفات المضافة
     final Set<int> addedWithdrawalIds =
         {}; // معرفات السحوبات المضافة (لتجنب التكرار)
 
-    // ─── أولاً: إضافة جميع المصروفات من جدول expenses (باستثناء السلفة) ───
+    // مرشحو SalaryMirrorMatcher: كل المصروفات المقروءة (ضمن النطاق)
+    final expenseCandidates = expenses
+        .map(
+          (e) => MirrorExpenseCandidate(
+            id: e.id,
+            serverId: e.serverId,
+            expenseType: e.expenseType,
+            amount: e.amount,
+            date: e.date,
+            hotelDayKey: e.hotelDayKey,
+            relatedId: e.relatedId,
+          ),
+        )
+        .toList(growable: false);
+
+    // ─── أولاً: إضافة جميع المصروفات من جدول expenses ───
     for (final expense in expenses) {
-      // ✅ إلغاء عرض السلفة من تقرير المصروفات لأنها تسبب تكرار البيانات
-      // السلفة تُسجّل تلقائياً مع سحوبات الرواتب وأقساط الخصم
-      // فظهورها هنا يُكرر المبالغ في الإجماليات
-      if (expense.expenseType == 'سلفة') {
+      // ✅ إصلاح المعادلة: الخصوم تسويات استحقاق بلا تدفق نقدي (تُقرأ من
+      // شاشة استحقاقات الرواتب فقط) — كانت تُحسب مصروفات وتضخّم المجموع.
+      // أما السلفة فنقد خارج فعلاً وتُدرج هنا (كانت تُستبعد ظلماً).
+      if (SalaryExpenseClassifier.isSalaryDeduction(expense.expenseType)) {
         continue;
       }
       final employee = expense.relatedId != null
@@ -432,58 +428,22 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           continue;
         }
 
-        bool hasMatchingExpense = false;
-
-        // ─── السحوبات المباشرة لا تُطابق أبداً (ليس لها مصروف مقابل) ───
-        final isDirectWithdrawal =
-            sw.reason != null && sw.reason!.startsWith('direct_withdrawal_');
-
-        if (!isDirectWithdrawal) {
-          // ─── الطريقة 1: مطابقة عبر عمود expense_id (الأكثر موثوقية) ───
-          final expenseIdFromColumn = swExpenseIdMap[sw.id];
-          if (expenseIdFromColumn != null &&
-              addedExpenseIds.contains(expenseIdFromColumn)) {
-            hasMatchingExpense = true;
-          }
-
-          // ─── الطريقة 2: مطابقة عبر reason الذي يحتوي exp_XX ───
-          if (!hasMatchingExpense && sw.reason != null) {
-            final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
-            if (match != null) {
-              final expId = int.tryParse(match.group(1)!);
-              if (expId != null && addedExpenseIds.contains(expId)) {
-                hasMatchingExpense = true;
-              }
-            }
-          }
-
-          // ─── الطريقة 3 (الاحتياطية): مطابقة بالبيانات (للسجلات القديمة جداً) ───
-          // هذه تمنع التكرار حتى لو فشلت الطريقتان السابقتان
-          // شرط المطابقة: نفس نوع راتب، نفس الموظف، نفس اليوم الفندقي، نفس المبلغ
-          if (!hasMatchingExpense) {
-            for (final expense in expenses) {
-              if (_isSalaryType(expense.expenseType) &&
-                  expense.relatedId == sw.employeeId &&
-                  _hotelDayKeysMatch(
-                    expense.hotelDayKey,
-                    sw.hotelDayKey,
-                    expense.date,
-                    sw.withdrawDate,
-                  ) &&
-                  expense.amount.abs() == sw.amount.abs()) {
-                hasMatchingExpense = true;
-                dlog(
-                  () =>
-                      '⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات',
-                );
-                break;
-              }
-            }
-          }
-        }
+        // ✅ dedup موحّد عبر SalaryMirrorMatcher (مصدر الحقيقة الموحّد):
+        // expense_id / exp_N (id أو serverId) / مطابقة بيانات حتمية
+        // (موظف + نقدي + مبلغ + يوم) — مع حارس direct_withdrawal_ داخلي.
+        // يُغلق ثغرة العد المزدوج عبر الأجهزة (حالة «الاورمو محمد» 2026-09-14).
+        final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+          expenseId: sw.expenseId,
+          reason: sw.reason,
+          amount: sw.amount,
+          hotelDayKey: sw.hotelDayKey,
+          withdrawDate: sw.withdrawDate,
+          employeeId: sw.employeeId,
+          expenses: expenseCandidates,
+        );
 
         // إذا لم يتم العثور على مصروف مقابل، فهذا السحب يتيم – أضفه
-        if (!hasMatchingExpense) {
+        if (!isMirror) {
           final employee = employeeMap[sw.employeeId];
           // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
           final swDisplayDate =
@@ -494,7 +454,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           final wType = sw.withdrawalType ?? 'سحب راتب';
           final isDeduction =
               wType.contains('خصم') || wType.contains('deduction');
-          final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
+
+          // ✅ إصلاح المعادلة: مرايا الخصوم (سحوبات سالبة أو نوع خصم)
+          // تسويات استحقاق بلا تدفق نقدي — تُستبعد من التقرير النقدي
+          if (isDeduction || sw.amount <= 0) {
+            continue;
+          }
+
+          final displayType = SalaryExpenseClassifier.isAdvanceWithdrawal(wType)
+              ? 'سلفة'
+              : 'سحب راتب';
 
           final descParts = <String>[];
           if (sw.reason != null &&
@@ -1358,35 +1327,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     );
   }
 
-  /// قراءة حقل INTEGER قابل للقيم الفارغة من QueryRow
-  /// Drift's QueryRow لا يوفر readOrNull مباشرة — نستخدم try-catch
-  static int? _readNullableInt(QueryRow row, String column) {
-    try {
-      return row.read<int>(column);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// مطابقة مفتاحي اليوم الفندقي بين مصروف وسحب راتب
-  /// تأخذ بعين الاعتبار أن البيانات القديمة قد لا تحتوي على hotelDayKey
-  /// في هذه الحالة نلجأ لمقارنة جزء التاريخ فقط (yyyy-MM-dd)
-  static bool _hotelDayKeysMatch(
-    String? expenseHotelDayKey,
-    String? swHotelDayKey,
-    String expenseDate,
-    String swDate,
-  ) {
-    // أفضل حالة: كلاهما يحتوي على hotelDayKey
-    if (expenseHotelDayKey != null &&
-        expenseHotelDayKey.isNotEmpty &&
-        swHotelDayKey != null &&
-        swHotelDayKey.isNotEmpty) {
-      return expenseHotelDayKey == swHotelDayKey;
-    }
-    // حالة احتياطية: مقارنة جزء التاريخ فقط (للسجلات القديمة بدون hotelDayKey)
-    return _extractDatePart(expenseDate) == _extractDatePart(swDate);
-  }
+  // (أُزيلت _readNullableInt و _hotelDayKeysMatch: منطقهما انتقل إلى
+  // SalaryMirrorMatcher الموحّد — sw.expenseId صار متاحاً في Drift منذ
+  // Migration 42، والمطابقة اليومية تعمل داخل المطابِق المشترك)
 
   DateTime _parseExpenseDate(String value) {
     final trimmed = value.trim();
@@ -1405,16 +1348,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     }
   }
 
-  /// استخراج جزء التاريخ فقط (yyyy-MM-dd) من سلسلة نصية
-  /// قد تحتوي على وقت مثل "2025-06-03 14:30" → "2025-06-03"
-  /// يُستخدم لمقارنة الأيام بدلاً من مقارنة نص التاريخ الكامل
-  static String _extractDatePart(String dateStr) {
-    final trimmed = dateStr.trim();
-    if (trimmed.length >= 10) {
-      return trimmed.substring(0, 10);
-    }
-    return trimmed;
-  }
+  // (أُزيلت _extractDatePart مع _hotelDayKeysMatch — منطقه في
+  // SalaryMirrorMatcher الموحّد)
 }
 
 class _ExpenseReportRow {

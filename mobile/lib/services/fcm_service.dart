@@ -288,7 +288,7 @@ class FcmService {
     try {
       final syncManager = _getSyncManager();
       if (syncManager != null) {
-        await syncManager.sync(push: false);
+        await syncManager.pullRemoteChanges();
         dlog('✅ FCM: pull completed');
       }
     } catch (e) {

@@ -6,6 +6,7 @@ import '../../utils/expense_reason_matcher.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../appwrite_sync_manager.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../telegram/telegram_notification_service.dart';
@@ -30,6 +31,11 @@ class SalaryWithdrawalsRepository {
   }
 
   /// إنشاء سجل سحب راتب مرتبط بمصروف
+  ///
+  /// ✅ (2026-09-14) إسناد السحبة لمسجّلها:
+  /// - [recorderName] اسم المستخدم المسجّل (من جلسة الدخول) — يُخزّن محلياً
+  ///   ويُرفع للسحابة في حقل name ليظهر في التقارير على كل الأجهزة.
+  /// - deviceId يُملأ تلقائياً من هوية الجهاز الحالية (إن وُجدت).
   Future<int> createFromExpense({
     required int expenseId,
     required int employeeId,
@@ -39,10 +45,13 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     String? withdrawalType,
     String? description,
+    String? recorderName,
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
+    // ✅ وسم الجهاز — عمود deviceId موجود في SyncFields وكان يُرسل فارغاً دائماً
+    final deviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
 
     final id = await _db.transaction(() async {
       final companion = SalaryWithdrawalsCompanion(
@@ -55,6 +64,10 @@ class SalaryWithdrawalsRepository {
         hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
         withdrawalType: d.Value(withdrawalType),
         description: d.Value(description),
+        recorderName: recorderName != null && recorderName.isNotEmpty
+            ? d.Value(recorderName)
+            : const d.Value.absent(),
+        deviceId: d.Value(deviceId),
         createdAt: d.Value(now),
         updatedAt: d.Value(now),
         deletedAt: const d.Value(null),
@@ -80,6 +93,9 @@ class SalaryWithdrawalsRepository {
           'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
           'withdrawalType': withdrawalType,
           'description': description,
+          'deviceId': deviceId,
+          if (recorderName != null && recorderName.isNotEmpty)
+            'recorderName': recorderName,
         };
         if (expenseId > 0) {
           payload['expenseId'] = expenseId;
@@ -172,6 +188,8 @@ class SalaryWithdrawalsRepository {
     final now = Time.nowEpoch();
     // reason يحتوي فقط على علامة الربط بالمصروف
     final reasonText = 'exp_$expenseId';
+    // ✅ وسم الجهاز على سجلات المرايا أيضاً (مصروف → سحبة مطابقة)
+    final deviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
 
     // جمع السجلات القديمة غير المطابقة لمنع التكرار عند التعديل
     final staleRecords = <SalaryWithdrawal>[];
@@ -242,6 +260,9 @@ class SalaryWithdrawalsRepository {
             withdrawalType: d.Value(action),
             description: d.Value(note),
             hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
+            deviceId: deviceId.isEmpty
+                ? const d.Value.absent()
+                : d.Value(deviceId),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
             version: d.Value(matchedVersion + 1),
@@ -302,6 +323,7 @@ class SalaryWithdrawalsRepository {
                 withdrawalType: d.Value(action),
                 description: d.Value(note),
                 hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
+                deviceId: d.Value(deviceId),
                 createdAt: d.Value(now),
                 updatedAt: d.Value(now),
                 deletedAt: const d.Value(null),

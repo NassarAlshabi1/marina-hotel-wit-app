@@ -255,14 +255,16 @@ class SyncService {
         }
       }
 
-      final now = Time.nowEpoch();
+      // ⚠️ V-1 (تدقيق معماري): لا يُكتب lastPullTs هنا إطلاقاً — هذا
+      // الصف هو مؤشر Delta Pull لمسار Appwrite (sync_pull_service)،
+      // ومحرك PHP يقرأ/يكتب lastServerTs فقط. كتابة lastPullTs هنا كانت
+      // تدفع مؤشر Appwrite للأمام وتسبب فقداناً صامتاً للسجلات.
       await db
           .into(db.syncState)
           .insertOnConflictUpdate(
             SyncStateCompanion(
               id: const d.Value(1),
               lastServerTs: d.Value(maxTs),
-              lastPullTs: d.Value(now),
               isSyncing: const d.Value(0),
             ),
           );

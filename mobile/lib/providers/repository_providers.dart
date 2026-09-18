@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/adapters/adapter_registry.dart';
 import '../services/auth_local_store.dart';
+import 'appwrite_providers.dart' as ap;
 import 'auth_provider.dart';
 import '../services/daos/bookings_dao.dart';
 import '../services/daos/debts_dao.dart';
@@ -33,9 +34,11 @@ import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
 import '../services/repositories/simple_notes_repository.dart';
 import '../services/salary_advance_installments_service.dart';
+import '../services/shift_receipts_cloud_service.dart';
 import '../services/sync_guardian.dart';
 import '../services/whatsapp_service.dart';
 import '../utils/env.dart';
+import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import '../utils/stream_helpers.dart';
@@ -281,13 +284,16 @@ final employeesListProvider = StreamProvider.autoDispose<List<Employee>>(
   ),
 );
 
+// ✅ إصلاح (2026-09-13): إزالة حد SQL من قائمة guest infos.
+// الحد القديم (maxListItemsBeforePagination = 15/20/50/100 حسب مستوى الجهاز)
+// كان يقصّ السجلات بصمت على مستوى SQLite — بعد سحب ناجح كان المستخدم يرى
+// أول 15 سجلاً فقط (أجهزة 1GB) وتبدو باقي البيانات "مفقودة" رغم أنها
+// موجودة كاملة في القاعدة. سجلات guest infos نصية صغيرة (~1KB)، وتحميل
+// الكل آمن ذاكرياً؛ حماية الأداء انتقلت للشاشة عبر PaginatedDataTable
+// (يبني صفوف الصفحة المرئية فقط).
 final guestInfoListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref
-        .watch(guestInfoRepoProvider)
-        .watchAll(
-          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
-        ),
+    ref.watch(guestInfoRepoProvider).watchAll(),
     const Duration(milliseconds: 150),
   ),
 );
@@ -354,6 +360,10 @@ final hotelDayTickerProvider = StreamProvider<String>((ref) {
 // Daily Statistics Providers — تحديث فوري عبر Stream من قاعدة البيانات
 final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   final paymentsRepo = ref.watch(paymentsRepoProvider);
+  // ✅ إعادة البناء عند عبور بداية اليوم الفندقي (14:01) — بدون هذا
+  // الاستماع تبقى البطاقة على إجمالي اليوم الفندقي السابق إذا بقي
+  // الداشبورد مفتوحاً عند انقلاب اليوم الفندقي.
+  ref.watch(hotelDayTickerProvider);
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   // الفلتر على مستوى قاعدة البيانات بدلاً من تحميل كل المدفوعات
@@ -391,11 +401,136 @@ final employeeShiftPaymentSummariesProvider =
       final hotelDay = HotelTimeEngine.getHotelDayKey();
       return ref
           .watch(paymentsRepoProvider)
-          .watchPaymentShiftSummaries(hotelDay, excludedUserId: user.id);
+          .watchPaymentShiftSummaries(
+            hotelDay,
+            excludedUserName: user.name,
+            excludedUserCloudId: user.cloudUserId,
+          );
     });
+
+/// عدّاد التحديث اليدوي لبطاقة الاستلامات السحابية — يزيده زر التحديث
+/// في البطاقة لإعادة السحب الفوري من Appwrite.
+final shiftReceiptsManualRefreshProvider = StateProvider<int>((ref) => 0);
+
+/// ✅ الاستلامات السحابية للمستخدمين الآخرين في النوبات — قراءة مباشرة
+/// من Appwrite (وليس من القاعدة المحلية فقط).
+///
+/// السلوك:
+/// - بوابة أدوار: لا بيانات إلا للمدير/المشرف/الأدمن (حماية مزدوجة مع
+///   البوابة في شاشة الداشبورد — المبالغ لا تُعرض لمستخدمين آخرين).
+/// - سحب فوري عند فتح الشاشة، ثم كل 60 ثانية، ومع كل تغيّر محلي في
+///   المدفوعات (بعد مهلة ثانيتين) — فمبلغ المستخدم 1 ينتقل من 500 إلى
+///   1000 على أجهزة المدير/المشرف خلال ثوانٍ من تسجيله.
+/// - عند فشل السحاب (انقطاع شبكة) يتحول تلقائياً إلى آخر القيم
+///   المحلية حتى لا تظهر البطاقة فارغة.
+final cloudEmployeeShiftPaymentSummariesProvider =
+    StreamProvider.autoDispose<List<PaymentShiftSummary>>((ref) {
+      final user = ref.watch(authProvider).currentUser;
+      final canViewOthers =
+          user != null &&
+          (user.isAdmin ||
+              user.userType == 'manager' ||
+              user.userType == 'supervisor');
+      if (!canViewOthers) {
+        return Stream.value(const <PaymentShiftSummary>[]);
+      }
+
+      ref.watch(hotelDayTickerProvider);
+      // bump اليدوي من زر التحديث يعيد بناء هذا المزود.
+      ref.watch(shiftReceiptsManualRefreshProvider);
+      final hotelDay = HotelTimeEngine.getHotelDayKey();
+
+      final cloud = ShiftReceiptsCloudService(
+        fetcher: ShiftReceiptsCloudService.fetcherOf(
+          ref.watch(ap.appwriteServiceProvider),
+        ),
+      );
+      final localStream = ref
+          .watch(paymentsRepoProvider)
+          .watchPaymentShiftSummaries(
+            hotelDay,
+            excludedUserName: user.name,
+            excludedUserCloudId: user.cloudUserId,
+          );
+
+      final controller =
+          StreamController<List<PaymentShiftSummary>>.broadcast();
+      var lastEmitted = const <PaymentShiftSummary>[];
+      var lastLocal = const <PaymentShiftSummary>[];
+      Timer? periodic;
+      Timer? debounce;
+
+      Future<void> pullCloud() async {
+        try {
+          final rows = await cloud.fetchTodaySummaries(
+            hotelDayKey: hotelDay,
+            excludedUserName: user.name,
+            excludedUserCloudId: user.cloudUserId,
+          );
+          // بعض سجلات Cloud القديمة (أو التي رُفعت قبل إضافة حقول المستلم)
+          // تحتوي payments صحيحة لكن حقول receivedBy* فيها null. عندها
+          // تكون نتيجة التجميع السحابية فارغة رغم أن القاعدة المحلية تحمل
+          // إجمالي الاستلام الحقيقي، لذلك لا نمسح البطاقة بقيمة فارغة.
+          final effectiveRows = rows.isEmpty && lastLocal.isNotEmpty
+              ? lastLocal
+              : rows;
+          lastEmitted = effectiveRows;
+          if (!controller.isClosed) {
+            controller.add(effectiveRows);
+          }
+        } catch (e) {
+          dlog(() => '☁️ [ShiftReceipts] فشل السحب السحابي: $e — احتياط محلي');
+          // عند غياب أي قيمة سحابية سابقة نعرض المحلي؛ أما إن وُجدت
+          // فنُبقي آخر قيمة سحابية (أصدق من قديمة محلية).
+          if (lastEmitted.isEmpty && !controller.isClosed) {
+            controller.add(lastLocal);
+          }
+        }
+      }
+
+      final localSub = localStream.listen((rows) {
+        lastLocal = rows;
+        // تغيّر محلي (وصول مزامنة/دفعات جديدة) → إعادة سحب سحابية مؤجلة
+        // حتى تكتسب الدفعات المرفوعة وقتاً للوصول إلى السحابة.
+        debounce?.cancel();
+        debounce = Timer(
+          const Duration(seconds: 2),
+          () => unawaited(pullCloud()),
+        );
+      });
+
+      periodic = Timer.periodic(
+        const Duration(seconds: 60),
+        (_) => unawaited(pullCloud()),
+      );
+      unawaited(pullCloud());
+
+      ref.onDispose(() {
+        periodic?.cancel();
+        debounce?.cancel();
+        unawaited(localSub.cancel());
+        unawaited(controller.close());
+      });
+
+      return controller.stream;
+    });
+
+/// ✅ ربط البطاقة بـ Outbox: عدد دفعات هذا الجهاز التي لم تُرفع إلى
+/// السحابة بعد (pending/failed لكيان 'payments').
+///
+/// يتحدّث لحظياً عبر drift stream — يظهر على البطاقة كمؤشر «بانتظار
+/// الرفع التلقائي» ويختفي بمجرد أن يستلم AutoOutboxSyncWatcher الرفع
+/// (debounce 3 ثوانٍ + إعادة محاولة فورية عند عودة الشبكة).
+final paymentsOutboxPendingProvider = StreamProvider.autoDispose<int>((ref) {
+  final repo = ref.watch(paymentsRepoProvider);
+  return repo.outbox.watchEntityCount('payments');
+});
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
+  // ✅ إعادة البناء عند عبور بداية اليوم الفندقي (14:01) — مطابق
+  // لسلوك todayPaymentsProvider لتفادي عرض يوم فندقي قديم.
+  ref.watch(hotelDayTickerProvider);
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   // ✅ SQL SUM() على مستوى قاعدة البيانات بدلاً من تحميل جميع المصروفات
@@ -404,6 +539,8 @@ final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
 });
 
 final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
+  // ✅ إعادة البناء عند عبور بداية اليوم الفندقي (14:01)
+  ref.watch(hotelDayTickerProvider);
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   final repo = ref.watch(expensesRepoProvider);

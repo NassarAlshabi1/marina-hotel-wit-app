@@ -112,7 +112,7 @@ class SyncNotificationManager {
 
     overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 10,
+        top: MediaQuery.paddingOf(context).top + 10,
         left: 16,
         right: 16,
         child: Material(
@@ -210,7 +210,7 @@ class SyncNotificationManager {
 
     overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 10,
+        top: MediaQuery.paddingOf(context).top + 10,
         left: 16,
         right: 16,
         child: Material(
@@ -366,7 +366,7 @@ class SyncNotificationManager {
 
     overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 10,
+        top: MediaQuery.paddingOf(context).top + 10,
         left: 16,
         right: 16,
         child: Material(

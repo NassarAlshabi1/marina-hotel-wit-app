@@ -24,7 +24,7 @@ class AdminLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isTablet = MediaQuery.of(context).size.width >= 768;
+    final isTablet = MediaQuery.sizeOf(context).width >= 768;
 
     if (isTablet) {
       // Desktop/Tablet layout with sidebar (like PHP admin)

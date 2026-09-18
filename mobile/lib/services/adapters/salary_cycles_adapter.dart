@@ -28,7 +28,14 @@ class SalaryCyclesAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    // ✅ حل FK الموظف بالترتيب: UUID -> id -> serverId -> employeeId
+    // ✅ حل FK الموظف عبر IdResolver: UUID → serverId → (id المحلي للمصدر
+    // المحلي فقط).
+    //
+    // ✅ إصلاح (2026-09-02): نفس إصلاح salary_withdrawals_adapter —
+    // 1) لا يُمرَّر serverId الدورة نفسها كأنه serverId الموظف.
+    // 2) employeeId البعيد (id جهاز المصدر) يُطابق employees.serverId
+    //    وليس e.id المحلي (autoIncrement يختلف بين الأجهزة) — للمصادر
+    //    البعيدة. نفس قرار resolveBooking و expenses_adapter.
     final remoteEmployeeUuid =
         _asString(json, 'employeeUuid', src) ??
         _asString(json, 'employee_uuid', src) ??
@@ -36,14 +43,13 @@ class SalaryCyclesAdapter
         _asString(json, 'employee_local_uuid', src);
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
-    final remoteServerId =
-        _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
 
+    final fromRemote = src == Source.appwrite || src == Source.drive;
     final resolvedEmployeeId = await resolver.resolveEmployee(
       uuid: remoteEmployeeUuid,
-      localId: remoteEmployeeId,
-      serverId: remoteServerId,
-      employeeId: remoteEmployeeId,
+      serverId: fromRemote ? remoteEmployeeId : null,
+      localId: fromRemote ? null : remoteEmployeeId,
+      fromRemote: fromRemote,
     );
 
     final createdAt = _epoch(json, 'createdAt', src);
@@ -56,8 +62,9 @@ class SalaryCyclesAdapter
         (src == Source.appwrite || src == Source.drive);
     final skipReason = shouldSkip
         ? 'salary_cycle: لا يمكن العثور على الموظف المرتبط '
-              '(uuid=$remoteEmployeeUuid, serverId=$remoteServerId, localId=$remoteEmployeeId) '
-              '— تم التخطي لتجنب InvalidDataException'
+              '(uuid=$remoteEmployeeUuid, originEmployeeId=$remoteEmployeeId, '
+              'src=$src) — تم التخطي لتجنب InvalidDataException وربط خاطئ '
+              'عبر الأجهزة'
         : null;
 
     return ResolveResult(

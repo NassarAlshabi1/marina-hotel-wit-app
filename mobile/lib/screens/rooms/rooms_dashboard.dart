@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/room_widgets.dart';
+import '../../utils/performance_config.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
 import '../../services/local_db.dart';
@@ -136,6 +137,8 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
         ref.invalidate(roomsWithPaymentStatusProvider);
       },
       child: ListView.builder(
+        // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+        scrollCacheExtent: optimizedScrollCacheExtent,
         padding: const EdgeInsets.all(16),
         itemCount: sortedFloors.length,
         itemBuilder: (context, index) {

@@ -102,9 +102,16 @@ class SqliteBackupRestore {
       }
 
       // ✅ WAL Checkpoint قبل النسخ — يضمن دمج كل التغييرات من ملف WAL (-wal)
-      // إلى قاعدة البيانات الرئيسية قبل النسخ. بدون هذا، قد تكون النسخة الاحتياطية
-      // غير متسقة إذا كانت هناك كتابة جارية. نستخدم TRUNCATE لمسح ملف WAL أيضاً.
-      await _performWalCheckpoint();
+      // إلى قاعدة البيانات الرئيسية قبل النسخ. عند النجاح (busy=0) يحتوي ملف
+      // .db وحده على 100% من المعاملات الملتزمة → النسخة كاملة بملف واحد.
+      // إذا كان هناك قارئ نشط يمنع اكتمال checkpoint نرفض إنشاء النسخة
+      // بدلاً من إنتاج نسخة ناقصة بصمت (نسخة كاملة أو لا نسخة).
+      final checkpointBusy = await _performWalCheckpoint();
+      if (checkpointBusy) {
+        throw StateError(
+          'لا يمكن إنشاء نسخة SQLite متسقة أثناء وجود قارئ نشط لملف WAL',
+        );
+      }
 
       final destDir = await _resolveUserAccessibleDir();
       final backupName = 'backup_${_ts()}.db';
@@ -112,16 +119,16 @@ class SqliteBackupRestore {
 
       await srcFile.copy(destPath);
 
-      // ✅ نسخ ملفي WAL و SHM إذا كانا موجودين — ضمان إضافي للاتساق في الوضع
-      // النادر الذي يفشل فيه checkpoint. هذه الملفات ستُستهلك تلقائياً عند الفتح.
-      final walFile = File('$srcPath-wal');
-      final shmFile = File('$srcPath-shm');
-      if (walFile.existsSync()) {
-        await walFile.copy('$destPath-wal');
-      }
-      if (shmFile.existsSync()) {
-        await shmFile.copy('$destPath-shm');
-      }
+      // ✅ لا ننسخ -wal/-shm إلى مجلد النسخ. بعد wal_checkpoint(TRUNCATE)
+      // الناجح (busy=0) يكون ملف WAL فارغاً وكل البيانات في .db نفسه، فالنسخ
+      // بملف واحد هو الصيغة الكاملة والآمنة. نسخ sidecars في لحظة لاحقة من
+      // لحظة نسخ .db قد يُنتج زوجاً غير متطابق زمنياً ويُفسد الاستعادة
+      // ("database disk image is malformed").
+
+      // ✅ التحقق من سلامة النسخة بعد النسخ — يضمن أن الملف المنتج نسخة
+      // كاملة قابلة للفتح (يرصد النسخ المبتورة بسبب امتلاء التخزين مثلاً)
+      // بدلاً من اكتشاف التلف وقت الاستعادة وهو أسوأ وقت ممكن.
+      await verifyBackupIntegrity(File(destPath));
 
       dlog(() => '✅ SQLite backup created at: $destPath');
       return destPath;
@@ -133,27 +140,34 @@ class SqliteBackupRestore {
 
   /// تنفيذ PRAGMA wal_checkpoint(TRUNCATE) عبر اتصال sqflite مستقل.
   /// يدمج كل الصفحات المعدّلة من ملف WAL إلى قاعدة البيانات الرئيسية ثم يصفّر
-  /// ملف WAL. هذا يضمن أن نسخة .db تكون متسقة ومكتملة.
-  static Future<void> _performWalCheckpoint() async {
+  /// ملف WAL. يعيد true إذا كان الـ checkpoint مشغولاً (busy=1: قارئ نشط
+  /// يمنع دمج كل الصفحات) — في هذه الحالة يجب على المتصل رفض إنشاء النسخة.
+  static Future<bool> _performWalCheckpoint() async {
+    final dbPath = await _resolveDefaultDbPath();
+    // نفتح اتصالاً مباشراً على نفس ملف قاعدة البيانات وننفّذ checkpoint.
+    // sqflite يدير اتصالًا مستقلاً عن Drift، لكن PRAGMA wal_checkpoint آمن
+    // للتشغيل المتزامن لأنه داخلياً يأخذ lock على WAL.
+    final db = await sqflite.openDatabase(dbPath, singleInstance: false);
     try {
-      final dbPath = await _resolveDefaultDbPath();
-      // نفتح اتصالاً مباشراً على نفس ملف قاعدة البيانات وننفّذ checkpoint.
-      // sqflite يدير اتصالًا مستقلاً عن Drift، لكن PRAGMA wal_checkpoint آمن
-      // للتشغيل المتزامن لأنه داخلياً يأخذ lock على WAL.
-      final db = await sqflite.openDatabase(dbPath, singleInstance: false);
-      try {
-        await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
-      } finally {
-        await db.close();
+      // النتيجة صف واحد: (busy, log, checkpointed)
+      final result = await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+      final busyValue = result.isNotEmpty ? result.first['busy'] : null;
+      final busy = busyValue is num ? busyValue != 0 : false;
+      if (busy) {
+        dlog('⚠️ WAL checkpoint busy (active reader blocks completeness)');
+      } else {
+        dlog('✅ WAL checkpoint (TRUNCATE) completed before backup');
       }
-      dlog('✅ WAL checkpoint (TRUNCATE) completed before backup');
-    } catch (e) {
-      // checkpoint فشل — لا نمنع النسخة الاحتياطية، لكن نسجّل التحذير
-      dlog(() => '⚠️ WAL checkpoint failed (proceeding with backup): $e');
+      return busy;
+    } finally {
+      await db.close();
     }
   }
 
-  static Future<void> _verifyBackupIntegrity(File backupFile) async {
+  /// التحقق من أن ملف SQLite نسخة كاملة وسليمة عبر PRAGMA integrity_check.
+  /// عام (public) ليُعاد استخدامه بعد إنشاء أي نسخة .db — يضمن اكتشاف
+  /// النسخ المبتورة/التالفة وقت الإنشاء بدلاً من وقت الاستعادة.
+  static Future<void> verifyBackupIntegrity(File backupFile) async {
     sqflite.Database? backupDb;
     try {
       backupDb = await sqflite.openDatabase(
@@ -199,7 +213,7 @@ class SqliteBackupRestore {
 
       // لا نلمس قاعدة البيانات الحالية قبل التأكد من قابلية فتح النسخة
       // ومن اجتياز SQLite integrity_check.
-      await _verifyBackupIntegrity(srcFile);
+      await verifyBackupIntegrity(srcFile);
 
       final dstPath = await _resolveDefaultDbPath();
       final dstFile = File(dstPath);
