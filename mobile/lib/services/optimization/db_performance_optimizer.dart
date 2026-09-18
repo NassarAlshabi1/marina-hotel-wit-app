@@ -9,6 +9,7 @@ library;
 import 'package:flutter/foundation.dart';
 
 import '../local_db.dart' as local_db;
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DatabaseOptimizer {
   DatabaseOptimizer(this.db);
@@ -75,7 +76,7 @@ class DatabaseOptimizer {
     ''');
 
     if (kDebugMode) {
-      debugPrint('✅ Created composite indexes');
+      dlog('✅ Created composite indexes');
     }
   }
 
@@ -100,7 +101,7 @@ class DatabaseOptimizer {
     ''');
 
     if (kDebugMode) {
-      debugPrint('✅ Created covering indexes');
+      dlog('✅ Created covering indexes');
     }
   }
 
@@ -131,7 +132,7 @@ class DatabaseOptimizer {
     ''');
 
     if (kDebugMode) {
-      debugPrint('✅ Analyzed and added missing indexes');
+      dlog('✅ Analyzed and added missing indexes');
     }
   }
 
@@ -147,12 +148,14 @@ class DatabaseOptimizer {
     await db.customStatement('ANALYZE');
 
     if (kDebugMode) {
-      debugPrint('✅ Database optimized (VACUUM + REINDEX)');
+      dlog('✅ Database optimized (VACUUM + REINDEX)');
     }
   }
 
   /// Get index statistics
-  static Future<Map<String, dynamic>> getIndexStats(local_db.AppDatabase db) async {
+  static Future<Map<String, dynamic>> getIndexStats(
+    local_db.AppDatabase db,
+  ) async {
     final result = await db.customSelect('''
       SELECT 
         tbl.name as table_name,

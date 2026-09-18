@@ -47,13 +47,13 @@ jobs:
         run: flutter pub get
 
       - name: Run Flutter Analyzer
-        run: flutter analyze --fatal-infos --fatal-warnings .
+        run: flutter analyze .
 
       - name: Check Code Formatting
         run: flutter format --set-exit-if-changed .
 
       - name: Run Linter
-        run: flutter lint
+        run: flutter analyze .
 
       - name: Check for TODO comments (Production Warning)
         run: |

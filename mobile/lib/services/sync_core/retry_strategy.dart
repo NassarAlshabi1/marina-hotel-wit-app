@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum RetryBackoffType { linear, exponential, fibonacci }
 
@@ -56,7 +56,8 @@ class RetryStrategy {
       case RetryBackoffType.exponential:
         // ✅ P1-12 fix: استخدام round() بدل toInt() لمنع بتر القيم
         final exponential = pow(config.backoffMultiplier, attemptNumber - 1);
-        final delayMs = (config.initialDelay.inMilliseconds * exponential).round();
+        final delayMs = (config.initialDelay.inMilliseconds * exponential)
+            .round();
         baseDelay = Duration(milliseconds: delayMs);
 
       case RetryBackoffType.fibonacci:
@@ -106,24 +107,27 @@ class RetryStrategy {
       attempt++;
 
       try {
-        debugPrint('🔄 [Retry] محاولة $attempt من ${config.maxAttempts}');
+        dlog(() => '🔄 [Retry] محاولة $attempt من ${config.maxAttempts}');
         return await operation();
       } catch (error) {
         lastError = error;
-        debugPrint('⚠️ [Retry] فشلت المحاولة $attempt: $error');
+        dlog(() => '⚠️ [Retry] فشلت المحاولة $attempt: $error');
 
         if (!shouldRetry(error)) {
-          debugPrint('❌ [Retry] الخطأ غير قابل لإعادة المحاولة');
+          dlog('❌ [Retry] الخطأ غير قابل لإعادة المحاولة');
           rethrow;
         }
 
         if (attempt >= config.maxAttempts) {
-          debugPrint('❌ [Retry] تم تجاوز الحد الأقصى للمحاولات');
+          dlog('❌ [Retry] تم تجاوز الحد الأقصى للمحاولات');
           rethrow;
         }
 
         final delay = calculateDelay(attempt);
-        debugPrint('⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية');
+        dlog(
+          () =>
+              '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية',
+        );
 
         if (onRetry != null) {
           onRetry(attempt, error);
@@ -143,9 +147,13 @@ class RetryStrategy {
     void Function(int attempt, dynamic error)? onRetry,
   }) async {
     try {
-      return await execute(operation: operation, shouldRetry: shouldRetry, onRetry: onRetry);
+      return await execute(
+        operation: operation,
+        shouldRetry: shouldRetry,
+        onRetry: onRetry,
+      );
     } catch (e) {
-      debugPrint('🔄 [Retry] استخدام القيمة الاحتياطية بعد فشل جميع المحاولات');
+      dlog('🔄 [Retry] استخدام القيمة الاحتياطية بعد فشل جميع المحاولات');
       return fallback();
     }
   }

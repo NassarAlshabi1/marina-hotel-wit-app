@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/sync_notification_manager.dart';
 
 void main() {
-  testWidgets('showSyncSuccess builds overlay with correct text', (tester) async {
+  testWidgets('showSyncSuccess builds overlay with correct text', (
+    tester,
+  ) async {
     final key = GlobalKey();
     await tester.pumpWidget(MaterialApp(home: Scaffold(key: key)));
     SyncNotificationManager.showSyncSuccess(
@@ -18,11 +20,17 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
   });
 
-  testWidgets('showSyncError builds overlay and retry button works', (tester) async {
+  testWidgets('showSyncError builds overlay and retry button works', (
+    tester,
+  ) async {
     final key = GlobalKey();
     var retried = false;
     await tester.pumpWidget(MaterialApp(home: Scaffold(key: key)));
-    SyncNotificationManager.showSyncError(key.currentContext!, error: 'fail', onRetry: () => retried = true);
+    SyncNotificationManager.showSyncError(
+      key.currentContext!,
+      error: 'fail',
+      onRetry: () => retried = true,
+    );
     await tester.pump();
     expect(find.textContaining('fail'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.refresh));

@@ -23,7 +23,13 @@ class _AppBottomNavShellState extends State<AppBottomNavShell> {
   int _index = 0;
 
   // ✅ pages تُنشأ مرة واحدة فقط — IndexedStack يُبقيها حية
-  final _pages = const [DashboardScreen(), BookingsListScreen(), RoomsMainScreen(), ReportsScreen(), SettingsScreen()];
+  final _pages = const [
+    DashboardScreen(),
+    BookingsListScreen(),
+    RoomsMainScreen(),
+    ReportsScreen(),
+    SettingsScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +56,10 @@ class _AppBottomNavShellState extends State<AppBottomNavShell> {
       iconSize: 22,
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'الرئيسية'),
-        BottomNavigationBarItem(icon: Icon(Icons.assignment), label: 'الحجوزات'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.assignment),
+          label: 'الحجوزات',
+        ),
         BottomNavigationBarItem(icon: Icon(Icons.bed), label: 'الغرف'),
         BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
         BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),

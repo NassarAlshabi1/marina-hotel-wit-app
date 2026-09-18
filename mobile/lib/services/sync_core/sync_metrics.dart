@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// معلومات دورة مزامنة واحدة
 class SyncSession {
@@ -16,7 +16,9 @@ class SyncSession {
 
   factory SyncSession.fromJson(Map<String, dynamic> json) => SyncSession(
     startTime: DateTime.parse(json['startTime'] as String),
-    endTime: json['endTime'] != null ? DateTime.parse(json['endTime'] as String) : null,
+    endTime: json['endTime'] != null
+        ? DateTime.parse(json['endTime'] as String)
+        : null,
     success: json['success'] as bool? ?? false,
     error: json['error'] as String?,
     recordsSynced: (json['recordsSynced'] as num?)?.toInt() ?? 0,
@@ -117,7 +119,7 @@ class SyncMetrics {
   /// بدء دورة مزامنة جديدة
   void startSync() {
     _currentSession = SyncSession(startTime: DateTime.now());
-    debugPrint('📊 SyncMetrics: بدأت دورة مزامنة جديدة');
+    dlog('📊 SyncMetrics: بدأت دورة مزامنة جديدة');
   }
 
   /// تسجيل نجاح المزامنة
@@ -137,9 +139,10 @@ class SyncMetrics {
     _addToHistory(session);
     _updateStats();
 
-    debugPrint(
-      '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
-      'السجلات: $recordsSynced، التضارب: $conflictsResolved',
+    dlog(
+      () =>
+          '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
+          'السجلات: $recordsSynced، التضارب: $conflictsResolved',
     );
   }
 
@@ -158,7 +161,10 @@ class SyncMetrics {
     _addToHistory(session);
     _updateStats();
 
-    debugPrint('❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error');
+    dlog(
+      () =>
+          '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',
+    );
   }
 
   /// إضافة إلى السجل
@@ -195,7 +201,10 @@ class SyncMetrics {
     final successful = _history.where((s) => s.success).toList();
     final failed = _history.where((s) => !s.success).toList();
 
-    final totalDuration = _history.fold<Duration>(Duration.zero, (sum, session) => sum + session.duration);
+    final totalDuration = _history.fold<Duration>(
+      Duration.zero,
+      (sum, session) => sum + session.duration,
+    );
 
     final avgDuration = totalDuration ~/ _history.length;
 
@@ -206,7 +215,10 @@ class SyncMetrics {
       averageDuration: avgDuration,
       successRate: successful.length / _history.length,
       totalRecordsSynced: _history.fold(0, (sum, s) => sum + s.recordsSynced),
-      totalConflictsResolved: _history.fold(0, (sum, s) => sum + s.conflictsResolved),
+      totalConflictsResolved: _history.fold(
+        0,
+        (sum, s) => sum + s.conflictsResolved,
+      ),
       lastSync: _history.last,
     );
   }
@@ -218,7 +230,7 @@ class SyncMetrics {
       final jsonList = _history.map((s) => jsonEncode(s.toJson())).toList();
       await prefs.setStringList(_prefsKey, jsonList);
     } catch (e) {
-      debugPrint('⚠️ SyncMetrics: فشل حفظ السجل: $e');
+      dlog(() => '⚠️ SyncMetrics: فشل حفظ السجل: $e');
     }
   }
 
@@ -230,14 +242,16 @@ class SyncMetrics {
 
       _history.clear();
       for (final jsonStr in jsonList) {
-        final session = SyncSession.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
+        final session = SyncSession.fromJson(
+          jsonDecode(jsonStr) as Map<String, dynamic>,
+        );
         _history.add(session);
       }
 
-      debugPrint('📊 SyncMetrics: تم تحميل ${_history.length} سجل');
+      dlog(() => '📊 SyncMetrics: تم تحميل ${_history.length} سجل');
       _updateStats();
     } catch (e) {
-      debugPrint('⚠️ SyncMetrics: فشل تحميل السجل: $e');
+      dlog(() => '⚠️ SyncMetrics: فشل تحميل السجل: $e');
     }
   }
 
@@ -247,7 +261,7 @@ class SyncMetrics {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKey);
     _updateStats();
-    debugPrint('🗑️ SyncMetrics: تم مسح السجل');
+    dlog('🗑️ SyncMetrics: تم مسح السجل');
   }
 
   /// تنظيف الموارد

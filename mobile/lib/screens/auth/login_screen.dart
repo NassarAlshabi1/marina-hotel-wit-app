@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
 
@@ -19,7 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
   bool _submitting = false;
-  bool _rememberMe = false;
+  bool _rememberMe = true;
 
   @override
   void initState() {
@@ -58,6 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Card(
+                  elevation: isLowEndDevice ? 0 : null,
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Form(
@@ -67,16 +69,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.lock, size: 28, color: AppColors.primaryColor),
+                              Icon(
+                                Icons.lock,
+                                size: 28,
+                                color: AppColors.primaryColor,
+                              ),
                               SizedBox(width: 8),
-                              Text('تسجيل الدخول', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              Text(
+                                'تسجيل الدخول',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _usernameCtrl,
-                            decoration: const InputDecoration(labelText: 'اسم المستخدم', hintText: 'أدخل اسم المستخدم'),
-                            validator: (v) => (v == null || v.trim().isEmpty) ? 'يرجى إدخال اسم المستخدم' : null,
+                            decoration: const InputDecoration(
+                              labelText: 'اسم المستخدم',
+                              hintText: 'أدخل اسم المستخدم',
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'يرجى إدخال اسم المستخدم'
+                                : null,
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
@@ -86,25 +103,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               labelText: 'كلمة المرور',
                               hintText: 'أدخل كلمة المرور',
                               suffixIcon: IconButton(
-                                icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
-                                onPressed: () => setState(() => _obscure = !_obscure),
+                                icon: Icon(
+                                  _obscure
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                ),
+                                onPressed: () =>
+                                    setState(() => _obscure = !_obscure),
                               ),
                             ),
-                            validator: (v) => (v == null || v.isEmpty) ? 'يرجى إدخال كلمة المرور' : null,
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'يرجى إدخال كلمة المرور'
+                                : null,
                           ),
                           const SizedBox(height: 8),
                           Row(
                             children: [
                               Checkbox(
                                 value: _rememberMe,
-                                onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                                onChanged: (value) => setState(
+                                  () => _rememberMe = value ?? false,
+                                ),
                               ),
                               const Text('تذكرني'),
                             ],
                           ),
                           const SizedBox(height: 8),
                           if (auth.error != null) ...[
-                            Text(auth.error!, style: const TextStyle(color: AppColors.dangerColor)),
+                            Text(
+                              auth.error!,
+                              style: const TextStyle(
+                                color: AppColors.dangerColor,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                           ],
                           ElevatedButton(
@@ -113,7 +144,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ? const SizedBox(
                                     height: 18,
                                     width: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
                                   )
                                 : const Text('دخول'),
                           ),
@@ -135,7 +169,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
     setState(() => _submitting = true);
-    await ref.read(authProvider.notifier).login(_usernameCtrl.text.trim(), _passwordCtrl.text, rememberMe: _rememberMe);
+    await ref
+        .read(authProvider.notifier)
+        .login(
+          _usernameCtrl.text.trim(),
+          _passwordCtrl.text,
+          rememberMe: _rememberMe,
+        );
     if (!mounted) {
       return;
     }

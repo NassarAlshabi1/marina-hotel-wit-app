@@ -11,20 +11,21 @@ import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
+import '../inventory/inventory_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
-import 'data_protection_screen.dart';
 import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'remote_config_settings_screen.dart';
-import 'secondary_appwrite_settings_screen.dart';
 import 'settings_custom_lists.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_maintenance.dart';
 import 'settings_users.dart';
+import 'sync/unified_sync_settings_screen.dart';
 import 'sync_health/sync_health_screen.dart';
+import 'telegram_settings_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
 import 'whatsapp_settings_screen.dart';
 
@@ -60,9 +61,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: Column(
         children: [
           // ✅ بطاقة الإحصائيات السريعة
-          _buildQuickStatsCard(context, roomsAsync, bookingsAsync, employeesAsync, usersCountAsync),
+          _buildQuickStatsCard(
+            context,
+            roomsAsync,
+            bookingsAsync,
+            employeesAsync,
+            usersCountAsync,
+          ),
 
-          // ✅ المحتوى: الأقسام مع CustomScrollView + RepaintBoundary
+          // ✅ العرض السابق: الأقسام ظاهرة دائماً بدون طيّ.
+          // يحافظ ذلك على قابلية اكتشاف كل الوظائف مع إبقاء التمرير واحداً.
           Expanded(
             child: CustomScrollView(
               slivers: [
@@ -70,22 +78,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: RepaintBoundary(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
-                          _buildSettingsGrid(context, _getSectionItems(context, 'data')),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
-                          _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('واتساب والإشعارات', Icons.notifications),
-                          _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('التطبيق', Icons.apps),
-                          _buildSettingsGrid(context, _getSectionItems(context, 'app')),
-                        ],
-                      ),
+                      child: _buildSettingsContent(context),
                     ),
                   ),
                 ),
@@ -94,6 +87,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSettingsContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
+        _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
+        _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('الإشعارات والتقارير', Icons.notifications),
+        _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('التطبيق والخدمات', Icons.apps),
+        _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+      ],
     );
   }
 
@@ -120,17 +132,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Colors.blue,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const SettingsEmployeesScreen()),
-            ),
-          ),
-          _SettingsItem(
-            title: 'إدارة الضيوف',
-            subtitle: 'عرض تاريخ وإحصائيات الضيوف',
-            icon: Icons.person,
-            color: Colors.green,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(builder: (context) => const SettingsGuestsScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const SettingsEmployeesScreen(),
+              ),
             ),
           ),
           _SettingsItem(
@@ -140,7 +144,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Colors.purple,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const SettingsUsersScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const SettingsUsersScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'إدارة الضيوف',
+            subtitle: 'عرض تاريخ وإحصائيات الضيوف',
+            icon: Icons.person,
+            color: Colors.green,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const SettingsGuestsScreen(),
+              ),
             ),
           ),
           _SettingsItem(
@@ -150,7 +168,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Colors.teal,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const SettingsCustomListsScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const SettingsCustomListsScreen(),
+              ),
             ),
           ),
           _SettingsItem(
@@ -160,7 +180,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Colors.orange,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const SettingsMaintenanceScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const SettingsMaintenanceScreen(),
+              ),
             ),
           ),
           _SettingsItem(
@@ -168,71 +190,88 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: 'إضافة/إدارة الأشخاص المطلوبين',
             icon: Icons.gavel,
             color: Colors.red,
-            onTap: () =>
-                Navigator.push<void>(context, MaterialPageRoute<void>(builder: (context) => const BlacklistScreen())),
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const BlacklistScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'المخزون',
+            subtitle: 'الأصناف والرصيد والوارد والصرف والجرد',
+            icon: Icons.inventory_2,
+            color: Colors.brown,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const InventoryScreen(),
+              ),
+            ),
           ),
         ];
 
       case 'sync':
         return [
           _SettingsItem(
-            title: 'Google Drive',
-            subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
-            icon: Icons.cloud,
+            title: 'المزامنة بين الأجهزة',
+            subtitle: 'التحكم في مزامنة Appwrite والأداء والشبكة',
+            icon: Icons.sync,
             color: Colors.blue,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const GoogleDriveBackupScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const UnifiedSyncSettingsScreen(),
+              ),
             ),
           ),
           _SettingsItem(
-            title: 'Appwrite',
-            subtitle: 'المزامنة السحابية',
-            icon: Icons.cloud_sync,
-            color: Colors.pink,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(builder: (context) => const AppwriteSettingsScreen()),
-            ),
-          ),
-          // ✅ جديد: Appwrite الثانوي (نسخة احتياطية)
-          _SettingsItem(
-            title: 'Appwrite الثانوي',
-            subtitle: 'نسخة احتياطية للوجهة الثانوية',
-            icon: Icons.cloud_queue,
-            color: Colors.deepPurple,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(builder: (context) => const SecondaryAppwriteSettingsScreen()),
-            ),
-          ),
-          // ✅ جديد: زر حالة المزامنة
-          _SettingsItem(
-            title: 'حالة المزامنة',
-            subtitle: 'مراقبة صحة النظام',
-            icon: Icons.health_and_safety,
-            color: Colors.green,
-            onTap: () =>
-                Navigator.push<void>(context, MaterialPageRoute<void>(builder: (context) => const SyncHealthScreen())),
-          ),
-          _SettingsItem(
-            title: 'النسخ الاحتياطي',
-            subtitle: 'محلي · Google Drive · Appwrite',
+            title: 'النسخ الاحتياطي والاستعادة',
+            subtitle: 'نسخ محلية آمنة ومزامنة Appwrite',
             icon: Icons.backup,
             color: Colors.deepOrange,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const backup_v2.ComprehensiveBackupScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) =>
+                    const backup_v2.ComprehensiveBackupScreen(),
+              ),
             ),
           ),
           _SettingsItem(
-            title: 'حماية البيانات',
-            subtitle: 'إعدادات المزامنة (Push/Pull)',
-            icon: Icons.security,
+            title: 'Appwrite',
+            subtitle: 'الاتصال السحابي والأجهزة والسجلات والتخزين المؤقت',
+            icon: Icons.cloud_sync,
+            color: Colors.pink,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const AppwriteSettingsScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'حالة المزامنة',
+            subtitle: 'مراقبة صحة النظام والعمليات المعلقة',
+            icon: Icons.health_and_safety,
+            color: Colors.green,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const SyncHealthScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'النسخ الاحتياطي - Google Drive',
+            subtitle: 'نسخ احتياطي واستعادة من Google Drive',
+            icon: Icons.cloud_upload,
             color: Colors.teal,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const DataProtectionScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const GoogleDriveBackupScreen(),
+              ),
             ),
           ),
         ];
@@ -253,7 +292,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Colors.blue,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const ActiveBookingsReminderScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const ActiveBookingsReminderScreen(),
+              ),
             ),
           ),
           _SettingsItem(
@@ -263,27 +304,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Colors.red,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const LatePaymentWhatsAppScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const LatePaymentWhatsAppScreen(),
+              ),
             ),
           ),
           _SettingsItem(
-            title: 'رسالة الواتساب',
-            subtitle: 'تخصيص نص رسالة الدفع',
+            title: 'ربط وقوالب WhatsApp',
+            subtitle: 'إعداد الاتصال وتخصيص نص رسالة الدفع',
             icon: Icons.message,
             color: Colors.green,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const WhatsAppSettingsScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const WhatsAppSettingsScreen(),
+              ),
             ),
           ),
           _SettingsItem(
-            title: 'واتساب',
-            subtitle: 'الإشعارات الفورية والتقارير اليومية',
+            title: 'إشعارات وتقارير WhatsApp',
+            subtitle: 'تفعيل الأحداث الفورية والملخص اليومي',
             icon: Icons.chat,
             color: const Color(0xFF25D366),
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const WhatsAppDailyReportScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const WhatsAppDailyReportScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'Telegram',
+            subtitle: 'إعداد البوت وإشعارات الأحداث والتقرير اليومي',
+            icon: Icons.send,
+            color: Colors.lightBlue,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const TelegramSettingsScreen(),
+              ),
             ),
           ),
         ];
@@ -302,8 +361,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: 'Gemini AI - تحكم ذكي بالبيانات',
             icon: Icons.smart_toy,
             color: Colors.amber.shade700,
-            onTap: () =>
-                Navigator.push<void>(context, MaterialPageRoute<void>(builder: (context) => const AiChatScreen())),
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const AiChatScreen(),
+              ),
+            ),
           ),
           _SettingsItem(
             title: 'Crashlytics',
@@ -319,7 +382,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Colors.blue.shade700,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const RemoteConfigSettingsScreen()),
+              MaterialPageRoute<void>(
+                builder: (context) => const RemoteConfigSettingsScreen(),
+              ),
             ),
           ),
           _SettingsItem(
@@ -356,9 +421,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.dashboard, color: Theme.of(context).primaryColor, size: 18),
+                Icon(
+                  Icons.dashboard,
+                  color: Theme.of(context).primaryColor,
+                  size: 18,
+                ),
                 const SizedBox(width: 6),
-                const Text('إحصائيات سريعة', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                const Text(
+                  'إحصائيات سريعة',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -375,7 +447,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Expanded(
                   child: _buildStatItem(
                     'النشطة',
-                    bookingsAsync.value?.where((b) => StatusUtils.isActiveBooking(b.status)).length.toString() ?? '---',
+                    bookingsAsync.value
+                            ?.where(
+                              (b) => StatusUtils.isActiveBooking(b.status),
+                            )
+                            .length
+                            .toString() ??
+                        '---',
                     Icons.assignment,
                     Colors.green,
                   ),
@@ -404,14 +482,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildStatItem(String title, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 20),
         const SizedBox(height: 4),
         Text(
           value,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
         Text(
           title,
@@ -431,9 +518,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           Icon(icon, color: Colors.blue, size: 24),
           const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
           ),
         ],
       ),
@@ -443,50 +538,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // ─── شبكة الإعدادات ───
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
-    const crossAxisCount = 3;
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        mainAxisExtent: 130,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return Card(
-          elevation: 2,
-          child: InkWell(
-            onTap: item.onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, size: 20, color: item.color),
-                  const SizedBox(height: 8),
-                  Text(
-                    item.title,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.subtitle,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // نفس تخطيط فرع A: بطاقات صغيرة ثابتة بثلاثة أعمدة.
+        const crossAxisCount = 3;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            mainAxisExtent: 130,
           ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return Card(
+              elevation: 1,
+              child: InkWell(
+                onTap: item.onTap,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(item.icon, size: 20, color: item.color),
+                      const SizedBox(height: 8),
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -512,10 +618,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('إعادة إرسال التقرير'),
-          content: const Text('تم إقفال اليوم بالفعل. هل تريد إعادة إرسال التقرير؟'),
+          content: const Text(
+            'تم إقفال اليوم بالفعل. هل تريد إعادة إرسال التقرير؟',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إعادة الإرسال')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إعادة الإرسال'),
+            ),
           ],
         ),
       );
@@ -538,8 +652,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             'هل تريد المتابعة؟',
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إقفال وإرسال')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('إقفال وإرسال'),
+            ),
           ],
         ),
       );
@@ -555,7 +675,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
             ),
             SizedBox(width: 12),
             Text('جاري إقفال اليوم وإرسال التقرير...'),
@@ -594,12 +717,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   secondary: const Icon(Icons.dark_mode),
                   title: const Text('المظهر الداكن'),
                   value: isDark,
-                  onChanged: (v) => ref.read(themeSettingsProvider.notifier).setDarkMode(v),
+                  onChanged: (v) =>
+                      ref.read(themeSettingsProvider.notifier).setDarkMode(v),
                 ),
                 // ✅ تم إزالة عنصر "اللغة" الجامد — لم يكن функциaly
               ],
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
+            ],
           );
         },
       ),
@@ -654,7 +783,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Row(
                     children: [
                       Icon(statusIcon, color: statusColor),
@@ -662,7 +794,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       Expanded(
                         child: Text(
                           statusText,
-                          style: TextStyle(fontWeight: FontWeight.bold, color: statusColor),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
                         ),
                       ),
                     ],
@@ -672,17 +807,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'الاتصال بـ Firebase غير متوفر. الأخطاء تُسجل محلياً فقط.',
-                    style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange.shade700,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 16),
-                Text('الأخطاء المسجلة: $errorCount', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(
+                  'الأخطاء المسجلة: $errorCount',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 if (history.isEmpty)
                   const Center(
                     child: Padding(
                       padding: EdgeInsets.all(16),
-                      child: Text('لا توجد أخطاء مسجلة', style: TextStyle(color: Colors.grey)),
+                      child: Text(
+                        'لا توجد أخطاء مسجلة',
+                        style: TextStyle(color: Colors.grey),
+                      ),
                     ),
                   )
                 else
@@ -706,21 +853,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: color.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   severity.toUpperCase(),
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   '${entry['source']} — ${entry['action']}',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -729,13 +886,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           const SizedBox(height: 4),
                           Text(
                             '${entry['error']}',
-                            style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade700,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
                             entry['timestamp']?.toString() ?? '',
-                            style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                            ),
                           ),
                         ],
                       ),
@@ -752,7 +915,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (context.mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('تم إرسال التقارير المعلقة'), backgroundColor: Colors.green),
+                  const SnackBar(
+                    content: Text('تم إرسال التقارير المعلقة'),
+                    backgroundColor: Colors.green,
+                  ),
                 );
               }
             },
@@ -763,11 +929,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: () {
                 crashlytics.clearErrorHistory();
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم مسح سجل الأخطاء')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم مسح سجل الأخطاء')),
+                );
               },
-              child: const Text('مسح السجل', style: TextStyle(color: Colors.red)),
+              child: const Text(
+                'مسح السجل',
+                style: TextStyle(color: Colors.red),
+              ),
             ),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
         ],
       ),
     );

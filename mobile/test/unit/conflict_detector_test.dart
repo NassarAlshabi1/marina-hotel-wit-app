@@ -37,13 +37,17 @@ void main() {
         expect(result.type, equals(ConflictType.deleteVsUpdate));
       });
 
-      test('noConflictRemoteNewer when remote deleted, local not', () {
+      // ✅ P0-4 Audit Fix (2026-08-06): تماثل سياسة الحذف.
+      // سابقاً، كان هذا يُرجع `noConflictRemoteNewer` (يُطبّق الحذف البعيد
+      // ويُفقد التحديث المحلي). الآن يُرجع `deleteVsUpdate` ليُعالجه
+      // SmartConflictResolver بقرار واعٍ بدلاً من تطبيق الحذف صامتاً.
+      test('deleteVsUpdate when remote deleted, local not (P0-4 fix)', () {
         final result = ConflictDetector.detect(
           localData: {'status': 'active'},
           remoteData: {'deletedAt': 1000},
           commonAncestor: null,
         );
-        expect(result.type, equals(ConflictType.noConflictRemoteNewer));
+        expect(result.type, equals(ConflictType.deleteVsUpdate));
       });
 
       test('noConflictEqual when VCs are identical', () {
@@ -87,7 +91,12 @@ void main() {
             'cleaningStatus': 'clean', // remote did NOT change (ancestor=clean)
             'price': 150.0, // remote changed this
           },
-          commonAncestor: {'vectorClock': '{}', 'status': 'active', 'cleaningStatus': 'clean', 'price': 100.0},
+          commonAncestor: {
+            'vectorClock': '{}',
+            'status': 'active',
+            'cleaningStatus': 'clean',
+            'price': 100.0,
+          },
         );
         // local changed cleaningStatus, remote changed price → no overlap → concurrentDifferentFields
         expect(result.type, equals(ConflictType.concurrentDifferentFields));
@@ -95,8 +104,14 @@ void main() {
 
       test('concurrentSameFields when VCs diverge and same field changed', () {
         final result = ConflictDetector.detect(
-          localData: {'vectorClock': '{"d1": 1, "d2": 0}', 'status': 'local_status'},
-          remoteData: {'vectorClock': '{"d1": 0, "d2": 1}', 'status': 'remote_status'},
+          localData: {
+            'vectorClock': '{"d1": 1, "d2": 0}',
+            'status': 'local_status',
+          },
+          remoteData: {
+            'vectorClock': '{"d1": 0, "d2": 1}',
+            'status': 'remote_status',
+          },
           commonAncestor: {'vectorClock': '{}', 'status': 'original_status'},
         );
         expect(result.type, equals(ConflictType.concurrentSameFields));
@@ -165,7 +180,8 @@ void main() {
             'status': 'active', // unchanged
           },
           remoteData: {
-            'vectorClock': '{"d1": 0, "d2": 1}', // remote newer on d2 → concurrent
+            'vectorClock':
+                '{"d1": 0, "d2": 1}', // remote newer on d2 → concurrent
             'status': 'active',
           },
           commonAncestor: {'vectorClock': '{}', 'status': 'active'},
@@ -175,7 +191,10 @@ void main() {
         // → no conflicting fields → concurrentDifferentFields
         expect(
           result.type,
-          anyOf(equals(ConflictType.concurrentDifferentFields), equals(ConflictType.concurrentSameFields)),
+          anyOf(
+            equals(ConflictType.concurrentDifferentFields),
+            equals(ConflictType.concurrentSameFields),
+          ),
         );
         // vectorClock should NOT be in conflicting fields
         expect(result.conflictingFields, isNot(contains('vectorClock')));
@@ -196,26 +215,60 @@ void main() {
 
       test('lastModified is excluded from changed fields', () {
         final result = ConflictDetector.detect(
-          localData: {'vectorClock': '{"d1": 2}', 'lastModified': 2000, 'status': 'active'},
-          remoteData: {'vectorClock': '{"d1": 1}', 'lastModified': 1000, 'status': 'active'},
-          commonAncestor: {'vectorClock': '{"d1": 1}', 'lastModified': 1000, 'status': 'active'},
+          localData: {
+            'vectorClock': '{"d1": 2}',
+            'lastModified': 2000,
+            'status': 'active',
+          },
+          remoteData: {
+            'vectorClock': '{"d1": 1}',
+            'lastModified': 1000,
+            'status': 'active',
+          },
+          commonAncestor: {
+            'vectorClock': '{"d1": 1}',
+            'lastModified': 1000,
+            'status': 'active',
+          },
         );
         expect(result.conflictingFields, isNot(contains('lastModified')));
       });
 
       test('version is excluded from changed fields', () {
         final result = ConflictDetector.detect(
-          localData: {'vectorClock': '{"d1": 2}', 'version': 5, 'status': 'active'},
-          remoteData: {'vectorClock': '{"d1": 1}', 'version': 3, 'status': 'active'},
-          commonAncestor: {'vectorClock': '{"d1": 1}', 'version': 3, 'status': 'active'},
+          localData: {
+            'vectorClock': '{"d1": 2}',
+            'version': 5,
+            'status': 'active',
+          },
+          remoteData: {
+            'vectorClock': '{"d1": 1}',
+            'version': 3,
+            'status': 'active',
+          },
+          commonAncestor: {
+            'vectorClock': '{"d1": 1}',
+            'version': 3,
+            'status': 'active',
+          },
         );
         expect(result.conflictingFields, isNot(contains('version')));
       });
 
       test('metadata fields starting with \$ are excluded', () {
         final result = ConflictDetector.detect(
-          localData: {'vectorClock': '{"d1": 2}', r'$id': 'doc123', r'$updatedAt': '2024-01-01', 'status': 'active'},
-          remoteData: {'vectorClock': '{"d1": 1}', r'$id': 'doc123', r'$updatedAt': '2024-01-02', 'status': 'active'},
+          localData: {
+            'vectorClock': '{"d1": 2}',
+            r'$id': 'doc123',
+            r'$updatedAt': '2024-01-01',
+            'status': 'active',
+          },
+          remoteData: {
+            'vectorClock': '{"d1": 1}',
+            r'$id': 'doc123',
+            r'$updatedAt': '2024-01-02',
+            'status': 'active',
+          },
           commonAncestor: {
             'vectorClock': '{"d1": 1}',
             r'$id': 'doc123',
@@ -229,28 +282,46 @@ void main() {
     });
 
     group('ConflictDetectionResult', () {
-      test('needsManualResolution is true for concurrentSameFields with critical field', () {
-        final result = ConflictDetectionResult(type: ConflictType.concurrentSameFields, conflictingFields: {'amount'});
-        expect(result.needsManualResolution, isTrue);
-      });
+      test(
+        'needsManualResolution is true for concurrentSameFields with critical field',
+        () {
+          const result = ConflictDetectionResult(
+            type: ConflictType.concurrentSameFields,
+            conflictingFields: {'amount'},
+          );
+          expect(result.needsManualResolution, isTrue);
+        },
+      );
 
-      test('needsManualResolution is false for concurrentSameFields without critical field', () {
-        final result = ConflictDetectionResult(type: ConflictType.concurrentSameFields, conflictingFields: {'notes'});
-        expect(result.needsManualResolution, isFalse);
-      });
+      test(
+        'needsManualResolution is false for concurrentSameFields without critical field',
+        () {
+          const result = ConflictDetectionResult(
+            type: ConflictType.concurrentSameFields,
+            conflictingFields: {'notes'},
+          );
+          expect(result.needsManualResolution, isFalse);
+        },
+      );
 
       test('canAutoResolve is true for concurrentDifferentFields', () {
-        final result = ConflictDetectionResult(type: ConflictType.concurrentDifferentFields);
+        const result = ConflictDetectionResult(
+          type: ConflictType.concurrentDifferentFields,
+        );
         expect(result.canAutoResolve, isTrue);
       });
 
       test('canAutoResolve is true for deleteVsDelete', () {
-        const result = ConflictDetectionResult(type: ConflictType.deleteVsDelete);
+        const result = ConflictDetectionResult(
+          type: ConflictType.deleteVsDelete,
+        );
         expect(result.canAutoResolve, isTrue);
       });
 
       test('canAutoResolve is true for noConflictEqual', () {
-        const result = ConflictDetectionResult(type: ConflictType.noConflictEqual);
+        const result = ConflictDetectionResult(
+          type: ConflictType.noConflictEqual,
+        );
         expect(result.canAutoResolve, isTrue);
       });
     });

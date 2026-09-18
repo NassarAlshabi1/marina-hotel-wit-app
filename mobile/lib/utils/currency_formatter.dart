@@ -3,7 +3,10 @@ import 'package:intl/intl.dart';
 /// دوال تنسيق الأرقام المالية (بدون رموز عملة)
 class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
-  static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
+  static final NumberFormat _decimalFormatter = NumberFormat(
+    '#,##0.00',
+    'en_US',
+  );
 
   /// معالجة المبلغ المالي: **اقتطاع الكسور (بدون تقريب)**.
   ///
@@ -19,11 +22,11 @@ class CurrencyFormatter {
     return amount.ceil();
   }
 
-  /// تنسيق المبلغ بالفواصل فقط (5,000)
+  /// تنسيق المبلغ بالفواصل فقط (5,000)، وفق سياسة الفندق بدون كسور.
+  ///
+  /// `showDecimals` متروك للتوافق مع الاستدعاءات القديمة، لكنه لا يغيّر
+  /// النتيجة؛ المبالغ تعرض دائماً كأعداد صحيحة.
   static String formatCurrency(double amount, {bool showDecimals = false}) {
-    if (showDecimals) {
-      return _decimalFormatter.format(amount);
-    }
     return _intFormatter.format(_roundAmount(amount));
   }
 
@@ -32,8 +35,10 @@ class CurrencyFormatter {
       formatCurrency(amount, showDecimals: showDecimals);
 
   /// تنسيق المبلغ بالفواصل — مرادف لـ formatCurrency (للحفاظ على التوافق)
-  static String formatCurrencyEnglish(double amount, {bool showDecimals = false}) =>
-      formatCurrency(amount, showDecimals: showDecimals);
+  static String formatCurrencyEnglish(
+    double amount, {
+    bool showDecimals = false,
+  }) => formatCurrency(amount, showDecimals: showDecimals);
 
   /// تنسيق المبلغ للعرض — مرادف لـ formatCurrency
   static String formatForDisplay(double amount, {bool showDecimals = false}) =>
@@ -51,7 +56,11 @@ class CurrencyFormatter {
   static double? parseAmount(String text) {
     var cleanText = text.trim();
 
-    cleanText = cleanText.replaceAll('٬', '').replaceAll('،', '').replaceAll(',', '').replaceAll('٫', '.');
+    cleanText = cleanText
+        .replaceAll('٬', '')
+        .replaceAll('،', '')
+        .replaceAll(',', '')
+        .replaceAll('٫', '.');
 
     const digitMap = {
       '٠': '0',
@@ -86,7 +95,9 @@ class CurrencyFormatter {
     return _roundAmount(parsed).toDouble();
   }
 
-  /// إنشاء NumberFormat للاستخدام المتكرر
+  /// إنشاء NumberFormat للاستخدام المتكرر.
   static NumberFormat get defaultFormatter => _intFormatter;
+
+  /// متاح للتوافق مع الإصدارات السابقة، ولا ينبغي استخدامه لعرض مبالغ الفندق.
   static NumberFormat get decimalFormatter => _decimalFormatter;
 }

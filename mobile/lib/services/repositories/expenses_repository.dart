@@ -22,14 +22,21 @@ class ExpensesRepository {
   late final ExpensesDao dao;
 
   Stream<List<Expense>> watchAll() => dao.watchList();
-  Stream<List<Expense>> watchByHotelDayKey(String hotelDayKey) => dao.watchByHotelDayKey(hotelDayKey);
+  Stream<List<Expense>> watchByHotelDayKey(String hotelDayKey) =>
+      dao.watchByHotelDayKey(hotelDayKey);
   Stream<Expense?> watchOne(int id) => dao.watchById(id);
-  Future<List<Expense>> listFiltered({String? from, String? to, String? expenseType}) =>
-      dao.listFiltered(from: from, to: to, expenseType: expenseType);
+  Future<List<Expense>> listFiltered({
+    String? from,
+    String? to,
+    String? expenseType,
+  }) => dao.listFiltered(from: from, to: to, expenseType: expenseType);
 
   /// البحث المتقدم مع دعم البحث النصي في الوصف ونوع المصروف
-  Future<List<Expense>> listWithSearch({String? search, String? from, String? to}) =>
-      dao.list(search: search, from: from, to: to);
+  Future<List<Expense>> listWithSearch({
+    String? search,
+    String? from,
+    String? to,
+  }) => dao.list(search: search, from: from, to: to);
 
   /// فلترة بـ hotelDayKey مع دعم البحث النصي — الطريقة الدقيقة
   Future<List<Expense>> listFilteredByHotelDay({
@@ -61,10 +68,14 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: استخدام hotelDayKey الممرّر إن وُجد، وإلا حسابه
-      // - للمصروفات الجديدة: يُمرّر HotelTimeEngine.getHotelDayKey() (اليوم الفندقي الحالي)
-      // - للمصروفات القديمة / الاستيراد: يُحسب من التاريخ التقويمي
-      final effectiveHotelDayKey = hotelDayKey ?? _hotelDayKeyFromCalendarDate(normalizedDate);
+      // التاريخ الذي يحمل وقتاً يحدد يومه الفندقي الحقيقي. أما التاريخ
+      // التقويمي فقط فهو اختيار مستخدم لليوم نفسه ويعامل عند 14:01.
+      final effectiveHotelDayKey =
+          hotelDayKey ??
+          _hotelDayKeyForExpenseDate(
+            sourceDate: date,
+            calendarDate: normalizedDate,
+          );
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -78,7 +89,13 @@ class ExpensesRepository {
               : const d.Value.absent(),
         ),
       );
-      unawaited(AutoBackupManager.instance.onDataChange('expenses', 'INSERT', recordData: {'amount': amount}));
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
+          'expenses',
+          'INSERT',
+          recordData: {'amount': amount},
+        ),
+      );
       unawaited(
         WhatsAppNotificationService.instance.notifyNewExpense(
           category: expenseType,
@@ -117,8 +134,10 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: استخدام _hotelDayKeyFromCalendarDate لضمان الاتساق مع create/update
-      final hotelDayKey = _hotelDayKeyFromCalendarDate(normalizedDate);
+      final hotelDayKey = _hotelDayKeyForExpenseDate(
+        sourceDate: date,
+        calendarDate: normalizedDate,
+      );
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -164,22 +183,38 @@ class ExpensesRepository {
     // - مرّر سلسلة فارغة '' لمسح employeeUuid (عند التحويل من راتب إلى غير راتب).
     // - مرّر null لترك القيمة الحالية دون تغيير (سلوك التوافق للخلف).
     String? employeeUuid,
+    bool originIsServer = false,
   }) async {
     try {
-      final normalizedDate = date != null ? Time.safeIsoToDateString(date) : null;
+      final normalizedDate = date != null
+          ? Time.safeIsoToDateString(date)
+          : null;
       final result = await dao.updateById(
         id,
         ExpensesCompanion(
-          expenseType: expenseType != null ? d.Value(expenseType) : const d.Value.absent(),
-          relatedId: relatedId != null ? d.Value(relatedId) : const d.Value.absent(),
-          description: description != null ? d.Value(description) : const d.Value.absent(),
+          expenseType: expenseType != null
+              ? d.Value(expenseType)
+              : const d.Value.absent(),
+          relatedId: relatedId != null
+              ? d.Value(relatedId)
+              : const d.Value.absent(),
+          description: description != null
+              ? d.Value(description)
+              : const d.Value.absent(),
           amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-          date: normalizedDate != null ? d.Value(normalizedDate) : const d.Value.absent(),
-          // ✅ إصلاح: استخدام hotelDayKey الممرّر إن وُجد، وإلا حسابه من التاريخ
+          date: normalizedDate != null
+              ? d.Value(normalizedDate)
+              : const d.Value.absent(),
+          // يحترم وقت العملية إن زوّد المصدر سلسلة ISO كاملة.
           hotelDayKey: hotelDayKey != null
               ? d.Value(hotelDayKey)
               : date != null
-              ? d.Value(_hotelDayKeyFromCalendarDate(normalizedDate!))
+              ? d.Value(
+                  _hotelDayKeyForExpenseDate(
+                    sourceDate: date,
+                    calendarDate: normalizedDate!,
+                  ),
+                )
               : const d.Value.absent(),
           // ✅ التوصية 1: employeeUuid — فارغ = مسح، null = لا تغيير.
           employeeUuid: employeeUuid == null
@@ -188,9 +223,16 @@ class ExpensesRepository {
               ? const d.Value(null)
               : d.Value(employeeUuid),
         ),
+        originIsServer: originIsServer,
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('expenses', 'UPDATE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'expenses',
+            'UPDATE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -209,7 +251,13 @@ class ExpensesRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('expenses', 'DELETE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'expenses',
+            'DELETE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -237,7 +285,9 @@ class ExpensesRepository {
   /// استيراد بيانات المصروفات
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
+      await dao.importFromJson(
+        List<Map<String, dynamic>>.from(data['data'] as List),
+      );
     }
   }
 
@@ -268,7 +318,10 @@ class ExpensesRepository {
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM expenses '
           'WHERE deleted_at IS NULL AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND date LIKE ?))',
-          variables: [d.Variable.withString(hotelDayKey), d.Variable.withString('$hotelDayKey%')],
+          variables: [
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
           readsFrom: {db.expenses},
         )
         .getSingle();
@@ -283,7 +336,10 @@ class ExpensesRepository {
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM expenses '
           'WHERE deleted_at IS NULL AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND date LIKE ?))',
-          variables: [d.Variable.withString(hotelDayKey), d.Variable.withString('$hotelDayKey%')],
+          variables: [
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
           readsFrom: {db.expenses},
         )
         .watchSingle()
@@ -296,23 +352,58 @@ class ExpensesRepository {
   /// يُستدعى مرة واحدة عند تشغيل التطبيق لتصحيح البيانات التاريخية.
   Future<int> backfillHotelDayKeys() async {
     final allExpenses = await dao.list(includeDeleted: true);
-    int fixed = 0;
+    final toFix = <({int id, String localUuid, String correctKey})>[];
     for (final expense in allExpenses) {
-      if (expense.hotelDayKey == null || expense.hotelDayKey!.isEmpty) {
-        continue;
-      }
-      // ✅ إصلاح: استخدام _hotelDayKeyFromCalendarDate بدلاً من getHotelDayKeyFromIso
-      // لأن حقل date يخزن تاريخاً تقويمياً بدون وقت (yyyy-MM-dd)
-      // وتمريره مباشرة لـ getHotelDayKeyFromIso يُنتج اليوم الفندقي السابق خطأً
       final correctKey = _hotelDayKeyFromCalendarDate(expense.date);
-      if (expense.hotelDayKey != correctKey) {
-        await (db.update(
-          db.expenses,
-        )..where((t) => t.id.equals(expense.id))).write(ExpensesCompanion(hotelDayKey: d.Value(correctKey)));
-        fixed++;
+      if (expense.hotelDayKey == null ||
+          expense.hotelDayKey!.isEmpty ||
+          expense.hotelDayKey != correctKey) {
+        toFix.add((
+          id: expense.id,
+          localUuid: expense.localUuid,
+          correctKey: correctKey,
+        ));
       }
     }
-    return fixed;
+    if (toFix.isEmpty) return 0;
+
+    await db.transaction(() async {
+      for (final item in toFix) {
+        await (db.update(db.expenses)..where((t) => t.id.equals(item.id)))
+            .write(ExpensesCompanion(hotelDayKey: d.Value(item.correctKey)));
+      }
+
+      await outbox.mergeBatch(
+        toFix
+            .map(
+              (item) => <String, dynamic>{
+                'entity': 'expenses',
+                'op': 'update',
+                'localUuid': item.localUuid,
+                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                'clientTs': Time.nowEpoch(),
+              },
+            )
+            .toList(),
+      );
+    });
+
+    return toFix.length;
+  }
+
+  /// يشتق مفتاح اليوم الفندقي من وقت العملية متى كان متاحاً.
+  static String _hotelDayKeyForExpenseDate({
+    required String sourceDate,
+    required String calendarDate,
+  }) {
+    final source = sourceDate.trim();
+    final hasTime =
+        source.contains('T') ||
+        RegExp(r'^\d{4}-\d{2}-\d{2}\s+\d').hasMatch(source);
+    if (hasTime) {
+      return HotelTimeEngine.getHotelDayKeyFromIso(source);
+    }
+    return _hotelDayKeyFromCalendarDate(calendarDate);
   }
 
   /// حساب مفتاح اليوم الفندقي من تاريخ تقويمي (بدون وقت)
@@ -332,7 +423,9 @@ class ExpensesRepository {
       final year = int.tryParse(parts[0]) ?? 1;
       final month = int.tryParse(parts[1]) ?? 1;
       final day = int.tryParse(parts[2]) ?? 1;
-      return HotelTimeEngine.getHotelDayKey(dateTime: DateTime(year, month, day, 14, 1));
+      return HotelTimeEngine.getHotelDayKey(
+        dateTime: DateTime(year, month, day, 14, 1),
+      );
     } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
     }

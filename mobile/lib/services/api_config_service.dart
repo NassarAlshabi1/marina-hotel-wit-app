@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/env.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class ApiConfig {
   const ApiConfig({
@@ -22,7 +23,9 @@ class ApiConfig {
       receiveTimeout: json['receiveTimeout'] as int? ?? 20,
       enableLogging: json['enableLogging'] as bool? ?? false,
       useSsl: json['useSsl'] as bool? ?? true,
-      customHeaders: Map<String, String>.from((json['customHeaders'] ?? <String, dynamic>{}) as Map),
+      customHeaders: Map<String, String>.from(
+        (json['customHeaders'] ?? <String, dynamic>{}) as Map,
+      ),
     );
   }
   final String baseUrl;
@@ -80,7 +83,9 @@ class ApiConfigService {
   final List<ServerInfo> _serverList = [];
   List<ServerInfo> get serverList => List.unmodifiable(_serverList);
 
-  final ValueNotifier<ApiConfig> configNotifier = ValueNotifier(ApiConfig.defaultConfig);
+  final ValueNotifier<ApiConfig> configNotifier = ValueNotifier(
+    ApiConfig.defaultConfig,
+  );
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
@@ -91,7 +96,7 @@ class ApiConfigService {
         _currentConfig = ApiConfig.fromJson(json);
         configNotifier.value = _currentConfig;
       } catch (e) {
-        debugPrint('خطأ في تحميل إعدادات API: $e');
+        dlog(() => 'خطأ في تحميل إعدادات API: $e');
       }
     }
     await _loadServerList();
@@ -104,9 +109,11 @@ class ApiConfigService {
       try {
         final list = jsonDecode(serverListJson) as List;
         _serverList.clear();
-        _serverList.addAll(list.map((e) => ServerInfo.fromJson(e as Map<String, dynamic>)));
+        _serverList.addAll(
+          list.map((e) => ServerInfo.fromJson(e as Map<String, dynamic>)),
+        );
       } catch (e) {
-        debugPrint('خطأ في تحميل قائمة السيرفرات: $e');
+        dlog(() => 'خطأ في تحميل قائمة السيرفرات: $e');
       }
     }
   }
@@ -116,7 +123,7 @@ class ApiConfigService {
     configNotifier.value = config;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_configKey, jsonEncode(config.toJson()));
-    debugPrint('✅ تم حفظ إعدادات API: ${config.baseUrl}');
+    dlog(() => '✅ تم حفظ إعدادات API: ${config.baseUrl}');
   }
 
   Future<void> updateBaseUrl(String url) async {
@@ -128,7 +135,9 @@ class ApiConfigService {
   }
 
   Future<void> updateTimeouts({int? connect, int? receive}) async {
-    await saveConfig(_currentConfig.copyWith(connectTimeout: connect, receiveTimeout: receive));
+    await saveConfig(
+      _currentConfig.copyWith(connectTimeout: connect, receiveTimeout: receive),
+    );
   }
 
   Future<void> toggleLogging(bool enable) async {
@@ -151,8 +160,13 @@ class ApiConfigService {
   }
 
   Future<void> selectServer(String serverId) async {
-    final server = _serverList.firstWhere((s) => s.id == serverId, orElse: () => throw Exception('السيرفر غير موجود'));
-    await saveConfig(_currentConfig.copyWith(baseUrl: server.url, apiKey: server.apiKey));
+    final server = _serverList.firstWhere(
+      (s) => s.id == serverId,
+      orElse: () => throw Exception('السيرفر غير موجود'),
+    );
+    await saveConfig(
+      _currentConfig.copyWith(baseUrl: server.url, apiKey: server.apiKey),
+    );
   }
 
   Future<void> _saveServerList() async {
@@ -222,7 +236,14 @@ class ServerInfo {
     'isDefault': isDefault,
   };
 
-  ServerInfo copyWith({String? id, String? name, String? url, String? apiKey, DateTime? addedAt, bool? isDefault}) {
+  ServerInfo copyWith({
+    String? id,
+    String? name,
+    String? url,
+    String? apiKey,
+    DateTime? addedAt,
+    bool? isDefault,
+  }) {
     return ServerInfo(
       id: id ?? this.id,
       name: name ?? this.name,

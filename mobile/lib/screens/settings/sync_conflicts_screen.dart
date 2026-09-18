@@ -5,13 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/conflict_manager.dart';
 import '../../utils/performance_monitor.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// شاشة مراقبة التعارضات — تعرض التعارضات المعلقة وتسمح بحلها
 class SyncConflictsScreen extends ConsumerStatefulWidget {
   const SyncConflictsScreen({super.key});
 
   @override
-  ConsumerState<SyncConflictsScreen> createState() => _SyncConflictsScreenState();
+  ConsumerState<SyncConflictsScreen> createState() =>
+      _SyncConflictsScreenState();
 }
 
 class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
@@ -38,16 +40,20 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
         appBar: AppBar(
           title: const Text('تعارضات المزامنة'),
           actions: [
-            IconButton(icon: const Icon(Icons.refresh), onPressed: () => _conflictManager.loadPendingConflicts()),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => _conflictManager.loadPendingConflicts(),
+            ),
             IconButton(
               icon: const Icon(Icons.auto_delete),
               tooltip: 'حذف التعارضات المحلولة',
               onPressed: () async {
-                final deleted = await _conflictManager.deleteResolvedConflicts();
+                final deleted = await _conflictManager
+                    .deleteResolvedConflicts();
                 if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('تم حذف $deleted تعارضاً محلولاً')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('تم حذف $deleted تعارضاً محلولاً')),
+                  );
                 }
               },
             ),
@@ -62,14 +68,18 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
               if (snapshot.hasError) {
                 // 🔒 نسجّل التفاصيل التقنية في debugPrint فقط (للمطورين)، ولا نُظهرها
                 // للمستخدم — قد تحتوي على أسماء جداول/حقول داخلية أو رسائل Appwrite.
-                debugPrint('❌ sync_conflicts stream error: ${snapshot.error}');
+                dlog(() => '❌ sync_conflicts stream error: ${snapshot.error}');
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        const Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red,
+                        ),
                         const SizedBox(height: 16),
                         const Text(
                           'حدث خطأ أثناء تحميل التعارضات',
@@ -84,7 +94,8 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
-                          onPressed: () => _conflictManager.loadPendingConflicts(),
+                          onPressed: () =>
+                              _conflictManager.loadPendingConflicts(),
                           icon: const Icon(Icons.refresh),
                           label: const Text('إعادة المحاولة'),
                         ),
@@ -106,11 +117,21 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 64,
+                        color: Colors.green,
+                      ),
                       SizedBox(height: 16),
-                      Text('لا توجد تعارضات معلقة', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                      Text(
+                        'لا توجد تعارضات معلقة',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
                       SizedBox(height: 8),
-                      Text('جميع التعارضات تم حلها تلقائياً', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                      Text(
+                        'جميع التعارضات تم حلها تلقائياً',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
                     ],
                   ),
                 );
@@ -123,7 +144,10 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
                   itemBuilder: (context, index) {
                     final conflict = conflicts[index];
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       child: ExpansionTile(
                         title: Text(
                           '${conflict.table} — ${conflict.uuid.substring(0, 8)}...',
@@ -131,7 +155,10 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
                         ),
                         subtitle: Text(
                           '${conflict.resolution != null ? "محلول" : "معلق"} — ${_formatDate(conflict.detectedAt)}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
                         children: [
                           Padding(
@@ -139,13 +166,25 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('البيانات المحلية:', style: TextStyle(fontWeight: FontWeight.bold)),
+                                const Text(
+                                  'البيانات المحلية:',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
                                 const SizedBox(height: 4),
-                                Text(conflict.localData.toString(), style: const TextStyle(fontSize: 12)),
+                                Text(
+                                  conflict.localData.toString(),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
                                 const Divider(),
-                                const Text('البيانات البعيدة:', style: TextStyle(fontWeight: FontWeight.bold)),
+                                const Text(
+                                  'البيانات البعيدة:',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
                                 const SizedBox(height: 4),
-                                Text(conflict.remoteData.toString(), style: const TextStyle(fontSize: 12)),
+                                Text(
+                                  conflict.remoteData.toString(),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
                               ],
                             ),
                           ),

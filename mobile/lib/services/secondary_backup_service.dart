@@ -5,7 +5,8 @@ import 'local_db.dart';
 import 'secondary_appwrite_service.dart';
 
 /// إعادة تصدير FullBackupStats من الخدمة الأصلية
-export 'secondary_appwrite_service.dart' show FullBackupStats, FullBackupFailure;
+export 'secondary_appwrite_service.dart'
+    show FullBackupStats, FullBackupFailure;
 
 /// مراحل النسخة الشاملة
 enum BackupPhase {
@@ -106,7 +107,8 @@ class BackupProgress {
       failureCount: failureCount ?? this.failureCount,
       isBookingNightsPhase: isBookingNightsPhase ?? this.isBookingNightsPhase,
       error: error,
-      currentCollectionFailures: currentCollectionFailures ?? this.currentCollectionFailures,
+      currentCollectionFailures:
+          currentCollectionFailures ?? this.currentCollectionFailures,
     );
   }
 }
@@ -219,7 +221,9 @@ class SecondaryBackupService {
 
       // ─── المرحلة 2: booking_nights منفصلة ───
       if (!_cancelled) {
-        final bookingNightsColl = collectionList.where((c) => c.name == 'booking_nights').firstOrNull;
+        final bookingNightsColl = collectionList
+            .where((c) => c.name == 'booking_nights')
+            .firstOrNull;
         if (bookingNightsColl != null) {
           _progressController.add(
             BackupProgress(
@@ -286,7 +290,9 @@ class SecondaryBackupService {
 
       return stats;
     } catch (e) {
-      _progressController.add(BackupProgress(phase: BackupPhase.completed, error: 'فشل: $e'));
+      _progressController.add(
+        BackupProgress(phase: BackupPhase.completed, error: 'فشل: $e'),
+      );
       rethrow;
     } finally {
       _isRunning = false;
@@ -321,13 +327,22 @@ class SecondaryBackupService {
       }
 
       try {
-        final sanitized = AppwriteSyncUtils.sanitizePayload(coll.name, record, collectionId: coll.collectionId);
+        final sanitized = AppwriteSyncUtils.sanitizePayload(
+          coll.name,
+          record,
+          collectionId: coll.collectionId,
+        );
         final enhancedData = Map<String, dynamic>.from(sanitized);
         final now = DateTime.now().millisecondsSinceEpoch;
         enhancedData['syncTimestamp'] ??= now;
-        enhancedData['idempotencyKey'] ??= 'backup_${coll.name}_${documentId}_$now';
+        enhancedData['idempotencyKey'] ??=
+            'backup_${coll.name}_${documentId}_$now';
         enhancedData['sync_origin'] ??= 'secondary_backup';
-        await _service.upsertDocument(collectionId: coll.collectionId, documentId: documentId, data: enhancedData);
+        await _service.upsertDocument(
+          collectionId: coll.collectionId,
+          documentId: documentId,
+          data: enhancedData,
+        );
         successCount++;
       } catch (e) {
         failureCount++;
@@ -338,10 +353,15 @@ class SecondaryBackupService {
           collectionName: coll.name,
           timestamp: DateTime.now(),
         );
-        stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(failure);
+        stats.failuresByCollection
+            .putIfAbsent(coll.name, () => [])
+            .add(failure);
         stats.failedRecords.add(failure);
-        final reasonShort = reason.length > 500 ? reason.substring(0, 500) : reason;
-        stats.errorsByReason[reasonShort] = (stats.errorsByReason[reasonShort] ?? 0) + 1;
+        final reasonShort = reason.length > 500
+            ? reason.substring(0, 500)
+            : reason;
+        stats.errorsByReason[reasonShort] =
+            (stats.errorsByReason[reasonShort] ?? 0) + 1;
       }
 
       onProgress(record, i);
@@ -471,7 +491,9 @@ class SecondaryBackupService {
   String errorsForCollection(String collectionName) {
     if (_lastStats == null) return '';
     final failures = _lastStats!.failuresByCollection[collectionName];
-    if (failures == null || failures.isEmpty) return '✅ لا توجد أخطاء في $collectionName';
+    if (failures == null || failures.isEmpty) {
+      return '✅ لا توجد أخطاء في $collectionName';
+    }
 
     final buf = StringBuffer();
     buf.writeln('❌ أخطاء $collectionName (${failures.length}):');

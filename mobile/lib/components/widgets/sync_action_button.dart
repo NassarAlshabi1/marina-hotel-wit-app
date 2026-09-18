@@ -10,7 +10,8 @@ class SyncActionButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(syncStatusProvider);
     final status = statusAsync.asData?.value;
-    final isSyncing = status == SyncStatus.pushing || status == SyncStatus.pulling;
+    final isSyncing =
+        status == SyncStatus.pushing || status == SyncStatus.pulling;
     final hasError = status == SyncStatus.error;
 
     final tooltip = isSyncing
@@ -27,11 +28,17 @@ class SyncActionButton extends ConsumerWidget {
               try {
                 await ref.read(syncServiceProvider).runSync();
                 messenger.showSnackBar(
-                  const SnackBar(content: Text('تمت المزامنة بنجاح'), duration: Duration(seconds: 2)),
+                  const SnackBar(
+                    content: Text('تمت المزامنة بنجاح'),
+                    duration: Duration(seconds: 2),
+                  ),
                 );
               } catch (e) {
                 messenger.showSnackBar(
-                  SnackBar(content: Text('فشل في المزامنة: $e'), duration: const Duration(seconds: 3)),
+                  SnackBar(
+                    content: Text('فشل في المزامنة: $e'),
+                    duration: const Duration(seconds: 3),
+                  ),
                 );
               }
             },
@@ -45,7 +52,11 @@ class SyncActionButton extends ConsumerWidget {
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : Icon(Icons.sync, key: ValueKey(hasError ? 'error' : 'idle'), color: hasError ? Colors.redAccent : null),
+            : Icon(
+                Icons.sync,
+                key: ValueKey(hasError ? 'error' : 'idle'),
+                color: hasError ? Colors.redAccent : null,
+              ),
       ),
     );
   }

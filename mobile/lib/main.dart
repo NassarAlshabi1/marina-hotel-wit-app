@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
 import 'package:workmanager/workmanager.dart';
@@ -37,17 +38,21 @@ import 'screens/settings/settings_screen.dart';
 import 'services/alarm_backup.dart';
 import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
+import 'services/appwrite_cache_manager.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_health_checker.dart';
 import 'services/appwrite_realtime_service.dart';
 import 'services/appwrite_realtime_sync.dart';
+import 'services/appwrite_service.dart';
 import 'services/appwrite_sync_manager.dart';
 import 'services/auto_backup_manager.dart';
+import 'services/auto_outbox_sync_watcher.dart';
 import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
 import 'services/connectivity_service.dart';
 import 'services/crashlytics_service.dart';
+import 'services/database_startup_guard.dart';
 import 'services/database_sync_coordinator.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/fcm_service.dart';
@@ -63,10 +68,12 @@ import 'services/logging/log_models.dart';
 import 'services/posthog_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/secondary_appwrite_config.dart';
-import 'services/secondary_sync_manager.dart';
-import 'services/seed.dart';
+// ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
+// بالكامل. لا حاجة لاستيراده في main.dart — الشاشة تستخدمه مباشرة عبر
+// SecondarySyncManager.instance الذي يُرجع no-op.
 import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';
+import 'services/sync_circuit_breaker.dart';
 import 'services/sync_constants.dart';
 import 'services/sync_continuation_service.dart';
 import 'services/sync_guardian.dart';
@@ -81,10 +88,36 @@ import 'utils/env.dart';
 import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
 import 'utils/performance_config.dart';
+import 'utils/performance_monitor.dart';
 import 'utils/theme.dart';
+import 'utils/weak_device_optimizer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ DatabaseStartupGuard: فحص تلف قاعدة البيانات (SqliteException 11)
+  // قبل أي مستهلك لها — الـ health checker الحالي (SELECT 1) لا يكشف
+  // تلف الصفحات. عند التلف: نسخة forensics + حذف + إعادة إنشاء،
+  // ودورة المزامنة الأولى تعيد سحب كل شيء من Appwrite. لا يعيق الإقلاع أبداً.
+  try {
+    final dbGuard = await DatabaseStartupGuard.verifyAndRecover();
+    if (dbGuard.recovered) {
+      dwarn(
+        () =>
+            '🛠️ تم استرداد قاعدة بيانات تالفة عند الإقلاع — '
+            'نسخة العزل: ${dbGuard.quarantinePath}',
+      );
+    }
+  } catch (e) {
+    dwarn(() => '⚠️ DB startup guard failed (continuing): $e');
+  }
+
+  // ✅ WeakDeviceOptimizer: يكتشف قوة الجهاز ويضبط مستوى التحسين
+  // يجب استدعاؤه قبل أي خدمة ثقيلة لضمان تكييف الأداء.
+  // ✅ Performance Fix (2026-08-10): أصبح async لقراءة RAM الفعلي.
+  await WeakDeviceOptimizer.instance.initialize();
+  // ✅ Restore circuit breaker state from previous session.
+  await SyncCircuitBreaker.instance.restore();
 
   // ─── Performance: تحسينات الأداء للأجهزة الضعيفة ───
   configurePerformance();
@@ -119,16 +152,41 @@ Future<void> main() async {
   await SecondaryAppwriteConfig.ensureInitialized();
 
   // ─── Parallel initialization of optional services ───
-  // بعد اكتمال SecondaryAppwriteConfig (إلزامية)، نشغّل بقية الخدمات optional
-  // بالتوازي عبر Future.wait لتسريع إقلاع التطبيق. كل خدمة معزولة في try-catch
-  // محلياً لضمان استمرار التطبيق حتى لو فشلت إحداها.
-  await Future.wait<void>([
-    _safeInit('CrashlyticsService', CrashlyticsService.instance.initialize),
-    _safeInit('RemoteConfigService', RemoteConfigService.instance.initialize),
-    _safeInit('DiagnosticsLogger', DiagnosticsLogger.instance.initialize),
-    _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
-    _safeInit('PostHogService', PostHogService.instance.initialize),
-  ]);
+  // ✅ Performance Fix (2026-08-10): على الأجهزة الضعيفة، نؤجل الخدمات
+  // غير الحرجة لما بعد أول frame لتسريع الإقلاع.
+  // Crashlytics + DiagnosticsLogger فقط قبل runApp (للتقاط الأخطاء المبكرة).
+  // RemoteConfig + PostHog + ApiConfig تُؤججل لما بعد أول frame.
+  if (WeakDeviceOptimizer.instance.isWeakDevice) {
+    // جهاز ضعيف: فقط Crashlytics + Diagnostics قبل runApp
+    await Future.wait<void>([
+      _safeInit('CrashlyticsService', CrashlyticsService.instance.initialize),
+      _safeInit('DiagnosticsLogger', DiagnosticsLogger.instance.initialize),
+    ]);
+    // تأجيل بقية الخدمات لما بعد أول frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        _safeInit(
+          'RemoteConfigService',
+          RemoteConfigService.instance.initialize,
+        ),
+      );
+      unawaited(
+        _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
+      );
+      unawaited(
+        _safeInit('PostHogService', PostHogService.instance.initialize),
+      );
+    });
+  } else {
+    // جهاز قوي: كل الخدمات بالتوازي كما كان
+    await Future.wait<void>([
+      _safeInit('CrashlyticsService', CrashlyticsService.instance.initialize),
+      _safeInit('RemoteConfigService', RemoteConfigService.instance.initialize),
+      _safeInit('DiagnosticsLogger', DiagnosticsLogger.instance.initialize),
+      _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
+      _safeInit('PostHogService', PostHogService.instance.initialize),
+    ]);
+  }
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
   // ✅ catchError بدلاً من unawaited المُجرّد — لو فشل initAlarmSystem، نسجّل
@@ -139,11 +197,65 @@ Future<void> main() async {
     ),
   );
 
-  // ✅ تشغيل خدمة إشعارات تأخر السداد: تراقب الساعة وتُرسل إشعاراً محلياً
-  // عند دخول نافذة 22:00 (تنبيه مبكر) و 23:00 (تأخر فعلي) إذا كانت هناك
-  // غرف محجوزة برصيد متبقي. آمنة للبدء في الـ background — تستخدم Timer
-  // وتتوقف تلقائياً عند إغلاق التطبيق.
-  LatePaymentNotificationService.instance.start();
+  // ✅ Performance Fix: LatePaymentNotificationService يُؤججل لما بعد أول frame
+  // على الأجهزة الضعيفة لتسريع الإقلاع.
+  if (WeakDeviceOptimizer.instance.isWeakDevice) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      LatePaymentNotificationService.instance.start();
+    });
+  } else {
+    LatePaymentNotificationService.instance.start();
+  }
+
+  // ✅ AutoOutboxSyncWatcher: يراقب جدول outbox ويُطلق pushLocalChanges
+  // تلقائياً (مع debounce 3 ثوانٍ) عند إضافة أي سجل جديد.
+  // هذا يضمن أن أي عملية CRUD (إضافة/تعديل/حذف) في أي شاشة تُزامن
+  // تلقائياً دون الحاجة لاستدعاء pushLocalChanges يدوياً في كل شاشة.
+  //
+  // ✅ P1-7 FIX (2026-08-06 Audit): إنشاء AppwriteSyncManager مبكراً
+  // قبل بدء الـ watcher. بدون هذا، AppwriteSyncManager.instance يُرجع
+  // null لأن factory constructor لم يُستدعى بعد (Riverpod lazy init)،
+  // مما يمنع رفع العمليات المعلّقة في outbox تلقائياً حتى أول
+  // استدعاء لـ ref.read(appwriteSyncManagerProvider) من الـ UI.
+  // الـ factory يستخدم `_instance ??= ...` لذا Riverpod provider
+  // سيعيد استخدام نفس الـ instance لاحقاً بدون تعارض.
+  AppwriteSyncManager(
+    appwriteService: AppwriteService(),
+    database: DatabaseManager.instance,
+  );
+  AutoOutboxSyncWatcher.pushFunction = () async {
+    final syncManager = AppwriteSyncManager.instance;
+    if (syncManager == null) {
+      dwarn(
+        () =>
+            'AutoSync: AppwriteSyncManager null after eager init '
+            '(should not happen — investigate)',
+      );
+      return 0;
+    }
+    final result = await syncManager.sync(pull: false);
+    return result.recordsPushed;
+  };
+
+  // ✅ Batch push: uses smaller batches to prevent huge API calls.
+  AutoOutboxSyncWatcher.pushFunctionBatched = () async {
+    final syncManager = AppwriteSyncManager.instance;
+    if (syncManager == null) return 0;
+    int totalPushed = 0;
+    // Push in batches of outboxBatchSize to avoid overwhelming the API.
+    for (var i = 0; i < 10; i++) {
+      // max 10 batches = 500 entries
+      final result = await syncManager.sync(pull: false);
+      if (!result.isSuccess || result.recordsPushed == 0) break;
+      totalPushed += result.recordsPushed;
+    }
+    return totalPushed;
+  };
+  // ✅ Code Review Fix (2026-08-06): start() أصبحت async (تُنتظر connectivity
+  // check قبل تسجيل الـ listeners). نستخدم unawaited() لجعل النية واضحة:
+  // لا نريد تأخير تهيئة التطبيق بانتظار اكتمال start()، لكن الـ outbox
+  // entries تبقى في 'pending' حتى يكتمل الفحص (~50ms).
+  unawaited(AutoOutboxSyncWatcher.instance.start(DatabaseManager.instance));
 
   // ─── ربط Crashlytics + DiagnosticsLogger ───
   CrashlyticsService.instance.setupErrorHandlers(
@@ -169,12 +281,23 @@ Future<void> main() async {
     },
   );
 
-  unawaited(
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]),
+  if (Platform.isAndroid || Platform.isIOS) {
+    unawaited(
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]),
+    );
+  }
+
+  // مراقب التطوير يجمع FrameTiming واتجاه الذاكرة لاختبارات الأداء.
+  // profileInstrumentationEnabled لا يُفعّل إلا عبر dart-define في اختبار profile.
+  PerformanceMonitor.instance.start(
+    forceInProfile: profileInstrumentationEnabled,
   );
+  if (profileInstrumentationEnabled) {
+    unawaited(_startProfilePerformanceReportWriter());
+  }
 
   dlog(() => 'BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(() => runApp(const ProviderScope(child: App())), (
@@ -202,13 +325,43 @@ Future<void> main() async {
     );
   });
 
-  unawaited(_initializeFullyAutomatedSyncSystem());
+  // ✅ Performance Fix (2026-08-10): على الأجهزة الضعيفة، نؤجل نظام المزامنة
+  // الكامل والـ health checker لما بعد أول frame. هذه الخدمات تستهلك CPU/RAM
+  // كبير (Drive backup, WorkManager, SyncGuardian, AutoSyncEngine...).
+  // على الأجهزة القوية، تعمل بالتوازي كما كان.
+  // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
+  // Appwrite primary هو authority الوحيد للمزامنة. إزالة هذا المسار
+  // يبسط المعمارية ويمنع التداخل والـ race conditions.
+  // تم الاحتفاظ بـ SecondaryAppwriteConfig.ensureInitialized() لأنها
+  // تُهيّئ SharedPreferences المطلوبة لباقي الخدمات.
+  if (WeakDeviceOptimizer.instance.isWeakDevice) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_initializeFullyAutomatedSyncSystem());
+      _startHealthChecker();
+    });
+  } else {
+    unawaited(_initializeFullyAutomatedSyncSystem());
+    _startHealthChecker();
+  }
+}
 
-  // ✅ تهيئة المزامنة الثانوية (إذا كانت مُفعّلة من إعدادات سابقة)
-  unawaited(_initializeSecondarySync());
+Timer? _profilePerformanceReportTimer;
 
-  // ✅ بدء فحص صحة الوجهتين بشكل دوري (Failover detection)
-  _startHealthChecker();
+Future<void> _startProfilePerformanceReportWriter() async {
+  try {
+    final directory = await getApplicationSupportDirectory();
+    final reportPath = '${directory.path}/marina_performance_report.json';
+    final monitor = PerformanceMonitor.instance;
+    await monitor.saveReportToFile(reportPath);
+    _profilePerformanceReportTimer?.cancel();
+    _profilePerformanceReportTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => unawaited(monitor.saveReportToFile(reportPath)),
+    );
+    dlog(() => 'Profile performance report: $reportPath');
+  } catch (e) {
+    dwarn(() => 'Profile performance report writer failed: $e');
+  }
 }
 
 /// تهيئة آمنة لخدمة اختيارية — تلتقط الأخطاء وتسجّلها بدلاً من تعطيل التطبيق.
@@ -243,20 +396,15 @@ void _startHealthChecker() {
   }
 }
 
-/// تهيئة المزامنة الثانوية عند بدء التطبيق.
-/// إذا كان Secondary مُفعّلاً من قبل المستخدم، نبدأ المزامنة التلقائية.
+/// ✅ Sync Simplification (2026-08-10): _initializeSecondarySync مُعطّلة.
+/// Secondary sync لم يعد يُستخدم. Appwrite primary هو authority الوحيد.
+/// الدالة محفوظة للتوافق الرجعي لكن لا تُستدعى من main().
+// ignore: unused_element
 Future<void> _initializeSecondarySync() async {
-  try {
-    await SecondaryAppwriteConfig.ensureInitialized();
-    if (SecondaryAppwriteConfig.isEnabled && SecondaryAppwriteConfig.isConfigured) {
-      SecondarySyncManager.instance.startAutoSync();
-      dlog('🔵 [Main] Secondary sync auto-started');
-    } else {
-      dlog('🔵 [Main] Secondary sync disabled or not configured');
-    }
-  } catch (e) {
-    dwarn(() => '[Main] Secondary sync init failed: $e');
-  }
+  // Secondary sync مُعطّل بالكامل. لا تنفّذ أي شيء.
+  dlog(
+    '🔵 [Main] Secondary sync disabled — Appwrite primary is sole authority',
+  );
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
@@ -275,7 +423,37 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     dlog('📦 Initializing Appwrite Config Manager...');
     await AppwriteConfigManager.init();
+    await AppwriteService().initialize();
     dlog('✅ Appwrite Config loaded');
+
+    // ─── Firebase Cloud Messaging ───
+    // FCM للاستقبال وتسجيل device token فقط. لا نضع Server Key داخل APK؛
+    // الإرسال الجماعي يجب أن يتم من backend/Appwrite Function بصلاحيات خادمية.
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      final syncManager = AppwriteSyncManager.instance;
+      if (syncManager != null) {
+        FcmService.injectDependencies(
+          syncManager: syncManager,
+          realtimeSync: AppwriteRealtimeSync(),
+        );
+      }
+      await _safeInit('FcmService', FcmService().initialize);
+    } else {
+      dlog('ℹ️ FCM skipped on ${Platform.operatingSystem}');
+    }
+
+    final driveSyncEnabled =
+        prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!driveSyncEnabled) {
+      // لا يوجد سبب لإنشاء logger أو محاولة sign-in أو إعداد coordinator
+      // ومؤقتاته عندما لا يستخدم العميل Google Drive. مزامنة Appwrite تبدأ
+      // من AppState ولا تعتمد على هذا المكدس.
+      dlog(
+        '⏸️ Google Drive sync disabled — skipped Drive backup, '
+        'AutoSyncEngine, WorkManager, and sync guardians bootstrap',
+      );
+      return;
+    }
 
     dlog('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
@@ -370,9 +548,8 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     await _configureAutoSyncEngine(autoSyncEngine);
 
-    // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
-    final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
-    if (backupService.isSignedIn && driveSyncEnabled) {
+    // تفعيل المزامنة التلقائية عند فتح التطبيق بعد اجتياز feature gate أعلاه.
+    if (backupService.isSignedIn) {
       dlog('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
       await autoSyncEngine.start();
       await autoSyncEngine.onSignInChanged(true);
@@ -518,7 +695,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     ref.listen<AppDatabase>(databaseProvider, (previous, database) {
-      if (_sessionConfigured && previous != null && identical(previous, database)) {
+      if (_sessionConfigured &&
+          previous != null &&
+          identical(previous, database)) {
         return;
       }
       _enqueueDatabase(database);
@@ -546,10 +725,15 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
         AppSessionManager.configure(
           database: database,
-          deviceIdResolver: () async => GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
+          // معرّف Appwrite لا يعتمد على Google Drive؛ يُحفظ عند تسجيل الجهاز
+          // ويظل متاحًا حتى عندما تكون خدمات Drive غير مهيأة.
+          deviceIdResolver: () async {
+            final prefs = await SharedPreferences.getInstance();
+            return prefs.getString('appwrite_device_id');
+          },
           syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
-        await Seeder(database).seedIfEmpty();
+        // لا تُضاف بيانات تجريبية تلقائياً؛ تبدأ قاعدة الإنتاج فارغة.
         // ✅ إصلاح hotelDayKey القديم (14:00 → 14:01) لجميع الجداول
         // يعمل مرة واحدة فقط لكل جلسة — يُصلح البيانات المحلية
         // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Appwrite Cloud
@@ -608,13 +792,18 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // Realtime WebSocket (عند تفعيله) يوفر إشعارات فورية بين الأدوار.
         final syncPrefs = await SharedPreferences.getInstance();
         final intervalMinutes =
-            syncPrefs.getInt(SyncConstants.autoSyncIntervalPrefKey) ?? SyncConstants.autoSyncIntervalDefaultMinutes;
+            syncPrefs.getInt(SyncConstants.autoSyncIntervalPrefKey) ??
+            SyncConstants.autoSyncIntervalDefaultMinutes;
         final clampedMinutes = intervalMinutes.clamp(
           SyncConstants.autoSyncIntervalMinMinutes,
           SyncConstants.autoSyncIntervalMaxMinutes,
         );
         syncManager.startAutoSync(interval: Duration(minutes: clampedMinutes));
         dlog('⏰ Auto-sync started: every $clampedMinutes minutes');
+
+        // صمام ركود السحب القديم (startPullStalenessGuard) أُزيل مع دمج
+        // refactor/performance-fixes-v2 — محرك السحب الموحد (checkpoints
+        // لكل مجموعة) هو المسؤول عن انتظام السحب الآن.
 
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
@@ -655,18 +844,22 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           dwarn(() => 'Initial sync on app start failed: $e');
         }
 
-        var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
-        deviceId ??= syncManager.currentDeviceId;
+        var deviceId = syncManager.currentDeviceId;
         if (deviceId == null) {
           final prefs = await SharedPreferences.getInstance();
-          deviceId = prefs.getString('appwrite_realtime_device_id');
+          deviceId =
+              prefs.getString('appwrite_device_id') ??
+              prefs.getString('appwrite_realtime_device_id');
           if (deviceId == null) {
             deviceId = IdGen.uuid();
             await prefs.setString('appwrite_realtime_device_id', deviceId);
           }
         }
 
-        await AppwriteRealtimeSync().initialize(deviceId: deviceId);
+        await AppwriteRealtimeSync().initialize(
+          deviceId: deviceId,
+          deltaPull: syncManager.pullRemoteChanges,
+        );
         await AppwriteRealtimeSync().start();
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {
@@ -721,7 +914,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         'employees': 'موظفين',
       };
       final tableName = tableNames[event.table] ?? event.table;
-      final sideText = event.winnerSide == 'local' ? 'الإصدار المحلي' : 'إصدار السيرفر';
+      final sideText = event.winnerSide == 'local'
+          ? 'الإصدار المحلي'
+          : 'إصدار السيرفر';
       messenger.showSnackBar(
         SnackBar(
           content: Text('تضارب في $tableName: تم تفضيل $sideText'),
@@ -958,6 +1153,20 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   @override
+  void didHaveMemoryPressure() {
+    super.didHaveMemoryPressure();
+
+    // Android قد يرسل هذه الإشارة قبل قتل العملية. امسح البيانات التي يمكن
+    // إعادة تحميلها بدل المخاطرة بفقدان تغييرات المستخدم أو إيقاف التطبيق.
+    final imageCache = PaintingBinding.instance.imageCache;
+    imageCache.clear();
+    imageCache.clearLiveImages();
+    AppwriteCacheManager.instance.handleMemoryPressure();
+
+    dlog('🧹 Memory pressure: cleared image and Appwrite caches');
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_sessionConfigured) {
       return;
@@ -971,23 +1180,36 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           .read(backupStatusProvider.notifier)
           .refreshSignInStatus()
           .catchError(
-            (Object e, StackTrace s) => derr(() => 'Error in refreshSignInStatus: $e\n$s'),
+            (Object e, StackTrace s) =>
+                derr(() => 'Error in refreshSignInStatus: $e\n$s'),
           );
       // ✅ تحسين أداء: تقليل تكرار المزامنة عند العودة — مزامنة واحدة فقط
       // سابقاً: 4 عمليات مزامنة متوازية (consumePendingAndSync + _syncOnResume +
       // UnifiedSyncOrchestrator.onAppForeground + SyncGuardian.onAppForeground)
       // الآن: _syncOnResume كعملية أساسية + إشعار UnifiedSyncOrchestrator بدون مزامنة مستقلة
       unawaited(_syncOnResume());
+      // ✅ (2026-08-31) Realtime كامل: أعد محاولة الاشتراك إذا كان WebSocket
+      // قد استسل أثناء الغياب (استنفد max reconnect attempts) — fallback
+      // polling كان يغطي الفجوة، وعند العودة نستعيد التحديث الفوري.
+      unawaited(AppwriteRealtimeSync().start());
       // إشعار خدمات المزامنة بالعودة — بدون بدء مزامنة مستقلة (ستكتفي بالتحقق)
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-        (Object e, StackTrace s) => derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
+        (Object e, StackTrace s) =>
+            derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
       );
       SyncGuardian.instance.onAppForeground().catchError(
-        (Object e, StackTrace s) => derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
+        (Object e, StackTrace s) =>
+            derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
       );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
+      // على أجهزة 1GB نحتفظ بجزء صغير فقط من الاستجابات القابلة لإعادة الجلب.
+      // لا يؤثر ذلك في Drift أو Outbox أو عمليات الرفع التي تُستكمل بالخلفية.
+      if (WeakDeviceOptimizer.instance.isWeakDevice) {
+        final removed = AppwriteCacheManager.instance.trimForBackground();
+        dlog(() => '🧹 Background cache trim: removed $removed entries');
+      }
       dlog('📱 التطبيق في الخلفية...');
       // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
       unawaited(_pushPendingChangesOnPause());
@@ -995,14 +1217,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // حتى لو قُتل التطبيق قبل اكتمال _pushPendingChangesOnPause
       unawaited(
         SyncContinuationService.scheduleSyncCompletion().catchError(
-          (Object e, StackTrace s) => derr(() => 'Error scheduling sync continuation: $e\n$s'),
+          (Object e, StackTrace s) =>
+              derr(() => 'Error scheduling sync continuation: $e\n$s'),
         ),
       );
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
-      Future.microtask(
-        AppSessionManager.onAppCloseOrBackground,
-      ).catchError(
-        (Object e, StackTrace s) => derr(() => 'Error in onAppCloseOrBackground: $e\n$s'),
+      Future.microtask(AppSessionManager.onAppCloseOrBackground).catchError(
+        (Object e, StackTrace s) =>
+            derr(() => 'Error in onAppCloseOrBackground: $e\n$s'),
       );
     }
   }
@@ -1125,17 +1347,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     if (u == null) {
       return false;
     }
-    if (u.userType == 'admin' || u.permissions.contains('all')) {
-      return true;
-    }
-    return u.permissions.contains(key);
+    return u.canAccessModule(key);
   }
 
   @override
   Widget build(BuildContext context) {
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
-    final body = allowed ? _buildRoute(_currentRoute) : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
+    final body = allowed
+        ? _buildRoute(_currentRoute)
+        : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
 
     final actions = _buildGlobalActions(context);
 
@@ -1380,7 +1601,8 @@ Future<bool> _executeAutoSyncTask(
 ) async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    final googleDriveEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    final googleDriveEnabled =
+        prefs.getBool('google_drive_sync_enabled') ?? false;
 
     if (!googleDriveEnabled) {
       developer.log(

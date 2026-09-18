@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum SyncErrorType {
   network,
@@ -13,8 +14,13 @@ enum SyncErrorType {
 }
 
 class SyncError {
-  SyncError({required this.type, required this.message, this.originalError, this.stackTrace, this.context})
-    : timestamp = DateTime.now();
+  SyncError({
+    required this.type,
+    required this.message,
+    this.originalError,
+    this.stackTrace,
+    this.context,
+  }) : timestamp = DateTime.now();
   final SyncErrorType type;
   final String message;
   final dynamic originalError;
@@ -61,8 +67,16 @@ class SyncErrorHandler {
 
   static const int _maxHistorySize = 100;
 
-  SyncError handleError(dynamic error, {StackTrace? stackTrace, Map<String, dynamic>? context}) {
-    final syncError = _classifyError(error, stackTrace: stackTrace, context: context);
+  SyncError handleError(
+    dynamic error, {
+    StackTrace? stackTrace,
+    Map<String, dynamic>? context,
+  }) {
+    final syncError = _classifyError(
+      error,
+      stackTrace: stackTrace,
+      context: context,
+    );
 
     _recordError(syncError);
     _emitError(syncError);
@@ -71,7 +85,11 @@ class SyncErrorHandler {
     return syncError;
   }
 
-  SyncError _classifyError(dynamic error, {StackTrace? stackTrace, Map<String, dynamic>? context}) {
+  SyncError _classifyError(
+    dynamic error, {
+    StackTrace? stackTrace,
+    Map<String, dynamic>? context,
+  }) {
     if (error == null) {
       return SyncError(
         type: SyncErrorType.unknown,
@@ -107,7 +125,9 @@ class SyncErrorHandler {
       );
     }
 
-    if (errorString.contains('auth') || errorString.contains('unauthorized') || errorString.contains('401')) {
+    if (errorString.contains('auth') ||
+        errorString.contains('unauthorized') ||
+        errorString.contains('401')) {
       return SyncError(
         type: SyncErrorType.authentication,
         message: 'فشل المصادقة',
@@ -117,7 +137,9 @@ class SyncErrorHandler {
       );
     }
 
-    if (errorString.contains('permission') || errorString.contains('forbidden') || errorString.contains('403')) {
+    if (errorString.contains('permission') ||
+        errorString.contains('forbidden') ||
+        errorString.contains('403')) {
       return SyncError(
         type: SyncErrorType.permission,
         message: 'لا توجد صلاحيات كافية',
@@ -127,7 +149,9 @@ class SyncErrorHandler {
       );
     }
 
-    if (errorString.contains('corrupt') || errorString.contains('invalid') || errorString.contains('parse')) {
+    if (errorString.contains('corrupt') ||
+        errorString.contains('invalid') ||
+        errorString.contains('parse')) {
       return SyncError(
         type: SyncErrorType.dataCorruption,
         message: 'بيانات تالفة أو غير صالحة',
@@ -137,7 +161,9 @@ class SyncErrorHandler {
       );
     }
 
-    if (errorString.contains('storage') || errorString.contains('quota') || errorString.contains('space')) {
+    if (errorString.contains('storage') ||
+        errorString.contains('quota') ||
+        errorString.contains('space')) {
       return SyncError(
         type: SyncErrorType.storageLimit,
         message: 'مساحة التخزين ممتلئة',
@@ -170,17 +196,19 @@ class SyncErrorHandler {
   }
 
   void _logError(SyncError error) {
-    debugPrint('❌ [SyncError] ${error.type.name}: ${error.message}');
+    dlog(() => '❌ [SyncError] ${error.type.name}: ${error.message}');
     if (error.context != null) {
-      debugPrint('   Context: ${error.context}');
+      dlog(() => '   Context: ${error.context}');
     }
     if (error.stackTrace != null && kDebugMode) {
-      debugPrint('   Stack: ${error.stackTrace}');
+      dlog(() => '   Stack: ${error.stackTrace}');
     }
   }
 
   List<SyncError> getRecentErrors({int limit = 10}) {
-    final start = _errorHistory.length > limit ? _errorHistory.length - limit : 0;
+    final start = _errorHistory.length > limit
+        ? _errorHistory.length - limit
+        : 0;
     return _errorHistory.sublist(start);
   }
 

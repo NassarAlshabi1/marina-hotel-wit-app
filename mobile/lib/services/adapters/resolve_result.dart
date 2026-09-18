@@ -5,6 +5,7 @@ class ResolveResult {
     this.employeeLocalId,
     this.employeeRelatedId,
     this.salaryCycleLocalId,
+    this.inventoryItemLocalId,
     this.createdAtEpoch,
     this.lastModifiedEpoch,
     this.shouldSkip = false,
@@ -23,6 +24,9 @@ class ResolveResult {
 
   /// معرّف دورة الراتب المحلي بعد الحل (لـ FK: salary_payments)
   final int? salaryCycleLocalId;
+
+  /// معرّف الصنف المحلي بعد حل حركة المخزون عبر itemLocalUuid.
+  final int? inventoryItemLocalId;
 
   final int? createdAtEpoch;
   final int? lastModifiedEpoch;
@@ -43,6 +47,7 @@ class ResolveResult {
     int? employeeLocalId,
     int? employeeRelatedId,
     int? salaryCycleLocalId,
+    int? inventoryItemLocalId,
     int? createdAtEpoch,
     int? lastModifiedEpoch,
     bool? shouldSkip,
@@ -54,6 +59,7 @@ class ResolveResult {
       employeeLocalId: employeeLocalId ?? this.employeeLocalId,
       employeeRelatedId: employeeRelatedId ?? this.employeeRelatedId,
       salaryCycleLocalId: salaryCycleLocalId ?? this.salaryCycleLocalId,
+      inventoryItemLocalId: inventoryItemLocalId ?? this.inventoryItemLocalId,
       createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
       lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
       shouldSkip: shouldSkip ?? this.shouldSkip,

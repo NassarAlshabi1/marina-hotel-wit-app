@@ -49,20 +49,20 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
 
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
-    const MethodChannel('plugins.flutter.io/path_provider'),
-    (MethodCall methodCall) async {
-      switch (methodCall.method) {
-        case 'getApplicationDocumentsDirectory':
-        case 'getTemporaryDirectory':
-        case 'getApplicationSupportDirectory':
-        case 'getLibraryDirectory':
-        case 'getDownloadsDirectory':
-          return tempPath;
-        default:
-          return null;
-      }
-    },
-  );
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (MethodCall methodCall) async {
+          switch (methodCall.method) {
+            case 'getApplicationDocumentsDirectory':
+            case 'getTemporaryDirectory':
+            case 'getApplicationSupportDirectory':
+            case 'getLibraryDirectory':
+            case 'getDownloadsDirectory':
+              return tempPath;
+            default:
+              return null;
+          }
+        },
+      );
 
   // ✅ Mock لـ package_info_plus — يمنع MissingPluginException عند استدعاء
   // PackageInfo.fromPlatform() الذي يستخدمه:
@@ -71,23 +71,23 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   //   - PostHogService (لتتبع الإصدار)
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
-    const MethodChannel('dev.fluttercommunity.plus/package_info'),
-    (MethodCall methodCall) async {
-      switch (methodCall.method) {
-        case 'getAll':
-          return <String, dynamic>{
-            'appName': 'Marina Hotel Test',
-            'packageName': 'com.aden.marina.test',
-            'version': '1.0.0',
-            'buildNumber': '1',
-            'buildSignature': '',
-            'installerStore': null,
-          };
-        default:
-          return null;
-      }
-    },
-  );
+        const MethodChannel('dev.fluttercommunity.plus/package_info'),
+        (MethodCall methodCall) async {
+          switch (methodCall.method) {
+            case 'getAll':
+              return <String, dynamic>{
+                'appName': 'Marina Hotel Test',
+                'packageName': 'com.aden.marina.test',
+                'version': '1.0.0',
+                'buildNumber': '1',
+                'buildSignature': '',
+                'installerStore': null,
+              };
+            default:
+              return null;
+          }
+        },
+      );
 
   await testMain();
 

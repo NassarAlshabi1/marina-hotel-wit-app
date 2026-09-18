@@ -40,7 +40,9 @@ class VectorClock {
     try {
       final decoded = jsonDecode(json);
       if (decoded is Map<String, dynamic>) {
-        return VectorClock(decoded.map((k, v) => MapEntry(k, (v as num).toInt())));
+        return VectorClock(
+          decoded.map((k, v) => MapEntry(k, (v as num).toInt())),
+        );
       }
       // ✅ تحسين: تسجيل نوع غير متوقع (ليس Map)
       developer.log(
@@ -126,7 +128,9 @@ class VectorClock {
   ///
   /// يرجع true إذا لم تكن أي منهما happens-before الأخرى.
   bool isConcurrent(VectorClock other) {
-    return !happensBefore(other) && !other.happensBefore(this) && !isEqual(other);
+    return !happensBefore(other) &&
+        !other.happensBefore(this) &&
+        !isEqual(other);
   }
 
   /// تحويل إلى JSON string (للتخزين في DB)
@@ -149,7 +153,8 @@ class VectorClock {
   int get totalEvents => _counters.values.fold(0, (a, b) => a + b);
 
   @override
-  bool operator ==(Object other) => identical(this, other) || (other is VectorClock && isEqual(other));
+  bool operator ==(Object other) =>
+      identical(this, other) || (other is VectorClock && isEqual(other));
 
   @override
   int get hashCode => toString().hashCode;
@@ -218,7 +223,10 @@ class VectorClockComparator {
   }
 
   /// دمج ساعة بعيدة في محلية (بعد تطبيق التحديث)
-  static VectorClock mergeAfterApply(VectorClock localVc, VectorClock remoteVc) {
+  static VectorClock mergeAfterApply(
+    VectorClock localVc,
+    VectorClock remoteVc,
+  ) {
     final merged = localVc.copy();
     merged.merge(remoteVc);
     return merged;

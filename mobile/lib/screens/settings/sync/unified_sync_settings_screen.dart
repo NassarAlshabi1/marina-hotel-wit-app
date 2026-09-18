@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../components/app_scaffold.dart';
+import '../../../services/appwrite_realtime_sync.dart';
+import '../../../services/appwrite_sync_manager.dart';
+import '../../../services/sync_pull_scope.dart';
 import '../../../core/core.dart';
 
 /// Unified Sync Settings Screen
@@ -16,10 +22,126 @@ class UnifiedSyncSettingsScreen extends ConsumerStatefulWidget {
   const UnifiedSyncSettingsScreen({super.key});
 
   @override
-  ConsumerState<UnifiedSyncSettingsScreen> createState() => _UnifiedSyncSettingsScreenState();
+  ConsumerState<UnifiedSyncSettingsScreen> createState() =>
+      _UnifiedSyncSettingsScreenState();
 }
 
-class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsScreen> {
+class _UnifiedSyncSettingsScreenState
+    extends ConsumerState<UnifiedSyncSettingsScreen> {
+  bool _autoSyncEnabled = true;
+  bool _syncOnStartup = true;
+  bool _batteryOptimization = true;
+  bool _wifiOnly = false;
+  bool _smartSyncEnabled = true;
+  bool _appwriteSyncEnabled = true;
+  bool _realtimeSyncEnabled = true;
+  int _syncIntervalMinutes = 15;
+  bool _isSaving = false;
+  Set<String> _pullDisabled = <String>{};
+  bool _isPullingNow = false;
+
+  static const _autoSyncKey = 'appwrite_auto_sync_enabled';
+  static const _syncOnStartupKey = 'appwrite_sync_on_startup';
+  static const _batteryOptimizationKey = 'appwrite_battery_optimization';
+  static const _wifiOnlyKey = 'appwrite_wifi_only_sync';
+  static const _smartSyncKey = 'appwrite_smart_sync_enabled';
+  static const _appwriteSyncKey = 'appwrite_sync_enabled';
+  static const _realtimeSyncKey = 'appwrite_realtime_sync_enabled';
+  static const _syncIntervalKey = 'appwrite_sync_interval_minutes';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    // ✅ نطاق السحب: تحميل الجداول المعطّلة (قد لم يُهيّئ المدير بعد).
+    await SyncPullScope.load();
+    if (!mounted) return;
+
+    setState(() {
+      _autoSyncEnabled = prefs.getBool(_autoSyncKey) ?? true;
+      _syncOnStartup = prefs.getBool(_syncOnStartupKey) ?? true;
+      _batteryOptimization = prefs.getBool(_batteryOptimizationKey) ?? true;
+      _wifiOnly = prefs.getBool(_wifiOnlyKey) ?? false;
+      _smartSyncEnabled = prefs.getBool(_smartSyncKey) ?? true;
+      _appwriteSyncEnabled = prefs.getBool(_appwriteSyncKey) ?? true;
+      _realtimeSyncEnabled = prefs.getBool(_realtimeSyncKey) ?? true;
+      _syncIntervalMinutes = prefs.getInt(_syncIntervalKey) ?? 15;
+      _pullDisabled = SyncPullScope.disabledSnapshot();
+    });
+  }
+
+  Future<void> _saveBoolSetting({
+    required String key,
+    required bool value,
+    required VoidCallback apply,
+    required String successMessage,
+    Future<void> Function(bool value)? applyToService,
+  }) async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(key, value);
+      await applyToService?.call(value);
+      if (!mounted) return;
+      setState(apply);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ الإعداد. حاول مرة أخرى.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _applyAutoSync(bool enabled, {int? intervalMinutes}) async {
+    final manager = AppwriteSyncManager.instance;
+    if (manager == null) return;
+
+    if (enabled) {
+      manager.startAutoSync(
+        interval: Duration(minutes: intervalMinutes ?? _syncIntervalMinutes),
+      );
+    } else {
+      manager.stopAutoSync();
+    }
+  }
+
+  Future<void> _applyAppwriteSync(bool enabled) async {
+    await _applyAutoSync(enabled && _autoSyncEnabled);
+    final realtime = AppwriteRealtimeSync();
+    if (enabled && _realtimeSyncEnabled) {
+      await realtime.start();
+    } else {
+      await realtime.stop();
+    }
+  }
+
+  Future<void> _applyRealtimeSync(bool enabled) async {
+    if (!_appwriteSyncEnabled) return;
+    // ✅ (2026-08-31) تفعيل Realtime الكامل: المفتاح المرئي يكتب المفتاحين
+    // معاً — master switch (appwrite_realtime_sync_enabled) ووضع WebSocket
+    // (appwrite_realtime_ws_enabled) — كي يتحكم المفتاح الواحد بالوضعين
+    // فعلاً (كان WS يبقى على قيمته السابقة مهما غيّر المستخدم هنا).
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('appwrite_realtime_ws_enabled', enabled);
+    final realtime = AppwriteRealtimeSync();
+    if (enabled) {
+      await realtime.start();
+    } else {
+      await realtime.stop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
@@ -52,8 +174,8 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
 
           const SizedBox(height: UIConstants.spacingLG),
 
-          // إعدادات متقدمة
-          _buildAdvancedSection(),
+          // جداول السحب من Appwrite
+          _buildPullScopeSection(),
         ],
       ),
     );
@@ -62,7 +184,9 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildOverviewSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(UIConstants.spacingMD),
         child: Column(
@@ -70,9 +194,16 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
           children: [
             const Row(
               children: [
-                Icon(Icons.info_outline, color: UIConstants.syncColor, size: UIConstants.iconSizeMD),
+                Icon(
+                  Icons.info_outline,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
                 SizedBox(width: UIConstants.spacingSM),
-                Text('حالة المزامنة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'حالة المزامنة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: UIConstants.spacingMD),
@@ -81,8 +212,18 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
               value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
               icon: Icons.schedule,
             ),
-            const InfoRow(label: 'حالة الاتصال', value: 'متصل', icon: Icons.wifi, iconColor: Colors.green),
-            const InfoRow(label: 'عناصر معلقة', value: '0', icon: Icons.pending, iconColor: Colors.orange),
+            const InfoRow(
+              label: 'حالة الاتصال',
+              value: 'متصل',
+              icon: Icons.wifi,
+              iconColor: Colors.green,
+            ),
+            const InfoRow(
+              label: 'عناصر معلقة',
+              value: '0',
+              icon: Icons.pending,
+              iconColor: Colors.orange,
+            ),
           ],
         ),
       ),
@@ -92,31 +233,53 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildGeneralSettingsSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
           SwitchListTile(
             title: const Text('تفعيل المزامنة التلقائية'),
             subtitle: const Text('مزامنة البيانات تلقائياً عند التغيير'),
-            value: true,
-            onChanged: (value) {},
+            value: _autoSyncEnabled,
+            onChanged: _isSaving
+                ? null
+                : (value) => _saveBoolSetting(
+                    key: _autoSyncKey,
+                    value: value,
+                    apply: () => _autoSyncEnabled = value,
+                    successMessage: value
+                        ? 'تم تفعيل المزامنة التلقائية'
+                        : 'تم إيقاف المزامنة التلقائية',
+                    applyToService: (enabled) =>
+                        _applyAutoSync(enabled && _appwriteSyncEnabled),
+                  ),
             secondary: const Icon(Icons.sync),
           ),
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('المزامنة عند بدء التشغيل'),
             subtitle: const Text('مزامنة البيانات عند فتح التطبيق'),
-            value: true,
-            onChanged: (value) {},
+            value: _syncOnStartup,
+            onChanged: _isSaving
+                ? null
+                : (value) => _saveBoolSetting(
+                    key: _syncOnStartupKey,
+                    value: value,
+                    apply: () => _syncOnStartup = value,
+                    successMessage: value
+                        ? 'ستعمل المزامنة عند بدء التطبيق'
+                        : 'لن تعمل المزامنة تلقائياً عند البدء',
+                  ),
             secondary: const Icon(Icons.power_settings_new),
           ),
           const Divider(height: 1),
           ListTile(
             title: const Text('فترة المزامنة'),
-            subtitle: const Text('15 دقيقة'),
+            subtitle: Text('كل $_syncIntervalMinutes دقيقة'),
             leading: const Icon(Icons.timer),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: _showSyncIntervalDialog,
+            onTap: _isSaving ? null : _showSyncIntervalDialog,
           ),
         ],
       ),
@@ -126,16 +289,25 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildPerformanceSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(Icons.speed, color: UIConstants.syncColor, size: UIConstants.iconSizeMD),
+                Icon(
+                  Icons.speed,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
                 SizedBox(width: UIConstants.spacingSM),
-                Text('الأداء والبطارية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'الأداء والبطارية',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -143,25 +315,35 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
           SwitchListTile(
             title: const Text('تحسين البطارية'),
             subtitle: const Text('تقليل استهلاك البطارية أثناء المزامنة'),
-            value: true,
-            onChanged: (value) {},
+            value: _batteryOptimization,
+            onChanged: _isSaving
+                ? null
+                : (value) => _saveBoolSetting(
+                    key: _batteryOptimizationKey,
+                    value: value,
+                    apply: () => _batteryOptimization = value,
+                    successMessage: value
+                        ? 'تم تفعيل تحسين البطارية'
+                        : 'تم إيقاف تحسين البطارية',
+                  ),
             secondary: const Icon(Icons.battery_saver),
           ),
           const Divider(height: 1),
           SwitchListTile(
             title: const Text('WiFi فقط'),
             subtitle: const Text('مزامنة عند الاتصال بـ WiFi فقط'),
-            value: false,
-            onChanged: (value) {},
+            value: _wifiOnly,
+            onChanged: _isSaving
+                ? null
+                : (value) => _saveBoolSetting(
+                    key: _wifiOnlyKey,
+                    value: value,
+                    apply: () => _wifiOnly = value,
+                    successMessage: value
+                        ? 'ستقتصر المزامنة على WiFi'
+                        : 'ستعمل المزامنة على جميع الشبكات',
+                  ),
             secondary: const Icon(Icons.wifi),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('الحد اليومي للبيانات'),
-            subtitle: const Text('50 ميجابايت'),
-            leading: const Icon(Icons.data_usage),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
           ),
         ],
       ),
@@ -171,16 +353,25 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildSmartSyncSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(Icons.psychology, color: Colors.purple, size: UIConstants.iconSizeMD),
+                Icon(
+                  Icons.psychology,
+                  color: Colors.purple,
+                  size: UIConstants.iconSizeMD,
+                ),
                 SizedBox(width: UIConstants.spacingSM),
-                Text('المزامنة الذكية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'المزامنة الذكية',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -188,25 +379,18 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
           SwitchListTile(
             title: const Text('تفعيل المزامنة الذكية'),
             subtitle: const Text('مزامنة تكيفية حسب الاستخدام والظروف'),
-            value: true,
-            onChanged: (value) {},
+            value: _smartSyncEnabled,
+            onChanged: _isSaving
+                ? null
+                : (value) => _saveBoolSetting(
+                    key: _smartSyncKey,
+                    value: value,
+                    apply: () => _smartSyncEnabled = value,
+                    successMessage: value
+                        ? 'تم تفعيل المزامنة الذكية'
+                        : 'تم إيقاف المزامنة الذكية',
+                  ),
             secondary: const Icon(Icons.smart_toy),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('حل التعارضات'),
-            subtitle: const Text('الأحدث يفوز'),
-            leading: const Icon(Icons.merge),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('أولوية الجهاز'),
-            subtitle: const Text('عادية'),
-            leading: const Icon(Icons.device_hub),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
           ),
         ],
       ),
@@ -216,16 +400,25 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildAppwriteSyncSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(Icons.cloud_sync, color: Colors.blue, size: UIConstants.iconSizeMD),
+                Icon(
+                  Icons.cloud_sync,
+                  color: Colors.blue,
+                  size: UIConstants.iconSizeMD,
+                ),
                 SizedBox(width: UIConstants.spacingSM),
-                Text('Appwrite Sync', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'Appwrite Sync',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -233,74 +426,338 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
           SwitchListTile(
             title: const Text('تفعيل مزامنة Appwrite'),
             subtitle: const Text('مزامنة البيانات مع سحابة Appwrite'),
-            value: true,
-            onChanged: (value) {},
+            value: _appwriteSyncEnabled,
+            onChanged: _isSaving
+                ? null
+                : (value) => _saveBoolSetting(
+                    key: _appwriteSyncKey,
+                    value: value,
+                    apply: () => _appwriteSyncEnabled = value,
+                    successMessage: value
+                        ? 'تم تفعيل مزامنة Appwrite'
+                        : 'تم إيقاف مزامنة Appwrite',
+                    applyToService: _applyAppwriteSync,
+                  ),
             secondary: const Icon(Icons.cloud),
           ),
           const Divider(height: 1),
           SwitchListTile(
-            title: const Text('المزامنة الفورية'),
-            subtitle: const Text('مزامنة فورية عند حدوث تغييرات'),
-            value: true,
-            onChanged: (value) {},
+            title: const Text('المزامنة الفورية (Realtime)'),
+            subtitle: const Text(
+              'استقبال تغييرات الأجهزة الأخرى فور حدوثها عبر WebSocket '
+              'وسحبها خلال ثوانٍ — إن تعذر الاتصال يُستخدم سحب خفيف دوري',
+            ),
+            value: _realtimeSyncEnabled,
+            onChanged: _isSaving
+                ? null
+                : (value) => _saveBoolSetting(
+                    key: _realtimeSyncKey,
+                    value: value,
+                    apply: () => _realtimeSyncEnabled = value,
+                    successMessage: value
+                        ? 'تم تفعيل المزامنة الفورية'
+                        : 'تم إيقاف المزامنة الفورية',
+                    applyToService: _applyRealtimeSync,
+                  ),
             secondary: const Icon(Icons.flash_on),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('جداول المزامنة'),
-            subtitle: const Text('اختر الجداول للمزامنة'),
-            leading: const Icon(Icons.table_chart),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAdvancedSection() {
+  // ─── نطاق السحب: اختيار الجداول المسحوبة من Appwrite ───
+
+  /// نص حالة آخر سحب — يُحدَّث مع كل setState بعد دورة مكتملة.
+  String get _lastPullSubtitle {
+    final manager = AppwriteSyncManager.instance;
+    final at = manager?.lastPullAt;
+    if (at == null) return 'لم يُنفّذ سحب بعد في هذه الجلسة';
+    final n = manager!.lastPullRecordsCount;
+    final relative = DateTimeFormatter.getRelativeTime(at.toIso8601String());
+    return n > 0
+        ? 'آخر سحب: $relative — $n سجل'
+        : 'آخر سحب: $relative — لا جديد';
+  }
+
+  /// سحب فوري عند الطلب من المستخدم (زر «سحب الآن»).
+  Future<void> _pullNow() async {
+    if (_isPullingNow) return;
+    setState(() => _isPullingNow = true);
+    try {
+      final manager = AppwriteSyncManager.instance;
+      if (manager == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'مدير المزامنة غير مهيّأ بعد — أعد المحاولة بعد فتح التطبيق',
+            ),
+          ),
+        );
+        return;
+      }
+      final changed = await manager.pullRemoteChanges();
+      if (!mounted) return;
+      if (changed) {
+        final n = manager.lastPullRecordsCount;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('تم السحب بنجاح — $n سجل جديد')));
+      } else {
+        // false يغطي: لا تغييرات، أو السحب مؤجل لوجود تغييرات محلية لم تُرفع.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'لا توجد تغييرات جديدة — أو السحب مؤجل حتى تُرفع تغييراتك المحلية المعلّقة',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('فشل السحب — تحقق من الاتصال بـ Appwrite وحاول مجدداً'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isPullingNow = false);
+    }
+  }
+
+  Widget _buildPullScopeSection() {
+    final total = SyncPullScope.catalog.length;
+    final enabled = total - _pullDisabled.length;
+    final subtitle = enabled == total
+        ? 'كل الجداول مفعّلة للسحب ($total)'
+        : enabled == 0
+        ? '⚠️ لا يُسحب أي جدول — السحب معطّل بالكامل'
+        : '$enabled من $total جدول مفعّل للسحب';
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(Icons.settings_suggest, color: Colors.grey.shade700, size: UIConstants.iconSizeMD),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text('إعدادات متقدمة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Icon(
+                  Icons.dataset,
+                  color: Colors.indigo,
+                  size: UIConstants.iconSizeMD,
+                ),
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
+                  'جداول السحب من Appwrite',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
           const Divider(height: 1),
           ListTile(
-            title: const Text('مسح ذاكرة التخزين المؤقت'),
-            subtitle: const Text('حذف البيانات المخزنة مؤقتاً'),
-            leading: const Icon(Icons.cleaning_services),
+            title: const Text('اختيار الجداول المسحوبة'),
+            subtitle: Text(subtitle),
+            leading: const Icon(Icons.checklist_rtl),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            onTap: _isSaving ? null : _showPullScopeDialog,
           ),
           const Divider(height: 1),
           ListTile(
-            title: const Text('إعادة تعيين المزامنة'),
-            subtitle: const Text('إعادة تهيئة نظام المزامنة'),
-            leading: const Icon(Icons.restore, color: Colors.orange),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+            title: const Text('سحب الآن'),
+            subtitle: Text(_lastPullSubtitle),
+            leading: _isPullingNow
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  )
+                : const Icon(Icons.cloud_download),
+            onTap: (_isPullingNow || _isSaving) ? null : _pullNow,
           ),
           const Divider(height: 1),
-          ListTile(
-            title: const Text('عرض السجلات'),
-            subtitle: const Text('سجلات المزامنة والأخطاء'),
-            leading: const Icon(Icons.description),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {},
+          const Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: UIConstants.spacingMD,
+              vertical: UIConstants.spacingSM,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                'الجدول المعطّل لا يُسحب من السحابة، وعند إعادة تفعيله '
+                'يُسحب ما فاته تلقائياً من نقطة توقفه الأخيرة دون فقدان بيانات.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _showPullScopeDialog() async {
+    final working = Set<String>.from(_pullDisabled);
+    final saved = await showDialog<Set<String>>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('الجداول المسحوبة من Appwrite'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 460),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final entry
+                          in SyncPullScope.catalogByCategory.entries) ...[
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(
+                            top: UIConstants.spacingSM,
+                            bottom: UIConstants.spacingXS,
+                            start: UIConstants.spacingXS,
+                          ),
+                          child: Text(
+                            entry.key,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.indigo,
+                            ),
+                          ),
+                        ),
+                        for (final meta in entry.value)
+                          CheckboxListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            title: Text(meta.label),
+                            subtitle: meta.core
+                                ? const Text(
+                                    'أصل مرجعي — تعطيله قد يسبب سجلات يتيمة',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.orange,
+                                    ),
+                                  )
+                                : null,
+                            value: !working.contains(meta.name),
+                            onChanged: (checked) {
+                              setDialogState(() {
+                                if (checked ?? true) {
+                                  working.remove(meta.name);
+                                } else {
+                                  working.add(meta.name);
+                                }
+                              });
+                            },
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => setDialogState(working.clear),
+                  child: const Text('تحديد الكل'),
+                ),
+                TextButton(
+                  onPressed: () => setDialogState(
+                    () => working.addAll(SyncPullScope.catalogNames),
+                  ),
+                  child: const Text('إلغاء الكل'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('إلغاء'),
+                ),
+                FilledButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext, Set<String>.from(working)),
+                  child: const Text('حفظ'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (saved == null) return;
+    await _savePullScope(saved);
+  }
+
+  Future<void> _savePullScope(Set<String> disabled) async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      await SyncPullScope.setDisabled(disabled);
+      if (!mounted) return;
+      setState(() => _pullDisabled = Set<String>.from(disabled));
+
+      final enabledCount = SyncPullScope.catalog.length - disabled.length;
+      // سحب فوري لالتقاط ما فات الجداول التي أُعيد تفعيلها (ولو كان خاملاً
+      // فهو رخيص: Delta من checkpoint القديم لا يُرجع شيئاً).
+      final manager = AppwriteSyncManager.instance;
+      if (manager != null && _appwriteSyncEnabled) {
+        unawaited(manager.pullRemoteChanges().catchError((_) => false));
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabledCount == 0
+                ? 'تم حفظ النطاق — السحب معطّل لكل الجداول'
+                : 'تم حفظ النطاق: $enabledCount من '
+                      '${SyncPullScope.catalog.length} جدول مفعّل للسحب',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ نطاق السحب. حاول مرة أخرى.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _selectSyncInterval(int minutes) async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_syncIntervalKey, minutes);
+      await _applyAutoSync(
+        _autoSyncEnabled && _appwriteSyncEnabled,
+        intervalMinutes: minutes,
+      );
+      if (!mounted) return;
+      setState(() => _syncIntervalMinutes = minutes);
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم ضبط فترة المزامنة على كل $minutes دقيقة')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تعذر تحديث فترة المزامنة. حاول مرة أخرى.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   void _showSyncIntervalDialog() {
@@ -308,36 +765,43 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('فترة المزامنة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('5 دقائق'),
-              // ignore: deprecated_member_use
-              leading: Radio(value: 5, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('15 دقيقة'),
-              // ignore: deprecated_member_use
-              leading: Radio(value: 15, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('30 دقيقة'),
-              // ignore: deprecated_member_use
-              leading: Radio(value: 30, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('ساعة واحدة'),
-              // ignore: deprecated_member_use
-              leading: Radio(value: 60, groupValue: 15, onChanged: (v) {}),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
+        content: RadioGroup<int>(
+          groupValue: _syncIntervalMinutes,
+          onChanged: (value) {
+            if (value != null) _selectSyncInterval(value);
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('5 دقائق'),
+                leading: const Radio<int>(value: 5),
+                onTap: () => _selectSyncInterval(5),
+              ),
+              ListTile(
+                title: const Text('15 دقيقة'),
+                leading: const Radio<int>(value: 15),
+                onTap: () => _selectSyncInterval(15),
+              ),
+              ListTile(
+                title: const Text('30 دقيقة'),
+                leading: const Radio<int>(value: 30),
+                onTap: () => _selectSyncInterval(30),
+              ),
+              ListTile(
+                title: const Text('ساعة واحدة'),
+                leading: const Radio<int>(value: 60),
+                onTap: () => _selectSyncInterval(60),
+              ),
+            ],
+          ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+        ],
       ),
     );
   }

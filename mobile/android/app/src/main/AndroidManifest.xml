@@ -13,7 +13,11 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- ✅ FCM: إذن الإشعارات لأندرويد 13+ (API 33+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- أذونات التخزين المحلي للنسخ الاحتياطي -->
+    <!-- ✅ مطلوب للنسخ الاحتياطي المحلي التلقائي: حفظ نسخ .db مباشرة في
+         /storage/emulated/0/Documents/MarinaHotelBackups (Android 11+).
+         بدون هذا الإذن يفشل الوصول للمسار العام ويُستخدم مجلد التطبيق
+         الخاص كبديل. ملاحظة: إذا نُشر التطبيق على Google Play فيتطلب
+         هذا الإذن تعبئة نموذج التبرير في Play Console. -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
@@ -23,7 +27,7 @@
         android:label="Marina Hotel"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:supportsRtl="true"
         android:networkSecurityConfig="@xml/network_security_config">
         <activity
@@ -86,13 +90,21 @@
         <!-- ═══════════════════════════════════════════════════════════ -->
         <!--  PostHog Analytics — Auto-initialization on Android         -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <!--  PostHog Cloud (US): https://us.posthog.com/project/529460  -->
-        <!--  Free tier: 1M events/month + 5K session replays/month      -->
+        <!--  ✅ P0-4 FIX (2026-08-06 Audit): استبدال hardcoded API key  -->
+        <!--  بـ manifest placeholder يُملأ من environment variable في   -->
+        <!--  وقت البناء عبر build.gradle. سابقاً كان المفتاح الإنتاجي  -->
+        <!--  مُكشوفاً في APK (أي مهاجم يفك الـ APK يحصل عليه).          -->
+        <!--                                                            -->
+        <!--  في build.gradle:                                          -->
+        <!--    manifestPlaceholders += [posthogToken: System.getenv(   -->
+        <!--      'POSTHOG_API_KEY') ?: '']                             -->
+        <!--                                                            -->
+        <!--  إذا كان posthogToken فارغاً، يُعطّل PostHog تلقائياً.      -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <meta-data android:name="com.posthog.posthog.PROJECT_TOKEN" android:value="phc_AunnUfNB2zemediAycLLbFYEgqdtL9k7ej8PhYHwFL6q" />
+        <meta-data android:name="com.posthog.posthog.PROJECT_TOKEN" android:value="${posthogToken}" />
         <meta-data android:name="com.posthog.posthog.POSTHOG_HOST" android:value="https://us.i.posthog.com" />
         <meta-data android:name="com.posthog.posthog.TRACK_APPLICATION_LIFECYCLE_EVENTS" android:value="true" />
-        <meta-data android:name="com.posthog.posthog.DEBUG" android:value="true" />
+        <meta-data android:name="com.posthog.posthog.DEBUG" android:value="false" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

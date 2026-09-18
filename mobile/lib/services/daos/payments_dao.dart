@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import '../../utils/id.dart';
+import '../../utils/sql_date_range.dart';
 import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
@@ -18,7 +19,8 @@ part 'payments_dao.g.dart';
 @DriftAccessor(tables: [Payments])
 class PaymentsDao extends DatabaseAccessor<AppDatabase>
     with _$PaymentsDaoMixin, OptimisticLockDaoMixin<Payments, Payment> {
-  PaymentsDao(super.db, this.outboxDao, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
+  PaymentsDao(super.db, this.outboxDao, [AdapterRegistry? a])
+    : adapters = a ?? AdapterRegistry.instance;
   final OutboxDao outboxDao;
   final AdapterRegistry adapters;
 
@@ -50,9 +52,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.revenueType.equals(revenueType));
     }
     if (from != null && to != null) {
-      q.where((t) => t.paymentDate.isBiggerOrEqualValue(from) & t.paymentDate.isSmallerOrEqualValue(to));
+      q.where(
+        (t) =>
+            t.paymentDate.isBiggerOrEqualValue(from) &
+            t.paymentDate.isSmallerOrEqualValue(to),
+      );
     }
-    q.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       q.limit(limit, offset: offset);
     }
@@ -76,21 +84,32 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.where((t) => t.isPendingBalance.equals(false));
 
     if (from != null && to != null) {
-      q.where((t) => t.paymentDate.isBiggerOrEqualValue(from) & t.paymentDate.isSmallerOrEqualValue(to));
+      q.where(
+        (t) =>
+            t.paymentDate.isBiggerOrEqualValue(from) &
+            t.paymentDate.isSmallerOrEqualValue(to),
+      );
     }
 
     if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
     }
 
-    q.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       q.limit(limit, offset: offset);
     }
     return q.get();
   }
 
-  Stream<List<Payment>> watchList({int? bookingLocalId, bool includeDeleted = false, int? limit, int offset = 0}) {
+  Stream<List<Payment>> watchList({
+    int? bookingLocalId,
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
     final q = select(payments);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -115,25 +134,36 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   /// ⚠️ **DEPRECATED** — استخدم `PaymentsRepository.watchTotalByHotelDayKey`
   /// الذي يستخدم SQL SUM() بدلاً من تحميل جميع صفوف المدفوعات (38 عمود)
   /// ثم جمعها في Dart. هذا الأسلوب القديم يستهلك ذاكرة و I/O مضاعف.
-  @Deprecated('استخدم PaymentsRepository.watchTotalByHotelDayKey (SQL SUM) بدلاً من ذلك')
-  Stream<List<Payment>> watchByHotelDayKey(String hotelDayKey, {bool includeVoided = false}) {
+  @Deprecated(
+    'استخدم PaymentsRepository.watchTotalByHotelDayKey (SQL SUM) بدلاً من ذلك',
+  )
+  Stream<List<Payment>> watchByHotelDayKey(
+    String hotelDayKey, {
+    bool includeVoided = false,
+  }) {
     final q = select(payments);
     q.where((t) => t.deletedAt.isNull());
     if (!includeVoided) {
       q.where((t) => t.isVoided.equals(false));
     }
-    // حالة 1: hotelDayKey يطابق اليوم
-    q.where(
-      (t) =>
-          t.hotelDayKey.equals(hotelDayKey) |
-          // حالة 2: hotelDayKey فارغ وتاريخ الدفعة ضمن نطاق اليوم
-          (t.hotelDayKey.isNull() & t.paymentDate.like('$hotelDayKey%')),
-    );
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.paymentDate.like('$hotelDayKey%')
+          : (t.paymentDate.isBiggerOrEqualValue(range.start) &
+                t.paymentDate.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
     return q.watch();
   }
 
   /// جلب المدفوعات لتاريخ محدد
-  Future<List<Payment>> listByDate(String date, {bool includeDeleted = false, bool includeVoided = false}) async {
+  Future<List<Payment>> listByDate(
+    String date, {
+    bool includeDeleted = false,
+    bool includeVoided = false,
+  }) async {
     final q = select(payments);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -141,7 +171,13 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (!includeVoided) {
       q.where((t) => t.isVoided.equals(false));
     }
-    q.where((t) => t.paymentDate.like('$date%'));
+    final range = SqlDateRange.forDay(date);
+    q.where(
+      (t) => range == null
+          ? t.paymentDate.like('$date%')
+          : (t.paymentDate.isBiggerOrEqualValue(range.start) &
+                t.paymentDate.isSmallerThanValue(range.endExclusive)),
+    );
     return q.get();
   }
 
@@ -178,15 +214,22 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       // hotelDayKey >= fromHotelDay، مع fallback لحقل paymentDate عند كون hotelDayKey فارغاً
       q.where(
         (t) =>
-            (t.hotelDayKey.isNotNull() & t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-            (t.hotelDayKey.isNull() & t.paymentDate.isBiggerOrEqualValue(fromHotelDay)),
+            (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+            (t.hotelDayKey.isNull() &
+                t.paymentDate.isBiggerOrEqualValue(fromHotelDay)),
       );
     }
     if (toHotelDay != null) {
+      final endRange = SqlDateRange.forDay(toHotelDay);
       q.where(
         (t) =>
-            (t.hotelDayKey.isNotNull() & t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-            (t.hotelDayKey.isNull() & t.paymentDate.isSmallerOrEqualValue(toHotelDay)),
+            (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+            (t.hotelDayKey.isNull() &
+                (endRange == null
+                    ? t.paymentDate.isSmallerOrEqualValue(toHotelDay)
+                    : t.paymentDate.isSmallerThanValue(endRange.endExclusive))),
       );
     }
     if (roomNumber != null && roomNumber.isNotEmpty) {
@@ -195,7 +238,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
     }
-    q.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
     return q.get();
   }
 
@@ -213,10 +258,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.isVoided.equals(false));
     }
 
-    final byKey = payments.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback = payments.hotelDayKey.isNull() & payments.paymentDate.like('$hotelDayKey%');
-
-    q.where((t) => byKey | byDateFallback);
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.paymentDate.like('$hotelDayKey%')
+          : (t.paymentDate.isBiggerOrEqualValue(range.start) &
+                t.paymentDate.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
 
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
@@ -225,10 +275,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
-  Future<Payment?> getById(int id) => (select(payments)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<Payment?> watchById(int id) => (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Payment?> getById(int id) =>
+      (select(payments)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Payment?> watchById(int id) =>
+      (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
-  Future<int> insertOne(PaymentsCompanion data, {bool originIsServer = false}) async {
+  Future<int> insertOne(
+    PaymentsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     final now = Time.nowEpoch();
     final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
     final comp = data.copyWith(
@@ -237,8 +292,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       updatedAt: Value(now),
       lastModified: Value(now),
       origin: Value(originIsServer ? 'server' : 'local'),
-      deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
-      serverId: data.serverPaymentId.present ? Value(data.serverPaymentId.value) : const Value.absent(),
+      deviceId: originIsServer
+          ? const Value.absent()
+          : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      serverId: data.serverPaymentId.present
+          ? Value(data.serverPaymentId.value)
+          : const Value.absent(),
     );
 
     // ✅ إصلاح PR review: إخراج FCM خارج transaction
@@ -262,20 +321,30 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       String? roomNumber;
       if (comp.bookingLocalId.present && comp.bookingLocalId.value != null) {
         try {
-          final booking = await (db.select(
-            db.bookings,
-          )..where((b) => b.id.equals(comp.bookingLocalId.value!))).getSingleOrNull();
+          final booking =
+              await (db.select(db.bookings)
+                    ..where((b) => b.id.equals(comp.bookingLocalId.value!)))
+                  .getSingleOrNull();
           roomNumber = booking?.roomNumber;
         } catch (_) {
           // تجاهل — roomNumber اختياري في الإشعار
         }
       }
-      unawaited(FcmSender().notifyPaymentAdded(amount: comp.amount.value, roomNumber: roomNumber ?? 'غير محدد'));
+      unawaited(
+        FcmSender().notifyPaymentAdded(
+          amount: comp.amount.value,
+          roomNumber: roomNumber ?? 'غير محدد',
+        ),
+      );
     }
     return id;
   }
 
-  Future<int> updateById(int id, PaymentsCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    PaymentsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -284,15 +353,24 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(payments)..where((t) => t.id.equals(id))).write(comp);
+      final rows = await (update(
+        payments,
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
       }
       return rows;
     });
@@ -305,13 +383,23 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
-      final rows = await (update(payments)..where((t) => t.id.equals(id))).write(
-        PaymentsCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
-      );
+      final rows = await (update(payments)..where((t) => t.id.equals(id)))
+          .write(
+            PaymentsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
         // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
-        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
       }
       return rows;
     });
@@ -359,7 +447,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
 
   /// استيراد المدفوعات من JSON
   /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع فقدان البيانات
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     await transaction(() async {
       if (clearExisting) {
         await delete(payments).go();
@@ -391,6 +482,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
             lastModified: Value(payment.lastModified),
             version: Value(payment.version),
             origin: Value(payment.origin),
+            receivedByUserId: Value(payment.receivedByUserId),
+            receivedByName: Value(payment.receivedByName),
+            receivedSessionUuid: Value(payment.receivedSessionUuid),
           ),
         );
       }

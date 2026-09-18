@@ -1,53 +1,60 @@
-// lib/utils/performance_config.dart
-//
-// ✅ تحسينات الأداء للأجهزة الضعيفة (1-2GB RAM)
-//
-// المشاكل المُكتشفة:
-// 1. لا يوجد حد لـ image cache — قد يستهلك 100MB+ على أجهزة ضعيفة
-// 2. ListView() (eager) في 30 مكان — يُحمّل كل العناصر دفعة واحدة
-// 3. 0 AutomaticKeepAliveClientMixin — التبويبات تُعاد بناؤها كاملاً
-// 4. فقط 28 .select() vs 94 .watch() — إعادة بناء زائدة
-// 5. 522 Column() — layout مكلف على المعالجات الضعيفة
-
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/painting.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
-/// تهيئة تحسينات الأداء — تُستدعى في بداية main() قبل runApp
+import '../services/appwrite_cache_manager.dart';
+import 'debug_log.dart';
+import 'weak_device_optimizer.dart';
+
+/// تهيئة تحسينات الأداء — تُستدعى في بداية `main()` قبل `runApp`.
 void configurePerformance() {
-  // ═══════════════════════════════════════════════════════════════
-  //  1. Image Cache — حد آمن للأجهزة الضعيفة
-  // ═══════════════════════════════════════════════════════════════
-  // الافتراضي: 1000 صورة / 100MB — كثير جداً لأجهزة 1-2GB RAM
-  // الحد الجديد: 200 صورة / 20MB — كافٍ لـ UI بدون OOM
-  PaintingBinding.instance.imageCache.maximumSize = 200;
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 20 * 1024 * 1024; // 20MB
+  final optimizer = WeakDeviceOptimizer.instance;
 
-  // ═══════════════════════════════════════════════════════════════
-  //  2. تخفيض viewport cache للـ ListView على الأجهزة الضعيفة
-  // ═══════════════════════════════════════════════════════════════
-  // cacheExtent الافتراضي: 250px — معقول، لكن نتحكم به عبر ScrollView
-  // لا نُغيّره هنا بل نُمرره في ListView.builder عبر addAutomaticKeepAlives
+  // image cache هو أكبر cache افتراضي في Flutter؛ نحده قبل إنشاء أول واجهة.
+  PaintingBinding.instance.imageCache.maximumSize = optimizer.maxImageCacheSize;
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      optimizer.maxImageCacheBytes;
 
-  // ═══════════════════════════════════════════════════════════════
-  //  3. Android: garbage collection أكثر عدوانية لتقليل الذاكرة
-  // ═══════════════════════════════════════════════════════════════
+  // تطبيق الحدود نفسها على cache بيانات Appwrite. هذه القيم كانت موجودة في
+  // WeakDeviceOptimizer ولكنها لم تكن موصولة بمسار التنفيذ.
+  final dataCache = AppwriteCacheManager.instance;
+  dataCache.setMaxEntries(optimizer.maxCacheEntries);
+  dataCache.setMaxSizeMB(optimizer.maxDataCacheSizeMB);
+  // الاستجابات البعيدة قصيرة العمر على الأجهزة الضعيفة؛ المصدر الدائم
+  // للبيانات غير المتصلة هو Drift وليس Cache الذاكرة.
+  dataCache.setDefaultTTL(
+    optimizer.isWeakDevice
+        ? const Duration(minutes: 2)
+        : const Duration(minutes: 5),
+  );
+  // يزيل النتائج منتهية الصلاحية حتى إن لم يُعاد فتح الشاشة نفسها.
+  dataCache.startCleanup(
+    interval: optimizer.isWeakDevice
+        ? const Duration(minutes: 5)
+        : const Duration(minutes: 15),
+  );
+
   if (Platform.isAndroid) {
-    // لا يوجد API مباشر، لكن تقليل image cache يُساعد
-    debugPrint('🚀 Performance: Android — image cache limited to 20MB');
+    dlog(
+      () =>
+          'Performance profile L${optimizer.optimizationLevel}: image cache '
+          '${optimizer.maxImageCacheSize} entries / '
+          '${optimizer.maxImageCacheBytes ~/ (1024 * 1024)}MB, data cache '
+          '${optimizer.maxCacheEntries} entries / '
+          '${optimizer.maxDataCacheSizeMB}MB',
+    );
   }
 }
 
-/// تحديد ما إذا كان الجهاز ضعيفاً (يمكن توسيعه بـ device_info_plus)
-/// للأجهزة بـ RAM < 3GB، نُطبّق تحسينات إضافية
-bool get isLowEndDevice {
-  // مؤقتاً: نفترض أن الجهاز ضعيف ونُطبّق التحسينات دائماً
-  // مستقبلاً: استخدم device_info_plus لقراءة RAM الفعلي
-  return true;
-}
+/// هل الجهاز ضمن ملف الأداء منخفض الموارد.
+bool get isLowEndDevice => WeakDeviceOptimizer.instance.isWeakDevice;
 
-/// cacheExtent مُحسّن لـ ListView.builder
-/// الأجهزة الضعيفة: 200px (أقل = ذاككة أقل = scroll أقل سلاسة)
-/// الأجهزة القوية: 500px (أكثر = scroll أنعم = ذاكرة أكثر)
-double get optimizedCacheExtent => isLowEndDevice ? 200.0 : 500.0;
+/// مجال صغير لإنشاء العناصر خارج مجال العرض على الأجهزة الضعيفة.
+/// القوائم تستخدمه بدلاً من Flutter الافتراضي لتفادي prefetch مفرط للـ Widgets.
+double get optimizedCacheExtent => isLowEndDevice ? 160.0 : 500.0;
+
+/// واجهة Flutter الحديثة لمجال إنشاء العناصر خارج الشاشة.
+/// تُستخدم في ListView.builder وCustomScrollView بدلاً من cacheExtent المهجور.
+ScrollCacheExtent get optimizedScrollCacheExtent =>
+    ScrollCacheExtent.pixels(optimizedCacheExtent);

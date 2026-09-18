@@ -34,7 +34,7 @@ void main() {
     await db.close();
   });
 
-  Future<RoomsCompanion> _roomCompanion(String number, {int? createdAt}) async {
+  Future<RoomsCompanion> roomCompanion(String number, {int? createdAt}) async {
     final now = createdAt ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
     return RoomsCompanion(
       localUuid: Value('uuid-$number'),
@@ -75,8 +75,8 @@ void main() {
     test(
       '2. First sync — all rows emitted as insert (no prior mirror)',
       () async {
-        await db.into(db.rooms).insert(await _roomCompanion('101'));
-        await db.into(db.rooms).insert(await _roomCompanion('102'));
+        await db.into(db.rooms).insert(await roomCompanion('101'));
+        await db.into(db.rooms).insert(await roomCompanion('102'));
 
         final result = await deltaSync.compute();
         // First sync → all rows emitted as 'insert' regardless of timestamps
@@ -96,7 +96,7 @@ void main() {
 
     test('3. Second sync — no changes → empty delta', () async {
       // First sync to populate mirror.
-      await db.into(db.rooms).insert(await _roomCompanion('101'));
+      await db.into(db.rooms).insert(await roomCompanion('101'));
       final first = await deltaSync.compute();
       expect(first.changes.length, 1);
       await deltaSync.persistMirror(first);
@@ -109,10 +109,7 @@ void main() {
       await db
           .into(db.syncState)
           .insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const Value(1),
-              lastPushTs: Value(nowSec),
-            ),
+            SyncStateCompanion(id: const Value(1), lastPushTs: Value(nowSec)),
           );
 
       // Second sync — no changes since mirror was persisted AND
@@ -122,7 +119,7 @@ void main() {
     });
 
     test('4. Local update after sync → single update change', () async {
-      await db.into(db.rooms).insert(await _roomCompanion('101'));
+      await db.into(db.rooms).insert(await roomCompanion('101'));
       final first = await deltaSync.compute();
       await deltaSync.persistMirror(first);
 
@@ -131,10 +128,7 @@ void main() {
       await db
           .into(db.syncState)
           .insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const Value(1),
-              lastPushTs: Value(pushTs),
-            ),
+            SyncStateCompanion(id: const Value(1), lastPushTs: Value(pushTs)),
           );
 
       // Update the row's lastModified to be after the previous sync.
@@ -156,7 +150,7 @@ void main() {
     });
 
     test('5. Soft-delete after sync → update with deleted_at set', () async {
-      await db.into(db.rooms).insert(await _roomCompanion('101'));
+      await db.into(db.rooms).insert(await roomCompanion('101'));
       final first = await deltaSync.compute();
       await deltaSync.persistMirror(first);
 
@@ -165,10 +159,7 @@ void main() {
       await db
           .into(db.syncState)
           .insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const Value(1),
-              lastPushTs: Value(pushTs),
-            ),
+            SyncStateCompanion(id: const Value(1), lastPushTs: Value(pushTs)),
           );
 
       // Soft-delete the row (set deletedAt to a future timestamp).
@@ -195,7 +186,7 @@ void main() {
       '6. ✅ FIX: hard-deleted row emits delete only once (not forever)',
       () async {
         // Step 1: insert a room and sync.
-        await db.into(db.rooms).insert(await _roomCompanion('101'));
+        await db.into(db.rooms).insert(await roomCompanion('101'));
         final first = await deltaSync.compute();
         await deltaSync.persistMirror(first);
         expect(first.changes.length, 1);
@@ -245,7 +236,9 @@ void main() {
         final third = await deltaSync.compute();
         // ✅ The fix: third sync should NOT re-emit the delete.
         // (Either zero changes, or zero changes for entity 'rooms'.)
-        final roomsChanges = third.changes.where((c) => c.entity == 'rooms').toList();
+        final roomsChanges = third.changes
+            .where((c) => c.entity == 'rooms')
+            .toList();
         expect(
           roomsChanges,
           isEmpty,
@@ -261,7 +254,7 @@ void main() {
 
   group('DeltaSyncService.validateMirror', () {
     test('returns valid=true when mirror matches DB', () async {
-      await db.into(db.rooms).insert(await _roomCompanion('101'));
+      await db.into(db.rooms).insert(await roomCompanion('101'));
       final first = await deltaSync.compute();
       await deltaSync.persistMirror(first);
 
@@ -271,7 +264,7 @@ void main() {
     });
 
     test('detects mirror staleness after local update', () async {
-      await db.into(db.rooms).insert(await _roomCompanion('101'));
+      await db.into(db.rooms).insert(await roomCompanion('101'));
       final first = await deltaSync.compute();
       await deltaSync.persistMirror(first);
 
@@ -280,7 +273,7 @@ void main() {
         db.rooms,
       )..where((r) => r.roomNumber.equals('101'))).getSingle();
       await (db.update(db.rooms)..where((r) => r.id.equals(room.id))).write(
-        RoomsCompanion(status: const Value('occupied')),
+        const RoomsCompanion(status: Value('occupied')),
       );
 
       final validation = await deltaSync.validateMirror();

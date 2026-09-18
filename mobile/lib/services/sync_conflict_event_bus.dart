@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حدث تضارب في المزامنة
 class SyncConflictEvent {
@@ -17,7 +17,8 @@ class SyncConflictEvent {
   final DateTime timestamp;
 
   @override
-  String toString() => 'SyncConflictEvent($table/$localUuid → $winnerSide: $reason)';
+  String toString() =>
+      'SyncConflictEvent($table/$localUuid → $winnerSide: $reason)';
 }
 
 /// ناقل أحداث تضاربات المزامنة
@@ -64,7 +65,10 @@ class SyncConflictEventBus {
       _recentEvents.removeAt(0);
     }
     _controller.add(event);
-    debugPrint('[ConflictBus] ${event.table}/${event.localUuid} → ${event.winnerSide}: ${event.reason}');
+    dlog(
+      () =>
+          '[ConflictBus] ${event.table}/${event.localUuid} → ${event.winnerSide}: ${event.reason}',
+    );
   }
 
   /// إرسال حدث تضارب مبسط
@@ -74,7 +78,14 @@ class SyncConflictEventBus {
     required String winnerSide,
     required String reason,
   }) {
-    emit(SyncConflictEvent(table: table, localUuid: localUuid, winnerSide: winnerSide, reason: reason));
+    emit(
+      SyncConflictEvent(
+        table: table,
+        localUuid: localUuid,
+        winnerSide: winnerSide,
+        reason: reason,
+      ),
+    );
   }
 
   /// مسح الأحداث الأخيرة (بعد عرضها للمستخدم)

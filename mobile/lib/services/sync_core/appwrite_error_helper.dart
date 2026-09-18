@@ -87,7 +87,8 @@ class AppwriteErrorHelper {
       buffer.toString(),
       level: LogLevel.warning,
       tag: 'SCHEMA_MISMATCH',
-      error: 'Missing in cloud: ${missingInCloud.length}, Missing local: ${missingInLocal.length}',
+      error:
+          'Missing in cloud: ${missingInCloud.length}, Missing local: ${missingInLocal.length}',
       stackTrace: stackTrace,
     );
   }
@@ -163,7 +164,13 @@ class AppwriteErrorHelper {
     buffer.write('   الرسالة: ${e.message}');
 
     final level = _getLevelFromCode(e.code);
-    _logger.log(buffer.toString(), level: level, tag: 'APPWRITE_EXCEPTION', error: e, stackTrace: stackTrace);
+    _logger.log(
+      buffer.toString(),
+      level: level,
+      tag: 'APPWRITE_EXCEPTION',
+      error: e,
+      stackTrace: stackTrace,
+    );
   }
 
   LogLevel _getLevelFromCode(dynamic code) {

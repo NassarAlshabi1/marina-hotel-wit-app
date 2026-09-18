@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
+import '../../utils/performance_config.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
@@ -17,12 +18,14 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
 
   @override
-  ConsumerState<PaymentsReportScreen> createState() => _PaymentsReportScreenState();
+  ConsumerState<PaymentsReportScreen> createState() =>
+      _PaymentsReportScreenState();
 }
 
 class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
@@ -44,7 +47,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
   double _totalRemaining = 0;
   double _totalDue = 0;
 
-  String _formatBookingCode(int bookingId) => bookingId.toString().padLeft(6, '0');
+  String _formatBookingCode(int bookingId) =>
+      bookingId.toString().padLeft(6, '0');
 
   @override
   void didChangeDependencies() {
@@ -79,7 +83,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         _availableRooms
           ..clear()
           ..addAll(rooms.map((e) => e.roomNumber).toList()..sort());
-        if (_availableRooms.isNotEmpty && !_availableRooms.contains(_selectedRoom)) {
+        if (_availableRooms.isNotEmpty &&
+            !_availableRooms.contains(_selectedRoom)) {
           _selectedRoom = null;
         }
       });
@@ -136,9 +141,13 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     //   _toDate  = 19-May 14:00:59 → toHotelDay   = "2026-05-18" ✓
     //   → فقط مدفوعات hotelDayKey="2026-05-18" ✅
     final fromHotelDay = _fromDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate!.add(const Duration(seconds: 1)))
+        ? HotelTimeEngine.getHotelDayKey(
+            dateTime: _fromDate!.add(const Duration(seconds: 1)),
+          )
         : null;
-    final toHotelDay = _toDate != null ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate) : null;
+    final toHotelDay = _toDate != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
+        : null;
 
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
@@ -157,10 +166,15 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     // ✅ إزالة فلترة الغرفة في الذاكرة — يتم الآن على مستوى قاعدة البيانات
     final filteredPayments = payments;
 
-    final bookingIds = filteredPayments.map((p) => p.bookingLocalId).whereType<int>().toSet();
+    final bookingIds = filteredPayments
+        .map((p) => p.bookingLocalId)
+        .whereType<int>()
+        .toSet();
     final bookings = bookingIds.isEmpty
         ? <Booking>[]
-        : await (db.select(db.bookings)..where((tbl) => tbl.id.isIn(bookingIds))).get();
+        : await (db.select(
+            db.bookings,
+          )..where((tbl) => tbl.id.isIn(bookingIds))).get();
     final bookingMap = {for (final b in bookings) b.id: b};
 
     final rows = <_PaymentReportRow>[];
@@ -173,16 +187,19 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final paymentDate = _parseDateTime(payment.paymentDate);
       if (paymentDate == null) {
         // لا يمكن تحديد تاريخ الدفعة، نهملها مع إمكانية تسجيل خطأ
-        debugPrint('تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}');
+        dlog(() => 'تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}');
         continue;
       }
 
       // ✅ إزالة الفلترة المكررة: نثق أن قاعدة البيانات أرجعَت دفعات ضمن النطاق
 
       final booking = bookingMap[payment.bookingLocalId];
-      final roomNumber = booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
+      final roomNumber =
+          booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType;
-      final bookingCode = booking != null ? _formatBookingCode(booking.id) : null;
+      final bookingCode = booking != null
+          ? _formatBookingCode(booking.id)
+          : null;
 
       if (_isRoomPayment(payment.revenueType)) {
         totalRoomPaid += payment.amount;
@@ -237,7 +254,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     if (_rows.isEmpty) {
       return;
     }
-    final selectedRoomLabel = _selectedRoom?.isNotEmpty ?? false ? _selectedRoom! : '';
+    final selectedRoomLabel = _selectedRoom?.isNotEmpty ?? false
+        ? _selectedRoom!
+        : '';
 
     final dataRows = [
       for (final entry in _rows.asMap().entries)
@@ -250,7 +269,15 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           _dateLabelFormat.format(entry.value.paymentDate),
           EnhancedPdfUtils.formatNumber(entry.value.amount),
         ],
-      ['', '', '', '', '', 'الإجمالي', EnhancedPdfUtils.formatNumber(_totalPaid)],
+      [
+        '',
+        '',
+        '',
+        '',
+        '',
+        'الإجمالي',
+        EnhancedPdfUtils.formatNumber(_totalPaid),
+      ],
     ];
 
     await ReportPdfBuilder.buildAndShare(
@@ -258,11 +285,21 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         title: 'مدفوعات النزلاء',
         fromDate: _fromDate,
         toDate: _toDate,
-        extraHeaderLine: selectedRoomLabel.isNotEmpty ? 'الغرفة: $selectedRoomLabel' : null,
+        extraHeaderLine: selectedRoomLabel.isNotEmpty
+            ? 'الغرفة: $selectedRoomLabel'
+            : null,
         buildContent: (fonts) => [
           pw.SizedBox(height: 20),
           EnhancedPdfUtils.buildProfessionalTable(
-            headers: ['م', 'رقم الحجز', 'اسم النزيل', 'الغرفة', 'طريقة الدفع', 'التاريخ', 'المبلغ'],
+            headers: [
+              'م',
+              'رقم الحجز',
+              'اسم النزيل',
+              'الغرفة',
+              'طريقة الدفع',
+              'التاريخ',
+              'المبلغ',
+            ],
             data: dataRows,
             fonts: fonts,
             headerColor: PdfColors.primary,
@@ -285,11 +322,21 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                       children: [
                         pw.Text(
                           'الإجمالي المدفوع: ',
-                          style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textDark),
+                          style: pw.TextStyle(
+                            font: fonts.bold,
+                            fontSize: 12,
+                            color: PdfColors.textDark,
+                          ),
                         ),
                         pw.Text(
-                          EnhancedPdfUtils.formatNumber(_totalPaid + _totalOtherPaid),
-                          style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.secondary),
+                          EnhancedPdfUtils.formatNumber(
+                            _totalPaid + _totalOtherPaid,
+                          ),
+                          style: pw.TextStyle(
+                            font: fonts.bold,
+                            fontSize: 14,
+                            color: PdfColors.secondary,
+                          ),
                         ),
                       ],
                     ),
@@ -300,7 +347,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                           style: pw.TextStyle(
                             font: fonts.bold,
                             fontSize: 12,
-                            color: _totalRemaining > 0 ? const PdfColor(0.9, 0.2, 0.2) : const PdfColor(0.0, 0.5, 0.2),
+                            color: _totalRemaining > 0
+                                ? const PdfColor(0.9, 0.2, 0.2)
+                                : const PdfColor(0.0, 0.5, 0.2),
                           ),
                         ),
                         pw.Text(
@@ -308,7 +357,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                           style: pw.TextStyle(
                             font: fonts.bold,
                             fontSize: 12,
-                            color: _totalRemaining > 0 ? const PdfColor(0.9, 0.2, 0.2) : const PdfColor(0.0, 0.5, 0.2),
+                            color: _totalRemaining > 0
+                                ? const PdfColor(0.9, 0.2, 0.2)
+                                : const PdfColor(0.0, 0.5, 0.2),
                           ),
                         ),
                       ],
@@ -322,11 +373,19 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                     children: [
                       pw.Text(
                         'إجمالي ما على النزيل: ',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: PdfColors.textDark),
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 11,
+                          color: PdfColors.textDark,
+                        ),
                       ),
                       pw.Text(
                         EnhancedPdfUtils.formatNumber(_totalDue),
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.info),
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 13,
+                          color: PdfColors.info,
+                        ),
                       ),
                     ],
                   ),
@@ -415,6 +474,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               icon: Icons.receipt_long,
             )
           : ListView.separated(
+              // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+              scrollCacheExtent: optimizedScrollCacheExtent,
               padding: const EdgeInsets.only(bottom: 8),
               itemCount: _rows.length,
               separatorBuilder: (_, _) => const SizedBox(height: 5),
@@ -441,11 +502,19 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               children: [
                 Text(
                   _dateLabelFormat.format(row.paymentDate),
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Colors.grey),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    color: Colors.grey,
+                  ),
                 ),
                 Text(
                   _currencyFmt.format(row.amount),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.green,
+                  ),
                 ),
               ],
             ),
@@ -454,12 +523,22 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               children: [
                 const Icon(Icons.room, size: 13, color: Colors.blue),
                 const SizedBox(width: 3),
-                Text(row.roomNumber, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+                Text(
+                  row.roomNumber,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(width: 12),
                 const Icon(Icons.person, size: 13, color: Colors.grey),
                 const SizedBox(width: 3),
                 Expanded(
-                  child: Text(row.payerName, style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    row.payerName,
+                    style: const TextStyle(fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -473,7 +552,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
                   style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
                 const Spacer(),
-                Text('#${row.bookingCode}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                Text(
+                  '#${row.bookingCode}',
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                ),
               ],
             ),
           ],
@@ -493,9 +575,21 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           children: [
             Row(
               children: [
-                Expanded(child: _buildSummaryTile('مدفوعات الغرفة', _currencyFmt.format(_totalPaid), Colors.green)),
+                Expanded(
+                  child: _buildSummaryTile(
+                    'مدفوعات الغرفة',
+                    _currencyFmt.format(_totalPaid),
+                    Colors.green,
+                  ),
+                ),
                 Container(width: 1, height: 28, color: Colors.grey.shade200),
-                Expanded(child: _buildSummaryTile('مدفوعات أخرى', _currencyFmt.format(_totalOtherPaid), Colors.teal)),
+                Expanded(
+                  child: _buildSummaryTile(
+                    'مدفوعات أخرى',
+                    _currencyFmt.format(_totalOtherPaid),
+                    Colors.teal,
+                  ),
+                ),
               ],
             ),
             const Divider(height: 16),
@@ -551,12 +645,21 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     return r == 'room' || r == 'غرفة' || r == 'إقامة';
   }
 
-  Widget _buildSummaryTile(String label, String value, Color color, {bool isLarge = false}) {
+  Widget _buildSummaryTile(
+    String label,
+    String value,
+    Color color, {
+    bool isLarge = false,
+  }) {
     return Column(
       children: [
         Text(
           value,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: isLarge ? 18 : 13, color: color),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: isLarge ? 18 : 13,
+            color: color,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -573,12 +676,14 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
 
   /// ✅ تحسين تحليل التاريخ: إرجاع null عند فشل التحليل بدلاً من DateTime.now()
   DateTime? _parseDateTime(String value) {
-    final normalized = value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {
       // طباعة الخطأ (اختياري) وإرجاع null ليتجاهل المُستدعي السجل
-      debugPrint('_parseDateTime: فشل تحليل "$value"');
+      dlog(() => '_parseDateTime: فشل تحليل "$value"');
       return null;
     }
   }

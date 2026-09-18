@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حالة بوّابة المزامنة العامة — تعكس ما إذا كانت أي عملية مزامنة
 /// جارية في التطبيق كله، بصرف النظر عن المصدر (زر يدوي، سحب تلقائي
@@ -13,7 +14,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// وتعطّل نفسها تلقائياً طالما البوّابة مشغولة.
 @immutable
 class SyncGateState {
-  const SyncGateState({this.isBusy = false, this.operation, this.source, this.startedAt});
+  const SyncGateState({
+    this.isBusy = false,
+    this.operation,
+    this.source,
+    this.startedAt,
+  });
 
   /// هل توجد عملية مزامنة جارية الآن من أي مصدر؟
   final bool isBusy;
@@ -29,7 +35,9 @@ class SyncGateState {
   final DateTime? startedAt;
 
   /// مدة العملية الحالية بالمللي ثانية، أو null إذا لم تكن مشغولة.
-  int? get elapsedMs => isBusy && startedAt != null ? DateTime.now().difference(startedAt!).inMilliseconds : null;
+  int? get elapsedMs => isBusy && startedAt != null
+      ? DateTime.now().difference(startedAt!).inMilliseconds
+      : null;
 
   SyncGateState copyWith({
     bool? isBusy,
@@ -82,7 +90,9 @@ class SyncGate {
   static final SyncGate instance = SyncGate._();
 
   /// منفذ عام يمكن لأي عنصر واجهة مراقبته عبر `ValueListenableBuilder`.
-  final ValueNotifier<SyncGateState> notifier = ValueNotifier<SyncGateState>(const SyncGateState());
+  final ValueNotifier<SyncGateState> notifier = ValueNotifier<SyncGateState>(
+    const SyncGateState(),
+  );
 
   /// اختصار للحالة الحالية.
   SyncGateState get state => notifier.value;
@@ -97,16 +107,22 @@ class SyncGate {
   bool tryEnter({required String operation, required String source}) {
     if (notifier.value.isBusy) {
       if (kDebugMode) {
-        debugPrint(
-          '🚫 [SyncGate] rejected entry: already busy with '
-          '${notifier.value.operation} from ${notifier.value.source}',
+        dlog(
+          () =>
+              '🚫 [SyncGate] rejected entry: already busy with '
+              '${notifier.value.operation} from ${notifier.value.source}',
         );
       }
       return false;
     }
-    notifier.value = SyncGateState(isBusy: true, operation: operation, source: source, startedAt: DateTime.now());
+    notifier.value = SyncGateState(
+      isBusy: true,
+      operation: operation,
+      source: source,
+      startedAt: DateTime.now(),
+    );
     if (kDebugMode) {
-      debugPrint('🔒 [SyncGate] entered: $operation from $source');
+      dlog(() => '🔒 [SyncGate] entered: $operation from $source');
     }
     return true;
   }
@@ -119,9 +135,10 @@ class SyncGate {
     }
     if (kDebugMode) {
       final elapsed = notifier.value.elapsedMs;
-      debugPrint(
-        '🔓 [SyncGate] exited: ${notifier.value.operation} from '
-        '${notifier.value.source} (took ${elapsed}ms)',
+      dlog(
+        () =>
+            '🔓 [SyncGate] exited: ${notifier.value.operation} from '
+            '${notifier.value.source} (took ${elapsed}ms)',
       );
     }
     notifier.value = const SyncGateState();

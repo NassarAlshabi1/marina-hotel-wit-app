@@ -24,7 +24,11 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
   String get tableName => 'expenses';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
@@ -37,8 +41,11 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
     // من PayloadMapper بدل تكرار المنطق الخاص محليًا — يمنع تباعد الكلمات
     // المفتاحية بين النسختين مستقبلًا.
     if (PayloadMapper.isSalaryExpenseType(expenseType)) {
-      final remoteEmployeeUuid = _asString(json, 'employeeUuid', src) ?? _asString(json, 'employee_local_uuid', src);
-      final remoteRelatedId = _asInt(json, 'relatedId', src) ?? _asInt(json, 'related_id', src);
+      final remoteEmployeeUuid =
+          _asString(json, 'employeeUuid', src) ??
+          _asString(json, 'employee_local_uuid', src);
+      final remoteRelatedId =
+          _asInt(json, 'relatedId', src) ?? _asInt(json, 'related_id', src);
 
       if (remoteEmployeeUuid != null && remoteEmployeeUuid.isNotEmpty) {
         // حل عبر UUID (الأكثر دقة) — مصدر الحقيقة المحمول عبر الأجهزة.
@@ -93,19 +100,33 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
   }
 
   @override
-  ExpensesCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  ExpensesCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return ExpensesCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
       expenseType: _vStr(json, 'expenseType', src, fallback: ''),
       // ✅ إصلاح: لمصروفات الرواتب، استخدم relatedId المحلول عبر UUID
       // لتوافق الأجهزة المختلفة (relatedId على جهاز آخر قد لا يتطابق)
       relatedId:
-          (PayloadMapper.isSalaryExpenseType(_asString(json, 'expenseType', src) ?? '') &&
+          (PayloadMapper.isSalaryExpenseType(
+                _asString(json, 'expenseType', src) ?? '',
+              ) &&
               refs.employeeRelatedId != null)
           ? d.Value(refs.employeeRelatedId)
           : _vInt(json, 'relatedId', src),
@@ -125,7 +146,12 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
       version: _vInt(json, 'version', src, fallback: 1),
       // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
       // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
@@ -133,8 +159,19 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
@@ -151,7 +188,8 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'description', 'description'): model.description,
       _k(src, 'amount', 'amount'): model.amount,
       _k(src, 'date', 'date'): model.date,
-      _k(src, 'cashTransactionId', 'cash_transaction_id'): model.cashTransactionId,
+      _k(src, 'cashTransactionId', 'cash_transaction_id'):
+          model.cashTransactionId,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
       _k(src, 'categoryUuid', 'category_uuid'): model.categoryUuid,
       _k(src, 'cashFlowUuid', 'cash_flow_uuid'): model.cashFlowUuid,
@@ -164,7 +202,8 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -182,23 +221,59 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src, {String? altKey, double? fallback}) {
-  final v = _asDouble(json, key, src) ?? (altKey != null ? _asDouble(json, altKey, src) : null) ?? fallback;
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
-  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
+d.Value<bool> _vBool(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  bool? fallback,
+}) {
+  final v =
+      _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -295,7 +370,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
 // الاستدعاء الموحد عبر PayloadMapper.isSalaryExpenseType يمنع تباعد الكلمات
 // المفتاحية بين النسختين مستقبلًا — راجع payload_mapper.dart:821-834.
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

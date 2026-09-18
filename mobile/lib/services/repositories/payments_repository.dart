@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
 import '../../utils/hotel_time_engine.dart';
 import '../auto_backup_manager.dart';
@@ -10,8 +9,33 @@ import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 import '../local_db.dart';
+import '../payment_session_context.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
+
+class PaymentShiftSummary {
+  const PaymentShiftSummary({
+    required this.userId,
+    required this.userName,
+    required this.totalAmount,
+    required this.paymentCount,
+  });
+
+  factory PaymentShiftSummary.fromRow(Map<String, dynamic> row) {
+    return PaymentShiftSummary(
+      userId: (row['user_id'] as num?)?.toInt() ?? 0,
+      userName: row['user_name']?.toString() ?? 'مستخدم غير معروف',
+      totalAmount: (row['total_amount'] as num?)?.toDouble() ?? 0,
+      paymentCount: (row['payment_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  final int userId;
+  final String userName;
+  final double totalAmount;
+  final int paymentCount;
+}
 
 class PaymentsRepository {
   PaymentsRepository(this.db) {
@@ -25,7 +49,9 @@ class PaymentsRepository {
   late final BookingDerivedFieldsService derivedFields;
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {
-    final bookingStream = (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
+    final bookingStream = (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
 
     return bookingStream.asyncExpand((booking) {
       final q = db.select(db.payments);
@@ -44,7 +70,8 @@ class PaymentsRepository {
     });
   }
 
-  Stream<List<Payment>> watchAll({bool includeDeleted = false}) => dao.watchList(includeDeleted: includeDeleted);
+  Stream<List<Payment>> watchAll({bool includeDeleted = false}) =>
+      dao.watchList(includeDeleted: includeDeleted);
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
   /// مراقبة إجمالي المدفوعات ليوم فندقي محدد عبر SQL SUM() — أداء أفضل
@@ -57,11 +84,98 @@ class PaymentsRepository {
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
           'WHERE deleted_at IS NULL AND is_voided = 0 AND '
           '(hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))',
-          variables: [d.Variable.withString(hotelDayKey), d.Variable.withString('$hotelDayKey%')],
+          variables: [
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
           readsFrom: {db.payments},
         )
         .watchSingle()
         .map((result) => (result.data['total'] as num).toDouble());
+  }
+
+  /// إجمالي المدفوعات التي سجلها المستخدم في جلسة دخوله الحالية.
+  /// يعتمد على session UUID، لذلك لا يخلط دفعات المستخدم من جلسة سابقة
+  /// أو دفعات موظف آخر على الجهاز نفسه.
+  Stream<double> watchTotalByCurrentPaymentSession(String hotelDayKey) {
+    final sessionUuid = PaymentSessionContext.sessionUuid;
+    final userId = PaymentSessionContext.userId;
+    if (sessionUuid == null || userId == null) {
+      return Stream<double>.value(0);
+    }
+
+    return db
+        .customSelect(
+          'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
+          'WHERE deleted_at IS NULL AND is_voided = 0 '
+          'AND is_pending_balance = 0 '
+          'AND received_by_user_id = ? AND received_session_uuid = ? '
+          'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))',
+          variables: [
+            d.Variable.withInt(userId),
+            d.Variable.withString(sessionUuid),
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
+          readsFrom: {db.payments},
+        )
+        .watchSingle()
+        .map((result) => (result.data['total'] as num).toDouble());
+  }
+
+  /// إجماليات استلامات كل مستخدم عبر كل جلساته ضمن اليوم الفندقي —
+  /// سطر واحد لكل مستخدم بغضّ النظر عن عدد جلسات تسجيل الدخول/النوبات.
+  ///
+  /// ✅ لا نشترط وجود جلسة: الدفعات القديمة/المستعادة من نسخ احتياطية
+  /// التي فقدت received_session_uuid تُحسب ضمن مستلمها طالما الاسم أو
+  /// المعرّف السحابي موجود (التطبيق أصلاً لا يسمح بتسجيل دفعة دون
+  /// جلسة مستخدم نشطة). الوحيدة المستثناة: صف بلا أي مستلم معروف.
+  /// التجميع يتم في SQLite حتى لا تُحمّل جميع صفوف المدفوعات إلى Dart.
+  Stream<List<PaymentShiftSummary>> watchPaymentShiftSummaries(
+    String hotelDayKey, {
+    int? excludedUserId,
+    String? excludedUserName,
+    String? excludedUserCloudId,
+  }) {
+    final excludedNameFilter = excludedUserName == null
+        ? ''
+        : "AND COALESCE(NULLIF(TRIM(received_by_name), ''), 'مستخدم غير معروف') != ? ";
+    final excludedCloudIdFilter = excludedUserCloudId == null
+        ? ''
+        : 'AND (received_by_cloud_id IS NULL OR received_by_cloud_id != ?) ';
+    return db
+        .customSelect(
+          'SELECT received_by_user_id AS user_id, '
+          "COALESCE(NULLIF(TRIM(received_by_name), ''), 'مستخدم غير معروف') AS user_name, "
+          'COALESCE(SUM(amount), 0.0) AS total_amount, '
+          'COUNT(*) AS payment_count '
+          'FROM payments '
+          'WHERE deleted_at IS NULL AND is_voided = 0 '
+          'AND is_pending_balance = 0 '
+          'AND (received_by_cloud_id IS NOT NULL OR received_by_name IS NOT NULL) '
+          '${excludedUserId == null ? '' : 'AND received_by_user_id != ? '} '
+          '$excludedNameFilter'
+          '$excludedCloudIdFilter'
+          'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?)) '
+          'GROUP BY received_by_user_id, received_by_name '
+          'ORDER BY total_amount DESC',
+          variables: [
+            if (excludedUserId != null) d.Variable.withInt(excludedUserId),
+            if (excludedUserName != null)
+              d.Variable.withString(excludedUserName),
+            if (excludedUserCloudId != null)
+              d.Variable.withString(excludedUserCloudId),
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
+          readsFrom: {db.payments},
+        )
+        .watch()
+        .map(
+          (rows) => rows
+              .map((row) => PaymentShiftSummary.fromRow(row.data))
+              .toList(growable: false),
+        );
   }
 
   /// مراقبة إجمالي المدفوعات لحجز محدد عبر SQL SUM() — بديل خفيف الوزن
@@ -91,11 +205,16 @@ class PaymentsRepository {
     bool isPendingBalance = false,
   }) async {
     try {
+      if (!PaymentSessionContext.isActive) {
+        throw StateError('لا يمكن تسجيل دفعة دون جلسة مستخدم نشطة');
+      }
       final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
 
       String? bookingUuidCache;
       if (bookingLocalId != null) {
-        final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull();
+        final booking = await (db.select(
+          db.bookings,
+        )..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull();
         bookingUuidCache = booking?.localUuid;
       }
 
@@ -114,6 +233,10 @@ class PaymentsRepository {
             hotelDayKey: d.Value(hotelDayKey),
             bookingUuidCache: d.Value(bookingUuidCache),
             isPendingBalance: d.Value(isPendingBalance),
+            receivedByUserId: d.Value(PaymentSessionContext.userId),
+            receivedByName: d.Value(PaymentSessionContext.userName),
+            receivedSessionUuid: d.Value(PaymentSessionContext.sessionUuid),
+            receivedByCloudId: d.Value(PaymentSessionContext.cloudUserId),
           ),
         );
         if (bookingLocalId != null) {
@@ -122,7 +245,13 @@ class PaymentsRepository {
         return id;
       });
 
-      unawaited(AutoBackupManager.instance.onDataChange('payments', 'INSERT', recordData: {'amount': amount}));
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
+          'payments',
+          'INSERT',
+          recordData: {'amount': amount},
+        ),
+      );
       // إشعارات فورية (fire-and-forget)
       unawaited(_notifyPaymentReceived(result));
       return result;
@@ -133,7 +262,11 @@ class PaymentsRepository {
         error: e,
         stackTrace: stack,
         severity: CrashlyticsSeverity.fatal,
-        extra: {'amount': '$amount', 'method': paymentMethod, 'bookingId': '$bookingLocalId'},
+        extra: {
+          'amount': '$amount',
+          'method': paymentMethod,
+          'bookingId': '$bookingLocalId',
+        },
       );
       rethrow;
     }
@@ -152,26 +285,46 @@ class PaymentsRepository {
     bool? isPendingBalance,
   }) async {
     try {
-      final before = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
+      final before = await (db.select(
+        db.payments,
+      )..where((p) => p.id.equals(id))).getSingleOrNull();
       final oldBookingId = before?.bookingLocalId;
 
-      final hotelDayKey = paymentDate != null ? HotelTimeEngine.getHotelDayKeyFromIso(paymentDate) : null;
+      final hotelDayKey = paymentDate != null
+          ? HotelTimeEngine.getHotelDayKeyFromIso(paymentDate)
+          : null;
 
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
       final result = await db.transaction(() async {
         final updated = await dao.updateById(
           id,
           PaymentsCompanion(
-            bookingLocalId: bookingLocalId != null ? d.Value(bookingLocalId) : const d.Value.absent(),
-            serverBookingId: serverBookingId != null ? d.Value(serverBookingId) : const d.Value.absent(),
-            roomNumber: roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
+            bookingLocalId: bookingLocalId != null
+                ? d.Value(bookingLocalId)
+                : const d.Value.absent(),
+            serverBookingId: serverBookingId != null
+                ? d.Value(serverBookingId)
+                : const d.Value.absent(),
+            roomNumber: roomNumber != null
+                ? d.Value(roomNumber)
+                : const d.Value.absent(),
             amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-            paymentDate: paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
+            paymentDate: paymentDate != null
+                ? d.Value(paymentDate)
+                : const d.Value.absent(),
             notes: notes != null ? d.Value(notes) : const d.Value.absent(),
-            paymentMethod: paymentMethod != null ? d.Value(paymentMethod) : const d.Value.absent(),
-            revenueType: revenueType != null ? d.Value(revenueType) : const d.Value.absent(),
-            hotelDayKey: hotelDayKey != null ? d.Value(hotelDayKey) : const d.Value.absent(),
-            isPendingBalance: isPendingBalance != null ? d.Value(isPendingBalance) : const d.Value.absent(),
+            paymentMethod: paymentMethod != null
+                ? d.Value(paymentMethod)
+                : const d.Value.absent(),
+            revenueType: revenueType != null
+                ? d.Value(revenueType)
+                : const d.Value.absent(),
+            hotelDayKey: hotelDayKey != null
+                ? d.Value(hotelDayKey)
+                : const d.Value.absent(),
+            isPendingBalance: isPendingBalance != null
+                ? d.Value(isPendingBalance)
+                : const d.Value.absent(),
           ),
         );
         if (updated > 0) {
@@ -191,7 +344,13 @@ class PaymentsRepository {
       });
 
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('payments', 'UPDATE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'payments',
+            'UPDATE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -208,7 +367,9 @@ class PaymentsRepository {
 
   Future<int> delete(int id) async {
     try {
-      final payment = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
+      final payment = await (db.select(
+        db.payments,
+      )..where((p) => p.id.equals(id))).getSingleOrNull();
       final bookingId = payment?.bookingLocalId;
 
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
@@ -221,7 +382,13 @@ class PaymentsRepository {
       });
 
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('payments', 'DELETE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'payments',
+            'DELETE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -249,7 +416,9 @@ class PaymentsRepository {
   /// استيراد بيانات المدفوعات
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
+      await dao.importFromJson(
+        List<Map<String, dynamic>>.from(data['data'] as List),
+      );
     }
   }
 
@@ -276,8 +445,14 @@ class PaymentsRepository {
     return (result.data['total'] as num).toDouble();
   }
 
-  Future<double> getTotalByHotelDayKey(String hotelDayKey, {String? revenueType}) async {
-    final variables = <d.Variable<Object>>[d.Variable.withString(hotelDayKey), d.Variable.withString('$hotelDayKey%')];
+  Future<double> getTotalByHotelDayKey(
+    String hotelDayKey, {
+    String? revenueType,
+  }) async {
+    final variables = <d.Variable<Object>>[
+      d.Variable.withString(hotelDayKey),
+      d.Variable.withString('$hotelDayKey%'),
+    ];
     var revenueFilter = '';
     if (revenueType != null && revenueType.isNotEmpty) {
       revenueFilter = ' AND revenue_type = ?';
@@ -299,7 +474,9 @@ class PaymentsRepository {
   /// إرسال إشعارات (WhatsApp + Telegram) عند استلام دفعة
   Future<void> _notifyPaymentReceived(int paymentId) async {
     try {
-      final payment = await (db.select(db.payments)..where((p) => p.id.equals(paymentId))).getSingleOrNull();
+      final payment = await (db.select(
+        db.payments,
+      )..where((p) => p.id.equals(paymentId))).getSingleOrNull();
       if (payment == null) return;
 
       // الحصول على معلومات الحجز إن وجد
@@ -307,9 +484,10 @@ class PaymentsRepository {
       String guestName = '-';
       if (payment.bookingLocalId != null) {
         try {
-          final booking = await (db.select(
-            db.bookings,
-          )..where((b) => b.id.equals(payment.bookingLocalId!))).getSingleOrNull();
+          final booking =
+              await (db.select(db.bookings)
+                    ..where((b) => b.id.equals(payment.bookingLocalId!)))
+                  .getSingleOrNull();
           if (booking != null) {
             roomNumber = booking.roomNumber;
             guestName = booking.guestName;
@@ -334,7 +512,7 @@ class PaymentsRepository {
         ),
       );
     } catch (e) {
-      debugPrint('⚠️ فشل إرسال إشعار الدفعة: $e');
+      dlog(() => '⚠️ فشل إرسال إشعار الدفعة: $e');
     }
   }
 }

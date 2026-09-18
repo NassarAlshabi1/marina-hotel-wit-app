@@ -20,10 +20,12 @@ import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class LatePaymentNotificationService {
   LatePaymentNotificationService._();
-  static final LatePaymentNotificationService instance = LatePaymentNotificationService._();
+  static final LatePaymentNotificationService instance =
+      LatePaymentNotificationService._();
 
   Timer? _timer;
   bool _isRunning = false;
@@ -38,7 +40,8 @@ class LatePaymentNotificationService {
   /// قناة الإشعارات المخصصة لتنبيهات السداد.
   static const String _channelId = 'marina_late_payment_channel';
   static const String _channelName = 'تنبيهات السداد المتأخر';
-  static const String _channelDescription = 'تنبيهات عند تأخر سداد الغرف المحجوزة (22:00+)';
+  static const String _channelDescription =
+      'تنبيهات عند تأخر سداد الغرف المحجوزة (22:00+)';
 
   /// IDs ثابتة للإشعارات حتى نتمكن من تحديثها بدل تكرارها.
   static const int _lateNotificationId = 9001;
@@ -53,7 +56,7 @@ class LatePaymentNotificationService {
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => _tick());
     // فحص فوري عند البدء (يفيد إذا فُتح التطبيق بعد 22:00).
     _tick();
-    debugPrint('🔔 LatePaymentNotificationService started');
+    dlog('🔔 LatePaymentNotificationService started');
   }
 
   /// يوقف الخدمة (يُستخدم عند إغلاق التطبيق أو في الاختبارات).
@@ -61,7 +64,7 @@ class LatePaymentNotificationService {
     _timer?.cancel();
     _timer = null;
     _isRunning = false;
-    debugPrint('🔕 LatePaymentNotificationService stopped');
+    dlog('🔕 LatePaymentNotificationService stopped');
   }
 
   /// الفحص الدوري: يُستدعى كل دقيقة.
@@ -102,7 +105,7 @@ class LatePaymentNotificationService {
         return;
       }
     } catch (e, st) {
-      debugPrint('❌ LatePaymentNotificationService tick error: $e\n$st');
+      dlog(() => '❌ LatePaymentNotificationService tick error: $e\n$st');
     }
   }
 
@@ -129,7 +132,7 @@ class LatePaymentNotificationService {
           : 0;
       return count;
     } catch (e) {
-      debugPrint('❌ Failed to count late-payment rooms: $e');
+      dlog(() => '❌ Failed to count late-payment rooms: $e');
       return 0;
     }
   }
@@ -147,7 +150,7 @@ class LatePaymentNotificationService {
       importance: Importance.high,
       priority: Priority.high,
     );
-    debugPrint('🔔 Late payment notification sent: $roomsCount rooms');
+    dlog(() => '🔔 Late payment notification sent: $roomsCount rooms');
   }
 
   Future<void> _showOverdueNotification(int roomsCount) async {
@@ -163,7 +166,7 @@ class LatePaymentNotificationService {
       importance: Importance.max,
       priority: Priority.max,
     );
-    debugPrint('🔔 Overdue payment notification sent: $roomsCount rooms');
+    dlog(() => '🔔 Overdue payment notification sent: $roomsCount rooms');
   }
 
   Future<void> _showNotification({
@@ -215,7 +218,7 @@ class LatePaymentNotificationService {
 
       await plugin.show(id, title, body, details);
     } catch (e, st) {
-      debugPrint('❌ Failed to show late-payment notification: $e\n$st');
+      dlog(() => '❌ Failed to show late-payment notification: $e\n$st');
     }
   }
 

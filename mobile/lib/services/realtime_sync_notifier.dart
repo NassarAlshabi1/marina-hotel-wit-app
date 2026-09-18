@@ -1,14 +1,15 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'smart_sync_manager.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
 class RealtimeSyncNotifier {
   RealtimeSyncNotifier._();
   static RealtimeSyncNotifier? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static RealtimeSyncNotifier get instance => _instance ??= RealtimeSyncNotifier._();
+  static RealtimeSyncNotifier get instance =>
+      _instance ??= RealtimeSyncNotifier._();
 
   final _syncTriggerController = StreamController<SyncTrigger>.broadcast();
   Stream<SyncTrigger> get onSyncTrigger => _syncTriggerController.stream;
@@ -31,7 +32,7 @@ class RealtimeSyncNotifier {
 
     _pollingTimer = Timer.periodic(_pollingInterval, (_) => _checkForNewSync());
 
-    debugPrint('🔔 بدء الاستماع لإشعارات المزامنة');
+    dlog('🔔 بدء الاستماع لإشعارات المزامنة');
   }
 
   /// إيقاف الاستماع
@@ -40,7 +41,7 @@ class RealtimeSyncNotifier {
     _pollingTimer = null;
     _isListening = false;
 
-    debugPrint('🔕 إيقاف الاستماع لإشعارات المزامنة');
+    dlog('🔕 إيقاف الاستماع لإشعارات المزامنة');
   }
 
   /// التحقق من وجود مزامنة جديدة
@@ -58,7 +59,8 @@ class RealtimeSyncNotifier {
         // ✅ P1-13 fix: استخدام timestamp متغير فريد بدل DateTime.now() المتكرر
         // syncId يجب أن يُشتق من شيء يتغير فعلاً (عدد السجلات أو timestamp)
         // بدل DateTime.now() الذي يولد قيمة جديدة كل مرة → لا يتطابق أبداً
-        final syncId = 'auto_changes_${DateTime.now().millisecondsSinceEpoch ~/ 5000}';
+        final syncId =
+            'auto_changes_${DateTime.now().millisecondsSinceEpoch ~/ 5000}';
         // ✅ P1-13: تقريب للـ 5 ثواني لمنع الإفراط في الإشعارات
         if (_lastProcessedSyncId == syncId) {
           return;
@@ -73,15 +75,18 @@ class RealtimeSyncNotifier {
 
         _syncTriggerController.add(trigger);
         await _saveLastProcessedSyncId(syncId);
-        debugPrint('🔔 تم اكتشاف تغييرات جديدة');
+        dlog('🔔 تم اكتشاف تغييرات جديدة');
       }
     } catch (e) {
-      debugPrint('❌ خطأ في التحقق من المزامنة الجديدة: $e');
+      dlog(() => '❌ خطأ في التحقق من المزامنة الجديدة: $e');
     }
   }
 
   /// إرسال إشعار لأجهزة أخرى (عبر FCM أو Drive metadata)
-  Future<void> notifyOtherDevices({required String syncId, required String changeType}) async {
+  Future<void> notifyOtherDevices({
+    required String syncId,
+    required String changeType,
+  }) async {
     try {
       // ignore: unused_local_variable
       final metadata = {
@@ -91,9 +96,9 @@ class RealtimeSyncNotifier {
         'timestamp': DateTime.now().toUtc().toIso8601String(),
       };
 
-      debugPrint('📤 إرسال إشعار للأجهزة الأخرى: $syncId');
+      dlog(() => '📤 إرسال إشعار للأجهزة الأخرى: $syncId');
     } catch (e) {
-      debugPrint('⚠️ فشل إرسال الإشعار: $e');
+      dlog(() => '⚠️ فشل إرسال الإشعار: $e');
     }
   }
 

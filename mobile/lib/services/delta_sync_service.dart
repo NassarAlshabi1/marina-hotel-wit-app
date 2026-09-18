@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 
 import '../data/sync_models.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DeltaSyncChange {
   DeltaSyncChange({
@@ -77,8 +77,9 @@ class DeltaSyncService {
       final hasMirror = previousMirror.containsKey(config.entity);
       if (!hasMirror) {
         fallbackTables.add(config.entity);
-        debugPrint(
-          '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
+        dlog(
+          () =>
+              '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
         );
       }
 
@@ -203,7 +204,8 @@ class DeltaSyncService {
     for (final row in rows) {
       final table = row.read<String>('table_name');
       final uuid = row.read<String>('local_uuid');
-      final payload = jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
+      final payload =
+          jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
       result.putIfAbsent(table, () => {})[uuid] = MirrorRow(
         localUuid: uuid,
         rowHash: row.read<String>('row_hash'),
@@ -270,8 +272,8 @@ class DeltaSyncService {
   Future<void> repairMirrorIfNeeded() async {
     final validation = await validateMirror();
     if (!validation.isValid) {
-      debugPrint('⚠️ Mirror inconsistency detected, repairing...');
-      debugPrint('Issues: ${validation.issues.join(', ')}');
+      dlog('⚠️ Mirror inconsistency detected, repairing...');
+      dlog(() => 'Issues: ${validation.issues.join(', ')}');
       await _rebuildMirror();
     }
   }
@@ -302,15 +304,15 @@ class DeltaSyncService {
             [config.entity, uuid, rowHash, jsonEncode(sanitized), nowTs],
           );
         }
-        debugPrint(
-          '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
+        dlog(
+          () => '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
         );
       } catch (e) {
-        debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
+        dlog(() => '❌ Failed to rebuild mirror for ${config.entity}: $e');
       }
     }
 
-    debugPrint('✅ Mirror rebuild completed');
+    dlog('✅ Mirror rebuild completed');
   }
 
   List<_EntityConfig> _entityConfigs() {
@@ -356,6 +358,25 @@ class DeltaSyncService {
         lastModified: (dynamic row) => (row as Employee).lastModified,
         deletedAt: (dynamic row) => (row as Employee).deletedAt,
         toJson: (dynamic row) => (row as Employee).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'inventory_items',
+        fetchAll: () => db.select(db.inventoryItems).get(),
+        localUuid: (dynamic row) => (row as InventoryItem).localUuid,
+        createdAt: (dynamic row) => (row as InventoryItem).createdAt,
+        lastModified: (dynamic row) => (row as InventoryItem).lastModified,
+        deletedAt: (dynamic row) => (row as InventoryItem).deletedAt,
+        toJson: (dynamic row) => (row as InventoryItem).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'inventory_transactions',
+        fetchAll: () => db.select(db.inventoryTransactions).get(),
+        localUuid: (dynamic row) => (row as InventoryTransaction).localUuid,
+        createdAt: (dynamic row) => (row as InventoryTransaction).createdAt,
+        lastModified: (dynamic row) =>
+            (row as InventoryTransaction).lastModified,
+        deletedAt: (dynamic row) => (row as InventoryTransaction).deletedAt,
+        toJson: (dynamic row) => (row as InventoryTransaction).toJson(),
       ),
       _EntityConfig(
         entity: 'expenses',
@@ -489,7 +510,8 @@ class DeltaSyncService {
         fetchAll: () => db.select(db.bookingPriceAdjustments).get(),
         localUuid: (dynamic row) => (row as BookingPriceAdjustment).localUuid,
         createdAt: (dynamic row) => (row as BookingPriceAdjustment).createdAt,
-        lastModified: (dynamic row) => (row as BookingPriceAdjustment).lastModified,
+        lastModified: (dynamic row) =>
+            (row as BookingPriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
       ),
@@ -627,9 +649,13 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       } else {
         final isFirstSyncForTable = !hasMirror;
         final isNewRecordInMirror = previous == null;
-        final createdAfterLastSync = createdAt != null && createdAt > input.normalizedSince;
+        final createdAfterLastSync =
+            createdAt != null && createdAt > input.normalizedSince;
 
-        final shouldInsert = isFirstSyncForTable || (hasMirror && isNewRecordInMirror) || createdAfterLastSync;
+        final shouldInsert =
+            isFirstSyncForTable ||
+            (hasMirror && isNewRecordInMirror) ||
+            createdAfterLastSync;
 
         if (shouldInsert) {
           changes.add(
@@ -642,7 +668,9 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
               clientTimestamp: clientTs,
             ),
           );
-        } else if (previous != null && lastModified != null && lastModified > input.normalizedSince) {
+        } else if (previous != null &&
+            lastModified != null &&
+            lastModified > input.normalizedSince) {
           changes.add(
             DeltaSyncChange(
               entity: entityData.entity,
@@ -665,7 +693,9 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       seen.add(localUuid);
     }
 
-    final missing = existingMirror.keys.where((uuid) => !seen.contains(uuid)).toList();
+    final missing = existingMirror.keys
+        .where((uuid) => !seen.contains(uuid))
+        .toList();
     for (final uuid in missing) {
       final previous = existingMirror[uuid];
       if (previous == null) continue;
@@ -689,7 +719,8 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       //   - تم إرسال الـ delete ضمن دورة سابقة
       //   - الخادم يعرف عنه
       //   - لا حاجة لإعادة الإرسال
-      final shouldEmit = previousDeletedAt == null || deleteStamp > input.normalizedSince;
+      final shouldEmit =
+          previousDeletedAt == null || deleteStamp > input.normalizedSince;
       if (shouldEmit) {
         payload['deleted_at'] = deleteStamp;
         payload['row_hash'] = previous.rowHash;

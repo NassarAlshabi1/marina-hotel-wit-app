@@ -7,18 +7,47 @@ import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
 import '../daos/employees_dao.dart';
 import '../daos/outbox_dao.dart';
+import '../employee_link_consistency_service.dart';
 import '../local_db.dart';
+import '../../utils/debug_log.dart';
 
 class EmployeesRepository {
-  EmployeesRepository(this.db) : outbox = OutboxDao(db), dao = EmployeesDao(db, OutboxDao(db));
+  EmployeesRepository(this.db)
+    : outbox = OutboxDao(db),
+      dao = EmployeesDao(db, OutboxDao(db)),
+      linkConsistency = EmployeeLinkConsistencyService(db);
   final AppDatabase db;
   final OutboxDao outbox;
   final EmployeesDao dao;
+  final EmployeeLinkConsistencyService linkConsistency;
 
-  Stream<List<Employee>> watchAll({String? search}) => dao.watchList(search: search);
+  /// ✅ قاعدة صاحب الفندق (2026-09-14): عند تعديل بيانات الموظف يجب
+  /// تحديث الجداول المرتبطة به بحيث لا تتكوّن سجلات يتيمة — يُنفَّذ
+  /// بعد نجاح أي تعديل (update/terminate/reactivate) ولا يُفشل التعديل
+  /// إن فشل الإصلاح (يُسجَّل فقط).
+  Future<void> _repairLinkedRecords(int employeeId) async {
+    try {
+      final report = await linkConsistency.repairLinksForEmployee(employeeId);
+      if (report.hasRepairs || report.orphanWithdrawalsUnrescuable > 0) {
+        dlog(
+          () =>
+              '🔗 EmployeeLinks #$employeeId → ${report.notes.take(5).join(' | ')}',
+        );
+      }
+    } catch (_) {
+      // الإصلاح لا يعترض مسار التعديل أبداً
+    }
+  }
+
+  Stream<List<Employee>> watchAll({
+    String? search,
+    int? limit,
+    int offset = 0,
+  }) => dao.watchList(search: search, limit: limit, offset: offset);
   Stream<Employee?> watchOne(int id) => dao.watchById(id);
 
-  String _normalizeStatus(String status) => StatusUtils.canonicalEmployeeStatus(status);
+  String _normalizeStatus(String status) =>
+      StatusUtils.canonicalEmployeeStatus(status);
 
   Future<int> create({
     required String name,
@@ -42,7 +71,13 @@ class EmployeesRepository {
           status: d.Value(normalizedStatus),
         ),
       );
-      unawaited(AutoBackupManager.instance.onDataChange('employees', 'INSERT', recordData: {'name': name}));
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
+          'employees',
+          'INSERT',
+          recordData: {'name': name},
+        ),
+      );
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -74,17 +109,36 @@ class EmployeesRepository {
         id,
         EmployeesCompanion(
           name: name != null ? d.Value(name) : const d.Value.absent(),
-          basicSalary: (salary ?? basicSalary) != null ? d.Value((salary ?? basicSalary)!) : const d.Value.absent(),
-          position: position != null ? d.Value(position) : const d.Value.absent(),
+          basicSalary: (salary ?? basicSalary) != null
+              ? d.Value((salary ?? basicSalary)!)
+              : const d.Value.absent(),
+          position: position != null
+              ? d.Value(position)
+              : const d.Value.absent(),
           phone: phone != null ? d.Value(phone) : const d.Value.absent(),
-          hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
-          status: status != null ? d.Value(_normalizeStatus(status)) : const d.Value.absent(),
-          terminationDate: terminationDate != null ? d.Value(terminationDate) : const d.Value.absent(),
-          terminationReason: terminationReason != null ? d.Value(terminationReason) : const d.Value.absent(),
+          hireDate: hireDate != null
+              ? d.Value(hireDate)
+              : const d.Value.absent(),
+          status: status != null
+              ? d.Value(_normalizeStatus(status))
+              : const d.Value.absent(),
+          terminationDate: terminationDate != null
+              ? d.Value(terminationDate)
+              : const d.Value.absent(),
+          terminationReason: terminationReason != null
+              ? d.Value(terminationReason)
+              : const d.Value.absent(),
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('employees', 'UPDATE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'employees',
+            'UPDATE',
+            recordData: {'id': id},
+          ),
+        );
+        await _repairLinkedRecords(id);
       }
       return result;
     } catch (e, stack) {
@@ -110,19 +164,34 @@ class EmployeesRepository {
     String? status,
     String? terminationDate,
     String? terminationReason,
-  }) => dao.updateByLocalUuid(
-    localUuid,
-    EmployeesCompanion(
-      name: name != null ? d.Value(name) : const d.Value.absent(),
-      basicSalary: (salary ?? basicSalary) != null ? d.Value((salary ?? basicSalary)!) : const d.Value.absent(),
-      position: position != null ? d.Value(position) : const d.Value.absent(),
-      phone: phone != null ? d.Value(phone) : const d.Value.absent(),
-      hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
-      status: status != null ? d.Value(_normalizeStatus(status)) : const d.Value.absent(),
-      terminationDate: terminationDate != null ? d.Value(terminationDate) : const d.Value.absent(),
-      terminationReason: terminationReason != null ? d.Value(terminationReason) : const d.Value.absent(),
-    ),
-  );
+  }) async {
+    final existing = await dao.getByLocalUuid(localUuid);
+    final result = await dao.updateByLocalUuid(
+      localUuid,
+      EmployeesCompanion(
+        name: name != null ? d.Value(name) : const d.Value.absent(),
+        basicSalary: (salary ?? basicSalary) != null
+            ? d.Value((salary ?? basicSalary)!)
+            : const d.Value.absent(),
+        position: position != null ? d.Value(position) : const d.Value.absent(),
+        phone: phone != null ? d.Value(phone) : const d.Value.absent(),
+        hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
+        status: status != null
+            ? d.Value(_normalizeStatus(status))
+            : const d.Value.absent(),
+        terminationDate: terminationDate != null
+            ? d.Value(terminationDate)
+            : const d.Value.absent(),
+        terminationReason: terminationReason != null
+            ? d.Value(terminationReason)
+            : const d.Value.absent(),
+      ),
+    );
+    if (result > 0 && existing != null) {
+      await _repairLinkedRecords(existing.id);
+    }
+    return result;
+  }
 
   /// إنهاء خدمة موظف - يغير الحالة ويسجل تاريخ وسبب الإنهاء
   Future<int> terminate({
@@ -148,6 +217,7 @@ class EmployeesRepository {
             recordData: {'id': id, 'type': terminationType},
           ),
         );
+        await _repairLinkedRecords(id);
       }
       return result;
     } catch (e, stack) {
@@ -175,7 +245,14 @@ class EmployeesRepository {
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('employees', 'REACTIVATE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'employees',
+            'REACTIVATE',
+            recordData: {'id': id},
+          ),
+        );
+        await _repairLinkedRecords(id);
       }
       return result;
     } catch (e, stack) {
@@ -194,7 +271,13 @@ class EmployeesRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('employees', 'DELETE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'employees',
+            'DELETE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -222,7 +305,9 @@ class EmployeesRepository {
   /// استيراد بيانات الموظفين
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
+      await dao.importFromJson(
+        List<Map<String, dynamic>>.from(data['data'] as List),
+      );
     }
   }
 

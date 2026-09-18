@@ -6,6 +6,7 @@ import '../../utils/expense_reason_matcher.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../appwrite_sync_manager.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../telegram/telegram_notification_service.dart';
@@ -20,16 +21,21 @@ class SalaryWithdrawalsRepository {
   /// العمود أُضيف عبر Migration 40 ولا يوجد في الـ data class المُولّد
   Future<void> _setExpenseIdRaw(int salaryWithdrawalId, int expenseId) async {
     try {
-      await _db.customStatement('UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?', [
-        expenseId,
-        salaryWithdrawalId,
-      ]);
+      await _db.customStatement(
+        'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+        [expenseId, salaryWithdrawalId],
+      );
     } catch (_) {
       // العمود قد لا يكون موجوداً في الإصدارات القديمة — نتخطى بصمت
     }
   }
 
   /// إنشاء سجل سحب راتب مرتبط بمصروف
+  ///
+  /// ✅ (2026-09-14) إسناد السحبة لمسجّلها:
+  /// - [recorderName] اسم المستخدم المسجّل (من جلسة الدخول) — يُخزّن محلياً
+  ///   ويُرفع للسحابة في حقل name ليظهر في التقارير على كل الأجهزة.
+  /// - deviceId يُملأ تلقائياً من هوية الجهاز الحالية (إن وُجدت).
   Future<int> createFromExpense({
     required int expenseId,
     required int employeeId,
@@ -39,65 +45,89 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     String? withdrawalType,
     String? description,
+    String? recorderName,
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
-    final companion = SalaryWithdrawalsCompanion(
-      localUuid: d.Value(uuid),
-      serverId: const d.Value(null),
-      employeeId: d.Value(employeeId),
-      amount: d.Value(amount),
-      withdrawDate: d.Value(date),
-      reason: d.Value(reason),
-      hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
-      withdrawalType: d.Value(withdrawalType),
-      description: d.Value(description),
-      createdAt: d.Value(now),
-      updatedAt: d.Value(now),
-      deletedAt: const d.Value(null),
-      lastModified: d.Value(now),
-      createdAtEpoch: d.Value(now),
-      lastModifiedEpoch: d.Value(now),
-      version: const d.Value(1),
-      origin: d.Value(originIsServer ? 'server' : 'local'),
-      vectorClock: const d.Value('{}'),
-    );
-    final id = await _db.into(_db.salaryWithdrawals).insert(companion);
+    // ✅ وسم الجهاز — عمود deviceId موجود في SyncFields وكان يُرسل فارغاً دائماً
+    final deviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
 
-    // ✅ كتابة expense_id في العمود الخام (إذا كان expenseId > 0)
-    if (expenseId > 0) {
-      await _setExpenseIdRaw(id, expenseId);
-    }
+    final id = await _db.transaction(() async {
+      final companion = SalaryWithdrawalsCompanion(
+        localUuid: d.Value(uuid),
+        serverId: const d.Value(null),
+        employeeId: d.Value(employeeId),
+        amount: d.Value(amount),
+        withdrawDate: d.Value(date),
+        reason: d.Value(reason),
+        hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
+        withdrawalType: d.Value(withdrawalType),
+        description: d.Value(description),
+        recorderName: recorderName != null && recorderName.isNotEmpty
+            ? d.Value(recorderName)
+            : const d.Value.absent(),
+        deviceId: d.Value(deviceId),
+        createdAt: d.Value(now),
+        updatedAt: d.Value(now),
+        deletedAt: const d.Value(null),
+        lastModified: d.Value(now),
+        createdAtEpoch: d.Value(now),
+        lastModifiedEpoch: d.Value(now),
+        version: const d.Value(1),
+        origin: d.Value(originIsServer ? 'server' : 'local'),
+        vectorClock: const d.Value('{}'),
+      );
+      final id = await _db.into(_db.salaryWithdrawals).insert(companion);
 
-    // إشعارات فورية (fire-and-forget)
-    unawaited(
-      WhatsAppNotificationService.instance.notifyNewExpense(category: 'سحب راتب', amount: amount, description: reason),
-    );
-    unawaited(
-      TelegramNotificationService.instance.notifyNewExpense(category: 'سحب راتب', amount: amount, description: reason),
-    );
-
-    if (!originIsServer) {
-      final payload = <String, dynamic>{
-        'employeeId': employeeId,
-        'amount': amount,
-        'withdrawDate': date,
-        'reason': reason,
-        'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
-        'withdrawalType': withdrawalType,
-        'description': description,
-      };
-      // ✅ إضافة expenseId للحمولة لمزامنته مع Appwrite
       if (expenseId > 0) {
-        payload['expenseId'] = expenseId;
+        await _setExpenseIdRaw(id, expenseId);
       }
-      await _outboxDao.merge(
-        entity: 'salary_withdrawals',
-        op: 'create',
-        localUuid: uuid,
-        payload: payload,
-        clientTs: now,
+
+      if (!originIsServer) {
+        final payload = <String, dynamic>{
+          'employeeId': employeeId,
+          'amount': amount,
+          'withdrawDate': date,
+          'reason': reason,
+          'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
+          'withdrawalType': withdrawalType,
+          'description': description,
+          'deviceId': deviceId,
+          if (recorderName != null && recorderName.isNotEmpty)
+            'recorderName': recorderName,
+        };
+        if (expenseId > 0) {
+          payload['expenseId'] = expenseId;
+        }
+        await _outboxDao.merge(
+          entity: 'salary_withdrawals',
+          op: 'create',
+          localUuid: uuid,
+          payload: payload,
+          clientTs: now,
+        );
+      }
+
+      return id;
+    });
+
+    // الإشعارات لا تدخل في المعاملة حتى لا تطيل قفل SQLite أو تُرسل قبل
+    // نجاح حفظ السجل وoutbox. لا نرسلها للبيانات المسحوبة من الخادم.
+    if (!originIsServer) {
+      unawaited(
+        WhatsAppNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount,
+          description: reason,
+        ),
+      );
+      unawaited(
+        TelegramNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount,
+          description: reason,
+        ),
       );
     }
 
@@ -145,24 +175,32 @@ class SalaryWithdrawalsRepository {
 
     // الطريقة 2: بحث عبر reason (الطريقة القديمة)
     if (matched == null) {
-      final existing = await (_db.select(
-        _db.salaryWithdrawals,
-      )..where((t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull())).get();
-      matched = existing.where((w) => matchesExpenseRef(w.reason, expenseId)).firstOrNull;
+      final existing =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull(),
+              ))
+              .get();
+      matched = existing
+          .where((w) => matchesExpenseRef(w.reason, expenseId))
+          .firstOrNull;
     }
 
     final now = Time.nowEpoch();
     // reason يحتوي فقط على علامة الربط بالمصروف
     final reasonText = 'exp_$expenseId';
+    // ✅ وسم الجهاز على سجلات المرايا أيضاً (مصروف → سحبة مطابقة)
+    final deviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
 
     // جمع السجلات القديمة غير المطابقة لمنع التكرار عند التعديل
     final staleRecords = <SalaryWithdrawal>[];
     if (matched != null) {
       final matchedId = matched.id; // ✅ متغير محلي non-null
       // البحث عن سجلات أخرى بنفس expense_id أو exp_XX
-      final allExisting = await (_db.select(
-        _db.salaryWithdrawals,
-      )..where((t) => t.deletedAt.isNull() & t.id.equals(matchedId).not())).get();
+      final allExisting =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) => t.deletedAt.isNull() & t.id.equals(matchedId).not(),
+              ))
+              .get();
       for (final w in allExisting) {
         if (matchesExpenseRef(w.reason, expenseId)) {
           staleRecords.add(w);
@@ -173,7 +211,9 @@ class SalaryWithdrawalsRepository {
     await _db.transaction(() async {
       // ─── حذف السجلات القديمة داخل المعاملة لضمان اتساق المزامنة ───
       for (final stale in staleRecords) {
-        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(stale.id))).write(
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.equals(stale.id))).write(
           SalaryWithdrawalsCompanion(
             deletedAt: d.Value(now),
             updatedAt: d.Value(now),
@@ -192,7 +232,11 @@ class SalaryWithdrawalsRepository {
             op: 'update',
             localUuid: stale.localUuid,
             serverId: stale.serverId,
-            payload: {'employeeId': stale.employeeId, 'deletedAt': now, 'lastModified': now},
+            payload: {
+              'employeeId': stale.employeeId,
+              'deletedAt': now,
+              'lastModified': now,
+            },
             clientTs: now,
           );
         }
@@ -205,7 +249,9 @@ class SalaryWithdrawalsRepository {
         final matchedServerId = matched.serverId;
         final matchedVersion = matched.version;
         // تحديث السجل الموجود
-        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(matchedId))).write(
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.equals(matchedId))).write(
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
             amount: d.Value(amount),
@@ -214,6 +260,9 @@ class SalaryWithdrawalsRepository {
             withdrawalType: d.Value(action),
             description: d.Value(note),
             hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
+            deviceId: deviceId.isEmpty
+                ? const d.Value.absent()
+                : d.Value(deviceId),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
             version: d.Value(matchedVersion + 1),
@@ -274,6 +323,7 @@ class SalaryWithdrawalsRepository {
                 withdrawalType: d.Value(action),
                 description: d.Value(note),
                 hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
+                deviceId: d.Value(deviceId),
                 createdAt: d.Value(now),
                 updatedAt: d.Value(now),
                 deletedAt: const d.Value(null),
@@ -328,7 +378,10 @@ class SalaryWithdrawalsRepository {
   /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي
   /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
   /// ✅ إصلاح خبير: البحث أولاً عبر عمود expense_id ثم عبر reason
-  Future<void> deleteByExpenseId(int expenseId, {bool originIsServer = false}) async {
+  Future<void> deleteByExpenseId(
+    int expenseId, {
+    bool originIsServer = false,
+  }) async {
     // الطريقة 1: بحث عبر عمود expense_id
     List<SalaryWithdrawal> toDelete = [];
     try {
@@ -340,7 +393,9 @@ class SalaryWithdrawalsRepository {
           .get();
       if (rows.isNotEmpty) {
         final ids = rows.map((r) => r.read<int>('id')).toList();
-        toDelete = await (_db.select(_db.salaryWithdrawals)..where((t) => t.id.isIn(ids))).get();
+        toDelete = await (_db.select(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.isIn(ids))).get();
       }
     } catch (_) {
       // العمود قد لا يكون موجوداً
@@ -348,10 +403,14 @@ class SalaryWithdrawalsRepository {
 
     // الطريقة 2: بحث عبر reason (الطريقة القديمة) إذا لم نجد عبر expense_id
     if (toDelete.isEmpty) {
-      final candidates = await (_db.select(
-        _db.salaryWithdrawals,
-      )..where((t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull())).get();
-      toDelete = candidates.where((w) => matchesExpenseRef(w.reason, expenseId)).toList();
+      final candidates =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull(),
+              ))
+              .get();
+      toDelete = candidates
+          .where((w) => matchesExpenseRef(w.reason, expenseId))
+          .toList();
     }
 
     final now = Time.nowEpoch();
@@ -359,7 +418,9 @@ class SalaryWithdrawalsRepository {
     // ✅ حذف ناعم في معاملة واحدة لضمان الاتساق
     await _db.transaction(() async {
       for (final item in toDelete) {
-        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(item.id))).write(
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.equals(item.id))).write(
           SalaryWithdrawalsCompanion(
             deletedAt: d.Value(now),
             updatedAt: d.Value(now),
@@ -378,7 +439,11 @@ class SalaryWithdrawalsRepository {
             op: 'update',
             localUuid: item.localUuid,
             serverId: item.serverId,
-            payload: {'employeeId': item.employeeId, 'deletedAt': now, 'lastModified': now},
+            payload: {
+              'employeeId': item.employeeId,
+              'deletedAt': now,
+              'lastModified': now,
+            },
             clientTs: now,
           );
         }
@@ -388,19 +453,36 @@ class SalaryWithdrawalsRepository {
 
   /// جلب كل سحوبات الرواتب (غير المحذوفة فقط)
   Future<List<SalaryWithdrawal>> listAll() async {
-    return (_db.select(_db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
+    // Returns ALL records including soft-deleted ones (for audit/recovery)
+    return _db.select(_db.salaryWithdrawals).get();
   }
 
   /// جلب سحوبات موظف معين
   Future<List<SalaryWithdrawal>> listByEmployeeId(int employeeId) async {
     return (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.employeeId.equals(employeeId) & t.deletedAt.isNull())).get();
+          _db.salaryWithdrawals,
+        )..where((t) => t.employeeId.equals(employeeId) & t.deletedAt.isNull()))
+        .get();
   }
 
-  /// جلب السحوبات النشطة (غير المحذوفة)
-  Future<List<SalaryWithdrawal>> listActive() async {
-    return (_db.select(_db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
+  /// جلب السحوبات النشطة (غير المحذوفة) مع حد اختياري للقوائم منخفضة الذاكرة.
+  Future<List<SalaryWithdrawal>> listActive({
+    int? limit,
+    int offset = 0,
+  }) async {
+    final query = _db.select(_db.salaryWithdrawals)
+      ..where((t) => t.deletedAt.isNull())
+      ..orderBy([
+        (t) => d.OrderingTerm(
+          expression: t.withdrawDate,
+          mode: d.OrderingMode.desc,
+        ),
+        (t) => d.OrderingTerm(expression: t.id, mode: d.OrderingMode.desc),
+      ]);
+    if (limit != null) {
+      query.limit(limit, offset: offset);
+    }
+    return query.get();
   }
 
   /// حساب مفتاح اليوم الفندقي من تاريخ السحب
@@ -421,7 +503,9 @@ class SalaryWithdrawalsRepository {
       final year = int.tryParse(parts[0]) ?? 1;
       final month = int.tryParse(parts[1]) ?? 1;
       final day = int.tryParse(parts[2]) ?? 1;
-      return HotelTimeEngine.getHotelDayKey(dateTime: DateTime(year, month, day, 14, 1));
+      return HotelTimeEngine.getHotelDayKey(
+        dateTime: DateTime(year, month, day, 14, 1),
+      );
     } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
     }

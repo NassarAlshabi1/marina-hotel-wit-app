@@ -25,69 +25,122 @@ void main() {
 
   group('تصنيف 429 (isRateLimitError)', () {
     test('code == 429 → true', () {
-      expect(helper.isRateLimitErrorForTest(AppwriteException('too many', 429)), isTrue);
+      expect(
+        helper.isRateLimitErrorForTest(AppwriteException('too many', 429)),
+        isTrue,
+      );
     });
 
     test('type general_rate_limit_exceeded → true', () {
       expect(
-        helper.isRateLimitErrorForTest(AppwriteException('nope', 400, 'general_rate_limit_exceeded')),
+        helper.isRateLimitErrorForTest(
+          AppwriteException('nope', 400, 'general_rate_limit_exceeded'),
+        ),
         isTrue,
       );
     });
 
     test('type rate_limit → true', () {
-      expect(helper.isRateLimitErrorForTest(AppwriteException('x', 400, 'rate_limit')), isTrue);
+      expect(
+        helper.isRateLimitErrorForTest(
+          AppwriteException('x', 400, 'rate_limit'),
+        ),
+        isTrue,
+      );
     });
 
     test('نص عادي يحتوي 429 → true', () {
-      expect(helper.isRateLimitErrorForTest('Error: request failed 429'), isTrue);
+      expect(
+        helper.isRateLimitErrorForTest('Error: request failed 429'),
+        isTrue,
+      );
     });
 
     test('نص يحتوي "rate limit" → true', () {
-      expect(helper.isRateLimitErrorForTest('Server returned rate limit'), isTrue);
+      expect(
+        helper.isRateLimitErrorForTest('Server returned rate limit'),
+        isTrue,
+      );
     });
 
     test('404 ليس rate limit → false', () {
-      expect(helper.isRateLimitErrorForTest(AppwriteException('not found', 404, 'document_not_found')), isFalse);
+      expect(
+        helper.isRateLimitErrorForTest(
+          AppwriteException('not found', 404, 'document_not_found'),
+        ),
+        isFalse,
+      );
     });
 
     test('500 ليس rate limit → false', () {
-      expect(helper.isRateLimitErrorForTest(AppwriteException('server', 500)), isFalse);
+      expect(
+        helper.isRateLimitErrorForTest(AppwriteException('server', 500)),
+        isFalse,
+      );
     });
   });
 
   group('تصنيف قابلية إعادة المحاولة (isRetriableError)', () {
     test('429 قابل لإعادة المحاولة (يُحلّ بالانتظار)', () {
-      expect(helper.isRetriableErrorForTest(AppwriteException('too many requests 429', 429)), isTrue);
+      expect(
+        helper.isRetriableErrorForTest(
+          AppwriteException('too many requests 429', 429),
+        ),
+        isTrue,
+      );
     });
 
     test('500 قابل لإعادة المحاولة', () {
-      expect(helper.isRetriableErrorForTest(AppwriteException('internal 500', 500)), isTrue);
+      expect(
+        helper.isRetriableErrorForTest(AppwriteException('internal 500', 500)),
+        isTrue,
+      );
     });
 
     test('503 قابل لإعادة المحاولة', () {
-      expect(helper.isRetriableErrorForTest(AppwriteException('unavailable 503', 503)), isTrue);
+      expect(
+        helper.isRetriableErrorForTest(
+          AppwriteException('unavailable 503', 503),
+        ),
+        isTrue,
+      );
     });
 
     test('400 غير قابل لإعادة المحاولة', () {
-      expect(helper.isRetriableErrorForTest(AppwriteException('bad request', 400)), isFalse);
+      expect(
+        helper.isRetriableErrorForTest(AppwriteException('bad request', 400)),
+        isFalse,
+      );
     });
 
     test('401 غير قابل لإعادة المحاولة', () {
-      expect(helper.isRetriableErrorForTest(AppwriteException('unauthorized', 401)), isFalse);
+      expect(
+        helper.isRetriableErrorForTest(AppwriteException('unauthorized', 401)),
+        isFalse,
+      );
     });
 
     test('403 غير قابل لإعادة المحاولة', () {
-      expect(helper.isRetriableErrorForTest(AppwriteException('forbidden', 403)), isFalse);
+      expect(
+        helper.isRetriableErrorForTest(AppwriteException('forbidden', 403)),
+        isFalse,
+      );
     });
 
     test('404 document_not_found غير قابل لإعادة المحاولة', () {
-      expect(helper.isRetriableErrorForTest(AppwriteException('not found', 404, 'document_not_found')), isFalse);
+      expect(
+        helper.isRetriableErrorForTest(
+          AppwriteException('not found', 404, 'document_not_found'),
+        ),
+        isFalse,
+      );
     });
 
     test('409 document_already_exists غير قابل لإعادة المحاولة', () {
       expect(
-        helper.isRetriableErrorForTest(AppwriteException('exists', 409, 'document_already_exists')),
+        helper.isRetriableErrorForTest(
+          AppwriteException('exists', 409, 'document_already_exists'),
+        ),
         isFalse,
       );
     });
@@ -95,17 +148,29 @@ void main() {
     test('402 (حد القراءة) غير قابل لإعادة المحاولة', () {
       // limit_databases_reads_exceeded — كما في السجلات؛ إعادة المحاولة بلا فائدة.
       expect(
-        helper.isRetriableErrorForTest(AppwriteException('reads exceeded', 402, 'limit_databases_reads_exceeded')),
+        helper.isRetriableErrorForTest(
+          AppwriteException(
+            'reads exceeded',
+            402,
+            'limit_databases_reads_exceeded',
+          ),
+        ),
         isFalse,
       );
     });
 
     test('خطأ شبكة (Failed host lookup) قابل لإعادة المحاولة', () {
-      expect(helper.isRetriableErrorForTest('SocketException: Failed host lookup'), isTrue);
+      expect(
+        helper.isRetriableErrorForTest('SocketException: Failed host lookup'),
+        isTrue,
+      );
     });
 
     test('timeout قابل لإعادة المحاولة', () {
-      expect(helper.isRetriableErrorForTest('Operation timeout occurred'), isTrue);
+      expect(
+        helper.isRetriableErrorForTest('Operation timeout occurred'),
+        isTrue,
+      );
     });
 
     test('connection refused قابل لإعادة المحاولة', () {
@@ -116,33 +181,50 @@ void main() {
   group('تمييز circuit breaker المحلي (isCircuitBreakerActive)', () {
     test('type circuit_breaker_active → true', () {
       expect(
-        helper.isCircuitBreakerErrorForTest(AppwriteException('cooldown', 429, 'circuit_breaker_active')),
+        helper.isCircuitBreakerErrorForTest(
+          AppwriteException('cooldown', 429, 'circuit_breaker_active'),
+        ),
         isTrue,
       );
     });
 
     test('429 حقيقي من السيرفر (بلا type breaker) → false', () {
-      expect(helper.isCircuitBreakerErrorForTest(AppwriteException('too many', 429)), isFalse);
+      expect(
+        helper.isCircuitBreakerErrorForTest(AppwriteException('too many', 429)),
+        isFalse,
+      );
     });
   });
 
   group('استخراج Retry-After (extractRetryAfter)', () {
     test('"try again after 30 seconds" → 30s', () {
-      final d = helper.extractRetryAfterForTest(AppwriteException('please try again after 30 seconds', 429));
+      final d = helper.extractRetryAfterForTest(
+        AppwriteException('please try again after 30 seconds', 429),
+      );
       expect(d, const Duration(seconds: 30));
     });
 
     test('"retry after 45s" → 45s', () {
-      final d = helper.extractRetryAfterForTest(AppwriteException('retry after 45s', 429));
+      final d = helper.extractRetryAfterForTest(
+        AppwriteException('retry after 45s', 429),
+      );
       expect(d, const Duration(seconds: 45));
     });
 
     test('بلا نمط زمني → null', () {
-      expect(helper.extractRetryAfterForTest(AppwriteException('rate limited', 429)), isNull);
+      expect(
+        helper.extractRetryAfterForTest(AppwriteException('rate limited', 429)),
+        isNull,
+      );
     });
 
     test('قيمة خارج الحدود (700s > 600) → null', () {
-      expect(helper.extractRetryAfterForTest(AppwriteException('try again after 700 seconds', 429)), isNull);
+      expect(
+        helper.extractRetryAfterForTest(
+          AppwriteException('try again after 700 seconds', 429),
+        ),
+        isNull,
+      );
     });
   });
 
@@ -238,29 +320,32 @@ void main() {
   //    الانتظار 2×60s — وهو جوهر إصلاح مسار upsert للمستندات الجديدة.
   // ─────────────────────────────────────────────────────────────────────
   group('probe سريع الفشل (maxRetries:1)', () {
-    test('429 مع maxRetries:1 → يرمي فوراً، استدعاء واحد، بلا انتظار 60s', () async {
-      var calls = 0;
-      final sw = Stopwatch()..start();
-      await expectLater(
-        helper.withRetry<int>(
-          operation: () async {
-            calls++;
-            throw AppwriteException('too many', 429);
-          },
-          maxRetries: 1,
-          operationName: 'test_probe_429',
-          suppressErrorLog: true,
-        ),
-        throwsA(isA<AppwriteException>()),
-      );
-      sw.stop();
-      expect(calls, 1, reason: 'probe يجب أن يستدعي العملية مرة واحدة فقط');
-      expect(
-        sw.elapsed,
-        lessThan(const Duration(seconds: 5)),
-        reason: 'probe يجب ألا ينتظر backoff الطويل (60s) على 429',
-      );
-    });
+    test(
+      '429 مع maxRetries:1 → يرمي فوراً، استدعاء واحد، بلا انتظار 60s',
+      () async {
+        var calls = 0;
+        final sw = Stopwatch()..start();
+        await expectLater(
+          helper.withRetry<int>(
+            operation: () async {
+              calls++;
+              throw AppwriteException('too many', 429);
+            },
+            maxRetries: 1,
+            operationName: 'test_probe_429',
+            suppressErrorLog: true,
+          ),
+          throwsA(isA<AppwriteException>()),
+        );
+        sw.stop();
+        expect(calls, 1, reason: 'probe يجب أن يستدعي العملية مرة واحدة فقط');
+        expect(
+          sw.elapsed,
+          lessThan(const Duration(seconds: 5)),
+          reason: 'probe يجب ألا ينتظر backoff الطويل (60s) على 429',
+        );
+      },
+    );
 
     test('خطأ عابر (500) مع maxRetries:1 → استدعاء واحد فقط', () async {
       var calls = 0;

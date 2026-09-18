@@ -11,5 +11,6 @@ mixin _$RoomsDaoMixin on DatabaseAccessor<AppDatabase> {
 class RoomsDaoManager {
   final _$RoomsDaoMixin _db;
   RoomsDaoManager(this._db);
-  $$RoomsTableTableManager get rooms => $$RoomsTableTableManager(_db.attachedDatabase, _db.rooms);
+  $$RoomsTableTableManager get rooms =>
+      $$RoomsTableTableManager(_db.attachedDatabase, _db.rooms);
 }

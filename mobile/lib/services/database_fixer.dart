@@ -1,9 +1,9 @@
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import '../utils/expense_reason_matcher.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';
 import 'sync/payload_mapper.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات
 class DatabaseFixer {
@@ -39,7 +39,11 @@ class DatabaseFixer {
 
     try {
       // إصلاح serverId في جدول Rooms
-      final roomsQuery = await db.customSelect('SELECT id, server_id FROM rooms WHERE server_id IS NOT NULL').get();
+      final roomsQuery = await db
+          .customSelect(
+            'SELECT id, server_id FROM rooms WHERE server_id IS NOT NULL',
+          )
+          .get();
 
       for (final row in roomsQuery) {
         final serverId = row.data['server_id'];
@@ -58,7 +62,9 @@ class DatabaseFixer {
 
       // إصلاح serverId في جدول Payments
       final paymentsQuery = await db
-          .customSelect('SELECT id, server_id FROM payments WHERE server_id IS NOT NULL')
+          .customSelect(
+            'SELECT id, server_id FROM payments WHERE server_id IS NOT NULL',
+          )
           .get();
 
       for (final row in paymentsQuery) {
@@ -77,7 +83,9 @@ class DatabaseFixer {
 
       // إصلاح serverId في جدول Expenses
       final expensesQuery = await db
-          .customSelect('SELECT id, server_id FROM expenses WHERE server_id IS NOT NULL')
+          .customSelect(
+            'SELECT id, server_id FROM expenses WHERE server_id IS NOT NULL',
+          )
           .get();
 
       for (final row in expensesQuery) {
@@ -94,9 +102,9 @@ class DatabaseFixer {
         }
       }
 
-      debugPrint('Fixed $fixed invalid serverId records');
+      dlog(() => 'Fixed $fixed invalid serverId records');
     } catch (e) {
-      debugPrint('Error fixing serverId: $e');
+      dlog(() => 'Error fixing serverId: $e');
     }
 
     return fixed;
@@ -126,12 +134,12 @@ class DatabaseFixer {
           updates: {db.payments},
         );
         fixed++;
-        debugPrint('Fixed orphan payment: $paymentId');
+        dlog(() => 'Fixed orphan payment: $paymentId');
       }
 
-      debugPrint('Fixed $fixed orphan payments');
+      dlog(() => 'Fixed $fixed orphan payments');
     } catch (e) {
-      debugPrint('Error fixing orphan payments: $e');
+      dlog(() => 'Error fixing orphan payments: $e');
     }
 
     return fixed;
@@ -202,21 +210,27 @@ class DatabaseFixer {
                 if (byUuid != null) {
                   // ✅ إعادة الربط عبر UUID — لا تصفير.
                   // repo.update يُحدّث lastModified + updatedAt + يُضيف للـ outbox.
-                  await repo.update(expenseId, relatedId: byUuid.id, employeeUuid: byUuid.localUuid);
+                  await repo.update(
+                    expenseId,
+                    relatedId: byUuid.id,
+                    employeeUuid: byUuid.localUuid,
+                  );
                   relinked++;
-                  debugPrint(
-                    'Re-linked orphan salary expense #$expenseId → '
-                    'employee #${byUuid.id} (uuid: $employeeUuid) '
-                    '+ lastModified updated for cloud sync',
+                  dlog(
+                    () =>
+                        'Re-linked orphan salary expense #$expenseId → '
+                        'employee #${byUuid.id} (uuid: $employeeUuid) '
+                        '+ lastModified updated for cloud sync',
                   );
                   // تمت المعالجة — لا نمرّ عبر فرع التصفير.
                   continue;
                 } else {
                   // UUID موجود لكن الموظف لم يصل بعد — لا نُصفّر.
-                  debugPrint(
-                    '⚠️ Salary expense #$expenseId has employeeUuid '
-                    '$employeeUuid but employee not yet synced — '
-                    'left related_id=$relatedId intact (not zeroed).',
+                  dlog(
+                    () =>
+                        '⚠️ Salary expense #$expenseId has employeeUuid '
+                        '$employeeUuid but employee not yet synced — '
+                        'left related_id=$relatedId intact (not zeroed).',
                   );
                   continue;
                 }
@@ -254,7 +268,8 @@ class DatabaseFixer {
                       .get();
                   for (final sw in swByReason) {
                     final reason = sw.read<String?>('reason');
-                    if (reason != null && matchesExpenseRef(reason, expenseId)) {
+                    if (reason != null &&
+                        matchesExpenseRef(reason, expenseId)) {
                       employeeIdFromWithdrawal = sw.read<int>('employee_id');
                       break;
                     }
@@ -265,7 +280,9 @@ class DatabaseFixer {
                   // حلّ الموظف من employeeId المستخرج من السحب.
                   final byWithdrawal =
                       await (db.select(db.employees)
-                            ..where((e) => e.id.equals(employeeIdFromWithdrawal!))
+                            ..where(
+                              (e) => e.id.equals(employeeIdFromWithdrawal!),
+                            )
                             ..where((e) => e.deletedAt.isNull())
                             ..limit(1))
                           .getSingleOrNull();
@@ -273,13 +290,18 @@ class DatabaseFixer {
                     // ✅ إعادة ربط عبر السحب + ملء employeeUuid لتفادي
                     // المشكلة مستقبلاً (التوصية 1).
                     // repo.update يُحدّث lastModified + updatedAt + يُضيف للـ outbox.
-                    await repo.update(expenseId, relatedId: byWithdrawal.id, employeeUuid: byWithdrawal.localUuid);
+                    await repo.update(
+                      expenseId,
+                      relatedId: byWithdrawal.id,
+                      employeeUuid: byWithdrawal.localUuid,
+                    );
                     relinked++;
-                    debugPrint(
-                      'Re-linked orphan salary expense #$expenseId via '
-                      'salary_withdrawal → employee #${byWithdrawal.id} '
-                      '(uuid: ${byWithdrawal.localUuid}) '
-                      '+ lastModified updated for cloud sync',
+                    dlog(
+                      () =>
+                          'Re-linked orphan salary expense #$expenseId via '
+                          'salary_withdrawal → employee #${byWithdrawal.id} '
+                          '(uuid: ${byWithdrawal.localUuid}) '
+                          '+ lastModified updated for cloud sync',
                     );
                     continue;
                   }
@@ -287,10 +309,11 @@ class DatabaseFixer {
 
                 // فشل كل شيء: لا نُصفّر مصروف الراتب (تفادي فقدان الربط
                 // بصمت). نترك relatedId القديم ونُسجّل تحذيرًا.
-                debugPrint(
-                  '⚠️ Salary expense #$expenseId is orphan with empty '
-                  'employeeUuid and no salary_withdrawal — left '
-                  'related_id=$relatedId intact (not zeroed).',
+                dlog(
+                  () =>
+                      '⚠️ Salary expense #$expenseId is orphan with empty '
+                      'employeeUuid and no salary_withdrawal — left '
+                      'related_id=$relatedId intact (not zeroed).',
                 );
                 continue;
               }
@@ -298,12 +321,16 @@ class DatabaseFixer {
             // الموظف المحلي موجود — الربط سليم، لا شيء لنفعله.
             continue;
           } else if (expenseType == 'employee') {
-            final employee = await (db.select(db.employees)..where((e) => e.id.equals(relatedId))).getSingleOrNull();
+            final employee = await (db.select(
+              db.employees,
+            )..where((e) => e.id.equals(relatedId))).getSingleOrNull();
             if (employee == null) {
               shouldFix = true;
             }
           } else if (expenseType == 'booking') {
-            final booking = await (db.select(db.bookings)..where((b) => b.id.equals(relatedId))).getSingleOrNull();
+            final booking = await (db.select(
+              db.bookings,
+            )..where((b) => b.id.equals(relatedId))).getSingleOrNull();
             if (booking == null) {
               shouldFix = true;
             }
@@ -318,13 +345,16 @@ class DatabaseFixer {
             updates: {db.expenses},
           );
           fixed++;
-          debugPrint('Fixed orphan expense: $expenseId');
+          dlog(() => 'Fixed orphan expense: $expenseId');
         }
       }
 
-      debugPrint('Fixed $fixed orphan expenses; re-linked $relinked salary expenses via UUID');
+      dlog(
+        () =>
+            'Fixed $fixed orphan expenses; re-linked $relinked salary expenses via UUID',
+      );
     } catch (e) {
-      debugPrint('Error fixing orphan expenses: $e');
+      dlog(() => 'Error fixing orphan expenses: $e');
     }
 
     return fixed + relinked;
@@ -379,7 +409,10 @@ class DatabaseFixer {
 
       report.orphanExpenses = orphanExpensesResult.data['count'] as int;
 
-      report.hasIssues = report.invalidServerIds > 0 || report.orphanPayments > 0 || report.orphanExpenses > 0;
+      report.hasIssues =
+          report.invalidServerIds > 0 ||
+          report.orphanPayments > 0 ||
+          report.orphanExpenses > 0;
     } catch (e) {
       report.error = e.toString();
     }
@@ -395,7 +428,8 @@ class FixResult {
   int orphanPaymentsFixed = 0;
   int orphanExpensesFixed = 0;
 
-  int get totalFixed => serverIdFixed + orphanPaymentsFixed + orphanExpensesFixed;
+  int get totalFixed =>
+      serverIdFixed + orphanPaymentsFixed + orphanExpensesFixed;
 
   @override
   String toString() {

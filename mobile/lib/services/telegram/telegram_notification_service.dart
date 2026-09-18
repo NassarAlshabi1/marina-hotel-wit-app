@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
-
 import 'telegram_config.dart';
 import 'telegram_service.dart';
+import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// أنواع أحداث الفندق
 enum TelegramEventType {
@@ -45,9 +45,14 @@ class TelegramNotificationService {
   TelegramNotificationService._();
   static TelegramNotificationService? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static TelegramNotificationService get instance => _instance ??= TelegramNotificationService._();
+  static TelegramNotificationService get instance =>
+      _instance ??= TelegramNotificationService._();
+
+  static const _deduplicationWindow = Duration(seconds: 30);
+  static const _maxRecentEvents = 128;
 
   final TelegramApiClient _api = TelegramApiClient.instance;
+  final Map<String, DateTime> _recentDeliveredEvents = <String, DateTime>{};
 
   /// أيقونات لكل نوع حدث
   String _icon(TelegramEventType type) {
@@ -75,7 +80,10 @@ class TelegramNotificationService {
     }
   }
 
-  /// إرسال إشعار عن حدث فندقي
+  /// إرسال إشعار عن حدث فندقي.
+  ///
+  /// تسجل عملية الإرسال الناجحة فقط في نافذة منع التكرار، حتى تبقى الرسالة
+  /// قابلة لإعادة المحاولة عند فشل الاتصال أو Telegram.
   Future<bool> sendEventNotification(TelegramEvent event) async {
     try {
       if (!await TelegramConfig.isEnabled()) {
@@ -84,28 +92,35 @@ class TelegramNotificationService {
       if (!await TelegramConfig.isNotificationsEnabled()) {
         return false;
       }
+      final dedupKey = _eventKey(event);
+      if (_wasRecentlyDelivered(dedupKey)) {
+        dlog(() => '⏭️ Telegram: تم منع إشعار مكرر ${event.type.label}');
+        return true;
+      }
 
       final buffer = StringBuffer();
       buffer.writeln('${_icon(event.type)} <b>${event.type.label}</b>');
       buffer.writeln('━━━━━━━━━━━━━━━━━');
 
       if (event.guestName != null && event.guestName!.isNotEmpty) {
-        buffer.writeln('👤 الضيف: <b>${event.guestName}</b>');
+        buffer.writeln('👤 الضيف: <b>${_escapeHtml(event.guestName!)}</b>');
       }
 
-      buffer.writeln('🏨 الغرفة: <b>${event.roomNumber}</b>');
+      buffer.writeln('🏨 الغرفة: <b>${_escapeHtml(event.roomNumber)}</b>');
 
       if (event.guestPhone != null && event.guestPhone!.isNotEmpty) {
-        buffer.writeln('📞 الهاتف: ${event.guestPhone}');
+        buffer.writeln('📞 الهاتف: ${_escapeHtml(event.guestPhone!)}');
       }
 
       if (event.amount != null && event.amount! > 0) {
-        buffer.writeln('💵 المبلغ: <b>\$${event.amount!.toStringAsFixed(2)}</b>');
+        buffer.writeln(
+          '💵 المبلغ: <b>\$${CurrencyFormatter.formatAmount(event.amount!)}</b>',
+        );
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
         buffer.writeln();
-        buffer.writeln(event.details);
+        buffer.writeln(_escapeHtml(event.details!));
       }
 
       if (event.eventTime != null) {
@@ -118,15 +133,21 @@ class TelegramNotificationService {
       buffer.writeln();
       buffer.writeln('<i>Marina Hotel App 🏨</i>');
 
-      final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
+      final success = await _api.sendToDefaultChat(
+        text: buffer.toString().trimRight(),
+      );
 
       if (success) {
-        debugPrint('✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
+        _rememberDelivered(dedupKey);
+        dlog(
+          () =>
+              '✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
+        );
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ Telegram: خطأ في إرسال الإشعار: $e');
+      dlog(() => '❌ Telegram: خطأ في إرسال الإشعار: $e');
       return false;
     }
   }
@@ -156,7 +177,9 @@ class TelegramNotificationService {
       details.writeln('🌙 الليالي: $nights');
     }
     if (totalDue != null) {
-      details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
+      details.writeln(
+        '💰 الإجمالي: \$${CurrencyFormatter.formatAmount(totalDue)}',
+      );
     }
 
     return sendEventNotification(
@@ -208,10 +231,14 @@ class TelegramNotificationService {
       details.writeln('🌙 الليالي الفعلية: $actualNights');
     }
     if (totalPaid != null) {
-      details.writeln('💰 المدفوع: \$${totalPaid.toStringAsFixed(2)}');
+      details.writeln(
+        '💰 المدفوع: \$${CurrencyFormatter.formatAmount(totalPaid)}',
+      );
     }
     if (remaining != null && remaining > 0) {
-      details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
+      details.writeln(
+        '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
+      );
     }
 
     return sendEventNotification(
@@ -237,7 +264,9 @@ class TelegramNotificationService {
     details.writeln('💳 طريقة الدفع: $paymentMethod');
     if (remaining != null) {
       if (remaining > 0) {
-        details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
+        details.writeln(
+          '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
+        );
       } else {
         details.writeln('✅ مسدد بالكامل');
       }
@@ -256,7 +285,11 @@ class TelegramNotificationService {
   }
 
   /// إشعار طلب صيانة
-  Future<bool> notifyMaintenance({required String roomNumber, required String description, String? reportedBy}) {
+  Future<bool> notifyMaintenance({
+    required String roomNumber,
+    required String description,
+    String? reportedBy,
+  }) {
     return sendEventNotification(
       TelegramEvent(
         type: TelegramEventType.maintenance,
@@ -269,7 +302,11 @@ class TelegramNotificationService {
   }
 
   /// إشعار إلغاء حجز
-  Future<bool> notifyCancellation({required String roomNumber, required String guestName, String? reason}) {
+  Future<bool> notifyCancellation({
+    required String roomNumber,
+    required String guestName,
+    String? reason,
+  }) {
     return sendEventNotification(
       TelegramEvent(
         type: TelegramEventType.cancellation,
@@ -295,7 +332,9 @@ class TelegramNotificationService {
       details.writeln('➕ ليالي إضافية: $extraNights');
     }
     if (extraCharge != null) {
-      details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
+      details.writeln(
+        '💵 تكلفة إضافية: \$${CurrencyFormatter.formatAmount(extraCharge)}',
+      );
     }
 
     return sendEventNotification(
@@ -310,7 +349,11 @@ class TelegramNotificationService {
   }
 
   /// إشعار مصروف جديد
-  Future<bool> notifyNewExpense({required String category, required double amount, String? description}) {
+  Future<bool> notifyNewExpense({
+    required String category,
+    required double amount,
+    String? description,
+  }) {
     final details = StringBuffer();
     details.writeln('📂 التصنيف: $category');
     if (description != null && description.isNotEmpty) {
@@ -338,15 +381,15 @@ class TelegramNotificationService {
   }) async {
     try {
       if (!await TelegramConfig.isConfigured()) {
-        debugPrint('⚠️ Telegram: لا يمكن إرسال تنبيه المزامنة - البوت غير مضبوط');
+        dlog('⚠️ Telegram: لا يمكن إرسال تنبيه المزامنة - البوت غير مضبوط');
         return false;
       }
 
       final buffer = StringBuffer();
       buffer.writeln('🔴 <b>خطأ مزامنة حرج</b>');
       buffer.writeln('━━━━━━━━━━━━━━━━━');
-      buffer.writeln('⚙️ العملية: <b>$operation</b>');
-      buffer.writeln('❌ الخطأ: $error');
+      buffer.writeln('⚙️ العملية: <b>${_escapeHtml(operation)}</b>');
+      buffer.writeln('❌ الخطأ: ${_escapeHtml(error)}');
       if (recordsPushed != null) {
         buffer.writeln('📤 تم رفع: $recordsPushed');
       }
@@ -358,17 +401,48 @@ class TelegramNotificationService {
       buffer.writeln();
       buffer.writeln('<i>Marina Hotel App — Crashlytics Alert</i>');
 
-      final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
+      final success = await _api.sendToDefaultChat(
+        text: buffer.toString().trimRight(),
+      );
 
       if (success) {
-        debugPrint('✅ Telegram: تم إرسال تنبيه خطأ مزامنة — $operation');
+        dlog(() => '✅ Telegram: تم إرسال تنبيه خطأ مزامنة — $operation');
       } else {
-        debugPrint('⚠️ Telegram: فشل إرسال تنبيه المزامنة');
+        dlog('⚠️ Telegram: فشل إرسال تنبيه المزامنة');
       }
       return success;
     } catch (e) {
-      debugPrint('❌ Telegram: فشل إرسال تنبيه المزامنة — $e');
+      dlog(() => '❌ Telegram: فشل إرسال تنبيه المزامنة — $e');
       return false;
     }
   }
+
+  bool _wasRecentlyDelivered(String key) {
+    final now = DateTime.now();
+    _recentDeliveredEvents.removeWhere(
+      (_, deliveredAt) => now.difference(deliveredAt) >= _deduplicationWindow,
+    );
+    return _recentDeliveredEvents.containsKey(key);
+  }
+
+  void _rememberDelivered(String key) {
+    _recentDeliveredEvents[key] = DateTime.now();
+    while (_recentDeliveredEvents.length > _maxRecentEvents) {
+      _recentDeliveredEvents.remove(_recentDeliveredEvents.keys.first);
+    }
+  }
+
+  String _eventKey(TelegramEvent event) {
+    final details = event.details ?? '';
+    final compactDetails = details.length <= 160
+        ? details
+        : details.substring(0, 160);
+    return '${event.type.name}|${event.roomNumber}|${event.guestName ?? ''}|'
+        '${event.amount ?? ''}|$compactDetails';
+  }
+
+  static String _escapeHtml(String value) => value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
 }

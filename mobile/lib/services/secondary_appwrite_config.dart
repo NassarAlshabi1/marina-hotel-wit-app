@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// إعدادات الوجهة الثانوية لـ Appwrite (نسخة احتياطية/طوارئ)
 ///
@@ -25,8 +26,10 @@ class SecondaryAppwriteConfig {
   static const String defaultEndpoint = 'https://fra.cloud.appwrite.io/v1';
   static const String defaultProjectId = '6a4408f300217885fd7b';
   static const String defaultDatabaseId = '6a4409b50019dd39dde5';
-  static const String defaultApiKey =
-      'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
+  // ✅ SECURITY: API key via --dart-define, NOT hardcoded.
+  static const String defaultApiKey = String.fromEnvironment(
+    'SECONDARY_APPWRITE_API_KEY',
+  );
   static const bool defaultEnabled = false;
   static const bool defaultPushEnabled = false;
   static const bool defaultPullEnabled = false;
@@ -139,7 +142,7 @@ class SecondaryAppwriteConfig {
       _prefs!.setBool(_keyPullEnabled, pullEnabled),
     ]);
     if (kDebugMode) {
-      debugPrint('✅ Secondary Appwrite config saved (enabled=$enabled)');
+      dlog(() => '✅ Secondary Appwrite config saved (enabled=$enabled)');
     }
   }
 
@@ -159,7 +162,7 @@ class SecondaryAppwriteConfig {
       _prefs!.setBool(_keyPullEnabled, defaultPullEnabled),
     ]);
     if (kDebugMode) {
-      debugPrint('✅ Secondary Appwrite config restored to defaults');
+      dlog('✅ Secondary Appwrite config restored to defaults');
     }
   }
 
@@ -206,19 +209,19 @@ class SecondaryAppwriteConfig {
   /// طباعة الإعدادات للتشخيص
   static void printConfig() {
     if (kDebugMode) {
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('🔧 Secondary Appwrite Configuration');
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('Enabled: $isEnabled');
-      debugPrint('Configured: $isConfigured');
-      debugPrint('Endpoint: $endpoint');
-      debugPrint('Project ID: $projectId');
-      debugPrint('Database ID: $databaseId');
-      debugPrint('Push Enabled: $isPushEnabled');
-      debugPrint('Pull Enabled: $isPullEnabled');
-      debugPrint('Last Sync: $lastSyncTime');
-      debugPrint('Status: $syncStatus');
-      debugPrint('═══════════════════════════════════════');
+      dlog('═══════════════════════════════════════');
+      dlog('🔧 Secondary Appwrite Configuration');
+      dlog('═══════════════════════════════════════');
+      dlog(() => 'Enabled: $isEnabled');
+      dlog(() => 'Configured: $isConfigured');
+      dlog(() => 'Endpoint: $endpoint');
+      dlog(() => 'Project ID: $projectId');
+      dlog(() => 'Database ID: $databaseId');
+      dlog(() => 'Push Enabled: $isPushEnabled');
+      dlog(() => 'Pull Enabled: $isPullEnabled');
+      dlog(() => 'Last Sync: $lastSyncTime');
+      dlog(() => 'Status: $syncStatus');
+      dlog('═══════════════════════════════════════');
     }
   }
 }

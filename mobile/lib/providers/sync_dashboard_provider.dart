@@ -5,7 +5,9 @@ import '../services/sync_health_monitor.dart';
 import 'repository_providers.dart';
 
 /// مزوّد بيانات لوحة تحكم المزامنة — يستخدم SyncHealthMonitor الجديد.
-final syncDashboardProvider = FutureProvider.autoDispose<SyncHealthReport>((ref) async {
+final syncDashboardProvider = FutureProvider.autoDispose<SyncHealthReport>((
+  ref,
+) async {
   final db = ref.read(databaseProvider);
   return SyncHealthMonitor.instance.getHealthReport(db);
 });

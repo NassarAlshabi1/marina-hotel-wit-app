@@ -4,6 +4,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AutoBackupTask {
   static const String taskName = 'autoBackupTask';
@@ -12,7 +13,7 @@ class AutoBackupTask {
   /// ✅ P0-7 fix: لا نُهيّئ Workmanager هنا — يُهيّأ من مكان واحد موحّد
   static Future<void> initialize() async {
     // Workmanager يُهيّأ من BackgroundSyncService فقط
-    debugPrint('✅ AutoBackupTask جاهز (Workmanager يُهيّأ موحّداً)');
+    dlog('✅ AutoBackupTask جاهز (Workmanager يُهيّأ موحّداً)');
   }
 
   /// جدولة النسخ اليومي
@@ -37,14 +38,17 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      debugPrint('✅ تم جدولة النسخ اليومي في $time');
+      dlog(() => '✅ تم جدولة النسخ اليومي في $time');
     } catch (e) {
-      debugPrint('❌ خطأ في جدولة النسخ اليومي: $e');
+      dlog(() => '❌ خطأ في جدولة النسخ اليومي: $e');
     }
   }
 
   /// جدولة النسخ الأسبوعي
-  static Future<void> scheduleWeekly({String time = '02:00', int weekday = 1}) async {
+  static Future<void> scheduleWeekly({
+    String time = '02:00',
+    int weekday = 1,
+  }) async {
     try {
       await _cancelExisting();
 
@@ -65,14 +69,17 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      debugPrint('✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday');
+      dlog(() => '✅ تم جدولة النسخ الأسبوعي في $time يوم $weekday');
     } catch (e) {
-      debugPrint('❌ خطأ في جدولة النسخ الأسبوعي: $e');
+      dlog(() => '❌ خطأ في جدولة النسخ الأسبوعي: $e');
     }
   }
 
   /// جدولة النسخ الشهري
-  static Future<void> scheduleMonthly({String time = '02:00', int day = 1}) async {
+  static Future<void> scheduleMonthly({
+    String time = '02:00',
+    int day = 1,
+  }) async {
     try {
       await _cancelExisting();
 
@@ -93,9 +100,9 @@ class AutoBackupTask {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      debugPrint('✅ تم جدولة النسخ الشهري في $time يوم $day');
+      dlog(() => '✅ تم جدولة النسخ الشهري في $time يوم $day');
     } catch (e) {
-      debugPrint('❌ خطأ في جدولة النسخ الشهري: $e');
+      dlog(() => '❌ خطأ في جدولة النسخ الشهري: $e');
     }
   }
 
@@ -103,9 +110,9 @@ class AutoBackupTask {
   static Future<void> cancelScheduled() async {
     try {
       await _cancelExisting();
-      debugPrint('✅ تم إلغاء جميع مهام النسخ المجدولة');
+      dlog('✅ تم إلغاء جميع مهام النسخ المجدولة');
     } catch (e) {
-      debugPrint('❌ خطأ في إلغاء المهام المجدولة: $e');
+      dlog(() => '❌ خطأ في إلغاء المهام المجدولة: $e');
     }
   }
 
@@ -121,7 +128,13 @@ class AutoBackupTask {
     final targetHour = int.tryParse(timeParts[0]) ?? 0;
     final targetMinute = int.tryParse(timeParts[1]) ?? 0;
 
-    var targetTime = DateTime(now.year, now.month, now.day, targetHour, targetMinute);
+    var targetTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      targetHour,
+      targetMinute,
+    );
 
     // إذا كان الوقت المستهدف قد مر اليوم، اجدوله للغد
     if (targetTime.isBefore(now)) {
@@ -142,7 +155,13 @@ class AutoBackupTask {
     final daysUntilWeekday = (weekday - now.weekday + 7) % 7;
     final targetDate = now.add(Duration(days: daysUntilWeekday));
 
-    var targetTime = DateTime(targetDate.year, targetDate.month, targetDate.day, targetHour, targetMinute);
+    var targetTime = DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+      targetHour,
+      targetMinute,
+    );
 
     // إذا كان الوقت المستهدف قد مر، اجدوله للأسبوع القادم
     if (targetTime.isBefore(now)) {
@@ -171,7 +190,13 @@ class AutoBackupTask {
       }
     }
 
-    final targetTime = DateTime(targetDate.year, targetDate.month, targetDate.day, targetHour, targetMinute);
+    final targetTime = DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+      targetHour,
+      targetMinute,
+    );
 
     return targetTime.difference(now);
   }
@@ -183,12 +208,15 @@ class AutoBackupTask {
         'immediateBackup',
         taskName,
         constraints: Constraints(networkType: NetworkType.connected),
-        inputData: {'frequency': 'immediate', 'time': DateTime.now().toIso8601String()},
+        inputData: {
+          'frequency': 'immediate',
+          'time': DateTime.now().toIso8601String(),
+        },
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
-      debugPrint('✅ تم تشغيل مهمة النسخ الفوري');
+      dlog('✅ تم تشغيل مهمة النسخ الفوري');
     } catch (e) {
-      debugPrint('❌ خطأ في تشغيل مهمة النسخ الفوري: $e');
+      dlog(() => '❌ خطأ في تشغيل مهمة النسخ الفوري: $e');
     }
   }
 }
@@ -199,7 +227,7 @@ void callbackDispatcher() {
   WidgetsFlutterBinding.ensureInitialized();
   Workmanager().executeTask((task, inputData) async {
     try {
-      debugPrint('🔄 بدء تنفيذ مهمة النسخ الخلفية: $task');
+      dlog(() => '🔄 بدء تنفيذ مهمة النسخ الخلفية: $task');
 
       // قراءة إعدادات النسخ التلقائي
       final prefs = await SharedPreferences.getInstance();
@@ -213,11 +241,11 @@ void callbackDispatcher() {
       // تنفيذ النسخ المحلي إذا كان مُفعلاً
       if (enableLocal) {
         try {
-          debugPrint('📱 بدء النسخ الاحتياطي المحلي...');
+          dlog('📱 بدء النسخ الاحتياطي المحلي...');
           await localBackupService.createLocalBackup(format: backupFormat);
-          debugPrint('✅ تم النسخ الاحتياطي المحلي بنجاح');
+          dlog('✅ تم النسخ الاحتياطي المحلي بنجاح');
         } catch (e) {
-          debugPrint('❌ خطأ في النسخ الاحتياطي المحلي: $e');
+          dlog(() => '❌ خطأ في النسخ الاحتياطي المحلي: $e');
           success = false;
         }
       }
@@ -225,32 +253,34 @@ void callbackDispatcher() {
       // تنفيذ النسخ السحابي إذا كان مُفعلاً ومتصل
       if (enableGoogleDrive) {
         try {
-          debugPrint('☁️ بدء النسخ الاحتياطي السحابي...');
+          dlog('☁️ بدء النسخ الاحتياطي السحابي...');
           final driveBackupService = GoogleDriveBackupService();
           if (!driveBackupService.isSignedIn) {
             await driveBackupService.attemptSilentSignIn();
           }
           if (driveBackupService.isSignedIn) {
             await driveBackupService.performAutoBackup();
-            debugPrint('✅ تم النسخ الاحتياطي السحابي بنجاح');
+            dlog('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
-            debugPrint('⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي');
+            dlog(
+              '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',
+            );
           }
         } catch (e) {
-          debugPrint('❌ خطأ في النسخ الاحتياطي السحابي: $e');
+          dlog(() => '❌ خطأ في النسخ الاحتياطي السحابي: $e');
           // عدم فشل المهمة إذا فشل النسخ السحابي فقط
         }
       }
 
       if (success || enableLocal) {
-        debugPrint('✅ تم تنفيذ مهمة النسخ الخلفية بنجاح');
+        dlog('✅ تم تنفيذ مهمة النسخ الخلفية بنجاح');
         return true;
       } else {
-        debugPrint('❌ فشل في تنفيذ جميع أنواع النسخ');
+        dlog('❌ فشل في تنفيذ جميع أنواع النسخ');
         return false;
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تنفيذ مهمة النسخ الخلفية: $e');
+      dlog(() => '❌ خطأ في تنفيذ مهمة النسخ الخلفية: $e');
 
       // إرجاع false سيؤدي إلى إعادة تشغيل المهمة
       return false;

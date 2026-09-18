@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -14,6 +13,7 @@ import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/time.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
   const BookingCheckoutScreen({required this.booking, super.key});
@@ -459,7 +459,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                   TextField(
                     controller: amountController,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: const [englishIntegerInputFormatter],
                     decoration: const InputDecoration(
                       labelText: 'المبلغ *',
                       border: OutlineInputBorder(),

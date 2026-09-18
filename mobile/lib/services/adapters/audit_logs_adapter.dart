@@ -22,42 +22,134 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
   String get tableName => 'audit_logs';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final createdAt = _epoch(json, 'createdAt', src);
     return ResolveResult(createdAtEpoch: createdAt);
   }
 
   @override
-  AuditLogsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  AuditLogsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
     final timestamp = _epoch(json, 'timestamp', src) ?? createdAt;
 
     return AuditLogsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
-      operationType: _vStr(json, 'operationType', src, altKey: 'operation_type', fallback: ''),
-      entityType: _vStr(json, 'entityType', src, altKey: 'entity_type', fallback: ''),
-      entityUuid: _vStr(json, 'entityUuid', src, altKey: 'entity_uuid', fallback: ''),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
+      operationType: _vStr(
+        json,
+        'operationType',
+        src,
+        altKey: 'operation_type',
+        fallback: '',
+      ),
+      entityType: _vStr(
+        json,
+        'entityType',
+        src,
+        altKey: 'entity_type',
+        fallback: '',
+      ),
+      entityUuid: _vStr(
+        json,
+        'entityUuid',
+        src,
+        altKey: 'entity_uuid',
+        fallback: '',
+      ),
       entityId: _vInt(json, 'entityId', src, altKey: 'entity_id'),
-      previousState: _vStr(json, 'previousState', src, altKey: 'previous_state'),
+      previousState: _vStr(
+        json,
+        'previousState',
+        src,
+        altKey: 'previous_state',
+      ),
       newState: _vStr(json, 'newState', src, altKey: 'new_state'),
-      changedFields: _vStr(json, 'changedFields', src, altKey: 'changed_fields'),
-      performedBy: _vStr(json, 'performedBy', src, altKey: 'performed_by', fallback: ''),
+      changedFields: _vStr(
+        json,
+        'changedFields',
+        src,
+        altKey: 'changed_fields',
+      ),
+      performedBy: _vStr(
+        json,
+        'performedBy',
+        src,
+        altKey: 'performed_by',
+        fallback: '',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
       ipAddress: _vStr(json, 'ipAddress', src, altKey: 'ip_address'),
-      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
+      hotelDayKey: _vStr(
+        json,
+        'hotelDayKey',
+        src,
+        altKey: 'hotel_day_key',
+        fallback: '',
+      ),
       timestamp: d.Value(timestamp),
       timestampIso: _vStr(
         json,
         'timestampIso',
         src,
         altKey: 'timestamp_iso',
-        fallback: DateTime.fromMillisecondsSinceEpoch(timestamp * 1000).toIso8601String(),
+        fallback: DateTime.fromMillisecondsSinceEpoch(
+          timestamp * 1000,
+        ).toIso8601String(),
       ),
-      isFinancial: _vBool(json, 'isFinancial', src, altKey: 'is_financial', fallback: false),
+      isFinancial: _vBool(
+        json,
+        'isFinancial',
+        src,
+        altKey: 'is_financial',
+        fallback: false,
+      ),
       amountImpact: _vInt(json, 'amountImpact', src, altKey: 'amount_impact'),
       createdAt: d.Value(createdAt),
+      // ✅ Audit Fix (2026-08-06): إضافة SyncFields المفقودة.
+      // سابقاً، 11 حقل SyncFields كان مفقوداً. updatedAt و lastModified
+      // هما NOT NULL → INSERT كان سيفشل عند استقبال سجلات من Appwrite.
+      serverId: _vInt(json, 'serverId', src, altKey: 'server_id'),
+      updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
+      lastModified: d.Value(_epoch(json, 'lastModified', src) ?? createdAt),
+      deletedAt: _vInt(json, 'deletedAt', src, altKey: 'deleted_at'),
+      createdAtIso: _vStr(json, 'createdAtIso', src, altKey: 'created_at_iso'),
+      updatedAtIso: _vStr(json, 'updatedAtIso', src, altKey: 'updated_at_iso'),
+      deletedAtIso: _vStr(json, 'deletedAtIso', src, altKey: 'deleted_at_iso'),
+      createdAtEpoch: d.Value(_asInt(json, 'createdAtEpoch', src) ?? createdAt),
+      lastModifiedEpoch: d.Value(
+        _asInt(json, 'lastModifiedEpoch', src) ?? createdAt,
+      ),
+      version: _vInt(json, 'version', src, fallback: 1),
+      origin: src == Source.appwrite || src == Source.drive
+          ? const d.Value('server')
+          : _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
     );
   }
 
@@ -86,18 +178,45 @@ class AuditLogsAdapter extends EntityAdapter<AuditLog, AuditLogsCompanion> {
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
-  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
+d.Value<bool> _vBool(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  bool? fallback,
+}) {
+  final v =
+      _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -172,7 +291,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

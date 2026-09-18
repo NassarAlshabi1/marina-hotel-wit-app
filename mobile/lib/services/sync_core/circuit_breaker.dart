@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum CircuitState { closed, open, halfOpen }
 
@@ -17,7 +17,8 @@ class CircuitBreakerConfig {
 }
 
 class CircuitBreaker {
-  CircuitBreaker({required this.name, CircuitBreakerConfig? config}) : config = config ?? const CircuitBreakerConfig();
+  CircuitBreaker({required this.name, CircuitBreakerConfig? config})
+    : config = config ?? const CircuitBreakerConfig();
   final String name;
   final CircuitBreakerConfig config;
 
@@ -42,14 +43,18 @@ class CircuitBreaker {
       if (_shouldAttemptReset()) {
         _transitionTo(CircuitState.halfOpen);
       } else {
-        throw CircuitBreakerOpenException('Circuit breaker [$name] مفتوح - الخدمة غير متاحة مؤقتًا');
+        throw CircuitBreakerOpenException(
+          'Circuit breaker [$name] مفتوح - الخدمة غير متاحة مؤقتًا',
+        );
       }
     }
 
     // ✅ P1-9 fix: في half-open، اسمح بمسبار واحد فقط
     if (_state == CircuitState.halfOpen) {
       if (_halfOpenProbeInFlight) {
-        throw CircuitBreakerOpenException('Circuit breaker [$name] half-open — مسبار قيد التنفيذ');
+        throw CircuitBreakerOpenException(
+          'Circuit breaker [$name] half-open — مسبار قيد التنفيذ',
+        );
       }
       _halfOpenProbeInFlight = true;
     }
@@ -60,7 +65,10 @@ class CircuitBreaker {
       return result;
     } on TimeoutException catch (e) {
       _onFailure();
-      throw CircuitBreakerTimeoutException('Circuit breaker [$name] تجاوز المهلة الزمنية', originalException: e);
+      throw CircuitBreakerTimeoutException(
+        'Circuit breaker [$name] تجاوز المهلة الزمنية',
+        originalException: e,
+      );
     } catch (e) {
       _onFailure();
       rethrow;
@@ -70,14 +78,17 @@ class CircuitBreaker {
     }
   }
 
-  Future<T?> executeSafe<T>(Future<T> Function() operation, {T? defaultValue}) async {
+  Future<T?> executeSafe<T>(
+    Future<T> Function() operation, {
+    T? defaultValue,
+  }) async {
     try {
       return await execute(operation);
     } on CircuitBreakerOpenException catch (e) {
-      debugPrint('⚠️ [CircuitBreaker] $e');
+      dlog(() => '⚠️ [CircuitBreaker] $e');
       return defaultValue;
     } catch (e) {
-      debugPrint('❌ [CircuitBreaker] خطأ: $e');
+      dlog(() => '❌ [CircuitBreaker] خطأ: $e');
       return defaultValue;
     }
   }
@@ -87,7 +98,10 @@ class CircuitBreaker {
 
     if (_state == CircuitState.halfOpen) {
       _successCount++;
-      debugPrint('✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}');
+      dlog(
+        () =>
+            '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
+      );
 
       if (_successCount >= config.successThreshold) {
         _transitionTo(CircuitState.closed);
@@ -101,7 +115,10 @@ class CircuitBreaker {
     _lastFailureTime = DateTime.now();
     _successCount = 0;
 
-    debugPrint('⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}');
+    dlog(
+      () =>
+          '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',
+    );
 
     if (_state == CircuitState.halfOpen) {
       _transitionTo(CircuitState.open);
@@ -127,7 +144,7 @@ class CircuitBreaker {
     final oldState = _state;
     _state = newState;
 
-    debugPrint('🔄 [CircuitBreaker] [$name] $oldState → $newState');
+    dlog(() => '🔄 [CircuitBreaker] [$name] $oldState → $newState');
 
     _stateController.add(newState);
 
@@ -144,7 +161,7 @@ class CircuitBreaker {
     _cancelReset();
     _resetTimer = Timer(config.resetTimeout, () {
       if (_state == CircuitState.open) {
-        debugPrint('⏰ [CircuitBreaker] [$name] محاولة إعادة الفتح تلقائيًا');
+        dlog(() => '⏰ [CircuitBreaker] [$name] محاولة إعادة الفتح تلقائيًا');
         _transitionTo(CircuitState.halfOpen);
       }
     });
@@ -156,7 +173,7 @@ class CircuitBreaker {
   }
 
   void reset() {
-    debugPrint('🔄 [CircuitBreaker] [$name] إعادة تعيين يدوية');
+    dlog(() => '🔄 [CircuitBreaker] [$name] إعادة تعيين يدوية');
     _failureCount = 0;
     _successCount = 0;
     _lastFailureTime = null;
@@ -188,7 +205,10 @@ class CircuitBreakerOpenException implements Exception {
 }
 
 class CircuitBreakerTimeoutException implements Exception {
-  CircuitBreakerTimeoutException(this.message, {required this.originalException});
+  CircuitBreakerTimeoutException(
+    this.message, {
+    required this.originalException,
+  });
   final String message;
   final TimeoutException originalException;
 

@@ -8,6 +8,18 @@ String _convertNumberToArabicWords(int number) {
   if (number == 0) {
     return 'صفر';
   }
+
+  // ✅ OCR FIX (2026-08-06): دعم الأرقام السالبة (مثل المردودات).
+  // سابقاً كانت الدالة تفشل مع السالب لأن:
+  //   - `-5000 ~/ 1000000 = 0` (تقريب نحو الصفر) لكن
+  //   - `-5000 % 1000000 = -5000` (يحافظ على إشارة المقسوم في Dart)
+  //   - ثم `_convertBelowThousand(-5)` يفشل في الوصول لمصفوفات `_units[-5]`
+  // الإصلاح: استخراج الإشارة، التعامل مع القيمة المطلقة، ثم إضافة "سالب" أمامها.
+  if (number < 0) {
+    final absWords = _convertNumberToArabicWords(-number);
+    return 'سالب $absWords';
+  }
+
   final segments = <String>[];
   var remainder = number;
   final million = remainder ~/ 1000000;
@@ -26,7 +38,22 @@ String _convertNumberToArabicWords(int number) {
   return segments.join(' و ');
 }
 
-String _formatWithScale(int value, String singular, String dual, String plural) {
+String _formatWithScale(
+  int value,
+  String singular,
+  String dual,
+  String plural,
+) {
+  // ✅ OCR FIX (2026-08-06): معالجة كاملة لقواعد النحو العربي.
+  // قواعد العدد في العربية:
+  //   - 1: مفرد (مليون)
+  //   - 2: مثنى (مليونان)
+  //   - 3-10: جمع (ثلاثة ملايين)
+  //   - 11-99: مفرد مع التمييز (أحد عشر مليوناً) — نستخدم مفرد
+  //   - 100+: مفرد (مائة مليون)
+  // ملاحظة: بالنسبة لـ 11-99، القاعدة الصحيحة في العربية هي تمييز منصوب
+  // (مليوناً) بدلاً من (مليون). لكن للحفاظ على بساطة الإيصالات الفندقية
+  // ولأن النطق الصحيح معقد، نستخدم المفرد العادي. يمكن تحسينه لاحقاً.
   if (value == 1) {
     return singular;
   }
@@ -37,6 +64,7 @@ String _formatWithScale(int value, String singular, String dual, String plural) 
   if (value >= 3 && value <= 10) {
     return '$words $plural';
   }
+  // ✅ OCR FIX: للأرقام > 10، نستخدم المفرد (قاعدة "ما بعد 10 مفرد")
   return '$words $singular';
 }
 
@@ -79,7 +107,18 @@ String _convertBelowHundred(int number) {
   return '$unitWord و$tensWord';
 }
 
-const _units = <String>['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+const _units = <String>[
+  '',
+  'واحد',
+  'اثنان',
+  'ثلاثة',
+  'أربعة',
+  'خمسة',
+  'ستة',
+  'سبعة',
+  'ثمانية',
+  'تسعة',
+];
 
 const _teens = <String>[
   'أحد عشر',
@@ -93,7 +132,18 @@ const _teens = <String>[
   'تسعة عشر',
 ];
 
-const _tens = <String>['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+const _tens = <String>[
+  '',
+  '',
+  'عشرون',
+  'ثلاثون',
+  'أربعون',
+  'خمسون',
+  'ستون',
+  'سبعون',
+  'ثمانون',
+  'تسعون',
+];
 
 const _hundredsMap = <int, String>{
   1: 'مائة',

@@ -81,7 +81,9 @@ class BookingComputedStreamService {
   /// The stream re-emits whenever the booking row or any related payment changes.
   Stream<BookingWithPayments?> watchBookingWithPayments(int bookingId) {
     // Use a combined query approach - watch the booking directly
-    final bookingQuery = (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).watchSingleOrNull();
+    final bookingQuery = (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).watchSingleOrNull();
 
     return bookingQuery.asyncMap((booking) async {
       if (booking == null) {
@@ -93,7 +95,9 @@ class BookingComputedStreamService {
 
   /// Watches a single booking by UUID and emits updated [BookingWithPayments].
   Stream<BookingWithPayments?> watchBookingByUuid(String uuid) {
-    final bookingQuery = (db.select(db.bookings)..where((b) => b.localUuid.equals(uuid))).watchSingleOrNull();
+    final bookingQuery = (db.select(
+      db.bookings,
+    )..where((b) => b.localUuid.equals(uuid))).watchSingleOrNull();
 
     return bookingQuery.asyncMap((booking) async {
       if (booking == null) {
@@ -133,7 +137,10 @@ class BookingComputedStreamService {
       // Pre-load all payments for these bookings (1 query instead of N)
       final bookingIds = bookings.map((b) => b.id).toList();
       final bookingUuids = bookings.map((b) => b.localUuid).toList();
-      final allPayments = await _loadPaymentsForBookings(bookingIds, bookingUuids);
+      final allPayments = await _loadPaymentsForBookings(
+        bookingIds,
+        bookingUuids,
+      );
       final paymentsMap = <int, List<Payment>>{};
       for (final p in allPayments) {
         final bid = p.bookingLocalId;
@@ -143,7 +150,13 @@ class BookingComputedStreamService {
       }
 
       return bookings
-          .map((booking) => _buildBookingWithPaymentsOptimized(booking, roomMap: roomMap, paymentsMap: paymentsMap))
+          .map(
+            (booking) => _buildBookingWithPaymentsOptimized(
+              booking,
+              roomMap: roomMap,
+              paymentsMap: paymentsMap,
+            ),
+          )
           .toList();
     });
   }
@@ -169,7 +182,9 @@ class BookingComputedStreamService {
 
   /// Builds a [BookingWithPayments] from raw data (non-streaming, one-shot).
   Future<BookingWithPayments?> buildBookingWithPayments(int bookingId) async {
-    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (booking == null) {
       return null;
     }
@@ -185,7 +200,8 @@ class BookingComputedStreamService {
     final checkIn = _parseDate(booking.checkinDate) ?? now;
     final plannedCheckOut = _parseDate(booking.checkoutDate);
     final actualCheckOut = _parseDate(booking.actualCheckout);
-    final isActive = actualCheckOut == null && StatusUtils.isBookingActive(booking);
+    final isActive =
+        actualCheckOut == null && StatusUtils.isBookingActive(booking);
 
     // Effective checkout logic:
     // - If guest is active (no actual checkout), always use NOW
@@ -203,7 +219,10 @@ class BookingComputedStreamService {
       effectiveCheckOut = null; // Future date or unknown → use NOW
     }
 
-    final days = HotelTimeEngine.calculateDays(checkIn, checkOut: effectiveCheckOut);
+    final days = HotelTimeEngine.calculateDays(
+      checkIn,
+      checkOut: effectiveCheckOut,
+    );
 
     // Get room price
     final room =
@@ -241,18 +260,30 @@ class BookingComputedStreamService {
   Future<int> _sumPaymentsForBooking(Booking booking) async {
     final payments =
         await (db.select(db.payments)
-              ..where((p) => (p.bookingLocalId.equals(booking.id) | p.bookingUuidCache.equals(booking.localUuid)))
+              ..where(
+                (p) =>
+                    (p.bookingLocalId.equals(booking.id) |
+                    p.bookingUuidCache.equals(booking.localUuid)),
+              )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
               ..where((p) => p.isPendingBalance.equals(false))
-              ..where((p) => p.revenueType.equals('room') | p.revenueType.equals('') | p.revenueType.isNull()))
+              ..where(
+                (p) =>
+                    p.revenueType.equals('room') |
+                    p.revenueType.equals('') |
+                    p.revenueType.isNull(),
+              ))
             .get();
 
     return payments.fold<int>(0, (sum, p) => sum + p.amount.round());
   }
 
   /// Pre-load all payments for a list of bookings in a single query.
-  Future<List<Payment>> _loadPaymentsForBookings(List<int> bookingIds, List<String> bookingUuids) async {
+  Future<List<Payment>> _loadPaymentsForBookings(
+    List<int> bookingIds,
+    List<String> bookingUuids,
+  ) async {
     if (bookingIds.isEmpty) {
       return [];
     }
@@ -260,7 +291,12 @@ class BookingComputedStreamService {
           ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false))
           ..where((p) => p.isPendingBalance.equals(false))
-          ..where((p) => p.revenueType.equals('room') | p.revenueType.equals('') | p.revenueType.isNull())
+          ..where(
+            (p) =>
+                p.revenueType.equals('room') |
+                p.revenueType.equals('') |
+                p.revenueType.isNull(),
+          )
           ..where((p) => p.bookingLocalId.isIn(bookingIds)))
         .get();
   }
@@ -275,7 +311,8 @@ class BookingComputedStreamService {
     final checkIn = _parseDate(booking.checkinDate) ?? now;
     final plannedCheckOut = _parseDate(booking.checkoutDate);
     final actualCheckOut = _parseDate(booking.actualCheckout);
-    final isActive = actualCheckOut == null && StatusUtils.isBookingActive(booking);
+    final isActive =
+        actualCheckOut == null && StatusUtils.isBookingActive(booking);
 
     final DateTime? effectiveCheckOut;
     if (isActive) {
@@ -288,7 +325,10 @@ class BookingComputedStreamService {
       effectiveCheckOut = null;
     }
 
-    final days = HotelTimeEngine.calculateDays(checkIn, checkOut: effectiveCheckOut);
+    final days = HotelTimeEngine.calculateDays(
+      checkIn,
+      checkOut: effectiveCheckOut,
+    );
 
     final pricePerNight = (roomMap[booking.roomNumber]?.price ?? 0).round();
 
@@ -299,7 +339,10 @@ class BookingComputedStreamService {
     }
 
     final bookingPayments = paymentsMap[booking.id] ?? [];
-    final totalPaid = bookingPayments.fold<int>(0, (sum, p) => sum + p.amount.round());
+    final totalPaid = bookingPayments.fold<int>(
+      0,
+      (sum, p) => sum + p.amount.round(),
+    );
     final remaining = (totalDue - totalPaid).clamp(0, totalDue);
 
     return BookingWithPayments(

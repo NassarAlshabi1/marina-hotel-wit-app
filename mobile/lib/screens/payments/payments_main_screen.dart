@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/payment_models.dart';
+import '../../utils/performance_config.dart';
 import '../../providers/appwrite_providers.dart' hide ConnectionState;
 import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
@@ -19,6 +19,7 @@ import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'booking_checkout_screen.dart';
 import 'payment_history_screen.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -257,7 +258,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     final methodCounts = <String, double>{};
 
     for (final payment in payments) {
-      methodCounts[payment.paymentMethod] = (methodCounts[payment.paymentMethod] ?? 0) + payment.amount;
+      methodCounts[payment.paymentMethod] =
+          (methodCounts[payment.paymentMethod] ?? 0) + payment.amount;
     }
 
     if (methodCounts.isEmpty) {
@@ -410,7 +412,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           );
         }
 
-        final activeBookings = snapshot.data!.where((booking) => StatusUtils.isActiveBooking(booking.status)).toList();
+        final activeBookings = snapshot.data!
+            .where((booking) => StatusUtils.isActiveBooking(booking.status))
+            .toList();
 
         if (activeBookings.isEmpty) {
           return const Center(
@@ -436,13 +440,16 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         final isOverdueWindow = hour >= 23 || hour < 5;
 
         return ListView.builder(
+          // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+          scrollCacheExtent: optimizedScrollCacheExtent,
           padding: const EdgeInsets.all(12),
           itemCount: activeBookings.length,
           itemBuilder: (context, index) {
             final booking = activeBookings[index];
             // ✅ حالة تأخر السداد الخاصة بهذا الحجز (لا تظهر إلا إذا كان
             // هناك رصيد متبقي + نحن داخل نافذة التنبيه الليلية).
-            final hasRemainingBalance = booking.remainingBalanceCached.round() > 0;
+            final hasRemainingBalance =
+                booking.remainingBalanceCached.round() > 0;
             final isLate = hasRemainingBalance && isLateWindow;
             final isOverdue = hasRemainingBalance && isOverdueWindow;
 
@@ -602,7 +609,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                       Navigator.push<void>(
                         context,
                         MaterialPageRoute<void>(
-                          builder: (context) => BookingCheckoutScreen(booking: booking),
+                          builder: (context) =>
+                              BookingCheckoutScreen(booking: booking),
                         ),
                       );
                     },
@@ -719,7 +727,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                               style: TextStyle(
                                 fontSize: 12,
                                 color: isSelected ? Colors.white : method.color,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
                             selected: isSelected,
@@ -743,14 +753,13 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d+')),
-                        ],
+                        inputFormatters: const [englishIntegerInputFormatter],
                       ),
                       const SizedBox(height: 12),
 
                       // رقم المرجع (للتحويل والشيك)
-                      if (selectedMethod == PaymentMethod.transfer || selectedMethod == PaymentMethod.check) ...[
+                      if (selectedMethod == PaymentMethod.transfer ||
+                          selectedMethod == PaymentMethod.check) ...[
                         TextField(
                           controller: referenceController,
                           decoration: const InputDecoration(
@@ -827,9 +836,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   ) async {
     final parsedAmount = CurrencyFormatter.parseAmount(amountText);
     if (parsedAmount == null || parsedAmount <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يرجى إدخال مبلغ صحيح'),
           backgroundColor: Colors.red,
@@ -890,9 +897,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       if (mounted && dialogContext.mounted) {
         Navigator.pop(dialogContext);
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),
             backgroundColor: Colors.red,

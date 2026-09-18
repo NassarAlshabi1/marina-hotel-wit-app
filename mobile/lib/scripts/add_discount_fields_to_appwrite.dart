@@ -43,7 +43,9 @@ Future<void> main(List<String> args) async {
     print('2. اختر المشروع → Settings → API Keys');
     print('3. أنشئ API Key جديد مع صلاحيات: databases.write');
     print('\nثم شغل الأمر:');
-    print('dart run lib/scripts/add_discount_fields_to_appwrite.dart <API_KEY>');
+    print(
+      'dart run lib/scripts/add_discount_fields_to_appwrite.dart <API_KEY>',
+    );
     exit(1);
   }
 
@@ -115,7 +117,9 @@ Future<bool> addStringAttribute({
   required bool required,
   String? defaultValue,
 }) async {
-  final url = Uri.parse('$endpoint/databases/$databaseId/collections/$collectionId/attributes/string');
+  final url = Uri.parse(
+    '$endpoint/databases/$databaseId/collections/$collectionId/attributes/string',
+  );
 
   final body = {
     'key': attributeKey,
@@ -127,7 +131,11 @@ Future<bool> addStringAttribute({
   try {
     final response = await client.post(
       url,
-      headers: {'Content-Type': 'application/json', 'X-Appwrite-Project': projectId, 'X-Appwrite-Key': apiKey},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Appwrite-Project': projectId,
+        'X-Appwrite-Key': apiKey,
+      },
       body: json.encode(body),
     );
 

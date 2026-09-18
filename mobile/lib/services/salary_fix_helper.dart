@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
@@ -7,6 +6,7 @@ import '../utils/expense_reason_matcher.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';
 import 'sync/payload_mapper.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// ✅ مساعد لإصلاح مصروفات الرواتب القديمة (مرة واحدة فقط).
 ///
@@ -19,8 +19,8 @@ import 'sync/payload_mapper.dart';
 /// 1. يبحث عن مصروفات الرواتب اليتيمة (UUID فارغ + relatedId غير صالح)
 /// 2. يجد السحب المرتبط عبر `expense_id` (أو `reason` كـ fallback قديم)
 /// 3. يأخذ `employeeId` من السحب → يحل الموظف → يملأ `employeeUuid` + `relatedId`
-/// 4. يُحدّث `updatedAt` عبر `ExpensesRepository.update()` الذي يُضيف للـ outbox
-///    تلقائياً، فيُرفع للسحاب في المزامنة التالية (حقول camelCase).
+/// 4. يُحدّث الرابط محلياً باعتباره تصحيحاً مشتقاً من بيانات Appwrite، من دون
+///    إنشاء Outbox أو تحويل السحب الأول إلى تغيير مستخدم قابل للرفع.
 ///
 /// آمن: لا يحذف أي شيء، فقط يُحدّث الروابط المفقودة. يُكمّل التوصية 6.
 class SalaryFixHelper {
@@ -37,7 +37,7 @@ class SalaryFixHelper {
   /// 2. وجود موظفين محلياً — إن لم يوجدوا، تؤجّل (السحب لم يكتمل بعد).
   ///
   /// عند النجاح:
-  /// - تُصلح المصروفات اليتيمة محلياً (مع outbox merge للرفع التلقائي).
+  /// - تُصلح المصروفات اليتيمة محلياً من دون إضافة Outbox.
   /// - تُضبط الـ flag حتى لا تتكرر.
   ///
   /// لا ترفع استثناءات — أخطاء الإصلاح لا توقف المزامنة.
@@ -53,32 +53,44 @@ class SalaryFixHelper {
       // بدون هذا الفحص، قد نُصلح مصروفات قبل وصول موظفيها.
       final employeesCount = await _db.employees.count().getSingle();
       if (employeesCount == 0) {
-        AppLogger.info('Salary fix deferred — no employees synced yet (waiting for first pull).', tag: 'SALARY_FIX');
+        AppLogger.info(
+          'Salary fix deferred — no employees synced yet (waiting for first pull).',
+          tag: 'SALARY_FIX',
+        );
         return; // سيُعاد المحاولة في المرة القادمة (نفس الدالة).
       }
 
-      AppLogger.info('Starting one-time salary fix (first run after pull)...', tag: 'SALARY_FIX');
+      AppLogger.info(
+        'Starting one-time salary fix (first run after pull)...',
+        tag: 'SALARY_FIX',
+      );
 
-      // 1. إصلاح البيانات المحلية (يُضيف للـ outbox تلقائياً عبر repo.update).
+      // 1. إصلاح محلي مشتق من بيانات السحب، وليس تعديل مستخدم قابل للرفع.
       final fixedCount = await _fixOrphanSalaryExpenses();
 
       if (fixedCount > 0) {
         AppLogger.info(
-          '✅ Salary fix completed — $fixedCount orphan expenses re-linked. '
-          'Changes queued in outbox for next sync.',
+          '✅ Salary fix completed — $fixedCount orphan expenses re-linked locally.',
           tag: 'SALARY_FIX',
         );
-        // ملاحظة: لا نستدعي sync() هنا لأن الاستدعاء يأتي من داخل
-        // AppwriteSyncManager.pull() — ستُرفع التغييرات في الـ sync التالي
-        // تلقائياً عبر outbox. استدعاء sync() هنا قد يسبب recursive lock.
+        // ملاحظة: لا نستدعي sync() هنا لأن الإصلاح صيانة محلية لبيانات
+        // Appwrite المسحوبة؛ لا ينبغي أن يبدأ دفعاً أو مزامنة متداخلة.
       } else {
-        AppLogger.info('No orphan salary expenses found. Marking fix as done.', tag: 'SALARY_FIX');
+        AppLogger.info(
+          'No orphan salary expenses found. Marking fix as done.',
+          tag: 'SALARY_FIX',
+        );
       }
 
       // 2. ضبط الـ flag (حتى لو لم يجد شيئاً — لا حاجة للتكرار).
       await prefs.setBool(_fixDoneKey, true);
     } catch (e, st) {
-      AppLogger.error('❌ Salary fix failed — will retry on next sync.', error: e, stackTrace: st, tag: 'SALARY_FIX');
+      AppLogger.error(
+        '❌ Salary fix failed — will retry on next sync.',
+        error: e,
+        stackTrace: st,
+        tag: 'SALARY_FIX',
+      );
       // لا نضبط الـ flag عند الفشل — يُعاد المحاولة في المرة القادمة.
     }
   }
@@ -86,8 +98,8 @@ class SalaryFixHelper {
   /// إصلاح المصروفات اليتيمة محلياً وإرجاع عدد المصروفات المُصلَحة.
   ///
   /// يستخدم `ExpensesRepository.update()` (وليس customUpdate خام) لضمان:
-  /// - تحديث `updatedAt` تلقائياً.
-  /// - إضافة العملية للـ outbox (للرفع التلقائي للسحاب).
+  /// - تحديث بيانات الربط عبر مسار DAO الموحّد.
+  /// - وسم الكتابة كمستمدة من الخادم لمنع Outbox.
   /// - توافق الحقول مع camelCase في Appwrite Cloud.
   Future<int> _fixOrphanSalaryExpenses() async {
     return fixOrphanSalaryExpensesForTest();
@@ -134,7 +146,10 @@ class SalaryFixHelper {
       return 0;
     }
 
-    AppLogger.info('🔍 Found ${orphans.length} orphan salary expenses to repair.', tag: 'SALARY_FIX');
+    AppLogger.info(
+      '🔍 Found ${orphans.length} orphan salary expenses to repair.',
+      tag: 'SALARY_FIX',
+    );
 
     for (final row in orphans) {
       final expenseId = row.read<int>('id');
@@ -151,8 +166,12 @@ class SalaryFixHelper {
 
         if (employee != null) {
           // employeeUuid موجود وصالح → فقط عيّن relatedId.
-          // تحديث عبر repo يضمن outbox merge + updatedAt.
-          await repo.update(expenseId, relatedId: employee.id, employeeUuid: employee.localUuid);
+          await repo.update(
+            expenseId,
+            relatedId: employee.id,
+            employeeUuid: employee.localUuid,
+            originIsServer: true,
+          );
           fixedCount++;
           AppLogger.debug(
             '  ✅ Expense #$expenseId fixed via employeeUuid '
@@ -204,7 +223,10 @@ class SalaryFixHelper {
       }
 
       if (employeeIdFromWithdrawal == null) {
-        AppLogger.warning('  ⚠️ Expense #$expenseId: no salary_withdrawal found, leaving as is.', tag: 'SALARY_FIX');
+        AppLogger.warning(
+          '  ⚠️ Expense #$expenseId: no salary_withdrawal found, leaving as is.',
+          tag: 'SALARY_FIX',
+        );
         continue;
       }
 
@@ -225,11 +247,17 @@ class SalaryFixHelper {
         continue;
       }
 
-      // أعد ربط المصروف (relatedId + employeeUuid معاً).
-      // تحديث عبر repo يضمن outbox merge + updatedAt للرفع للسحاب.
-      await repo.update(expenseId, relatedId: employee.id, employeeUuid: employee.localUuid);
+      // أعد ربط المصروف (relatedId + employeeUuid معاً) كمصروف مسحوب.
+      await repo.update(
+        expenseId,
+        relatedId: employee.id,
+        employeeUuid: employee.localUuid,
+        originIsServer: true,
+      );
       fixedCount++;
-      final uuidPreview = employee.localUuid.length >= 8 ? employee.localUuid.substring(0, 8) : employee.localUuid;
+      final uuidPreview = employee.localUuid.length >= 8
+          ? employee.localUuid.substring(0, 8)
+          : employee.localUuid;
       AppLogger.debug(
         '  ✅ Expense #$expenseId fixed via salary_withdrawal '
         '→ employee #${employee.id} (uuid: $uuidPreview...)',
@@ -245,6 +273,6 @@ class SalaryFixHelper {
   static Future<void> resetFlag() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_fixDoneKey);
-    debugPrint('🔧 Salary fix flag reset — will run again on next sync.');
+    dlog('🔧 Salary fix flag reset — will run again on next sync.');
   }
 }

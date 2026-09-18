@@ -22,3 +22,20 @@ scripts/appwrite/backup_splits/
 # Python cache
 __pycache__/
 *.pyc
+Keystore.txt
+*.keystore
+key.properties
+
+# Secrets protection (2026-08-06)
+*.env
+.env*
+!.env.example
+.secrets/
+*.secret
+*.api_key
+
+# Flutter SDK and downloaded archives (not part of repo)
+flutter/
+flutter344.tar
+flutter344.tar.xz
+.flutter-plugins-dependencies

@@ -1,7 +1,6 @@
-import 'package:flutter/foundation.dart';
-
 import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// Migration لإعادة حساب عدد الليالي والحقول المشتقة لجميع الحجوزات
 /// بناءً على التواريخ الفعلية بدلاً من الاعتماد على القيم المحفوظة
@@ -11,41 +10,48 @@ class RecalculateBookingNightsMigration {
   final AppDatabase db;
 
   Future<void> execute() async {
-    debugPrint('🔧 Starting booking nights recalculation migration...');
+    dlog('🔧 Starting booking nights recalculation migration...');
 
     final derivedFieldsService = BookingDerivedFieldsService(db);
 
     // الحصول على جميع الحجوزات النشطة (غير المحذوفة)
-    final bookings = await (db.select(db.bookings)..where((b) => b.deletedAt.isNull())).get();
+    final bookings = await (db.select(
+      db.bookings,
+    )..where((b) => b.deletedAt.isNull())).get();
 
     if (bookings.isEmpty) {
-      debugPrint('✅ No bookings found');
+      dlog('✅ No bookings found');
       return;
     }
 
-    debugPrint('📋 Found ${bookings.length} bookings to recalculate');
+    dlog(() => '📋 Found ${bookings.length} bookings to recalculate');
 
     int successCount = 0;
     int errorCount = 0;
 
     for (final booking in bookings) {
       try {
-        debugPrint('   Processing ${booking.guestName} (${booking.roomNumber})...');
+        dlog(
+          () => '   Processing ${booking.guestName} (${booking.roomNumber})...',
+        );
 
         // إعادة حساب جميع الحقول المشتقة بناءً على التواريخ
-        await derivedFieldsService.refreshForBooking(booking, forceRebuild: true);
+        await derivedFieldsService.refreshForBooking(
+          booking,
+          forceRebuild: true,
+        );
 
         successCount++;
       } catch (e) {
-        debugPrint('   ❌ Error processing booking ${booking.id}: $e');
+        dlog(() => '   ❌ Error processing booking ${booking.id}: $e');
         errorCount++;
       }
     }
 
-    debugPrint('');
-    debugPrint('✅ Migration completed:');
-    debugPrint('   - Success: $successCount');
-    debugPrint('   - Errors: $errorCount');
+    dlog('');
+    dlog('✅ Migration completed:');
+    dlog(() => '   - Success: $successCount');
+    dlog(() => '   - Errors: $errorCount');
   }
 
   Future<RecalculationReport> executeWithReport() async {
@@ -56,7 +62,9 @@ class RecalculateBookingNightsMigration {
 
       final derivedFieldsService = BookingDerivedFieldsService(db);
 
-      final bookings = await (db.select(db.bookings)..where((b) => b.deletedAt.isNull())).get();
+      final bookings = await (db.select(
+        db.bookings,
+      )..where((b) => b.deletedAt.isNull())).get();
 
       report.totalBookingsFound = bookings.length;
 
@@ -74,7 +82,10 @@ class RecalculateBookingNightsMigration {
           final oldTotalDue = booking.totalDueCached;
 
           // إعادة الحساب
-          await derivedFieldsService.refreshForBooking(booking, forceRebuild: true);
+          await derivedFieldsService.refreshForBooking(
+            booking,
+            forceRebuild: true,
+          );
 
           // الحصول على القيم الجديدة
           final updatedBooking = await (db.select(
@@ -105,7 +116,9 @@ class RecalculateBookingNightsMigration {
             report.bookingsRecalculated++;
           }
         } catch (e) {
-          report.errors.add('Failed to recalculate booking ${booking.id} (${booking.guestName}): $e');
+          report.errors.add(
+            'Failed to recalculate booking ${booking.id} (${booking.guestName}): $e',
+          );
         }
       }
 
@@ -135,9 +148,12 @@ class RecalculationReport {
   List<BookingRecalculationDetails> recalculatedBookings = [];
   List<String> errors = [];
 
-  Duration? get duration => startTime != null && endTime != null ? endTime!.difference(startTime!) : null;
+  Duration? get duration => startTime != null && endTime != null
+      ? endTime!.difference(startTime!)
+      : null;
 
-  int get changedBookingsCount => recalculatedBookings.where((b) => b.changed).length;
+  int get changedBookingsCount =>
+      recalculatedBookings.where((b) => b.changed).length;
 
   Map<String, dynamic> toJson() {
     return {
@@ -148,7 +164,9 @@ class RecalculationReport {
       'changedBookings': changedBookingsCount,
       'errors': errors,
       'duration': duration?.inMilliseconds,
-      'recalculatedBookings': recalculatedBookings.map((b) => b.toJson()).toList(),
+      'recalculatedBookings': recalculatedBookings
+          .map((b) => b.toJson())
+          .toList(),
     };
   }
 
@@ -174,16 +192,24 @@ class RecalculationReport {
       }
     }
 
-    final changedBookings = recalculatedBookings.where((b) => b.changed).toList();
+    final changedBookings = recalculatedBookings
+        .where((b) => b.changed)
+        .toList();
     if (changedBookings.isNotEmpty) {
       buffer.writeln('\n🔄 Changed Bookings (${changedBookings.length}):');
       for (final booking in changedBookings) {
-        buffer.writeln('  • ${booking.guestName} (Room ${booking.roomNumber}):');
+        buffer.writeln(
+          '  • ${booking.guestName} (Room ${booking.roomNumber}):',
+        );
         if (booking.oldExpectedNights != booking.newExpectedNights) {
-          buffer.writeln('    expectedNights: ${booking.oldExpectedNights} → ${booking.newExpectedNights}');
+          buffer.writeln(
+            '    expectedNights: ${booking.oldExpectedNights} → ${booking.newExpectedNights}',
+          );
         }
         if (booking.oldCalculatedNights != booking.newCalculatedNights) {
-          buffer.writeln('    calculatedNights: ${booking.oldCalculatedNights} → ${booking.newCalculatedNights}');
+          buffer.writeln(
+            '    calculatedNights: ${booking.oldCalculatedNights} → ${booking.newCalculatedNights}',
+          );
         }
         if ((booking.oldTotalDue - booking.newTotalDue).abs() > 0.01) {
           buffer.writeln(
@@ -195,7 +221,9 @@ class RecalculationReport {
 
     final unchangedCount = recalculatedBookings.length - changedBookings.length;
     if (unchangedCount > 0) {
-      buffer.writeln('\n✅ Unchanged Bookings: $unchangedCount (already correct)');
+      buffer.writeln(
+        '\n✅ Unchanged Bookings: $unchangedCount (already correct)',
+      );
     }
 
     buffer.writeln('=' * 80);

@@ -25,7 +25,6 @@
 @Tags(['performance'])
 library marina_hotel_mobile.test.performance.sync_operations_benchmark_test;
 
-
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -74,10 +73,18 @@ void main() {
       }
       stopwatch.stop();
 
-      debugPrint('✓ Outbox merge 100 entries: ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('  Rate: ${(100 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} entries/sec');
+      debugPrint(
+        '✓ Outbox merge 100 entries: ${stopwatch.elapsedMilliseconds}ms',
+      );
+      debugPrint(
+        '  Rate: ${(100 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} entries/sec',
+      );
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(500), reason: 'إضافة 100 outbox entry يجب أن يكون < 500ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(500),
+        reason: 'إضافة 100 outbox entry يجب أن يكون < 500ms',
+      );
     });
 
     test('إضافة 100 outbox entry في transaction خلال < 200ms', () async {
@@ -100,8 +107,12 @@ void main() {
       });
       stopwatch.stop();
 
-      debugPrint('✓ Outbox merge 100 entries (transaction): ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('  Speedup vs single: ~${(500 / (stopwatch.elapsedMilliseconds + 1)).toStringAsFixed(1)}x expected');
+      debugPrint(
+        '✓ Outbox merge 100 entries (transaction): ${stopwatch.elapsedMilliseconds}ms',
+      );
+      debugPrint(
+        '  Speedup vs single: ~${(500 / (stopwatch.elapsedMilliseconds + 1)).toStringAsFixed(1)}x expected',
+      );
 
       expect(
         stopwatch.elapsedMilliseconds,
@@ -132,11 +143,17 @@ void main() {
       final batch = await outboxDao.takeBatch(50);
       stopwatch.stop();
 
-      debugPrint('✓ takeBatch(50) from 100 entries: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ takeBatch(50) from 100 entries: ${stopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Batch size: ${batch.length}');
 
       expect(batch.length, 50);
-      expect(stopwatch.elapsedMilliseconds, lessThan(50), reason: 'takeBatch يجب أن يكون سريعاً جداً (< 50ms)');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(50),
+        reason: 'takeBatch يجب أن يكون سريعاً جداً (< 50ms)',
+      );
     });
 
     test('countPendingPushable من 200 entry خلال < 30ms', () async {
@@ -156,11 +173,17 @@ void main() {
       final count = await outboxDao.countPendingPushable();
       stopwatch.stop();
 
-      debugPrint('✓ countPendingPushable (200 entries): ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ countPendingPushable (200 entries): ${stopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Count: $count');
 
       expect(count, 200);
-      expect(stopwatch.elapsedMilliseconds, lessThan(30), reason: 'count query يجب أن يكون < 30ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(30),
+        reason: 'count query يجب أن يكون < 30ms',
+      );
     });
   });
 
@@ -204,12 +227,24 @@ void main() {
 
       final outboxCount = await outboxDao.countPendingPushable();
 
-      debugPrint('✓ 50 expenses + outbox entries (transaction): ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ 50 expenses + outbox entries (transaction): ${stopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Outbox count: $outboxCount');
-      debugPrint('  Rate: ${(50 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} expenses/sec');
+      debugPrint(
+        '  Rate: ${(50 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} expenses/sec',
+      );
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(1000), reason: '50 مصروف + outbox entries يجب أن يكون < 1 ثانية');
-      expect(outboxCount, greaterThan(0), reason: 'كل مصروف يجب أن يُنشئ outbox entry');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(1000),
+        reason: '50 مصروف + outbox entries يجب أن يكون < 1 ثانية',
+      );
+      expect(
+        outboxCount,
+        greaterThan(0),
+        reason: 'كل مصروف يجب أن يُنشئ outbox entry',
+      );
     });
   });
 
@@ -251,7 +286,9 @@ void main() {
       });
       batchStopwatch.stop();
 
-      final speedup = singleStopwatch.elapsedMilliseconds / (batchStopwatch.elapsedMilliseconds + 1);
+      final speedup =
+          singleStopwatch.elapsedMilliseconds /
+          (batchStopwatch.elapsedMilliseconds + 1);
 
       debugPrint('✓ Single vs Batch insert (50 outbox entries):');
       debugPrint('  Single inserts:  ${singleStopwatch.elapsedMilliseconds}ms');

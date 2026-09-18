@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:appwrite/appwrite.dart';
-import 'package:flutter/foundation.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
 import 'secondary_appwrite_config.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حالة كل وجهة من وجهات Appwrite
 enum EndpointHealth {
@@ -53,13 +54,16 @@ class AppwriteHealthState {
 
   /// هل الوجهة الرئيسية متاحة للقراءة؟
   bool get isPrimaryAvailable =>
-      primaryHealth == EndpointHealth.healthy || primaryHealth == EndpointHealth.unknown; // نُحاول قبل الفشل
+      primaryHealth == EndpointHealth.healthy ||
+      primaryHealth == EndpointHealth.unknown; // نُحاول قبل الفشل
 
   /// هل الوجهة الثانوية متاحة للقراءة؟
   bool get isSecondaryAvailable => secondaryHealth == EndpointHealth.healthy;
 
   /// هل نحتاج لتفعيل وضع Failover (Primary معطّل، Secondary متاح)؟
-  bool get shouldFailover => primaryHealth == EndpointHealth.unreachable && secondaryHealth == EndpointHealth.healthy;
+  bool get shouldFailover =>
+      primaryHealth == EndpointHealth.unreachable &&
+      secondaryHealth == EndpointHealth.healthy;
 
   /// الوجهة المُفضّلة للقراءة حالياً (Primary أولاً، ثم Secondary عند الفشل)
   String get preferredReadSource {
@@ -94,25 +98,66 @@ class AppwriteHealthState {
 }
 
 /// Notifier يدير حالة صحة الوجهتين ويوفّرها للـ UI
+///
+/// ✅ P1-9 FIX (2026-08-06 Audit): تحويل لـ singleton pattern.
+/// سابقاً كان main.dart يُنشأ instance #1 ويبدأ الفحص الدوري، بينما
+/// Riverpod provider يُنشأ instance #2 منفصل عند أول ref.watch.
+/// النتيجة: الـ UI يقرأ من instance #2 الذي state = initial دائماً،
+/// ولا يرى تحديثات الفحص الدوري من instance #1.
+/// الإصلاح: factory constructor يُرجع نفس الـ instance دائماً،
+/// مما يضمن أن main.dart و Riverpod يستخدمان نفس الـ object.
 class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
-  AppwriteHealthNotifier() : super(AppwriteHealthState.initial);
+  AppwriteHealthNotifier._() : super(AppwriteHealthState.initial);
+
+  /// Singleton instance — يُستخدم من main.dart و Riverpod provider.
+  static final AppwriteHealthNotifier instance = AppwriteHealthNotifier._();
+
+  /// Factory constructor يُرجع نفس الـ instance دائماً.
+  factory AppwriteHealthNotifier() => instance;
 
   Timer? _checkTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  final _connectivity = Connectivity();
+  bool _hasNetworkTransport = false;
   bool _isChecking = false;
 
   /// بدء الفحص الدوري كل [interval] (افتراضياً 30 ثانية)
   void startPeriodicCheck({Duration interval = const Duration(seconds: 30)}) {
     stopPeriodicCheck();
-    // فحص فوري عند البدء
-    checkNow();
-    _checkTimer = Timer.periodic(interval, (_) => checkNow());
-    debugPrint('🏥 [HealthChecker] Started periodic check every ${interval.inSeconds}s');
+
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      results,
+    ) {
+      final wasAvailable = _hasNetworkTransport;
+      _hasNetworkTransport = results.any(
+        (result) => result != ConnectivityResult.none,
+      );
+      if (_hasNetworkTransport && !wasAvailable) {
+        unawaited(checkNow());
+      } else if (!_hasNetworkTransport && wasAvailable) {
+        _setOfflineState();
+      }
+    });
+
+    // فحص فوري عند البدء؛ checkNow يقرر محلياً هل توجد شبكة قبل طلب Appwrite.
+    unawaited(checkNow());
+    _checkTimer = Timer.periodic(interval, (_) {
+      if (_hasNetworkTransport) {
+        unawaited(checkNow());
+      }
+    });
+    dlog(
+      () =>
+          '🏥 [HealthChecker] Started periodic check every ${interval.inSeconds}s',
+    );
   }
 
   /// إيقاف الفحص الدوري
   void stopPeriodicCheck() {
     _checkTimer?.cancel();
     _checkTimer = null;
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = null;
   }
 
   /// فحص فوري لحالة الوجهتين
@@ -121,6 +166,15 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
     _isChecking = true;
 
     try {
+      final connectivity = await _connectivity.checkConnectivity();
+      _hasNetworkTransport = connectivity.any(
+        (result) => result != ConnectivityResult.none,
+      );
+      if (!_hasNetworkTransport) {
+        _setOfflineState();
+        return;
+      }
+
       final results = await Future.wait([_checkPrimary(), _checkSecondary()]);
 
       final primaryResult = results[0];
@@ -141,22 +195,36 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
 
       // تسجيل تغييرات الحالة المهمة
       if (state.shouldFailover) {
-        debugPrint('⚠️ [HealthChecker] FAILOVER ACTIVE — reading from Secondary');
+        dlog('⚠️ [HealthChecker] FAILOVER ACTIVE — reading from Secondary');
       } else if (primaryResult.health == EndpointHealth.unreachable) {
-        debugPrint('⚠️ [HealthChecker] Primary unreachable but Secondary not available');
+        dlog(
+          '⚠️ [HealthChecker] Primary unreachable but Secondary not available',
+        );
       }
     } catch (e) {
-      debugPrint('❌ [HealthChecker] checkNow failed: $e');
+      dlog(() => '❌ [HealthChecker] checkNow failed: $e');
     } finally {
       _isChecking = false;
     }
+  }
+
+  void _setOfflineState() {
+    state = AppwriteHealthState(
+      primaryHealth: EndpointHealth.unreachable,
+      secondaryHealth: EndpointHealth.unknown,
+      lastCheckedAt: DateTime.now(),
+      primaryError: 'No internet connection',
+    );
+    AppwriteHealthStatus.instance.update(state);
   }
 
   /// فحص الوجهة الرئيسية
   /// نحاول قراءة مستند واحد من collection 'rooms' كاختبار سريع
   Future<_HealthCheckResult> _checkPrimary() async {
     try {
-      final client = Client().setEndpoint(AppwriteConfig.endpoint).setProject(AppwriteConfig.projectId);
+      final client = Client()
+          .setEndpoint(AppwriteConfig.endpoint)
+          .setProject(AppwriteConfig.projectId);
 
       final apiKey = AppwriteConfigManager.apiKey;
       if (apiKey.isNotEmpty) {
@@ -166,33 +234,55 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
       final db = Databases(client);
       final stopwatch = Stopwatch()..start();
 
+      // فحص الصحة لا يقرأ أي بيانات — select($id) يقلّص الحمولة من صف rooms
+      // كامل (أعرض جدول + بيانات ضيوف) إلى معرّف واحد فقط.
       await db
           // ignore: deprecated_member_use
           .listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.roomsCollectionId,
-            queries: [Query.limit(1)],
+            queries: [
+              Query.select([r'$id']),
+              Query.limit(1),
+            ],
           )
           .timeout(const Duration(seconds: 10));
 
       stopwatch.stop();
-      return _HealthCheckResult(health: EndpointHealth.healthy, latencyMs: stopwatch.elapsedMilliseconds);
+      return _HealthCheckResult(
+        health: EndpointHealth.healthy,
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
     } on AppwriteException catch (e) {
-      final health = (e.code == 401 || e.code == 403) ? EndpointHealth.authError : EndpointHealth.unreachable;
-      return _HealthCheckResult(health: health, error: '${e.code}: ${e.message}');
+      final health = (e.code == 401 || e.code == 403)
+          ? EndpointHealth.authError
+          : EndpointHealth.unreachable;
+      return _HealthCheckResult(
+        health: health,
+        error: '${e.code}: ${e.message}',
+      );
     } catch (e) {
-      return _HealthCheckResult(health: EndpointHealth.unreachable, error: e.toString());
+      return _HealthCheckResult(
+        health: EndpointHealth.unreachable,
+        error: e.toString(),
+      );
     }
   }
 
   /// فحص الوجهة الثانوية (فقط إذا كانت مُفعّلة ومُعدّة)
   Future<_HealthCheckResult> _checkSecondary() async {
     if (!SecondaryAppwriteConfig.isEnabled) {
-      return const _HealthCheckResult(health: EndpointHealth.unknown, error: 'Secondary disabled');
+      return const _HealthCheckResult(
+        health: EndpointHealth.unknown,
+        error: 'Secondary disabled',
+      );
     }
 
     if (!SecondaryAppwriteConfig.isConfigured) {
-      return const _HealthCheckResult(health: EndpointHealth.configError, error: 'Secondary not configured');
+      return const _HealthCheckResult(
+        health: EndpointHealth.configError,
+        error: 'Secondary not configured',
+      );
     }
 
     try {
@@ -208,22 +298,38 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
       final db = Databases(client);
       final stopwatch = Stopwatch()..start();
 
+      // فحص الصحة لا يقرأ أي بيانات — select($id) يقلّص الحمولة من صف rooms
+      // كامل (أعرض جدول + بيانات ضيوف) إلى معرّف واحد فقط.
       await db
           // ignore: deprecated_member_use
           .listDocuments(
             databaseId: SecondaryAppwriteConfig.databaseId,
             collectionId: AppwriteConfig.roomsCollectionId,
-            queries: [Query.limit(1)],
+            queries: [
+              Query.select([r'$id']),
+              Query.limit(1),
+            ],
           )
           .timeout(const Duration(seconds: 10));
 
       stopwatch.stop();
-      return _HealthCheckResult(health: EndpointHealth.healthy, latencyMs: stopwatch.elapsedMilliseconds);
+      return _HealthCheckResult(
+        health: EndpointHealth.healthy,
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
     } on AppwriteException catch (e) {
-      final health = (e.code == 401 || e.code == 403) ? EndpointHealth.authError : EndpointHealth.unreachable;
-      return _HealthCheckResult(health: health, error: '${e.code}: ${e.message}');
+      final health = (e.code == 401 || e.code == 403)
+          ? EndpointHealth.authError
+          : EndpointHealth.unreachable;
+      return _HealthCheckResult(
+        health: health,
+        error: '${e.code}: ${e.message}',
+      );
     } catch (e) {
-      return _HealthCheckResult(health: EndpointHealth.unreachable, error: e.toString());
+      return _HealthCheckResult(
+        health: EndpointHealth.unreachable,
+        error: e.toString(),
+      );
     }
   }
 
@@ -244,9 +350,13 @@ class _HealthCheckResult {
 }
 
 /// Provider لحالة صحة الوجهتين
-final appwriteHealthProvider = StateNotifierProvider<AppwriteHealthNotifier, AppwriteHealthState>((ref) {
-  return AppwriteHealthNotifier();
-});
+///
+/// ✅ P1-9 FIX (2026-08-06 Audit): يُعيد نفس الـ singleton instance
+/// الذي يستخدمه main.dart، مما يضمن أن الـ UI يرى تحديثات الفحص الدوري.
+final appwriteHealthProvider =
+    StateNotifierProvider<AppwriteHealthNotifier, AppwriteHealthState>((ref) {
+      return AppwriteHealthNotifier.instance;
+    });
 
 /// Singleton للوصول للحالة الحالية من خارج Riverpod (مثل main.dart)
 ///

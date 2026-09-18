@@ -26,7 +26,10 @@ class LoadingSnackBar {
             const SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(child: Text(message)),
@@ -46,7 +49,10 @@ class LoadingSnackBar {
   }
 
   /// إغلاق إشعار التحميل وعرض إشعار نجاح.
-  void success(String message, {Duration duration = const Duration(seconds: 3)}) {
+  void success(
+    String message, {
+    Duration duration = const Duration(seconds: 3),
+  }) {
     _messenger.clearSnackBars();
     _messenger.showSnackBar(
       SnackBar(
@@ -82,7 +88,11 @@ class LoadingSnackBar {
   }
 
   /// اختصار ثابت لعرض نجاح بدون كائن LoadingSnackBar.
-  static void showSuccess(BuildContext context, String message, {Duration duration = const Duration(seconds: 3)}) {
+  static void showSuccess(
+    BuildContext context,
+    String message, {
+    Duration duration = const Duration(seconds: 3),
+  }) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
     messenger.showSnackBar(
@@ -101,7 +111,11 @@ class LoadingSnackBar {
   }
 
   /// اختصار ثابت لعرض خطأ بدون كائن LoadingSnackBar.
-  static void showError(BuildContext context, String message, {Duration duration = const Duration(seconds: 4)}) {
+  static void showError(
+    BuildContext context,
+    String message, {
+    Duration duration = const Duration(seconds: 4),
+  }) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
     messenger.showSnackBar(

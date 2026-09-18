@@ -11,7 +11,10 @@ mixin SyncOnExitMixin<T extends StatefulWidget> on State<T> {
   @override
   void initState() {
     super.initState();
-    _syncController = ScreenSyncController(screenId: screenId, debounceDelay: debounceDelay);
+    _syncController = ScreenSyncController(
+      screenId: screenId,
+      debounceDelay: debounceDelay,
+    );
   }
 
   @override

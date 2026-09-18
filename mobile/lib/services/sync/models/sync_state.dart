@@ -26,10 +26,14 @@ abstract class SyncState with _$SyncState {
 
   factory SyncState.idle() => const SyncState(status: SyncStatus.idle);
 
-  factory SyncState.syncing({int progress = 0, String? message}) =>
-      SyncState(status: SyncStatus.syncing, progress: progress, message: message);
+  factory SyncState.syncing({int progress = 0, String? message}) => SyncState(
+    status: SyncStatus.syncing,
+    progress: progress,
+    message: message,
+  );
 
-  factory SyncState.error(String error) => SyncState(status: SyncStatus.error, error: error);
+  factory SyncState.error(String error) =>
+      SyncState(status: SyncStatus.error, error: error);
 
   factory SyncState.offline() => const SyncState(status: SyncStatus.offline);
 
@@ -56,5 +60,6 @@ abstract class SyncSettings with _$SyncSettings {
     @Default(SyncPriority.normal) SyncPriority defaultPriority,
   }) = _SyncSettings;
 
-  factory SyncSettings.fromJson(Map<String, dynamic> json) => _$SyncSettingsFromJson(json);
+  factory SyncSettings.fromJson(Map<String, dynamic> json) =>
+      _$SyncSettingsFromJson(json);
 }

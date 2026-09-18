@@ -14,7 +14,10 @@ class PdfUtils {
   static Future<ArabicPdfFonts> loadArabicFonts() async {
     final baseData = await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
     final boldData = await rootBundle.load('assets/fonts/Tajawal-Bold.ttf');
-    return ArabicPdfFonts(base: pw.Font.ttf(baseData), bold: pw.Font.ttf(boldData));
+    return ArabicPdfFonts(
+      base: pw.Font.ttf(baseData),
+      bold: pw.Font.ttf(boldData),
+    );
   }
 
   static Future<pw.ImageProvider?> loadLogoImage() async {

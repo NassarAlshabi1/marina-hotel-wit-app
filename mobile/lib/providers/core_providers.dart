@@ -3,7 +3,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../services/local_db.dart';
 import '../services/sync_service.dart';
 
-final syncProvider = Provider<SyncService>((ref) => SyncService(DatabaseManager.instance));
+final syncProvider = Provider<SyncService>(
+  (ref) => SyncService(DatabaseManager.instance),
+);
 
 /// ✅ إصدار التطبيق الكامل (version+buildNumber) — يُقرأ من package_info_plus.
 ///

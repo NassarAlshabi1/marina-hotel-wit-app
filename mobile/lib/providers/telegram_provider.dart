@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,6 +7,7 @@ import '../services/telegram/telegram_notification_service.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../services/telegram/telegram_service.dart';
 import '../utils/env.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حالة إعداد Telegram
 enum TelegramSetupStatus { idle, testing, success, error, sendingReport }
@@ -54,7 +54,8 @@ class TelegramState {
       message: message ?? this.message,
       isEnabled: isEnabled ?? this.isEnabled,
       isConfigured: isConfigured ?? this.isConfigured,
-      isNotificationsEnabled: isNotificationsEnabled ?? this.isNotificationsEnabled,
+      isNotificationsEnabled:
+          isNotificationsEnabled ?? this.isNotificationsEnabled,
       isDailyReportEnabled: isDailyReportEnabled ?? this.isDailyReportEnabled,
       botToken: botToken ?? this.botToken,
       chatId: chatId ?? this.chatId,
@@ -75,21 +76,27 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   bool _mounted = true;
 
   /// تهيئة الحالة من SharedPreferences — القيم الافتراضية مُحمّلة مسبقاً
+  /// ✅ P0-7 FIX: قراءة botToken من FlutterSecureStorage بدلاً من SharedPreferences
   Future<void> _initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool('telegram_enabled') ?? false;
-      final botToken = prefs.getString('telegram_bot_token') ?? TelegramConfig.defaultBotToken;
-      final chatId = prefs.getString('telegram_chat_id') ?? TelegramConfig.defaultChatId;
-      final notificationsEnabled = prefs.getBool('telegram_notifications_enabled') ?? false;
-      final dailyReportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? false;
-      final reportTime = prefs.getString('telegram_daily_report_time') ?? '02:00';
+      // ✅ ابتداء من 2026-08-06: قراءة botToken من SecureStorage لضمان الأمان
+      final currentBotToken = await TelegramConfig.getBotToken();
+      final chatId =
+          prefs.getString('telegram_chat_id') ?? TelegramConfig.defaultChatId;
+      final notificationsEnabled =
+          prefs.getBool('telegram_notifications_enabled') ?? false;
+      final dailyReportEnabled =
+          prefs.getBool('telegram_daily_report_enabled') ?? false;
+      final reportTime =
+          prefs.getString('telegram_daily_report_time') ?? '02:00';
       final lastReportSent = prefs.getString('telegram_last_report_sent');
       final configured = await TelegramConfig.isConfigured();
 
       state = state.copyWith(
         isEnabled: enabled,
-        botToken: botToken,
+        botToken: currentBotToken,
         chatId: chatId,
         isConfigured: configured,
         isNotificationsEnabled: notificationsEnabled,
@@ -98,7 +105,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         lastReportSent: lastReportSent,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تهيئة TelegramNotifier: $e');
+      dlog(() => '❌ خطأ في تهيئة TelegramNotifier: $e');
     }
   }
 
@@ -133,7 +140,9 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     state = state.copyWith(
       isNotificationsEnabled: enabled,
       status: TelegramSetupStatus.success,
-      message: enabled ? 'تم تفعيل الإشعارات الفورية' : 'تم تعطيل الإشعارات الفورية',
+      message: enabled
+          ? 'تم تفعيل الإشعارات الفورية'
+          : 'تم تعطيل الإشعارات الفورية',
     );
     _clearMessageAfterDelay();
   }
@@ -144,18 +153,23 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     state = state.copyWith(
       isDailyReportEnabled: enabled,
       status: TelegramSetupStatus.success,
-      message: enabled ? 'تم تفعيل التقرير اليومي التلقائي' : 'تم تعطيل التقرير اليومي التلقائي',
+      message: enabled
+          ? 'تم تفعيل التقرير اليومي التلقائي'
+          : 'تم تعطيل التقرير اليومي التلقائي',
     );
     // جدولة/إلغاء إنذار التقرير اليومي
     try {
       if (enabled && state.isEnabled) {
         final parts = state.dailyReportTime.split(':');
-        await AlarmBackup.rescheduleTelegramReport(int.parse(parts[0]), int.parse(parts[1]));
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
       } else {
         await AlarmBackup.cancelTelegramReportAlarm();
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في جدولة إنذار Telegram: $e');
+      dlog(() => '⚠️ خطأ في جدولة إنذار Telegram: $e');
     }
     _clearMessageAfterDelay();
   }
@@ -168,16 +182,22 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     try {
       if (state.isDailyReportEnabled && state.isEnabled) {
         final parts = time.split(':');
-        await AlarmBackup.rescheduleTelegramReport(int.parse(parts[0]), int.parse(parts[1]));
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
+      dlog(() => '⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
     }
   }
 
   /// اختبار الاتصال
   Future<void> testConnection() async {
-    state = state.copyWith(status: TelegramSetupStatus.testing, message: 'جاري اختبار الاتصال...');
+    state = state.copyWith(
+      status: TelegramSetupStatus.testing,
+      message: 'جاري اختبار الاتصال...',
+    );
 
     try {
       final success = await _api.testSendMessage();
@@ -194,7 +214,10 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(status: TelegramSetupStatus.error, message: '❌ خطأ في الاتصال: $e');
+      state = state.copyWith(
+        status: TelegramSetupStatus.error,
+        message: '❌ خطأ في الاتصال: $e',
+      );
     }
 
     _clearMessageAfterDelay();
@@ -202,18 +225,30 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
 
   /// إرسال تقرير تجريبي
   Future<void> sendTestReport() async {
-    state = state.copyWith(status: TelegramSetupStatus.sendingReport, message: 'جاري تجميع وإرسال التقرير...');
+    state = state.copyWith(
+      status: TelegramSetupStatus.sendingReport,
+      message: 'جاري تجميع وإرسال التقرير...',
+    );
 
     try {
       final success = await _reports.sendReportNow();
 
       if (success) {
-        state = state.copyWith(status: TelegramSetupStatus.success, message: '✅ تم إرسال التقرير التجريبي بنجاح!');
+        state = state.copyWith(
+          status: TelegramSetupStatus.success,
+          message: '✅ تم إرسال التقرير التجريبي بنجاح!',
+        );
       } else {
-        state = state.copyWith(status: TelegramSetupStatus.error, message: '❌ فشل إرسال التقرير — تحقق من الإعدادات');
+        state = state.copyWith(
+          status: TelegramSetupStatus.error,
+          message: '❌ فشل إرسال التقرير — تحقق من الإعدادات',
+        );
       }
     } catch (e) {
-      state = state.copyWith(status: TelegramSetupStatus.error, message: '❌ خطأ في إرسال التقرير: $e');
+      state = state.copyWith(
+        status: TelegramSetupStatus.error,
+        message: '❌ خطأ في إرسال التقرير: $e',
+      );
     }
 
     _clearMessageAfterDelay();
@@ -224,7 +259,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     try {
       return await _reports.sendDailyReport();
     } catch (e) {
-      debugPrint('❌ خطأ في إرسال التقرير اليومي: $e');
+      dlog(() => '❌ خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
   }
@@ -235,7 +270,8 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
       if (!_mounted) {
         return;
       }
-      if (state.status == TelegramSetupStatus.success || state.status == TelegramSetupStatus.error) {
+      if (state.status == TelegramSetupStatus.success ||
+          state.status == TelegramSetupStatus.error) {
         state = state.copyWith(status: TelegramSetupStatus.idle);
       }
     });
@@ -255,12 +291,17 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
 }
 
 /// Provider رئيسي لـ Telegram
-final telegramProvider = StateNotifierProvider<TelegramNotifier, TelegramState>((ref) => TelegramNotifier());
-
-/// Provider للوصول إلى خدمة الإشعارات
-final telegramNotificationServiceProvider = Provider<TelegramNotificationService>(
-  (ref) => TelegramNotificationService.instance,
+final telegramProvider = StateNotifierProvider<TelegramNotifier, TelegramState>(
+  (ref) => TelegramNotifier(),
 );
 
+/// Provider للوصول إلى خدمة الإشعارات
+final telegramNotificationServiceProvider =
+    Provider<TelegramNotificationService>(
+      (ref) => TelegramNotificationService.instance,
+    );
+
 /// Provider للوصول إلى خدمة التقارير
-final telegramReportServiceProvider = Provider<TelegramReportService>((ref) => TelegramReportService.instance);
+final telegramReportServiceProvider = Provider<TelegramReportService>(
+  (ref) => TelegramReportService.instance,
+);

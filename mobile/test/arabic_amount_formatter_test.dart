@@ -77,7 +77,10 @@ void main() {
 
       test('يجب تحويل الآلاف الكبيرة', () {
         expect(formatYemeniAmount(15000), 'خمسة عشر ألف ريال يمني فقط');
-        expect(formatYemeniAmount(42900), 'اثنان وأربعون ألف و تسعمائة ريال يمني فقط');
+        expect(
+          formatYemeniAmount(42900),
+          'اثنان وأربعون ألف و تسعمائة ريال يمني فقط',
+        );
         expect(formatYemeniAmount(100000), 'مائة ألف ريال يمني فقط');
       });
     });
@@ -98,13 +101,22 @@ void main() {
 
     group('حالات واقعية من الفندق', () {
       test('أسعار الغرف الشائعة', () {
-        expect(formatYemeniAmount(14300), 'أربعة عشر ألف و ثلاثمائة ريال يمني فقط');
-        expect(formatYemeniAmount(42900), 'اثنان وأربعون ألف و تسعمائة ريال يمني فقط');
+        expect(
+          formatYemeniAmount(14300),
+          'أربعة عشر ألف و ثلاثمائة ريال يمني فقط',
+        );
+        expect(
+          formatYemeniAmount(42900),
+          'اثنان وأربعون ألف و تسعمائة ريال يمني فقط',
+        );
         expect(formatYemeniAmount(85000), 'خمسة وثمانون ألف ريال يمني فقط');
       });
 
       test('مبالغ متنوعة', () {
-        expect(formatYemeniAmount(25500), 'خمسة وعشرون ألف و خمسمائة ريال يمني فقط');
+        expect(
+          formatYemeniAmount(25500),
+          'خمسة وعشرون ألف و خمسمائة ريال يمني فقط',
+        );
         expect(formatYemeniAmount(150000), 'مائة و خمسون ألف ريال يمني فقط');
       });
     });

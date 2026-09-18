@@ -22,24 +22,44 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
   String get tableName => 'shift_notes';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
-    final uuid = _asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid();
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
+    final uuid =
+        _asString(json, 'localUuid', src) ??
+        _asString(json, 'local_uuid', src) ??
+        IdGen.uuid();
     // ignore: unused_local_variable
-    final serverId = _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
+    final serverId =
+        _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
     // ignore: unused_local_variable
     final localId = _asInt(json, 'id', src);
 
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
-    return ResolveResult(bookingUuidCache: uuid, createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
+    return ResolveResult(
+      bookingUuidCache: uuid,
+      createdAtEpoch: createdAt,
+      lastModifiedEpoch: lastModified,
+    );
   }
 
   @override
-  ShiftNotesCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  ShiftNotesCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
 
     return ShiftNotesCompanion(
       id: _vInt(json, 'id', src),
@@ -48,9 +68,21 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       title: _vStr(json, 'title', src),
       content: _vStr(json, 'content', src),
       priority: _vStr(json, 'priority', src, fallback: 'medium'),
-      shiftType: _vStr(json, 'shiftType', src, altKey: 'shift_type', fallback: 'all'),
+      shiftType: _vStr(
+        json,
+        'shiftType',
+        src,
+        altKey: 'shift_type',
+        fallback: 'all',
+      ),
       isRead: _vInt(json, 'isRead', src, altKey: 'is_read', fallback: 0),
-      createdBy: _vStr(json, 'createdBy', src, altKey: 'created_by', fallback: 'user'),
+      createdBy: _vStr(
+        json,
+        'createdBy',
+        src,
+        altKey: 'created_by',
+        fallback: 'user',
+      ),
       expiresAt: _vStr(json, 'expiresAt', src, altKey: 'expires_at'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
@@ -59,8 +91,15 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       // ✅ إصلاح (audit agent-3): إضافة createdAtEpoch و lastModifiedEpoch
       // كانا مفقودين من fromJson → يُخزّنان كـ 0 افتراضياً → يُفقدان عند السحب
       createdAtEpoch: d.Value(_asInt(json, 'createdAtEpoch', src) ?? createdAt),
-      lastModifiedEpoch: d.Value(_asInt(json, 'lastModifiedEpoch', src) ?? lastModified),
-      createdAtIso: _vStr(json, 'createdAtIso', src, fallback: _asString(json, 'createdAt', src)),
+      lastModifiedEpoch: d.Value(
+        _asInt(json, 'lastModifiedEpoch', src) ?? lastModified,
+      ),
+      createdAtIso: _vStr(
+        json,
+        'createdAtIso',
+        src,
+        fallback: _asString(json, 'createdAt', src),
+      ),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       version: _vInt(json, 'version', src, fallback: 1),
@@ -70,8 +109,19 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -79,7 +129,9 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
   @override
   Map<String, dynamic> toJson(ShiftNote model, {required Source src}) {
     if (src == Source.appwrite) {
-      final createdDate = DateTime.fromMillisecondsSinceEpoch(model.createdAt * 1000);
+      final createdDate = DateTime.fromMillisecondsSinceEpoch(
+        model.createdAt * 1000,
+      );
       // shiftDate مطلوب في Appwrite — نأخذه من تاريخ الإنشاء
       final shiftDate = createdDate.toIso8601String().substring(0, 10);
       return {
@@ -110,7 +162,8 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
         'createdBy': model.createdBy,
         'shiftDate': shiftDate, // مطلوب — مشتق من createdAt
         'note': model.content, // مطلوب — يوازي content
-        if (model.expiresAt != null && model.expiresAt!.isNotEmpty) 'expiresAt': model.expiresAt,
+        if (model.expiresAt != null && model.expiresAt!.isNotEmpty)
+          'expiresAt': model.expiresAt,
       };
     }
     return {
@@ -132,7 +185,8 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -143,13 +197,31 @@ class ShiftNotesAdapter extends EntityAdapter<ShiftNote, ShiftNotesCompanion> {
 }
 
 // Helpers
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -213,7 +285,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

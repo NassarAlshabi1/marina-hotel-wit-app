@@ -26,7 +26,6 @@
 @Tags(['performance'])
 library marina_hotel_mobile.test.performance.pdf_generation_benchmark_test;
 
-
 import 'dart:io' show File, ProcessInfo;
 import 'dart:typed_data' show ByteData, Uint8List;
 
@@ -58,10 +57,7 @@ Future<pw.Document> _buildPdf({
         decoration: const pw.BoxDecoration(
           border: pw.Border(bottom: pw.BorderSide(width: 1)),
         ),
-        child: pw.Text(
-          title,
-          style: pw.TextStyle(font: bold, fontSize: 18),
-        ),
+        child: pw.Text(title, style: pw.TextStyle(font: bold, fontSize: 18)),
       ),
       footer: (context) => pw.Container(
         alignment: pw.Alignment.center,
@@ -75,7 +71,12 @@ Future<pw.Document> _buildPdf({
           context: context,
           data: List.generate(
             rowCount,
-            (i) => ['${i + 1}', 'عنصر $i', '${(i + 1) * 10.5} ر.س', '2026-07-20'],
+            (i) => [
+              '${i + 1}',
+              'عنصر $i',
+              '${(i + 1) * 10.5} ر.س',
+              '2026-07-20',
+            ],
           ),
           cellStyle: pw.TextStyle(font: regular, fontSize: 10),
           headerStyle: pw.TextStyle(font: bold, fontSize: 11),
@@ -110,8 +111,14 @@ void main() {
       await _loadFont('assets/fonts/Tajawal-Regular.ttf');
       stopwatch.stop();
 
-      debugPrint('✓ Font load (Tajawal-Regular.ttf, 55KB): ${stopwatch.elapsedMilliseconds}ms');
-      expect(stopwatch.elapsedMilliseconds, lessThan(100), reason: 'تحميل خط 55KB يجب أن يكون < 100ms');
+      debugPrint(
+        '✓ Font load (Tajawal-Regular.ttf, 55KB): ${stopwatch.elapsedMilliseconds}ms',
+      );
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(100),
+        reason: 'تحميل خط 55KB يجب أن يكون < 100ms',
+      );
     });
 
     test('تحميل Tajawal-Bold.ttf خلال < 100ms', () async {
@@ -119,8 +126,14 @@ void main() {
       await _loadFont('assets/fonts/Tajawal-Bold.ttf');
       stopwatch.stop();
 
-      debugPrint('✓ Font load (Tajawal-Bold.ttf, 55KB): ${stopwatch.elapsedMilliseconds}ms');
-      expect(stopwatch.elapsedMilliseconds, lessThan(100), reason: 'تحميل خط 55KB يجب أن يكون < 100ms');
+      debugPrint(
+        '✓ Font load (Tajawal-Bold.ttf, 55KB): ${stopwatch.elapsedMilliseconds}ms',
+      );
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(100),
+        reason: 'تحميل خط 55KB يجب أن يكون < 100ms',
+      );
     });
   });
 
@@ -143,8 +156,14 @@ void main() {
       final afterBytes = ProcessInfo.currentRss;
       final deltaMB = (afterBytes - beforeBytes) / (1024 * 1024);
 
-      debugPrint('✓ PDF build (10 rows): ${stopwatch.elapsedMilliseconds}ms, mem=+${deltaMB.toStringAsFixed(2)}MB');
-      expect(stopwatch.elapsedMilliseconds, lessThan(200), reason: 'PDF بسيط يجب أن يُبنى خلال < 200ms');
+      debugPrint(
+        '✓ PDF build (10 rows): ${stopwatch.elapsedMilliseconds}ms, mem=+${deltaMB.toStringAsFixed(2)}MB',
+      );
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(200),
+        reason: 'PDF بسيط يجب أن يُبنى خلال < 200ms',
+      );
     });
 
     test('بناء PDF متوسط (100 صف) خلال < 500ms', () async {
@@ -162,8 +181,14 @@ void main() {
       final afterBytes = ProcessInfo.currentRss;
       final deltaMB = (afterBytes - beforeBytes) / (1024 * 1024);
 
-      debugPrint('✓ PDF build (100 rows): ${stopwatch.elapsedMilliseconds}ms, mem=+${deltaMB.toStringAsFixed(2)}MB');
-      expect(stopwatch.elapsedMilliseconds, lessThan(500), reason: 'PDF متوسط يجب أن يُبنى خلال < 500ms');
+      debugPrint(
+        '✓ PDF build (100 rows): ${stopwatch.elapsedMilliseconds}ms, mem=+${deltaMB.toStringAsFixed(2)}MB',
+      );
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(500),
+        reason: 'PDF متوسط يجب أن يُبنى خلال < 500ms',
+      );
     });
 
     test('بناء PDF كبير (500 صف) خلال < 2 ثانية', () async {
@@ -181,8 +206,14 @@ void main() {
       final afterBytes = ProcessInfo.currentRss;
       final deltaMB = (afterBytes - beforeBytes) / (1024 * 1024);
 
-      debugPrint('✓ PDF build (500 rows): ${stopwatch.elapsedMilliseconds}ms, mem=+${deltaMB.toStringAsFixed(2)}MB');
-      expect(stopwatch.elapsedMilliseconds, lessThan(2000), reason: 'PDF كبير يجب أن يُبنى خلال < 2 ثانية');
+      debugPrint(
+        '✓ PDF build (500 rows): ${stopwatch.elapsedMilliseconds}ms, mem=+${deltaMB.toStringAsFixed(2)}MB',
+      );
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(2000),
+        reason: 'PDF كبير يجب أن يُبنى خلال < 2 ثانية',
+      );
     });
   });
 
@@ -202,8 +233,14 @@ void main() {
       final Uint8List bytes = await doc.save();
       stopwatch.stop();
 
-      debugPrint('✓ PDF save (100 rows): ${stopwatch.elapsedMilliseconds}ms, size=${bytes.length} bytes');
-      expect(stopwatch.elapsedMilliseconds, lessThan(300), reason: 'save PDF يجب أن يكون < 300ms');
+      debugPrint(
+        '✓ PDF save (100 rows): ${stopwatch.elapsedMilliseconds}ms, size=${bytes.length} bytes',
+      );
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(300),
+        reason: 'save PDF يجب أن يكون < 300ms',
+      );
       expect(bytes.length, greaterThan(0));
     });
 
@@ -219,8 +256,14 @@ void main() {
       final Uint8List bytes = await doc.save();
       stopwatch.stop();
 
-      debugPrint('✓ PDF save (500 rows): ${stopwatch.elapsedMilliseconds}ms, size=${bytes.length} bytes');
-      expect(stopwatch.elapsedMilliseconds, lessThan(1000), reason: 'save PDF كبير يجب أن يكون < 1 ثانية');
+      debugPrint(
+        '✓ PDF save (500 rows): ${stopwatch.elapsedMilliseconds}ms, size=${bytes.length} bytes',
+      );
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(1000),
+        reason: 'save PDF كبير يجب أن يكون < 1 ثانية',
+      );
       expect(bytes.length, greaterThan(0));
     });
   });
@@ -247,13 +290,19 @@ void main() {
 
       debugPrint('✓ PDF scaling analysis:');
       for (final size in sizes) {
-        debugPrint('  $size rows: ${times[size]}ms (${(times[size]! / size).toStringAsFixed(2)}ms/row)');
+        debugPrint(
+          '  $size rows: ${times[size]}ms (${(times[size]! / size).toStringAsFixed(2)}ms/row)',
+        );
       }
 
       // التحقق أن النمو شبه خطي (كل صف يضيف ≤ 5ms)
       for (final size in sizes) {
         final perRow = times[size]! / size;
-        expect(perRow, lessThan(5), reason: '$size rows: زمن لكل صف يجب أن يكون < 5ms');
+        expect(
+          perRow,
+          lessThan(5),
+          reason: '$size rows: زمن لكل صف يجب أن يكون < 5ms',
+        );
       }
     });
   });

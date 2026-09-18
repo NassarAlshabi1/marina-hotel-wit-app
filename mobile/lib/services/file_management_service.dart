@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class FileManagementService {
   static const String _exportFolderName = 'MarinaHotelExports';
@@ -15,14 +15,15 @@ class FileManagementService {
   /// تصدير البيانات بتنسيقات متعددة
   Future<String> exportToCSV() async {
     try {
-      debugPrint('📊 بدء تصدير البيانات إلى CSV...');
+      dlog('📊 بدء تصدير البيانات إلى CSV...');
 
       // الحصول على مجلد التصدير
       final exportDir = await _getExportDirectory();
 
       // تصدير كل جدول إلى CSV منفصل
       final timestamp = DateTime.now();
-      final folderName = 'marina_hotel_csv_export_${timestamp.millisecondsSinceEpoch}';
+      final folderName =
+          'marina_hotel_csv_export_${timestamp.millisecondsSinceEpoch}';
       final csvFolder = Directory('${exportDir.path}/$folderName');
       await csvFolder.create(recursive: true);
 
@@ -32,13 +33,17 @@ class FileManagementService {
       await _exportTableToCSV(csvFolder, 'booking_notes', 'booking_notes');
       await _exportTableToCSV(csvFolder, 'employees', 'employees');
       await _exportTableToCSV(csvFolder, 'expenses', 'expenses');
-      await _exportTableToCSV(csvFolder, 'cash_transactions', 'cash_transactions');
+      await _exportTableToCSV(
+        csvFolder,
+        'cash_transactions',
+        'cash_transactions',
+      );
       await _exportTableToCSV(csvFolder, 'payments', 'payments');
 
-      debugPrint('✅ تم تصدير البيانات إلى: ${csvFolder.path}');
+      dlog(() => '✅ تم تصدير البيانات إلى: ${csvFolder.path}');
       return csvFolder.path;
     } catch (e) {
-      debugPrint('❌ خطأ في تصدير البيانات إلى CSV: $e');
+      dlog(() => '❌ خطأ في تصدير البيانات إلى CSV: $e');
       rethrow;
     }
   }
@@ -46,7 +51,7 @@ class FileManagementService {
   /// تصدير تقرير شامل بتنسيق JSON قابل للقراءة
   Future<String> exportReadableReport() async {
     try {
-      debugPrint('📋 بدء تصدير التقرير الشامل...');
+      dlog('📋 بدء تصدير التقرير الشامل...');
 
       final exportDir = await _getExportDirectory();
       final timestamp = DateTime.now();
@@ -69,29 +74,34 @@ class FileManagementService {
             'عدد_الموظفين': (backupData['employees'] as List).length,
             'عدد_المصروفات': (backupData['expenses'] as List).length,
             'عدد_المدفوعات': (backupData['payments'] as List).length,
-            'عدد_المعاملات_النقدية': (backupData['cash_transactions'] as List).length,
+            'عدد_المعاملات_النقدية':
+                (backupData['cash_transactions'] as List).length,
           },
           'بيانات_مفصلة': backupData,
         },
       };
 
-      final fileName = 'marina_hotel_report_${timestamp.toIso8601String().split('T')[0]}.json';
+      final fileName =
+          'marina_hotel_report_${timestamp.toIso8601String().split('T')[0]}.json';
       final filePath = '${exportDir.path}/$fileName';
 
       final file = File(filePath);
       final jsonString = const JsonEncoder.withIndent('  ').convert(report);
       await file.writeAsString(jsonString);
 
-      debugPrint('✅ تم إنشاء التقرير الشامل: $filePath');
+      dlog(() => '✅ تم إنشاء التقرير الشامل: $filePath');
       return filePath;
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء التقرير الشامل: $e');
+      dlog(() => '❌ خطأ في إنشاء التقرير الشامل: $e');
       rethrow;
     }
   }
 
   /// مشاركة متعددة الملفات
-  Future<void> shareMultipleFiles(List<String> filePaths, {String? customMessage}) async {
+  Future<void> shareMultipleFiles(
+    List<String> filePaths, {
+    String? customMessage,
+  }) async {
     try {
       if (filePaths.isEmpty) {
         throw Exception('لا توجد ملفات للمشاركة');
@@ -102,12 +112,14 @@ class FileManagementService {
       await Share.shareXFiles(
         xFiles,
         subject: 'ملفات مارينا هوتيل',
-        text: customMessage ?? 'ملفات مُصدرة من تطبيق مارينا هوتيل لإدارة الفنادق',
+        text:
+            customMessage ??
+            'ملفات مُصدرة من تطبيق مارينا هوتيل لإدارة الفنادق',
       );
 
-      debugPrint('✅ تم مشاركة ${filePaths.length} ملف');
+      dlog(() => '✅ تم مشاركة ${filePaths.length} ملف');
     } catch (e) {
-      debugPrint('❌ خطأ في مشاركة الملفات: $e');
+      dlog(() => '❌ خطأ في مشاركة الملفات: $e');
       rethrow;
     }
   }
@@ -118,7 +130,7 @@ class FileManagementService {
     List<String>? allowedExtensions,
   }) async {
     try {
-      debugPrint('📁 بدء استيراد ملفات متعددة...');
+      dlog('📁 بدء استيراد ملفات متعددة...');
 
       final result = await FilePicker.platform.pickFiles(
         type: fileType,
@@ -143,16 +155,18 @@ class FileManagementService {
         }
       }
 
-      debugPrint('✅ تم استيراد ${importedPaths.length} ملف');
+      dlog(() => '✅ تم استيراد ${importedPaths.length} ملف');
       return importedPaths;
     } catch (e) {
-      debugPrint('❌ خطأ في استيراد الملفات: $e');
+      dlog(() => '❌ خطأ في استيراد الملفات: $e');
       rethrow;
     }
   }
 
   /// تنظيم الملفات بحسب التاريخ
-  Future<Map<String, List<String>>> organizeBackupsByDate(List<String> backupPaths) async {
+  Future<Map<String, List<String>>> organizeBackupsByDate(
+    List<String> backupPaths,
+  ) async {
     final organized = <String, List<String>>{};
 
     for (final path in backupPaths) {
@@ -168,7 +182,7 @@ class FileManagementService {
 
         organized.putIfAbsent(dateKey, () => []).add(path);
       } catch (e) {
-        debugPrint('⚠️ خطأ في معالجة ملف $path: $e');
+        dlog(() => '⚠️ خطأ في معالجة ملف $path: $e');
       }
     }
 
@@ -176,9 +190,12 @@ class FileManagementService {
   }
 
   /// ضغط ملفات متعددة (محاكاة ZIP)
-  Future<String> createArchive(List<String> filePaths, String archiveName) async {
+  Future<String> createArchive(
+    List<String> filePaths,
+    String archiveName,
+  ) async {
     try {
-      debugPrint('📦 إنشاء أرشيف: $archiveName');
+      dlog(() => '📦 إنشاء أرشيف: $archiveName');
 
       final exportDir = await _getExportDirectory();
       final archiveFolder = Directory('${exportDir.path}/$archiveName');
@@ -202,12 +219,14 @@ class FileManagementService {
           .entries
           .map((entry) => '${entry.key + 1}. ${entry.value.split('/').last}')
           .join('\n');
-      await indexFile.writeAsString('محتويات أرشيف مارينا هوتيل\n\n$indexContent');
+      await indexFile.writeAsString(
+        'محتويات أرشيف مارينا هوتيل\n\n$indexContent',
+      );
 
-      debugPrint('✅ تم إنشاء الأرشيف: ${archiveFolder.path}');
+      dlog(() => '✅ تم إنشاء الأرشيف: ${archiveFolder.path}');
       return archiveFolder.path;
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء الأرشيف: $e');
+      dlog(() => '❌ خطأ في إنشاء الأرشيف: $e');
       rethrow;
     }
   }
@@ -228,7 +247,10 @@ class FileManagementService {
         };
       }
 
-      final totalSize = localBackups.fold<int>(0, (sum, backup) => sum + backup.sizeBytes);
+      final totalSize = localBackups.fold<int>(
+        0,
+        (sum, backup) => sum + backup.sizeBytes,
+      );
       final averageSize = totalSize / localBackups.length;
 
       localBackups.sort((a, b) => a.createdTime.compareTo(b.createdTime));
@@ -243,7 +265,7 @@ class FileManagementService {
         'files_by_month': _groupFilesByMonth(localBackups),
       };
     } catch (e) {
-      debugPrint('❌ خطأ في تحليل الملفات: $e');
+      dlog(() => '❌ خطأ في تحليل الملفات: $e');
       return {};
     }
   }
@@ -252,7 +274,8 @@ class FileManagementService {
     final byMonth = <String, int>{};
 
     for (final backup in backups) {
-      final monthKey = '${backup.createdTime.year}-${backup.createdTime.month.toString().padLeft(2, '0')}';
+      final monthKey =
+          '${backup.createdTime.year}-${backup.createdTime.month.toString().padLeft(2, '0')}';
       byMonth[monthKey] = (byMonth[monthKey] ?? 0) + 1;
     }
 
@@ -295,20 +318,24 @@ class FileManagementService {
   }
 
   /// تصدير جدول واحد إلى CSV
-  Future<void> _exportTableToCSV(Directory csvFolder, String tableName, String tableKey) async {
+  Future<void> _exportTableToCSV(
+    Directory csvFolder,
+    String tableName,
+    String tableKey,
+  ) async {
     try {
       // الحصول على البيانات من الخدمة
       final backupService = GoogleDriveBackupService();
       final backupData = await backupService.exportDatabaseToJson();
 
       if (!backupData.containsKey(tableKey) || backupData[tableKey] is! List) {
-        debugPrint('⚠️ لا توجد بيانات للجدول: $tableName');
+        dlog(() => '⚠️ لا توجد بيانات للجدول: $tableName');
         return;
       }
 
       final tableData = backupData[tableKey] as List<dynamic>;
       if (tableData.isEmpty) {
-        debugPrint('⚠️ الجدول $tableName فارغ');
+        dlog(() => '⚠️ الجدول $tableName فارغ');
         return;
       }
 
@@ -330,9 +357,9 @@ class FileManagementService {
       }
 
       await csvFile.writeAsString(csvContent.toString());
-      debugPrint('✅ تم تصدير جدول $tableName إلى CSV');
+      dlog(() => '✅ تم تصدير جدول $tableName إلى CSV');
     } catch (e) {
-      debugPrint('❌ خطأ في تصدير الجدول $tableName: $e');
+      dlog(() => '❌ خطأ في تصدير الجدول $tableName: $e');
     }
   }
 
@@ -372,9 +399,12 @@ class FileManagementService {
   }
 
   /// دمج نسخ متعددة
-  Future<String> mergeBackupFiles(List<String> backupPaths, String mergedFileName) async {
+  Future<String> mergeBackupFiles(
+    List<String> backupPaths,
+    String mergedFileName,
+  ) async {
     try {
-      debugPrint('🔗 بدء دمج ${backupPaths.length} نسخة احتياطية...');
+      dlog(() => '🔗 بدء دمج ${backupPaths.length} نسخة احتياطية...');
 
       final mergedData = <String, List<dynamic>>{
         'rooms': [],
@@ -405,7 +435,10 @@ class FileManagementService {
                 final uuid = recordMap['localUuid'];
 
                 if (uuid != null) {
-                  final exists = mergedData[key]!.any((existing) => existing is Map && existing['localUuid'] == uuid);
+                  final exists = mergedData[key]!.any(
+                    (existing) =>
+                        existing is Map && existing['localUuid'] == uuid,
+                  );
 
                   if (!exists) {
                     mergedData[key]!.add(record);
@@ -420,14 +453,19 @@ class FileManagementService {
           if (backupData.containsKey('metadata')) {
             final metadataSource = backupData['metadata'];
             if (metadataSource is Map) {
-              final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
-              if (latestMetadata == null || metadata.backupTimestamp.isAfter(latestMetadata.backupTimestamp)) {
+              final metadata = BackupMetadata.fromJson(
+                Map<String, dynamic>.from(metadataSource),
+              );
+              if (latestMetadata == null ||
+                  metadata.backupTimestamp.isAfter(
+                    latestMetadata.backupTimestamp,
+                  )) {
                 latestMetadata = metadata;
               }
             }
           }
         } catch (e) {
-          debugPrint('⚠️ خطأ في معالجة الملف $backupPath: $e');
+          dlog(() => '⚠️ خطأ في معالجة الملف $backupPath: $e');
         }
       }
 
@@ -449,15 +487,17 @@ class FileManagementService {
       final mergedPath = '${exportDir.path}/$mergedFileName';
       final mergedFile = File(mergedPath);
 
-      final jsonString = const JsonEncoder.withIndent('  ').convert(mergedBackup);
+      final jsonString = const JsonEncoder.withIndent(
+        '  ',
+      ).convert(mergedBackup);
       await mergedFile.writeAsString(jsonString);
 
-      debugPrint('✅ تم دمج النسخ بنجاح: $mergedPath');
-      debugPrint('📊 إجمالي السجلات المدمجة: $totalRecords');
+      dlog(() => '✅ تم دمج النسخ بنجاح: $mergedPath');
+      dlog(() => '📊 إجمالي السجلات المدمجة: $totalRecords');
 
       return mergedPath;
     } catch (e) {
-      debugPrint('❌ خطأ في دمج النسخ الاحتياطية: $e');
+      dlog(() => '❌ خطأ في دمج النسخ الاحتياطية: $e');
       rethrow;
     }
   }
@@ -478,9 +518,15 @@ class FileManagementService {
         final metadata = backupData['metadata'];
         readableContent.writeln('📋 معلومات النسخة الاحتياطية:');
         readableContent.writeln('   إصدار التطبيق: ${metadata['app_version']}');
-        readableContent.writeln('   تاريخ النسخة: ${metadata['backup_timestamp']}');
-        readableContent.writeln('   إجمالي السجلات: ${metadata['total_records']}');
-        readableContent.writeln('   معلومات الجهاز: ${metadata['device_info']}\n');
+        readableContent.writeln(
+          '   تاريخ النسخة: ${metadata['backup_timestamp']}',
+        );
+        readableContent.writeln(
+          '   إجمالي السجلات: ${metadata['total_records']}',
+        );
+        readableContent.writeln(
+          '   معلومات الجهاز: ${metadata['device_info']}\n',
+        );
       }
 
       // تفاصيل كل جدول
@@ -504,11 +550,15 @@ class FileManagementService {
           if (data.isNotEmpty) {
             for (int i = 0; i < data.length && i < 5; i++) {
               final record = data[i] as Map<String, dynamic>;
-              readableContent.writeln('   ${i + 1}. ${_formatRecordForDisplay(record, key)}');
+              readableContent.writeln(
+                '   ${i + 1}. ${_formatRecordForDisplay(record, key)}',
+              );
             }
 
             if (data.length > 5) {
-              readableContent.writeln('   ... وسجلات أخرى (${data.length - 5})');
+              readableContent.writeln(
+                '   ... وسجلات أخرى (${data.length - 5})',
+              );
             }
           }
 
@@ -519,20 +569,24 @@ class FileManagementService {
       // حفظ التقرير القابل للقراءة
       final exportDir = await _getExportDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final readablePath = '${exportDir.path}/marina_hotel_readable_$timestamp.txt';
+      final readablePath =
+          '${exportDir.path}/marina_hotel_readable_$timestamp.txt';
 
       final readableFile = File(readablePath);
       await readableFile.writeAsString(readableContent.toString());
 
-      debugPrint('✅ تم تحويل النسخة إلى تنسيق قابل للقراءة: $readablePath');
+      dlog(() => '✅ تم تحويل النسخة إلى تنسيق قابل للقراءة: $readablePath');
       return readablePath;
     } catch (e) {
-      debugPrint('❌ خطأ في تحويل النسخة إلى تنسيق قابل للقراءة: $e');
+      dlog(() => '❌ خطأ في تحويل النسخة إلى تنسيق قابل للقراءة: $e');
       rethrow;
     }
   }
 
-  String _formatRecordForDisplay(Map<String, dynamic> record, String tableType) {
+  String _formatRecordForDisplay(
+    Map<String, dynamic> record,
+    String tableType,
+  ) {
     switch (tableType) {
       case 'rooms':
         return 'غرفة ${record['roomNumber'] ?? 'N/A'} - ${record['type'] ?? 'N/A'} - ${record['price'] ?? 'N/A'}';
@@ -563,13 +617,16 @@ class FileManagementService {
       // حذف ملفات التصدير الأقدم من 3 أيام
       await _cleanDirectoryOlderThan(exportDir, const Duration(days: 3));
 
-      debugPrint('✅ تم تنظيف الملفات المؤقتة');
+      dlog('✅ تم تنظيف الملفات المؤقتة');
     } catch (e) {
-      debugPrint('❌ خطأ في تنظيف الملفات المؤقتة: $e');
+      dlog(() => '❌ خطأ في تنظيف الملفات المؤقتة: $e');
     }
   }
 
-  Future<void> _cleanDirectoryOlderThan(Directory dir, Duration duration) async {
+  Future<void> _cleanDirectoryOlderThan(
+    Directory dir,
+    Duration duration,
+  ) async {
     if (!dir.existsSync()) {
       return;
     }
@@ -588,7 +645,7 @@ class FileManagementService {
           }
         }
       } catch (e) {
-        debugPrint('⚠️ خطأ في حذف ${entity.path}: $e');
+        dlog(() => '⚠️ خطأ في حذف ${entity.path}: $e');
       }
     }
   }

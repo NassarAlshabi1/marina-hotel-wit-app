@@ -1,7 +1,8 @@
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class ValidationResult {
-  ValidationResult({required this.isValid, this.error, List<String>? warnings}) : warnings = warnings ?? [];
+  ValidationResult({required this.isValid, this.error, List<String>? warnings})
+    : warnings = warnings ?? [];
 
   factory ValidationResult.valid({List<String>? warnings}) {
     return ValidationResult(isValid: true, warnings: warnings);
@@ -50,7 +51,11 @@ class SyncValidator {
     return ValidationResult.valid(warnings: warnings.isEmpty ? null : warnings);
   }
 
-  ValidationResult validateNetworkConditions({required bool hasConnection, int? signalStrength, bool? isWifi}) {
+  ValidationResult validateNetworkConditions({
+    required bool hasConnection,
+    int? signalStrength,
+    bool? isWifi,
+  }) {
     final warnings = <String>[];
 
     if (!hasConnection) {
@@ -72,7 +77,10 @@ class SyncValidator {
     return ValidationResult.valid();
   }
 
-  ValidationResult validateConflictResolution(Map<String, dynamic> localData, Map<String, dynamic> remoteData) {
+  ValidationResult validateConflictResolution(
+    Map<String, dynamic> localData,
+    Map<String, dynamic> remoteData,
+  ) {
     final warnings = <String>[];
 
     if (localData['timestamp'] == null || remoteData['timestamp'] == null) {
@@ -125,14 +133,14 @@ class SyncValidator {
 
   void logValidationResult(String context, ValidationResult result) {
     if (result.isValid) {
-      debugPrint('✅ [Validation] $context: صالح');
+      dlog(() => '✅ [Validation] $context: صالح');
       if (result.warnings.isNotEmpty) {
         for (final warning in result.warnings) {
-          debugPrint('⚠️ [Validation] تحذير: $warning');
+          dlog(() => '⚠️ [Validation] تحذير: $warning');
         }
       }
     } else {
-      debugPrint('❌ [Validation] $context: غير صالح - ${result.error}');
+      dlog(() => '❌ [Validation] $context: غير صالح - ${result.error}');
     }
   }
 }

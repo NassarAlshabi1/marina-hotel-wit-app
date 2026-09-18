@@ -81,7 +81,9 @@ void main() {
     pragmaTableInfo = {};
     for (final table in allTables) {
       try {
-        final rows = await db.customSelect('PRAGMA table_info($table)', readsFrom: {}).get();
+        final rows = await db
+            .customSelect('PRAGMA table_info($table)', readsFrom: {})
+            .get();
         pragmaTableInfo[table] = rows
             .map(
               (r) => {
@@ -106,7 +108,11 @@ void main() {
     for (final tableName in _syncTableNames) {
       test('جدول $tableName يحتوي على جميع حقول SyncFields', () {
         final tableInfo = pragmaTableInfo[tableName];
-        expect(tableInfo, isNotNull, reason: 'الجدول $tableName غير موجود في قاعدة البيانات');
+        expect(
+          tableInfo,
+          isNotNull,
+          reason: 'الجدول $tableName غير موجود في قاعدة البيانات',
+        );
 
         final colByName = {for (final c in tableInfo!) c['name'] as String: c};
 
@@ -118,7 +124,8 @@ void main() {
           expect(
             colByName,
             contains(keySnake),
-            reason: 'جدول $tableName يفتقد الحقل ${entry.key} (snake: $keySnake)',
+            reason:
+                'جدول $tableName يفتقد الحقل ${entry.key} (snake: $keySnake)',
           );
 
           final colInfo = colByName[keySnake]!;
@@ -126,7 +133,8 @@ void main() {
           expect(
             actualType,
             contains(expected['type'] as String),
-            reason: 'جدول $tableName: ${entry.key} نوعه $actualType لكن المتوقع ${expected['type']}',
+            reason:
+                'جدول $tableName: ${entry.key} نوعه $actualType لكن المتوقع ${expected['type']}',
           );
 
           if (expected['nullable'] == false) {
@@ -150,13 +158,15 @@ void main() {
               expect(
                 defaultVal,
                 anyOf(isNull, equals("''")),
-                reason: 'جدول $tableName: default لـ ${entry.key} يجب أن يكون \'\' أو null',
+                reason:
+                    'جدول $tableName: default لـ ${entry.key} يجب أن يكون \'\' أو null',
               );
             } else {
               expect(
                 defaultVal,
                 isNotNull,
-                reason: 'جدول $tableName: ${entry.key} يجب أن يكون default=$expectedDefault',
+                reason:
+                    'جدول $tableName: ${entry.key} يجب أن يكون default=$expectedDefault',
               );
             }
           }
@@ -174,7 +184,8 @@ void main() {
           expect(
             colInfo['type'],
             'TEXT',
-            reason: 'جدول $tableName: ${entry.key} نوعه ${colInfo['type']} لكن المتوقع TEXT',
+            reason:
+                'جدول $tableName: ${entry.key} نوعه ${colInfo['type']} لكن المتوقع TEXT',
           );
           if (entry.value['nullable'] == false) {
             expect(colInfo['notnull'], 1);
@@ -229,22 +240,29 @@ void main() {
         'version',
       };
       for (final col in expectedCols) {
-        expect(columnNames, contains(col), reason: 'sync_state يفتقد العمود $col');
+        expect(
+          columnNames,
+          contains(col),
+          reason: 'sync_state يفتقد العمود $col',
+        );
       }
     });
   });
 
-  group('فجوات معروفة بين Drift Schema و AppwriteSchemaVerifier', () {
-    test('⚠️ syncTimestamp موجود في _syncFields (AppwriteSchemaVerifier) لكنه غائب عن Drift SyncFields mixin', () {
-      // هذه فجوة معروفة: AppwriteSchemaVerifier يتوقع syncTimestamp
-      // لكن Drift Schema لا يملك هذا العمود حالياً.
-      // هذا اختبار معلوماتي فقط — لا يفشل.
+  group('syncTimestamp non-nullable (Migration 54 fix)', () {
+    test('sync_timestamp موجود في كل جداول SyncFields مع DEFAULT 0', () {
+      // ✅ Migration 54 (2026-08-06): syncTimestamp أصبح non-nullable
+      // مع DEFAULT 0. هذا الاختبار يتحقق من أن العمود موجود وصحيح.
       final tableInfo = pragmaTableInfo['rooms'];
       final colByName = {for (final c in tableInfo!) c['name'] as String: c};
-      if (colByName.containsKey('sync_timestamp')) {
-        // syncTimestamp موجود — تمت إضافته لاحقاً
-      }
-      // إذا لم يكن موجوداً، هذه فجوة معروفة
+      final col = colByName['sync_timestamp'];
+      expect(col, isNotNull, reason: 'sync_timestamp غير موجود في rooms');
+      expect(col!['notnull'], 1, reason: 'sync_timestamp يجب أن يكون NOT NULL');
+      expect(
+        col['dflt_value'],
+        '0',
+        reason: 'sync_timestamp يجب أن يكون DEFAULT 0',
+      );
     });
   });
 

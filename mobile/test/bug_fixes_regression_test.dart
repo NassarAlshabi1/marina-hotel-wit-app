@@ -1,25 +1,25 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/utils/time.dart';
-import '../lib/utils/currency_formatter.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
+import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
 
 void main() {
   group('Time - Hotel Day Calculations', () {
-    test('hotelDayStart returns correct boundary for before 14:00', () {
-      final before14 = DateTime(2026, 1, 15, 10, 0, 0);
-      final result = Time.hotelDayStart(before14);
-      expect(result, DateTime(2026, 1, 14, 14, 0, 0));
+    test('hotelDayStart returns correct boundary for before 14:01', () {
+      final beforeBoundary = DateTime(2026, 1, 15, 10, 0, 0);
+      final result = Time.hotelDayStart(beforeBoundary);
+      expect(result, DateTime(2026, 1, 14, 14, 1, 0));
     });
 
-    test('hotelDayStart returns correct boundary for after 14:00', () {
-      final after14 = DateTime(2026, 1, 15, 16, 0, 0);
-      final result = Time.hotelDayStart(after14);
-      expect(result, DateTime(2026, 1, 15, 14, 0, 0));
+    test('hotelDayStart returns correct boundary for after 14:01', () {
+      final afterBoundary = DateTime(2026, 1, 15, 16, 0, 0);
+      final result = Time.hotelDayStart(afterBoundary);
+      expect(result, DateTime(2026, 1, 15, 14, 1, 0));
     });
 
-    test('hotelDayStart returns correct boundary for exactly 14:00', () {
+    test('hotelDayStart keeps exactly 14:00 in the previous hotel day', () {
       final exact14 = DateTime(2026, 1, 15, 14, 0, 0);
       final result = Time.hotelDayStart(exact14);
-      expect(result, DateTime(2026, 1, 15, 14, 0, 0));
+      expect(result, DateTime(2026, 1, 14, 14, 1, 0));
     });
 
     test('hotelDayKey returns correct date string for before 14:00', () {
@@ -34,12 +34,15 @@ void main() {
       expect(result, '2026-01-15');
     });
 
-    test('nightsWithCutoff counts 1 night for same-day checkout before next cutoff', () {
-      final checkin = DateTime(2026, 1, 15, 16, 0, 0);
-      final checkout = DateTime(2026, 1, 16, 14, 0, 0);
-      final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
-      expect(nights, 1);
-    });
+    test(
+      'nightsWithCutoff counts 1 night for same-day checkout before next cutoff',
+      () {
+        final checkin = DateTime(2026, 1, 15, 16, 0, 0);
+        final checkout = DateTime(2026, 1, 16, 14, 0, 0);
+        final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
+        expect(nights, 1);
+      },
+    );
 
     test('nightsWithCutoff counts 2 nights spanning two hotel days', () {
       final checkin = DateTime(2026, 1, 15, 16, 0, 0);
@@ -65,8 +68,11 @@ void main() {
       expect(CurrencyFormatter.formatAmount(5000.0), '5,000');
     });
 
-    test('formatAmount shows decimals when explicitly requested', () {
-      expect(CurrencyFormatter.formatAmount(1999.99, showDecimals: true), '1,999.99');
+    test('formatAmount never shows decimals even when legacy flag is used', () {
+      expect(
+        CurrencyFormatter.formatAmount(1999.99, showDecimals: true),
+        '1,999',
+      );
     });
 
     test('parseAmount truncates to whole number (no decimals)', () {
@@ -80,39 +86,68 @@ void main() {
   });
 
   group('Discount Calculations - Hotel Day Based', () {
-    test('discount start date should use hotel day 14:00 boundary', () {
+    test('discount start date should use hotel day 14:01 boundary', () {
       final discountStartDate = DateTime(2026, 1, 15, 0, 0, 0);
-      final hotelDayStart = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day, 14);
+      final hotelDayStart = DateTime(
+        discountStartDate.year,
+        discountStartDate.month,
+        discountStartDate.day,
+        14,
+        1,
+      );
       expect(hotelDayStart.hour, 14);
+      expect(hotelDayStart.minute, 1);
     });
 
     test('segment at midnight should be counted as previous hotel day', () {
       final segmentStart = DateTime(2026, 1, 16, 2, 0, 0);
       final hotelDay = Time.hotelDayStart(segmentStart);
-      expect(hotelDay, DateTime(2026, 1, 15, 14, 0, 0));
+      expect(hotelDay, DateTime(2026, 1, 15, 14, 1, 0));
     });
 
-    test('discount applies correctly when segment is on or after discount start hotel day', () {
-      final segmentStart = DateTime(2026, 1, 16, 16, 0, 0);
-      final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
+    test(
+      'discount applies correctly when segment is on or after discount start hotel day',
+      () {
+        final segmentStart = DateTime(2026, 1, 16, 16, 0, 0);
+        final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
 
-      final hotelDay = Time.hotelDayStart(segmentStart);
-      final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
-      final discountDay = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
+        final hotelDay = Time.hotelDayStart(segmentStart);
+        final hotelDayDate = DateTime(
+          hotelDay.year,
+          hotelDay.month,
+          hotelDay.day,
+        );
+        final discountDay = DateTime(
+          discountStartDate.year,
+          discountStartDate.month,
+          discountStartDate.day,
+        );
 
-      expect(hotelDayDate.isBefore(discountDay), false);
-    });
+        expect(hotelDayDate.isBefore(discountDay), false);
+      },
+    );
 
-    test('discount does not apply when segment hotel day is before discount start', () {
-      final segmentStart = DateTime(2026, 1, 15, 10, 0, 0);
-      final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
+    test(
+      'discount does not apply when segment hotel day is before discount start',
+      () {
+        final segmentStart = DateTime(2026, 1, 15, 10, 0, 0);
+        final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
 
-      final hotelDay = Time.hotelDayStart(segmentStart);
-      final hotelDayDate = DateTime(hotelDay.year, hotelDay.month, hotelDay.day);
-      final discountDay = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
+        final hotelDay = Time.hotelDayStart(segmentStart);
+        final hotelDayDate = DateTime(
+          hotelDay.year,
+          hotelDay.month,
+          hotelDay.day,
+        );
+        final discountDay = DateTime(
+          discountStartDate.year,
+          discountStartDate.month,
+          discountStartDate.day,
+        );
 
-      expect(hotelDayDate.isBefore(discountDay), true);
-    });
+        expect(hotelDayDate.isBefore(discountDay), true);
+      },
+    );
   });
 
   group('Financial Calculations', () {
@@ -122,7 +157,7 @@ void main() {
       const discount = 1000.0;
       const discountType = 'total';
 
-      final totalNightAmount = baseRate * nights;
+      const totalNightAmount = baseRate * nights;
       double totalDue = totalNightAmount;
       if (discount > 0 && discountType == 'total') {
         totalDue = (totalNightAmount - discount).clamp(0.0, totalNightAmount);
@@ -161,8 +196,8 @@ void main() {
       const totalDue = 10000.0;
       const totalPaid = 12000.0;
 
-      final remainingRaw = totalDue - totalPaid;
-      final remaining = remainingRaw < 0 ? 0.0 : remainingRaw;
+      const remainingRaw = totalDue - totalPaid;
+      const remaining = remainingRaw < 0 ? 0.0 : remainingRaw;
 
       expect(remaining, 0.0);
     });

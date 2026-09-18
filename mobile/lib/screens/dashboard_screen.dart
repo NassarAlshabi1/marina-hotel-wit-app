@@ -6,14 +6,17 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
+import '../providers/auth_provider.dart';
 import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/local_db.dart';
+import '../services/repositories/payments_repository.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/loading_snackbar.dart';
+import '../utils/performance_config.dart';
 import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
@@ -21,6 +24,8 @@ import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
+import 'finance/finance_screen.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',
@@ -63,26 +68,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         screenClass: 'DashboardScreen',
       ),
     );
-    // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
+    // ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
+    // refactor/performance-fixes-v2: فحص ساعة + SyncGate + إشعار تحميل.
+    // التكييف مع معمارية هذا الفرع: deltaOnly:true — فتح الشاشة لا يبدأ
+    // Full Sync أبداً (Bootstrap الصريح فقط)؛ الدلتا تكفي لتحديث قسم
+    // "استلامات المستخدمين" وأقسام اليوم الفندقي بأحدث بيانات الخادم.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoPullFromAppwrite();
     });
   }
 
+  /// ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
+  /// refactor/performance-fixes-v2 (SyncGate + فحص ساعة + إشعار تحميل)
+  /// مع تكييف المعمارية: deltaOnly فقط — لا Full Sync من الشاشة أبداً.
   Future<void> _autoPullFromAppwrite() async {
-    // ✅ P3-5 (Global SyncGate): السحب التلقائي عند الفتح يمرّ عبر البوّابة
-    // العامة. إذا كان المستخدم قد ضغط زر مزامنة يدوياً، أو كان المؤقّت
-    // يعمل، فإن السحب التلقائي يُلغى بصمت دون منافسة على الموارد.
+    // ✅ SyncGate: إذا كانت مزامنة يدوية/مؤقت/realtime يعمل — يُلغى بصمت
+    // دون منافسة على الموارد (نفس نمط DashboardSyncButton).
     final executed = await SyncGate.instance.runGuardedVoid(
       operation: 'auto_pull',
       source: 'auto_open',
       task: _autoPullFromAppwriteInner,
     );
     if (!executed) {
-      debugPrint(
-        'ℹ️ [AutoPull] skipped — SyncGate busy with '
-        '${SyncGate.instance.state.operation} from '
-        '${SyncGate.instance.state.source}',
+      dlog(
+        () =>
+            'ℹ️ [AutoPull] skipped — SyncGate busy with '
+            '${SyncGate.instance.state.operation} from '
+            '${SyncGate.instance.state.source}',
       );
     }
   }
@@ -96,7 +108,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return;
       }
 
-      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
+      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب عند الفتح؟ ───
+      // نفس مفتاح فحص إقلاع التطبيق (lastAppOpenPullKey) — مصدر واحد للحقيقة.
       final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
       if (lastPullEpochMs != null) {
         final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
@@ -123,7 +136,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       final syncManager = ref.read(appwriteSyncManagerProvider);
-      final result = await syncManager.sync(push: false);
+      // المحرك الموحد: pull هنا دلتا عبر checkpoints لكل مجموعة —
+      // لا Full Sync ضمنياً (Bootstrap الصريح وحده مسؤول عنه).
+      final result = await syncManager.sync(push: false, pull: true);
       final pulledCount = result.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء السحب
@@ -160,12 +175,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
         );
-      } else if (mounted) {
+      } else {
         // إشعار صامت بأن البيانات محدثة
-        debugPrint('✅ البيانات محدثة — لا توجد سجلات جديدة');
+        dlog('✅ البيانات محدثة — لا توجد سجلات جديدة');
       }
     } catch (e) {
-      debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
+      dlog(() => '❌ فشل السحب التلقائي عند الفتح: $e');
     }
   }
 
@@ -185,7 +200,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(height: 20),
               _buildRoomsSection(),
               const SizedBox(height: 12),
-              _buildColorInstructions(),
+              _buildEmployeeShiftPayments(),
             ],
           ),
         ),
@@ -273,7 +288,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               final expensesAsync = ref.watch(todayExpensesProvider);
 
               // التعامل مع حالة التحميل
-              final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
+              final isLoading =
+                  incomeAsync.isLoading || expensesAsync.isLoading;
               final hasError = incomeAsync.hasError || expensesAsync.hasError;
 
               if (isLoading) {
@@ -330,6 +346,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   currencyFmt.format(total),
                   Icons.payments_rounded,
                   Colors.green,
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const FinanceScreen(),
+                    ),
+                  ),
                 ),
               );
             },
@@ -387,13 +409,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
+          boxShadow: isLowEndDevice
+              ? const []
+              : const [
+                  BoxShadow(
+                    color: Color(0x0D000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,7 +453,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Center(child: CircularProgressIndicator()),
           ),
           error: (e, st) {
-            debugPrint('❌ Dashboard rooms error: $e');
+            dlog(() => '❌ Dashboard rooms error: $e');
             return Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -651,7 +675,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ? '$tooltipText — تنبيه: السداد بعد ساعة (22:00+)'
           : tooltipText,
       child: GestureDetector(
-        onLongPress: rws != null ? () => _showRoomOptionsDialog(context, rws.room) : null,
+        onLongPress: rws != null
+            ? () => _showRoomOptionsDialog(context, rws.room)
+            : null,
         child: Material(
           key: ValueKey('room_$roomNumber$keySuffix'),
           color: alertDecoration == null ? bgColor : Colors.transparent,
@@ -774,9 +800,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('خطأ في تحديث الحالة: $e'),
             backgroundColor: Colors.red,
@@ -816,9 +840,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
-    Navigator.of(
-      context,
-    ).push<void>(
+    Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
@@ -849,11 +871,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       if (context.mounted) {
         unawaited(
-          Navigator.of(
-            context,
-          ).push<void>(
+          Navigator.of(context).push<void>(
             MaterialPageRoute<void>(
-              builder: (context) => BookingPaymentScreen(booking: activeBooking),
+              builder: (context) =>
+                  BookingPaymentScreen(booking: activeBooking),
             ),
           ),
         );
@@ -900,44 +921,188 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildColorInstructions() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Wrap(
-        alignment: WrapAlignment.end,
-        spacing: 8,
-        runSpacing: 4,
-        children: [
-          _buildInstructionDot(Colors.green.shade600, 'شاغرة'),
-          _buildInstructionDot(Colors.red.shade600, 'محجوزة'),
-          _buildInstructionDot(
-            Colors.orange.shade500,
-            'تنبيه (22:00-23:00): جزء برتقالي',
-          ),
-          _buildInstructionDot(
-            Colors.red.shade800,
-            'متأخر (23:00-05:00): أحمر داكن + حدود',
-          ),
-        ],
+  Widget _buildEmployeeShiftPayments() {
+    final user = ref.watch(authProvider).currentUser;
+    final canViewOtherEmployees =
+        user?.isAdmin == true ||
+        user?.userType == 'manager' ||
+        user?.userType == 'supervisor';
+    if (!canViewOtherEmployees) return const SizedBox.shrink();
+
+    // ✅ (2026-09-14) مصدر سحابي مباشر — المبالغ تُقرأ من Appwrite
+    // وتتحدث تلقائياً (كل 60 ثانية + مع أحداث المزامنة + زر التحديث).
+    final summariesAsync = ref.watch(
+      cloudEmployeeShiftPaymentSummariesProvider,
+    );
+    // ✅ ربط البطاقة بـ Outbox: دفعات هذا الجهاز التي لم تصل السحابة
+    // بعد — تُرفع تلقائياً فور توفر الشبكة دون أي تدخل يدوي.
+    final pendingUploads =
+        ref.watch(paymentsOutboxPendingProvider).valueOrNull ?? 0;
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
+    return summariesAsync.when(
+      loading: () => _buildEmployeeShiftCard(
+        const [],
+        currencyFmt,
+        isLoading: true,
+        pendingUploads: pendingUploads,
+      ),
+      error: (error, _) => _buildEmployeeShiftCard(
+        const [],
+        currencyFmt,
+        errorMessage: 'تعذر تحميل استلامات الموظفين',
+        pendingUploads: pendingUploads,
+      ),
+      data: (summaries) => _buildEmployeeShiftCard(
+        summaries,
+        currencyFmt,
+        pendingUploads: pendingUploads,
       ),
     );
   }
 
-  Widget _buildInstructionDot(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
+  Widget _buildEmployeeShiftCard(
+    List<PaymentShiftSummary> summaries,
+    NumberFormat currencyFmt, {
+    bool isLoading = false,
+    String? errorMessage,
+    int pendingUploads = 0,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade100),
+        boxShadow: isLowEndDevice
+            ? const []
+            : const [
+                BoxShadow(
+                  color: Color(0x0D000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.groups_2_outlined,
+                color: Colors.blue.shade700,
+                size: 19,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'استلامات المستخدمين الآخرين في النوبات',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Text(
+                'اليوم الفندقي الحالي',
+                style: TextStyle(fontSize: 9, color: Colors.grey),
+              ),
+              const SizedBox(width: 4),
+              // ✅ تحديث فوري من السحابة عند الطلب.
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 16,
+                  tooltip: 'تحديث من السحابة الآن',
+                  icon: Icon(Icons.refresh, color: Colors.blue.shade700),
+                  onPressed: () => ref
+                      .read(shiftReceiptsManualRefreshProvider.notifier)
+                      .state++,
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(width: 3),
-        Text(label, style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
-      ],
+          const SizedBox(height: 8),
+          // ✅ مؤشر الربط بـ Outbox — يظهر فقط حين توجد دفعات لم تُرفع
+          // بعد؛ يختفي تلقائياً بمجرد اكتمال الرفع التلقائي.
+          if (pendingUploads > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 13,
+                    color: Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'دفعة/دفعات على هذا الجهاز بانتظار الرفع التلقائي '
+                      'إلى السحابة ($pendingUploads)',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (isLoading)
+            const LinearProgressIndicator(minHeight: 2)
+          else if (errorMessage != null)
+            Text(
+              errorMessage,
+              style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+            )
+          else if (summaries.isEmpty)
+            const Text(
+              'لا توجد استلامات منسوبة إلى نوبات مسجلة بعد',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            )
+          else
+            ...summaries
+                .take(12)
+                .map(
+                  (summary) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            summary.userName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${summary.paymentCount} دفعة',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          currencyFmt.format(summary.totalAmount),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ],
+      ),
     );
   }
 

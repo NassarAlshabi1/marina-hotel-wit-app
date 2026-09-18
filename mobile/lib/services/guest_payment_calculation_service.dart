@@ -40,7 +40,8 @@ class GuestPaymentCalculation {
   bool get isCurrentlyFullyPaid => totalPaid >= costSoFar;
 
   /// نسبة الدفع من التكاليف الحالية (0-100)
-  double get paymentPercentage => costSoFar > 0 ? (totalPaid / costSoFar * 100).clamp(0.0, 100.0) : 100;
+  double get paymentPercentage =>
+      costSoFar > 0 ? (totalPaid / costSoFar * 100).clamp(0.0, 100.0) : 100;
 
   /// الحالة الوصفية للنزيل
   String get statusDescription {
@@ -66,8 +67,12 @@ class GuestPaymentCalculation {
     buffer.writeln('=== كشف حساب النزيل ===');
     buffer.writeln('النزيل: ${booking.guestName}');
     buffer.writeln('الغرفة: ${booking.roomNumber}');
-    buffer.writeln('الدخول: ${checkinDate != null ? df.format(checkinDate) : "---"}');
-    buffer.writeln('المغادرة المتوقعة: ${checkoutDate != null ? df.format(checkoutDate) : "---"}');
+    buffer.writeln(
+      'الدخول: ${checkinDate != null ? df.format(checkinDate) : "---"}',
+    );
+    buffer.writeln(
+      'المغادرة المتوقعة: ${checkoutDate != null ? df.format(checkoutDate) : "---"}',
+    );
     buffer.writeln();
     buffer.writeln('--- الأيام والتكاليف ---');
     buffer.writeln('الأيام المقضية: $actualDaysSpent يوم');
@@ -97,7 +102,10 @@ class GuestPaymentCalculationService {
   final AppDatabase db;
 
   /// حساب تفصيلي كامل لمدفوعات نزيل واحد
-  Future<GuestPaymentCalculation> calculateForBooking(Booking booking, {DateTime? now}) async {
+  Future<GuestPaymentCalculation> calculateForBooking(
+    Booking booking, {
+    DateTime? now,
+  }) async {
     final moment = now ?? DateTime.now();
 
     // جلب الغرفة لمعرفة السعر الأساسي
@@ -111,27 +119,43 @@ class GuestPaymentCalculationService {
     final payments =
         await (db.select(db.payments)
               // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
-              ..where((p) => p.bookingLocalId.equals(booking.id) | p.bookingUuidCache.equals(booking.localUuid))
+              ..where(
+                (p) =>
+                    p.bookingLocalId.equals(booking.id) |
+                    p.bookingUuidCache.equals(booking.localUuid),
+              )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
               ..where((p) => p.isPendingBalance.equals(false))
-              ..where((p) => p.revenueType.equals('room') | p.revenueType.equals('') | p.revenueType.isNull())
+              ..where(
+                (p) =>
+                    p.revenueType.equals('room') |
+                    p.revenueType.equals('') |
+                    p.revenueType.isNull(),
+              )
               ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate)]))
             .get();
 
     // حساب الأيام المقضية بناءً على قاعدة الساعة 14:00
     final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
-    final actualCheckout = booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty
+    final actualCheckout =
+        booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
 
-    final actualDaysSpent = Time.nightsWithCutoff(checkin, checkout: actualCheckout ?? moment);
+    final actualDaysSpent = Time.nightsWithCutoff(
+      checkin,
+      checkout: actualCheckout ?? moment,
+    );
 
     // حساب الأيام المتبقية حتى موعد المغادرة المخطط
     final plannedCheckout = DateTime.tryParse(booking.checkoutDate ?? '');
     int plannedDaysRemaining = 0;
     if (plannedCheckout != null && !plannedCheckout.isBefore(moment)) {
-      plannedDaysRemaining = Time.nightsWithCutoff(moment, checkout: plannedCheckout);
+      plannedDaysRemaining = Time.nightsWithCutoff(
+        moment,
+        checkout: plannedCheckout,
+      );
     }
 
     // حساب سعر الليلة الواحدة بناءً على السعر المخزن في الغرفة
@@ -141,7 +165,9 @@ class GuestPaymentCalculationService {
     final costSoFar = actualDaysSpent * nightlyRate;
 
     // حساب التكلفة الإجمالية المخطط لها
-    final totalPlannedDays = booking.calculatedNights > 0 ? booking.calculatedNights : actualDaysSpent;
+    final totalPlannedDays = booking.calculatedNights > 0
+        ? booking.calculatedNights
+        : actualDaysSpent;
     final totalPlannedCost = totalPlannedDays * nightlyRate;
 
     // حساب إجمالي المدفوع
@@ -151,7 +177,10 @@ class GuestPaymentCalculationService {
     final remainingBalance = costSoFar - totalPaid;
 
     // حساب التأخير
-    final isOverdue = plannedCheckout != null && moment.isAfter(plannedCheckout) && actualCheckout == null;
+    final isOverdue =
+        plannedCheckout != null &&
+        moment.isAfter(plannedCheckout) &&
+        actualCheckout == null;
     int overdueDays = 0;
     if (isOverdue) {
       overdueDays = Time.nightsWithCutoff(plannedCheckout, checkout: moment);
@@ -186,7 +215,10 @@ class GuestPaymentCalculationService {
   }
 
   /// حساب تفصيلي لمجموعة من الحجوزات
-  Future<List<GuestPaymentCalculation>> calculateForMultipleBookings(List<Booking> bookings, {DateTime? now}) async {
+  Future<List<GuestPaymentCalculation>> calculateForMultipleBookings(
+    List<Booking> bookings, {
+    DateTime? now,
+  }) async {
     final results = <GuestPaymentCalculation>[];
     for (final booking in bookings) {
       final calc = await calculateForBooking(booking, now: now);
@@ -196,11 +228,17 @@ class GuestPaymentCalculationService {
   }
 
   /// إنشاء تقرير ملخص لمجموعة من الحجوزات
-  Future<PaymentsSummaryReport> generateSummaryReport(List<Booking> bookings, {DateTime? now}) async {
+  Future<PaymentsSummaryReport> generateSummaryReport(
+    List<Booking> bookings, {
+    DateTime? now,
+  }) async {
     final calculations = await calculateForMultipleBookings(bookings, now: now);
 
     final totalGuests = calculations.length;
-    final totalPaid = calculations.fold<double>(0, (sum, c) => sum + c.totalPaid);
+    final totalPaid = calculations.fold<double>(
+      0,
+      (sum, c) => sum + c.totalPaid,
+    );
     final totalRemaining = calculations.fold<double>(
       0,
       (sum, c) => sum + (c.remainingBalance > 0 ? c.remainingBalance : 0),
@@ -210,7 +248,9 @@ class GuestPaymentCalculationService {
       (sum, c) => sum + (c.remainingBalance < 0 ? -c.remainingBalance : 0),
     );
     final overdueCount = calculations.where((c) => c.isOverdue).length;
-    final fullyPaidCount = calculations.where((c) => c.remainingBalance <= 0 && !c.hasCredit).length;
+    final fullyPaidCount = calculations
+        .where((c) => c.remainingBalance <= 0 && !c.hasCredit)
+        .length;
 
     return PaymentsSummaryReport(
       generatedAt: now ?? DateTime.now(),
@@ -247,10 +287,12 @@ class PaymentsSummaryReport {
   final List<GuestPaymentCalculation> calculations;
 
   /// نسبة الحجوزات المسددة بالكامل
-  double get fullyPaidPercentage => totalGuests > 0 ? (fullyPaidCount / totalGuests * 100) : 0;
+  double get fullyPaidPercentage =>
+      totalGuests > 0 ? (fullyPaidCount / totalGuests * 100) : 0;
 
   /// نسبة الحجوزات المتأخرة
-  double get overduePercentage => totalGuests > 0 ? (overdueCount / totalGuests * 100) : 0;
+  double get overduePercentage =>
+      totalGuests > 0 ? (overdueCount / totalGuests * 100) : 0;
 
   /// ملخص نصي للتقرير
   String getSummary() {
@@ -267,8 +309,12 @@ class PaymentsSummaryReport {
     buffer.writeln('إجمالي الأرصدة (للنزلاء): $totalCredit ريال');
     buffer.writeln();
     buffer.writeln('--- الحالات ---');
-    buffer.writeln('المسددة بالكامل: $fullyPaidCount (${fullyPaidPercentage.toStringAsFixed(1)}%)');
-    buffer.writeln('المتأخرة: $overdueCount (${overduePercentage.toStringAsFixed(1)}%)');
+    buffer.writeln(
+      'المسددة بالكامل: $fullyPaidCount (${fullyPaidPercentage.toStringAsFixed(1)}%)',
+    );
+    buffer.writeln(
+      'المتأخرة: $overdueCount (${overduePercentage.toStringAsFixed(1)}%)',
+    );
 
     return buffer.toString();
   }

@@ -125,7 +125,7 @@ void main() {
       test('حساب المبالغ المتبقية', () {
         const total = 42900.0;
         const paid = 20000.0;
-        final remaining = total - paid;
+        const remaining = total - paid;
         expect(CurrencyFormatter.formatAmount(remaining), '22,900');
       });
     });

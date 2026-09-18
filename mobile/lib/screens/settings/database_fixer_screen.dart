@@ -38,7 +38,9 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في التحقق: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في التحقق: $e')));
       }
     } finally {
       setState(() {
@@ -57,8 +59,14 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
           'هل تريد المتابعة؟',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop<bool>(context, true), child: const Text('إصلاح')),
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            child: const Text('إصلاح'),
+          ),
         ],
       ),
     );
@@ -84,17 +92,24 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('تم إصلاح ${result.totalFixed} مشكلة ✓'), backgroundColor: Colors.green),
+            SnackBar(
+              content: Text('تم إصلاح ${result.totalFixed} مشكلة ✓'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } else if (result.success && result.totalFixed == 0) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد مشاكل للإصلاح')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('لا توجد مشاكل للإصلاح')),
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في الإصلاح: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في الإصلاح: $e')));
       }
     } finally {
       setState(() {
@@ -127,9 +142,16 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
                   children: [
                     _buildInfoCard(),
                     const SizedBox(height: 16),
-                    if (_validationReport != null) ...[_buildValidationCard(), const SizedBox(height: 16)],
-                    if (_fixResult != null) ...[_buildFixResultCard(), const SizedBox(height: 16)],
-                    if (_validationReport?.hasIssues ?? false) _buildFixButton(),
+                    if (_validationReport != null) ...[
+                      _buildValidationCard(),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_fixResult != null) ...[
+                      _buildFixResultCard(),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_validationReport?.hasIssues ?? false)
+                      _buildFixButton(),
                   ],
                 ),
               ),
@@ -148,7 +170,10 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
               children: [
                 Icon(Icons.info_outline, color: Colors.blue[700]),
                 const SizedBox(width: 8),
-                const Text('معلومات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'معلومات',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -169,7 +194,10 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
   Widget _buildInfoItem(String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Text(text, style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+      ),
     );
   }
 
@@ -195,24 +223,47 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: report.hasIssues ? Colors.orange[900] : Colors.green[900],
+                    color: report.hasIssues
+                        ? Colors.orange[900]
+                        : Colors.green[900],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             if (report.error != null)
-              Text('خطأ: ${report.error}', style: const TextStyle(color: Colors.red))
+              Text(
+                'خطأ: ${report.error}',
+                style: const TextStyle(color: Colors.red),
+              )
             else if (!report.hasIssues)
-              const Text('✓ قاعدة البيانات صحيحة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500))
+              const Text(
+                '✓ قاعدة البيانات صحيحة',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              )
             else ...[
-              _buildIssueItem('serverId فاسدة', report.invalidServerIds, Icons.key),
-              _buildIssueItem('مدفوعات يتيمة', report.orphanPayments, Icons.payment),
-              _buildIssueItem('مصروفات يتيمة', report.orphanExpenses, Icons.money_off),
+              _buildIssueItem(
+                'serverId فاسدة',
+                report.invalidServerIds,
+                Icons.key,
+              ),
+              _buildIssueItem(
+                'مدفوعات يتيمة',
+                report.orphanPayments,
+                Icons.payment,
+              ),
+              _buildIssueItem(
+                'مصروفات يتيمة',
+                report.orphanExpenses,
+                Icons.money_off,
+              ),
               const Divider(height: 24),
               Text(
                 'الإجمالي: ${report.totalIssues} مشكلة',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ],
@@ -235,7 +286,11 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
           Text('$label: ', style: const TextStyle(fontSize: 14)),
           Text(
             '$count',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange[900]),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange[900],
+            ),
           ),
         ],
       ),
@@ -271,7 +326,10 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
             ),
             const SizedBox(height: 12),
             if (result.error != null)
-              Text('خطأ: ${result.error}', style: const TextStyle(color: Colors.red))
+              Text(
+                'خطأ: ${result.error}',
+                style: const TextStyle(color: Colors.red),
+              )
             else if (result.success) ...[
               _buildFixItem('serverId', result.serverIdFixed),
               _buildFixItem('مدفوعات يتيمة', result.orphanPaymentsFixed),
@@ -279,7 +337,10 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
               const Divider(height: 24),
               Text(
                 '✓ تم إصلاح ${result.totalFixed} مشكلة',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ],
@@ -302,7 +363,11 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
           Text('$label: ', style: const TextStyle(fontSize: 14)),
           Text(
             '$count',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green[900]),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.green[900],
+            ),
           ),
         ],
       ),

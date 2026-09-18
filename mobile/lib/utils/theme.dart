@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'weak_device_optimizer.dart';
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MarketKy Theme — مستوحى من https://github.com/mrezkys/marketky
 // ═══════════════════════════════════════════════════════════════════════════
@@ -53,6 +55,7 @@ class AppColors {
 }
 
 ThemeData buildTheme() {
+  final weak = WeakDeviceOptimizer.instance;
   final base = ThemeData(
     useMaterial3: false, // Use Material 2 for better Bootstrap compatibility
     brightness: Brightness.light,
@@ -73,7 +76,8 @@ ThemeData buildTheme() {
       onSurface: AppColors.textPrimary,
       // مطابق للقيمة الافتراضية حاليًا (أبيض)، لكن نُبقي الإشارة إلى
       // AppColors.surfaceColor لضمان تبعية الثيم لأي تغيير مستقبلي على هذا الثابت الدلالي.
-      surface: AppColors.surfaceColor, // ignore: avoid_redundant_argument_values
+      surface:
+          AppColors.surfaceColor, // ignore: avoid_redundant_argument_values
     ),
 
     // AppBar theme — MarketKy style: خلفية بيضاء + نص كحلي
@@ -110,7 +114,11 @@ ThemeData buildTheme() {
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
+        textStyle: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+          fontFamily: 'Tajawal',
+        ),
       ),
     ),
 
@@ -120,7 +128,11 @@ ThemeData buildTheme() {
         side: const BorderSide(color: AppColors.primaryColor),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
+        textStyle: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+          fontFamily: 'Tajawal',
+        ),
       ),
     ),
 
@@ -152,7 +164,11 @@ ThemeData buildTheme() {
         fontSize: 14,
         fontFamily: 'Tajawal',
       ),
-      dataTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontFamily: 'Tajawal'),
+      dataTextStyle: TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 14,
+        fontFamily: 'Tajawal',
+      ),
       columnSpacing: 24,
       horizontalMargin: 16,
       dataRowMinHeight: 48,
@@ -169,6 +185,23 @@ ThemeData buildTheme() {
     // Divider color — MarketKy border
     dividerColor: AppColors.dividerColor,
 
+    // ✅ أجهزة ضعيفة (1GB/معالج ضعيف): انتقالات صفحات FadeUpwards الأرخص
+    // بدلاً من Zoom الافتراضي + تأثير تموج InkRipple بدلاً من InkSparkle
+    // (الافتراضي على أندرويد 12+ وهو ثقيل على GPU الضعيف) — يمنع التعليق
+    // عند التنقل بين الشاشات مع الحفاظ على إحساس سلس.
+    pageTransitionsTheme: weak.useCheapPageTransitions
+        ? const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+              TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
+              TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+              TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+              TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+            },
+          )
+        : null,
+    splashFactory: weak.isWeakDevice ? InkRipple.splashFactory : null,
+
     visualDensity: VisualDensity.adaptivePlatformDensity,
   );
 }
@@ -181,6 +214,7 @@ ThemeData buildDarkTheme() {
   const darkInputBorder = Color(0xFF2A2D4A); // حدود داكنة
   const darkAccent = AppColors.accentColor; // #FABA3E
 
+  final weak = WeakDeviceOptimizer.instance;
   final base = ThemeData(
     useMaterial3: false,
     brightness: Brightness.dark,
@@ -208,7 +242,12 @@ ThemeData buildDarkTheme() {
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: false,
-      titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: 'Tajawal'),
+      titleTextStyle: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+        fontFamily: 'Tajawal',
+      ),
       iconTheme: IconThemeData(color: darkAccent),
     ),
 
@@ -231,7 +270,11 @@ ThemeData buildDarkTheme() {
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
+        textStyle: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+          fontFamily: 'Tajawal',
+        ),
       ),
     ),
 
@@ -242,7 +285,11 @@ ThemeData buildDarkTheme() {
         side: const BorderSide(color: darkPrimary),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
+        textStyle: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+          fontFamily: 'Tajawal',
+        ),
       ),
     ),
 
@@ -274,7 +321,11 @@ ThemeData buildDarkTheme() {
         fontSize: 14,
         fontFamily: 'Tajawal',
       ),
-      dataTextStyle: TextStyle(color: Color(0xFFE8E8F0), fontSize: 14, fontFamily: 'Tajawal'),
+      dataTextStyle: TextStyle(
+        color: Color(0xFFE8E8F0),
+        fontSize: 14,
+        fontFamily: 'Tajawal',
+      ),
       columnSpacing: 24,
       horizontalMargin: 16,
       dataRowMinHeight: 48,
@@ -289,6 +340,20 @@ ThemeData buildDarkTheme() {
 
     // Dark divider
     dividerColor: darkInputBorder,
+
+    // ✅ أجهزة ضعيفة: نفس تحسينات الثيم الفاتح (انظر الأعلى).
+    pageTransitionsTheme: weak.useCheapPageTransitions
+        ? const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+              TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
+              TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+              TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+              TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+            },
+          )
+        : null,
+    splashFactory: weak.isWeakDevice ? InkRipple.splashFactory : null,
 
     visualDensity: VisualDensity.adaptivePlatformDensity,
   );

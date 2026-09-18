@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:appwrite/appwrite.dart';
-import 'package:flutter/foundation.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum RecoveryAction { retry, skip, rollback, escalate, pause }
 
@@ -58,7 +58,12 @@ class RecoveryResult {
 }
 
 class RollbackPoint {
-  const RollbackPoint({required this.id, required this.description, required this.timestamp, required this.snapshot});
+  const RollbackPoint({
+    required this.id,
+    required this.description,
+    required this.timestamp,
+    required this.snapshot,
+  });
   final String id;
   final String description;
   final DateTime timestamp;
@@ -87,7 +92,7 @@ class SyncErrorRecovery {
       _errorLog.removeLast();
     }
     _errorController.add(error);
-    debugPrint('❌ [Recovery] ${error.severity.name}: ${error.message}');
+    dlog(() => '❌ [Recovery] ${error.severity.name}: ${error.message}');
   }
 
   SyncError createError({
@@ -119,7 +124,9 @@ class SyncErrorRecovery {
       final code = exception.code ?? 0;
       // 4xx — أخطاء العميل (غالباً غير قابلة لإعادة المحاولة)
       if (code == 400 || code == 401 || code == 403 || code == 404) {
-        return code == 401 || code == 403 ? ErrorSeverity.high : ErrorSeverity.medium;
+        return code == 401 || code == 403
+            ? ErrorSeverity.high
+            : ErrorSeverity.medium;
       }
       // 429 — rate limit (قابل لإعادة المحاولة)
       if (code == 429) return ErrorSeverity.medium;
@@ -129,16 +136,22 @@ class SyncErrorRecovery {
 
     // fallback: مطابقة نصية للأنواع غير AppwriteException
     final message = exception.toString().toLowerCase();
-    if (message.contains('network') || message.contains('connection') || message.contains('timeout')) {
+    if (message.contains('network') ||
+        message.contains('connection') ||
+        message.contains('timeout')) {
       return ErrorSeverity.low;
     }
     if (message.contains('conflict') || message.contains('version')) {
       return ErrorSeverity.medium;
     }
-    if (message.contains('permission') || message.contains('unauthorized') || message.contains('forbidden')) {
+    if (message.contains('permission') ||
+        message.contains('unauthorized') ||
+        message.contains('forbidden')) {
       return ErrorSeverity.high;
     }
-    if (message.contains('corrupt') || message.contains('integrity') || message.contains('fatal')) {
+    if (message.contains('corrupt') ||
+        message.contains('integrity') ||
+        message.contains('fatal')) {
       return ErrorSeverity.critical;
     }
     return ErrorSeverity.medium;
@@ -149,7 +162,9 @@ class SyncErrorRecovery {
     if (exception is AppwriteException) {
       final code = exception.code ?? 0;
       // 4xx (عدا 429) = غير قابل لإعادة المحاولة
-      if (code == 400 || code == 401 || code == 403 || code == 404) return false;
+      if (code == 400 || code == 401 || code == 403 || code == 404) {
+        return false;
+      }
       // 429 + 5xx = قابل لإعادة المحاولة
       if (code == 429 || code >= 500) return true;
     }
@@ -162,7 +177,9 @@ class SyncErrorRecovery {
         message.contains('temporary')) {
       return true;
     }
-    if (message.contains('permission') || message.contains('corrupt') || message.contains('invalid')) {
+    if (message.contains('permission') ||
+        message.contains('corrupt') ||
+        message.contains('invalid')) {
       return false;
     }
     return true;
@@ -281,7 +298,9 @@ class SyncErrorRecovery {
         id: id,
         description: description,
         timestamp: DateTime.now(),
-        snapshot: snapshot.map((k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List))),
+        snapshot: snapshot.map(
+          (k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List)),
+        ),
       );
 
       _rollbackPoints.insert(0, rollbackPoint);
@@ -289,13 +308,16 @@ class SyncErrorRecovery {
         _rollbackPoints.removeLast();
       }
 
-      debugPrint('📍 [Recovery] نقطة استعادة: $description');
+      dlog(() => '📍 [Recovery] نقطة استعادة: $description');
     } catch (e) {
-      debugPrint('⚠️ [Recovery] فشل إنشاء نقطة الاستعادة: $e');
+      dlog(() => '⚠️ [Recovery] فشل إنشاء نقطة الاستعادة: $e');
     }
   }
 
-  Future<bool> restoreFromRollbackPoint(String pointId, AppDatabase database) async {
+  Future<bool> restoreFromRollbackPoint(
+    String pointId,
+    AppDatabase database,
+  ) async {
     final point = _rollbackPoints.firstWhere(
       (p) => p.id == pointId,
       orElse: () => throw Exception('نقطة الاستعادة غير موجودة'),
@@ -303,15 +325,16 @@ class SyncErrorRecovery {
 
     try {
       await database.applyMergedData(point.snapshot);
-      debugPrint('✅ [Recovery] تم الاستعادة من: ${point.description}');
+      dlog(() => '✅ [Recovery] تم الاستعادة من: ${point.description}');
       return true;
     } catch (e) {
-      debugPrint('❌ [Recovery] فشل الاستعادة: $e');
+      dlog(() => '❌ [Recovery] فشل الاستعادة: $e');
       return false;
     }
   }
 
-  List<RollbackPoint> get availableRollbackPoints => List.unmodifiable(_rollbackPoints);
+  List<RollbackPoint> get availableRollbackPoints =>
+      List.unmodifiable(_rollbackPoints);
 
   Map<ErrorSeverity, int> getErrorSummary() {
     final summary = <ErrorSeverity, int>{};

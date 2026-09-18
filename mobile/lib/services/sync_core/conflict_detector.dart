@@ -58,7 +58,8 @@ class ConflictDetectionResult {
   /// جميع التعارضات تُحل تلقائياً — لا يوجد تصعيد يدوي
   /// ما عدا التعارضات المتزامنة التي تمس حقولاً مالية/حرجة
   bool get needsManualResolution =>
-      type == ConflictType.concurrentSameFields && conflictingFields.any(ConflictDetector.isCriticalField);
+      type == ConflictType.concurrentSameFields &&
+      conflictingFields.any(ConflictDetector.isCriticalField);
 
   /// جميع التعارضات قابلة للحل التلقائي
   bool get canAutoResolve => !needsManualResolution;
@@ -91,15 +92,40 @@ class ConflictDetector {
       return ConflictDetectionResult(
         type: ConflictType.deleteVsUpdate,
         localChangedFields: {'deletedAt'},
-        remoteChangedFields: _findChangedFields(remoteData, commonAncestor),
+        remoteChangedFields: _findChangedFields(
+          remoteData,
+          commonAncestor,
+          other: localData,
+        ),
       );
     }
     if (!localDeleted && remoteDeleted) {
-      return const ConflictDetectionResult(type: ConflictType.noConflictRemoteNewer);
+      // ✅ P0-4 Audit Fix (2026-08-06): تماثل سياسة الحذف.
+      // سابقاً، كان هذا يُرجع `noConflictRemoteNewer` (يُطبّق الحذف البعيد
+      // ويُفقد التحديث المحلي بصمت). هذا غير متماثل مع `deleteVsUpdate`
+      // (الذي يحمي الحذف المحلي).
+      // الإصلاح: تصنيف كـ `deleteVsUpdate` (معكوس) ليُعالجه SmartConflictResolver
+      // بقرار واعٍ بدلاً من تطبيق الحذف صامتاً. الـ resolver يقرر: الحذف يربح
+      // (لأن الـ delete أكثر حداثة عادةً) لكن مع تسجيل في audit trail.
+      return ConflictDetectionResult(
+        type: ConflictType.deleteVsUpdate,
+        localChangedFields: _findChangedFields(
+          localData,
+          commonAncestor,
+          other: remoteData,
+        ),
+        remoteChangedFields: {'deletedAt'},
+      );
     }
 
-    final localVcStr = (localData['vectorClock'] as String?) ?? (localData['vector_clock'] as String?) ?? '{}';
-    final remoteVcStr = (remoteData['vectorClock'] as String?) ?? (remoteData['vector_clock'] as String?) ?? '{}';
+    final localVcStr =
+        (localData['vectorClock'] as String?) ??
+        (localData['vector_clock'] as String?) ??
+        '{}';
+    final remoteVcStr =
+        (remoteData['vectorClock'] as String?) ??
+        (remoteData['vector_clock'] as String?) ??
+        '{}';
 
     final localVc = VectorClock.fromString(localVcStr);
     final remoteVc = VectorClock.fromString(remoteVcStr);
@@ -110,12 +136,20 @@ class ConflictDetector {
       if (remoteTs > localTs) {
         return ConflictDetectionResult(
           type: ConflictType.noConflictRemoteNewer,
-          remoteChangedFields: _findChangedFields(remoteData, commonAncestor),
+          remoteChangedFields: _findChangedFields(
+            remoteData,
+            commonAncestor,
+            other: localData,
+          ),
         );
       }
       return ConflictDetectionResult(
         type: ConflictType.noConflictLocalNewer,
-        localChangedFields: _findChangedFields(localData, commonAncestor),
+        localChangedFields: _findChangedFields(
+          localData,
+          commonAncestor,
+          other: remoteData,
+        ),
       );
     }
 
@@ -123,14 +157,22 @@ class ConflictDetector {
 
     switch (comparison) {
       case VectorClockComparison.equal:
-        return ConflictDetectionResult(type: ConflictType.noConflictEqual, localVc: localVc, remoteVc: remoteVc);
+        return ConflictDetectionResult(
+          type: ConflictType.noConflictEqual,
+          localVc: localVc,
+          remoteVc: remoteVc,
+        );
 
       case VectorClockComparison.remoteNewer:
         return ConflictDetectionResult(
           type: ConflictType.noConflictRemoteNewer,
           localVc: localVc,
           remoteVc: remoteVc,
-          remoteChangedFields: _findChangedFields(remoteData, commonAncestor),
+          remoteChangedFields: _findChangedFields(
+            remoteData,
+            commonAncestor,
+            other: localData,
+          ),
         );
 
       case VectorClockComparison.localNewer:
@@ -138,7 +180,11 @@ class ConflictDetector {
           type: ConflictType.noConflictLocalNewer,
           localVc: localVc,
           remoteVc: remoteVc,
-          localChangedFields: _findChangedFields(localData, commonAncestor),
+          localChangedFields: _findChangedFields(
+            localData,
+            commonAncestor,
+            other: remoteData,
+          ),
         );
 
       case VectorClockComparison.concurrent:
@@ -159,12 +205,22 @@ class ConflictDetector {
     required VectorClock localVc,
     required VectorClock remoteVc,
   }) {
-    final localChanged = _findChangedFields(localData, commonAncestor);
-    final remoteChanged = _findChangedFields(remoteData, commonAncestor);
+    final localChanged = _findChangedFields(
+      localData,
+      commonAncestor,
+      other: remoteData,
+    );
+    final remoteChanged = _findChangedFields(
+      remoteData,
+      commonAncestor,
+      other: localData,
+    );
     final conflicting = localChanged.intersection(remoteChanged);
 
     return ConflictDetectionResult(
-      type: conflicting.isEmpty ? ConflictType.concurrentDifferentFields : ConflictType.concurrentSameFields,
+      type: conflicting.isEmpty
+          ? ConflictType.concurrentDifferentFields
+          : ConflictType.concurrentSameFields,
       localVc: localVc,
       remoteVc: remoteVc,
       localChangedFields: localChanged,
@@ -174,8 +230,11 @@ class ConflictDetector {
     );
   }
 
-  static Set<String> _findChangedFields(Map<String, dynamic> current, Map<String, dynamic>? ancestor) {
-    if (ancestor == null) return current.keys.toSet();
+  static Set<String> _findChangedFields(
+    Map<String, dynamic> current,
+    Map<String, dynamic>? ancestor, {
+    Map<String, dynamic>? other,
+  }) {
     final changed = <String>{};
     for (final key in current.keys) {
       if (key.startsWith(r'$')) continue;
@@ -189,8 +248,23 @@ class ConflictDetector {
           key == 'updated_at') {
         continue;
       }
-      if (!const DeepCollectionEquality().equals(ancestor[key], current[key])) {
-        changed.add(key);
+      if (ancestor != null) {
+        // ✅ 3-way: الحقل تغيّر فقط إذا اختلف عن السلف المشترك.
+        if (!const DeepCollectionEquality().equals(
+          ancestor[key],
+          current[key],
+        )) {
+          changed.add(key);
+        }
+      } else if (other != null) {
+        // ✅ Audit Fix: عند غياب السلف (أول تعارض على السجل)، لا نُرجع كل
+        // الحقول كمتعارضة (كان يُحوّل الدمج إلى LWW على مستوى السجل). بدلاً
+        // من ذلك نحسب الفرق الفعلي بين النسختين — الحقول التي تختلف بين
+        // local و remote فقط هي المتعارضة. هذا يُبقي الدمج على مستوى الحقل
+        // يعمل حتى دون سلف، ويحمي التعديلات المحلية من المسح الصامت.
+        if (!const DeepCollectionEquality().equals(other[key], current[key])) {
+          changed.add(key);
+        }
       }
     }
     return changed;
@@ -216,5 +290,6 @@ class ConflictDetector {
   };
 
   /// هل الحقل [fieldName] حرج (مالي)؟
-  static bool isCriticalField(String fieldName) => _criticalFields.contains(fieldName);
+  static bool isCriticalField(String fieldName) =>
+      _criticalFields.contains(fieldName);
 }

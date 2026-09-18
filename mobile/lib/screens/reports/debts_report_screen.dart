@@ -103,29 +103,40 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         totalDebt += debt.totalAmount;
         totalPaid += debt.paidAmount;
         totalRemaining += debt.remainingAmount;
-        final guestEntry = guestMap.putIfAbsent(debt.guestName, () => _GuestDebtSummary(guestName: debt.guestName));
+        final guestEntry = guestMap.putIfAbsent(
+          debt.guestName,
+          () => _GuestDebtSummary(guestName: debt.guestName),
+        );
         guestEntry.totalAmount += debt.totalAmount;
         guestEntry.paidAmount += debt.paidAmount;
         guestEntry.remainingAmount += debt.remainingAmount;
         final date = _parseDateTime(debt.paymentDate);
         if (date == null) continue;
-        final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+        final monthKey =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}';
         final monthEntry = monthlyMap.putIfAbsent(
           monthKey,
-          () => _MonthlyDebtSummary(label: monthKey, month: DateTime(date.year, date.month)),
+          () => _MonthlyDebtSummary(
+            label: monthKey,
+            month: DateTime(date.year, date.month),
+          ),
         );
         monthEntry.totalAmount += debt.totalAmount;
         monthEntry.paidAmount += debt.paidAmount;
         monthEntry.remainingAmount += debt.remainingAmount;
       }
-      final guestSummaries = guestMap.values.toList()..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
-      final monthlySummaries = monthlyMap.values.toList()..sort((a, b) => a.month.compareTo(b.month));
+      final guestSummaries = guestMap.values.toList()
+        ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
+      final monthlySummaries = monthlyMap.values.toList()
+        ..sort((a, b) => a.month.compareTo(b.month));
       // جلب بيانات الحجوزات لحساب سعر الغرفة لكل دين
       final bookingsQuery = db.select(db.bookings);
       final allBookings = await bookingsQuery.get();
       _roomPriceMap.clear();
       for (final booking in allBookings) {
-        final price = booking.totalNightsCached > 0 ? booking.totalDueCached / booking.totalNightsCached : 0.0;
+        final price = booking.totalNightsCached > 0
+            ? booking.totalDueCached / booking.totalNightsCached
+            : 0.0;
         _roomPriceMap[booking.id] = price;
       }
 
@@ -156,7 +167,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     if (_rows.isEmpty) {
       return;
     }
-    final fromLabel = _fromDate != null ? _dateFormat.format(_fromDate!) : 'غير محدد';
+    final fromLabel = _fromDate != null
+        ? _dateFormat.format(_fromDate!)
+        : 'غير محدد';
     final toLabel = _toDate != null ? _dateFormat.format(_toDate!) : 'غير محدد';
     final totalGuests = _guestSummaries.length;
     final settledCount = _rows.where((d) => d.isSettled == 1).length;
@@ -172,13 +185,30 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     // ═══════════════════════════════════════════════════════
     final guestHeaders = ['النزيل', 'إجمالي الدين', 'المدفوع', 'المتبقي'];
     final guestData = _guestSummaries
-        .map((guest) => [guest.guestName, fmt(guest.totalAmount), fmt(guest.paidAmount), fmt(guest.remainingAmount)])
+        .map(
+          (guest) => [
+            guest.guestName,
+            fmt(guest.totalAmount),
+            fmt(guest.paidAmount),
+            fmt(guest.remainingAmount),
+          ],
+        )
         .toList();
 
     // ═══════════════════════════════════════════════════════
     // تفاصيل السجلات — أعمدة مختصرة لتناسب عرض الصفحة
     // ═══════════════════════════════════════════════════════
-    final detailHeaders = ['#', 'النزيل', 'التسجيل', 'سعر الغرفة', 'الإجمالي', 'المدفوع', 'المتبقي', 'السبب', 'الحالة'];
+    final detailHeaders = [
+      '#',
+      'النزيل',
+      'التسجيل',
+      'سعر الغرفة',
+      'الإجمالي',
+      'المدفوع',
+      'المتبقي',
+      'السبب',
+      'الحالة',
+    ];
     final detailData = <List<String>>[];
     for (var i = 0; i < _rows.length; i++) {
       final debt = _rows[i];
@@ -186,7 +216,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       detailData.add([
         (i + 1).toString(),
         debt.guestName,
-        Time.safeIsoToDateString(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate),
+        Time.safeIsoToDateString(
+          debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate,
+        ),
         fmt(roomPrice),
         fmt(debt.totalAmount),
         fmt(debt.paidAmount),
@@ -196,13 +228,33 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       ]);
     }
     // صف الإجمالي
-    detailData.add(['', 'الإجمالي', '', '', fmt(_totalDebt), fmt(_totalPaid), fmt(_totalRemaining), '', '']);
+    detailData.add([
+      '',
+      'الإجمالي',
+      '',
+      '',
+      fmt(_totalDebt),
+      fmt(_totalPaid),
+      fmt(_totalRemaining),
+      '',
+      '',
+    ]);
 
     // ═══════════════════════════════════════════════════════
     // عرض الأعمدة لكل جدول
     // ═══════════════════════════════════════════════════════
     final guestColWidths = [140.0, 100.0, 100.0, 100.0];
-    final detailColWidths = [25.0, 80.0, 60.0, 55.0, 60.0, 60.0, 60.0, 75.0, 55.0];
+    final detailColWidths = [
+      25.0,
+      80.0,
+      60.0,
+      55.0,
+      60.0,
+      60.0,
+      60.0,
+      75.0,
+      55.0,
+    ];
 
     await ReportPdfBuilder.buildAndShare(
       ReportPdfConfig(
@@ -229,7 +281,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 child: EnhancedPdfUtils.buildStatisticsBox(
                   title: 'المدفوع',
                   value: fmt(_totalPaid),
-                  subtitle: _totalDebt > 0 ? '${(_totalPaid / _totalDebt * 100).toStringAsFixed(0)}%' : '0%',
+                  subtitle: _totalDebt > 0
+                      ? '${(_totalPaid / _totalDebt * 100).toStringAsFixed(0)}%'
+                      : '0%',
                   fonts: fonts,
                   color: PdfColors.success,
                 ),
@@ -256,8 +310,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-                  pw.Text(value, style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+                  pw.Text(
+                    label,
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 11),
+                  ),
+                  pw.Text(
+                    value,
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+                  ),
                 ],
               ),
             );
@@ -284,7 +344,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             fonts: fonts,
             content: [
               if (guestData.isEmpty)
-                pw.Text('لا توجد بيانات', style: pw.TextStyle(font: fonts.regular, fontSize: 11))
+                pw.Text(
+                  'لا توجد بيانات',
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+                )
               else
                 EnhancedPdfUtils.buildProfessionalTable(
                   headers: guestHeaders,
@@ -308,11 +371,19 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                 children: [
                   pw.Text(
                     title,
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: color),
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 12,
+                      color: color,
+                    ),
                   ),
                   pw.Text(
                     value,
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: color),
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 13,
+                      color: color,
+                    ),
                   ),
                 ],
               ),
@@ -329,11 +400,19 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             ),
             child: pw.Column(
               children: [
-                buildTotalLine('إجمالي الديون', fmt(_totalDebt), PdfColors.danger),
+                buildTotalLine(
+                  'إجمالي الديون',
+                  fmt(_totalDebt),
+                  PdfColors.danger,
+                ),
                 pw.Divider(color: PdfColors.textLight),
                 buildTotalLine('المدفوع', fmt(_totalPaid), PdfColors.success),
                 pw.Divider(color: PdfColors.textLight),
-                buildTotalLine('المتبقي', fmt(_totalRemaining), PdfColors.warning),
+                buildTotalLine(
+                  'المتبقي',
+                  fmt(_totalRemaining),
+                  PdfColors.warning,
+                ),
               ],
             ),
           );
@@ -351,7 +430,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             pw.SizedBox(height: 12),
             totalsCard,
             pw.SizedBox(height: 16),
-            pw.Text('تفاصيل السجلات', style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
+            pw.Text(
+              'تفاصيل السجلات',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 14),
+            ),
             pw.SizedBox(height: 8),
             EnhancedPdfUtils.buildProfessionalTable(
               headers: detailHeaders,
@@ -378,7 +460,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           tooltip: 'تصدير PDF',
           onPressed: _rows.isEmpty || _loading ? null : _exportPdf,
         ),
-        IconButton(onPressed: _loading ? null : _fetchReport, icon: const Icon(Icons.refresh)),
+        IconButton(
+          onPressed: _loading ? null : _fetchReport,
+          icon: const Icon(Icons.refresh),
+        ),
       ],
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -402,7 +487,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               children: [
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     textStyle: const TextStyle(fontSize: 11),
                   ),
                   onPressed: _loading ? null : _fetchReport,
@@ -423,7 +511,13 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                       message: 'لم يتم العثور على ديون ضمن النطاق المحدد.',
                       icon: Icons.assessment_outlined,
                     )
-                  : ListView(children: [_buildGuestsTable(), const SizedBox(height: 10), _buildDebtsTable()]),
+                  : ListView(
+                      children: [
+                        _buildGuestsTable(),
+                        const SizedBox(height: 10),
+                        _buildDebtsTable(),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -439,13 +533,37 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         child: Row(
           children: [
-            Expanded(child: _buildSummaryChip('إجمالي الديون', _currencyFormat.format(_totalDebt), Colors.red)),
+            Expanded(
+              child: _buildSummaryChip(
+                'إجمالي الديون',
+                _currencyFormat.format(_totalDebt),
+                Colors.red,
+              ),
+            ),
             Container(width: 1, height: 22, color: Colors.grey.shade200),
-            Expanded(child: _buildSummaryChip('المدفوعة', _currencyFormat.format(_totalPaid), Colors.green)),
+            Expanded(
+              child: _buildSummaryChip(
+                'المدفوعة',
+                _currencyFormat.format(_totalPaid),
+                Colors.green,
+              ),
+            ),
             Container(width: 1, height: 22, color: Colors.grey.shade200),
-            Expanded(child: _buildSummaryChip('المتبقية', _currencyFormat.format(_totalRemaining), Colors.orange)),
+            Expanded(
+              child: _buildSummaryChip(
+                'المتبقية',
+                _currencyFormat.format(_totalRemaining),
+                Colors.orange,
+              ),
+            ),
             Container(width: 1, height: 22, color: Colors.grey.shade200),
-            Expanded(child: _buildSummaryChip('سجلات', _rows.length.toString(), Colors.blue)),
+            Expanded(
+              child: _buildSummaryChip(
+                'سجلات',
+                _rows.length.toString(),
+                Colors.blue,
+              ),
+            ),
           ],
         ),
       ),
@@ -457,7 +575,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
       children: [
         Text(
           value,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: color),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+            color: color,
+          ),
         ),
         const SizedBox(height: 1),
         Text(label, style: const TextStyle(fontSize: 8, color: Colors.grey)),
@@ -474,11 +596,20 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
             .map(
               (guest) => [
                 Text(guest.guestName, style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(guest.totalAmount), style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(guest.paidAmount), style: const TextStyle(fontSize: 10)),
+                Text(
+                  _currencyFormat.format(guest.totalAmount),
+                  style: const TextStyle(fontSize: 10),
+                ),
+                Text(
+                  _currencyFormat.format(guest.paidAmount),
+                  style: const TextStyle(fontSize: 10),
+                ),
                 Text(
                   _currencyFormat.format(guest.remainingAmount),
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             )
@@ -510,21 +641,54 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
           final roomPrice = _roomPriceMap[debt.bookingLocalId] ?? 0.0;
           return [
             Text(debt.guestName, style: const TextStyle(fontSize: 9)),
-            Text(_formatDisplayDate(debt.dateRecorded), style: const TextStyle(fontSize: 9)),
-            Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 9)),
-            Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 9)),
-            Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 9)),
-            Text(_currencyFormat.format(roomPrice), style: const TextStyle(fontSize: 9)),
-            Text(_currencyFormat.format(debt.totalAmount), style: const TextStyle(fontSize: 9)),
-            Text(_currencyFormat.format(debt.paidAmount), style: const TextStyle(fontSize: 9)),
+            Text(
+              _formatDisplayDate(debt.dateRecorded),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _formatTextFallback(debt.debtReason),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              Time.safeIsoToDateString(debt.checkinDate),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              Time.safeIsoToDateString(debt.checkoutDate),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _currencyFormat.format(roomPrice),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _currencyFormat.format(debt.totalAmount),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _currencyFormat.format(debt.paidAmount),
+              style: const TextStyle(fontSize: 9),
+            ),
             Text(
               _currencyFormat.format(debt.remainingAmount),
               style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
             ),
-            Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 9)),
-            Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 9)),
-            Text(debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-', style: const TextStyle(fontSize: 9)),
-            Text(debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 9)),
+            Text(
+              Time.safeIsoToDateString(debt.paymentDate),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _formatSettlement(debt.isSettled),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-',
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-',
+              style: const TextStyle(fontSize: 9),
+            ),
           ];
         }).toList(),
       ),
@@ -536,7 +700,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   /// مما يُدخل سجلات فاسدة في ملخصات 1970 ويُفسد المجاميع الشهرية
   DateTime? _parseDateTime(String value) {
     if (value.isEmpty) return null;
-    final normalized = value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {

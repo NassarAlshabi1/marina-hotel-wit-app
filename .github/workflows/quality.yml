@@ -71,7 +71,7 @@ jobs:
       format_line_length: '120'
       min_coverage: ${{ inputs.check_level == 'full' && 60 || 0 }}
       coverage_excludes: '**/*.g.dart **/*.freezed.dart **/generated_plugin_registrant.dart'
-      run_build_runner: true
+      run_build_runner: false
       run_tests: ${{ inputs.run_tests != false }}
       test_concurrency: 4
       test_timeout: ${{ inputs.check_level == 'full' && '120s' || '60s' }}

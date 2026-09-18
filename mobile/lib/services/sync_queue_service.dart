@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// [Deprecated] This service is being replaced by Unified Outbox Architecture.
 /// All methods are now No-ops.
@@ -13,11 +13,14 @@ class SyncQueueService {
   Stream<int> get queueCountStream => _queueController.stream;
 
   Future<void> initialize() async {
-    debugPrint('⚠️ [SyncQueue] Service deprecated - initializing as no-op');
+    dlog('⚠️ [SyncQueue] Service deprecated - initializing as no-op');
   }
 
-  Future<void> addToQueue({required String screenId, required Map<String, dynamic> data}) async {
-    debugPrint('⚠️ [SyncQueue] addToQueue ignored (using Outbox instead)');
+  Future<void> addToQueue({
+    required String screenId,
+    required Map<String, dynamic> data,
+  }) async {
+    dlog('⚠️ [SyncQueue] addToQueue ignored (using Outbox instead)');
   }
 
   Future<List<SyncQueueItem>> getQueueItems() async {
@@ -32,7 +35,8 @@ class SyncQueueService {
 
   Future<int> getQueueCount() async => 0;
 
-  Future<QueueStats> getStats() async => const QueueStats(totalItems: 0, pendingItems: 0, processingItems: 0);
+  Future<QueueStats> getStats() async =>
+      const QueueStats(totalItems: 0, pendingItems: 0, processingItems: 0);
 
   void dispose() {
     _queueController.close();

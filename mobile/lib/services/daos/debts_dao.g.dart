@@ -13,7 +13,10 @@ mixin _$DebtsDaoMixin on DatabaseAccessor<AppDatabase> {
 class DebtsDaoManager {
   final _$DebtsDaoMixin _db;
   DebtsDaoManager(this._db);
-  $$RoomsTableTableManager get rooms => $$RoomsTableTableManager(_db.attachedDatabase, _db.rooms);
-  $$BookingsTableTableManager get bookings => $$BookingsTableTableManager(_db.attachedDatabase, _db.bookings);
-  $$DebtsTableTableManager get debts => $$DebtsTableTableManager(_db.attachedDatabase, _db.debts);
+  $$RoomsTableTableManager get rooms =>
+      $$RoomsTableTableManager(_db.attachedDatabase, _db.rooms);
+  $$BookingsTableTableManager get bookings =>
+      $$BookingsTableTableManager(_db.attachedDatabase, _db.bookings);
+  $$DebtsTableTableManager get debts =>
+      $$DebtsTableTableManager(_db.attachedDatabase, _db.debts);
 }

@@ -85,7 +85,7 @@ try {
         
         // تحديث كلمة المرور
         $username = 'admin';
-        $password = 'admin123';
+        $password = 'admin';
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
         
         $stmt = $conn->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE username = 'admin'");
@@ -95,7 +95,7 @@ try {
         echo "<div class='success'>";
         echo "<h3>✅ تم تحديث كلمة مرور المستخدم admin</h3>";
         echo "<p><strong>اسم المستخدم:</strong> <code>admin</code></p>";
-        echo "<p><strong>كلمة المرور:</strong> <code>admin123</code></p>";
+        echo "<p><strong>كلمة المرور:</strong> <code>admin</code></p>";
         echo "</div>";
         
     } else {

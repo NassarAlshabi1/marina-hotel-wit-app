@@ -15,12 +15,17 @@ void main() {
 
   group('isNotFoundError', () {
     test('code 404 → true', () {
-      expect(SecondaryAppwriteService.isNotFoundError(AppwriteException('x', 404)), isTrue);
+      expect(
+        SecondaryAppwriteService.isNotFoundError(AppwriteException('x', 404)),
+        isTrue,
+      );
     });
 
     test('type document_not_found → true', () {
       expect(
-        SecondaryAppwriteService.isNotFoundError(AppwriteException('missing', 400, 'document_not_found')),
+        SecondaryAppwriteService.isNotFoundError(
+          AppwriteException('missing', 400, 'document_not_found'),
+        ),
         isTrue,
       );
     });
@@ -29,60 +34,106 @@ void main() {
       // كما في السجل: "Document with the requested ID ... could not be found."
       expect(
         SecondaryAppwriteService.isNotFoundError(
-          AppwriteException("document_not_found: Document with the requested ID 'abc' could not be found."),
+          AppwriteException(
+            "document_not_found: Document with the requested ID 'abc' could not be found.",
+          ),
         ),
         isTrue,
       );
     });
 
     test('409 ليس not-found → false', () {
-      expect(SecondaryAppwriteService.isNotFoundError(AppwriteException('exists', 409)), isFalse);
+      expect(
+        SecondaryAppwriteService.isNotFoundError(
+          AppwriteException('exists', 409),
+        ),
+        isFalse,
+      );
     });
 
     test('429 ليس not-found → false', () {
-      expect(SecondaryAppwriteService.isNotFoundError(AppwriteException('rate', 429)), isFalse);
+      expect(
+        SecondaryAppwriteService.isNotFoundError(
+          AppwriteException('rate', 429),
+        ),
+        isFalse,
+      );
     });
   });
 
   group('isAlreadyExistsError', () {
     test('code 409 → true', () {
-      expect(SecondaryAppwriteService.isAlreadyExistsError(AppwriteException('x', 409)), isTrue);
+      expect(
+        SecondaryAppwriteService.isAlreadyExistsError(
+          AppwriteException('x', 409),
+        ),
+        isTrue,
+      );
     });
 
     test('type document_already_exists → true', () {
       expect(
-        SecondaryAppwriteService.isAlreadyExistsError(AppwriteException('dup', 400, 'document_already_exists')),
+        SecondaryAppwriteService.isAlreadyExistsError(
+          AppwriteException('dup', 400, 'document_already_exists'),
+        ),
         isTrue,
       );
     });
 
     test('type conflict → true', () {
-      expect(SecondaryAppwriteService.isAlreadyExistsError(AppwriteException('c', 400, 'conflict')), isTrue);
+      expect(
+        SecondaryAppwriteService.isAlreadyExistsError(
+          AppwriteException('c', 400, 'conflict'),
+        ),
+        isTrue,
+      );
     });
 
     test('404 ليس already-exists → false', () {
-      expect(SecondaryAppwriteService.isAlreadyExistsError(AppwriteException('missing', 404)), isFalse);
+      expect(
+        SecondaryAppwriteService.isAlreadyExistsError(
+          AppwriteException('missing', 404),
+        ),
+        isFalse,
+      );
     });
   });
 
   group('isRateLimitError', () {
     test('code 429 → true', () {
-      expect(SecondaryAppwriteService.isRateLimitError(AppwriteException('too many', 429)), isTrue);
+      expect(
+        SecondaryAppwriteService.isRateLimitError(
+          AppwriteException('too many', 429),
+        ),
+        isTrue,
+      );
     });
 
     test('type rate_limit → true', () {
-      expect(SecondaryAppwriteService.isRateLimitError(AppwriteException('x', 400, 'rate_limit')), isTrue);
+      expect(
+        SecondaryAppwriteService.isRateLimitError(
+          AppwriteException('x', 400, 'rate_limit'),
+        ),
+        isTrue,
+      );
     });
 
     test('type general_rate_limit_exceeded → true', () {
       expect(
-        SecondaryAppwriteService.isRateLimitError(AppwriteException('x', 400, 'general_rate_limit_exceeded')),
+        SecondaryAppwriteService.isRateLimitError(
+          AppwriteException('x', 400, 'general_rate_limit_exceeded'),
+        ),
         isTrue,
       );
     });
 
     test('404 ليس rate-limit → false', () {
-      expect(SecondaryAppwriteService.isRateLimitError(AppwriteException('missing', 404)), isFalse);
+      expect(
+        SecondaryAppwriteService.isRateLimitError(
+          AppwriteException('missing', 404),
+        ),
+        isFalse,
+      );
     });
   });
 
@@ -112,13 +163,20 @@ void main() {
   group('altDocumentId (تطبيع المعرّف بدون شرطات)', () {
     test('UUID بشرطات → يُزيلها', () {
       expect(
-        SecondaryAppwriteService.altDocumentId('a3069099-8e9c-4291-991e-6aeb60730d17'),
+        SecondaryAppwriteService.altDocumentId(
+          'a3069099-8e9c-4291-991e-6aeb60730d17',
+        ),
         'a30690998e9c4291991e6aeb60730d17',
       );
     });
 
     test('معرّف بلا شرطات → سلسلة فارغة (لا بديل)', () {
-      expect(SecondaryAppwriteService.altDocumentId('a30690998e9c4291991e6aeb60730d17'), '');
+      expect(
+        SecondaryAppwriteService.altDocumentId(
+          'a30690998e9c4291991e6aeb60730d17',
+        ),
+        '',
+      );
     });
 
     test('سلسلة فارغة → فارغة', () {
@@ -133,7 +191,9 @@ void main() {
   group('canonicalDocumentId (سياسة: المستند دائماً بشرطات)', () {
     test('صيغة قديمة بدون شرطات (32 حرف) → تُحوّل إلى شرطات', () {
       expect(
-        SecondaryAppwriteService.canonicalDocumentId('a30690998e9c4291991e6aeb60730d17'),
+        SecondaryAppwriteService.canonicalDocumentId(
+          'a30690998e9c4291991e6aeb60730d17',
+        ),
         'a3069099-8e9c-4291-991e-6aeb60730d17',
       );
     });
@@ -144,18 +204,26 @@ void main() {
     });
 
     test('معرّف غير-UUID (whatsapp_settings) → يبقى كما هو', () {
-      expect(SecondaryAppwriteService.canonicalDocumentId('whatsapp_settings'), 'whatsapp_settings');
+      expect(
+        SecondaryAppwriteService.canonicalDocumentId('whatsapp_settings'),
+        'whatsapp_settings',
+      );
     });
 
     test('مسافات بيضاء تُقتطع', () {
       expect(
-        SecondaryAppwriteService.canonicalDocumentId('  a3069099-8e9c-4291-991e-6aeb60730d17  '),
+        SecondaryAppwriteService.canonicalDocumentId(
+          '  a3069099-8e9c-4291-991e-6aeb60730d17  ',
+        ),
         'a3069099-8e9c-4291-991e-6aeb60730d17',
       );
     });
 
     test('طول غير 32 وبدون شرطات → يبقى كما هو (ليس UUID)', () {
-      expect(SecondaryAppwriteService.canonicalDocumentId('short_id'), 'short_id');
+      expect(
+        SecondaryAppwriteService.canonicalDocumentId('short_id'),
+        'short_id',
+      );
     });
 
     test('canonical ثم alt: يعودان لنفس زوج الصيغتين (ذهاب وإياب)', () {
