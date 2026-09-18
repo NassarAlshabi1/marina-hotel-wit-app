@@ -7,14 +7,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 
 @Composable
 fun DashboardScreen(
-    onNavigate: (String) -> Unit = {}
+    onNavigate: (String) -> Unit = {},
+    viewModel: DashboardViewModel = hiltViewModel()
 ) {
+    val state by viewModel.dashboardState
+    LaunchedEffect(Unit) { viewModel.loadDashboardData() }
+
     MarinaTheme {
         Scaffold(
             containerColor = AppColors.BackgroundColor,
@@ -45,6 +50,36 @@ fun DashboardScreen(
                     style = AppTypography.bodyLarge,
                     color = AppColors.TextSecondary
                 )
+
+                when {
+                    state.isLoading -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    state.error != null -> Text(
+                        text = "تعذر تحميل البيانات: ${state.error}",
+                        style = AppTypography.bodyMedium,
+                        color = AppColors.DangerColor
+                    )
+                    state.isDataLoaded -> Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        StatCard(
+                            label = "الحجوزات النشطة",
+                            value = state.activeBookings.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatCard(
+                            label = "نسبة الإشغال",
+                            value = "${(state.occupancyRate * 100).toInt()}%",
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatCard(
+                            label = "ديون معلقة",
+                            value = state.pendingDebts.toString(),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Quick action cards
@@ -100,6 +135,29 @@ fun DashboardScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun StatCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = value, style = AppTypography.headlineSmall, fontWeight = FontWeight.Bold, color = AppColors.PrimaryColor)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = label, style = AppTypography.bodySmall, color = AppColors.TextSecondary)
         }
     }
 }

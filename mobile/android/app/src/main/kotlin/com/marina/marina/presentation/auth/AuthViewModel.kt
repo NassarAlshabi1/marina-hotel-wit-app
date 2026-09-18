@@ -1,16 +1,13 @@
 package com.marina.marina.presentation.auth
 
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.*
-import com.marina.marina.data.SyncPreferences
-import com.marina.marina.data.CloudflareSyncService
-import com.marina.marina.domain.AuthUser
+import com.marina.marina.data.remote.SyncPreferences
+import com.marina.marina.data.remote.CloudflareSyncService
+import com.marina.marina.domain.model.AuthUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,9 +20,6 @@ class AuthViewModel @Inject constructor(
 
     private val _authState = MutableStateFlow<AuthState>(AuthState(isAuthenticated = false, isRestoring = true))
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
-
-    var loginError by mutableStateOf<String?>(null)
-        private set
 
     init {
         restoreSession()
@@ -54,8 +48,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun login(username: String, password: String) {
-        _authState.value = _authState.value.copy(isRestoring = true)
-        loginError = null
+        _authState.value = _authState.value.copy(isRestoring = true, error = null)
 
         viewModelScope.launch {
             val result = syncService.login(username, password)
@@ -76,8 +69,11 @@ class AuthViewModel @Inject constructor(
                     rememberMe = true
                 )
             }.onFailure { error ->
-                loginError = error.message ?: "Login failed"
-                _authState.value = AuthState(isAuthenticated = false, isRestoring = false)
+                _authState.value = AuthState(
+                    isAuthenticated = false,
+                    isRestoring = false,
+                    error = error.message ?: "Login failed"
+                )
             }
         }
     }

@@ -3,15 +3,17 @@ package com.marina.marina.presentation.dashboard
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.marina.marina.domain.repository.BookingsRepository
+import com.marina.marina.domain.repository.DebtsRepository
+import com.marina.marina.domain.repository.EmployeesRepository
+import com.marina.marina.domain.repository.ExpensesRepository
+import com.marina.marina.domain.repository.PaymentsRepository
+import com.marina.marina.domain.repository.RoomsRepository
+import com.marina.marina.domain.util.StatusUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import com.marina.marina.data.RoomsRepository
-import com.marina.marina.data.BookingsRepository
-import com.marina.marina.data.PaymentsRepository
-import com.marina.marina.data.EmployeesRepository
-import com.marina.marina.data.ExpensesRepository
-import com.marina.marina.data.DebtsRepository
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
@@ -23,36 +25,33 @@ class DashboardViewModel @Inject constructor(
     private val debtsRepository: DebtsRepository
 ) : ViewModel() {
 
-    private val _dashboardState = mutableStateOf<DashboardState>(DashboardState())
+    private val _dashboardState = mutableStateOf(DashboardState())
     val dashboardState = _dashboardState
-
-    private val _totalIncome = mutableStateOf(0.0)
-    val totalIncome = _totalIncome
-
-    private val _totalExpenses = mutableStateOf(0.0)
-    val totalExpenses = _totalExpenses
-
-    private val _occupancyRate = mutableStateOf(0.0)
-    val occupancyRate = _occupancyRate
-
-    private val _activeBookings = mutableStateOf(0)
-    val activeBookings = _activeBookings
-
-    private val _pendingDebts = mutableStateOf(0)
-    val pendingDebts = _pendingDebts
 
     fun loadDashboardData() {
         viewModelScope.launch {
-            _dashboardState.value = DashboardState(isLoading = true)
+            _dashboardState.value = _dashboardState.value.copy(isLoading = true, error = null)
             try {
-                // Load summary data from repositories
-                val rooms = roomsRepository.getAll().let { flow ->
-                    // Collect first emission
-                    emptyList<com.marina.marina.data.Room>()
-                }
-                _dashboardState.value = DashboardState(isLoading = false, isDataLoaded = true)
+                val rooms = roomsRepository.getAll().first()
+                val bookings = bookingsRepository.getAll().first()
+                val payments = paymentsRepository.getAll().first()
+                val expenses = expensesRepository.getAll().first()
+                val unsettledDebts = debtsRepository.getUnsettled().first()
+
+                val occupiedRooms = rooms.count { StatusUtils.isRoomOccupied(it.status) }
+                val activeBookings = bookings.count { StatusUtils.isBookingActive(it.status) }
+
+                _dashboardState.value = DashboardState(
+                    isLoading = false,
+                    isDataLoaded = true,
+                    totalIncome = payments.filter { !it.isVoided }.sumOf { it.amount },
+                    totalExpenses = expenses.sumOf { it.amount },
+                    occupancyRate = if (rooms.isEmpty()) 0.0 else occupiedRooms.toDouble() / rooms.size,
+                    activeBookings = activeBookings,
+                    pendingDebts = unsettledDebts.size
+                )
             } catch (e: Exception) {
-                _dashboardState.value = DashboardState(isLoading = false, error = e.message)
+                _dashboardState.value = _dashboardState.value.copy(isLoading = false, error = e.message)
             }
         }
     }
@@ -61,5 +60,10 @@ class DashboardViewModel @Inject constructor(
 data class DashboardState(
     val isLoading: Boolean = false,
     val isDataLoaded: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val totalIncome: Double = 0.0,
+    val totalExpenses: Double = 0.0,
+    val occupancyRate: Double = 0.0,
+    val activeBookings: Int = 0,
+    val pendingDebts: Int = 0
 )

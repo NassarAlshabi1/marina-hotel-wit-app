@@ -2,7 +2,7 @@ package com.marina.marina.di
 
 import android.content.Context
 import androidx.room.Room
-import com.marina.marina.data.AppDatabase
+import com.marina.marina.data.local.AppDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
