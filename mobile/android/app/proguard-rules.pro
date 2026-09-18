@@ -1,50 +1,46 @@
-# ──────────────────────────────────────────────
-# ProGuard / R8 rules — Marina Hotel
-# ──────────────────────────────────────────────
+# ProGuard rules for Marina Hotel Kotlin app
 
-# Flutter engine + embedding
--keep class io.flutter.** { *; }
--keep class io.flutter.plugins.** { *; }
--keep class io.flutter.embedding.** { *; }
+# Hilt
+-keep class dagger.hilt.internal.** { *; }
+-keep class dagger.hilt.android.** { *; }
+-keep class androidx.hilt.** { *; }
+-keep class com.marina.marina.di.** { *; }
+-keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper
 
-# ✅ Play Core (referenced by FlutterPlayStoreSplitApplication)
-# R8 يفشل بدون هذه القواعد لأن Play Core classes غير موجودة في classpath
--dontwarn com.google.android.play.core.**
--keep class com.google.android.play.core.** { *; }
+# Keep Room database, entities and generated implementations
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.DatabaseView class * { *; }
+-keepclassmembers class * extends androidx.room.RoomDatabase { *; }
+-keepclassmembers class *_Impl { *; }
+-keep class androidx.room.paging.** { *; }
 
-# AndroidX Lifecycle (used by many plugins)
--keep class androidx.lifecycle.DefaultLifecycleObserver
--keep class androidx.lifecycle.FullLifecycleObserver
+# Keep Kotlin coroutines
+-dontwarn kotlinx.coroutines.**
+-keepclassmembers class kotlinx.coroutines.internal.MainDispatcherFactory { *; }
+-keepclassmembers class kotlinx.coroutines.android.AndroidDispatcherFactory { *; }
+-dontwarn kotlinx.coroutines.internal.MainDispatcherConfigurer
 
-# Firebase
--keep class com.google.firebase.** { *; }
--keep class com.google.android.gms.** { *; }
--dontwarn com.google.firebase.**
--dontwarn com.google.android.gms.**
+# Keep model / DTO classes for Gson (reflection-based) serialization
+-keep class com.marina.marina.data.** { *; }
+-keep class com.marina.marina.domain.** { *; }
+-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
+-keep class * implements com.google.gson.JsonDeserializer
+-keep class * implements com.google.gson.JsonSerializer
 
-# Appwrite
--keep class io.appwrite.** { *; }
--dontwarn io.appwrite.**
-
-# OkHttp / Dio (networking)
--keep class okhttp3.** { *; }
--keep class okio.** { *; }
+# Keep Retrofit API interfaces
+-keep,allowobfuscation,allowshrinking interface retrofit2.Call
+-keep,allowshrinking,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}
+-dontwarn retrofit2.**
 -dontwarn okhttp3.**
 -dontwarn okio.**
 
-# Keep serialization metadata
--keepattributes Exceptions, InnerClasses, Signature, Deprecated, SourceFile, LineNumberTable, *Annotation*, EnclosingMethod, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+# Keep Compose runtime (needed for reflection-based tooling / previews)
+-keep class androidx.compose.runtime.** { *; }
+-keep class androidx.compose.ui.** { *; }
 
-# Keep Kotlin metadata for reflection
--keep class kotlin.Metadata { *; }
-
-# Drift / SQLite runtime (reflection-based)
--keep class **.g.** { *; }
--keep class **.freezed.** { *; }
--dontwarn java.lang.ClassValue
-
-# Suppress warnings for optional dependencies
--dontwarn org.jetbrains.annotations.**
+# Suppress noisy warnings from optional/annotation-only dependencies
 -dontwarn javax.annotation.**
--dontwarn kotlin.**
--dontwarn com.google.errorprone.**
+-dontwarn org.checkerframework.**
