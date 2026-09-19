@@ -246,15 +246,24 @@ jobs:
           retention-days: 30
           compression-level: 0
 
-  # Runs the REAL release APKs on a real Android emulator (macOS ARM runner
-  # provides hardware acceleration) and captures logcat + the AndroidRuntime
-  # stack trace if the app crashes at open — reproducing the user-reported
-  # "app closes instantly" symptom inside CI, with hard evidence.
+  # Runs the REAL release APKs on a real Android emulator and captures the
+  # AndroidRuntime stack trace if the app crashes at open — reproducing the
+  # user-reported "app closes instantly" symptom inside CI, with hard
+  # evidence.
+  #
+  # NOTE: GitHub's macOS runners no longer expose HVF (Hypervisor.framework),
+  # so the emulator is booted manually with -no-accel (TCG). Same-arch
+  # aarch64-on-aarch64 TCG boots in ~6-15 min, well within the 45-min
+  # timeout. We manage the boot wait ourselves instead of using
+  # reactivecircus/android-emulator-runner (whose internal ~10-min boot
+  # timeout is too tight for TCG).
   launch-test:
     name: Launch APKs on emulator (crash logcat capture)
     needs: build
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 50
+    env:
+      EMU_LOG: emulator-boot.log
     steps:
       - name: Download minified release APK
         uses: actions/download-artifact@v4
@@ -268,47 +277,84 @@ jobs:
           name: marina-hotel-release-unminified-apk
           path: apk-unminified
 
-      - name: Boot emulator, install and launch both APKs
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          arch: arm64-v8a
-          target: default
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          disable-animations: true
-          script: |
-            set -x
-            install_and_launch() {
-              VARIANT="$1"; APK="$2"
-              echo "=== [$VARIANT] installing $APK ==="
-              adb install -r "$APK"
-              adb logcat -c
-              adb shell am start -W -n com.a.a/com.marina.marina.MainActivity
-              sleep 25
-              PID="$(adb shell pidof com.a.a | tr -d '\r')"
-              echo "[$VARIANT] pid after 25s: '${PID}'"
-              if [ -z "$PID" ]; then
-                echo "[$VARIANT] !!! APP CRASHED ON LAUNCH !!!"
-                adb logcat -d -s AndroidRuntime:E > "crash-${VARIANT}.txt" || true
-              fi
-              adb logcat -d > "logcat-${VARIANT}.txt" || true
-              # Relaunch once to surface second-open crash patterns.
-              adb shell am start -W -n com.a.a/com.marina.marina.MainActivity || true
-              sleep 8
-              PID2="$(adb shell pidof com.a.a | tr -d '\r')"
-              echo "[$VARIANT] pid after relaunch: '${PID2}'"
-              if [ -z "$PID2" ]; then
-                adb logcat -d -s AndroidRuntime:E >> "crash-${VARIANT}.txt" || true
-              fi
-              adb uninstall com.a.a || true
-            }
-            install_and_launch minified apk-minified/app-release.apk
-            install_and_launch unminified apk-unminified/app-release.apk
-            if [ -s crash-minified.txt ] || [ -s crash-unminified.txt ]; then
-              echo "::error::APP CRASH DETECTED — see emulator-launch-logs artifact"
-              exit 1
+      - name: Install emulator + ARM64 system image
+        run: |
+          set -e
+          export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            'system-images;android-30;default;arm64-v8a' 'emulator' 'platform-tools' > /dev/null
+
+      - name: Create AVD
+        run: |
+          set -e
+          export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
+            --force -n marina-test --package 'system-images;android-30;default;arm64-v8a'
+
+      - name: Boot emulator (TCG) and launch both APKs
+        run: |
+          set -x
+          export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
+          export PATH="$ANDROID_HOME/platform-tools:$PATH"
+
+          # Boot in the background with software acceleration (TCG).
+          nohup "$ANDROID_HOME/emulator/emulator" -avd marina-test -port 5554 \
+            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim \
+            -no-snapshot -no-accel > "$EMU_LOG" 2>&1 &
+
+          # Wait up to 30 minutes for full boot.
+          BOOTED=0
+          for i in $(seq 1 180); do
+            BOOT="$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+            if [ "$BOOT" = "1" ]; then
+              echo "EMULATOR BOOTED after ~$((i*10))s"
+              BOOTED=1
+              break
             fi
-            echo "BOTH VARIANTS LAUNCHED SUCCESSFULLY"
+            sleep 10
+          done
+          if [ "$BOOTED" != "1" ]; then
+            echo "::error::Emulator failed to boot within 30 min"
+            tail -80 "$EMU_LOG"
+            exit 1
+          fi
+
+          sleep 10  # let the launcher settle
+
+          install_and_launch() {
+            VARIANT="$1"; APK="$2"
+            echo "=== [$VARIANT] installing $APK ==="
+            adb -s emulator-5554 install -r "$APK"
+            adb -s emulator-5554 logcat -c
+            adb -s emulator-5554 shell am start -W -n com.a.a/com.marina.marina.MainActivity
+            sleep 25
+            PID="$(adb -s emulator-5554 shell pidof com.a.a | tr -d '\r')"
+            echo "[$VARIANT] pid after 25s: '${PID}'"
+            if [ -z "$PID" ]; then
+              echo "[$VARIANT] !!! APP CRASHED ON LAUNCH !!!"
+              adb -s emulator-5554 logcat -d -s AndroidRuntime:E > "crash-${VARIANT}.txt" || true
+            fi
+            adb -s emulator-5554 logcat -d > "logcat-${VARIANT}.txt" || true
+            # Relaunch once to surface second-open crash patterns.
+            adb -s emulator-5554 shell am start -W -n com.a.a/com.marina.marina.MainActivity || true
+            sleep 8
+            PID2="$(adb -s emulator-5554 shell pidof com.a.a | tr -d '\r')"
+            echo "[$VARIANT] pid after relaunch: '${PID2}'"
+            if [ -z "$PID2" ]; then
+              adb -s emulator-5554 logcat -d -s AndroidRuntime:E >> "crash-${VARIANT}.txt" || true
+            fi
+            adb -s emulator-5554 uninstall com.a.a || true
+          }
+
+          install_and_launch minified apk-minified/app-release.apk
+          install_and_launch unminified apk-unminified/app-release.apk
+
+          if [ -s crash-minified.txt ] || [ -s crash-unminified.txt ]; then
+            echo "::error::APP CRASH DETECTED — see emulator-launch-logs artifact"
+            exit 1
+          fi
+          echo "BOTH VARIANTS LAUNCHED SUCCESSFULLY"
 
       - name: Upload emulator logs
         if: always()
@@ -318,5 +364,6 @@ jobs:
           path: |
             logcat-*.txt
             crash-*.txt
+            emulator-boot.log
           if-no-files-found: ignore
           retention-days: 30
