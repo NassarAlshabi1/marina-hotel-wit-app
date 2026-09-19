@@ -1,0 +1,122 @@
+package com.marina.marina.presentation.expenses
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.marina.marina.domain.model.Expense
+import com.marina.marina.domain.repository.EmployeesRepository
+import com.marina.marina.domain.repository.ExpensesRepository
+import com.marina.marina.domain.repository.SalaryWithdrawalsRepository
+import com.marina.marina.domain.util.HotelTimeEngine
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+
+data class ExpensesUiState(
+    val isLoading: Boolean = false,
+    val expenses: List<Expense> = emptyList(),
+    val employeeNames: Map<Long, String> = emptyMap(),
+    val searchQuery: String = "",
+    val typeFilter: String = "today", // today (hotel day) | week | month | all
+    val error: String? = null,
+    val message: String? = null
+) {
+    private val todayKey: String = HotelTimeEngine.currentHotelDayKey()
+
+    val filtered: List<Expense>
+        get() {
+            var list = expenses
+            when (typeFilter) {
+                "today" -> list = list.filter { it.hotelDayKey == todayKey }
+                "week" -> {
+                    // hotel-day keys sort lexicographically; compare the last 7 keys.
+                    val recentKeys = generateSequence(todayKey) { key ->
+                        HotelTimeEngine.parseDate(key)?.let { millis ->
+                            HotelTimeEngine.hotelDayKey(millis - 24L * 60 * 60 * 1000)
+                        }
+                    }.take(7).toSet()
+                    list = list.filter { it.hotelDayKey in recentKeys }
+                }
+                "month" -> {
+                    val prefix = todayKey.take(7)
+                    list = list.filter { (it.hotelDayKey ?: "").startsWith(prefix) }
+                }
+            }
+            val q = searchQuery.trim()
+            if (q.isNotBlank()) {
+                list = list.filter {
+                    it.expenseType.contains(q, ignoreCase = true) ||
+                        it.description.contains(q, ignoreCase = true)
+                }
+            }
+            return list
+        }
+
+    val filteredTotal: Double get() = filtered.sumOf { it.amount }
+    val availableTypes: List<String> get() = expenses.map { it.expenseType }.distinct().sorted()
+
+    val todayTotal: Double get() = expenses.filter { it.hotelDayKey == todayKey }.sumOf { it.amount }
+}
+
+@HiltViewModel
+class ExpensesViewModel @Inject constructor(
+    private val expensesRepository: ExpensesRepository,
+    private val employeesRepository: EmployeesRepository,
+    private val salaryWithdrawalsRepository: SalaryWithdrawalsRepository
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(ExpensesUiState(isLoading = true))
+    val state: StateFlow<ExpensesUiState> = _state.asStateFlow()
+
+    init {
+        combine(expensesRepository.getAll(), employeesRepository.getAll()) { expenses, employees ->
+            expenses to employees.associate { it.id to it.name }
+        }.onEach { (expenses, names) ->
+            _state.value = _state.value.copy(isLoading = false, expenses = expenses, employeeNames = names, error = null)
+        }.launchIn(viewModelScope)
+    }
+
+    fun setSearchQuery(query: String) {
+        _state.value = _state.value.copy(searchQuery = query)
+    }
+
+    fun setTypeFilter(filter: String) {
+        _state.value = _state.value.copy(typeFilter = filter)
+    }
+
+    fun consumeMessage() {
+        _state.value = _state.value.copy(message = null)
+    }
+
+    fun saveExpense(expense: Expense) {
+        viewModelScope.launch {
+            try {
+                if (expense.id == 0L) {
+                    expensesRepository.insert(expense)
+                    _state.value = _state.value.copy(message = "تمت إضافة المصروف")
+                } else {
+                    expensesRepository.update(expense)
+                    _state.value = _state.value.copy(message = "تم تحديث المصروف")
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(error = e.message)
+            }
+        }
+    }
+
+    fun deleteExpense(expense: Expense) {
+        viewModelScope.launch {
+            try {
+                expensesRepository.softDelete(expense.id)
+                _state.value = _state.value.copy(message = "تم حذف المصروف")
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(error = e.message)
+            }
+        }
+    }
+}

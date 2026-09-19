@@ -1,6 +1,10 @@
 package com.marina.marina.presentation.dashboard
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -82,57 +86,36 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Quick action cards
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                // Quick action cards (all destinations, 4-column grid).
+                val quickActions = listOf(
+                    "الغرف" to "rooms",
+                    "الحجوزات" to "bookings",
+                    "المدفوعات" to "payments",
+                    "الديون" to "debts",
+                    "الموظفون" to "employees",
+                    "المصروفات" to "expenses",
+                    "الصندوق" to "finance",
+                    "التقارير" to "reports",
+                    "المخزون" to "inventory",
+                    "الملاحظات" to "notes",
+                    "المعلومية" to "information",
+                    "المساعد الذكي" to "ai_chat",
+                    "الإعدادات" to "settings"
+                )
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(4),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f)
                 ) {
-                    ActionCard(
-                        title = "الغرف",
-                        icon = "\uD83C\uDFE9",
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigate("rooms") }
-                    )
-                    ActionCard(
-                        title = "الحجز",
-                        icon = "\uD83D\uDCDD",
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigate("bookings") }
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ActionCard(
-                        title = "المدفوعات",
-                        icon = "\uD83D\uDCB0",
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigate("payments") }
-                    )
-                    ActionCard(
-                        title = "الديون",
-                        icon = "\uD83D\uDCB3",
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigate("debts") }
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ActionCard(
-                        title = "ال موظفون",
-                        icon = "\uD83D\uDC65",
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigate("employees") }
-                    )
-                    ActionCard(
-                        title = "المصروفات",
-                        icon = "\uD83D\uDCB5",
-                        modifier = Modifier.weight(1f),
-                        onClick = { onNavigate("expenses") }
-                    )
+                    items(quickActions) { (title, route) ->
+                        ActionCard(
+                            title = title,
+                            icon = "•",
+                            modifier = Modifier,
+                            onClick = { onNavigate(route) }
+                        )
+                    }
                 }
             }
         }

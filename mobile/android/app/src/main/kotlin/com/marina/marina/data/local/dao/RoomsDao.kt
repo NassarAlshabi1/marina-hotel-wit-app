@@ -39,4 +39,7 @@ interface RoomsDao {
 
     @Query("DELETE FROM rooms WHERE id = :id")
     suspend fun delete(id: Long)
+    @Query("SELECT * FROM rooms WHERE local_uuid = :localUuid LIMIT 1")
+    suspend fun getByLocalUuid(localUuid: String): RoomEntity?
+
 }

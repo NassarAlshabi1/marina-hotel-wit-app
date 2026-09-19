@@ -33,4 +33,7 @@ interface EmployeesDao {
 
     @Query("UPDATE employees SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
+    @Query("SELECT * FROM employees WHERE local_uuid = :localUuid LIMIT 1")
+    suspend fun getByLocalUuid(localUuid: String): EmployeeEntity?
+
 }

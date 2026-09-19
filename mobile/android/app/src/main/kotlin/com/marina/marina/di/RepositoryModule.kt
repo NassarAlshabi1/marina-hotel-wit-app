@@ -4,14 +4,20 @@ import com.marina.marina.data.repository.BookingsRepositoryImpl
 import com.marina.marina.data.repository.DebtsRepositoryImpl
 import com.marina.marina.data.repository.EmployeesRepositoryImpl
 import com.marina.marina.data.repository.ExpensesRepositoryImpl
+import com.marina.marina.data.repository.InventoryRepositoryImpl
 import com.marina.marina.data.repository.PaymentsRepositoryImpl
 import com.marina.marina.data.repository.RoomsRepositoryImpl
+import com.marina.marina.data.repository.SalaryWithdrawalsRepositoryImpl
+import com.marina.marina.data.repository.ShiftNotesRepositoryImpl
 import com.marina.marina.domain.repository.BookingsRepository
 import com.marina.marina.domain.repository.DebtsRepository
 import com.marina.marina.domain.repository.EmployeesRepository
 import com.marina.marina.domain.repository.ExpensesRepository
+import com.marina.marina.domain.repository.InventoryRepository
 import com.marina.marina.domain.repository.PaymentsRepository
 import com.marina.marina.domain.repository.RoomsRepository
+import com.marina.marina.domain.repository.SalaryWithdrawalsRepository
+import com.marina.marina.domain.repository.ShiftNotesRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -50,4 +56,16 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindDebtsRepository(impl: DebtsRepositoryImpl): DebtsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindShiftNotesRepository(impl: ShiftNotesRepositoryImpl): ShiftNotesRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindInventoryRepository(impl: InventoryRepositoryImpl): InventoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSalaryWithdrawalsRepository(impl: SalaryWithdrawalsRepositoryImpl): SalaryWithdrawalsRepository
 }

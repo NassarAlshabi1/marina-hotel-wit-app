@@ -30,4 +30,7 @@ interface ExpensesDao {
 
     @Query("UPDATE expenses SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
+    @Query("SELECT * FROM expenses WHERE local_uuid = :localUuid LIMIT 1")
+    suspend fun getByLocalUuid(localUuid: String): ExpenseEntity?
+
 }

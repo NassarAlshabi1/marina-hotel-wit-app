@@ -7,9 +7,11 @@ import com.marina.marina.data.local.dao.BookingsDao
 import com.marina.marina.data.local.dao.DebtsDao
 import com.marina.marina.data.local.dao.EmployeesDao
 import com.marina.marina.data.local.dao.ExpensesDao
+import com.marina.marina.data.local.dao.InventoryDao
 import com.marina.marina.data.local.dao.OutboxDao
 import com.marina.marina.data.local.dao.PaymentsDao
 import com.marina.marina.data.local.dao.RoomsDao
+import com.marina.marina.data.local.dao.SalaryWithdrawalsDao
 import com.marina.marina.data.local.dao.ShiftNotesDao
 import com.marina.marina.data.local.entity.BookingEntity
 import com.marina.marina.data.local.entity.BookingNoteEntity
@@ -17,9 +19,12 @@ import com.marina.marina.data.local.entity.CashTransactionEntity
 import com.marina.marina.data.local.entity.DebtEntity
 import com.marina.marina.data.local.entity.EmployeeEntity
 import com.marina.marina.data.local.entity.ExpenseEntity
+import com.marina.marina.data.local.entity.InventoryItemEntity
+import com.marina.marina.data.local.entity.InventoryTransactionEntity
 import com.marina.marina.data.local.entity.OutboxEntity
 import com.marina.marina.data.local.entity.PaymentEntity
 import com.marina.marina.data.local.entity.RoomEntity
+import com.marina.marina.data.local.entity.SalaryWithdrawalEntity
 import com.marina.marina.data.local.entity.ShiftNoteEntity
 import com.marina.marina.data.local.entity.SyncStateEntity
 
@@ -35,9 +40,12 @@ import com.marina.marina.data.local.entity.SyncStateEntity
         DebtEntity::class,
         ShiftNoteEntity::class,
         OutboxEntity::class,
-        SyncStateEntity::class
+        SyncStateEntity::class,
+        InventoryItemEntity::class,
+        InventoryTransactionEntity::class,
+        SalaryWithdrawalEntity::class
     ],
-    version = 67,
+    version = 68,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -50,9 +58,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun bookingNotesDao(): BookingNotesDao
     abstract fun shiftNotesDao(): ShiftNotesDao
     abstract fun outboxDao(): OutboxDao
+    abstract fun inventoryDao(): InventoryDao
+    abstract fun salaryWithdrawalsDao(): SalaryWithdrawalsDao
 
     companion object {
         const val DATABASE_NAME = "marina_hotel.db"
-        const val SCHEMA_VERSION = 67
+        const val SCHEMA_VERSION = 68
     }
 }

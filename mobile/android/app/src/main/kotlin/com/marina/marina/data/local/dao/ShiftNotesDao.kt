@@ -24,4 +24,7 @@ interface ShiftNotesDao {
 
     @Query("UPDATE shift_notes SET is_read = 1 WHERE id = :id")
     suspend fun markRead(id: Long): Int
+
+    @Query("DELETE FROM shift_notes WHERE id = :id")
+    suspend fun delete(id: Long): Int
 }

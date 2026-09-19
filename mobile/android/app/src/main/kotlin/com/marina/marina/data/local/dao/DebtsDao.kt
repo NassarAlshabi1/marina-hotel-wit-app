@@ -27,4 +27,10 @@ interface DebtsDao {
 
     @Query("UPDATE debts SET paid_amount = :paidAmount, remaining_amount = :remainingAmount, is_settled = :isSettled WHERE id = :id")
     suspend fun updateSettlement(id: Long, paidAmount: Double, remainingAmount: Double, isSettled: Int): Int
+
+    @Query("UPDATE debts SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
+    suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
+    @Query("SELECT * FROM debts WHERE local_uuid = :localUuid LIMIT 1")
+    suspend fun getByLocalUuid(localUuid: String): DebtEntity?
+
 }

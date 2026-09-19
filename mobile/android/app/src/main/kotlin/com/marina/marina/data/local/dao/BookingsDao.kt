@@ -42,4 +42,7 @@ interface BookingsDao {
 
     @Query("DELETE FROM bookings WHERE id = :id")
     suspend fun delete(id: Long)
+    @Query("SELECT * FROM bookings WHERE local_uuid = :localUuid LIMIT 1")
+    suspend fun getByLocalUuid(localUuid: String): BookingEntity?
+
 }

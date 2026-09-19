@@ -61,4 +61,12 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideOutboxDao(db: AppDatabase) = db.outboxDao()
+
+    @Provides
+    @Singleton
+    fun provideInventoryDao(db: AppDatabase) = db.inventoryDao()
+
+    @Provides
+    @Singleton
+    fun provideSalaryWithdrawalsDao(db: AppDatabase) = db.salaryWithdrawalsDao()
 }
