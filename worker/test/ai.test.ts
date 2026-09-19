@@ -292,3 +292,191 @@ describe('ai: validation and failure modes', () => {
     expect(body.error).toContain('تحليل');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  Analytics (occupancy / bookings) + bilingual status regression
+//  Production D1 holds the Arabic status forms ('شاغرة'/'محجوزة') —
+//  every filter must accept both languages.
+// ═══════════════════════════════════════════════════════════════
+
+const today = new Date().toISOString().slice(0, 10);
+const dayAt = (offset: number) => {
+  const d = new Date(`${today}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+};
+
+const seedStay = (uuid: string, room: string, guest: string, status: string, opts: { checkin: string; checkout?: string | null; nights: number; due: number; paid: number }) =>
+  env.DB.prepare(
+    `INSERT INTO bookings (local_uuid, room_number, guest_name, guest_phone, guest_nationality, checkin_date, checkout_date, status, calculated_nights, total_due_cached, total_paid_cached, remaining_balance_cached, created_at, updated_at, last_modified)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`,
+  ).bind(uuid, room, guest, '777000', 'يمني', opts.checkin, opts.checkout ?? null, status, opts.nights, opts.due, opts.paid, Math.max(opts.due - opts.paid, 0), 1700000000, 1700000000).run();
+
+const seedPayment = (uuid: string, amount: number, paymentDate: string) =>
+  env.DB.prepare(
+    `INSERT INTO payments (local_uuid, amount, payment_date, payment_method, revenue_type, created_at, updated_at, last_modified)
+     VALUES (?,?,?,?,?,?,?,0)`,
+  ).bind(uuid, amount, paymentDate, 'نقدي', 'إيراد', 1700000000, 1700000000).run();
+
+describe('ai: bilingual statuses (production regression)', () => {
+  it('rooms_available matches both Arabic and English vacant statuses', async () => {
+    await seedRoom(uniqueUuid('r1'), '101', 'شاغرة');
+    await seedRoom(uniqueUuid('r2'), '102', 'available');
+    await seedRoom(uniqueUuid('r3'), '103', 'محجوزة');
+    await seedRoom(uniqueUuid('r4'), '104', 'occupied');
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'الغرف الشاغرة' }),
+      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'rooms_available', explanation: 'x' }) },
+      'employee',
+    );
+    const body = (await res.json()) as { rows: Array<{ room_number: string }> };
+    expect(body.rows.map((r) => r.room_number)).toEqual(['101', '102']);
+  });
+
+  it('current_guests matches the Arabic active booking status', async () => {
+    await seedStay(uniqueUuid('b1'), '201', 'سالم', 'محجوزة', { checkin: dayAt(-2), checkout: dayAt(3), nights: 5, due: 50000, paid: 20000 });
+    await seedStay(uniqueUuid('b2'), '202', 'مكتمل ضيف', 'مكتمل', { checkin: dayAt(-10), checkout: dayAt(-5), nights: 5, due: 50000, paid: 50000 });
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'من النزلاء الموجودين؟' }),
+      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'current_guests', explanation: 'x' }) },
+      'employee',
+    );
+    const body = (await res.json()) as { rows: Array<{ guest_name: string }> };
+    expect(body.rows).toHaveLength(1);
+    expect(body.rows[0]?.guest_name).toBe('سالم');
+  });
+});
+
+describe('ai: occupancy and booking analytics', () => {
+  it('occupancy_summary reports totals, percentage and arrivals today', async () => {
+    await seedRoom(uniqueUuid('r1'), '101', 'شاغرة');
+    await seedRoom(uniqueUuid('r2'), '102', 'شاغرة');
+    await seedRoom(uniqueUuid('r3'), '103', 'محجوزة');
+    await seedRoom(uniqueUuid('r4'), '104', 'محجوزة');
+    await seedRoom(uniqueUuid('r5'), '105', 'محجوزة', true); // deleted — excluded
+    await seedStay(uniqueUuid('b1'), '103', 'نزيل قديم', 'محجوزة', { checkin: dayAt(-3), checkout: dayAt(2), nights: 5, due: 100, paid: 0 });
+    await seedStay(uniqueUuid('b2'), '104', 'واصل اليوم', 'محجوزة', { checkin: today, checkout: dayAt(2), nights: 2, due: 100, paid: 0 });
+    await seedStay(uniqueUuid('b3'), '105', 'ملغي', 'ملغي', { checkin: today, checkout: dayAt(2), nights: 2, due: 100, paid: 0 });
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'ما نسبة الإشغال الحالية؟' }),
+      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'occupancy_summary', explanation: 'x' }) },
+      'employee',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { rows: Array<{ total_rooms: number; occupied_rooms: number; available_rooms: number; occupancy_pct: number; active_bookings: number; arrivals_today: number }>; answer: string };
+    expect(body.rows).toHaveLength(1);
+    const summary = body.rows[0]!;
+    expect(summary.total_rooms).toBe(4);
+    expect(summary.occupied_rooms).toBe(2);
+    expect(summary.available_rooms).toBe(2);
+    expect(summary.occupancy_pct).toBe(50);
+    expect(summary.active_bookings).toBe(2);
+    expect(summary.arrivals_today).toBe(1);
+    expect(body.answer).toContain('50%');
+  });
+
+  it('occupancy_trend merges daily occupancy with revenue and expenses', async () => {
+    await seedRoom(uniqueUuid('r1'), '101', 'شاغرة');
+    await seedRoom(uniqueUuid('r2'), '102', 'شاغرة');
+    await seedStay(uniqueUuid('b1'), '101', 'نزيل', 'محجوزة', { checkin: dayAt(-2), checkout: today, nights: 2, due: 30000, paid: 0 });
+    await seedPayment(uniqueUuid('p1'), 15000, `${dayAt(-1)}T10:00:00`);
+    await seedExpense(uniqueUuid('e1'), 'ديزل', 5000, dayAt(-1));
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'اتجاه الإشغال' }),
+      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'occupancy_trend', dateFrom: dayAt(-2), dateTo: today, explanation: 'x' }) },
+      'employee',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { rows: Array<{ date: string; occupied_rooms: number; occupancy_pct: number; bookings: number; revenue: number; expenses: number }>; answer: string };
+    expect(body.rows).toHaveLength(3);
+    const byDate = new Map(body.rows.map((r) => [r.date, r]));
+    // Checkout is today → the stay covers dayAt(-2) and dayAt(-1); today is free
+    expect(byDate.get(dayAt(-2))?.occupied_rooms).toBe(1);
+    expect(byDate.get(dayAt(-1))?.occupied_rooms).toBe(1);
+    expect(byDate.get(today)?.occupied_rooms).toBe(0);
+    expect(byDate.get(dayAt(-2))?.occupancy_pct).toBe(50);
+    expect(byDate.get(dayAt(-1))?.revenue).toBe(15000);
+    expect(byDate.get(dayAt(-1))?.expenses).toBe(5000);
+    expect(body.answer).toContain('اتجاه الإشغال');
+  });
+
+  it('booking_analysis reports per-day arrivals, expected revenue and departures', async () => {
+    await seedStay(uniqueUuid('b1'), '101', 'نزيل 1', 'محجوزة', { checkin: dayAt(-2), checkout: dayAt(-1), nights: 1, due: 10000, paid: 10000 });
+    await seedStay(uniqueUuid('b2'), '102', 'نزيل 2', 'محجوزة', { checkin: dayAt(-1), checkout: dayAt(1), nights: 2, due: 20000, paid: 0 });
+    await seedStay(uniqueUuid('b3'), '103', 'قديم', 'مكتمل', { checkin: dayAt(-20), checkout: dayAt(-2), nights: 18, due: 5000, paid: 5000 });
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'حلل الحجوزات' }),
+      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'booking_analysis', dateFrom: dayAt(-3), dateTo: today, explanation: 'x' }) },
+      'manager',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { rows: Array<{ date: string; bookings: number; rooms_booked: number }>; answer: string };
+    expect(body.rows).toHaveLength(2);
+    const byDate = new Map(body.rows.map((r) => [r.date, r]));
+    expect(byDate.get(dayAt(-2))?.bookings).toBe(1);
+    expect(byDate.get(dayAt(-1))?.bookings).toBe(1);
+    // b3 checked in outside the window → excluded from arrivals
+    // departures inside window: b1 (checkout dayAt(-1)); b3 checked out dayAt(-2) → also inside
+    expect(body.answer).toContain('2 حجزاً');
+    expect(body.answer).toContain('مغادرات 2');
+  });
+
+  it('overdue_bookings flags active stays past checkout and ignores completed ones', async () => {
+    await seedStay(uniqueUuid('b1'), '301', 'متأخر صالح', 'محجوزة', { checkin: dayAt(-10), checkout: dayAt(-3), nights: 7, due: 70000, paid: 20000 });
+    await seedStay(uniqueUuid('b2'), '302', 'غادر فعلاً', 'مكتمل', { checkin: dayAt(-15), checkout: dayAt(-8), nights: 7, due: 70000, paid: 70000 });
+    await seedStay(uniqueUuid('b3'), '303', 'ما زال مقيم', 'محجوزة', { checkin: dayAt(-1), checkout: dayAt(2), nights: 3, due: 30000, paid: 0 });
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'هل توجد حجوزات متأخرة؟' }),
+      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'overdue_bookings', explanation: 'x' }) },
+      'employee',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { rows: Array<{ guest_name: string; overdue_days: number; overdue_status: string; remaining_balance: number }>; answer: string };
+    expect(body.rows).toHaveLength(1);
+    expect(body.rows[0]?.guest_name).toBe('متأخر صالح');
+    expect(body.rows[0]?.overdue_days).toBe(3);
+    expect(body.rows[0]?.remaining_balance).toBe(50000);
+    expect(body.rows[0]?.overdue_status).toContain('متأخر');
+    expect(body.answer).toContain('1');
+  });
+
+  it('stay_statistics averages nights and totals the money columns', async () => {
+    await seedStay(uniqueUuid('b1'), '401', 'أ', 'محجوزة', { checkin: dayAt(-10), nights: 10, due: 100000, paid: 60000 });
+    await seedStay(uniqueUuid('b2'), '402', 'ب', 'محجوزة', { checkin: dayAt(-20), nights: 20, due: 200000, paid: 200000 });
+    await seedStay(uniqueUuid('b3'), '403', 'منته', 'مكتمل', { checkin: dayAt(-40), checkout: dayAt(-30), nights: 30, due: 999999, paid: 999999 });
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'ما متوسط مدة الإقامة؟' }),
+      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'stay_statistics', explanation: 'x' }) },
+      'employee',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { rows: Array<{ bookings: number; avg_nights: number; longest_stay_nights: number; expected_revenue: number; collected_revenue: number; remaining_balance: number }> };
+    const stats = body.rows[0]!;
+    expect(stats.bookings).toBe(2);
+    expect(stats.avg_nights).toBe(15);
+    expect(stats.longest_stay_nights).toBe(20);
+    expect(stats.expected_revenue).toBe(300000);
+    expect(stats.collected_revenue).toBe(260000);
+    expect(stats.remaining_balance).toBe(40000);
+  });
+
+  it('occupancy_trend defaults to the last 30 days when no window given', async () => {
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'اتجاه الإشغال' }),
+      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'occupancy_trend', explanation: 'x' }) },
+      'employee',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { rows: Array<{ date: string }> };
+    expect(body.rows).toHaveLength(30);
+    expect(body.rows[0]?.date).toBe(dayAt(-29));
+    expect(body.rows[29]?.date).toBe(today);
+  });
+});
