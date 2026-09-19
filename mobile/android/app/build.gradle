@@ -54,7 +54,10 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.marina.marina"
+        // Install package identity — user requested short name com.a.a.
+        // NOTE: namespace (code/R classes) remains com.marina.marina; only the
+        // installed application id changes. Installs as a brand-new app.
+        applicationId "com.a.a"
         minSdk 26
         targetSdk 35
         versionCode 1
