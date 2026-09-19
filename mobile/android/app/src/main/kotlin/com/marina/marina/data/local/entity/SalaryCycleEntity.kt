@@ -12,6 +12,7 @@ data class SalaryCycleEntity(
     @PrimaryKey(autoGenerate = true) @SerializedName("id") override val id: Long = 0,
 
     @SerializedName("employee_id") @ColumnInfo(name = "employee_id") val employeeId: Long,
+    @SerializedName("employee_uuid") @ColumnInfo(name = "employee_uuid") val employeeUuid: String? = null,
     @SerializedName("cycle_key") @ColumnInfo(name = "cycle_key") val cycleKey: String,
     @SerializedName("hotel_day_start") @ColumnInfo(name = "hotel_day_start") val hotelDayStart: String? = null,
     @SerializedName("hotel_day_end") @ColumnInfo(name = "hotel_day_end") val hotelDayEnd: String? = null,

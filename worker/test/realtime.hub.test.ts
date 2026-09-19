@@ -45,18 +45,29 @@ interface HubStatus {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Open a realtime WebSocket through the real worker route. */
+/** Open a realtime WebSocket through the real worker route.
+ *  Retries the upgrade on non-101: under pool ≥0.12 (miniflare 4) the
+ *  per-test-file script re-upload invalidates live Durable Objects and
+ *  workerd answers the in-flight stub fetch with a 500, explicitly asking
+ *  callers to retry `DurableObjectStub#fetch()`. */
 async function connectRealtime(
   deviceId: string,
   entity: string
 ): Promise<{ socket: WebSocket; received: BroadcastMessage[] }> {
   const auth = await adminAuthHeader();
-  const res = await SELF.fetch(
-    `https://example.com/api/realtime?deviceId=${encodeURIComponent(deviceId)}&entity=${encodeURIComponent(entity)}`,
-    { headers: { Authorization: auth, Upgrade: 'websocket' } }
-  );
-  expect(res.status).toBe(101);
-  const socket = res.webSocket!;
+  let res: Response;
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    res = await SELF.fetch(
+      `https://example.com/api/realtime?deviceId=${encodeURIComponent(deviceId)}&entity=${encodeURIComponent(entity)}`,
+      { headers: { Authorization: auth, Upgrade: 'websocket' } }
+    );
+    lastStatus = res.status;
+    if (res.status === 101) break;
+    await sleep(150);
+  }
+  expect(lastStatus).toBe(101);
+  const socket = res!.webSocket!;
   const received: BroadcastMessage[] = [];
   socket.accept();
   socket.addEventListener('message', (event) => {

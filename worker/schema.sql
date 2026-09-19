@@ -203,6 +203,9 @@ CREATE INDEX IF NOT EXISTS idx_employees_deleted ON employees(deleted_at);
 CREATE TABLE IF NOT EXISTS salary_cycles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   employee_id INTEGER NOT NULL,
+  -- ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — migration 0007.
+  -- employee_id وحده رقم محلي على جهاز المصدر ولا يحل عبر الأجهزة.
+  employee_uuid TEXT,
   cycle_key TEXT NOT NULL,
   hotel_day_start TEXT,
   hotel_day_end TEXT,
@@ -229,6 +232,7 @@ CREATE TABLE IF NOT EXISTS salary_cycles (
   UNIQUE (employee_id, cycle_key)
 );
 CREATE INDEX IF NOT EXISTS idx_salary_cycles_updated ON salary_cycles(updated_at);
+CREATE INDEX IF NOT EXISTS idx_salary_cycles_employee_uuid ON salary_cycles(employee_uuid);
 
 -- ─── Cash Transactions ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS cash_transactions (
@@ -620,6 +624,9 @@ CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted_at);
 CREATE TABLE IF NOT EXISTS salary_payments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   cycle_id INTEGER NOT NULL,
+  -- ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — migration 0007
+  -- (مُردَّم من دورة الدفع salary_cycles عبر employee_uuid).
+  employee_uuid TEXT,
   amount INTEGER NOT NULL DEFAULT 0,
   hotel_day_key TEXT,
   payment_date_iso TEXT NOT NULL,
@@ -643,6 +650,7 @@ CREATE TABLE IF NOT EXISTS salary_payments (
   idempotency_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_salary_payments_updated ON salary_payments(updated_at);
+CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid ON salary_payments(employee_uuid);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle ON salary_payments(cycle_id, hotel_day_key);
 
 -- ─── Salary Withdrawals ───────────────────────────────────────

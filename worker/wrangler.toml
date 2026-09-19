@@ -42,6 +42,12 @@ new_sqlite_classes = ["RealtimeHubDO"]
 # ─── Environment Variables ────────────────────────────────────
 # JWT_SECRET is stored as a Cloudflare Secret (not in plaintext here)
 # Set via: wrangler secret put JWT_SECRET
+#
+# ✅ (2026-09-20) AI_TOKEN is stored as a Cloudflare Secret too:
+# Workers AI API token (cfut_…) powering the REST fallback in
+# src/ai.ts — the deployed [ai] binding currently fails in
+# production, so classify() falls back to the REST API with this
+# token. Set via: wrangler secret put AI_TOKEN
 [vars]
 # ✅ (2026-09-15) عقد المصادقة: "0" = توكن طويل الأجل بلا انتهاء تلقائي.
 # الإبطال المقصود يدوي فقط: تدوير JWT_SECRET يُبطل كل التوكنات دفعة واحدة.
@@ -50,3 +56,10 @@ JWT_EXPIRY_HOURS = "0"
 RATE_LIMIT_WINDOW = "60"
 RATE_LIMIT_MAX = "1000"
 CORS_ORIGIN = "*"
+# ✅ (2026-09-20) معرف الحساب لمسار REST الاحتياطي في src/ai.ts —
+# نفس المعرف المصرّح به أعلاه في account_id (ليس سراً؛ هوية عامة).
+CLOUDFLARE_ACCOUNT_ID = "81a73bba9acc1de5693ff929d0a372ce"
+
+# Workers AI — used only inside the authenticated natural-language endpoint.
+[ai]
+binding = "AI"

@@ -39,18 +39,32 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Open a realtime WebSocket through the real worker route.
  *  NOTE: client-side sockets under vitest-pool-workers do NOT emit a
- *  'close' event after .close() — never await close in these tests. */
+ *  'close' event after .close() — never await close in these tests.
+ *
+ *  RETRY NOTE (pool ≥0.12 / miniflare 4): between test files the pool
+ *  re-uploads the worker script under singleWorker mode; workerd then
+ *  invalidates live Durable Objects and answers in-flight stub fetches
+ *  with a 500 ("src/index.ts changed … Please retry the
+ *  DurableObjectStub#fetch() call"). Retrying the upgrade a few times
+ *  implements exactly the remediation workerd asks for. */
 async function connectRealtime(deviceId: string): Promise<{
   socket: WebSocket;
   received: BroadcastMessage[];
 }> {
   const auth = await adminAuthHeader();
-  const res = await SELF.fetch(
-    `https://example.com/api/realtime?deviceId=${encodeURIComponent(deviceId)}&entity=*`,
-    { headers: { Authorization: auth, Upgrade: 'websocket' } }
-  );
-  expect(res.status).toBe(101);
-  const socket = res.webSocket!;
+  let res: Response;
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    res = await SELF.fetch(
+      `https://example.com/api/realtime?deviceId=${encodeURIComponent(deviceId)}&entity=*`,
+      { headers: { Authorization: auth, Upgrade: 'websocket' } }
+    );
+    lastStatus = res.status;
+    if (res.status === 101) break;
+    await sleep(150);
+  }
+  expect(lastStatus).toBe(101);
+  const socket = res!.webSocket!;
   const received: BroadcastMessage[] = [];
   socket.accept();
   socket.addEventListener('message', (event) => {

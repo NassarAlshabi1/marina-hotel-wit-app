@@ -7,6 +7,7 @@ import kotlinx.parcelize.Parcelize
 data class SalaryCycle(
     val id: Long = 0,
     val employeeId: Long = 0,
+    val employeeUuid: String? = null,
     val cycleKey: String = "",
     val hotelDayStart: String? = null,
     val hotelDayEnd: String? = null,
@@ -23,6 +24,7 @@ data class SalaryCycle(
 data class SalaryPayment(
     val id: Long = 0,
     val cycleId: Long = 0,
+    val employeeUuid: String? = null,
     val amount: Long = 0,
     val hotelDayKey: String? = null,
     val paymentDateIso: String = "",
