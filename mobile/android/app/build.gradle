@@ -32,7 +32,12 @@ kapt {
 }
 
 android {
-    namespace "com.marina.marina"
+    // namespace MUST equal applicationId (com.a.a) — the Flutter original had
+    // namespace == applicationId and never hit AAPT resource-linking issues.
+    // Keeping them identical removes the resource-package ambiguity entirely.
+    // Kotlin class packages intentionally remain com.marina.marina; only the
+    // generated R/BuildConfig packages follow the namespace.
+    namespace "com.a.a"
     compileSdk 35
 
     compileOptions {
@@ -55,8 +60,6 @@ android {
 
     defaultConfig {
         // Install package identity — user requested short name com.a.a.
-        // NOTE: namespace (code/R classes) remains com.marina.marina; only the
-        // installed application id changes. Installs as a brand-new app.
         applicationId "com.a.a"
         minSdk 26
         targetSdk 35
@@ -133,8 +136,6 @@ android {
             includeAndroidResources = true
         }
     }
-
-    namespace "com.marina.marina"
 }
 
 dependencies {

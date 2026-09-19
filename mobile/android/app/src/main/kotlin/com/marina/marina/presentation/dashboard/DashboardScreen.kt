@@ -62,7 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.BuildConfig
+import com.a.a.BuildConfig
 import com.marina.marina.domain.model.Room
 import com.marina.marina.domain.model.RoomWithPaymentStatus
 import com.marina.marina.domain.util.StatusUtils
