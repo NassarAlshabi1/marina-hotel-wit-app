@@ -591,7 +591,11 @@ const SCHEMA = {
     fcmToken: 'string',
     isActive: 'boolean',
     lastActive: 'integer',
-    lastSeen: 'integer',
+    // ✅ تصحيح نوع (2026-09-20): التطبيق يكتب lastSeen كـ ISO string
+    // (appwrite_sync_manager.dart: 'lastSeen': nowIso) والسحابة الفعلية string
+    // منذ الإنشاء. التعريف القديم integer كان سيجعل --fix-types يحذف عموداً
+    // يعمل ويحوّله ل integer — فتفشل كل عمليات تسجيل الأجهزة لاحقاً.
+    lastSeen: 'string',
     osVersion: 'string',
     platform: 'string',
     status: 'string',
@@ -777,6 +781,14 @@ function stringSize(field) {
     //    wa_custom_url_template — كلها انتقلت إلى config_json (الخيار 2) ولم تعد
     //    أعمدة منفصلة في أي SCHEMA. إبقاؤها هنا يُضلّل القارئ ويوحي بأنها مستخدمة.
     financialHash: 128,
+    // ✅ إصلاح حدّ 767: أحجام واقعية صغيرة لرقم الغرفة والحالة كي يبقى مجموع
+    //    طولهما دون حدّ طول مفتاح فهرس Appwrite/MariaDB (767)، فتصبح فهارس
+    //    idx_room_status (roomNumber+status) قابلة للإنشاء على البيئات الجديدة.
+    //    أرقام الغرف قصيرة دائماً (أطول قيمة حالة مشاهدة: 15 حرفاً).
+    //    ملاحظة: الأحجام تُطبّق فقط عند إنشاء سمة جديدة — السمات القائمة في
+    //    السحابة لا تُلمس (يتكفّل حارس الطول بتخطّي فهارسها المتعذّرة بأمان).
+    roomNumber: 50,
+    status: 64,
   };
   if (explicit[field] != null) return explicit[field];
 
@@ -830,8 +842,10 @@ const stats = {
   attributesPruned: 0,    // عدد الحقول الزائدة التي حُذِفت (--prune)
   attributesMadeOptional: 0, // عدد الحقول التي حُوِّلت من required=true إلى false (--make-optional)
   attributeWaitTimeouts: 0, // عدد المرات التي انتهت فيها مهلة waitForAttributes (تتبع للسمعة)
+  stuckAttributes: 0, // سمات عالقة (stuck) تاريخياً — تعمل لكن غير قابلة للتعديل دون حذف
   indexesCreated: 0,
   indexesExisting: 0,
+  indexesSkipped: 0, // فهارس متعذّرة (سمة عالقة أو حدّ طول 767) — تُتخطّى بأمان
   errors: [],
 };
 
@@ -887,6 +901,19 @@ async function ensureAttribute(collectionId, key, type) {
     const coll = await databases.getCollection(DATABASE_ID, collectionId);
     const existing = coll.attributes.find((a) => a.key === key);
     if (existing) {
+      // ✅ سمة عالقة (stuck): إنشاؤها الأصلي فشل جزئياً (مثال موثّق: rooms.roomNumber
+      // بخطأ "Document with the requested unique attributes already exists") — القيم
+      // تعمل في المستندات لكن لا يمكن تحديث علمها ولا استخدامها في فهارس مركّبة.
+      // إصلاحها الوحيد حذفها وإعادتها (يفقد قيم السحابة) — هدمي وممنوع. نصنّفها
+      // بصدق بدل عرضها كخطأ مع توصية --fix-types الهدمية.
+      if (existing.status === 'stuck' || existing.status === 'failed') {
+        console.warn(
+          `   ⚠️  ${key}: سمة ${existing.status} تاريخياً — البيانات سليمة لكن لا يمكن تعديلها دون حذف (هدمي). تُتجاهَل.`,
+        );
+        stats.stuckAttributes++;
+        stats.attributesExisting++;
+        return;
+      }
       const actualType = appwriteTypeToSchema(existing);
       // علم required في الإصدار الحديث يأتي في `required`، وفي القديم قد يأتي في `isRequired`
       const actualRequired = !!(existing.required ?? existing.isRequired);
@@ -1023,27 +1050,62 @@ async function makeAttributesOptional(collectionId, wantedFields) {
 
     if (actualRequired && !targetRequired) {
       try {
+        // ✅ حماية من انكماش الأعمدة: نمرّر الحجم/الحدود الحالية صراحةً في كل
+        // استدعاء updateXAttribute. تركها undefined يجعل السلوك رهناً لتطبيق
+        // الخادم (قد يعيد تعيين حجم افتراضي) — الحماية الحتمية أفضل من التخمين.
+        //
+        // ✅ ملاحظات SDK/الخادم (مُثبتة عملياً على node-appwrite 20.x + Appwrite 2.2):
+        //  - SDK يشترط xdefault معرَّفاً (null مقبول) — undefined يرمي فوراً.
+        //  - حدود int64 من getCollection تُقرأ كأرقام float64 فتتقارب إلى
+        //    9223372036854775808 (خارج النطاق) فيرفضها الخادم — نُعقّمها:
+        //    أي قيمة خارج النطاق الدقيق نرسل null (يقبلها الخادم = النطاق الكامل).
+        // ✅ السحابة تُرجع default="" (وليس null) لحقول رقمية أُنشئت قديماً —
+        // إرسال "" مع integer يرفضه الخادم. النص الفارغ = لا افتراضي → null.
+        // النصوص الرقمية تُحوَّل لأرقام، وغير القابل للتحويل يصبح null.
+        const sanitizeNumericDefault = (v) => {
+          if (v === null || v === undefined) return null;
+          if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+          if (typeof v === 'string') {
+            if (v.trim() === '') return null;
+            const n = Number(v);
+            return Number.isFinite(n) ? n : null;
+          }
+          return null;
+        };
         if (wantedType === 'string') {
+          // ✅ لا نمرّر size — مُثبت بالاختبار المباشر: الخادم يحفظ الحجم الحالي
+          // عند حذفه من PATCH، بينما تمريره استدعى علة "Invalid index lengths"
+          // على سمات مشمولة بفهارس مركّبة (audit_logs.entityType/hotelDayKey).
           await databases.updateStringAttribute(
             DATABASE_ID, collectionId, attr.key,
             false, // required=false
-            attr.default ?? undefined, // الحفاظ على القيمة الافتراضية إن وُجدت
+            attr.default ?? null, // الحفاظ على القيمة الافتراضية (null = بلا افتراضي)
           );
         } else if (wantedType === 'integer') {
+          // ✅ ترتيب SDK: (…, required, xdefault, min, max) — الافتراضي قبل الحدود.
+          // ✅ نرسل null للحدود دائماً (مُثبت بالاختبار المباشر على Appwrite 2.2):
+          // الخادم يحفظ النطاق الكامل int64 عند null، بينما إرجاع الحدود عبر
+          // float64 يفسدها — الخادم يرسل -2^63 فيعاد تسلسله "-9223372036854776000"
+          // (خارج النطاق) ويرفضه الخادم في الطلب التالي. لا إرجاع للحدود أبداً.
           await databases.updateIntegerAttribute(
             DATABASE_ID, collectionId, attr.key, false,
-            attr.default ?? undefined,
+            sanitizeNumericDefault(attr.default),
+            null,
+            null,
           );
         } else if (wantedType === 'double') {
+          // ✅ نفس المبدأ: null للحدود (الخادم يطبّق النطاق الكامل للـ double).
           await databases.updateFloatAttribute(
             DATABASE_ID, collectionId, attr.key, false,
-            attr.min ?? undefined, attr.max ?? undefined,
-            attr.default ?? undefined,
+            sanitizeNumericDefault(attr.default),
+            null,
+            null,
           );
         } else if (wantedType === 'boolean') {
           await databases.updateBooleanAttribute(
             DATABASE_ID, collectionId, attr.key, false,
-            attr.default ?? undefined,
+            // boolean يرفض "" كذلك — نحوّله لقيمة منطقية أو null
+            typeof attr.default === 'boolean' ? attr.default : null,
           );
         } else {
           continue;
@@ -1088,7 +1150,20 @@ async function waitForAttributes(collectionId, expected) {
   return false;
 }
 
-async function ensureIndex(collectionId, key, type, attributes, orders) {
+async function ensureIndex(collectionId, key, type, attributes, orders, attrsByKey) {
+  // ✅ بوابة لكل فهرس على حدة قبل المحاولة:
+  //  1) كل السمات المُشار إليها يجب أن تكون available (سمة عالقة/قيد المعالجة = فهرس مستحيل).
+  //  2) مجموع أحجام أعمدة المفتاح يجب أن يبقى دون حدّ Appwrite/MariaDB (767)
+  //     — اكتشفناه عملياً: عمود 512 منفرد يُقبل، لكن 512+512 يُرفض.
+  // بدل خطأ 400 صامت، نتخطّى الفهرس المتعذّر بتحذير واضح ونُبقي بقية الفهارس تعمل.
+  if (attrsByKey) {
+    const blocker = indexCreationBlocker(attrsByKey, { attributes });
+    if (blocker) {
+      console.warn(`   ⏭️  تخطّي الفهرس ${key} — ${blocker}`);
+      stats.indexesSkipped++;
+      return;
+    }
+  }
   try {
     await databases.createIndex(DATABASE_ID, collectionId, key, type, attributes, orders);
     console.log(`   🔑 فهرس: ${key} [${attributes.join(', ')}]`);
@@ -1104,24 +1179,60 @@ async function ensureIndex(collectionId, key, type, attributes, orders) {
   }
 }
 
-// الفهارس القياسية لكل مجموعة (فقط إن وُجد الحقل).
-async function ensureStandardIndexes(collectionId, fields) {
-  const has = (f) => Object.prototype.hasOwnProperty.call(fields, f);
-  if (has('localUuid')) {
-    await ensureIndex(collectionId, 'idx_local_uuid', IndexType.Unique, ['localUuid']);
-  }
-  if (has('lastModified')) {
-    await ensureIndex(collectionId, 'idx_last_modified', IndexType.Key, ['lastModified'], ['DESC']);
-  }
-  if (has('syncTimestamp')) {
-    await ensureIndex(collectionId, 'idx_sync_ts', IndexType.Key, ['syncTimestamp'], ['DESC']);
-  }
-  if (has('deletedAt')) {
-    await ensureIndex(collectionId, 'idx_deleted_at', IndexType.Key, ['deletedAt']);
+// عرض تخزيني تقريبي (وحدات size) لعمود داخل مفتاح فهرس.
+function approxAttributeWidth(attr) {
+  if (!attr) return 0;
+  switch ((attr.type || '').toLowerCase()) {
+    case 'string':
+      return attr.size || 512;
+    case 'integer':
+      return 8;
+    case 'double':
+      return 9;
+    case 'boolean':
+      return 1;
+    default:
+      return 0;
   }
 }
 
-async function ensureBusinessIndexes(collectionId, fields) {
+// هل يمكن إنشاء هذا الفهرس؟ يُعيد سبب التعذّر أو null إذا كان الإنشاء ممكناً.
+function indexCreationBlocker(attrsByKey, index) {
+  const unavailable = index.attributes.filter((f) => {
+    const a = attrsByKey.get(f);
+    return !a || a.status !== 'available';
+  });
+  if (unavailable.length) {
+    return `سمات غير متاحة بعد: ${unavailable.join(', ')}`;
+  }
+  const totalWidth = index.attributes.reduce(
+    (sum, f) => sum + approxAttributeWidth(attrsByKey.get(f)),
+    0,
+  );
+  if (totalWidth > 767) {
+    return `طول المفتاح ${totalWidth} يتجاوز حدّ Appwrite (767) — تصغير الأحجام يتطلّب حذف الأعمدة (هدمي، ممنوع)`;
+  }
+  return null;
+}
+
+// الفهارس القياسية لكل مجموعة (فقط إن وُجد الحقل).
+async function ensureStandardIndexes(collectionId, fields, attrsByKey) {
+  const has = (f) => Object.prototype.hasOwnProperty.call(fields, f);
+  if (has('localUuid')) {
+    await ensureIndex(collectionId, 'idx_local_uuid', IndexType.Unique, ['localUuid'], undefined, attrsByKey);
+  }
+  if (has('lastModified')) {
+    await ensureIndex(collectionId, 'idx_last_modified', IndexType.Key, ['lastModified'], ['DESC'], attrsByKey);
+  }
+  if (has('syncTimestamp')) {
+    await ensureIndex(collectionId, 'idx_sync_ts', IndexType.Key, ['syncTimestamp'], ['DESC'], attrsByKey);
+  }
+  if (has('deletedAt')) {
+    await ensureIndex(collectionId, 'idx_deleted_at', IndexType.Key, ['deletedAt'], undefined, attrsByKey);
+  }
+}
+
+async function ensureBusinessIndexes(collectionId, fields, attrsByKey) {
   const indexes = COLLECTION_INDEXES[collectionId] || [];
   for (const index of indexes) {
     const missing = index.attributes.filter(
@@ -1133,7 +1244,7 @@ async function ensureBusinessIndexes(collectionId, fields) {
       stats.errors.push(message);
       continue;
     }
-    await ensureIndex(collectionId, index.key, index.type, index.attributes);
+    await ensureIndex(collectionId, index.key, index.type, index.attributes, undefined, attrsByKey);
   }
 }
 
@@ -1145,6 +1256,7 @@ async function verify(targetCollections) {
   let missingAttributes = 0;
   let typeMismatches = 0;
   let missingIndexes = 0;
+  let blockedIndexes = 0;
 
   for (const collectionId of targetCollections) {
     const wanted = SCHEMA[collectionId];
@@ -1174,26 +1286,47 @@ async function verify(targetCollections) {
       }
     }
 
-    const expectedIndexes = [
+    const expectedIndexDefs = [
       ...(Object.prototype.hasOwnProperty.call(wanted, 'localUuid')
-        ? ['idx_local_uuid']
+        ? [{ key: 'idx_local_uuid', attributes: ['localUuid'] }]
         : []),
       ...(Object.prototype.hasOwnProperty.call(wanted, 'lastModified')
-        ? ['idx_last_modified']
+        ? [{ key: 'idx_last_modified', attributes: ['lastModified'] }]
         : []),
       ...(Object.prototype.hasOwnProperty.call(wanted, 'syncTimestamp')
-        ? ['idx_sync_ts']
+        ? [{ key: 'idx_sync_ts', attributes: ['syncTimestamp'] }]
         : []),
       ...(Object.prototype.hasOwnProperty.call(wanted, 'deletedAt')
-        ? ['idx_deleted_at']
+        ? [{ key: 'idx_deleted_at', attributes: ['deletedAt'] }]
         : []),
-      ...(COLLECTION_INDEXES[collectionId] || []).map((index) => index.key),
+      ...(COLLECTION_INDEXES[collectionId] || []),
     ];
     const actualIndexKeys = new Set((actual.indexes || []).map((index) => index.key));
-    const missingIndexKeys = expectedIndexes.filter((key) => !actualIndexKeys.has(key));
+    const missingIndexDefs = expectedIndexDefs.filter(
+      (def) => !actualIndexKeys.has(def.key),
+    );
 
-    if (missing.length === 0 && mismatches.length === 0 && missingIndexKeys.length === 0) {
-      console.log(`✅ ${collectionId}: الحقول والفهارس مطابقة (${Object.keys(wanted).length} حقل، ${expectedIndexes.length} فهرس)`);
+    // ✅ تصنيف صادق للفهرس المفقود: هل هو مفقود فعلاً (قابل للإنشاء الآن)
+    // أم متعذّر (سمة عالقة أو مجموع أحجام يتجاوز حدّ 767)؟ المتعذّر
+    // لا يُحسب مفقوداً — إصلاحه يتطلّب حذف أعمدة قائمة (هدمي، ممنوع).
+    const trulyMissing = [];
+    const blocked = [];
+    for (const def of missingIndexDefs) {
+      const blocker = indexCreationBlocker(actualByKey, def);
+      if (blocker) {
+        blocked.push(`${def.key} (${blocker})`);
+      } else {
+        trulyMissing.push(def.key);
+      }
+    }
+
+    if (
+      missing.length === 0 &&
+      mismatches.length === 0 &&
+      trulyMissing.length === 0 &&
+      blocked.length === 0
+    ) {
+      console.log(`✅ ${collectionId}: الحقول والفهارس مطابقة (${Object.keys(wanted).length} حقل، ${expectedIndexDefs.length} فهرس)`);
     } else {
       if (missing.length > 0) {
         console.log(`⚠️  ${collectionId}: ناقص ${missing.length} حقل → ${missing.join(', ')}`);
@@ -1203,9 +1336,13 @@ async function verify(targetCollections) {
         console.log(`❌ ${collectionId}: ${mismatches.length} عدم تطابق نوع → ${mismatches.join(' | ')}`);
         typeMismatches += mismatches.length;
       }
-      if (missingIndexKeys.length > 0) {
-        console.log(`⚠️  ${collectionId}: ناقص ${missingIndexKeys.length} فهرس → ${missingIndexKeys.join(', ')}`);
-        missingIndexes += missingIndexKeys.length;
+      if (trulyMissing.length > 0) {
+        console.log(`⚠️  ${collectionId}: ناقص ${trulyMissing.length} فهرس → ${trulyMissing.join(', ')}`);
+        missingIndexes += trulyMissing.length;
+      }
+      if (blocked.length > 0) {
+        console.log(`⏭️  ${collectionId}: ${blocked.length} فهرس متعذّر (غير قابل للإنشاء دون حذف أعمدة) → ${blocked.join('؛ ')}`);
+        blockedIndexes += blocked.length;
       }
     }
   }
@@ -1213,7 +1350,8 @@ async function verify(targetCollections) {
   console.log('\n══════════════════════════════════════════');
   console.log(
     `ملخّص الفحص: مجموعات مفقودة=${missingCollections}, ` +
-      `حقول مفقودة=${missingAttributes}, عدم تطابق الأنواع=${typeMismatches}, فهارس مفقودة=${missingIndexes}`,
+      `حقول مفقودة=${missingAttributes}, عدم تطابق الأنواع=${typeMismatches}, ` +
+      `فهارس مفقودة=${missingIndexes}, فهارس متعذّرة (سمة عالقة/حدّ طول)=${blockedIndexes}`,
   );
   console.log('══════════════════════════════════════════');
   process.exit(
@@ -1378,16 +1516,20 @@ async function main() {
     }
 
     // انتظر جاهزية الحقول قبل بناء الفهارس (الفهرس يتطلب حقولاً available).
-    // ✅ إذا انتهت المهلة (return false)، نتخطّى الفهارس لهذه المجموعة بدلاً من
-    // محاولة إنشائها (ستفشل بـ 400/409) — نضيف خطأ واضح للـ summary.
-    const ready = await waitForAttributes(collectionId, Object.keys(fields).length);
-    if (ready) {
-      await ensureStandardIndexes(collectionId, fields);
-      await ensureBusinessIndexes(collectionId, fields);
-    } else {
-      console.log(`   ⏭️  تخطّي إنشاء الفهارس لـ ${collectionId} — الحقول لم تصبح جاهزة في المهلة`);
-      stats.errors.push(`${collectionId}.indexes: skipped (attribute wait timeout)`);
+    // ✅ إصلاح: بعد انتهاء المهلة لم نعد نتخطّى فهارس المجموعة كلها — سمة واحدة
+    // عالقة كانت تحرم المجموعة من كل فهارسها (rooms فقدت idx_room_maintenance
+    // بسبب roomNumber العالقة رغم أن requiresMaintenance متاح تماماً).
+    // الآن: بوابة لكل فهرس على حدة (indexCreationBlocker) تتخطّي المتعذّر فقط.
+    await waitForAttributes(collectionId, Object.keys(fields).length);
+    let attrsByKey = new Map();
+    try {
+      const coll = await databases.getCollection(DATABASE_ID, collectionId);
+      attrsByKey = new Map(coll.attributes.map((a) => [a.key, a]));
+    } catch (_) {
+      /* تعذّر الجلب — تُنشأ الفهارس بدون بوابة وستفشل برسائل واضحة */
     }
+    await ensureStandardIndexes(collectionId, fields, attrsByKey);
+    await ensureBusinessIndexes(collectionId, fields, attrsByKey);
   }
 
   console.log('\n═══════════════════════════════════════════════════════════');
@@ -1405,7 +1547,13 @@ async function main() {
     console.log(`🔓 حقول حُوِّلت إلى optional (--make-optional): ${stats.attributesMadeOptional}`);
   }
   if (stats.attributeWaitTimeouts > 0) {
-    console.log(`⏱️  مهلات انتظار حقول (تخطّى الفهارس): ${stats.attributeWaitTimeouts}`);
+    console.log(`⏱️  مهلات انتظار حقول: ${stats.attributeWaitTimeouts}`);
+  }
+  if (stats.stuckAttributes > 0) {
+    console.log(`⚠️  سمات عالقة تاريخياً (تعمل لكن غير قابلة للتعديل دون حذف): ${stats.stuckAttributes}`);
+  }
+  if (stats.indexesSkipped > 0) {
+    console.log(`⏭️  فهارس متعذّرة (تخطّيت بأمان): ${stats.indexesSkipped}`);
   }
   console.log(`الفهارس       : أُنشئت ${stats.indexesCreated} / موجودة ${stats.indexesExisting}`);
   if (stats.errors.length) {
