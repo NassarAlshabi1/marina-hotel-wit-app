@@ -5,7 +5,7 @@ name: Android Kotlin Build
 on:
   push:
     branches:
-      - agent/wave-cloud-bi9f
+      - agent/pulse-storm-pdj1
     paths:
       - 'mobile/android/**'
       - 'mobile/Keystore.txt'
@@ -71,7 +71,7 @@ jobs:
           if [ -n "$SDKMANAGER" ]; then
             echo "sdkmanager at: $SDKMANAGER"
             yes | "$SDKMANAGER" --licenses > /dev/null || true
-            "$SDKMANAGER" --install "platforms;android-35" "build-tools;34.0.0" > /dev/null || true
+            "$SDKMANAGER" --install "platforms;android-35" "build-tools;34.0.0"
           else
             echo "sdkmanager not found — relying on AGP auto-install"
           fi
@@ -90,13 +90,18 @@ jobs:
         working-directory: .
         run: |
           echo "=== merged values.xml (first 60 lines) ==="
-          find mobile/build/app/intermediates -path "*mergeDebugResources/merged.dir/values/values.xml" \
+          find mobile/android/app/build/intermediates \
+            -path "*mergeDebugResources/merged.dir/values/values.xml" \
             -exec head -60 {} \; 2>/dev/null || echo "not found"
           echo "=== processed manifest ==="
-          find mobile/build/app/intermediates -name "AndroidManifest.xml" \
-            -path "*ManifestForPackage*" -exec head -20 {} \; 2>/dev/null || echo "not found"
+          find mobile/android/app/build/intermediates \
+            -name "AndroidManifest.xml" \
+            -path "*ManifestForPackage*" \
+            -exec head -20 {} \; 2>/dev/null || echo "not found"
           echo "=== merged res flat files ==="
-          find mobile/build/app/intermediates -name "*.flat" -path "*bug*" 2>/dev/null | head -20
+          find mobile/android/app/build/intermediates \
+            -name "*.flat" \
+            -path "*bug*" 2>/dev/null | head -20
 
       - name: Build signed release APK (v1+v2+v3)
         run: ./gradlew assembleRelease --console=plain
@@ -108,15 +113,16 @@ jobs:
         working-directory: .
         run: |
           BT="$ANDROID_HOME/build-tools/34.0.0"
-          APK="mobile/build/app/outputs/apk/release/app-release.apk"
-          "$BT/apksigner" verify --verbose --min-sdk-version 23 "$APK" | head -8
+          APK="mobile/android/app/build/outputs/apk/release/app-release.apk"
+
+          "$BT/apksigner" verify --verbose "$APK"
           "$BT/zipalign" -c 4 "$APK" && echo "zipalign OK"
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: marina-hotel-release-apk
-          path: mobile/build/app/outputs/apk/release/app-release.apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -124,6 +130,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: marina-hotel-debug-apk
-          path: mobile/build/app/outputs/apk/debug/app-debug.apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
