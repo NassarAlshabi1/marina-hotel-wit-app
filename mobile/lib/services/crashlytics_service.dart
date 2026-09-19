@@ -6,6 +6,7 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io' show HandshakeException, HttpException, SocketException;
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'telegram/whatsapp_notification_service.dart';
@@ -385,6 +386,60 @@ class CrashlyticsService {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════
+  //  ✅ (2026-09-19) تصنيف الأخطاء الشبكية العابرة
+  // ═══════════════════════════════════════════════════════════
+
+  /// خطأ شبكة عابر (transient) — انقطاع لحظي، DNS، مهلة، إعادة ضبط
+  /// TCP… مكدس المزامنة مصمم على تحمّلها والتعافي منها تلقائياً
+  /// (إعادة محاولة outbox + AutoOutboxSyncWatcher + DoH tunnel في
+  /// ResilientHttpClient)، فهي «متوقعة تشغيلياً» وليست أعطالاً قاتلة.
+  ///
+  /// بلاغ الإنتاج 2026-09-19: Fatal Exception
+  /// io.flutter.plugins.firebase.crashlytics.FlutterError:
+  /// SocketException (errno 103) إلى 104.21.41.137 (Worker IP) —
+  /// استثناء شبكة عابر هرب من مسار غير محمي فاصطدمت به طبقات
+  /// الالتقاط العامة وسُجّل Fatal فشوّه إحصاءات الانهيار ودفن
+  /// الأعطال الحقيقية. الآن تمر كل مسارات التسجيل العام عبر هذا
+  /// المصنّف: عابر → non-fatal (يُسجّل دون أن يُحسب انهياراً).
+  ///
+  /// مطابق عن قصد لقائمة isTransient في cloudflare_sync_manager
+  /// (Failed host lookup / SocketException / HandshakeException /
+  /// TimeoutException) مع إضافات: رسائل errno الشائعة في اليمن
+  /// وإطار WebSocket وClientException من package:http.
+  @visibleForTesting
+  static bool isTransientNetworkError(Object? error) {
+    if (error == null) return false;
+    // مسار النوع المباشر: dart:io وdart:async ترمي الأنواع الأصلية.
+    if (error is SocketException ||
+        error is HandshakeException ||
+        error is HttpException ||
+        error is TimeoutException) {
+      return true;
+    }
+    // مسار السلسلة: المكدس يغلّف أخطاء الشبكة نصاً —
+    // Exception('Push network error: SocketException…') — وتفاصيل
+    // FlutterError قد تحمل الاستثناء مغلّفاً. مطابقة البادئات الدقيقة
+    // (مع النقطتين) تمنع التصنيف الخاطئ لأسماء متشابهة.
+    final s = error.toString();
+    return s.contains('SocketException') ||
+        s.contains('HandshakeException') ||
+        s.contains('TimeoutException') ||
+        s.contains('HttpException') ||
+        s.contains('WebSocketException') ||
+        s.contains('WebSocketChannelException') ||
+        s.contains('ClientException') ||
+        s.contains('Software caused connection abort') ||
+        s.contains('Connection reset') ||
+        s.contains('Connection refused') ||
+        s.contains('Connection aborted') ||
+        s.contains('Connection closed') ||
+        s.contains('Connection terminated') ||
+        s.contains('Network is unreachable') ||
+        s.contains('Failed host lookup') ||
+        s.contains('No address associated with hostname');
+  }
+
   // ═══════════════════════════════════════════════════════════════
   //  تسجيل أخطاء عامة
   // ═══════════════════════════════════════════════════════════════
@@ -400,12 +455,17 @@ class CrashlyticsService {
     }
 
     try {
+      // عابر شبكياً → وسم reason واضح للتشخيص (يبقى non-fatal —
+      // نفس عقد المسار المحروس في main.dart منذ نشأته).
+      final transient = isTransientNetworkError(error);
       await _crashlytics?.recordError(
         error,
         stackTrace ?? StackTrace.current,
-        reason: context ?? 'unexpected_error',
+        reason: transient
+            ? 'network (transient)'
+            : (context ?? 'unexpected_error'),
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
     }
   }
@@ -530,6 +590,22 @@ class CrashlyticsService {
     }
 
     try {
+      // ✅ (2026-09-19) خطأ شبكة عابر وصل للإطار → non-fatal بدل
+      // recordFlutterFatalError: لا يجب أن يُحسب انهياراً خطأ تتغلب
+      // عليه دورة المزامنة التالية (بلاغ الإنتاج errno 103).
+      if (isTransientNetworkError(details.exception)) {
+        // fatal: false هو الافتراضي — الوضوح هنا مقصود لأن المسار
+        // الأصلي (recordFlutterFatalError) كان fatal.
+        _crashlytics?.recordError(
+          details.exception,
+          details.stack ?? StackTrace.current,
+          reason: 'network (transient) — demoted from fatal',
+          // ignore: avoid_redundant_argument_values
+          fatal: false,
+          information: const <String>['Transient network error — auto-retried'],
+        );
+        return;
+      }
       _crashlytics?.recordFlutterFatalError(details);
     } catch (e, st) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
@@ -542,7 +618,16 @@ class CrashlyticsService {
     }
 
     try {
-      _crashlytics?.recordError(error, stack, fatal: true);
+      // ✅ (2026-09-19) نفس خفض الدرجة هنا: استثناء شبكة عابر هرب من
+      // منطقة الجذر كان يُسجّل fatal:true — بلاغ الإنتاج جاء حرفياً من
+      // هذا المسار (بلا reason في الرسالة = توقيع هذه الدالة).
+      final transient = isTransientNetworkError(error);
+      _crashlytics?.recordError(
+        error,
+        stack,
+        reason: transient ? 'network (transient) — demoted from fatal' : null,
+        fatal: !transient,
+      );
     } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
     }

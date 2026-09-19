@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io' show HandshakeException, HttpException, SocketException;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/crashlytics_service.dart';
 
@@ -88,6 +91,122 @@ void main() {
       expect(CrashlyticsSeverity.values, contains(CrashlyticsSeverity.error));
       expect(CrashlyticsSeverity.values, contains(CrashlyticsSeverity.warning));
       expect(CrashlyticsSeverity.values, contains(CrashlyticsSeverity.info));
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    // ✅ (2026-09-19) بلاغ الإنتاج: SocketException (errno 103) إلى
+    // Worker سُجّل Fatal Exception — المصنّف يخفض العابر الشبكي
+    // إلى non-fatal في كل مسارات الالتقاط العامة.
+    // ═══════════════════════════════════════════════════════════
+    group('isTransientNetworkError', () {
+      test('بلاغ الإنتاج الحرفي (errno 103) → عابر', () {
+        const productionReport =
+            'SocketException: Software caused '
+            'connection abort (OS Error: Software caused connection abort, '
+            'errno = 103), address = 104.21.41.137, port = 48010';
+        expect(
+          CrashlyticsService.isTransientNetworkError(productionReport),
+          isTrue,
+        );
+      });
+
+      test('الأنواع الأصلية من dart:io وdart:async → عابرة', () {
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            SocketException('Software caused connection abort'),
+          ),
+          isTrue,
+        );
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            const HandshakeException(),
+          ),
+          isTrue,
+        );
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            HttpException('Connection closed', uri: Uri.parse('https://x')),
+          ),
+          isTrue,
+        );
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            TimeoutException('Fast path timeout after 6s'),
+          ),
+          isTrue,
+        );
+      });
+
+      test('أخطاء مكدس المزامنة المغلّفة نصاً → عابرة', () {
+        // _pushBatch يغلّف: Exception('Push network error: $e')
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            Exception(
+              'Push network error: SocketException: Connection reset '
+              'by peer',
+            ),
+          ),
+          isTrue,
+        );
+        // رسائل الدخول القابلة للتنفيذ
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            'Failed host lookup: marina-hotel-api.adenmarina2.workers.dev',
+          ),
+          isTrue,
+        );
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            'No address associated with hostname',
+          ),
+          isTrue,
+        );
+        // إطار WebSocket (realtime) وpackage:http
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            'WebSocketChannelException: SocketException: Connection '
+            'aborted',
+          ),
+          isTrue,
+        );
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            'ClientException: Connection closed while receiving data',
+          ),
+          isTrue,
+        );
+      });
+
+      test('أخطاء منطقية/برمجية → ليست شبكية (تبقى fatal)', () {
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            StateError('Not initialized'),
+          ),
+          isFalse,
+        );
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            Exception('Null check operator used on null value'),
+          ),
+          isFalse,
+        );
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            ArgumentError('invalid idempotency key'),
+          ),
+          isFalse,
+        );
+        expect(
+          CrashlyticsService.isTransientNetworkError(
+            const FormatException('Unexpected end of DER at offset 0'),
+          ),
+          isFalse,
+        );
+        expect(
+          CrashlyticsService.isTransientNetworkError(null),
+          isFalse,
+        );
+      });
     });
   });
 }

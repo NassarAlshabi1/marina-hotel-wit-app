@@ -190,39 +190,50 @@ Future<void> main() async {
   );
 
   debugPrint('BASE_API_URL=${Env.baseApiUrl}');
-  runZonedGuarded(() => runApp(const ProviderScope(child: App())), (
-    error,
-    stack,
-  ) async {
-    // إرسال الخطأ إلى Crashlytics
-    await CrashlyticsService.instance.recordUnexpectedError(
-      error: error,
-      stackTrace: stack,
-      context: 'runZonedGuarded',
-    );
-    // إرسال الخطأ إلى PostHog (يظهر في session replay مع باقي الأحداث)
-    await PostHogService.instance.captureError(
-      error,
-      stack,
-      context: 'runZonedGuarded',
-    );
-    // تسجيل محلي
-    DiagnosticsLogger.instance.recordError(
-      error,
-      stack,
-      tag: 'ZONED',
-      level: LogLevel.critical,
-    );
-  });
+  runZonedGuarded(
+    () {
+      runApp(const ProviderScope(child: App()));
 
-  unawaited(_initializeFullyAutomatedSyncSystem());
+      // ✅ (2026-09-19) بلاغ الإنتاج: Fatal Exception FlutterError:
+      // SocketException (errno 103) إلى الـ Worker — تهيئات ما بعد runApp
+      // كانت تُستدعى هنا في main() خارج المنطقة المحروسة، فكل مؤقت
+      // واستمرار غير متزامن تنشئه (حلقات المزامنة، WorkManager،
+      // المراقبون) كان يعيش في منطقة الجذر: أي خطأ شبكة عابر يهرب
+      // منها يصل PlatformDispatcher.onError فيُسجّل Fatal (بينما أخطاء
+      // المنطقة المحروسة تُسجّل non-fatal عبر معالج المنطقة أدناه).
+      // نقلها داخل المنطقة يوحّد مسار الالتقاط: العابر الشبكي يُخفَّض
+      // درجةً في CrashlyticsService ولا يعود يُحسب انهياراً.
+      unawaited(_initializeFullyAutomatedSyncSystem());
 
-  // ✅ Secondary sync + blacklist alerts — deferred (non-blocking)
-  unawaited(_initializeSecondarySync());
-  unawaited(_initializeBlacklistAlerts());
+      // ✅ Secondary sync + blacklist alerts — deferred (non-blocking)
+      unawaited(_initializeSecondarySync());
+      unawaited(_initializeBlacklistAlerts());
 
-  // ✅ Health checker — deferred 10s to reduce startup CPU pressure
-  Timer(const Duration(seconds: 10), _startHealthChecker);
+      // ✅ Health checker — deferred 10s to reduce startup CPU pressure
+      Timer(const Duration(seconds: 10), _startHealthChecker);
+    },
+    (error, stack) async {
+      // إرسال الخطأ إلى Crashlytics
+      await CrashlyticsService.instance.recordUnexpectedError(
+        error: error,
+        stackTrace: stack,
+        context: 'runZonedGuarded',
+      );
+      // إرسال الخطأ إلى PostHog (يظهر في session replay مع باقي الأحداث)
+      await PostHogService.instance.captureError(
+        error,
+        stack,
+        context: 'runZonedGuarded',
+      );
+      // تسجيل محلي
+      DiagnosticsLogger.instance.recordError(
+        error,
+        stack,
+        tag: 'ZONED',
+        level: LogLevel.critical,
+      );
+    },
+  );
 }
 
 /// تهيئة خدمة تنبيهات القائمة السوداء + فحص النزلاء الحاليين

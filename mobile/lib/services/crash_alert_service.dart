@@ -73,23 +73,36 @@ class CrashAlertService {
   }
 
   /// فحص معدل الأعطال وإرسال تنبيه إذا لزم
+  ///
+  /// ✅ (2026-09-19) حارسة Timer: مستدعى من Timer.periodic كـ callback
+  /// غير متزامن بلا try/catch — أي استثناء يهرب منه يصبح unhandled
+  /// async error في منطقة إنشاء المؤقت (نمط «إصلاح جذري» نفسه
+  /// المطبق في sync_guardian وcentral_sync_coordinator).
   Future<void> _checkCrashRate() async {
-    if (_totalOperations < minOperationsBeforeAlert) return;
+    try {
+      if (_totalOperations < minOperationsBeforeAlert) return;
 
-    final rate = currentCrashRate;
-    if (rate < crashRateThreshold) return;
+      final rate = currentCrashRate;
+      if (rate < crashRateThreshold) return;
 
-    // التحقق من فترة التهدئة (لا نُرسل تنبيه كل دقيقة)
-    if (_lastAlertTime != null) {
-      final elapsed = DateTime.now().difference(_lastAlertTime!);
-      if (elapsed < _alertCooldown) return;
+      // التحقق من فترة التهدئة (لا نُرسل تنبيه كل دقيقة)
+      if (_lastAlertTime != null) {
+        final elapsed = DateTime.now().difference(_lastAlertTime!);
+        if (elapsed < _alertCooldown) return;
+      }
+
+      await _sendTelegramAlert(rate);
+      _lastAlertTime = DateTime.now();
+
+      // إعادة تعيين العدادات بعد التنبيه
+      resetCounters();
+    } catch (e) {
+      developer.log(
+        '⚠️ Crash rate check failed: $e',
+        name: 'CrashAlertService',
+      );
+      // لا rethrow — Timer callback لا يجب أن يرمي استثناء
     }
-
-    await _sendTelegramAlert(rate);
-    _lastAlertTime = DateTime.now();
-
-    // إعادة تعيين العدادات بعد التنبيه
-    resetCounters();
   }
 
   /// إرسال تنبيه Telegram
