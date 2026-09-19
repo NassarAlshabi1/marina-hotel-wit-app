@@ -1,5 +1,8 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.marina.marina">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Namespace & applicationId are declared in build.gradle:
+         namespace "com.marina.marina" (code/R classes)
+         applicationId "com.a.a" (installed package identity).
+         AGP 8.6 requires the package attribute to be absent here. -->
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

@@ -82,6 +82,20 @@ jobs:
       - name: Run unit tests (financial + hotel-day engine)
         run: ./gradlew testDebugUnitTest --console=plain
 
+      # If any task fails, dump the exact resource/manifest intermediates so
+      # failures are diagnosable from the log alone (runners are ephemeral).
+      - name: Dump resource intermediates on failure
+        if: failure()
+        run: |
+          echo "=== merged values.xml (first 60 lines) ==="
+          find mobile/build/app/intermediates -path "*mergeDebugResources/merged.dir/values/values.xml" \
+            -exec head -60 {} \; 2>/dev/null || echo "not found"
+          echo "=== processed manifest ==="
+          find mobile/build/app/intermediates -name "AndroidManifest.xml" \
+            -path "*ManifestForPackage*" -exec head -20 {} \; 2>/dev/null || echo "not found"
+          echo "=== merged res flat files ==="
+          find mobile/build/app/intermediates -name "*.flat" -path "*bug*" 2>/dev/null | head -20
+
       - name: Build signed release APK (v1+v2+v3)
         run: ./gradlew assembleRelease --console=plain
 
