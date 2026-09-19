@@ -151,6 +151,8 @@ class SalaryWithdrawalsAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
+      // ✅ (2026-09-19) تخزين UUID الموظف — الربط الدائم عبر الأجهزة
+      employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       amount: _vDouble(json, 'amount', src),
       withdrawDate: d.Value(wd),
       // ✅ Audit Fix (2026-08-06): إضافة expenseId.
@@ -225,6 +227,7 @@ class SalaryWithdrawalsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
       _k(src, 'withdrawDate', 'withdraw_date'): effectiveWithdrawDate,
       _k(src, 'reason', 'reason'): model.reason,

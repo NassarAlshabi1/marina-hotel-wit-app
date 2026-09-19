@@ -2476,6 +2476,44 @@ class AppwriteSyncManager {
           continue;
         }
 
+        // ✅ (2026-09-19) إصلاح فجوة employee_uuid لمصروفات الرواتب:
+        // سابقاً كان relatedId البعيد (معرف الموظف على جهاز الإنشاء) يُخزّن
+        // كما هو — فيشير إلى موظف مختلف أو سجل يتيم على هذا الجهاز.
+        // الآن: إن وُجد employeeUuid نعيد تعيين relatedId للمعرف المحلي
+        // الصحيح للموظف (نفس نمط salary_withdrawals ثلاثي المستويات،
+        // لكن هنا UUID هو المستوى الأول والوحيد الموثوق عبر الأجهزة).
+        final expenseEmployeeUuid =
+            (data['employeeUuid'] as String?) ??
+            (data['employee_uuid'] as String?);
+        final remoteRelatedId = _asIntSafe(data, 'relatedId');
+        if (expenseEmployeeUuid != null &&
+            expenseEmployeeUuid.isNotEmpty &&
+            _isSalaryExpenseType(
+              (data['expenseType'] as String?) ??
+                  (data['expense_type'] as String?) ??
+                  '',
+            )) {
+          final linkedEmployee =
+              await (database.select(database.employees)
+                    ..where((e) => e.localUuid.equals(expenseEmployeeUuid))
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (linkedEmployee != null) {
+            data['relatedId'] = linkedEmployee.id;
+          }
+          // إن لم يوجد الموظف محلياً بعد: نترك relatedId كما ورد —
+          // _relinkOrphanSalaryExpenses سيعالجه بعد وصول الموظفين
+          // (الموظفون يُزامَنون قبل المصروفات في ترتيب السحب).
+          // مرجع تشخيصي فقط:
+          if (linkedEmployee == null && remoteRelatedId != null) {
+            _logger.debug(
+              '⏳ مصروف راتب $localUuid بانتظار وصول الموظف '
+              'uuid=$expenseEmployeeUuid — سيُعاد ربطه لاحقاً',
+              tag: 'SYNC',
+            );
+          }
+        }
+
         await _adapterRegistry.expenses.upsertFromJson(
           data,
           src: Source.appwrite,
@@ -5712,6 +5750,21 @@ class AppwriteSyncManager {
         if (skipDeleted && cycle.deletedAt != null) continue;
         try {
           final payload = _salaryCycleToRemote(cycle);
+          // ✅ (2026-09-19) إغلاق فجوة employee_uuid في الرفع الكامل أيضاً
+          // (نفس منطق _processSalaryCycleEntry التزايدي).
+          final fullPushEmployee =
+              await (database.select(database.employees)
+                    ..where((e) => e.id.equals(cycle.employeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (fullPushEmployee != null) {
+            payload['employeeUuid'] = fullPushEmployee.localUuid;
+            payload['employeeLocalUuid'] = fullPushEmployee.localUuid;
+          } else if (cycle.employeeUuid != null &&
+              cycle.employeeUuid!.isNotEmpty) {
+            payload['employeeUuid'] = cycle.employeeUuid;
+            payload['employeeLocalUuid'] = cycle.employeeUuid;
+          }
           await appwriteService.upsertSalaryCycle(
             cycle.localUuid,
             _filterPayload('salary_cycles', payload),
@@ -5732,6 +5785,31 @@ class AppwriteSyncManager {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
           final payload = _salaryPaymentToRemote(payment);
+          // ✅ (2026-09-19) إغلاق فجوة employee_uuid في الرفع الكامل أيضاً:
+          // cycleLocalUuid + employeeUuid (نفس منطق _processSalaryPaymentEntry).
+          final fullPushCycle =
+              await (database.select(database.salaryCycles)
+                    ..where((c) => c.id.equals(payment.cycleId))
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (fullPushCycle != null) {
+            payload['cycleLocalUuid'] = fullPushCycle.localUuid;
+            if (fullPushCycle.employeeUuid != null &&
+                fullPushCycle.employeeUuid!.isNotEmpty) {
+              payload['employeeUuid'] = fullPushCycle.employeeUuid;
+              payload['employeeLocalUuid'] = fullPushCycle.employeeUuid;
+            } else {
+              final fullPushPayEmployee =
+                  await (database.select(database.employees)
+                        ..where((e) => e.id.equals(fullPushCycle.employeeId))
+                        ..limit(1))
+                      .getSingleOrNull();
+              if (fullPushPayEmployee != null) {
+                payload['employeeUuid'] = fullPushPayEmployee.localUuid;
+                payload['employeeLocalUuid'] = fullPushPayEmployee.localUuid;
+              }
+            }
+          }
           await appwriteService.upsertSalaryPayment(
             payment.localUuid,
             _filterPayload('salary_payments', payload),
@@ -5952,6 +6030,32 @@ class AppwriteSyncManager {
       );
     }
     final payload = _payloadMapper.salaryPaymentToRemote(item);
+    // ✅ (2026-09-19) إغلاق فجوة employee_uuid لدفعات الرواتب:
+    // الربط عبر دورة الراتب (cycleLocalUuid) ثم الموظف (employeeUuid) —
+    // المعرفات الرقمية (cycleId/employeeId) تختلف بين الأجهزة.
+    final paymentCycle =
+        await (database.select(database.salaryCycles)
+              ..where((c) => c.id.equals(item.cycleId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (paymentCycle != null) {
+      payload['cycleLocalUuid'] = paymentCycle.localUuid;
+      if (paymentCycle.employeeUuid != null &&
+          paymentCycle.employeeUuid!.isNotEmpty) {
+        payload['employeeUuid'] = paymentCycle.employeeUuid;
+        payload['employeeLocalUuid'] = paymentCycle.employeeUuid;
+      } else {
+        final paymentEmployee =
+            await (database.select(database.employees)
+                  ..where((e) => e.id.equals(paymentCycle.employeeId))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (paymentEmployee != null) {
+          payload['employeeUuid'] = paymentEmployee.localUuid;
+          payload['employeeLocalUuid'] = paymentEmployee.localUuid;
+        }
+      }
+    }
     final occPayload = await _occPushCheck(
       entity: 'salary_payments',
       documentId: item.localUuid,
@@ -6093,6 +6197,17 @@ class AppwriteSyncManager {
       );
     }
     final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
+    // ✅ (2026-09-19) إغلاق فجوة employee_uuid: سجلات الترحيل تحتاج ربط
+    // الموظف عبر UUID لأن employeeId الرقمي يختلف بين الأجهزة.
+    final carryEmployee =
+        await (database.select(database.employees)
+              ..where((e) => e.id.equals(log.employeeId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (carryEmployee != null) {
+      payload['employeeUuid'] = carryEmployee.localUuid;
+      payload['employeeLocalUuid'] = carryEmployee.localUuid;
+    }
     final occPayload = await _occPushCheck(
       entity: 'salary_carry_over_logs',
       documentId: entry.localUuid,
@@ -8545,7 +8660,10 @@ class AppwriteSyncManager {
   Future<int> _relinkOrphanSalaryExpenses() async {
     var relinked = 0;
     try {
-      // ابحث عن مصروفات الرواتب اليتيمة: employeeUuid موجود، relatedId فارغ.
+      // ابحث عن مصروفات الرواتب اليتيمة: employeeUuid موجود، relatedId فارغ
+      // أو يشير إلى موظف مختلف (فجوة تاريخية: المعرف الرقمي البعيد كان
+      // يُخزّن كما هو قبل إصلاح إعادة التعيين في _syncExpenses —
+      // ✅ 2026-09-19: نعالج اليتيم والمربوط خطأ معاً).
       // نُجري فحص نوع الراتب في Dart عبر PayloadMapper.isSalaryExpenseType
       // لأن الكلمات المفتاحية عربية ومتعددة (رواتب / سحب راتب / خصم راتب…)
       // ولا تُترجم بسهولة إلى LIKE في SQL.
@@ -8554,10 +8672,11 @@ class AppwriteSyncManager {
       // كسلسلة نصية، فتُنتج "no such column". (تلميح رسالة الخطأ كان صريحًا.)
       final candidates = await database
           .customSelect(
-            'SELECT id, employee_uuid, expense_type FROM expenses '
+            'SELECT id, employee_uuid, related_id, expense_type FROM expenses '
             'WHERE employee_uuid IS NOT NULL '
             "AND employee_uuid != '' "
-            'AND related_id IS NULL '
+            'AND (related_id IS NULL OR related_id NOT IN '
+            '  (SELECT id FROM employees WHERE local_uuid = expenses.employee_uuid)) '
             'AND deleted_at IS NULL',
             readsFrom: {database.expenses},
           )
@@ -8577,13 +8696,14 @@ class AppwriteSyncManager {
       }
 
       _logger.info(
-        '🔗 إعادة ربط ${orphans.length} مصروف راتب يتيم عبر employeeUuid',
+        '🔗 إعادة ربط ${orphans.length} مصروف راتب (يتيم أو معرّف خاطئ) عبر employeeUuid',
         tag: 'SYNC_RELINK',
       );
 
       for (final row in orphans) {
         final expenseId = row.read<int>('id');
         final employeeUuid = row.read<String>('employee_uuid');
+        final currentRelatedId = row.read<int?>('related_id');
 
         // حل الموظف عبر localUuid (نفس آلية expenses_adapter).
         final employee =
@@ -8593,7 +8713,15 @@ class AppwriteSyncManager {
                 .getSingleOrNull();
 
         if (employee != null) {
-          // ✅ وجدنا الموظف — أعد الربط.
+          // ✅ وجدنا الموظف — أعد الربط (تصحيح اليتيم أو المعرّف الخاطئ).
+          if (currentRelatedId != null && currentRelatedId != employee.id) {
+            _logger.info(
+              '🩹 تصحيح ربط خاطئ: Expense #$expenseId كان مرتبطاً '
+              'بالموظف #$currentRelatedId — يُعاد إلى #${employee.id} '
+              'وفقاً لـ employeeUuid',
+              tag: 'SYNC_RELINK',
+            );
+          }
           await (database.update(database.expenses)
                 ..where((t) => t.id.equals(expenseId)))
               .write(ExpensesCompanion(relatedId: drift.Value(employee.id)));

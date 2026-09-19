@@ -103,6 +103,9 @@ class SalaryPaymentsAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيمة — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
+      // ✅ (2026-09-19) تخزين UUID الموظف (مُشتق من الدورة على المصدر) —
+      // يُخزّن مباشرة ليُستعلم محلياً دون الانحدار عبر cycleId الرقمي.
+      employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       amount: _vInt(json, 'amount', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       paymentDateIso: _vStr(
@@ -159,6 +162,7 @@ class SalaryPaymentsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // المحلي يستخدم IntColumn — النوع متطابق
       _k(src, 'amount', 'amount'): model.amount,

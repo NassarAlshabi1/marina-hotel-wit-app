@@ -298,11 +298,14 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 66', () {
+    test('3e. أحدث schemaVersion = 67', () {
       // ✅ (2026-09-14) محاذاة بعد bump إلى 66 (recorder_name على
       // salary_withdrawals — إسناد السحبة لمسجّلها). القيمة مقصودة صريحة:
       // كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
-      expect(db.schemaVersion, 66);
+      // ✅ (2026-09-19) bump إلى 67 — فجوة employee_uuid:
+      // employee_uuid على salary_cycles/salary_payments/salary_withdrawals/
+      // salary_carry_over_logs + التعبئة + الفهارس (Migration 67).
+      expect(db.schemaVersion, 67);
     });
   });
 

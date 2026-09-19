@@ -30,6 +30,22 @@ class SalaryWithdrawalsRepository {
     }
   }
 
+  /// ✅ (2026-09-19) جلب UUID الموظف من قاعدة البيانات المحلية.
+  ///
+  /// الربط الرقمي (employeeId) صالح داخل الجهاز فقط؛ UUID هو المفتاح
+  /// الدائم عبر الأجهزة (فجوة employee_uuid).
+  Future<d.Value<String>> _employeeUuidFor(int employeeId) async {
+    final employee =
+        await (_db.select(_db.employees)
+              ..where((e) => e.id.equals(employeeId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (employee == null || employee.localUuid.isEmpty) {
+      return const d.Value.absent();
+    }
+    return d.Value(employee.localUuid);
+  }
+
   /// إنشاء سجل سحب راتب مرتبط بمصروف
   ///
   /// ✅ (2026-09-14) إسناد السحبة لمسجّلها:
@@ -52,12 +68,16 @@ class SalaryWithdrawalsRepository {
     final uuid = IdGen.uuid();
     // ✅ وسم الجهاز — عمود deviceId موجود في SyncFields وكان يُرسل فارغاً دائماً
     final deviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
+    // ✅ (2026-09-19) UUID الموظف عند الإنشاء — الربط الدائم عبر الأجهزة
+    final employeeUuid = await _employeeUuidFor(employeeId);
 
     final id = await _db.transaction(() async {
       final companion = SalaryWithdrawalsCompanion(
         localUuid: d.Value(uuid),
         serverId: const d.Value(null),
         employeeId: d.Value(employeeId),
+        // ✅ (2026-09-19) توليد employee_uuid عند الإنشاء — الربط الدائم
+        employeeUuid: employeeUuid,
         amount: d.Value(amount),
         withdrawDate: d.Value(date),
         reason: d.Value(reason),
@@ -147,6 +167,9 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     bool originIsServer = false,
   }) async {
+    // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
+    final employeeUuid = await _employeeUuidFor(employeeId);
+
     // ✅ البحث عن سجل موجود — محاولة عبر عمود expense_id أولاً
     SalaryWithdrawal? matched;
 
@@ -317,6 +340,8 @@ class SalaryWithdrawalsRepository {
                 localUuid: d.Value(uuid),
                 serverId: const d.Value(null),
                 employeeId: d.Value(employeeId),
+                // ✅ (2026-09-19) employee_uuid عند الإنشاء
+                employeeUuid: employeeUuid,
                 amount: d.Value(amount),
                 withdrawDate: d.Value(date),
                 reason: d.Value(reasonText),
