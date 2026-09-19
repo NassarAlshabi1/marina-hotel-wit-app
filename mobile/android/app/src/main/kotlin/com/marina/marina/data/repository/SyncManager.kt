@@ -15,6 +15,8 @@ import com.marina.marina.data.local.entity.PaymentEntity
 import com.marina.marina.data.local.entity.RoomEntity
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
+import com.marina.marina.domain.model.SyncUiState
+import com.marina.marina.domain.repository.SyncRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -45,7 +47,7 @@ class SyncManager @Inject constructor(
     private val expensesDao: ExpensesDao,
     private val employeesDao: EmployeesDao,
     private val debtsDao: DebtsDao
-) {
+) : SyncRepository {
     companion object {
         private const val PULL_BATCH_SIZE = 200
         private val PULL_COLLECTIONS = listOf(
@@ -53,28 +55,19 @@ class SyncManager @Inject constructor(
         )
     }
 
-    data class SyncUiState(
-        val isSyncing: Boolean = false,
-        val lastSyncAt: Long = 0,
-        val lastMessage: String = "",
-        val isError: Boolean = false,
-        val pushedCount: Int = 0,
-        val pulledCount: Int = 0
-    )
-
     private val gson = Gson()
 
     private val _syncState = MutableStateFlow(SyncUiState())
-    val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
+    override val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
 
-    fun pendingCount(): Flow<Int> = outboxRepository.pendingCount()
+    override fun pendingCount(): Flow<Int> = outboxRepository.pendingCount()
 
     /**
      * Runs a full sync cycle: push local changes, then pull remote deltas.
      * Safe to call repeatedly; concurrent calls are serialized by the
      * isSyncing flag (callers should check it, best-effort).
      */
-    suspend fun syncNow(): SyncUiState {
+    override suspend fun syncNow(): SyncUiState {
         if (_syncState.value.isSyncing) return _syncState.value
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ الدفع...")
 
@@ -118,7 +111,7 @@ class SyncManager @Inject constructor(
      *
      * @return the number of records pulled, or -1 when the cycle failed.
      */
-    suspend fun pullOnly(): Int {
+    override suspend fun pullOnly(): Int {
         if (_syncState.value.isSyncing) return -1
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب...")
         var pulled = 0

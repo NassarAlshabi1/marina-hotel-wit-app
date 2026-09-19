@@ -1,12 +1,18 @@
 package com.marina.marina.di
 
+import com.marina.marina.data.ai.AiAssistantRepositoryImpl
+import com.marina.marina.data.auth.AuthRepositoryImpl
 import com.marina.marina.data.repository.BlacklistRepositoryImpl
+import com.marina.marina.data.repository.SyncManager
 import com.marina.marina.data.repository.BookingNightsRepositoryImpl
 import com.marina.marina.data.repository.CashRepositoryImpl
 import com.marina.marina.data.repository.GuestInfosRepositoryImpl
 import com.marina.marina.data.repository.PaymentVoidsRepositoryImpl
 import com.marina.marina.data.repository.SalaryRepositoryImpl
+import com.marina.marina.domain.repository.AiAssistantRepository
+import com.marina.marina.domain.repository.AuthRepository
 import com.marina.marina.domain.repository.BlacklistRepository
+import com.marina.marina.domain.repository.SyncRepository
 import com.marina.marina.domain.repository.BookingNightsRepository
 import com.marina.marina.domain.repository.CashRepository
 import com.marina.marina.domain.repository.GuestInfosRepository
@@ -104,4 +110,16 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindBookingNightsRepository(impl: BookingNightsRepositoryImpl): BookingNightsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSyncRepository(impl: SyncManager): SyncRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAiAssistantRepository(impl: AiAssistantRepositoryImpl): AiAssistantRepository
 }

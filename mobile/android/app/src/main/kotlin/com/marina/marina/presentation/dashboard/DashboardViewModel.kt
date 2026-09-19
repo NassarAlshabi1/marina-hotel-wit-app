@@ -2,7 +2,8 @@ package com.marina.marina.presentation.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.marina.marina.data.repository.SyncManager
+import com.marina.marina.domain.model.SyncUiState
+import com.marina.marina.domain.repository.SyncRepository
 import com.marina.marina.domain.model.AuthUser
 import com.marina.marina.domain.model.Booking
 import com.marina.marina.domain.model.PaymentUserHotelDaySummary
@@ -61,7 +62,7 @@ class DashboardViewModel @Inject constructor(
     private val bookingsRepository: BookingsRepository,
     private val paymentsRepository: PaymentsRepository,
     private val expensesRepository: ExpensesRepository,
-    private val syncManager: SyncManager,
+    private val syncManager: SyncRepository,
     private val sessionManager: UserSessionManager
 ) : ViewModel() {
 
@@ -165,7 +166,7 @@ class DashboardViewModel @Inject constructor(
             ?.let { it.isAdmin || it.userType == "manager" || it.userType == "supervisor" } == true
 
     /** Live sync engine state + pending outbox count (header indicators). */
-    val syncState: StateFlow<SyncManager.SyncUiState> = syncManager.syncState
+    val syncState: StateFlow<SyncUiState> = syncManager.syncState
     val pendingChanges: StateFlow<Int> = syncManager.pendingCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 

@@ -243,7 +243,7 @@ fun DashboardScreen(
 
 @Composable
 private fun DashboardHeader(
-    syncState: com.marina.marina.data.repository.SyncManager.SyncUiState,
+    syncState: com.marina.marina.domain.model.SyncUiState,
     pendingChanges: Int,
     onSyncClick: () -> Unit
 ) {

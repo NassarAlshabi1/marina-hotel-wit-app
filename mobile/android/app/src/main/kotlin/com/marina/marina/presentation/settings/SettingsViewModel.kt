@@ -2,7 +2,8 @@ package com.marina.marina.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.marina.marina.data.repository.SyncManager
+import com.marina.marina.domain.model.SyncUiState
+import com.marina.marina.domain.repository.SyncRepository
 import com.marina.marina.domain.repository.BookingsRepository
 import com.marina.marina.domain.repository.EmployeesRepository
 import com.marina.marina.domain.repository.RoomsRepository
@@ -22,14 +23,14 @@ data class SettingsUiState(
     val activeBookings: Int = 0,
     val employeeCount: Int = 0,
     val pendingOutbox: Int = 0,
-    val sync: SyncManager.SyncUiState = SyncManager.SyncUiState(),
+    val sync: SyncUiState = SyncUiState(),
     val error: String? = null,
     val message: String? = null
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val syncManager: SyncManager,
+    private val syncManager: SyncRepository,
     private val roomsRepository: RoomsRepository,
     private val bookingsRepository: BookingsRepository,
     private val employeesRepository: EmployeesRepository
@@ -66,7 +67,7 @@ class SettingsViewModel @Inject constructor(
         _state.value = _state.value.copy(message = null)
     }
 
-    /** Triggers a full push + pull cycle via [SyncManager]. */
+    /** Triggers a full push + pull cycle via [SyncRepository]. */
     fun syncNow() {
         viewModelScope.launch {
             val result = syncManager.syncNow()

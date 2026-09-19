@@ -2,8 +2,10 @@ package com.marina.marina.presentation.aichat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.marina.marina.data.remote.GeminiService
 import com.marina.marina.domain.model.ChatMessage
+import com.marina.marina.domain.repository.AiAssistantRepository
+import com.marina.marina.domain.usecase.ai.ChatWithAssistantUseCase
+import com.marina.marina.domain.usecase.ai.SaveAiApiKeyUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +30,9 @@ data class AiChatUiState(
 
 @HiltViewModel
 class AIChatViewModel @Inject constructor(
-    private val geminiService: GeminiService
+    private val assistant: AiAssistantRepository,
+    private val chatWithAssistant: ChatWithAssistantUseCase,
+    private val saveAiApiKey: SaveAiApiKeyUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -39,7 +43,7 @@ class AIChatViewModel @Inject constructor(
                     isFromUser = false
                 )
             ),
-            isConfigured = geminiService.isConfigured()
+            isConfigured = assistant.isConfigured()
         )
     )
     val state: StateFlow<AiChatUiState> = _state.asStateFlow()
@@ -51,7 +55,7 @@ class AIChatViewModel @Inject constructor(
     fun saveApiKey() {
         val key = _state.value.apiKey.trim()
         if (key.isBlank()) return
-        geminiService.saveApiKey(key)
+        saveAiApiKey(key)
         _state.value = _state.value.copy(isConfigured = true, error = null)
     }
 
@@ -67,8 +71,7 @@ class AIChatViewModel @Inject constructor(
             val conversation = (_state.value.messages)
                 .filter { !it.isThinking }
                 .map { it.text to it.isFromUser }
-            val result = geminiService.chat(conversation)
-            result.fold(
+            chatWithAssistant(conversation).fold(
                 onSuccess = { reply ->
                     _state.value = _state.value.copy(
                         messages = _state.value.messages + ChatMessage(text = reply, isFromUser = false),
