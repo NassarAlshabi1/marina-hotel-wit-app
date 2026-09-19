@@ -2,6 +2,17 @@ package com.marina.marina.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.marina.marina.data.local.dao.AncestorCacheDao
+import com.marina.marina.data.local.dao.AppSessionsDao
+import com.marina.marina.data.local.dao.AppUsersDao
+import com.marina.marina.data.local.dao.AutoFixRunsDao
+import com.marina.marina.data.local.dao.DevicesDao
+import com.marina.marina.data.local.dao.IntegrityViolationsDao
+import com.marina.marina.data.local.dao.RestoreFixLogDao
+import com.marina.marina.data.local.dao.SyncConflictsDao
+import com.marina.marina.data.local.dao.SyncLogDao
+import com.marina.marina.data.local.dao.SyncQueueDao
+import com.marina.marina.data.local.dao.SyncRemoteMetaDao
 import com.marina.marina.data.local.dao.AuditLogsDao
 import com.marina.marina.data.local.dao.BlacklistEntriesDao
 import com.marina.marina.data.local.dao.BookingNightsDao
@@ -25,6 +36,18 @@ import com.marina.marina.data.local.dao.PaymentsDao
 import com.marina.marina.data.local.dao.RoomsDao
 import com.marina.marina.data.local.dao.SalaryWithdrawalsDao
 import com.marina.marina.data.local.dao.ShiftNotesDao
+import com.marina.marina.data.local.entity.AncestorCacheEntity
+import com.marina.marina.data.local.entity.AppSessionEntity
+import com.marina.marina.data.local.entity.AppUserEntity
+import com.marina.marina.data.local.entity.AuditLogEntity
+import com.marina.marina.data.local.entity.AutoFixRunEntity
+import com.marina.marina.data.local.entity.DeviceInfoEntity
+import com.marina.marina.data.local.entity.IntegrityViolationEntity
+import com.marina.marina.data.local.entity.RestoreFixLogEntity
+import com.marina.marina.data.local.entity.SyncConflictEntity
+import com.marina.marina.data.local.entity.SyncLogEntity
+import com.marina.marina.data.local.entity.SyncQueueEntity
+import com.marina.marina.data.local.entity.SyncRemoteMetaEntity
 import com.marina.marina.data.local.entity.AuditLogEntity
 import com.marina.marina.data.local.entity.BlacklistEntryEntity
 import com.marina.marina.data.local.entity.BookingNightEntity
@@ -77,9 +100,20 @@ import com.marina.marina.data.local.entity.SyncStateEntity
         SalaryPaymentEntity::class,
         SalaryCarryOverLogEntity::class,
         BlacklistEntryEntity::class,
-        AuditLogEntity::class
+        AuditLogEntity::class,
+        AutoFixRunEntity::class,
+        IntegrityViolationEntity::class,
+        AppSessionEntity::class,
+        RestoreFixLogEntity::class,
+        SyncQueueEntity::class,
+        SyncLogEntity::class,
+        SyncConflictEntity::class,
+        AncestorCacheEntity::class,
+        SyncRemoteMetaEntity::class,
+        AppUserEntity::class,
+        DeviceInfoEntity::class
     ],
-    version = 69,
+    version = 70,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -106,9 +140,20 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun blacklistEntriesDao(): BlacklistEntriesDao
     abstract fun auditLogsDao(): AuditLogsDao
     abstract fun cashTransactionsDao(): CashTransactionsDao
+    abstract fun autoFixRunsDao(): AutoFixRunsDao
+    abstract fun integrityViolationsDao(): IntegrityViolationsDao
+    abstract fun appSessionsDao(): AppSessionsDao
+    abstract fun restoreFixLogDao(): RestoreFixLogDao
+    abstract fun syncQueueDao(): SyncQueueDao
+    abstract fun syncLogDao(): SyncLogDao
+    abstract fun syncConflictsDao(): SyncConflictsDao
+    abstract fun ancestorCacheDao(): AncestorCacheDao
+    abstract fun syncRemoteMetaDao(): SyncRemoteMetaDao
+    abstract fun appUsersDao(): AppUsersDao
+    abstract fun devicesDao(): DevicesDao
 
     companion object {
         const val DATABASE_NAME = "marina_hotel.db"
-        const val SCHEMA_VERSION = 69
+        const val SCHEMA_VERSION = 70
     }
 }

@@ -117,4 +117,48 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideCashTransactionsDao(db: AppDatabase) = db.cashTransactionsDao()
+
+    @Provides
+    @Singleton
+    fun provideAutoFixRunsDao(db: AppDatabase) = db.autoFixRunsDao()
+
+    @Provides
+    @Singleton
+    fun provideIntegrityViolationsDao(db: AppDatabase) = db.integrityViolationsDao()
+
+    @Provides
+    @Singleton
+    fun provideAppSessionsDao(db: AppDatabase) = db.appSessionsDao()
+
+    @Provides
+    @Singleton
+    fun provideRestoreFixLogDao(db: AppDatabase) = db.restoreFixLogDao()
+
+    @Provides
+    @Singleton
+    fun provideSyncQueueDao(db: AppDatabase) = db.syncQueueDao()
+
+    @Provides
+    @Singleton
+    fun provideSyncLogDao(db: AppDatabase) = db.syncLogDao()
+
+    @Provides
+    @Singleton
+    fun provideSyncConflictsDao(db: AppDatabase) = db.syncConflictsDao()
+
+    @Provides
+    @Singleton
+    fun provideAncestorCacheDao(db: AppDatabase) = db.ancestorCacheDao()
+
+    @Provides
+    @Singleton
+    fun provideSyncRemoteMetaDao(db: AppDatabase) = db.syncRemoteMetaDao()
+
+    @Provides
+    @Singleton
+    fun provideAppUsersDao(db: AppDatabase) = db.appUsersDao()
+
+    @Provides
+    @Singleton
+    fun provideDevicesDao(db: AppDatabase) = db.devicesDao()
 }
