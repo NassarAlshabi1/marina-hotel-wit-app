@@ -55,15 +55,29 @@ jobs:
           # Expected: 4f6e5c58abc68e20f842c868060d515fe2d64d4964572d17ecf9ac04bb7fb865
           echo "4f6e5c58abc68e20f842c868060d515fe2d64d4964572d17ecf9ac04bb7fb865  mobile/android/app/marina-hotel-key.jks" | sha256sum -c -
 
-      # ubuntu-latest does not ship cmdline-tools on PATH — install them so
-      # sdkmanager is available, then pin the SDK pieces AGP 8.6 needs.
-      - name: Set up Android SDK (cmdline-tools + sdkmanager)
-        uses: android-actions/setup-android@v3
-
+      # ubuntu-latest ships cmdline-tools (e.g. .../cmdline-tools/16.0/bin)
+      # but NOT on PATH, and android-actions/setup-android@v3 currently fails
+      # trying to install the retired 'tools' package. Resolve sdkmanager by
+      # full path; if unavailable, fall back to AGP's auto-install (runner
+      # images ship pre-accepted SDK licenses, so AGP can self-serve).
       - name: Ensure Android SDK components
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager --install "platforms;android-35" "build-tools;34.0.0" > /dev/null
+          set -x
+          SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1 || true)"
+          if [ -z "$SDKMANAGER" ] && command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          fi
+          if [ -n "$SDKMANAGER" ]; then
+            echo "sdkmanager at: $SDKMANAGER"
+            yes | "$SDKMANAGER" --licenses > /dev/null || true
+            "$SDKMANAGER" --install "platforms;android-35" "build-tools;34.0.0" > /dev/null || true
+          else
+            echo "sdkmanager not found — relying on AGP auto-install"
+          fi
+          echo "--- installed platforms ---"
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+          echo "--- installed build-tools ---"
+          ls "$ANDROID_HOME/build-tools" 2>/dev/null || true
 
       - name: Run unit tests (financial + hotel-day engine)
         run: ./gradlew testDebugUnitTest --console=plain
