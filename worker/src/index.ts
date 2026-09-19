@@ -8,6 +8,7 @@ import { authMiddleware, handleLogin, hashPassword, resolveExpiryHours, signToke
 import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate } from './sync';
 import { SyncLockDO, type RealtimeMessage } from './sync-lock';
 import { RealtimeHubDO } from './realtime-hub';
+import { handleAiRequest } from './ai';
 
 // ─── Environment bindings ─────────────────────────────────────
 
@@ -15,6 +16,7 @@ export { SyncLockDO, RealtimeHubDO };
 
 export interface Env {
   DB: D1Database;
+  AI: Ai;
   SYNC_LOCK: DurableObjectNamespace;
   REALTIME_HUB: DurableObjectNamespace;
   JWT_SECRET: string;
@@ -307,6 +309,15 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
       const ctx = authResult.context!;
       const db = new Database(env.DB);
+
+      // ─── Natural-language hotel assistant ───────────────────
+      // Workers AI classifies intent; this Worker owns the allow-listed SQL.
+      // Writes always require a second request with confirm=true.
+      if (path === '/api/ai/query' && method === 'POST') {
+        const response = await handleAiRequest(request, env, ctx.role);
+        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
+        return response;
+      }
 
       // ─── D1 Health Probe ────────────────────────────────
       // ✅ (2026-09-17) طلب المستخدم: «عند فتح التطبيق يفترض يفحص تلقائيا

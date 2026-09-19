@@ -50,3 +50,7 @@ JWT_EXPIRY_HOURS = "0"
 RATE_LIMIT_WINDOW = "60"
 RATE_LIMIT_MAX = "1000"
 CORS_ORIGIN = "*"
+
+# Workers AI — used only inside the authenticated natural-language endpoint.
+[ai]
+binding = "AI"
