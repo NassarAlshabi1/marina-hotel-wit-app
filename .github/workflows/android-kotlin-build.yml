@@ -2,9 +2,17 @@ name: Android Kotlin Build
 
 # Builds the Kotlin + Jetpack Compose port of the Marina Hotel app
 # (mobile/android) — runs unit tests and produces signed release/debug APKs.
+#
+# Structure follows patterns researched from reference GitHub workflows:
+#   - Urban_Xray/Guenark_Collab "android-kotlin-build.yml": dynamic APK
+#     discovery via find(), plain actions/cache@v4, --stacktrace
+#   - ACINQ/phoenix: absolute build-tools paths, explicit signature verify
+#   - codec2_talkie: strict apksigner verify as a dedicated step
+#   - Labrador: compression-level 0 for APK artifacts (already zip-compressed)
 on:
   push:
     branches:
+      - agent/wave-cloud-bi9f
       - agent/pulse-storm-pdj1
     paths:
       - 'mobile/android/**'
@@ -18,6 +26,14 @@ permissions:
 concurrency:
   group: android-kotlin-build-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  # mobile/android/build.gradle sets `rootProject.buildDir = "../build"`, which
+  # redirects ALL module outputs out of mobile/android into mobile/build/.
+  # Every APK/intermediates path in this workflow MUST use mobile/build/app/...
+  # (regression guard: a 2026-09-19 merge pointed paths at
+  # mobile/android/app/build/... and broke the verify step).
+  APK_ROOTS: mobile/build/app/outputs/apk mobile/android/app/build/outputs/apk
 
 jobs:
   build:
@@ -38,11 +54,21 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # NOTE: gradle/actions/setup-gradle is intentionally NOT used. It injects
-      # a Develocity init script and runs a concurrent system-Gradle daemon in
-      # the same GRADLE_USER_HOME, which correlates with AAPT resource-linking
-      # failures on this project (values dropped from the app resource
-      # package). Plain ./gradlew is slower on cold caches but deterministic.
+      # Plain file cache ONLY — gradle/actions/setup-gradle is intentionally
+      # NOT used. It injects a Develocity init script and runs a concurrent
+      # system-Gradle daemon in the same GRADLE_USER_HOME, which correlated
+      # with AAPT resource-linking failures on this project (values dropped
+      # from the app resource package). actions/cache@v4 is pure file caching
+      # with no init scripts, so it is safe.
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       # The JKS keystore is git-ignored by convention; restore it from the
       # base64 payload tracked in mobile/Keystore.txt so CI signs with the
@@ -71,7 +97,7 @@ jobs:
           if [ -n "$SDKMANAGER" ]; then
             echo "sdkmanager at: $SDKMANAGER"
             yes | "$SDKMANAGER" --licenses > /dev/null || true
-            "$SDKMANAGER" --install "platforms;android-35" "build-tools;34.0.0"
+            "$SDKMANAGER" --install "platforms;android-35" "build-tools;34.0.0" > /dev/null || true
           else
             echo "sdkmanager not found — relying on AGP auto-install"
           fi
@@ -81,55 +107,86 @@ jobs:
           ls "$ANDROID_HOME/build-tools" 2>/dev/null || true
 
       - name: Run unit tests (financial + hotel-day engine)
-        run: ./gradlew testDebugUnitTest --console=plain
+        run: ./gradlew testDebugUnitTest --console=plain --stacktrace
 
-      # If any task fails, dump the exact resource/manifest intermediates so
-      # failures are diagnosable from the log alone (runners are ephemeral).
+      # If any prior step fails, dump the exact resource/manifest intermediates
+      # so failures are diagnosable from the log alone (runners are ephemeral).
       - name: Dump resource intermediates on failure
         if: failure()
         working-directory: .
         run: |
           echo "=== merged values.xml (first 60 lines) ==="
-          find mobile/android/app/build/intermediates \
+          find mobile/build/app/intermediates mobile/android/app/build/intermediates \
             -path "*mergeDebugResources/merged.dir/values/values.xml" \
             -exec head -60 {} \; 2>/dev/null || echo "not found"
           echo "=== processed manifest ==="
-          find mobile/android/app/build/intermediates \
+          find mobile/build/app/intermediates mobile/android/app/build/intermediates \
             -name "AndroidManifest.xml" \
             -path "*ManifestForPackage*" \
             -exec head -20 {} \; 2>/dev/null || echo "not found"
           echo "=== merged res flat files ==="
-          find mobile/android/app/build/intermediates \
+          find mobile/build/app/intermediates mobile/android/app/build/intermediates \
             -name "*.flat" \
             -path "*bug*" 2>/dev/null | head -20
 
       - name: Build signed release APK (v1+v2+v3)
-        run: ./gradlew assembleRelease --console=plain
+        run: ./gradlew assembleRelease --console=plain --stacktrace
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --console=plain
+        run: ./gradlew assembleDebug --console=plain --stacktrace
 
-      - name: Verify APK signature schemes
+      # Dynamic APK discovery (pattern: Urban_Xray android-kotlin-build.yml).
+      # find() beats hardcoded paths — the buildDir redirect has bitten this
+      # repo twice. Prefer the redirected root, fall back to the module dir.
+      - name: Locate built APKs
+        id: locate
+        working-directory: .
+        run: |
+          set -e
+          REL="$(find mobile/build/app/outputs/apk/release \
+                      mobile/android/app/build/outputs/apk/release \
+                      -name 'app-release.apk' 2>/dev/null | head -1 || true)"
+          DBG="$(find mobile/build/app/outputs/apk/debug \
+                      mobile/android/app/build/outputs/apk/debug \
+                      -name 'app-debug.apk' 2>/dev/null | head -1 || true)"
+          if [ -z "$REL" ]; then echo "::error::release APK not found under $APK_ROOTS"; exit 1; fi
+          if [ -z "$DBG" ]; then echo "::error::debug APK not found under $APK_ROOTS"; exit 1; fi
+          echo "release_apk=$REL" >> "$GITHUB_OUTPUT"
+          echo "debug_apk=$DBG" >> "$GITHUB_OUTPUT"
+          ls -la "$REL" "$DBG"
+
+      # Strict signature verification (pattern: codec2_talkie verify step).
+      # --min-sdk-version 23 forces the verifier to require the v1 JAR scheme,
+      # which some OEM package installers (MIUI/EMUI, older devices) demand.
+      # Each scheme is grep-checked so a v2-only APK hard-fails the build.
+      - name: Verify APK signature schemes (v1+v2+v3)
         working-directory: .
         run: |
           BT="$ANDROID_HOME/build-tools/34.0.0"
-          APK="mobile/android/app/build/outputs/apk/release/app-release.apk"
-
-          "$BT/apksigner" verify --verbose "$APK"
+          APK="${{ steps.locate.outputs.release_apk }}"
+          "$BT/apksigner" verify --verbose --min-sdk-version 23 "$APK" | tee verify.log
+          grep -q 'Verified using v1 scheme (JAR signing): true' verify.log \
+            || { echo '::error::v1 signature MISSING — OEM installers will reject this APK'; exit 1; }
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' verify.log \
+            || { echo '::error::v2 signature MISSING'; exit 1; }
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' verify.log \
+            || { echo '::error::v3 signature MISSING'; exit 1; }
           "$BT/zipalign" -c 4 "$APK" && echo "zipalign OK"
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: marina-hotel-release-apk
-          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          path: ${{ steps.locate.outputs.release_apk }}
           if-no-files-found: error
           retention-days: 30
+          compression-level: 0
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: marina-hotel-debug-apk
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.locate.outputs.debug_apk }}
           if-no-files-found: error
           retention-days: 30
+          compression-level: 0
