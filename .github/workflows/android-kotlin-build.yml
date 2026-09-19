@@ -245,3 +245,78 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
+
+  # Runs the REAL release APKs on a real Android emulator (macOS ARM runner
+  # provides hardware acceleration) and captures logcat + the AndroidRuntime
+  # stack trace if the app crashes at open — reproducing the user-reported
+  # "app closes instantly" symptom inside CI, with hard evidence.
+  launch-test:
+    name: Launch APKs on emulator (crash logcat capture)
+    needs: build
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download minified release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: marina-hotel-release-apk
+          path: apk-minified
+
+      - name: Download unminified release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: marina-hotel-release-unminified-apk
+          path: apk-unminified
+
+      - name: Boot emulator, install and launch both APKs
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: arm64-v8a
+          target: default
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          disable-animations: true
+          script: |
+            set -x
+            install_and_launch() {
+              VARIANT="$1"; APK="$2"
+              echo "=== [$VARIANT] installing $APK ==="
+              adb install -r "$APK"
+              adb logcat -c
+              adb shell am start -W -n com.a.a/com.marina.marina.MainActivity
+              sleep 25
+              PID="$(adb shell pidof com.a.a | tr -d '\r')"
+              echo "[$VARIANT] pid after 25s: '${PID}'"
+              if [ -z "$PID" ]; then
+                echo "[$VARIANT] !!! APP CRASHED ON LAUNCH !!!"
+                adb logcat -d -s AndroidRuntime:E > "crash-${VARIANT}.txt" || true
+              fi
+              adb logcat -d > "logcat-${VARIANT}.txt" || true
+              # Relaunch once to surface second-open crash patterns.
+              adb shell am start -W -n com.a.a/com.marina.marina.MainActivity || true
+              sleep 8
+              PID2="$(adb shell pidof com.a.a | tr -d '\r')"
+              echo "[$VARIANT] pid after relaunch: '${PID2}'"
+              if [ -z "$PID2" ]; then
+                adb logcat -d -s AndroidRuntime:E >> "crash-${VARIANT}.txt" || true
+              fi
+              adb uninstall com.a.a || true
+            }
+            install_and_launch minified apk-minified/app-release.apk
+            install_and_launch unminified apk-unminified/app-release.apk
+            if [ -s crash-minified.txt ] || [ -s crash-unminified.txt ]; then
+              echo "::error::APP CRASH DETECTED — see emulator-launch-logs artifact"
+              exit 1
+            fi
+            echo "BOTH VARIANTS LAUNCHED SUCCESSFULLY"
+
+      - name: Upload emulator logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-launch-logs
+          path: |
+            logcat-*.txt
+            crash-*.txt
+          if-no-files-found: ignore
+          retention-days: 30
