@@ -45,4 +45,19 @@ interface BookingsDao {
     @Query("SELECT * FROM bookings WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): BookingEntity?
 
+    /**
+     * Any active booking for a room — checks every active booking status
+     * (ported 1:1 from the Flutter repo: ordered by check-in date desc, limit 1).
+     */
+    @Query(
+        """
+        SELECT * FROM bookings
+        WHERE room_number = :roomNumber
+          AND deleted_at IS NULL
+          AND status IN ('محجوزة', 'محجوز', 'نشط', 'active', 'confirmed', 'قيد الحجز', 'in_progress', 'مؤقت', 'provisional')
+        ORDER BY checkin_date DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getActiveBookingForRoom(roomNumber: String): BookingEntity?
 }

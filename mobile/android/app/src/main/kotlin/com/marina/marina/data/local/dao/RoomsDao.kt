@@ -42,4 +42,9 @@ interface RoomsDao {
     @Query("SELECT * FROM rooms WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): RoomEntity?
 
+    /** Targeted status update used by the Dashboard room-options dialog. */
+    @Query(
+        "UPDATE rooms SET status = :status, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id"
+    )
+    suspend fun updateStatus(id: Long, status: String, updatedAt: Long, lastModified: Long): Int
 }

@@ -37,9 +37,7 @@
 -dontwarn okhttp3.**
 -dontwarn okio.**
 
-# Keep Compose runtime (needed for reflection-based tooling / previews)
--keep class androidx.compose.runtime.** { *; }
--keep class androidx.compose.ui.** { *; }
+# Compose ships its own consumer rules — no broad keeps needed.
 
 # Suppress noisy warnings from optional/annotation-only dependencies
 -dontwarn javax.annotation.**

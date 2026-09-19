@@ -22,7 +22,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 kapt {
-    correctErrorHandling true
+    correctErrorTypes true
     arguments {
         arg("room.schemaLocation", "$projectDir/schemas")
         arg("room.incremental", "true")
@@ -33,7 +33,7 @@ kapt {
 
 android {
     namespace "com.marina.marina"
-    compileSdk 36
+    compileSdk 35
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -43,15 +43,27 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        // Global opt-ins for the experimental Compose APIs used across the
+        // ported screens (Material3 top bars/tabs, Foundation combined input).
+        freeCompilerArgs += [
+                "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+                "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
+                "-opt-in=androidx.compose.material.ExperimentalMaterialApi",
+                "-opt-in=androidx.compose.foundation.layout.ExperimentalLayoutApi"
+        ]
     }
 
     defaultConfig {
         applicationId "com.marina.marina"
         minSdk 26
-        targetSdk 36
+        targetSdk 35
         versionCode 1
         versionName "1.0"
         multiDexEnabled true
+
+        // Size optimization: keep only the locales the app actually ships
+        // (Arabic UI + English fallbacks); strips every other resource set.
+        resourceConfigurations += ["ar", "en"]
 
         manifestPlaceholders = [
             appName: "Marina Hotel",
@@ -94,12 +106,15 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion "1.5.10"
+        kotlinCompilerExtensionVersion "1.5.11"
     }
 
     packagingOptions {
         resources {
-            excludes += ['META-INF/LICENSE*', 'META-INF/AL2.0', 'META-INF/LGPL2.1']
+            excludes += ['META-INF/LICENSE*', 'META-INF/AL2.0', 'META-INF/LGPL2.1',
+                         'META-INF/DEPENDENCIES', 'META-INF/NOTICE*',
+                         'META-INF/*.kotlin_module', 'kotlin/**',
+                         'DebugProbesKt.bin', 'META-INF/com.android.tools/r8/**']
         }
     }
 
@@ -186,3 +201,4 @@ dependencies {
     androidTestImplementation "androidx.compose.ui:ui-test-junit4:1.7.0"
     debugImplementation "androidx.test:orchestrator:1.5.1"
 }
+

@@ -10,4 +10,7 @@ interface BookingsRepository {
     suspend fun update(booking: Booking)
     suspend fun checkout(id: Long, status: String, actualCheckout: String? = null)
     suspend fun softDelete(id: Long)
+
+    /** Any active booking bound to a room (latest check-in wins), or null. */
+    suspend fun getActiveBookingForRoom(roomNumber: String): Booking?
 }

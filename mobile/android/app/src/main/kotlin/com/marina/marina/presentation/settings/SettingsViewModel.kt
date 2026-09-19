@@ -3,7 +3,6 @@ package com.marina.marina.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marina.marina.data.repository.SyncManager
-import com.marina.marina.data.repository.SyncUiState
 import com.marina.marina.domain.repository.BookingsRepository
 import com.marina.marina.domain.repository.EmployeesRepository
 import com.marina.marina.domain.repository.RoomsRepository
@@ -23,7 +22,7 @@ data class SettingsUiState(
     val activeBookings: Int = 0,
     val employeeCount: Int = 0,
     val pendingOutbox: Int = 0,
-    val sync: SyncUiState = SyncUiState(),
+    val sync: SyncManager.SyncUiState = SyncManager.SyncUiState(),
     val error: String? = null,
     val message: String? = null
 )

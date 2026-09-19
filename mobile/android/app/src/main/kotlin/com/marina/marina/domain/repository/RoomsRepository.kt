@@ -9,4 +9,7 @@ interface RoomsRepository {
     suspend fun update(room: Room)
     suspend fun softDelete(id: Long)
     suspend fun getByNumber(roomNumber: String): Room?
+
+    /** Targeted status update (e.g. "تحويل إلى صيانة" from the Dashboard). */
+    suspend fun updateStatus(id: Long, newStatus: String)
 }

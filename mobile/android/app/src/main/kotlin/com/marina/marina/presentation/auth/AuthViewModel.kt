@@ -8,6 +8,7 @@ import kotlinx.coroutines.*
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.domain.model.AuthUser
+import com.marina.marina.domain.session.UserSessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val syncService: CloudflareSyncService,
-    private val preferences: SyncPreferences
+    private val preferences: SyncPreferences,
+    private val sessionManager: UserSessionManager
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState(isAuthenticated = false, isRestoring = true))
@@ -30,15 +32,19 @@ class AuthViewModel @Inject constructor(
             val token = preferences.getAuthToken()
             val deviceId = preferences.getDeviceId()
             if (token != null && deviceId != null) {
+                val user = AuthUser(
+                    id = 0,
+                    username = "admin",
+                    fullName = "Admin",
+                    userType = "admin",
+                    permissions = listOf("all")
+                )
+                // Restored sessions start a fresh payment session (new UUID),
+                // mirroring the Flutter Option-A contract.
+                sessionManager.startSession(user)
                 _authState.value = AuthState(
                     isAuthenticated = true,
-                    currentUser = AuthUser(
-                        id = 0,
-                        username = "admin",
-                        fullName = "Admin",
-                        userType = "admin",
-                        permissions = listOf("all")
-                    ),
+                    currentUser = user,
                     rememberMe = true
                 )
             } else {
@@ -63,6 +69,7 @@ class AuthViewModel @Inject constructor(
                     userType = "admin",
                     permissions = listOf("all")
                 )
+                sessionManager.startSession(user)
                 _authState.value = AuthState(
                     isAuthenticated = true,
                     currentUser = user,
@@ -79,6 +86,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun logout() {
+        sessionManager.endSession()
         preferences.saveAuthToken("")
         _authState.value = AuthState(isAuthenticated = false, isRestoring = false)
     }

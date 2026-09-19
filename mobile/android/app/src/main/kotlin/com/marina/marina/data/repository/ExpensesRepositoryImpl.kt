@@ -45,4 +45,7 @@ class ExpensesRepositoryImpl @Inject constructor(
         val now = System.currentTimeMillis()
         expensesDao.softDelete(id, deletedAt = now, updatedAt = now)
     }
+
+    override fun watchTotalByHotelDayKey(hotelDayKey: String): Flow<Double> =
+        expensesDao.watchTotalByHotelDayKey(hotelDayKey, "${hotelDayKey}%")
 }

@@ -1,72 +1,90 @@
 package com.marina.marina.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
+import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 
 /** Mirrors the Flutter `inventory_transactions` Drift table. */
 @Entity(
     tableName = "inventory_transactions",
     indices = [
-        Index("idx_inv_tx_item", "item_id"),
-        Index("idx_inv_tx_time", "transaction_time"),
-        Index("idx_inv_tx_type", "transaction_type"),
+        Index(value = ["item_id"], name = "idx_inv_tx_item"),
+        Index(value = ["transaction_time"], name = "idx_inv_tx_time"),
+        Index(value = ["transaction_type"], name = "idx_inv_tx_type"),
         Index(value = ["local_uuid"], unique = true)
     ]
 )
 data class InventoryTransactionEntity(
+    @PrimaryKey(autoGenerate = true)
     @SerializedName("id")
     override val id: Long = 0,
 
     @SerializedName("item_id")
+    @ColumnInfo(name = "item_id")
     val itemId: Long,
 
     @SerializedName("transaction_type")
+    @ColumnInfo(name = "transaction_type")
     val transactionType: String, // "in" | "out" | "adjustment"
 
     @SerializedName("quantity")
     val quantity: Double,
 
     @SerializedName("balance_after")
+    @ColumnInfo(name = "balance_after")
     val balanceAfter: Double = 0.0,
 
     @SerializedName("note")
     val note: String? = null,
 
     @SerializedName("transaction_time")
+    @ColumnInfo(name = "transaction_time")
     val transactionTime: Long,
 
     @SerializedName("local_uuid")
+    @ColumnInfo(name = "local_uuid")
     override val localUuid: String = "",
 
     @SerializedName("server_id")
+    @ColumnInfo(name = "server_id")
     override val serverId: Int? = null,
 
     @SerializedName("created_at")
+    @ColumnInfo(name = "created_at")
     override val createdAt: Long = 0,
 
     @SerializedName("updated_at")
+    @ColumnInfo(name = "updated_at")
     override val updatedAt: Long = 0,
 
     @SerializedName("deleted_at")
+    @ColumnInfo(name = "deleted_at")
     override val deletedAt: Long? = null,
 
     @SerializedName("last_modified")
+    @ColumnInfo(name = "last_modified")
     override val lastModified: Long = 0,
 
     @SerializedName("created_at_iso")
+    @ColumnInfo(name = "created_at_iso")
     override val createdAtIso: String? = null,
 
     @SerializedName("updated_at_iso")
+    @ColumnInfo(name = "updated_at_iso")
     override val updatedAtIso: String? = null,
 
     @SerializedName("deleted_at_iso")
+    @ColumnInfo(name = "deleted_at_iso")
     override val deletedAtIso: String? = null,
 
     @SerializedName("created_at_epoch")
+    @ColumnInfo(name = "created_at_epoch")
     override val createdAtEpoch: Long = 0,
 
     @SerializedName("last_modified_epoch")
+    @ColumnInfo(name = "last_modified_epoch")
     override val lastModifiedEpoch: Long = 0,
 
     @SerializedName("version")
@@ -76,15 +94,19 @@ data class InventoryTransactionEntity(
     override val origin: String = "local",
 
     @SerializedName("vector_clock")
+    @ColumnInfo(name = "vector_clock")
     override val vectorClock: String = "{}",
 
     @SerializedName("device_id")
+    @ColumnInfo(name = "device_id")
     override val deviceId: String = "",
 
     @SerializedName("sync_timestamp")
+    @ColumnInfo(name = "sync_timestamp")
     override val syncTimestamp: Long = 0,
 
     @SerializedName("idempotency_key")
+    @ColumnInfo(name = "idempotency_key")
     override val idempotencyKey: String? = null
 ) : BaseSyncEntity(
     id = id,

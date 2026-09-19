@@ -110,6 +110,36 @@ class SyncManager @Inject constructor(
         return _syncState.value
     }
 
+    /**
+     * Silent pull-only cycle — the Kotlin counterpart of the Flutter
+     * dashboard's `_runRobustSilentPull` (`sync(push: false, deltaOnly: true,
+     * forcePull: true)`): the push side is covered by the outbox watcher, so
+     * opening the Dashboard only pulls remote deltas.
+     *
+     * @return the number of records pulled, or -1 when the cycle failed.
+     */
+    suspend fun pullOnly(): Int {
+        if (_syncState.value.isSyncing) return -1
+        _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب...")
+        var pulled = 0
+        try {
+            for (collection in PULL_COLLECTIONS) {
+                pulled += pullCollection(collection)
+            }
+        } catch (e: Exception) {
+            finishWithError("فشل السحب: ${e.message}")
+            return -1
+        }
+        preferences.saveLastPullTs(System.currentTimeMillis())
+        _syncState.value = _syncState.value.copy(
+            isSyncing = false,
+            lastSyncAt = System.currentTimeMillis(),
+            lastMessage = "تم سحب $pulled سجل",
+            pulledCount = pulled
+        )
+        return pulled
+    }
+
     private suspend fun pullCollection(collection: String): Int {
         var ingested = 0
         var cursor: Long = 0 // full delta pull each cycle; cursors tracked globally by timestamps

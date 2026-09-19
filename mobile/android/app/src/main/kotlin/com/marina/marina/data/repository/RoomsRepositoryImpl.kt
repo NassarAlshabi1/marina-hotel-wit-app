@@ -45,4 +45,19 @@ class RoomsRepositoryImpl @Inject constructor(
 
     override suspend fun getByNumber(roomNumber: String): Room? =
         roomsDao.getByNumber(roomNumber)?.toDomain()
+
+    override suspend fun updateStatus(id: Long, newStatus: String) {
+        val now = System.currentTimeMillis()
+        val room = roomsDao.getById(id) ?: return
+        val prepared = room.toDomain().let { domain ->
+            domain.copy(
+                status = newStatus,
+                updatedAt = now,
+                // Keep localUuid stable: the entity row is updated in place.
+                localUuid = domain.localUuid.ifBlank { java.util.UUID.randomUUID().toString() }
+            )
+        }
+        roomsDao.updateStatus(id, newStatus, updatedAt = now, lastModified = now)
+        outboxRepository.enqueueObject("rooms", "update", prepared.localUuid, prepared)
+    }
 }

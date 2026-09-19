@@ -50,4 +50,7 @@ class BookingsRepositoryImpl @Inject constructor(
         val now = System.currentTimeMillis()
         bookingsDao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
     }
+
+    override suspend fun getActiveBookingForRoom(roomNumber: String): Booking? =
+        bookingsDao.getActiveBookingForRoom(roomNumber)?.toDomain()
 }

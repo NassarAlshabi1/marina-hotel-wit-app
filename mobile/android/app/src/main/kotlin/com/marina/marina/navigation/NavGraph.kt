@@ -30,9 +30,11 @@ sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
     object Rooms : Screen("rooms")
     object Bookings : Screen("bookings")
-    object BookingEdit : Screen("booking_edit?bookingId={bookingId}") {
+    object BookingEdit : Screen("booking_edit?bookingId={bookingId}&roomNumber={roomNumber}") {
         const val ARG_BOOKING_ID = "bookingId"
-        fun createRoute(bookingId: Long = 0L) = "booking_edit?bookingId=$bookingId"
+        const val ARG_ROOM_NUMBER = "roomNumber"
+        fun createRoute(bookingId: Long = 0L, roomNumber: String = "") =
+            "booking_edit?bookingId=$bookingId&roomNumber=$roomNumber"
     }
     object BookingPayment : Screen("booking_payment/{bookingId}") {
         const val ARG_BOOKING_ID = "bookingId"
@@ -95,10 +97,16 @@ fun MarinaNavGraph(
 
         composable(
             route = Screen.BookingEdit.route,
-            arguments = listOf(navArgument(Screen.BookingEdit.ARG_BOOKING_ID) {
-                type = NavType.LongType
-                defaultValue = 0L
-            })
+            arguments = listOf(
+                navArgument(Screen.BookingEdit.ARG_BOOKING_ID) {
+                    type = NavType.LongType
+                    defaultValue = 0L
+                },
+                navArgument(Screen.BookingEdit.ARG_ROOM_NUMBER) {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
         ) {
             BookingEditScreen(
                 onBack = { navController.popBackStack() },
