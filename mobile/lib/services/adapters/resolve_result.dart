@@ -3,6 +3,7 @@ class ResolveResult {
     this.bookingLocalId,
     this.bookingUuidCache,
     this.employeeLocalId,
+    this.employeeUuid,
     this.employeeRelatedId,
     this.salaryCycleLocalId,
     this.inventoryItemLocalId,
@@ -17,6 +18,12 @@ class ResolveResult {
 
   /// معرّف الموظف المحلي بعد الحل (لـ FK: salary_withdrawals, salary_cycles)
   final int? employeeLocalId;
+
+  /// ✅ (2026-09-19) uuid الموظف المستقر عبر الأجهزة — يخزَّن في عمود
+  /// employee_uuid الجديد (migration 68) ويُعاد إرساله في دفعات المزامنة
+  /// (toJson) فيصل رابط الموظف عبر الأجهزة. يُستخرج من جدول employees
+  /// المحلي عند حل الموظف، أو من الحمولة القادمة كاحتياط.
+  final String? employeeUuid;
 
   /// معرّف الموظف المحلي بعد الحل (لـ FK: expenses.relatedId في مصروفات الرواتب)
   /// يُستخدم فقط عندما يكون expenseType مرتبطاً بالرواتب
@@ -45,6 +52,7 @@ class ResolveResult {
     int? bookingLocalId,
     String? bookingUuidCache,
     int? employeeLocalId,
+    String? employeeUuid,
     int? employeeRelatedId,
     int? salaryCycleLocalId,
     int? inventoryItemLocalId,
@@ -57,6 +65,7 @@ class ResolveResult {
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
       bookingUuidCache: bookingUuidCache ?? this.bookingUuidCache,
       employeeLocalId: employeeLocalId ?? this.employeeLocalId,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
       employeeRelatedId: employeeRelatedId ?? this.employeeRelatedId,
       salaryCycleLocalId: salaryCycleLocalId ?? this.salaryCycleLocalId,
       inventoryItemLocalId: inventoryItemLocalId ?? this.inventoryItemLocalId,

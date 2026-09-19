@@ -7,7 +7,7 @@ export interface AiBinding {
 
 export interface AiPlan {
   kind: 'query' | 'add_expense' | 'unsupported';
-  queryType?: 'expenses_total' | 'employee_withdrawals' | 'employee_salary' | 'daily_summary' | 'rooms_available' | 'rooms_all' | 'current_guests' | 'guest_search' | 'bookings_current' | 'occupancy_summary' | 'occupancy_trend' | 'booking_analysis' | 'overdue_bookings' | 'stay_statistics';
+  queryType?: 'expenses_total' | 'employee_withdrawals' | 'employee_salary' | 'daily_summary' | 'rooms_available' | 'rooms_all' | 'current_guests' | 'guest_search' | 'bookings_current' | 'occupancy_summary' | 'occupancy_trend' | 'booking_analysis' | 'overdue_bookings' | 'stay_statistics' | 'salary_expenses';
   employeeName?: string;
   guestName?: string;
   roomNumber?: string;
@@ -27,16 +27,51 @@ const MODEL = '@cf/meta/llama-3.1-8b-instruct';
 const ACTIVE_BOOKING_STATUSES = ['محجوزة', 'محجوز', 'نشط', 'active', 'confirmed', 'قيد الحجز', 'in_progress', 'مؤقت', 'provisional'];
 const AVAILABLE_ROOM_STATUSES = ['شاغرة', 'شاغره', 'متاحة', 'متاح', 'available', 'vacant', 'empty'];
 const OCCUPIED_ROOM_STATUSES = ['محجوزة', 'محجوز', 'مشغولة', 'occupied', 'محجوز temporarily', 'نشط', 'active', 'مؤقت', 'provisional'];
+const ACTIVE_EMPLOYEE_STATUSES = ['نشط', 'active'];
+
+// Canonical salary classification — mirrors the app's SalaryEntitlementService
+// + SalaryExpenseClassification (utils/salary_expense_classification.dart):
+// - 'رواتب' / 'سحب راتب' / 'سحب من الراتب' → direct cash withdrawals
+// - 'سلفة' → cash advances
+// - 'خصم راتب' / 'خصم' / 'غياب' → non-cash deductions (entitlement only)
+// - 'خصم من الراتب' → deduction UNLESS auto-generated with 'قسط سلفة'
+//   (salary-loan installment repayment — counts as neither withdrawal nor deduction)
+// The AI must read employee money from EXPENSES (like the app), never from
+// salary_withdrawals whose employee_id is a device-local number that does not
+// resolve across devices (47% orphaned rows in production D1).
+const WITHDRAWAL_EXPENSE_TYPES = ['رواتب', 'سحب راتب', 'سحب من الراتب'];
+const DEDUCTION_EXPENSE_TYPES = ['خصم راتب', 'خصم', 'غياب'];
+
+// Employee↔expense link: employee_uuid is the cross-device stable key (migration
+// 0006 contract); dash-insensitive because both dashed/undashed forms exist in
+// production. related_id → employees.id is a device-local fallback used only
+// when the expense carries no uuid (pre-migration rows).
 
 const KNOWN_QUERY_TYPES = new Set([
   'expenses_total', 'employee_withdrawals', 'employee_salary', 'daily_summary',
   'rooms_available', 'rooms_all', 'current_guests', 'guest_search', 'bookings_current',
-  'occupancy_summary', 'occupancy_trend', 'booking_analysis', 'overdue_bookings', 'stay_statistics',
+  'occupancy_summary', 'occupancy_trend', 'booking_analysis', 'overdue_bookings', 'stay_statistics', 'salary_expenses',
 ]);
 
 function inList(values: readonly string[]): string {
   return `(${values.map(() => '?').join(',')})`;
 }
+
+/** Inline a static constant list as SQL literals (compile-time constants only —
+ * values are escaped defensively). Avoids positional-bind ordering hazards
+ * between SELECT CASEs, JOINs and WHERE clauses. */
+function sqlList(values: readonly string[]): string {
+  return `(${values.map((v) => `'${v.replace(/'/g, "''")}'`).join(',')})`;
+}
+
+const SALARY_EXPENSE_TYPES_ALL = [...WITHDRAWAL_EXPENSE_TYPES, 'سلفة', 'خصم من الراتب', ...DEDUCTION_EXPENSE_TYPES];
+
+const EMPLOYEE_SALARY_EXPENSE_JOIN = `LEFT JOIN expenses x ON x.deleted_at IS NULL
+  AND TRIM(x.expense_type) IN ${sqlList(SALARY_EXPENSE_TYPES_ALL)}
+  AND (
+    (x.employee_uuid IS NOT NULL AND REPLACE(x.employee_uuid,'-','') = REPLACE(e.local_uuid,'-',''))
+    OR (x.employee_uuid IS NULL AND x.related_id = e.id)
+  )`;
 
 function utcDate(offsetDays = 0): string {
   const d = new Date();
@@ -96,8 +131,9 @@ async function classify(env: { AI: AiBinding }, prompt: string): Promise<AiPlan>
   const today = new Date().toISOString().slice(0, 10);
   const instruction = `أنت محلل طلبات لنظام إدارة فندق. تاريخ اليوم ${today}. أعد JSON فقط بلا markdown.
 الأنواع المسموحة: query أو add_expense أو unsupported.
-للاستعلام استخدم queryType واحداً من expenses_total, employee_withdrawals, employee_salary, daily_summary, rooms_available, rooms_all, current_guests, guest_search, bookings_current, occupancy_summary, occupancy_trend, booking_analysis, overdue_bookings, stay_statistics.
+للاستعلام استخدم queryType واحداً من expenses_total, employee_withdrawals, employee_salary, salary_expenses, daily_summary, rooms_available, rooms_all, current_guests, guest_search, bookings_current, occupancy_summary, occupancy_trend, booking_analysis, overdue_bookings, stay_statistics.
 rooms_available للغرف الشاغرة، rooms_all لكل الغرف وحالتها، current_guests للنزلاء الموجودين، guest_search للبحث عن نزيل باسمه أو رقم غرفته، bookings_current للحجوزات النشطة.
+employee_withdrawals لسحوبات وسلف وخصومات موظف — ضع employeeName إذا ذُكر موظف بعينه، واتركه فارغاً إذا سأل عن الموظفين عموماً. employee_salary لاستحقاق موظف (الأشهر والراتب الأساسي والمستحق والصافي) — كذلك الاسم اختياري. salary_expenses لإجمالي مصروفات الموظفين والرواتب النقدية لكل الموظفين.
 occupancy_summary للإشغال الحالي (النسبة والغرف المشغولة والشاغرة والوصولات اليوم). occupancy_trend لاتجاه الإشغال مع الإيرادات والمصروفات اليومية خلال فترة — إن لم تذكر فترة فاستخدم آخر 30 يوماً حتى اليوم في dateFrom وdateTo. booking_analysis لتحليل الحجوزات خلال فترة (عددها اليومي والغرف والإيراد المتوقع والمغادرات) — إن لم تذكر فترة فاجعل dateFrom أول يوم من الشهر الحالي وdateTo اليوم. overdue_bookings للحجوزات المتأخرة عن موعد المغادرة. stay_statistics لإحصائيات الإقامة الحالية (متوسط الليالي وأطول إقامة والإيراد المتوقع والمحصل والمتبقي).
 لإضافة مصروف: expenseType, description, amountPerDay, dateFrom, dateTo بصيغة YYYY-MM-DD. إذا لم يذكر المستخدم تاريخاً فاجعل dateFrom=dateTo=${today}. المبلغ في مثال "40 ألف لكل يوم" هو 40000 لكل يوم، وليس إجمالياً.
 لا تخترع اسماً أو مبلغاً أو تاريخاً. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
@@ -118,7 +154,6 @@ function validatePlan(plan: AiPlan): string | null {
   if (plan.kind === 'unsupported') return plan.explanation || 'الطلب غير مدعوم أو يحتاج توضيحاً.';
   if (plan.kind === 'query') {
     if (!plan.queryType || !KNOWN_QUERY_TYPES.has(plan.queryType)) return 'لم أتعرف على نوع الاستعلام.';
-    if ((plan.queryType === 'employee_withdrawals' || plan.queryType === 'employee_salary') && !plan.employeeName) return 'اذكر اسم الموظف.';
     if (plan.queryType === 'guest_search' && !plan.guestName && !plan.roomNumber) return 'اذكر اسم النزيل أو رقم الغرفة.';
     return null;
   }
@@ -183,20 +218,63 @@ async function runQuery(
     }
     case 'employee_withdrawals': {
       const result = await env.DB.prepare(
-        `SELECT e.name, COALESCE(SUM(sw.amount),0) AS total_withdrawn, COUNT(sw.id) AS entries
-         FROM employees e LEFT JOIN salary_withdrawals sw ON sw.employee_id=e.id AND sw.deleted_at IS NULL
-         WHERE e.deleted_at IS NULL AND e.name LIKE ? GROUP BY e.id,e.name LIMIT 20`,
-      ).bind(`%${plan.employeeName}%`).all();
-      return { rows: result.results };
+        `SELECT e.name,
+           ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) IN ${sqlList(WITHDRAWAL_EXPENSE_TYPES)} THEN x.amount END),0),0) AS total_withdrawn,
+           ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) = 'سلفة' THEN x.amount END),0),0) AS total_advances,
+           ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) IN ${sqlList(DEDUCTION_EXPENSE_TYPES)}
+             OR (TRIM(x.expense_type) = 'خصم من الراتب' AND NOT (x.is_auto_generated = 1 AND x.description LIKE '%قسط سلفة%'))
+           THEN x.amount END),0),0) AS total_deductions,
+           COUNT(x.id) AS entries
+         FROM employees e
+         ${EMPLOYEE_SALARY_EXPENSE_JOIN}
+         WHERE e.deleted_at IS NULL AND e.status IN ${sqlList(ACTIVE_EMPLOYEE_STATUSES)} AND e.name LIKE ?
+         GROUP BY e.id, e.name LIMIT 20`,
+      ).bind(`%${plan.employeeName ?? ''}%`).all();
+      return { rows: result.results, answer: result.results.length > 0 ? undefined : 'لم أجد موظفاً بهذا الاسم.' };
     }
     case 'employee_salary': {
       const result = await env.DB.prepare(
-        `SELECT e.name, e.basic_salary, COALESCE(SUM(sw.amount),0) AS total_withdrawn,
-         e.basic_salary-COALESCE(SUM(sw.amount),0) AS estimated_remaining
-         FROM employees e LEFT JOIN salary_withdrawals sw ON sw.employee_id=e.id AND sw.deleted_at IS NULL
-         WHERE e.deleted_at IS NULL AND e.name LIKE ? GROUP BY e.id,e.name,e.basic_salary LIMIT 20`,
-      ).bind(`%${plan.employeeName}%`).all();
-      return { rows: result.results };
+        `SELECT e.name, e.basic_salary, e.hire_date,
+           ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) IN ${sqlList(WITHDRAWAL_EXPENSE_TYPES)} THEN x.amount END),0),0) AS total_withdrawn,
+           ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) = 'سلفة' THEN x.amount END),0),0) AS total_advances,
+           ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) IN ${sqlList(DEDUCTION_EXPENSE_TYPES)}
+             OR (TRIM(x.expense_type) = 'خصم من الراتب' AND NOT (x.is_auto_generated = 1 AND x.description LIKE '%قسط سلفة%'))
+           THEN x.amount END),0),0) AS total_deductions
+         FROM employees e
+         ${EMPLOYEE_SALARY_EXPENSE_JOIN}
+         WHERE e.deleted_at IS NULL AND e.status IN ${sqlList(ACTIVE_EMPLOYEE_STATUSES)} AND e.name LIKE ?
+         GROUP BY e.id, e.name, e.basic_salary, e.hire_date LIMIT 20`,
+      ).bind(`%${plan.employeeName ?? ''}%`)
+        .all<{ name: string; basic_salary: number; hire_date: string; total_withdrawn: number; total_advances: number; total_deductions: number }>();
+      const rows = result.results.map((r) => {
+        const months = calendarMonthsBetween(r.hire_date, utcDate(0));
+        const totalEntitlement = months * r.basic_salary;
+        const net = totalEntitlement - r.total_withdrawn - r.total_advances - r.total_deductions;
+        return {
+          ...r,
+          months_worked: months,
+          total_entitlement: totalEntitlement,
+          net_entitlement: net,
+        };
+      });
+      return { rows, answer: rows.length > 0 ? undefined : 'لم أجد موظفاً بهذا الاسم.' };
+    }
+    case 'salary_expenses': {
+      const result = await env.DB.prepare(
+        `SELECT e.name,
+           ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) IN ${sqlList(WITHDRAWAL_EXPENSE_TYPES)} THEN x.amount END),0),0) AS withdrawals,
+           ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) = 'سلفة' THEN x.amount END),0),0) AS advances
+         FROM employees e
+         ${EMPLOYEE_SALARY_EXPENSE_JOIN}
+         WHERE e.deleted_at IS NULL AND e.status IN ${sqlList(ACTIVE_EMPLOYEE_STATUSES)}
+         GROUP BY e.id, e.name
+         ORDER BY (withdrawals + advances) DESC LIMIT 30`,
+      ).all<{ name: string; withdrawals: number; advances: number }>();
+      const total = result.results.reduce((sum, r) => sum + r.withdrawals + r.advances, 0);
+      return {
+        rows: result.results,
+        answer: `مصروفات الرواتب النقدية (سحوبات + سلف): ${total} ريال لـ ${result.results.length} موظفاً. الخصوم غير النقدية (غياب/خصم) لا تُحسب مصروفات رواتب.`,
+      };
     }
     case 'rooms_available': {
       const result = await env.DB.prepare(
@@ -273,6 +351,18 @@ function offsetDate(base: string, offsetDays: number): string {
   const d = new Date(`${base}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + offsetDays);
   return d.toISOString().slice(0, 10);
+}
+
+/** Calendar months between two dates — mirrors the app's
+ * SalaryEntitlementService._calculateMonthsDifference exactly:
+ * month-slot difference, minus one when the target day hasn't reached
+ * the source day-of-month yet. */
+function calendarMonthsBetween(from: string, to: string): number {
+  const f = new Date(`${from}T00:00:00Z`);
+  const t = new Date(`${to}T00:00:00Z`);
+  let months = (t.getUTCFullYear() - f.getUTCFullYear()) * 12 + (t.getUTCMonth() - f.getUTCMonth());
+  if (t.getUTCDate() < f.getUTCDate()) months -= 1;
+  return Math.max(months, 0);
 }
 
 async function queryOccupancySummary(env: { DB: D1Database }): Promise<{ rows: unknown[]; answer: string }> {

@@ -70,12 +70,18 @@ class SalaryWithdrawalsRepository {
   }) async {
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
+    // ✅ (2026-09-19) مرجع الموظف المستقر — يُخزَّن في العمود الجديد
+    // (migration 68) فيُرسل مع كل دفعة مزامنة لاحقة عبر toJson.
+    final employeeUuid = await _employeeUuidRef(employeeId);
 
     final id = await _db.transaction(() async {
       final companion = SalaryWithdrawalsCompanion(
         localUuid: d.Value(uuid),
         serverId: const d.Value(null),
         employeeId: d.Value(employeeId),
+        employeeUuid: employeeUuid != null
+            ? d.Value(employeeUuid)
+            : const d.Value.absent(),
         amount: d.Value(amount),
         withdrawDate: d.Value(date),
         reason: d.Value(reason),
@@ -328,6 +334,8 @@ class SalaryWithdrawalsRepository {
       } else {
         // إنشاء سجل جديد
         final uuid = IdGen.uuid();
+        // ✅ (2026-09-19) مرجع الموظف المستقر في العمود المحلي (migration 68)
+        final newEmployeeUuid = await _employeeUuidRef(employeeId);
         final newId = await _db
             .into(_db.salaryWithdrawals)
             .insert(
@@ -335,6 +343,9 @@ class SalaryWithdrawalsRepository {
                 localUuid: d.Value(uuid),
                 serverId: const d.Value(null),
                 employeeId: d.Value(employeeId),
+                employeeUuid: newEmployeeUuid != null
+                    ? d.Value(newEmployeeUuid)
+                    : const d.Value.absent(),
                 amount: d.Value(amount),
                 withdrawDate: d.Value(date),
                 reason: d.Value(reasonText),

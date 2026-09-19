@@ -689,6 +689,10 @@ class AppSessions extends Table {
 class SalaryCycles extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get employeeId => integer().references(Employees, #id)();
+  // ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — المفتاح الذي
+  // يُرسل في حمولات المزامنة ويحل الرابط عبر الأجهزة بعكس employee_id
+  // المحلي. مُردَّم تاريخياً في migration 68 (بلا فقدان بيانات).
+  TextColumn get employeeUuid => text().nullable()();
   TextColumn get cycleKey => text()();
   TextColumn get hotelDayStart => text().nullable()();
   TextColumn get hotelDayEnd => text().nullable()();
@@ -707,6 +711,9 @@ class SalaryCycles extends Table with SyncFields {
 class SalaryPayments extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get cycleId => integer().references(SalaryCycles, #id)();
+  // ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — مُستنبط من
+  // دورة الدفع (salary_cycles.employee_uuid) ومُردَّم في migration 68.
+  TextColumn get employeeUuid => text().nullable()();
   IntColumn get amount => integer().withDefault(const Constant(0))();
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get paymentDateIso => text()();
@@ -727,6 +734,10 @@ class SalaryWithdrawals extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   // ✅ إصلاح: إضافة FK constraint إلى جدول الموظفين
   IntColumn get employeeId => integer().references(Employees, #id)();
+  // ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — نفس عقد
+  // expenses.employee_uuid (migration 0007 على D1 + migration 68
+  // محلياً). يُرسل في حمولات الدفع/السحب ويُردَّم تاريخياً بلا فقدان.
+  TextColumn get employeeUuid => text().nullable()();
   RealColumn get amount => real()();
   TextColumn get withdrawDate => text()();
   TextColumn get reason => text().nullable()();
@@ -1245,7 +1256,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 67;
+  int get schemaVersion => 68;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1274,6 +1285,64 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-09-19) الإصدار 68: employee_uuid في جداول الرواتب الثلاثة
+      // (توجيه المستخدم: «اضف الحقل المفقود employee_uuid الى الجداول لا
+      // اريد فقدان البيانات نهائياً»). الحقل هو المفتاح المستقر عبر
+      // الأجهزة — employee_id/cycle_id أرقام محلية لا تحل على الأجهزة
+      // الأخرى (فجوة الإنتاج: 620/620 سحوبة بلا uuid على D1).
+      // الردم هنا محلي وموثوق: FK المحلي صالح دائماً على جهازه، بعكس
+      // ردم D1 (migration 0007) الذي يحتاج حراسة server_id/id.
+      if (from < 68) {
+        for (final stmt in [
+          'ALTER TABLE salary_withdrawals ADD COLUMN employee_uuid TEXT',
+          'ALTER TABLE salary_cycles ADD COLUMN employee_uuid TEXT',
+          'ALTER TABLE salary_payments ADD COLUMN employee_uuid TEXT',
+        ]) {
+          try {
+            await m.database.customStatement(stmt);
+          } catch (e) {
+            // العمود موجود مسبقاً في بعض قواعد البيانات المتقادمة
+            developer.log(
+              'Migration 68: column already exists: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        // ردم تاريخي محلي — UPDATE فقط، لا حذف ولا تعديل مبالغ/تواريخ.
+        // السحوبات والدورات: FK الموظف المحلي → employees.local_uuid.
+        try {
+          await m.database.customStatement(
+            '''
+            UPDATE salary_withdrawals SET employee_uuid = (
+              SELECT e.local_uuid FROM employees e
+              WHERE e.id = salary_withdrawals.employee_id)
+            WHERE employee_uuid IS NULL AND employee_id IS NOT NULL
+            ''',
+          );
+          await m.database.customStatement(
+            '''
+            UPDATE salary_cycles SET employee_uuid = (
+              SELECT e.local_uuid FROM employees e
+              WHERE e.id = salary_cycles.employee_id)
+            WHERE employee_uuid IS NULL AND employee_id IS NOT NULL
+            ''',
+          );
+          // الدفعات: عبر دورتها (بعد ردم الدورات أعلاه — الترتيب مقصود)
+          await m.database.customStatement(
+            '''
+            UPDATE salary_payments SET employee_uuid = (
+              SELECT sc.employee_uuid FROM salary_cycles sc
+              WHERE sc.id = salary_payments.cycle_id)
+            WHERE employee_uuid IS NULL AND cycle_id IS NOT NULL
+            ''',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 68: local backfill skipped: $e',
+            name: 'db.migration',
+          );
+        }
+      }
       // ✅ (2026-09-05) الإصدار 67: جدول devices ككيان متزامن كامل
       // (تعليمات المستخدم: النطاق الافتراضي يشمل devices مع pull/push
       // وoutbox وdelta sync). يُنشأ لكل الترقيات (من أي إصدار) — فارغ

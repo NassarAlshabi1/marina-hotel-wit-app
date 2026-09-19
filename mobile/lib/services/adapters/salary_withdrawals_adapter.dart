@@ -74,6 +74,24 @@ class SalaryWithdrawalsAdapter
       fromRemote: fromRemote,
     );
 
+    // ✅ (2026-09-19) uuid الموظف المستقر لاستخدامه في fromJson: نفَضّل
+    // uuid الموظف المحلي المحلول (الصيغة القياسية المطابقة لجدول
+    // employees المحلي) — واحتياطاً uuid الحمولة إن لم يُحل الموظف.
+    String? resolvedEmployeeUuid =
+        (remoteEmployeeUuid != null && remoteEmployeeUuid.isNotEmpty)
+        ? remoteEmployeeUuid
+        : null;
+    if (resolvedEmployeeId != null) {
+      final empRow =
+          await (resolver.db.select(resolver.db.employees)
+                ..where((e) => e.id.equals(resolvedEmployeeId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (empRow != null) {
+        resolvedEmployeeUuid = empRow.localUuid;
+      }
+    }
+
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
@@ -91,6 +109,7 @@ class SalaryWithdrawalsAdapter
 
     return ResolveResult(
       employeeLocalId: resolvedEmployeeId,
+      employeeUuid: resolvedEmployeeUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
       shouldSkip: shouldSkip,
@@ -118,7 +137,12 @@ class SalaryWithdrawalsAdapter
     final appwriteNote = _asString(json, 'note', src);
     final appwriteNotes = _asString(json, 'notes', src);
     final appwriteExpenseId = _asInt(json, 'expenseId', src);
+    // ✅ (2026-09-19) مرجع الموظف المستقر القادم في الحمولة (إن وجد)
+    final incomingEmployeeUuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_uuid', src);
     final wd = _asString(json, 'withdrawDate', src) ?? appwriteDate ?? '';
+    final refsEmployeeUuid = refs.employeeUuid;
     final wt = _asString(json, 'withdrawalType', src) ?? appwriteAction;
     final desc =
         _asString(json, 'description', src) ?? appwriteNotes ?? appwriteNote;
@@ -147,6 +171,16 @@ class SalaryWithdrawalsAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
+      // ✅ (2026-09-19) تخزين مرجع الموظف المستقر القادم من السحب —
+      // نفس عقد expenses_adapter. يُعاد إرساله في الدفع لاحقاً
+      // (toJson) فيصل الرابط عبر الأجهزة دون الاعتماد على employee_id
+      // المحلي. إن غاب في الحمولة نستخدم uuid الموظف المحلول في
+      // resolveRefs (من جدول employees المحلي — الصيغة القياسية).
+      employeeUuid: incomingEmployeeUuid != null
+          ? d.Value(incomingEmployeeUuid)
+          : refsEmployeeUuid != null
+          ? d.Value(refsEmployeeUuid)
+          : const d.Value.absent(),
       amount: _vDouble(json, 'amount', src),
       withdrawDate: d.Value(wd),
       // ✅ Audit Fix (2026-08-06): إضافة expenseId.
@@ -218,6 +252,11 @@ class SalaryWithdrawalsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      // ✅ (2026-09-19) المفتاح المستقر عبر الأجهزة — إغلاق فجوة الإنتاج
+      // (620/620 سحوبة على D1 بلا uuid لأن الحمولات لم ترسله أبداً).
+      // يُرسل دائماً في كل الدفعات (Cloudflare/Appwrite/Drive) — والقيمة
+      // مُردَّمة تاريخياً في migration 68 محلياً و migration 0007 على D1.
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
       _k(src, 'withdrawDate', 'withdraw_date'): effectiveWithdrawDate,
       _k(src, 'reason', 'reason'): model.reason,

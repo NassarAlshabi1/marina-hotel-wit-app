@@ -51,6 +51,26 @@ class SalaryPaymentsAdapter
       fromRemote: fromRemote,
     );
 
+    // ✅ (2026-09-19) مرجع الموظف المستقر للدفعة — يُستنبط من دورتها
+    // المحلية (بعد حلها) أو من حمولة الدفع مباشرة إن كانت تحمله.
+    String? resolvedEmployeeUuid;
+    if (resolvedCycleId != null) {
+      final cycleRow =
+          await (resolver.db.select(resolver.db.salaryCycles)
+                ..where((c) => c.id.equals(resolvedCycleId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (cycleRow != null) {
+        resolvedEmployeeUuid = cycleRow.employeeUuid;
+      }
+    }
+    final incomingEmployeeUuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_uuid', src);
+    if (incomingEmployeeUuid != null && incomingEmployeeUuid.isNotEmpty) {
+      resolvedEmployeeUuid ??= incomingEmployeeUuid;
+    }
+
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
@@ -67,6 +87,7 @@ class SalaryPaymentsAdapter
 
     return ResolveResult(
       salaryCycleLocalId: resolvedCycleId,
+      employeeUuid: resolvedEmployeeUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
       shouldSkip: shouldSkip,
@@ -87,6 +108,8 @@ class SalaryPaymentsAdapter
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
+    // ✅ (2026-09-19) مرجع الموظف المستقر — متغير محلي لتفعيل الترقية
+    final refsEmployeeUuid = refs.employeeUuid;
     return SalaryPaymentsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
@@ -103,6 +126,15 @@ class SalaryPaymentsAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيمة — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
+      // ✅ (2026-09-19) مرجع الموظف المستقر — مستنبط من الدورة المحلولة
+      // في resolveRefs أو من الحمولة (migration 68 + 0007).
+      employeeUuid:
+          _asString(json, 'employeeUuid', src) != null ||
+              _asString(json, 'employee_uuid', src) != null
+          ? _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid')
+          : refsEmployeeUuid != null
+          ? d.Value(refsEmployeeUuid)
+          : const d.Value.absent(),
       amount: _vInt(json, 'amount', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       paymentDateIso: _vStr(
@@ -159,6 +191,9 @@ class SalaryPaymentsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
+      // ✅ (2026-09-19) المفتاح المستقر عبر الأجهزة — مستنبط من دورة
+      // الدفع (migration 68 محلياً + migration 0007 على D1).
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // المحلي يستخدم IntColumn — النوع متطابق
       _k(src, 'amount', 'amount'): model.amount,

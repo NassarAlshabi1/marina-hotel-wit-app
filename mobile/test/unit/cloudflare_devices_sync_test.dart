@@ -28,8 +28,8 @@ void main() {
   });
 
   group('devices ككيان متزامن (v67)', () {
-    test('schemaVersion = 67', () {
-      expect(db.schemaVersion, 67);
+    test('schemaVersion = 68', () {
+      expect(db.schemaVersion, 68);
     });
 
     test('جدول devices موجود في قاعدة جديدة', () async {

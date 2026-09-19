@@ -21635,6 +21635,17 @@ class $SalaryCyclesTable extends SalaryCycles
       'REFERENCES employees (id)',
     ),
   );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _cycleKeyMeta = const VerificationMeta(
     'cycleKey',
   );
@@ -21735,6 +21746,7 @@ class $SalaryCyclesTable extends SalaryCycles
     idempotencyKey,
     id,
     employeeId,
+    employeeUuid,
     cycleKey,
     hotelDayStart,
     hotelDayEnd,
@@ -21903,6 +21915,15 @@ class $SalaryCyclesTable extends SalaryCycles
     } else if (isInserting) {
       context.missing(_employeeIdMeta);
     }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    }
     if (data.containsKey('cycle_key')) {
       context.handle(
         _cycleKeyMeta,
@@ -22048,6 +22069,10 @@ class $SalaryCyclesTable extends SalaryCycles
         DriftSqlType.int,
         data['${effectivePrefix}employee_id'],
       )!,
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      ),
       cycleKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}cycle_key'],
@@ -22105,6 +22130,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
   final String? idempotencyKey;
   final int id;
   final int employeeId;
+  final String? employeeUuid;
   final String cycleKey;
   final String? hotelDayStart;
   final String? hotelDayEnd;
@@ -22132,6 +22158,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     this.idempotencyKey,
     required this.id,
     required this.employeeId,
+    this.employeeUuid,
     required this.cycleKey,
     this.hotelDayStart,
     this.hotelDayEnd,
@@ -22174,6 +22201,9 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     }
     map['id'] = Variable<int>(id);
     map['employee_id'] = Variable<int>(employeeId);
+    if (!nullToAbsent || employeeUuid != null) {
+      map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
     map['cycle_key'] = Variable<String>(cycleKey);
     if (!nullToAbsent || hotelDayStart != null) {
       map['hotel_day_start'] = Variable<String>(hotelDayStart);
@@ -22221,6 +22251,9 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
           : Value(idempotencyKey),
       id: Value(id),
       employeeId: Value(employeeId),
+      employeeUuid: employeeUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeUuid),
       cycleKey: Value(cycleKey),
       hotelDayStart: hotelDayStart == null && nullToAbsent
           ? const Value.absent()
@@ -22260,6 +22293,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
+      employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
       cycleKey: serializer.fromJson<String>(json['cycleKey']),
       hotelDayStart: serializer.fromJson<String?>(json['hotelDayStart']),
       hotelDayEnd: serializer.fromJson<String?>(json['hotelDayEnd']),
@@ -22292,6 +22326,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
+      'employeeUuid': serializer.toJson<String?>(employeeUuid),
       'cycleKey': serializer.toJson<String>(cycleKey),
       'hotelDayStart': serializer.toJson<String?>(hotelDayStart),
       'hotelDayEnd': serializer.toJson<String?>(hotelDayEnd),
@@ -22322,6 +22357,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
+    Value<String?> employeeUuid = const Value.absent(),
     String? cycleKey,
     Value<String?> hotelDayStart = const Value.absent(),
     Value<String?> hotelDayEnd = const Value.absent(),
@@ -22351,6 +22387,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
         : this.idempotencyKey,
     id: id ?? this.id,
     employeeId: employeeId ?? this.employeeId,
+    employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
     cycleKey: cycleKey ?? this.cycleKey,
     hotelDayStart: hotelDayStart.present
         ? hotelDayStart.value
@@ -22402,6 +22439,9 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       employeeId: data.employeeId.present
           ? data.employeeId.value
           : this.employeeId,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
       cycleKey: data.cycleKey.present ? data.cycleKey.value : this.cycleKey,
       hotelDayStart: data.hotelDayStart.present
           ? data.hotelDayStart.value
@@ -22444,6 +22484,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
+          ..write('employeeUuid: $employeeUuid, ')
           ..write('cycleKey: $cycleKey, ')
           ..write('hotelDayStart: $hotelDayStart, ')
           ..write('hotelDayEnd: $hotelDayEnd, ')
@@ -22476,6 +22517,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     idempotencyKey,
     id,
     employeeId,
+    employeeUuid,
     cycleKey,
     hotelDayStart,
     hotelDayEnd,
@@ -22507,6 +22549,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.employeeId == this.employeeId &&
+          other.employeeUuid == this.employeeUuid &&
           other.cycleKey == this.cycleKey &&
           other.hotelDayStart == this.hotelDayStart &&
           other.hotelDayEnd == this.hotelDayEnd &&
@@ -22536,6 +22579,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
+  final Value<String?> employeeUuid;
   final Value<String> cycleKey;
   final Value<String?> hotelDayStart;
   final Value<String?> hotelDayEnd;
@@ -22563,6 +22607,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.employeeId = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
     this.cycleKey = const Value.absent(),
     this.hotelDayStart = const Value.absent(),
     this.hotelDayEnd = const Value.absent(),
@@ -22591,6 +22636,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int employeeId,
+    this.employeeUuid = const Value.absent(),
     required String cycleKey,
     this.hotelDayStart = const Value.absent(),
     this.hotelDayEnd = const Value.absent(),
@@ -22624,6 +22670,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? employeeId,
+    Expression<String>? employeeUuid,
     Expression<String>? cycleKey,
     Expression<String>? hotelDayStart,
     Expression<String>? hotelDayEnd,
@@ -22652,6 +22699,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (employeeId != null) 'employee_id': employeeId,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
       if (cycleKey != null) 'cycle_key': cycleKey,
       if (hotelDayStart != null) 'hotel_day_start': hotelDayStart,
       if (hotelDayEnd != null) 'hotel_day_end': hotelDayEnd,
@@ -22682,6 +22730,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
+    Value<String?>? employeeUuid,
     Value<String>? cycleKey,
     Value<String?>? hotelDayStart,
     Value<String?>? hotelDayEnd,
@@ -22710,6 +22759,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       employeeId: employeeId ?? this.employeeId,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
       cycleKey: cycleKey ?? this.cycleKey,
       hotelDayStart: hotelDayStart ?? this.hotelDayStart,
       hotelDayEnd: hotelDayEnd ?? this.hotelDayEnd,
@@ -22780,6 +22830,9 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     if (employeeId.present) {
       map['employee_id'] = Variable<int>(employeeId.value);
     }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
     if (cycleKey.present) {
       map['cycle_key'] = Variable<String>(cycleKey.value);
     }
@@ -22826,6 +22879,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
+          ..write('employeeUuid: $employeeUuid, ')
           ..write('cycleKey: $cycleKey, ')
           ..write('hotelDayStart: $hotelDayStart, ')
           ..write('hotelDayEnd: $hotelDayEnd, ')
@@ -23064,6 +23118,17 @@ class $SalaryPaymentsTable extends SalaryPayments
       'REFERENCES salary_cycles (id)',
     ),
   );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
   late final GeneratedColumn<int> amount = GeneratedColumn<int>(
@@ -23141,6 +23206,7 @@ class $SalaryPaymentsTable extends SalaryPayments
     idempotencyKey,
     id,
     cycleId,
+    employeeUuid,
     amount,
     hotelDayKey,
     paymentDateIso,
@@ -23307,6 +23373,15 @@ class $SalaryPaymentsTable extends SalaryPayments
     } else if (isInserting) {
       context.missing(_cycleIdMeta);
     }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    }
     if (data.containsKey('amount')) {
       context.handle(
         _amountMeta,
@@ -23433,6 +23508,10 @@ class $SalaryPaymentsTable extends SalaryPayments
         DriftSqlType.int,
         data['${effectivePrefix}cycle_id'],
       )!,
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      ),
       amount: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}amount'],
@@ -23482,6 +23561,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
   final String? idempotencyKey;
   final int id;
   final int cycleId;
+  final String? employeeUuid;
   final int amount;
   final String? hotelDayKey;
   final String paymentDateIso;
@@ -23507,6 +23587,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     this.idempotencyKey,
     required this.id,
     required this.cycleId,
+    this.employeeUuid,
     required this.amount,
     this.hotelDayKey,
     required this.paymentDateIso,
@@ -23547,6 +23628,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     }
     map['id'] = Variable<int>(id);
     map['cycle_id'] = Variable<int>(cycleId);
+    if (!nullToAbsent || employeeUuid != null) {
+      map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
     map['amount'] = Variable<int>(amount);
     if (!nullToAbsent || hotelDayKey != null) {
       map['hotel_day_key'] = Variable<String>(hotelDayKey);
@@ -23592,6 +23676,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           : Value(idempotencyKey),
       id: Value(id),
       cycleId: Value(cycleId),
+      employeeUuid: employeeUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeUuid),
       amount: Value(amount),
       hotelDayKey: hotelDayKey == null && nullToAbsent
           ? const Value.absent()
@@ -23629,6 +23716,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       cycleId: serializer.fromJson<int>(json['cycleId']),
+      employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
       amount: serializer.fromJson<int>(json['amount']),
       hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
       paymentDateIso: serializer.fromJson<String>(json['paymentDateIso']),
@@ -23659,6 +23747,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'cycleId': serializer.toJson<int>(cycleId),
+      'employeeUuid': serializer.toJson<String?>(employeeUuid),
       'amount': serializer.toJson<int>(amount),
       'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
       'paymentDateIso': serializer.toJson<String>(paymentDateIso),
@@ -23687,6 +23776,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? cycleId,
+    Value<String?> employeeUuid = const Value.absent(),
     int? amount,
     Value<String?> hotelDayKey = const Value.absent(),
     String? paymentDateIso,
@@ -23714,6 +23804,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
         : this.idempotencyKey,
     id: id ?? this.id,
     cycleId: cycleId ?? this.cycleId,
+    employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
     amount: amount ?? this.amount,
     hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
     paymentDateIso: paymentDateIso ?? this.paymentDateIso,
@@ -23759,6 +23850,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       cycleId: data.cycleId.present ? data.cycleId.value : this.cycleId,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
       amount: data.amount.present ? data.amount.value : this.amount,
       hotelDayKey: data.hotelDayKey.present
           ? data.hotelDayKey.value
@@ -23795,6 +23889,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('cycleId: $cycleId, ')
+          ..write('employeeUuid: $employeeUuid, ')
           ..write('amount: $amount, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('paymentDateIso: $paymentDateIso, ')
@@ -23825,6 +23920,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     idempotencyKey,
     id,
     cycleId,
+    employeeUuid,
     amount,
     hotelDayKey,
     paymentDateIso,
@@ -23854,6 +23950,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.cycleId == this.cycleId &&
+          other.employeeUuid == this.employeeUuid &&
           other.amount == this.amount &&
           other.hotelDayKey == this.hotelDayKey &&
           other.paymentDateIso == this.paymentDateIso &&
@@ -23881,6 +23978,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> cycleId;
+  final Value<String?> employeeUuid;
   final Value<int> amount;
   final Value<String?> hotelDayKey;
   final Value<String> paymentDateIso;
@@ -23906,6 +24004,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.cycleId = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
     this.amount = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
     this.paymentDateIso = const Value.absent(),
@@ -23932,6 +24031,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int cycleId,
+    this.employeeUuid = const Value.absent(),
     this.amount = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
     required String paymentDateIso,
@@ -23963,6 +24063,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? cycleId,
+    Expression<String>? employeeUuid,
     Expression<int>? amount,
     Expression<String>? hotelDayKey,
     Expression<String>? paymentDateIso,
@@ -23989,6 +24090,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (cycleId != null) 'cycle_id': cycleId,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
       if (amount != null) 'amount': amount,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (paymentDateIso != null) 'payment_date_iso': paymentDateIso,
@@ -24017,6 +24119,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? cycleId,
+    Value<String?>? employeeUuid,
     Value<int>? amount,
     Value<String?>? hotelDayKey,
     Value<String>? paymentDateIso,
@@ -24043,6 +24146,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       cycleId: cycleId ?? this.cycleId,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
       amount: amount ?? this.amount,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       paymentDateIso: paymentDateIso ?? this.paymentDateIso,
@@ -24111,6 +24215,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     if (cycleId.present) {
       map['cycle_id'] = Variable<int>(cycleId.value);
     }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
     if (amount.present) {
       map['amount'] = Variable<int>(amount.value);
     }
@@ -24151,6 +24258,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('cycleId: $cycleId, ')
+          ..write('employeeUuid: $employeeUuid, ')
           ..write('amount: $amount, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('paymentDateIso: $paymentDateIso, ')
@@ -37190,6 +37298,17 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
       'REFERENCES employees (id)',
     ),
   );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
   late final GeneratedColumn<double> amount = GeneratedColumn<double>(
@@ -37284,6 +37403,7 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     idempotencyKey,
     id,
     employeeId,
+    employeeUuid,
     amount,
     withdrawDate,
     reason,
@@ -37452,6 +37572,15 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     } else if (isInserting) {
       context.missing(_employeeIdMeta);
     }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    }
     if (data.containsKey('amount')) {
       context.handle(
         _amountMeta,
@@ -37595,6 +37724,10 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         DriftSqlType.int,
         data['${effectivePrefix}employee_id'],
       )!,
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      ),
       amount: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}amount'],
@@ -37653,6 +37786,7 @@ class SalaryWithdrawal extends DataClass
   final String? idempotencyKey;
   final int id;
   final int employeeId;
+  final String? employeeUuid;
   final double amount;
   final String withdrawDate;
   final String? reason;
@@ -37680,6 +37814,7 @@ class SalaryWithdrawal extends DataClass
     this.idempotencyKey,
     required this.id,
     required this.employeeId,
+    this.employeeUuid,
     required this.amount,
     required this.withdrawDate,
     this.reason,
@@ -37722,6 +37857,9 @@ class SalaryWithdrawal extends DataClass
     }
     map['id'] = Variable<int>(id);
     map['employee_id'] = Variable<int>(employeeId);
+    if (!nullToAbsent || employeeUuid != null) {
+      map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
     map['amount'] = Variable<double>(amount);
     map['withdraw_date'] = Variable<String>(withdrawDate);
     if (!nullToAbsent || reason != null) {
@@ -37775,6 +37913,9 @@ class SalaryWithdrawal extends DataClass
           : Value(idempotencyKey),
       id: Value(id),
       employeeId: Value(employeeId),
+      employeeUuid: employeeUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeUuid),
       amount: Value(amount),
       withdrawDate: Value(withdrawDate),
       reason: reason == null && nullToAbsent
@@ -37820,6 +37961,7 @@ class SalaryWithdrawal extends DataClass
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
+      employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
       amount: serializer.fromJson<double>(json['amount']),
       withdrawDate: serializer.fromJson<String>(json['withdrawDate']),
       reason: serializer.fromJson<String?>(json['reason']),
@@ -37852,6 +37994,7 @@ class SalaryWithdrawal extends DataClass
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
+      'employeeUuid': serializer.toJson<String?>(employeeUuid),
       'amount': serializer.toJson<double>(amount),
       'withdrawDate': serializer.toJson<String>(withdrawDate),
       'reason': serializer.toJson<String?>(reason),
@@ -37882,6 +38025,7 @@ class SalaryWithdrawal extends DataClass
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
+    Value<String?> employeeUuid = const Value.absent(),
     double? amount,
     String? withdrawDate,
     Value<String?> reason = const Value.absent(),
@@ -37911,6 +38055,7 @@ class SalaryWithdrawal extends DataClass
         : this.idempotencyKey,
     id: id ?? this.id,
     employeeId: employeeId ?? this.employeeId,
+    employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
     amount: amount ?? this.amount,
     withdrawDate: withdrawDate ?? this.withdrawDate,
     reason: reason.present ? reason.value : this.reason,
@@ -37962,6 +38107,9 @@ class SalaryWithdrawal extends DataClass
       employeeId: data.employeeId.present
           ? data.employeeId.value
           : this.employeeId,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
       amount: data.amount.present ? data.amount.value : this.amount,
       withdrawDate: data.withdrawDate.present
           ? data.withdrawDate.value
@@ -38002,6 +38150,7 @@ class SalaryWithdrawal extends DataClass
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
+          ..write('employeeUuid: $employeeUuid, ')
           ..write('amount: $amount, ')
           ..write('withdrawDate: $withdrawDate, ')
           ..write('reason: $reason, ')
@@ -38034,6 +38183,7 @@ class SalaryWithdrawal extends DataClass
     idempotencyKey,
     id,
     employeeId,
+    employeeUuid,
     amount,
     withdrawDate,
     reason,
@@ -38065,6 +38215,7 @@ class SalaryWithdrawal extends DataClass
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.employeeId == this.employeeId &&
+          other.employeeUuid == this.employeeUuid &&
           other.amount == this.amount &&
           other.withdrawDate == this.withdrawDate &&
           other.reason == this.reason &&
@@ -38094,6 +38245,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
+  final Value<String?> employeeUuid;
   final Value<double> amount;
   final Value<String> withdrawDate;
   final Value<String?> reason;
@@ -38121,6 +38273,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.employeeId = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
     this.amount = const Value.absent(),
     this.withdrawDate = const Value.absent(),
     this.reason = const Value.absent(),
@@ -38149,6 +38302,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int employeeId,
+    this.employeeUuid = const Value.absent(),
     required double amount,
     required String withdrawDate,
     this.reason = const Value.absent(),
@@ -38183,6 +38337,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? employeeId,
+    Expression<String>? employeeUuid,
     Expression<double>? amount,
     Expression<String>? withdrawDate,
     Expression<String>? reason,
@@ -38211,6 +38366,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (employeeId != null) 'employee_id': employeeId,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
       if (amount != null) 'amount': amount,
       if (withdrawDate != null) 'withdraw_date': withdrawDate,
       if (reason != null) 'reason': reason,
@@ -38241,6 +38397,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
+    Value<String?>? employeeUuid,
     Value<double>? amount,
     Value<String>? withdrawDate,
     Value<String?>? reason,
@@ -38269,6 +38426,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       employeeId: employeeId ?? this.employeeId,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
       amount: amount ?? this.amount,
       withdrawDate: withdrawDate ?? this.withdrawDate,
       reason: reason ?? this.reason,
@@ -38339,6 +38497,9 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (employeeId.present) {
       map['employee_id'] = Variable<int>(employeeId.value);
     }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
     if (amount.present) {
       map['amount'] = Variable<double>(amount.value);
     }
@@ -38385,6 +38546,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
+          ..write('employeeUuid: $employeeUuid, ')
           ..write('amount: $amount, ')
           ..write('withdrawDate: $withdrawDate, ')
           ..write('reason: $reason, ')
@@ -57847,6 +58009,7 @@ typedef $$SalaryCyclesTableCreateCompanionBuilder =
       Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
+      Value<String?> employeeUuid,
       required String cycleKey,
       Value<String?> hotelDayStart,
       Value<String?> hotelDayEnd,
@@ -57876,6 +58039,7 @@ typedef $$SalaryCyclesTableUpdateCompanionBuilder =
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
+      Value<String?> employeeUuid,
       Value<String> cycleKey,
       Value<String?> hotelDayStart,
       Value<String?> hotelDayEnd,
@@ -58026,6 +58190,11 @@ class $$SalaryCyclesTableFilterComposer
 
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -58212,6 +58381,11 @@ class $$SalaryCyclesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get cycleKey => $composableBuilder(
     column: $table.cycleKey,
     builder: (column) => ColumnOrderings(column),
@@ -58352,6 +58526,11 @@ class $$SalaryCyclesTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get cycleKey =>
       $composableBuilder(column: $table.cycleKey, builder: (column) => column);
 
@@ -58479,6 +58658,7 @@ class $$SalaryCyclesTableTableManager
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
                 Value<String> cycleKey = const Value.absent(),
                 Value<String?> hotelDayStart = const Value.absent(),
                 Value<String?> hotelDayEnd = const Value.absent(),
@@ -58506,6 +58686,7 @@ class $$SalaryCyclesTableTableManager
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
+                employeeUuid: employeeUuid,
                 cycleKey: cycleKey,
                 hotelDayStart: hotelDayStart,
                 hotelDayEnd: hotelDayEnd,
@@ -58535,6 +58716,7 @@ class $$SalaryCyclesTableTableManager
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,
+                Value<String?> employeeUuid = const Value.absent(),
                 required String cycleKey,
                 Value<String?> hotelDayStart = const Value.absent(),
                 Value<String?> hotelDayEnd = const Value.absent(),
@@ -58562,6 +58744,7 @@ class $$SalaryCyclesTableTableManager
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
+                employeeUuid: employeeUuid,
                 cycleKey: cycleKey,
                 hotelDayStart: hotelDayStart,
                 hotelDayEnd: hotelDayEnd,
@@ -58685,6 +58868,7 @@ typedef $$SalaryPaymentsTableCreateCompanionBuilder =
       Value<String?> idempotencyKey,
       Value<int> id,
       required int cycleId,
+      Value<String?> employeeUuid,
       Value<int> amount,
       Value<String?> hotelDayKey,
       required String paymentDateIso,
@@ -58712,6 +58896,7 @@ typedef $$SalaryPaymentsTableUpdateCompanionBuilder =
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> cycleId,
+      Value<String?> employeeUuid,
       Value<int> amount,
       Value<String?> hotelDayKey,
       Value<String> paymentDateIso,
@@ -58843,6 +59028,11 @@ class $$SalaryPaymentsTableFilterComposer
 
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -58994,6 +59184,11 @@ class $$SalaryPaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get amount => $composableBuilder(
     column: $table.amount,
     builder: (column) => ColumnOrderings(column),
@@ -59124,6 +59319,11 @@ class $$SalaryPaymentsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
@@ -59218,6 +59418,7 @@ class $$SalaryPaymentsTableTableManager
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> cycleId = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
                 Value<int> amount = const Value.absent(),
                 Value<String?> hotelDayKey = const Value.absent(),
                 Value<String> paymentDateIso = const Value.absent(),
@@ -59243,6 +59444,7 @@ class $$SalaryPaymentsTableTableManager
                 idempotencyKey: idempotencyKey,
                 id: id,
                 cycleId: cycleId,
+                employeeUuid: employeeUuid,
                 amount: amount,
                 hotelDayKey: hotelDayKey,
                 paymentDateIso: paymentDateIso,
@@ -59270,6 +59472,7 @@ class $$SalaryPaymentsTableTableManager
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int cycleId,
+                Value<String?> employeeUuid = const Value.absent(),
                 Value<int> amount = const Value.absent(),
                 Value<String?> hotelDayKey = const Value.absent(),
                 required String paymentDateIso,
@@ -59295,6 +59498,7 @@ class $$SalaryPaymentsTableTableManager
                 idempotencyKey: idempotencyKey,
                 id: id,
                 cycleId: cycleId,
+                employeeUuid: employeeUuid,
                 amount: amount,
                 hotelDayKey: hotelDayKey,
                 paymentDateIso: paymentDateIso,
@@ -65469,6 +65673,7 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
+      Value<String?> employeeUuid,
       required double amount,
       required String withdrawDate,
       Value<String?> reason,
@@ -65498,6 +65703,7 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
+      Value<String?> employeeUuid,
       Value<double> amount,
       Value<String> withdrawDate,
       Value<String?> reason,
@@ -65636,6 +65842,11 @@ class $$SalaryWithdrawalsTableFilterComposer
 
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -65797,6 +66008,11 @@ class $$SalaryWithdrawalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get amount => $composableBuilder(
     column: $table.amount,
     builder: (column) => ColumnOrderings(column),
@@ -65937,6 +66153,11 @@ class $$SalaryWithdrawalsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
@@ -66042,6 +66263,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
                 Value<double> amount = const Value.absent(),
                 Value<String> withdrawDate = const Value.absent(),
                 Value<String?> reason = const Value.absent(),
@@ -66069,6 +66291,7 @@ class $$SalaryWithdrawalsTableTableManager
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
+                employeeUuid: employeeUuid,
                 amount: amount,
                 withdrawDate: withdrawDate,
                 reason: reason,
@@ -66098,6 +66321,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,
+                Value<String?> employeeUuid = const Value.absent(),
                 required double amount,
                 required String withdrawDate,
                 Value<String?> reason = const Value.absent(),
@@ -66125,6 +66349,7 @@ class $$SalaryWithdrawalsTableTableManager
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
+                employeeUuid: employeeUuid,
                 amount: amount,
                 withdrawDate: withdrawDate,
                 reason: reason,

@@ -52,6 +52,23 @@ class SalaryCyclesAdapter
       fromRemote: fromRemote,
     );
 
+    // ✅ (2026-09-19) uuid الموظف المستقر — من جدول employees المحلي عند
+    // الحل (الصيغة القياسية)، واحتياطاً من الحمولة القادمة.
+    String? resolvedEmployeeUuid =
+        (remoteEmployeeUuid != null && remoteEmployeeUuid.isNotEmpty)
+        ? remoteEmployeeUuid
+        : null;
+    if (resolvedEmployeeId != null) {
+      final empRow =
+          await (resolver.db.select(resolver.db.employees)
+                ..where((e) => e.id.equals(resolvedEmployeeId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (empRow != null) {
+        resolvedEmployeeUuid = empRow.localUuid;
+      }
+    }
+
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
@@ -69,6 +86,7 @@ class SalaryCyclesAdapter
 
     return ResolveResult(
       employeeLocalId: resolvedEmployeeId,
+      employeeUuid: resolvedEmployeeUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
       shouldSkip: shouldSkip,
@@ -89,6 +107,8 @@ class SalaryCyclesAdapter
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
+    // ✅ (2026-09-19) مرجع الموظف المستقر — متغير محلي لتفعيل الترقية
+    final refsEmployeeUuid = refs.employeeUuid;
     return SalaryCyclesCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
@@ -105,6 +125,15 @@ class SalaryCyclesAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
+      // ✅ (2026-09-19) مرجع الموظف المستقر — يُرسل لاحقاً في دفعات
+      // المزامنة (toJson) ويحل الرابط عبر الأجهزة (migration 68 + 0007).
+      employeeUuid:
+          _asString(json, 'employeeUuid', src) != null ||
+              _asString(json, 'employee_uuid', src) != null
+          ? _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid')
+          : refsEmployeeUuid != null
+          ? d.Value(refsEmployeeUuid)
+          : const d.Value.absent(),
       cycleKey: _vStr(json, 'cycleKey', src, altKey: 'cycle_key', fallback: ''),
       hotelDayStart: _vStr(
         json,
@@ -179,6 +208,8 @@ class SalaryCyclesAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      // ✅ (2026-09-19) المفتاح المستقر عبر الأجهزة (migration 68 + 0007)
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'cycleKey', 'cycle_key'): model.cycleKey,
       _k(src, 'hotelDayStart', 'hotel_day_start'): model.hotelDayStart,
       _k(src, 'hotelDayEnd', 'hotel_day_end'): model.hotelDayEnd,
