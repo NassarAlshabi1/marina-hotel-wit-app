@@ -429,3 +429,16 @@ $RECYCLE.BIN/**
 
 tmp/**
 temp/**
+
+# ── Kotlin port (mobile/android) tracked-source exceptions ─────────────────
+# Legacy blanket rules above (android/**/test/**, *.xml, *.json) targeted
+# Flutter build output but also hid the Kotlin+Compose port's unit tests,
+# app value resources, and Room schemas from version control — which broke
+# CI builds (missing @string/app_name & @style/Theme.MarinaHotel) while local
+# builds (files present on disk) kept passing. Re-include them here; later
+# rules override earlier ones in .gitignore.
+!android/app/src/main/res/values/*.xml
+!android/app/src/test/
+!android/app/src/test/**
+!android/app/schemas/
+!android/app/schemas/**

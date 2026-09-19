@@ -1,0 +1,3207 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 68,
+    "identityHash": "cfc3ad58b3e7854cd81392287043e490",
+    "entities": [
+      {
+        "tableName": "rooms",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `room_number` TEXT NOT NULL, `type` TEXT NOT NULL, `price` REAL NOT NULL, `status` TEXT NOT NULL, `image_url` TEXT, `cleaning_status` TEXT NOT NULL, `last_cleaned_hotel_day` TEXT, `last_occupied_hotel_day` TEXT, `requires_maintenance` INTEGER NOT NULL, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "roomNumber",
+            "columnName": "room_number",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "price",
+            "columnName": "price",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageUrl",
+            "columnName": "image_url",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cleaningStatus",
+            "columnName": "cleaning_status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastCleanedHotelDay",
+            "columnName": "last_cleaned_hotel_day",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastOccupiedHotelDay",
+            "columnName": "last_occupied_hotel_day",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "requiresMaintenance",
+            "columnName": "requires_maintenance",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_rooms_status",
+            "unique": false,
+            "columnNames": [
+              "status",
+              "cleaning_status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_rooms_status` ON `${TABLE_NAME}` (`status`, `cleaning_status`)"
+          },
+          {
+            "name": "idx_rooms_maintenance",
+            "unique": false,
+            "columnNames": [
+              "requires_maintenance"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_rooms_maintenance` ON `${TABLE_NAME}` (`requires_maintenance`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "bookings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `server_booking_id` INTEGER, `room_number` TEXT NOT NULL, `guest_name` TEXT NOT NULL, `guest_phone` TEXT NOT NULL, `guest_id_type` TEXT NOT NULL, `guest_id_number` TEXT NOT NULL, `guest_id_issue_date` TEXT, `guest_id_issue_place` TEXT, `guest_nationality` TEXT NOT NULL, `guest_email` TEXT, `guest_address` TEXT, `checkin_date` TEXT NOT NULL, `checkout_date` TEXT, `actual_checkout` TEXT, `status` TEXT NOT NULL, `notes` TEXT, `discount` REAL NOT NULL, `discount_type` TEXT NOT NULL, `discount_start_date` TEXT, `expected_nights` INTEGER NOT NULL, `calculated_nights` INTEGER NOT NULL, `total_nights_cached` INTEGER NOT NULL, `stay_duration_iso` TEXT, `last_night_epoch` INTEGER, `is_overdue` INTEGER NOT NULL, `needs_checkout_review` INTEGER NOT NULL, `total_due_cached` REAL NOT NULL, `total_paid_cached` REAL NOT NULL, `remaining_balance_cached` REAL NOT NULL, `is_fully_paid` INTEGER NOT NULL, `hotel_day_checkin` TEXT, `hotel_day_checkout` TEXT, `financial_frozen_at` INTEGER, `financial_hash` TEXT, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverBookingId",
+            "columnName": "server_booking_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "roomNumber",
+            "columnName": "room_number",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "guestName",
+            "columnName": "guest_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "guestPhone",
+            "columnName": "guest_phone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "guestIdType",
+            "columnName": "guest_id_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "guestIdNumber",
+            "columnName": "guest_id_number",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "guestIdIssueDate",
+            "columnName": "guest_id_issue_date",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "guestIdIssuePlace",
+            "columnName": "guest_id_issue_place",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "guestNationality",
+            "columnName": "guest_nationality",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "guestEmail",
+            "columnName": "guest_email",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "guestAddress",
+            "columnName": "guest_address",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "checkinDate",
+            "columnName": "checkin_date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkoutDate",
+            "columnName": "checkout_date",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "actualCheckout",
+            "columnName": "actual_checkout",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "discount",
+            "columnName": "discount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "discountType",
+            "columnName": "discount_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "discountStartDate",
+            "columnName": "discount_start_date",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "expectedNights",
+            "columnName": "expected_nights",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calculatedNights",
+            "columnName": "calculated_nights",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalNightsCached",
+            "columnName": "total_nights_cached",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stayDurationIso",
+            "columnName": "stay_duration_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastNightEpoch",
+            "columnName": "last_night_epoch",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isOverdue",
+            "columnName": "is_overdue",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "needsCheckoutReview",
+            "columnName": "needs_checkout_review",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalDueCached",
+            "columnName": "total_due_cached",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalPaidCached",
+            "columnName": "total_paid_cached",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remainingBalanceCached",
+            "columnName": "remaining_balance_cached",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFullyPaid",
+            "columnName": "is_fully_paid",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hotelDayCheckin",
+            "columnName": "hotel_day_checkin",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hotelDayCheckout",
+            "columnName": "hotel_day_checkout",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "financialFrozenAt",
+            "columnName": "financial_frozen_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "financialHash",
+            "columnName": "financial_hash",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_bookings_status_day",
+            "unique": false,
+            "columnNames": [
+              "status",
+              "hotel_day_checkin"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_bookings_status_day` ON `${TABLE_NAME}` (`status`, `hotel_day_checkin`)"
+          },
+          {
+            "name": "idx_bookings_room",
+            "unique": false,
+            "columnNames": [
+              "room_number"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_bookings_room` ON `${TABLE_NAME}` (`room_number`)"
+          },
+          {
+            "name": "idx_bookings_guest",
+            "unique": false,
+            "columnNames": [
+              "guest_name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_bookings_guest` ON `${TABLE_NAME}` (`guest_name`)"
+          },
+          {
+            "name": "idx_bookings_deleted",
+            "unique": false,
+            "columnNames": [
+              "deleted_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_bookings_deleted` ON `${TABLE_NAME}` (`deleted_at`)"
+          },
+          {
+            "name": "idx_bookings_checkin",
+            "unique": false,
+            "columnNames": [
+              "checkin_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_bookings_checkin` ON `${TABLE_NAME}` (`checkin_date`)"
+          },
+          {
+            "name": "idx_bookings_active_checkin",
+            "unique": false,
+            "columnNames": [
+              "checkin_date"
+            ],
+            "orders": [
+              "DESC"
+            ],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_bookings_active_checkin` ON `${TABLE_NAME}` (`checkin_date` DESC)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "booking_notes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `booking_id` INTEGER NOT NULL, `note_text` TEXT NOT NULL, `alert_type` TEXT NOT NULL, `alert_until` TEXT, `is_active` INTEGER NOT NULL, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bookingId",
+            "columnName": "booking_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "noteText",
+            "columnName": "note_text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "alertType",
+            "columnName": "alert_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "alertUntil",
+            "columnName": "alert_until",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "is_active",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_booking_notes_booking",
+            "unique": false,
+            "columnNames": [
+              "booking_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_booking_notes_booking` ON `${TABLE_NAME}` (`booking_id`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "employees",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `basic_salary` REAL NOT NULL, `position` TEXT NOT NULL, `phone` TEXT NOT NULL, `hire_date` TEXT NOT NULL, `status` TEXT NOT NULL, `termination_date` TEXT, `termination_reason` TEXT, `employee_id` TEXT, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "basicSalary",
+            "columnName": "basic_salary",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hireDate",
+            "columnName": "hire_date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "terminationDate",
+            "columnName": "termination_date",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "terminationReason",
+            "columnName": "termination_reason",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "employeeID",
+            "columnName": "employee_id",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_employees_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_employees_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "idx_employees_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_employees_status` ON `${TABLE_NAME}` (`status`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "expenses",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `expense_type` TEXT NOT NULL, `related_id` INTEGER, `description` TEXT NOT NULL, `amount` REAL NOT NULL, `date` TEXT NOT NULL, `cash_transaction_id` INTEGER, `hotel_day_key` TEXT, `category_uuid` TEXT, `cash_flow_uuid` TEXT, `is_auto_generated` INTEGER NOT NULL, `employee_uuid` TEXT, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expenseType",
+            "columnName": "expense_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "relatedId",
+            "columnName": "related_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cashTransactionId",
+            "columnName": "cash_transaction_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hotelDayKey",
+            "columnName": "hotel_day_key",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "categoryUuid",
+            "columnName": "category_uuid",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cashFlowUuid",
+            "columnName": "cash_flow_uuid",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isAutoGenerated",
+            "columnName": "is_auto_generated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "employeeUuid",
+            "columnName": "employee_uuid",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_expenses_hotel_day",
+            "unique": false,
+            "columnNames": [
+              "hotel_day_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_expenses_hotel_day` ON `${TABLE_NAME}` (`hotel_day_key`)"
+          },
+          {
+            "name": "idx_expenses_category",
+            "unique": false,
+            "columnNames": [
+              "category_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_expenses_category` ON `${TABLE_NAME}` (`category_uuid`)"
+          },
+          {
+            "name": "idx_expenses_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_expenses_date` ON `${TABLE_NAME}` (`date`)"
+          },
+          {
+            "name": "idx_expenses_active_hotel_day",
+            "unique": false,
+            "columnNames": [
+              "hotel_day_key",
+              "expense_type",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_expenses_active_hotel_day` ON `${TABLE_NAME}` (`hotel_day_key`, `expense_type`, `date`)"
+          },
+          {
+            "name": "idx_expenses_legacy_active_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_expenses_legacy_active_date` ON `${TABLE_NAME}` (`date`)"
+          },
+          {
+            "name": "idx_expenses_active_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [
+              "DESC"
+            ],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_expenses_active_date` ON `${TABLE_NAME}` (`date` DESC)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "cash_transactions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `register_id` INTEGER, `transaction_type` TEXT NOT NULL, `amount` REAL NOT NULL, `reference_type` TEXT, `reference_id` INTEGER, `description` TEXT, `transaction_time` TEXT NOT NULL, `created_by` INTEGER, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "registerId",
+            "columnName": "register_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "transactionType",
+            "columnName": "transaction_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "referenceType",
+            "columnName": "reference_type",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "referenceId",
+            "columnName": "reference_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "transactionTime",
+            "columnName": "transaction_time",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdBy",
+            "columnName": "created_by",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_cash_trans_type_time",
+            "unique": false,
+            "columnNames": [
+              "transaction_type",
+              "transaction_time"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_cash_trans_type_time` ON `${TABLE_NAME}` (`transaction_type`, `transaction_time`)"
+          },
+          {
+            "name": "idx_cash_trans_ref",
+            "unique": false,
+            "columnNames": [
+              "reference_type",
+              "reference_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_cash_trans_ref` ON `${TABLE_NAME}` (`reference_type`, `reference_id`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "payments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `server_payment_id` INTEGER, `booking_local_id` INTEGER, `server_booking_id` INTEGER, `room_number` TEXT, `amount` REAL NOT NULL, `payment_date` TEXT NOT NULL, `notes` TEXT, `payment_method` TEXT NOT NULL, `revenue_type` TEXT NOT NULL, `cash_transaction_local_id` INTEGER, `cash_transaction_server_id` INTEGER, `reference_number` TEXT, `hotel_day_key` TEXT, `is_pending_balance` INTEGER NOT NULL, `linked_debt_uuid` TEXT, `booking_uuid_cache` TEXT, `discount_amount` REAL, `discount_start_date` TEXT, `is_voided` INTEGER NOT NULL, `voided_at` INTEGER, `voided_by` TEXT, `void_reason` TEXT, `is_immutable` INTEGER NOT NULL, `received_by_user_id` INTEGER, `received_by_name` TEXT, `received_session_uuid` TEXT, `received_by_cloud_id` TEXT, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverPaymentId",
+            "columnName": "server_payment_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "bookingLocalId",
+            "columnName": "booking_local_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "serverBookingId",
+            "columnName": "server_booking_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "roomNumber",
+            "columnName": "room_number",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paymentDate",
+            "columnName": "payment_date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "paymentMethod",
+            "columnName": "payment_method",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revenueType",
+            "columnName": "revenue_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cashTransactionLocalId",
+            "columnName": "cash_transaction_local_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cashTransactionServerId",
+            "columnName": "cash_transaction_server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "referenceNumber",
+            "columnName": "reference_number",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hotelDayKey",
+            "columnName": "hotel_day_key",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isPendingBalance",
+            "columnName": "is_pending_balance",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "linkedDebtUuid",
+            "columnName": "linked_debt_uuid",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "bookingUuidCache",
+            "columnName": "booking_uuid_cache",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "discountAmount",
+            "columnName": "discount_amount",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "discountStartDate",
+            "columnName": "discount_start_date",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isVoided",
+            "columnName": "is_voided",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "voidedAt",
+            "columnName": "voided_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "voidedBy",
+            "columnName": "voided_by",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "voidReason",
+            "columnName": "void_reason",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isImmutable",
+            "columnName": "is_immutable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "receivedByUserId",
+            "columnName": "received_by_user_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "receivedByName",
+            "columnName": "received_by_name",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "receivedSessionUuid",
+            "columnName": "received_session_uuid",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "receivedByCloudId",
+            "columnName": "received_by_cloud_id",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_payments_booking",
+            "unique": false,
+            "columnNames": [
+              "booking_local_id",
+              "hotel_day_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_booking` ON `${TABLE_NAME}` (`booking_local_id`, `hotel_day_key`)"
+          },
+          {
+            "name": "idx_payments_room_day",
+            "unique": false,
+            "columnNames": [
+              "room_number",
+              "hotel_day_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_room_day` ON `${TABLE_NAME}` (`room_number`, `hotel_day_key`)"
+          },
+          {
+            "name": "idx_payments_date",
+            "unique": false,
+            "columnNames": [
+              "payment_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_date` ON `${TABLE_NAME}` (`payment_date`)"
+          },
+          {
+            "name": "idx_payments_revenue",
+            "unique": false,
+            "columnNames": [
+              "revenue_type",
+              "hotel_day_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_revenue` ON `${TABLE_NAME}` (`revenue_type`, `hotel_day_key`)"
+          },
+          {
+            "name": "idx_payments_void",
+            "unique": false,
+            "columnNames": [
+              "is_voided"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_void` ON `${TABLE_NAME}` (`is_voided`)"
+          },
+          {
+            "name": "idx_payments_method",
+            "unique": false,
+            "columnNames": [
+              "payment_method"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_method` ON `${TABLE_NAME}` (`payment_method`)"
+          },
+          {
+            "name": "idx_payments_active_hotel_day",
+            "unique": false,
+            "columnNames": [
+              "hotel_day_key",
+              "revenue_type",
+              "payment_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_active_hotel_day` ON `${TABLE_NAME}` (`hotel_day_key`, `revenue_type`, `payment_date`)"
+          },
+          {
+            "name": "idx_payments_legacy_active_date",
+            "unique": false,
+            "columnNames": [
+              "payment_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_legacy_active_date` ON `${TABLE_NAME}` (`payment_date`)"
+          },
+          {
+            "name": "idx_payments_active_report_date",
+            "unique": false,
+            "columnNames": [
+              "payment_date"
+            ],
+            "orders": [
+              "DESC"
+            ],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_active_report_date` ON `${TABLE_NAME}` (`payment_date` DESC)"
+          },
+          {
+            "name": "idx_payments_active_receiver_session",
+            "unique": false,
+            "columnNames": [
+              "received_by_user_id",
+              "received_session_uuid",
+              "hotel_day_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_payments_active_receiver_session` ON `${TABLE_NAME}` (`received_by_user_id`, `received_session_uuid`, `hotel_day_key`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "debts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `booking_local_id` INTEGER, `guest_name` TEXT NOT NULL, `checkin_date` TEXT NOT NULL, `checkout_date` TEXT NOT NULL, `date_recorded` TEXT NOT NULL, `debt_reason` TEXT NOT NULL, `total_amount` REAL NOT NULL, `paid_amount` REAL NOT NULL, `remaining_amount` REAL NOT NULL, `payment_date` TEXT NOT NULL, `is_settled` INTEGER NOT NULL, `pledge` TEXT, `pledge_type` TEXT, `note` TEXT, `debt_uuid` TEXT, `hotel_day_opened` TEXT, `hotel_day_closed` TEXT, `is_from_auto_fix` INTEGER NOT NULL, `settlement_confirmed` INTEGER NOT NULL, `guest_phone` TEXT, `description` TEXT, `status` TEXT, `due_date` TEXT, `booking_uuid_cache` TEXT, `debtor_name` TEXT, `amount` REAL, `date` TEXT, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bookingLocalId",
+            "columnName": "booking_local_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "guestName",
+            "columnName": "guest_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkinDate",
+            "columnName": "checkin_date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkoutDate",
+            "columnName": "checkout_date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateRecorded",
+            "columnName": "date_recorded",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "debtReason",
+            "columnName": "debt_reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalAmount",
+            "columnName": "total_amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paidAmount",
+            "columnName": "paid_amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remainingAmount",
+            "columnName": "remaining_amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "paymentDate",
+            "columnName": "payment_date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSettled",
+            "columnName": "is_settled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pledge",
+            "columnName": "pledge",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pledgeType",
+            "columnName": "pledge_type",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "debtUuid",
+            "columnName": "debt_uuid",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hotelDayOpened",
+            "columnName": "hotel_day_opened",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "hotelDayClosed",
+            "columnName": "hotel_day_closed",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isFromAutoFix",
+            "columnName": "is_from_auto_fix",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "settlementConfirmed",
+            "columnName": "settlement_confirmed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "guestPhone",
+            "columnName": "guest_phone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "dueDate",
+            "columnName": "due_date",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "bookingUuidCache",
+            "columnName": "booking_uuid_cache",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "debtorName",
+            "columnName": "debtor_name",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_debts_status",
+            "unique": false,
+            "columnNames": [
+              "is_settled",
+              "is_from_auto_fix"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_debts_status` ON `${TABLE_NAME}` (`is_settled`, `is_from_auto_fix`)"
+          },
+          {
+            "name": "idx_debts_guest",
+            "unique": false,
+            "columnNames": [
+              "guest_name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_debts_guest` ON `${TABLE_NAME}` (`guest_name`)"
+          },
+          {
+            "name": "idx_debts_booking",
+            "unique": false,
+            "columnNames": [
+              "booking_local_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_debts_booking` ON `${TABLE_NAME}` (`booking_local_id`)"
+          },
+          {
+            "name": "idx_debts_payment_date",
+            "unique": false,
+            "columnNames": [
+              "payment_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_debts_payment_date` ON `${TABLE_NAME}` (`payment_date`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "shift_notes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `priority` TEXT NOT NULL, `shift_type` TEXT NOT NULL, `is_read` INTEGER NOT NULL, `expires_at` TEXT, `created_by` TEXT NOT NULL, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priority",
+            "columnName": "priority",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "shiftType",
+            "columnName": "shift_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isRead",
+            "columnName": "is_read",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expiresAt",
+            "columnName": "expires_at",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdBy",
+            "columnName": "created_by",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_shift_notes_created_by",
+            "unique": false,
+            "columnNames": [
+              "created_by"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_shift_notes_created_by` ON `${TABLE_NAME}` (`created_by`)"
+          },
+          {
+            "name": "idx_shift_notes_date",
+            "unique": false,
+            "columnNames": [
+              "created_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_shift_notes_date` ON `${TABLE_NAME}` (`created_at`)"
+          },
+          {
+            "name": "idx_shift_notes_read",
+            "unique": false,
+            "columnNames": [
+              "is_read"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_shift_notes_read` ON `${TABLE_NAME}` (`is_read`)"
+          },
+          {
+            "name": "idx_shift_notes_priority",
+            "unique": false,
+            "columnNames": [
+              "priority"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_shift_notes_priority` ON `${TABLE_NAME}` (`priority`)"
+          },
+          {
+            "name": "idx_shift_notes_shift_type",
+            "unique": false,
+            "columnNames": [
+              "shift_type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_shift_notes_shift_type` ON `${TABLE_NAME}` (`shift_type`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "outbox",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `entity` TEXT NOT NULL, `op` TEXT NOT NULL, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `payload` TEXT NOT NULL, `client_ts` INTEGER NOT NULL, `attempts` INTEGER NOT NULL, `last_error` TEXT, `idempotency_key` TEXT, `processing_status` TEXT NOT NULL, `processing_started_at` INTEGER, `processing_worker` TEXT, `source` TEXT NOT NULL, `delivered_to_primary` INTEGER NOT NULL, `delivered_to_secondary` INTEGER NOT NULL, `primary_processing_status` TEXT NOT NULL, `primary_attempts` INTEGER NOT NULL, `primary_last_error` TEXT, `secondary_processing_status` TEXT NOT NULL, `secondary_attempts` INTEGER NOT NULL, `secondary_last_error` TEXT, `payload_version` INTEGER NOT NULL, `processing_payload_version` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entity",
+            "columnName": "entity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "op",
+            "columnName": "op",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "payload",
+            "columnName": "payload",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clientTs",
+            "columnName": "client_ts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastError",
+            "columnName": "last_error",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "processingStatus",
+            "columnName": "processing_status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "processingStartedAt",
+            "columnName": "processing_started_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "processingWorker",
+            "columnName": "processing_worker",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deliveredToPrimary",
+            "columnName": "delivered_to_primary",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deliveredToSecondary",
+            "columnName": "delivered_to_secondary",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "primaryProcessingStatus",
+            "columnName": "primary_processing_status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "primaryAttempts",
+            "columnName": "primary_attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "primaryLastError",
+            "columnName": "primary_last_error",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "secondaryProcessingStatus",
+            "columnName": "secondary_processing_status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "secondaryAttempts",
+            "columnName": "secondary_attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "secondaryLastError",
+            "columnName": "secondary_last_error",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "payloadVersion",
+            "columnName": "payload_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "processingPayloadVersion",
+            "columnName": "processing_payload_version",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_outbox_status",
+            "unique": false,
+            "columnNames": [
+              "processing_status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_outbox_status` ON `${TABLE_NAME}` (`processing_status`)"
+          },
+          {
+            "name": "idx_outbox_entity_status",
+            "unique": false,
+            "columnNames": [
+              "entity",
+              "op",
+              "processing_status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_outbox_entity_status` ON `${TABLE_NAME}` (`entity`, `op`, `processing_status`)"
+          },
+          {
+            "name": "idx_outbox_uuid_pending",
+            "unique": false,
+            "columnNames": [
+              "entity",
+              "local_uuid",
+              "processing_status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_outbox_uuid_pending` ON `${TABLE_NAME}` (`entity`, `local_uuid`, `processing_status`)"
+          },
+          {
+            "name": "idx_outbox_client_ts",
+            "unique": false,
+            "columnNames": [
+              "client_ts"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_outbox_client_ts` ON `${TABLE_NAME}` (`client_ts`)"
+          },
+          {
+            "name": "idx_outbox_processing_started",
+            "unique": false,
+            "columnNames": [
+              "processing_status",
+              "processing_started_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_outbox_processing_started` ON `${TABLE_NAME}` (`processing_status`, `processing_started_at`)"
+          },
+          {
+            "name": "idx_outbox_source_status",
+            "unique": false,
+            "columnNames": [
+              "source",
+              "processing_status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_outbox_source_status` ON `${TABLE_NAME}` (`source`, `processing_status`)"
+          },
+          {
+            "name": "idx_outbox_delivery_primary",
+            "unique": false,
+            "columnNames": [
+              "delivered_to_primary",
+              "processing_status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_outbox_delivery_primary` ON `${TABLE_NAME}` (`delivered_to_primary`, `processing_status`)"
+          },
+          {
+            "name": "idx_outbox_delivery_secondary",
+            "unique": false,
+            "columnNames": [
+              "delivered_to_secondary",
+              "processing_status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_outbox_delivery_secondary` ON `${TABLE_NAME}` (`delivered_to_secondary`, `processing_status`)"
+          },
+          {
+            "name": "idx_outbox_pending_primary_source_ts",
+            "unique": false,
+            "columnNames": [
+              "source",
+              "client_ts"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_outbox_pending_primary_source_ts` ON `${TABLE_NAME}` (`source`, `client_ts`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "sync_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `last_server_ts` INTEGER NOT NULL, `last_pull_ts` INTEGER NOT NULL, `last_push_ts` INTEGER NOT NULL, `is_syncing` INTEGER NOT NULL, `version` INTEGER NOT NULL, `full_sync_complete` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastServerTs",
+            "columnName": "last_server_ts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastPullTs",
+            "columnName": "last_pull_ts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastPushTs",
+            "columnName": "last_push_ts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSyncing",
+            "columnName": "is_syncing",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fullSyncComplete",
+            "columnName": "full_sync_complete",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "inventory_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `unit` TEXT NOT NULL, `category` TEXT, `current_quantity` REAL NOT NULL, `minimum_quantity` REAL NOT NULL, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unit",
+            "columnName": "unit",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "currentQuantity",
+            "columnName": "current_quantity",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minimumQuantity",
+            "columnName": "minimum_quantity",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_inv_items_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_inv_items_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "idx_inv_items_category",
+            "unique": false,
+            "columnNames": [
+              "category"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_inv_items_category` ON `${TABLE_NAME}` (`category`)"
+          },
+          {
+            "name": "idx_inv_items_active",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_inv_items_active` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_inventory_items_local_uuid",
+            "unique": true,
+            "columnNames": [
+              "local_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_inventory_items_local_uuid` ON `${TABLE_NAME}` (`local_uuid`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "inventory_transactions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `item_id` INTEGER NOT NULL, `transaction_type` TEXT NOT NULL, `quantity` REAL NOT NULL, `balance_after` REAL NOT NULL, `note` TEXT, `transaction_time` INTEGER NOT NULL, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "item_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transactionType",
+            "columnName": "transaction_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "balanceAfter",
+            "columnName": "balance_after",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "transactionTime",
+            "columnName": "transaction_time",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_inv_tx_item",
+            "unique": false,
+            "columnNames": [
+              "item_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_inv_tx_item` ON `${TABLE_NAME}` (`item_id`)"
+          },
+          {
+            "name": "idx_inv_tx_time",
+            "unique": false,
+            "columnNames": [
+              "transaction_time"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_inv_tx_time` ON `${TABLE_NAME}` (`transaction_time`)"
+          },
+          {
+            "name": "idx_inv_tx_type",
+            "unique": false,
+            "columnNames": [
+              "transaction_type"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_inv_tx_type` ON `${TABLE_NAME}` (`transaction_type`)"
+          },
+          {
+            "name": "index_inventory_transactions_local_uuid",
+            "unique": true,
+            "columnNames": [
+              "local_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_inventory_transactions_local_uuid` ON `${TABLE_NAME}` (`local_uuid`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "salary_withdrawals",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `employee_id` INTEGER NOT NULL, `employee_uuid` TEXT, `employee_name` TEXT NOT NULL, `amount` REAL NOT NULL, `withdraw_date` INTEGER NOT NULL, `hotel_day_key` TEXT, `withdrawal_type` TEXT NOT NULL, `reason` TEXT, `description` TEXT, `local_uuid` TEXT NOT NULL, `server_id` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `deleted_at` INTEGER, `last_modified` INTEGER NOT NULL, `created_at_iso` TEXT, `updated_at_iso` TEXT, `deleted_at_iso` TEXT, `created_at_epoch` INTEGER NOT NULL, `last_modified_epoch` INTEGER NOT NULL, `version` INTEGER NOT NULL, `origin` TEXT NOT NULL, `vector_clock` TEXT NOT NULL, `device_id` TEXT NOT NULL, `sync_timestamp` INTEGER NOT NULL, `idempotency_key` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "employeeId",
+            "columnName": "employee_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "employeeUuid",
+            "columnName": "employee_uuid",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "employeeName",
+            "columnName": "employee_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "withdrawDate",
+            "columnName": "withdraw_date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hotelDayKey",
+            "columnName": "hotel_day_key",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "withdrawalType",
+            "columnName": "withdrawal_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "localUuid",
+            "columnName": "local_uuid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "server_id",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "last_modified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtIso",
+            "columnName": "created_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "updatedAtIso",
+            "columnName": "updated_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deletedAtIso",
+            "columnName": "deleted_at_iso",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAtEpoch",
+            "columnName": "created_at_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedEpoch",
+            "columnName": "last_modified_epoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "vectorClock",
+            "columnName": "vector_clock",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncTimestamp",
+            "columnName": "sync_timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "idempotencyKey",
+            "columnName": "idempotency_key",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "idx_salary_wd_employee",
+            "unique": false,
+            "columnNames": [
+              "employee_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_salary_wd_employee` ON `${TABLE_NAME}` (`employee_id`)"
+          },
+          {
+            "name": "idx_salary_wd_hotel_day",
+            "unique": false,
+            "columnNames": [
+              "hotel_day_key"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_salary_wd_hotel_day` ON `${TABLE_NAME}` (`hotel_day_key`)"
+          },
+          {
+            "name": "idx_salary_wd_date",
+            "unique": false,
+            "columnNames": [
+              "withdraw_date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `idx_salary_wd_date` ON `${TABLE_NAME}` (`withdraw_date`)"
+          },
+          {
+            "name": "index_salary_withdrawals_local_uuid",
+            "unique": true,
+            "columnNames": [
+              "local_uuid"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_salary_withdrawals_local_uuid` ON `${TABLE_NAME}` (`local_uuid`)"
+          }
+        ],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cfc3ad58b3e7854cd81392287043e490')"
+    ]
+  }
+}
