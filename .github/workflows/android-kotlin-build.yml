@@ -14,6 +14,7 @@ on:
     branches:
       - agent/wave-cloud-bi9f
       - agent/pulse-storm-pdj1
+      - agent/android-cloudflare
     paths:
       - 'mobile/android/**'
       - 'mobile/Keystore.txt'
