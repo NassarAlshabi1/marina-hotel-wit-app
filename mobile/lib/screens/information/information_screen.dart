@@ -22,6 +22,29 @@ import '../../utils/pdf_utils.dart';
 class InformationScreen extends ConsumerStatefulWidget {
   const InformationScreen({super.key});
 
+  /// مقارنة تصاعدية لأرقام الغرف: القيم الرقمية أولاً (تصاعدياً)، ثم القيم
+  /// النصية أبجدياً. تُستخدم للجدول المعروض ولتصدير PDF لضمان تطابق الترتيب
+  /// في الحالتين — الـ PDF يجب أن يخرج مرتّباً تصاعدياً حسب أرقام الغرف.
+  static int compareByRoomNumber(GuestInfo a, GuestInfo b) {
+    final aNum = int.tryParse(a.roomNumber);
+    final bNum = int.tryParse(b.roomNumber);
+    if (aNum != null && bNum != null) {
+      return aNum.compareTo(bNum);
+    }
+    if (aNum != null) {
+      return -1;
+    }
+    if (bNum != null) {
+      return 1;
+    }
+    return a.roomNumber.compareTo(b.roomNumber);
+  }
+
+  /// نسخة جديدة من القائمة مرتّبة تصاعدياً حسب رقم الغرفة دون تعديل الأصل.
+  static List<GuestInfo> sortedByRoomNumber(List<GuestInfo> entries) {
+    return List<GuestInfo>.from(entries)..sort(compareByRoomNumber);
+  }
+
   @override
   ConsumerState<InformationScreen> createState() => _InformationScreenState();
 }
@@ -137,22 +160,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
     final scrollCtrl = _verticalScrollController;
 
-    // ترتيب حسب رقم الغرفة (أرقام أولاً، ثم أبجدي)
-    final sorted = List<GuestInfo>.from(entries);
-    sorted.sort((a, b) {
-      final aNum = int.tryParse(a.roomNumber);
-      final bNum = int.tryParse(b.roomNumber);
-      if (aNum != null && bNum != null) {
-        return aNum.compareTo(bNum);
-      }
-      if (aNum != null) {
-        return -1;
-      }
-      if (bNum != null) {
-        return 1;
-      }
-      return a.roomNumber.compareTo(b.roomNumber);
-    });
+    // ترتيب حسب رقم الغرفة (أرقام أولاً، ثم أبجدي) — نفس دالة ترتيب الـ PDF
+    final sorted = InformationScreen.sortedByRoomNumber(entries);
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -576,6 +585,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
     setState(() => _exportingPdf = true);
     try {
+      // ✅ إصلاح: الـ PDF يخرج مرتّباً تصاعدياً حسب رقم الغرفة. القائمة
+      // الواردة من الـ provider مرتّبة حسب updatedAt DESC (آخر تعديل أولاً)،
+      // لذا نفرزها هنا قبل توليد صفوف الجدول — بنفس ترتيب الجدول المعروض.
+      final exportEntries = InformationScreen.sortedByRoomNumber(entries);
       // ✅ تحميل الخطوط العربية أولاً — أي فشل هنا يُغلق العملية مبكراً برسالة واضحة.
       final fonts = await PdfUtils.loadArabicFonts();
       final prefs = await SharedPreferences.getInstance();
@@ -601,8 +614,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         return s.isEmpty ? '-' : s;
       }
 
-      final data = List.generate(entries.length, (i) {
-        final info = entries[i];
+      final data = List.generate(exportEntries.length, (i) {
+        final info = exportEntries[i];
         return [
           safe(info.notes),
           safe(info.governorate),
