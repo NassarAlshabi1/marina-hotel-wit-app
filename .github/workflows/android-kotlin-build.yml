@@ -55,8 +55,11 @@ jobs:
           # Expected: 4f6e5c58abc68e20f842c868060d515fe2d64d4964572d17ecf9ac04bb7fb865
           echo "4f6e5c58abc68e20f842c868060d515fe2d64d4964572d17ecf9ac04bb7fb865  mobile/android/app/marina-hotel-key.jks" | sha256sum -c -
 
-      # AGP auto-installs missing SDK pieces when licenses are pre-accepted
-      # on GitHub runners; make sure platform-35 / build-tools are present.
+      # ubuntu-latest does not ship cmdline-tools on PATH — install them so
+      # sdkmanager is available, then pin the SDK pieces AGP 8.6 needs.
+      - name: Set up Android SDK (cmdline-tools + sdkmanager)
+        uses: android-actions/setup-android@v3
+
       - name: Ensure Android SDK components
         run: |
           yes | sdkmanager --licenses > /dev/null || true
