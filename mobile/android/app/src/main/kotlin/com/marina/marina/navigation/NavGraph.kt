@@ -7,6 +7,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.marina.marina.presentation.aichat.AIChatScreen
+import com.marina.marina.presentation.blacklist.BlacklistScreen
+import com.marina.marina.presentation.debts.CreateDebtFromBookingScreen
+import com.marina.marina.presentation.employees.SalaryEntitlementsScreen
+import com.marina.marina.presentation.auth.CloudflareLoginScreen
+import com.marina.marina.presentation.payments.BookingCheckoutScreen
+import com.marina.marina.presentation.payments.PaymentHistoryScreen
 import com.marina.marina.presentation.auth.AuthViewModel
 import com.marina.marina.presentation.bookings.BookingEditScreen
 import com.marina.marina.presentation.bookings.BookingsListScreen
@@ -49,6 +55,18 @@ sealed class Screen(val route: String) {
     object Reports : Screen("reports")
     object Finance : Screen("finance")
     object Information : Screen("information")
+    object Blacklist : Screen("blacklist")
+    object PaymentHistory : Screen("payment_history")
+    object SalaryEntitlements : Screen("salary_entitlements")
+    object CloudflareLogin : Screen("cloudflare_login")
+    object BookingCheckout : Screen("booking_checkout/{bookingId}") {
+        const val ARG_BOOKING_ID = "bookingId"
+        fun createRoute(bookingId: Long) = "booking_checkout/$bookingId"
+    }
+    object CreateDebt : Screen("create_debt/{bookingId}") {
+        const val ARG_BOOKING_ID = "bookingId"
+        fun createRoute(bookingId: Long) = "create_debt/$bookingId"
+    }
     object Inventory : Screen("inventory")
     object AIChat : Screen("ai_chat")
 }
@@ -178,6 +196,58 @@ fun MarinaNavGraph(
 
         composable(Screen.AIChat.route) {
             AIChatScreen()
+        }
+
+        composable(Screen.Blacklist.route) {
+            BlacklistScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.PaymentHistory.route) {
+            PaymentHistoryScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.SalaryEntitlements.route) {
+            SalaryEntitlementsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.CloudflareLogin.route) {
+            CloudflareLoginScreen(
+                viewModel = authViewModel,
+                onLoginSuccess = {
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.BookingCheckout.route,
+            arguments = listOf(navArgument(Screen.BookingCheckout.ARG_BOOKING_ID) {
+                type = NavType.LongType
+                defaultValue = 0L
+            })
+        ) { backStackEntry ->
+            BookingCheckoutScreen(
+                bookingId = backStackEntry.arguments?.getLong(Screen.BookingCheckout.ARG_BOOKING_ID) ?: 0L,
+                onBack = { navController.popBackStack() },
+                onCheckedOut = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.CreateDebt.route,
+            arguments = listOf(navArgument(Screen.CreateDebt.ARG_BOOKING_ID) {
+                type = NavType.LongType
+                defaultValue = 0L
+            })
+        ) { backStackEntry ->
+            CreateDebtFromBookingScreen(
+                bookingId = backStackEntry.arguments?.getLong(Screen.CreateDebt.ARG_BOOKING_ID) ?: 0L,
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() }
+            )
         }
     }
 }

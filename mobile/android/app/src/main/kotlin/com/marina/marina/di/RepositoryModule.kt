@@ -1,5 +1,17 @@
 package com.marina.marina.di
 
+import com.marina.marina.data.repository.BlacklistRepositoryImpl
+import com.marina.marina.data.repository.BookingNightsRepositoryImpl
+import com.marina.marina.data.repository.CashRepositoryImpl
+import com.marina.marina.data.repository.GuestInfosRepositoryImpl
+import com.marina.marina.data.repository.PaymentVoidsRepositoryImpl
+import com.marina.marina.data.repository.SalaryRepositoryImpl
+import com.marina.marina.domain.repository.BlacklistRepository
+import com.marina.marina.domain.repository.BookingNightsRepository
+import com.marina.marina.domain.repository.CashRepository
+import com.marina.marina.domain.repository.GuestInfosRepository
+import com.marina.marina.domain.repository.PaymentVoidsRepository
+import com.marina.marina.domain.repository.SalaryRepository
 import com.marina.marina.data.repository.BookingsRepositoryImpl
 import com.marina.marina.data.repository.DebtsRepositoryImpl
 import com.marina.marina.data.repository.EmployeesRepositoryImpl
@@ -68,4 +80,28 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSalaryWithdrawalsRepository(impl: SalaryWithdrawalsRepositoryImpl): SalaryWithdrawalsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBlacklistRepository(impl: BlacklistRepositoryImpl): BlacklistRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCashRepository(impl: CashRepositoryImpl): CashRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGuestInfosRepository(impl: GuestInfosRepositoryImpl): GuestInfosRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSalaryRepository(impl: SalaryRepositoryImpl): SalaryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPaymentVoidsRepository(impl: PaymentVoidsRepositoryImpl): PaymentVoidsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBookingNightsRepository(impl: BookingNightsRepositoryImpl): BookingNightsRepository
 }

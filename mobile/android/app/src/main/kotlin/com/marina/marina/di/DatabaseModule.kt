@@ -69,4 +69,52 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideSalaryWithdrawalsDao(db: AppDatabase) = db.salaryWithdrawalsDao()
+
+    @Provides
+    @Singleton
+    fun provideBookingNightsDao(db: AppDatabase) = db.bookingNightsDao()
+
+    @Provides
+    @Singleton
+    fun provideHotelDayLedgerDao(db: AppDatabase) = db.hotelDayLedgerDao()
+
+    @Provides
+    @Singleton
+    fun providePriceAdjustmentsDao(db: AppDatabase) = db.priceAdjustmentsDao()
+
+    @Provides
+    @Singleton
+    fun provideBookingPriceAdjustmentsDao(db: AppDatabase) = db.bookingPriceAdjustmentsDao()
+
+    @Provides
+    @Singleton
+    fun providePaymentVoidsDao(db: AppDatabase) = db.paymentVoidsDao()
+
+    @Provides
+    @Singleton
+    fun provideGuestInfosDao(db: AppDatabase) = db.guestInfosDao()
+
+    @Provides
+    @Singleton
+    fun provideSalaryCyclesDao(db: AppDatabase) = db.salaryCyclesDao()
+
+    @Provides
+    @Singleton
+    fun provideSalaryPaymentsDao(db: AppDatabase) = db.salaryPaymentsDao()
+
+    @Provides
+    @Singleton
+    fun provideSalaryCarryOverLogsDao(db: AppDatabase) = db.salaryCarryOverLogsDao()
+
+    @Provides
+    @Singleton
+    fun provideBlacklistEntriesDao(db: AppDatabase) = db.blacklistEntriesDao()
+
+    @Provides
+    @Singleton
+    fun provideAuditLogsDao(db: AppDatabase) = db.auditLogsDao()
+
+    @Provides
+    @Singleton
+    fun provideCashTransactionsDao(db: AppDatabase) = db.cashTransactionsDao()
 }

@@ -82,6 +82,12 @@ fun AdminSidebar(
                 onRouteSelected = onRouteSelected
             )
             SidebarItem(
+                label = "القائمة السوداء",
+                route = Screen.Blacklist.route,
+                currentRoute = currentRoute,
+                onRouteSelected = onRouteSelected
+            )
+            SidebarItem(
                 label = "الملاحظات",
                 route = Screen.Notes.route,
                 currentRoute = currentRoute,
