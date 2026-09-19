@@ -83,6 +83,13 @@ android {
                 storeFile file(keystoreProperties['storeFile'])
                 storePassword keystoreProperties['storePassword']
             }
+            // Maximum installation compatibility: some OEM package installers
+            // (MIUI/EMUI and older devices) reject APKs that lack a v1 JAR
+            // signature, while Android 11+ requires v2+. Signing with all
+            // schemes guarantees the APK installs everywhere.
+            enableV1Signing true
+            enableV2Signing true
+            enableV3Signing true
         }
     }
 
