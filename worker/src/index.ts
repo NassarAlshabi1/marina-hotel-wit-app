@@ -24,6 +24,12 @@ export interface Env {
   RATE_LIMIT_WINDOW: string;
   RATE_LIMIT_MAX: string;
   CORS_ORIGIN: string;
+  // ✅ (2026-09-20) مسار REST الاحتياطي لمساعد AI: الربط [AI] المُنشر
+  // يفشل في الإنتاج، فالتصنيف يسقط إلى REST بنفس الطراز عند توفر السر.
+  // AI_TOKEN = سر Cloudflare (cfut_…، عبر `wrangler secret put AI_TOKEN`)
+  // وCLOUDFLARE_ACCOUNT_ID = var عام في wrangler.toml (ليس سراً).
+  AI_TOKEN?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
 }
 
 // ─── Realtime Broadcast Adapter (plan phase 3) ────────────────

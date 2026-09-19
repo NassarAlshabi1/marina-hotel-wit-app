@@ -8,7 +8,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { env } from 'cloudflare:test';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleAiRequest, type AiBinding } from '../src/ai';
 import { resetDb, uniqueUuid } from './helpers';
 
@@ -29,6 +29,16 @@ function garbageAi(): AiBinding {
   return {
     async run() {
       return { response: 'عذراً لا أستطيع إرجاع JSON' };
+    },
+  };
+}
+
+// ✅ (2026-09-20) ربط [AI] يرمي استثناء — حالة الإنتاج الحالية التي
+// دفعت المالك لإنشاء توكن Workers AI (cfut_…) لمسار REST الاحتياطي.
+function throwingAi(reason = 'binding unavailable in production'): AiBinding {
+  return {
+    async run() {
+      throw new Error(reason);
     },
   };
 }
@@ -412,6 +422,157 @@ describe('ai: validation and failure modes', () => {
     expect(res.status).toBe(502);
     const body = (await res.json()) as { error: string };
     expect(body.error).toContain('تحليل');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  REST fallback (AI_TOKEN secret) — ✅ (2026-09-20)
+//  طلب المالك: «Worker ai token … اضفة الى ai». الربط [AI] المُنشر
+//  يفشل في الإنتاج (502 «تعذر تحليل الطلب») بينما REST بنفس الطراز
+//  يعمل بالتوكن — العقود هنا تثبت: الاحتياط يعمل عند فشل الربط، لا
+//  يُستدعى أبداً عند نجاحه، ويعيد سلوك 502 القائم بلا توكن.
+// ═══════════════════════════════════════════════════════════════
+
+describe('ai: REST fallback (AI_TOKEN secret)', () => {
+  const restUrl = 'https://api.cloudflare.com/client/v4/accounts/acct-123/ai/run/@cf/meta/llama-3.1-8b-instruct';
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('binding failure falls back to REST and the query executes end-to-end', async () => {
+    await seedRoom(uniqueUuid(), '501', 'شاغرة');
+    let calledUrl: string | undefined;
+    let calledAuth: string | undefined;
+    const fetchMock = vi.fn(
+      async (input: unknown, init?: RequestInit) => {
+        calledUrl = String(input);
+        calledAuth = (init?.headers as Record<string, string> | undefined)?.Authorization;
+        return new Response(
+          JSON.stringify({
+            result: {
+              choices: [{
+                message: {
+                  content: JSON.stringify({ kind: 'query', queryType: 'rooms_available', explanation: 'الغرف الشاغرة' }),
+                },
+              }],
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      },
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'ما هي الغرف الشاغرة؟' }),
+      { DB: env.DB, AI: throwingAi(), AI_TOKEN: 'cfut_test_token', CLOUDFLARE_ACCOUNT_ID: 'acct-123' },
+      'admin',
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { rows: Array<{ room_number: string }>; answer: string };
+    expect(body.rows.map((r) => r.room_number)).toContain('501');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(calledUrl).toBe(restUrl);
+    expect(calledAuth).toBe('Bearer cfut_test_token');
+  });
+
+  it('unparseable binding output is rescued by REST when the token exists', async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          result: {
+            choices: [{
+              message: {
+                content: JSON.stringify({ kind: 'unsupported', explanation: 'الطلب غير واضح' }),
+              },
+            }],
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'أي شيء' }),
+      { DB: env.DB, AI: garbageAi(), AI_TOKEN: 'cfut_test_token', CLOUDFLARE_ACCOUNT_ID: 'acct-123' },
+      'admin',
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string };
+    expect(body.answer).toContain('الطلب غير واضح');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('binding failure WITHOUT the token keeps the legacy 502 and never calls REST', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error('REST must not be called without AI_TOKEN');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'أي شيء' }),
+      { DB: env.DB, AI: throwingAi() },
+      'admin',
+    );
+
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('تحليل');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('whitespace-only token counts as absent (502, no REST call)', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error('REST must not be called');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'أي شيء' }),
+      { DB: env.DB, AI: throwingAi(), AI_TOKEN: '   ', CLOUDFLARE_ACCOUNT_ID: 'acct-123' },
+      'admin',
+    );
+
+    expect(res.status).toBe(502);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('REST failure surfaces 502 (both paths down)', async () => {
+    const fetchMock = vi.fn(async () => new Response('boom', { status: 500 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'أي شيء' }),
+      { DB: env.DB, AI: throwingAi(), AI_TOKEN: 'cfut_test_token', CLOUDFLARE_ACCOUNT_ID: 'acct-123' },
+      'admin',
+    );
+
+    expect(res.status).toBe(502);
+  });
+
+  it('healthy binding never touches REST even when the token exists', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error('REST must not be called when the binding works');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'الغرف' }),
+      {
+        DB: env.DB,
+        AI: mockAi({ kind: 'query', queryType: 'rooms_all', explanation: 'كل الغرف' }),
+        AI_TOKEN: 'cfut_test_token',
+        CLOUDFLARE_ACCOUNT_ID: 'acct-123',
+      },
+      'admin',
+    );
+
+    expect(res.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

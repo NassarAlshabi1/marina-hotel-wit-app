@@ -5,6 +5,19 @@ export interface AiBinding {
   run(model: string, input: unknown): Promise<unknown>;
 }
 
+/// ✅ (2026-09-20) طلب المالك: «Worker ai token … اضفة الى ai» — بيئة AI
+/// بمسار REST احتياطي. سر `AI_TOKEN` (Cloudflare Secret، لا يوضع في
+/// wrangler.toml أبداً) + var عام `CLOUDFLARE_ACCOUNT_ID` (المعرف نفسه
+/// الموجود أصلاً في أعلى wrangler.toml — ليس سراً).
+export interface AiEnv {
+  DB: D1Database;
+  AI: AiBinding;
+  /** سر توكن Workers AI (cfut_…) لمسار REST الاحتياطي — اختياري. */
+  AI_TOKEN?: string;
+  /** معرف حساب Cloudflare المطلوب لمسار REST — اختياري. */
+  CLOUDFLARE_ACCOUNT_ID?: string;
+}
+
 export interface AiPlan {
   kind: 'query' | 'add_expense' | 'unsupported';
   queryType?: 'expenses_total' | 'employee_withdrawals' | 'employee_salary' | 'daily_summary' | 'rooms_available' | 'rooms_all' | 'current_guests' | 'guest_search' | 'bookings_current' | 'occupancy_summary' | 'occupancy_trend' | 'booking_analysis' | 'overdue_bookings' | 'stay_statistics' | 'salary_expenses';
@@ -20,6 +33,14 @@ export interface AiPlan {
 }
 
 const MODEL = '@cf/meta/llama-3.1-8b-instruct';
+
+// ✅ (2026-09-20) نقطة نهاية REST لـ Workers AI — نفس الحساب والطراز،
+// مصادقة Bearer بسر AI_TOKEN. متغيرّ للحقن في الاختبارات العقدية.
+export const AI_REST_ENDPOINT_BUILDER: (
+  accountId: string,
+  model: string,
+) => string = (accountId, model) =>
+  `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
 
 // The mobile app (StatusUtils) writes BILINGUAL status values and production
 // D1 currently holds the Arabic forms ('شاغرة'/'محجوزة'). Every SQL status
@@ -127,7 +148,7 @@ function daysBetween(from: string, to: string): string[] {
   return result;
 }
 
-async function classify(env: { AI: AiBinding }, prompt: string): Promise<AiPlan> {
+async function classify(env: { AI: AiBinding; AI_TOKEN?: string; CLOUDFLARE_ACCOUNT_ID?: string }, prompt: string): Promise<AiPlan> {
   const today = new Date().toISOString().slice(0, 10);
   const instruction = `أنت محلل طلبات لنظام إدارة فندق. تاريخ اليوم ${today}. أعد JSON فقط بلا markdown.
 الأنواع المسموحة: query أو add_expense أو unsupported.
@@ -139,15 +160,66 @@ occupancy_summary للإشغال الحالي (النسبة والغرف الم�
 لا تخترع اسماً أو مبلغاً أو تاريخاً. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
 JSON schema: {kind,queryType,employeeName,guestName,roomNumber,expenseType,description,amountPerDay,dateFrom,dateTo,explanation}
 طلب المستخدم: ${prompt}`;
-  const raw = await env.AI.run(MODEL, {
+  const input = {
     messages: [
       { role: 'system', content: 'أنت محلل JSON دقيق.' },
       { role: 'user', content: instruction },
     ],
     temperature: 0,
     max_tokens: 512,
+  };
+  // ✅ (2026-09-20) الربط [AI] أولاً (أسرع — بلا قفزة HTTP إضافية)،
+  // ومسار REST الاحتياطي عند فشله أو ردّه غير القابل للتحليل. الربط
+  // المُنشر يفشل حالياً في الإنتاج (502 «تعذر تحليل الطلب») بينما
+  // REST بنفس الطراز يعمل — الاحتياط يعيد الميزة للحياة فوراً ويبقي
+  // الربط مساراً أولياً متى صلح.
+  let bindingError: unknown;
+  let raw: unknown;
+  try {
+    raw = await env.AI.run(MODEL, input);
+  } catch (error) {
+    bindingError = error;
+    raw = await runRestAi(env, input, error);
+  }
+  try {
+    return extractJson(raw);
+  } catch (error) {
+    // الربط رجع رداً غير قابل للتحليل — محاولة REST أخيرة قبل الاستسلام
+    // (يرمي خطأ الربط الأصلي إن لم يُضبط AI_TOKEN — سلوك 502 كما كان).
+    const cause = bindingError ?? error;
+    return extractJson(await runRestAi(env, input, cause));
+  }
+}
+
+/// ✅ (2026-09-20) مسار REST الاحتياطي — نفس الطراز والمُدخلات عبر
+/// واجهة REST لـ Workers AI، بسر `AI_TOKEN`. يُستدعى فقط بعد فشل الربط
+/// أو ردّه غير القابل للتحليل؛ بلا توكن/معرف يُعاد خطأ السبب الأصلي
+/// فلا تغيير على سلوك 502 القائم.
+async function runRestAi(
+  env: { AI_TOKEN?: string; CLOUDFLARE_ACCOUNT_ID?: string },
+  input: Record<string, unknown>,
+  cause: unknown,
+): Promise<unknown> {
+  const token = env.AI_TOKEN?.trim();
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  if (!token || !accountId) throw cause;
+  const res = await fetch(AI_REST_ENDPOINT_BUILDER(accountId, MODEL), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
   });
-  return extractJson(raw);
+  if (!res.ok) {
+    throw new Error(`AI REST fallback failed: ${res.status}`);
+  }
+  const data = (await res.json()) as {
+    result?: { choices?: { message?: { content?: unknown } }[] };
+  };
+  const content = data.result?.choices?.[0]?.message?.content;
+  if (typeof content === 'string' && content.length > 0) return content;
+  throw new Error('AI REST fallback returned no content');
 }
 
 function validatePlan(plan: AiPlan): string | null {
@@ -165,7 +237,7 @@ function validatePlan(plan: AiPlan): string | null {
 
 export async function handleAiRequest(
   request: Request,
-  env: { DB: D1Database; AI: AiBinding },
+  env: AiEnv,
   role: string,
 ): Promise<Response> {
   const body = await request.json() as { prompt?: string; plan?: AiPlan; confirm?: boolean };
