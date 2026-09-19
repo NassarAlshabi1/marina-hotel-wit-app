@@ -5,7 +5,7 @@ name: Android Kotlin Build
 on:
   push:
     branches:
-      - agent/wave-cloud-bi9f
+      - agent/pulse-storm-pdj1
     paths:
       - 'mobile/android/**'
       - 'mobile/Keystore.txt'
