@@ -138,6 +138,14 @@ android {
     testOptions {
         unitTests {
             includeAndroidResources = true
+            // Print every executed test to CI logs — proves the launch smoke
+            // test actually ran (silent skips hide launch crashes).
+            all {
+                it.testLogging {
+                    events "passed", "failed", "skipped"
+                    exceptionFormat "full"
+                }
+            }
         }
     }
 }

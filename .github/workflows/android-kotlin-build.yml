@@ -114,6 +114,17 @@ jobs:
       - name: Run unit tests (smoke + financial + hotel-day engine)
         run: ./gradlew testDebugUnitTest --console=plain --stacktrace
 
+      # Machine-readable proof of which tests executed (guards against silent
+      # test-discovery skips).
+      - name: Upload test results (evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marina-test-results
+          path: mobile/build/app/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: warn
+          retention-days: 30
+
       # If any prior step fails, dump the exact resource/manifest intermediates
       # so failures are diagnosable from the log alone (runners are ephemeral).
       - name: Dump resource intermediates on failure
