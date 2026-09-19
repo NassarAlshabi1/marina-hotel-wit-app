@@ -316,6 +316,10 @@ const SCHEMA = {
 
   salary_cycles: withSync({
     employeeId: 'integer',
+    // ✅ (2026-09-19) employee_uuid — الربط الدائم عبر الأجهزة (المعرفات الرقمية
+    // محلية لكل جهاز). مطلوبة في السحابة الحالية ويرفعها التطبيق في كل مسار.
+    employeeUuid: 'string',
+    employeeLocalUuid: 'string',
     cycleKey: 'string',
     hotelDayStart: 'string',
     hotelDayEnd: 'string',
@@ -327,6 +331,11 @@ const SCHEMA = {
 
   salary_payments: withSync({
     cycleId: 'integer',
+    // ✅ (2026-09-19) الربط عبر UUID — بدونه يرفض Appwrite رفع الدفعات
+    // (400 Unknown attribute) أو تنفصل الدفعة عن موظفها على الأجهزة الأخرى.
+    cycleLocalUuid: 'string',
+    employeeUuid: 'string',
+    employeeLocalUuid: 'string',
     amount: 'integer',
     hotelDayKey: 'string',
     paymentDateIso: 'string',
@@ -374,6 +383,9 @@ const SCHEMA = {
 
   salary_carry_over_logs: withSync({
     employeeId: 'integer',
+    // ✅ (2026-09-19) employee_uuid — نفس مبدأ دورات/دفعات الرواتب
+    employeeUuid: 'string',
+    employeeLocalUuid: 'string',
     amount: 'double',
     previousCycleStart: 'string',
     previousCycleEnd: 'string',
