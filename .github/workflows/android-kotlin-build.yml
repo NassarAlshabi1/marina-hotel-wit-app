@@ -38,10 +38,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle (with dependency cache)
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: false
+      # NOTE: gradle/actions/setup-gradle is intentionally NOT used. It injects
+      # a Develocity init script and runs a concurrent system-Gradle daemon in
+      # the same GRADLE_USER_HOME, which correlates with AAPT resource-linking
+      # failures on this project (values dropped from the app resource
+      # package). Plain ./gradlew is slower on cold caches but deterministic.
 
       # The JKS keystore is git-ignored by convention; restore it from the
       # base64 payload tracked in mobile/Keystore.txt so CI signs with the
@@ -86,6 +87,7 @@ jobs:
       # failures are diagnosable from the log alone (runners are ephemeral).
       - name: Dump resource intermediates on failure
         if: failure()
+        working-directory: .
         run: |
           echo "=== merged values.xml (first 60 lines) ==="
           find mobile/build/app/intermediates -path "*mergeDebugResources/merged.dir/values/values.xml" \
