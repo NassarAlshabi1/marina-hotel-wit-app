@@ -319,11 +319,13 @@ async function queryOccupancyTrend(
     `WITH RECURSIVE days(d) AS (SELECT ? UNION ALL SELECT date(d,'+1 day') FROM days WHERE d < ?)
      SELECT d AS date,
        (SELECT COUNT(*) FROM bookings b WHERE b.deleted_at IS NULL AND b.status IN ${inList(ACTIVE_BOOKING_STATUSES)}
-          AND substr(b.checkin_date,1,10) <= d AND (b.checkout_date IS NULL OR substr(b.checkout_date,1,10) > d)) AS bookings,
+          AND substr(b.checkin_date,1,10) <= d
+          AND (b.checkout_date IS NULL OR substr(b.checkout_date,1,10) > d OR d <= ?)) AS bookings,
        (SELECT COUNT(DISTINCT b.room_number) FROM bookings b WHERE b.deleted_at IS NULL AND b.status IN ${inList(ACTIVE_BOOKING_STATUSES)}
-          AND substr(b.checkin_date,1,10) <= d AND (b.checkout_date IS NULL OR substr(b.checkout_date,1,10) > d)) AS occupied_rooms
+          AND substr(b.checkin_date,1,10) <= d
+          AND (b.checkout_date IS NULL OR substr(b.checkout_date,1,10) > d OR d <= ?)) AS occupied_rooms
      FROM days ORDER BY d`,
-  ).bind(from, to, ...ACTIVE_BOOKING_STATUSES, ...ACTIVE_BOOKING_STATUSES)
+  ).bind(from, to, ...ACTIVE_BOOKING_STATUSES, utcDate(0), ...ACTIVE_BOOKING_STATUSES, utcDate(0))
     .all<{ date: string; bookings: number; occupied_rooms: number }>();
   const revenue = await env.DB.prepare(
     `SELECT substr(payment_date,1,10) AS date, ROUND(COALESCE(SUM(amount),0),0) AS revenue

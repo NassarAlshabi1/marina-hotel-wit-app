@@ -378,26 +378,30 @@ describe('ai: occupancy and booking analytics', () => {
     expect(body.answer).toContain('50%');
   });
 
-  it('occupancy_trend merges daily occupancy with revenue and expenses', async () => {
+  it('occupancy_trend counts overdue stays as occupied and future days by schedule', async () => {
     await seedRoom(uniqueUuid('r1'), '101', 'شاغرة');
     await seedRoom(uniqueUuid('r2'), '102', 'شاغرة');
-    await seedStay(uniqueUuid('b1'), '101', 'نزيل', 'محجوزة', { checkin: dayAt(-2), checkout: today, nights: 2, due: 30000, paid: 0 });
+    // Overdue by one day: checkout was yesterday, status still active —
+    // the guest is physically still in the room (mirrors rooms.status).
+    await seedStay(uniqueUuid('b1'), '101', 'نزيل', 'محجوزة', { checkin: dayAt(-2), checkout: dayAt(-1), nights: 1, due: 30000, paid: 0 });
     await seedPayment(uniqueUuid('p1'), 15000, `${dayAt(-1)}T10:00:00`);
     await seedExpense(uniqueUuid('e1'), 'ديزل', 5000, dayAt(-1));
 
     const res = await handleAiRequest(
       aiRequest({ prompt: 'اتجاه الإشغال' }),
-      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'occupancy_trend', dateFrom: dayAt(-2), dateTo: today, explanation: 'x' }) },
+      { DB: env.DB, AI: mockAi({ kind: 'query', queryType: 'occupancy_trend', dateFrom: dayAt(-2), dateTo: dayAt(1), explanation: 'x' }) },
       'employee',
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as { rows: Array<{ date: string; occupied_rooms: number; occupancy_pct: number; bookings: number; revenue: number; expenses: number }>; answer: string };
-    expect(body.rows).toHaveLength(3);
+    expect(body.rows).toHaveLength(4);
     const byDate = new Map(body.rows.map((r) => [r.date, r]));
-    // Checkout is today → the stay covers dayAt(-2) and dayAt(-1); today is free
+    // Past + today: the overdue guest still occupies the room
     expect(byDate.get(dayAt(-2))?.occupied_rooms).toBe(1);
     expect(byDate.get(dayAt(-1))?.occupied_rooms).toBe(1);
-    expect(byDate.get(today)?.occupied_rooms).toBe(0);
+    expect(byDate.get(today)?.occupied_rooms).toBe(1);
+    // Tomorrow: schedule says checkout passed → not occupied
+    expect(byDate.get(dayAt(1))?.occupied_rooms).toBe(0);
     expect(byDate.get(dayAt(-2))?.occupancy_pct).toBe(50);
     expect(byDate.get(dayAt(-1))?.revenue).toBe(15000);
     expect(byDate.get(dayAt(-1))?.expenses).toBe(5000);
