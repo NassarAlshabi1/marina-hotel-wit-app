@@ -66,6 +66,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.m2/repository/org/robolectric
           key: ${{ runner.os }}-gradle-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
@@ -106,7 +107,11 @@ jobs:
           echo "--- installed build-tools ---"
           ls "$ANDROID_HOME/build-tools" 2>/dev/null || true
 
-      - name: Run unit tests (financial + hotel-day engine)
+      # Includes the Robolectric launch smoke test (LaunchSmokeTest), which
+      # launches the REAL MainActivity with the real Hilt graph / Room /
+      # Compose composition. If the app crashes at open (user-reported
+      # symptom), this step fails carrying the true production stack trace.
+      - name: Run unit tests (smoke + financial + hotel-day engine)
         run: ./gradlew testDebugUnitTest --console=plain --stacktrace
 
       # If any prior step fails, dump the exact resource/manifest intermediates
@@ -187,6 +192,45 @@ jobs:
         with:
           name: marina-hotel-debug-apk
           path: ${{ steps.locate.outputs.debug_apk }}
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      # R8 mapping for crash forensics: deobfuscates release stack traces.
+      - name: Upload R8 mapping (forensics)
+        uses: actions/upload-artifact@v4
+        with:
+          name: marina-hotel-release-mapping
+          path: mobile/build/app/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      # Diagnostic A/B build: identical release, NO R8 minification. If the
+      # minified APK crashes on a device but this one runs, the culprit is a
+      # proguard/R8 stripping issue (pinpoint it via the uploaded mapping).
+      - name: Build diagnostic non-minified release APK
+        run: ./gradlew assembleRelease -PmarinaNoMinify --console=plain --stacktrace
+
+      - name: Verify unminified APK signature
+        working-directory: .
+        run: |
+          set -e
+          APK="$(find mobile/build/app/outputs/apk/release \
+                      mobile/android/app/build/outputs/apk/release \
+                      -name 'app-release.apk' 2>/dev/null | head -1 || true)"
+          if [ -z "$APK" ]; then echo "::error::unminified release APK not found"; exit 1; fi
+          ls -la "$APK"
+          BT="$ANDROID_HOME/build-tools/34.0.0"
+          "$BT/apksigner" verify --verbose --min-sdk-version 23 "$APK" | tee verify-unminified.log
+          grep -q 'Verified using v1 scheme (JAR signing): true' verify-unminified.log \
+            || { echo '::error::v1 signature MISSING'; exit 1; }
+          "$BT/zipalign" -c 4 "$APK" && echo "zipalign OK"
+
+      - name: Upload unminified release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: marina-hotel-release-unminified-apk
+          path: mobile/build/app/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

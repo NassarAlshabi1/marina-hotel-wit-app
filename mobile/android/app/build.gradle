@@ -106,8 +106,12 @@ android {
         }
 
         release {
-            minifyEnabled true
-            shrinkResources true
+            // CI builds a diagnostic non-minified release via
+            // `./gradlew assembleRelease -PmarinaNoMinify` — used to A/B-test
+            // R8-stripping crashes on real devices (compare with mapping.txt).
+            def noMinify = project.hasProperty('marinaNoMinify')
+            minifyEnabled !noMinify
+            shrinkResources !noMinify
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.unified
         }
@@ -207,6 +211,12 @@ dependencies {
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1"
     testImplementation "app.cash.turbine:turbine:1.1.0"
+    // Robolectric launch smoke test — launches the real MainActivity (real
+    // Hilt graph, Room, Compose composition) on the JVM inside CI so a
+    // launch crash surfaces with its true production stack trace.
+    testImplementation "org.robolectric:robolectric:4.13"
+    testImplementation "androidx.test:core-ktx:1.6.1"
+    testImplementation "androidx.test.ext:junit-ktx:1.2.1"
     androidTestImplementation "androidx.test.ext:junit:1.2.1"
     androidTestImplementation "androidx.test.espresso:espresso-core:3.6.1"
     androidTestImplementation "androidx.compose.ui:ui-test-junit4:1.7.0"

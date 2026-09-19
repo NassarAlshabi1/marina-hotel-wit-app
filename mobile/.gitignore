@@ -61,6 +61,8 @@ android/*.log
 # Android test outputs
 android/**/androidTest/**
 android/**/test/**
+!android/app/src/test/**
+!android/app/src/androidTest/**
 
 # ============================================
 # IOS
