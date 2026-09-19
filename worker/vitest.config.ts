@@ -2,6 +2,15 @@ import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
 
 export default defineWorkersConfig({
   test: {
+    // Serialize test files. Under singleWorker + isolatedStorage:false every
+    // file's beforeEach resetDb() DROPs and recreates ALL D1 tables; with
+    // vitest's default file parallelism, files interleave inside the shared
+    // runtime and a neighbouring file's resetDb() can run mid-test — seen in
+    // CI as transient 'no such table: rate_limits' (limiter fails open,
+    // 429 never fires) and 'no such table: devices'. Sequential files make
+    // the reset points strictly between files, eliminating the whole class
+    // of cross-file races deterministically.
+    fileParallelism: false,
     poolOptions: {
       workers: {
         // Single worker + non-isolated storage: each test resets the D1
