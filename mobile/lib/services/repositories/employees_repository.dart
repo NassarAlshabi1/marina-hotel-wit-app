@@ -292,6 +292,18 @@ class EmployeesRepository {
     }
   }
 
+  /// ✅ حارس حذف الموظفين: عدد السجلات المالية المرتبطة بالموظف
+  /// (مصروفات رواتب/سلف + سحوبات غير مكررة). يُستخدم في حوار الحذف
+  /// لتحذير صاحب الفندق قبل يتم التاريخ المالي لموظف على بقية الأجهزة.
+  /// تُعدّ السجلات حتى لو كان الموظف محذوفاً منطقياً (يتيم أصلاً).
+  Future<int> financialRecordsCount(int id) async {
+    final employee = await dao.getById(id);
+    if (employee == null) {
+      return 0;
+    }
+    return dao.countFinancialRecords(id, employee.localUuid);
+  }
+
   // دوال النسخ الاحتياطي
 
   /// تصدير بيانات الموظفين

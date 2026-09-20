@@ -1521,12 +1521,29 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     });
   }
 
+  /// ✅ حارس حذف الموظف (سياسة الفصل 2026-09-21):
+  /// الحذف soft-delete (deletedAt) — النص القديم «حذف نهائي» كان مضللاً.
+  /// الحذف يُخفي الموظف من كل الأجهزة بعد المزامنة ويتيّم تاريخه المالي
+  /// (يظهر "(محذوف)" في التقارير). عند وجود سجلات مالية مرتبطة:
+  /// تحذير صريح + التوجيه إلى «إنهاء الخدمة» (تغيير حالة فقط).
   Future<void> _deleteEmployee(
     BuildContext context,
     WidgetRef ref,
     Employee employee,
   ) async {
-    final confirm = await showDialog<bool>(
+    // عدّ السجلات المالية المرتبطة قبل عرض الحوار — قرار قائم على
+    // بيانات فعلية لا تخمين.
+    var financialRecords = 0;
+    try {
+      financialRecords = await ref
+          .read(employeesRepoProvider)
+          .financialRecordsCount(employee.id);
+    } catch (_) {
+      // فشل العدّ لا يمنع الحوار — يُعرض التحذير العام (الأكثر أماناً).
+      financialRecords = -1;
+    }
+
+    final action = await showDialog<String>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -1548,26 +1565,135 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               const Text('حذف الموظف'),
             ],
           ),
-          content: Text(
-            'هل أنت متأكد من حذف الموظف "${employee.name}"؟\n'
-            'سيتم حذف الموظف نهائياً ومزامنة الحذف مع السحابة.',
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'الموظف: "${employee.name}"',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                if (financialRecords != 0) ...[
+                  // ⚠ تحذير: الحذف يتيّم التاريخ المالي على بقية الأجهزة
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.warning,
+                              color: Colors.orange,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                financialRecords > 0
+                                    ? 'له $financialRecords سجل مالي مرتبط (سحوبات ومصروفات رواتب)'
+                                    : 'قد يكون له سجلات مالية مرتبطة',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'الحذف يُخفي الموظف من كل الأجهزة بعد المزامنة، '
+                          'ويفقد تاريخه المالي الربط باسمه في التقارير '
+                          '(يظهر "(محذوف)") — لا يمكن التراجع عملياً.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // ✅ البديل الصحيح: إنهاء الخدمة
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.person_off, color: Colors.green, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'البديل الصحيح: «إنهاء الخدمة» — يوقف صرف '
+                            'الرواتب والسلف، ويحفظ التاريخ المالي كاملاً '
+                            'على كل الأجهزة.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  Text(
+                    'هل أنت متأكد من حذف الموظف "${employee.name}"؟\n'
+                    'لا توجد سجلات مالية مرتبطة به.',
+                  ),
+                ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
             ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('حذف'),
-            ),
+            if (financialRecords != 0)
+              // الحذف متاح لكنه ثانوي/تدميري — البديل هو المسار الموصى به
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, 'delete'),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('حذف رغم ذلك'),
+              ),
+            if (financialRecords != 0)
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: () => Navigator.pop(ctx, 'terminate'),
+                icon: const Icon(Icons.person_off, size: 18),
+                label: const Text('إنهاء الخدمة'),
+              )
+            else
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () => Navigator.pop(ctx, 'delete'),
+                child: const Text('حذف'),
+              ),
           ],
         ),
       ),
     );
 
-    if (confirm != true) return;
+    // التوجيه إلى حوار إنهاء الخدمة بدل الحذف
+    if (action == 'terminate') {
+      _showTerminateDialog(context, ref, employee);
+      return;
+    }
+    if (action != 'delete') return;
 
     try {
       final repo = ref.read(employeesRepoProvider);

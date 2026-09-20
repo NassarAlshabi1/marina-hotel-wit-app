@@ -17,6 +17,7 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/status_utils.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 import '../../utils/english_digits_input_formatter.dart';
 
@@ -950,6 +951,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       final seenUuids = <String>{};
       final seenNames = <String>{};
       final List<Employee> availableEmployees = allEmployees.where((emp) {
+        // ✅ سياسة الفصل (2026-09-21): المنتهية خدمتهم لا يُصرف لهم
+        // رواتب/سلف جديدة — تنفيذ وعد حوار «إنهاء الخدمة»
+        // ("سيتم إيقاف صرف السلف والرواتب تلقائياً"). الاستثناء: الموظف
+        // المرتبط بالسجل الحالي عند التعديل — لعرضه في المنتقي دون كسر.
+        if (StatusUtils.isEmployeeTerminated(emp.status) &&
+            emp.id != existing?.relatedId) {
+          return false;
+        }
         // 1. إزالة التكرار بـ localUuid
         final uuid = emp.localUuid.trim();
         if (uuid.isNotEmpty && seenUuids.contains(uuid)) {

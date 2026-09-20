@@ -35,6 +35,13 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
   int _refreshCounter = 0;
   bool _isLoading = false;
 
+  /// ✅ سياسة الفصل (2026-09-21): المنتهية خدمتهم مخفيون من القائمة
+  /// افتراضياً — «إنهاء الخدمة» (تغيير حالة فقط) هو مسار الفصل الصحيح
+  /// لأنه يوقف الرواتب/السلف ويحفظ التاريخ المالي كاملاً على بقية
+  /// الأجهزة، بينما الحذف يتيّم التاريخ المالي. المفتاح يبقي الوصول
+  /// إليهم متاحاً لإعادة التفعيل ومشاهدة تاريخ الإنهاء.
+  bool _showTerminated = false;
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // ✅ AutomaticKeepAlive
@@ -108,48 +115,185 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                 }
                 final list = snapshot.data ?? <Employee>[];
 
+                // ✅ سياسة الفصل: النشطون افتراضياً، المنتهية خدمتهم
+                // خلف مفتاح — التصنيف عبر StatusUtils (يتعامل مع كل
+                // الصيغ: مفصول/terminated/استقالة/resigned/استغناء/laid_off).
+                final terminatedCount = list
+                    .where((e) => StatusUtils.isEmployeeTerminated(e.status))
+                    .length;
+                final visibleList = _showTerminated
+                    ? list
+                    : list
+                          .where(
+                            (e) => !StatusUtils.isEmployeeTerminated(
+                              e.status,
+                            ),
+                          )
+                          .toList();
+
                 if (list.isEmpty) {
                   return _buildEmptyState();
                 }
 
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    setState(() => _refreshCounter++);
-                  },
-                  child: ListView.builder(
-                    key: ValueKey(_refreshCounter),
-                    // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
-                    scrollCacheExtent: optimizedScrollCacheExtent,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                // ✅ كل الموظفين منتهون لكن المخفيون لا يُعرضون — رسالة
+                // توضيحية بدل قائمة فارغة صامتة (إمكانية الوصول لإعادة التفعيل).
+                if (visibleList.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.person_off,
+                            size: 56,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'كل الموظفين منتهية خدمتهم ومخفيون من القائمة',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'أنتقل لإعادة تفعيل موظف أو إضافة موظف جديد',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton.icon(
+                            onPressed: () =>
+                                setState(() => _showTerminated = true),
+                            icon: const Icon(Icons.visibility, size: 18),
+                            label: Text(
+                              'إظهار المنتهية خدمتهم ($terminatedCount)',
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    itemCount: list.length,
-                    itemBuilder: (c, i) {
-                      final e = list[i];
-                      return RepaintBoundary(
-                        child: _EmployeeCard(
-                          employee: e,
-                          onTap: canUpdate
-                              ? () => _edit(context, ref, existing: e)
-                              : null,
-                          onDelete: canDelete
-                              ? () => _deleteEmployee(context, ref, e)
-                              : null,
-                          onTerminate:
-                              canUpdate &&
-                                  StatusUtils.isEmployeeActive(e.status)
-                              ? () => _showTerminateDialog(context, ref, e)
-                              : null,
-                          onReactivate:
-                              canUpdate &&
-                                  StatusUtils.isEmployeeTerminated(e.status)
-                              ? () => _reactivateEmployee(context, ref, e)
-                              : null,
+                  );
+                }
+
+                return Column(
+                  children: [
+                    // ✅ مفتاح إظهار المنتهية خدمتهم — يظهر فقط عند وجودهم
+                    if (terminatedCount > 0)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => setState(
+                                  () => _showTerminated = !_showTerminated,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: (_showTerminated
+                                            ? Colors.red
+                                            : AppColors.primaryColor)
+                                        .withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: (_showTerminated
+                                              ? Colors.red
+                                              : AppColors.primaryColor)
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _showTerminated
+                                            ? Icons.visibility_off
+                                            : Icons.visibility,
+                                        size: 14,
+                                        color: _showTerminated
+                                            ? Colors.red
+                                            : AppColors.primaryColor,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          _showTerminated
+                                              ? 'إخفاء المنتهية خدمتهم'
+                                              : 'إظهار المنتهية خدمتهم ($terminatedCount)',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: _showTerminated
+                                                ? Colors.red
+                                                : AppColors.primaryColor,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: () async {
+                          setState(() => _refreshCounter++);
+                        },
+                        child: ListView.builder(
+                          key: ValueKey(_refreshCounter),
+                          // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
+                          scrollCacheExtent: optimizedScrollCacheExtent,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          itemCount: visibleList.length,
+                          itemBuilder: (c, i) {
+                            final e = visibleList[i];
+                            return RepaintBoundary(
+                              child: _EmployeeCard(
+                                employee: e,
+                                onTap: canUpdate
+                                    ? () => _edit(context, ref, existing: e)
+                                    : null,
+                                onDelete: canDelete
+                                    ? () => _deleteEmployee(context, ref, e)
+                                    : null,
+                                onTerminate:
+                                    canUpdate &&
+                                        StatusUtils.isEmployeeActive(e.status)
+                                    ? () => _showTerminateDialog(context, ref, e)
+                                    : null,
+                                onReactivate:
+                                    canUpdate &&
+                                        StatusUtils.isEmployeeTerminated(
+                                          e.status,
+                                        )
+                                    ? () => _reactivateEmployee(context, ref, e)
+                                    : null,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -552,12 +696,30 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     }
   }
 
+  /// ✅ حارس حذف الموظف (سياسة الفصل 2026-09-21):
+  /// الحذف soft-delete يُخفي الموظف من كل الأجهزة بعد المزامنة ويجعل
+  /// تاريخه المالي يتيمًا (يظهر "(محذوف)" في التقارير). لذلك عند وجود
+  /// سجلات مالية مرتبطة: تحذير صريح + التوجيه إلى «إنهاء الخدمة»
+  /// (تغيير حالة فقط — يوقف الرواتب/السلف ويحفظ التاريخ المالي).
+  /// الموظف بلا سجلات مالية (مثال: أُنشئ خطأً) يُحذف بتأكيد بسيط.
   Future<void> _deleteEmployee(
     BuildContext context,
     WidgetRef ref,
     Employee employee,
   ) async {
-    final confirm = await showDialog<bool>(
+    // عدّ السجلات المالية المرتبطة قبل عرض الحوار — قرار قائم على
+    // بيانات فعلية لا تخمين.
+    var financialRecords = 0;
+    try {
+      financialRecords = await ref
+          .read(employeesRepoProvider)
+          .financialRecordsCount(employee.id);
+    } catch (_) {
+      // فشل العدّ لا يمنع الحوار — يُعرض التحذير العام (الأكثر أماناً).
+      financialRecords = -1;
+    }
+
+    final action = await showDialog<String>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -582,25 +744,141 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
               const Text('حذف الموظف'),
             ],
           ),
-          content: Text('هل أنت متأكد من حذف الموظف "${employee.name}"؟'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'الموظف: "${employee.name}"',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                if (financialRecords != 0) ...[
+                  // ⚠ تحذير التاريخ المالي — الحذف يتيّمه على بقية الأجهزة
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.warning,
+                              color: Colors.orange,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                financialRecords > 0
+                                    ? 'له $financialRecords سجل مالي مرتبط (سحوبات ومصروفات رواتب)'
+                                    : 'قد يكون له سجلات مالية مرتبطة',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'الحذف يُخفي الموظف من كل الأجهزة بعد المزامنة، '
+                          'ويفقد تاريخه المالي الربط باسمه في التقارير '
+                          '(يظهر "(محذوف)") — لا يمكن التراجع عملياً.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // ✅ البديل الصحيح: إنهاء الخدمة
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.person_off, color: Colors.green, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'البديل الصحيح: «إنهاء الخدمة» — يوقف صرف '
+                            'الرواتب والسلف، ويحفظ التاريخ المالي كاملاً '
+                            'على كل الأجهزة.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  Text(
+                    'هل أنت متأكد من حذف الموظف "${employee.name}"؟\n'
+                    'لا توجد سجلات مالية مرتبطة به.',
+                  ),
+                ],
+              ],
+            ),
+          ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
             ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.dangerColor,
+            if (financialRecords != 0)
+              // الحذف متاح لكنه ثانوي/تدميري — البديل هو المسار الموصى به
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, 'delete'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.dangerColor,
+                ),
+                child: const Text('حذف رغم ذلك'),
               ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('حذف'),
-            ),
+            if (financialRecords != 0)
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.green,
+                ),
+                onPressed: () => Navigator.pop(ctx, 'terminate'),
+                icon: const Icon(Icons.person_off, size: 18),
+                label: const Text('إنهاء الخدمة'),
+              )
+            else
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.dangerColor,
+                ),
+                onPressed: () => Navigator.pop(ctx, 'delete'),
+                child: const Text('حذف'),
+              ),
           ],
         ),
       ),
     );
 
-    if (confirm != true) {
+    // التوجيه إلى حوار إنهاء الخدمة بدل الحذف
+    if (action == 'terminate') {
+      _showTerminateDialog(context, ref, employee);
+      return;
+    }
+    if (action != 'delete') {
       return;
     }
 
