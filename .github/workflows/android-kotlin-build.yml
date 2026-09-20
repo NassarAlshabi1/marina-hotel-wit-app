@@ -294,15 +294,18 @@ jobs:
           set -e
           export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          # x86_64 image: darwin-aarch64 qemu REQUIRES HVF for arm64 guests
+          # (unavailable on GH runners), but runs x86_64 guests under TCG.
+          # The APK ships lib/x86/*.so so it runs fine on this image.
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
-            'system-images;android-30;default;arm64-v8a' 'emulator' 'platform-tools' > /dev/null
+            'system-images;android-30;default;x86_64' 'emulator' 'platform-tools' > /dev/null
 
       - name: Create AVD
         run: |
           set -e
           export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
-            --force -n marina-test --package 'system-images;android-30;default;arm64-v8a'
+            --force -n marina-test --package 'system-images;android-30;default;x86_64'
 
       - name: Boot emulator (TCG) and launch both APKs
         run: |
@@ -315,7 +318,7 @@ jobs:
           # qemu try HVF, which GitHub macOS runners do not expose.)
           nohup "$ANDROID_HOME/emulator/emulator" -avd marina-test -port 5554 \
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim \
-            -no-snapshot -no-metrics -qemu -accel tcg,thread=multi > "$EMU_LOG" 2>&1 &
+            -no-snapshot -no-metrics > "$EMU_LOG" 2>&1 &
           EMU_PID=$!
           echo "$EMU_PID" > emu.pid
 
