@@ -260,7 +260,7 @@ jobs:
   launch-test:
     name: Launch APKs on emulator (crash logcat capture)
     needs: build
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
       EMU_LOG: emulator-boot.log
@@ -292,33 +292,32 @@ jobs:
       - name: Install emulator + ARM64 system image
         run: |
           set -e
-          export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          # x86_64 image: darwin-aarch64 qemu REQUIRES HVF for arm64 guests
-          # (unavailable on GH runners), but runs x86_64 guests under TCG.
-          # The APK ships lib/x86/*.so so it runs fine on this image.
+          # ubuntu runners have no KVM; Linux qemu honors -no-accel (TCG) for
+          # x86_64 guests. The APK ships lib/x86/*.so, so launch crashes
+          # (R8/dex-level) reproduce faithfully on this image.
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
             'system-images;android-30;default;x86_64' 'emulator' 'platform-tools' > /dev/null
 
       - name: Create AVD
         run: |
           set -e
-          export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
             --force -n marina-test --package 'system-images;android-30;default;x86_64'
 
       - name: Boot emulator (TCG) and launch both APKs
         run: |
           set -x
-          export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           export PATH="$ANDROID_HOME/platform-tools:$PATH"
 
-          # Boot in the background with FORCED TCG software acceleration.
-          # (-no-accel alone was insufficient: the emulator wrapper still let
-          # qemu try HVF, which GitHub macOS runners do not expose.)
+          # Boot in the background with TCG software acceleration (no KVM on
+          # GitHub ubuntu runners; Linux qemu fully supports -no-accel).
           nohup "$ANDROID_HOME/emulator/emulator" -avd marina-test -port 5554 \
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim \
-            -no-snapshot -no-metrics > "$EMU_LOG" 2>&1 &
+            -no-snapshot -no-metrics -no-accel > "$EMU_LOG" 2>&1 &
           EMU_PID=$!
           echo "$EMU_PID" > emu.pid
 
