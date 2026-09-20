@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 
 @Entity(tableName = "sync_log",
-    indices = [Index(value = ["created_at"], name = "idx_sync_log_created"), Index(value = ["sync_id"], name = "idx_sync_log_sync_id"), Index(value = ["device_id"], name = "idx_sync_log_device_id")],
+    indices = [Index(value = ["createdAt"], name = "idx_sync_log_created"), Index(value = ["syncId"], name = "idx_sync_log_sync_id"), Index(value = ["deviceId"], name = "idx_sync_log_device_id")],
 )
 data class SyncLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
