@@ -82,6 +82,20 @@ jobs:
           echo "--- installed build-tools ---"
           ls "$ANDROID_HOME/build-tools" 2>/dev/null || true
 
+      - name: Run unit tests (launch smoke + domain logic)
+        run: ./gradlew testDebugUnitTest --console=plain --stacktrace
+
+      - name: Upload test results (evidence)
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: marina-test-results
+          path: |
+            mobile/android/app/build/test-results
+            mobile/android/app/build/reports/tests
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Build signed release APK (v1+v2+v3)
         run: ./gradlew assembleRelease --console=plain --stacktrace
 
