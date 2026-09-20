@@ -1,0 +1,183 @@
+name: Android Launch Probe (real emulator)
+
+# The Kotlin build is green and the Robolectric launch smoke test passes, yet
+# the app closes right after MainActivity on real hardware with no stack trace.
+# Robolectric cannot see native libraries, real Firebase init, real SQLite or
+# the platform's own kill paths, so this job reproduces the launch on an actual
+# Android runtime and captures the truth:
+#
+#   * logcat (main + crash buffers, threadtime)
+#   * `dumpsys activity exit-info` — the OS's own record of *why* the process
+#     died (Java crash / native crash / ANR / low memory / SIGKILL)
+#   * /data/tombstones and /data/anr (via adb root)
+#   * the marina-diag stages.log / crash.log written by the debug launchers
+#
+# It launches three components in order: the real MainActivity, then the
+# framework-only BareLaunchActivity and the staged LaunchProbeActivity, so the
+# failure is bisected inside one run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_level:
+        description: Android API level of the emulator system image
+        required: false
+        default: '34'
+  push:
+    branches:
+      - agent/android-cloudflare
+    paths:
+      - '.github/workflows/android-emulator-launch-probe.yml'
+      - 'mobile/android/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-launch-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: Launch on emulator (API ${{ github.event.inputs.api_level || '34' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile/android
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-probe-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Restore signing keystore
+        working-directory: .
+        run: |
+          grep -oP '(?<=KEYSTORE_BASE64: )[A-Za-z0-9+/=]+' mobile/Keystore.txt \
+            | base64 -d > mobile/android/app/marina-hotel-key.jks
+          sha256sum mobile/android/app/marina-hotel-key.jks
+
+      - name: Ensure Android SDK components
+        run: |
+          set -x
+          SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1 || true)"
+          if [ -z "$SDKMANAGER" ] && command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          fi
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null || true
+            "$SDKMANAGER" --install "platforms;android-35" "build-tools;34.0.0" > /dev/null || true
+          fi
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --console=plain --stacktrace
+
+      - name: Enable KVM group perms
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: Launch probe on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ github.event.inputs.api_level || '34' }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: |
+            set -x
+            APK="$GITHUB_WORKSPACE/mobile/build/app/outputs/apk/debug/app-debug.apk"
+            OUT="$GITHUB_WORKSPACE/probe"
+            mkdir -p "$OUT"
+            ls -la "$APK"
+
+            adb wait-for-device
+            adb shell getprop ro.build.version.release || true
+            adb shell getprop ro.build.version.sdk || true
+            adb shell getprop ro.product.cpu.abi || true
+
+            echo "=== install ==="
+            adb install -r -t "$APK" 2>&1 | tee "$OUT/install.txt" || true
+
+            snap() {
+              adb logcat -d -v threadtime > "$OUT/logcat-$1.txt" 2>&1 || true
+              adb logcat -d -b crash -v threadtime > "$OUT/logcat-crash-$1.txt" 2>&1 || true
+              adb shell dumpsys activity exit-info com.a.a > "$OUT/exit-info-$1.txt" 2>&1 || true
+            }
+
+            launch() {
+              echo "--- launching $2 ---"
+              adb logcat -c || true
+              adb shell am force-stop com.a.a || true
+              sleep 2
+              adb shell am start -W -n "$2" > "$OUT/am-start-$1.txt" 2>&1 || true
+              cat "$OUT/am-start-$1.txt"
+              sleep 20
+              PID="$(adb shell pidof com.a.a 2>/dev/null | tr -d '\r' || true)"
+              if [ -n "$PID" ]; then
+                echo "STATE[$1]: PROCESS ALIVE (pid $PID)"
+                echo "ALIVE pid=$PID" > "$OUT/state-$1.txt"
+              else
+                echo "STATE[$1]: PROCESS DEAD"
+                echo "DEAD" > "$OUT/state-$1.txt"
+              fi
+              snap "$1"
+            }
+
+            launch main  com.a.a/com.marina.marina.MainActivity
+            launch bare  com.a.a/com.marina.marina.diagnostics.BareLaunchActivity
+            launch probe com.a.a/com.marina.marina.diagnostics.LaunchProbeActivity
+
+            echo "=== marina-diag files ==="
+            for f in stages.log crash.log; do
+              {
+                echo "--- external files dir ---"
+                adb shell "run-as com.a.a cat /sdcard/Android/data/com.a.a/files/marina-diag/$f" 2>&1 || true
+                echo "--- internal files dir ---"
+                adb shell "run-as com.a.a cat files/marina-diag/$f" 2>&1 || true
+              } > "$OUT/$f" || true
+            done
+
+            echo "=== tombstones / anr (needs adb root) ==="
+            adb root || true
+            sleep 3
+            adb wait-for-device || true
+            adb shell 'ls -la /data/tombstones 2>/dev/null; cat /data/tombstones/* 2>/dev/null | head -400' > "$OUT/tombstones.txt" 2>&1 || true
+            adb shell 'ls -la /data/anr 2>/dev/null; cat /data/anr/* 2>/dev/null | head -400' > "$OUT/anr.txt" 2>&1 || true
+
+            echo "=== summary ==="
+            for f in "$OUT"/state-*.txt; do echo "$f => $(cat "$f")"; done
+            echo "--- crash buffer (all launches) ---"
+            head -200 "$OUT/logcat-crash-probe.txt" || true
+
+      - name: Upload launch probe evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: marina-launch-probe
+          path: probe
+          if-no-files-found: warn
+          retention-days: 14
