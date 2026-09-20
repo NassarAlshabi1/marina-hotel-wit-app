@@ -141,3 +141,31 @@ jobs:
           path: mobile/build/app/outputs/mapping/release/mapping.txt
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Build debug APK (diagnostic)
+        run: ./gradlew assembleDebug --console=plain --stacktrace
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: marina-hotel-debug-apk
+          path: mobile/build/app/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
+
+      # Diagnostic A/B build: identical release variant with R8 minification
+      # disabled. If the minified APK closes instantly on a device while this
+      # one opens, the cause is proguard/R8 stripping (pinpoint it with the
+      # uploaded marina-hotel-release-mapping artifact).
+      - name: Build diagnostic non-minified release APK
+        run: ./gradlew assembleRelease -PmarinaNoMinify --console=plain --stacktrace
+
+      - name: Upload unminified release APK artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: marina-hotel-release-unminified-apk
+          path: mobile/build/app/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
