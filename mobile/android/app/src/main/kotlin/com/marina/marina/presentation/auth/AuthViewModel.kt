@@ -29,14 +29,26 @@ class AuthViewModel @Inject constructor(
 
     private fun restoreSession() {
         viewModelScope.launch {
-            val user = restoreSessionUseCase()
-            _authState.value = if (user != null) {
-                AuthState(isAuthenticated = true, currentUser = user, rememberMe = true)
-            } else {
-                AuthState(isAuthenticated = false, isRestoring = false)
+            runCatching { restoreSessionUseCase() }
+                .onSuccess { user ->
+                    _authState.value = if (user != null) {
+                        AuthState(isAuthenticated = true, currentUser = user, rememberMe = true)
+                    } else {
+                        AuthState(isAuthenticated = false, isRestoring = false)
+                    }
+                }
+                .onFailure { error ->
+                    // A corrupt/legacy local session must not crash the process
+                    // during the first composition. Treat it as signed out and
+                    // let the user authenticate again.
+                    _authState.value = AuthState(
+                        isAuthenticated = false,
+                        isRestoring = false,
+                        error = error.message
+                    )
+                }
             }
         }
-    }
 
     fun login(username: String, password: String) {
         _authState.value = _authState.value.copy(isRestoring = true, error = null)
