@@ -25,6 +25,16 @@ function mockAi(plan: unknown): AiBinding {
   };
 }
 
+// ✅ (2026-09-20) نماذج 2026 (llama-3.3-70b) ترجع chat.completion من
+// الربط — {choices: [{message: {content}}]} بدل {response: "…"} القديمة.
+function chatAi(plan: unknown): AiBinding {
+  return {
+    async run() {
+      return { choices: [{ message: { content: JSON.stringify(plan) } }] };
+    },
+  };
+}
+
 function garbageAi(): AiBinding {
   return {
     async run() {
@@ -425,6 +435,124 @@ describe('ai: validation and failure modes', () => {
   });
 });
 
+// ═══════════════════════════════════════════════════════════
+//  2026 model upgrade (llama-3.3-70b-fp8-fast) — ✅ (2026-09-20)
+//  الطراز القديم أوقفه Cloudflare (5028، 2026-05-30). العقود هنا
+//  تثبت: صيغة chat.completion الجديدة تُحلّ، وتواريخ 1970 (أثر
+//  epoch من النماذج الحديثة رغم التعليمات) تُعالج حتمياً.
+// ═══════════════════════════════════════════════════════════
+
+describe('ai: 2026 model upgrade contracts', () => {
+  it('chat.completion shape from the binding parses and the query executes', async () => {
+    await seedRoom(uniqueUuid(), '601', 'شاغرة');
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'وش الغرف الشاغرة؟' }),
+      { DB: env.DB, AI: chatAi({ kind: 'query', queryType: 'rooms_available', explanation: 'شاغرة' }) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { requires_confirmation: boolean; rows: Array<{ room_number: string }> };
+    expect(body.requires_confirmation).toBe(false);
+    expect(body.rows.some((r) => r.room_number === '601')).toBe(true);
+  });
+
+  it('epoch default dates (1970-01-01) on add_expense become today per design', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'اضف مصروف اشتراك انترنت 60000 شهرياً' }),
+      {
+        DB: env.DB,
+        AI: chatAi({
+          kind: 'add_expense',
+          expenseType: 'اشتراك انترنت',
+          description: 'اشتراك انترنت',
+          amountPerDay: 2000,
+          dateFrom: '1970-01-01',
+          dateTo: '1970-01-01',
+          explanation: 'e',
+        }),
+      },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { plan: { dateFrom?: string; dateTo?: string }; requires_confirmation: boolean };
+    expect(body.plan.dateFrom).toBe(today);
+    expect(body.plan.dateTo).toBe(today);
+    expect(body.requires_confirmation).toBe(true);
+    expect(await expenseCount()).toBe(0);
+  });
+
+  it('yearless user range (1970-MM-DD artifact) is coerced to the current year', async () => {
+    const year = new Date().toISOString().slice(0, 4);
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'اضف مصروف صيانة مولد 40 ألف لكل يوم من 15 الى 18 سبتمبر' }),
+      {
+        DB: env.DB,
+        AI: chatAi({
+          kind: 'add_expense',
+          expenseType: 'صيانة مولد',
+          description: 'صيانة مولد',
+          amountPerDay: 40000,
+          dateFrom: '1970-09-15',
+          dateTo: '1970-09-18',
+          explanation: 'e',
+        }),
+      },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { plan: { dateFrom?: string; dateTo?: string } };
+    expect(body.plan.dateFrom).toBe(`${year}-09-15`);
+    expect(body.plan.dateTo).toBe(`${year}-09-18`);
+  });
+
+  it('junk epoch dates on a query are cleared so resolveWindow defaults apply', async () => {
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'ايش اتجاه الاشغال والايرادات؟' }),
+      {
+        DB: env.DB,
+        AI: chatAi({
+          kind: 'query',
+          queryType: 'occupancy_trend',
+          dateFrom: '1970-01-01',
+          dateTo: '1970-01-31',
+          explanation: 'e',
+        }),
+      },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { plan: { dateFrom?: string; dateTo?: string }; rows: unknown[] };
+    expect(body.plan.dateFrom).toBeUndefined();
+    expect(body.plan.dateTo).toBeUndefined();
+    expect(Array.isArray(body.rows)).toBe(true);
+  });
+
+  it('client-confirmed plans keep their explicit dates untouched (no sanitization on the confirm path)', async () => {
+    const res = await handleAiRequest(
+      aiRequest({
+        confirm: true,
+        plan: {
+          kind: 'add_expense',
+          expenseType: 'نظافة',
+          description: 'مصروف نظافة',
+          amountPerDay: 100,
+          dateFrom: '2026-05-08',
+          dateTo: '2026-05-08',
+          explanation: 'e',
+        },
+      }),
+      { DB: env.DB, AI: chatAi({ kind: 'unsupported', explanation: 'x' }) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { plan: { dateFrom?: string }; answer: string };
+    expect(body.plan.dateFrom).toBe('2026-05-08');
+    expect(body.answer).toContain('تمت إضافة');
+    await env.DB.prepare("DELETE FROM expenses WHERE origin = 'ai'").run();
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════
 //  REST fallback (AI_TOKEN secret) — ✅ (2026-09-20)
 //  طلب المالك: «Worker ai token … اضفة الى ai». الربط [AI] المُنشر
@@ -434,7 +562,7 @@ describe('ai: validation and failure modes', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('ai: REST fallback (AI_TOKEN secret)', () => {
-  const restUrl = 'https://api.cloudflare.com/client/v4/accounts/acct-123/ai/run/@cf/meta/llama-3.1-8b-instruct';
+  const restUrl = 'https://api.cloudflare.com/client/v4/accounts/acct-123/ai/run/@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
   afterEach(() => {
     vi.unstubAllGlobals();

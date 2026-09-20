@@ -32,7 +32,13 @@ export interface AiPlan {
   explanation: string;
 }
 
-const MODEL = '@cf/meta/llama-3.1-8b-instruct';
+// ✅ (2026-09-20) الطراز القديم @cf/meta/llama-3.1-8b-instruct أوقفته
+// Cloudflare بتاريخ 2026-05-30 (خطأ 5028 «model was deprecated») — فكان
+// الربط [ai] يفشل دائماً في الإنتاج بينما REST يقبل الاسم القديم مؤقتاً.
+// الترقية إلى llama-3.3-70b-fp8-fast (مشخّص حياً عبر worker تشخيصي):
+// أصاب kind في 8/8 حالات اختبار مقابل أخطاء تركيبية في 3.2-3b.
+// النماذج الحديثة ترجع بصيغة chat.completion — extractJson تدعمها.
+const MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
 // ✅ (2026-09-20) نقطة نهاية REST لـ Workers AI — نفس الحساب والطراز،
 // مصادقة Bearer بسر AI_TOKEN. متغيرّ للحقن في الاختبارات العقدية.
@@ -108,11 +114,27 @@ function jsonResponse(data: unknown, status = 200): Response {
 }
 
 function extractJson(raw: unknown): AiPlan {
-  const text = typeof raw === 'string'
-    ? raw
-    : raw && typeof raw === 'object' && 'response' in raw
-      ? String((raw as { response: unknown }).response)
-      : JSON.stringify(raw);
+  let text: string;
+  if (typeof raw === 'string') {
+    text = raw;
+  } else if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    // ✅ (2026-09-20) نماذج 2026 (llama-3.3-70b) ترجع chat.completion:
+    // {choices: [{message: {content: "…"}}], response: {…}} — النص في
+    // choices. الصيغة القديمة {response: "…"} تبقى مدعومة (توافق خلفي
+    // للاختبارات ومسار REST الذي يمرر نصاً جاهزاً).
+    const choices = Array.isArray(obj.choices) ? (obj.choices as { message?: { content?: unknown } }[]) : undefined;
+    const content = choices?.[0]?.message?.content;
+    if (typeof content === 'string' && content.length > 0) {
+      text = content;
+    } else if (typeof obj.response === 'string') {
+      text = obj.response;
+    } else {
+      text = JSON.stringify(raw);
+    }
+  } else {
+    text = JSON.stringify(raw);
+  }
   const cleaned = text.replace(/```json|```/g, '').trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
@@ -137,6 +159,42 @@ function validDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
 }
 
+/// ✅ (2026-09-20) حارس التواريخ الحتمي — نماذج 2026 ترجع تواريخ
+/// «1970-…» (أثر JS epoch) عند غياب السنة أو التاريخ رغم التعليمات
+/// الصريحة (شُوهد على 3.3-70b و3.2-3b معاً في الاختبار الحي). البيانات
+/// لا توجد قبل 2015، فأي سنة أقدم من ذلك أثر نموذجي حكماً:
+/// - «1970-01-01» (افتراضي الـ epoch) = «لا تاريخ» → للإضافة: اليوم/اليوم
+///   (عقد التصميم: بلا تاريخ = اليوم)، وللاستعلام: مسح القيمة فتطبّق
+///   resolveWindow افتراضاتها (30 يوماً لاتجاه الإشغال… إلخ).
+/// - «1970-MM-DD» بغير 01-01 = مدى المستخدم بلا سنة → سنة العام الحالي
+///   («من 15 الى 18 سبتمبر» → العام الحالي-09-15..18).
+function sanitizeModelDates(plan: AiPlan): AiPlan {
+  const today = new Date().toISOString().slice(0, 10);
+  const currentYear = today.slice(0, 4);
+  const isEpochJunk = (d: string) => parseInt(d.slice(0, 4), 10) < 2015;
+  const fix = (d: string): string | undefined => {
+    if (!isEpochJunk(d)) return d;
+    if (d.slice(5) === '01-01') return undefined;
+    const coerced = `${currentYear}-${d.slice(5)}`;
+    return validDate(coerced) ? coerced : undefined;
+  };
+  const fromWasJunk = !!plan.dateFrom && isEpochJunk(plan.dateFrom);
+  const toWasJunk = !!plan.dateTo && isEpochJunk(plan.dateTo);
+  let dateFrom = plan.dateFrom ? fix(plan.dateFrom) : undefined;
+  let dateTo = plan.dateTo ? fix(plan.dateTo) : undefined;
+  // نافذة مشوهة (جانبها epoch-افتراضي والآخر أثر نموذجي) → مسح متسق
+  // للجانبين معاً — resolveWindow يطبق افتراضاتهما (30 يوماً… إلخ).
+  if ((fromWasJunk || toWasJunk) && (dateFrom === undefined || dateTo === undefined)) {
+    dateFrom = undefined;
+    dateTo = undefined;
+  }
+  if (plan.kind === 'add_expense' && (!dateFrom || !dateTo)) {
+    return { ...plan, dateFrom: dateFrom ?? today, dateTo: dateTo ?? today };
+  }
+  if (dateFrom === plan.dateFrom && dateTo === plan.dateTo) return plan;
+  return { ...plan, dateFrom, dateTo };
+}
+
 function daysBetween(from: string, to: string): string[] {
   const result: string[] = [];
   const cursor = new Date(`${from}T00:00:00Z`);
@@ -156,7 +214,7 @@ async function classify(env: { AI: AiBinding; AI_TOKEN?: string; CLOUDFLARE_ACCO
 rooms_available للغرف الشاغرة، rooms_all لكل الغرف وحالتها، current_guests للنزلاء الموجودين، guest_search للبحث عن نزيل باسمه أو رقم غرفته، bookings_current للحجوزات النشطة.
 employee_withdrawals لسحوبات وسلف وخصومات موظف — ضع employeeName إذا ذُكر موظف بعينه، واتركه فارغاً إذا سأل عن الموظفين عموماً. employee_salary لاستحقاق موظف (الأشهر والراتب الأساسي والمستحق والصافي) — كذلك الاسم اختياري. salary_expenses لإجمالي مصروفات الموظفين والرواتب النقدية لكل الموظفين.
 occupancy_summary للإشغال الحالي (النسبة والغرف المشغولة والشاغرة والوصولات اليوم). occupancy_trend لاتجاه الإشغال مع الإيرادات والمصروفات اليومية خلال فترة — إن لم تذكر فترة فاستخدم آخر 30 يوماً حتى اليوم في dateFrom وdateTo. booking_analysis لتحليل الحجوزات خلال فترة (عددها اليومي والغرف والإيراد المتوقع والمغادرات) — إن لم تذكر فترة فاجعل dateFrom أول يوم من الشهر الحالي وdateTo اليوم. overdue_bookings للحجوزات المتأخرة عن موعد المغادرة. stay_statistics لإحصائيات الإقامة الحالية (متوسط الليالي وأطول إقامة والإيراد المتوقع والمحصل والمتبقي).
-لإضافة مصروف: expenseType, description, amountPerDay, dateFrom, dateTo بصيغة YYYY-MM-DD. إذا لم يذكر المستخدم تاريخاً فاجعل dateFrom=dateTo=${today}. المبلغ في مثال "40 ألف لكل يوم" هو 40000 لكل يوم، وليس إجمالياً.
+لإضافة مصروف: expenseType, description, amountPerDay, dateFrom, dateTo بصيغة YYYY-MM-DD. description وصف موجز دائماً (مثل "مصروف نظافة"). إذا لم يذكر المستخدم تاريخاً فاجعل dateFrom=dateTo=${today}. أي تاريخ ذُكر بلا سنة فسنته هي ${today.slice(0, 4)} — مثلاً "من 15 الى 18 سبتمبر" يعني ${today.slice(0, 4)}-09-15 إلى ${today.slice(0, 4)}-09-18. المبلغ في مثال "40 ألف لكل يوم" هو 40000 لكل يوم وليس إجمالياً، و"60 ألف شهرياً" يعني 2000 لكل يوم.
 لا تخترع اسماً أو مبلغاً أو تاريخاً. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
 JSON schema: {kind,queryType,employeeName,guestName,roomNumber,expenseType,description,amountPerDay,dateFrom,dateTo,explanation}
 طلب المستخدم: ${prompt}`;
@@ -182,12 +240,12 @@ JSON schema: {kind,queryType,employeeName,guestName,roomNumber,expenseType,descr
     raw = await runRestAi(env, input, error);
   }
   try {
-    return extractJson(raw);
+    return sanitizeModelDates(extractJson(raw));
   } catch (error) {
     // الربط رجع رداً غير قابل للتحليل — محاولة REST أخيرة قبل الاستسلام
     // (يرمي خطأ الربط الأصلي إن لم يُضبط AI_TOKEN — سلوك 502 كما كان).
     const cause = bindingError ?? error;
-    return extractJson(await runRestAi(env, input, cause));
+    return sanitizeModelDates(extractJson(await runRestAi(env, input, cause)));
   }
 }
 
