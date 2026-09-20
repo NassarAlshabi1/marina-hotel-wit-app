@@ -22,6 +22,9 @@ interface PaymentVoidsDao {
     @Query("SELECT * FROM payment_voids WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): PaymentVoidEntity?
 
+    @Query("SELECT * FROM payment_voids WHERE booking_uuid = :bookingUuid AND deleted_at IS NULL ORDER BY id DESC")
+    suspend fun getByBooking(bookingUuid: String): List<PaymentVoidEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: PaymentVoidEntity): Long
 

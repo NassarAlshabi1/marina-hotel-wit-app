@@ -22,6 +22,9 @@ interface SalaryCyclesDao {
     @Query("SELECT * FROM salary_cycles WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): SalaryCycleEntity?
 
+    @Query("SELECT * FROM salary_cycles WHERE cycle_key = :cycleKey AND deleted_at IS NULL LIMIT 1")
+    suspend fun getByKey(cycleKey: String): SalaryCycleEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: SalaryCycleEntity): Long
 

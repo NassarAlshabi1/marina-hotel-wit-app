@@ -22,6 +22,9 @@ interface BookingPriceAdjustmentsDao {
     @Query("SELECT * FROM booking_price_adjustments WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): BookingPriceAdjustmentEntity?
 
+    @Query("SELECT * FROM booking_price_adjustments WHERE booking_uuid = :bookingUuid AND is_active = 1 AND deleted_at IS NULL ORDER BY id DESC")
+    suspend fun getActiveByBooking(bookingUuid: String): List<BookingPriceAdjustmentEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: BookingPriceAdjustmentEntity): Long
 

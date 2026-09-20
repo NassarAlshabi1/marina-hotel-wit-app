@@ -22,6 +22,9 @@ interface SalaryPaymentsDao {
     @Query("SELECT * FROM salary_payments WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): SalaryPaymentEntity?
 
+    @Query("SELECT * FROM salary_payments WHERE cycle_id = :cycleId AND deleted_at IS NULL ORDER BY id DESC")
+    suspend fun getByCycle(cycleId: Long): List<SalaryPaymentEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: SalaryPaymentEntity): Long
 

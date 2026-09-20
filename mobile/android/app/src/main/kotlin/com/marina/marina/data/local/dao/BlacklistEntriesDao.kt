@@ -22,6 +22,12 @@ interface BlacklistEntriesDao {
     @Query("SELECT * FROM blacklist_entries WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): BlacklistEntryEntity?
 
+    @Query("SELECT * FROM blacklist_entries WHERE deleted_at IS NULL AND active = 1 ORDER BY id DESC")
+    fun getActive(): Flow<List<BlacklistEntryEntity>>
+
+    @Query("SELECT * FROM blacklist_entries WHERE deleted_at IS NULL AND active = 1 AND (name LIKE :pattern OR phone LIKE :pattern OR national_id LIKE :pattern OR nationality LIKE :pattern) ORDER BY id DESC")
+    fun searchActive(pattern: String): Flow<List<BlacklistEntryEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: BlacklistEntryEntity): Long
 

@@ -48,7 +48,6 @@ import com.marina.marina.data.local.entity.SyncConflictEntity
 import com.marina.marina.data.local.entity.SyncLogEntity
 import com.marina.marina.data.local.entity.SyncQueueEntity
 import com.marina.marina.data.local.entity.SyncRemoteMetaEntity
-import com.marina.marina.data.local.entity.AuditLogEntity
 import com.marina.marina.data.local.entity.BlacklistEntryEntity
 import com.marina.marina.data.local.entity.BookingNightEntity
 import com.marina.marina.data.local.entity.BookingPriceAdjustmentEntity

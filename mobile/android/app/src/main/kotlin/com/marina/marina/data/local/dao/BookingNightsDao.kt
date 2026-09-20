@@ -22,6 +22,12 @@ interface BookingNightsDao {
     @Query("SELECT * FROM booking_nights WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): BookingNightEntity?
 
+    @Query("SELECT * FROM booking_nights WHERE booking_local_id = :bookingId AND deleted_at IS NULL ORDER BY sequence ASC")
+    suspend fun getByBooking(bookingId: Long): List<BookingNightEntity>
+
+    @Query("DELETE FROM booking_nights WHERE booking_local_id = :bookingId")
+    suspend fun deleteByBooking(bookingId: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: BookingNightEntity): Long
 

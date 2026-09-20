@@ -6,6 +6,7 @@ import com.marina.marina.data.local.entity.BookingNightEntity
 import com.marina.marina.data.local.entity.BookingPriceAdjustmentEntity
 import com.marina.marina.data.local.entity.CashTransactionEntity
 import com.marina.marina.data.local.entity.GuestInfoEntity
+import com.marina.marina.data.local.entity.HotelDayLedgerEntity
 import com.marina.marina.data.local.entity.PaymentVoidEntity
 import com.marina.marina.data.local.entity.PriceAdjustmentEntity
 import com.marina.marina.data.local.entity.SalaryCarryOverLogEntity

@@ -22,6 +22,12 @@ interface GuestInfosDao {
     @Query("SELECT * FROM guest_infos WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): GuestInfoEntity?
 
+    @Query("SELECT * FROM guest_infos WHERE deleted_at IS NULL AND (guest_name LIKE :pattern OR guest_phone LIKE :pattern OR id_number LIKE :pattern) ORDER BY id DESC")
+    fun search(pattern: String): Flow<List<GuestInfoEntity>>
+
+    @Query("SELECT * FROM guest_infos WHERE room_number = :roomNumber AND deleted_at IS NULL ORDER BY id DESC")
+    suspend fun getByRoom(roomNumber: String): List<GuestInfoEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: GuestInfoEntity): Long
 

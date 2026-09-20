@@ -22,6 +22,12 @@ interface CashTransactionsDao {
     @Query("SELECT * FROM cash_transactions WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): CashTransactionEntity?
 
+    @Query("SELECT * FROM cash_transactions WHERE transaction_type = :type AND deleted_at IS NULL ORDER BY id DESC")
+    fun getByType(type: String): Flow<List<CashTransactionEntity>>
+
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM cash_transactions WHERE transaction_type = :type AND deleted_at IS NULL")
+    suspend fun sumByType(type: String): Double
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: CashTransactionEntity): Long
 
