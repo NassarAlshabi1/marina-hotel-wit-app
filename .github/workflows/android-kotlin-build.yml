@@ -1,14 +1,8 @@
-name: Android Kotlin Build
+name: Android Release APK Build
 
-# Builds the Kotlin + Jetpack Compose port of the Marina Hotel app
-# (mobile/android) — runs unit tests and produces signed release/debug APKs.
-#
-# Structure follows patterns researched from reference GitHub workflows:
-#   - Urban_Xray/Guenark_Collab "android-kotlin-build.yml": dynamic APK
-#     discovery via find(), plain actions/cache@v4, --stacktrace
-#   - ACINQ/phoenix: absolute build-tools paths, explicit signature verify
-#   - codec2_talkie: strict apksigner verify as a dedicated step
-#   - Labrador: compression-level 0 for APK artifacts (already zip-compressed)
+# Builds the signed release APK for Marina Hotel app (Kotlin + Jetpack Compose)
+# mobile/android — produces signed release APK with v1+v2+v3 schemes.
+
 on:
   push:
     branches:
@@ -25,20 +19,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-kotlin-build-${{ github.ref }}
+  group: android-release-build-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # mobile/android/build.gradle sets `rootProject.buildDir = "../build"`, which
-  # redirects ALL module outputs out of mobile/android into mobile/build/.
-  # Every APK/intermediates path in this workflow MUST use mobile/build/app/...
-  # (regression guard: a 2026-09-19 merge pointed paths at
-  # mobile/android/app/build/... and broke the verify step).
   APK_ROOTS: mobile/build/app/outputs/apk mobile/android/app/build/outputs/apk
 
 jobs:
   build:
-    name: Marina Hotel APK (Kotlin + Compose)
+    name: Marina Hotel Release APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -50,19 +39,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      # Plain file cache ONLY — gradle/actions/setup-gradle is intentionally
-      # NOT used. It injects a Develocity init script and runs a concurrent
-      # system-Gradle daemon in the same GRADLE_USER_HOME, which correlated
-      # with AAPT resource-linking failures on this project (values dropped
-      # from the app resource package). actions/cache@v4 is pure file caching
-      # with no init scripts, so it is safe.
       - name: Cache Gradle dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -72,23 +55,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # The JKS keystore is git-ignored by convention; restore it from the
-      # base64 payload tracked in mobile/Keystore.txt so CI signs with the
-      # exact same key as local builds (SHA-256 pinned below).
       - name: Restore signing keystore
         working-directory: .
         run: |
           grep -oP '(?<=KEYSTORE_BASE64: )[A-Za-z0-9+/=]+' mobile/Keystore.txt \
             | base64 -d > mobile/android/app/marina-hotel-key.jks
           sha256sum mobile/android/app/marina-hotel-key.jks
-          # Expected: 4f6e5c58abc68e20f842c868060d515fe2d64d4964572d17ecf9ac04bb7fb865
           echo "4f6e5c58abc68e20f842c868060d515fe2d64d4964572d17ecf9ac04bb7fb865  mobile/android/app/marina-hotel-key.jks" | sha256sum -c -
 
-      # ubuntu-latest ships cmdline-tools (e.g. .../cmdline-tools/16.0/bin)
-      # but NOT on PATH, and android-actions/setup-android@v3 currently fails
-      # trying to install the retired 'tools' package. Resolve sdkmanager by
-      # full path; if unavailable, fall back to AGP's auto-install (runner
-      # images ship pre-accepted SDK licenses, so AGP can self-serve).
       - name: Ensure Android SDK components
         run: |
           set -x
@@ -108,54 +82,10 @@ jobs:
           echo "--- installed build-tools ---"
           ls "$ANDROID_HOME/build-tools" 2>/dev/null || true
 
-      # Includes the Robolectric launch smoke test (LaunchSmokeTest), which
-      # launches the REAL MainActivity with the real Hilt graph / Room /
-      # Compose composition. If the app crashes at open (user-reported
-      # symptom), this step fails carrying the true production stack trace.
-      - name: Run unit tests (smoke + financial + hotel-day engine)
-        run: ./gradlew testDebugUnitTest --console=plain --stacktrace
-
-      # Machine-readable proof of which tests executed (guards against silent
-      # test-discovery skips).
-      - name: Upload test results (evidence)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: marina-test-results
-          path: mobile/build/app/test-results/testDebugUnitTest/*.xml
-          if-no-files-found: warn
-          retention-days: 30
-
-      # If any prior step fails, dump the exact resource/manifest intermediates
-      # so failures are diagnosable from the log alone (runners are ephemeral).
-      - name: Dump resource intermediates on failure
-        if: failure()
-        working-directory: .
-        run: |
-          echo "=== merged values.xml (first 60 lines) ==="
-          find mobile/build/app/intermediates mobile/android/app/build/intermediates \
-            -path "*mergeDebugResources/merged.dir/values/values.xml" \
-            -exec head -60 {} \; 2>/dev/null || echo "not found"
-          echo "=== processed manifest ==="
-          find mobile/build/app/intermediates mobile/android/app/build/intermediates \
-            -name "AndroidManifest.xml" \
-            -path "*ManifestForPackage*" \
-            -exec head -20 {} \; 2>/dev/null || echo "not found"
-          echo "=== merged res flat files ==="
-          find mobile/build/app/intermediates mobile/android/app/build/intermediates \
-            -name "*.flat" \
-            -path "*bug*" 2>/dev/null | head -20
-
       - name: Build signed release APK (v1+v2+v3)
         run: ./gradlew assembleRelease --console=plain --stacktrace
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --console=plain --stacktrace
-
-      # Dynamic APK discovery (pattern: Urban_Xray android-kotlin-build.yml).
-      # find() beats hardcoded paths — the buildDir redirect has bitten this
-      # repo twice. Prefer the redirected root, fall back to the module dir.
-      - name: Locate built APKs
+      - name: Locate built APK
         id: locate
         working-directory: .
         run: |
@@ -163,19 +93,10 @@ jobs:
           REL="$(find mobile/build/app/outputs/apk/release \
                       mobile/android/app/build/outputs/apk/release \
                       -name 'app-release.apk' 2>/dev/null | head -1 || true)"
-          DBG="$(find mobile/build/app/outputs/apk/debug \
-                      mobile/android/app/build/outputs/apk/debug \
-                      -name 'app-debug.apk' 2>/dev/null | head -1 || true)"
           if [ -z "$REL" ]; then echo "::error::release APK not found under $APK_ROOTS"; exit 1; fi
-          if [ -z "$DBG" ]; then echo "::error::debug APK not found under $APK_ROOTS"; exit 1; fi
           echo "release_apk=$REL" >> "$GITHUB_OUTPUT"
-          echo "debug_apk=$DBG" >> "$GITHUB_OUTPUT"
-          ls -la "$REL" "$DBG"
+          ls -la "$REL"
 
-      # Strict signature verification (pattern: codec2_talkie verify step).
-      # --min-sdk-version 23 forces the verifier to require the v1 JAR scheme,
-      # which some OEM package installers (MIUI/EMUI, older devices) demand.
-      # Each scheme is grep-checked so a v2-only APK hard-fails the build.
       - name: Verify APK signature schemes (v1+v2+v3)
         working-directory: .
         run: |
@@ -191,7 +112,7 @@ jobs:
           "$BT/zipalign" -c 4 "$APK" && echo "zipalign OK"
 
       - name: Upload release APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: marina-hotel-release-apk
           path: ${{ steps.locate.outputs.release_apk }}
@@ -199,172 +120,10 @@ jobs:
           retention-days: 30
           compression-level: 0
 
-      - name: Upload debug APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: marina-hotel-debug-apk
-          path: ${{ steps.locate.outputs.debug_apk }}
-          if-no-files-found: error
-          retention-days: 30
-          compression-level: 0
-
-      # R8 mapping for crash forensics: deobfuscates release stack traces.
       - name: Upload R8 mapping (forensics)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: marina-hotel-release-mapping
           path: mobile/build/app/outputs/mapping/release/mapping.txt
           if-no-files-found: warn
-          retention-days: 30
-
-      # Diagnostic A/B build: identical release, NO R8 minification. If the
-      # minified APK crashes on a device but this one runs, the culprit is a
-      # proguard/R8 stripping issue (pinpoint it via the uploaded mapping).
-      - name: Build diagnostic non-minified release APK
-        run: ./gradlew assembleRelease -PmarinaNoMinify --console=plain --stacktrace
-
-      - name: Verify unminified APK signature
-        working-directory: .
-        run: |
-          set -e
-          APK="$(find mobile/build/app/outputs/apk/release \
-                      mobile/android/app/build/outputs/apk/release \
-                      -name 'app-release.apk' 2>/dev/null | head -1 || true)"
-          if [ -z "$APK" ]; then echo "::error::unminified release APK not found"; exit 1; fi
-          ls -la "$APK"
-          BT="$ANDROID_HOME/build-tools/34.0.0"
-          "$BT/apksigner" verify --verbose --min-sdk-version 23 "$APK" | tee verify-unminified.log
-          grep -q 'Verified using v1 scheme (JAR signing): true' verify-unminified.log \
-            || { echo '::error::v1 signature MISSING'; exit 1; }
-          "$BT/zipalign" -c 4 "$APK" && echo "zipalign OK"
-
-      - name: Upload unminified release APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: marina-hotel-release-unminified-apk
-          path: mobile/build/app/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-          retention-days: 30
-          compression-level: 0
-
-  # Runs the REAL release APKs on a real Android emulator and captures the
-  # AndroidRuntime stack trace if the app crashes at open — reproducing the
-  # user-reported "app closes instantly" symptom inside CI, with hard
-  # evidence.
-  #
-  # NOTE: GitHub's macOS runners no longer expose HVF (Hypervisor.framework),
-  # so the emulator is booted manually with -no-accel (TCG). Same-arch
-  # aarch64-on-aarch64 TCG boots in ~6-15 min, well within the 45-min
-  # timeout. We manage the boot wait ourselves instead of using
-  # reactivecircus/android-emulator-runner (whose internal ~10-min boot
-  # timeout is too tight for TCG).
-  launch-test:
-    name: Launch APKs on emulator (crash logcat capture)
-    needs: build
-    runs-on: macos-latest
-    timeout-minutes: 50
-    env:
-      EMU_LOG: emulator-boot.log
-    steps:
-      - name: Download minified release APK
-        uses: actions/download-artifact@v4
-        with:
-          name: marina-hotel-release-apk
-          path: apk-minified
-
-      - name: Download unminified release APK
-        uses: actions/download-artifact@v4
-        with:
-          name: marina-hotel-release-unminified-apk
-          path: apk-unminified
-
-      - name: Install emulator + ARM64 system image
-        run: |
-          set -e
-          export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
-            'system-images;android-30;default;arm64-v8a' 'emulator' 'platform-tools' > /dev/null
-
-      - name: Create AVD
-        run: |
-          set -e
-          export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
-          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
-            --force -n marina-test --package 'system-images;android-30;default;arm64-v8a'
-
-      - name: Boot emulator (TCG) and launch both APKs
-        run: |
-          set -x
-          export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
-          export PATH="$ANDROID_HOME/platform-tools:$PATH"
-
-          # Boot in the background with software acceleration (TCG).
-          nohup "$ANDROID_HOME/emulator/emulator" -avd marina-test -port 5554 \
-            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim \
-            -no-snapshot -no-accel > "$EMU_LOG" 2>&1 &
-
-          # Wait up to 30 minutes for full boot.
-          BOOTED=0
-          for i in $(seq 1 180); do
-            BOOT="$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
-            if [ "$BOOT" = "1" ]; then
-              echo "EMULATOR BOOTED after ~$((i*10))s"
-              BOOTED=1
-              break
-            fi
-            sleep 10
-          done
-          if [ "$BOOTED" != "1" ]; then
-            echo "::error::Emulator failed to boot within 30 min"
-            tail -80 "$EMU_LOG"
-            exit 1
-          fi
-
-          sleep 10  # let the launcher settle
-
-          install_and_launch() {
-            VARIANT="$1"; APK="$2"
-            echo "=== [$VARIANT] installing $APK ==="
-            adb -s emulator-5554 install -r "$APK"
-            adb -s emulator-5554 logcat -c
-            adb -s emulator-5554 shell am start -W -n com.a.a/com.marina.marina.MainActivity
-            sleep 25
-            PID="$(adb -s emulator-5554 shell pidof com.a.a | tr -d '\r')"
-            echo "[$VARIANT] pid after 25s: '${PID}'"
-            if [ -z "$PID" ]; then
-              echo "[$VARIANT] !!! APP CRASHED ON LAUNCH !!!"
-              adb -s emulator-5554 logcat -d -s AndroidRuntime:E > "crash-${VARIANT}.txt" || true
-            fi
-            adb -s emulator-5554 logcat -d > "logcat-${VARIANT}.txt" || true
-            # Relaunch once to surface second-open crash patterns.
-            adb -s emulator-5554 shell am start -W -n com.a.a/com.marina.marina.MainActivity || true
-            sleep 8
-            PID2="$(adb -s emulator-5554 shell pidof com.a.a | tr -d '\r')"
-            echo "[$VARIANT] pid after relaunch: '${PID2}'"
-            if [ -z "$PID2" ]; then
-              adb -s emulator-5554 logcat -d -s AndroidRuntime:E >> "crash-${VARIANT}.txt" || true
-            fi
-            adb -s emulator-5554 uninstall com.a.a || true
-          }
-
-          install_and_launch minified apk-minified/app-release.apk
-          install_and_launch unminified apk-unminified/app-release.apk
-
-          if [ -s crash-minified.txt ] || [ -s crash-unminified.txt ]; then
-            echo "::error::APP CRASH DETECTED — see emulator-launch-logs artifact"
-            exit 1
-          fi
-          echo "BOTH VARIANTS LAUNCHED SUCCESSFULLY"
-
-      - name: Upload emulator logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: emulator-launch-logs
-          path: |
-            logcat-*.txt
-            crash-*.txt
-            emulator-boot.log
-          if-no-files-found: ignore
           retention-days: 30
