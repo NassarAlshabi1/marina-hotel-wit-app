@@ -4,4 +4,43 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Launch diagnostics (debug variants only).
+
+         Two extra launcher icons bisect the "closes right after MainActivity"
+         crash without a stack trace:
+
+           Marina BARE (diag)  — framework Activity + TextView only. Reaching
+                                 this screen proves Application.onCreate and
+                                 every ContentProvider (Firebase, androidx.startup,
+                                 WorkManager, FileProvider) completed.
+           Marina PROBE (diag) — real Hilt graph + Room + session restore +
+                                 Compose + MarinaNavGraph, with a marker before
+                                 each step, so the last marker names the culprit.
+
+         Both write to Android/data/com.a.a/files/marina-diag/stages.log and
+         crash.log, and to logcat under the tag MarinaDiag. -->
+    <application>
+        <activity
+            android:name="com.marina.marina.diagnostics.BareLaunchActivity"
+            android:exported="true"
+            android:label="Marina BARE (diag)"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.marina.marina.diagnostics.LaunchProbeActivity"
+            android:exported="true"
+            android:label="Marina PROBE (diag)"
+            android:theme="@style/Theme.MarinaHotel.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
 </manifest>
