@@ -20,7 +20,7 @@ data class AppUserEntity(
     @SerializedName("active") val active: Boolean = true,
     @SerializedName("last_login") @ColumnInfo(name = "last_login") val lastLogin: Long? = null,
     @SerializedName("credentials_version") @ColumnInfo(name = "credentials_version") val credentialsVersion: Int = 0,
-    @SerializedName("role") val role: String? = null,,
+    @SerializedName("role") val role: String? = null,
 
     @SerializedName("local_uuid") @ColumnInfo(name = "local_uuid") override val localUuid: String = "",
     @SerializedName("server_id") @ColumnInfo(name = "server_id") override val serverId: Int? = null,

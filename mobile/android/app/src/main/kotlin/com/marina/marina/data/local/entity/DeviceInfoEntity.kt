@@ -22,7 +22,7 @@ data class DeviceInfoEntity(
     @SerializedName("status") val status: String = "active",
     @SerializedName("is_active") @ColumnInfo(name = "is_active") val isActive: Boolean = true,
     @SerializedName("last_seen") @ColumnInfo(name = "last_seen") val lastSeen: String? = null,
-    @SerializedName("last_active") @ColumnInfo(name = "last_active") val lastActive: Long? = null,,
+    @SerializedName("last_active") @ColumnInfo(name = "last_active") val lastActive: Long? = null,
 
     @SerializedName("local_uuid") @ColumnInfo(name = "local_uuid") override val localUuid: String = "",
     @SerializedName("server_id") @ColumnInfo(name = "server_id") override val serverId: Int? = null,
