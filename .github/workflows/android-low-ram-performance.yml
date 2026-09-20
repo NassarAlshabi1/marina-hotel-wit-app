@@ -43,7 +43,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.4'
+          flutter-version: '3.44.6'
           channel: stable
           cache: true
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
@@ -56,9 +56,26 @@ jobs:
 
       - name: Run five-cycle CRUD and Outbox stress harness
         run: |
+          # ✅ P1 (2026-09-21): pipefail ضروري — بدونه يأخذ الـ pipeline
+          # حالة خروج tee (نجاح دائم) فيُبتَع فشل الاختبار صامتاً.
+          set -o pipefail
           mkdir -p build/low-ram-performance
           flutter test test/performance/crud_sync_memory_stress_test.dart --reporter expanded \
             | tee build/low-ram-performance/crud_sync_stress.log
+
+      # ✅ P1 (2026-09-21): تغطية CI لمسار سحب booking_nights (كانت فجوة
+      # كاملة — السيناريو الذي أثبت فقدان ~85% قبل إصلاح P0 المزدوج).
+      # يقيس عبر الكود الإنتاجي نفسه (بلا شبكة): 7000 ليلة على 70 صفحة،
+      # حارس فقدان البيانات (7000 صف)، حارس N+1 القاطع (عدّ SELECTs
+      # مستقل عن سرعة الآلة: ≤ 1000 مقابل 21000+ للمسار القديم)،
+      # idempotency إعادة السحب (0 كتابات)، وحدود RSS/المدة.
+      - name: Run booking_nights full-pull scale harness (P0 regression canary)
+        run: |
+          # pipefail: فشل الحارس يجب أن يُفشل البناء — هذه وظيفته كلها.
+          set -o pipefail
+          mkdir -p build/low-ram-performance
+          flutter test test/performance/booking_nights_pull_scale_test.dart --reporter expanded \
+            | tee build/low-ram-performance/booking_nights_pull.log
 
       - name: Build profile APK with performance instrumentation
         run: flutter build apk --profile --dart-define=MARINA_ENABLE_PERF_PROFILE=true
@@ -97,6 +114,13 @@ jobs:
         if: always()
         run: |
           echo '### Android 1GB Low-RAM Performance' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f build/low-ram-performance/booking_nights_pull_metrics.txt ]; then
+            echo '' >> "$GITHUB_STEP_SUMMARY"
+            echo '### booking_nights full-pull scale (P0 regression canary)' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            cat build/low-ram-performance/booking_nights_pull_metrics.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ -f build/low-ram-performance/summary.txt ]; then
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             cat build/low-ram-performance/summary.txt >> "$GITHUB_STEP_SUMMARY"

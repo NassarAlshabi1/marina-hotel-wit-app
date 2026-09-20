@@ -7308,6 +7308,21 @@ class AppwriteSyncManager {
   ///   5. إشعارات مجمّعة — كتابة disk واحدة للدفعة بدل كتابة لكل سجل.
   ///   6. الليالي المؤجلة (FK/NOT NULL) تُعاد محاولتها بالمسار الفردي
   ///      بعد انتهاء الدفعة — نفس سلوك المرحلة الثانية القديم.
+  /// ✅ P1 (2026-09-21): جسر اختبار بلا شبكة لمسار تطبيق الليالي المجمّع.
+  ///
+  /// يُستخدم من harness الأداء في CI
+  /// (test/performance/booking_nights_pull_scale_test.dart — خطوة
+  /// booking-nights-pull-scale في android-low-ram-performance.yml) لقياس
+  /// مدة التطبيق والذاكرة وإثبات عدم فقدان سجلات على جدول حقيقي، بنفس
+  /// الكود الإنتاجي تماماً (`_syncBookingNights`) بلا محاكاة أو نسخ.
+  ///
+  /// لا يُنشئ اتصالاً بالشبكة: المستندات تُولَّد محلياً (models.Document)
+  /// وكل مسارات المُنشئ تعيينات حقول فقط (تم التحقق: AppwriteService
+  /// المُنشئ فارغ، وcheckAndResolveConflict منطق CPU/DB بلا شبكة).
+  @visibleForTesting
+  Future<int> applyBookingNightsForTesting(List<models.Document> documents) =>
+      _syncBookingNights(documents);
+
   Future<int> _syncBookingNights(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
 
