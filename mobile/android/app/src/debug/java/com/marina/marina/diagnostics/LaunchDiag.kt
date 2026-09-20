@@ -17,8 +17,9 @@ import java.util.Locale
  *
  * Every stage is written twice:
  *  - logcat, tag [TAG]: `adb logcat -s MarinaDiag:V AndroidRuntime:E`
- *  - `Android/data/com.a.a/files/marina-diag/*.log`, which survives logcat
- *    buffer rotation and can be pulled with a file manager (no root).
+ *  - `Android/data/com.a.a/files/marina-diag/` (`stages.log`, `crash.log`),
+ *    which survives logcat buffer rotation and can be pulled with a file
+ *    manager (no root required).
  *
  * [startRun] wraps the process default handler and dumps the FULL throwable
  * (message, causes, suppressed, stack) to `crash.log` before delegating, so a

@@ -97,15 +97,16 @@ class LaunchDiagnosticsTest {
     fun fatalRecorderWritesFullStackTrace() {
         val dir = LaunchDiag.directory(context)
         assertNotNull("diagnostics directory was not created", dir)
-        File(dir!!, "crash.log").delete()
+        val diagnosticsDir = requireNotNull(dir)
+        File(diagnosticsDir, "crash.log").delete()
 
         LaunchDiag.recordFatal(
             context,
             IllegalStateException("boom", IllegalArgumentException("root cause"))
         )
 
-        val crash = File(dir, "crash.log")
-        assertTrue("crash.log was not written to ${dir.absolutePath}", crash.isFile)
+        val crash = File(diagnosticsDir, "crash.log")
+        assertTrue("crash.log was not written to ${diagnosticsDir.absolutePath}", crash.isFile)
         val text = crash.readText()
         assertTrue("exception line missing:\n$text", text.contains("IllegalStateException: boom"))
         assertTrue(
