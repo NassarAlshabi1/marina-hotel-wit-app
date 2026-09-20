@@ -77,6 +77,22 @@ jobs:
           flutter test test/performance/booking_nights_pull_scale_test.dart --reporter expanded \
             | tee build/low-ram-performance/booking_nights_pull.log
 
+      # ✅ (2026-09-21) درع انحدار انهيار Crashlytics القاتل
+      # CouldNotRollBackException (COMMIT/ROLLBACK «no transaction is
+      # active») من البنية القديمة (transaction واحدة تلف دورة السحب
+      # كاملة). يثبت عبر الكود الإنتاجي نفسه على قاعدة ملف حقيقية مع
+      # اتصال sqlite3 خارجي: (A) كل صفحة سحب تُثبَّت بمعاملتها الخاصة
+      # ومرئية لقارئ خارجي فوراً، (B) write-lock لا تُحتجز بين الصفحات
+      # (الواجهة غير مجمدة)، + تحكم سلبي يثبت أن المنهجية تكشف البنية
+      # القديمة لو ارتدت. لو أعاد أحدٌ غلاف database.transaction حول
+      # دورة السحب «للذرّية» فشل هذا الحارس فوراً.
+      - name: Run pull commit-visibility canary (CouldNotRollBack regression guard)
+        run: |
+          set -o pipefail
+          mkdir -p build/low-ram-performance
+          flutter test test/unit/pull_commit_visibility_test.dart --reporter expanded \
+            | tee build/low-ram-performance/pull_commit_visibility.log
+
       - name: Build profile APK with performance instrumentation
         run: flutter build apk --profile --dart-define=MARINA_ENABLE_PERF_PROFILE=true
 

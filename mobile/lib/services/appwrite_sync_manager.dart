@@ -5377,7 +5377,16 @@ class AppwriteSyncManager {
   /// سحب التغييرات من Appwrite
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   /// Guarded by [SyncLocks.appwriteSyncLock] to prevent concurrent pulls.
-  /// All collection syncs are wrapped in a single database transaction for atomicity.
+  ///
+  /// ⚠️ INVARIANT — لا تلف دورة السحب في `database.transaction` واحدة:
+  /// كانت هذه هي بنية الإنتاج القديم (pre-21ab42cb) وتسببت في انهيار
+  /// Crashlytics القاتل `CouldNotRollBackException` (COMMIT/ROLLBACK
+  /// «no transaction is active»): أي خطأ كشف صف (SQLITE_FULL/IOERR...)
+  /// يُنهي معاملة SQLite تلقائياً، والمحرك يواصل السحب (onTaskError لا
+  /// يُوقف الدورة) فتنفّذ الكتابات اللاحقة في auto-commit، ثم يفشل COMMIT
+  /// النهائي بعد دقائق. كل صفحة/مهمة تُطبَّق الآن بذرّيتها الخاصة
+  /// (db.batch داخل `_syncBookingNights`) والمؤشرات تُثبَّت تدريجياً —
+  /// محروس باختبار pull_commit_visibility_test.dart.
   Future<bool> pullRemoteChanges() async {
     final pendingLocalChanges = await outboxDao.countUndeliveredToPrimary();
     if (!OutboxPullPolicy.canPull(
