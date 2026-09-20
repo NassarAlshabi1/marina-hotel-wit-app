@@ -60,10 +60,7 @@ void main() {
         );
   }
 
-  Future<int> seedWithdrawal({
-    int employeeId = 1,
-    String? employeeUuid,
-  }) async {
+  Future<int> seedWithdrawal({int employeeId = 1, String? employeeUuid}) async {
     return db
         .into(db.salaryWithdrawals)
         .insert(
@@ -72,10 +69,9 @@ void main() {
             amount: 100,
             withdrawDate: '2026-09-10',
             localUuid: 'wd-${DateTime.now().microsecondsSinceEpoch}',
-            employeeUuid:
-                employeeUuid == null
-                    ? const d.Value.absent()
-                    : d.Value(employeeUuid),
+            employeeUuid: employeeUuid == null
+                ? const d.Value.absent()
+                : d.Value(employeeUuid),
             createdAt: now,
             updatedAt: now,
             lastModified: now,
@@ -99,10 +95,9 @@ void main() {
             date: '2026-09-10',
             description: 'مصروف اختبار',
             relatedId: d.Value(relatedId),
-            employeeUuid:
-                employeeUuid == null
-                    ? const d.Value.absent()
-                    : d.Value(employeeUuid),
+            employeeUuid: employeeUuid == null
+                ? const d.Value.absent()
+                : d.Value(employeeUuid),
             deletedAt: deleted ? const d.Value(now) : const d.Value.absent(),
             createdAt: now,
             updatedAt: now,
@@ -168,33 +163,37 @@ void main() {
       expect(h.blocksDeletion, true);
     });
 
-    test('مصروف «حجز» عابر يطابق related_id رقمياً — لا إيجابيات كاذبة',
-        () async {
-      final id = await seedEmployee();
-      await seedExpense(
-        expenseType: 'حجز',
-        relatedId: id,
-        employeeUuid: null,
-      );
-      final h = await historyFor(id);
-      expect(h.expenses, 0, reason: 'related_id متعدد الدلالة — ليس تاريخاً');
-      expect(h.blocksDeletion, false);
-    });
+    test(
+      'مصروف «حجز» عابر يطابق related_id رقمياً — لا إيجابيات كاذبة',
+      () async {
+        final id = await seedEmployee();
+        await seedExpense(
+          expenseType: 'حجز',
+          relatedId: id,
+          employeeUuid: null,
+        );
+        final h = await historyFor(id);
+        expect(h.expenses, 0, reason: 'related_id متعدد الدلالة — ليس تاريخاً');
+        expect(h.blocksDeletion, false);
+      },
+    );
 
-    test('السحب المحذوف ناعماً (tombstone) يبقى حاجباً — قابل للإحياء',
-        () async {
-      final id = await seedEmployee();
-      final wdId = await seedWithdrawal(
-        employeeId: id,
-        employeeUuid: dashedUuid,
-      );
-      // احذف السحب نفسه (soft delete) ثم تحقق
-      await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(wdId)))
-          .write(const SalaryWithdrawalsCompanion(deletedAt: d.Value(now)));
-      final h = await historyFor(id);
-      expect(h.withdrawals, 1, reason: 'tombstone يُحتسب — قابل للإحياء');
-      expect(h.blocksDeletion, true);
-    });
+    test(
+      'السحب المحذوف ناعماً (tombstone) يبقى حاجباً — قابل للإحياء',
+      () async {
+        final id = await seedEmployee();
+        final wdId = await seedWithdrawal(
+          employeeId: id,
+          employeeUuid: dashedUuid,
+        );
+        // احذف السحب نفسه (soft delete) ثم تحقق
+        await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(wdId)))
+            .write(const SalaryWithdrawalsCompanion(deletedAt: d.Value(now)));
+        final h = await historyFor(id);
+        expect(h.withdrawals, 1, reason: 'tombstone يُحتسب — قابل للإحياء');
+        expect(h.blocksDeletion, true);
+      },
+    );
 
     test('دورات رواتب / مدفوعات / ترحيلات مرتبطة تمنع الحذف', () async {
       // دورة عبر uuid
@@ -217,7 +216,9 @@ void main() {
       expect(hA.blocksDeletion, true);
 
       // دورة عبر المسك الرقمي (uuid=NULL)
-      final idB = await seedEmployee(uuid: 'bbbb1111-2222-3333-4444-555566667777');
+      final idB = await seedEmployee(
+        uuid: 'bbbb1111-2222-3333-4444-555566667777',
+      );
       final cycB = await db
           .into(db.salaryCycles)
           .insert(
@@ -259,7 +260,9 @@ void main() {
       expect(hB2.blocksDeletion, true);
 
       // ترحيل عبر المسك الرقمي (لا يحمل uuid أصلاً)
-      final idC = await seedEmployee(uuid: 'cccc1111-2222-3333-4444-555566667777');
+      final idC = await seedEmployee(
+        uuid: 'cccc1111-2222-3333-4444-555566667777',
+      );
       await db
           .into(db.salaryCarryOverLogs)
           .insert(
@@ -287,7 +290,9 @@ void main() {
     });
 
     test('سحوبات موظف آخر لا تحجب موظفنا', () async {
-      final otherId = await seedEmployee(uuid: 'dddd1111-2222-3333-4444-555566667777');
+      final otherId = await seedEmployee(
+        uuid: 'dddd1111-2222-3333-4444-555566667777',
+      );
       final myId = await seedEmployee();
       // سحب لموظف آخر عبر uuid الخاص به
       await seedWithdrawal(

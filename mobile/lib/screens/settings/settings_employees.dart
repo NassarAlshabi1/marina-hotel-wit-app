@@ -1834,14 +1834,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         const SizedBox(height: 8),
         if (history.withdrawals > 0)
           Text('• سحوبات رواتب: ${history.withdrawals}'),
-        if (history.cycles > 0)
-          Text('• دورات رواتب: ${history.cycles}'),
-        if (history.payments > 0)
-          Text('• مدفوعات رواتب: ${history.payments}'),
+        if (history.cycles > 0) Text('• دورات رواتب: ${history.cycles}'),
+        if (history.payments > 0) Text('• مدفوعات رواتب: ${history.payments}'),
         if (history.carryOvers > 0)
           Text('• ترحيلات راتب: ${history.carryOvers}'),
-        if (history.expenses > 0)
-          Text('• مصروفات مرتبطة: ${history.expenses}'),
+        if (history.expenses > 0) Text('• مصروفات مرتبطة: ${history.expenses}'),
         const SizedBox(height: 12),
       ],
       const Text(
@@ -1897,9 +1894,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 ),
                 if (StatusUtils.isEmployeeActive(employee.status))
                   FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.red,
-                    ),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
                     onPressed: () => Navigator.pop(ctx, true),
                     child: const Text('إنهاء الخدمة'),
                   ),
