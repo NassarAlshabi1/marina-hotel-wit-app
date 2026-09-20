@@ -1087,6 +1087,109 @@ class AppwriteService {
     );
   }
 
+  /// ✅ Resumable Full Sync (2026-09-21): جلب **صفحة واحدة** بمستنداتها.
+  ///
+  /// على عكس [_listAllDocumentsInternal] (يُرقّم داخلياً ويجمع كل الصفحات
+  /// في الذاكرة)، هذه الدالة تنفّذ طلب listDocuments واحداً بالاستعلامات
+  /// كما هي — المتصل ([UnifiedPullEngine] عبر fetchPage) يمتلك حلقة
+  /// الترقيم ويطبّق كل صفحة قبل طلب التالية.
+  ///
+  /// **الاستخدام**: السحب الكامل التدفقي القابل للاستئناف (بلا سقف
+  /// وبذاكرة صفحة واحدة) — الاستعلامات يجب أن تتضمن
+  /// `orderAsc($id)` + `limit(n)` + `cursorAfter(cursor)` من
+  /// [SyncPullService.buildFullSyncPageQueries].
+  ///
+  /// **الشبكة الضعيفة**: كل طلب يمر عبر withRetryAndTimeout (longTimeout)
+  /// مع الـ rate limiter ومُقاطع الدارة (circuit breaker) كأي طلب آخر —
+  /// فشل الصفحة بعد إعادة المحاولات يرمي استثناءً يوقف دورة السحب،
+  /// والمؤشر المحفوظ يستأنف من نفس الصفحة في الدورة التالية.
+  ///
+  /// **Failover**: عند فشل Primary و Secondary مُفعّل للسحب، تُجلب الصفحة
+  /// من Secondary بنفس الاستعلامات (طلب واحد — لا ترقيم داخلي).
+  Future<List<models.Document>> listDocumentsPage({
+    required String collectionId,
+    required List<String> queries,
+    bool useRetry = true,
+  }) async {
+    await _ensureInitialized();
+
+    // ✅ Manual failover: إن كان مفعّلاً نقرأ الصفحة من Secondary مباشرة.
+    if (SecondaryAppwriteConfig.isFailoverActive &&
+        SecondaryAppwriteConfig.isPullEnabled &&
+        SecondaryAppwriteConfig.isEnabled &&
+        SecondaryAppwriteConfig.isConfigured) {
+      dlog(
+        () =>
+            '🔄 [Failover] Manual failover active — reading page from Secondary',
+      );
+      return _listPageFromSecondary(collectionId, queries);
+    }
+
+    Future<List<models.Document>> performOperation() async {
+      // ignore: deprecated_member_use
+      final documentList = await _databases.listDocuments(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+        queries: queries,
+      );
+      return documentList.documents;
+    }
+
+    try {
+      return useRetry
+          ? await _networkHelper.withRetryAndTimeout(
+              operation: performOperation,
+              operationName: 'listDocumentsPage($collectionId)',
+              timeout: AppwriteConfig.longTimeout,
+            )
+          : await _networkHelper.withTimeout(
+              operation: performOperation,
+              operationName: 'listDocumentsPage($collectionId)',
+              timeout: AppwriteConfig.longTimeout,
+            );
+    } catch (primaryError) {
+      // ✅ Failover تلقائي: Primary فشل و Secondary مُفعّل للسحب → صفحة بديلة.
+      if (SecondaryAppwriteConfig.isEnabled &&
+          SecondaryAppwriteConfig.isPullEnabled &&
+          SecondaryAppwriteConfig.isConfigured) {
+        dlog(
+          () =>
+              '🔄 [Failover] Primary listDocumentsPage failed '
+              '($primaryError), falling back to Secondary for $collectionId',
+        );
+        try {
+          return await _listPageFromSecondary(collectionId, queries);
+        } catch (secondaryError) {
+          dlog(
+            () =>
+                '❌ [Failover] Secondary page fetch also failed for '
+                '$collectionId: $secondaryError',
+          );
+          rethrow;
+        }
+      }
+      rethrow;
+    }
+  }
+
+  /// صفحة واحدة من Secondary بنفس استعلاماتها (طلب واحد بلا ترقيم داخلي —
+  /// الترقيم مسؤولية المتصل التدفقي).
+  Future<List<models.Document>> _listPageFromSecondary(
+    String collectionId,
+    List<String> queries,
+  ) async {
+    final db = _secondaryDb;
+    // ignore: deprecated_member_use
+    final result = await db
+        .listDocuments(
+          databaseId: SecondaryAppwriteConfig.databaseId,
+          collectionId: collectionId,
+          queries: queries,
+        )
+        .timeout(const Duration(seconds: 30));
+    return result.documents;
+  }
+
   Future<models.Document> upsertBookingNight(
     String documentId,
     Map<String, dynamic> data,

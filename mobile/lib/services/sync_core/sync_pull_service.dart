@@ -455,6 +455,30 @@ class SyncPullService {
           Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
         ];
 
+  /// ✅ Resumable Full Sync (2026-09-21): استعلام صفحة واحدة من السحب الكامل.
+  ///
+  /// يبني استعلامات صفحة واحدة (لا حلقة ترقيم داخلية — المتصل
+  /// [UnifiedPullEngine] يدير الحلقة بنفسه ليطبّق كل صفحة قبل جلب التالية):
+  ///   - `orderAsc($id)` — ترتيب حتمي عبر الصفحات (شرط cursorAfter).
+  ///   - `limit(pageSize)` — صفحة واحدة.
+  ///   - `cursorAfter(cursor)` — استئناف بعد آخر `$id` تم تطبيقه.
+  ///
+  /// [baseQueries] عادة ناتج [buildFullSyncQueries] (فلتر tombstones أو لا).
+  static List<String> buildFullSyncPageQueries({
+    required List<String> baseQueries,
+    required String? cursor,
+    required int pageSize,
+  }) {
+    final queries = List<String>.from(baseQueries);
+    // ترتيب ثابت بـ $id مطلوب في كل صفحة (متطلب cursor pagination).
+    queries.add(Query.orderAsc(r'$id'));
+    queries.add(Query.limit(pageSize));
+    if (cursor != null && cursor.isNotEmpty) {
+      queries.add(Query.cursorAfter(cursor));
+    }
+    return queries;
+  }
+
   /// كيانات "الآباء" المرجعية التي يجب سحب tombstones الخاصة بها حتى على
   /// جهاز جديد، لأن أبناءها (سجلات مالية) يُحلّ FK ضدّها عبر serverId.
   ///

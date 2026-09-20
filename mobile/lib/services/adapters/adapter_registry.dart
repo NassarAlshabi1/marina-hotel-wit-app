@@ -29,6 +29,11 @@ import 'shift_notes_adapter.dart';
 class AdapterRegistry {
   AdapterRegistry._(this.db)
     : resolver = IdResolver(db),
+      // ✅ Resumable Full Sync (2026-09-21): نفس نسخة IdResolver تُشارك بين
+      // NightsAdapter (حل FK لكل ليلة) والمدير (بناء فهرس الحجوزات الجماعي
+      // قبل الدفعة) — قبل هذا كان لكل adapter نسخته الخاصة فلا يمكن تفعيل
+      // الفهرس O(1) لمسار الدفعات الكبيرة.
+      nightsResolver = IdResolver(db),
       bookings = BaseRepository<Booking, BookingsCompanion>(
         db: db,
         table: db.bookings,
@@ -54,11 +59,7 @@ class AdapterRegistry {
         table: db.rooms,
         adapter: RoomsAdapter(IdResolver(db)),
       ),
-      nights = BaseRepository<BookingNight, BookingNightsCompanion>(
-        db: db,
-        table: db.bookingNights,
-        adapter: NightsAdapter(IdResolver(db)),
-      ),
+      // ✅ nights يُهيّأ في جسم المُنشئ (يشارك nightsResolver) — انظر أسفل.
       employees = BaseRepository<Employee, EmployeesCompanion>(
         db: db,
         table: db.employees,
@@ -142,7 +143,16 @@ class AdapterRegistry {
             db: db,
             table: db.inventoryTransactions,
             adapter: InventoryTransactionsAdapter(IdResolver(db)),
-          );
+          ) {
+    // ✅ Resumable Full Sync (2026-09-21): nights يُهيّأ في جسم المُنشئ لأن
+    // قائمة التهيئة لا تستطيع مرجعية nightsResolver (حقل instance) — ونحن
+    // نحتاج مشاركة نفس النسخة بين المُنشئ هنا وبين NightsAdapter.
+    nights = BaseRepository<BookingNight, BookingNightsCompanion>(
+      db: db,
+      table: db.bookingNights,
+      adapter: NightsAdapter(nightsResolver),
+    );
+  }
 
   static AdapterRegistry? _instance;
 
@@ -171,6 +181,11 @@ class AdapterRegistry {
 
   final AppDatabase db;
   final IdResolver resolver;
+
+  /// ✅ Resumable Full Sync: المُختبِر المشترك مع [NightsAdapter] — يتيح
+  /// بناء فهرس الحجوزات مرة واحدة (buildBookingIndex) قبل معالجة دفعة
+  /// ليالٍ كاملة ثم مسحه (clearBookingIndex) في finally.
+  final IdResolver nightsResolver;
   final BaseRepository<Booking, BookingsCompanion> bookings;
   final BaseRepository<Payment, PaymentsCompanion> payments;
   final BaseRepository<Expense, ExpensesCompanion> expenses;

@@ -7,6 +7,75 @@ class IdResolver {
   IdResolver(this.db);
   final AppDatabase db;
 
+  // ─────────────────────────────────────────────────────────────────────
+  // ✅ Bulk Booking Index (2026-09-21) — إصلاح P0 لأداء سحب booking_nights.
+  //
+  // كان resolveBooking يستهلك حتى 4 استعلامات SELECT لكل ليلة مسحوبة
+  // (exact uuid / normalized / stripped / serverId) — 5000 ليلة ≈ 10,000+
+  // استعلام متسلسل على جهاز ضعيف. الفهرس يحمّل جدول bookings (صغير —
+  // مئات إلى آلاف الصفوف) في الذاكرة استعلاماً واحداً ويجعل الحل O(1).
+  //
+  // دورة الحياة: يُبنى في بداية _syncBookingNights ويُمسح في finally —
+  // المزامنة مُسلسلة عبر SyncLocks.appwriteSyncLock فلا سباق. عند غياب
+  // الفهرس تعمل الدوال بمسار SQL الأصلي (توافق خلفي كامل).
+  // ─────────────────────────────────────────────────────────────────────
+  Map<String, int>? _bookingExactIndex;
+  Map<String, int>? _bookingNormalizedIndex;
+  Map<String, int>? _bookingStrippedIndex;
+  Map<int, int>? _bookingServerIdIndex;
+
+  /// هل الفهرس مبني حالياً؟ (تشخيص/اختبارات)
+  bool get hasBookingIndex => _bookingExactIndex != null;
+
+  /// يبني فهرس الحجوزات في الذاكرة (استعلام واحد).
+  ///
+  /// يُستدعى قبل حلقة معالجة دفعة ليالٍ كبيرة. خيارات المطابقة الثلاث
+  /// للـ UUID (كما هو / بالشرطات / بدون شرطات) تُفهرس مسبقاً لأن بيانات
+  /// الإنتاج تحوي الصيغتين (legacy بلا شرطات من Drive/backup قديم).
+  Future<void> buildBookingIndex() async {
+    // selectOnly + addColumns: نحمّل 3 أعمدة فقط (uuid/serverId/id) — لا
+    // صفوف كاملة — استعلام واحد مهما كان حجم الدفعة اللاحقة.
+    final query = db.selectOnly(db.bookings)
+      ..addColumns(
+        db.bookings.localUuid,
+        db.bookings.serverBookingId,
+        db.bookings.id,
+      );
+    final rows = await query.get();
+    final exact = <String, int>{};
+    final normalized = <String, int>{};
+    final stripped = <String, int>{};
+    final byServerId = <int, int>{};
+    for (final row in rows) {
+      final uuid = row.read(db.bookings.localUuid) ?? '';
+      final id = row.read(db.bookings.id)!;
+      if (uuid.isEmpty) continue;
+      exact[uuid] = id;
+      normalized.putIfAbsent(normalizeUuid(uuid), () => id);
+      final strip = stripDashes(uuid);
+      if (strip.length == 32) {
+        stripped.putIfAbsent(strip, () => id);
+      }
+      final sid = row.read(db.bookings.serverBookingId);
+      if (sid != null) {
+        byServerId.putIfAbsent(sid, () => id);
+      }
+    }
+    _bookingExactIndex = exact;
+    _bookingNormalizedIndex = normalized;
+    _bookingStrippedIndex = stripped;
+    _bookingServerIdIndex = byServerId;
+  }
+
+  /// يمسح الفهرس (يُستدعى في finally بعد انتهاء الدفعة — يحرر الذاكرة
+  /// على أجهزة 1GB).
+  void clearBookingIndex() {
+    _bookingExactIndex = null;
+    _bookingNormalizedIndex = null;
+    _bookingStrippedIndex = null;
+    _bookingServerIdIndex = null;
+  }
+
   /// يحوّل UUID إلى الصيغة القياسية (بالشرطات).
   /// إذا كان 32 حرف بدون شرطات، يضيف الشرطات.
   /// إذا كان بالشرطات بالفعل، يُرجعه كما هو.
@@ -32,6 +101,33 @@ class IdResolver {
     String? uuid,
     bool fromRemote = false,
   }) async {
+    // ✅ مسار الفهرس (O(1)): نفس ترتيب الأولويات كمسار SQL بالضبط —
+    // exact uuid → normalized → stripped → serverId → (localId محلي فقط).
+    // أولوية putIfAbsent أعلاه = أول مطابقة (id أصغر) — مطابق لسلوك
+    // ..limit(1) بدون ORDER BY في المسار الأصلي (تكرارات نادرة).
+    if (_bookingExactIndex != null) {
+      if (uuid != null && uuid.isNotEmpty) {
+        final exact = _bookingExactIndex![uuid];
+        if (exact != null) return exact;
+        final normalized = _bookingNormalizedIndex![normalizeUuid(uuid)];
+        if (normalized != null) return normalized;
+        final stripped = stripDashes(uuid);
+        if (stripped.length == 32) {
+          final hit = _bookingStrippedIndex![stripped];
+          if (hit != null) return hit;
+        }
+      }
+      if (serverId != null) {
+        final hit = _bookingServerIdIndex![serverId];
+        if (hit != null) return hit;
+      }
+      // localId من جهاز بعيد ممنوع (نفس قرار المسار الأصلي أدناه).
+      if (localId != null && !fromRemote) {
+        if (_bookingExactIndex!.values.contains(localId)) return localId;
+      }
+      return null;
+    }
+
     if (uuid != null && uuid.isNotEmpty) {
       // ✅ إصلاح حرج: محاولة كلا صيغتي UUID (بالشرطات وبدون)
       // المشكلة: بعض السجلات على Appwrite Cloud مخزّنة بـ UUID بدون شرطات
