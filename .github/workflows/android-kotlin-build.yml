@@ -90,7 +90,12 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: marina-test-results
+          # mobile/android/build.gradle redirects every subproject buildDir to
+          # <rootProject.buildDir>/<projectName>, i.e. mobile/build/app — not
+          # the AGP default mobile/android/app/build.
           path: |
+            mobile/build/app/test-results
+            mobile/build/app/reports/tests
             mobile/android/app/build/test-results
             mobile/android/app/build/reports/tests
           if-no-files-found: warn
