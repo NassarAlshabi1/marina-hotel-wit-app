@@ -304,13 +304,20 @@ jobs:
         run: |
           set -e
           export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          # Pin the AVD home explicitly: ubuntu runner env scatters .android
+          # across ANDROID_PREFS_ROOT/ANDROID_SDK_HOME and avdmanager+emulator
+          # disagreed on where to look.
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd \
             --force -n marina-test --package 'system-images;android-30;default;x86_64'
+          ls -la "$ANDROID_AVD_HOME"
 
       - name: Boot emulator (TCG) and launch both APKs
         run: |
           set -x
           export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
           export PATH="$ANDROID_HOME/platform-tools:$PATH"
 
           # Boot in the background with TCG software acceleration (no KVM on
