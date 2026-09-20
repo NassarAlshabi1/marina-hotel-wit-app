@@ -277,6 +277,18 @@ jobs:
           name: marina-hotel-release-unminified-apk
           path: apk-unminified
 
+      # A/B root-cause evidence: the APK built with the OLD proguard rules
+      # (pre hardening) from the pinned earlier run. If THIS one crashes on
+      # the emulator while the current minified one runs, the R8 hypothesis
+      # is proven with a captured stack trace.
+      - name: Download legacy-rules release APK (pre-fix build)
+        uses: actions/download-artifact@v4
+        with:
+          name: marina-hotel-release-apk
+          path: apk-legacy
+          run-id: 35475589246
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install emulator + ARM64 system image
         run: |
           set -e
@@ -298,14 +310,23 @@ jobs:
           export ANDROID_HOME="${ANDROID_HOME:-/Users/runner/Library/Android/sdk}"
           export PATH="$ANDROID_HOME/platform-tools:$PATH"
 
-          # Boot in the background with software acceleration (TCG).
+          # Boot in the background with FORCED TCG software acceleration.
+          # (-no-accel alone was insufficient: the emulator wrapper still let
+          # qemu try HVF, which GitHub macOS runners do not expose.)
           nohup "$ANDROID_HOME/emulator/emulator" -avd marina-test -port 5554 \
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim \
-            -no-snapshot -no-accel > "$EMU_LOG" 2>&1 &
+            -no-snapshot -no-metrics -qemu -accel tcg,thread=multi > "$EMU_LOG" 2>&1 &
+          EMU_PID=$!
+          echo "$EMU_PID" > emu.pid
 
-          # Wait up to 30 minutes for full boot.
+          # Wait up to 30 minutes for full boot; fail fast if qemu dies.
           BOOTED=0
           for i in $(seq 1 180); do
+            if ! kill -0 "$EMU_PID" 2>/dev/null; then
+              echo "::error::emulator process died early"
+              tail -80 "$EMU_LOG"
+              exit 1
+            fi
             BOOT="$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
             if [ "$BOOT" = "1" ]; then
               echo "EMULATOR BOOTED after ~$((i*10))s"
@@ -347,14 +368,20 @@ jobs:
             adb -s emulator-5554 uninstall com.a.a || true
           }
 
+          install_and_launch legacy apk-legacy/app-release.apk || true
           install_and_launch minified apk-minified/app-release.apk
           install_and_launch unminified apk-unminified/app-release.apk
 
+          # 'legacy' crashing is EXPECTED EVIDENCE (that is the user's build);
+          # it must not abort the run before the other variants are tested.
           if [ -s crash-minified.txt ] || [ -s crash-unminified.txt ]; then
-            echo "::error::APP CRASH DETECTED — see emulator-launch-logs artifact"
+            echo "::error::CURRENT BUILD CRASHES — see emulator-launch-logs artifact"
             exit 1
           fi
-          echo "BOTH VARIANTS LAUNCHED SUCCESSFULLY"
+          if [ -s crash-legacy.txt ]; then
+            echo "ROOT-CAUSE PROVEN: legacy-rules APK crashes, current build runs"
+          fi
+          echo "ALL CURRENT VARIANTS LAUNCHED SUCCESSFULLY"
 
       - name: Upload emulator logs
         if: always()
