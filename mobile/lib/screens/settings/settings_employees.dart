@@ -8,6 +8,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../services/repositories/employees_repository.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/english_digits_input_formatter.dart';
@@ -1721,6 +1722,31 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     WidgetRef ref,
     Employee employee,
   ) async {
+    // ✅ (2026-09-21) حارس التاريخ المالي — «لفصل موظف استخدم «إنهاء
+    // الخدمة» من التطبيق (تغيّر الحالة فقط)؛ أما الحذف فيتيّم تاريخه
+    // المالي على بقية الأجهزة». خط الدفاع الأول في التطبيق (الرفض
+    // النهائي عند worker/sync.ts — عقد الربط نفسه): موظف بلا أي تاريخ
+    // مالي يبقى قابلاً للحذف (تنظيف إدخال خاطئ حديث).
+    final repo = ref.read(employeesRepoProvider);
+    final history = await repo.financialHistoryCount(
+      id: employee.id,
+      localUuid: employee.localUuid,
+    );
+    if (!context.mounted) return;
+    if (history.blocksDeletion) {
+      final goTerminate = await _showDeleteBlockedDialog(
+        context: context,
+        employee: employee,
+        history: history,
+      );
+      if (goTerminate == true &&
+          context.mounted &&
+          StatusUtils.isEmployeeActive(employee.status)) {
+        _showTerminateDialog(context, ref, employee);
+      }
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => Directionality(
@@ -1765,7 +1791,6 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     if (confirm != true) return;
 
     try {
-      final repo = ref.read(employeesRepoProvider);
       await repo.delete(employee.id);
       // ✅ رفع فوري لحذف موظف إلى Appwrite Cloud.
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
@@ -1789,6 +1814,100 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         );
       }
     }
+  }
+
+  /// ✅ (2026-09-21) حوار منع حذف موظف له تاريخ مالي — يوجّه إلى
+  /// «إنهاء الخدمة» (تغيير الحالة فقط). يعيد true إن طلب المستخدم فتح
+  /// حوار الإنهاء مباشرة.
+  Future<bool> _showDeleteBlockedDialog({
+    required BuildContext context,
+    required Employee employee,
+    required EmployeeFinancialHistory history,
+  }) async {
+    final details = <Widget>[
+      if (history.isKnown) ...[
+        Text(
+          'لدى "${employee.name}" تاريخ مالي مرتبط '
+          '(${history.total} سجل):',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        if (history.withdrawals > 0)
+          Text('• سحوبات رواتب: ${history.withdrawals}'),
+        if (history.cycles > 0)
+          Text('• دورات رواتب: ${history.cycles}'),
+        if (history.payments > 0)
+          Text('• مدفوعات رواتب: ${history.payments}'),
+        if (history.carryOvers > 0)
+          Text('• ترحيلات راتب: ${history.carryOvers}'),
+        if (history.expenses > 0)
+          Text('• مصروفات مرتبطة: ${history.expenses}'),
+        const SizedBox(height: 12),
+      ],
+      const Text(
+        'حذف الموظف يتيّم تاريخه المالي على بقية الأجهزة ويُعلّق '
+        'مزامنة سحوباته إلى الأبد.\n\n'
+        'لفصل الموظف استخدم «إنهاء الخدمة» — يغيّر الحالة فقط ويحفظ '
+        'كامل سجله المالي واستحقاقاته.',
+        style: TextStyle(fontSize: 13),
+      ),
+    ];
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.verified_user_outlined,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'لا يمكن حذف الموظف',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: details,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('إلغاء'),
+                ),
+                if (StatusUtils.isEmployeeActive(employee.status))
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('إنهاء الخدمة'),
+                  ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
   }
 
   Future<void> _toggleEmployeeStatus(

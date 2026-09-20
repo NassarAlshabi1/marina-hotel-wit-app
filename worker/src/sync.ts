@@ -371,6 +371,31 @@ export async function handlePush(
           }
           case 'delete': {
             entityId = requireEntityId(op.data);
+            // ✅ (2026-09-21) حارس يتيم الموظفين — «لفصل موظف استخدم
+            // «إنهاء الخدمة» من التطبيق (تغيّر الحالة فقط)؛ أما الحذف
+            // فيتيّم تاريخه المالي على بقية الأجهزة». رفض دائم
+            // (validation_error): العميل يضعه في dead-letter فوراً بدل
+            // إعادة دفعه للأبد (عقد fix M4). حذف موظف بلا أي تاريخ
+            // مالي يبقى ممكناً (تنظيف إدخال خاطئ حديث).
+            if (op.entity === 'employees') {
+              const history = await db.employeeFinancialHistoryCount(entityId);
+              const historyTotal = history
+                ? Object.values(history).reduce((a, b) => a + b, 0)
+                : 0;
+              if (historyTotal > 0) {
+                results.push({
+                  idempotencyKey: op.idempotencyKey || 'unknown',
+                  success: false,
+                  status: 'validation_error',
+                  error:
+                    `حذف الموظف مرفوض: يشير إليه تاريخ مالي ` +
+                    `(${historyTotal} سجل — ${JSON.stringify(history)}) — ` +
+                    `استخدم «إنهاء الخدمة» من التطبيق (تغيير الحالة ` +
+                    `فقط)؛ الحذف يتيّم تاريخه المالي على بقية الأجهزة`,
+                });
+                continue;
+              }
+            }
             await db.deleteRecord(op.entity, entityId, opDeviceId(op, ctx));
             break;
           }

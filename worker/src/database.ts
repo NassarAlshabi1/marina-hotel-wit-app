@@ -954,6 +954,66 @@ export class Database {
     return { ...existing, ...cleanUpdate } as SyncRecord;
   }
 
+  // ─── Push: Delete guard — «الحذف يتيّم التاريخ المالي» ──────
+
+  /**
+   * ✅ (2026-09-21) حارس يتيم الموظفين — «لفصل موظف استخدم إنهاء
+   * الخدمة من التطبيق (تغيّر الحالة فقط)؛ أما الحذف فيتيّم تاريخه
+   * المالي على بقية الأجهزة».
+   *
+   * الجذر: tombstone الأب يُسلَّم للأجهزة الجديدة كصف no-op فلا
+   * يُبنى لها ظل server_id المحلي — فتعلّق أبناؤه الأحياء إلى الأبد
+   * (حذف ستة موظفين خادمياً في 2026-09 علّق 299 سحباً حياً، ومنها
+   * الـ 100 المُبلَّغ عنها في sync:pull-apply).
+   *
+   * عقد الربط = عقد ai.ts (EMPLOYEE_SALARY_EXPENSE_JOIN):
+   * - employee_uuid أولاً — dash-insensitive (الإنتاج يحوي الشكلين).
+   * - المسك الرقمي (employee_id/related_id = e.id) سقوطٌ فقط للصفوف
+   *   التي لا تحمل uuid (تسبق ترحيلات 0006/0007).
+   * - expenses: related_id متعدد الدلالة → مسكه الرقمي يُعتمد فقط مع
+   *   أنواع المصروفات المرتبطة بالموظف (نفس قائمة ai.ts — دونها
+   *   يحجب حجزُ غرفةٍ عابرٌ الحذفَ بمجرد تطابق رقمي).
+   * - tombstones تُحتسب: التاريخ المحذوف ناعماً قابلٌ للإحياء (رفعنا
+   *   حذف الستة في 2026-09-20 بلا أي فقد).
+   *
+   * @returns خريطة عدد السجلات المالية لكل جدول، أو null إن لم يوجد
+   * الموظف أصلاً (حذفه حينها no-op — انظر deleteRecord).
+   */
+  async employeeFinancialHistoryCount(
+    employeeUuid: string
+  ): Promise<Record<string, number> | null> {
+    const dashless = String(employeeUuid).replace(/-/g, '');
+    // أنواع المصروفات المرتبطة بالموظف — طبق الأصل من ai.ts
+    // (SALARY_EXPENSE_TYPES_ALL) — أبقِ القائمتين متطابقتين.
+    const salaryExpenseTypes = [
+      'رواتب', 'سحب راتب', 'سحب من الراتب', 'سلفة',
+      'خصم من الراتب', 'خصم راتب', 'خصم', 'غياب',
+    ];
+    const typeList = salaryExpenseTypes.map(() => '?').join(',');
+    return await this.db
+      .prepare(
+        `SELECT
+          (SELECT COUNT(*) FROM salary_withdrawals w WHERE
+             (w.employee_uuid IS NOT NULL AND REPLACE(w.employee_uuid,'-','') = ?)
+          OR (w.employee_uuid IS NULL AND w.employee_id = e.id)) AS withdrawals,
+          (SELECT COUNT(*) FROM salary_cycles c WHERE
+             (c.employee_uuid IS NOT NULL AND REPLACE(c.employee_uuid,'-','') = ?)
+          OR (c.employee_uuid IS NULL AND c.employee_id = e.id)) AS cycles,
+          (SELECT COUNT(*) FROM salary_payments p WHERE
+             p.employee_uuid IS NOT NULL AND REPLACE(p.employee_uuid,'-','') = ?) AS payments,
+          (SELECT COUNT(*) FROM salary_carry_over_logs k WHERE
+             k.employee_id = e.id) AS carryovers,
+          (SELECT COUNT(*) FROM expenses x WHERE
+             (x.employee_uuid IS NOT NULL AND REPLACE(x.employee_uuid,'-','') = ?)
+          OR (x.employee_uuid IS NULL AND x.related_id = e.id
+              AND TRIM(x.expense_type) IN (${typeList}))) AS expenses
+        FROM employees e
+        WHERE REPLACE(e.local_uuid,'-','') = ?`
+      )
+      .bind(dashless, dashless, dashless, dashless, ...salaryExpenseTypes, dashless)
+      .first<Record<string, number>>();
+  }
+
   // ─── Push: Delete (soft delete) ────────────────────────────
 
   async deleteRecord(

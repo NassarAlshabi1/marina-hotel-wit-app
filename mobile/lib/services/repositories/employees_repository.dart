@@ -407,6 +407,87 @@ class EmployeesRepository {
     }
   }
 
+  /// ✅ (2026-09-21) عدّاد التاريخ المالي للموظف — «لفصل موظف استخدم
+  /// «إنهاء الخدمة» من التطبيق (تغيّر الحالة فقط)؛ أما الحذف فيتيّم
+  /// تاريخه المالي على بقية الأجهزة».
+  ///
+  /// الجذر: حذف ستة موظفين خادمياً في 2026-09 علّق 299 سحباً حياً على
+  /// الأجهزة الجديدة (tombstone الأب يُسلَّم no-op فلا يُبنى ظل
+  /// server_id فتؤجَّل أبناؤه للأبد — انظر حارس الرفض الدائم في
+  /// worker/src/sync.ts لعقد التطابق).
+  ///
+  /// هذا هو خط الدفاع الأول في التطبيق: قبل أي حذف موظف تُفحص الجداول
+  /// الخمسة الحاملة لتاريخه. عقد الربط مطابق للخادم (employee_uuid
+  /// أولاً — dash-insensitive لأن الإنتاج يحوي الشكلين — ثم المسك الرقمي
+  /// employee_id/related_id = e.id سقوطاً للصفوف عديمة uuid، ومسك
+  /// expenses الرقمي يُعتمد فقط مع أنواع المصروفات المرتبطة
+  /// بالموظف — دونها يحجب حجزُ غرفةٍ عابرٌ الحذفَ بمجرد تطابق رقمي).
+  /// الـ tombstones تُحتسب: التاريخ المحذوف ناعماً قابل للإحياء.
+  ///
+  /// أبداً لا ترمي — الفشل يُعاد كـ [EmployeeFinancialHistory.unknown]
+  /// فيُمنع الحذف احتياطاً (الاتجاه الآمن؛ الرفض النهائي مسؤولية الخادم).
+  Future<EmployeeFinancialHistory> financialHistoryCount({
+    required int id,
+    required String localUuid,
+  }) async {
+    final dashless = localUuid.replaceAll('-', '');
+    final types = _employeeLinkedExpenseTypes.toList(growable: false);
+    final typeHolders = List.filled(types.length, '?').join(',');
+    try {
+      final rows = await db
+          .customSelect(
+            'SELECT '
+            '(SELECT COUNT(*) FROM salary_withdrawals w WHERE '
+            '   (w.employee_uuid IS NOT NULL AND REPLACE(w.employee_uuid, \'-\', \'\') = ?) '
+            'OR (w.employee_uuid IS NULL AND w.employee_id = e.id)) AS withdrawals, '
+            '(SELECT COUNT(*) FROM salary_cycles c WHERE '
+            '   (c.employee_uuid IS NOT NULL AND REPLACE(c.employee_uuid, \'-\', \'\') = ?) '
+            'OR (c.employee_uuid IS NULL AND c.employee_id = e.id)) AS cycles, '
+            '(SELECT COUNT(*) FROM salary_payments p WHERE '
+            '   p.employee_uuid IS NOT NULL '
+            '    AND REPLACE(p.employee_uuid, \'-\', \'\') = ?) AS payments, '
+            '(SELECT COUNT(*) FROM salary_carry_over_logs k WHERE '
+            '   k.employee_id = e.id) AS carryovers, '
+            '(SELECT COUNT(*) FROM expenses x WHERE '
+            '   (x.employee_uuid IS NOT NULL AND REPLACE(x.employee_uuid, \'-\', \'\') = ?) '
+            'OR (x.employee_uuid IS NULL AND x.related_id = e.id '
+            '    AND TRIM(x.expense_type) IN ($typeHolders))) AS expenses '
+            'FROM employees e WHERE e.id = ?',
+            variables: [
+              d.Variable.withString(dashless),
+              d.Variable.withString(dashless),
+              d.Variable.withString(dashless),
+              d.Variable.withString(dashless),
+              ...types.map(d.Variable.withString),
+              d.Variable.withInt(id),
+            ],
+          )
+          .get();
+      if (rows.isEmpty) {
+        // الموظف نفسه غير موجود محلياً — لا صف، لا تاريخ معلوم
+        return const EmployeeFinancialHistory.unknown();
+      }
+      final row = rows.first;
+      return EmployeeFinancialHistory(
+        withdrawals: row.read<int>('withdrawals'),
+        cycles: row.read<int>('cycles'),
+        payments: row.read<int>('payments'),
+        carryOvers: row.read<int>('carryovers'),
+        expenses: row.read<int>('expenses'),
+      );
+    } catch (e, stack) {
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'EmployeesRepository',
+        action: 'financialHistoryCount',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.warning,
+        extra: {'employeeId': '$id'},
+      );
+      return const EmployeeFinancialHistory.unknown();
+    }
+  }
+
   // دوال النسخ الاحتياطي
 
   /// تصدير بيانات الموظفين
@@ -435,4 +516,53 @@ class EmployeesRepository {
   Future<int> getRecordCount() async {
     return dao.getRecordCount();
   }
+}
+
+/// ✅ (2026-09-21) نتيجة فحص التاريخ المالي للموظف قبل الحذف —
+/// عدّادات لكل جدول مرتبط + [total]. انظر التوثيق الكامل على
+/// [EmployeesRepository.financialHistoryCount].
+///
+/// عند تعذر الفحص تُعاد النسخة المصنع عليها [unknown] (isKnown=false)
+/// ويمنع [blocksDeletion] الحذف احتياطاً — الاتجاه الآمن دائماً:
+/// تعذّر التحقق لا يبرر تيتم التاريخ المالي على بقية الأجهزة.
+class EmployeeFinancialHistory {
+  const EmployeeFinancialHistory({
+    required this.withdrawals,
+    required this.cycles,
+    required this.payments,
+    required this.carryOvers,
+    required this.expenses,
+    this.isKnown = true,
+  });
+
+  const EmployeeFinancialHistory.unknown()
+    : withdrawals = 0,
+      cycles = 0,
+      payments = 0,
+      carryOvers = 0,
+      expenses = 0,
+      isKnown = false;
+
+  /// سحوبات رواتب (salary_withdrawals)
+  final int withdrawals;
+
+  /// دورات رواتب (salary_cycles)
+  final int cycles;
+
+  /// مدفوعات رواتب (salary_payments)
+  final int payments;
+
+  /// ترحيلات راتب (salary_carry_over_logs)
+  final int carryOvers;
+
+  /// مصروفات مرتبطة بالموظف (expenses)
+  final int expenses;
+
+  /// false = تعذر الفحص (فشل الاستعلام أو غياب الموظف محلياً)
+  final bool isKnown;
+
+  int get total => withdrawals + cycles + payments + carryOvers + expenses;
+
+  /// هل يُمنع الحذف؟ — يوجد تاريخ مرتبط، أو تعذّر التحقق أصلاً.
+  bool get blocksDeletion => !isKnown || total > 0;
 }
