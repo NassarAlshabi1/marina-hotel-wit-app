@@ -1180,13 +1180,11 @@ class AppwriteService {
   ) async {
     final db = _secondaryDb;
     // ignore: deprecated_member_use
-    final result = await db
-        .listDocuments(
-          databaseId: SecondaryAppwriteConfig.databaseId,
-          collectionId: collectionId,
-          queries: queries,
-        )
-        .timeout(const Duration(seconds: 30));
+    final result = await db.listDocuments(
+      databaseId: SecondaryAppwriteConfig.databaseId,
+      collectionId: collectionId,
+      queries: queries,
+    ).timeout(const Duration(seconds: 30));
     return result.documents;
   }
 

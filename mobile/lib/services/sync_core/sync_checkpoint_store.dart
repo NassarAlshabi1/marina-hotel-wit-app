@@ -245,6 +245,11 @@ class SyncCheckpointStore {
   /// يُنهي السحب الكامل: يثبّت مؤشر Delta من أقصى `$updatedAt` مُشاهد ويُعلن
   /// الاكتمال ويمسح حالة التقدّم.
   ///
+  /// ✅ (2026-09-21) UPSERT بدل UPDATE: الاستدعاء قبل أي bump/cursor
+  /// (مثلاً أول صفحة ناقصة بكل $updatedAt غير مقروء) لم يكن ينشئ صفاً —
+  /// فلا يُعلن الاكتمال أبداً وتظل المجموعة في وضع Full كل دورة. UPSERT
+  /// يخلق الصف عند غيابه ويُبقي الدالة idempotent.
+  ///
   /// إذا كان `maxUpdatedSec <= 0` (لا مستندات أو $updatedAt غير قابل للقراءة
   /// في كل الصفحات) نُعلن الاكتمال فقط دون مؤشر — الدورة التالية ترى
   /// `sinceTs <= 0` فتُعيد وضع Full (استعلام فارغ رخيص) — نفس دلالات
@@ -256,19 +261,30 @@ class SyncCheckpointStore {
     await _ensureTable();
     if (maxUpdatedSec > 0) {
       await db.customStatement(
-        'UPDATE $tableName SET '
-        'last_pull_ts = ?, full_sync_complete = 1, '
-        'full_sync_cursor = NULL, full_sync_max_updated = 0, updated_at = ? '
-        'WHERE collection_name = ?',
-        [maxUpdatedSec, _nowSec(), collectionName],
+        'INSERT INTO $tableName '
+        '(collection_name, last_pull_ts, full_sync_complete, '
+        'full_sync_cursor, full_sync_max_updated, updated_at) '
+        'VALUES (?, ?, 1, NULL, 0, ?) '
+        'ON CONFLICT(collection_name) DO UPDATE SET '
+        'last_pull_ts = excluded.last_pull_ts, '
+        'full_sync_complete = 1, '
+        'full_sync_cursor = NULL, '
+        'full_sync_max_updated = 0, '
+        'updated_at = excluded.updated_at',
+        [collectionName, maxUpdatedSec, _nowSec()],
       );
     } else {
       await db.customStatement(
-        'UPDATE $tableName SET '
-        'full_sync_complete = 1, full_sync_cursor = NULL, '
-        'full_sync_max_updated = 0, updated_at = ? '
-        'WHERE collection_name = ?',
-        [_nowSec(), collectionName],
+        'INSERT INTO $tableName '
+        '(collection_name, last_pull_ts, full_sync_complete, '
+        'full_sync_cursor, full_sync_max_updated, updated_at) '
+        'VALUES (?, 0, 1, NULL, 0, ?) '
+        'ON CONFLICT(collection_name) DO UPDATE SET '
+        'full_sync_complete = 1, '
+        'full_sync_cursor = NULL, '
+        'full_sync_max_updated = 0, '
+        'updated_at = excluded.updated_at',
+        [collectionName, _nowSec()],
       );
     }
   }

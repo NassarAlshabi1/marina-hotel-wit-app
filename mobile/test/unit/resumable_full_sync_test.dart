@@ -180,7 +180,7 @@ void main() {
         pageSize: 100,
       );
       expect(queries.where((q) => q.contains('orderAsc')).length, 1,
-          reason: 'ترتيب $id مطلوب في كل صفحة');
+          reason: 'ترتيب \$id مطلوب في كل صفحة');
       expect(queries.where((q) => q.contains('"limit"') || q.contains('limit')).length, 1);
       expect(queries.where((q) => q.contains('cursorAfter')), isEmpty);
       // فلتر tombstones من القاعدة محفوظ.
@@ -272,8 +272,15 @@ void main() {
             throw Exception('network timeout — weak internet');
           }
           final start = cursor != null ? int.parse(cursor.split('-').last) : 0;
+          // المجموعة محدودة (450 مستنداً) — الصفحة الأخيرة ناقصة (50) وهي
+          // التي تُنهي السحب التدفقي؛ مولّد لا نهائي كان يُشغّل صمام 5000
+          // صفحة ويُفشل المهمة في الدورة الثانية خطأً.
+          const totalDocs = 450;
+          final remaining = totalDocs - start;
+          if (remaining <= 0) return const <models.Document>[];
+          final count = remaining < 100 ? remaining : 100;
           return List.generate(
-            100,
+            count,
             (i) => _doc('doc-${start + i + 1}', <String, dynamic>{
               'localUuid': 'night-${start + i + 1}',
               'lastModified': 1700000000 + start + i,
@@ -353,7 +360,7 @@ void main() {
       expect(
         await checkpoints.isFullSyncComplete('rooms'),
         isTrue,
-        reason: 'commit الكلاسيكي: setLastPullTs(max $updatedAt) يعلن '
+        reason: 'commit الكلاسيكي: setLastPullTs(max \$updatedAt) يعلن '
             'الاكتمال كما قبل التعديل',
       );
     });

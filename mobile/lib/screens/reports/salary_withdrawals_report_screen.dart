@@ -67,6 +67,16 @@ class _EmployeeSalaryGroup {
   int txCount = 0;
 }
 
+/// ✅ (2026-09-21) اسم الموظف للعرض في التقارير — المحذوف ناعماً يظهر
+/// باسمه الحقيقي مع وسم "(محذوف)" بدل "غير محدد":
+/// السحوبات التاريخية المرتبطة به يجب أن تظل قابلة للقراءة في التقارير
+/// و PDF، مع تمييز واضح أنه غير نشط (حتى لا يبدو خطأً في البيانات).
+/// [fallback] نص بديل عندما لا يمكن حل الموظف إطلاقاً (صف مفقود محلياً).
+String _employeeDisplayName(Employee? e, {String fallback = 'غير محدد'}) {
+  if (e == null) return fallback;
+  return e.deletedAt == null ? e.name : '${e.name} (محذوف)';
+}
+
 class SalaryWithdrawalsReportScreen extends ConsumerStatefulWidget {
   const SalaryWithdrawalsReportScreen({super.key});
 
@@ -139,10 +149,14 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   Future<_SalaryReportData> _loadSalaryData(AppDatabase db) async {
-    // جلب كل الموظفين للقائمة المنسدلة
-    final allEmployees = await (db.select(
-      db.employees,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
+    // ✅ (2026-09-21) إصلاح الموظفين المحذوفين في التقارير: كان هذا
+    // الاستعلام يستبعد الموظفين المحذوفين ناعماً (deletedAt IS NULL)، فتُبنى
+    // خريطة الأسماء من النشطين فقط → سحوبات موظف محذوف تظهر باسم
+    // "غير محدد" وتُجمّع تحت مجموعة مجهولة (id=0) رغم أن صف الموظف
+    // موجود محلياً (tombstone يُسحب عبر entityNeedsTombstoneParents) —
+    // السجلات المالية التاريخية يجب أن تحلّ أسماء أصحابها دائماً.
+    // المحذوف يُوسَم في العرض بـ "(محذوف)" — انظر _employeeDisplayName.
+    final allEmployees = await (db.select(db.employees)).get();
     allEmployees.sort((a, b) => a.name.compareTo(b.name));
 
     // جلب سجلات salary_withdrawals مع فلترة التاريخ
@@ -199,7 +213,8 @@ class _SalaryWithdrawalsReportScreenState
 
     final withdrawals = await query.get();
 
-    // بناء خريطة الموظفين
+    // بناء خريطة الموظفين — من **كل** الموظفين (نشطين ومحذوفين ناعماً):
+    // سحوبات الموظف المحذوف يجب أن تحلّ اسمه في التقارير (fix أعلاه).
     final employeeMap = <int, Employee>{};
     for (final emp in allEmployees) {
       employeeMap[emp.id] = emp;
@@ -272,10 +287,9 @@ class _SalaryWithdrawalsReportScreenState
     }
 
     final selectedEmpName = _selectedEmployeeId != null
-        ? _allEmployees
-              .where((e) => e.id == _selectedEmployeeId)
-              .firstOrNull
-              ?.name
+        ? _employeeDisplayName(
+            _allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull,
+          )
         : null;
 
     final headers = _selectedEmployeeId != null
@@ -305,7 +319,7 @@ class _SalaryWithdrawalsReportScreenState
         if (row.description.isNotEmpty) row.description else '-',
       ];
       if (_selectedEmployeeId == null) {
-        cells.add(row.employee?.name ?? 'غير محدد');
+        cells.add(_employeeDisplayName(row.employee));
       }
       dataRows.add(cells);
     }
@@ -514,7 +528,7 @@ class _SalaryWithdrawalsReportScreenState
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      emp.name,
+                                      _employeeDisplayName(emp),
                                       style: const TextStyle(fontSize: 13),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -572,7 +586,7 @@ class _SalaryWithdrawalsReportScreenState
                     Expanded(
                       child: Text(
                         _selectedEmployeeId != null
-                            ? 'سحبيات: ${_allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull?.name ?? ""} — ${filteredRows.length} عملية'
+                            ? 'سحبيات: ${_employeeDisplayName(_allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull, fallback: "")} — ${filteredRows.length} عملية'
                             : 'جميع الموظفين — ${filteredRows.length} عملية',
                         style: TextStyle(
                           fontSize: 12,
@@ -669,7 +683,10 @@ class _SalaryWithdrawalsReportScreenState
 
   /// بطاقة الموظف مع التفاصيل القابلة للتوسيع
   Widget _buildEmployeeCard(_EmployeeSalaryGroup group, {required int rank}) {
-    final empName = group.employee?.name ?? 'موظف غير محدد';
+    final empName = _employeeDisplayName(
+      group.employee,
+      fallback: 'موظف غير محدد',
+    );
 
     return Card(
       elevation: 1,

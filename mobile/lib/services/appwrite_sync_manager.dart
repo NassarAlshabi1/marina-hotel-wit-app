@@ -7351,7 +7351,8 @@ class AppwriteSyncManager {
         // المسار القديم — localData يُبناء فقط عند احتمال تعارض VC فعلي).
         Map<String, dynamic>? localData;
         if (existing != null) {
-          final localVc = existing.vectorClock ?? '{}';
+          // vectorClock عمود NOT NULL (withDefault '{}') — لا حاجة لـ ??.
+          final localVc = existing.vectorClock;
           final remoteVc =
               (data['vectorClock'] as String?) ??
               (data['vector_clock'] as String?) ??

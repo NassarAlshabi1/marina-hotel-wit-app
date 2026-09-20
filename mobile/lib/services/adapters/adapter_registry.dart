@@ -186,12 +186,17 @@ class AdapterRegistry {
   /// بناء فهرس الحجوزات مرة واحدة (buildBookingIndex) قبل معالجة دفعة
   /// ليالٍ كاملة ثم مسحه (clearBookingIndex) في finally.
   final IdResolver nightsResolver;
+
+  /// ✅ Resumable Full Sync: يُهيّأ `late final` في جسم المُنشئ لأن قائمة
+  /// التهيئة لا تستطيع قراءة حقل instance (nightsResolver) أثناء البناء —
+  /// Dart يمنع `this` في initializer list. التعيين مرة واحدة في الجسم
+  /// قانوني لـ late final، وهو أقدم من أي استخدام للمخزن.
+  late final BaseRepository<BookingNight, BookingNightsCompanion> nights;
   final BaseRepository<Booking, BookingsCompanion> bookings;
   final BaseRepository<Payment, PaymentsCompanion> payments;
   final BaseRepository<Expense, ExpensesCompanion> expenses;
   final BaseRepository<Debt, DebtsCompanion> debts;
   final BaseRepository<Room, RoomsCompanion> rooms;
-  final BaseRepository<BookingNight, BookingNightsCompanion> nights;
   final BaseRepository<Employee, EmployeesCompanion> employees;
   final BaseRepository<SalaryCycle, SalaryCyclesCompanion> salaryCycles;
   final BaseRepository<SalaryPayment, SalaryPaymentsCompanion> salaryPayments;

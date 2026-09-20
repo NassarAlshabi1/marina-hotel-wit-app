@@ -36,11 +36,11 @@ class IdResolver {
     // selectOnly + addColumns: نحمّل 3 أعمدة فقط (uuid/serverId/id) — لا
     // صفوف كاملة — استعلام واحد مهما كان حجم الدفعة اللاحقة.
     final query = db.selectOnly(db.bookings)
-      ..addColumns(
+      ..addColumns([
         db.bookings.localUuid,
         db.bookings.serverBookingId,
         db.bookings.id,
-      );
+      ]);
     final rows = await query.get();
     final exact = <String, int>{};
     final normalized = <String, int>{};
