@@ -14,6 +14,13 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath "com.google.dagger:hilt-android-gradle-plugin:$hilt_version"
         classpath "com.google.gms:google-services:4.4.2"
+        // Crashlytics Gradle plugin — WITHOUT it the firebase-crashlytics SDK
+        // has no com.crashlytics.android.build_id resource, and
+        // FirebaseInitProvider kills the process at every launch with
+        // "IllegalStateException: The Crashlytics build ID is missing".
+        // (Proven by emulator launch probe: even a bare framework-only
+        // activity dies during installContentProviders, before any app code.)
+        classpath "com.google.firebase:firebase-crashlytics-gradle:3.0.2"
     }
 }
 

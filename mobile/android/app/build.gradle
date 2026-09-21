@@ -5,6 +5,7 @@ plugins {
     id "kotlin-parcelize"
     id "dagger.hilt.android.plugin"
     id "com.google.gms.google-services"
+    id "com.google.firebase.crashlytics"
 }
 
 def localProperties = new Properties()
@@ -148,6 +149,15 @@ android {
             }
         }
     }
+}
+
+// Injects the Crashlytics build ID (com.crashlytics.android.build_id) into
+// every variant — debug included, which is exactly what the emulator launch
+// probe installs. Without this the process dies at FirebaseInitProvider.
+firebaseCrashlytics {
+    // Mapping upload needs live Firebase credentials; CI builds must stay
+    // offline-safe. Build-ID injection happens either way.
+    mappingUploadEnabled false
 }
 
 dependencies {
