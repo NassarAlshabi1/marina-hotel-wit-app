@@ -107,71 +107,10 @@ jobs:
           profile: pixel_5
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: |
-            set -x
-            APK="$GITHUB_WORKSPACE/mobile/build/app/outputs/apk/debug/app-debug.apk"
-            OUT="$GITHUB_WORKSPACE/probe"
-            mkdir -p "$OUT"
-            ls -la "$APK"
-
-            adb wait-for-device
-            adb shell getprop ro.build.version.release || true
-            adb shell getprop ro.build.version.sdk || true
-            adb shell getprop ro.product.cpu.abi || true
-
-            echo "=== install ==="
-            adb install -r -t "$APK" 2>&1 | tee "$OUT/install.txt" || true
-
-            snap() {
-              adb logcat -d -v threadtime > "$OUT/logcat-$1.txt" 2>&1 || true
-              adb logcat -d -b crash -v threadtime > "$OUT/logcat-crash-$1.txt" 2>&1 || true
-              adb shell dumpsys activity exit-info com.a.a > "$OUT/exit-info-$1.txt" 2>&1 || true
-            }
-
-            launch() {
-              echo "--- launching $2 ---"
-              adb logcat -c || true
-              adb shell am force-stop com.a.a || true
-              sleep 2
-              adb shell am start -W -n "$2" > "$OUT/am-start-$1.txt" 2>&1 || true
-              cat "$OUT/am-start-$1.txt"
-              sleep 20
-              PID="$(adb shell pidof com.a.a 2>/dev/null | tr -d '\r' || true)"
-              if [ -n "$PID" ]; then
-                echo "STATE[$1]: PROCESS ALIVE (pid $PID)"
-                echo "ALIVE pid=$PID" > "$OUT/state-$1.txt"
-              else
-                echo "STATE[$1]: PROCESS DEAD"
-                echo "DEAD" > "$OUT/state-$1.txt"
-              fi
-              snap "$1"
-            }
-
-            launch main  com.a.a/com.marina.marina.MainActivity
-            launch bare  com.a.a/com.marina.marina.diagnostics.BareLaunchActivity
-            launch probe com.a.a/com.marina.marina.diagnostics.LaunchProbeActivity
-
-            echo "=== marina-diag files ==="
-            for f in stages.log crash.log; do
-              {
-                echo "--- external files dir ---"
-                adb shell "run-as com.a.a cat /sdcard/Android/data/com.a.a/files/marina-diag/$f" 2>&1 || true
-                echo "--- internal files dir ---"
-                adb shell "run-as com.a.a cat files/marina-diag/$f" 2>&1 || true
-              } > "$OUT/$f" || true
-            done
-
-            echo "=== tombstones / anr (needs adb root) ==="
-            adb root || true
-            sleep 3
-            adb wait-for-device || true
-            adb shell 'ls -la /data/tombstones 2>/dev/null; cat /data/tombstones/* 2>/dev/null | head -400' > "$OUT/tombstones.txt" 2>&1 || true
-            adb shell 'ls -la /data/anr 2>/dev/null; cat /data/anr/* 2>/dev/null | head -400' > "$OUT/anr.txt" 2>&1 || true
-
-            echo "=== summary ==="
-            for f in "$OUT"/state-*.txt; do echo "$f => $(cat "$f")"; done
-            echo "--- crash buffer (all launches) ---"
-            head -200 "$OUT/logcat-crash-probe.txt" || true
+          # The action executes this input line by line, so the probe must be a
+          # single command backed by a script file (variables and functions
+          # would otherwise be lost between lines).
+          script: bash .github/scripts/emulator-launch-probe.sh
 
       - name: Upload launch probe evidence
         if: always()
