@@ -25,6 +25,7 @@ import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
+import '../../utils/status_utils.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/loading_snackbar.dart';
@@ -74,6 +75,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   // ✅ قائمة الديون غير المسددة لهذا الحجز (تُستخدم لزر خصم مبلغ من الدين)
   List<db.Debt> _unsettledDebts = [];
   StreamSubscription<void>? _hotelDayTickerSub;
+
+  // ✅ P1 (double-checkout): قفل تشغيلي — يمنع تسلسل مغادرة مزدوج أثناء
+  // نفوذ طلب أول (قبل أن يُكتب actualCheckout إلى قاعدة البيانات).
+  bool _checkoutOperationInFlight = false;
+
+  /// ✅ P1: هل الحجز مسجل مغادرته بالفعل؟ (يُقرأ من الحالة الحية).
+  /// [source] قد يكون نسخة حية من liveBookingProvider أو نسخة widget —
+  /// القراءة الحتمية تبقى في BookingsRepository.update (حرس المعاملة).
+  bool _isAlreadyCheckedOut(db.Booking b) =>
+      b.actualCheckout != null && b.actualCheckout!.isNotEmpty;
 
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
@@ -1930,6 +1941,27 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }) async {
     if (!mounted) return;
 
+    // ✅ P1: لا تُفتح نافذة مغادرة لحجز مكتمل مسبقاً (الدعوة قد تصل من
+    // نسخة قديمة قبل إعادة بناء ActionsTab الذي يخفي الزر).
+    if (_isAlreadyCheckedOut(booking) ||
+        !StatusUtils.isBookingActive(booking)) {
+      dlog(
+        () =>
+            '🛡️ [CheckoutDialog] رفض فتح نافذة المغادرة — الحجز '
+            '${booking.id} مكتمل (actualCheckout=${booking.actualCheckout})',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'هذا الحجز مسجل مغادرته بالفعل${_isAlreadyCheckedOut(booking) ? ' بتاريخ ${booking.actualCheckout!.split(' ').first}' : ''} — لا يمكن تسجيلها مرتين',
+          ),
+          backgroundColor: Colors.orange.shade900,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     // حساب المبلغ المستحق
     final double effectiveNightTotal = nights.isNotEmpty
         ? nights.fold<double>(
@@ -2029,6 +2061,33 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   /// نافذة المغادرة المبكرة مع حساب المردود
   Future<void> _showEarlyCheckoutDialog(BookingPaymentSummary summary) async {
+    // ✅ P1: حرس حالة حية قبل فتح النافذة — نسخة widget قد تكون قديمة
+    // بعد مغادرة سجّلت للتو (ActionsTab يخفي الزر لكن الاستدعاء قد يكون
+    // في الطريق). الحرس الحتمي يبقى في _processEarlyCheckout والمستودع.
+    if (!mounted) return;
+    final liveBooking =
+        ref.read(liveBookingProvider(widget.booking.id)).valueOrNull ??
+        widget.booking;
+    if (_isAlreadyCheckedOut(liveBooking) ||
+        !StatusUtils.isBookingActive(liveBooking)) {
+      dlog(
+        () =>
+            '🛡️ [EarlyCheckoutDialog] رفض فتح النافذة — الحجز '
+            '${widget.booking.id} مكتمل (actualCheckout='
+            '${liveBooking.actualCheckout})',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'هذا الحجز مسجل مغادرته بالفعل${_isAlreadyCheckedOut(liveBooking) ? ' بتاريخ ${liveBooking.actualCheckout!.split(' ').first}' : ''} — لا يمكن تسجيلها مرتين',
+          ),
+          backgroundColor: Colors.orange.shade900,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     final dbInstance = ref.read(databaseProvider);
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
@@ -2245,10 +2304,54 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     int unusedNights,
     int actualNights,
   ) async {
+    // ✅ P1 (double-checkout): نفس قفل وحرس _processCheckout — إعادة ضغط
+    // «تأكيد المغادرة والمردود» كانت تنشئ مردوداً نقدياً ثانياً وتستبدل
+    // actualCheckout بوقت أحدث. الشاشة الآن تُغلق بعد النجاح أيضاً.
+    if (_checkoutOperationInFlight) {
+      dlog(() => '🛡️ [EarlyCheckout] عملية مغادرة جارية — تجاهل الطلب المكرر');
+      return;
+    }
+    _checkoutOperationInFlight = true;
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
       final paymentsRepo = ref.read(paymentsRepoProvider);
+
+      // ✅ P1: قراءة الحالة الحية — لا مغادرة لحجز مكتمل مسبقاً.
+      final current = await bookingsRepo.watchOne(widget.booking.id).first;
+      if (current == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('الحجز غير موجود — ربما حُذف'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+      if (_isAlreadyCheckedOut(current) ||
+          !StatusUtils.isBookingActive(current)) {
+        dlog(
+          () =>
+              '🛡️ [EarlyCheckout] الحجز ${widget.booking.id} مسجل مغادرته '
+              'مسبقاً (actualCheckout=${current.actualCheckout}) — رفض',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'هذا الحجز مسجل مغادرته بالفعل${_isAlreadyCheckedOut(current) ? ' بتاريخ ${current.actualCheckout!.split(' ').first}' : ''} — لا يمكن تسجيلها مرتين',
+              ),
+              backgroundColor: Colors.orange.shade900,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       final nowIso = Time.nowIso();
 
       // 1. تسجيل المغادرة
@@ -2322,7 +2425,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             'تم تسجيل مغادرة مبكرة — المردود: ${_currencyFmt.format(refundAmount)} ($unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'})',
@@ -2331,6 +2435,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           duration: const Duration(seconds: 3),
         ),
       );
+      // ✅ P1: إغلاق شاشة الدفع بعد المغادرة — تماماً كما يفعل _processCheckout.
+      // بقاء الشاشة مفتوحة بعد المغادرة كان يُبقي أزرار المغادرة قابلة
+      // للإعادة، فتتمدد الليالي ويُنشأ مردود نقدي ثانٍ.
+      Navigator.pop(context);
     } catch (e) {
       dlog(() => '❌ خطأ في المغادرة المبكرة: $e');
       if (mounted) {
@@ -2342,6 +2450,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
+    } finally {
+      // ✅ P1: تحرير القفل التشغيلي في كل المسارات (نجاح/فشل/رفض).
+      _checkoutOperationInFlight = false;
     }
   }
 
@@ -2701,9 +2812,53 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   /// معالجة المغادرة العادية
   Future<void> _processCheckout() async {
+    // ✅ P1 (double-checkout): قفل تشغيلي + حرس حالة حية — يمنع تسجيل
+    // المغادرة مرتين (إعادة الضغط تستبدل actualCheckout بوقت أحدث فتمدد
+    // الليالي وتضخّم الفاتورة). القراءة الحتمية في BookingsRepository.update.
+    if (_checkoutOperationInFlight) {
+      dlog(() => '🛡️ [Checkout] عملية مغادرة جارية — تجاهل الطلب المكرر');
+      return;
+    }
+    _checkoutOperationInFlight = true;
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
+
+      // ✅ P1: قراءة الحالة الحية من قاعدة البيانات (لا نسخة widget القديمة).
+      final current = await bookingsRepo.watchOne(widget.booking.id).first;
+      if (current == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('الحجز غير موجود — ربما حُذف'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+      if (_isAlreadyCheckedOut(current) ||
+          !StatusUtils.isBookingActive(current)) {
+        dlog(
+          () =>
+              '🛡️ [Checkout] الحجز ${widget.booking.id} مسجل مغادرته '
+              'مسبقاً (actualCheckout=${current.actualCheckout}) — رفض',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'هذا الحجز مسجل مغادرته بالفعل${_isAlreadyCheckedOut(current) ? ' بتاريخ ${current.actualCheckout!.split(' ').first}' : ''} — لا يمكن تسجيلها مرتين',
+              ),
+              backgroundColor: Colors.orange.shade900,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       final nowIso = Time.nowIso();
       final checkin =
           DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
@@ -2779,6 +2934,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
+    } finally {
+      // ✅ P1: تحرير القفل التشغيلي في كل المسارات (نجاح/فشل/رفض).
+      _checkoutOperationInFlight = false;
     }
   }
 

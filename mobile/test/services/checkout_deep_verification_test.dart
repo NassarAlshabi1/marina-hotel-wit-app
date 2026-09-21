@@ -9,8 +9,10 @@
 //  الفروق المدروسة:
 //    C1: مغادرة عادية — قصّ الليالي + إعادة حساب الخزائن + outbox.
 //    C2: مغادرة مبكرة + دفعة مردود سالبة — صحة الرياضيات المالية.
-//    C3: مغادرة مزدوجة — توثيق العيب (actualCheckout يُستبدل بوقت أحدث
-//        والليالي تتمدد والفاتورة تكبر).
+//    C3: حرس المغادرة المزدوجة (إصلاح P1) — محاولة مغادرة ثانية بوقت
+//        أحدث تُرفض بStateError من BookingsRepository.update ولا تتغير
+//        الحالة (الليالي/الفاتورة/actualCheckout)، والمسارات الشرعية
+//        (booking_edit بنمط null وidempotent بنفس القيمة) لا تتأثر.
 //    C4: تحرير الغرفة عبر refreshAllRoomOccupancy (مسار booking_checkout_screen).
 //    C5: طبقة السحب — BookingsAdapter.fromJson (Source.appwrite) تتجاهل
 //        الحقول المالية المخبأة (توثيق تضارب الأجهزة).
@@ -244,9 +246,9 @@ void main() {
     );
   });
 
-  group('C3 — مغادرة مزدوجة (توثيق عيب: لا حرس ضد مكتمل مسبقاً)', () {
+  group('C3 — حرس المغادرة المزدوجة (تحقق الإصلاح P1)', () {
     test(
-      'استدعاء المغادرة مرة ثانية بوقت أحدث يُمدّد الإقامة ويضخّم الفاتورة',
+      'محاولة مغادرة ثانية بوقت أحدث تُرفض بStateError والحالة لا تتغير',
       () async {
         final bookingId = await seedBooking();
 
@@ -260,7 +262,7 @@ void main() {
           revenueType: 'room',
         );
 
-        // مغادرة أولى (3 ليالٍ فعلية).
+        // مغادرة أولى (3 ليالٍ فعلية) — كاستدعاء _processCheckout الإنتاجي.
         await bookingsRepo.update(
           bookingId,
           status: 'مكتمل',
@@ -274,35 +276,87 @@ void main() {
         expect(afterFirst.remainingBalanceCached, 0.0);
         expect(afterFirst.isFullyPaid, true);
 
-        // ⬇️ مغادرة ثانية بوقت أحدث (الشاشة لا تُغلق بعد المغادرة المبكرة،
-        // وزر «تسجيل المغادرة» يبقى ظاهراً في ActionsTab بلا فحص حالة).
+        // ⬇️ مغادرة ثانية بوقت أحدث — كانت تمدد الليالي وتضخّم الفاتورة؛
+        // الآن يرفضها حرس BookingsRepository.update (إصلاح P1).
+        await expectLater(
+          bookingsRepo.update(
+            bookingId,
+            status: 'مكتمل',
+            actualCheckout: secondCheckout.toIso8601String(),
+            calculatedNights: 4,
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('لا يمكن تسجيل المغادرة مرتين'),
+            ),
+          ),
+        );
+
+        // ⭐ الحالة لم تتغير قط: الليالي 3، الفاتورة مغلقة، actualCheckout الأصلي.
+        final afterRejected = await (db.select(
+          db.bookings,
+        )..where((b) => b.id.equals(bookingId))).getSingle();
+        expect(DateTime.parse(afterRejected.actualCheckout!), firstCheckout);
+        expect(
+          (await liveNights(bookingId)).length,
+          3,
+          reason: 'الرفض يحمي الليالي المقصوصة من التمدد',
+        );
+        expect(afterRejected.totalDueCached, rate * 3);
+        expect(
+          afterRejected.remainingBalanceCached,
+          0.0,
+          reason: 'الفاتورة المغلقة لا تعود «متبقية» بعد الرفض',
+        );
+        expect(afterRejected.isFullyPaid, true);
+      },
+    );
+
+    test(
+      'المسارات الشرعية لا تتأثر بالحرس (booking_edit وidempotent)',
+      () async {
+        final bookingId = await seedBooking();
+
+        // مغادرة أولى.
         await bookingsRepo.update(
           bookingId,
           status: 'مكتمل',
-          actualCheckout: secondCheckout.toIso8601String(),
-          calculatedNights: 4,
+          actualCheckout: firstCheckout.toIso8601String(),
+          calculatedNights: 3,
         );
 
-        final afterSecond = await (db.select(
+        // (أ) نمط booking_edit: تحديث حقول أخرى مع غياب actualCheckout
+        // (null = لا تغيير) — لا يُرفض ولا يمحو المغادرة المسجلة.
+        await bookingsRepo.update(
+          bookingId,
+          guestPhone: '0509998887',
+          notes: 'تعديل إداري بعد المغادرة',
+          status: 'مكتمل',
+        );
+        final afterEdit = await (db.select(
           db.bookings,
         )..where((b) => b.id.equals(bookingId))).getSingle();
+        expect(
+          DateTime.parse(afterEdit.actualCheckout!),
+          firstCheckout,
+          reason: 'تحديث بلا actualCheckout لا يمحو المغادرة',
+        );
+        expect(afterEdit.guestPhone, '0509998887');
 
-        // ⭐ توثيق العيب القائم في الكود الحالي:
-        // actualCheckout استُبدل بالأحدث، الليالي تمددت 3 → 4،
-        // والفاتورة عادت للنمو (متبقٍ 100 بعد أن كانت صفراً).
-        expect(DateTime.parse(afterSecond.actualCheckout!), secondCheckout);
-        expect(
-          (await liveNights(bookingId)).length,
-          4,
-          reason: 'العيب الحالي: الليالي غير المقطوعة تُعاد بعد المغادرة',
+        // (ب) إعادة نفس القيمة (idempotent) — مسموحة ولا ترفض.
+        await bookingsRepo.update(
+          bookingId,
+          status: 'مكتمل',
+          actualCheckout: firstCheckout.toIso8601String(),
+          calculatedNights: 3,
         );
-        expect(afterSecond.totalDueCached, rate * 4);
-        expect(
-          afterSecond.remainingBalanceCached,
-          rate * 1,
-          reason: 'العيب الحالي: فاتورة مكتملة السداد تعود «متبقية»',
-        );
-        expect(afterSecond.isFullyPaid, false);
+        final afterIdempotent = await (db.select(
+          db.bookings,
+        )..where((b) => b.id.equals(bookingId))).getSingle();
+        expect(DateTime.parse(afterIdempotent.actualCheckout!), firstCheckout);
+        expect((await liveNights(bookingId)).length, 3);
       },
     );
   });

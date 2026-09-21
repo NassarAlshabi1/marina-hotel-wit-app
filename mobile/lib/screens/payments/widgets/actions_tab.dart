@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../models/payment_models.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/local_db.dart' as db;
+import '../../../utils/status_utils.dart';
 
 /// تبويب الإجراءات — widget مستقل مُستخرج من BookingPaymentScreen.
 /// يعرض: الفاتورة، سجل المدفوعات، تسجيل المغادرة، مردود، إلغاء يوم، كشف حساب.
@@ -48,6 +49,19 @@ class ActionsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ✅ P1 (double-checkout): إجراءات المغادرة تظهر فقط للحجز النشط الذي
+    // لم يسجل مغادرته بعد. الحجز المكتمل يعرض بطاقة معلومات بدلاً منها —
+    // إعادة إظهار الزر بعد أول مغادرة كانت ثغرة «المغادرة المزدوجة».
+    final alreadyCheckedOut =
+        booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty;
+    final canCheckOut =
+        StatusUtils.isBookingActive(booking) && !alreadyCheckedOut;
+    final checkoutDateLabel = alreadyCheckedOut
+        ? (booking.actualCheckout!.split(' ').isNotEmpty
+              ? booking.actualCheckout!.split(' ').first
+              : booking.actualCheckout!)
+        : null;
+
     final actions = <Widget>[
       _buildActionCard(
         'عرض الفاتورة الشاملة',
@@ -63,20 +77,33 @@ class ActionsTab extends ConsumerWidget {
         Colors.purple,
         onShowPaymentHistory,
       ),
-      _buildActionCard(
-        'تسجيل المغادرة',
-        summary.isFullyPaid ? 'تسجيل مغادرة العميل' : 'تحذير: يوجد مبلغ متبقي!',
-        Icons.logout,
-        summary.isFullyPaid ? Colors.green : Colors.red,
-        () => onShowCheckoutConfirmation(summary, booking, nights),
-      ),
-      _buildActionCard(
-        'مغادرة مبكرة / مردود',
-        'حساب المردود عند مغادرة قبل الموعد',
-        Icons.currency_exchange,
-        Colors.amber.shade700,
-        () => onShowEarlyCheckout(summary),
-      ),
+      if (canCheckOut) ...[
+        _buildActionCard(
+          'تسجيل المغادرة',
+          summary.isFullyPaid
+              ? 'تسجيل مغادرة العميل'
+              : 'تحذير: يوجد مبلغ متبقي!',
+          Icons.logout,
+          summary.isFullyPaid ? Colors.green : Colors.red,
+          () => onShowCheckoutConfirmation(summary, booking, nights),
+        ),
+        _buildActionCard(
+          'مغادرة مبكرة / مردود',
+          'حساب المردود عند مغادرة قبل الموعد',
+          Icons.currency_exchange,
+          Colors.amber.shade700,
+          () => onShowEarlyCheckout(summary),
+        ),
+      ] else
+        _buildActionCard(
+          'تمت المغادرة',
+          checkoutDateLabel != null
+              ? 'غادر النزيل بتاريخ $checkoutDateLabel — لا يمكن تسجيل المغادرة مرتين'
+              : 'هذا الحجز غير نشط — لا يمكن تسجيل مغادرة',
+          Icons.check_circle,
+          Colors.green,
+          () {}, // بطاقة معلومات فقط — بلا إجراء
+        ),
       _buildActionCard(
         'إلغاء يوم إضافي',
         'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ',
