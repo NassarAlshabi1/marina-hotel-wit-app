@@ -68,7 +68,10 @@ void main() {
       outboxDao: outboxDao,
     );
     checkpoints = SyncCheckpointStore(db);
-    engine = UnifiedPullEngine(checkpoints: checkpoints, pullService: pullService);
+    engine = UnifiedPullEngine(
+      checkpoints: checkpoints,
+      pullService: pullService,
+    );
   });
 
   tearDown(() async {
@@ -97,16 +100,22 @@ void main() {
       expect(await checkpoints.getFullSyncMaxUpdated('booking_nights'), 200);
     });
 
-    test('completeFullSync يثبّت last_pull_ts + complete ويمسح التقدم', () async {
-      await checkpoints.bumpFullSyncMaxUpdated('booking_nights', 12345);
-      await checkpoints.setFullSyncCursor('booking_nights', 'doc-7');
-      await checkpoints.completeFullSync('booking_nights', maxUpdatedSec: 12345);
+    test(
+      'completeFullSync يثبّت last_pull_ts + complete ويمسح التقدم',
+      () async {
+        await checkpoints.bumpFullSyncMaxUpdated('booking_nights', 12345);
+        await checkpoints.setFullSyncCursor('booking_nights', 'doc-7');
+        await checkpoints.completeFullSync(
+          'booking_nights',
+          maxUpdatedSec: 12345,
+        );
 
-      expect(await checkpoints.getLastPullTs('booking_nights'), 12345);
-      expect(await checkpoints.isFullSyncComplete('booking_nights'), isTrue);
-      expect(await checkpoints.getFullSyncCursor('booking_nights'), isNull);
-      expect(await checkpoints.getFullSyncMaxUpdated('booking_nights'), 0);
-    });
+        expect(await checkpoints.getLastPullTs('booking_nights'), 12345);
+        expect(await checkpoints.isFullSyncComplete('booking_nights'), isTrue);
+        expect(await checkpoints.getFullSyncCursor('booking_nights'), isNull);
+        expect(await checkpoints.getFullSyncMaxUpdated('booking_nights'), 0);
+      },
+    );
 
     test('completeFullSync بدون maxUpdated: اكتمال بلا مؤشر', () async {
       await checkpoints.completeFullSync('booking_nights', maxUpdatedSec: 0);
@@ -127,46 +136,43 @@ void main() {
       expect(await checkpoints.getFullSyncMaxUpdated('booking_nights'), 0);
     });
 
-    test(
-      'ترقية ALTER: جدول بالمخطط القديم يكتسب عمودي cursor/max',
-      () async {
-        // جدول قديم بدون العمودين الجديدين (كما في تثبيتات الإنتاج).
-        await db.customStatement(
-          'CREATE TABLE legacy_checkpoints ('
-          'collection_name TEXT NOT NULL PRIMARY KEY, '
-          'last_pull_ts INTEGER NOT NULL DEFAULT 0, '
-          'full_sync_complete INTEGER NOT NULL DEFAULT 0, '
-          'updated_at INTEGER NOT NULL DEFAULT 0'
-          ')',
-        );
-        await db.customStatement(
-          "INSERT INTO legacy_checkpoints "
-          "(collection_name, last_pull_ts, full_sync_complete, updated_at) "
-          "VALUES ('booking_nights', 500, 1, 1)",
-        );
+    test('ترقية ALTER: جدول بالمخطط القديم يكتسب عمودي cursor/max', () async {
+      // جدول قديم بدون العمودين الجديدين (كما في تثبيتات الإنتاج).
+      await db.customStatement(
+        'CREATE TABLE legacy_checkpoints ('
+        'collection_name TEXT NOT NULL PRIMARY KEY, '
+        'last_pull_ts INTEGER NOT NULL DEFAULT 0, '
+        'full_sync_complete INTEGER NOT NULL DEFAULT 0, '
+        'updated_at INTEGER NOT NULL DEFAULT 0'
+        ')',
+      );
+      await db.customStatement(
+        "INSERT INTO legacy_checkpoints "
+        "(collection_name, last_pull_ts, full_sync_complete, updated_at) "
+        "VALUES ('booking_nights', 500, 1, 1)",
+      );
 
-        // نفس ترقية _ensureTable على الجدول القديم.
-        await db.customStatement(
-          'ALTER TABLE legacy_checkpoints ADD COLUMN full_sync_cursor TEXT',
-        );
-        await db.customStatement(
-          'ALTER TABLE legacy_checkpoints ADD COLUMN full_sync_max_updated '
-          'INTEGER NOT NULL DEFAULT 0',
-        );
+      // نفس ترقية _ensureTable على الجدول القديم.
+      await db.customStatement(
+        'ALTER TABLE legacy_checkpoints ADD COLUMN full_sync_cursor TEXT',
+      );
+      await db.customStatement(
+        'ALTER TABLE legacy_checkpoints ADD COLUMN full_sync_max_updated '
+        'INTEGER NOT NULL DEFAULT 0',
+      );
 
-        final rows = await db
-            .customSelect(
-              'SELECT last_pull_ts, full_sync_complete, full_sync_cursor, '
-              'full_sync_max_updated FROM legacy_checkpoints '
-              "WHERE collection_name = 'booking_nights'",
-            )
-            .get();
-        expect(rows, hasLength(1));
-        expect(rows.first.data['last_pull_ts'], 500);
-        expect(rows.first.data['full_sync_cursor'], isNull);
-        expect(rows.first.data['full_sync_max_updated'], 0);
-      },
-    );
+      final rows = await db
+          .customSelect(
+            'SELECT last_pull_ts, full_sync_complete, full_sync_cursor, '
+            'full_sync_max_updated FROM legacy_checkpoints '
+            "WHERE collection_name = 'booking_nights'",
+          )
+          .get();
+      expect(rows, hasLength(1));
+      expect(rows.first.data['last_pull_ts'], 500);
+      expect(rows.first.data['full_sync_cursor'], isNull);
+      expect(rows.first.data['full_sync_max_updated'], 0);
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -179,9 +185,17 @@ void main() {
         cursor: null,
         pageSize: 100,
       );
-      expect(queries.where((q) => q.contains('orderAsc')).length, 1,
-          reason: 'ترتيب \$id مطلوب في كل صفحة');
-      expect(queries.where((q) => q.contains('"limit"') || q.contains('limit')).length, 1);
+      expect(
+        queries.where((q) => q.contains('orderAsc')).length,
+        1,
+        reason: 'ترتيب \$id مطلوب في كل صفحة',
+      );
+      expect(
+        queries
+            .where((q) => q.contains('"limit"') || q.contains('limit'))
+            .length,
+        1,
+      );
       expect(queries.where((q) => q.contains('cursorAfter')), isEmpty);
       // فلتر tombstones من القاعدة محفوظ.
       expect(queries.where((q) => q.contains('isNull')).length, 1);
@@ -217,7 +231,9 @@ void main() {
                 .map((q) => _cursorValueOf(q))
                 .firstOrNull;
             fetchCursors.add(cursor);
-            final start = cursor != null ? int.parse(cursor.split('-').last) : 0;
+            final start = cursor != null
+                ? int.parse(cursor.split('-').last)
+                : 0;
             final count = (start + 100 <= 400) ? 100 : 50;
             return List.generate(
               count,
@@ -245,8 +261,12 @@ void main() {
         expect(fetchCursors[1], 'doc-100');
         expect(fetchCursors[2], 'doc-200');
         // المؤشر النهائي من max($updatedAt) — وليس من أول 1000 (الخلل القديم).
-        expect(await checkpoints.getLastPullTs('booking_nights'),
-            UnifiedPullEngine.updatedAtSecOf(_doc('x', {}, updatedAt: '2026-09-21T10:00:00.000Z')));
+        expect(
+          await checkpoints.getLastPullTs('booking_nights'),
+          UnifiedPullEngine.updatedAtSecOf(
+            _doc('x', {}, updatedAt: '2026-09-21T10:00:00.000Z'),
+          ),
+        );
         expect(await checkpoints.isFullSyncComplete('booking_nights'), isTrue);
         // تقدم الاستئناف مُمسح بعد الاكتمال.
         expect(await checkpoints.getFullSyncCursor('booking_nights'), isNull);
@@ -291,23 +311,27 @@ void main() {
         }
 
         final makeTask = () => CollectionPullTask(
-              name: 'booking_nights',
-              streamFullSync: true,
-              fetchPage: fetchPage,
-              fetch: (plan) => throw StateError('legacy fetch must not run'),
-              apply: (docs) async {
-                applied.addAll(docs.map((d) => d.$id));
-                return docs.length;
-              },
-            );
+          name: 'booking_nights',
+          streamFullSync: true,
+          fetchPage: fetchPage,
+          fetch: (plan) => throw StateError('legacy fetch must not run'),
+          apply: (docs) async {
+            applied.addAll(docs.map((d) => d.$id));
+            return docs.length;
+          },
+        );
 
         // الدورة الأولى: صفحتان نجحتا ثم انقطعت الشبكة.
         final firstRun = await engine.run([makeTask()]);
-        expect(firstRun.failedCollections, ['booking_nights'],
-            reason: 'فشل المهمة يُسجَّل');
+        expect(firstRun.failedCollections, [
+          'booking_nights',
+        ], reason: 'فشل المهمة يُسجَّل');
         expect(applied.length, 200, reason: 'صفحتان طُبّقتا قبل الانقطاع');
         // المؤشر عند نهاية الصفحة الثانية (crash-safe).
-        expect(await checkpoints.getFullSyncCursor('booking_nights'), 'doc-200');
+        expect(
+          await checkpoints.getFullSyncCursor('booking_nights'),
+          'doc-200',
+        );
         // لم يُعلن اكتمال ولم يُثبَّت مؤشر Delta.
         expect(await checkpoints.isFullSyncComplete('booking_nights'), isFalse);
         expect(await checkpoints.getLastPullTs('booking_nights'), 0);
@@ -339,31 +363,38 @@ void main() {
       expect(await checkpoints.isFullSyncComplete('booking_nights'), isFalse);
     });
 
-    test('المهام الكلاسيكية (بلا streamFullSync) لم تتغير — مسار fetch/apply',
-        () async {
-      final docs = [
-        _doc('doc-1', {'localUuid': 'n1', 'lastModified': 1, 'vectorClock': '{}'}),
-      ];
-      var legacyFetchCalled = false;
-      final task = CollectionPullTask(
-        name: 'rooms',
-        fetch: (plan) async {
-          legacyFetchCalled = true;
-          return docs;
-        },
-        apply: (d) async => d.length,
-      );
+    test(
+      'المهام الكلاسيكية (بلا streamFullSync) لم تتغير — مسار fetch/apply',
+      () async {
+        final docs = [
+          _doc('doc-1', {
+            'localUuid': 'n1',
+            'lastModified': 1,
+            'vectorClock': '{}',
+          }),
+        ];
+        var legacyFetchCalled = false;
+        final task = CollectionPullTask(
+          name: 'rooms',
+          fetch: (plan) async {
+            legacyFetchCalled = true;
+            return docs;
+          },
+          apply: (d) async => d.length,
+        );
 
-      final result = await engine.run([task]);
-      expect(legacyFetchCalled, isTrue);
-      expect(result.recordsPulled, 1);
-      expect(
-        await checkpoints.isFullSyncComplete('rooms'),
-        isTrue,
-        reason: 'commit الكلاسيكي: setLastPullTs(max \$updatedAt) يعلن '
-            'الاكتمال كما قبل التعديل',
-      );
-    });
+        final result = await engine.run([task]);
+        expect(legacyFetchCalled, isTrue);
+        expect(result.recordsPulled, 1);
+        expect(
+          await checkpoints.isFullSyncComplete('rooms'),
+          isTrue,
+          reason:
+              'commit الكلاسيكي: setLastPullTs(max \$updatedAt) يعلن '
+              'الاكتمال كما قبل التعديل',
+        );
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -379,7 +410,10 @@ void main() {
     });
 
     test('حل exact uuid', () async {
-      final id = await resolver.resolveBooking(uuid: 'b-uuid-1', fromRemote: true);
+      final id = await resolver.resolveBooking(
+        uuid: 'b-uuid-1',
+        fromRemote: true,
+      );
       expect(id, 1);
     });
 
@@ -387,7 +421,10 @@ void main() {
       // b-uuid-2 مخزّن بـ UUID 32 حرفاً بدون شرطات (legacy)؛ البحث بالصيغة
       // القياسية بالشرطات يجب أن يُحل عبر الفهرس المقيس.
       final withDashes = '11111111-2222-3333-4444-555555555555';
-      final id = await resolver.resolveBooking(uuid: withDashes, fromRemote: true);
+      final id = await resolver.resolveBooking(
+        uuid: withDashes,
+        fromRemote: true,
+      );
       expect(id, 2, reason: 'يجب حل صيغة UUID القديمة بدون شرطات');
     });
 
@@ -406,8 +443,11 @@ void main() {
 
     test('localId من جهاز بعيد ممنوع حتى مع الفهرس (ربط خاطئ)', () async {
       final id = await resolver.resolveBooking(localId: 3, fromRemote: true);
-      expect(id, isNull,
-          reason: 'id المحلي autoIncrement يختلف بين الأجهزة — ممنوع بعيداً');
+      expect(
+        id,
+        isNull,
+        reason: 'id المحلي autoIncrement يختلف بين الأجهزة — ممنوع بعيداً',
+      );
     });
 
     test('localId محلي مسموح', () async {
@@ -418,7 +458,10 @@ void main() {
     test('clearBookingIndex يعيد مسار SQL (نفس النتائج)', () async {
       resolver.clearBookingIndex();
       expect(resolver.hasBookingIndex, isFalse);
-      final id = await resolver.resolveBooking(uuid: 'b-uuid-1', fromRemote: true);
+      final id = await resolver.resolveBooking(
+        uuid: 'b-uuid-1',
+        fromRemote: true,
+      );
       expect(id, 1);
       final stripped = await resolver.resolveBooking(
         uuid: '11111111222233334444555555555555',
@@ -448,11 +491,7 @@ Future<void> _seedBookings(AppDatabase db) async {
     "'room-uuid-1', NULL, $now, $now, NULL, $now, $now, $now, 1, "
     "'local', '{}', 'device-A', $now)",
   );
-  Future<void> insertBooking(
-    int id,
-    String uuid,
-    int? serverId,
-  ) async {
+  Future<void> insertBooking(int id, String uuid, int? serverId) async {
     final sid = serverId?.toString() ?? 'NULL';
     await db.customStatement(
       "INSERT INTO bookings (room_number, guest_name, guest_phone, "

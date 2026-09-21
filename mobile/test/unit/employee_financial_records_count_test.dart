@@ -55,8 +55,7 @@ void main() {
       basicSalary: 50000,
       status: status,
     );
-    return (db.select(db.employees)..where((t) => t.id.equals(id)))
-        .getSingle();
+    return (db.select(db.employees)..where((t) => t.id.equals(id))).getSingle();
   }
 
   /// إدخال مصروف رواتب مرتبط بموظف
@@ -65,7 +64,9 @@ void main() {
     bool byUuidOnly = false,
     String? uuid,
   }) async {
-    return db.into(db.expenses).insert(
+    return db
+        .into(db.expenses)
+        .insert(
           ExpensesCompanion(
             expenseType: const d.Value('رواتب'),
             description: const d.Value('راتب شهر'),
@@ -73,7 +74,9 @@ void main() {
             date: const d.Value('2026-09-01'),
             relatedId: byUuidOnly ? const d.Value(null) : d.Value(emp.id),
             employeeUuid: d.Value(emp.localUuid),
-            localUuid: d.Value(uuid ?? 'exp-${emp.id}-${now}-${seedExpenseCounter++}'),
+            localUuid: d.Value(
+              uuid ?? 'exp-${emp.id}-${now}-${seedExpenseCounter++}',
+            ),
             createdAt: const d.Value(now),
             updatedAt: const d.Value(now),
             lastModified: const d.Value(now),
@@ -87,14 +90,18 @@ void main() {
     int? expenseId,
     String? uuid,
   }) async {
-    return db.into(db.salaryWithdrawals).insert(
+    return db
+        .into(db.salaryWithdrawals)
+        .insert(
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(emp.id),
             employeeUuid: d.Value(emp.localUuid),
             amount: const d.Value(10000.0),
             withdrawDate: const d.Value('2026-09-01'),
             expenseId: d.Value(expenseId),
-            localUuid: d.Value(uuid ?? 'sw-${emp.id}-${now}-${seedWithdrawalCounter++}'),
+            localUuid: d.Value(
+              uuid ?? 'sw-${emp.id}-${now}-${seedWithdrawalCounter++}',
+            ),
             createdAt: const d.Value(now),
             updatedAt: const d.Value(now),
             lastModified: const d.Value(now),
@@ -151,7 +158,9 @@ void main() {
       // انظر local_db.dart: PRAGMA foreign_keys = OFF أثناء الاستيراد).
       // نحاكي نفس مسار الإنتاج هنا.
       await db.customStatement('PRAGMA foreign_keys = OFF');
-      await db.into(db.salaryWithdrawals).insert(
+      await db
+          .into(db.salaryWithdrawals)
+          .insert(
             SalaryWithdrawalsCompanion(
               employeeId: const d.Value(9999),
               employeeUuid: d.Value(emp.localUuid),
@@ -185,8 +194,9 @@ void main() {
           lastModified: const d.Value(now),
         ),
       );
-      await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(swId)))
-          .write(
+      await (db.update(
+        db.salaryWithdrawals,
+      )..where((t) => t.id.equals(swId))).write(
         SalaryWithdrawalsCompanion(
           deletedAt: const d.Value(now),
           updatedAt: const d.Value(now),
@@ -232,7 +242,9 @@ void main() {
 
     test('المسار الإنتاجي: مصروف + createFromExpense → حدث واحد', () async {
       final emp = await seedEmployee('فؤاد');
-      final expId = await db.into(db.expenses).insert(
+      final expId = await db
+          .into(db.expenses)
+          .insert(
             ExpensesCompanion(
               expenseType: const d.Value('رواتب'),
               description: const d.Value('سلفة'),

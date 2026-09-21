@@ -168,8 +168,7 @@ void main() {
     'درع CouldNotRollBack: صفحات السحب تُثبَّت بمعاملتها الخاصة (والبنية القديمة تُكشف)',
     () async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
-      final tmpDir =
-          await Directory.systemTemp.createTemp('pull_commit_vis');
+      final tmpDir = await Directory.systemTemp.createTemp('pull_commit_vis');
       addTearDown(() async {
         try {
           await tmpDir.delete(recursive: true);
@@ -196,8 +195,7 @@ void main() {
       final observer = _openObserver(dbPath);
       addTearDown(observer.dispose);
 
-      final docs =
-          List<models.Document>.generate(_kTotalNights, _nightDoc);
+      final docs = List<models.Document>.generate(_kTotalNights, _nightDoc);
 
       // ═══════════════════════════════════════════════════════════════
       // الفصل 1 — العقد A+B للبنية الحالية (بين الصفحتين 1 و 2)
@@ -213,7 +211,8 @@ void main() {
       expect(
         _observerNightCount(observer),
         _kPageSize,
-        reason: 'العقد A: صفحة 1 مُثبَّتة (committed) بمعاملتها الخاصة '
+        reason:
+            'العقد A: صفحة 1 مُثبَّتة (committed) بمعاملتها الخاصة '
             'ومرئية لاتصال خارجي فوراً. لو أُعيد غلاف database.transaction '
             'القديم حول دورة السحب لرأى القارئ 0 هنا (يثبته الفصل 3) — '
             'وهي مقدمة انهيار «COMMIT: no transaction is active»',
@@ -221,7 +220,8 @@ void main() {
       expect(
         _externalWriterCanAcquireWriteLock(observer),
         isTrue,
-        reason: 'العقد B: write-lock غير محتجزة بين الصفحات — الكتابات '
+        reason:
+            'العقد B: write-lock غير محتجزة بين الصفحات — الكتابات '
             'المحلية (حجز/دفعة/مصروف من الواجهة) لا تتجمد أثناء سحب قد '
             'يستغرق دقائق على شبكة ضعيفة',
       );
@@ -239,7 +239,8 @@ void main() {
       expect(
         _externalWriterCanAcquireWriteLock(observer),
         isTrue,
-        reason: 'العقد B بعد عدة صفحات: لا write-lock متراكمة — كل دفعة '
+        reason:
+            'العقد B بعد عدة صفحات: لا write-lock متراكمة — كل دفعة '
             'db.batch (250) تُغلق معاملتها عند نهايتها',
       );
 
@@ -259,14 +260,16 @@ void main() {
         expect(
           _observerNightCount(observer),
           _kPageSize * 2,
-          reason: 'داخل معاملة ممتدة: كتابات الصفحة 3 غير مرئية للخارج '
+          reason:
+              'داخل معاملة ممتدة: كتابات الصفحة 3 غير مرئية للخارج '
               '(uncommitted) — لو ارتد غلاف السحب إلى هذه البنية لفشل '
               'فحص العقد A في الفصل 1 عند هذه النقطة بالضبط',
         );
         expect(
           _externalWriterCanAcquireWriteLock(observer),
           isFalse,
-          reason: 'write-lock محتجزة داخل معاملة ممتدة — هذا هو تجميد '
+          reason:
+              'write-lock محتجزة داخل معاملة ممتدة — هذا هو تجميد '
               'الواجهة الذي أزاله 21ab42cb',
         );
       });

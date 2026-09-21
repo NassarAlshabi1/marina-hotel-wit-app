@@ -47,8 +47,8 @@ void main() {
   // الدخول بعد حد 14:01 حتى يبدأ يوم الفندق من يوم الدخول نفسه.
   // nightsWithCutoff = floor((checkout − بداية يوم فندق الدخول)/24h) + 1.
   final today = DateTime.now();
-  DateTime day(int daysBack, [int hour = 15, int minute = 0]) => DateTime(
-      today.year, today.month, today.day - daysBack, hour, minute);
+  DateTime day(int daysBack, [int hour = 15, int minute = 0]) =>
+      DateTime(today.year, today.month, today.day - daysBack, hour, minute);
 
   final checkin = day(10); // d-10 @15:00 → بداية يوم الفندق d-10@14:01
   final plannedCheckout = day(6); // d-6 @15:00 → 5 ليالٍ مخططة
@@ -56,15 +56,15 @@ void main() {
   final secondCheckout = day(7); // d-7 @15:00 → 4 ليالٍ (مغادرة مزدوجة)
 
   Future<int> seedBooking() => bookingsRepo.create(
-        roomNumber: '101',
-        guestName: 'أحمد محمد',
-        guestPhone: '0501234567',
-        guestNationality: 'يمني',
-        checkinDate: checkin.toIso8601String(),
-        checkoutDate: plannedCheckout.toIso8601String(),
-        status: 'نشط',
-        expectedNights: 5,
-      );
+    roomNumber: '101',
+    guestName: 'أحمد محمد',
+    guestPhone: '0501234567',
+    guestNationality: 'يمني',
+    checkinDate: checkin.toIso8601String(),
+    checkoutDate: plannedCheckout.toIso8601String(),
+    status: 'نشط',
+    expectedNights: 5,
+  );
 
   /// ليالي الحجز الحية من DB (غير المحذوفة).
   Future<List<BookingNight>> liveNights(int bookingId) =>
@@ -76,10 +76,11 @@ void main() {
 
   /// عدد عناصر outbox المعلقة لكيان معيّن (قراءة مباشرة بلا تغيير حالة).
   Future<int> pendingOutbox(String entity) async {
-    final rows = await (db.select(db.outbox)
-          ..where((t) => t.entity.equals(entity))
-          ..where((t) => t.processingStatus.equals('pending')))
-        .get();
+    final rows =
+        await (db.select(db.outbox)
+              ..where((t) => t.entity.equals(entity))
+              ..where((t) => t.processingStatus.equals('pending')))
+            .get();
     return rows.length;
   }
 
@@ -106,238 +107,284 @@ void main() {
   });
 
   group('C1 — مغادرة عادية عبر BookingsRepository (مسار الإنتاج)', () {
-    test('تقصّ الليالي إلى actualNights وتعيد حساب الخزائن وتُدرج outbox',
-        () async {
-      final bookingId = await seedBooking();
+    test(
+      'تقصّ الليالي إلى actualNights وتعيد حساب الخزائن وتُدرج outbox',
+      () async {
+        final bookingId = await seedBooking();
 
-      // دفعة تغطي 5 ليالٍ.
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: rate * 5,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'room',
-      );
+        // دفعة تغطي 5 ليالٍ.
+        await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: rate * 5,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+        );
 
-      // قبل المغادرة: الحجز نشط → ليالي ديناميكية تنمو مع الوقت الحقيقي.
-      final expectedBefore =
-          Time.nightsWithCutoff(checkin, checkout: DateTime.now());
-      final before = await liveNights(bookingId);
-      expect(before.length, expectedBefore,
-          reason: 'حجز نشط: الليالي تنمو ديناميكياً حتى اللحظة الحالية');
+        // قبل المغادرة: الحجز نشط → ليالي ديناميكية تنمو مع الوقت الحقيقي.
+        final expectedBefore = Time.nightsWithCutoff(
+          checkin,
+          checkout: DateTime.now(),
+        );
+        final before = await liveNights(bookingId);
+        expect(
+          before.length,
+          expectedBefore,
+          reason: 'حجز نشط: الليالي تنمو ديناميكياً حتى اللحظة الحالية',
+        );
 
-      // ⬇️ نفس استدعاء _processCheckout الإنتاجي.
-      await bookingsRepo.update(
-        bookingId,
-        status: 'مكتمل',
-        actualCheckout: firstCheckout.toIso8601String(),
-        calculatedNights: 3,
-      );
+        // ⬇️ نفس استدعاء _processCheckout الإنتاجي.
+        await bookingsRepo.update(
+          bookingId,
+          status: 'مكتمل',
+          actualCheckout: firstCheckout.toIso8601String(),
+          calculatedNights: 3,
+        );
 
-      final booking = await (db.select(db.bookings)
-            ..where((b) => b.id.equals(bookingId)))
-          .getSingle();
+        final booking = await (db.select(
+          db.bookings,
+        )..where((b) => b.id.equals(bookingId))).getSingle();
 
-      // 1) الحالة والتواريخ.
-      expect(booking.status, 'مكتمل');
-      expect(booking.actualCheckout, isNotNull);
+        // 1) الحالة والتواريخ.
+        expect(booking.status, 'مكتمل');
+        expect(booking.actualCheckout, isNotNull);
 
-      // 2) ⭐ القصّ: الليالي تنحصر عند وقت المغادرة الفعلي (3 لا 5).
-      final after = await liveNights(bookingId);
-      expect(after.length, 3,
-          reason: 'المغادرة تُقصّ الليالي غير المستخدمة عند actualCheckout');
+        // 2) ⭐ القصّ: الليالي تنحصر عند وقت المغادرة الفعلي (3 لا 5).
+        final after = await liveNights(bookingId);
+        expect(
+          after.length,
+          3,
+          reason: 'المغادرة تُقصّ الليالي غير المستخدمة عند actualCheckout',
+        );
 
-      // 3) ⭐ الخزائن المالية أُعيد حسابها من المسار المقطوع.
-      expect(booking.totalDueCached, rate * 3);
-      expect(booking.totalPaidCached, rate * 5);
-      expect(booking.remainingBalanceCached, 0.0,
-          reason: 'مدفوع 5×rate مقابل مستحق 3×rate → لا متبقٍ');
-      expect(booking.isFullyPaid, true);
-      expect(booking.calculatedNights, 3);
+        // 3) ⭐ الخزائن المالية أُعيد حسابها من المسار المقطوع.
+        expect(booking.totalDueCached, rate * 3);
+        expect(booking.totalPaidCached, rate * 5);
+        expect(
+          booking.remainingBalanceCached,
+          0.0,
+          reason: 'مدفوع 5×rate مقابل مستحق 3×rate → لا متبقٍ',
+        );
+        expect(booking.isFullyPaid, true);
+        expect(booking.calculatedNights, 3);
 
-      // 4) ⭐ outbox: تحديث الحجز قابل للرفع (سطر المزامنة).
-      expect(await pendingOutbox('bookings'), greaterThanOrEqualTo(1),
-          reason: 'المغادرة يجب أن تُدرج تحديث الحجز في outbox للرفع');
-    });
+        // 4) ⭐ outbox: تحديث الحجز قابل للرفع (سطر المزامنة).
+        expect(
+          await pendingOutbox('bookings'),
+          greaterThanOrEqualTo(1),
+          reason: 'المغادرة يجب أن تُدرج تحديث الحجز في outbox للرفع',
+        );
+      },
+    );
   });
 
   group('C2 — مغادرة مبكرة + مردود سالب (مسار _processEarlyCheckout)', () {
-    test('دفعة سالبة مقبولة والرياضيات تُغلق الحساب على قيمته الفعلية',
-        () async {
-      final bookingId = await seedBooking();
+    test(
+      'دفعة سالبة مقبولة والرياضيات تُغلق الحساب على قيمته الفعلية',
+      () async {
+        final bookingId = await seedBooking();
 
-      // الضيف دفع كامل الإقامة المخططة مقدماً.
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: rate * 5,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'room',
-      );
+        // الضيف دفع كامل الإقامة المخططة مقدماً.
+        await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: rate * 5,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+        );
 
-      // ⬇️ تسلسل _processEarlyCheckout الإنتاجي:
-      // (1) تسجيل المغادرة بالليالي الفعلية (3).
-      await bookingsRepo.update(
-        bookingId,
-        status: 'مكتمل',
-        actualCheckout: firstCheckout.toIso8601String(),
-        calculatedNights: 3,
-      );
+        // ⬇️ تسلسل _processEarlyCheckout الإنتاجي:
+        // (1) تسجيل المغادرة بالليالي الفعلية (3).
+        await bookingsRepo.update(
+          bookingId,
+          status: 'مكتمل',
+          actualCheckout: firstCheckout.toIso8601String(),
+          calculatedNights: 3,
+        );
 
-      // (2) المردود: paid(500) - actualCost(300) = 200 → دفعة سالبة -200.
-      final refund = (rate * 5) - (rate * 3);
-      final refundPaymentId = await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: -refund,
-        paymentDate: firstCheckout.toIso8601String(),
-        notes: 'مردود مغادرة مبكرة - 2 ليالي غير مستخدمة',
-        paymentMethod: 'نقدي',
-        revenueType: 'room',
-      );
-      expect(refundPaymentId, greaterThan(0),
-          reason: 'PaymentsRepository.create يجب أن يقبل مبالغ سالبة (المردود)');
+        // (2) المردود: paid(500) - actualCost(300) = 200 → دفعة سالبة -200.
+        final refund = (rate * 5) - (rate * 3);
+        final refundPaymentId = await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: -refund,
+          paymentDate: firstCheckout.toIso8601String(),
+          notes: 'مردود مغادرة مبكرة - 2 ليالي غير مستخدمة',
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+        );
+        expect(
+          refundPaymentId,
+          greaterThan(0),
+          reason: 'PaymentsRepository.create يجب أن يقبل مبالغ سالبة (المردود)',
+        );
 
-      // ⭐ الحساب الختامي: مدفوع صافٍ 300 = مستحق 300.
-      final booking = await (db.select(db.bookings)
-            ..where((b) => b.id.equals(bookingId)))
-          .getSingle();
-      expect(booking.totalDueCached, rate * 3);
-      expect(booking.totalPaidCached, rate * 3,
-          reason: '500 - 200 مردود = 300');
-      expect(booking.remainingBalanceCached, 0.0);
-      expect(booking.isFullyPaid, true);
+        // ⭐ الحساب الختامي: مدفوع صافٍ 300 = مستحق 300.
+        final booking = await (db.select(
+          db.bookings,
+        )..where((b) => b.id.equals(bookingId))).getSingle();
+        expect(booking.totalDueCached, rate * 3);
+        expect(
+          booking.totalPaidCached,
+          rate * 3,
+          reason: '500 - 200 مردود = 300',
+        );
+        expect(booking.remainingBalanceCached, 0.0);
+        expect(booking.isFullyPaid, true);
 
-      // المدفوعات الفعلية المسجلة: دفعة موجبة + مردود سالب.
-      final payments = await (db.select(db.payments)
-            ..where((p) => p.bookingLocalId.equals(bookingId)))
-          .get();
-      expect(payments.length, 2);
-      expect(payments.map((p) => p.amount).contains(-refund), isTrue);
-    });
+        // المدفوعات الفعلية المسجلة: دفعة موجبة + مردود سالب.
+        final payments = await (db.select(
+          db.payments,
+        )..where((p) => p.bookingLocalId.equals(bookingId))).get();
+        expect(payments.length, 2);
+        expect(payments.map((p) => p.amount).contains(-refund), isTrue);
+      },
+    );
   });
 
   group('C3 — مغادرة مزدوجة (توثيق عيب: لا حرس ضد مكتمل مسبقاً)', () {
     test(
-        'استدعاء المغادرة مرة ثانية بوقت أحدث يُمدّد الإقامة ويضخّم الفاتورة',
-        () async {
-      final bookingId = await seedBooking();
+      'استدعاء المغادرة مرة ثانية بوقت أحدث يُمدّد الإقامة ويضخّم الفاتورة',
+      () async {
+        final bookingId = await seedBooking();
 
-      // الضيف سدد قيمة 3 ليالٍ بالضبط (الفاتورة بعد المغادرة الأولى = صفر).
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: rate * 3,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'room',
-      );
+        // الضيف سدد قيمة 3 ليالٍ بالضبط (الفاتورة بعد المغادرة الأولى = صفر).
+        await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: rate * 3,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+        );
 
-      // مغادرة أولى (3 ليالٍ فعلية).
-      await bookingsRepo.update(
-        bookingId,
-        status: 'مكتمل',
-        actualCheckout: firstCheckout.toIso8601String(),
-        calculatedNights: 3,
-      );
+        // مغادرة أولى (3 ليالٍ فعلية).
+        await bookingsRepo.update(
+          bookingId,
+          status: 'مكتمل',
+          actualCheckout: firstCheckout.toIso8601String(),
+          calculatedNights: 3,
+        );
 
-      final afterFirst = await (db.select(db.bookings)
-            ..where((b) => b.id.equals(bookingId)))
-          .getSingle();
-      expect(afterFirst.remainingBalanceCached, 0.0);
-      expect(afterFirst.isFullyPaid, true);
+        final afterFirst = await (db.select(
+          db.bookings,
+        )..where((b) => b.id.equals(bookingId))).getSingle();
+        expect(afterFirst.remainingBalanceCached, 0.0);
+        expect(afterFirst.isFullyPaid, true);
 
-      // ⬇️ مغادرة ثانية بوقت أحدث (الشاشة لا تُغلق بعد المغادرة المبكرة،
-      // وزر «تسجيل المغادرة» يبقى ظاهراً في ActionsTab بلا فحص حالة).
-      await bookingsRepo.update(
-        bookingId,
-        status: 'مكتمل',
-        actualCheckout: secondCheckout.toIso8601String(),
-        calculatedNights: 4,
-      );
+        // ⬇️ مغادرة ثانية بوقت أحدث (الشاشة لا تُغلق بعد المغادرة المبكرة،
+        // وزر «تسجيل المغادرة» يبقى ظاهراً في ActionsTab بلا فحص حالة).
+        await bookingsRepo.update(
+          bookingId,
+          status: 'مكتمل',
+          actualCheckout: secondCheckout.toIso8601String(),
+          calculatedNights: 4,
+        );
 
-      final afterSecond = await (db.select(db.bookings)
-            ..where((b) => b.id.equals(bookingId)))
-          .getSingle();
+        final afterSecond = await (db.select(
+          db.bookings,
+        )..where((b) => b.id.equals(bookingId))).getSingle();
 
-      // ⭐ توثيق العيب القائم في الكود الحالي:
-      // actualCheckout استُبدل بالأحدث، الليالي تمددت 3 → 4،
-      // والفاتورة عادت للنمو (متبقٍ 100 بعد أن كانت صفراً).
-      expect(DateTime.parse(afterSecond.actualCheckout!), secondCheckout);
-      expect((await liveNights(bookingId)).length, 4,
-          reason: 'العيب الحالي: الليالي غير المقطوعة تُعاد بعد المغادرة');
-      expect(afterSecond.totalDueCached, rate * 4);
-      expect(afterSecond.remainingBalanceCached, rate * 1,
-          reason: 'العيب الحالي: فاتورة مكتملة السداد تعود «متبقية»');
-      expect(afterSecond.isFullyPaid, false);
-    });
+        // ⭐ توثيق العيب القائم في الكود الحالي:
+        // actualCheckout استُبدل بالأحدث، الليالي تمددت 3 → 4،
+        // والفاتورة عادت للنمو (متبقٍ 100 بعد أن كانت صفراً).
+        expect(DateTime.parse(afterSecond.actualCheckout!), secondCheckout);
+        expect(
+          (await liveNights(bookingId)).length,
+          4,
+          reason: 'العيب الحالي: الليالي غير المقطوعة تُعاد بعد المغادرة',
+        );
+        expect(afterSecond.totalDueCached, rate * 4);
+        expect(
+          afterSecond.remainingBalanceCached,
+          rate * 1,
+          reason: 'العيب الحالي: فاتورة مكتملة السداد تعود «متبقية»',
+        );
+        expect(afterSecond.isFullyPaid, false);
+      },
+    );
   });
 
-  group('C4 — تحرير الغرفة عبر refreshAllRoomOccupancy (مسار checkout screen)',
-      () {
-    test('الغرفة المحجوزة تتحول إلى شاغرة بعد مغادرة حجزها النشط الوحيد',
+  group(
+    'C4 — تحرير الغرفة عبر refreshAllRoomOccupancy (مسار checkout screen)',
+    () {
+      test(
+        'الغرفة المحجوزة تتحول إلى شاغرة بعد مغادرة حجزها النشط الوحيد',
         () async {
-      final bookingId = await seedBooking();
+          final bookingId = await seedBooking();
 
-      // الغرفة محجوزة (كما يحدث عند تسجيل الدخول).
-      final room = await roomsRepo.watchByNumber('101').first;
-      await roomsRepo.update(room!.id, status: 'محجوزة');
-      expect(
-          (await roomsRepo.watchByNumber('101').first)!.status, 'محجوزة');
+          // الغرفة محجوزة (كما يحدث عند تسجيل الدخول).
+          final room = await roomsRepo.watchByNumber('101').first;
+          await roomsRepo.update(room!.id, status: 'محجوزة');
+          expect(
+            (await roomsRepo.watchByNumber('101').first)!.status,
+            'محجوزة',
+          );
 
-      // ⬇️ نفس تسلسل BookingCheckoutScreen._completeCheckout.
-      await bookingsRepo.update(
-        bookingId,
-        status: 'مكتمل',
-        actualCheckout: firstCheckout.toIso8601String(),
-        calculatedNights: 3,
+          // ⬇️ نفس تسلسل BookingCheckoutScreen._completeCheckout.
+          await bookingsRepo.update(
+            bookingId,
+            status: 'مكتمل',
+            actualCheckout: firstCheckout.toIso8601String(),
+            calculatedNights: 3,
+          );
+          await roomsRepo.refreshAllRoomOccupancy();
+
+          final updated = await roomsRepo.watchByNumber('101').first;
+          expect(updated!.status, 'شاغرة');
+        },
       );
-      await roomsRepo.refreshAllRoomOccupancy();
-
-      final updated = await roomsRepo.watchByNumber('101').first;
-      expect(updated!.status, 'شاغرة');
-    });
-  });
+    },
+  );
 
   group('C5 — طبقة السحب: الحقول المالية المخبأة لا تعبر الأجهزة', () {
-    test('BookingsAdapter.fromJson (appwrite) يتجاهل الخزائن المالية',
-        () async {
-      final adapter = BookingsAdapter(IdResolver(db));
-      // حمولة بعيدة كما تصل من Appwrite لجهاز آخر بعد المغادرة.
-      final json = <String, dynamic>{
-        'localUuid': 'remote-completed-uuid',
-        'roomNumber': '101',
-        'guestName': 'أحمد',
-        'guestPhone': '0501234567',
-        'guestNationality': 'يمني',
-        'checkinDate': DateTime.now().toIso8601String(),
-        'status': 'مكتمل',
-        'actualCheckout': DateTime.now().toIso8601String(),
-        'expectedNights': 5,
-        'calculatedNights': 3,
-        'totalDueCached': 300.0,
-        'totalPaidCached': 300.0,
-        'remainingBalanceCached': 0.0,
-        'isFullyPaid': true,
-        'lastModified': 1,
-      };
-      final refs = ResolveResult(bookingLocalId: null, lastModifiedEpoch: 1);
-      final companion = adapter.fromJson(json, src: Source.appwrite, refs: refs);
+    test(
+      'BookingsAdapter.fromJson (appwrite) يتجاهل الخزائن المالية',
+      () async {
+        final adapter = BookingsAdapter(IdResolver(db));
+        // حمولة بعيدة كما تصل من Appwrite لجهاز آخر بعد المغادرة.
+        final json = <String, dynamic>{
+          'localUuid': 'remote-completed-uuid',
+          'roomNumber': '101',
+          'guestName': 'أحمد',
+          'guestPhone': '0501234567',
+          'guestNationality': 'يمني',
+          'checkinDate': DateTime.now().toIso8601String(),
+          'status': 'مكتمل',
+          'actualCheckout': DateTime.now().toIso8601String(),
+          'expectedNights': 5,
+          'calculatedNights': 3,
+          'totalDueCached': 300.0,
+          'totalPaidCached': 300.0,
+          'remainingBalanceCached': 0.0,
+          'isFullyPaid': true,
+          'lastModified': 1,
+        };
+        final refs = ResolveResult(bookingLocalId: null, lastModifiedEpoch: 1);
+        final companion = adapter.fromJson(
+          json,
+          src: Source.appwrite,
+          refs: refs,
+        );
 
-      // ⭐ توثيق السلوك المقصود (bookings_adapter.dart:190-193):
-      // القيم تُحمل لكن الحقول المالية تُترك غائبة → لا تُخزَّن محلياً
-      // → تعتمد الأجهزة الأخرى على refreshForBookingId، وهو متخطَّى
-      // للحجوزات المكتملة (appwrite_sync_manager.dart:2259-2276).
-      expect(companion.totalDueCached, const d.Value<double>.absent());
-      expect(companion.totalPaidCached, const d.Value<double>.absent());
-      expect(companion.remainingBalanceCached, const d.Value<double>.absent());
-      expect(companion.isFullyPaid, const d.Value<bool>.absent());
-      // في المقابل calculatedNights و actualCheckout و status يعبرون.
-      expect(companion.calculatedNights, const d.Value(3));
-      expect(companion.status, const d.Value('مكتمل'));
-      expect(companion.actualCheckout, isNotNull);
-    });
+        // ⭐ توثيق السلوك المقصود (bookings_adapter.dart:190-193):
+        // القيم تُحمل لكن الحقول المالية تُترك غائبة → لا تُخزَّن محلياً
+        // → تعتمد الأجهزة الأخرى على refreshForBookingId، وهو متخطَّى
+        // للحجوزات المكتملة (appwrite_sync_manager.dart:2259-2276).
+        expect(companion.totalDueCached, const d.Value<double>.absent());
+        expect(companion.totalPaidCached, const d.Value<double>.absent());
+        expect(
+          companion.remainingBalanceCached,
+          const d.Value<double>.absent(),
+        );
+        expect(companion.isFullyPaid, const d.Value<bool>.absent());
+        // في المقابل calculatedNights و actualCheckout و status يعبرون.
+        expect(companion.calculatedNights, const d.Value(3));
+        expect(companion.status, const d.Value('مكتمل'));
+        expect(companion.actualCheckout, isNotNull);
+      },
+    );
   });
 }

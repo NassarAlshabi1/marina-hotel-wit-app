@@ -274,7 +274,8 @@ void main() {
       expect(
         processed,
         _kTotalNights,
-        reason: 'حارس فقدان البيانات: كل 7000 ليلة يجب أن تُطبَّق — '
+        reason:
+            'حارس فقدان البيانات: كل 7000 ليلة يجب أن تُطبَّق — '
             'السقف القديم (1000) كان يفقد الباقي صامتاً',
       );
       expect(
@@ -285,7 +286,8 @@ void main() {
       expect(
         firstPullMs,
         lessThan(_kFirstPullMax.inMilliseconds),
-        reason: 'مسار التطبيق المجمّع (bulk state + فهرس + db.batch) يجب '
+        reason:
+            'مسار التطبيق المجمّع (bulk state + فهرس + db.batch) يجب '
             'ألا يرجع لنمط N+1 (كان ~5-7 عملية DB/ليلة)',
       );
       expect(
@@ -299,13 +301,15 @@ void main() {
       expect(
         firstSelects,
         lessThan(_kMaxSelectsPerPull),
-        reason: 'ارتداد N+1: عدد SELECTs ($firstSelects) خلال السحب الأول '
+        reason:
+            'ارتداد N+1: عدد SELECTs ($firstSelects) خلال السحب الأول '
             'تجاوز الحد — المسار المجمّع يتطلب ~2 استعلام/صفحة لا استعلام/ليلة',
       );
       expect(
         firstBatches,
         greaterThan(0),
-        reason: 'الكتابة يجب أن تمر عبر db.batch (الإصلاح P0-2) — '
+        reason:
+            'الكتابة يجب أن تمر عبر db.batch (الإصلاح P0-2) — '
             'لا INSERT منفصل لكل سجل',
       );
 
@@ -316,15 +320,15 @@ void main() {
       swRe.stop();
       final rePullMs = swRe.elapsedMilliseconds;
       final reSelects = queryCounter.selects;
-      final reWrites = queryCounter.inserts +
-          queryCounter.updates +
-          queryCounter.batches;
+      final reWrites =
+          queryCounter.inserts + queryCounter.updates + queryCounter.batches;
       final rowCountAfterRe = await _countNights(db);
 
       expect(
         reProcessed,
         0,
-        reason: 'إعادة سحب بلا تغييرات يجب أن تتخطى الكل (فحص الأحدثية '
+        reason:
+            'إعادة سحب بلا تغييرات يجب أن تتخطى الكل (فحص الأحدثية '
             'صف-بصف على 7000 — لا كتابات)',
       );
       expect(rowCountAfterRe, _kTotalNights, reason: 'لا تغيير في الصفوف');
@@ -336,13 +340,15 @@ void main() {
       expect(
         reWrites,
         0,
-        reason: 'إعادة السحب بلا تغييرات يجب ألا تكتب شيئاً إطلاقاً '
+        reason:
+            'إعادة السحب بلا تغييرات يجب ألا تكتب شيئاً إطلاقاً '
             '(الاستبعاد في فحص الأحدثية — لا INSERT/UPDATE/batch)',
       );
       expect(
         reSelects,
         lessThan(_kMaxSelectsPerPull),
-        reason: 'فحص الأحدثية الكمي: bulk state (7000 uuid → 14 chunk) + '
+        reason:
+            'فحص الأحدثية الكمي: bulk state (7000 uuid → 14 chunk) + '
             'فهرس واحد — ليس استعلاماً لكل ليلة',
       );
 
@@ -373,27 +379,39 @@ void main() {
       final ratio = perDocOld / perDocNew;
       final metrics = StringBuffer()
         ..writeln('booking_nights full-pull scale (P1 CI coverage)')
-        ..writeln('docs=$_kTotalNights pages=${_kTotalNights ~/ _kPageSize} '
-            'page_size=$_kPageSize bookings=$_kBookings rooms=$_kRoomCount')
-        ..writeln('first_pull_ms=$firstPullMs '
-            '(${(1000 / perDocNew).toStringAsFixed(0)} docs/sec) '
-            'selects=$firstSelects batches=$firstBatches '
-            'inserts_nonbatch=$firstInserts')
-        ..writeln('re_pull_ms=$rePullMs skipped=$_kTotalNights '
-            'selects=$reSelects writes=$reWrites')
-        ..writeln('old_path_${_kOldPathSampleSize}docs_ms=$oldPathMs '
-            '(${perDocOld.toStringAsFixed(2)} ms/doc)')
+        ..writeln(
+          'docs=$_kTotalNights pages=${_kTotalNights ~/ _kPageSize} '
+          'page_size=$_kPageSize bookings=$_kBookings rooms=$_kRoomCount',
+        )
+        ..writeln(
+          'first_pull_ms=$firstPullMs '
+          '(${(1000 / perDocNew).toStringAsFixed(0)} docs/sec) '
+          'selects=$firstSelects batches=$firstBatches '
+          'inserts_nonbatch=$firstInserts',
+        )
+        ..writeln(
+          're_pull_ms=$rePullMs skipped=$_kTotalNights '
+          'selects=$reSelects writes=$reWrites',
+        )
+        ..writeln(
+          'old_path_${_kOldPathSampleSize}docs_ms=$oldPathMs '
+          '(${perDocOld.toStringAsFixed(2)} ms/doc)',
+        )
         ..writeln(
           'new_path_ms_per_doc=${perDocNew.toStringAsFixed(4)} '
           'speedup=${ratio.isFinite ? '${ratio.toStringAsFixed(1)}x' : 'n/a'}',
         )
-        ..writeln('rss_before_mb=${(rssBefore / 1048576).toStringAsFixed(1)} '
-            'rss_after_mb=${(rssAfter / 1048576).toStringAsFixed(1)} '
-            'rss_delta_mb=${((rssAfter - rssBefore) / 1048576).toStringAsFixed(1)}')
+        ..writeln(
+          'rss_before_mb=${(rssBefore / 1048576).toStringAsFixed(1)} '
+          'rss_after_mb=${(rssAfter / 1048576).toStringAsFixed(1)} '
+          'rss_delta_mb=${((rssAfter - rssBefore) / 1048576).toStringAsFixed(1)}',
+        )
         ..writeln('db_rows=$_kTotalNights (+$_kOldPathSampleSize old-path)')
-        ..writeln('thresholds: first<${_kFirstPullMax.inSeconds}s '
-            're<${_kRePullMax.inSeconds}s '
-            'rss_delta<${_kMaxRssDeltaBytes ~/ 1048576}MB')
+        ..writeln(
+          'thresholds: first<${_kFirstPullMax.inSeconds}s '
+          're<${_kRePullMax.inSeconds}s '
+          'rss_delta<${_kMaxRssDeltaBytes ~/ 1048576}MB',
+        )
         ..writeln('verdict=PASS');
       _writeMetricsFile(metrics.toString());
       // ignore: avoid_print

@@ -179,10 +179,7 @@ class SyncCheckpointStore {
   /// لا يُستدعى إلا بعد نجاح [CollectionPullTask.apply] للصفحة — إذا انهار
   /// التطبيق بعدها، الاستئناف يبدأ من هذه الصفحة بالضبط فلا صفحة مفقودة
   /// ولا إعادة عمل كبيرة (الـ upsert idempotent على أي حال).
-  Future<void> setFullSyncCursor(
-    String collectionName,
-    String cursor,
-  ) async {
+  Future<void> setFullSyncCursor(String collectionName, String cursor) async {
     await _ensureTable();
     await db.customStatement(
       'INSERT INTO $tableName '

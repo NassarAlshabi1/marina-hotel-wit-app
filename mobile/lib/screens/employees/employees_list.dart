@@ -125,9 +125,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                     ? list
                     : list
                           .where(
-                            (e) => !StatusUtils.isEmployeeTerminated(
-                              e.status,
-                            ),
+                            (e) => !StatusUtils.isEmployeeTerminated(e.status),
                           )
                           .toList();
 
@@ -202,16 +200,18 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: (_showTerminated
-                                            ? Colors.red
-                                            : AppColors.primaryColor)
-                                        .withValues(alpha: 0.08),
+                                    color:
+                                        (_showTerminated
+                                                ? Colors.red
+                                                : AppColors.primaryColor)
+                                            .withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
-                                      color: (_showTerminated
-                                              ? Colors.red
-                                              : AppColors.primaryColor)
-                                          .withValues(alpha: 0.3),
+                                      color:
+                                          (_showTerminated
+                                                  ? Colors.red
+                                                  : AppColors.primaryColor)
+                                              .withValues(alpha: 0.3),
                                     ),
                                   ),
                                   child: Row(
@@ -278,7 +278,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                                 onTerminate:
                                     canUpdate &&
                                         StatusUtils.isEmployeeActive(e.status)
-                                    ? () => _showTerminateDialog(context, ref, e)
+                                    ? () =>
+                                          _showTerminateDialog(context, ref, e)
                                     : null,
                                 onReactivate:
                                     canUpdate &&
@@ -793,10 +794,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                           'الحذف يُخفي الموظف من كل الأجهزة بعد المزامنة، '
                           'ويفقد تاريخه المالي الربط باسمه في التقارير '
                           '(يظهر "(محذوف)") — لا يمكن التراجع عملياً.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.orange,
-                          ),
+                          style: TextStyle(fontSize: 12, color: Colors.orange),
                         ),
                       ],
                     ),
@@ -819,10 +817,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                             'البديل الصحيح: «إنهاء الخدمة» — يوقف صرف '
                             'الرواتب والسلف، ويحفظ التاريخ المالي كاملاً '
                             'على كل الأجهزة.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green,
-                            ),
+                            style: TextStyle(fontSize: 12, color: Colors.green),
                           ),
                         ),
                       ],
@@ -853,9 +848,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
               ),
             if (financialRecords != 0)
               FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.green,
-                ),
+                style: FilledButton.styleFrom(backgroundColor: Colors.green),
                 onPressed: () => Navigator.pop(ctx, 'terminate'),
                 icon: const Icon(Icons.person_off, size: 18),
                 label: const Text('إنهاء الخدمة'),

@@ -1614,10 +1614,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                           'الحذف يُخفي الموظف من كل الأجهزة بعد المزامنة، '
                           'ويفقد تاريخه المالي الربط باسمه في التقارير '
                           '(يظهر "(محذوف)") — لا يمكن التراجع عملياً.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.orange,
-                          ),
+                          style: TextStyle(fontSize: 12, color: Colors.orange),
                         ),
                       ],
                     ),
@@ -1640,10 +1637,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                             'البديل الصحيح: «إنهاء الخدمة» — يوقف صرف '
                             'الرواتب والسلف، ويحفظ التاريخ المالي كاملاً '
                             'على كل الأجهزة.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green,
-                            ),
+                            style: TextStyle(fontSize: 12, color: Colors.green),
                           ),
                         ),
                       ],

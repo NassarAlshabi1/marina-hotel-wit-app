@@ -7381,7 +7381,8 @@ class AppwriteSyncManager {
               (data['vectorClock'] as String?) ??
               (data['vector_clock'] as String?) ??
               '{}';
-          final bothNonTrivial = localVc.isNotEmpty &&
+          final bothNonTrivial =
+              localVc.isNotEmpty &&
               localVc != '{}' &&
               remoteVc.isNotEmpty &&
               remoteVc != '{}';
@@ -7521,13 +7522,11 @@ class AppwriteSyncManager {
     if (uuids.isEmpty) return result;
     const chunkSize = 500; // حد SQLITE_MAX_VARIABLE_NUMBER (~999).
     for (var i = 0; i < uuids.length; i += chunkSize) {
-      final end = (i + chunkSize < uuids.length)
-          ? i + chunkSize
-          : uuids.length;
+      final end = (i + chunkSize < uuids.length) ? i + chunkSize : uuids.length;
       final chunk = uuids.sublist(i, end);
-      final rows = await (database.select(database.bookingNights)
-            ..where((t) => t.localUuid.isIn(chunk)))
-          .get();
+      final rows = await (database.select(
+        database.bookingNights,
+      )..where((t) => t.localUuid.isIn(chunk))).get();
       for (final row in rows) {
         result[row.localUuid] = row;
       }
