@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
@@ -43,6 +44,7 @@ fun FinanceScreen(
             topBar = {
                 TopAppBar(
                     title = { Text("الصندوق والمالية", style = AppTypography.titleLarge) },
+                    navigationIcon = { SidebarMenuButton() },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = AppColors.SurfaceColor,
                         titleContentColor = AppColors.TextPrimary

@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.BlacklistEntry
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +63,7 @@ fun BlacklistScreen(
         topBar = {
             TopAppBar(
                 title = { Text("القائمة السوداء") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "رجوع") } }
+                navigationIcon = { SidebarMenuButton() }
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },

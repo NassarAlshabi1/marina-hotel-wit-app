@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.a.a.BuildConfig
+import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.Room
 import com.marina.marina.domain.model.RoomWithPaymentStatus
 import com.marina.marina.domain.util.StatusUtils
@@ -248,6 +249,10 @@ private fun DashboardHeader(
     onSyncClick: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
+        // Phone layout: hamburger that opens the side-navigation drawer
+        // (renders nothing on wide screens where the sidebar is permanent).
+        SidebarMenuButton()
+
         // Gradient hotel badge (Flutter: blue.shade600 → blue.shade400).
         Box(
             modifier = Modifier

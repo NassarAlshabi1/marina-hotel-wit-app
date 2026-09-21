@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.ChatMessage
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
@@ -49,12 +50,11 @@ fun AIChatScreen(
             topBar = {
                 TopAppBar(
                     title = { Text("المساعد الذكي", style = AppTypography.titleLarge) },
-                    navigationIcon = {
+                    navigationIcon = { SidebarMenuButton() },
+                    actions = {
                         TextButton(onClick = viewModel::clearChat) {
                             Text("مسح", color = AppColors.DangerColor, fontSize = 13.sp)
                         }
-                    },
-                    actions = {
                         TextButton(onClick = { showSettings = true }) {
                             Text("⚙ الإعدادات", color = AppColors.PrimaryColor, fontSize = 13.sp)
                         }

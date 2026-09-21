@@ -1,11 +1,15 @@
 package com.marina.marina.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.marina.marina.components.AdminScaffold
 import com.marina.marina.presentation.aichat.AIChatScreen
 import com.marina.marina.presentation.blacklist.BlacklistScreen
 import com.marina.marina.presentation.debts.CreateDebtFromBookingScreen
@@ -71,6 +75,41 @@ sealed class Screen(val route: String) {
     object AIChat : Screen("ai_chat")
 }
 
+/**
+ * Registers a top-level destination wrapped in [AdminScaffold] so it gets
+ * the side navigation (permanent on wide screens, drawer on phones).
+ * Selecting another module switches it without piling up the back stack.
+ */
+private fun NavGraphBuilder.adminScreen(
+    navController: NavHostController,
+    authViewModel: AuthViewModel,
+    route: String,
+    content: @Composable () -> Unit
+) {
+    composable(route) { entry ->
+        val authState by authViewModel.authState.collectAsState()
+        AdminScaffold(
+            currentRoute = entry.destination.route,
+            currentUser = authState.currentUser,
+            onRouteSelected = { target ->
+                navController.navigate(target) {
+                    popUpTo(Screen.Dashboard.route) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            },
+            onLogout = {
+                authViewModel.logout()
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        ) {
+            content()
+        }
+    }
+}
+
 @Composable
 fun MarinaNavGraph(
     navController: NavHostController,
@@ -92,17 +131,17 @@ fun MarinaNavGraph(
             )
         }
 
-        composable(Screen.Dashboard.route) {
+        adminScreen(navController, authViewModel, Screen.Dashboard.route) {
             DashboardScreen(
                 onNavigate = { route -> navController.navigate(route) }
             )
         }
 
-        composable(Screen.Rooms.route) {
+        adminScreen(navController, authViewModel, Screen.Rooms.route) {
             RoomsListScreen()
         }
 
-        composable(Screen.Bookings.route) {
+        adminScreen(navController, authViewModel, Screen.Bookings.route) {
             BookingsListScreen(
                 onBookingClick = { bookingId ->
                     navController.navigate(Screen.BookingPayment.createRoute(bookingId))
@@ -143,27 +182,27 @@ fun MarinaNavGraph(
             )
         }
 
-        composable(Screen.Payments.route) {
+        adminScreen(navController, authViewModel, Screen.Payments.route) {
             PaymentsMainScreen()
         }
 
-        composable(Screen.Debts.route) {
+        adminScreen(navController, authViewModel, Screen.Debts.route) {
             DebtsListScreen()
         }
 
-        composable(Screen.Employees.route) {
+        adminScreen(navController, authViewModel, Screen.Employees.route) {
             EmployeesListScreen()
         }
 
-        composable(Screen.Expenses.route) {
+        adminScreen(navController, authViewModel, Screen.Expenses.route) {
             ExpensesListScreen()
         }
 
-        composable(Screen.Notes.route) {
+        adminScreen(navController, authViewModel, Screen.Notes.route) {
             NotesScreen()
         }
 
-        composable(Screen.Settings.route) {
+        adminScreen(navController, authViewModel, Screen.Settings.route) {
             SettingsScreen(
                 onLogout = {
                     authViewModel.logout()
@@ -174,11 +213,11 @@ fun MarinaNavGraph(
             )
         }
 
-        composable(Screen.Reports.route) {
+        adminScreen(navController, authViewModel, Screen.Reports.route) {
             ReportsScreen()
         }
 
-        composable(Screen.Finance.route) {
+        adminScreen(navController, authViewModel, Screen.Finance.route) {
             FinanceScreen(
                 onBookingClick = { bookingId ->
                     navController.navigate(Screen.BookingPayment.createRoute(bookingId))
@@ -186,19 +225,19 @@ fun MarinaNavGraph(
             )
         }
 
-        composable(Screen.Information.route) {
+        adminScreen(navController, authViewModel, Screen.Information.route) {
             InformationScreen()
         }
 
-        composable(Screen.Inventory.route) {
+        adminScreen(navController, authViewModel, Screen.Inventory.route) {
             InventoryScreen()
         }
 
-        composable(Screen.AIChat.route) {
+        adminScreen(navController, authViewModel, Screen.AIChat.route) {
             AIChatScreen()
         }
 
-        composable(Screen.Blacklist.route) {
+        adminScreen(navController, authViewModel, Screen.Blacklist.route) {
             BlacklistScreen(onBack = { navController.popBackStack() })
         }
 
