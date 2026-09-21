@@ -115,6 +115,12 @@ android {
             shrinkResources !noMinify
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.unified
+            // Crashlytics Gradle plugin v3 DSL lives INSIDE the build type.
+            // Mapping upload needs live Firebase credentials; keep CI
+            // offline-safe (build-ID injection still runs for every variant).
+            firebaseCrashlytics {
+                mappingUploadEnabled false
+            }
         }
     }
 
@@ -149,16 +155,6 @@ android {
             }
         }
     }
-}
-
-// Injects the Crashlytics build ID (com.crashlytics.android.build_id) into
-// every variant — debug included, which is exactly what the emulator launch
-// probe installs. Without this the process dies at FirebaseInitProvider.
-firebaseCrashlytics {
-    // Mapping upload needs live Firebase credentials; CI builds must stay
-    // offline-safe. Build-ID injection happens either way.
-    mappingUploadEnabled false
-}
 
 dependencies {
     // AndroidX

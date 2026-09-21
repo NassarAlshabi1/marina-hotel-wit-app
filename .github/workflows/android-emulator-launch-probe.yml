@@ -28,6 +28,7 @@ on:
       - agent/android-cloudflare
     paths:
       - '.github/workflows/android-emulator-launch-probe.yml'
+      - '.github/scripts/emulator-launch-probe.sh'
       - 'mobile/android/**'
 
 permissions:

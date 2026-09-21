@@ -90,3 +90,17 @@ echo "--- crash buffer of the probe run ---"
 head -c 4000 "$OUT/logcat-crash-probe.txt" 2>/dev/null
 echo
 echo "=== probe done ==="
+
+# ── Gate ────────────────────────────────────────────────────────────────────
+# Evidence-only green runs hid the launch crash for days (the workflow went
+# green while every launch died). The probe must FAIL the build when the real
+# MainActivity cannot survive a launch, so launch regressions gate CI. The
+# bare/probe launches stay informational (framework bisection).
+main_state="$(cat "$OUT/state-main.txt" 2>/dev/null || echo MISSING)"
+if [[ "$main_state" == ALIVE* ]]; then
+  echo "GATE[main]: PASS — $PKG survived MainActivity launch for 20s ($main_state)"
+  exit 0
+fi
+echo "GATE[main]: FAIL — the real MainActivity did not survive launch ($main_state)"
+echo "Evidence: state-*.txt, logcat-crash-*.txt, exit-info-*.txt in the uploaded artifact."
+exit 1
