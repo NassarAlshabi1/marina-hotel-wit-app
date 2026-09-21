@@ -84,9 +84,24 @@ fi
 
 # The production manifest requests runtime permissions. On a fresh emulator,
 # PermissionController can remain on top after a force-stop and make `am start`
-# report Status: ok while the app is not actually ready. Grant only the
-# permissions explicitly configured for this test harness before the first
-# launch; failed grants are logged and do not hide real startup failures.
+# report Status: ok while the app is not actually ready. The explicit grants
+# below remain the first layer; grant_all_requested_runtime_permissions adds
+# the full manifest set so no un-granted dangerous permission can surface a
+# system dialog mid-cycle.
+#
+# Run 35543654200 post-mortem: a Settings-hosted permission page
+# (com.android.settings/.spa.SpaActivity) stayed on top after force-stop and
+# swallowed every subsequent `am start` via "delivered to currently running
+# top-most instance" — cycles 2+ never launched. The fix is layered:
+#   1. launch_app_once detects a foreign `Activity:` in `am start -W` output
+#      and fails fast instead of waiting START_TIMEOUT_SEC on a dead launch.
+#   2. dismiss_system_ui closes any surviving system UI (BACK + force-stop
+#      of dialog-hosting packages) before every launch attempt, and the
+#      launch uses FLAG_ACTIVITY_CLEAR_TASK so a stale task record can never
+#      satisfy the launch intent without starting the process.
+#   3. grant_all_requested_runtime_permissions covers every dangerous
+#      permission the APK declares, plus appops for the special-access ones
+#      that `pm grant` cannot handle.
 if ! "$ADB_BIN" shell pm path "$PACKAGE" >/dev/null 2>&1; then
   echo "Package is not installed: $PACKAGE" >&2
   exit 1
@@ -143,12 +158,80 @@ grant_runtime_permissions() {
   done
 }
 
+# Layer 3 (prevention): grant EVERY dangerous permission the installed APK
+# actually requests, not a hand-picked list. The set is derived from
+# `dumpsys package` intersected with `pm list permissions -g -d`, so any
+# permission the manifest adds later is covered automatically. Special-access
+# permissions (MANAGE_EXTERNAL_STORAGE, SCHEDULE_EXACT_ALARM,
+# REQUEST_INSTALL_PACKAGES) cannot be `pm grant`-ed; they get their documented
+# appop where the platform defines one, and the doze whitelist covers battery
+# exemption. Every result is logged; nothing here is ever fatal.
+grant_all_requested_runtime_permissions() {
+  local requested dangerous perm result op
+  requested=$("$ADB_BIN" shell dumpsys package "$PACKAGE" 2>/dev/null \
+    | tr -d '\r' | grep -oE 'android\.permission\.[A-Z_]+' | sort -u)
+  dangerous=$("$ADB_BIN" shell pm list permissions -g -d 2>/dev/null \
+    | tr -d '\r' | grep -oE 'android\.permission\.[A-Z_]+' | sort -u)
+  [[ -n "$requested" && -n "$dangerous" ]] || return 0
+  for perm in $dangerous; do
+    if printf '%s\n' "$requested" | grep -qx "$perm"; then
+      result=$("$ADB_BIN" shell pm grant "$PACKAGE" "$perm" 2>&1 || true)
+      printf 'permission_grant_all timestamp_ms=%s permission=%s result=%s\n' \
+        "$(now_ms)" "$perm" "${result//$'\n'/ | }" >> "$lifecycle_log"
+    fi
+  done
+  for op in MANAGE_EXTERNAL_STORAGE SCHEDULE_EXACT_ALARM REQUEST_INSTALL_PACKAGES; do
+    result=$("$ADB_BIN" shell appops set "$PACKAGE" "$op" allow 2>&1 || true)
+    printf 'appop_grant timestamp_ms=%s op=%s result=%s\n' \
+      "$(now_ms)" "$op" "${result//$'\n'/ | }" >> "$lifecycle_log"
+  done
+  result=$("$ADB_BIN" shell dumpsys deviceidle whitelist "+$PACKAGE" 2>&1 || true)
+  printf 'doze_whitelist timestamp_ms=%s result=%s\n' \
+    "$(now_ms)" "${result//$'\n'/ | }" >> "$lifecycle_log"
+}
+
+# Layer 2 (recovery): close any foreign system UI that survived the app
+# force-stop. Permission dialogs and special-access pages are hosted by
+# Settings/PermissionController/PackageInstaller; they keep the foreground
+# after our app is stopped and hijack the next `am start`. BACK dismisses
+# dialog-hosted prompts; force-stop guarantees the rest. All best-effort.
+dismiss_system_ui() {
+  "$ADB_BIN" shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+  local pkg
+  for pkg in \
+    com.android.settings \
+    com.google.android.settings \
+    com.android.permissioncontroller \
+    com.google.android.permissioncontroller \
+    com.android.packageinstaller \
+    com.google.android.packageinstaller; do
+    "$ADB_BIN" shell am force-stop "$pkg" >/dev/null 2>&1 || true
+  done
+  sleep 1
+}
+
+# Instrumentation: record which UI holds the foreground at cycle boundaries
+# so a mid-cycle hijack is visible in lifecycle.log instead of requiring
+# post-mortem artifact analysis.
+log_foreground() {
+  local cycle="$1" focus
+  focus=$("$ADB_BIN" shell dumpsys window 2>/dev/null \
+    | grep -m1 -E 'mCurrentFocus|mFocusedApp' | tr -d '\r' || true)
+  printf 'foreground timestamp_ms=%s cycle=%s focus=%s\n' \
+    "$(now_ms)" "$cycle" "${focus:-unknown}" >> "$lifecycle_log"
+}
+
 collect_startup_diagnostics() {
   local prefix="$raw_dir/startup_failure_$(now_ms)"
   "$ADB_BIN" shell dumpsys activity activities > "${prefix}_activity.txt" 2>&1 || true
   "$ADB_BIN" shell dumpsys package "$PACKAGE" > "${prefix}_package.txt" 2>&1 || true
+  # Window focus pinpoints the UI on top at the failure moment — this is what
+  # exposed the Settings permission-page hijack in the 35543654200 post-mortem.
+  "$ADB_BIN" shell dumpsys window > "${prefix}_window.txt" 2>&1 || true
+  # Broadened beyond the old Java-only filter: native crashes ("Fatal
+  # signal"), process lifecycle (am_proc_*) and LMKD kills are captured too.
   "$ADB_BIN" logcat -d -b all -v threadtime -t 3000 \
-    | grep -E "${PACKAGE//./\\.}|AndroidRuntime|ActivityTaskManager|FATAL EXCEPTION|Process: " \
+    | grep -E "${PACKAGE//./\\.}|AndroidRuntime|ActivityTaskManager|FATAL EXCEPTION|Fatal signal|Process: |am_proc|am_kill|lowmemorykiller|lmkd|tombstoned" \
     > "${prefix}_logcat.txt" || true
 }
 
@@ -197,13 +280,33 @@ measure() {
 }
 
 launch_app_once() {
-  local output
+  local output started_activity
+  # Layer 2 (recovery): never launch into a foreign foreground — the
+  # hijacking dialog/page gets closed first.
+  dismiss_system_ui
+  # FLAG_ACTIVITY_CLEAR_TASK (0x10008000 = NEW_TASK | CLEAR_TASK): the target
+  # task is wiped and rebuilt, so a stale activity record from the previous
+  # cycle can never satisfy the launch intent without spawning the process
+  # (the "delivered to currently running top-most instance" pathology).
   output=$("$ADB_BIN" shell am start -W \
     -n "$PACKAGE/.MainActivity" \
     -a android.intent.action.MAIN \
-    -c android.intent.category.LAUNCHER 2>&1 || true)
+    -c android.intent.category.LAUNCHER \
+    -f 0x10008000 \
+    2>&1 || true)
   printf 'launch_attempt timestamp_ms=%s output=%s\n' "$(now_ms)" "${output//$'\\n'/ | }" >> "$lifecycle_log"
   if printf '%s' "$output" | grep -Eq 'Error type|Error:|Exception|does not exist'; then
+    return 1
+  fi
+  # Layer 1 (detection): `am start -W` reports the activity the launch
+  # actually resolved to. When a foreign package steals the launch, Status
+  # is still "ok" — the only tell is the Activity line. Fail fast instead of
+  # waiting START_TIMEOUT_SEC on a process that will never spawn.
+  started_activity=$(printf '%s' "$output" \
+    | sed -n 's/^Activity:[[:space:]]*//p' | head -1 | tr -d '\r')
+  if [[ -n "$started_activity" && "${started_activity%%/*}" != "$PACKAGE" ]]; then
+    printf 'launch_foreign_activity timestamp_ms=%s reported=%s\n' \
+      "$(now_ms)" "$started_activity" >> "$lifecycle_log"
     return 1
   fi
   wait_for_process "$START_TIMEOUT_SEC"
@@ -243,6 +346,7 @@ run_actions() {
 }
 
 grant_runtime_permissions
+grant_all_requested_runtime_permissions
 stop_app || true
 sleep 2
 
@@ -252,6 +356,7 @@ printf 'cold_start_before,%s,0,absent\n' "$(now_ms)" >> "$lifecycle_log"
 launch_app
 printf 'cold_start_after,%s,0,%s\n' "$(now_ms)" "$(process_state)" >> "$lifecycle_log"
 measure cold_start_after 0
+log_foreground 0
 
 for cycle in $(seq 1 "$CYCLES"); do
   if (( cycle > 1 )); then
@@ -262,9 +367,11 @@ for cycle in $(seq 1 "$CYCLES"); do
   fi
   printf 'cycle_start,%s,%s,%s\n' "$(now_ms)" "$cycle" "$(process_state)" >> "$lifecycle_log"
   measure "cycle_${cycle}_after_start" "$cycle"
+  log_foreground "$cycle"
   run_actions "$cycle"
   sleep 2
   measure "cycle_${cycle}_after_actions" "$cycle"
+  log_foreground "$cycle"
 done
 
 peak_pss=$(awk -F, 'NR > 1 && $4 > max {max=$4} END {print max + 0}' "$metrics_csv")
