@@ -115,11 +115,13 @@ android {
             shrinkResources !noMinify
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.unified
-            // Crashlytics Gradle plugin v3 DSL lives INSIDE the build type.
-            // Mapping upload needs live Firebase credentials; keep CI
-            // offline-safe (build-ID injection still runs for every variant).
+            // Crashlytics Gradle plugin v3 DSL lives INSIDE the build type
+            // (verified against the plugin jar: extendBuildTypeWith +
+            // "firebaseCrashlytics" + setMappingFileUploadEnabled). Mapping
+            // upload needs live Firebase credentials; keep CI offline-safe
+            // (build-ID injection still runs for every variant).
             firebaseCrashlytics {
-                mappingUploadEnabled false
+                mappingFileUploadEnabled false
             }
         }
     }
@@ -155,6 +157,7 @@ android {
             }
         }
     }
+}
 
 dependencies {
     // AndroidX
