@@ -158,6 +158,8 @@ export interface PushResultItem {
   entityId?: string;
   error?: string;
   skipped?: boolean;
+  /** ✅ (fix M4 + F1 2026-09-22) تصنيف الناتج — 'deleted' = خسارة عمداً لصالح tombstone */
+  status?: string;
 }
 
 export interface PushResponseBody {

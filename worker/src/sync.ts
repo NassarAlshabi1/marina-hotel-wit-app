@@ -305,8 +305,10 @@ export async function handlePush(
       entityId?: string;
       error?: string;
       skipped?: boolean;
-      /** ✅ (fix M4) تصنيف الرفض — يتيح للعميل فصل الأخطاء الدائمة عن المؤقتة */
-      status?: 'validation_error' | 'conflict' | 'internal_error';
+      /** ✅ (fix M4) تصنيف الرفض — يتيح للعميل فصل الأخطاء الدائمة عن المؤقتة
+       * ✅ (F1 2026-09-22) 'deleted': التعديل خسر عمداً لصالح tombstone
+       * (عقد delete-vs-update) — نجاح شكلي بلا تطبيق محتوى */
+      status?: 'validation_error' | 'conflict' | 'internal_error' | 'deleted';
     }> = [];
 
     // Distinct entities touched by SUCCESSFUL, non-skipped ops — one change
@@ -367,6 +369,36 @@ export async function handlePush(
               op.updatedAt
             );
             entityId = record.local_uuid;
+            // ✅ (F1 2026-09-22) التعديل خسر عمداً لصالح tombstone — عقد
+            // delete-vs-update (updateRecord أعلاه). يعود للعميل
+            // success:true + opStatus:'deleted' كي يوقف إعادة المحاولة
+            // (ليست إخفاقاً شبكياً) ويُطابق نسخته المحلية مع الحذف بوعي.
+            // سجل تعارض edit_on_deleted كُتب داخل updateRecord مسبقاً،
+            // والناتج يُحفظ في idempotency_log كي يعود الاختصار للناتج
+            // نفسه عند إعادة الإرسال بنفس المفتاح.
+            if ((record as { opStatus?: string }).opStatus === 'deleted') {
+              const rejectedPayload = {
+                entity: op.entity,
+                entityId,
+                operation: op.operation,
+                status: 'deleted',
+              };
+              await db.saveIdempotency(
+                op.idempotencyKey,
+                op.entity,
+                op.operation,
+                entityId,
+                rejectedPayload
+              );
+              results.push({
+                idempotencyKey: op.idempotencyKey,
+                success: true,
+                status: 'deleted',
+                entity: op.entity,
+                entityId,
+              });
+              continue;
+            }
             break;
           }
           case 'delete': {

@@ -1698,6 +1698,22 @@ class CloudflareSyncManager {
       }
 
       if (success) {
+        // ✅ (F1 2026-09-22) عقد delete-vs-update: opStatus='deleted' يعني
+        // أن الخادم رفض التعديل لأن الصف محذوف ناعماً — الحذف يفوز حتماً.
+        // ليست إخفاقاً شبكياً (لا إعادة محاولة): السجل يُحذف من outbox
+        // مع ختم محلي مطابق وقيَم الخسارة في مركز الأخطاء لوعي المستخدم.
+        if (opStatus == 'deleted') {
+          workerRejections.add(
+            'deleted | $key | تعديل ${outboxItem.entity}/'
+            '${outboxItem.localUuid} خسر عمداً لصالح حذف متزامن — '
+            'الحذف يفوز (عقد delete-vs-update) وسجل edit_on_deleted '
+            'مكتوب خادمياً',
+          );
+          await _tombstoneLocalRowAfterLostEdit(
+            entity: outboxItem.entity,
+            localUuid: outboxItem.localUuid,
+          );
+        }
         await (outboxDao.delete(
           outboxDao.outbox,
         )..where((t) => t.id.equals(outboxItem.id))).go();
@@ -2860,7 +2876,7 @@ class CloudflareSyncManager {
             variables: [Variable(keyValue)],
           )
           .getSingleOrNull();
-      final id = row?.data['id'];
+      final id = row?.data['id'] as Object?;
       // نتيجة موجبة فقط تُحفظ — راجع تعليق [_fkParentIdCache] أعلاه.
       if (id != null) {
         _fkParentIdCache[cacheKey] = id;
@@ -3113,9 +3129,11 @@ class CloudflareSyncManager {
       final deletedAt = record['deleted_at'];
       if (deletedAt != null) {
         // ✅ P0-E: حتى لو كان المحلي أحدث، نطبّق الـ tombstone لأنه قرار نهائي
-        // من جهاز آخر. لكن إذا كان المحلي لديه تعديل معلّق في outbox،
-        // نحتفظ بالتعديل (delete-vs-update) - لكن نطبّق tombstone.
-        // ConflictDetector.detect يعطي الأولوية للحذف في deleteVsUpdate.
+        // من جهاز آخر. التعديل المعلّق في outbox يبقى فيه حتى الرفع، لكن
+        // حسمه صار حتمياً بعقد delete-vs-update (F1 2026-09-22): الخادم
+        // يرفض التعديل على صف محذوف بـ opStatus:'deleted' فيُحذف من
+        // outbox ويُختم محلياً بوعي (انظر _tombstoneLocalRowAfterLostEdit)
+        // — لا قبول صامت يحدّث tombstone ثم يمحو نسخة الجهاز بلا أثر.
         await _db!.customStatement(
           'UPDATE $tableName SET deleted_at = ?, updated_at = ?, last_modified = ? WHERE id = ?',
           [deletedAt, remoteUpdatedAt, remoteUpdatedAt, localId],
@@ -3695,6 +3713,58 @@ class CloudflareSyncManager {
   }
 
   // ─── الحجر الصحي للصفوف اليتيمة (مراجعة #2+#16) ──────────────
+
+  /// ✅ (F1 2026-09-22) ختم محلي بعد خسارة تعديل لصالح حذف — عقد
+  /// delete-vs-update: الخادم رفض التعديل المعلّق (opStatus:'deleted')
+  /// لأن الصف محذوف ناعماً عنده. نُطابق النسخة المحلية بوعي (idempotent:
+  /// السيناريو الشائع تكون النسخة المحلية مطموعة سلفاً من السحب) —
+  /// بلا supersede لا confirmatory-delete: العملية الخاسرة تُحذف من
+  /// outbox فوراً وهي نفسها، وإعادة ختم الخادم تصل عبر الدلتا كالمعتاد.
+  Future<void> _tombstoneLocalRowAfterLostEdit({
+    required String entity,
+    required String localUuid,
+  }) async {
+    final db = _db;
+    if (db == null) return;
+    try {
+      var tableName = CloudflareConfig.tableNameFor(entity);
+      var extraWhere = '';
+      if (entity == 'blacklist') {
+        tableName = 'shift_notes';
+        extraWhere =
+            " AND created_by = '${CloudflareConfig.blacklistStorageTag}'";
+      }
+      if (tableName == null) return;
+      final existing = await db
+          .customSelect(
+            'SELECT id, deleted_at FROM $tableName WHERE local_uuid = ?'
+            '$extraWhere',
+            variables: [Variable.withString(localUuid)],
+          )
+          .getSingleOrNull();
+      if (existing == null) return; // الصف لم يصل هذا الجهاز قط — لا شيء
+      if (existing.data['deleted_at'] != null) {
+        debugPrint(
+          '  🗑️ $entity/$localUuid: already tombstoned locally — '
+          'edit loss acknowledged (delete-vs-update contract)',
+        );
+        return;
+      }
+      final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await db.customStatement(
+        'UPDATE $tableName SET deleted_at = ?, updated_at = ? WHERE id = ?',
+        [nowSec, nowSec, existing.data['id']],
+      );
+      debugPrint(
+        '  🗑️ $entity/$localUuid: local edit lost to deletion — '
+        'row tombstoned to match server (delete-vs-update contract)',
+      );
+    } catch (e) {
+      // التطابق النهائي سيأتي من tombstone الدلتا على أي حال —
+      // هذا الختم المحلي تسريعٌ للوعي لا شرط للصحة.
+      debugPrint('⚠️ post-rejection local tombstone skipped: $e');
+    }
+  }
 
   String _quarantineIdentity(String entity, String? localUuid) =>
       '$entity/$localUuid';

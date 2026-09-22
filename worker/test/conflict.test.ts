@@ -223,22 +223,119 @@ describe('conflict: server-dominates stale-clock edits (P0 regression guard)', (
   });
 });
 
-describe('conflict: update of tombstoned record', () => {
-  it('updating a soft-deleted record with a later edit applies (documented behavior)', async () => {
+describe('conflict: delete-vs-update contract (F1 2026-09-22)', () => {
+  it('delete → edit → push: edit rejected with status:"deleted", row stays deleted, conflict recorded', async () => {
     const auth = await adminAuthHeader();
     const p = await createRoom(auth);
-    await pushOperations(auth, [pushOp('rooms', 'delete', { local_uuid: p.local_uuid })]);
+    const del = await pushOperations(auth, [
+      pushOp('rooms', 'delete', { local_uuid: p.local_uuid }),
+    ]);
+    expect(((await del.json()) as PushResponseBody).summary.success).toBe(1);
     const tomb = await serverRow(p.local_uuid as string);
 
+    // Scenario: another device pushes an edit made before the deletion
+    // arrived. The contract: DELETION WINS — deterministically, visibly.
+    const editOp = pushOp('rooms', 'update', { ...p, price: 210 }, {
+      vectorClock: '{"device-B":3}',
+      updatedAt: (tomb.updated_at as number) + 10,
+    });
+    const res = await pushOperations(auth, [editOp]);
+    const body = (await res.json()) as PushResponseBody;
+    // success:true (the loss is FINAL — the client must not retry) but
+    // flagged status:"deleted" so the client reconciles consciously.
+    expect(body.summary.success).toBe(1);
+    expect(body.results[0]?.status).toBe('deleted');
+
+    // No zombie row: content unchanged, tombstone intact, no re-stamp.
+    const row = await serverRow(p.local_uuid as string);
+    expect(row.price).toBe(100.5);
+    expect(row.deleted_at).not.toBeNull();
+    expect(row.updated_at).toBe(tomb.updated_at);
+
+    // The loss is visible in the audit trail — exactly once, tagged.
+    const conflicts = await env.DB.prepare(
+      "SELECT resolution FROM sync_conflicts WHERE entity_id = ? AND resolution = 'edit_on_deleted'"
+    )
+      .bind(p.local_uuid)
+      .all<{ resolution: string }>();
+    expect(conflicts.results.length).toBe(1);
+
+    // Idempotent replay with the same key short-circuits (no re-processing,
+    // no duplicate conflict row).
+    const replay = await pushOperations(auth, [editOp]);
+    const replayBody = (await replay.json()) as PushResponseBody;
+    expect(replayBody.summary.success).toBe(1);
+    expect(replayBody.results[0]?.skipped).toBe(true);
+    const conflictsAfterReplay = await env.DB.prepare(
+      "SELECT COUNT(*) AS c FROM sync_conflicts WHERE entity_id = ? AND resolution = 'edit_on_deleted'"
+    )
+      .bind(p.local_uuid)
+      .first<{ c: number }>();
+    expect(conflictsAfterReplay?.c).toBe(1);
+  });
+});
+
+describe('conflict: clock-skew-tolerant LWW (F2 2026-09-22)', () => {
+  it('slow-clock within skew window: earlier timestamp + higher version → applied', async () => {
+    const auth = await adminAuthHeader();
+    const p = await createRoom(auth);
+    const server = await serverRow(p.local_uuid as string);
+
+    // Device B's clock trails the server by 30s (inside the ±90s window):
+    // the raw timestamp would lose, but its higher version proves the edit
+    // is genuinely newer — the version must decide, not the skewed clock.
     const res = await pushOperations(auth, [
-      pushOp('rooms', 'update', { ...p, price: 210 }, {
-        vectorClock: '{"device-B":3}',
-        updatedAt: (tomb.updated_at as number) + 10,
+      pushOp('rooms', 'update', { ...p, price: 888, version: 9 }, {
+        vectorClock: '{"device-B":1}',
+        updatedAt: (server.updated_at as number) - 30,
       }),
     ]);
     const body = (await res.json()) as PushResponseBody;
     expect(body.summary.success).toBe(1);
     const row = await serverRow(p.local_uuid as string);
-    expect(row.price).toBe(210);
+    expect(row.price).toBe(888);
+  });
+
+  it('slow-clock within window but equal version → server copy survives', async () => {
+    const auth = await adminAuthHeader();
+    const p = await createRoom(auth);
+    const server = await serverRow(p.local_uuid as string);
+
+    const res = await pushOperations(auth, [
+      pushOp('rooms', 'update', { ...p, price: 444 }, {
+        vectorClock: '{"device-B":1}',
+        updatedAt: (server.updated_at as number) - 30, // inside window
+        // version stays 1 (payload default) — no proof of a later edit
+      }),
+    ]);
+    const body = (await res.json()) as PushResponseBody;
+    expect(body.summary.success).toBe(1);
+    const row = await serverRow(p.local_uuid as string);
+    expect(row.price).toBe(100.5); // rejected — version did not win
+  });
+
+  it('fast-clock clamp: op stamped beyond serverNow+allowance is clamped — cannot beat a future-stamped row', async () => {
+    const auth = await adminAuthHeader();
+    const p = await createRoom(auth);
+    // Simulate a future-stamped row from the old un-clamped era (+1h).
+    const nowSec = Math.floor(Date.now() / 1000);
+    await env.DB.prepare('UPDATE rooms SET updated_at = ? WHERE local_uuid = ?')
+      .bind(nowSec + 3600, p.local_uuid)
+      .run();
+
+    // The fast clock races further into the future (+1h+10s). Without the
+    // clamp min(clientTs, serverNow+90) this would win and stamp the
+    // future again — the clamp bounds the arms race and it loses.
+    const res = await pushOperations(auth, [
+      pushOp('rooms', 'update', { ...p, price: 555 }, {
+        vectorClock: '{"device-B":1}',
+        updatedAt: nowSec + 3600 + 10,
+      }),
+    ]);
+    const body = (await res.json()) as PushResponseBody;
+    expect(body.summary.success).toBe(1);
+    const row = await serverRow(p.local_uuid as string);
+    expect(row.price).toBe(100.5); // clamped timestamp lost
+    expect(row.updated_at).toBe(nowSec + 3600); // future stamp untouched
   });
 });

@@ -651,4 +651,100 @@ void main() {
       expect(pullOnlyClient.normalPullCalls, 1);
     },
   );
+
+  // ─── F1: عقد delete-vs-update (opStatus:'deleted') ──────────
+
+  test(
+    'F1 ناتج status:"deleted" يوقف إعادة المحاولة ويختم الصف محلياً بوعي',
+    () async {
+      // طابور الصفحات الوهمي — بلا طلب tombstones_only إضافي.
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'cloudflare_sync_local_override': true,
+        'cf_tombstone_sweep_v1_done': true,
+      });
+      const roomUuid = 'rm-f1-lost';
+      final liveClient = _ReviewFakeClient(
+        pullHandler: (request) => {
+          'changes': [_roomRow(roomUuid, updatedAt: 1700000100)],
+          'cursor': '1700000100',
+          'has_more': false,
+          'errors': <dynamic>[],
+        },
+      );
+      final manager = await makeManager(liveClient);
+      final pullResult = await manager.sync(push: false);
+      expect(pullResult.isSuccess, isTrue);
+
+      // النسخة المحلية حيّة قبل السيناريو (التعديل جرى قبل وصول tombstone)
+      final before = await db
+          .customSelect(
+            'SELECT deleted_at FROM rooms WHERE local_uuid = ?',
+            variables: [Variable.withString(roomUuid)],
+          )
+          .getSingle();
+      expect(before.data['deleted_at'], isNull);
+
+      // تعديل محلي معلّق في outbox
+      final outboxId = await OutboxDao(db).merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: roomUuid,
+        payload: <String, dynamic>{'local_uuid': roomUuid, 'price': 210.0},
+        clientTs: 1700000903,
+      );
+      final pushKey = await idempotencyKeyOf(outboxId);
+
+      // الخادم: الصف محذوف عنده — الرفض الواعي success + status:'deleted'
+      final pushClient = _ReviewFakeClient(
+        pushHandler: (request) => {
+          'results': [
+            {
+              'idempotencyKey': pushKey,
+              'success': true,
+              'status': 'deleted',
+              'entity': 'rooms',
+              'entityId': roomUuid,
+            },
+          ],
+        },
+      );
+      manager.configureForTesting(
+        database: db,
+        httpClient: pushClient,
+        token: 'test-token',
+        deviceId: 'review-fixes-device',
+      );
+      final pushResult = await manager.sync(pull: false);
+      expect(pushResult.isSuccess, isTrue);
+
+      // العملية أُزيلت من outbox (خسارة نهائية — لا إعادة محاولة أبدية)
+      final outboxRow = await db
+          .customSelect(
+            'SELECT COUNT(*) AS c FROM outbox WHERE id = ?',
+            variables: [Variable<int>(outboxId)],
+          )
+          .getSingle();
+      expect(outboxRow.data['c'], 0);
+
+      // النسخة المحلية خُتمت بوعي، ومحتوى التعديل الخاسر لم يُطبَّق
+      final room = await db
+          .customSelect(
+            'SELECT deleted_at, price FROM rooms WHERE local_uuid = ?',
+            variables: [Variable.withString(roomUuid)],
+          )
+          .getSingle();
+      expect(room.data['deleted_at'], isNotNull);
+      expect(room.data['price'], 100.0);
+
+      // الخسارة مرئية في مركز أخطاء المزامنة — لا صمت
+      expect(
+        ErrorTrackerStore.instance.errors.any(
+          (e) =>
+              e.source == 'worker:push' &&
+              e.message.contains('delete-vs-update'),
+        ),
+        isTrue,
+      );
+    },
+  );
 }
