@@ -598,6 +598,17 @@ class CloudflareSyncManager {
   /// مفاتيح FK التي سُقِطت/عُدِّلت في هذه العملية (لمنع إغراق السجل).
   final Set<String> _fkLogSeen = <String>{};
 
+  /// ✅ (2026-09-22 تسريع full sync) كاش نتائج [_lookupLocalParentId]
+  /// الموجبة فقط ضمن دورة سحب واحدة — مفتاحه `parentTable|keyColumn|
+  /// keyValue`. صفوف كثيرة (booking_nights أهمها: ~11.5k صف يشترك
+  /// معظمها في عدد صغير من آباء bookings) كانت تُعيد نفس استعلام
+  /// SELECT لنفس الأب مئات المرات. تخزين "غير موجود" مرفوض عمداً:
+  /// الأب قد يصل لاحقاً في نفس الدورة (صفحة تالية) وتُعاد محاولة
+  /// الصفوف المؤجَّلة بعد اكتمال الصفحات (_retryDeferredRecords) —
+  /// كاش سلبي كان سيُفشل تلك المحاولة الثانية زوراً. يُمسح في بداية
+  /// كل [_pullChanges] (نفس دورة حياة [_localColumnsCache] تقريباً).
+  final Map<String, Object> _fkParentIdCache = <String, Object>{};
+
   // ─── إحصائيات حقيقية لدورات المزامنة (2026-09-05) ──────────
   // ✅ كانت getSyncStatistics() تُرجع {} فارغة فتعرض شاشات الإحصائيات
   // أصفاراً دائمة (مضللة للإنتاج). الآن تُراكم المدير عدادات دورة
@@ -1866,6 +1877,11 @@ class CloudflareSyncManager {
   Future<int> _pullChanges({bool deltaOnly = false}) async {
     if (_db == null) return 0;
 
+    // ✅ (2026-09-22 تسريع full sync) كاش دورة جديدة — لا يُرَث من دورة
+    // سابقة (احتياط: صف أب قد يُحذف يدوياً/يُستعاد نسخة احتياطية بين
+    // الدورتين، فلا نبني على افتراض بقائه صحيحاً للأبد).
+    _fkParentIdCache.clear();
+
     // ✅ (مراجعة 2026-09-09 #1) مسح تقارب الحذفيات لمرة واحدة —
     // حذفيات تاريخية فاتتها الأجهزة التي سحبت أثناء نافذة العقد
     // القديم (worker كان يفلتر tombstones). نافذة tombstones_only
@@ -2834,6 +2850,9 @@ class CloudflareSyncManager {
     String keyColumn,
     Object? keyValue,
   ) async {
+    final cacheKey = '$parentTable|$keyColumn|$keyValue';
+    final cached = _fkParentIdCache[cacheKey];
+    if (cached != null) return cached;
     try {
       final row = await _db!
           .customSelect(
@@ -2841,7 +2860,12 @@ class CloudflareSyncManager {
             variables: [Variable(keyValue)],
           )
           .getSingleOrNull();
-      return row?.data['id'];
+      final id = row?.data['id'];
+      // نتيجة موجبة فقط تُحفظ — راجع تعليق [_fkParentIdCache] أعلاه.
+      if (id != null) {
+        _fkParentIdCache[cacheKey] = id;
+      }
+      return id;
     } catch (e) {
       _logFkOnce('parent lookup failed $parentTable.$keyColumn: $e');
       return null;
