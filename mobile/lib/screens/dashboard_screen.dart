@@ -29,7 +29,6 @@ import 'bookings/booking_edit.dart';
 import 'finance/finance_screen.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
-import 'search/global_search_screen.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',
@@ -390,19 +389,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ],
           ),
         ),
-        // ✅ (2026-09-22) البحث الشامل — نقطة دخول دائمة في الترويسة
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          tooltip: 'بحث شامل',
-          onPressed: () => Navigator.push<void>(
-            context,
-            MaterialPageRoute<void>(
-              builder: (_) => const GlobalSearchScreen(),
-            ),
-          ),
-          icon: Icon(Icons.manage_search, color: Colors.blue.shade700),
-        ),
-        const SizedBox(width: 4),
         const DashboardConflictsBadge(),
         const SizedBox(width: 8),
         // ✅ (2026-09-10) مؤشر المزامنة الحيّ — يستمع إلى

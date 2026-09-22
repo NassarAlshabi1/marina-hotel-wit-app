@@ -301,6 +301,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return AppScaffold(
       title: 'التقارير',
       actions: [
+        // ✅ نُقل من ترويسة لوحة التحكم (dashboard_screen.dart) إلى هنا —
+        // قسم التقارير هو المكان الطبيعي لنقطة دخول البحث الشامل.
+        IconButton(
+          onPressed: () => _navigate((_) => const GlobalSearchScreen()),
+          icon: const Icon(Icons.manage_search),
+          tooltip: 'بحث شامل',
+        ),
         IconButton(
           onPressed: () => _loadData(force: true),
           icon: const Icon(Icons.refresh),
@@ -339,14 +346,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           : ListView(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               children: [
-                // ─── البحث الشامل ───
-                _ReportShortcut(
-                  icon: Icons.manage_search,
-                  label: 'بحث شامل في كل البيانات',
-                  color: Colors.deepPurple,
-                  onTap: () => _navigate((_) => const GlobalSearchScreen()),
-                ),
-                const SizedBox(height: 10),
+                // ✅ بطاقة «البحث الشامل» أُزيلت من هنا — أصبح الوصول عبر
+                // زر البحث في ترويسة الشاشة (actions أعلاه) بدل تكرار
+                // نقطة الدخول مرتين لنفس الشاشة.
 
                 // ─── التقارير المالية ───
                 const Padding(
