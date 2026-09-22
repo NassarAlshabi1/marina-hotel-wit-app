@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/debug_log.dart';
 import 'analytics_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
+import 'connectivity_service.dart';
 import 'local_db.dart';
+import 'sync_constants.dart';
 import 'sync_integrity_checker.dart';
 
 class UnifiedSyncState {
@@ -316,8 +318,61 @@ class UnifiedSyncOrchestrator {
   /// عشوائياً بـ «Sync already in progress». الدمج هنا يلغي السباق
   /// ويحفظ كلا السلوكين (رفع outbox المعلق + سحب دلتا).
   Future<void> onAppForeground() async {
-    // push+pull هما الافتراضي في syncNow — دورة واحدة متسلسلة.
-    await syncNow(reason: 'app_foreground');
+    // ✅ (2026-09-22 طلب المستخدم) نفس شرطي فتح التطبيق البارد
+    // (main.dart _startRealtimeSync) يُطبَّقان الآن هنا أيضاً — كان
+    // هذا المسار يزامن (رفع+سحب) في كل عودة من الخلفية بلا أي throttle
+    // زمني ولا فحص اتصال مسبق، بعكس مسار الإقلاع الأول.
+    //
+    // • فحص الاتصال أولاً: لا فائدة من محاولة أي طلب HTTP محكوم عليه
+    //   بالفشل إن لم يوجد اتصال أصلاً.
+    // • الرفع (push) يبقى بلا throttle — تعديلات محلية معلّقة يجب أن
+    //   تصل بأسرع وقت ممكن، بنفس فلسفة AutoOutboxSyncWatcher.
+    // • السحب (pull) فقط يخضع لشرط الساعة (نفس مفتاح
+    //   SyncConstants.lastAppOpenPullKey — مصدر واحد للحقيقة مع مسار
+    //   الإقلاع البارد، فلا يُعاد ضبط المؤشر مرتين بمعايير مختلفة).
+    final isOnline = await ConnectivityService.instance.checkConnectivity();
+    if (!isOnline) {
+      dlog(() => '📴 onAppForeground: تخطي — لا يوجد اتصال بالإنترنت');
+      return;
+    }
+
+    var shouldPull = true;
+    SharedPreferences? prefs;
+    try {
+      prefs = await SharedPreferences.getInstance();
+      final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
+      if (lastPullEpochMs != null) {
+        final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
+        final elapsed = DateTime.now().difference(lastPull);
+        if (elapsed < SyncConstants.appOpenSyncInterval) {
+          shouldPull = false;
+          final remaining = SyncConstants.appOpenSyncInterval - elapsed;
+          dlog(
+            () =>
+                '⏭️ onAppForeground: تخطي السحب — مرت ${elapsed.inMinutes} '
+                'دقيقة فقط (متبقي ${remaining.inMinutes} دقيقة) — الرفع '
+                'يتابع كالمعتاد',
+          );
+        }
+      }
+    } catch (e) {
+      dlog(() => '⚠️ onAppForeground: فشل فحص مؤشر آخر سحب: $e');
+    }
+
+    // push دائماً true؛ pull محكوم بشرط الساعة أعلاه — دورة واحدة
+    // متسلسلة كما كانت (رفع ثم سحب عند اجتماع الشرطين).
+    final success = await syncNow(pull: shouldPull, reason: 'app_foreground');
+
+    if (success && shouldPull && prefs != null) {
+      try {
+        await prefs.setInt(
+          SyncConstants.lastAppOpenPullKey,
+          DateTime.now().millisecondsSinceEpoch,
+        );
+      } catch (e) {
+        dlog(() => '⚠️ onAppForeground: فشل تحديث مؤشر آخر سحب: $e');
+      }
+    }
   }
 
   Future<bool> _syncAppwrite({required bool push, required bool pull}) async {
