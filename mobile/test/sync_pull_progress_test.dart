@@ -7,7 +7,8 @@
 //   1. بثّ لقطة بداية (pulled=0) فور بدء الدورة
 //   2. بثّ التقدم بعد كل صفحة (pulled تراكمي + remaining الخادمي)
 //   3. لقطة نهاية isDone في النجاح (remaining=0) والفشل (الرسالة)
-//   4. السحب الكامل فقط يطلب include_remaining=1 من الخادم
+//   4. السحب الكامل فقط يطلب include_remaining=1 — عينّة كل 5 صفحات
+//      (remainingSampleEveryPages، تسريع 2026-09-22)
 //   5. دلتا عادية: isFullSync=false وremaining=null (بلا طلب عدّ)
 //   6. حساب fraction في SyncPullProgress (دقيق/غير-محدد)
 // ═══════════════════════════════════════════════════════════════
@@ -154,27 +155,31 @@ void main() {
 
   group('عقد تدفق التقدم أثناء دورة السحب', () {
     test(
-      'full sync متعدد الصفحات: بداية + لكل صفحة + نهاية — والطلب يطلب '
-      'include_remaining',
+      'full sync متعدد الصفحات: بداية + لكل صفحة + نهاية — عينّة '
+      'include_remaining كل 5 صفحات',
       () async {
+        // 6 صفحات (فهارس 0..5) — العينّة remainingSampleEveryPages=5:
+        // الفهارس 0 و5 فقط تُرسل include_remaining=1 (i % 5 == 0)،
+        // والباقي لا (الخادم عندها لا يحسب remaining إطلاقاً).
+        Map<String, dynamic> page(
+          int i, {
+          required bool withRemaining,
+        }) => {
+          'changes': [_roomRow('p${i + 1}-a', updatedAt: 1700000100 + i)],
+          'cursor': '${1700000100 + i}',
+          'has_more': i < 5,
+          // remaining يظهر في الاستجابة فقط للصفحات المُعيَّنة —
+          // الخادم لا يُنفّذ COUNT بلا include_remaining=1.
+          if (withRemaining) 'remaining': i < 4 ? 5 : 0,
+          'errors': <dynamic>[],
+        };
         final client = _QueueClient([
-          {
-            'changes': [
-              _roomRow('p1-a'),
-              _roomRow('p1-b', updatedAt: 1700000101),
-            ],
-            'cursor': '1700000101',
-            'has_more': true,
-            'remaining': 1,
-            'errors': <dynamic>[],
-          },
-          {
-            'changes': [_roomRow('p2-a', updatedAt: 1700000102)],
-            'cursor': '1700000102',
-            'has_more': false,
-            'remaining': 0,
-            'errors': <dynamic>[],
-          },
+          page(0, withRemaining: true),
+          page(1, withRemaining: false),
+          page(2, withRemaining: false),
+          page(3, withRemaining: false),
+          page(4, withRemaining: false),
+          page(5, withRemaining: true),
         ]);
         final manager = makeManager(client);
 
@@ -186,33 +191,47 @@ void main() {
         await Future<void>.delayed(Duration.zero);
         await sub.cancel();
 
-        // البداية + صفحتان + النهاية
-        expect(events, hasLength(4));
+        // البداية + 6 صفحات + النهاية
+        expect(events, hasLength(8));
         expect(events[0].pulledRows, 0);
         expect(events[0].isFullSync, isTrue);
         expect(events[0].isDone, isFalse);
 
-        expect(events[1].pulledRows, 2);
-        expect(events[1].remainingRows, 1);
-        expect(events[1].pages, 1);
+        for (var i = 1; i <= 6; i++) {
+          expect(events[i].pulledRows, i);
+          expect(events[i].pages, i);
+        }
+        // الصفحة المُعيَّنة (فهرس 0) تُبثّ remaining الخادمي، والصفحات
+        // 1..4 غير مُعيَّنة فتبقى null (غير-محدد بصدق)...
+        expect(events[1].remainingRows, 5);
+        for (var i = 2; i <= 5; i++) {
+          expect(events[i].remainingRows, isNull);
+        }
+        // ...والصفحة المُعيَّنة التالية (فهرس 5) تُغلق العدّ على صفر.
+        expect(events[6].remainingRows, 0);
 
-        expect(events[2].pulledRows, 3);
-        expect(events[2].remainingRows, 0);
-        expect(events[2].pages, 2);
-
-        expect(events[3].isDone, isTrue);
-        expect(events[3].remainingRows, 0);
-        expect(events[3].errorMessage, isNull);
+        expect(events[7].isDone, isTrue);
+        expect(events[7].remainingRows, 0);
+        expect(events[7].errorMessage, isNull);
         // snapshot getter متزامن للشاشات المتأخرة
         expect(manager.lastPullProgress.isDone, isTrue);
-        expect(manager.lastPullProgress.pulledRows, 3);
+        expect(manager.lastPullProgress.pulledRows, 6);
 
-        // السحب الكامل فقط يطلب remaining الخادمي
-        expect(client.requestedUrls, isNotEmpty);
+        // السحب الكامل فقط يطلب remaining الخادمي — عينّة كل 5 صفحات:
+        // الفهارس 0 و5 يطلبون، والفهارس 1..4 لا.
+        expect(client.requestedUrls, hasLength(6));
         expect(
-          client.requestedUrls.every(
-            (u) => u.contains('include_remaining=1'),
-          ),
+          client.requestedUrls[0].contains('include_remaining=1'),
+          isTrue,
+        );
+        for (var i = 1; i <= 4; i++) {
+          expect(
+            client.requestedUrls[i].contains('include_remaining'),
+            isFalse,
+          );
+        }
+        expect(
+          client.requestedUrls[5].contains('include_remaining=1'),
           isTrue,
         );
       },

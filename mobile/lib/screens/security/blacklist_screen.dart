@@ -40,7 +40,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.sync),
-          onPressed: _isSyncing ? null : () => _performSync(),
+          onPressed: _isSyncing ? null : _performSync,
           tooltip: 'مزامنة',
         ),
       ],
@@ -129,7 +129,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                   ),
                 Expanded(
                   child: RefreshIndicator(
-                    onRefresh: () => _performSync(),
+                    onRefresh: _performSync,
                     child: ListView.builder(
                       padding: const EdgeInsets.all(12),
                       itemCount: entries.length,

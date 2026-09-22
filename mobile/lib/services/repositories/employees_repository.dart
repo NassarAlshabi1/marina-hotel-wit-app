@@ -522,7 +522,7 @@ class EmployeesRepository {
 /// عدّادات لكل جدول مرتبط + [total]. انظر التوثيق الكامل على
 /// [EmployeesRepository.financialHistoryCount].
 ///
-/// عند تعذر الفحص تُعاد النسخة المصنع عليها [unknown] (isKnown=false)
+/// عند تعذر الفحص تُعاد النسخة المصنع عليها [EmployeeFinancialHistory.unknown] (isKnown=false)
 /// ويمنع [blocksDeletion] الحذف احتياطاً — الاتجاه الآمن دائماً:
 /// تعذّر التحقق لا يبرر تيتم التاريخ المالي على بقية الأجهزة.
 class EmployeeFinancialHistory {

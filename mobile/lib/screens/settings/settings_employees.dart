@@ -1739,7 +1739,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         employee: employee,
         history: history,
       );
-      if (goTerminate == true &&
+      if (goTerminate &&
           context.mounted &&
           StatusUtils.isEmployeeActive(employee.status)) {
         _showTerminateDialog(context, ref, employee);

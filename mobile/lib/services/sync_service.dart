@@ -50,8 +50,6 @@ class SyncService {
 
     _status.add(SyncStatus.pushing);
     final SyncResult result = await manager.sync(
-      push: true,
-      pull: true,
       forcePull: true,
     );
 

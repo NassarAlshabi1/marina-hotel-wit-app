@@ -587,7 +587,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         employee: employee,
         history: history,
       );
-      if (goTerminate == true &&
+      if (goTerminate &&
           mounted &&
           StatusUtils.isEmployeeActive(employee.status)) {
         _showTerminateDialog(context, ref, employee);
