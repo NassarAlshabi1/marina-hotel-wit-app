@@ -257,8 +257,26 @@ export class Database {
     // point we accept the (logged) truncation rather than grow forever.
     const MAX_PULL_WINDOW = 20_000;
 
-    for (const ent of entities) {
+    // ✅ (2026-09-22 تسريع full sync) الحلقة كانت تنتظر كل جدول قبل بدء
+    // التالي (await متسلسل داخل for) — 24 جدولاً × ~32 صفحة full sync
+    // = ~768 رحلة شبكية متتالية إلى D1. لا اعتماد بين الجداول (كل
+    // استعلام مستقل تماماً بمؤشر/فلتر جهاز واحد)، فمعالجتها بالتوازي
+    // عبر Promise.all (نفس نمط db.batch المستخدم أصلاً لـ`remaining`
+    // أدناه) تُخفي زمن الرحلة الشبكية لـ23 جدولاً خلف الجدول الأبطأ
+    // بدل جمع أزمنتها التسلسلية. المنطق الداخلي لكل جدول (نافذة
+    // group-completion) لم يتغيّر حرفياً — فقط غُلّف بدالة تُستدعى
+    // بالتوازي بدل جسم for تسلسلي.
+    type TableFetchResult = {
+      ent: string;
+      rows: SyncRecord[];
+      error?: { entity: string; error: string };
+      windowTruncated?: boolean;
+    };
+
+    const fetchTableChanges = async (ent: string): Promise<TableFetchResult> => {
       const table = ENTITY_TABLES[ent];
+      let tableWindowTruncated = false;
+      let tableError: { entity: string; error: string } | undefined;
       try {
         // ── Group-complete fetch window (live rows + tombstones) ──
         // ✅ إصلاح «الحذف لا يصل إلى الأجهزة الأخرى» (مراجعة 2026-09-09
@@ -341,11 +359,11 @@ export class Database {
                 `[SYNC/PULL] table ${table}: duplicate-ts group exceeds ` +
                   `${MAX_PULL_WINDOW} rows — page may truncate mid-group`
               );
-              errors.push({
+              tableWindowTruncated = true;
+              tableError = {
                 entity: ent,
                 error: `duplicate updated_at group exceeds ${MAX_PULL_WINDOW} rows`,
-              });
-              windowTruncated = true;
+              };
               tableRows = before;
             } else {
               const group = excludeDevice
@@ -368,13 +386,19 @@ export class Database {
             }
           }
         }
-        for (const row of tableRows) {
+        const rows: SyncRecord[] = tableRows.map((row) => {
           const record = row as unknown as SyncRecord;
           // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
           // بدون الحاجة لتخمين نوعه من الحقول
           (record as Record<string, unknown>)._entity = ent;
-          allChanges.push(record);
-        }
+          return record;
+        });
+        return {
+          ent,
+          rows,
+          error: tableError,
+          windowTruncated: tableWindowTruncated || undefined,
+        };
       } catch (err) {
         // Per-table isolation: one broken table (missed D1 migration —
         // missing table or column) must not fail the entire pull for all
@@ -382,8 +406,18 @@ export class Database {
         // and server logs point at the exact table to fix.
         const msg = String(err).slice(0, 300);
         console.error(`[SYNC/PULL] table ${table} failed, skipping:`, msg);
-        errors.push({ entity: ent, error: msg });
+        return { ent, rows: [], error: { entity: ent, error: msg } };
       }
+    };
+
+    // كل الجداول بالتوازي — انتظار واحد بدل تسلسل 24 انتظاراً.
+    const tableResults = await Promise.all(entities.map(fetchTableChanges));
+    for (const result of tableResults) {
+      for (const record of result.rows) {
+        allChanges.push(record);
+      }
+      if (result.error) errors.push(result.error);
+      if (result.windowTruncated) windowTruncated = true;
     }
 
     // Global deterministic order across tables.
