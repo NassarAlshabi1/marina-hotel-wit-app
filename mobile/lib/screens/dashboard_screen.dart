@@ -13,7 +13,6 @@ import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/cloudflare_sync_manager.dart' show SyncResult;
 import '../services/local_db.dart';
-import '../services/payment_session_context.dart';
 import '../services/repositories/payments_repository.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
@@ -1057,36 +1056,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  /// ✅ (2026-09-05) بطاقة «إجمالي استلاماتي خلال النوبة الحالية» —
-  /// تعليمات المستخدم: «المستخدم 1 استلم مبلغاً… أريد في شاشة الـ
-  /// dashboard أن أعرف إجمالي المبلغ الذي استلمه أثناء النوبة،
-  /// وكذلك المستخدم 2 بحسب المستخدم». النوبة = جلسة الدخول (الخيار A،
-  /// PaymentSessionContext) والإجمالي بلا فلتر يوم فندقي (قد تعبر
-  /// النوبة حد 14:01). تظهر لكل مستخدم مسجل — استلاماته الخاصة.
-  Widget _buildMyShiftReceipts() {
-    if (!PaymentSessionContext.isActive) return const SizedBox.shrink();
-    final currencyFmt = NumberFormat('#,##0', 'en_US');
-    final startedAt = PaymentSessionContext.startedAt;
-    final startedLabel = startedAt == null
-        ? ''
-        : 'النوبة بدأت ${DateFormat('HH:mm').format(startedAt)}';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.green.shade50, Colors.white],
-          begin: Alignment.centerRight,
-          end: Alignment.centerLeft,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.shade200),
-      ),
-      
-      
-      ),
-    );
-  }
+  /// ✅ (2026-09-22) بطاقة «إجمالي استلاماتي خلال النوبة الحالية» أُزيلت
+  /// (طلب المستخدم: تبسيط شاشة dashboard — حذف قسم ملخص الدفعات
+  /// التفصيلي). أُبقي الدالة كـ no-op بدل حذف نقطة الاستدعاء في
+  /// build() لتفادي إعادة هيكلة القائمة بلا داعٍ.
+  Widget _buildMyShiftReceipts() => const SizedBox.shrink();
 
   Widget _buildOtherUsersHotelDayReceipts() {
     final user = ref.watch(authProvider).currentUser;
