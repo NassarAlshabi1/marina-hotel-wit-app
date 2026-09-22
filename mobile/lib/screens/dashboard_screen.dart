@@ -1082,56 +1082,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.green.shade200),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.payments_outlined, color: Colors.green.shade700, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'إجمالي استلاماتي خلال النوبة الحالية',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                if (startedLabel.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      startedLabel,
-                      style: const TextStyle(fontSize: 9, color: Colors.grey),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          ref
-              .watch(currentUserSessionPaymentsProvider)
-              .when(
-                loading: () => const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                error: (_, _) => const Text(
-                  '—',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                data: (total) => Text(
-                  currencyFmt.format(total),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade700,
-                  ),
-                ),
-              ),
-        ],
+      
+      
       ),
     );
   }
@@ -1194,8 +1146,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'استلامات المستخدمين الآخرين بحسب اليوم الفندقي',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  'استلامات المستخدمين ',
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
                 ),
               ),
               const Text(
