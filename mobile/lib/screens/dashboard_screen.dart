@@ -348,7 +348,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               const Text(
                 'فندق مارينا',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
               ),
               Row(
                 children: [
