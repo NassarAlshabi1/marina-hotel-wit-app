@@ -1958,7 +1958,15 @@ class CloudflareSyncManager {
         : CloudflareConfig.deltaPullBatchSize;
     // ✅ (2026-09-10) السحب الكامل يطلب remaining الخادمي للمؤشر الدقيق
     // (COUNT batch واحد) — الدلتا بلا كلفة إضافية.
+    // ✅ (2026-09-22 تسريع full sync) طلبه في كل صفحة كان يعني 24 استعلام
+    // COUNT خادمي (مُجمَّعة برحلة واحدة عبر db.batch، لكنها لا تزال 24
+    // تنفيذاً على D1) × ~32 صفحة = ~768 تنفيذاً لمجرد مؤشر تقدم تقريبي.
+    // كل 5 صفحات يكفي لمؤشر تقدم سلس بصرياً (المستخدم لا يلاحظ فرقاً
+    // بين تحديث كل صفحة أو كل خمس) ويخفّض الحمل الخادمي ~80%.
+    const remainingSampleEveryPages = 5;
     final wantRemaining = wasFullSync;
+    bool wantRemainingForPage(int pageIndex) =>
+        wantRemaining && pageIndex % remainingSampleEveryPages == 0;
     // ✅ تسريع — تداخل الشبكة مع التطبيق: الصفحة التالية تُجلَب أثناء
     // تطبيق الحالية (prefetch) فيختفي زمن الرحلة خلف كتابة SQLite.
     Future<http.Response>? prefetchFuture;
@@ -2016,7 +2024,7 @@ class CloudflareSyncManager {
               // ✅ (2026-09-09) السحب الكامل يشمل صفوف الجهاز نفسه
               // لتعلّم ظلّ server_id (إصلاح 107 علاقة غير محلولة).
               excludeOwnDevice: !wasFullSync,
-              includeRemaining: wantRemaining,
+              includeRemaining: wantRemainingForPage(pagesDone),
               // ✅ إصلاح البطء: التطبيع الخادمي (مسح 23 جدولاً) يُطلب في
               // الصفحة الأولى فقط — طلبُه في كل صفحة كان يضاعف زمن السحب
               // ويتجاوز مهلة 30 ثانية فيبدو السحب متوقفاً.
@@ -2214,7 +2222,9 @@ class CloudflareSyncManager {
             pendingCursor,
             pageLimit,
             excludeOwnDevice: !wasFullSync,
-            includeRemaining: wantRemaining,
+            // pagesDone لم يتقدم بعد لهذه الصفحة — الصفحة المطلوبة هنا
+            // هي pagesDone+1 (التالية)، فيُحسَب التردد على أساسها.
+            includeRemaining: wantRemainingForPage(pagesDone + 1),
           );
         }
 
