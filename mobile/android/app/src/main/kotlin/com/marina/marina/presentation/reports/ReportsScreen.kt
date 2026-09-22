@@ -1,9 +1,9 @@
 package com.marina.marina.presentation.reports
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,20 +12,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.components.SidebarMenuButton
+import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 
+/**
+ * التقارير — 1:1 port of `reports_screen.dart` (hub):
+ * quick indicators (اليوم الفندقي + income/expenses/net, occupancy,
+ * unsettled debts) + the six report shortcuts + تقرير الديون.
+ */
 @Composable
 fun ReportsScreen(
-    viewModel: ReportsViewModel = hiltViewModel()
+    onOpenReport: (String) -> Unit = {},
+    viewModel: ReportsHubViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
 
     MarinaTheme {
         Scaffold(
@@ -33,7 +39,6 @@ fun ReportsScreen(
             topBar = {
                 TopAppBar(
                     title = { Text("التقارير", style = AppTypography.titleLarge) },
-                    navigationIcon = { SidebarMenuButton() },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = AppColors.SurfaceColor,
                         titleContentColor = AppColors.TextPrimary
@@ -41,226 +46,84 @@ fun ReportsScreen(
                 )
             }
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Date-range presets (hotel-day based, like the Flutter ReportDateFilterWidget).
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(
-                        "today" to "اليوم",
-                        "week" to "الأسبوع",
-                        "month" to "الشهر",
-                        "all" to "الكل"
-                    ).forEach { (key, label) ->
-                        FilterChip(
-                            selected = state.range == key,
-                            onClick = { viewModel.setRange(key) },
-                            label = { Text(label, fontSize = 12.sp) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Financial quick summary.
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                Brush.horizontalGradient(
-                                    if (state.summary.net >= 0)
-                                        listOf(AppColors.PrimaryColor, AppColors.PrimaryDark)
-                                    else listOf(AppColors.DangerColor, Color(0xFFB93338))
-                                ),
-                                RoundedCornerShape(12.dp)
-                            )
-                            .padding(16.dp)
-                            .fillMaxWidth()
+                // Quick financial summary card (Dart l.399-454).
+                item {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                "الملخص المالي — ${state.rangeLabel}",
-                                style = AppTypography.titleSmall,
-                                color = Color.White
-                            )
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                SummaryCell("الإيرادات", "${state.summary.totalIncome.toInt()}", Color(0xFF9EE6C0))
-                                SummaryCell("المصروفات", "${state.summary.totalExpenses.toInt()}", Color(0xFFFFB4A9))
-                                SummaryCell(
-                                    if (state.summary.net >= 0) "الصافي" else "العجز",
-                                    "${state.summary.net.toInt()}",
-                                    if (state.summary.net >= 0) Color.White else Color(0xFFFFD7D2)
+                        Column(
+                            modifier = Modifier
+                                .background(
+                                    Brush.verticalGradient(listOf(AppColors.PrimaryColor, AppColors.PrimaryDark)),
+                                    RoundedCornerShape(14.dp)
+                                )
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("مؤشرات سريعة", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("اليوم الفندقي: ${state.hotelDayKey}", color = Color(0xFFFFE082), fontSize = 11.sp)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                HubStat("الإيرادات", CurrencyFormatter.formatAmount(state.income), Color(0xFF9EE6C0), Modifier.weight(1f))
+                                HubStat("المصروفات", CurrencyFormatter.formatAmount(state.expenses), Color(0xFFFFB4A9), Modifier.weight(1f))
+                                HubStat(
+                                    "صافي", CurrencyFormatter.formatAmount(state.net),
+                                    if (state.net >= 0) Color(0xFF80CBC4) else Color(0xFFFFCC80),
+                                    Modifier.weight(1f)
                                 )
                             }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(
-                                    "حجوزات نشطة: ${state.summary.activeBookings}",
-                                    style = AppTypography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.85f)
-                                )
-                                Text(
-                                    "ديون معلقة: ${state.summary.unsettledDebtsTotal.toInt()} ريال",
-                                    style = AppTypography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.85f)
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                HubStat("الإشغال", "${state.occupancyPercent}%", Color(0xFFB39DDB), Modifier.weight(1f))
+                                HubStat("حجوزات نشطة", "${state.activeBookings}", Color(0xFF64B5F6), Modifier.weight(1f))
+                                HubStat(
+                                    "ديون غير مسددة", "${state.unsettledDebts}",
+                                    if (state.unsettledDebts > 0) Color(0xFFFFB4A9) else Color(0xFF9EE6C0),
+                                    Modifier.weight(1f)
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                TabRow(selectedTabIndex = selectedTab) {
-                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("المدفوعات") })
-                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("المصروفات") })
+                item {
+                    Text("التقارير المالية", style = AppTypography.titleMedium, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
                 }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                when {
-                    state.isLoading -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    state.error != null -> Text(
-                        "تعذر تحميل التقارير: ${state.error}",
-                        style = AppTypography.bodyMedium,
-                        color = AppColors.DangerColor
-                    )
-                    selectedTab == 0 -> PaymentsReportList(state)
-                    else -> ExpensesReportList(state)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PaymentsReportList(state: ReportsUiState) {
-    if (state.paymentRows.isEmpty()) {
-        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-            Text("لا توجد مدفوعات في هذه الفترة", style = AppTypography.bodyLarge, color = AppColors.TextSecondary)
-        }
-        return
-    }
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(bottom = 24.dp)
-    ) {
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = AppColors.AccentSoft),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("الإجمالي: ${state.paymentsTotal.toInt()} ريال", style = AppTypography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text("${state.paymentRows.size} دفعة", style = AppTypography.bodySmall, color = AppColors.TextSecondary)
-                }
-            }
-        }
-        items(state.paymentRows) { row ->
-            Card(
-                colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            ReportBadge(row.roomNumber, AppColors.PrimaryLight, AppColors.PrimaryColor)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(row.guestName, style = AppTypography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            "${row.method} • ${row.hotelDayKey}",
-                            style = AppTypography.labelSmall,
-                            color = AppColors.TextSecondary
-                        )
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        ReportShortcut("تقرير دفوعات النزلاء", "🧾", Color(0xFF2E7D5B), Modifier.weight(1f)) { onOpenReport("payments_report") }
+                        ReportShortcut("تقرير تفصيلي - الأيام والمدفوعات", "📋", Color(0xFF3F51B5), Modifier.weight(1f)) { onOpenReport("guest_detail_report") }
                     }
-                    Text(
-                        "${row.amount.toInt()} ريال",
-                        style = AppTypography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.SuccessColor
-                    )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ExpensesReportList(state: ReportsUiState) {
-    if (state.expenseGroups.isEmpty()) {
-        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-            Text("لا توجد مصروفات في هذه الفترة", style = AppTypography.bodyLarge, color = AppColors.TextSecondary)
-        }
-        return
-    }
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(bottom = 24.dp)
-    ) {
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = AppColors.AccentSoft),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("الإجمالي: ${state.expensesTotal.toInt()} ريال", style = AppTypography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text("${state.expenseGroups.sumOf { it.count }} عملية", style = AppTypography.bodySmall, color = AppColors.TextSecondary)
-                }
-            }
-        }
-        items(state.expenseGroups) { group ->
-            Card(
-                colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(group.type, style = AppTypography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text("${group.count} عملية", style = AppTypography.labelSmall, color = AppColors.TextSecondary)
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        ReportShortcut("تقرير المصروفات", "💰", Color(0xFFF57C00), Modifier.weight(1f)) { onOpenReport("expenses_report") }
+                        ReportShortcut("تقرير الدخل والخرج", "📈", Color(0xFF00897B), Modifier.weight(1f)) { onOpenReport("income_expense_report") }
                     }
-                    Text(
-                        "${group.total.toInt()} ريال",
-                        style = AppTypography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = AppColors.DangerColor
-                    )
                 }
-                // Share bar for the group within total expenses.
-                if (state.expensesTotal > 0) {
-                    LinearProgressIndicator(
-                        progress = { (group.total / state.expensesTotal).toFloat().coerceIn(0f, 1f) },
-                        modifier = Modifier.padding(horizontal = 14.dp).padding(bottom = 12.dp).fillMaxWidth().height(5.dp),
-                        color = AppColors.DangerColor,
-                        trackColor = AppColors.LightGray
-                    )
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        ReportShortcut("تقرير سحبيات الرواتب", "💳", Color(0xFF1976D2), Modifier.weight(1f)) { onOpenReport("salary_report") }
+                        ReportShortcut("التقرير المخزني", "📦", Color(0xFF795548), Modifier.weight(1f)) { onOpenReport("inventory_report") }
+                    }
+                }
+
+                item {
+                    Text("تقارير المخاطر والمتابعة", style = AppTypography.titleMedium, fontWeight = FontWeight.Bold, color = AppColors.TextPrimary)
+                }
+                item {
+                    ReportShortcut("تقرير الديون", "📊", Color(0xFF7B1FA2), Modifier.fillMaxWidth()) { onOpenReport("debts_report") }
                 }
             }
         }
@@ -268,20 +131,38 @@ private fun ExpensesReportList(state: ReportsUiState) {
 }
 
 @Composable
-private fun SummaryCell(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = AppTypography.titleLarge, fontWeight = FontWeight.Bold, color = color)
-        Text(label, style = AppTypography.labelSmall, color = Color.White.copy(alpha = 0.85f))
+private fun HubStat(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        Text(label, color = Color.White.copy(alpha = 0.8f), fontSize = 9.sp)
     }
 }
 
 @Composable
-private fun ReportBadge(text: String, background: Color, textColor: Color) {
-    Box(
-        modifier = Modifier
-            .background(background, RoundedCornerShape(6.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+private fun ReportShortcut(
+    title: String,
+    icon: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick).height(80.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))
     ) {
-        Text(text, fontSize = 11.sp, color = textColor, fontWeight = FontWeight.SemiBold)
+        Column(
+            modifier = Modifier.padding(10.dp).fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(icon, fontSize = 20.sp)
+            Text(title, fontWeight = FontWeight.Bold, color = color, fontSize = 11.sp, textAlign = TextAlign.Center, maxLines = 2)
+        }
     }
 }

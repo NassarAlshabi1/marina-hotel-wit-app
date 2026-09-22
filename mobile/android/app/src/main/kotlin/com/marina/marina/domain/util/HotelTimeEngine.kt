@@ -126,6 +126,78 @@ object HotelTimeEngine {
     }
 
     // ---------------------------------------------------------------------------
+    // Night counting — Dart `Time.nightsWithCutoff` (lib/utils/time.dart)
+    // ---------------------------------------------------------------------------
+
+    /**
+     * The night counter used by ALL payment-processing screens in the Flutter
+     * app (`booking_payment_screen`, `booking_checkout_screen`,
+     * `EnhancedBookingCalculationService`, guest detail report, invoices).
+     *
+     * Ported 1:1 from Dart:
+     * ```
+     * startOfCheckinHotelDay = DateTime(y, m, d, 14, 1);
+     * if (checkin.isBefore(startOfCheckinHotelDay)) startOfCheckinHotelDay -= 1 day;
+     * totalSeconds = (end - startOfCheckinHotelDay).inSeconds;
+     * if (totalSeconds <= 0) return 1;
+     * nights = totalSeconds ~/ 86400 + 1;   // reaching 14:01 exactly adds a full night
+     * return max(nights, 1);
+     * ```
+     *
+     * Key differences from [calculateDays] (which mirrors the *other* Dart
+     * algorithm, `HotelTimeEngine.calculateDays`):
+     * - A check-in **before 14:01** belongs to the *previous* hotel day
+     *   (a morning check-in therefore bills one extra night vs calculateDays).
+     * - A same-day stay with both check-in and check-out after 14:01 counts
+     *   as **1** night (calculateDays would say 2).
+     */
+    fun nightsWithCutoff(checkIn: Long, checkOut: Long? = null): Int {
+        val end = checkOut ?: System.currentTimeMillis()
+
+        val checkInCal = Calendar.getInstance().apply { timeInMillis = checkIn }
+        // Start of the check-in hotel day at 14:01 on the same calendar date.
+        val startCal = Calendar.getInstance().apply {
+            set(
+                checkInCal.get(Calendar.YEAR), checkInCal.get(Calendar.MONTH),
+                checkInCal.get(Calendar.DAY_OF_MONTH), BOUNDARY_HOUR, BOUNDARY_MINUTE, 0
+            )
+            set(Calendar.MILLISECOND, 0)
+        }
+        // A check-in before 14:01 belongs to the previous hotel day.
+        if (checkInCal.timeInMillis < startCal.timeInMillis) {
+            startCal.add(Calendar.DAY_OF_YEAR, -1)
+        }
+
+        val totalSeconds = ((end - startCal.timeInMillis) / 1000L).toInt()
+        if (totalSeconds <= 0) return 1
+        val nights = totalSeconds / (24 * 3600) + 1
+        return if (nights > 0) nights else 1
+    }
+
+    /**
+     * Ported from Dart `_countNightsWithDiscount` (booking_payment_screen.dart):
+     * number of nights affected by a per-night discount whose start date is
+     * [discountStartDateIso]. The discount start day is normalized to the
+     * 14:01 boundary; the effective start is `max(discountDayStart, checkin)`.
+     */
+    fun countNightsWithDiscount(checkIn: Long, checkOut: Long?, discountStartDateIso: String?): Int {
+        if (discountStartDateIso.isNullOrBlank()) return 0
+        val discountStart = parseDate(discountStartDateIso) ?: return 0
+        // Normalize the discount day to its 14:01 hotel-day start.
+        val dayStart = Calendar.getInstance().apply { timeInMillis = discountStart }
+        val normalized = Calendar.getInstance().apply {
+            set(
+                dayStart.get(Calendar.YEAR), dayStart.get(Calendar.MONTH),
+                dayStart.get(Calendar.DAY_OF_MONTH), BOUNDARY_HOUR, BOUNDARY_MINUTE, 0
+            )
+            set(Calendar.MILLISECOND, 0)
+        }
+        val effectiveStart = maxOf(normalized.timeInMillis, checkIn)
+        if (checkOut != null && checkOut <= effectiveStart) return 0
+        return nightsWithCutoff(effectiveStart, checkOut)
+    }
+
+    // ---------------------------------------------------------------------------
     // Hotel day interval helpers
     // ---------------------------------------------------------------------------
 

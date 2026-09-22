@@ -24,6 +24,45 @@ interface PaymentsDao {
     @Query("SELECT * FROM payments WHERE deleted_at IS NULL AND is_voided = 0 ORDER BY payment_date DESC")
     suspend fun getAllOnce(): List<PaymentEntity>
 
+    /** Dart `PaymentsDao.watchAll()` parity — includes voided rows. */
+    @Query("SELECT * FROM payments WHERE deleted_at IS NULL ORDER BY payment_date DESC")
+    suspend fun getAllIncludingVoided(): List<PaymentEntity>
+
+    /** Dart `watchAll()` — live variant including voided rows. */
+    @Query("SELECT * FROM payments WHERE deleted_at IS NULL ORDER BY payment_date DESC")
+    fun watchAllIncludingVoided(): Flow<List<PaymentEntity>>
+
+    /**
+     * Canonical report query, ported 1:1 from the Dart
+     * `PaymentsDao.listFilteredByHotelDay` (payments_dao.dart:194-245):
+     * hotel-day range on `hotel_day_key` with a legacy fallback to
+     * `payment_date` (from >= , to < next-day-start via prefix bound).
+     */
+    @Query(
+        """
+        SELECT * FROM payments
+        WHERE deleted_at IS NULL
+          AND (:excludeVoided = 0 OR is_voided = 0)
+          AND (:excludePendingBalance = 0 OR is_pending_balance = 0)
+          AND (:fromHotelDay IS NULL
+               OR hotel_day_key IS NOT NULL AND hotel_day_key >= :fromHotelDay
+               OR hotel_day_key IS NULL AND payment_date >= :fromHotelDay)
+          AND (:toHotelDay IS NULL
+               OR hotel_day_key IS NOT NULL AND hotel_day_key <= :toHotelDay
+               OR hotel_day_key IS NULL AND payment_date < :toHotelDayExclusive)
+          AND (:roomNumber IS NULL OR room_number = :roomNumber)
+        ORDER BY payment_date DESC
+        """
+    )
+    suspend fun listFilteredByHotelDay(
+        fromHotelDay: String?,
+        toHotelDay: String?,
+        toHotelDayExclusive: String?,
+        roomNumber: String?,
+        excludeVoided: Boolean,
+        excludePendingBalance: Boolean
+    ): List<PaymentEntity>
+
     @Query("SELECT * FROM payments WHERE id = :id AND deleted_at IS NULL")
     suspend fun getById(id: Long): PaymentEntity?
 

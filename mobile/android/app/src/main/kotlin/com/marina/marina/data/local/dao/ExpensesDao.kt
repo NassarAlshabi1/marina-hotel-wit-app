@@ -48,4 +48,36 @@ interface ExpensesDao {
         """
     )
     fun watchTotalByHotelDayKey(hotelDayKey: String, hotelDayKeyPrefix: String): Flow<Double>
+
+    /**
+     * Report query ported from Dart `ExpensesDao.listFilteredByHotelDay`
+     * (expenses_dao.dart:111-174): hotel-day range with legacy `date`
+     * fallback, optional type filter (salary contract: 'رواتب' also matches
+     * the derived salary types), optional search on description/type.
+     */
+    @Query(
+        """
+        SELECT * FROM expenses
+        WHERE deleted_at IS NULL
+          AND (:fromHotelDay IS NULL
+               OR hotel_day_key IS NOT NULL AND hotel_day_key >= :fromHotelDay
+               OR hotel_day_key IS NULL AND date >= :fromHotelDay)
+          AND (:toHotelDay IS NULL
+               OR hotel_day_key IS NOT NULL AND hotel_day_key <= :toHotelDay
+               OR hotel_day_key IS NULL AND date < :toHotelDayExclusive)
+          AND (:expenseType IS NULL
+               OR (:isSalaryType = 1 AND expense_type IN ('رواتب','سحب راتب','سحب من الراتب','خصم راتب','خصم من الراتب'))
+               OR (:isSalaryType = 0 AND expense_type = :expenseType))
+          AND (:excludeAdvance = 0 OR expense_type != 'سلفة')
+        ORDER BY date DESC
+        """
+    )
+    suspend fun listFilteredByHotelDay(
+        fromHotelDay: String?,
+        toHotelDay: String?,
+        toHotelDayExclusive: String?,
+        expenseType: String?,
+        isSalaryType: Boolean,
+        excludeAdvance: Boolean = false
+    ): List<ExpenseEntity>
 }

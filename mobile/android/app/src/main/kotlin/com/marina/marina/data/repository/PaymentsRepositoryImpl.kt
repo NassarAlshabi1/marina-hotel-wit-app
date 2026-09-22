@@ -13,6 +13,8 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
@@ -67,6 +69,51 @@ class PaymentsRepositoryImpl @Inject constructor(
     override suspend fun void(id: Long, voidedBy: String, voidReason: String) {
         val now = System.currentTimeMillis()
         paymentsDao.voidPayment(id, voidedAt = now, voidedBy = voidedBy, voidReason = voidReason, updatedAt = now)
+    }
+
+    override suspend fun getByBookingOnce(bookingId: Long): List<Payment> =
+        paymentsDao.getByBooking(bookingId).firstOrNull()?.map { it.toDomain() } ?: emptyList()
+
+    override suspend fun getAllIncludingVoidedOnce(): List<Payment> =
+        paymentsDao.getAllIncludingVoided().map { it.toDomain() }
+
+    override fun getAllIncludingVoided(): Flow<List<Payment>> =
+        paymentsDao.watchAllIncludingVoided().map { entities -> entities.map { it.toDomain() } }
+
+    override suspend fun listFilteredByHotelDay(
+        fromHotelDay: String?,
+        toHotelDay: String?,
+        roomNumber: String?,
+        excludeVoided: Boolean,
+        excludePendingBalance: Boolean
+    ): List<Payment> {
+        // Dart SqlDateRange.forDay(toHotelDay).endExclusive — next calendar day.
+        val toExclusive = toHotelDay?.let {
+            val cal = java.util.Calendar.getInstance()
+            HotelTimeEngine.parseDate("$it 00:00:00")?.let { ms ->
+                cal.timeInMillis = ms
+                cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                HotelTimeEngine.formatIso(cal.timeInMillis).replace("T", " ").substring(0, 10)
+            }
+        }
+        return paymentsDao.listFilteredByHotelDay(
+            fromHotelDay = fromHotelDay,
+            toHotelDay = toHotelDay,
+            toHotelDayExclusive = toExclusive,
+            roomNumber = roomNumber,
+            excludeVoided = excludeVoided,
+            excludePendingBalance = excludePendingBalance
+        ).map { it.toDomain() }
+    }
+
+    override suspend fun softDelete(id: Long) {
+        // Dart `paymentsRepo.delete(id)` — soft delete + outbox merge so the
+        // deletion propagates to the cloud.
+        val now = System.currentTimeMillis()
+        val entity = paymentsDao.getById(id) ?: return
+        paymentsDao.softDelete(id, deletedAt = now, updatedAt = now)
+        val deleted = entity.copy(deletedAt = now, updatedAt = now).toDomain()
+        outboxRepository.enqueueObject("payments", "delete", deleted.localUuid, deleted)
     }
 
     override fun watchTotalByHotelDayKey(hotelDayKey: String): Flow<Double> =

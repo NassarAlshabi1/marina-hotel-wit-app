@@ -46,6 +46,36 @@ class ExpensesRepositoryImpl @Inject constructor(
         expensesDao.softDelete(id, deletedAt = now, updatedAt = now)
     }
 
+
+    override suspend fun getAllOnce(): List<Expense> =
+        expensesDao.getAllOnce().map { it.toDomain() }
+
+    private val salaryTypes = setOf("رواتب", "سحب راتب", "سحب من الراتب", "خصم راتب", "خصم من الراتب")
+
+    override suspend fun listFilteredByHotelDay(
+        fromHotelDay: String?,
+        toHotelDay: String?,
+        expenseType: String?
+    ): List<Expense> {
+        // Dart SqlDateRange.forDay(toHotelDay).endExclusive — next calendar day.
+        val toExclusive = toHotelDay?.let { key ->
+            HotelTimeEngine.parseDate("$key 00:00:00")?.let { ms ->
+                val cal = java.util.Calendar.getInstance()
+                cal.timeInMillis = ms
+                cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                HotelTimeEngine.formatIso(cal.timeInMillis).replace("T", " ").substring(0, 10)
+            }
+        }
+        val isSalaryType = expenseType != null && salaryTypes.contains(expenseType)
+        return expensesDao.listFilteredByHotelDay(
+            fromHotelDay = fromHotelDay,
+            toHotelDay = toHotelDay,
+            toHotelDayExclusive = toExclusive,
+            expenseType = expenseType,
+            isSalaryType = isSalaryType
+        ).map { it.toDomain() }
+    }
+
     override fun watchTotalByHotelDayKey(hotelDayKey: String): Flow<Double> =
         expensesDao.watchTotalByHotelDayKey(hotelDayKey, "${hotelDayKey}%")
 }

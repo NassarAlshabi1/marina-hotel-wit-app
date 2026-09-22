@@ -31,8 +31,16 @@ import com.marina.marina.presentation.login.LoginScreen
 import com.marina.marina.presentation.notes.NotesScreen
 import com.marina.marina.presentation.payments.BookingPaymentScreen
 import com.marina.marina.presentation.payments.PaymentsMainScreen
+import com.marina.marina.presentation.reports.DebtsReportScreen
+import com.marina.marina.presentation.reports.ExpensesReportScreen
+import com.marina.marina.presentation.reports.GuestDetailReportScreen
+import com.marina.marina.presentation.reports.IncomeExpenseReportScreen
+import com.marina.marina.presentation.reports.InventoryReportScreen
+import com.marina.marina.presentation.reports.PaymentsReportScreen
 import com.marina.marina.presentation.reports.ReportsScreen
+import com.marina.marina.presentation.reports.SalaryWithdrawalsReportScreen
 import com.marina.marina.presentation.rooms.RoomsListScreen
+import com.marina.marina.presentation.settings.BookingsReminderScreen
 import com.marina.marina.presentation.settings.SettingsScreen
 
 sealed class Screen(val route: String) {
@@ -60,7 +68,11 @@ sealed class Screen(val route: String) {
     object Finance : Screen("finance")
     object Information : Screen("information")
     object Blacklist : Screen("blacklist")
-    object PaymentHistory : Screen("payment_history")
+    object PaymentHistory : Screen("payment_history?bookingId={bookingId}") {
+        const val ARG_BOOKING_ID = "bookingId"
+        fun createRoute(bookingId: Long? = null) =
+            if (bookingId != null && bookingId > 0) "payment_history?bookingId=$bookingId" else "payment_history"
+    }
     object SalaryEntitlements : Screen("salary_entitlements")
     object CloudflareLogin : Screen("cloudflare_login")
     object BookingCheckout : Screen("booking_checkout/{bookingId}") {
@@ -73,6 +85,16 @@ sealed class Screen(val route: String) {
     }
     object Inventory : Screen("inventory")
     object AIChat : Screen("ai_chat")
+
+    // Report sub-screens (Dart reports module).
+    object PaymentsReport : Screen("payments_report")
+    object ExpensesReport : Screen("expenses_report")
+    object IncomeExpenseReport : Screen("income_expense_report")
+    object DebtsReport : Screen("debts_report")
+    object InventoryReport : Screen("inventory_report")
+    object SalaryReport : Screen("salary_report")
+    object GuestDetailReport : Screen("guest_detail_report")
+    object BookingsReminder : Screen("bookings_reminder")
 }
 
 /**
@@ -176,14 +198,24 @@ fun MarinaNavGraph(
             arguments = listOf(navArgument(Screen.BookingPayment.ARG_BOOKING_ID) {
                 type = NavType.LongType
             })
-        ) {
+        ) { entry ->
             BookingPaymentScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onOpenPaymentHistory = {
+                    val bookingId = entry.arguments?.getLong(Screen.BookingPayment.ARG_BOOKING_ID) ?: 0L
+                    navController.navigate(Screen.PaymentHistory.createRoute(bookingId))
+                },
+                onOpenDebts = { navController.navigate(Screen.Debts.route) },
+                isAdmin = true
             )
         }
 
         adminScreen(navController, authViewModel, Screen.Payments.route) {
-            PaymentsMainScreen()
+            PaymentsMainScreen(
+                onOpenBookingCheckout = { bookingId ->
+                    navController.navigate(Screen.BookingCheckout.createRoute(bookingId))
+                }
+            )
         }
 
         adminScreen(navController, authViewModel, Screen.Debts.route) {
@@ -204,17 +236,14 @@ fun MarinaNavGraph(
 
         adminScreen(navController, authViewModel, Screen.Settings.route) {
             SettingsScreen(
-                onLogout = {
-                    authViewModel.logout()
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Dashboard.route) { inclusive = true }
-                    }
-                }
+                onNavigate = { route -> navController.navigate(route) }
             )
         }
 
         adminScreen(navController, authViewModel, Screen.Reports.route) {
-            ReportsScreen()
+            ReportsScreen(
+                onOpenReport = { route -> navController.navigate(route) }
+            )
         }
 
         adminScreen(navController, authViewModel, Screen.Finance.route) {
@@ -241,8 +270,18 @@ fun MarinaNavGraph(
             BlacklistScreen(onBack = { navController.popBackStack() })
         }
 
-        composable(Screen.PaymentHistory.route) {
-            PaymentHistoryScreen(onBack = { navController.popBackStack() })
+        composable(
+            route = Screen.PaymentHistory.route,
+            arguments = listOf(navArgument(Screen.PaymentHistory.ARG_BOOKING_ID) {
+                type = NavType.LongType
+                defaultValue = 0L
+            })
+        ) { entry ->
+            val bookingId = entry.arguments?.getLong(Screen.PaymentHistory.ARG_BOOKING_ID) ?: 0L
+            PaymentHistoryScreen(
+                bookingId = if (bookingId > 0) bookingId else null,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(Screen.SalaryEntitlements.route) {
@@ -267,9 +306,8 @@ fun MarinaNavGraph(
                 type = NavType.LongType
                 defaultValue = 0L
             })
-        ) { backStackEntry ->
+        ) {
             BookingCheckoutScreen(
-                bookingId = backStackEntry.arguments?.getLong(Screen.BookingCheckout.ARG_BOOKING_ID) ?: 0L,
                 onBack = { navController.popBackStack() },
                 onCheckedOut = { navController.popBackStack() }
             )
@@ -287,6 +325,34 @@ fun MarinaNavGraph(
                 onBack = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() }
             )
+        }
+
+        // -------------------------------------------------------------------
+        // Report sub-screens (Dart reports module — plain depth pages).
+        // -------------------------------------------------------------------
+        composable(Screen.PaymentsReport.route) {
+            PaymentsReportScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.ExpensesReport.route) {
+            ExpensesReportScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.IncomeExpenseReport.route) {
+            IncomeExpenseReportScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.DebtsReport.route) {
+            DebtsReportScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.InventoryReport.route) {
+            InventoryReportScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.SalaryReport.route) {
+            SalaryWithdrawalsReportScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.GuestDetailReport.route) {
+            GuestDetailReportScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.BookingsReminder.route) {
+            BookingsReminderScreen(onBack = { navController.popBackStack() })
         }
     }
 }

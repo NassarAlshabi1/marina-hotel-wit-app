@@ -11,6 +11,31 @@ interface PaymentsRepository {
     suspend fun update(payment: Payment)
     suspend fun void(id: Long, voidedBy: String, voidReason: String)
 
+    /** Dart `PaymentsRepository.paymentsByBooking` — one-shot, excludes soft-deleted. */
+    suspend fun getByBookingOnce(bookingId: Long): List<Payment>
+
+    /** Dart `watchAll().first()` parity — includes voided rows. */
+    suspend fun getAllIncludingVoidedOnce(): List<Payment>
+
+    /** Dart `watchAll()` — live stream including voided rows (Payments main hub). */
+    fun getAllIncludingVoided(): Flow<List<Payment>>
+
+    /**
+     * Canonical report query (Dart `listFilteredByHotelDay`). [fromHotelDay] /
+     * [toHotelDay] are `yyyy-MM-dd` hotel-day keys computed with the Dart
+     * "+1 second" rule by callers.
+     */
+    suspend fun listFilteredByHotelDay(
+        fromHotelDay: String?,
+        toHotelDay: String?,
+        roomNumber: String? = null,
+        excludeVoided: Boolean = true,
+        excludePendingBalance: Boolean = true
+    ): List<Payment>
+
+    /** Dart `paymentsRepo.delete(id)` — soft delete that enqueues an outbox op. */
+    suspend fun softDelete(id: Long)
+
     /**
      * Live total of non-voided payments for the given hotel day
      * (`yyyy-MM-dd` key). Feeds the Dashboard "مدفوعات اليوم" card.
