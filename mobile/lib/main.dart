@@ -516,54 +516,65 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         syncManager.startAutoSync(interval: Duration(minutes: clampedMinutes));
         debugPrint('⏰ Auto-sync started: every $clampedMinutes minutes');
 
-        // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
+        // سحب البيانات عند فتح التطبيق — أولاً فحص الاتصال، ثم فحص
+        // ذكي (مرة كل ساعة). لا فائدة من فحص المؤشر الزمني أو محاولة
+        // طلب HTTP فاشل حتماً إن لم يوجد اتصال أصلاً.
         try {
-          final prefs = await SharedPreferences.getInstance();
-          final lastPullEpochMs = prefs.getInt(
-            SyncConstants.lastAppOpenPullKey,
-          );
-          bool shouldSync = true;
-
-          if (lastPullEpochMs != null) {
-            final lastPull = DateTime.fromMillisecondsSinceEpoch(
-              lastPullEpochMs,
-            );
-            final elapsed = DateTime.now().difference(lastPull);
-            if (elapsed < SyncConstants.appOpenSyncInterval) {
-              final remaining = SyncConstants.appOpenSyncInterval - elapsed;
-              debugPrint(
-                '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
-                '(متبقي ${remaining.inMinutes} دقيقة)',
-              );
-              shouldSync = false;
-            }
-          }
-
-          if (shouldSync) {
+          final isOnline = await ConnectivityService.instance
+              .checkConnectivity();
+          if (!isOnline) {
             debugPrint(
-              '📥 Pulling latest data from Cloudflare D1 on app start...',
+              '📴 تخطي مزامنة فتح التطبيق — لا يوجد اتصال بالإنترنت '
+              '(سيُعاد الفحص في الفتحة التالية)',
             );
-            // سحب دلتا فقط — لا نرفع ولا نبدأ Full Sync من مسار الإقلاع.
-            // ✅ (2026-09-14) المفتاح يُكتب عند النجاح الفعلي فقط:
-            // sync() لا يرمي استثناءً عند فشل السحب (يعيد SyncResult
-            // failed) — الكتابة غير المشروطة كانت تختم «آخر سحب ناجح»
-            // رغم فشله فيمنع أي سحب تلقائي لمدة ساعة كاملة (فحص
-            // appOpenSyncInterval) = «لا يسحب عند فتح التطبيق».
-            final bootResult = await syncManager.sync(
-              push: false,
-              deltaOnly: true,
+          } else {
+            final prefs = await SharedPreferences.getInstance();
+            final lastPullEpochMs = prefs.getInt(
+              SyncConstants.lastAppOpenPullKey,
             );
-            if (bootResult.isSuccess) {
-              await prefs.setInt(
-                SyncConstants.lastAppOpenPullKey,
-                DateTime.now().millisecondsSinceEpoch,
+            bool shouldSync = true;
+
+            if (lastPullEpochMs != null) {
+              final lastPull = DateTime.fromMillisecondsSinceEpoch(
+                lastPullEpochMs,
               );
-              debugPrint('✅ Initial sync on app start completed');
-            } else {
+              final elapsed = DateTime.now().difference(lastPull);
+              if (elapsed < SyncConstants.appOpenSyncInterval) {
+                final remaining = SyncConstants.appOpenSyncInterval - elapsed;
+                debugPrint(
+                  '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
+                  '(متبقي ${remaining.inMinutes} دقيقة)',
+                );
+                shouldSync = false;
+              }
+            }
+
+            if (shouldSync) {
               debugPrint(
-                '⚠️ Initial sync on app start failed: '
-                '${bootResult.errorMessage} — سيعاد السحب في الفتح/الدورة التالية',
+                '📥 Pulling latest data from Cloudflare D1 on app start...',
               );
+              // سحب دلتا فقط — لا نرفع ولا نبدأ Full Sync من مسار الإقلاع.
+              // ✅ (2026-09-14) المفتاح يُكتب عند النجاح الفعلي فقط:
+              // sync() لا يرمي استثناءً عند فشل السحب (يعيد SyncResult
+              // failed) — الكتابة غير المشروطة كانت تختم «آخر سحب ناجح»
+              // رغم فشله فيمنع أي سحب تلقائي لمدة ساعة كاملة (فحص
+              // appOpenSyncInterval) = «لا يسحب عند فتح التطبيق».
+              final bootResult = await syncManager.sync(
+                push: false,
+                deltaOnly: true,
+              );
+              if (bootResult.isSuccess) {
+                await prefs.setInt(
+                  SyncConstants.lastAppOpenPullKey,
+                  DateTime.now().millisecondsSinceEpoch,
+                );
+                debugPrint('✅ Initial sync on app start completed');
+              } else {
+                debugPrint(
+                  '⚠️ Initial sync on app start failed: '
+                  '${bootResult.errorMessage} — سيعاد السحب في الفتح/الدورة التالية',
+                );
+              }
             }
           }
         } catch (e) {
