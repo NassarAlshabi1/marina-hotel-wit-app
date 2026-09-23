@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/cloudflare_ai_service.dart';
 
@@ -160,6 +161,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
     ),
   );
 
+  void _copyMessage(String text) {
+    unawaited(Clipboard.setData(ClipboardData(text: text)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم نسخ الرسالة.')));
+  }
+
   void _scrollToEnd() => WidgetsBinding.instance.addPostFrameCallback((_) {
     if (_scrollController.hasClients) {
       unawaited(
@@ -227,9 +235,20 @@ class _AiChatScreenState extends State<AiChatScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          SelectableText(
                             message.text,
                             style: const TextStyle(fontSize: 14, height: 1.5),
+                          ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              onPressed: () => _copyMessage(message.text),
+                              icon: const Icon(Icons.copy, size: 16),
+                              tooltip: 'نسخ الرسالة',
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
                           ),
                           if (message.plan != null) ...[
                             const SizedBox(height: 10),
