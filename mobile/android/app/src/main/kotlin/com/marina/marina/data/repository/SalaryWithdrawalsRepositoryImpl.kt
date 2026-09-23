@@ -40,7 +40,49 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
 
     override suspend fun softDelete(id: Long) {
         val now = System.currentTimeMillis()
+        val entity = salaryWithdrawalsDao.getAllOnce().find { it.id == id } ?: return
         salaryWithdrawalsDao.softDelete(id, deletedAt = now, updatedAt = now)
+        val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
+        outboxRepository.enqueueObject("salary_withdrawals", "delete", deleted.localUuid, deleted)
+    }
+
+    /**
+     * Dart createFromExpense — paired with the salary expense: reason carries
+     * `exp_<expenseId>` so the reports can dedup expense vs withdrawal.
+     */
+    override suspend fun insertFromExpense(
+        expenseId: Long,
+        employeeId: Long,
+        employeeUuid: String?,
+        employeeName: String,
+        amount: Double,
+        dateIso: String,
+        hotelDayKey: String,
+        withdrawalType: String,
+        description: String?
+    ): Long {
+        return insert(
+            SalaryWithdrawal(
+                employeeId = employeeId,
+                employeeUuid = employeeUuid,
+                employeeName = employeeName,
+                amount = amount,
+                withdrawDate = HotelTimeEngine.parseDate(dateIso) ?: System.currentTimeMillis(),
+                hotelDayKey = hotelDayKey,
+                withdrawalType = withdrawalType,
+                reason = "exp_$expenseId",
+                description = description
+            )
+        )
+    }
+
+    /** Dart deleteByExpenseId — removes the paired withdrawal of a deleted expense. */
+    override suspend fun deleteByExpenseId(expenseId: Long) {
+        val linked = salaryWithdrawalsDao.getByReason("exp_$expenseId") ?: return
+        val now = System.currentTimeMillis()
+        salaryWithdrawalsDao.softDelete(linked.id, deletedAt = now, updatedAt = now)
+        val deleted = linked.toDomain().copy(deletedAt = now, updatedAt = now)
+        outboxRepository.enqueueObject("salary_withdrawals", "delete", deleted.localUuid, deleted)
     }
 
     override suspend fun getTotalForEmployee(employeeId: Long): Double =

@@ -2,8 +2,12 @@ package com.marina.marina.presentation.debts
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.marina.marina.domain.model.Debt
 import com.marina.marina.domain.repository.DebtsRepository
+import com.marina.marina.domain.util.HotelTimeEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -82,11 +86,25 @@ class DebtsViewModel @Inject constructor(
                 val prepared = debt.copy(remainingAmount = (debt.totalAmount - debt.paidAmount).coerceAtLeast(0.0))
                 if (prepared.id == 0L) {
                     debtsRepository.insert(prepared)
-                    _state.value = _state.value.copy(message = "تم تسجيل الدين")
+                    _state.value = _state.value.copy(message = "تم إضافة الدين بنجاح")
                 } else {
                     debtsRepository.update(prepared)
-                    _state.value = _state.value.copy(message = "تم تحديث الدين")
+                    _state.value = _state.value.copy(message = "تم تحديث الدين بنجاح")
                 }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(error = e.message)
+            }
+        }
+    }
+
+    /** Dart edit flow (l.1206-1586) — full-field update of an existing debt. */
+    fun updateDebt(debt: Debt) {
+        viewModelScope.launch {
+            try {
+                debtsRepository.update(
+                    debt.copy(remainingAmount = (debt.totalAmount - debt.paidAmount).coerceAtLeast(0.0))
+                )
+                _state.value = _state.value.copy(message = "تم تحديث الدين بنجاح")
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = e.message)
             }
@@ -105,25 +123,45 @@ class DebtsViewModel @Inject constructor(
         }
     }
 
-    /** Records a partial payment against a debt. */
-    fun addPartialPayment(debt: Debt, amount: Double) {
+    /**
+     * Dart partial-payment flow (debts_list l.983-1194): amount validation
+     * (>0 and <= remaining), a chosen payment date + optional note, the
+     * paymentDate field updated, and every instalment appended to the JSON
+     * payment log stored inside the debt's note
+     * (`{"payments":[{amount,date,note}],"original_note":...}`).
+     */
+    fun addPartialPayment(debt: Debt, amount: Double, paymentDate: String = "", note: String = "") {
         viewModelScope.launch {
             try {
                 if (amount <= 0) {
-                    _state.value = _state.value.copy(message = "المبلغ غير صالح")
+                    _state.value = _state.value.copy(message = "يرجى إدخال مبلغ صحيح")
+                    return@launch
+                }
+                if (amount > debt.remainingAmount) {
+                    _state.value = _state.value.copy(
+                        message = "المبلغ يتجاوز المتبقي (${debt.remainingAmount.toInt()})"
+                    )
                     return@launch
                 }
                 val newPaid = (debt.paidAmount + amount).coerceAtMost(debt.totalAmount)
                 val remaining = (debt.totalAmount - newPaid).coerceAtLeast(0.0)
+                val chosenDate = paymentDate.trim()
+                    .ifBlank { HotelTimeEngine.formatIso(System.currentTimeMillis()).take(10) }
                 debtsRepository.update(
                     debt.copy(
                         paidAmount = newPaid,
                         remainingAmount = remaining,
-                        isSettled = remaining <= 0
+                        isSettled = remaining <= 0,
+                        paymentDate = chosenDate,
+                        note = appendPaymentLog(debt.note, amount, chosenDate, note)
                     )
                 )
                 _state.value = _state.value.copy(
-                    message = if (remaining <= 0) "تم تسديد الدين بالكامل" else "تم تسجيل الدفعة الجزئية"
+                    message = if (remaining <= 0) {
+                        "تم تسجيل الدفعة الجزئية بمبلغ ${amount.toInt()} بتاريخ $chosenDate — تمت تسوية الدين بالكامل"
+                    } else {
+                        "تم تسجيل الدفعة الجزئية بمبلغ ${amount.toInt()} بتاريخ $chosenDate"
+                    }
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = e.message)
@@ -139,6 +177,66 @@ class DebtsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = e.message)
             }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Dart JSON payment-log helpers (debts_list l.848-976)
+    // -------------------------------------------------------------------------
+
+    private val gson = Gson()
+
+    /** Appends `{amount,date,note}` to the note's `{"payments":[...]}` log. */
+    private fun appendPaymentLog(rawNote: String?, amount: Double, date: String, note: String): String {
+        return try {
+            val root = if (!rawNote.isNullOrBlank()) {
+                try { JsonParser.parseString(rawNote).asJsonObject } catch (_: Exception) { null }
+            } else null
+            if (root != null && root.has("payments")) {
+                val payments = root.getAsJsonArray("payments")
+                val entry = JsonObject().apply {
+                    addProperty("amount", amount)
+                    addProperty("date", date)
+                    addProperty("note", note)
+                }
+                payments.add(entry)
+                root.toString()
+            } else {
+                val newRoot = JsonObject().apply {
+                    addProperty("original_note", rawNote ?: "")
+                    val payments = com.google.gson.JsonArray()
+                    val entry = JsonObject().apply {
+                        addProperty("amount", amount)
+                        addProperty("date", date)
+                        addProperty("note", note)
+                    }
+                    payments.add(entry)
+                    add("payments", payments)
+                }
+                newRoot.toString()
+            }
+        } catch (_: Exception) {
+            rawNote ?: ""
+        }
+    }
+
+    /** Parses the instalment log for rendering (سجل الدفعات). */
+    fun parsePaymentLog(rawNote: String?): Pair<String, List<Triple<Double, String, String>>> {
+        if (rawNote.isNullOrBlank()) return "" to emptyList()
+        return try {
+            val root = JsonParser.parseString(rawNote).asJsonObject
+            val original = root.get("original_note")?.asString ?: ""
+            val payments = root.getAsJsonArray("payments").mapNotNull { el ->
+                val obj = el.asJsonObject
+                Triple(
+                    obj.get("amount")?.asDouble ?: 0.0,
+                    obj.get("date")?.asString ?: "",
+                    obj.get("note")?.asString ?: ""
+                )
+            }
+            original to payments
+        } catch (_: Exception) {
+            rawNote to emptyList()
         }
     }
 }

@@ -9,6 +9,7 @@ import com.marina.marina.domain.repository.BookingsRepository
 import com.marina.marina.domain.repository.ExpensesRepository
 import com.marina.marina.domain.repository.PaymentsRepository
 import com.marina.marina.domain.repository.RoomsRepository
+import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.domain.util.HotelTimeEngine
 import com.marina.marina.domain.util.StatusUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -111,10 +112,10 @@ class FinanceViewModel @Inject constructor(
         _state.value = _state.value.copy(message = null)
     }
 
-    /** Quick standalone payment recorded at the cash desk. */
-    fun addQuickPayment(amount: Double, method: String, notes: String?) {
+    /** Quick standalone payment recorded at the cash desk (Dart l.853-1077). */
+    fun addQuickPayment(amount: Double, method: String, notes: String?, reference: String? = null) {
         if (amount <= 0) {
-            _state.value = _state.value.copy(message = "المبلغ غير صالح")
+            _state.value = _state.value.copy(message = "يرجى إدخال مبلغ صحيح")
             return
         }
         viewModelScope.launch {
@@ -124,12 +125,15 @@ class FinanceViewModel @Inject constructor(
                         amount = amount,
                         paymentMethod = method,
                         revenueType = "other",
-                        notes = notes
+                        notes = notes,
+                        referenceNumber = reference?.takeIf { it.isNotBlank() }
                     )
                 )
-                _state.value = _state.value.copy(message = "تم تسجيل الدفعة")
+                _state.value = _state.value.copy(
+                    message = "تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(amount)} بنجاح"
+                )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = e.message)
+                _state.value = _state.value.copy(error = "فشل تسجيل الدفعة: ${e.message}")
             }
         }
     }

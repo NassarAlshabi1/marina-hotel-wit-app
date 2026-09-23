@@ -1,5 +1,6 @@
 package com.marina.marina.data.auth
 
+import com.google.gson.Gson
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.domain.model.AuthUser
@@ -15,6 +16,8 @@ class AuthRepositoryImpl @Inject constructor(
     private val sessionManager: UserSessionManager
 ) : AuthRepository {
 
+    private val gson = Gson()
+
     override suspend fun login(username: String, password: String): Result<AuthUser> {
         // Built-in administrator: admin/admin unlocks the app locally.
         // Checked BEFORE the network so the login screen works offline
@@ -25,15 +28,22 @@ class AuthRepositoryImpl @Inject constructor(
 
         val tokenResult = syncService.login(username, password)
         return tokenResult.fold(
-            onSuccess = {
+            onSuccess = { token ->
                 val deviceId = ensureDeviceId()
+                // Dart auth_local_store.dart l.355-412 — the Worker response
+                // carries the REAL user metadata (id / username / role). The
+                // role drives RBAC: 'admin' -> permissions ['all']; every other
+                // role keeps its own (restricted) permission set.
+                val workerUser = syncService.lastLoginUser
+                val role = workerUser?.role?.trim()?.lowercase() ?: "employee"
                 val user = AuthUser(
-                    id = 1,
-                    username = username,
-                    fullName = username,
-                    userType = "admin",
-                    permissions = listOf("all")
+                    id = workerUser?.id?.toLongOrNull()?.toInt() ?: 1,
+                    username = workerUser?.username?.trim() ?: username.trim(),
+                    fullName = workerUser?.username?.trim() ?: username.trim(),
+                    userType = role,
+                    permissions = if (role == "admin" || role.isEmpty()) listOf("all") else emptyList()
                 )
+                persistUser(user)
                 sessionManager.startSession(user)
                 Result.success(user)
             },
@@ -48,20 +58,35 @@ class AuthRepositoryImpl @Inject constructor(
         // "session present" would resurrect a signed-out session, so an
         // empty token (or missing device id) means signed out.
         if (token.isNullOrEmpty() || deviceId == null) return null
-        val user = AuthUser(
-            id = 0,
+        // Restore the REAL logged-in identity (Dart restores the stored user
+        // object — never a hardcoded 'admin').
+        val stored = preferences.getCurrentUserJson()
+        val user = if (!stored.isNullOrBlank()) {
+            try { gson.fromJson(stored, AuthUser::class.java) } catch (_: Exception) { null }
+        } else null
+        val restored = user ?: AuthUser(
+            id = 1,
             username = "admin",
             fullName = "Admin",
             userType = "admin",
             permissions = listOf("all")
         )
-        sessionManager.startSession(user)
-        return user
+        sessionManager.startSession(restored)
+        return restored
     }
 
     override fun logout() {
         sessionManager.endSession()
         preferences.saveAuthToken("")
+        preferences.clearCurrentUser()
+    }
+
+    private fun persistUser(user: AuthUser) {
+        try {
+            preferences.saveCurrentUserJson(gson.toJson(user))
+        } catch (_: Exception) {
+            // Persistence is best-effort; the in-memory session still works.
+        }
     }
 
     private fun startLocalAdminSession(username: String): AuthUser {
@@ -74,6 +99,7 @@ class AuthRepositoryImpl @Inject constructor(
             userType = "admin",
             permissions = listOf("all")
         )
+        persistUser(user)
         sessionManager.startSession(user)
         return user
     }

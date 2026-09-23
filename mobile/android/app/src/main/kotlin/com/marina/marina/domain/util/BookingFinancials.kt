@@ -100,10 +100,13 @@ object BookingFinancials {
             totalSurcharge = nights.filter { it.adjustment > 0 }.sumOf { it.adjustment }
             // Legacy-data guard (Dart l.370-386): ignore stale ledger discounts
             // when the booking itself carries no discount and the rates look
-            // like un-adjusted copies.
+            // like un-adjusted copies. Real discounts (finalRate BELOW baseRate)
+            // are KEPT — Dart only zeroes when no base rates exist at all, or
+            // when every night's finalRate equals its baseRate.
             if (discount <= 0 && totalDiscount > 0) {
-                val looksReal = nights.any { it.baseRate > 0 && (it.finalRate - it.baseRate) >= 0.01 }
-                if (!looksReal) {
+                val hasValidBaseRates = nights.any { it.baseRate > 0 }
+                val allRatesMatchBase = nights.all { kotlin.math.abs(it.finalRate - it.baseRate) < 0.01 }
+                if (!hasValidBaseRates || allRatesMatchBase) {
                     totalDiscount = 0.0
                     discountedNights = 0
                 }

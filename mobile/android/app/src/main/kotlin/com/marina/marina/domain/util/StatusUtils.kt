@@ -38,4 +38,34 @@ object StatusUtils {
     fun isBookingActive(status: String): Boolean = activeBookingStatuses.contains(normalize(status))
     fun isEmployeeActive(status: String): Boolean = activeEmployeeStatuses.contains(normalize(status))
     fun isEmployeeTerminated(status: String): Boolean = terminatedEmployeeStatuses.contains(normalize(status))
+
+    /** Dart canonicalEmployeeStatus (status_utils.dart l.147-166). */
+    fun canonicalEmployeeStatus(status: String): String = when {
+        isEmployeeActive(status) -> "active"
+        normalize(status) == normalize("مفصول") || normalize(status) == "terminated" -> "terminated"
+        normalize(status) == normalize("استقالة") || normalize(status) == "resigned" -> "resigned"
+        normalize(status) == normalize("استغناء") || normalize(status) == "laid_off" -> "laid_off"
+        normalize(status) == normalize("مجمد") || normalize(status) == "frozen" -> "frozen"
+        else -> "inactive"
+    }
+
+    /** Dart employeeStatusLabel (status_utils.dart l.126-144) — Arabic display. */
+    fun employeeStatusLabel(status: String): String = when {
+        isEmployeeActive(status) -> "نشط"
+        normalize(status) == normalize("مفصول") || normalize(status) == "terminated" -> "مفصول"
+        normalize(status) == normalize("استقالة") || normalize(status) == "resigned" -> "استقالة"
+        normalize(status) == normalize("استغناء") || normalize(status) == "laid_off" -> "استغناء"
+        normalize(status) == normalize("مجمد") || normalize(status) == "frozen" -> "مجمد"
+        else -> "غير نشط"
+    }
+
+    /** Dart canonicalToArabic (status_utils.dart l.168+). */
+    fun canonicalToArabic(canonical: String): String = when (canonical) {
+        "active" -> "نشط"
+        "terminated" -> "مفصول"
+        "resigned" -> "استقالة"
+        "laid_off" -> "استغناء"
+        "frozen" -> "مجمد"
+        else -> "غير نشط"
+    }
 }

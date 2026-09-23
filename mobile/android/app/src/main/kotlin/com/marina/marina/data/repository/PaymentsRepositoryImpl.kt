@@ -1,11 +1,13 @@
 package com.marina.marina.data.repository
 
 import com.marina.marina.data.local.dao.PaymentUserHotelDaySummaryRow
+import com.marina.marina.data.local.dao.PaymentVoidsDao
 import com.marina.marina.data.local.dao.PaymentsDao
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.Payment
 import com.marina.marina.domain.model.PaymentUserHotelDaySummary
+import com.marina.marina.domain.model.PaymentVoid
 import com.marina.marina.domain.repository.PaymentsRepository
 import com.marina.marina.domain.session.PaymentSessionContext
 import com.marina.marina.domain.util.HotelTimeEngine
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.map
 @Singleton
 class PaymentsRepositoryImpl @Inject constructor(
     private val paymentsDao: PaymentsDao,
+    private val paymentVoidsDao: PaymentVoidsDao,
     private val outboxRepository: OutboxRepository
 ) : PaymentsRepository {
 
@@ -67,8 +70,37 @@ class PaymentsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun void(id: Long, voidedBy: String, voidReason: String) {
+        // Dart payment_void_service.dart l.64-223 — the full void contract:
+        // 1) a payment_voids audit record, 2) the payment row flip
+        // (isVoided + version+1 + isImmutable), 3) outbox entries for both so
+        // the void propagates to the cloud and other devices.
         val now = System.currentTimeMillis()
+        val entity = paymentsDao.getById(id) ?: return
+        val domain = entity.toDomain()
+        val voidRecord = PaymentVoid(
+            originalPaymentUuid = domain.localUuid,
+            originalPaymentId = domain.id,
+            bookingUuid = entity.bookingUuidCache ?: "",
+            voidedAmount = kotlin.math.round(domain.amount).toLong(),
+            voidReason = voidReason,
+            voidedBy = voidedBy,
+            voidedAt = now,
+            voidedAtIso = HotelTimeEngine.formatIso(now),
+            hotelDayKey = domain.hotelDayKey ?: HotelTimeEngine.currentHotelDayKey(),
+            localUuid = UUID.randomUUID().toString()
+        )
+        paymentVoidsDao.insert(voidRecord.toEntity())
+        outboxRepository.enqueueObject("payment_voids", "insert", voidRecord.localUuid, voidRecord)
         paymentsDao.voidPayment(id, voidedAt = now, voidedBy = voidedBy, voidReason = voidReason, updatedAt = now)
+        val voidedDomain = domain.copy(
+            isVoided = true,
+            voidedAt = now,
+            voidedBy = voidedBy,
+            voidReason = voidReason,
+            version = domain.version + 1,
+            updatedAt = now
+        )
+        outboxRepository.enqueueObject("payments", "update", voidedDomain.localUuid, voidedDomain)
     }
 
     override suspend fun getByBookingOnce(bookingId: Long): List<Payment> =

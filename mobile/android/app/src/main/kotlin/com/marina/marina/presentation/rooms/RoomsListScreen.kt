@@ -27,6 +27,8 @@ import com.marina.marina.ui.theme.MarinaTheme
 
 @Composable
 fun RoomsListScreen(
+    onNewBooking: (roomNumber: String) -> Unit = {},
+    onOpenBookingPayment: (bookingId: Long) -> Unit = {},
     viewModel: RoomsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -109,13 +111,25 @@ fun RoomsListScreen(
                         Text("لا توجد غرف", style = AppTypography.bodyLarge, color = AppColors.TextSecondary)
                     }
                     else -> RoomFloorsView(
-                        floors = state.floors,
-                        activeBookingRooms = state.activeBookingRooms,
+                        state = state,
                         onRoomClick = { room ->
-                            if (room.roomNumber in state.activeBookingRooms || StatusUtils.isRoomOccupied(room.status)) {
-                                editingRoom = room // occupied rooms open the (read-only) details editor
-                            } else {
-                                editingRoom = room
+                            // Dart rooms_dashboard l.159-273 — click routing:
+                            // maintenance -> details dialog; occupied (active
+                            // booking) -> payment screen (or the 'no booking'
+                            // snackbar); available -> new booking prefilled.
+                            when {
+                                StatusUtils.isRoomUnderMaintenance(room.status) -> {
+                                    editingRoom = room
+                                }
+                                room.roomNumber in state.activeBookingRooms -> {
+                                    val booking = state.activeBookingByRoom[room.roomNumber]
+                                    if (booking != null) {
+                                        onOpenBookingPayment(booking.id)
+                                    } else {
+                                        viewModel.onRoomWithoutBooking(room)
+                                    }
+                                }
+                                else -> onNewBooking(room.roomNumber)
                             }
                         }
                     )
@@ -137,7 +151,11 @@ fun RoomsListScreen(
             room = room,
             hasActiveBooking = room.roomNumber in state.activeBookingRooms,
             onToggleStatus = { viewModel.toggleStatus(room) },
-            onEdit = { editingRoom = room.copy() },
+            onSaveEdit = { edited ->
+                // FIX: the edited Room was previously DISCARDED here — the
+                // dialog re-opened with the unchanged copy (rooms audit gap #2).
+                viewModel.saveRoom(edited)
+            },
             onDelete = { viewModel.deleteRoom(room); editingRoom = null }
         )
     }
@@ -145,30 +163,48 @@ fun RoomsListScreen(
 
 @Composable
 private fun RoomFloorsView(
-    floors: Map<Int, List<Room>>,
-    activeBookingRooms: Set<String>,
+    state: RoomsUiState,
     onRoomClick: (Room) -> Unit
 ) {
+    val activeBookingRooms = state.activeBookingRooms
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(bottom = 88.dp)
     ) {
-        floors.forEach { (floorNumber, roomsOnFloor) ->
-            item(key = "floor_$floorNumber") {
+        state.floors.forEach { (floorKey, roomsOnFloor) ->
+            item(key = "floor_$floorKey") {
+                // Dart floor header chips (room_widgets l.199-273): per-floor
+                // occupied / available / total counts.
+                val occupied = roomsOnFloor.count { it.roomNumber in activeBookingRooms }
+                val available = roomsOnFloor.count {
+                    it.roomNumber !in activeBookingRooms && !StatusUtils.isRoomUnderMaintenance(it.status)
+                }
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         Text(
-                            "الطابق $floorNumber",
+                            "الطابق $floorKey",
                             style = AppTypography.titleSmall,
                             color = AppColors.PrimaryColor
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "(${roomsOnFloor.size} غرف)",
+                            "محجوزة: $occupied",
                             style = AppTypography.labelSmall,
-                            color = AppColors.TextSecondary
+                            color = AppColors.DangerColor
+                        )
+                        Text(
+                            "شاغرة: $available",
+                            style = AppTypography.labelSmall,
+                            color = AppColors.SuccessColor
+                        )
+                        Text(
+                            "المجموع: ${roomsOnFloor.size}",
+                            style = AppTypography.labelSmall,
+                            color = AppColors.InfoColor
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
@@ -185,10 +221,18 @@ private fun RoomFloorsView(
 
 @Composable
 private fun RoomTile(room: Room, hasActiveBooking: Boolean, onClick: () -> Unit) {
+    // Dart room_payment_status_provider l.59-89 — priority: maintenance (orange)
+    // FIRST, then active-booking occupancy (red), else available (green). A
+    // stale stored 'محجوزة' with no active booking shows GREEN.
     val backgroundColor = when {
-        hasActiveBooking || StatusUtils.isRoomOccupied(room.status) -> AppColors.DangerColor
         StatusUtils.isRoomUnderMaintenance(room.status) -> AppColors.WarningColor
+        hasActiveBooking -> AppColors.DangerColor
         else -> AppColors.SuccessColor
+    }
+    val displayStatus = when {
+        StatusUtils.isRoomUnderMaintenance(room.status) -> "صيانة"
+        hasActiveBooking -> "محجوزة"
+        else -> "شاغرة"
     }
     Box(
         modifier = Modifier
@@ -203,6 +247,11 @@ private fun RoomTile(room: Room, hasActiveBooking: Boolean, onClick: () -> Unit)
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp
+            )
+            Text(
+                displayStatus,
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 10.sp
             )
             if (room.price > 0) {
                 Text(
@@ -238,7 +287,7 @@ private fun RoomDetailsDialog(
     room: Room,
     hasActiveBooking: Boolean,
     onToggleStatus: () -> Unit,
-    onEdit: () -> Unit,
+    onSaveEdit: (Room) -> Unit,
     onDelete: () -> Unit
 ) {
     var showEdit by remember { mutableStateOf(false) }
@@ -248,7 +297,10 @@ private fun RoomDetailsDialog(
         RoomDialog(
             room = room,
             onDismiss = { showEdit = false },
-            onSave = { onEdit(); showEdit = false; }
+            onSave = { edited ->
+                onSaveEdit(edited)
+                showEdit = false
+            }
         )
         return
     }

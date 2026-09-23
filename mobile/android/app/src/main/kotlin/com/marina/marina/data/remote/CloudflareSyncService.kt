@@ -13,11 +13,18 @@ class CloudflareSyncService @Inject constructor(
         private const val TAG = "CloudflareSync"
     }
 
+    /** The user object returned by the last successful Worker login (id/username/role). */
+    var lastLoginUser: WorkerLoginUser? = null
+        private set
+
     suspend fun login(username: String, password: String): Result<String> {
         return try {
-            val response = api.login(WorkerLoginRequest(username, password)).execute()
+            val response = api.login(
+                WorkerLoginRequest(username, password, preferences.getDeviceId() ?: "")
+            ).execute()
             if (response.isSuccessful && response.body()?.success == true) {
                 response.body()?.token?.let { token ->
+                    lastLoginUser = response.body()?.user
                     preferences.saveAuthToken(token)
                     Result.success(token)
                 } ?: Result.failure(Exception("No token in response"))
@@ -108,6 +115,20 @@ class SyncPreferences @Inject constructor(
         private const val KEY_LAST_PUSH = "last_push_ts"
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_FULL_SYNC_COMPLETE = "full_sync_complete"
+        private const val KEY_CURRENT_USER = "current_user_json"
+    }
+
+    /** Persists the logged-in user (JSON) so session restore keeps the REAL identity. */
+    fun saveCurrentUserJson(json: String) {
+        preferencesManager.saveString(KEY_CURRENT_USER, json)
+    }
+
+    fun getCurrentUserJson(): String? {
+        return preferencesManager.getString(KEY_CURRENT_USER)
+    }
+
+    fun clearCurrentUser() {
+        preferencesManager.saveString(KEY_CURRENT_USER, "")
     }
 
     fun saveAuthToken(token: String) {

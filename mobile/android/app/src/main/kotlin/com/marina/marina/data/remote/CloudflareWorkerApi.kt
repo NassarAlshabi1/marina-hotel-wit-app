@@ -73,13 +73,21 @@ data class WorkerPushResponse(
 
 data class WorkerLoginRequest(
     @SerializedName("username") val username: String,
-    @SerializedName("password") val password: String
+    @SerializedName("password") val password: String,
+    @SerializedName("device_id") val deviceId: String = ""
+)
+
+data class WorkerLoginUser(
+    @SerializedName("id") val id: String?,
+    @SerializedName("username") val username: String?,
+    @SerializedName("role") val role: String?
 )
 
 data class WorkerLoginResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("token") val token: String?,
-    @SerializedName("error") val error: String?
+    @SerializedName("error") val error: String?,
+    @SerializedName("user") val user: WorkerLoginUser? = null
 )
 
 interface CloudflareWorkerApi {

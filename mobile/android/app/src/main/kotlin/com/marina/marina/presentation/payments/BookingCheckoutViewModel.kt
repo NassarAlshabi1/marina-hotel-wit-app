@@ -189,11 +189,8 @@ class BookingCheckoutViewModel @Inject constructor(
                 val now = System.currentTimeMillis()
                 val checkin = HotelTimeEngine.parseDate(booking.checkinDate) ?: now
                 val finalNights = HotelTimeEngine.nightsWithCutoff(checkin, now)
-                bookingsRepository.checkout(
-                    id = booking.id,
-                    status = "مكتمل",
-                    actualCheckout = HotelTimeEngine.formatIso(now)
-                )
+                // Single write — one row update + one outbox entry (Dart
+                // repo.update). The old checkout()+update() pair wrote twice.
                 bookingsRepository.update(
                     booking.copy(
                         status = "مكتمل",

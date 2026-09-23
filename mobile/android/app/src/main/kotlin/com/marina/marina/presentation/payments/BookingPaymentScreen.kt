@@ -273,11 +273,18 @@ fun BookingPaymentScreen(
         val early = booking?.let {
             BookingFinancials.earlyCheckout(it, state.roomPrice, summary?.paidAmount ?: 0.0, state.nights)
         }
-        if (early == null) {
+        if (early == null || early.unusedNights <= 0) {
+            // Dart guard (l.2069-2074): no refund dialog when there are no
+            // unused nights — "لا توجد ليالي غير مستخدمة للرد".
             AlertDialog(
                 onDismissRequest = { showEarlyCheckout = false },
                 title = { Text("مغادرة مبكرة") },
-                text = { Text("لا يوجد مغادرة مبكرة — الحجز انتهى أو لا يوجد تاريخ مغادرة مخطط") },
+                text = {
+                    Text(
+                        if (early == null) "لا يوجد مغادرة مبكرة — الحجز انتهى أو لا يوجد تاريخ مغادرة مخطط"
+                        else "لا توجد ليالي غير مستخدمة للرد"
+                    )
+                },
                 confirmButton = {
                     TextButton(onClick = { showEarlyCheckout = false }) { Text("حسناً") }
                 }
@@ -635,23 +642,28 @@ private fun PaymentSummaryCard(state: BookingPaymentUiState) {
                 )
             }
 
-            // Chips row.
+            // Chips row (Dart payment_summary_card.dart l.264-329).
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 SummaryChip("سعر الليلة", CurrencyFormatter.formatAmount(summary.roomRate))
                 SummaryChip("الليالي الفعلية", "${summary.nightsCount}", highlight = summary.nightsCount > summary.expectedNights)
-                if (state.extraNightsBeyondExpected > 0) {
+                // Dart l.280-291: the +N badge is gated by hasNotCheckedOut &&
+                // nowIsAfterCutoff && actualNightsDynamic > expectedNights.
+                val hasNotCheckedOut = booking.actualCheckout.isNullOrBlank()
+                val nowIsAfterCutoff = HotelTimeEngine.isAfterCutoff(System.currentTimeMillis())
+                if (hasNotCheckedOut && nowIsAfterCutoff && state.extraNightsBeyondExpected > 0) {
                     SummaryChip("+${state.extraNightsBeyondExpected} ليلة بعد 14:00", "", warning = true)
                 }
                 if (summary.hasDebt) {
                     SummaryChip("يوجد دين", CurrencyFormatter.formatAmount(summary.debtAmount), warning = true)
                 }
-                if (summary.totalDiscount > 0) {
-                    SummaryChip("التخفيض", "-${CurrencyFormatter.formatAmount(summary.totalDiscount)}")
+                // Dart l.295-302: the chip mirrors the booking's raw discount value.
+                if (booking.discount > 0) {
+                    SummaryChip("التخفيض", CurrencyFormatter.formatAmount(booking.discount))
                 }
-                if (summary.nightsCount > 0) {
+                if (summary.normalNights > 0) {
                     SummaryChip("ليالي عادية", "${summary.normalNights}")
                 }
                 if (summary.discountedNights > 0) {
@@ -797,12 +809,14 @@ private fun NewPaymentTab(
             )
         }
 
-        // Quick payment row — 25/50/75/100% of remaining.
-        val remainingRounded = kotlin.math.abs(summary.remainingAmount.toInt().toDouble())
+        // Quick payment row — 25/50/75/100% of remaining (Dart l.766/815-845
+        // ROUNDS the presets; truncating here under-charges by 1 for most
+        // non-divisible remainders).
+        val remainingRounded = kotlin.math.round(summary.remainingAmount).coerceAtLeast(0.0)
         Text("دفع سريع", style = AppTypography.titleMedium, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             listOf("25%" to 0.25, "50%" to 0.5, "75%" to 0.75, "100%" to 1.0).forEach { (label, fraction) ->
-                val amount = (remainingRounded * fraction).toInt().toDouble()
+                val amount = kotlin.math.round(remainingRounded * fraction).coerceAtLeast(0.0)
                 OutlinedButton(
                     onClick = { onPay("نقدي", amount, null, false) },
                     enabled = amount > 0,
@@ -1157,9 +1171,56 @@ private fun StatementDialog(
                     PdfExporter.openWhatsAppText(context, phone, msg ?: "")
                 }) { Text("إرسال كنص", color = AppColors.SuccessColor, fontWeight = FontWeight.Bold) }
                 TextButton(onClick = {
+                    // Dart `_sendStatementViaPdf` (payment_models.dart l.3532-3603):
+                    // a real STMT PDF — guest info + stay dates + totals box +
+                    // the full payments table — shared via the system picker.
+                    try {
+                        val file = PdfExporter.buildReport(
+                            context = context,
+                            reportTitle = "كشف حساب",
+                            periodText = "الغرفة ${booking.roomNumber} • ${booking.guestName}",
+                            infoRows = listOf(
+                                "العميل" to booking.guestName,
+                                "الهاتف" to booking.guestPhone.ifBlank { "غير متوفر" },
+                                "الوصول" to booking.checkinDate.take(10),
+                                "المغادرة" to (booking.checkoutDate?.take(10)
+                                    ?: booking.actualCheckout?.take(10) ?: "—"),
+                                "عدد الليالي" to "${summary.nightsCount}"
+                            ),
+                            stats = listOf(
+                                Triple("الإجمالي", CurrencyFormatter.formatAmount(summary.totalAmount), 0xFF242476.toInt()),
+                                Triple("المدفوع", CurrencyFormatter.formatAmount(summary.paidAmount), 0xFF2E7D32.toInt()),
+                                Triple(
+                                    "المتبقي", CurrencyFormatter.formatAmount(summary.remainingAmount),
+                                    if (summary.remainingAmount > 0) 0xFFC62828.toInt() else 0xFF2E7D32.toInt()
+                                )
+                            ),
+                            tables = listOf(
+                                PdfExporter.PdfTable(
+                                    title = "سجل المدفوعات (${state.payments.size})",
+                                    headers = listOf("التاريخ", "الطريقة", "المبلغ"),
+                                    rows = state.payments.sortedBy { it.paymentDate }.map { p ->
+                                        listOf(p.paymentDate.take(10), p.paymentMethod, CurrencyFormatter.formatAmount(p.amount))
+                                    },
+                                    totalRow = listOf(
+                                        "", "الإجمالي",
+                                        CurrencyFormatter.formatAmount(summary.paidAmount)
+                                    )
+                                )
+                            ),
+                            fileName = PdfExporter.generateFileName("كشف حساب")
+                        )
+                        PdfExporter.sharePdf(context, file, "كشف حساب - ${booking.guestName}")
+                    } catch (_: Exception) {
+                        // PDF generation failed — the plain-text button remains.
+                    }
+                }) { Text("مشاركة PDF", color = Color(0xFFEF6C00), fontWeight = FontWeight.Bold) }
+                TextButton(onClick = {
+                    // Dart receipt dialog (payment_models.dart l.1866-1889) —
+                    // fallback plain-text share when PDF generation fails.
                     val msg = message ?: onBuildStatement().also { message = it }
                     PdfExporter.shareText(context, msg ?: "", "كشف حساب - ${booking.guestName}")
-                }) { Text("مشاركة", color = Color(0xFFEF6C00)) }
+                }) { Text("نص", color = AppColors.TextSecondary, fontSize = 11.sp) }
             }
         },
         dismissButton = {

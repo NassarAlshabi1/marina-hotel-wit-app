@@ -42,8 +42,14 @@ class ExpensesRepositoryImpl @Inject constructor(
     }
 
     override suspend fun softDelete(id: Long) {
+        // Dart expenses delete flow (expenses_list.dart l.813-884): the soft
+        // delete propagates to the cloud via the outbox (plus the linked
+        // salary-withdrawal cleanup the screen triggers separately).
         val now = System.currentTimeMillis()
+        val entity = expensesDao.getById(id) ?: return
         expensesDao.softDelete(id, deletedAt = now, updatedAt = now)
+        val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
+        outboxRepository.enqueueObject("expenses", "delete", deleted.localUuid, deleted)
     }
 
 

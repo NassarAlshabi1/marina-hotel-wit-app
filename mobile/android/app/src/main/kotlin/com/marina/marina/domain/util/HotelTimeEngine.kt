@@ -181,8 +181,14 @@ object HotelTimeEngine {
      * 14:01 boundary; the effective start is `max(discountDayStart, checkin)`.
      */
     fun countNightsWithDiscount(checkIn: Long, checkOut: Long?, discountStartDateIso: String?): Int {
-        if (discountStartDateIso.isNullOrBlank()) return 0
-        val discountStart = parseDate(discountStartDateIso) ?: return 0
+        // Dart (booking_payment_screen.dart l.223-230): a null discount start
+        // date means the per-night discount applies to ALL nights of the stay.
+        if (discountStartDateIso.isNullOrBlank()) {
+            return nightsWithCutoff(checkIn, checkOut)
+        }
+        val discountStart = parseDate(discountStartDateIso)
+            // Unparseable start falls back to the same all-nights rule.
+            ?: return nightsWithCutoff(checkIn, checkOut)
         // Normalize the discount day to its 14:01 hotel-day start.
         val dayStart = Calendar.getInstance().apply { timeInMillis = discountStart }
         val normalized = Calendar.getInstance().apply {

@@ -245,8 +245,8 @@ fun FinanceScreen(
     if (showQuickPayment) {
         QuickPaymentDialog(
             onDismiss = { showQuickPayment = false },
-            onConfirm = { amount, method, notes ->
-                viewModel.addQuickPayment(amount, method, notes)
+            onConfirm = { amount, method, notes, reference ->
+                viewModel.addQuickPayment(amount, method, notes, reference)
                 showQuickPayment = false
             }
         )
@@ -303,15 +303,18 @@ private fun CashCell(label: String, value: String, color: Color) {
 @Composable
 private fun QuickPaymentDialog(
     onDismiss: () -> Unit,
-    onConfirm: (Double, String, String?) -> Unit
+    onConfirm: (Double, String, String?, String?) -> Unit
 ) {
     var amount by remember { mutableStateOf("") }
     var method by remember { mutableStateOf("نقدي") }
+    var reference by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("دفعة صندوق سريعة", style = AppTypography.titleLarge) },
+        // Dart finance_screen l.853-996 — "دفعة جديدة تراكمية" with the full
+        // 5-method chip row and a reference field for تحويل/شيك.
+        title = { Text("دفعة جديدة تراكمية", style = AppTypography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
@@ -321,23 +324,35 @@ private fun QuickPaymentDialog(
                     singleLine = true
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("نقدي", "تحويل", "بطاقة").forEach { m ->
-                        FilterChip(selected = method == m, onClick = { method = m }, label = { Text(m, fontSize = 12.sp) })
+                    listOf("نقدي", "تحويل", "بطاقة", "شيك", "تقسيط").forEach { m ->
+                        FilterChip(selected = method == m, onClick = { method = m }, label = { Text(m, fontSize = 11.sp) })
                     }
+                }
+                if (method == "تحويل" || method == "شيك") {
+                    OutlinedTextField(
+                        value = reference,
+                        onValueChange = { reference = it },
+                        label = { Text("رقم المرجع ${if (method == "شيك") "الشيك" else "التحويل"}") },
+                        singleLine = true
+                    )
                 }
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
                     label = { Text("ملاحظات (اختياري)") },
-                    singleLine = true
+                    minLines = 2
                 )
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    val value = amount.toDoubleOrNull() ?: return@TextButton
-                    onConfirm(value, method, notes.ifBlank { null })
+                    val value = amount.toDoubleOrNull()
+                    if (value == null || value <= 0) {
+                        // Dart l.1005-1017 — invalid input is REPORTED, not silent.
+                        return@TextButton
+                    }
+                    onConfirm(value, method, notes.ifBlank { null }, reference.ifBlank { null })
                 }
             ) { Text("تسجيل", color = AppColors.SuccessColor, fontWeight = FontWeight.Bold) }
         },

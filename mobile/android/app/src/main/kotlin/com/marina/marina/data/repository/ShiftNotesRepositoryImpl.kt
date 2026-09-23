@@ -39,11 +39,28 @@ class ShiftNotesRepositoryImpl @Inject constructor(
         outboxRepository.enqueueObject("shift_notes", "update", note.localUuid, note)
     }
 
+    /**
+     * Dart markAsRead (shift_notes_dao l.172-217): flips the flag, bumps the
+     * OCC version, and enqueues an outbox update so read-state syncs across
+     * devices.
+     */
     override suspend fun markRead(id: Long) {
-        shiftNotesDao.markRead(id)
+        val now = System.currentTimeMillis()
+        val entity = shiftNotesDao.getById(id) ?: return
+        shiftNotesDao.markRead(id, updatedAt = now)
+        val read = entity.toDomain().copy(isRead = true, version = entity.version + 1, updatedAt = now)
+        outboxRepository.enqueueObject("shift_notes", "update", read.localUuid, read)
     }
 
+    /**
+     * Dart delete (l.252-313): a confirmed SOFT delete that propagates to the
+     * cloud — never a local-only hard DELETE.
+     */
     override suspend fun delete(id: Long) {
-        shiftNotesDao.delete(id)
+        val now = System.currentTimeMillis()
+        val entity = shiftNotesDao.getById(id) ?: return
+        shiftNotesDao.softDelete(id, deletedAt = now, updatedAt = now)
+        val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
+        outboxRepository.enqueueObject("shift_notes", "delete", deleted.localUuid, deleted)
     }
 }

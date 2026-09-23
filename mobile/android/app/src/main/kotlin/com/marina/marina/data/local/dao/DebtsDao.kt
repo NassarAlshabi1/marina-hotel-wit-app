@@ -10,10 +10,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DebtsDao {
-    @Query("SELECT * FROM debts WHERE is_settled = 0 ORDER BY date_recorded DESC")
+    // Dart debts_dao.dart l.56-63 — every list query excludes soft-deleted rows.
+    @Query("SELECT * FROM debts WHERE is_settled = 0 AND deleted_at IS NULL ORDER BY date_recorded DESC")
     fun getUnsettled(): Flow<List<DebtEntity>>
 
-    @Query("SELECT * FROM debts ORDER BY date_recorded DESC")
+    @Query("SELECT * FROM debts WHERE deleted_at IS NULL ORDER BY date_recorded DESC")
     fun getAll(): Flow<List<DebtEntity>>
 
     @Query("SELECT * FROM debts WHERE id = :id")
@@ -25,8 +26,8 @@ interface DebtsDao {
     @Update
     suspend fun update(debt: DebtEntity)
 
-    @Query("UPDATE debts SET paid_amount = :paidAmount, remaining_amount = :remainingAmount, is_settled = :isSettled WHERE id = :id")
-    suspend fun updateSettlement(id: Long, paidAmount: Double, remainingAmount: Double, isSettled: Int): Int
+    @Query("UPDATE debts SET paid_amount = :paidAmount, remaining_amount = :remainingAmount, is_settled = :isSettled, payment_date = :paymentDate, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateSettlement(id: Long, paidAmount: Double, remainingAmount: Double, isSettled: Int, paymentDate: String, updatedAt: Long): Int
 
     @Query("UPDATE debts SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int

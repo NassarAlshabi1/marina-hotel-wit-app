@@ -288,6 +288,8 @@ fun DebtEntity.toDomain(): Debt = Debt(
     paymentDate = paymentDate,
     isSettled = isSettled == 1,
     note = note,
+    pledge = pledge,
+    pledgeType = pledgeType,
     hotelDayOpened = hotelDayOpened,
     hotelDayClosed = hotelDayClosed,
     isFromAutoFix = isFromAutoFix,
@@ -315,6 +317,8 @@ fun Debt.toEntity(): DebtEntity = DebtEntity(
     paymentDate = paymentDate,
     isSettled = if (isSettled) 1 else 0,
     note = note,
+    pledge = pledge,
+    pledgeType = pledgeType,
     hotelDayOpened = hotelDayOpened,
     hotelDayClosed = hotelDayClosed,
     isFromAutoFix = isFromAutoFix,
@@ -361,7 +365,10 @@ fun ShiftNoteEntity.toDomain(): ShiftNote = ShiftNote(
     expiresAt = expiresAt,
     createdBy = createdBy,
     localUuid = localUuid,
-    createdAt = createdAt
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    deletedAt = deletedAt,
+    version = version
 )
 
 fun ShiftNote.toEntity(): ShiftNoteEntity = ShiftNoteEntity(
@@ -374,5 +381,8 @@ fun ShiftNote.toEntity(): ShiftNoteEntity = ShiftNoteEntity(
     expiresAt = expiresAt,
     createdBy = createdBy,
     localUuid = localUuid,
-    createdAt = createdAt
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    deletedAt = deletedAt,
+    version = version
 )

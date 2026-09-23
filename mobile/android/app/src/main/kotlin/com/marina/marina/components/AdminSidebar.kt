@@ -1,6 +1,7 @@
 package com.marina.marina.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,8 +37,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,7 +50,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.marina.marina.domain.model.AuthUser
 import com.marina.marina.navigation.Screen
-import com.marina.marina.ui.theme.AppTypography
 
 /** One navigation entry in the side navigation. */
 data class SidebarDestination(
@@ -83,13 +81,17 @@ val SidebarDestinations = listOf(
 )
 
 /**
- * The app's side navigation — a 1:1 port of the Flutter AdminSidebar
+ * The app's side navigation — a port of the Flutter AdminSidebar
  * (mobile/lib/components/admin_sidebar.dart, itself mirroring the PHP admin):
  *
  *  - dark navy rail (0xFF0F172A) with a branded header (0xFF16213C),
  *  - a logged-in user card (name + role),
  *  - one entry per top-level screen,
  *  - logout pinned at the bottom.
+ *
+ * Readability fix (user request): COMPACT entries — 20dp icons and 14sp
+ * labels on 44dp rows with tight 2dp spacing, so the full menu fits without
+ * oversized items.
  *
  * It is rendered permanently beside the content on wide screens (>= 768dp)
  * and inside a modal drawer on phones — see [AdminScaffold].
@@ -106,7 +108,7 @@ fun AdminSidebar(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .width(280.dp)
+                .width(260.dp)
                 .statusBarsPadding()
         ) {
             SidebarHeader(currentUser)
@@ -115,7 +117,7 @@ fun AdminSidebar(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 SidebarDestinations.forEach { destination ->
@@ -156,19 +158,19 @@ private fun SidebarHeader(currentUser: AuthUser?) {
             Surface(
                 color = SidebarColors.CardOverlay,
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Hotel,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.padding(10.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = "فندق مارينا",
-                style = AppTypography.titleLarge,
+                fontSize = 17.sp,
                 color = Color.White,
                 fontWeight = FontWeight.Bold
             )
@@ -181,25 +183,25 @@ private fun SidebarHeader(currentUser: AuthUser?) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(SidebarColors.CardOverlay, RoundedCornerShape(12.dp))
-                .padding(12.dp)
+                .padding(10.dp)
         ) {
             Surface(
                 color = Color(0x33FFFFFF),
                 shape = RoundedCornerShape(50),
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(32.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Person,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.padding(7.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
                     text = currentUser?.name?.ifEmpty { "مستخدم" } ?: "مستخدم",
-                    style = AppTypography.titleSmall,
+                    fontSize = 14.sp,
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -207,7 +209,7 @@ private fun SidebarHeader(currentUser: AuthUser?) {
                 )
                 Text(
                     text = if (currentUser?.isAdmin == true) "مدير النظام" else "موظف",
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     color = SidebarColors.Inactive
                 )
             }
@@ -226,29 +228,37 @@ private fun SidebarEntry(
     isLogout: Boolean = false
 ) {
     val selected = !isLogout && currentRoute == route
-    NavigationDrawerItem(
-        label = {
-            Text(
-                text = label,
-                style = AppTypography.titleSmall,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+    val contentColor = if (selected) Color.White else SidebarColors.Inactive
+    // Compact metrics (user request): 20dp icon, 14sp label, 44dp row.
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp)
+            .height(44.dp)
+            .background(
+                if (selected) SidebarColors.SelectedBackground else Color.Transparent,
+                RoundedCornerShape(10.dp)
             )
-        },
-        icon = { Icon(icon, contentDescription = null) },
-        selected = selected,
-        onClick = { onRouteSelected(route) },
-        modifier = Modifier.padding(horizontal = 8.dp),
-        colors = NavigationDrawerItemDefaults.colors(
-            selectedContainerColor = SidebarColors.SelectedBackground,
-            unselectedContainerColor = Color.Transparent,
-            selectedIconColor = Color.White,
-            unselectedIconColor = SidebarColors.Inactive,
-            selectedTextColor = Color.White,
-            unselectedTextColor = SidebarColors.Inactive
+            .clickable { onRouteSelected(route) }
+            .padding(horizontal = 8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(20.dp)
         )
-    )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
 }
 
 /** Sidebar palette ported from the Flutter AdminSidebar constants. */

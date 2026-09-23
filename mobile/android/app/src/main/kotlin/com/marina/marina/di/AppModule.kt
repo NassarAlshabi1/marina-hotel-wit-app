@@ -23,11 +23,48 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
+    /**
+     * Worker JWT auth: the Cloudflare Worker requires
+     * `Authorization: Bearer <jwt>` on every authenticated endpoint
+     * (worker/src/auth.ts l.250-262 — requireAuth). The token is produced by
+     * /api/auth/login and persisted by SyncPreferences; this interceptor
+     * attaches it to EVERY outgoing request so push/pull/d1 calls pass the
+     * 401 gate. Without it none of the sync استدعائات ever authenticate.
+     */
     @Provides
     @Singleton
-    fun provideRetrofit(): Retrofit {
+    fun provideAuthInterceptor(preferences: com.marina.marina.data.remote.SyncPreferences): okhttp3.Interceptor {
+        return okhttp3.Interceptor { chain ->
+            val token = runCatching { preferences.getAuthToken() }.getOrNull()
+            val request = if (!token.isNullOrBlank() && chain.request().header("Authorization") == null) {
+                chain.request().newBuilder()
+                    .header("Authorization", "Bearer $token")
+                    .header("X-Device-Id", preferences.getDeviceId() ?: "")
+                    .build()
+            } else {
+                chain.request()
+            }
+            chain.proceed(request)
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(authInterceptor: okhttp3.Interceptor): okhttp3.OkHttpClient {
+        return okhttp3.OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(client: okhttp3.OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl("https://marina-hotel-api.adenmarina2.workers.dev/")
+            .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }

@@ -160,7 +160,16 @@ fun MarinaNavGraph(
         }
 
         adminScreen(navController, authViewModel, Screen.Rooms.route) {
-            RoomsListScreen()
+            RoomsListScreen(
+                onNewBooking = { roomNumber ->
+                    // Dart rooms_dashboard l.159-202 — an available room opens
+                    // the booking editor with the room pre-selected.
+                    navController.navigate(Screen.BookingEdit.createRoute(0L, roomNumber))
+                },
+                onOpenBookingPayment = { bookingId ->
+                    navController.navigate(Screen.BookingPayment.createRoute(bookingId))
+                }
+            )
         }
 
         adminScreen(navController, authViewModel, Screen.Bookings.route) {
@@ -199,6 +208,9 @@ fun MarinaNavGraph(
                 type = NavType.LongType
             })
         ) { entry ->
+            // Dart actions_tab.dart l.179-239 — the admin-discount tool is
+            // gated by the REAL logged-in role (never hardcoded).
+            val authState by authViewModel.authState.collectAsState()
             BookingPaymentScreen(
                 onBack = { navController.popBackStack() },
                 onOpenPaymentHistory = {
@@ -206,7 +218,7 @@ fun MarinaNavGraph(
                     navController.navigate(Screen.PaymentHistory.createRoute(bookingId))
                 },
                 onOpenDebts = { navController.navigate(Screen.Debts.route) },
-                isAdmin = true
+                isAdmin = authState.currentUser?.isAdmin ?: true
             )
         }
 
@@ -219,7 +231,12 @@ fun MarinaNavGraph(
         }
 
         adminScreen(navController, authViewModel, Screen.Debts.route) {
-            DebtsListScreen()
+            DebtsListScreen(
+                // Dart debts_list l.750-791 — the quick-add "from booking" entry.
+                onCreateFromBooking = {
+                    navController.navigate(Screen.CreateDebt.createRoute(0L))
+                }
+            )
         }
 
         adminScreen(navController, authViewModel, Screen.Employees.route) {
@@ -248,8 +265,10 @@ fun MarinaNavGraph(
 
         adminScreen(navController, authViewModel, Screen.Finance.route) {
             FinanceScreen(
+                // Dart finance_screen l.824-845 — the booking "دفع" button opens
+                // the CHECKOUT screen (not the payment screen).
                 onBookingClick = { bookingId ->
-                    navController.navigate(Screen.BookingPayment.createRoute(bookingId))
+                    navController.navigate(Screen.BookingCheckout.createRoute(bookingId))
                 }
             )
         }

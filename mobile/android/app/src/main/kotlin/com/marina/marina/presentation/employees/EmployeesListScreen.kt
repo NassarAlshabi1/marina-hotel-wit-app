@@ -31,6 +31,8 @@ fun EmployeesListScreen(
     var editingEmployee by remember { mutableStateOf<Employee?>(null) }
     var withdrawingEmployee by remember { mutableStateOf<Employee?>(null) }
     var terminateEmployee by remember { mutableStateOf<Employee?>(null) }
+    var reactivatingEmployee by remember { mutableStateOf<Employee?>(null) }
+    var deletingEmployee by remember { mutableStateOf<Employee?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(state.message, state.error) {
@@ -136,13 +138,9 @@ fun EmployeesListScreen(
                                 item = item,
                                 onEdit = { editingEmployee = item.employee },
                                 onWithdraw = { withdrawingEmployee = item.employee },
-                                onTerminate = {
-                                    if (StatusUtils.isEmployeeActive(item.employee.status)) {
-                                        terminateEmployee = item.employee
-                                    } else {
-                                        viewModel.reactivateEmployee(item.employee)
-                                    }
-                                }
+                                onTerminate = { terminateEmployee = item.employee },
+                                onReactivate = { reactivatingEmployee = item.employee },
+                                onDelete = { deletingEmployee = item.employee }
                             )
                         }
                     }
@@ -179,29 +177,94 @@ fun EmployeesListScreen(
     }
 
     terminateEmployee?.let { employee ->
+        // Dart terminate dialog (employees_list l.215-482): 3 termination
+        // TYPES, a yyyy-MM-dd date (default today), an optional reason, and
+        // the salary-freeze warning banner.
         var reason by remember { mutableStateOf("") }
+        var selectedType by remember { mutableStateOf("فصل") }
+        var date by remember {
+            mutableStateOf(com.marina.marina.domain.util.HotelTimeEngine.formatIso(System.currentTimeMillis()).take(10))
+        }
         AlertDialog(
             onDismissRequest = { terminateEmployee = null },
             title = { Text("إنهاء خدمة الموظف") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("سيتم إنهاء خدمة ${employee.name}. المتابعة؟")
+                    Text("سيتم إنهاء خدمة ${employee.name}.")
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("فصل", "استقالة", "استغناء").forEach { type ->
+                            FilterChip(
+                                selected = selectedType == type,
+                                onClick = { selectedType = type },
+                                label = { Text(type, fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = date,
+                        onValueChange = { date = it },
+                        label = { Text("تاريخ الإنهاء (yyyy-MM-dd)") },
+                        singleLine = true
+                    )
                     OutlinedTextField(
                         value = reason,
                         onValueChange = { reason = it },
                         label = { Text("سبب الإنهاء (اختياري)") },
                         singleLine = true
                     )
+                    Text(
+                        "⚠ سيتم إيقاف صرف السلف والرواتب تلقائياً عند إنهاء الخدمة",
+                        style = AppTypography.bodySmall,
+                        color = AppColors.WarningColor
+                    )
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.terminateEmployee(employee, reason)
+                    viewModel.terminateEmployee(employee, selectedType, date, reason.ifBlank { null })
                     terminateEmployee = null
                 }) { Text("إنهاء الخدمة", color = AppColors.DangerColor) }
             },
             dismissButton = {
                 TextButton(onClick = { terminateEmployee = null }) { Text("إلغاء") }
+            }
+        )
+    }
+
+    // Dart reactivate confirmation (l.485-529) — explains what will happen.
+    reactivatingEmployee?.let { employee ->
+        AlertDialog(
+            onDismissRequest = { reactivatingEmployee = null },
+            title = { Text("إعادة تنشيط الموظف") },
+            text = {
+                Text("سيتم تغيير حالة ${employee.name} إلى نشط ومسح بيانات الإنهاء (تاريخ وسبب الإنهاء). المتابعة؟")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.reactivateEmployee(employee)
+                    reactivatingEmployee = null
+                }) { Text("تنشيط", color = AppColors.SuccessColor, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { reactivatingEmployee = null }) { Text("إلغاء") }
+            }
+        )
+    }
+
+    // Dart delete flow (l.567-650) — two-step confirm with the danger icon.
+    deletingEmployee?.let { employee ->
+        AlertDialog(
+            onDismissRequest = { deletingEmployee = null },
+            title = { Text("حذف الموظف", color = AppColors.DangerColor) },
+            text = { Text("سيتم حذف ${employee.name} نهائياً من قائمة الموظفين. المتابعة؟") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteEmployee(employee)
+                    deletingEmployee = null
+                }) { Text("حذف", color = AppColors.DangerColor, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingEmployee = null }) { Text("إلغاء") }
             }
         )
     }
@@ -212,7 +275,9 @@ private fun EmployeeCard(
     item: EmployeeWithWithdrawals,
     onEdit: () -> Unit,
     onWithdraw: () -> Unit,
-    onTerminate: () -> Unit
+    onTerminate: () -> Unit,
+    onReactivate: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val employee = item.employee
     val isActive = StatusUtils.isEmployeeActive(employee.status)
@@ -269,12 +334,17 @@ private fun EmployeeCard(
                     Text("سلفة / سحب", fontSize = 12.sp)
                 }
                 TextButton(onClick = onEdit) { Text("تعديل", fontSize = 12.sp, color = AppColors.InfoColor) }
-                TextButton(onClick = onTerminate) {
-                    Text(
-                        if (isActive) "إنهاء" else "تنشيط",
-                        fontSize = 12.sp,
-                        color = if (isActive) AppColors.DangerColor else AppColors.SuccessColor
-                    )
+                if (isActive) {
+                    TextButton(onClick = onTerminate) {
+                        Text("إنهاء", fontSize = 12.sp, color = AppColors.DangerColor)
+                    }
+                } else {
+                    TextButton(onClick = onReactivate) {
+                        Text("تنشيط", fontSize = 12.sp, color = AppColors.SuccessColor)
+                    }
+                }
+                TextButton(onClick = onDelete) {
+                    Text("حذف", fontSize = 12.sp, color = AppColors.DangerColor)
                 }
             }
         }

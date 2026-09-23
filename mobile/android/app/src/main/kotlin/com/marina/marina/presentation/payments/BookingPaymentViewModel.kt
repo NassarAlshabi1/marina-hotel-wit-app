@@ -122,7 +122,8 @@ class BookingPaymentViewModel @Inject constructor(
                 isFullyPaid = summary.isFullyPaid
             )
             if (refreshed != booking) {
-                bookingsRepository.update(refreshed)
+                // Dart refreshForBookingId(enqueueOutbox: false) — display-only.
+                bookingsRepository.updateComputedFields(refreshed)
             }
             _state.value = _state.value.copy(
                 isLoading = false,
@@ -199,19 +200,19 @@ class BookingPaymentViewModel @Inject constructor(
             _state.value = _state.value.copy(isSaving = true, extensionProposal = null)
             try {
                 val extraNights = proposal.extraNights
-                val checkin = HotelTimeEngine.parseDate(booking.checkinDate)
-                val currentCheckout = HotelTimeEngine.parseDate(booking.checkoutDate)
-                val newCheckout = currentCheckout?.let {
-                    java.util.Calendar.getInstance().apply {
-                        timeInMillis = it
-                        add(java.util.Calendar.DAY_OF_YEAR, extraNights)
-                    }.timeInMillis
-                }
+                // Dart l.1698-1704: (checkoutDate ?? now + 1 day) + extraNights —
+                // a booking without a planned checkout still gets one on extension.
+                val baseCheckout = HotelTimeEngine.parseDate(booking.checkoutDate)
+                    ?: (System.currentTimeMillis() + 24L * 3600 * 1000)
+                val newCheckout = java.util.Calendar.getInstance().apply {
+                    timeInMillis = baseCheckout
+                    add(java.util.Calendar.DAY_OF_YEAR, extraNights)
+                }.timeInMillis
                 val newExpected = booking.expectedNights + extraNights
                 val updated = booking.copy(
-                    checkoutDate = newCheckout?.let { HotelTimeEngine.formatIso(it) } ?: booking.checkoutDate,
+                    checkoutDate = HotelTimeEngine.formatIso(newCheckout),
                     expectedNights = newExpected,
-                    notes = (booking.notes ?: "") + "تمديد تلقائي: $extraNights ليلة/ليالي"
+                    notes = (booking.notes ?: "") + "\nتمديد تلقائي: $extraNights ليلة/ليالي"
                 )
                 bookingsRepository.update(updated)
                 savePayment(updated, proposal.amount, method, notes, "room", false)
@@ -257,17 +258,17 @@ class BookingPaymentViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                val checkout = HotelTimeEngine.parseDate(booking.checkoutDate)
-                val newCheckout = checkout?.let {
-                    java.util.Calendar.getInstance().apply {
-                        timeInMillis = it
-                        add(java.util.Calendar.DAY_OF_YEAR, additionalNights)
-                    }.timeInMillis
-                }
+                // Dart l.4033-4039: (checkoutDate ?? now + 1 day) + additionalNights.
+                val baseCheckout = HotelTimeEngine.parseDate(booking.checkoutDate)
+                    ?: (System.currentTimeMillis() + 24L * 3600 * 1000)
+                val newCheckout = java.util.Calendar.getInstance().apply {
+                    timeInMillis = baseCheckout
+                    add(java.util.Calendar.DAY_OF_YEAR, additionalNights)
+                }.timeInMillis
                 val updated = booking.copy(
-                    checkoutDate = newCheckout?.let { HotelTimeEngine.formatIso(it) } ?: booking.checkoutDate,
+                    checkoutDate = HotelTimeEngine.formatIso(newCheckout),
                     expectedNights = booking.expectedNights + additionalNights,
-                    notes = (booking.notes ?: "") + "تمديد: $additionalNights ليلة/ليالي"
+                    notes = (booking.notes ?: "") + "\nتمديد: $additionalNights ليلة/ليالي"
                 )
                 bookingsRepository.update(updated)
                 val amount = additionalNights * rate
@@ -291,11 +292,10 @@ class BookingPaymentViewModel @Inject constructor(
                 val now = System.currentTimeMillis()
                 val checkinMillis = HotelTimeEngine.parseDate(booking.checkinDate) ?: now
                 val finalNights = HotelTimeEngine.nightsWithCutoff(checkinMillis, now)
-                bookingsRepository.checkout(
-                    id = booking.id,
-                    status = "مكتمل",
-                    actualCheckout = HotelTimeEngine.formatIso(now)
-                )
+                // Single write (Dart repo.update): status + actualCheckout +
+                // calculatedNights land together, and the outbox entry is the
+                // single cloud change. The old double checkout()+update() wrote
+                // the row twice with two different column sets.
                 bookingsRepository.update(
                     booking.copy(
                         status = "مكتمل",
@@ -336,9 +336,12 @@ class BookingPaymentViewModel @Inject constructor(
                     )
                 )
                 if (refundAmount > 0) {
+                    // Dart l.2255-2358 records the refund as a NEGATIVE integer
+                    // payment (-round(refund)).
+                    val refund = kotlin.math.round(refundAmount).toDouble()
                     savePayment(
                         booking.copy(status = "مكتمل"),
-                        -refundAmount,
+                        -refund,
                         "نقدي",
                         "مردود مغادرة مبكرة - $unusedNights ليلة/ليالي غير مستخدمة",
                         "room",

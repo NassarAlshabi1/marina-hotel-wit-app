@@ -15,5 +15,8 @@ data class ShiftNote(
     val expiresAt: String? = null,
     val createdBy: String = "user",
     val localUuid: String = "",
-    val createdAt: Long = 0
+    val createdAt: Long = 0,
+    val updatedAt: Long = 0,
+    val deletedAt: Long? = null,
+    val version: Int = 1
 ) : Parcelable

@@ -22,17 +22,22 @@ data class BookingsUiState(
     val bookings: List<Booking> = emptyList(),
     val roomPrices: Map<String, Double> = emptyMap(),
     val searchQuery: String = "",
-    val statusFilter: String = "active", // active | all | مكتمل | ملغي
+    // Dart bookings_list l.113-122 — the DEFAULT view hides ONLY
+    // مكتمل/completed/غادر/departed; cancelled (ملغي) bookings stay visible.
+    val statusFilter: String = "default", // default | all | مكتمل | ملغي | النشطة
     val error: String? = null,
     val message: String? = null
 ) {
     val filtered: List<Booking>
         get() {
             var list = bookings
-            if (statusFilter == "active") {
-                list = list.filter { StatusUtils.isBookingActive(it.status) }
-            } else if (statusFilter != "all") {
-                list = list.filter { it.status == statusFilter }
+            list = when (statusFilter) {
+                "default" -> list.filter {
+                    it.status !in listOf("مكتمل", "completed", "غادر", "departed")
+                }
+                "النشطة" -> list.filter { StatusUtils.isBookingActive(it.status) }
+                "all" -> list
+                else -> list.filter { it.status == statusFilter || statusFilter.contains(it.status) }
             }
             val q = searchQuery.trim()
             if (q.isNotBlank()) {
@@ -89,7 +94,10 @@ class BookingsViewModel @Inject constructor(
             try {
                 val checkinMillis = HotelTimeEngine.parseDate(booking.checkinDate) ?: System.currentTimeMillis()
                 val checkoutMillis = HotelTimeEngine.parseDate(booking.checkoutDate)
-                val nights = HotelTimeEngine.calculateDays(checkinMillis, checkoutMillis)
+                // Dart booking screens use Time.nightsWithCutoff (not the
+                // calendar-day calculateDays variant).
+                val nights = if (checkoutMillis == null) 1
+                else HotelTimeEngine.nightsWithCutoff(checkinMillis, checkoutMillis)
                 val prepared = booking.copy(
                     expectedNights = nights,
                     calculatedNights = nights,

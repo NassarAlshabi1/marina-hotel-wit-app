@@ -83,7 +83,10 @@ fun BookingsListScreen(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
-                        "active" to "النشطة",
+                        // Dart default dataset (l.113-122): everything except
+                        // completed/departed — cancelled bookings stay visible.
+                        "default" to "الافتراضي",
+                        "النشطة" to "النشطة",
                         "all" to "الكل",
                         "مكتمل" to "المكتملة",
                         "ملغي" to "الملغاة"
@@ -174,10 +177,34 @@ private fun BookingCard(booking: Booking, roomPrice: Double, onClick: () -> Unit
                 InfoCell("السعر/ليلة", "${roomPrice.toInt()}")
             }
 
-            // Payment progress (uses the denormalized financial cache).
+            // Payment progress (uses the denormalized financial cache — now
+            // recomputed on every booking save, Dart bookings_repository l.97/224).
             val total = booking.totalDueCached
             val paid = booking.totalPaidCached
             val remaining = booking.remainingBalanceCached
+            // Dart payment-status verdict badge (l.551-556, 687-708).
+            val (verdictText, verdictColor) = when {
+                remaining <= 0 -> "مسددة" to AppColors.SuccessColor
+                paid > 0 -> "جزئياً" to AppColors.WarningColor
+                else -> "غير مسددة" to AppColors.DangerColor
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StatusBadge(text = verdictText, backgroundColor = verdictColor)
+                // Dart period row (l.645-665): checkin + حتى planned + actual.
+                val checkoutLabel = booking.actualCheckout?.take(10)
+                    ?: booking.checkoutDate?.take(10)
+                if (checkoutLabel != null) {
+                    Text(
+                        "حتى $checkoutLabel" + if (booking.actualCheckout != null) " (خروج فعلي)" else "",
+                        style = AppTypography.labelSmall,
+                        color = AppColors.TextSecondary
+                    )
+                }
+            }
             if (total > 0) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -204,10 +231,10 @@ private fun BookingCard(booking: Booking, roomPrice: Double, onClick: () -> Unit
 @Composable
 private fun BookingStatusChip(status: String) {
     val (bg, label) = when {
-        StatusUtils.isBookingActive(status) && status.contains("مؤقت") -> AppColors.WarningColor to "مؤقت"
-        StatusUtils.isBookingActive(status) -> AppColors.SuccessColor to "نشط"
-        status == "مكتمل" -> AppColors.PrimaryColor to "مكتمل"
-        status == "ملغي" -> AppColors.DangerColor to "ملغي"
+        status.contains("مؤقت") -> AppColors.WarningColor to "مؤقت"
+        StatusUtils.isBookingActive(status) -> AppColors.SuccessColor to "محجوزة"
+        status == "مكتمل" || status == "completed" -> AppColors.PrimaryColor to "مكتمل"
+        status == "ملغي" || status == "cancelled" -> AppColors.DangerColor to "ملغي"
         else -> AppColors.MediumGray to status
     }
     StatusBadge(text = label, backgroundColor = bg)

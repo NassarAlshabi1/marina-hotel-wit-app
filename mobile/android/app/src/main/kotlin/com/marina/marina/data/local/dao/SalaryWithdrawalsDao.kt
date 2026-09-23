@@ -35,6 +35,9 @@ interface SalaryWithdrawalsDao {
     @Update
     suspend fun update(withdrawal: SalaryWithdrawalEntity)
 
+    @Query("SELECT * FROM salary_withdrawals WHERE deleted_at IS NULL AND reason = :reason LIMIT 1")
+    suspend fun getByReason(reason: String): SalaryWithdrawalEntity?
+
     @Query("UPDATE salary_withdrawals SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
 }

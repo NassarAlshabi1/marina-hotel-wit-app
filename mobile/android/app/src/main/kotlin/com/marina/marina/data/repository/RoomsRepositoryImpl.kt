@@ -1,5 +1,6 @@
 package com.marina.marina.data.repository
 
+import com.marina.marina.data.local.dao.BookingsDao
 import com.marina.marina.data.local.dao.RoomsDao
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.map
 @Singleton
 class RoomsRepositoryImpl @Inject constructor(
     private val roomsDao: RoomsDao,
+    private val bookingsDao: BookingsDao,
     private val outboxRepository: OutboxRepository
 ) : RoomsRepository {
 
@@ -39,6 +41,14 @@ class RoomsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun softDelete(id: Long) {
+        // Dart rooms_repository.dart l.149-186 — a room with an active booking
+        // cannot be deleted (the guest is still living in it).
+        val room = roomsDao.getById(id) ?: return
+        val activeBooking = bookingsDao.getActiveBookingForRoom(room.roomNumber)
+        if (activeBooking != null) {
+            val guest = activeBooking.guestName.ifBlank { "غير معروف" }
+            throw IllegalStateException("لا يمكن حذف الغرفة ${room.roomNumber}: يوجد حجز نشط (الضيف: $guest)")
+        }
         val now = System.currentTimeMillis()
         roomsDao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
     }

@@ -3,98 +3,93 @@ package com.marina.marina.presentation.employees
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marina.marina.domain.model.Employee
-import com.marina.marina.domain.model.SalaryCycle
 import com.marina.marina.domain.repository.EmployeesRepository
-import com.marina.marina.domain.repository.SalaryRepository
+import com.marina.marina.domain.repository.ExpensesRepository
+import com.marina.marina.domain.util.SalaryEntitlementCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
 
-data class EntitlementRow(
-    val employee: Employee,
-    val cycle: SalaryCycle?,
-    val entitled: Double,
-    val paid: Long,
-    val remaining: Double
-)
-
+/**
+ * Dart SalaryEntitlementService parity: entitlements derive from the
+ * employee-linked EXPENSES (months worked × salary − withdrawals − advances −
+ * deductions), plus the monthly cycle card math from SalaryCycleCalculator.
+ */
 data class SalaryEntitlementsUiState(
     val isLoading: Boolean = true,
-    val rows: List<EntitlementRow> = emptyList(),
-    val cycleKey: String = "",
+    val entitlements: List<SalaryEntitlementCalculator.Entitlement> = emptyList(),
+    // Dart summary card (l.116-172).
+    val totalCount: Int = 0,
+    val totalEntitlements: Double = 0.0,
+    val totalWithdrawals: Double = 0.0,
+    val totalAdvances: Double = 0.0,
+    val totalDeductions: Double = 0.0,
+    val totalNet: Double = 0.0,
+    // Dart monthly cycle card per employee (expandable) — keyed by employee id.
+    val cycleResults: Map<Long, SalaryEntitlementCalculator.CycleResult> = emptyMap(),
     val error: String? = null,
     val message: String? = null
-)
+) {
+    val isEmpty: Boolean get() = !isLoading && entitlements.isEmpty()
+}
 
 @HiltViewModel
 class SalaryEntitlementsViewModel @Inject constructor(
     private val employeesRepository: EmployeesRepository,
-    private val salaryRepository: SalaryRepository
+    private val expensesRepository: ExpensesRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SalaryEntitlementsUiState())
     val state: StateFlow<SalaryEntitlementsUiState> = _state.asStateFlow()
 
     init {
-        employeesRepository.getAll().onEach { employees ->
-            lastEmployees = employees
-            rebuild(employees)
+        combine(employeesRepository.getAll(), expensesRepository.getAll()) { employees, expenses ->
+            employees to expenses
+        }.onEach { (employees, expenses) ->
+            rebuild(employees, expenses)
         }.launchIn(viewModelScope)
     }
 
-    private var lastEmployees: List<Employee> = emptyList()
-
-    fun setCycleKey(key: String) {
-        _state.value = _state.value.copy(cycleKey = key)
-        rebuild(lastEmployees)
-    }
-
-    private fun rebuild(employees: List<Employee>) {
-        viewModelScope.launch {
-            try {
-                val key = _state.value.cycleKey
-                val rows = employees.map { employee ->
-                    val cycles = salaryRepository.getCycles(employee.id).first()
-                    val cycle = if (key.isBlank()) cycles.firstOrNull()
-                    else cycles.firstOrNull { it.cycleKey == key }
-                    val paid = cycle?.actualPaid ?: 0L
-                    EntitlementRow(
-                        employee = employee,
-                        cycle = cycle,
-                        entitled = employee.basicSalary,
-                        paid = paid,
-                        remaining = employee.basicSalary - paid
-                    )
-                }
-                _state.value = _state.value.copy(isLoading = false, rows = rows, error = null)
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = e.message)
-            }
-        }
-    }
-
-    fun openCycle(employee: Employee, cycleKey: String) {
-        viewModelScope.launch {
-            try {
-                salaryRepository.insertCycle(
-                    SalaryCycle(
-                        employeeId = employee.id,
-                        cycleKey = cycleKey,
-                        expectedAmount = employee.basicSalary.toLong()
+    private fun rebuild(employees: List<Employee>, expenses: List<com.marina.marina.domain.model.Expense>) {
+        try {
+            val entitlements = SalaryEntitlementCalculator.calculateAll(employees, expenses)
+            // Monthly cycle per employee (current cycle, carry-over 0 — the
+            // Kotlin port keeps the pure math; auto carry-over writes happen
+            // in the Dart service and are surfaced after a full sync).
+            val cycles = entitlements.associate { ent ->
+                ent.employee.id to SalaryEntitlementCalculator.calculateCycle(
+                    SalaryEntitlementCalculator.CycleInput(
+                        basicSalary = ent.basicSalary,
+                        withdrawals = ent.totalWithdrawals,
+                        advances = ent.totalAdvances,
+                        installmentsPaid = ent.installmentsPaid,
+                        deductions = ent.totalDeductions
                     )
                 )
-                _state.value = _state.value.copy(message = "تم فتح الدورة")
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(error = e.message)
             }
+            _state.value = _state.value.copy(
+                isLoading = false,
+                entitlements = entitlements,
+                cycleResults = cycles,
+                totalCount = entitlements.size,
+                totalEntitlements = entitlements.sumOf { it.totalEntitlement },
+                totalWithdrawals = entitlements.sumOf { it.totalWithdrawals },
+                totalAdvances = entitlements.sumOf { it.totalAdvances },
+                totalDeductions = entitlements.sumOf { it.totalDeductions },
+                totalNet = entitlements.sumOf { it.netEntitlement },
+                error = null
+            )
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(isLoading = false, error = "فشل تحميل البيانات: ${e.message}")
         }
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null, error = null) }
+    fun consumeMessage() {
+        _state.value = _state.value.copy(message = null, error = null)
+    }
 }

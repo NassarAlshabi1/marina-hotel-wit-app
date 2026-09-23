@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -42,7 +43,9 @@ fun SidebarMenuButton() {
     IconButton(onClick = opener) {
         Icon(
             imageVector = Icons.Filled.Menu,
-            contentDescription = "القائمة"
+            contentDescription = "القائمة",
+            // Compact size (user request — smaller, not bigger).
+            modifier = Modifier.size(22.dp)
         )
     }
 }

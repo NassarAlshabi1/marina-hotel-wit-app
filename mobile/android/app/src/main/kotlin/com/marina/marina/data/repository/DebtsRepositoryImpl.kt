@@ -5,6 +5,7 @@ import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.Debt
 import com.marina.marina.domain.repository.DebtsRepository
+import com.marina.marina.domain.util.HotelTimeEngine
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,12 +45,35 @@ class DebtsRepositoryImpl @Inject constructor(
         outboxRepository.enqueueObject("debts", "update", prepared.localUuid, prepared)
     }
 
+    /**
+     * Dart settle flow (debts_list l.797-846): isSettled=1, paid=total,
+     * remaining=0, paymentDate=today — AND the change syncs to the cloud
+     * (repo update + outbox).
+     */
     override suspend fun markSettled(id: Long, paidAmount: Double) {
-        debtsDao.updateSettlement(id, paidAmount = paidAmount, remainingAmount = 0.0, isSettled = 1)
+        val entity = debtsDao.getById(id) ?: return
+        val today = HotelTimeEngine.currentHotelDayKey()
+        val now = System.currentTimeMillis()
+        debtsDao.updateSettlement(
+            id, paidAmount = paidAmount, remainingAmount = 0.0, isSettled = 1,
+            paymentDate = today, updatedAt = now
+        )
+        val settled = entity.toDomain().copy(
+            paidAmount = paidAmount,
+            remainingAmount = 0.0,
+            isSettled = true,
+            paymentDate = today,
+            updatedAt = now
+        )
+        outboxRepository.enqueueObject("debts", "update", settled.localUuid, settled)
     }
 
     override suspend fun softDelete(id: Long) {
+        // Dart debts_dao l.169-180 — delete is soft AND syncs to the cloud.
         val now = System.currentTimeMillis()
+        val entity = debtsDao.getById(id) ?: return
         debtsDao.softDelete(id, deletedAt = now, updatedAt = now)
+        val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
+        outboxRepository.enqueueObject("debts", "delete", deleted.localUuid, deleted)
     }
 }

@@ -62,13 +62,21 @@ data class PaymentsUiState(
     /** Dart l.160 quirk: the grand-total stat card sums ALL payments (voided included). */
     val grandTotal: Double get() = payments.sumOf { it.amount }
 
-    /** Dart l.181-188: month filter parses paymentDate and compares to month start (no void check). */
+    /** Dart l.181-192: month stat parses paymentDate and keeps payments at/after
+     * the current month start (00:00 of day 1). Voided included. A payment taken
+     * at 00:30 on the 1st still belongs to the CURRENT month (unlike the hotel-day
+     * key, which would attribute it to the previous month). */
     val monthTotal: Double
         get() {
-            val today = todayKey
-            val monthPrefix = today.take(7)
+            val cal = java.util.Calendar.getInstance()
+            cal.set(java.util.Calendar.DAY_OF_MONTH, 1)
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            val monthStart = cal.timeInMillis
             return payments.filter {
-                (it.hotelDayKey ?: it.paymentDate.take(10)).startsWith(monthPrefix)
+                HotelTimeEngine.parseDate(it.paymentDate)?.let { t -> t >= monthStart } ?: false
             }.sumOf { it.amount }
         }
 

@@ -78,7 +78,7 @@ interface PaymentsDao {
     @Update
     suspend fun update(payment: PaymentEntity)
 
-    @Query("UPDATE payments SET is_voided = 1, voided_at = :voidedAt, voided_by = :voidedBy, void_reason = :voidReason, updated_at = :updatedAt WHERE id = :id")
+    @Query("UPDATE payments SET is_voided = 1, voided_at = :voidedAt, voided_by = :voidedBy, void_reason = :voidReason, is_immutable = 1, version = version + 1, updated_at = :updatedAt WHERE id = :id")
     suspend fun voidPayment(id: Long, voidedAt: Long, voidedBy: String, voidReason: String, updatedAt: Long): Int
 
     @Query("UPDATE payments SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")

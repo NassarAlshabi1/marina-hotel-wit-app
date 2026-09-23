@@ -20,6 +20,9 @@ data class Debt(
     val paymentDate: String = "",
     val isSettled: Boolean = false,
     val note: String? = null,
+    /** رهن (pledge) — Dart debts_list l.522-549 renders the pledge box. */
+    val pledge: String? = null,
+    val pledgeType: String? = null,
     val hotelDayOpened: String? = null,
     val hotelDayClosed: String? = null,
     val isFromAutoFix: Boolean = false,
