@@ -46,9 +46,7 @@ abstract final class AppOpenPullGate {
     return (
       shouldPull: elapsed >= SyncConstants.appOpenSyncInterval,
       elapsedSinceLastPull: elapsed,
-      remainingUntilNextPull: remaining.isNegative
-          ? Duration.zero
-          : remaining,
+      remainingUntilNextPull: remaining.isNegative ? Duration.zero : remaining,
     );
   }
 
