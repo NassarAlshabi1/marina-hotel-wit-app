@@ -129,13 +129,84 @@ class SyncManager @Inject constructor(
     }
 
     /**
-     * دلتا واحدة بمؤشر الخادم المحفوظ: صفحات [CloudflareConfig.DELTA_PULL_BATCH_SIZE]
-     * حتى has_more=false. المؤشر لا يتقدم إلا بعد استيعاب كل الصفحات بنجاح
-     * ودون errors خادمية (عقد PullResult: جداول فاشلة = دورة فاشلة).
+     * ✅ (2026-09-24) «رفع التغييرات المحلية» — نقل _runPushNow من
+     * unified_sync_settings_screen.dart: رفع فقط بدون سحب — يفرّغ outbox
+     * إلى السيرفر بلا أي سحب (فصل الرفع عن السحب الكامل — طلب المستخدم).
      *
+     * @return عدد الصفوف المرفوعة بنجاح، أو -1 عند الفشل.
+     */
+    override suspend fun pushOnly(): Int {
+        if (_syncState.value.isSyncing) return -1
+        _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ الرفع...")
+        if (!syncService.ensureLoggedIn()) {
+            finishWithError("فشل تسجيل الدخول إلى الخادم")
+            return -1
+        }
+        val pushed = try {
+            outboxRepository.processPending() + outboxRepository.syncOutbox()
+        } catch (e: Exception) {
+            finishWithError("فشل الرفع: ${e.message}")
+            return -1
+        }
+        preferences.saveLastPushTs(System.currentTimeMillis())
+        _syncState.value = _syncState.value.copy(
+            isSyncing = false,
+            lastSyncAt = System.currentTimeMillis(),
+            lastMessage = "تم رفع $pushed سجل",
+            pushedCount = pushed
+        )
+        return pushed
+    }
+
+    /**
+     * ✅ (2026-09-24) «السحب الكامل من السيرفر» — نقل _runFullSync من
+     * unified_sync_settings_screen.dart: fullSync(push: false) — تصفير
+     * مؤشر السحب + سحب كل البيانات من الصفر بصفحات أكبر وأسرع
+     * ([CloudflareConfig.FULL_PULL_BATCH_SIZE]) — **سحب فقط بدون أي رفع**
+     * (فصل صريح عن زر الرفع بناء على طلب المستخدم 2026-09-09).
+     *
+     * @return عدد السجلات المسحوبة، أو -1 عند الفشل.
+     */
+    override suspend fun fullPull(): Int {
+        if (_syncState.value.isSyncing) return -1
+        _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب الكامل...")
+        if (!syncService.ensureLoggedIn()) {
+            finishWithError("فشل تسجيل الدخول إلى الخادم")
+            return -1
+        }
+        // 1) إعادة ضبط مؤشر السحب — الجلب يبدأ من الصفر.
+        preferences.saveLastPullCursor(0L)
+        val pulled = try {
+            pullDelta(batchSize = CloudflareConfig.FULL_PULL_BATCH_SIZE)
+        } catch (e: Exception) {
+            finishWithError("فشل السحب الكامل: ${e.message}")
+            return -1
+        }
+        if (pulled < 0) {
+            finishWithError("فشل السحب الكامل: جداول فاشلة على الخادم")
+            return -1
+        }
+        preferences.saveLastPullTs(System.currentTimeMillis())
+        preferences.setFullSyncComplete(true)
+        _syncState.value = _syncState.value.copy(
+            isSyncing = false,
+            lastSyncAt = System.currentTimeMillis(),
+            lastMessage = "اكتمل السحب الكامل: $pulled سجل (بدون رفع)",
+            pulledCount = pulled
+        )
+        return pulled
+    }
+
+    /**
+     * دلتا واحدة بمؤشر الخادم المحفوظ: صفحات [batchSize] حتى has_more=false.
+     * المؤشر لا يتقدم إلا بعد استيعاب كل الصفحات بنجاح ودون errors خادمية
+     * (عقد PullResult: جداول فاشلة = دورة فاشلة).
+     *
+     * @param batchSize حجم الصفحة — دلتا عادية [CloudflareConfig.DELTA_PULL_BATCH_SIZE]
+     *   أو سحب كامل [CloudflareConfig.FULL_PULL_BATCH_SIZE].
      * @return عدد السجلات المستوعبة، أو -1 عند الفشل.
      */
-    private suspend fun pullDelta(): Int {
+    private suspend fun pullDelta(batchSize: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE): Int {
         val deviceId = preferences.getDeviceId()
         var cursor = preferences.getLastPullCursor()
         var ingested = 0
@@ -143,7 +214,7 @@ class SyncManager @Inject constructor(
         while (true) {
             val result = syncService.pull(
                 cursor = cursor,
-                limit = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
+                limit = batchSize,
                 excludeDevice = deviceId?.takeIf { it.isNotBlank() }
             )
             val response = result.getOrNull() ?: run {

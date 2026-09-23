@@ -153,14 +153,16 @@ fun SettingsScreen(
                             }
                         }
                     }
-                    // ✅ (2026-09-24) مدخل إعدادات الاتصال بـ Cloudflare —
-                    // اعتمادات المزامنة + نطاق worker مخصّص + توكن D1 المباشر.
+                    // ✅ (2026-09-24) مدخل المزامنة السحابية — نفس مدخل قسم
+                    // 'sync' في settings_screen.dart (فرع feat/cloudflare-sync-
+                    // execution): يفتح شاشة إعدادات المزامنة الموحدة (نظير
+                    // UnifiedSyncSettingsScreen) بكل أقسامها.
                     SettingsItem(
-                        "إعدادات Cloudflare",
-                        "اعتمادات المزامنة · نطاق مخصّص · توكن D1",
+                        "المزامنة السحابية بين الأجهزة",
+                        "رفع وسحب البيانات عبر Cloudflare D1 — الإعدادات والأداء والشبكة",
                         "☁️",
-                        Color(0xFFF6820C)
-                    ) { onNavigate("cloudflare_login") }
+                        Color(0xFF2196F3)
+                    ) { onNavigate("cloudflare_sync_settings") }
                 }
 
                 // Section 3 — الإشعارات والتقارير.

@@ -4,6 +4,7 @@ import com.marina.marina.data.auth.LocalAdminAuth
 import com.marina.marina.di.EncryptedSharedPreferencesManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -32,6 +33,9 @@ class CloudflareSyncService @Inject constructor(
 
         /** محاولات الدخول لأعطال الشبكة العابرة (DNS/socket) — نفس Flutter. */
         private const val LOGIN_ATTEMPTS = 2
+
+        /** مهلة فحص ping — نفس 8s في _probeCustomEndpoint بـ Dart. */
+        private const val PING_TIMEOUT_MS = 8_000L
     }
 
     /** كائن المستخدم من آخر دخول ناجح (id/username/role) — يستخدمه AuthRepository
@@ -108,6 +112,29 @@ class CloudflareSyncService @Inject constructor(
             val body = response.body()
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("HTTP ${response.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * ✅ (2026-09-24) فحص ping خفيف — نقل `_probeCustomEndpoint` من
+     * unified_sync_settings_screen.dart: GET /api/ping بمهلة 8 ثوانٍ —
+     * عميل عادي بلا تدوير لنقيس العنوان نفسه. يعيد زمن الاستجابة بالمللي
+     * ثانية عند النجاح.
+     */
+    suspend fun ping(): Result<Long> = withContext(Dispatchers.IO) {
+        try {
+            withTimeout(PING_TIMEOUT_MS) {
+                val startedAt = System.currentTimeMillis()
+                val response = api.ping().execute()
+                val elapsed = System.currentTimeMillis() - startedAt
+                val body = response.body()
+                if (response.isSuccessful && body?.status == "ok") Result.success(elapsed)
+                else Result.failure(Exception("HTTP ${response.code()}"))
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            Result.failure(Exception("انتهت المهلة (8s)"))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -210,6 +237,17 @@ class SyncPreferences @Inject constructor(
         private const val KEY_FULL_SYNC_COMPLETE = "full_sync_complete"
         private const val KEY_CURRENT_USER = "current_user_json"
         private const val KEY_LAST_PULL_CURSOR = "last_pull_cursor"
+
+        // ✅ (2026-09-24) مفاتيح إعدادات المزامنة — نفس سلاسل Dart حرفياً
+        // (unified_sync_settings_screen.dart l.59-68) لضمان التوافق.
+        private const val KEY_AUTO_SYNC_ENABLED = "appwrite_auto_sync_enabled"
+        private const val KEY_SYNC_ON_STARTUP = "appwrite_sync_on_startup"
+        private const val KEY_BATTERY_OPTIMIZATION = "battery_optimization_enabled"
+        private const val KEY_WIFI_ONLY = "wifi_only_sync"
+        private const val KEY_SMART_SYNC = "smart_sync_enabled"
+        private const val KEY_CLOUDFLARE_SYNC = "appwrite_sync_enabled"
+        private const val KEY_REALTIME_SYNC = "appwrite_realtime_sync_enabled"
+        private const val KEY_SYNC_INTERVAL = "appwrite_sync_interval_minutes"
     }
 
     /** يثبّت المستخدم الداخل (JSON) كي تحتفظ استعادة الجلسة بالهوية الحقيقية. */
@@ -273,5 +311,76 @@ class SyncPreferences @Inject constructor(
 
     fun getLastPullCursor(): Long {
         return preferencesManager.getLong(KEY_LAST_PULL_CURSOR, 0L)
+    }
+
+    // ─── ✅ (2026-09-24) إعدادات المزامنة — نفس مفاتيح Dart ─────
+    //
+    // نقل 1:1 لمفاتيح unified_sync_settings_screen.dart (فرع
+    // feat/cloudflare-sync-execution) — «هذه المفاتيح متوافقة مع
+    // القارئات الحقيقية في sync_performance_optimizer.dart و
+    // smart_sync_manager.dart — لا مفاتيح ميتة» (تعليق Dart P0).
+
+    /** تفعيل المزامنة التلقائية (appwrite_auto_sync_enabled — افتراضياً true). */
+    fun getAutoSyncEnabled(): Boolean =
+        preferencesManager.getBoolean(KEY_AUTO_SYNC_ENABLED, true)
+
+    fun setAutoSyncEnabled(enabled: Boolean) {
+        preferencesManager.putBoolean(KEY_AUTO_SYNC_ENABLED, enabled)
+    }
+
+    /** المزامنة عند بدء التشغيل (appwrite_sync_on_startup — افتراضياً true). */
+    fun getSyncOnStartup(): Boolean =
+        preferencesManager.getBoolean(KEY_SYNC_ON_STARTUP, true)
+
+    fun setSyncOnStartup(enabled: Boolean) {
+        preferencesManager.putBoolean(KEY_SYNC_ON_STARTUP, enabled)
+    }
+
+    /** تحسين البطارية (battery_optimization_enabled — افتراضياً true). */
+    fun getBatteryOptimization(): Boolean =
+        preferencesManager.getBoolean(KEY_BATTERY_OPTIMIZATION, true)
+
+    fun setBatteryOptimization(enabled: Boolean) {
+        preferencesManager.putBoolean(KEY_BATTERY_OPTIMIZATION, enabled)
+    }
+
+    /** WiFi فقط (wifi_only_sync — افتراضياً false). */
+    fun getWifiOnly(): Boolean =
+        preferencesManager.getBoolean(KEY_WIFI_ONLY, false)
+
+    fun setWifiOnly(enabled: Boolean) {
+        preferencesManager.putBoolean(KEY_WIFI_ONLY, enabled)
+    }
+
+    /** المزامنة الذكية (smart_sync_enabled — افتراضياً true). */
+    fun getSmartSyncEnabled(): Boolean =
+        preferencesManager.getBoolean(KEY_SMART_SYNC, true)
+
+    fun setSmartSyncEnabled(enabled: Boolean) {
+        preferencesManager.putBoolean(KEY_SMART_SYNC, enabled)
+    }
+
+    /** تفعيل مزامنة Cloudflare (appwrite_sync_enabled — افتراضياً true). */
+    fun getCloudflareSyncEnabled(): Boolean =
+        preferencesManager.getBoolean(KEY_CLOUDFLARE_SYNC, true)
+
+    fun setCloudflareSyncEnabled(enabled: Boolean) {
+        preferencesManager.putBoolean(KEY_CLOUDFLARE_SYNC, enabled)
+    }
+
+    /** المزامنة الفورية Realtime (appwrite_realtime_sync_enabled — افتراضياً true). */
+    fun getRealtimeSyncEnabled(): Boolean =
+        preferencesManager.getBoolean(KEY_REALTIME_SYNC, true)
+
+    fun setRealtimeSyncEnabled(enabled: Boolean) {
+        preferencesManager.putBoolean(KEY_REALTIME_SYNC, enabled)
+    }
+
+    /** فترة المزامنة بالدقائق (appwrite_sync_interval_minutes — افتراضياً 15). */
+    fun getSyncIntervalMinutes(): Int =
+        preferencesManager.getLong(KEY_SYNC_INTERVAL, 15L).toInt()
+
+    fun setSyncIntervalMinutes(minutes: Int) {
+        preferencesManager.saveLong(KEY_SYNC_INTERVAL, minutes.toLong())
     }
 }

@@ -41,6 +41,7 @@ import com.marina.marina.presentation.reports.ReportsScreen
 import com.marina.marina.presentation.reports.SalaryWithdrawalsReportScreen
 import com.marina.marina.presentation.rooms.RoomsListScreen
 import com.marina.marina.presentation.settings.BookingsReminderScreen
+import com.marina.marina.presentation.settings.CloudflareSyncSettingsScreen
 import com.marina.marina.presentation.settings.SettingsScreen
 
 sealed class Screen(val route: String) {
@@ -74,7 +75,21 @@ sealed class Screen(val route: String) {
             if (bookingId != null && bookingId > 0) "payment_history?bookingId=$bookingId" else "payment_history"
     }
     object SalaryEntitlements : Screen("salary_entitlements")
-    object CloudflareLogin : Screen("cloudflare_login")
+
+    /**
+     * شاشة الاتصال بـ Cloudflare — with from=settings تُفتح من شاشة
+     * إعدادات المزامنة (نظير Navigator.push في unified_sync_settings_screen.dart)
+     * ولا تُنقل المستخدم إلى لوحة التحكم بعد الدخول — تبقى على الشاشة
+     * مثل سلوك Dart تماماً.
+     */
+    object CloudflareLogin : Screen("cloudflare_login?from={from}") {
+        const val FROM_SETTINGS = "settings"
+        fun createRoute(fromSettings: Boolean) =
+            if (fromSettings) "cloudflare_login?from=$FROM_SETTINGS" else "cloudflare_login"
+    }
+
+    /** ✅ (2026-09-24) إعدادات المزامنة الموحدة — نظير UnifiedSyncSettingsScreen. */
+    object CloudflareSyncSettings : Screen("cloudflare_sync_settings")
     object BookingCheckout : Screen("booking_checkout/{bookingId}") {
         const val ARG_BOOKING_ID = "bookingId"
         fun createRoute(bookingId: Long) = "booking_checkout/$bookingId"
@@ -307,15 +322,36 @@ fun MarinaNavGraph(
             SalaryEntitlementsScreen(onBack = { navController.popBackStack() })
         }
 
-        composable(Screen.CloudflareLogin.route) {
+        composable(
+            route = Screen.CloudflareLogin.route,
+            arguments = listOf(navArgument("from") {
+                type = NavType.StringType
+                defaultValue = ""
+            })
+        ) { entry ->
+            val fromSettings = entry.arguments?.getString("from") == Screen.CloudflareLogin.FROM_SETTINGS
             CloudflareLoginScreen(
                 viewModel = authViewModel,
                 onLoginSuccess = {
-                    navController.navigate(Screen.Dashboard.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+                    if (!fromSettings) {
+                        navController.navigate(Screen.Dashboard.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
                     }
+                    // من الإعدادات: البقاء على الشاشة (نظير Dart — الحالة
+                    // تتحدث حياً والمستخدم يرجع بزر الرجوع).
                 },
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ✅ (2026-09-24) إعدادات المزامنة الموحدة — نظير UnifiedSyncSettingsScreen.
+        composable(Screen.CloudflareSyncSettings.route) {
+            CloudflareSyncSettingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenCloudflareLogin = {
+                    navController.navigate(Screen.CloudflareLogin.createRoute(fromSettings = true))
+                }
             )
         }
 

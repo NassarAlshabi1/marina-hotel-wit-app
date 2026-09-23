@@ -53,6 +53,13 @@ data class WorkerStatsResponse(
     @SerializedName("tables") val tables: Map<String, Double>?
 )
 
+/** ✅ (2026-09-24) استجابة /api/ping — فحص شبكة خفيف (نفس عقد worker/src/index.ts). */
+data class WorkerPingResponse(
+    @SerializedName("status") val status: String?,
+    @SerializedName("timestamp") val timestamp: Long?,
+    @SerializedName("server_time") val serverTime: Long?
+)
+
 // ─── Pull DTOs (GET /api/sync/pull) ───────────────────────────
 
 /**
@@ -146,6 +153,10 @@ interface CloudflareWorkerApi {
 
     @GET("/health")
     fun health(): Call<WorkerHealthResponse>
+
+    /** ✅ فحص شبكة خفيف بلا مصادقة ولا rate-limit — لقياس النطاق المخصّص. */
+    @GET("/api/ping")
+    fun ping(): Call<WorkerPingResponse>
 
     @GET("/api/stats")
     fun stats(): Call<WorkerStatsResponse>
