@@ -35,4 +35,9 @@ interface ShiftNotesDao {
     // Dart delete (l.268-313) is a SOFT delete, so it propagates via outbox.
     @Query("UPDATE shift_notes SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
+
+    // ✅ (2026-09-24) سحب المزامنة: إيجاد الصف المحلي بمفتاح local_uuid
+    // (توجيه سجلات pull عبر _entity — عقد الـ worker).
+    @Query("SELECT * FROM shift_notes WHERE local_uuid = :localUuid LIMIT 1")
+    suspend fun getByLocalUuid(localUuid: String): ShiftNoteEntity?
 }

@@ -24,4 +24,9 @@ interface BookingNotesDao {
 
     @Query("UPDATE booking_notes SET is_active = 0, updated_at = :updatedAt WHERE id = :id")
     suspend fun deactivate(id: Long, updatedAt: Long): Int
+
+    // ✅ (2026-09-24) سحب المزامنة: إيجاد الصف المحلي بمفتاح local_uuid
+    // (توجيه سجلات pull عبر _entity — عقد الـ worker).
+    @Query("SELECT * FROM booking_notes WHERE local_uuid = :localUuid LIMIT 1")
+    suspend fun getByLocalUuid(localUuid: String): BookingNoteEntity?
 }

@@ -4,14 +4,20 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
+import com.marina.marina.data.remote.CloudflareConfig
 import com.marina.marina.data.remote.CloudflareWorkerApi
+import com.marina.marina.data.remote.WorkerAuthInterceptor
+import com.marina.marina.data.remote.WorkerEndpoints
+import com.marina.marina.data.remote.WorkerFailoverInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -24,46 +30,47 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
 object AppModule {
 
     /**
-     * Worker JWT auth: the Cloudflare Worker requires
-     * `Authorization: Bearer <jwt>` on every authenticated endpoint
-     * (worker/src/auth.ts l.250-262 — requireAuth). The token is produced by
-     * /api/auth/login and persisted by SyncPreferences; this interceptor
-     * attaches it to EVERY outgoing request so push/pull/d1 calls pass the
-     * 401 gate. Without it none of the sync استدعائات ever authenticate.
+     * ✅ (2026-09-24) عميل HTTP بطبقتين فوق Retrofit:
+     *  • [WorkerAuthInterceptor] — Authorization: Bearer <JWT> لكل مسارات
+     *    المزامنة (التوكن من SyncPreferences؛ التوكن المحلي لا يُرسل) +
+     *    X-Device-Id للتشخيص الخادمي.
+     *  • [WorkerFailoverInterceptor] — تبديل تلقائي بين النطاق المخصّص
+     *    وworkers.dev عند فشل الشبكة (حجب SNI اليمني) مع تثبيت الناجح.
+     *
+     * مهلة القراءة 60 ثانية (نفس ترقية Flutter 2026-09-17: المسار
+     * الاحتياطي قد ينفق حتى 36 ثانية على الشبكات المتدهورة) والاتصال
+     * 30 ثانية (عتبة الدخول الكسول على شبكات ضعيفة).
      */
     @Provides
     @Singleton
-    fun provideAuthInterceptor(preferences: com.marina.marina.data.remote.SyncPreferences): okhttp3.Interceptor {
-        return okhttp3.Interceptor { chain ->
-            val token = runCatching { preferences.getAuthToken() }.getOrNull()
-            val request = if (!token.isNullOrBlank() && chain.request().header("Authorization") == null) {
-                chain.request().newBuilder()
-                    .header("Authorization", "Bearer $token")
-                    .header("X-Device-Id", preferences.getDeviceId() ?: "")
-                    .build()
-            } else {
-                chain.request()
-            }
-            chain.proceed(request)
-        }
-    }
-
-    @Provides
-    @Singleton
-    fun provideOkHttpClient(authInterceptor: okhttp3.Interceptor): okhttp3.OkHttpClient {
-        return okhttp3.OkHttpClient.Builder()
-            .addInterceptor(authInterceptor)
-            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+    fun provideOkHttpClient(
+        endpoints: WorkerEndpoints,
+        preferences: com.marina.marina.data.remote.SyncPreferences
+    ): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor(
+                WorkerAuthInterceptor(
+                    tokenProvider = { preferences.getAuthToken() },
+                    deviceIdProvider = { preferences.getDeviceId() }
+                )
+            )
+            .addInterceptor(WorkerFailoverInterceptor(endpoints))
             .build()
     }
 
+    /**
+     * Retrofit مبني على النقطة المدمجة — [WorkerFailoverInterceptor] يُعيد
+     * كتابة كل طلب worker إلى النقطة الفعّالة (نطاق مخصّص إن وُضع) قبل
+     * الإرسال، فالتبديل شفاف تماماً لكل بُناة الروابط.
+     */
     @Provides
     @Singleton
-    fun provideRetrofit(client: okhttp3.OkHttpClient): Retrofit {
+    fun provideRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://marina-hotel-api.adenmarina2.workers.dev/")
+            .baseUrl(CloudflareConfig.BUILTIN_WORKER_URL + "/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -77,9 +84,10 @@ object AppModule {
 
 /**
  * Thin wrapper around [android.content.SharedPreferences] used to persist
- * auth tokens / device ids. [CloudflareSyncService] and [SyncPreferences]
- * declare their own `@Inject constructor`, so they are NOT provided here —
- * doing so would create a duplicate Hilt binding.
+ * auth tokens / device ids. [com.marina.marina.data.remote.CloudflareSyncService]
+ * and [com.marina.marina.data.remote.SyncPreferences] declare their own
+ * `@Inject constructor`, so they are NOT provided here — doing so would
+ * create a duplicate Hilt binding.
  */
 @Singleton
 class EncryptedSharedPreferencesManager @Inject constructor(

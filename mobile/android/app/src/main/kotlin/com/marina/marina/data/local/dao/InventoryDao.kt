@@ -61,4 +61,12 @@ interface InventoryDao {
         insertTransaction(tx)
         updateQuantity(tx.itemId, newQuantity, System.currentTimeMillis())
     }
+
+    // ✅ (2026-09-24) سحب المزامنة: إيجاد الصف المحلي بمفتاح local_uuid
+    // (توجيه سجلات pull عبر _entity — عقد الـ worker).
+    @Query("SELECT * FROM inventory_items WHERE local_uuid = :localUuid LIMIT 1")
+    suspend fun getItemByLocalUuid(localUuid: String): InventoryItemEntity?
+
+    @Query("SELECT * FROM inventory_transactions WHERE local_uuid = :localUuid LIMIT 1")
+    suspend fun getTransactionByLocalUuid(localUuid: String): InventoryTransactionEntity?
 }

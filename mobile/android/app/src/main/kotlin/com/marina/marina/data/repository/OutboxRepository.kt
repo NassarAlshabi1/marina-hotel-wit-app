@@ -4,7 +4,11 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.marina.marina.data.local.dao.OutboxDao
 import com.marina.marina.data.local.entity.OutboxEntity
+import com.marina.marina.data.remote.CloudflareConfig
 import com.marina.marina.data.remote.CloudflareSyncService
+import com.marina.marina.data.remote.PushWireContract
+import com.marina.marina.data.remote.SyncPreferences
+import com.marina.marina.data.remote.WorkerPushResult
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -15,14 +19,20 @@ import kotlinx.coroutines.flow.first
  * to the UI), so unlike the other repositories it has no domain-layer
  * interface/model — it works directly with [OutboxEntity].
  *
- * Every local write enqueues a row here; [processPending] drains the queue to
- * the Cloudflare worker (primary target) and [syncOutbox] handles the
- * secondary target. Rows are only cleaned up once delivered to BOTH targets.
+ * ✅ (2026-09-24) أُعيدت كتابة الدفع على عقد الـ worker الحقيقي:
+ *  • دفعة واحدة POST /api/sync/push {operations:[…]} بحد 100 عملية.
+ *  • بناء العملية عبر [PushWireContract] (تكافؤ buildPushOperation في
+ *    Flutter sync/payload_normalizer.dart — snake_case + bool→int +
+ *    حقن local_uuid + vectorClock من الحمولة + insert→create).
+ *  • تصنيف الرفض (fix M4): validation_error/conflict = فشل دائم →
+ *    dead-letter (markFailedPrimary) بلا إعادة دفع أبدية؛ فشل الشبكة
+ *    (P0-G) يعيد الصف pending للمحاولة القادمة.
  */
 @Singleton
 class OutboxRepository @Inject constructor(
     private val outboxDao: OutboxDao,
-    private val syncService: CloudflareSyncService
+    private val syncService: CloudflareSyncService,
+    private val preferences: SyncPreferences
 ) {
     companion object {
         private const val WORKER_NAME = "outbox-processor"
@@ -56,42 +66,85 @@ class OutboxRepository @Inject constructor(
     }
 
     /**
-     * Drains the pending-primary queue: pushes each row to the Cloudflare
-     * worker and marks it delivered or failed. Failed rows stay queued for the
-     * next pass (with attempt bookkeeping so callers can apply backoff).
+     * Drains the pending-primary queue in worker-native batches: pushes up
+     * to [CloudflareConfig.PUSH_BATCH_SIZE] operations per request and
+     * reconciles every per-operation result. Network failures requeue the
+     * rows as pending; permanent rejections (validation_error / conflict)
+     * are dead-lettered so they never retry forever.
      *
      * @return the number of rows successfully delivered in this pass.
      */
     suspend fun processPending(): Int {
         val pending = outboxDao.getPendingPrimary().first()
+            .filter { it.attempts < MAX_ATTEMPTS_BEFORE_BACKOFF }
+        if (pending.isEmpty()) return 0
+
+        // الدخول الكسول: أول دفعة تضمن توكن JWT خادمياً (admin/admin
+        // افتراضياً من CloudflareConfig) — تكافؤ lazy init في Flutter.
+        if (!syncService.ensureLoggedIn()) {
+            // لا شبكة الآن — كل الصفوف تبقى pending للدورة القادمة.
+            pending.forEach { row ->
+                outboxDao.markProcessing(row.id, "pending", System.currentTimeMillis(), WORKER_NAME)
+            }
+            return 0
+        }
+
+        val deviceId = preferences.getDeviceId().orEmpty().ifEmpty { "unknown-origin" }
         var delivered = 0
 
-        for (row in pending) {
-            // Skip rows that already exhausted too many attempts this session
-            // (they will be retried on a later explicit sync).
-            if (row.attempts >= MAX_ATTEMPTS_BEFORE_BACKOFF) continue
+        pending.chunked(CloudflareConfig.PUSH_BATCH_SIZE).forEach { batch ->
+            // 1) حجز الصفوف (processing) قبل الإرسال — استرداد الانهيار
+            //    يعيدها pending عند الإقلاع القادم (عقد P0-H في Flutter).
+            batch.forEach { row ->
+                outboxDao.markProcessing(row.id, "processing", System.currentTimeMillis(), WORKER_NAME)
+            }
 
-            outboxDao.markProcessing(row.id, "processing", System.currentTimeMillis(), WORKER_NAME)
+            val operations = batch.map { row -> PushWireContract.buildOperation(row, deviceId) }
+            val response = syncService.push(operations)
 
-            val payload = decodePayload(row.payload)
-            val result = syncService.push(
-                entity = row.entity,
-                op = row.op,
-                localUuid = row.localUuid,
-                payload = payload,
-                clientTs = row.clientTs,
-                idempotencyKey = row.idempotencyKey
-            )
-
-            result.fold(
-                onSuccess = {
-                    outboxDao.markDeliveredPrimary(row.id)
-                    outboxDao.markProcessing(row.id, "completed", System.currentTimeMillis(), WORKER_NAME)
-                    delivered++
+            response.fold(
+                onSuccess = { body ->
+                    val byKey = body.results.orEmpty().associateBy { it.idempotencyKey.orEmpty() }
+                    batch.forEachIndexed { index, row ->
+                        val opResult = byKey[operations[index].idempotencyKey]
+                            ?: body.results.orEmpty().getOrNull(index)
+                        when {
+                            opResult == null -> {
+                                // الخادم لم يُرجع نتيجة للعملية — عوّدها pending.
+                                outboxDao.markProcessing(row.id, "pending", System.currentTimeMillis(), WORKER_NAME)
+                            }
+                            opResult.success == true -> {
+                                outboxDao.markDeliveredPrimary(row.id)
+                                outboxDao.markProcessing(row.id, "completed", System.currentTimeMillis(), WORKER_NAME)
+                                delivered++
+                            }
+                            isPermanentRejection(opResult) -> {
+                                // fix M4: validation_error/conflict = رفض دائم
+                                // (dead-letter) — إعادة الدفع بلا فائدة.
+                                outboxDao.markFailedPrimary(
+                                    row.id,
+                                    "${opResult.status}: ${opResult.error ?: "rejected"}"
+                                )
+                                outboxDao.markProcessing(row.id, "completed", System.currentTimeMillis(), WORKER_NAME)
+                            }
+                            else -> {
+                                // خطأ مؤقت (internal_error) — عوّدها pending.
+                                outboxDao.markFailedPrimary(
+                                    row.id,
+                                    opResult.error ?: "temporary failure"
+                                )
+                                outboxDao.markProcessing(row.id, "pending", System.currentTimeMillis(), WORKER_NAME)
+                            }
+                        }
+                    }
                 },
                 onFailure = { error ->
-                    outboxDao.markFailedPrimary(row.id, error.message ?: "unknown error")
-                    outboxDao.markProcessing(row.id, "pending", System.currentTimeMillis(), WORKER_NAME)
+                    // ✅ P0-G: خطأ شبكة (DNS/timeout/socket) — ليس رفضاً.
+                    // نُعيد الصفوف لحالة pending لإعادة المحاولة لاحقاً.
+                    batch.forEach { row ->
+                        outboxDao.markFailedPrimary(row.id, error.message ?: "network error")
+                        outboxDao.markProcessing(row.id, "pending", System.currentTimeMillis(), WORKER_NAME)
+                    }
                 }
             )
         }
@@ -118,13 +171,9 @@ class OutboxRepository @Inject constructor(
         return 0
     }
 
-    private fun decodePayload(json: String): Map<String, Any> {
-        if (json.isBlank()) return emptyMap()
-        return try {
-            val mapType = object : TypeToken<Map<String, Any>>() {}.type
-            gson.fromJson(json, mapType) ?: emptyMap()
-        } catch (_: Exception) {
-            emptyMap()
-        }
+    /** الرفض الدائم (dead-letter) — fix M4: يُعاد للمحاولة بلا فائدة. */
+    private fun isPermanentRejection(result: WorkerPushResult): Boolean {
+        return result.success != true &&
+            (result.status == "validation_error" || result.status == "conflict")
     }
 }

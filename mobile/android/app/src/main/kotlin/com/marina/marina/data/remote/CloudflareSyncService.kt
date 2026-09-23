@@ -1,87 +1,125 @@
 package com.marina.marina.data.remote
 
+import com.marina.marina.data.auth.LocalAdminAuth
 import com.marina.marina.di.EncryptedSharedPreferencesManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * ✅ (2026-09-24) أُعيدت كتابة الخدمة على العقد الحقيقي للـ Worker المنشور
+ * (نفس مسار Flutter cloudflare_sync_manager.dart):
+ *
+ *  • login: POST /api/auth/login {username, password, device_id} →
+ *    {token, user} — الاستجابة لا تحمل حقل success؛ وجود token = نجاح.
+ *  • الدخول التلقائي: [ensureLoggedIn] يسجل الدخول بـ CloudflareConfig
+ *    (admin/admin افتراضياً) عند غياب التوكن أو عندما يكون التوكن محلياً
+ *    (local:admin-session من [LocalAdminAuth]) — الدخول المحلي يفتح
+ *    التطبيق بلا شبكة، والمزامنة تُكمّل الدخول الشبكي كسولاً عند الحاجة.
+ *  • pull: GET /api/sync/pull?cursor&limit&exclude_device — سحب دلتا
+ *    عبر كل الجداول دفعة واحدة (كل سجل يحمل _entity).
+ *  • push: POST /api/sync/push {operations:[…]} — دفعة واحدة ≤100 عملية.
+ */
 @Singleton
 class CloudflareSyncService @Inject constructor(
     private val api: CloudflareWorkerApi,
+    private val config: CloudflareConfig,
     private val preferences: SyncPreferences
 ) {
     companion object {
         private const val TAG = "CloudflareSync"
+
+        /** محاولات الدخول لأعطال الشبكة العابرة (DNS/socket) — نفس Flutter. */
+        private const val LOGIN_ATTEMPTS = 2
     }
 
-    /** The user object returned by the last successful Worker login (id/username/role). */
+    /** كائن المستخدم من آخر دخول ناجح (id/username/role) — يستخدمه AuthRepository
+     * لبناء هوية RBAC الحقيقية (Dart auth_local_store.dart l.355-412). */
     var lastLoginUser: WorkerLoginUser? = null
         private set
 
-    suspend fun login(username: String, password: String): Result<String> {
-        return try {
-            val response = api.login(
-                WorkerLoginRequest(username, password, preferences.getDeviceId() ?: "")
-            ).execute()
-            if (response.isSuccessful && response.body()?.success == true) {
-                response.body()?.token?.let { token ->
-                    lastLoginUser = response.body()?.user
-                    preferences.saveAuthToken(token)
-                    Result.success(token)
-                } ?: Result.failure(Exception("No token in response"))
-            } else {
-                Result.failure(Exception(response.body()?.error ?: "Login failed"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    // ─── Login ───────────────────────────────────────────────────
 
-    suspend fun pull(collection: String, cursor: Long, batchSize: Int = 100): Result<WorkerPullResponse> {
-        return try {
-            val response = api.pull(WorkerPullRequest(collection, cursor, batchSize)).execute()
-            if (response.isSuccessful) {
-                response.body()?.let { Result.success(it) }
-                    ?: Result.failure(Exception("Empty response"))
-            } else {
-                Result.failure(Exception("HTTP ${response.code()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun push(entity: String, op: String, localUuid: String, payload: Map<String, Any>, clientTs: Long, idempotencyKey: String? = null): Result<WorkerPushResponse> {
-        return try {
-            val response = api.push(WorkerPushRequest(entity, op, localUuid, payload, clientTs, idempotencyKey)).execute()
-            if (response.isSuccessful) {
-                response.body()?.let { Result.success(it) }
-                    ?: Result.failure(Exception("Empty response"))
-            } else {
-                Result.failure(Exception("HTTP ${response.code()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun d1Query(database: String, sql: String, params: List<Any>? = null): Result<List<Map<String, Any>>> {
-        return try {
-            val response = api.d1Query(database, D1QueryRequest(sql, params)).execute()
-            if (response.isSuccessful) {
-                val body = response.body()
-                if (body?.result != null) {
-                    val results = mutableListOf<Map<String, Any>>()
-                    for (result in body.result) {
-                        if (result.success) {
-                            result.results?.let { results.addAll(it) }
-                        } else {
-                            return Result.failure(Exception(result.error ?: "Query failed"))
-                        }
+    /**
+     * تسجيل دخول صريح باعتمادات معطاة. نجاح = استجابة تحمل token.
+     * يُعيد التوكن ويحفظه (نفس عقد Flutter: _token + تخزين دائم).
+     */
+    suspend fun login(username: String, password: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            val deviceId = ensureDeviceId()
+            var lastError: Exception? = null
+            repeat(LOGIN_ATTEMPTS) {
+                try {
+                    val response = api.login(
+                        WorkerLoginRequest(username.trim(), password, deviceId)
+                    ).execute()
+                    val body = response.body()
+                    if (response.isSuccessful && !body?.token.isNullOrEmpty()) {
+                        val token = body!!.token!!
+                        lastLoginUser = body.user
+                        preferences.saveAuthToken(token)
+                        return@withContext Result.success(token)
                     }
-                    Result.success(results)
-                } else {
-                    Result.failure(Exception("Empty query result"))
+                    // 401 واضح — لا معنى لإعادة المحاولة بنفس الاعتمادات.
+                    if (response.code() == 401 || response.code() == 400) {
+                        return@withContext Result.failure(
+                            Exception(body?.user?.let { "Invalid credentials" }
+                                ?: "Login failed: HTTP ${response.code()}")
+                        )
+                    }
+                    lastError = Exception("Login failed: HTTP ${response.code()}")
+                } catch (e: Exception) {
+                    lastError = e
                 }
+            }
+            Result.failure(lastError ?: Exception("Login failed"))
+        }
+
+    /**
+     * الدخول التلقائي (طلب المستخدم 2026-09-11): يضمن توكن Worker صالحاً
+     * قبل أي مزامنة. يعيد true عندما يكون التوكن الحالي JWT خادمياً أو
+     * نجح الدخول بـ CloudflareConfig (admin/admin افتراضياً). يفشل بصمت
+     * على الشبكات المحجوبة — دورة المزامنة تُبلَّغ وستعيد المحاولة لاحقاً.
+     */
+    suspend fun ensureLoggedIn(): Boolean {
+        val current = preferences.getAuthToken()
+        // التوكن المحلي (local:admin-session) يفتح التطبيق فقط — ليس Bearer
+        // صالحاً لمسارات المزامنة؛ نحتاج JWT من الخادم.
+        if (!current.isNullOrEmpty() && !LocalAdminAuth.isLocalAdminToken(current)) {
+            return true
+        }
+        val result = login(config.username, config.password)
+        return result.isSuccess
+    }
+
+    /** هل بين أيدينا JWT خادمي صالح للمزامنة؟ */
+    fun hasWorkerToken(): Boolean {
+        val token = preferences.getAuthToken()
+        return !token.isNullOrEmpty() && !LocalAdminAuth.isLocalAdminToken(token)
+    }
+
+    // ─── Health / stats ──────────────────────────────────────────
+
+    /** فحص حيوية الخادم — يُستخدم من زر «فحص الاتصال» في شاشة الدخول. */
+    suspend fun health(): Result<WorkerHealthResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.health().execute()
+            val body = response.body()
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("HTTP ${response.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /** عدّادات كل الجداول في D1 — تشخيص حالة القاعدة السحابية. */
+    suspend fun stats(): Result<Map<String, Int>> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.stats().execute()
+            val body = response.body()
+            if (response.isSuccessful && body?.tables != null) {
+                Result.success(body.tables.mapValues { it.value.toInt() })
             } else {
                 Result.failure(Exception("HTTP ${response.code()}"))
             }
@@ -90,21 +128,76 @@ class CloudflareSyncService @Inject constructor(
         }
     }
 
-    suspend fun d1Exec(database: String, sql: String, params: List<Any>? = null): Result<D1ExecResponse> {
-        return try {
-            val response = api.d1Exec(database, D1ExecRequest(sql, params)).execute()
-            if (response.isSuccessful) {
-                response.body()?.let { Result.success(it) }
-                    ?: Result.failure(Exception("Empty response"))
-            } else {
-                Result.failure(Exception("HTTP ${response.code()}"))
+    // ─── Pull ────────────────────────────────────────────────────
+
+    /**
+     * سحب دلتا (أو سحب كامل عند cursor=0). excludeDevice يمنع صدى
+     * سجلات الجهاز نفسه (خطة 2.5). المؤشر المرجَع دائماً هو مؤشر الخادم
+     * (updated_at المُخصص من sync_clock) — العميل يحفظه كما هو.
+     */
+    suspend fun pull(
+        cursor: Long,
+        limit: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
+        excludeDevice: String? = null
+    ): Result<WorkerPullResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.pull(cursor, limit, excludeDevice).execute()
+            val body = response.body()
+            when {
+                response.isSuccessful && body != null -> Result.success(body)
+                else -> Result.failure(Exception("HTTP ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    // ─── Push ────────────────────────────────────────────────────
+
+    /**
+     * دفع دفعة عمليات. الاستدعاء مسؤول عن احترام سقف 100 عملية/نداء.
+     * عقد النتيجة: نجاح الاستدعاء ≠ نجاح كل عملية — يُقرأ results لكل
+     * عملية على حدة (success/skipped/status).
+     */
+    suspend fun push(operations: List<WorkerPushOperation>): Result<WorkerPushResponse> =
+        withContext(Dispatchers.IO) {
+            if (operations.isEmpty()) {
+                return@withContext Result.success(
+                    WorkerPushResponse(results = emptyList(), summary = WorkerPushSummary(0, 0, 0, 0))
+                )
+            }
+            if (operations.size > CloudflareConfig.PUSH_BATCH_SIZE) {
+                return@withContext Result.failure(
+                    Exception("Max ${CloudflareConfig.PUSH_BATCH_SIZE} operations per batch")
+                )
+            }
+            try {
+                val response = api.push(WorkerPushRequest(operations)).execute()
+                val body = response.body()
+                when {
+                    response.isSuccessful && body != null -> Result.success(body)
+                    else -> Result.failure(Exception("HTTP ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    // ─── Device identity ─────────────────────────────────────────
+
+    private fun ensureDeviceId(): String {
+        val existing = preferences.getDeviceId()
+        if (!existing.isNullOrEmpty()) return existing
+        val deviceId = "cf_dev_${System.currentTimeMillis()}"
+        preferences.saveDeviceId(deviceId)
+        return deviceId
     }
 }
 
+/**
+ * تخزين حالة المزامنة (توكن/مؤشرات/جهاز) — نفس المفاتيح السابقة مع
+ * إضافة مؤشر السحب العام (last pull cursor) الذي يفرضه عقد الخادم.
+ */
 @Singleton
 class SyncPreferences @Inject constructor(
     private val preferencesManager: EncryptedSharedPreferencesManager
@@ -116,9 +209,10 @@ class SyncPreferences @Inject constructor(
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_FULL_SYNC_COMPLETE = "full_sync_complete"
         private const val KEY_CURRENT_USER = "current_user_json"
+        private const val KEY_LAST_PULL_CURSOR = "last_pull_cursor"
     }
 
-    /** Persists the logged-in user (JSON) so session restore keeps the REAL identity. */
+    /** يثبّت المستخدم الداخل (JSON) كي تحتفظ استعادة الجلسة بالهوية الحقيقية. */
     fun saveCurrentUserJson(json: String) {
         preferencesManager.saveString(KEY_CURRENT_USER, json)
     }
@@ -169,5 +263,15 @@ class SyncPreferences @Inject constructor(
 
     fun setFullSyncComplete(complete: Boolean) {
         preferencesManager.putBoolean(KEY_FULL_SYNC_COMPLETE, complete)
+    }
+
+    // ─── مؤشر السحب العام (عقد worker: cursor updated_at) ───────
+
+    fun saveLastPullCursor(cursor: Long) {
+        preferencesManager.saveLong(KEY_LAST_PULL_CURSOR, cursor)
+    }
+
+    fun getLastPullCursor(): Long {
+        return preferencesManager.getLong(KEY_LAST_PULL_CURSOR, 0L)
     }
 }

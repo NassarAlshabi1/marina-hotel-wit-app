@@ -1,18 +1,6 @@
 package com.marina.marina.data.repository
 
-import com.google.gson.Gson
-import com.marina.marina.data.local.dao.BookingsDao
-import com.marina.marina.data.local.dao.DebtsDao
-import com.marina.marina.data.local.dao.EmployeesDao
-import com.marina.marina.data.local.dao.ExpensesDao
-import com.marina.marina.data.local.dao.PaymentsDao
-import com.marina.marina.data.local.dao.RoomsDao
-import com.marina.marina.data.local.entity.BookingEntity
-import com.marina.marina.data.local.entity.DebtEntity
-import com.marina.marina.data.local.entity.EmployeeEntity
-import com.marina.marina.data.local.entity.ExpenseEntity
-import com.marina.marina.data.local.entity.PaymentEntity
-import com.marina.marina.data.local.entity.RoomEntity
+import com.marina.marina.data.remote.CloudflareConfig
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.domain.model.SyncUiState
@@ -26,13 +14,20 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Unified sync orchestrator — the Kotlin counterpart of the Flutter app's
- * `UnifiedSyncOrchestrator` (simplified single-engine version):
+ * `CloudflareSyncManager` (simplified single-engine version).
  *
- * 1. **Push**: drains the local outbox to the Cloudflare worker
- *    ([OutboxRepository.processPending]).
- * 2. **Pull**: fetches changed records per collection since the last pull
- *    cursor and upserts them into Room by `local_uuid` (last-write-wins by
- *    `last_modified`).
+ * ✅ (2026-09-24) أُعيدت كتابة دورة السحب على عقد الـ worker الحقيقي:
+ *
+ * 1. **Login (lazy)**: [CloudflareSyncService.ensureLoggedIn] يضمن JWT
+ *    خادمياً قبل أي شيء (admin/admin افتراضياً — دخول تلقائي).
+ * 2. **Push**: drains the local outbox in native worker batches
+ *    ([OutboxRepository.processPending] — ≤100 عملية/نداء).
+ * 3. **Pull**: `GET /api/sync/pull?cursor&limit&exclude_device` — دلتا
+ *    عبر كل الجداول دفعة واحدة؛ كل سجل يُوجَّه عبر `_entity` إلى جدوله
+ *    المحلي ([SyncIngestorRegistry]). المؤشر المرجع هو مؤشر الخادم
+ *    (updated_at) ويُحفظ عبر الجلسات — **لا يتقدم إلا عند دورة نظيفة**
+ *    (errors فارغة — عقد PullResult في worker/src/database.ts).
+ * 4. **Echo filter**: exclude_device يستثني سجلات هذا الجهاز (خطة 2.5).
  *
  * Exposes a [SyncUiState] stream the Settings/Dashboard screens can collect.
  */
@@ -41,21 +36,8 @@ class SyncManager @Inject constructor(
     private val outboxRepository: OutboxRepository,
     private val syncService: CloudflareSyncService,
     private val preferences: SyncPreferences,
-    private val roomsDao: RoomsDao,
-    private val bookingsDao: BookingsDao,
-    private val paymentsDao: PaymentsDao,
-    private val expensesDao: ExpensesDao,
-    private val employeesDao: EmployeesDao,
-    private val debtsDao: DebtsDao
+    private val ingestorRegistry: SyncIngestorRegistry
 ) : SyncRepository {
-    companion object {
-        private const val PULL_BATCH_SIZE = 200
-        private val PULL_COLLECTIONS = listOf(
-            "rooms", "bookings", "payments", "expenses", "employees", "debts"
-        )
-    }
-
-    private val gson = Gson()
 
     private val _syncState = MutableStateFlow(SyncUiState())
     override val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
@@ -63,15 +45,22 @@ class SyncManager @Inject constructor(
     override fun pendingCount(): Flow<Int> = outboxRepository.pendingCount()
 
     /**
-     * Runs a full sync cycle: push local changes, then pull remote deltas.
-     * Safe to call repeatedly; concurrent calls are serialized by the
-     * isSyncing flag (callers should check it, best-effort).
+     * Runs a full sync cycle: ensure login, push local changes, then pull
+     * remote deltas. Safe to call repeatedly; concurrent calls are serialized
+     * by the isSyncing flag (callers should check it, best-effort).
      */
     override suspend fun syncNow(): SyncUiState {
         if (_syncState.value.isSyncing) return _syncState.value
-        _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ الدفع...")
+        _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ الدخول...")
+
+        // ---- Phase 0: lazy login (admin/admin default — auto-login) ----
+        if (!syncService.ensureLoggedIn()) {
+            finishWithError("فشل تسجيل الدخول إلى الخادم — تحقق من الشبكة")
+            return _syncState.value
+        }
 
         // ---- Phase 1: push -------------------------------------------------
+        _syncState.value = _syncState.value.copy(lastMessage = "جارٍ الدفع...")
         val pushed = try {
             outboxRepository.processPending() + outboxRepository.syncOutbox()
         } catch (e: Exception) {
@@ -82,13 +71,14 @@ class SyncManager @Inject constructor(
 
         // ---- Phase 2: pull -------------------------------------------------
         _syncState.value = _syncState.value.copy(lastMessage = "جارٍ السحب...", pushedCount = pushed)
-        var pulled = 0
-        try {
-            for (collection in PULL_COLLECTIONS) {
-                pulled += pullCollection(collection)
-            }
+        val pulled = try {
+            pullDelta()
         } catch (e: Exception) {
             finishWithError("فشل السحب: ${e.message}")
+            return _syncState.value
+        }
+        if (pulled < 0) {
+            finishWithError("فشل السحب: جداول فاشلة على الخادم — لم يتقدم المؤشر")
             return _syncState.value
         }
         preferences.saveLastPullTs(System.currentTimeMillis())
@@ -114,13 +104,18 @@ class SyncManager @Inject constructor(
     override suspend fun pullOnly(): Int {
         if (_syncState.value.isSyncing) return -1
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب...")
-        var pulled = 0
-        try {
-            for (collection in PULL_COLLECTIONS) {
-                pulled += pullCollection(collection)
-            }
+        if (!syncService.ensureLoggedIn()) {
+            finishWithError("فشل تسجيل الدخول إلى الخادم")
+            return -1
+        }
+        val pulled = try {
+            pullDelta()
         } catch (e: Exception) {
             finishWithError("فشل السحب: ${e.message}")
+            return -1
+        }
+        if (pulled < 0) {
+            finishWithError("فشل السحب: جداول فاشلة على الخادم")
             return -1
         }
         preferences.saveLastPullTs(System.currentTimeMillis())
@@ -133,72 +128,49 @@ class SyncManager @Inject constructor(
         return pulled
     }
 
-    private suspend fun pullCollection(collection: String): Int {
+    /**
+     * دلتا واحدة بمؤشر الخادم المحفوظ: صفحات [CloudflareConfig.DELTA_PULL_BATCH_SIZE]
+     * حتى has_more=false. المؤشر لا يتقدم إلا بعد استيعاب كل الصفحات بنجاح
+     * ودون errors خادمية (عقد PullResult: جداول فاشلة = دورة فاشلة).
+     *
+     * @return عدد السجلات المستوعبة، أو -1 عند الفشل.
+     */
+    private suspend fun pullDelta(): Int {
+        val deviceId = preferences.getDeviceId()
+        var cursor = preferences.getLastPullCursor()
         var ingested = 0
-        var cursor: Long = 0 // full delta pull each cycle; cursors tracked globally by timestamps
-        var hasMore = true
 
-        while (hasMore) {
-            val result = syncService.pull(collection, cursor, PULL_BATCH_SIZE)
+        while (true) {
+            val result = syncService.pull(
+                cursor = cursor,
+                limit = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
+                excludeDevice = deviceId?.takeIf { it.isNotBlank() }
+            )
             val response = result.getOrNull() ?: run {
-                result.exceptionOrNull()?.let { throw it }
-                return ingested
+                throw result.exceptionOrNull() ?: Exception("empty pull response")
             }
-            val records = response.records.orEmpty()
-            for (record in records) {
-                ingestRecord(collection, record)
+
+            // جداول فاشلة على الخادم (schema drift عادةً) — لا نقدّم المؤشر؛
+            // إصلاح D1 وإعادة المحاولة تُكمّل الصفوف (عقد worker).
+            if (!response.errors.isNullOrEmpty()) {
+                return -1
+            }
+
+            val changes = response.changes.orEmpty()
+            changes.forEach { record ->
+                ingestorRegistry.ingest(record)
                 ingested++
             }
-            val next = response.nextCursor
-            hasMore = records.size >= PULL_BATCH_SIZE && next != null && next > cursor
-            if (next != null) cursor = next
+
+            val nextCursor = response.cursor?.toLongOrNull()
+            val hasMore = response.hasMore == true && nextCursor != null && nextCursor > cursor
+            if (!hasMore) break
+            cursor = nextCursor!!
         }
+
+        // دورة نظيفة كاملة — الآن فقط نقدّم نقطة التفتيش المحفوظة.
+        preferences.saveLastPullCursor(cursor)
         return ingested
-    }
-
-    /** Upserts one remote record by local_uuid (last-write-wins). */
-    private suspend fun ingestRecord(collection: String, record: Map<String, Any>) {
-        val json = gson.toJson(record)
-        val remoteLastModified = (record["last_modified"] as? Number)?.toLong() ?: 0L
-
-        when (collection) {
-            "rooms" -> {
-                val remote = gson.fromJson(json, RoomEntity::class.java)
-                val existing = roomsDao.getByLocalUuid(remote.localUuid)
-                if (existing == null) roomsDao.insert(remote)
-                else if (remoteLastModified >= existing.lastModified) roomsDao.insert(remote.copy(id = existing.id))
-            }
-            "bookings" -> {
-                val remote = gson.fromJson(json, BookingEntity::class.java)
-                val existing = bookingsDao.getByLocalUuid(remote.localUuid)
-                if (existing == null) bookingsDao.insert(remote)
-                else if (remoteLastModified >= existing.lastModified) bookingsDao.insert(remote.copy(id = existing.id))
-            }
-            "payments" -> {
-                val remote = gson.fromJson(json, PaymentEntity::class.java)
-                val existing = paymentsDao.getByLocalUuid(remote.localUuid)
-                if (existing == null) paymentsDao.insert(remote)
-                else if (remoteLastModified >= existing.lastModified) paymentsDao.insert(remote.copy(id = existing.id))
-            }
-            "expenses" -> {
-                val remote = gson.fromJson(json, ExpenseEntity::class.java)
-                val existing = expensesDao.getByLocalUuid(remote.localUuid)
-                if (existing == null) expensesDao.insert(remote)
-                else if (remoteLastModified >= existing.lastModified) expensesDao.insert(remote.copy(id = existing.id))
-            }
-            "employees" -> {
-                val remote = gson.fromJson(json, EmployeeEntity::class.java)
-                val existing = employeesDao.getByLocalUuid(remote.localUuid)
-                if (existing == null) employeesDao.insert(remote)
-                else if (remoteLastModified >= existing.lastModified) employeesDao.insert(remote.copy(id = existing.id))
-            }
-            "debts" -> {
-                val remote = gson.fromJson(json, DebtEntity::class.java)
-                val existing = debtsDao.getByLocalUuid(remote.localUuid)
-                if (existing == null) debtsDao.insert(remote)
-                else if (remoteLastModified >= existing.lastModified) debtsDao.insert(remote.copy(id = existing.id))
-            }
-        }
     }
 
     private fun finishWithError(message: String) {

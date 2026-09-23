@@ -153,6 +153,14 @@ fun SettingsScreen(
                             }
                         }
                     }
+                    // ✅ (2026-09-24) مدخل إعدادات الاتصال بـ Cloudflare —
+                    // اعتمادات المزامنة + نطاق worker مخصّص + توكن D1 المباشر.
+                    SettingsItem(
+                        "إعدادات Cloudflare",
+                        "اعتمادات المزامنة · نطاق مخصّص · توكن D1",
+                        "☁️",
+                        Color(0xFFF6820C)
+                    ) { onNavigate("cloudflare_login") }
                 }
 
                 // Section 3 — الإشعارات والتقارير.
