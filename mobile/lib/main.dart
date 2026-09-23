@@ -61,6 +61,7 @@ import 'services/logging/log_models.dart';
 import 'services/posthog_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/seed.dart';
+import 'services/sync/app_open_pull_gate.dart';
 import 'services/sync_conflict_event_bus.dart';
 import 'services/sync_constants.dart';
 import 'services/sync_continuation_service.dart';
@@ -529,27 +530,18 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             );
           } else {
             final prefs = await SharedPreferences.getInstance();
-            final lastPullEpochMs = prefs.getInt(
-              SyncConstants.lastAppOpenPullKey,
-            );
-            bool shouldSync = true;
+            // ✅ (توحيد 2026-09-23) القرار + الختم عبر AppOpenPullGate —
+            // مصدر وحيد للحقيقة مشترك مع
+            // UnifiedSyncOrchestrator.onAppForeground (راجع تعليق الصنف).
+            final gate = AppOpenPullGate.check(prefs);
 
-            if (lastPullEpochMs != null) {
-              final lastPull = DateTime.fromMillisecondsSinceEpoch(
-                lastPullEpochMs,
+            if (!gate.shouldPull) {
+              debugPrint(
+                '⏭️ تخطي المزامنة عند بدء التطبيق — مرت '
+                '${gate.elapsedSinceLastPull.inMinutes} دقيقة فقط '
+                '(متبقي ${gate.remainingUntilNextPull.inMinutes} دقيقة)',
               );
-              final elapsed = DateTime.now().difference(lastPull);
-              if (elapsed < SyncConstants.appOpenSyncInterval) {
-                final remaining = SyncConstants.appOpenSyncInterval - elapsed;
-                debugPrint(
-                  '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
-                  '(متبقي ${remaining.inMinutes} دقيقة)',
-                );
-                shouldSync = false;
-              }
-            }
-
-            if (shouldSync) {
+            } else {
               debugPrint(
                 '📥 Pulling latest data from Cloudflare D1 on app start...',
               );
@@ -564,10 +556,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
                 deltaOnly: true,
               );
               if (bootResult.isSuccess) {
-                await prefs.setInt(
-                  SyncConstants.lastAppOpenPullKey,
-                  DateTime.now().millisecondsSinceEpoch,
-                );
+                await AppOpenPullGate.markPulled(prefs);
                 debugPrint('✅ Initial sync on app start completed');
               } else {
                 debugPrint(

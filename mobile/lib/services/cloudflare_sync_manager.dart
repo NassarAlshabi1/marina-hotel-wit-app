@@ -599,15 +599,19 @@ class CloudflareSyncManager {
   final Set<String> _fkLogSeen = <String>{};
 
   /// ✅ (2026-09-22 تسريع full sync) كاش نتائج [_lookupLocalParentId]
-  /// الموجبة فقط ضمن دورة سحب واحدة — مفتاحه `parentTable|keyColumn|
-  /// keyValue`. صفوف كثيرة (booking_nights أهمها: ~11.5k صف يشترك
-  /// معظمها في عدد صغير من آباء bookings) كانت تُعيد نفس استعلام
-  /// SELECT لنفس الأب مئات المرات. تخزين "غير موجود" مرفوض عمداً:
-  /// الأب قد يصل لاحقاً في نفس الدورة (صفحة تالية) وتُعاد محاولة
-  /// الصفوف المؤجَّلة بعد اكتمال الصفحات (_retryDeferredRecords) —
-  /// كاش سلبي كان سيُفشل تلك المحاولة الثانية زوراً. يُمسح في بداية
+  /// الموجبة فقط ضمن دورة سحب واحدة — مفتاحه record بنيوي
+  /// `(parentTable, keyColumn, keyValue)` (مساواة/hashCode تلقائيان
+  /// وصحيحان لكل مركِّب على حدة — بخلاف مفتاح نصي مُلحَّق بفاصل مثل
+  /// `'$parentTable|$keyColumn|$keyValue'` الذي قد يتصادم إن احتوى
+  /// `keyValue` نفسه على حرف الفاصل). صفوف كثيرة (booking_nights
+  /// أهمها: ~11.5k صف يشترك معظمها في عدد صغير من آباء bookings) كانت
+  /// تُعيد نفس استعلام SELECT لنفس الأب مئات المرات. تخزين "غير موجود"
+  /// مرفوض عمداً: الأب قد يصل لاحقاً في نفس الدورة (صفحة تالية) وتُعاد
+  /// محاولة الصفوف المؤجَّلة بعد اكتمال الصفحات (_retryDeferredRecords)
+  /// — كاش سلبي كان سيُفشل تلك المحاولة الثانية زوراً. يُمسح في بداية
   /// كل [_pullChanges] (نفس دورة حياة [_localColumnsCache] تقريباً).
-  final Map<String, Object> _fkParentIdCache = <String, Object>{};
+  final Map<(String, String, Object?), Object> _fkParentIdCache =
+      <(String, String, Object?), Object>{};
 
   // ─── إحصائيات حقيقية لدورات المزامنة (2026-09-05) ──────────
   // ✅ كانت getSyncStatistics() تُرجع {} فارغة فتعرض شاشات الإحصائيات
@@ -2866,7 +2870,7 @@ class CloudflareSyncManager {
     String keyColumn,
     Object? keyValue,
   ) async {
-    final cacheKey = '$parentTable|$keyColumn|$keyValue';
+    final cacheKey = (parentTable, keyColumn, keyValue);
     final cached = _fkParentIdCache[cacheKey];
     if (cached != null) return cached;
     try {

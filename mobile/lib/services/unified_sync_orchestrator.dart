@@ -7,7 +7,7 @@ import 'analytics_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
 import 'connectivity_service.dart';
 import 'local_db.dart';
-import 'sync_constants.dart';
+import 'sync/app_open_pull_gate.dart';
 import 'sync_integrity_checker.dart';
 
 class UnifiedSyncState {
@@ -317,6 +317,11 @@ class UnifiedSyncOrchestrator {
   /// هذا النداء (pull) — فيتنافسان على sync() نفسه ويُتخطى أحدهما
   /// عشوائياً بـ «Sync already in progress». الدمج هنا يلغي السباق
   /// ويحفظ كلا السلوكين (رفع outbox المعلق + سحب دلتا).
+  ///
+  /// ✅ (تحديث 2026-09-22): الرفع (push) يبقى غير مشروط في كل استدعاء،
+  /// أما السحب (pull) فأصبح مشروطاً ببوابة زمنية (مرة كل ساعة عبر
+  /// `SyncConstants.lastAppOpenPullKey`) وبفحص اتصال مسبق — راجع التعليق
+  /// داخل الجسم لتفاصيل الشرط ولمنطق ختم المؤشر بعد نجاح سحب فعلي فقط.
   Future<void> onAppForeground() async {
     // ✅ (2026-09-22 طلب المستخدم) نفس شرطي فتح التطبيق البارد
     // (main.dart _startRealtimeSync) يُطبَّقان الآن هنا أيضاً — كان
@@ -336,42 +341,60 @@ class UnifiedSyncOrchestrator {
       return;
     }
 
+    // ✅ (توحيد 2026-09-23) القرار عبر AppOpenPullGate — مصدر وحيد
+    // للحقيقة مشترك مع main.dart::_startRealtimeSync (راجع تعليق الصنف).
     var shouldPull = true;
     SharedPreferences? prefs;
     try {
       prefs = await SharedPreferences.getInstance();
-      final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
-      if (lastPullEpochMs != null) {
-        final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
-        final elapsed = DateTime.now().difference(lastPull);
-        if (elapsed < SyncConstants.appOpenSyncInterval) {
-          shouldPull = false;
-          final remaining = SyncConstants.appOpenSyncInterval - elapsed;
-          dlog(
-            () =>
-                '⏭️ onAppForeground: تخطي السحب — مرت ${elapsed.inMinutes} '
-                'دقيقة فقط (متبقي ${remaining.inMinutes} دقيقة) — الرفع '
-                'يتابع كالمعتاد',
-          );
-        }
+      final gate = AppOpenPullGate.check(prefs);
+      shouldPull = gate.shouldPull;
+      if (!shouldPull) {
+        dlog(
+          () =>
+              '⏭️ onAppForeground: تخطي السحب — مرت '
+              '${gate.elapsedSinceLastPull.inMinutes} دقيقة فقط '
+              '(متبقي ${gate.remainingUntilNextPull.inMinutes} دقيقة) — '
+              'الرفع يتابع كالمعتاد',
+        );
       }
     } catch (e) {
       dlog(() => '⚠️ onAppForeground: فشل فحص مؤشر آخر سحب: $e');
     }
 
+    // ✅ (إصلاح) syncNow() يُعيد true أيضاً في حالتين لا يحدث فيهما أي
+    // سحب فعلي: (1) "مشغول" — مزامنة أخرى قيد التنفيذ (`_syncing`)
+    // فيتخطّى syncNow التنفيذ بالكامل ويُعيد true فوراً بلا استدعاء
+    // _syncAppwrite (نمط "مشغول ≠ فشل" أعلاه في نفس الملف)، و(2) مزامنة
+    // Cloudflare معطّلة (`appwrite_sync_enabled`) فتبقى success=true
+    // الافتراضية دون أي نداء شبكي. القيمتان تُلتقطان هنا **قبل** نداء
+    // syncNow مباشرة وبلا أي await بينهما — لا فرصة لتبدُّل `_syncing` في
+    // هذه الفجوة لأن Dart تعاوني/أحادي الخيط، فتُطابق تماماً ما سيراه
+    // فحص syncNow الداخلي عند التنفيذ.
+    // الختم غير المشروط بهاتين الحالتين كان يُسجّل «سحب ناجح» وهمياً
+    // فيقمع أي سحب حقيقي حتى ساعة كاملة — نفس فئة الخلل الذي أُصلح سابقاً
+    // في main.dart:_startRealtimeSync عبر bootResult.isSuccess (تعليق
+    // 2026-09-14 أعلى تلك الدالة).
+    final wasBusy = _syncing;
+    final cloudflareEnabled = prefs?.getBool('appwrite_sync_enabled') ?? true;
+
     // push دائماً true؛ pull محكوم بشرط الساعة أعلاه — دورة واحدة
     // متسلسلة كما كانت (رفع ثم سحب عند اجتماع الشرطين).
     final success = await syncNow(pull: shouldPull, reason: 'app_foreground');
+    final pullActuallyRan = !wasBusy && cloudflareEnabled;
 
-    if (success && shouldPull && prefs != null) {
+    if (success && shouldPull && pullActuallyRan && prefs != null) {
       try {
-        await prefs.setInt(
-          SyncConstants.lastAppOpenPullKey,
-          DateTime.now().millisecondsSinceEpoch,
-        );
+        await AppOpenPullGate.markPulled(prefs);
       } catch (e) {
         dlog(() => '⚠️ onAppForeground: فشل تحديث مؤشر آخر سحب: $e');
       }
+    } else if (success && shouldPull && !pullActuallyRan) {
+      dlog(
+        () =>
+            '⏭️ onAppForeground: لم يُحدَّث مؤشر آخر سحب — لم يحدث سحب '
+            'فعلي (${wasBusy ? "مزامنة أخرى قيد التنفيذ" : "Cloudflare معطّلة"})',
+      );
     }
   }
 

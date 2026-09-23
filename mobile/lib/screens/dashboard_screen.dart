@@ -313,9 +313,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _buildStatisticsCards(),
               const SizedBox(height: 20),
               _buildRoomsSection(),
-              const SizedBox(height: 12),
-              _buildMyShiftReceipts(),
-              const SizedBox(height: 12),
+              // ملاحظة: 24 = مجموع الفراغين (12+12) المحيطين ببطاقة
+              // «إجمالي استلاماتي» سابقاً، قبل إزالتها بالكامل هنا —
+              // نفس الفراغ البصري المرئي للمستخدم دون تغيير.
+              const SizedBox(height: 24),
               _buildOtherUsersHotelDayReceipts(),
             ],
           ),
@@ -1055,12 +1056,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
   }
-
-  /// ✅ (2026-09-22) بطاقة «إجمالي استلاماتي خلال النوبة الحالية» أُزيلت
-  /// (طلب المستخدم: تبسيط شاشة dashboard — حذف قسم ملخص الدفعات
-  /// التفصيلي). أُبقي الدالة كـ no-op بدل حذف نقطة الاستدعاء في
-  /// build() لتفادي إعادة هيكلة القائمة بلا داعٍ.
-  Widget _buildMyShiftReceipts() => const SizedBox.shrink();
 
   Widget _buildOtherUsersHotelDayReceipts() {
     final user = ref.watch(authProvider).currentUser;
