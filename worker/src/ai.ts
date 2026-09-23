@@ -211,8 +211,9 @@ async function classify(env: { AI: AiBinding; AI_TOKEN?: string; CLOUDFLARE_ACCO
   const instruction = `أنت محلل طلبات لنظام إدارة فندق. تاريخ اليوم ${today}. أعد JSON فقط بلا markdown.
 الأنواع المسموحة: query أو add_expense أو unsupported.
 للاستعلام استخدم queryType واحداً من expenses_total, employee_withdrawals, employee_salary, salary_expenses, daily_summary, rooms_available, rooms_all, current_guests, guest_search, bookings_current, occupancy_summary, occupancy_trend, booking_analysis, overdue_bookings, stay_statistics.
+expenses_total لإجمالي المصروفات مصنّفة حسب النوع — ضع dateFrom وdateTo إذا ذُكرت فترة (مثل "من تاريخ إلى تاريخ")، واتركهما فارغين لإجمالي كل الفترة.
 rooms_available للغرف الشاغرة، rooms_all لكل الغرف وحالتها، current_guests للنزلاء الموجودين، guest_search للبحث عن نزيل باسمه أو رقم غرفته، bookings_current للحجوزات النشطة.
-employee_withdrawals لسحوبات وسلف وخصومات موظف — ضع employeeName إذا ذُكر موظف بعينه، واتركه فارغاً إذا سأل عن الموظفين عموماً. employee_salary لاستحقاق موظف (الأشهر والراتب الأساسي والمستحق والصافي) — كذلك الاسم اختياري. salary_expenses لإجمالي مصروفات الموظفين والرواتب النقدية لكل الموظفين.
+employee_withdrawals لسحوبات وسلف وخصومات موظف — ضع employeeName إذا ذُكر موظف بعينه، واتركه فارغاً إذا سأل عن الموظفين عموماً؛ وضع dateFrom وdateTo إذا ذُكرت فترة (مثل "مصروفات الموظف من تاريخ كذا")، واتركهما فارغين لإجمالي كل الفترة منذ التحاقه. employee_salary لاستحقاق موظف (الأشهر والراتب الأساسي والمستحق والصافي) — كذلك الاسم اختياري. salary_expenses لإجمالي مصروفات الموظفين والرواتب النقدية لكل الموظفين.
 occupancy_summary للإشغال الحالي (النسبة والغرف المشغولة والشاغرة والوصولات اليوم). occupancy_trend لاتجاه الإشغال مع الإيرادات والمصروفات اليومية خلال فترة — إن لم تذكر فترة فاستخدم آخر 30 يوماً حتى اليوم في dateFrom وdateTo. booking_analysis لتحليل الحجوزات خلال فترة (عددها اليومي والغرف والإيراد المتوقع والمغادرات) — إن لم تذكر فترة فاجعل dateFrom أول يوم من الشهر الحالي وdateTo اليوم. overdue_bookings للحجوزات المتأخرة عن موعد المغادرة. stay_statistics لإحصائيات الإقامة الحالية (متوسط الليالي وأطول إقامة والإيراد المتوقع والمحصل والمتبقي).
 لإضافة مصروف: expenseType, description, amountPerDay, dateFrom, dateTo بصيغة YYYY-MM-DD. description وصف موجز دائماً (مثل "مصروف نظافة"). إذا لم يذكر المستخدم تاريخاً فاجعل dateFrom=dateTo=${today}. أي تاريخ ذُكر بلا سنة فسنته هي ${today.slice(0, 4)} — مثلاً "من 15 الى 18 سبتمبر" يعني ${today.slice(0, 4)}-09-15 إلى ${today.slice(0, 4)}-09-18. المبلغ في مثال "40 ألف لكل يوم" هو 40000 لكل يوم وليس إجمالياً، و"60 ألف شهرياً" يعني 2000 لكل يوم.
 لا تخترع اسماً أو مبلغاً أو تاريخاً. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
@@ -347,6 +348,14 @@ async function runQuery(
       return { rows: result.results };
     }
     case 'employee_withdrawals': {
+      // ✅ (2026-09-23) مدى تاريخي اختياري — نفس نمط expenses_total
+      // (all-time افتراضياً عبر مدى مفتوح بالكامل، لا تغيير للسلوك
+      // الحالي حين لا يُذكر تاريخ). الشرط يُلحَق بجملة ON الخاصة بـ
+      // LEFT JOIN — وليس WHERE — كي يبقى الموظف ظاهراً بمجاميع صفرية
+      // حتى لو لم يقع له أي مصروف داخل المدى المطلوب (WHERE هنا كان
+      // سيحوّل LEFT JOIN إلى INNER JOIN فعلياً ويُسقط تلك الصفوف).
+      const dateFrom = plan.dateFrom ?? '0000-01-01';
+      const dateTo = plan.dateTo ?? '9999-12-31';
       const result = await env.DB.prepare(
         `SELECT e.name,
            ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) IN ${sqlList(WITHDRAWAL_EXPENSE_TYPES)} THEN x.amount END),0),0) AS total_withdrawn,
@@ -356,10 +365,10 @@ async function runQuery(
            THEN x.amount END),0),0) AS total_deductions,
            COUNT(x.id) AS entries
          FROM employees e
-         ${EMPLOYEE_SALARY_EXPENSE_JOIN}
+         ${EMPLOYEE_SALARY_EXPENSE_JOIN} AND x.date >= ? AND x.date <= ?
          WHERE e.deleted_at IS NULL AND e.status IN ${sqlList(ACTIVE_EMPLOYEE_STATUSES)} AND e.name LIKE ?
          GROUP BY e.id, e.name LIMIT 20`,
-      ).bind(`%${plan.employeeName ?? ''}%`).all();
+      ).bind(dateFrom, dateTo, `%${plan.employeeName ?? ''}%`).all();
       return { rows: result.results, answer: result.results.length > 0 ? undefined : 'لم أجد موظفاً بهذا الاسم.' };
     }
     case 'employee_salary': {

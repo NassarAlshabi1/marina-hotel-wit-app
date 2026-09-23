@@ -189,6 +189,61 @@ describe('ai: query flow (read-only)', () => {
     expect(row.entries).toBe(8); // 3 سحب + سلفة + 4 خصومات/أقساط — ديزل والمحذوف خارجا
   });
 
+  it('employee_withdrawals with a date range only counts entries inside the window, but the employee still appears with zero totals otherwise', async () => {
+    const employee = await seedEmployee('سلطان', 100000);
+    await seedEmployeeExpense({ employeeUuid: employee.uuid, type: 'سحب راتب', amount: 20000, date: '2026-09-05' });
+    await seedEmployeeExpense({ employeeUuid: employee.uuid, type: 'سلفة', amount: 8000, date: '2026-09-10' });
+    // Outside the requested window — must not be counted when a range is given.
+    await seedEmployeeExpense({ employeeUuid: employee.uuid, type: 'سحب راتب', amount: 50000, date: '2026-08-01' });
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'كم سحب سلطان من 1 إلى 15 سبتمبر؟' }),
+      {
+        DB: env.DB,
+        AI: mockAi({
+          kind: 'query',
+          queryType: 'employee_withdrawals',
+          employeeName: 'سلطان',
+          dateFrom: '2026-09-01',
+          dateTo: '2026-09-15',
+          explanation: 'السحوبات',
+        }),
+      },
+      'manager',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      rows: Array<{ name: string; total_withdrawn: number; total_advances: number; entries: number }>;
+    };
+    expect(body.rows).toHaveLength(1);
+    expect(body.rows[0]).toMatchObject({ name: 'سلطان', total_withdrawn: 20000, total_advances: 8000, entries: 2 });
+
+    // A window with zero matching entries must still return the employee row
+    // (zero totals) — proving the date filter lives in the LEFT JOIN's ON
+    // clause, not a WHERE that would silently drop unmatched employees.
+    const emptyWindowRes = await handleAiRequest(
+      aiRequest({ prompt: 'كم سحب سلطان في يناير؟' }),
+      {
+        DB: env.DB,
+        AI: mockAi({
+          kind: 'query',
+          queryType: 'employee_withdrawals',
+          employeeName: 'سلطان',
+          dateFrom: '2026-01-01',
+          dateTo: '2026-01-31',
+          explanation: 'السحوبات',
+        }),
+      },
+      'manager',
+    );
+    expect(emptyWindowRes.status).toBe(200);
+    const emptyBody = (await emptyWindowRes.json()) as {
+      rows: Array<{ name: string; total_withdrawn: number; entries: number }>;
+    };
+    expect(emptyBody.rows).toHaveLength(1);
+    expect(emptyBody.rows[0]).toMatchObject({ name: 'سلطان', total_withdrawn: 0, entries: 0 });
+  });
+
   it('employee money joins survive undashed uuids and related_id fallback', async () => {
     const dashed = await seedEmployee('ناصر', 50000);
     const fallback = await seedEmployee('سالم', 50000);
