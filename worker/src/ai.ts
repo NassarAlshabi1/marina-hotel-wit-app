@@ -1,6 +1,8 @@
 // Natural-language hotel operations for Workers AI + D1.
 // The model may classify a request, but never supplies executable SQL.
 
+import { Database } from './database';
+
 export interface AiBinding {
   run(model: string, input: unknown): Promise<unknown>;
 }
@@ -19,11 +21,15 @@ export interface AiEnv {
 }
 
 export interface AiPlan {
-  kind: 'query' | 'add_expense' | 'unsupported';
+  kind: 'query' | 'add_expense' | 'update_room_price' | 'unsupported';
   queryType?: 'expenses_total' | 'employee_withdrawals' | 'employee_salary' | 'daily_summary' | 'rooms_available' | 'rooms_all' | 'current_guests' | 'guest_search' | 'bookings_current' | 'occupancy_summary' | 'occupancy_trend' | 'booking_analysis' | 'overdue_bookings' | 'stay_statistics' | 'salary_expenses';
   employeeName?: string;
   guestName?: string;
   roomNumber?: string;
+  /** أرقام الغرف المستهدفة لتحديث السعر — kind='update_room_price' فقط. */
+  roomNumbers?: string[];
+  /** السعر الجديد المطلق للغرف المذكورة — kind='update_room_price' فقط. */
+  newPrice?: number;
   expenseType?: string;
   description?: string;
   amountPerDay?: number;
@@ -141,11 +147,18 @@ function extractJson(raw: unknown): AiPlan {
   if (start < 0 || end <= start) throw new Error('AI returned no JSON plan');
   const value = JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
   return {
-    kind: value.kind === 'query' || value.kind === 'add_expense' ? value.kind : 'unsupported',
+    kind: value.kind === 'query' || value.kind === 'add_expense' || value.kind === 'update_room_price' ? value.kind : 'unsupported',
     queryType: typeof value.queryType === 'string' ? value.queryType as AiPlan['queryType'] : undefined,
     employeeName: typeof value.employeeName === 'string' ? value.employeeName.trim() : undefined,
     guestName: typeof value.guestName === 'string' ? value.guestName.trim() : undefined,
     roomNumber: typeof value.roomNumber === 'string' ? value.roomNumber.trim() : undefined,
+    roomNumbers: Array.isArray(value.roomNumbers)
+      ? value.roomNumbers
+          .filter((v): v is string => typeof v === 'string')
+          .map((v) => v.trim())
+          .filter((v) => v.length > 0)
+      : undefined,
+    newPrice: typeof value.newPrice === 'number' ? value.newPrice : undefined,
     expenseType: typeof value.expenseType === 'string' ? value.expenseType.trim() : undefined,
     description: typeof value.description === 'string' ? value.description.trim() : undefined,
     amountPerDay: typeof value.amountPerDay === 'number' ? value.amountPerDay : undefined,
@@ -209,15 +222,16 @@ function daysBetween(from: string, to: string): string[] {
 async function classify(env: { AI: AiBinding; AI_TOKEN?: string; CLOUDFLARE_ACCOUNT_ID?: string }, prompt: string): Promise<AiPlan> {
   const today = new Date().toISOString().slice(0, 10);
   const instruction = `أنت محلل طلبات لنظام إدارة فندق. تاريخ اليوم ${today}. أعد JSON فقط بلا markdown.
-الأنواع المسموحة: query أو add_expense أو unsupported.
+الأنواع المسموحة: query أو add_expense أو update_room_price أو unsupported.
 للاستعلام استخدم queryType واحداً من expenses_total, employee_withdrawals, employee_salary, salary_expenses, daily_summary, rooms_available, rooms_all, current_guests, guest_search, bookings_current, occupancy_summary, occupancy_trend, booking_analysis, overdue_bookings, stay_statistics.
 expenses_total لإجمالي المصروفات مصنّفة حسب النوع — ضع dateFrom وdateTo إذا ذُكرت فترة (مثل "من تاريخ إلى تاريخ")، واتركهما فارغين لإجمالي كل الفترة.
 rooms_available للغرف الشاغرة، rooms_all لكل الغرف وحالتها، current_guests للنزلاء الموجودين، guest_search للبحث عن نزيل باسمه أو رقم غرفته، bookings_current للحجوزات النشطة.
 employee_withdrawals لسحوبات وسلف وخصومات موظف — ضع employeeName إذا ذُكر موظف بعينه، واتركه فارغاً إذا سأل عن الموظفين عموماً؛ وضع dateFrom وdateTo إذا ذُكرت فترة (مثل "مصروفات الموظف من تاريخ كذا")، واتركهما فارغين لإجمالي كل الفترة منذ التحاقه. employee_salary لاستحقاق موظف (الأشهر والراتب الأساسي والمستحق والصافي) — كذلك الاسم اختياري. salary_expenses لإجمالي مصروفات الموظفين والرواتب النقدية لكل الموظفين.
 occupancy_summary للإشغال الحالي (النسبة والغرف المشغولة والشاغرة والوصولات اليوم). occupancy_trend لاتجاه الإشغال مع الإيرادات والمصروفات اليومية خلال فترة — إن لم تذكر فترة فاستخدم آخر 30 يوماً حتى اليوم في dateFrom وdateTo. booking_analysis لتحليل الحجوزات خلال فترة (عددها اليومي والغرف والإيراد المتوقع والمغادرات) — إن لم تذكر فترة فاجعل dateFrom أول يوم من الشهر الحالي وdateTo اليوم. overdue_bookings للحجوزات المتأخرة عن موعد المغادرة. stay_statistics لإحصائيات الإقامة الحالية (متوسط الليالي وأطول إقامة والإيراد المتوقع والمحصل والمتبقي).
 لإضافة مصروف: expenseType, description, amountPerDay, dateFrom, dateTo بصيغة YYYY-MM-DD. description وصف موجز دائماً (مثل "مصروف نظافة"). إذا لم يذكر المستخدم تاريخاً فاجعل dateFrom=dateTo=${today}. أي تاريخ ذُكر بلا سنة فسنته هي ${today.slice(0, 4)} — مثلاً "من 15 الى 18 سبتمبر" يعني ${today.slice(0, 4)}-09-15 إلى ${today.slice(0, 4)}-09-18. المبلغ في مثال "40 ألف لكل يوم" هو 40000 لكل يوم وليس إجمالياً، و"60 ألف شهرياً" يعني 2000 لكل يوم.
-لا تخترع اسماً أو مبلغاً أو تاريخاً. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
-JSON schema: {kind,queryType,employeeName,guestName,roomNumber,expenseType,description,amountPerDay,dateFrom,dateTo,explanation}
+لتعديل سعر غرف: update_room_price — ضع roomNumbers مصفوفة بكل أرقام الغرف المذكورة (مثل ["101","102","103","104"])، وnewPrice السعر الجديد المطلق لكل الغرف المذكورة (وليس زيادة أو نسبة). لا يوجد مفهوم "تاريخ سريان" لسعر الغرفة — التعديل يسري فوراً من لحظة التنفيذ دائماً، فتجاهل dateFrom/dateTo لهذا النوع حتى لو ذُكرت عبارة مثل "ابتداءً من اليوم". إذا لم يُذكر رقم غرفة واحد على الأقل أو لم يُذكر مبلغ، استخدم unsupported.
+لا تخترع اسماً أو مبلغاً أو تاريخاً أو رقم غرفة. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
+JSON schema: {kind,queryType,employeeName,guestName,roomNumber,roomNumbers,newPrice,expenseType,description,amountPerDay,dateFrom,dateTo,explanation}
 طلب المستخدم: ${prompt}`;
   const input = {
     messages: [
@@ -281,11 +295,21 @@ async function runRestAi(
   throw new Error('AI REST fallback returned no content');
 }
 
+/** سقف عدد الغرف في طلب تعديل سعر واحد — حماية دفاعية من مصفوفة ضخمة
+ * مُهلوَسة من النموذج؛ أكبر فندق واقعي هنا أبعد ما يكون عن هذا الرقم. */
+const MAX_ROOM_PRICE_UPDATE_COUNT = 200;
+
 function validatePlan(plan: AiPlan): string | null {
   if (plan.kind === 'unsupported') return plan.explanation || 'الطلب غير مدعوم أو يحتاج توضيحاً.';
   if (plan.kind === 'query') {
     if (!plan.queryType || !KNOWN_QUERY_TYPES.has(plan.queryType)) return 'لم أتعرف على نوع الاستعلام.';
     if (plan.queryType === 'guest_search' && !plan.guestName && !plan.roomNumber) return 'اذكر اسم النزيل أو رقم الغرفة.';
+    return null;
+  }
+  if (plan.kind === 'update_room_price') {
+    if (!plan.roomNumbers || plan.roomNumbers.length === 0) return 'اذكر رقم غرفة واحداً على الأقل.';
+    if (plan.roomNumbers.length > MAX_ROOM_PRICE_UPDATE_COUNT) return `عدد الغرف كبير جداً (الحد الأقصى ${MAX_ROOM_PRICE_UPDATE_COUNT}).`;
+    if (!Number.isFinite(plan.newPrice) || (plan.newPrice ?? 0) <= 0) return 'اذكر السعر الجديد الصحيح.';
     return null;
   }
   if (!plan.expenseType || !plan.description || !Number.isFinite(plan.amountPerDay) || (plan.amountPerDay ?? 0) <= 0) return 'اذكر نوع المصروف والوصف والمبلغ الصحيح.';
@@ -318,7 +342,20 @@ export async function handleAiRequest(
     return jsonResponse({ plan, requires_confirmation: false, answer: answer ?? plan.explanation, rows });
   }
 
-  if (role !== 'admin' && role !== 'manager') return jsonResponse({ error: 'صلاحية المدير مطلوبة لإضافة مصروف' }, 403);
+  if (role !== 'admin' && role !== 'manager') return jsonResponse({ error: 'صلاحية المدير مطلوبة لهذا الإجراء' }, 403);
+
+  if (plan.kind === 'update_room_price') {
+    const roomNumbers = plan.roomNumbers!;
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأُحدّث سعر ${roomNumbers.length} غرفة (${roomNumbers.join('، ')}) إلى ${plan.newPrice} ابتداءً من الآن. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return updateRoomPrices(env, roomNumbers, plan.newPrice!, plan);
+  }
+
   if (!body.confirm) return jsonResponse({ plan, requires_confirmation: true, answer: `سأضيف ${plan.amountPerDay} يومياً من ${plan.dateFrom} إلى ${plan.dateTo}. راجع التفاصيل ثم أكد التنفيذ.` });
 
   const dates = daysBetween(plan.dateFrom!, plan.dateTo!);
@@ -329,6 +366,62 @@ export async function handleAiRequest(
   ).bind(plan.expenseType, plan.description, plan.amountPerDay, date, date, crypto.randomUUID(), now, now, now, 'ai', 'worker'));
   await env.DB.batch(statements);
   return jsonResponse({ plan, requires_confirmation: false, answer: `تمت إضافة ${dates.length} مصروفاً بمجموع ${(dates.length * plan.amountPerDay!).toFixed(0)} ريال.` });
+}
+
+/// ✅ (2026-09-23) تحديث سعر الغرف عبر `Database.updateRecord` — وليس
+/// `UPDATE` خام — كي يشارك التعديل في خط أنابيب LWW/version/vector-clock
+/// نفسه الذي يمر منه أي رفع عادي من الأجهزة (راجع F1/F2 أعلاه). كتابة
+/// خام كانت ستُبقي `version`/`vector_clock` كما هما فتُخفي التعديل عن
+/// أي كاشف تعارض لاحق (تعديل جهاز آخر متزامن على نفس الغرفة لن يُكتشف
+/// كتعارض حقيقي). vectorClock الممرَّر فارغ عمداً (`'{}'`) — الدمج مع
+/// فارغ لا يغيّر ساعة الصف الحالية، والطابع الزمني الحالي (`now`) وحده
+/// كافٍ ليكسب مقارنة LWW لأنه أحدث من أي `updated_at` سابق حتماً.
+async function updateRoomPrices(
+  env: AiEnv,
+  roomNumbers: string[],
+  newPrice: number,
+  plan: AiPlan,
+): Promise<Response> {
+  const db = new Database(env.DB);
+  const now = Math.floor(Date.now() / 1000);
+  const updated: string[] = [];
+  const notFound: string[] = [];
+  const rejected: string[] = [];
+
+  for (const roomNumber of roomNumbers) {
+    const row = await env.DB
+      .prepare('SELECT local_uuid FROM rooms WHERE room_number = ? AND deleted_at IS NULL')
+      .bind(roomNumber)
+      .first<{ local_uuid: string }>();
+    if (!row) {
+      notFound.push(roomNumber);
+      continue;
+    }
+    const result = await db.updateRecord(
+      'rooms',
+      row.local_uuid,
+      { price: newPrice, origin: 'ai' },
+      '{}',
+      'worker',
+      now,
+    );
+    // ✅ Number(...) بدل مقارنة مباشرة: updateRecord قد يرفض التعديل
+    // بصمت (يُعيد الصف كما كان) في السيناريو النادر جداً لتعادل
+    // updated_at بالثانية مع تعديل آخر بلا version أعلى — تحقّق فعلي
+    // من النتيجة بدل افتراض النجاح لمجرد عدم رمي استثناء.
+    if (Number(result.price) === newPrice) {
+      updated.push(roomNumber);
+    } else {
+      rejected.push(roomNumber);
+    }
+  }
+
+  const parts: string[] = [];
+  if (updated.length > 0) parts.push(`تم تحديث سعر ${updated.length} غرفة (${updated.join('، ')}) إلى ${newPrice}`);
+  if (notFound.length > 0) parts.push(`تعذّر العثور على: ${notFound.join('، ')}`);
+  if (rejected.length > 0) parts.push(`تعارض تحديث متزامن — أعد المحاولة لـ: ${rejected.join('، ')}`);
+  const answer = parts.length > 0 ? `${parts.join('. ')}.` : 'لم يُحدَّث أي شيء.';
+  return jsonResponse({ plan, requires_confirmation: false, answer });
 }
 
 // ─── Query dispatch ────────────────────────────────────────────

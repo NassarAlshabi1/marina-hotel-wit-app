@@ -405,6 +405,104 @@ describe('ai: add_expense (two-step write)', () => {
   });
 });
 
+describe('ai: update_room_price (two-step write, through the LWW pipeline)', () => {
+  const priceRow = async (roomNumber: string) =>
+    env.DB.prepare(
+      'SELECT price, version, origin, device_id, updated_at FROM rooms WHERE room_number = ?',
+    ).bind(roomNumber).first<{ price: number; version: number; origin: string; device_id: string; updated_at: number }>();
+
+  it('first pass asks for confirmation and changes nothing', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+    const plan = { kind: 'update_room_price', roomNumbers: ['101'], newPrice: 250, explanation: 'تعديل السعر' };
+
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'عدل سعر غرفة 101 الى 250' }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { requires_confirmation: boolean; answer: string };
+    expect(body.requires_confirmation).toBe(true);
+    expect(body.answer).toContain('250');
+    const row = await priceRow('101');
+    expect(row?.price).toBe(80); // seedRoom's original price — untouched
+  });
+
+  it('confirmed plan updates every existing room through updateRecord (version bumped, origin=ai), and names any room number it could not find', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+    await seedRoom(uniqueUuid('r102'), '102', 'available');
+    await seedRoom(uniqueUuid('r103'), '103', 'available', true); // soft-deleted — must be reported as not found, not resurrected
+    const plan = {
+      kind: 'update_room_price',
+      roomNumbers: ['101', '102', '103', '999'],
+      newPrice: 300,
+      explanation: 'تعديل السعر',
+    };
+
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'manager',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string };
+    expect(body.answer).toContain('101');
+    expect(body.answer).toContain('102');
+    expect(body.answer).toContain('103');
+    expect(body.answer).toContain('999');
+
+    for (const roomNumber of ['101', '102']) {
+      const row = await priceRow(roomNumber);
+      expect(row?.price).toBe(300);
+      // Went through Database.updateRecord, not a raw UPDATE — the LWW
+      // bookkeeping columns must move exactly like a real device push.
+      expect(row?.version).toBe(2); // seedRoom leaves the column-default 1
+      expect(row?.origin).toBe('ai');
+      expect(row?.device_id).toBe('worker');
+      expect(row?.updated_at).toBeGreaterThan(1700000000); // seedRoom's fixed past timestamp
+    }
+    // Soft-deleted room and unknown room number: neither exists to update.
+    const deletedRoom = await priceRow('103');
+    expect(deletedRoom?.price).toBe(80);
+    expect(await priceRow('999')).toBeNull();
+  });
+
+  it('rejects roles below manager with 403 and no write', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+    const plan = { kind: 'update_room_price', roomNumbers: ['101'], newPrice: 250, explanation: 'تعديل السعر' };
+
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'employee',
+    );
+    expect(res.status).toBe(403);
+    const row = await priceRow('101');
+    expect(row?.price).toBe(80);
+  });
+
+  it('validation rejects an empty room list or a non-positive price before any write', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+
+    const noRooms = await handleAiRequest(
+      aiRequest({ plan: { kind: 'update_room_price', roomNumbers: [], newPrice: 250, explanation: 'x' }, confirm: true }),
+      { DB: env.DB, AI: mockAi({}) },
+      'manager',
+    );
+    expect((await noRooms.json() as { answer: string }).answer).toContain('غرفة');
+
+    const badPrice = await handleAiRequest(
+      aiRequest({ plan: { kind: 'update_room_price', roomNumbers: ['101'], newPrice: 0, explanation: 'x' }, confirm: true }),
+      { DB: env.DB, AI: mockAi({}) },
+      'manager',
+    );
+    expect((await badPrice.json() as { answer: string }).answer).toContain('السعر');
+
+    const row = await priceRow('101');
+    expect(row?.price).toBe(80);
+  });
+});
+
 describe('ai: validation and failure modes', () => {
   it('empty prompt yields 400 without touching the model', async () => {
     const res = await handleAiRequest(aiRequest({ prompt: '   ' }), { DB: env.DB, AI: mockAi({}) }, 'admin');
