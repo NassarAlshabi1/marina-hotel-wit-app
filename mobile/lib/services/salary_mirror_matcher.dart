@@ -79,6 +79,35 @@ class SalaryMirrorMatcher {
       if (!_sameDay(e, hotelDayKey, withdrawDate)) continue;
       return true;
     }
+
+    // ── المستوى 4: علامة مرآة برابط أجنبي + مصروف وحيد لنفس الموظف/اليوم ──
+    // ✅ إصلاح تكرار التقرير عند تعديل المبلغ (2026-09-25):
+    // المرآة تحمل علامة رابط (expenseId أو exp_N) لكن الرقم هو معرّف
+    // جهاز المصدر — لا يقابل أي مصروف محلي (المستوى 1/2 فشلا) — وبعد
+    // تعديل مبلغ المصروف لم يعد المبلغ متطابقاً فينكسر المستوى 3
+    // → السحبة تُعَد «يتيمة» فتُضاف مكررة في التقارير.
+    // هنا: إن وُجد مصروف واحد فقط لنفس الموظف في نفس اليوم من نفس
+    // العائلة (نقدي لمرآة موجبة / خصم لمرآة سالبة) → مرآة بغض النظر
+    // عن المبلغ. السحوبات المباشرة محمية بحارس direct_withdrawal_ أعلاه،
+    // والسحوبات بلا علامة رابط إطلاقاً تظل خاضعة للمستوى 3 وحده.
+    final markerInReason = RegExp(r'exp_\d+').hasMatch(rawReason);
+    final rawExpId = expenseId ?? 0;
+    final hasMirrorMarker = rawExpId > 0 || markerInReason;
+    if (hasMirrorMarker) {
+      final positive = amount > 0;
+      var familyMatches = 0;
+      for (final e in expenses) {
+        if (e.relatedId != employeeId) continue;
+        final familyOk = positive
+            ? SalaryExpenseClassifier.isSalaryCashOut(e.expenseType)
+            : SalaryExpenseClassifier.isSalaryDeduction(e.expenseType);
+        if (!familyOk) continue;
+        if (!_sameDay(e, hotelDayKey, withdrawDate)) continue;
+        familyMatches++;
+        if (familyMatches > 1) break;
+      }
+      if (familyMatches == 1) return true;
+    }
     return false;
   }
 

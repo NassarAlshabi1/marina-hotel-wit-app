@@ -157,6 +157,13 @@ class SalaryWithdrawalsRepository {
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
   /// ✅ إصلاح خبير: البحث أولاً عبر عمود expense_id ثم عبر reason
   /// تغليف العملية في معاملة لضمان اتساق البيانات
+  ///
+  /// [previousAmount] — المبلغ الموقّع القديم للمرآة قبل التعديل
+  /// (سالب للخصوم، موجب للنقدي). يُستخدم في الطريقة 3 (تبنّي المرآة
+  /// اليتيمة) عندما يفشل الربط المباشر لأن رابط المرآة يحمل معرّف
+  /// جهاز المصدر (autoincrement محلي غير محمول عبر الأجهزة).
+  /// مرِّره من شاشة التعديل كي لا تُنشأ مرآة ثانية تكرر المبلغ في
+  /// التقارير. null = توافق خلفي (يُستخدم المبلغ الجديد في البحث).
   Future<void> saveFromExpense({
     required int expenseId,
     required int employeeId,
@@ -165,6 +172,7 @@ class SalaryWithdrawalsRepository {
     required String date,
     String? note,
     String? hotelDayKey,
+    double? previousAmount,
     bool originIsServer = false,
   }) async {
     // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
@@ -207,6 +215,21 @@ class SalaryWithdrawalsRepository {
           .where((w) => matchesExpenseRef(w.reason, expenseId))
           .firstOrNull;
     }
+
+    // الطريقة 3: تبنّي مرآة يتيمة عبر بيانات المطابقة (موظف + مبلغ قديم + يوم)
+    // ✅ إصلاح تكرار التقارير عند تعديل المبلغ (2026-09-25):
+    // المرآة القديمة رابطها أجنبي (expense_id/reason يحملان معرّف
+    // autoincrement لجهاز المصدر) فلا يجدها البحث أعلاه على الجهاز
+    // الثاني → يُنشأ مرآة جديدة وتبقى القديمة نشطة → المبلغ يظهر
+    // مرتين في التقرير. هنا نتبنّى القديمة: نفس الموظف + نفس اليوم +
+    // المبلغ القديم (قبل التعديل) + رابطها لا يشير لمصروف محلي قائم.
+    matched ??= await _findOrphanMirrorForAdoption(
+      expenseId: expenseId,
+      employeeId: employeeId,
+      expectedAmount: previousAmount ?? amount,
+      date: date,
+      hotelDayKey: hotelDayKey,
+    );
 
     final now = Time.nowEpoch();
     // reason يحتوي فقط على علامة الربط بالمصروف
@@ -398,6 +421,82 @@ class SalaryWithdrawalsRepository {
         }
       }
     });
+  }
+
+  /// البحث عن مرآة يتيمة قابلة للتبنّي (الطريقة 3 في [saveFromExpense]).
+  ///
+  /// شروط التبنّي (كلها معاً):
+  /// - سحبة نشطة (غير محذوفة) لنفس الموظف.
+  /// - المبلغ يطابق المبلغ الموقّع القديم للمرآة (تسامح فروق التقريب).
+  /// - نفس اليوم الفندقي (أو التاريخ التقويمي عند غياب المفتاح).
+  /// - ليست سحبة مباشرة (reason لا يبدأ بـ direct_withdrawal_).
+  /// - رابطها لا يشير لمصروف محلي قائم غير المصروف الحالي
+  ///   (expense_id وreason/exp_N كلاهما) — وإلا فهي مرآة مصروف آخر.
+  Future<SalaryWithdrawal?> _findOrphanMirrorForAdoption({
+    required int expenseId,
+    required int employeeId,
+    required double expectedAmount,
+    required String date,
+    String? hotelDayKey,
+  }) async {
+    final candidates =
+        await (_db.select(_db.salaryWithdrawals)..where(
+              (t) => t.deletedAt.isNull() & t.employeeId.equals(employeeId),
+            ))
+            .get();
+    if (candidates.isEmpty) return null;
+
+    final effectiveHotelDayKey = hotelDayKey ?? _computeHotelDayKey(date);
+
+    for (final w in candidates) {
+      // المبلغ الموقّع القديم — بتسامح فروق التقريب العائمة.
+      if ((w.amount - expectedAmount).abs() >= 0.005) continue;
+
+      // لا نتبنى السحوبات المباشرة الحقيقية أبداً — نقد بلا مصروف مقابل.
+      final r = (w.reason ?? '').trim();
+      if (r.startsWith('direct_withdrawal_')) continue;
+
+      // نتبنى فقط ما يحمل علامة مرآة (expense_id أو exp_N) — السحوبات
+      // اليدوية القديمة بلا علامة مصدرها غامض ولا تُختطف.
+      final wExpId = w.expenseId;
+      final hasMirrorMarker =
+          (wExpId != null && wExpId > 0) || RegExp(r'exp_\d+').hasMatch(r);
+      if (!hasMirrorMarker) continue;
+
+      // رابط expense_id يشير لمصروف محلي قائم آخر → مرآة ذلك المصروف.
+      if (wExpId != null && wExpId > 0 && wExpId != expenseId) {
+        if (await _activeExpenseExists(wExpId)) continue;
+      }
+
+      // reason=exp_M يشير لمصروف محلي قائم آخر → مرآة ذلك المصروف.
+      final m = RegExp(r'exp_(\d+)').firstMatch(r);
+      if (m != null) {
+        final n = int.tryParse(m.group(1)!);
+        if (n != null && n != expenseId && await _activeExpenseExists(n)) {
+          continue;
+        }
+      }
+
+      // نفس اليوم: hotelDayKey عند توفرهما، وإلا التاريخ التقويمي.
+      final wDay = (w.hotelDayKey ?? '').trim();
+      final dayMatch = wDay.isNotEmpty
+          ? wDay == effectiveHotelDayKey
+          : w.withdrawDate.trim() == date.trim();
+      if (!dayMatch) continue;
+
+      return w;
+    }
+    return null;
+  }
+
+  /// هل يوجد مصروف نشط (غير محذوف) بهذا المعرف المحلي؟
+  Future<bool> _activeExpenseExists(int id) async {
+    final row =
+        await (_db.select(_db.expenses)
+              ..where((t) => t.id.equals(id) & t.deletedAt.isNull())
+              ..limit(1))
+            .getSingleOrNull();
+    return row != null;
   }
 
   /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي

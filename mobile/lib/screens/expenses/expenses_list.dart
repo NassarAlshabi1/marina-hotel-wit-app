@@ -15,6 +15,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
+import '../../services/salary_expense_classifier.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
@@ -1262,6 +1263,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 ? -parsedAmount
                 : parsedAmount;
 
+            // ✅ إصلاح تكرار التقرير عند تعديل المبلغ (2026-09-25):
+            // المبلغ الموقّع القديم للمرآة قبل التعديل — يُمرَّر
+            // لتبنّي المرآة اليتيمة (رابطها يحمل معرّف جهاز المصدر)
+            // بدل إنشاء مرآة ثانية يظهر مبلغها مكرراً في التقارير.
+            final previousSignedAmount =
+                SalaryExpenseClassifier.isSalaryDeduction(existing.expenseType)
+                ? -existing.amount
+                : existing.amount;
+
             await salaryRepo.saveFromExpense(
               expenseId: existing.id,
               employeeId:
@@ -1272,6 +1282,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               note: trimmedDescription,
               // ✅ hotelDayKey مطابق للمصروف المُحدّث
               hotelDayKey: updatedHotelDayKey,
+              // ✅ المبلغ القديم الموقّع — للتبنّي بدل التكرار
+              previousAmount: previousSignedAmount,
             );
           } else {
             await salaryRepo.deleteByExpenseId(existing.id);
