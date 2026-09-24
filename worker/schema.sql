@@ -127,6 +127,9 @@ CREATE TABLE IF NOT EXISTS idempotency_log (
   response TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_idempotency_entity ON idempotency_log(entity, entity_id);
+-- ✅ (2026-09-24) فهرس TTL — يحذف به الـ cleanup اليومي (maintenance.ts)
+-- الصفوف المنتهية ببحث فهرسي بدل مسح الجدول كاملاً (ترحيل 0008).
+CREATE INDEX IF NOT EXISTS idx_idempotency_processed_at ON idempotency_log(processed_at);
 
 -- ═══════════════════════════════════════════════════════════════
 --  Synced entity tables (columns = Drift tables + SyncFields)

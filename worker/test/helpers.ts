@@ -135,6 +135,55 @@ export function pushOp(
   };
 }
 
+/** Minimal valid payments create payload (Drift row shape, snake_case). */
+export function paymentPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    local_uuid: uniqueUuid('pay'),
+    amount: 150.75,
+    payment_date: '2026-09-24',
+    payment_method: 'cash',
+    revenue_type: 'room',
+    notes: 'front-desk',
+    created_at: 1700000000,
+    updated_at: 1700000000,
+    last_modified: 1700000000,
+    created_at_epoch: 0,
+    last_modified_epoch: 0,
+    version: 1,
+    origin: 'local',
+    vector_clock: '{}',
+    device_id: 'device-A',
+    ...overrides,
+  };
+}
+
+/** Minimal valid cash_transactions create payload (Drift row shape). */
+export function cashTransactionPayload(
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    local_uuid: uniqueUuid('cash'),
+    register_id: null,
+    transaction_type: 'in',
+    amount: 150.75,
+    reference_type: 'payment',
+    reference_id: null,
+    description: 'payment cash-in',
+    transaction_time: '2026-09-24T10:00:00.000',
+    created_by: null,
+    created_at: 1700000000,
+    updated_at: 1700000000,
+    last_modified: 1700000000,
+    created_at_epoch: 0,
+    last_modified_epoch: 0,
+    version: 1,
+    origin: 'local',
+    vector_clock: '{}',
+    device_id: 'device-A',
+    ...overrides,
+  };
+}
+
 export async function pushOperations(
   authHeader: string,
   operations: unknown[],

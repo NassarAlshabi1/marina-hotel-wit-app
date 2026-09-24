@@ -16,6 +16,14 @@ database_id = "607f1090-83b1-4281-975f-d81b8f6154e7"
 # 1000 writes/day cap, no eventual consistency). The former dead
 # RATE_LIMIT KV binding was removed — it was never read by the code.
 
+# ─── Scheduled (cron) maintenance ──────────────────────────
+# ✅ (2026-09-24) تنظيف idempotency_log اليومي — يغلق ملاحظة
+# «الجدول ينمو بلا حد». 03:17 UTC ≈ 06:17 بتوقيت اليمن — بعد تدوير
+# اليوم المالي وأثناء أقل حركة؛ الدقيقة 17 تتجنب ذروة cron الساعية.
+# المنطق: src/maintenance.ts ← index.ts scheduled().
+[triggers]
+crons = ["17 3 * * *"]
+
 # ─── Durable Objects ─────────────────────────────────────────
 # SYNC_LOCK: entity locks + cursors (dormant — no client callers today).
 # REALTIME_HUB (2026-09-17): dedicated realtime WebSocket hub on the
@@ -59,6 +67,12 @@ CORS_ORIGIN = "*"
 # ✅ (2026-09-20) معرف الحساب لمسار REST الاحتياطي في src/ai.ts —
 # نفس المعرف المصرّح به أعلاه في account_id (ليس سراً؛ هوية عامة).
 CLOUDFLARE_ACCOUNT_ID = "81a73bba9acc1de5693ff929d0a372ce"
+# ✅ (2026-09-24) تنظيف idempotency_log (scheduled handler):
+# الاحتفاظ 30 يوماً ≫ أي نافذة retry واقعية (دقائق) — وحتى لو وصل
+# retry بعد الحذف يبقى exactly-once (see maintenance.ts header analysis).
+IDEMPOTENCY_RETENTION_DAYS = "30"
+# كل DELETE معاملة ضمنية محدودة بـ 500 صفاً (سقف صلب في الكود).
+IDEMPOTENCY_CLEANUP_BATCH = "500"
 
 # Workers AI — used only inside the authenticated natural-language endpoint.
 [ai]

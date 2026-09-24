@@ -9,6 +9,7 @@ import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate, 
 import { SyncLockDO, type RealtimeMessage } from './sync-lock';
 import { RealtimeHubDO } from './realtime-hub';
 import { handleAiRequest } from './ai';
+import { handleScheduledCleanup } from './maintenance';
 
 // ─── Environment bindings ─────────────────────────────────────
 
@@ -30,6 +31,10 @@ export interface Env {
   // وCLOUDFLARE_ACCOUNT_ID = var عام في wrangler.toml (ليس سراً).
   AI_TOKEN?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
+  // ✅ (2026-09-24) تنظيف idempotency_log اليومي (scheduled → maintenance.ts):
+  // أيام الاحتفاظ (افتراضي 30) وحجم دفعة الحذف (افتراضي 500، سقف صلب 500).
+  IDEMPOTENCY_RETENTION_DAYS?: string;
+  IDEMPOTENCY_CLEANUP_BATCH?: string;
 }
 
 // ─── Realtime Broadcast Adapter (plan phase 3) ────────────────
@@ -593,5 +598,22 @@ export default {
         { status: 500, headers }
       );
     }
+  },
+
+  // ✅ (2026-09-24) cron يومي (wrangler.toml [triggers] 03:17 UTC):
+  // تنظيف idempotency_log الأقدم من نافذة الاحتفاظ — يغلق ملاحظة
+  // «الجدول ينمو بلا حد». المنطق كله في maintenance.ts (مُختبر مباشرة)،
+  // والفشل هنا يُسجّل فقط: cron فاشل لا يعطل أي مسار خدمة، والتشغيل
+  // القادم (بعد 24 ساعة) يكمل الحذف — الحذف رتيب ومتكرر الأمان.
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      handleScheduledCleanup(env)
+        .then((r) =>
+          console.log(
+            `[MAINTENANCE] idempotency_log cleanup: deleted=${r.deleted} chunks=${r.chunks} cutoff=${r.cutoff} retention=${r.retentionDays}d batch=${r.batchSize}`
+          )
+        )
+        .catch((err) => console.error('[MAINTENANCE] idempotency_log cleanup failed:', err))
+    );
   },
 };
