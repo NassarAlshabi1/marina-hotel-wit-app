@@ -5,7 +5,7 @@
 
 import { Database, ALL_TABLE_NAMES } from './database';
 import { authMiddleware, handleLogin, hashPassword, resolveExpiryHours, signToken } from './auth';
-import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate } from './sync';
+import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate, setSyncCorsOrigin } from './sync';
 import { SyncLockDO, type RealtimeMessage } from './sync-lock';
 import { RealtimeHubDO } from './realtime-hub';
 import { handleAiRequest } from './ai';
@@ -98,9 +98,15 @@ async function checkRateLimit(
 }
 
 // Cloudflare adds the request country through request.cf at the edge.
-// Yemen traffic is exempt from Worker rate limits so sync connectivity is
-// not interrupted by the edge/WAF allow-list configuration. Authentication
-// and authorization remain enforced below.
+// ✅ P2 (2026-09-24) اليمن لم يعد معفياً من تحديد المعدل — الإعفاء الكامل
+// كان يعطّل الحماية كلها. الآن حزمة اليمن أعلى من الحزمة العامة (سماحية
+// لظروف الاتصال) لكنها ليست غير محدودة:
+//   global: RATE_LIMIT_MAX (افتراضي 1000)/window
+//   Yemen:  RATE_LIMIT_MAX * RATE_LIMIT_YEMEN_MULTIPLIER (افتراضي 3)
+//   login:  20/window لكل الجنسيات — حماية brute-force بلا استثناء.
+const RATE_LIMIT_YEMEN_MULTIPLIER = 3;
+const LOGIN_RATE_LIMIT_MAX = 20;
+
 function isYemenRequest(request: Request): boolean {
   const country = (request as Request & { cf?: { country?: string } }).cf?.country;
   return country?.toUpperCase() === 'YE';
@@ -151,6 +157,10 @@ function logRequest(method: string, path: string, status: number, durationMs: nu
 
 async function handleRequest(request: Request, env: Env): Promise<Response> {
   const startTime = Date.now();
+  // ✅ P2: مصدر CORS واحد — دوال sync كانت ترسل '*' دائماً بينما بقية
+  // الردود تستخدم env.CORS_ORIGIN. القيمة ثابتة لكل deployment فلا تعارض
+  // بين الطلبات المتزامنة داخل نفس العزل.
+  setSyncCorsOrigin(env.CORS_ORIGIN);
   const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
@@ -188,11 +198,13 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     const isYemen = isYemenRequest(request);
 
     // ─── Rate limit check (D1-based, no KV daily limit) ─────
+    // ✅ P2: اليمن حزمة أعلى (مضاعف) وليست إعفاءً — الحماية فعالة للجميع.
     const rateDb = new Database(env.DB);
-    const rateResult = isYemen
-      ? { allowed: true, remaining: rateLimitMax, resetAt: Date.now() + rateLimitWindow * 1000 }
-      : await checkRateLimit(rateDb, clientIp, rateLimitWindow, rateLimitMax);
-    if (!isYemen && !rateResult.allowed) {
+    const effectiveMax = isYemen
+      ? rateLimitMax * RATE_LIMIT_YEMEN_MULTIPLIER
+      : rateLimitMax;
+    const rateResult = await checkRateLimit(rateDb, clientIp, rateLimitWindow, effectiveMax);
+    if (!rateResult.allowed) {
       logRequest(method, path, 429, Date.now() - startTime, clientIp);
       // ✅ Add Retry-After header (seconds) for proper HTTP 429 semantics.
       // Client should respect this header and not retry before it elapses.
@@ -202,7 +214,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       cors.forEach((val: string, key: string) => headers.set(key, val));
       headers.set('Retry-After', String(Math.max(1, retryAfterSec)));
       return new Response(
-        JSON.stringify({ error: 'Rate limit exceeded', retry_after: rateResult.resetAt }),
+        // ✅ P2: retry_after الآن بالثواني (عدد نسبي) متطابقاً مع هيدر
+        // Retry-After — كان epoch-ms وبعض العملاء تفسّره خطأً.
+        JSON.stringify({ error: 'Rate limit exceeded', retry_after: Math.max(1, retryAfterSec) }),
         { status: 429, headers }
       );
     }
@@ -210,17 +224,16 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // ─── Auth endpoint (no token needed) ─────────────────────
     if (path === '/api/auth/login' && method === 'POST') {
       // ✅ Dedicated brute-force bucket per IP — far stricter than the
-      // global limit (20 attempts/window) so password guessing is not
-      // drowned in the 1000/min global budget.
-      const loginLimit = isYemen
-        ? { allowed: true, remaining: 20, resetAt: Date.now() + rateLimitWindow * 1000 }
-        : await checkRateLimit(
-            new Database(env.DB),
-            `login:${clientIp}`,
-            rateLimitWindow,
-            20
-          );
-      if (!isYemen && !loginLimit.allowed) {
+      // global limit (LOGIN_RATE_LIMIT_MAX attempts/window) so password
+      // guessing is not drowned in the global budget.
+      // ✅ P2: الحماية تشمل اليمن أيضاً — brute-force لا جنسية له.
+      const loginLimit = await checkRateLimit(
+        new Database(env.DB),
+        `login:${clientIp}`,
+        rateLimitWindow,
+        LOGIN_RATE_LIMIT_MAX
+      );
+      if (!loginLimit.allowed) {
         logRequest(method, path, 429, Date.now() - startTime, clientIp);
         const retryAfterSec = Math.ceil((loginLimit.resetAt - Date.now()) / 1000);
         const headers = new Headers({ 'Content-Type': 'application/json' });
@@ -228,7 +241,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         cors.forEach((val: string, key: string) => headers.set(key, val));
         headers.set('Retry-After', String(Math.max(1, retryAfterSec)));
         return new Response(
-          JSON.stringify({ error: 'Too many login attempts', retry_after: loginLimit.resetAt }),
+          JSON.stringify({ error: 'Too many login attempts', retry_after: Math.max(1, retryAfterSec) }),
           { status: 429, headers }
         );
       }
@@ -382,6 +395,36 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         return response;
       }
 
+      // ─── P2 (2026-09-24) بوابات الأدوار للنقاط الإدارية/المراقبة ───
+      // /api/stats و/api/sync/log و/api/sync/conflicts معلومات تشغيلية
+      // حساسة (أحجام الجداول وسجل التزامن والتعارضات) — admin/manager فقط.
+      // /api/sync/pull و/api/sync/push كما هما (كل الأدوار) — لا تغيير.
+      const isPrivilegedRole = ctx.role === 'admin' || ctx.role === 'manager';
+
+      if ((path === '/api/stats' || path === '/api/sync/log' || path === '/api/sync/conflicts') && !isPrivilegedRole) {
+        logRequest(method, path, 403, Date.now() - startTime, clientIp);
+        return json({ error: 'Manager or admin role required' }, 403, env);
+      }
+
+      // ─── Admin-only maintenance: normalize timestamps ─────────
+      // ✅ P1: الصيانة انتقلت من GET /api/sync/pull?normalize_timestamps=1
+      // (كتابة داخل GET) إلى endpoint إداري مخصص. معامل الـ GET يبقى
+      // متوافقاً لـ admin/manager (انظر handlePull) فلا يتكسر العميل الحالي.
+      if (path === '/api/admin/sync/normalize-timestamps' && method === 'POST') {
+        if (ctx.role !== 'admin') {
+          logRequest(method, path, 403, Date.now() - startTime, clientIp);
+          return json({ error: 'Admin role required' }, 403, env);
+        }
+        try {
+          const result = await db.normalizeTimestamps(500);
+          logRequest(method, path, 200, Date.now() - startTime, clientIp);
+          return json({ success: true, ...result, server_time: Math.floor(Date.now() / 1000) }, 200, env);
+        } catch (err) {
+          logRequest(method, path, 500, Date.now() - startTime, clientIp);
+          return json({ error: 'Normalization failed', detail: String(err) }, 500, env);
+        }
+      }
+
       // ─── Sync Log ───────────────────────────────────────
       if (path === '/api/sync/log' && method === 'GET') {
         const response = await handleSyncLog(request, db, ctx);
@@ -395,11 +438,18 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         try {
           // ✅ Table list derived from the single source of truth — the old
           // hardcoded list drifted from the schema and made /api/stats 500.
+          // ✅ P2: COUNT(*) لكل الجداول في دفعة D1 واحدة (atomic batch =
+          // رحلة شبكية واحدة بدل ~26 رحلة متسلسلة) — أسرع وأرخص، ولا يمس
+          // مسار التزامن إطلاقاً.
+          const countStmts = ALL_TABLE_NAMES.map((t) =>
+            db.raw.prepare(`SELECT COUNT(*) as c FROM ${t}`)
+          );
+          const countResults = await db.raw.batch(countStmts);
           const tableCounts: Record<string, number> = {};
-          for (const t of ALL_TABLE_NAMES) {
-            const r = await db.raw.prepare(`SELECT COUNT(*) as c FROM ${t}`).first<{ c: number }>();
-            tableCounts[t] = r?.c ?? 0;
-          }
+          ALL_TABLE_NAMES.forEach((t, i) => {
+            const r = countResults[i] as { results?: Array<{ c: number }> } | undefined;
+            tableCounts[t] = r?.results?.[0]?.c ?? 0;
+          });
           logRequest(method, path, 200, Date.now() - startTime, clientIp);
           return json({
             tables: tableCounts,

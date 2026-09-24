@@ -48,12 +48,30 @@ function opDeviceId(op: PushOperation, ctx: AuthContext): string {
   return 'unknown-origin';
 }
 
+// ✅ P1 (2026-09-24) حدود الحقول القادمة من العميل — تمنع الحقول
+// الشاذة/الضخمة من الوصول إلى D1 (حماية كلفة + سلامة). الحدود أعلى
+// بكثير من أي قيمة شرعية يرسلها العميل الحالي (outbox يرسل UUID ≤36
+// وvector clocks صغيرة) فلا ترفض بيانات مشروعة.
+export const PUSH_FIELD_LIMITS = {
+  idempotencyKey: 128,
+  deviceId: 128,
+  entity: 64,
+  entityId: 256,
+  vectorClock: 4096,
+} as const;
+
 function validatePushOperation(op: PushOperation): string | null {
   if (!op.idempotencyKey || typeof op.idempotencyKey !== 'string') {
     return 'idempotencyKey is required';
   }
+  if (op.idempotencyKey.length > PUSH_FIELD_LIMITS.idempotencyKey) {
+    return `idempotencyKey too long (max ${PUSH_FIELD_LIMITS.idempotencyKey})`;
+  }
   if (!op.entity || typeof op.entity !== 'string') {
     return 'entity is required';
+  }
+  if (op.entity.length > PUSH_FIELD_LIMITS.entity) {
+    return `entity too long (max ${PUSH_FIELD_LIMITS.entity})`;
   }
   if (!['create', 'update', 'delete'].includes(op.operation)) {
     return `Invalid operation: ${op.operation}`;
@@ -64,17 +82,36 @@ function validatePushOperation(op: PushOperation): string | null {
   if (!op.vectorClock || typeof op.vectorClock !== 'string') {
     return 'vectorClock is required';
   }
-  if (typeof op.updatedAt !== 'number' || op.updatedAt < 0) {
+  if (op.vectorClock.length > PUSH_FIELD_LIMITS.vectorClock) {
+    return `vectorClock too long (max ${PUSH_FIELD_LIMITS.vectorClock})`;
+  }
+  if (typeof op.updatedAt !== 'number' || op.updatedAt <= 0) {
+    // ✅ P1 (2026-09-24): سلوك ورسالة موحّدان — الشرط القديم (‎< 0)
+    // كان يسمح بـ updatedAt=0 بينما الرسالة تقول positive. مسار الرفع
+    // لا يستلم 0 من العميل الحالي (outbox يختم clientTs بالثواني)،
+    // ومسار migration الخام لا يمر من هنا إطلاقاً فلا يتأثر.
     return 'updatedAt must be a positive number';
+  }
+  if (op.deviceId !== undefined && (typeof op.deviceId !== 'string' || op.deviceId.length > PUSH_FIELD_LIMITS.deviceId)) {
+    return `deviceId must be a string of at most ${PUSH_FIELD_LIMITS.deviceId} chars`;
   }
   return null;
 }
 
-
-function requireEntityId(data: Record<string, unknown>): string {
+/**
+ * ✅ P0 review (2026-09-24): local_uuid هو الهوية الأساسية للمزامنة،
+ * ثم server_id، ثم legacy id (لمخططات قديمة فقط). لا يوجد بديل صامت
+ * لـ data.id — الحالات الغامضة تُرفض برسالة واضحة، والمنفّذ الذري في
+ * database.ts يحدد هوية الصف الفعلية من الصف نفسه (ولا يعيد تغيير
+ * local_uuid أبداً).
+ */
+export function resolvePushEntityId(data: Record<string, unknown>): string {
   const value = data.local_uuid ?? data.id ?? data.server_id;
   if (typeof value !== 'string' || value.length === 0) {
     throw new Error('Record is missing local_uuid, id, or server_id');
+  }
+  if (value.length > PUSH_FIELD_LIMITS.entityId) {
+    throw new Error(`entityId too long (max ${PUSH_FIELD_LIMITS.entityId})`);
   }
   return value;
 }
@@ -180,6 +217,89 @@ export function isAllowedMigrateStatement(stmt: string, validTargets: Set<string
   return !FORBIDDEN_TAIL_RE.test(tail);
 }
 
+// ─── Capped request-body reader (P1 2026-09-24) ───────────────
+
+/**
+ * يقرأ جسم الطلب مع سقف مزدوج: الحجم المضغوط (بايتات الشبكة الفعلية،
+ * حتى بغياب Content-Length) والحجم المفكوك بعد DecompressionStream.
+ * يوقف القرار فور تجاوز أي سقف — gzip bomb صغير مضغوط بشكل عنيف لا
+ * يستطيع تضخيم الذاكرة بلا حد. يُرجع نص الجسم أو يرمي PayloadTooLarge.
+ */
+export class PayloadTooLargeError extends Error {}
+
+async function readBodyTextWithLimit(
+  request: Request,
+  maxCompressedBytes: number,
+  maxDecompressedBytes: number
+): Promise<string> {
+  // الحد المضغوط: Content-Length إن وُجد — فحص مبكر بلا لمس الجسم.
+  const contentLength = parseInt(request.headers.get('Content-Length') || '0', 10);
+  if (contentLength > maxCompressedBytes) {
+    throw new PayloadTooLargeError('compressed');
+  }
+
+  const isGzip = (request.headers.get('Content-Encoding') || '') === 'gzip';
+  const rawBody = request.body;
+  if (!rawBody) {
+    return '';
+  }
+
+  // عدّاد بايتات الشبكة أثناء القراءة (يحمي حتى بلا Content-Length) —
+  // مجموع جارٍ لا فحص لكل قطعة على حدة.
+  let rawTotal = 0;
+  const limitedRaw = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      rawTotal += chunk.byteLength;
+      if (rawTotal > maxCompressedBytes) {
+        controller.error(new PayloadTooLargeError('compressed'));
+        return;
+      }
+      controller.enqueue(chunk);
+    },
+  });
+
+  const source = rawBody.pipeThrough(limitedRaw);
+  if (!isGzip) {
+    const buf = await new Response(source).arrayBuffer();
+    if (buf.byteLength > maxDecompressedBytes) {
+      throw new PayloadTooLargeError('decompressed');
+    }
+    return new TextDecoder().decode(buf);
+  }
+
+  // gzip: فك متدفق مع سقف على الحجم المفكوك — لا تحميل كامل قبل الفحص.
+  const ds = new DecompressionStream('gzip');
+  const decompressed = source.pipeThrough(ds);
+  const reader = decompressed.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const decoder = new TextDecoder();
+  let text = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxDecompressedBytes) {
+      try {
+        await reader.cancel();
+      } catch {
+        // stream already errored/closed — nothing to do
+      }
+      throw new PayloadTooLargeError('decompressed');
+    }
+    chunks.push(value);
+  }
+  // دمج نهائي واحد بعد اجتياز السقف.
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    merged.set(c, offset);
+    offset += c.byteLength;
+  }
+  text = decoder.decode(merged);
+  return text;
+}
+
 // ─── Pull Handler (Delta Sync) ────────────────────────────────
 
 export async function handlePull(
@@ -222,10 +342,19 @@ export async function handlePull(
     // ✅ Self-healing data repair is an explicit, one-time maintenance pass.
     // Ordinary delta pulls must not scan every entity table just to discover
     // that no legacy millisecond timestamps remain.
+    //
+    // ✅ P1 (2026-09-24) فصل الكتابة عن GET: الصيانة انتقلت إلى
+    // POST /api/admin/sync/normalize-timestamps (admin فقط). معامل الـ GET
+    // يبقى للتوافق مع إصدارات العميل الحالية التي تمرّره في السحب الكامل،
+    // لكنه يُنفَّذ الآن لـ admin/manager فقط؛ بقية الأدوار تحصل على pull
+    // طبيعي مع normalization:null (الشكل نفسه الذي يعود عند فشل الصيانة —
+    // العميل يتحمّله أصلاً). الإصلاح الذاتي داخل pullChanges (إعادة ختم
+    // الصفوف التي تلمسها الصفحة فعلاً) يعمل للجميع بلا استثناء.
     const normalizeTimestamps =
       url.searchParams.get('normalize_timestamps') === '1';
+    const roleAllowsMaintenance = ctx.role === 'admin' || ctx.role === 'manager';
     let normalization: Awaited<ReturnType<Database['normalizeTimestamps']>> | null = null;
-    if (normalizeTimestamps) {
+    if (normalizeTimestamps && roleAllowsMaintenance) {
       try {
         normalization = await db.normalizeTimestamps(500);
       } catch (err) {
@@ -266,26 +395,18 @@ export async function handlePush(
   broadcast?: RealtimeBroadcast
 ): Promise<Response> {
   try {
-    // ─── Size limit check (use compressed size if gzip) ─────
-    const contentLength = parseInt(request.headers.get('Content-Length') || '0', 10);
-    if (contentLength > MAX_PAYLOAD_SIZE) {
-      return jsonResponse({ error: 'Payload too large' }, 413);
-    }
-
-    // ─── Decompress gzip if Content-Encoding: gzip ──────────
-    // Cloudflare Workers automatically decompresses gzip responses, but
-    // for REQUESTS we need to handle it manually using DecompressionStream.
+    // ─── P1 (2026-09-24) سقف مزدوج: مضغوط + مفكوك ───────────
+    // كان الاعتماد على Content-Length فقط — يفشل عندما يحذف العميل
+    // الترويسة أو مع gzip مضغوط بشدة (gzip bomb). القارئ المحدود يعدّ
+    // بايتات الشبكة الفعلية ويوقف الفك فور تجاوز الحجم المفكوك 5MB.
     let bodyText: string;
-    const contentEncoding = request.headers.get('Content-Encoding') || '';
-
-    if (contentEncoding === 'gzip') {
-      // Use the native DecompressionStream API (supported in Workers runtime)
-      const ds = new DecompressionStream('gzip');
-      const decompressedStream = request.body!.pipeThrough(ds);
-      const decompressedBuffer = await new Response(decompressedStream).arrayBuffer();
-      bodyText = new TextDecoder().decode(decompressedBuffer);
-    } else {
-      bodyText = await request.text();
+    try {
+      bodyText = await readBodyTextWithLimit(request, MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE);
+    } catch (err) {
+      if (err instanceof PayloadTooLargeError) {
+        return jsonResponse({ error: 'Payload too large', scope: err.message }, 413);
+      }
+      throw err;
     }
 
     const body = JSON.parse(bodyText) as { operations: PushOperation[] };
@@ -336,123 +457,102 @@ export async function handlePush(
           continue;
         }
 
-        // ─── Idempotency check ─────────────────────────────────
-        const idempResult = await db.checkIdempotency(op.idempotencyKey);
-        if (idempResult.exists) {
+        // ─── حارس يتيم الموظفين (قراءة فقط — قبل الخطة الذرية) ──
+        // ✅ (2026-09-21) «لفصل موظف استخدم «إنهاء الخدمة» من التطبيق».
+        // رفض دائم (validation_error): العميل يضعه في dead-letter فوراً
+        // بدل إعادة دفعه للأبد (عقد fix M4). حذف موظف بلا أي تاريخ
+        // مالي يبقى ممكناً (تنظيف إدخال خاطئ حديث).
+        if (op.operation === 'delete' && op.entity === 'employees') {
+          const candidateId = (op.data.local_uuid ?? op.data.id ?? op.data.server_id) as string | number | undefined;
+          if (candidateId !== undefined && candidateId !== null && String(candidateId).length > 0) {
+            const history = await db.employeeFinancialHistoryCount(String(candidateId));
+            const historyTotal = history
+              ? Object.values(history).reduce((a, b) => a + b, 0)
+              : 0;
+            if (historyTotal > 0) {
+              results.push({
+                idempotencyKey: op.idempotencyKey || 'unknown',
+                success: false,
+                status: 'validation_error',
+                error:
+                  `حذف الموظف مرفوض: يشير إليه تاريخ مالي ` +
+                  `(${historyTotal} سجل — ${JSON.stringify(history)}) — ` +
+                  `استخدم «إنهاء الخدمة» من التطبيق (تغيير الحالة ` +
+                  `فقط)؛ الحذف يتيّم تاريخه المالي على بقية الأجهزة`,
+              });
+              continue;
+            }
+          }
+        }
+
+        // ─── P0 (2026-09-24): تنفيذ ذري — claim + mutation + response ──
+        // في D1 batch واحدة (transaction). كان التدفق القديم
+        // checkIdempotency → mutation → saveIdempotency ثلاث رحلات
+        // مستقلة: جهازان بنفس المفتاح كانا يجتازان الفحص معاً وينفّذان
+        // الـ mutation مرتين. الآن:
+        //   - مفتاح مكرر → UNIQUE في أول عبارة → تراجع كامل للدفعة →
+        //     إعادة النتيجة السابقة (skipped:true) — exactly-once.
+        //   - فشل الـ mutation → تراجع الـ claim معه (لا سجل يتيم).
+        //   - فشل الحفظ ⇒ لا mutation أصلاً (نفس الوحدة الذرية).
+        const atomic = await db.executeOperationAtomically(op, opDeviceId(op, ctx));
+
+        if (atomic.kind === 'failed') {
+          results.push({
+            idempotencyKey: op.idempotencyKey,
+            success: false,
+            error: atomic.error,
+          });
+          continue;
+        }
+
+        if (atomic.kind === 'replayed') {
+          // إعادة إرسال بنفس المفتاح بعد timeout/انقطاع أو سباق مكرر:
+          // نفس النتيجة السابقة بلا تنفيذ ثانٍ (ولا بث — الكيان بُثّ
+          // مع دفعته الأصلية).
+          const saved = (atomic.response ?? {}) as { entityId?: string; status?: string };
           results.push({
             idempotencyKey: op.idempotencyKey,
             success: true,
             skipped: true,
             entity: op.entity,
-            entityId: (idempResult.response as { entityId?: string })?.entityId,
+            entityId: saved.entityId,
+            // ✅ عقد F1: replay حالة 'deleted' يعود للعميل كي يوقف
+            // إعادة المحاولة ويلتزم بالحذف.
+            ...(saved.status === 'deleted' ? { status: 'deleted' as const } : {}),
           });
           continue;
         }
 
-        // ─── Execute operation ─────────────────────────────────
-        let entityId: string;
-
-        switch (op.operation) {
-          case 'create': {
-            const record = await db.createRecord(op.entity, op.data, opDeviceId(op, ctx), op.vectorClock);
-            entityId = record.local_uuid;
-            break;
-          }
-          case 'update': {
-            const recordId = requireEntityId(op.data);
-            const record = await db.updateRecord(
-              op.entity,
-              recordId,
-              op.data,
-              op.vectorClock,
-              opDeviceId(op, ctx),
-              op.updatedAt
-            );
-            entityId = record.local_uuid;
-            // ✅ (F1 2026-09-22) التعديل خسر عمداً لصالح tombstone — عقد
-            // delete-vs-update (updateRecord أعلاه). يعود للعميل
-            // success:true + opStatus:'deleted' كي يوقف إعادة المحاولة
-            // (ليست إخفاقاً شبكياً) ويُطابق نسخته المحلية مع الحذف بوعي.
-            // سجل تعارض edit_on_deleted كُتب داخل updateRecord مسبقاً،
-            // والناتج يُحفظ في idempotency_log كي يعود الاختصار للناتج
-            // نفسه عند إعادة الإرسال بنفس المفتاح.
-            if ((record as { opStatus?: string }).opStatus === 'deleted') {
-              const rejectedPayload = {
-                entity: op.entity,
-                entityId,
-                operation: op.operation,
-                status: 'deleted',
-              };
-              await db.saveIdempotency(
-                op.idempotencyKey,
-                op.entity,
-                op.operation,
-                entityId,
-                rejectedPayload
-              );
-              results.push({
-                idempotencyKey: op.idempotencyKey,
-                success: true,
-                status: 'deleted',
-                entity: op.entity,
-                entityId,
-              });
-              continue;
-            }
-            break;
-          }
-          case 'delete': {
-            entityId = requireEntityId(op.data);
-            // ✅ (2026-09-21) حارس يتيم الموظفين — «لفصل موظف استخدم
-            // «إنهاء الخدمة» من التطبيق (تغيّر الحالة فقط)؛ أما الحذف
-            // فيتيّم تاريخه المالي على بقية الأجهزة». رفض دائم
-            // (validation_error): العميل يضعه في dead-letter فوراً بدل
-            // إعادة دفعه للأبد (عقد fix M4). حذف موظف بلا أي تاريخ
-            // مالي يبقى ممكناً (تنظيف إدخال خاطئ حديث).
-            if (op.entity === 'employees') {
-              const history = await db.employeeFinancialHistoryCount(entityId);
-              const historyTotal = history
-                ? Object.values(history).reduce((a, b) => a + b, 0)
-                : 0;
-              if (historyTotal > 0) {
-                results.push({
-                  idempotencyKey: op.idempotencyKey || 'unknown',
-                  success: false,
-                  status: 'validation_error',
-                  error:
-                    `حذف الموظف مرفوض: يشير إليه تاريخ مالي ` +
-                    `(${historyTotal} سجل — ${JSON.stringify(history)}) — ` +
-                    `استخدم «إنهاء الخدمة» من التطبيق (تغيير الحالة ` +
-                    `فقط)؛ الحذف يتيّم تاريخه المالي على بقية الأجهزة`,
-                });
-                continue;
-              }
-            }
-            await db.deleteRecord(op.entity, entityId, opDeviceId(op, ctx));
-            break;
-          }
-          default:
-            throw new Error(`Unknown operation: ${op.operation}`);
+        if (atomic.kind === 'noop') {
+          // خسارة سباق optimistic guard / صف مفقود — يُعاد الصف الحالي
+          // كنجاح بلا تغيير (نفس شكل رفض LWW القديم)، والتعارض مُسجَّل.
+          results.push({
+            idempotencyKey: op.idempotencyKey,
+            success: true,
+            entity: op.entity,
+            entityId: atomic.entityId,
+          });
+          continue;
         }
 
-        // ─── Save idempotency ──────────────────────────────────
-        const responsePayload = { entity: op.entity, entityId, operation: op.operation };
-        await db.saveIdempotency(op.idempotencyKey, op.entity, op.operation, entityId, responsePayload);
-
-        if (!touched.has(op.entity)) {
+        // kind === 'applied'
+        const appliedStatus = (atomic.response as { status?: string } | null)?.status;
+        results.push({
+          idempotencyKey: op.idempotencyKey,
+          success: true,
+          // ✅ (F1 2026-09-22) التعديل خسر عمداً لصالح tombstone —
+          // status:'deleted' يوقف إعادة محاولة العميل بوعي.
+          ...(appliedStatus === 'deleted' ? { status: 'deleted' as const } : {}),
+          entity: op.entity,
+          entityId: atomic.entityId,
+        });
+        if (appliedStatus !== 'deleted' && !touched.has(op.entity)) {
           touched.set(op.entity, {
-            entityId,
+            entityId: atomic.entityId,
             deviceId: opDeviceId(op, ctx),
             operation: op.operation,
           });
         }
-
-        results.push({
-          idempotencyKey: op.idempotencyKey,
-          success: true,
-          entity: op.entity,
-          entityId,
-        });
       } catch (err) {
         console.error(`[SYNC/PUSH] Operation failed: ${op.idempotencyKey}`, err);
         results.push({
@@ -537,6 +637,13 @@ export async function handleSyncLog(
 // directly via D1 batch API. This bypasses the per-operation validation
 // loop and uses D1's native batch insert for ~10x speed improvement.
 //
+// ✅ P1 (2026-09-24) توثيق عزل المسار: هذا المسار migration لمرة واحدة
+// وليس sync push عادياً. `INSERT OR REPLACE` مقصود هنا (يستعيض عن الصف
+// كاملاً بقيم الترحيل) ويُعتمد عليه لإعادة المحاولة الآمنة، ولا يمس
+// مسار /sync/push الذي يفرض version/sync-fields الخادمية عبر
+// createRecord/updateRecord. version الملوثة من الترحيل تُطبَّع بعد كل
+// دفعة عبر sanitizeMigrateVersions (نفس عتبة MAX_SANE_VERSION).
+//
 // Expected request:
 //   POST /api/sync/migrate
 //   Headers: Content-Encoding: gzip, Content-Type: application/sql
@@ -556,35 +663,28 @@ export async function handleMigrate(
 ): Promise<Response> {
   try {
     // ─── Size limit: allow up to 10MB for migration batches ───
-    const contentLength = parseInt(
-      request.headers.get('Content-Length') || '0',
-      10
-    );
-    if (contentLength > 10 * 1024 * 1024) {
-      return jsonResponse({ error: 'Payload too large (max 10MB)' }, 413);
-    }
-
-    // ─── Decompress gzip if present ───────────────────────────
+    // ✅ P1 (2026-09-24) سقف مزدوج موحّد عبر القارئ المحدود: مضغوط
+    // (ببايتات الشبكة الفعلية حتى بغياب Content-Length) + مفكوك —
+    // نفس حماية gzip bomb في /sync/push.
     let sqlText: string;
-    const contentEncoding = request.headers.get('Content-Encoding') || '';
-
-    if (contentEncoding === 'gzip') {
-      const ds = new DecompressionStream('gzip');
-      const decompressedStream = request.body!.pipeThrough(ds);
-      const decompressedBuffer = await new Response(decompressedStream).arrayBuffer();
-      sqlText = new TextDecoder().decode(decompressedBuffer);
-    } else {
-      sqlText = await request.text();
+    try {
+      sqlText = await readBodyTextWithLimit(
+        request,
+        10 * 1024 * 1024,
+        10 * 1024 * 1024
+      );
+    } catch (err) {
+      if (err instanceof PayloadTooLargeError) {
+        return jsonResponse(
+          { error: `Payload too large (max 10MB ${err.message})` },
+          413
+        );
+      }
+      throw err;
     }
 
     if (!sqlText || sqlText.trim().length === 0) {
       return jsonResponse({ error: 'Empty SQL body' }, 400);
-    }
-
-    // ✅ Cap the DECOMPRESSED size too — Content-Length only reflects the
-    // gzipped bytes; a small zip bomb otherwise expands without bound.
-    if (sqlText.length > 10 * 1024 * 1024) {
-      return jsonResponse({ error: 'Payload too large (max 10MB decompressed)' }, 413);
     }
 
     // ─── Security: per-statement INSERT whitelist ─────────────
@@ -641,7 +741,7 @@ export async function handleMigrate(
     const errors: string[] = [];
 
     console.log(`[MIGRATE] Received ${statements.length} SQL statements, ` +
-      `${sqlText.length} bytes (${contentLength} compressed)`);
+      `${sqlText.length} bytes decompressed`);
 
     for (let start = 0; start < statements.length; start += MIGRATE_CHUNK_SIZE) {
       const chunk = statements.slice(start, start + MIGRATE_CHUNK_SIZE);
@@ -750,12 +850,25 @@ export async function handleConflicts(
 
 // ─── Helper ───────────────────────────────────────────────────
 
+// ✅ P2 (2026-09-24) توحيد CORS: كان هذا الملف يرسل '*' دائماً بينما
+// index.ts يستخدم env.CORS_ORIGIN. المصدر الآن واحد — index.ts يضبطه
+// مرة لكل نشر (قيمة ثابتة لكل deployment) فتتطابق رؤوس كل الاستجابات.
+// القيمة الافتراضية '*' تحافظ على سلوك الاستدعاءات المباشرة في الاختبارات
+// (CORS لا يؤثر على عملاء Dart/Android أصلاً).
+let syncCorsOrigin = '*';
+
+export function setSyncCorsOrigin(origin: string | undefined): void {
+  if (typeof origin === 'string' && origin.length > 0) {
+    syncCorsOrigin = origin;
+  }
+}
+
 function jsonResponse(data: unknown, status: number = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': syncCorsOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     },

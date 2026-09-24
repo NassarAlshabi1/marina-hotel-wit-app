@@ -924,7 +924,66 @@ export class Database {
       return { ...existing, opStatus: 'deleted' };
     }
 
-    // ─── Conflict Detection: Vector Clock ───────────────────
+    // ─── Conflict Detection + LWW decision (shared with the atomic
+    // push executor — single source of truth for the resolution rules).
+    const decision = this.resolveLwwDecision(existing, data, vectorClock, fallbackUpdatedAt);
+
+    if (decision.conflict === 'concurrent') {
+      // Save conflict for audit
+      await this.saveConflict(entity, recordId, existing, data, existing.vector_clock ?? '{}', vectorClock);
+
+      if (decision.timestampLoss) {
+        // Server copy is newer — reject incoming
+        return existing;
+      }
+    } else if (decision.conflict === 'local_newer') {
+      // ✅ FIX: server state strictly dominates the client clock — the edit
+      // was made against stale data. The old code fell through and APPLIED
+      // it, regressing fields the server had already superseded. Apply only
+      // if the client demonstrably edited later (later timestamp, or an
+      // equal timestamp with a strictly higher version); otherwise reject.
+      if (decision.timestampLoss) {
+        return existing;
+      }
+    }
+    // 'equal' | 'remote_newer' → apply
+
+    // ─── Apply update (statement building shared with the atomic executor)
+    const now = await this.allocateUpdatedAt();
+    const build = await this.buildUpdateStatement(
+      table, existing, data, decision.mergedVc, decision.newVersion, deviceId, now
+    );
+
+    await this.db
+      .prepare(`UPDATE ${table} SET ${build.setClauses} WHERE local_uuid = ?`)
+      .bind(...build.values, recordId)
+      .run();
+
+    // Log to sync_log
+    await this.logSync(entity, recordId, 'update', decision.newVersion, deviceId, build.cleanUpdate);
+
+    // Return updated record
+    return { ...existing, ...build.cleanUpdate } as SyncRecord;
+  }
+
+  /**
+   * ✅ P0 review (2026-09-24): the LWW + vector-clock decision extracted
+   * verbatim from updateRecord so the legacy path and the new atomic push
+   * executor share ONE source of truth for conflict resolution.
+   * Handles: op-level updatedAt precedence, F2 forward clock-skew clamp,
+   * plan-2.4 version tie-break, F2(ب) within-window version rule.
+   */
+  private resolveLwwDecision(
+    existing: SyncRecord,
+    data: Record<string, unknown>,
+    vectorClock: string,
+    fallbackUpdatedAt?: number
+  ): {
+    conflict: 'equal' | 'local_newer' | 'remote_newer' | 'concurrent';
+    timestampLoss: boolean;
+    mergedVc: string;
+    newVersion: number;
+  } {
     const conflict = this.detectConflict(existing.vector_clock || '{}', vectorClock);
     // LWW input precedence (fix proven by test + client code): the op-level
     // `updatedAt` (outbox clientTs, cloudflare_sync_manager.dart:857) is the
@@ -963,33 +1022,28 @@ export class Database {
           : -incomingDelta > Database.CLOCK_SKEW_ALLOWANCE_S ||
             !this.incomingVersionWins(existingVersion, data.version);
 
-    if (conflict === 'concurrent') {
-      // Save conflict for audit
-      await this.saveConflict(entity, recordId, existing, data, existing.vector_clock ?? '{}', vectorClock);
+    return {
+      conflict,
+      timestampLoss,
+      mergedVc: this.mergeVectorClocks(existing.vector_clock || '{}', vectorClock),
+      newVersion: this.sanitizeVersion(existing.version) + 1,
+    };
+  }
 
-      if (timestampLoss) {
-        // Server copy is newer — reject incoming
-        return existing;
-      }
-    } else if (conflict === 'local_newer') {
-      // ✅ FIX: server state strictly dominates the client clock — the edit
-      // was made against stale data. The old code fell through and APPLIED
-      // it, regressing fields the server had already superseded. Apply only
-      // if the client demonstrably edited later (later timestamp, or an
-      // equal timestamp with a strictly higher version); otherwise reject.
-      if (timestampLoss) {
-        return existing;
-      }
-    }
-    // 'equal' | 'remote_newer' → apply
-
-    // ─── Apply update ────────────────────────────────────────
-    const now = await this.allocateUpdatedAt();
-    const newVersion = this.sanitizeVersion(existing.version) + 1;
-
-    // Merge vector clocks
-    const mergedVc = this.mergeVectorClocks(existing.vector_clock || '{}', vectorClock);
-
+  /**
+   * ✅ P0 review (2026-09-24): UPDATE SET-clause builder extracted verbatim
+   * from updateRecord (column whitelist + sync-field stamping) so the
+   * legacy path and the atomic push executor produce identical rows.
+   */
+  private async buildUpdateStatement(
+    table: string,
+    _existing: SyncRecord,
+    data: Record<string, unknown>,
+    mergedVc: string,
+    newVersion: number,
+    deviceId: string,
+    now: number
+  ): Promise<{ cleanUpdate: Record<string, unknown>; setClauses: string; values: unknown[] }> {
     // Build UPDATE SET clause
     const updateFields = { ...data };
     updateFields.updated_at = now;
@@ -1021,17 +1075,422 @@ export class Database {
       .map((col) => `${col} = ?`)
       .join(', ');
     const values = Object.keys(cleanUpdate).map((col) => cleanUpdate[col]);
+    return { cleanUpdate, setClauses, values };
+  }
 
-    await this.db
-      .prepare(`UPDATE ${table} SET ${setClauses} WHERE local_uuid = ?`)
-      .bind(...values, recordId)
-      .run();
+  /**
+   * ✅ P0 review (2026-09-24): INSERT row builder extracted verbatim from
+   * createRecord (NOT NULL fill + column whitelist) — shared with the
+   * atomic push executor so both paths produce identical rows.
+   */
+  private async prepareInsertRow(
+    table: string,
+    data: Record<string, unknown>,
+    deviceId: string,
+    serverUpdatedAt: number,
+    clientVectorClock: string | undefined
+  ): Promise<{ localUuid: string; cleanRecord: Record<string, unknown>; columns: string[]; values: unknown[] }> {
+    const now = Math.floor(Date.now() / 1000);
 
-    // Log to sync_log
-    await this.logSync(entity, recordId, 'update', newVersion, deviceId, cleanUpdate);
+    // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
+    const localUuid = (data.local_uuid as string) || crypto.randomUUID();
 
-    // Return updated record
-    return { ...existing, ...cleanUpdate } as SyncRecord;
+    // ✅ Respect the client's vector clock when it is a valid object;
+    // otherwise seed a fresh clock for this device.
+    const clientVc = this.parseVectorClock(clientVectorClock || '{}');
+    const vectorClockJson =
+      Object.keys(clientVc).length > 0
+        ? JSON.stringify(clientVc)
+        : JSON.stringify({ [deviceId]: 1 });
+
+    const createdAtNum = Number(data.created_at);
+
+    const record: SyncRecord = {
+      ...data,
+      local_uuid: localUuid,
+      server_id: null,
+      created_at:
+        Number.isFinite(createdAtNum) && createdAtNum > 0
+          ? Math.floor(createdAtNum)
+          : now,
+      updated_at: serverUpdatedAt,
+      deleted_at: null,
+      version: 1,
+      device_id: deviceId,
+      vector_clock: vectorClockJson,
+      origin: 'cloud',
+    };
+
+    // Remove 'id' — D1 INTEGER autoIncrement will generate it
+    delete (record as Record<string, unknown>).id;
+
+    // Fill NOT NULL fields with defaults if not provided
+    if (!record.last_modified) (record as Record<string, unknown>).last_modified = now;
+    if (!record.created_at_epoch) (record as Record<string, unknown>).created_at_epoch = 0;
+    if (!record.last_modified_epoch) (record as Record<string, unknown>).last_modified_epoch = 0;
+
+    // ─── Filter to only columns that exist in the target table ───
+    // This prevents "no such column" errors when data contains fields
+    // from a different entity (e.g. guest_phone in debts data).
+    const validColumns = await this.getTableColumns(table);
+    const cleanRecord: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(record)) {
+      if (value !== undefined && validColumns.has(key)) {
+        cleanRecord[key] = value;
+      }
+    }
+
+    // ─── Fill NOT NULL columns (without defaults) with empty values ───
+    // Get the column metadata to identify NOT NULL columns without defaults
+    const colMeta = await this.db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all<{ name: string; notnull: number; dflt_value: string | null; type: string }>();
+
+    for (const col of colMeta.results) {
+      // Skip if column has a default, is nullable, is PK/id, or is already in cleanRecord
+      if (col.dflt_value !== null) continue;
+      if (col.notnull === 0) continue;
+      if (col.name === 'id' || col.name === 'local_uuid') continue;
+      if (col.name in cleanRecord) continue;
+
+      // Fill with appropriate empty value based on type
+      const typeLower = col.type.toLowerCase();
+      if (typeLower === 'integer' || typeLower === 'real' || typeLower === 'numeric') {
+        cleanRecord[col.name] = 0;
+      } else {
+        cleanRecord[col.name] = '';
+      }
+    }
+
+    const columns = Object.keys(cleanRecord);
+    const values = columns.map((col) => cleanRecord[col]);
+    return { localUuid, cleanRecord, columns, values };
+  }
+
+  /**
+   * ✅ P0 (2026-09-24): atomic push-operation executor.
+   *
+   * Fixes the check-then-act idempotency race in the old handlePush flow
+   * (checkIdempotency → mutation → saveIdempotency were three independent
+   * D1 round-trips: two devices racing the same idempotencyKey could both
+   * pass the check and double-apply the mutation).
+   *
+   * Design (D1 has no interactive BEGIN/COMMIT across await points; the
+   * atomic unit is db.batch() — "batched statements are SQL transactions;
+   * if a statement fails the whole batch rolls back"):
+   *
+   *   1. PLAN  (read-only): resolve the record identity (local_uuid →
+   *      server_id → legacy id), read the current row, run the SHARED
+   *      vector-clock/LWW decision, and build every write statement.
+   *   2. COMMIT (atomic db.batch):
+   *        [0] claim  — plain INSERT INTO idempotency_log … (key = PK).
+   *                     A duplicate key THROWS → whole batch rolls back
+   *                     → the mutation can never run twice for one key.
+   *                     The row already carries the final response JSON,
+   *                     so commit == claim + mutation + saved response.
+   *        [1..n] mutation — guarded INSERT / version-checked UPDATE
+   *                     (AND version = expected AND deleted_at IS NULL) /
+   *                     tombstone UPDATE, plus sync_log + sync_conflicts.
+   *   3. REPLAY — on the UNIQUE violation, the stored response is returned
+   *      (skipped: true) exactly like a retry after timeout/disconnect.
+   *
+   * Guarantees: same key ⇒ exactly-once effect; failed mutation ⇒ no
+   * idempotency record (rolled back together); retry after timeout ⇒
+   * previous response replayed; D1 stays the single source of truth —
+   * SyncLockDO/Realtime are never consulted for correctness.
+   */
+  async executeOperationAtomically(
+    op: PushOperation,
+    deviceId: string
+  ): Promise<
+    | { kind: 'applied'; entityId: string; response: unknown }
+    | { kind: 'replayed'; response: unknown }
+    | { kind: 'noop'; entityId: string; note: string; response: unknown }
+    | { kind: 'failed'; error: string }
+  > {
+    const table = getTableName(op.entity);
+    const now = Math.floor(Date.now() / 1000);
+
+    try {
+      // ─── PLAN (read-only) ──────────────────────────────────
+      // Identity resolution: local_uuid is THE sync identity; server_id and
+      // legacy numeric id are lookup fallbacks that never overwrite the
+      // row's identity. Ambiguous resolutions are logged for audit.
+      let identity: { localUuid: string | null; where: string; bind: unknown; source: string };
+      const dataLocalUuid = typeof op.data.local_uuid === 'string' && op.data.local_uuid.length > 0
+        ? op.data.local_uuid
+        : null;
+
+      if (op.operation === 'create') {
+        identity = { localUuid: dataLocalUuid, where: 'local_uuid', bind: dataLocalUuid, source: 'local_uuid' };
+      } else {
+        // update / delete: local_uuid → server_id → legacy id priority.
+        if (dataLocalUuid) {
+          identity = { localUuid: dataLocalUuid, where: 'local_uuid', bind: dataLocalUuid, source: 'local_uuid' };
+        } else if (op.data.server_id !== undefined && op.data.server_id !== null && Number.isFinite(Number(op.data.server_id))) {
+          identity = { localUuid: null, where: 'server_id', bind: Math.floor(Number(op.data.server_id)), source: 'server_id' };
+        } else if (op.data.id !== undefined && op.data.id !== null && Number.isFinite(Number(op.data.id))) {
+          identity = { localUuid: null, where: 'id', bind: Math.floor(Number(op.data.id)), source: 'legacy_id' };
+        } else {
+          // Same contract message the old requireEntityId threw (tests rely
+          // on the wording) — nothing changed for clients.
+          return { kind: 'failed', error: 'Error: Record is missing local_uuid, id, or server_id' };
+        }
+        if (identity.source !== 'local_uuid') {
+          console.warn(
+            `[SYNC/PUSH] ${op.entity} ${op.operation} resolved via ${identity.source}=${String(identity.bind)} — ambiguous identity (local_uuid missing)`
+          );
+        }
+      }
+
+      // Pre-read the existing row for update/delete decisions.
+      let existing: SyncRecord | null = null;
+      if (op.operation !== 'create') {
+        existing = await this.db
+          .prepare(`SELECT * FROM ${table} WHERE ${identity.where} = ?`)
+          .bind(identity.bind as string | number)
+          .first<SyncRecord>();
+        if (existing && identity.source !== 'local_uuid') {
+          // Record identity is the row's own local_uuid — never re-key it.
+          identity = { ...identity, localUuid: existing.local_uuid, where: 'local_uuid', bind: existing.local_uuid };
+        }
+      }
+
+      // Op-level response payload (stored inside the claim row itself).
+      let responsePayload: Record<string, unknown>;
+      let statements: D1PreparedStatement[] = [];
+      let entityId = '';
+
+      if (op.operation === 'create') {
+        // Pre-check duplicate local_uuid (old INSERT OR IGNORE semantics:
+        // a different key carrying an existing local_uuid is a silent skip).
+        const dupLocalUuid = dataLocalUuid
+          ? await this.db
+              .prepare(`SELECT local_uuid FROM ${table} WHERE local_uuid = ?`)
+              .bind(dataLocalUuid)
+              .first<{ local_uuid: string }>()
+          : null;
+        if (dupLocalUuid) {
+          // No mutation — claim-only batch (response = skip). Preserves the
+          // old "duplicate local_uuid with a new key does not duplicate" test.
+          entityId = dataLocalUuid!;
+          responsePayload = { entity: op.entity, entityId, operation: 'create' };
+          statements = [this.claimStatement(op, entityId, responsePayload)];
+        } else {
+          const serverUpdatedAt = await this.allocateUpdatedAt();
+          const row = await this.prepareInsertRow(table, op.data, deviceId, serverUpdatedAt, op.vectorClock);
+          entityId = row.localUuid;
+          responsePayload = { entity: op.entity, entityId, operation: 'create' };
+          statements = [
+            this.claimStatement(op, entityId, responsePayload),
+            this.db
+              .prepare(`INSERT INTO ${table} (${row.columns.join(', ')}) VALUES (${row.columns.map(() => '?').join(', ')})`)
+              .bind(...row.values),
+            this.db
+              .prepare('INSERT INTO sync_log (entity, entity_id, operation, version, device_id, timestamp, payload) VALUES (?, ?, ?, ?, ?, ?, ?)')
+              .bind(op.entity, entityId, 'create', 1, deviceId, now, JSON.stringify(row.cleanRecord)),
+          ];
+        }
+      } else if (op.operation === 'update') {
+        if (!existing) {
+          // Old contract: update of a missing local_uuid falls back to create.
+          // (Only for local_uuid-resolved ops — server_id/legacy lookups that
+          // miss are ambiguous and rejected instead of fabricating an identity.)
+          if (identity.source === 'local_uuid' && dataLocalUuid) {
+            return this.executeOperationAtomically(
+              { ...op, operation: 'create', data: { ...op.data, local_uuid: dataLocalUuid } },
+              deviceId
+            );
+          }
+          return { kind: 'failed', error: `Error: Record not found for ${op.entity} via ${identity.source}` };
+        }
+
+        // ✅ (F1 2026-09-22) delete-vs-update contract — tombstone wins.
+        if (existing.deleted_at != null) {
+          entityId = existing.local_uuid;
+          responsePayload = { entity: op.entity, entityId, operation: 'update', status: 'deleted' };
+          statements = [
+            this.claimStatement(op, entityId, responsePayload),
+            this.conflictStatement(op.entity, entityId, existing, op.data, existing.vector_clock ?? '{}', op.vectorClock, 'edit_on_deleted'),
+          ];
+        } else {
+          const decision = this.resolveLwwDecision(existing, op.data, op.vectorClock, op.updatedAt);
+          const rejectExisting =
+            (decision.conflict === 'concurrent' && decision.timestampLoss) ||
+            (decision.conflict === 'local_newer' && decision.timestampLoss);
+          if (rejectExisting) {
+            // Server copy wins — same response as the legacy path
+            // (success + no content change). Concurrent loss is recorded.
+            entityId = existing.local_uuid;
+            responsePayload = { entity: op.entity, entityId, operation: 'update' };
+            statements = [this.claimStatement(op, entityId, responsePayload)];
+            if (decision.conflict === 'concurrent') {
+              statements.push(
+                this.conflictStatement(op.entity, entityId, existing, op.data, existing.vector_clock ?? '{}', op.vectorClock)
+              );
+            }
+          } else {
+            const serverUpdatedAt = await this.allocateUpdatedAt();
+            const build = await this.buildUpdateStatement(
+              table, existing, op.data, decision.mergedVc, decision.newVersion, deviceId, serverUpdatedAt
+            );
+            entityId = existing.local_uuid;
+            responsePayload = { entity: op.entity, entityId, operation: 'update' };
+            // ✅ Optimistic concurrency (user contract: "D1 transaction +
+            // optimistic concurrency يجب أن يبقيا الحماية الأساسية"):
+            // the UPDATE only fires when the row still carries the version
+            // we decided against AND is still live. A racing writer between
+            // plan and commit makes this a 0-row no-op (verified post-commit
+            // via batch results → conflict recorded, current row returned).
+            statements = [
+              this.claimStatement(op, entityId, responsePayload),
+              this.db
+                .prepare(
+                  `UPDATE ${table} SET ${build.setClauses} WHERE local_uuid = ? AND version = ? AND deleted_at IS NULL`
+                )
+                .bind(...build.values, entityId, this.sanitizeVersion(existing.version)),
+              this.db
+                .prepare(
+                  `INSERT INTO sync_log (entity, entity_id, operation, version, device_id, timestamp, payload)
+                   SELECT ?, ?, ?, ?, ?, ?, ?
+                   WHERE EXISTS (SELECT 1 FROM ${table} WHERE local_uuid = ? AND version = ?)`
+                )
+                .bind(op.entity, entityId, 'update', decision.newVersion, deviceId, now, JSON.stringify(build.cleanUpdate), entityId, decision.newVersion),
+            ];
+            if (decision.conflict === 'concurrent') {
+              statements.push(
+                this.conflictStatement(op.entity, entityId, existing, op.data, existing.vector_clock ?? '{}', op.vectorClock)
+              );
+            }
+          }
+        }
+      } else {
+        // ─── delete ───
+        if (!existing) {
+          // Old contract: delete of a missing record is a no-op success
+          // (and the response is idempotency-recorded so retries replay).
+          entityId = String(identity.bind);
+          responsePayload = { entity: op.entity, entityId, operation: 'delete', deleted: false };
+          statements = [this.claimStatement(op, entityId, responsePayload)];
+        } else {
+          entityId = existing.local_uuid;
+          const newVersion = this.sanitizeVersion(existing.version) + 1;
+          const serverUpdatedAt = await this.allocateUpdatedAt();
+          responsePayload = { entity: op.entity, entityId, operation: 'delete', deleted: true };
+          // ✅ Optimistic guard: version-checked tombstone (idempotent for
+          // replays — the claim row replays first anyway; the guard covers a
+          // racing delete/update from a DIFFERENT key between plan & commit).
+          statements = [
+            this.claimStatement(op, entityId, responsePayload),
+            this.db
+              .prepare(
+                `UPDATE ${table} SET deleted_at = ?, updated_at = ?, version = ? WHERE local_uuid = ? AND version = ? AND deleted_at IS NULL`
+              )
+              .bind(serverUpdatedAt, serverUpdatedAt, newVersion, entityId, this.sanitizeVersion(existing.version)),
+            this.db
+              .prepare(
+                `INSERT INTO sync_log (entity, entity_id, operation, version, device_id, timestamp, payload)
+                 SELECT ?, ?, ?, ?, ?, ?, NULL
+                 WHERE EXISTS (SELECT 1 FROM ${table} WHERE local_uuid = ? AND version = ? AND deleted_at IS NOT NULL)`
+              )
+              .bind(op.entity, entityId, 'delete', newVersion, deviceId, now, entityId, newVersion),
+          ];
+        }
+      }
+
+      // ─── COMMIT (atomic) ───────────────────────────────────
+      const batchResults = await this.db.batch(statements);
+
+      // Optimistic-concurrency verification for update/delete: a 0-row
+      // guarded mutation means a racing writer won between plan and commit.
+      const mutationResult = batchResults[1];
+      if (
+        op.operation !== 'create' &&
+        existing &&
+        mutationResult &&
+        typeof (mutationResult as { meta?: { changes?: number } }).meta?.changes === 'number' &&
+        (mutationResult as { meta: { changes: number } }).meta.changes === 0
+      ) {
+        const current = await this.db
+          .prepare(`SELECT * FROM ${table} WHERE local_uuid = ?`)
+          .bind(entityId)
+          .first<SyncRecord>();
+        await this.saveConflict(
+          op.entity,
+          entityId,
+          existing,
+          op.data,
+          existing.vector_clock ?? '{}',
+          op.vectorClock,
+          'lost_race_optimistic_guard'
+        );
+        console.warn(`[SYNC/PUSH] ${op.entity}/${entityId} lost an optimistic-guard race — server row returned`);
+        return { kind: 'noop', entityId, note: 'lost_race_optimistic_guard', response: responsePayload };
+      }
+
+      return { kind: 'applied', entityId, response: responsePayload };
+    } catch (err) {
+      const msg = String(err);
+      // Claim collision → the op already ran (timeout retry / concurrent
+      // duplicate). Replay the stored response — exactly-once effect.
+      if (/UNIQUE constraint failed[\s\S]*idempotency_log/.test(msg) || /PRIMARY KEY[\s\S]*idempotency_log/.test(msg)) {
+        const saved = await this.checkIdempotency(op.idempotencyKey);
+        if (saved.exists) {
+          return { kind: 'replayed', response: saved.response };
+        }
+      }
+      console.error(`[SYNC/PUSH] atomic op failed (${op.idempotencyKey}):`, msg.slice(0, 300));
+      return { kind: 'failed', error: msg };
+    }
+  }
+
+  /** The claim row — plain INSERT so a duplicate key aborts the whole batch. */
+  private claimStatement(
+    op: PushOperation,
+    entityId: string,
+    response: unknown
+  ): D1PreparedStatement {
+    return this.db
+      .prepare(
+        'INSERT INTO idempotency_log (key, entity, operation, entity_id, processed_at, response) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .bind(
+        op.idempotencyKey,
+        op.entity,
+        op.operation,
+        entityId,
+        Math.floor(Date.now() / 1000),
+        JSON.stringify(response)
+      );
+  }
+
+  private conflictStatement(
+    entity: string,
+    entityId: string,
+    localRecord: unknown,
+    remoteData: unknown,
+    localVc: string,
+    remoteVc: string,
+    resolution: string = 'last_write_wins'
+  ): D1PreparedStatement {
+    const now = Math.floor(Date.now() / 1000);
+    return this.db
+      .prepare(
+        `INSERT INTO sync_conflicts (entity, entity_id, local_payload, remote_payload, local_vector_clock, remote_vector_clock, resolution, resolved_at, created_at, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        entity,
+        entityId,
+        JSON.stringify(localRecord),
+        JSON.stringify(remoteData),
+        localVc,
+        remoteVc,
+        resolution,
+        now,
+        now,
+        ''
+      );
   }
 
   // ─── Push: Delete guard — «الحذف يتيّم التاريخ المالي» ──────
