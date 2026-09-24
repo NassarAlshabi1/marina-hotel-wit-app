@@ -111,6 +111,60 @@ class SalaryMirrorMatcher {
     return false;
   }
 
+  /// المستوى 1/2 فقط: يحاول حلّ رابط المرآة (expense_id أو reason=exp_N)
+  /// إلى id مصروف محلي **حقيقي** ضمن [expenses]. يُعيد null إن لم يوجد
+  /// رابط مباشر (سحبة مباشرة بلا مصروف، أو رابط أجنبي/يتيم من جهاز
+  /// آخر، أو بلا علامة مرآة إطلاقاً).
+  ///
+  /// ✅ (2026-09-24) استُخرج من [isMirrorOfReadExpense] ليُستخدم في
+  /// شاشات تحتاج معرفة "أي مصروف بالضبط تمثّله هذه السحبة؟" — مثل
+  /// دمج سحوبات المرآة المكرّرة في تقرير سحبيات الرواتب (خلافاً
+  /// لتقارير المصروفات المركّبة التي تكتفي بـ"إخفاء" المرآة لأن قيمتها
+  /// تُعرض من جدول expenses مباشرة).
+  static int? resolveLinkedExpenseId({
+    required int? expenseId,
+    required String? reason,
+    required Iterable<MirrorExpenseCandidate> expenses,
+  }) {
+    final rawReason = (reason ?? '').trim();
+    if (rawReason.startsWith('direct_withdrawal_')) return null;
+
+    if (expenseId != null && expenseId > 0) {
+      for (final e in expenses) {
+        if (e.id == expenseId) return e.id;
+      }
+    }
+
+    if (rawReason.isNotEmpty) {
+      final match = RegExp(r'exp_(\d+)').firstMatch(rawReason);
+      if (match != null) {
+        final n = int.tryParse(match.group(1)!);
+        if (n != null) {
+          for (final e in expenses) {
+            if (e.id == n) return e.id;
+          }
+          for (final e in expenses) {
+            if (e.serverId != null && e.serverId == n) return e.id;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /// هل تحمل هذه السحبة "علامة مرآة" (رابط لمصروف — محلي أو أجنبي عن
+  /// هذا الجهاز) بغض النظر عن نجاح حلّه؟ السحوبات المباشرة الحقيقية
+  /// (direct_withdrawal_) تُستثنى دائماً — نقد خرج بلا مصروف مقابل.
+  static bool hasMirrorMarker({
+    required int? expenseId,
+    required String? reason,
+  }) {
+    final rawReason = (reason ?? '').trim();
+    if (rawReason.startsWith('direct_withdrawal_')) return false;
+    if (expenseId != null && expenseId > 0) return true;
+    return RegExp(r'exp_\d+').hasMatch(rawReason);
+  }
+
   /// مقارنة اليوم: hotelDayKey عند توفرهما، وإلا التاريخ التقويمي.
   static bool _sameDay(
     MirrorExpenseCandidate e,
