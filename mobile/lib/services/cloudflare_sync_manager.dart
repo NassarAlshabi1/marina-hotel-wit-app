@@ -3039,6 +3039,16 @@ class CloudflareSyncManager {
   /// ✅ (2026-09-09) العقد الجديد: true = طُبّق (أو سُكت عنه بعذر)،
   /// false = مؤجَّل (علاقة FK بلا أب بعد — يعاد بعد اكتمال السحب)،
   /// ويرمي استثناءً على أخطاء قاعدة البيانات الحقيقية — لا تُبتلع صمتاً.
+  /// ✅ (2026-09-25) إصلاح «بطاقات Dashboard لا تتحدث بعد السحب»:
+  /// كتابات السحب كلها تمر عبر customStatement (SQL خام) — وdrift لا
+  /// يُشعر مراقِبات streams تلقائياً إلا عن كتابات عبر واجهته المولّدة
+  /// (insert/update/batch). بدون الإشعار الصريح هنا تبقى التيارات
+  /// (watchTotalByHotelDayKey وغيرها) على القيمة القديمة حتى يُعاد
+  /// بناء المزوّدات autoDispose عند تنقّل الشاشات — وهو العَرَض المُبلَّغ.
+  void _notifyTableTouched(String tableName, UpdateKind kind) {
+    _db?.notifyUpdates({TableUpdate(tableName, kind: kind)});
+  }
+
   Future<bool> _applyChange(String entity, Map<String, dynamic> record) async {
     if (_db == null) return true;
 
@@ -3142,6 +3152,7 @@ class CloudflareSyncManager {
           'UPDATE $tableName SET deleted_at = ?, updated_at = ?, last_modified = ? WHERE id = ?',
           [deletedAt, remoteUpdatedAt, remoteUpdatedAt, localId],
         );
+        _notifyTableTouched(tableName, UpdateKind.delete);
         debugPrint('  🗑️ $entity/$localUuid: soft delete applied');
 
         // ✅ RemoteChangeNotifier: إشعار بعد apply ناجح
@@ -3224,6 +3235,7 @@ class CloudflareSyncManager {
           'UPDATE $tableName SET $setClauses WHERE id = ?',
           [...values, localId],
         );
+        _notifyTableTouched(tableName, UpdateKind.update);
 
         // ✅ P0-F: إذا كانت النتيجة تحتاج رفع للخادم (pushedToRemote=true)،
         // اكتبها في outbox ليتم رفعها في الـ sync القادمة.
@@ -3265,6 +3277,7 @@ class CloudflareSyncManager {
         'UPDATE $tableName SET $setClauses WHERE id = ?',
         [...values, localId],
       );
+      _notifyTableTouched(tableName, UpdateKind.update);
 
       // ✅ RemoteChangeNotifier: إشعار بعد apply ناجح (sequential update)
       unawaited(
@@ -3303,6 +3316,7 @@ class CloudflareSyncManager {
         'INSERT INTO $tableName ($columns) VALUES ($placeholders)',
         values,
       );
+      _notifyTableTouched(tableName, UpdateKind.insert);
 
       // ✅ RemoteChangeNotifier: إشعار بعد apply ناجح
       // (نتحقق من التأثير الفعلي عبر SELECT — INSERT OR IGNORE قد تجاهله)
@@ -3393,6 +3407,7 @@ class CloudflareSyncManager {
           'UPDATE $tableName SET $setClauses WHERE id = ?',
           [...data.values.map(_toDriftValue), localId],
         );
+        _notifyTableTouched(tableName, UpdateKind.update);
       }
       debugPrint(
         '  ♻️ $entity: نسخة مكررة منطقياً دُمجت LWW في الصف المحلي '
@@ -3624,11 +3639,13 @@ class CloudflareSyncManager {
           '${hasLastModified ? ', last_modified = ?' : ''} WHERE id = ?',
           [deletedAt, updatedAt, if (hasLastModified) updatedAt, localId],
         );
+        _notifyTableTouched(tableName, UpdateKind.delete);
       } else {
         // جدول بلا حذف ناعم — الحذف الوحيد الممكن هو الصلب.
         await _db!.customStatement('DELETE FROM $tableName WHERE id = ?', [
           localId,
         ]);
+        _notifyTableTouched(tableName, UpdateKind.delete);
       }
       debugPrint('  🗑️ $entity/$localUuid: remote tombstone applied');
       unawaited(
@@ -3759,6 +3776,7 @@ class CloudflareSyncManager {
         'UPDATE $tableName SET deleted_at = ?, updated_at = ? WHERE id = ?',
         [nowSec, nowSec, existing.data['id']],
       );
+      _notifyTableTouched(tableName, UpdateKind.delete);
       debugPrint(
         '  🗑️ $entity/$localUuid: local edit lost to deletion — '
         'row tombstoned to match server (delete-vs-update contract)',
