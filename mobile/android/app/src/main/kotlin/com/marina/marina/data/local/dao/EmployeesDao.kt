@@ -84,4 +84,7 @@ interface EmployeesDao {
     )
     suspend fun financialHistoryCounts(id: Long, dashlessUuid: String): EmployeeFinancialHistoryCounts?
 
+    /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
+    @Query("SELECT * FROM employees")
+    suspend fun listAllIncludingDeleted(): List<EmployeeEntity>
 }

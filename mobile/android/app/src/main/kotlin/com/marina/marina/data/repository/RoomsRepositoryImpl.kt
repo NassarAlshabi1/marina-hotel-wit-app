@@ -22,6 +22,9 @@ class RoomsRepositoryImpl @Inject constructor(
     override fun getAll(): Flow<List<Room>> =
         roomsDao.getAll().map { entities -> entities.map { it.toDomain() } }
 
+    override suspend fun getAllOnce(): List<Room> =
+        roomsDao.getAllOnce().map { it.toDomain() }
+
     override suspend fun insert(room: Room): Long {
         val now = System.currentTimeMillis()
         val prepared = room.copy(

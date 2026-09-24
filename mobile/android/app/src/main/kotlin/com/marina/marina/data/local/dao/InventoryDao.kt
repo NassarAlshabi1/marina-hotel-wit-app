@@ -69,4 +69,8 @@ interface InventoryDao {
 
     @Query("SELECT * FROM inventory_transactions WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getTransactionByLocalUuid(localUuid: String): InventoryTransactionEntity?
+
+    /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
+    @Query("SELECT * FROM inventory_items")
+    suspend fun listAllIncludingDeleted(): List<InventoryItemEntity>
 }

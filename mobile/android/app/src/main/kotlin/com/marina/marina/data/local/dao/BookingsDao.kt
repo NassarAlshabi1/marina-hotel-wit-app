@@ -80,4 +80,8 @@ interface BookingsDao {
         """
     )
     suspend fun getInStayBookingsForRoom(roomNumber: String): List<BookingEntity>
+
+    /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
+    @Query("SELECT * FROM bookings")
+    suspend fun listAllIncludingDeleted(): List<BookingEntity>
 }

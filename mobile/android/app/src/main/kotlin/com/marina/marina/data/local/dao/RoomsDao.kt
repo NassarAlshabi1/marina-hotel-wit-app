@@ -47,4 +47,8 @@ interface RoomsDao {
         "UPDATE rooms SET status = :status, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id"
     )
     suspend fun updateStatus(id: Long, status: String, updatedAt: Long, lastModified: Long): Int
+
+    /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
+    @Query("SELECT * FROM rooms")
+    suspend fun listAllIncludingDeleted(): List<RoomEntity>
 }

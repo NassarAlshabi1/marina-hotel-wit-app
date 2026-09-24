@@ -163,4 +163,8 @@ interface PaymentsDao {
         excludedUserName: String?,
         excludedCloudId: String?
     ): Flow<List<PaymentUserHotelDaySummaryRow>>
+
+    /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
+    @Query("SELECT * FROM payments")
+    suspend fun listAllIncludingDeleted(): List<PaymentEntity>
 }

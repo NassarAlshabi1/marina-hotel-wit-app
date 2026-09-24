@@ -45,4 +45,8 @@ interface SalaryWithdrawalsDao {
     // (توجيه سجلات pull عبر _entity — عقد الـ worker).
     @Query("SELECT * FROM salary_withdrawals WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): SalaryWithdrawalEntity?
+
+    /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
+    @Query("SELECT * FROM salary_withdrawals")
+    suspend fun listAllIncludingDeleted(): List<SalaryWithdrawalEntity>
 }

@@ -84,4 +84,8 @@ interface ExpensesDao {
         excludeAdvance: Boolean = false,
         search: String? = null
     ): List<ExpenseEntity>
+
+    /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
+    @Query("SELECT * FROM expenses")
+    suspend fun listAllIncludingDeleted(): List<ExpenseEntity>
 }

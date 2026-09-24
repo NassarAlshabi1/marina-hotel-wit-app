@@ -39,6 +39,7 @@ import com.marina.marina.presentation.reports.InventoryReportScreen
 import com.marina.marina.presentation.reports.PaymentsReportScreen
 import com.marina.marina.presentation.reports.ReportsScreen
 import com.marina.marina.presentation.reports.SalaryWithdrawalsReportScreen
+import com.marina.marina.presentation.search.GlobalSearchScreen
 import com.marina.marina.presentation.rooms.RoomsListScreen
 import com.marina.marina.presentation.settings.BookingsReminderScreen
 import com.marina.marina.presentation.settings.CloudflareSyncSettingsScreen
@@ -99,6 +100,9 @@ sealed class Screen(val route: String) {
 
     /** النسخ الاحتياطي والاستعادة — نظير ComprehensiveBackupScreen. */
     object Backup : Screen("backup")
+
+    /** البحث الشامل — نظير GlobalSearchScreen (فرع feat/cloudflare-sync-execution). */
+    object GlobalSearch : Screen("global_search")
 
     // Report sub-screens (Dart reports module).
     object PaymentsReport : Screen("payments_report")
@@ -273,8 +277,14 @@ fun MarinaNavGraph(
 
         adminScreen(navController, authViewModel, Screen.Reports.route) {
             ReportsScreen(
-                onOpenReport = { route -> navController.navigate(route) }
+                onOpenReport = { route -> navController.navigate(route) },
+                // ✅ زر البحث في ترويسة التقارير — نقطة الدخول الطبيعية للبحث الشامل.
+                onOpenSearch = { navController.navigate(Screen.GlobalSearch.route) }
             )
+        }
+
+        adminScreen(navController, authViewModel, Screen.GlobalSearch.route) {
+            GlobalSearchScreen(onBack = { navController.popBackStack() })
         }
 
         adminScreen(navController, authViewModel, Screen.Finance.route) {

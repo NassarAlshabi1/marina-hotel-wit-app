@@ -34,4 +34,7 @@ interface DebtsDao {
     @Query("SELECT * FROM debts WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): DebtEntity?
 
+    /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
+    @Query("SELECT * FROM debts")
+    suspend fun listAllIncludingDeleted(): List<DebtEntity>
 }

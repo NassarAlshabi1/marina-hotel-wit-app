@@ -39,4 +39,8 @@ interface GuestInfosDao {
 
     @Query("DELETE FROM guest_infos WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
+    @Query("SELECT * FROM guest_infos")
+    suspend fun listAllIncludingDeleted(): List<GuestInfoEntity>
 }
