@@ -9,11 +9,15 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
+import '../../services/salary_mirror_matcher.dart';
+import '../../services/sync/payload_mapper.dart';
 import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
+import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 
 /// بيانات معاملة واحدة من جدول salary_withdrawals
@@ -179,6 +183,18 @@ class _SalaryWithdrawalsReportScreenState
 
     final withdrawals = await query.get();
 
+    // ✅ (2026-09-25) تنظيف المرايا المكررة قبل بناء الصفوف:
+    // دمج السحوبات المتعددة التي تحلّ لنفس المصروف الحقيقي، وحذف
+    // المرايا اليتيمة (رابط مكسور) المطابقة لمصروف مُرسّى واحد —
+    // فلا يعرض التقرير صفّين لحدث مالي واحد ولا يزدوج مجموعه.
+    final dedupe = await dedupeMirrorDuplicates(
+      db,
+      withdrawals: withdrawals,
+      fromHotelDay: fromHotelDay,
+      toHotelDay: toHotelDay,
+    );
+    final activeWithdrawals = dedupe.kept;
+
     // بناء خريطة الموظفين
     final employeeMap = <int, Employee>{};
     for (final emp in allEmployees) {
@@ -187,7 +203,7 @@ class _SalaryWithdrawalsReportScreenState
 
     // بناء الصفوف
     final rows = <_SalaryTxRow>[];
-    for (final sw in withdrawals) {
+    for (final sw in activeWithdrawals) {
       final employee = employeeMap[sw.employeeId];
       final date = _parseDate(sw.withdrawDate);
       rows.add(
@@ -909,4 +925,258 @@ class _SalaryReportData {
   final List<_SalaryTxRow> rows;
   final Map<int, _EmployeeSalaryGroup> groups;
   final List<Employee> allEmployees;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  تنظيف تكرار المرايا في تقرير سحبيات الرواتب (2026-09-25)
+//
+//  الخلل المُبلَّغ: تعديل مبلغ مصروف راتب كان يُظهر السحوبة
+//  القديمة مكررةً في هذا التقرير. إصلاح e03a50d3 ينظّف اليتيمة
+//  غير المرتبطة عند التعديل، ويبقى تاريخياً:
+//   • سحوبتان تحملان رابطاً لنفس المصروف الحقيقي (تكرار مرآة)،
+//   • مرآة يتيمة رابطها مكسور (هدفها محذوف/لم يصل بالمزامنة).
+//  dedupeMirrorDuplicates تنظّف الحالتين قبل عرض التقرير.
+// ═══════════════════════════════════════════════════════════════
+
+/// نتيجة dedupeMirrorDuplicates
+class MirrorDedupeResult {
+  MirrorDedupeResult({
+    required this.kept,
+    required this.mergedAway,
+    required this.orphansDeleted,
+  });
+
+  /// السحوبات الباقية الحية بعد التنظيف (بترتيب الإدخال نفسه).
+  final List<SalaryWithdrawal> kept;
+
+  /// سحوبات دُمجت — حلّت لنفس المصروف الحقيقي وبقيت الأحدث تحديثاً فقط.
+  final int mergedAway;
+
+  /// مرايا يتيمة (رابط مكسور) حُذفت كمكرر مؤكد.
+  final int orphansDeleted;
+
+  bool get changed => mergedAway > 0 || orphansDeleted > 0;
+}
+
+/// دالة dedupeMirrorDuplicates — تنظيف المرايا المكررة قبل عرض التقرير:
+///
+///  1. تجلب مصروفات نفس النطاق الزمني للتقرير (hotel_day_key مع
+///     fallback على date — نفس نمط فلترة استعلام السحوبات أعلاه).
+///  2. السحوبات التي تُحلّ (Level 1/2 عبر SalaryMirrorMatcher) لنفس
+///     مصروف حقيقي واحد → تُدمج: تبقى الأحدث تحديثاً فقط.
+///  3. المرايا اليتيمة (رابط أجنبي مكسور: علامة بلا هدف حي) التي
+///     تطابق مصروفاً واحداً فقط مُرسّى بالفعل (لديه سحوبة حية تحلّ
+///     إليه) لنفس الموظف/اليوم/النوع → تُحذف كمكرر مؤكد.
+///
+/// الحماية المالية:
+///  • السحوبات بلا أي علامة ربط (legacy / direct_withdrawal_) لا
+///    تُلمس إطلاقاً — ملكية تنظيفها في softDeleteUnlinkedDuplicatesForExpense
+///    عند التعديل.
+///  • مطابقة غامضة (صفر أو أكثر من مصروف مرشح واحد) → لا حذف بلا تخمين.
+///  • كل الحذف ناعم داخل معاملة واحدة مع مزامنة outbox لكل صف.
+Future<MirrorDedupeResult> dedupeMirrorDuplicates(
+  AppDatabase db, {
+  required List<SalaryWithdrawal> withdrawals,
+  required String? fromHotelDay,
+  required String? toHotelDay,
+}) async {
+  final live = withdrawals.where((sw) => sw.deletedAt == null).toList();
+  if (live.isEmpty) {
+    return MirrorDedupeResult(kept: live, mergedAway: 0, orphansDeleted: 0);
+  }
+
+  // بلا أي علامة ربط في النطاق → لا دمج ممكن ولا مرايا يتيمة — خروج سريع
+  final marked = <int, bool>{
+    for (final sw in live) sw.id: SalaryMirrorMatcher.hasMirrorMarker(sw),
+  };
+  if (!marked.values.any((m) => m)) {
+    return MirrorDedupeResult(kept: live, mergedAway: 0, orphansDeleted: 0);
+  }
+
+  // (1) جلب مصروفات نفس النطاق الزمني للمطابقة
+  final expensesInRange = await _fetchExpensesInRange(
+    db,
+    fromHotelDay: fromHotelDay,
+    toHotelDay: toHotelDay,
+  );
+
+  // (2) حلّ رابط المرآة (Level 1/2) لكل سحوبة حية
+  final resolved = <int, int?>{};
+  for (final sw in live) {
+    resolved[sw.id] = await SalaryMirrorMatcher.resolveLinkedExpenseId(db, sw);
+  }
+
+  // (3) الدمج: هدف واحد حقيقي + أكثر من سحوبة → الأحدث تحديثاً فقط
+  final toDelete = <SalaryWithdrawal>{};
+  final byExpense = <int, List<SalaryWithdrawal>>{};
+  for (final sw in live) {
+    final target = resolved[sw.id];
+    if (target == null) continue;
+    byExpense.putIfAbsent(target, () => []).add(sw);
+  }
+  for (final group in byExpense.values) {
+    if (group.length < 2) continue;
+    final sorted = [...group]..sort(_newestUpdatedFirst);
+    toDelete.addAll(sorted.skip(1));
+  }
+
+  // (4) المرايا اليتيمة (رابط مكسور): علامة موجودة والحلّ null
+  final liveAfterMerge = live.where((sw) => !toDelete.contains(sw)).toList();
+  // «مُرسّى بالفعل»: المصروفات التي لديها سحوبة حية تحلّ إليها بعد الدمج
+  final anchoredExpenseIds = <int>{
+    for (final sw in liveAfterMerge)
+      if (resolved[sw.id] != null) resolved[sw.id]!,
+  };
+  var orphansDeleted = 0;
+  for (final sw in liveAfterMerge) {
+    if (resolved[sw.id] != null || !marked[sw.id]!) continue;
+    final candidates = expensesInRange
+        .where(
+          (e) =>
+              PayloadMapper.isSalaryExpenseType(e.expenseType) &&
+              _mirrorEmployeeMatches(e, sw) &&
+              _mirrorDayMatches(e, sw),
+        )
+        .toList();
+    // صفر أو أكثر من مصروف مرشح واحد = غموض — لا حذف بلا تخمين.
+    if (candidates.length != 1) continue;
+    // إن لم تكن المرشحة مُرسّاة فاليتيمة قد تكون مرآتها الوحيدة —
+    // حذفها قد يفقد الحدث المالي كله (مرفوض مالياً).
+    if (!anchoredExpenseIds.contains(candidates.single.id)) continue;
+    toDelete.add(sw);
+    orphansDeleted++;
+  }
+
+  if (toDelete.isEmpty) {
+    return MirrorDedupeResult(kept: live, mergedAway: 0, orphansDeleted: 0);
+  }
+  final mergedAway = toDelete.length - orphansDeleted;
+
+  // (5) حذف ناعم داخل معاملة واحدة + مزامنة outbox لكل صف (ذرية مالية)
+  final now = Time.nowEpoch();
+  final outbox = OutboxDao(db);
+  await db.transaction(() async {
+    for (final sw in toDelete) {
+      await (db.update(
+        db.salaryWithdrawals,
+      )..where((t) => t.id.equals(sw.id))).write(
+        SalaryWithdrawalsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+          version: Value(sw.version + 1),
+        ),
+      );
+
+      final uuidRef = await _employeeUuidRefForMirrorDedupe(db, sw.employeeId);
+      await outbox.merge(
+        entity: 'salary_withdrawals',
+        op: 'update',
+        localUuid: sw.localUuid,
+        serverId: sw.serverId,
+        payload: {
+          'employeeId': sw.employeeId,
+          if (uuidRef != null) 'employeeUuid': uuidRef,
+          'deletedAt': now,
+          'lastModified': now,
+        },
+        clientTs: now,
+      );
+    }
+  });
+
+  final kept = live.where((sw) => !toDelete.contains(sw)).toList();
+  return MirrorDedupeResult(
+    kept: kept,
+    mergedAway: mergedAway,
+    orphansDeleted: orphansDeleted,
+  );
+}
+
+/// ترتيب: الأحدث تحديثاً أولاً (updatedAt ثم id كفاصل حاسم).
+int _newestUpdatedFirst(SalaryWithdrawal a, SalaryWithdrawal b) {
+  final byUpdated = b.updatedAt.compareTo(a.updatedAt);
+  if (byUpdated != 0) return byUpdated;
+  return b.id.compareTo(a.id);
+}
+
+/// مطابقة الموظف: relatedId مباشرة أو employeeUuid كمرجع مستقر عبر الأجهزة.
+bool _mirrorEmployeeMatches(Expense expense, SalaryWithdrawal sw) {
+  if (expense.relatedId != null && expense.relatedId == sw.employeeId) {
+    return true;
+  }
+  final expenseUuid = expense.employeeUuid;
+  final swUuid = sw.employeeUuid;
+  if (expenseUuid == null || expenseUuid.isEmpty) return false;
+  if (swUuid == null || swUuid.isEmpty) return false;
+  return expenseUuid == swUuid;
+}
+
+/// مطابقة اليوم: hotel_day_key أولاً ثم جزء التاريخ التقويمي —
+/// نفس دلالات _hotelDayKeysMatch في expenses_report_screen.
+bool _mirrorDayMatches(Expense expense, SalaryWithdrawal sw) {
+  final expenseKey = expense.hotelDayKey;
+  final swKey = sw.hotelDayKey;
+  if (expenseKey != null &&
+      expenseKey.isNotEmpty &&
+      swKey != null &&
+      swKey.isNotEmpty) {
+    return expenseKey == swKey;
+  }
+  return _mirrorDatePart(expense.date) == _mirrorDatePart(sw.withdrawDate);
+}
+
+String _mirrorDatePart(String dateStr) {
+  final trimmed = dateStr.trim();
+  if (trimmed.length >= 10) return trimmed.substring(0, 10);
+  return trimmed;
+}
+
+/// مصروفات النطاق الزمني نفسه (نمط فلترة التقرير: hotel_day_key مع
+/// fallback على date للمفاتيح الفارغة).
+Future<List<Expense>> _fetchExpensesInRange(
+  AppDatabase db, {
+  required String? fromHotelDay,
+  required String? toHotelDay,
+}) async {
+  var query = db.select(db.expenses)..where((t) => t.deletedAt.isNull());
+  if (fromHotelDay != null) {
+    query = query
+      ..where(
+        (t) =>
+            (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+            (t.hotelDayKey.isNull() &
+                t.date.isBiggerOrEqualValue(fromHotelDay)),
+      );
+  }
+  if (toHotelDay != null) {
+    query = query
+      ..where(
+        (t) =>
+            (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+            (t.hotelDayKey.isNull() & t.date.isSmallerOrEqualValue(toHotelDay)),
+      );
+  }
+  return query.get();
+}
+
+/// local_uuid الموظف لحقنه في حمولة outbox (نفس عقد المستودع).
+Future<String?> _employeeUuidRefForMirrorDedupe(
+  AppDatabase db,
+  int employeeId,
+) async {
+  if (employeeId <= 0) return null;
+  try {
+    final row = await db
+        .customSelect(
+          'SELECT local_uuid FROM employees WHERE id = ? LIMIT 1',
+          variables: [Variable.withInt(employeeId)],
+        )
+        .getSingleOrNull();
+    return row?.data['local_uuid'] as String?;
+  } catch (_) {
+    return null;
+  }
 }
