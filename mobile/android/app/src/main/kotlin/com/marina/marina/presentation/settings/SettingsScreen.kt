@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.DarkMode
@@ -123,6 +124,12 @@ fun SettingsScreen(
             "المزامنة السحابية بين الأجهزة",
             "رفع وسحب البيانات عبر Cloudflare D1 — الإعدادات والأداء والشبكة",
             Icons.Default.CloudSync, DartColors.blue, route = "cloudflare_sync_settings"
+        ),
+        // نظير بطاقة النسخ الاحتياطي في settings_screen.dart (نفس النصوص).
+        HubItem(
+            "النسخ الاحتياطي والاستعادة",
+            "نسخ محلية آمنة ومزامنة Cloudflare D1",
+            Icons.Default.Backup, Color(0xFFFF5722), route = "backup"
         )
     )
     val whatsappItems = listOf(

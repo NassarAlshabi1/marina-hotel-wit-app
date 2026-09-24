@@ -28,16 +28,27 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
-/** Auto-extension proposal surfaced to the UI for user confirmation (Dart l.1615-1706). */
+/**
+ * إقتراح التمديد التلقائي المعروض على المستخدم للتأكيد
+ * (Dart l.1615-1706: المبلغ يتجاوز المتبقي → حوار تسجيل دفعة مع تمديد).
+ */
 data class ExtensionProposal(
     val amount: Double,
     val remaining: Double,
     val surplus: Double,
-    val extraNights: Int
+    val extraNights: Int,
+    val notes: String
 )
 
 /** Dart `_PaymentTotals` (l.4171-4175). */
 data class PaymentTotals(val total: Double, val remaining: Double)
+
+/** إيصال نجاح الدفعة — Dart `_showReceiptDialog` (l.1832-1864). */
+data class PaymentReceiptUi(
+    val amount: Double,
+    val methodLabel: String,
+    val remaining: Double
+)
 
 data class BookingPaymentUiState(
     val isLoading: Boolean = false,
@@ -48,27 +59,26 @@ data class BookingPaymentUiState(
     val debtRemaining: Double = 0.0,
     val isAdmin: Boolean = false,
     val isSaving: Boolean = false,
+    val tone: MsgTone = MsgTone.INFO,
+    /** سناك-بار إجراء اختياري (مثل «عرض الديون»). */
+    val action: String? = null,
     val error: String? = null,
     val message: String? = null,
     val finished: Boolean = false,
+    /** إيصال الدفعة المنتظر عرضه (Dart receipt dialog). */
+    val receipt: PaymentReceiptUi? = null,
     /** Pending auto-extension proposal awaiting user confirmation. */
     val extensionProposal: ExtensionProposal? = null,
-    /** Message to send via WhatsApp after the next successful action. */
+    /** رسالة واتساب تُعرض كإجراء سناك-بار بعد نجاح العملية. */
     val whatsappMessage: String? = null
 ) {
     val summary: BookingFinancials.Summary?
         get() = booking?.let { BookingFinancials.calculate(it, roomPrice, payments, nights, debtRemaining) }
+
     val stayBalance: BookingFinancials.StayBalance?
         get() = booking?.let {
             BookingFinancials.stayBalance(it, roomPrice, summary?.paidAmount ?: 0.0)
         }
-    val extendedStayActive: Boolean
-        get() = booking?.let { BookingFinancials.isExtendedStayActive(it) } ?: false
-    val extraNightsBeyondExpected: Int
-        get() = booking?.let {
-            val checkin = HotelTimeEngine.parseDate(it.checkinDate) ?: return@let 0
-            (HotelTimeEngine.nightsWithCutoff(checkin) - it.expectedNights).coerceAtLeast(0)
-        } ?: 0
 }
 
 @HiltViewModel
@@ -101,13 +111,13 @@ class BookingPaymentViewModel @Inject constructor(
             val price = roomsRepository.getByNumber(booking.roomNumber)?.price ?: 0.0
             val nights = nightsRepository.getByBooking(booking.id)
             val debts = debtsRepository.getAll().firstOrNull() ?: emptyList()
+            // Dart `_checkForDebts` (l.190-210): ديون غير مسددة مرتبطة بالحجز.
             val debtRemaining = debts
                 .filter { it.bookingLocalId == booking.id && !it.isSettled && it.remainingAmount > 0 }
                 .sumOf { it.remainingAmount }
 
             // Derived-fields refresh (Dart refreshForBookingId with
-            // enqueueOutbox:false) — only writes when a cached value actually
-            // changed so the outbox is not spammed by screen opens.
+            // enqueueOutbox:false) — display-only, لا ينشئ Outbox.
             val summary = BookingFinancials.calculate(booking, price, payments, nights, debtRemaining)
             val checkin = HotelTimeEngine.parseDate(booking.checkinDate)
             val liveNights = if (checkin != null) {
@@ -122,7 +132,6 @@ class BookingPaymentViewModel @Inject constructor(
                 isFullyPaid = summary.isFullyPaid
             )
             if (refreshed != booking) {
-                // Dart refreshForBookingId(enqueueOutbox: false) — display-only.
                 bookingsRepository.updateComputedFields(refreshed)
             }
             _state.value = _state.value.copy(
@@ -138,18 +147,25 @@ class BookingPaymentViewModel @Inject constructor(
     }
 
     fun consumeMessage() {
-        _state.value = _state.value.copy(message = null, error = null, whatsappMessage = null)
+        _state.value = _state.value.copy(message = null, error = null, action = null, whatsappMessage = null)
+    }
+
+    fun consumeReceipt() {
+        _state.value = _state.value.copy(receipt = null)
     }
 
     fun dismissExtensionProposal() {
         _state.value = _state.value.copy(extensionProposal = null)
     }
 
+    fun setAdmin(isAdmin: Boolean) {
+        _state.value = _state.value.copy(isAdmin = isAdmin)
+    }
+
     /**
-     * Dart `_processPayment` (l.1571-1830). Entry point: validates, then
-     * either surfaces an auto-extension proposal (surplus over remaining) or
-     * saves the payment directly. [isPendingBalance] skips the
-     * auto-extension branch entirely (رصيد تراكمي).
+     * Dart `_processPayment` (l.1571-1830). يتحقق من المبلغ ثم إما يعرض
+     * إقتراح التمديد التلقائي (عند الفائض) أو يحفظ الدفعة مباشرة.
+     * [isPendingBalance] يتخطى فرع التمديد (رصيد تراكمي).
      */
     fun processPayment(
         amount: Double,
@@ -160,11 +176,11 @@ class BookingPaymentViewModel @Inject constructor(
     ) {
         val booking = _state.value.booking ?: return
         if (amount <= 0) {
-            _state.value = _state.value.copy(message = "يرجى إدخال مبلغ صحيح")
+            _state.value = _state.value.copy(message = "يرجى إدخال مبلغ صحيح", tone = MsgTone.INFO)
             return
         }
         if (amount % 1.0 != 0.0) {
-            _state.value = _state.value.copy(message = "المبلغ يجب أن يكون بدون كسور")
+            _state.value = _state.value.copy(message = "المبلغ يجب أن يكون بدون كسور", tone = MsgTone.INFO)
             return
         }
         viewModelScope.launch {
@@ -175,111 +191,66 @@ class BookingPaymentViewModel @Inject constructor(
                     val rate = _state.value.roomPrice
                     if (rate <= 0) {
                         _state.value = _state.value.copy(
-                            message = "لا يمكن حساب الليالي الإضافية — سعر الغرفة غير محدد"
+                            message = "لا يمكن حساب الليالي الإضافية — سعر الغرفة غير محدد",
+                            tone = MsgTone.ERROR
                         )
                         return@launch
                     }
                     val extraNights = kotlin.math.ceil(surplus / rate).toInt()
+                    if (extraNights <= 0) {
+                        _state.value = _state.value.copy(
+                            message = "لا يمكن حساب الليالي الإضافية",
+                            tone = MsgTone.INFO
+                        )
+                        return@launch
+                    }
                     _state.value = _state.value.copy(
-                        extensionProposal = ExtensionProposal(amount, totals.remaining, surplus, extraNights)
+                        extensionProposal = ExtensionProposal(
+                            amount, totals.remaining, surplus, extraNights, notes ?: ""
+                        )
                     )
                 } else {
                     savePayment(booking, amount, method, notes, revenueType, isPendingBalance)
                 }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "تعذّر تسجيل الدفعة: ${e.message}")
+                _state.value = _state.value.copy(
+                    error = "تعذّر تسجيل الدفعة: ${e.message}",
+                    tone = MsgTone.ERROR
+                )
             }
         }
     }
 
-    /** User confirmed the "تسجيل دفعة مع تمديد" dialog — extend + pay atomically. */
-    fun confirmExtensionAndPay(method: String, notes: String?) {
+    /** تأكيد حوار «تسجيل دفعة مع تمديد» — تمديد + دفعة (Dart l.1698-1767). */
+    fun confirmExtensionAndPay(method: String) {
         val proposal = _state.value.extensionProposal ?: return
         val booking = _state.value.booking ?: return
         viewModelScope.launch {
             _state.value = _state.value.copy(isSaving = true, extensionProposal = null)
             try {
                 val extraNights = proposal.extraNights
-                // Dart l.1698-1704: (checkoutDate ?? now + 1 day) + extraNights —
-                // a booking without a planned checkout still gets one on extension.
+                val nightsWord = if (extraNights == 1) "ليلة" else "ليالي"
+                // Dart l.1698-1704: (checkoutDate ?? now + 1 day) + extraNights.
                 val baseCheckout = HotelTimeEngine.parseDate(booking.checkoutDate)
                     ?: (System.currentTimeMillis() + 24L * 3600 * 1000)
                 val newCheckout = java.util.Calendar.getInstance().apply {
                     timeInMillis = baseCheckout
                     add(java.util.Calendar.DAY_OF_YEAR, extraNights)
                 }.timeInMillis
-                val newExpected = booking.expectedNights + extraNights
                 val updated = booking.copy(
                     checkoutDate = HotelTimeEngine.formatIso(newCheckout),
-                    expectedNights = newExpected,
-                    notes = (booking.notes ?: "") + "\nتمديد تلقائي: $extraNights ليلة/ليالي"
+                    expectedNights = booking.expectedNights + extraNights,
+                    notes = (booking.notes?.let { "$it\n" } ?: "") +
+                        "تمديد تلقائي: $extraNights $nightsWord"
                 )
                 bookingsRepository.update(updated)
-                savePayment(updated, proposal.amount, method, notes, "room", false)
+                savePayment(updated, proposal.amount, method, proposal.notes.ifBlank { null }, "room", false)
+            } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isSaving = false,
-                    message = "تم تسجيل دفعة بقيمة ${CurrencyFormatter.formatAmount(proposal.amount)}",
-                    whatsappMessage = buildExtensionWhatsAppMessage(extraNights, proposal.amount, newCheckout)
+                    error = "تعذّر تسجيل الدفعة: ${e.message}",
+                    tone = MsgTone.ERROR
                 )
-                pushSilently()
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isSaving = false, error = "تعذّر تسجيل الدفعة: ${e.message}")
-            }
-        }
-    }
-
-    /** Dart `_processDailyPayment` (l.1377-1446) — pay N extra nights. */
-    fun processDailyPayment(nightsCount: Int) {
-        val booking = _state.value.booking ?: return
-        val rate = _state.value.roomPrice
-        if (nightsCount <= 0 || rate <= 0) return
-        val amount = nightsCount * rate
-        val note = if (nightsCount == 1) "دفع ليلة إضافية واحدة" else "دفع $nightsCount ليالي إضافية"
-        viewModelScope.launch {
-            try {
-                savePayment(booking, amount, "نقدي", note, "room", false)
-                _state.value = _state.value.copy(
-                    message = "تم تسجيل دفع $nightsCount ليلة/ليالي إضافية - ${CurrencyFormatter.formatAmount(amount)}",
-                    whatsappMessage = buildPaymentWhatsAppMessage(amount)
-                )
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "تعذّر تسجيل الدفعة: ${e.message}")
-            }
-        }
-    }
-
-    /** Dart `_processExtendStay` (l.4010-4109). */
-    fun extendStay(additionalNights: Int) {
-        val booking = _state.value.booking ?: return
-        val rate = _state.value.roomPrice
-        if (additionalNights <= 0 || rate <= 0) {
-            _state.value = _state.value.copy(message = "يرجى إدخال عدد ليالي صحيح وسعر غرفة صحيح")
-            return
-        }
-        viewModelScope.launch {
-            try {
-                // Dart l.4033-4039: (checkoutDate ?? now + 1 day) + additionalNights.
-                val baseCheckout = HotelTimeEngine.parseDate(booking.checkoutDate)
-                    ?: (System.currentTimeMillis() + 24L * 3600 * 1000)
-                val newCheckout = java.util.Calendar.getInstance().apply {
-                    timeInMillis = baseCheckout
-                    add(java.util.Calendar.DAY_OF_YEAR, additionalNights)
-                }.timeInMillis
-                val updated = booking.copy(
-                    checkoutDate = HotelTimeEngine.formatIso(newCheckout),
-                    expectedNights = booking.expectedNights + additionalNights,
-                    notes = (booking.notes ?: "") + "\nتمديد: $additionalNights ليلة/ليالي"
-                )
-                bookingsRepository.update(updated)
-                val amount = additionalNights * rate
-                val note = if (additionalNights == 1) "تمديد 1 ليلة إضافية" else "تمديد $additionalNights ليالي إضافية"
-                savePayment(updated, amount, "نقدي", note, "room", false)
-                _state.value = _state.value.copy(
-                    message = "تم تمديد الإقامة $additionalNights ليلة/ليالي وتسجيل الدفعة",
-                    whatsappMessage = buildExtensionWhatsAppMessage(additionalNights, amount, newCheckout)
-                )
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "تعذّر تسجيل الدفعة: ${e.message}")
             }
         }
     }
@@ -290,12 +261,8 @@ class BookingPaymentViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val now = System.currentTimeMillis()
-                val checkinMillis = HotelTimeEngine.parseDate(booking.checkinDate) ?: now
-                val finalNights = HotelTimeEngine.nightsWithCutoff(checkinMillis, now)
-                // Single write (Dart repo.update): status + actualCheckout +
-                // calculatedNights land together, and the outbox entry is the
-                // single cloud change. The old double checkout()+update() wrote
-                // the row twice with two different column sets.
+                val checkin = HotelTimeEngine.parseDate(booking.checkinDate) ?: now
+                val finalNights = HotelTimeEngine.nightsWithCutoff(checkin, now)
                 bookingsRepository.update(
                     booking.copy(
                         status = "مكتمل",
@@ -303,6 +270,7 @@ class BookingPaymentViewModel @Inject constructor(
                         calculatedNights = finalNights
                     )
                 )
+                // تحرير الغرفة فوراً (الحالة → شاغرة).
                 roomsRepository.getByNumber(booking.roomNumber)?.let { room ->
                     if (StatusUtils.isRoomOccupied(room.status)) {
                         roomsRepository.update(room.copy(status = "شاغرة"))
@@ -311,17 +279,21 @@ class BookingPaymentViewModel @Inject constructor(
                 pushSilently()
                 _state.value = _state.value.copy(
                     message = "تم تسجيل المغادرة بنجاح وتحرير الغرفة",
+                    tone = MsgTone.SUCCESS,
                     finished = true
                 )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "تعذّر تسجيل المغادرة: ${e.message}")
+                _state.value = _state.value.copy(
+                    error = "فشل تسجيل المغادرة: ${e.message}",
+                    tone = MsgTone.ERROR_DARK
+                )
             }
         }
     }
 
     /**
-     * Dart `_processEarlyCheckout` (l.2255-2358): booking → مكتمل, refund
-     * inserted as a NEGATIVE payment, room freed.
+     * Dart `_processEarlyCheckout` (l.2255-2358): الحجز → مكتمل، المردود
+     * يُسجّل كدفعة سالبة، وتُحرَّر الغرفة.
      */
     fun processEarlyCheckout(refundAmount: Double, unusedNights: Int, actualNights: Int) {
         val booking = _state.value.booking ?: return
@@ -336,16 +308,29 @@ class BookingPaymentViewModel @Inject constructor(
                     )
                 )
                 if (refundAmount > 0) {
-                    // Dart l.2255-2358 records the refund as a NEGATIVE integer
-                    // payment (-round(refund)).
+                    val nightsWord = if (unusedNights == 1) "ليلة" else "ليالي"
                     val refund = kotlin.math.round(refundAmount).toDouble()
                     savePayment(
                         booking.copy(status = "مكتمل"),
                         -refund,
                         "نقدي",
-                        "مردود مغادرة مبكرة - $unusedNights ليلة/ليالي غير مستخدمة",
+                        "مردود مغادرة مبكرة - $unusedNights $nightsWord غير مستخدمة",
                         "room",
-                        false
+                        false,
+                        emitUi = false
+                    )
+                    _state.value = _state.value.copy(
+                        message = "تم تسجيل مغادرة مبكرة — المردود: " +
+                            "${CurrencyFormatter.formatAmount(refundAmount)} ($unusedNights $nightsWord)",
+                        tone = MsgTone.SUCCESS,
+                        finished = true,
+                        whatsappMessage = buildRefundWhatsAppMessage(refundAmount, unusedNights)
+                    )
+                } else {
+                    _state.value = _state.value.copy(
+                        message = "تم تسجيل المغادرة بنجاح وتحرير الغرفة",
+                        tone = MsgTone.SUCCESS,
+                        finished = true
                     )
                 }
                 roomsRepository.getByNumber(booking.roomNumber)?.let { room ->
@@ -354,24 +339,16 @@ class BookingPaymentViewModel @Inject constructor(
                     }
                 }
                 pushSilently()
-                _state.value = _state.value.copy(
-                    message = if (refundAmount > 0) {
-                        "تم تسجيل مغادرة مبكرة — المردود: ${CurrencyFormatter.formatAmount(refundAmount)} ($unusedNights ليلة/ليالي)"
-                    } else {
-                        "تم تسجيل المغادرة بنجاح وتحرير الغرفة"
-                    },
-                    finished = true,
-                    whatsappMessage = if (refundAmount > 0) {
-                        "تم تسجيل مغادرتكم المبكرة\nمبلغ المردود: ${CurrencyFormatter.formatAmount(refundAmount)} ريال\nعدد الليالي غير المستخدمة: $unusedNights"
-                    } else null
-                )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "تعذّر تسجيل المغادرة: ${e.message}")
+                _state.value = _state.value.copy(
+                    error = "فشل تسجيل المغادرة المبكرة: ${e.message}",
+                    tone = MsgTone.ERROR_DARK
+                )
             }
         }
     }
 
-    /** Dart `_processCancelTodayPayments` (l.2967-3005) — soft-delete today's payments. */
+    /** Dart `_processCancelTodayPayments` (l.2967-3005) — حذف ناعم لمدفوعات اليوم. */
     fun cancelTodayPayments() {
         viewModelScope.launch {
             try {
@@ -381,14 +358,20 @@ class BookingPaymentViewModel @Inject constructor(
                         (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay)))
                 }
                 if (todays.isEmpty()) {
-                    _state.value = _state.value.copy(message = "لا توجد دفعات اليوم")
+                    _state.value = _state.value.copy(message = "لا توجد دفعات اليوم", tone = MsgTone.INFO)
                     return@launch
                 }
                 todays.forEach { paymentsRepository.softDelete(it.id) }
                 pushSilently()
-                _state.value = _state.value.copy(message = "تم إلغاء ${todays.size} دفعة بنجاح")
+                _state.value = _state.value.copy(
+                    message = "تم إلغاء ${todays.size} دفعة بنجاح",
+                    tone = MsgTone.SUCCESS
+                )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "تعذّر إلغاء الدفعات: ${e.message}")
+                _state.value = _state.value.copy(
+                    error = "فشل إلغاء الدفعات: ${e.message}",
+                    tone = MsgTone.ERROR_DARK
+                )
             }
         }
     }
@@ -414,33 +397,41 @@ class BookingPaymentViewModel @Inject constructor(
                         remainingAmount = remaining,
                         paymentDate = nowIso,
                         isSettled = false,
-                        note = "تم إنشاء هذا الدين تلقائياً من شاشة المدفوعات عند وجود مبلغ متبقي لدى النزيل."
+                        note = "تم إنشاء هذا الدين تلقائياً من شاشة المدفوعات " +
+                            "عند وجود مبلغ متبقي لدى النزيل."
                     )
                 )
                 pushSilently()
                 _state.value = _state.value.copy(
-                    message = "تم إنشاء دين بقيمة ${CurrencyFormatter.formatAmount(remaining)} وإضافته إلى قائمة الديون"
+                    message = "✅ تم إنشاء دين بقيمة ${CurrencyFormatter.formatAmount(remaining)} " +
+                        "وإضافته إلى قائمة الديون",
+                    tone = MsgTone.WARN,
+                    action = "عرض الديون"
                 )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "تعذّر إنشاء الدين: ${e.message}")
+                _state.value = _state.value.copy(
+                    error = "فشل إنشاء الدين: ${e.message}",
+                    tone = MsgTone.ERROR
+                )
             }
         }
     }
 
     /**
-     * Dart `_showDiscountAmountDialog` / apply (l.2521-2695): admin-only,
-     * additive to the existing discount, type 'total'.
+     * Dart `_showDiscountAmountDialog` (l.2521-2695): للمدير فقط، يُضاف إلى
+     * الخصم الحالي مع discountType='total'.
      */
     fun applyAdminDiscount(amount: Double) {
         val booking = _state.value.booking ?: return
         val summary = _state.value.summary ?: return
         if (amount <= 0) {
-            _state.value = _state.value.copy(message = "المبلغ غير صالح")
+            _state.value = _state.value.copy(message = "⚠️ المبلغ غير صالح", tone = MsgTone.ERROR)
             return
         }
         if (amount > summary.remainingAmount) {
             _state.value = _state.value.copy(
-                message = "مبلغ الخصم يتجاوز المتبقي (${CurrencyFormatter.formatAmount(summary.remainingAmount)})"
+                message = "⚠️ مبلغ الخصم يتجاوز المتبقي (${CurrencyFormatter.formatAmount(summary.remainingAmount)})",
+                tone = MsgTone.ERROR
             )
             return
         }
@@ -450,10 +441,15 @@ class BookingPaymentViewModel @Inject constructor(
                 bookingsRepository.update(booking.copy(discount = newDiscount, discountType = "total"))
                 pushSilently()
                 _state.value = _state.value.copy(
-                    message = "تم خصم ${CurrencyFormatter.formatAmount(amount)} من الليالي الفعلية. المتبقي الجديد: ${CurrencyFormatter.formatAmount((summary.remainingAmount - amount).coerceAtLeast(0.0))}"
+                    message = "✅ تم خصم ${CurrencyFormatter.formatAmount(amount)} من الليالي الفعلية. " +
+                        "المتبقي الجديد: ${CurrencyFormatter.formatAmount((summary.remainingAmount - amount).coerceAtLeast(0.0))}",
+                    tone = MsgTone.SUCCESS
                 )
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = "تعذّر تطبيق الخصم: ${e.message}")
+                _state.value = _state.value.copy(
+                    error = "فشل تطبيق الخصم: ${e.message}",
+                    tone = MsgTone.ERROR
+                )
             }
         }
     }
@@ -489,10 +485,14 @@ class BookingPaymentViewModel @Inject constructor(
             sb.append("سجل المدفوعات المفصّل (${sorted.size}):\n")
             sorted.forEachIndexed { index, p ->
                 if (sb.length > 950) {
-                    sb.append("+ ${sorted.size - index} دفعات أخرى...\n")
+                    val remainingCount = sorted.size - index
+                    if (remainingCount > 0) sb.append("+ $remainingCount دفعات أخرى...\n")
                     return@forEachIndexed
                 }
-                sb.append("${index + 1}. ${CurrencyFormatter.formatAmount(p.amount)} ريال | ${p.paymentMethod} | ${p.paymentDate.take(16).replace("T", " ")}\n")
+                sb.append(
+                    "${index + 1}. ${CurrencyFormatter.formatAmount(p.amount)} ريال | " +
+                        "${p.paymentMethod} | ${p.paymentDate.take(16).replace("T", " ")}\n"
+                )
             }
             if (sb.length < 970) {
                 sb.append("إجمالي المدفوع: ${CurrencyFormatter.formatAmount(summary.paidAmount)} ريال\n")
@@ -511,54 +511,33 @@ class BookingPaymentViewModel @Inject constructor(
         return msg
     }
 
-    /** Dart `_sendPaymentReminder` (l.3842-3906). */
-    fun buildPaymentReminder(): String? {
-        val booking = _state.value.booking ?: return null
-        val summary = _state.value.summary ?: return null
-        return "عزيزي ${booking.guestName}\n" +
-            "الإجمالي: ${CurrencyFormatter.formatAmount(summary.totalAmount)} ريال\n" +
-            "المدفوع: ${CurrencyFormatter.formatAmount(summary.paidAmount)} ريال\n" +
-            "المبلغ المتبقي: ${CurrencyFormatter.formatAmount(summary.remainingAmount)} ريال\n" +
-            "نرجو منكم تسديد المبلغ المتبقي في أقرب وقت ممكن\n" +
-            "شكراً لاختيارك فندق مارينا\nللاستفسار: 9677734587456"
-    }
-
     fun buildPaymentWhatsAppMessage(amount: Double, remaining: Double): String? {
         val booking = _state.value.booking ?: return null
         return "عزيزي ${booking.guestName}\n" +
             "تم استلام دفعتك بقيمة ${CurrencyFormatter.formatAmount(amount)} ريال\n" +
             "رقم الغرفة: ${booking.roomNumber}\n" +
             "المبلغ المتبقي: ${CurrencyFormatter.formatAmount(remaining)} ريال\n" +
-            "شكراً لاختيارك فندق مارينا\nللاستفسار: 9677734587456"
-    }
-
-    fun setAdmin(isAdmin: Boolean) {
-        _state.value = _state.value.copy(isAdmin = isAdmin)
+            "شكراً لاختيارك فندق مارينا\n" +
+            "للاستفسار: 9677734587456"
     }
 
     // -------------------------------------------------------------------------
 
-    private fun buildPaymentWhatsAppMessage(amount: Double): String? {
-        val remaining = (_state.value.summary?.remainingAmount ?: 0.0)
-        return buildPaymentWhatsAppMessage(amount, remaining)
-    }
-
-    private fun buildExtensionWhatsAppMessage(extraNights: Int, amount: Double, newCheckout: Long?): String? {
+    /** رسالة واتساب تأكيد المردود — Dart `_sendRefundConfirmation` (l.2361-2398). */
+    private fun buildRefundWhatsAppMessage(refundAmount: Double, unusedNights: Int): String? {
         val booking = _state.value.booking ?: return null
-        return "تم تمديد إقامتكم\n" +
-            "ليالي إضافية: $extraNights\n" +
-            "المبلغ المدفوع: ${CurrencyFormatter.formatAmount(amount)}\n" +
-            "تاريخ المغادرة الجديد: " +
-            (newCheckout?.let {
-                java.util.Calendar.getInstance().apply { timeInMillis = it }.let { c ->
-                    "${c.get(java.util.Calendar.DAY_OF_MONTH)}/${c.get(java.util.Calendar.MONTH) + 1}/${c.get(java.util.Calendar.YEAR)}"
-                }
-            } ?: "—")
+        val nightsWord = if (unusedNights == 1) "ليلة" else "ليالي"
+        return "عزيزي ${booking.guestName}، تم تسجيل مغادرتكم المبكرة\n" +
+            "رقم الغرفة: ${booking.roomNumber}\n" +
+            "مبلغ المردود: ${CurrencyFormatter.formatAmount(refundAmount)} ريال\n" +
+            "عدد الليالي غير المستخدمة: $unusedNights $nightsWord\n" +
+            "شكراً لاختيارك فندق مارينا\n" +
+            "للاستفسار: 9677734587456"
     }
 
     /**
-     * Inserts the payment, refreshes the booking financial cache and pushes
-     * to the cloud (Dart single-transaction path l.1713-1767).
+     * يُدرج الدفعة ويثبّت الإيصال والرسائل — Dart نهاية `_processPayment`
+     * (l.1768-1825): سناك-بار + إيصال + رسالة واتساب.
      */
     private suspend fun savePayment(
         booking: Booking,
@@ -566,7 +545,8 @@ class BookingPaymentViewModel @Inject constructor(
         method: String,
         notes: String?,
         revenueType: String,
-        isPendingBalance: Boolean
+        isPendingBalance: Boolean,
+        emitUi: Boolean = true
     ) {
         paymentsRepository.insert(
             Payment(
@@ -580,16 +560,22 @@ class BookingPaymentViewModel @Inject constructor(
             )
         )
         pushSilently()
-        if (!isPendingBalance) {
-            val remaining = (calculateCurrentTotals().remaining).coerceAtLeast(0.0)
-            val phone = BookingFinancials.cleanAndFormatPhone(booking.guestPhone)
-            _state.value = _state.value.copy(
-                message = "تم تسجيل دفعة بقيمة ${CurrencyFormatter.formatAmount(amount)}",
-                whatsappMessage = if (phone.isNotBlank()) buildPaymentWhatsAppMessage(amount, remaining) else null
-            )
-        } else {
-            _state.value = _state.value.copy(message = "تم تسجيل الدفعة")
-        }
+        if (!emitUi) return
+        val remaining = (calculateCurrentTotals().remaining).coerceAtLeast(0.0)
+        val phone = BookingFinancials.cleanAndFormatPhone(booking.guestPhone)
+        _state.value = _state.value.copy(
+            isSaving = false,
+            message = "تم تسجيل دفعة بقيمة ${CurrencyFormatter.formatAmount(amount)}",
+            tone = MsgTone.INFO,
+            receipt = PaymentReceiptUi(
+                amount = amount,
+                methodLabel = PayMethodUi.fromDb(method).label,
+                remaining = remaining
+            ),
+            whatsappMessage = if (phone.isNotBlank()) {
+                buildPaymentWhatsAppMessage(amount, remaining)
+            } else null
+        )
     }
 
     /** Dart `_calculateCurrentTotals` (l.1492-1569). */

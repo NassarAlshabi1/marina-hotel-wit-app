@@ -69,6 +69,9 @@ interface ExpensesDao {
                OR (:isSalaryType = 1 AND expense_type IN ('رواتب','سحب راتب','سحب من الراتب','خصم راتب','خصم من الراتب'))
                OR (:isSalaryType = 0 AND expense_type = :expenseType))
           AND (:excludeAdvance = 0 OR expense_type != 'سلفة')
+          AND (:search IS NULL
+               OR description LIKE '%' || :search || '%'
+               OR expense_type LIKE '%' || :search || '%')
         ORDER BY date DESC
         """
     )
@@ -78,6 +81,7 @@ interface ExpensesDao {
         toHotelDayExclusive: String?,
         expenseType: String?,
         isSalaryType: Boolean,
-        excludeAdvance: Boolean = false
+        excludeAdvance: Boolean = false,
+        search: String? = null
     ): List<ExpenseEntity>
 }

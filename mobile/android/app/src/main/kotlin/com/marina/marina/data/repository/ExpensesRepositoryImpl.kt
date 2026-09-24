@@ -61,7 +61,8 @@ class ExpensesRepositoryImpl @Inject constructor(
     override suspend fun listFilteredByHotelDay(
         fromHotelDay: String?,
         toHotelDay: String?,
-        expenseType: String?
+        expenseType: String?,
+        search: String?
     ): List<Expense> {
         // Dart SqlDateRange.forDay(toHotelDay).endExclusive — next calendar day.
         val toExclusive = toHotelDay?.let { key ->
@@ -73,12 +74,14 @@ class ExpensesRepositoryImpl @Inject constructor(
             }
         }
         val isSalaryType = expenseType != null && salaryTypes.contains(expenseType)
+        val trimmedSearch = search?.trim()?.takeIf { it.isNotEmpty() }
         return expensesDao.listFilteredByHotelDay(
             fromHotelDay = fromHotelDay,
             toHotelDay = toHotelDay,
             toHotelDayExclusive = toExclusive,
             expenseType = expenseType,
-            isSalaryType = isSalaryType
+            isSalaryType = isSalaryType,
+            search = trimmedSearch
         ).map { it.toDomain() }
     }
 

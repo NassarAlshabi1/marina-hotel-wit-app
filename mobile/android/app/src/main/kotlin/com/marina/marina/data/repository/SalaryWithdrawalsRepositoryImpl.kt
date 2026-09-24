@@ -76,6 +76,56 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
         )
     }
 
+    /**
+     * Dart saveFromExpense (salary_withdrawals_repository.dart l.164-395):
+     * upsert the withdrawal paired with a salary expense via the
+     * `exp_<expenseId>` reason key — update in place when it already exists
+     * (so repeated edits never duplicate), insert otherwise.
+     */
+    override suspend fun saveFromExpense(
+        expenseId: Long,
+        employeeId: Long,
+        employeeUuid: String?,
+        employeeName: String,
+        action: String,
+        amount: Double,
+        date: String,
+        note: String?,
+        hotelDayKey: String
+    ) {
+        val reasonText = "exp_$expenseId"
+        val existing = salaryWithdrawalsDao.getByReason(reasonText)
+        if (existing != null) {
+            val updated = existing.toDomain().copy(
+                employeeId = employeeId,
+                employeeUuid = employeeUuid,
+                employeeName = employeeName,
+                amount = amount,
+                withdrawDate = HotelTimeEngine.parseDate(date) ?: System.currentTimeMillis(),
+                hotelDayKey = hotelDayKey,
+                withdrawalType = action,
+                description = note,
+                updatedAt = System.currentTimeMillis()
+            )
+            salaryWithdrawalsDao.update(updated.toEntity())
+            outboxRepository.enqueueObject("salary_withdrawals", "update", updated.localUuid, updated)
+        } else {
+            insert(
+                SalaryWithdrawal(
+                    employeeId = employeeId,
+                    employeeUuid = employeeUuid,
+                    employeeName = employeeName,
+                    amount = amount,
+                    withdrawDate = HotelTimeEngine.parseDate(date) ?: System.currentTimeMillis(),
+                    hotelDayKey = hotelDayKey,
+                    withdrawalType = action,
+                    reason = reasonText,
+                    description = note
+                )
+            )
+        }
+    }
+
     /** Dart deleteByExpenseId — removes the paired withdrawal of a deleted expense. */
     override suspend fun deleteByExpenseId(expenseId: Long) {
         val linked = salaryWithdrawalsDao.getByReason("exp_$expenseId") ?: return

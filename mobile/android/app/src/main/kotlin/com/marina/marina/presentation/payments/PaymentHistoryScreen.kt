@@ -35,6 +35,7 @@ import java.util.Calendar
 @Composable
 fun PaymentHistoryScreen(
     bookingId: Long? = null,
+    showBack: Boolean = true,
     onBack: () -> Unit = {},
     viewModel: PaymentHistoryViewModel = hiltViewModel()
 ) {
@@ -51,7 +52,9 @@ fun PaymentHistoryScreen(
                 TopAppBar(
                     title = { Text("تاريخ المدفوعات", style = AppTypography.titleLarge) },
                     navigationIcon = {
-                        TextButton(onClick = onBack) { Text("رجوع", color = AppColors.PrimaryColor) }
+                        if (showBack) {
+                            TextButton(onClick = onBack) { Text("رجوع", color = AppColors.PrimaryColor) }
+                        }
                     },
                     actions = {
                         TextButton(onClick = { showFilterDialog = true }) { Text("فلترة") }

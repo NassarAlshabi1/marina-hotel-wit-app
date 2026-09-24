@@ -43,6 +43,7 @@ import com.marina.marina.presentation.rooms.RoomsListScreen
 import com.marina.marina.presentation.settings.BookingsReminderScreen
 import com.marina.marina.presentation.settings.CloudflareSyncSettingsScreen
 import com.marina.marina.presentation.settings.SettingsScreen
+import com.marina.marina.presentation.settings.backup.ComprehensiveBackupScreen
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -95,6 +96,9 @@ sealed class Screen(val route: String) {
     }
     object Inventory : Screen("inventory")
     object AIChat : Screen("ai_chat")
+
+    /** النسخ الاحتياطي والاستعادة — نظير ComprehensiveBackupScreen. */
+    object Backup : Screen("backup")
 
     // Report sub-screens (Dart reports module).
     object PaymentsReport : Screen("payments_report")
@@ -386,6 +390,9 @@ fun MarinaNavGraph(
         }
         composable(Screen.BookingsReminder.route) {
             BookingsReminderScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Backup.route) {
+            ComprehensiveBackupScreen(onBack = { navController.popBackStack() })
         }
     }
 }

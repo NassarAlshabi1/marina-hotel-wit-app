@@ -4,6 +4,7 @@ import com.marina.marina.data.local.dao.EmployeesDao
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.Employee
+import com.marina.marina.domain.repository.EmployeeFinancialHistory
 import com.marina.marina.domain.repository.EmployeesRepository
 import com.marina.marina.domain.util.StatusUtils
 import java.util.UUID
@@ -65,6 +66,20 @@ class EmployeesRepositoryImpl @Inject constructor(
         outboxRepository.enqueueObject("employees", "update", terminated.localUuid, terminated)
     }
 
+    /** Dart reactivate (employees_repository.dart l.353-383) — status `active` + clear termination fields + outbox. */
+    override suspend fun reactivate(id: Long) {
+        val now = System.currentTimeMillis()
+        employeesDao.reactivate(id, updatedAt = now)
+        val entity = employeesDao.getById(id) ?: return
+        val reactivated = entity.toDomain().copy(
+            status = "active",
+            terminationDate = null,
+            terminationReason = null,
+            updatedAt = now
+        )
+        outboxRepository.enqueueObject("employees", "update", reactivated.localUuid, reactivated)
+    }
+
     /** Dart delete flow (employees_list.dart l.567-650) — soft delete + outbox. */
     override suspend fun softDelete(id: Long) {
         val now = System.currentTimeMillis()
@@ -72,5 +87,24 @@ class EmployeesRepositoryImpl @Inject constructor(
         employeesDao.softDelete(id, deletedAt = now, updatedAt = now)
         val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
         outboxRepository.enqueueObject("employees", "delete", deleted.localUuid, deleted)
+    }
+
+    /**
+     * Dart financialHistoryCount (employees_repository.dart l.429-489) — the
+     * row is missing locally => `EmployeeFinancialHistory.unknown()` parity
+     * (isKnown = false, which also blocks deletion).
+     */
+    override suspend fun financialHistoryCount(id: Long, localUuid: String): EmployeeFinancialHistory {
+        val dashless = localUuid.replace("-", "")
+        val counts = employeesDao.financialHistoryCounts(id, dashless)
+            ?: return EmployeeFinancialHistory(isKnown = false)
+        return EmployeeFinancialHistory(
+            withdrawals = counts.withdrawals,
+            cycles = counts.cycles,
+            payments = counts.payments,
+            carryOvers = counts.carryOvers,
+            expenses = counts.expenses,
+            isKnown = true
+        )
     }
 }

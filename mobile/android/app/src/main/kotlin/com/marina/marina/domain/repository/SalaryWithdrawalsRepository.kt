@@ -25,6 +25,25 @@ interface SalaryWithdrawalsRepository {
         description: String?
     ): Long
 
+    /**
+     * Dart `saveFromExpense` (salary_withdrawals_repository.dart l.164-395):
+     * upsert of the withdrawal paired with a salary expense — the existing
+     * `exp_<expenseId>` row is updated in place (employee, signed [amount],
+     * date, type, note, hotel-day key), otherwise a new row is inserted.
+     * Keeps edits idempotent (لا سجلات يتيمة / no duplicates on edit).
+     */
+    suspend fun saveFromExpense(
+        expenseId: Long,
+        employeeId: Long,
+        employeeUuid: String?,
+        employeeName: String,
+        action: String,
+        amount: Double,
+        date: String,
+        note: String?,
+        hotelDayKey: String
+    )
+
     /** Dart deleteByExpenseId — orphan cleanup when a salary expense is deleted. */
     suspend fun deleteByExpenseId(expenseId: Long)
 

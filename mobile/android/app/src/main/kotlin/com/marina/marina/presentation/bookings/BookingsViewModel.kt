@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marina.marina.domain.model.Booking
 import com.marina.marina.domain.repository.BookingsRepository
+import com.marina.marina.domain.repository.PaymentsRepository
 import com.marina.marina.domain.repository.RoomsRepository
+import com.marina.marina.domain.repository.SyncRepository
 import com.marina.marina.domain.util.HotelTimeEngine
 import com.marina.marina.domain.util.StatusUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,128 +14,297 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
-data class BookingsUiState(
-    val isLoading: Boolean = false,
-    val bookings: List<Booking> = emptyList(),
-    val roomPrices: Map<String, Double> = emptyMap(),
-    val searchQuery: String = "",
-    // Dart bookings_list l.113-122 — the DEFAULT view hides ONLY
-    // مكتمل/completed/غادر/departed; cancelled (ملغي) bookings stay visible.
-    val statusFilter: String = "default", // default | all | مكتمل | ملغي | النشطة
-    val error: String? = null,
-    val message: String? = null
-) {
-    val filtered: List<Booking>
-        get() {
-            var list = bookings
-            list = when (statusFilter) {
-                "default" -> list.filter {
-                    it.status !in listOf("مكتمل", "completed", "غادر", "departed")
-                }
-                "النشطة" -> list.filter { StatusUtils.isBookingActive(it.status) }
-                "all" -> list
-                else -> list.filter { it.status == statusFilter || statusFilter.contains(it.status) }
-            }
-            val q = searchQuery.trim()
-            if (q.isNotBlank()) {
-                list = list.filter {
-                    it.guestName.contains(q, ignoreCase = true) ||
-                        it.guestPhone.contains(q) ||
-                        it.roomNumber.contains(q) ||
-                        it.guestIdNumber.contains(q)
-                }
-            }
-            return list
-        }
+/**
+ * صف قائمة الحجوزات — نقل 1:1 لحسابات `_BookingRow` في
+ * bookings_list.dart (فرع feat/cloudflare-sync-execution):
+ *
+ *  • بدون checkout مسجّل → احتساب ديناميكي للليالي من الآن (Time.nightsWithCutoff).
+ *  • expectedNights = الحقل المخزّن إن كان > 0 وإلا الاحتساب من الوصول.
+ *  • totalAmount = الليالي الفعلية × سعر الغرفة.
+ *  • paid = مجموع المدفوعات غير الملغاة (watchTotalPaidForBooking في Dart).
+ *  • remaining = (الإجمالي − المدفوع) محصور في [0, الإجمالي].
+ *  • لون/نص حالة الدفعة: مسددة (أخضر) / جزئياً (برتقالي) / غير مسددة (أحمر).
+ *  • شارة حالة الحجز: مؤقت/محجوزة/مكتمل/ملغي/غير معروف بنفس ألوان Dart
+ *    (Colors.orange.shade100, green.shade100, blue.shade100, red.shade100, grey.shade100).
+ */
+data class BookingRowUi(
+    val booking: Booking,
+    val index: Int,
+    val expectedNights: Int,
+    val actualNights: Int,
+    val pricePerNight: Double,
+    val totalAmount: Double,
+    val paid: Double,
+    val remaining: Double,
+    val nightsLabel: String,
+    val plannedText: String?,
+    val actualText: String?,
+    val paymentStatusText: String,
+    /** ARGB لون حالة الدفعة (Colors.green/orange/red في Dart). */
+    val paymentStatusColor: Long,
+    val bookingStatusText: String,
+    /** ARGB خلفية شارة حالة الحجز (shade100 في Dart). */
+    val bookingStatusColor: Long
+)
 
-    val activeCount: Int get() = bookings.count { StatusUtils.isBookingActive(it.status) }
-}
+/** رسالة سناك-بار مع لون الخلفية (نظير رسائل SnackBar في Dart). */
+data class BookingsSnackbar(val text: String, val isError: Boolean = false, val isWarning: Boolean = false)
+
+data class BookingsUiState(
+    val isLoading: Boolean = true,
+    val isSyncing: Boolean = false,
+    val rows: List<BookingRowUi> = emptyList(),
+    val error: String? = null,
+    val snackbar: BookingsSnackbar? = null
+)
 
 @HiltViewModel
 class BookingsViewModel @Inject constructor(
-    private val bookingsRepository: BookingsRepository,
-    private val roomsRepository: RoomsRepository
+    bookingsRepository: BookingsRepository,
+    roomsRepository: RoomsRepository,
+    paymentsRepository: PaymentsRepository,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(BookingsUiState(isLoading = true))
+    private val _state = MutableStateFlow(BookingsUiState())
     val state: StateFlow<BookingsUiState> = _state.asStateFlow()
 
     init {
-        combine(bookingsRepository.getAll(), roomsRepository.getAll()) { bookings, rooms ->
-            bookings to rooms.associate { it.roomNumber to it.price }
-        }.onEach { (bookings, prices) ->
-            _state.value = _state.value.copy(
-                isLoading = false,
-                bookings = bookings,
-                roomPrices = prices,
-                error = null
-            )
+        combine(
+            bookingsRepository.getAll(),
+            roomsRepository.getAll(),
+            paymentsRepository.getAll()
+        ) { bookings, rooms, payments ->
+            Triple(bookings, rooms, payments)
+        }
+            .map { (bookings, rooms, payments) ->
+                val prices = rooms.associate { it.roomNumber to it.price }
+                val paidByBooking = payments
+                    .groupBy { it.bookingLocalId }
+                    .mapValues { (_, list) -> list.sumOf { it.amount } }
+                buildRows(bookings, prices, paidByBooking)
+            }
+            .onEach { rows ->
+                _state.value = _state.value.copy(isLoading = false, rows = rows, error = null)
+            }
+            .catch { e ->
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = e.message ?: e.toString()
+                )
+            }
+            .launchIn(viewModelScope)
+
+        // حالة المزامنة الحية — لمؤشر الجهد أثناء السحب-للتحديث.
+        syncRepository.syncState.onEach { sync ->
+            _state.value = _state.value.copy(isSyncing = sync.isSyncing)
         }.launchIn(viewModelScope)
     }
 
-    fun setSearchQuery(query: String) {
-        _state.value = _state.value.copy(searchQuery = query)
-    }
-
-    fun setStatusFilter(filter: String) {
-        _state.value = _state.value.copy(statusFilter = filter)
-    }
-
-    fun consumeMessage() {
-        _state.value = _state.value.copy(message = null)
-    }
-
-    /** Creates a new booking; nights are derived from the hotel-day engine. */
-    fun saveBooking(booking: Booking) {
-        viewModelScope.launch {
-            try {
-                val checkinMillis = HotelTimeEngine.parseDate(booking.checkinDate) ?: System.currentTimeMillis()
-                val checkoutMillis = HotelTimeEngine.parseDate(booking.checkoutDate)
-                // Dart booking screens use Time.nightsWithCutoff (not the
-                // calendar-day calculateDays variant).
-                val nights = if (checkoutMillis == null) 1
-                else HotelTimeEngine.nightsWithCutoff(checkinMillis, checkoutMillis)
-                val prepared = booking.copy(
-                    expectedNights = nights,
-                    calculatedNights = nights,
-                    hotelDayCheckin = HotelTimeEngine.hotelDayKey(checkinMillis)
-                )
-                if (prepared.id == 0L) {
-                    bookingsRepository.insert(prepared)
-                    _state.value = _state.value.copy(message = "تم إنشاء الحجز")
-                } else {
-                    bookingsRepository.update(prepared)
-                    _state.value = _state.value.copy(message = "تم تحديث الحجز")
-                }
-                // Keep the room's stored status in sync with occupancy.
-                val room = roomsRepository.getByNumber(prepared.roomNumber)
-                if (room != null && StatusUtils.isBookingActive(prepared.status) && !StatusUtils.isRoomOccupied(room.status)) {
-                    roomsRepository.update(room.copy(status = "محجوزة"))
-                }
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(error = e.message)
+    /**
+     * الفلترة والترتيب — Dart bookings_list.dart l.88-100: إخفاء
+     * مكتمل/completed/غادر/departed فقط (الملغي يبقى ظاهراً) مع ترتيب
+     * تنازلي على تاريخ الوصول.
+     */
+    private fun buildRows(
+        bookings: List<Booking>,
+        prices: Map<String, Double>,
+        paidByBooking: Map<Long?, Double>
+    ): List<BookingRowUi> {
+        val filtered = bookings
+            .filter { b ->
+                val status = b.status.lowercase()
+                status != "مكتمل" && status != "completed" &&
+                    status != "غادر" && status != "departed"
             }
-        }
-    }
+            .sortedByDescending { it.checkinDate }
 
-    fun cancelBooking(booking: Booking) {
-        viewModelScope.launch {
-            try {
-                bookingsRepository.update(booking.copy(status = "ملغي"))
-                roomsRepository.getByNumber(booking.roomNumber)?.let { room ->
-                    if (StatusUtils.isRoomOccupied(room.status)) {
-                        roomsRepository.update(room.copy(status = "شاغرة"))
+        return filtered.mapIndexed { i, booking ->
+            val price = prices[booking.roomNumber] ?: 0.0
+            val checkin = HotelTimeEngine.parseDate(booking.checkinDate)
+            val plannedCheckout = booking.checkoutDate?.let { HotelTimeEngine.parseDate(it) }
+            val actualCheckout = booking.actualCheckout?.let { HotelTimeEngine.parseDate(it) }
+
+            // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن (Dart l.264-270).
+            val hasNoCheckout = plannedCheckout == null && actualCheckout == null
+            val dynamicNights =
+                if (hasNoCheckout && checkin != null) HotelTimeEngine.nightsWithCutoff(checkin) else null
+
+            val expectedNights = dynamicNights
+                ?: (if (booking.expectedNights > 0) booking.expectedNights
+                    else (if (checkin == null) 1 else HotelTimeEngine.nightsWithCutoff(checkin, plannedCheckout)))
+            val actualNights = dynamicNights
+                ?: (if (checkin == null) expectedNights
+                    else HotelTimeEngine.nightsWithCutoff(checkin, actualCheckout ?: plannedCheckout))
+
+            val totalAmount = actualNights * price
+            val paid = paidByBooking[booking.id] ?: 0.0
+            val remaining = (totalAmount - paid).coerceIn(0.0, totalAmount)
+
+            val nightsLabel = if (actualNights != expectedNights) {
+                "$expectedNights ($actualNights فعلي)"
+            } else {
+                expectedNights.toString()
+            }
+            val plannedText = plannedCheckout?.let { formatDate(it) }
+            val actualText = actualCheckout?.let { formatDate(it) }
+
+            // حالة الدفعة — Dart l.560-566.
+            val paymentStatusColor: Long
+            val paymentStatusText: String
+            if (remaining <= 0.0) {
+                paymentStatusColor = GREEN
+                paymentStatusText = "مسددة"
+            } else if (paid > 0) {
+                paymentStatusColor = ORANGE
+                paymentStatusText = "جزئياً"
+            } else {
+                paymentStatusColor = RED
+                paymentStatusText = "غير مسددة"
+            }
+
+            // شارة حالة الحجز — Dart _buildBookingStatusChip l.707-737.
+            val bookingStatusColor: Long
+            val bookingStatusText: String
+            if (isProvisional(booking.status)) {
+                bookingStatusColor = ORANGE_100
+                bookingStatusText = "مؤقت"
+            } else if (StatusUtils.isBookingActive(booking.status)) {
+                bookingStatusColor = GREEN_100
+                bookingStatusText = "محجوزة"
+            } else {
+                when (booking.status.lowercase()) {
+                    "completed", "مكتمل" -> {
+                        bookingStatusColor = BLUE_100
+                        bookingStatusText = "مكتمل"
+                    }
+                    "cancelled", "ملغي" -> {
+                        bookingStatusColor = RED_100
+                        bookingStatusText = "ملغي"
+                    }
+                    else -> {
+                        bookingStatusColor = GREY_100
+                        bookingStatusText = booking.status
                     }
                 }
-                _state.value = _state.value.copy(message = "تم إلغاء الحجز")
+            }
+
+            BookingRowUi(
+                booking = booking,
+                index = i + 1,
+                expectedNights = expectedNights,
+                actualNights = actualNights,
+                pricePerNight = price,
+                totalAmount = totalAmount,
+                paid = paid,
+                remaining = remaining,
+                nightsLabel = nightsLabel,
+                plannedText = plannedText,
+                actualText = actualText,
+                paymentStatusText = paymentStatusText,
+                paymentStatusColor = paymentStatusColor,
+                bookingStatusText = bookingStatusText,
+                bookingStatusColor = bookingStatusColor
+            )
+        }
+    }
+
+    /** Dart StatusUtils.isProvisional (status_utils.dart l.107-109). */
+    private fun isProvisional(status: String): Boolean =
+        status.trim().lowercase() in setOf("مؤقت", "provisional")
+
+    // ─── المزامنة اليدوية (سحب-للتحديث) ────────────────────────────────
+
+    /**
+     * Dart RefreshIndicator.onRefresh → triggerManualCloudflareSync
+     * (showSuccessSnackbar: false) — دفعة + سحب مع نفس رسائل الخطأ/التحذير.
+     */
+    fun triggerManualSync() {
+        if (_state.value.isSyncing) return
+        viewModelScope.launch {
+            try {
+                val result = syncRepository.syncNow()
+                when {
+                    !result.isError -> Unit // بلا سناك-بار نجاح (Dart showSuccessSnackbar: false)
+                    result.lastMessage.isBlank() ->
+                        _state.value = _state.value.copy(
+                            snackbar = BookingsSnackbar("المزامنة قيد التنفيذ بالفعل", isWarning = true)
+                        )
+                    else -> _state.value = _state.value.copy(
+                        snackbar = BookingsSnackbar("⚠️ فشلت المزامنة: ${result.lastMessage}", isError = true)
+                    )
+                }
             } catch (e: Exception) {
-                _state.value = _state.value.copy(error = e.message)
+                _state.value = _state.value.copy(
+                    snackbar = BookingsSnackbar("❌ خطأ أثناء المزامنة: $e", isError = true)
+                )
             }
         }
+    }
+
+    /**
+     * نظير SyncActionButton في شريط العنوان (app_scaffold.dart يضيفه لكل
+     * شاشة) — مزامنة عادية بلا forcePull وبنفس رسائله حرفياً:
+     * «لا توجد تغييرات جديدة» / «تمت المزامنة: رفع X / سحب Y» / «فشل في المزامنة: …».
+     */
+    fun runShellSync() {
+        if (_state.value.isSyncing) return
+        viewModelScope.launch {
+            try {
+                val result = syncRepository.syncNow()
+                _state.value = _state.value.copy(
+                    snackbar = if (!result.isError) {
+                        BookingsSnackbar(
+                            if (result.pushedCount == 0 && result.pulledCount == 0) {
+                                "لا توجد تغييرات جديدة"
+                            } else {
+                                "تمت المزامنة: رفع ${result.pushedCount} / سحب ${result.pulledCount}"
+                            }
+                        )
+                    } else {
+                        BookingsSnackbar(
+                            "فشل في المزامنة: ${result.lastMessage.ifBlank { "سبب غير معروف" }}",
+                            isError = true
+                        )
+                    }
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    snackbar = BookingsSnackbar("فشل في المزامنة: $e", isError = true)
+                )
+            }
+        }
+    }
+
+    /** رسالة سناك-بار عامة (تُستهلك مرة واحدة). */
+    fun showSnackbar(text: String, isError: Boolean = false, isWarning: Boolean = false) {
+        _state.value = _state.value.copy(snackbar = BookingsSnackbar(text, isError, isWarning))
+    }
+
+    fun consumeSnackbar() {
+        _state.value = _state.value.copy(snackbar = null)
+    }
+
+    /** Dart _formatDate (bookings_list.dart l.757-764) — dd/MM/yyyy. */
+    private fun formatDate(millis: Long): String =
+        HotelTimeEngine.formatDisplayDateOnly(millis)
+
+    companion object {
+        // ألوان Flutter Material المستخدمة في القائمة (Dart bookings_list.dart).
+        const val GREEN = 0xFF4CAF50L   // Colors.green
+        const val ORANGE = 0xFFFF9800L  // Colors.orange
+        const val RED = 0xFFF44336L     // Colors.red
+        const val GREEN_100 = 0xFFC8E6C9L  // Colors.green.shade100
+        const val ORANGE_100 = 0xFFFFE0B2L // Colors.orange.shade100
+        const val BLUE_100 = 0xFFBBDEFBL   // Colors.blue.shade100
+        const val RED_100 = 0xFFFFCDD2L    // Colors.red.shade100
+        const val GREY_100 = 0xFFF5F5F5L   // Colors.grey.shade100
     }
 }

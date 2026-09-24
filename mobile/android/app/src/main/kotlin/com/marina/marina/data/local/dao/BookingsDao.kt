@@ -60,4 +60,24 @@ interface BookingsDao {
         """
     )
     suspend fun getActiveBookingForRoom(roomNumber: String): BookingEntity?
+
+    /**
+     * ALL in-stay bookings of a room — ported 1:1 from the Dart
+     * PriceAdjustmentService._getActiveBookingsForRoom
+     * (price_adjustment_service.dart l.204-218): the room price-change
+     * preview/apply flow uses a WIDER status list than the occupancy query
+     * ('مؤكد','confirmed','نشط','active','مسجل دخول','checked_in') plus
+     * actual_checkout IS NULL.
+     */
+    @Query(
+        """
+        SELECT * FROM bookings
+        WHERE room_number = :roomNumber
+          AND deleted_at IS NULL
+          AND actual_checkout IS NULL
+          AND status IN ('مؤكد', 'confirmed', 'نشط', 'active', 'مسجل دخول', 'checked_in')
+        ORDER BY checkin_date DESC
+        """
+    )
+    suspend fun getInStayBookingsForRoom(roomNumber: String): List<BookingEntity>
 }

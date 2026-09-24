@@ -16,12 +16,14 @@ interface ExpensesRepository {
      * Report query (Dart `ExpensesDao.listFilteredByHotelDay`): hotel-day
      * range with legacy `date` fallback. When [expenseType] is a salary
      * contract type ('رواتب' family), the query matches all derived salary
-     * types like Dart does.
+     * types like Dart does. [search] filters description/type LIKE (Dart
+     * expenses_dao.dart l.163-166).
      */
     suspend fun listFilteredByHotelDay(
         fromHotelDay: String?,
         toHotelDay: String?,
-        expenseType: String? = null
+        expenseType: String? = null,
+        search: String? = null
     ): List<Expense>
 
     /**

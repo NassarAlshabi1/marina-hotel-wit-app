@@ -8,6 +8,15 @@ import androidx.room.Update
 import com.marina.marina.data.local.entity.EmployeeEntity
 import kotlinx.coroutines.flow.Flow
 
+/** Row of the Dart `financialHistoryCount` query (employees_repository.dart l.429-489). */
+data class EmployeeFinancialHistoryCounts(
+    val withdrawals: Int,
+    val cycles: Int,
+    val payments: Int,
+    val carryOvers: Int,
+    val expenses: Int
+)
+
 @Dao
 interface EmployeesDao {
     @Query("SELECT * FROM employees WHERE deleted_at IS NULL ORDER BY name")
@@ -35,5 +44,44 @@ interface EmployeesDao {
     suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
     @Query("SELECT * FROM employees WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): EmployeeEntity?
+
+    /**
+     * Dart `EmployeesRepository.reactivate` (employees_repository.dart
+     * l.353-383): status -> `active`, termination date/reason cleared.
+     */
+    @Query(
+        "UPDATE employees SET status = 'active', termination_date = NULL, " +
+            "termination_reason = NULL, updated_at = :updatedAt WHERE id = :id"
+    )
+    suspend fun reactivate(id: Long, updatedAt: Long): Int
+
+    /**
+     * Dart `financialHistoryCount` (employees_repository.dart l.429-489) —
+     * count the employee's financial history across the five linked tables
+     * before a delete: employee_uuid (dash-insensitive) first, then the
+     * numeric id fallback, exactly like the Flutter contract.
+     */
+    @Query(
+        """
+        SELECT
+        (SELECT COUNT(*) FROM salary_withdrawals w WHERE
+           (w.employee_uuid IS NOT NULL AND REPLACE(w.employee_uuid, '-', '') = :dashlessUuid)
+         OR (w.employee_uuid IS NULL AND w.employee_id = :id)) AS withdrawals,
+        (SELECT COUNT(*) FROM salary_cycles c WHERE
+           (c.employee_uuid IS NOT NULL AND REPLACE(c.employee_uuid, '-', '') = :dashlessUuid)
+         OR (c.employee_uuid IS NULL AND c.employee_id = :id)) AS cycles,
+        (SELECT COUNT(*) FROM salary_payments p WHERE
+           p.employee_uuid IS NOT NULL
+           AND REPLACE(p.employee_uuid, '-', '') = :dashlessUuid) AS payments,
+        (SELECT COUNT(*) FROM salary_carry_over_logs k WHERE
+           k.employee_id = :id) AS carryOvers,
+        (SELECT COUNT(*) FROM expenses x WHERE
+           (x.employee_uuid IS NOT NULL AND REPLACE(x.employee_uuid, '-', '') = :dashlessUuid)
+         OR (x.employee_uuid IS NULL AND x.related_id = :id
+             AND TRIM(x.expense_type) IN ('سحب راتب','رواتب','سحب من الراتب','سلفة','خصم من الراتب','خصم راتب','خصم','غياب','employee'))) AS expenses
+        FROM employees WHERE id = :id
+        """
+    )
+    suspend fun financialHistoryCounts(id: Long, dashlessUuid: String): EmployeeFinancialHistoryCounts?
 
 }
