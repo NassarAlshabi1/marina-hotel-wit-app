@@ -158,6 +158,112 @@ class SalaryWithdrawalsRepository {
     return id;
   }
 
+  /// ✅ (2026-09-25) إصلاح «المصروف المعدّل يتكرر في التقرير»:
+  ///
+  /// سجلات قديمة أنشأتها إصدارات سابقة بلا أي ربط (expense_id=NULL
+  /// وreason بلا exp_ وليست direct_withdrawal) كانت تُخفى في تقرير
+  /// المصروفات حصراً عبر «المطابقة بالبيانات» (نوع راتب + موظف + يوم
+  /// + مبلغ متطابق — الطريقة 3 في expenses_report_screen). أول تعديل
+  /// لمبلغ المصروف يكسر تطابق المبلغ فيصبح السحب القديم يتيمًا يظهر
+  /// مكررًا في التقرير مع ازدواج في المجموع — وهو العَرَض المُبلَّغ.
+  ///
+  /// يُستدعى من مسار التعديل **قبل** تحديث المصروف (القيم القديمة
+  /// مطلوبة للمطابقة): أي سحوبة حية بلا أي ربط تطابق قيم المصروف
+  /// القديمة (نفس الموظف + نفس |المبلغ| + نفس اليوم الفندقي أو
+  /// التاريخ) تُحذف ناعمًا وتُزامَن عبر outbox — فهي نسخة مكررة
+  /// قديمة من نفس الحدث المالي.
+  ///
+  /// الحذر (منع الإيجابيات الكاذبة): السحوبات المباشرة
+  /// (direct_withdrawal_) وكل سحوبة تحمل أي ربط exp_ أو expense_id
+  /// مستثناة صراحة — ملكية المسار الرئيسي في saveFromExpense.
+  Future<void> softDeleteUnlinkedDuplicatesForExpense({
+    required int expenseId,
+    required int? relatedEmployeeId,
+    required double oldAmountAbs,
+    required String oldDate,
+    required String? oldHotelDayKey,
+  }) async {
+    if (relatedEmployeeId == null) return;
+    try {
+      final rows = await _db
+          .customSelect(
+            'SELECT id, local_uuid, server_id, employee_id, version, '
+            'amount, reason, hotel_day_key, withdraw_date, expense_id '
+            'FROM salary_withdrawals '
+            'WHERE deleted_at IS NULL AND employee_id = ? '
+            'AND ABS(amount) = ABS(?)',
+            variables: [
+              d.Variable.withInt(relatedEmployeeId),
+              d.Variable<double>(oldAmountAbs.abs()),
+            ],
+          )
+          .get();
+      if (rows.isEmpty) return;
+
+      final normalizedOldDate = Time.safeIsoToDateString(oldDate);
+      final now = Time.nowEpoch();
+
+      for (final row in rows) {
+        // مربوطة بأي مصروف عبر العمود الخام → ملكية المسار الرئيسي
+        final rawExpenseId = row.data['expense_id'];
+        if (rawExpenseId is int && rawExpenseId > 0) continue;
+
+        final reason = row.data['reason'] as String?;
+        // السحوبات المباشرة كيان مستقل بلا مصروف مقابل — لا تُلمس
+        if (reason != null && reason.startsWith('direct_withdrawal_')) {
+          continue;
+        }
+        // أي ربط exp_ (لهذا المصروف أو غيره) يُدار عبر المسار الرئيسي
+        if (reason != null && reason.contains('exp_')) continue;
+
+        // مطابقة اليوم: مفتاح اليوم الفندقي أو التاريخ التقويمي
+        final hdKey = row.data['hotel_day_key'] as String?;
+        final wDate = row.data['withdraw_date'] as String? ?? '';
+        final dayMatches =
+            (oldHotelDayKey != null &&
+                oldHotelDayKey.isNotEmpty &&
+                hdKey == oldHotelDayKey) ||
+            (normalizedOldDate.isNotEmpty && wDate == normalizedOldDate);
+        if (!dayMatches) continue;
+
+        final id = row.read<int>('id');
+        final uuid = row.read<String>('local_uuid');
+        final serverId = row.data['server_id'] as int?;
+        final version = (row.data['version'] as int?) ?? 1;
+        final employeeId = row.read<int>('employee_id');
+
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.equals(id))).write(
+          SalaryWithdrawalsCompanion(
+            deletedAt: d.Value(now),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+            version: d.Value(version + 1),
+          ),
+        );
+
+        final staleUuidRef = await _employeeUuidRef(employeeId);
+        await _outboxDao.merge(
+          entity: 'salary_withdrawals',
+          op: 'update',
+          localUuid: uuid,
+          serverId: serverId,
+          payload: {
+            'employeeId': employeeId,
+            if (staleUuidRef != null) 'employeeUuid': staleUuidRef,
+            'deletedAt': now,
+            'lastModified': now,
+          },
+          clientTs: now,
+        );
+      }
+    } catch (_) {
+      // العمود expense_id قد لا يكون موجوداً في إصدارات قديمة جداً —
+      // التنظيف تحسينٌ لا شرط للصحة؛ تجاهل آمن (نفس عقد الملف).
+    }
+  }
+
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
   /// ✅ إصلاح خبير: البحث أولاً عبر عمود expense_id ثم عبر reason
   /// تغليف العملية في معاملة لضمان اتساق البيانات

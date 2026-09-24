@@ -1221,6 +1221,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             DateTime.parse(trimmedDate),
           );
 
+          // ✅ (2026-09-25) إصلاح «المصروف المعدّل يتكرر في التقرير»:
+          // تنظيف السحوبات اليتيمة القديمة غير المرتبطة (بلا expense_id
+          // وبلا exp_ في reason) التي كانت تُخفى في التقرير بمطابقة
+          // البيانات — أول تعديل للمبلغ يكسر تطابق المبلغ فتظهر مكررة.
+          // يجب أن يسبق تحديث المصروف لأن المطابقة تحتاج القيم القديمة.
+          await salaryRepo.softDeleteUnlinkedDuplicatesForExpense(
+            expenseId: existing.id,
+            relatedEmployeeId: existing.relatedId,
+            oldAmountAbs: existing.amount,
+            oldDate: existing.date,
+            oldHotelDayKey: existing.hotelDayKey,
+          );
+
           // ✅ التوصية 1: حل الموظف مرة واحدة لاستخدام localUuid في تعديل المصروف.
           final Employee? resolvedEmployee =
               (isSalaryExpense && selectedEmployeeId != null)
