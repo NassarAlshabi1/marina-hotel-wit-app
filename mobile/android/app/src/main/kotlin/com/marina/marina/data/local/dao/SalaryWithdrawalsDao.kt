@@ -38,6 +38,15 @@ interface SalaryWithdrawalsDao {
     @Query("SELECT * FROM salary_withdrawals WHERE deleted_at IS NULL AND reason = :reason LIMIT 1")
     suspend fun getByReason(reason: String): SalaryWithdrawalEntity?
 
+    /**
+     * Dart saveFromExpense/deleteByExpenseId — بحث المرجع الواسع
+     * (`reason LIKE '%exp_<id>%'`) يُصفّى في Kotlin بمطابقة exp_<id>(?!\d)
+     * (expense_reason_matcher.dart) — يشمل السجلات التي يحمل reason فيها
+     * نصاً إضافياً حول المرجع (عقد الطريقة 2 في Dart).
+     */
+    @Query("SELECT * FROM salary_withdrawals WHERE deleted_at IS NULL AND reason LIKE '%' || :ref || '%'")
+    suspend fun getByReasonLike(ref: String): List<SalaryWithdrawalEntity>
+
     @Query("UPDATE salary_withdrawals SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
 

@@ -5,6 +5,7 @@ import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.SalaryWithdrawal
 import com.marina.marina.domain.repository.SalaryWithdrawalsRepository
+import com.marina.marina.domain.util.ExpenseReasonMatcher
 import com.marina.marina.domain.util.HotelTimeEngine
 import java.util.UUID
 import javax.inject.Inject
@@ -80,7 +81,10 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
      * Dart saveFromExpense (salary_withdrawals_repository.dart l.164-395):
      * upsert the withdrawal paired with a salary expense via the
      * `exp_<expenseId>` reason key — update in place when it already exists
-     * (so repeated edits never duplicate), insert otherwise.
+     * (so repeated edits never duplicate), insert otherwise, **plus** the
+     * stale-record cleanup that soft-deletes any OTHER withdrawal still
+     * referencing the same expense (the anti-duplication guarantee the
+     * expenses report relies on).
      */
     override suspend fun saveFromExpense(
         expenseId: Long,
@@ -94,18 +98,39 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
         hotelDayKey: String
     ) {
         val reasonText = "exp_$expenseId"
-        val existing = salaryWithdrawalsDao.getByReason(reasonText)
-        if (existing != null) {
-            val updated = existing.toDomain().copy(
+        val now = System.currentTimeMillis()
+
+        // Dart l.181-191 (الطريقة 2): بحث عبر المرجع مع تحقق lookahead —
+        // exp_1 لا تطابق exp_10/exp_100 (expense_reason_matcher.dart).
+        // (لا عمود expense_id في مخطط Kotlin — tier-1 يتطلب تغيير مخطط؛
+        //  كل الروابط التي ينتجها التطبيق تمر عبر reason فتُغطى هنا).
+        val reasonMatches = salaryWithdrawalsDao.getByReasonLike(reasonText)
+            .filter { matchesExpenseRef(it.reason, expenseId) }
+        val matched = reasonMatches.firstOrNull()
+
+        // Dart l.212-250: سجلات قديمة أخرى بنفس مرجع المصروف — تنظيف فوري
+        // (soft-delete + دفع deleted_at للسحابة) لمنع التكرار عند التعديل.
+        if (matched != null) {
+            reasonMatches.filter { it.id != matched.id }.forEach { stale ->
+                salaryWithdrawalsDao.softDelete(stale.id, now, now)
+                val deleted = stale.toDomain().copy(deletedAt = now, updatedAt = now)
+                outboxRepository.enqueueObject("salary_withdrawals", "delete", deleted.localUuid, deleted)
+            }
+        }
+
+        if (matched != null) {
+            // Dart l.259-287: تحديث السجل المقترن في مكانه بكل الحقول المزامنة.
+            val updated = matched.toDomain().copy(
                 employeeId = employeeId,
                 employeeUuid = employeeUuid,
                 employeeName = employeeName,
                 amount = amount,
-                withdrawDate = HotelTimeEngine.parseDate(date) ?: System.currentTimeMillis(),
+                withdrawDate = HotelTimeEngine.parseDate(date) ?: now,
                 hotelDayKey = hotelDayKey,
                 withdrawalType = action,
+                reason = reasonText,
                 description = note,
-                updatedAt = System.currentTimeMillis()
+                updatedAt = now
             )
             salaryWithdrawalsDao.update(updated.toEntity())
             outboxRepository.enqueueObject("salary_withdrawals", "update", updated.localUuid, updated)
@@ -116,7 +141,7 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
                     employeeUuid = employeeUuid,
                     employeeName = employeeName,
                     amount = amount,
-                    withdrawDate = HotelTimeEngine.parseDate(date) ?: System.currentTimeMillis(),
+                    withdrawDate = HotelTimeEngine.parseDate(date) ?: now,
                     hotelDayKey = hotelDayKey,
                     withdrawalType = action,
                     reason = reasonText,
@@ -126,14 +151,25 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
         }
     }
 
-    /** Dart deleteByExpenseId — removes the paired withdrawal of a deleted expense. */
+    /**
+     * Dart deleteByExpenseId (l.411-470) — soft-delete لكل السحوبات المقترنة
+     * بمصروف عبر مرجع exp_<expenseId> + دفع الحذف للسحابة. يُستدعى عند حذف
+     * مصروف راتب وتحويله لنوع غير راتبي (عقد expenses_list.dart).
+     */
     override suspend fun deleteByExpenseId(expenseId: Long) {
-        val linked = salaryWithdrawalsDao.getByReason("exp_$expenseId") ?: return
         val now = System.currentTimeMillis()
-        salaryWithdrawalsDao.softDelete(linked.id, deletedAt = now, updatedAt = now)
-        val deleted = linked.toDomain().copy(deletedAt = now, updatedAt = now)
-        outboxRepository.enqueueObject("salary_withdrawals", "delete", deleted.localUuid, deleted)
+        val toDelete = salaryWithdrawalsDao.getByReasonLike("exp_$expenseId")
+            .filter { matchesExpenseRef(it.reason, expenseId) }
+        toDelete.forEach { linked ->
+            salaryWithdrawalsDao.softDelete(linked.id, now, now)
+            val deleted = linked.toDomain().copy(deletedAt = now, updatedAt = now)
+            outboxRepository.enqueueObject("salary_withdrawals", "delete", deleted.localUuid, deleted)
+        }
     }
+
+    /** Dart expense_reason_matcher.dart حرفياً — exp_<id>(?!\d). */
+    private fun matchesExpenseRef(reason: String?, expenseId: Long): Boolean =
+        ExpenseReasonMatcher.matchesExpenseRef(reason, expenseId)
 
     override suspend fun getTotalForEmployee(employeeId: Long): Double =
         salaryWithdrawalsDao.getTotalForEmployee(employeeId)

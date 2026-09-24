@@ -93,14 +93,58 @@ class ExpensesViewModel @Inject constructor(
         _state.value = _state.value.copy(message = null)
     }
 
+    /** أنواع إجراءات الرواتب — عقد Dart _isSalaryAction (expenses_list.dart l.1441-1451). */
+    private val salaryActionTypes = setOf(
+        "رواتب", "سحب راتب", "سحب من الراتب", "خصم راتب", "خصم من الراتب"
+    )
+
     fun saveExpense(expense: Expense) {
         viewModelScope.launch {
             try {
                 if (expense.id == 0L) {
-                    expensesRepository.insert(expense)
+                    val newId = expensesRepository.insert(expense)
+                    // Dart expenses_list.dart l.1191-1214: مصروف راتب جديد
+                    // بموظف مقترن → saveFromExpense يربط السحب عبر exp_<id>
+                    // (إلا فلا ربط — نفس فرع Dart بدون موظف).
+                    if (expense.expenseType in salaryActionTypes && expense.relatedId != null) {
+                        salaryWithdrawalsRepository.saveFromExpense(
+                            expenseId = newId,
+                            employeeId = expense.relatedId!!,
+                            employeeUuid = expense.employeeUuid,
+                            employeeName = _state.value.employeeNames[expense.relatedId] ?: "",
+                            action = expense.expenseType,
+                            amount = expense.amount,
+                            date = expense.date,
+                            note = expense.description.takeIf { it.isNotBlank() },
+                            hotelDayKey = expense.hotelDayKey ?: HotelTimeEngine.currentHotelDayKey()
+                        )
+                    }
                     _state.value = _state.value.copy(message = "تمت إضافة المصروف")
                 } else {
-                    expensesRepository.update(expense)
+                    // ✅ عقد Dart expenses_list.dart l.1216-1262 — التعديل يزامن
+                    // السحب المقترن: مصروف راتب → saveFromExpense (upsert بالرابط
+                    // exp_<id> فيبقى المبلغ متسقاً وإزالة تكرار التقرير سليمة)؛
+                    // غير راتب → deleteByExpenseId + مسح رابط الموظف (relatedId /
+                    // employeeUuid) كي لا يبقى رابط يتيم عند التحويل من راتب
+                    // لنوع آخر — هذا هو سبب تكرار السحوبات في التقرير سابقاً.
+                    val isSalary = expense.expenseType in salaryActionTypes
+                    val prepared = if (isSalary) expense else expense.copy(relatedId = null, employeeUuid = "")
+                    expensesRepository.update(prepared)
+                    if (isSalary && expense.relatedId != null) {
+                        salaryWithdrawalsRepository.saveFromExpense(
+                            expenseId = expense.id,
+                            employeeId = expense.relatedId!!,
+                            employeeUuid = expense.employeeUuid,
+                            employeeName = _state.value.employeeNames[expense.relatedId] ?: "",
+                            action = expense.expenseType,
+                            amount = expense.amount,
+                            date = expense.date,
+                            note = expense.description.takeIf { it.isNotBlank() },
+                            hotelDayKey = expense.hotelDayKey ?: HotelTimeEngine.currentHotelDayKey()
+                        )
+                    } else {
+                        salaryWithdrawalsRepository.deleteByExpenseId(expense.id)
+                    }
                     _state.value = _state.value.copy(message = "تم تحديث المصروف")
                 }
             } catch (e: Exception) {
@@ -112,6 +156,10 @@ class ExpensesViewModel @Inject constructor(
     fun deleteExpense(expense: Expense) {
         viewModelScope.launch {
             try {
+                // Dart expenses_list.dart l.850-856: حذف السحب المقترن أولاً
+                // ثم المصروف — حماية تكامل البيانات (لا سحوبات يتيمة تعود
+                // لتظهر في التقرير بعد الحذف).
+                salaryWithdrawalsRepository.deleteByExpenseId(expense.id)
                 expensesRepository.softDelete(expense.id)
                 _state.value = _state.value.copy(message = "تم حذف المصروف")
             } catch (e: Exception) {

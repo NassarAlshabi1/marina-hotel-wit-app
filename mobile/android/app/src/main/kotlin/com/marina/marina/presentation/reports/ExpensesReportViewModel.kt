@@ -59,6 +59,33 @@ private val cashSalaryTypes = setOf("رواتب", "سحب راتب", "سحب م�
 
 private fun isSalaryType(type: String?) = type != null && salaryTypes.any { it.contains(type) || type.contains(it) }
 
+/** Dart expenses_report_screen.dart l.57-71 — type يحتوي إحدى الكلمات المفتاحية. */
+private fun isSalaryTypeFamily(type: String?): Boolean {
+    if (type == null) return false
+    return salaryTypes.any { type.contains(it) }
+}
+
+/**
+ * Dart expenses_report_screen.dart l.1379-1394 — أفضل حالة: كلاهما يحمل
+ * hotelDayKey (مساواة مباشرة)؛ احتياطياً مقارنة جزء التاريخ (10 أحرف) للسجلات
+ * القديمة التي لا تحمل مفتاح اليوم الفندقي.
+ */
+private fun hotelDayKeysMatch(
+    expenseHotelDayKey: String?,
+    swHotelDayKey: String?,
+    expenseDate: String,
+    swWithdrawDate: Long
+): Boolean {
+    if (!expenseHotelDayKey.isNullOrEmpty() && !swHotelDayKey.isNullOrEmpty()) {
+        return expenseHotelDayKey == swHotelDayKey
+    }
+    return extractDatePart(expenseDate) == extractDatePart(HotelTimeEngine.formatIso(swWithdrawDate))
+}
+
+/** Dart _extractDatePart (l.1416-1419). */
+private fun extractDatePart(dateStr: String): String =
+    if (dateStr.length >= 10) dateStr.substring(0, 10) else dateStr.trim()
+
 @HiltViewModel
 class ExpensesReportViewModel @Inject constructor(
     private val expensesRepository: ExpensesRepository,
@@ -134,16 +161,25 @@ class ExpensesReportViewModel @Inject constructor(
                             ?: HotelTimeEngine.hotelDayKey(w.withdrawDate)
                         key == null || (key >= rangeFrom && key <= rangeTo)
                     }.forEach { w ->
-                        // M1: direct expense link via reason 'exp_<id>'.
+                        // Dart l.437-439: السحوبات المباشرة (direct_withdrawal_)
+                        // لا تُطابق أبداً — ليس لها مصروف مقابل أصلاً وتُعرض دائماً.
+                        val isDirectWithdrawal = w.reason?.startsWith("direct_withdrawal_") == true
+
+                        // Tier 2 (Dart l.445-456): رابط معرفي مباشر عبر exp_<id>.
                         val linkedExpenseId = Regex("exp_(\\d+)").find(w.reason ?: "")?.groupValues?.get(1)?.toLongOrNull()
-                        val matched = linkedExpenseId != null && linkedExpenseId in addedExpenseIds
-                        // M3 fallback: same salary type + employee + amount match.
-                        val amountMatch = expenses.any { e ->
-                            e.expenseType.contains("راتب") &&
+                        val refMatched = linkedExpenseId != null && linkedExpenseId in addedExpenseIds
+
+                        // Tier 3 (Dart l.459-481): شبكة أمان للسجلات القديمة —
+                        // نفس نوع راتب + نفس الموظف + نفس اليوم الفندقي + نفس المبلغ.
+                        val dataMatch = !refMatched && expenses.any { e ->
+                            isSalaryTypeFamily(e.expenseType) &&
                                 e.relatedId == w.employeeId &&
+                                hotelDayKeysMatch(e.hotelDayKey, w.hotelDayKey, e.date, w.withdrawDate) &&
                                 kotlin.math.abs(e.amount) == kotlin.math.abs(w.amount)
                         }
-                        if (!matched && !amountMatch) {
+
+                        val hasMatchingExpense = !isDirectWithdrawal && (refMatched || dataMatch)
+                        if (!hasMatchingExpense) {
                             val isDeduction = (w.withdrawalType.contains("خصم") || w.withdrawalType.contains("deduction"))
                             val displayType = if (isDeduction) "خصم من الراتب" else "سحب راتب"
                             val employee = employees.find { it.id == w.employeeId }
