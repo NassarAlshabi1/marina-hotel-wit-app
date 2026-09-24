@@ -181,11 +181,14 @@ class PaymentsRepository {
   /// مراقبة إجمالي المدفوعات لحجز محدد عبر SQL SUM() — بديل خفيف الوزن
   /// لـ [paymentsByBooking] عندما يحتاج المستهلك فقط للمجموع (مثل قائمة الحجوزات).
   /// يتجنب تحميل جميع صفوف المدفوعات (38 عمود) وفك تشفيرها فقط لجمع `amount`.
+  /// الرصيد الفعلي المدفوع للحجز (للعرض في قائمة الحجوزات) — نفس قاعدة
+  /// المحرك الموحد: غير المحذوفة/الملغاة/المعلّقة، بدون فلتر نوع الإيراد.
   Stream<double> watchTotalPaidForBooking(int bookingLocalId) {
     return db
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
-          'WHERE deleted_at IS NULL AND is_voided = 0 AND booking_local_id = ?',
+          'WHERE deleted_at IS NULL AND is_voided = 0 '
+          'AND is_pending_balance = 0 AND booking_local_id = ?',
           variables: [d.Variable.withInt(bookingLocalId)],
           readsFrom: {db.payments},
         )

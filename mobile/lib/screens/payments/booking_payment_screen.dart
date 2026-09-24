@@ -410,9 +410,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
 
     // مدفوعات الحجز (provider تم تعريفه في الأعلى)
+    // الرصيد الفعلي = مجموع الدفعات الفعلية: غير الملغاة وغير المعلّقة
+    // (متطابق مع قاعدة EnhancedBookingCalculationService._getTotalPayments
+    // حتى تتطابق رقاقة «المدفوع» مع totalPaidCached في كل الشاشات).
     final dbPayments = paymentsAsync.valueOrNull ?? const <db.Payment>[];
     final paidAmount = dbPayments
-        .where((p) => !p.isVoided)
+        .where((p) => !p.isVoided && !p.isPendingBalance)
         .fold<double>(0, (s, p) => s + p.amount);
 
     // آخر مبلغ مدفوع: أحدث دفعة غير ملغاة لهذا الحجز
@@ -432,10 +435,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
 
     final hotelDay = HotelTimeEngine.getHotelDayKey();
+    // مدفوع اليوم الفندقي — نفس قاعدة SQL المجموعات اليومية في المستودع
+    // (is_voided=0 AND is_pending_balance=0) حتى تتطابق الرقاقة مع شاشة
+    // المالية والتقارير.
     final todayPaidAmount = dbPayments
         .where(
           (p) =>
               !p.isVoided &&
+              !p.isPendingBalance &&
               (p.hotelDayKey == hotelDay ||
                   (p.hotelDayKey == null &&
                       p.paymentDate.startsWith(hotelDay))),
@@ -1559,10 +1566,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final double totalAmount = discount > 0 && discountType == 'total'
         ? (nightTotal - discount).clamp(0, nightTotal).toDouble()
         : nightTotal;
+    // الرصيد الفعلي المتّسق مع المحرك الموحد: الدفعات الفعلية فقط
+    // (غير الملغاة وغير المعلّقة) — يُستخدم لقرار التمديد و«المتبقي»
+    // في الإيصال ورسالة الواتساب، فلا يجوز أن يضمّ الدفعات الملغاة.
     final payments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
         .first;
-    final paidAmount = payments.fold<double>(0, (s, p) => s + p.amount);
+    final paidAmount = payments
+        .where((p) => !p.isVoided && !p.isPendingBalance)
+        .fold<double>(0, (s, p) => s + p.amount);
     double remainingAmount = totalAmount - paidAmount;
     if (remainingAmount < 0) {
       remainingAmount = 0;

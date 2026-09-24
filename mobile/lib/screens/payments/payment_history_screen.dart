@@ -146,7 +146,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           );
         }
 
-        var payments = snapshot.data!;
+        // الرصيد الفعلي: تُستثنى الدفعات الملغاة (voided) من القائمة
+        // والإجمالي — متطابق مع تقارير المدفوعات المالية (listForReport).
+        var payments = snapshot.data!.where((p) => !p.isVoided).toList();
         payments = _applyFilters(payments);
 
         if (payments.isEmpty) {

@@ -257,6 +257,9 @@ class BookingComputedStreamService {
     );
   }
 
+  /// مجموع المدفوعات الفعلية (الرصيد الفعلي) — نفس قاعدة المحرك الموحد
+  /// (EnhancedBookingCalculationService._getTotalPayments): كل الدفعات
+  /// المرتبطة بالحجز عدا الملغاة/المعلّقة/المحذوفة، بغض النظر عن نوع الإيراد.
   Future<int> _sumPaymentsForBooking(Booking booking) async {
     final payments =
         await (db.select(db.payments)
@@ -267,19 +270,14 @@ class BookingComputedStreamService {
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
-              ..where((p) => p.isPendingBalance.equals(false))
-              ..where(
-                (p) =>
-                    p.revenueType.equals('room') |
-                    p.revenueType.equals('') |
-                    p.revenueType.isNull(),
-              ))
+              ..where((p) => p.isPendingBalance.equals(false)))
             .get();
 
     return payments.fold<int>(0, (sum, p) => sum + p.amount.round());
   }
 
   /// Pre-load all payments for a list of bookings in a single query.
+  /// نفس قاعدة الرصيد الفعلي الموحدة — بدون فلتر نوع الإيراد.
   Future<List<Payment>> _loadPaymentsForBookings(
     List<int> bookingIds,
     List<String> bookingUuids,
@@ -291,12 +289,6 @@ class BookingComputedStreamService {
           ..where((p) => p.deletedAt.isNull())
           ..where((p) => p.isVoided.equals(false))
           ..where((p) => p.isPendingBalance.equals(false))
-          ..where(
-            (p) =>
-                p.revenueType.equals('room') |
-                p.revenueType.equals('') |
-                p.revenueType.isNull(),
-          )
           ..where((p) => p.bookingLocalId.isIn(bookingIds)))
         .get();
   }

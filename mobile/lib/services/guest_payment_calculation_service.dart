@@ -115,7 +115,7 @@ class GuestPaymentCalculationService {
               ..where((r) => r.deletedAt.isNull()))
             .getSingleOrNull();
 
-    // جلب المدفوعات الفعلية للحجز (استبعاد الملغاة والمعلّقة وغير المتعلقة بالغرف)
+    // جلب المدفوعات الفعلية للحجز (استبعاد الملغاة والمعلّقة فقط)
     final payments =
         await (db.select(db.payments)
               // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
@@ -127,12 +127,8 @@ class GuestPaymentCalculationService {
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
               ..where((p) => p.isPendingBalance.equals(false))
-              ..where(
-                (p) =>
-                    p.revenueType.equals('room') |
-                    p.revenueType.equals('') |
-                    p.revenueType.isNull(),
-              )
+              // الرصيد الفعلي: كل الدفعات المرتبطة بالحجز تُحتسب (deposit/
+              // service/other أموال حقيقية) — الفلترة على الحالة لا النوع.
               ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate)]))
             .get();
 

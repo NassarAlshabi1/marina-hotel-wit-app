@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' as drift;
 import '../utils/id.dart';
 import '../utils/time.dart';
 import 'appwrite_sync_manager.dart';
+import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -202,6 +203,15 @@ class PaymentVoidService {
             'isImmutable': true,
           },
         );
+
+        // 6) تحديث الحقول المشتقة للحجز فوراً (الرصيد الفعلي) — حتى لا
+        // تبقى totalPaidCached/remainingBalanceCached تحسب الدفعة الملغاة
+        // إلى أن يُTrigger تحديث لاحق. معاملة متداخلة (savepoint) آمنة.
+        if (payment.bookingLocalId != null) {
+          await BookingDerivedFieldsService(
+            _db,
+          ).refreshForBookingId(payment.bookingLocalId!);
+        }
 
         dlog(() => '✅ PaymentVoid: تم إلغاء الدفعة $paymentUuid بنجاح');
         return true;

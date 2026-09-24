@@ -1970,7 +1970,9 @@ class GeminiService {
             amount: amount,
             paymentDate: now.toIso8601String(),
             paymentMethod: 'cash',
-            revenueType: 'room_rent',
+            // 'room' — التصنيف الفعلي المعتمد في نظام المحاسبة
+            // (room_rent كان يُنشئ دفعة لا يتعرف عليها محرك الرصيد).
+            revenueType: 'room',
             bookingLocalId: activeBooking.id,
             roomNumber: roomNumber,
             notes: notes,
@@ -2452,7 +2454,7 @@ class GeminiService {
   - مجمد (frozen) — مجمد مؤقتاً
 
 ▸ طرق الدفع: نقدي (cash), تحويل بنكي (transfer), بطاقة (card), أخرى (other)
-▸ أنواع الإيرادات: إيجار غرفة (room_rent), خدمات إضافية (extra_services), غرامات (penalty), أخرى (other)
+▸ أنواع الإيرادات: غرفة (room), خدمات إضافية (service), عربون (deposit), أخرى (other) — استخدم هذه القيم حرفياً؛ أي قيمة أخرى (مثل room_rent) لا يتعرف عليها نظام المحاسبة
 ▸ أنواع الغرف: single, double, triple, suite, family
 
 ═══ قدراتك التحليلية ═══
