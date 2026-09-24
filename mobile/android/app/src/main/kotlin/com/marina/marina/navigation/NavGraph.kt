@@ -77,16 +77,11 @@ sealed class Screen(val route: String) {
     object SalaryEntitlements : Screen("salary_entitlements")
 
     /**
-     * شاشة الاتصال بـ Cloudflare — with from=settings تُفتح من شاشة
-     * إعدادات المزامنة (نظير Navigator.push في unified_sync_settings_screen.dart)
-     * ولا تُنقل المستخدم إلى لوحة التحكم بعد الدخول — تبقى على الشاشة
-     * مثل سلوك Dart تماماً.
+     * شاشة الاتصال بـ Cloudflare — نظير cloudflare_login_screen.dart:
+     * تُفتح من إعدادات المزامنة (أو مؤشر المزامنة) ولا تنتقل بعيداً
+     * بعد الدخول — الحالة تتحدث حياً على الشاشة نفسها.
      */
-    object CloudflareLogin : Screen("cloudflare_login?from={from}") {
-        const val FROM_SETTINGS = "settings"
-        fun createRoute(fromSettings: Boolean) =
-            if (fromSettings) "cloudflare_login?from=$FROM_SETTINGS" else "cloudflare_login"
-    }
+    object CloudflareLogin : Screen("cloudflare_login")
 
     /** ✅ (2026-09-24) إعدادات المزامنة الموحدة — نظير UnifiedSyncSettingsScreen. */
     object CloudflareSyncSettings : Screen("cloudflare_sync_settings")
@@ -322,25 +317,8 @@ fun MarinaNavGraph(
             SalaryEntitlementsScreen(onBack = { navController.popBackStack() })
         }
 
-        composable(
-            route = Screen.CloudflareLogin.route,
-            arguments = listOf(navArgument("from") {
-                type = NavType.StringType
-                defaultValue = ""
-            })
-        ) { entry ->
-            val fromSettings = entry.arguments?.getString("from") == Screen.CloudflareLogin.FROM_SETTINGS
+        composable(Screen.CloudflareLogin.route) {
             CloudflareLoginScreen(
-                viewModel = authViewModel,
-                onLoginSuccess = {
-                    if (!fromSettings) {
-                        navController.navigate(Screen.Dashboard.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
-                        }
-                    }
-                    // من الإعدادات: البقاء على الشاشة (نظير Dart — الحالة
-                    // تتحدث حياً والمستخدم يرجع بزر الرجوع).
-                },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -350,7 +328,7 @@ fun MarinaNavGraph(
             CloudflareSyncSettingsScreen(
                 onBack = { navController.popBackStack() },
                 onOpenCloudflareLogin = {
-                    navController.navigate(Screen.CloudflareLogin.createRoute(fromSettings = true))
+                    navController.navigate(Screen.CloudflareLogin.route)
                 }
             )
         }

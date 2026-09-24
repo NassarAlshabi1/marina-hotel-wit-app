@@ -18,7 +18,11 @@ class AuthRepositoryImpl @Inject constructor(
 
     private val gson = Gson()
 
-    override suspend fun login(username: String, password: String): Result<AuthUser> {
+    override suspend fun login(username: String, password: String, rememberMe: Boolean): Result<AuthUser> {
+        // ✅ (2026-09-24) حفظ تفضيل «تذكرني» — نفس عقد Dart (login_screen.dart
+        // → authProvider.login(…, rememberMe:)) — يقرر استعادة الجلسة لاحقاً.
+        preferences.setRememberMe(rememberMe)
+
         // Built-in administrator: admin/admin unlocks the app locally.
         // Checked BEFORE the network so the login screen works offline
         // and never depends on Worker availability.
@@ -52,6 +56,8 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun restoreSession(): AuthUser? {
+        // ✅ «تذكرني» غير مفعّل = لا استعادة للجلسة (نفس Dart).
+        if (!preferences.getRememberMe()) return null
         val token = preferences.getAuthToken()
         val deviceId = preferences.getDeviceId()
         // An empty token is what logout() leaves behind — treating it as

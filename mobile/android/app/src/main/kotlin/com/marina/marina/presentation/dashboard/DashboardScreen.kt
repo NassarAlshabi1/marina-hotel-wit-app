@@ -98,7 +98,6 @@ fun DashboardScreen(
 ) {
     val financialStats by viewModel.financialStats.collectAsState()
     val roomsWithStatus by viewModel.roomsWithStatus.collectAsState()
-    val sessionReceipts by viewModel.sessionReceipts.collectAsState()
     val otherUserSummaries by viewModel.otherUserSummaries.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val syncState by viewModel.syncState.collectAsState()
@@ -165,8 +164,7 @@ fun DashboardScreen(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(16.dp)
             ) {
                 DashboardHeader(
                     syncState = syncState,
@@ -174,11 +172,18 @@ fun DashboardScreen(
                     onSyncClick = { viewModel.triggerSync() }
                 )
 
+                // المسافات الدقيقة من Dart: header→stats 16 · stats→rooms 20
+                // · rooms→الاستلامات 24 (بطاقة «إجمالي استلاماتي» أُزيلت
+                // بالكامل في Dart مع الحفاظ على الفراغ البصري 24).
+                Spacer(modifier = Modifier.height(16.dp))
+
                 StatisticsCardsRow(
                     stats = financialStats,
                     onPaymentsClick = { onNavigate("finance") },
                     onExpensesClick = { onNavigate("reports") }
                 )
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 RoomsSection(
                     roomsWithStatus = roomsWithStatus,
@@ -202,10 +207,10 @@ fun DashboardScreen(
                     onRoomLongPress = { roomOptionsDialog = it }
                 )
 
-                MyShiftReceiptsCard(
-                    total = sessionReceipts,
-                    startedAt = viewModel.sessionStartedAt
-                )
+                // ✅ (2026-09-24) بطاقة «إجمالي استلاماتي خلال النوبة الحالية»
+                // أُزيلت في Dart (dashboard_screen.dart l.24-28) مع الحفاظ على
+                // نفس الفراغ البصري المرئي 24dp قبل استلامات المستخدمين الآخرين.
+                Spacer(modifier = Modifier.height(24.dp))
 
                 if (viewModel.canViewOtherUsers) {
                     OtherUsersReceiptsCard(summaries = otherUserSummaries)
@@ -667,58 +672,6 @@ private fun RoomTile(
 // -----------------------------------------------------------------------------
 // Receipts cards
 // -----------------------------------------------------------------------------
-
-@Composable
-private fun MyShiftReceiptsCard(total: Double, startedAt: Long?) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = Color.Transparent,
-        border = androidx.compose.foundation.BorderStroke(1.dp, DashboardColors.SuccessGreenLight),
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                brush = Brush.horizontalGradient(
-                    listOf(DashboardColors.SuccessGreenLightest, Color.White)
-                ),
-                shape = RoundedCornerShape(12.dp)
-            )
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Payments,
-                contentDescription = null,
-                tint = DashboardColors.SuccessGreenDark,
-                modifier = Modifier.size(22.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "إجمالي استلاماتي خلال النوبة الحالية",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = DashboardColors.TextPrimary
-                )
-                if (startedAt != null) {
-                    Text(
-                        text = "النوبة بدأت ${formatHourMinute(startedAt)}",
-                        fontSize = 9.sp,
-                        color = DashboardColors.TextSecondary
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = formatCurrency(total),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = DashboardColors.SuccessGreenDark
-            )
-        }
-    }
-}
 
 @Composable
 private fun OtherUsersReceiptsCard(

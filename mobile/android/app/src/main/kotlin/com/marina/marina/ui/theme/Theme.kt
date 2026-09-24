@@ -1,5 +1,6 @@
 package com.marina.marina.ui.theme
 
+import android.content.Context
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -8,12 +9,21 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Legacy palette — kept for backward compatibility with the ported screens.
@@ -236,9 +246,51 @@ val AppShapes = RoundedCornerShape(12.dp)
 // Theme entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * ✅ (2026-09-24) تفضيل الوضع الداكن — نظير themeSettingsProvider في Dart
+ * (settings_screen.dart): مفتاح 'المظهر الداكن' في حوار إعدادات التطبيق
+ * يتحكم بثيم كل الشاشات عبر [MarinaTheme] الافتراضي.
+ */
+object ThemePrefs {
+    private const val PREFS_NAME = "marina_theme_prefs"
+    private const val KEY_DARK_MODE = "dark_mode"
+
+    private val _isDark = MutableStateFlow(false)
+
+    /** الوضع الداكن الحالي (يُحمّل من التفضيلات عند أول استخدام). */
+    val isDark: StateFlow<Boolean> = _isDark.asStateFlow()
+
+    /** قراءة القيمة المحفوظة وتحديث الحالة — تُستدعى عند أول تركيب. */
+    fun load(context: Context): Boolean {
+        val value = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_DARK_MODE, false)
+        _isDark.value = value
+        return value
+    }
+
+    /** حفظ القيمة وبثّها فوراً لكل الشاشات. */
+    fun setDark(context: Context, dark: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_DARK_MODE, dark).apply()
+        _isDark.value = dark
+    }
+}
+
+/** مصدر الوضع: تفضيل المستخدم إن وُجد وإلا إعداد النظام (نفس Dart). */
+@Composable
+private fun rememberThemeSetting(): Boolean {
+    val context = LocalContext.current
+    var dark by remember { mutableStateOf(ThemePrefs.isDark.value) }
+    LaunchedEffect(context) {
+        dark = ThemePrefs.load(context)
+        ThemePrefs.isDark.collect { dark = it }
+    }
+    return dark
+}
+
 @Composable
 fun MarinaTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = rememberThemeSetting(),
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) MarinaDarkColorScheme else MarinaLightColorScheme

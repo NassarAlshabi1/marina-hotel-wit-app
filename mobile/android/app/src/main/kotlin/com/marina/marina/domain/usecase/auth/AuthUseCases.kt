@@ -7,8 +7,12 @@ import javax.inject.Inject
 class LoginUseCase @Inject constructor(
     private val authRepository: AuthRepository
 ) {
-    suspend operator fun invoke(username: String, password: String): Result<AuthUser> =
-        authRepository.login(username.trim(), password)
+    suspend operator fun invoke(
+        username: String,
+        password: String,
+        rememberMe: Boolean = true
+    ): Result<AuthUser> =
+        authRepository.login(username.trim(), password, rememberMe)
 }
 
 class RestoreSessionUseCase @Inject constructor(

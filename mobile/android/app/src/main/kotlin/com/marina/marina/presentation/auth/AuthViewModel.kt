@@ -2,6 +2,7 @@ package com.marina.marina.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.domain.model.AuthUser
 import com.marina.marina.domain.usecase.auth.LoginUseCase
 import com.marina.marina.domain.usecase.auth.LogoutUseCase
@@ -17,14 +18,24 @@ import kotlinx.coroutines.launch
 class AuthViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
     private val restoreSessionUseCase: RestoreSessionUseCase,
-    private val logoutUseCase: LogoutUseCase
+    private val logoutUseCase: LogoutUseCase,
+    private val syncPreferences: SyncPreferences
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow(AuthState(isAuthenticated = false, isRestoring = true))
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
+    /** ✅ حالة «تذكرني» — تُحمّل من التخزين مثل _loadRememberMe في Dart. */
+    private val _rememberMe = MutableStateFlow(true)
+    val rememberMe: StateFlow<Boolean> = _rememberMe.asStateFlow()
+
     init {
+        _rememberMe.value = syncPreferences.getRememberMe()
         restoreSession()
+    }
+
+    fun setRememberMe(value: Boolean) {
+        _rememberMe.value = value
     }
 
     private fun restoreSession() {
@@ -50,11 +61,11 @@ class AuthViewModel @Inject constructor(
             }
         }
 
-    fun login(username: String, password: String) {
+    fun login(username: String, password: String, rememberMe: Boolean = true) {
         _authState.value = _authState.value.copy(isRestoring = true, error = null)
 
         viewModelScope.launch {
-            loginUseCase(username, password)
+            loginUseCase(username, password, rememberMe)
                 .onSuccess { user ->
                     _authState.value = AuthState(
                         isAuthenticated = true,

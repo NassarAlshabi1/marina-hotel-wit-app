@@ -46,7 +46,7 @@ fun BookingsListScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 TopAppBar(
-                    title = { Text("الحجوزات (${state.activeCount} نشطة)", style = AppTypography.titleLarge) },
+                    title = { Text("الحجوزات", style = AppTypography.titleLarge) },
                     navigationIcon = { SidebarMenuButton() },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = AppColors.SurfaceColor,

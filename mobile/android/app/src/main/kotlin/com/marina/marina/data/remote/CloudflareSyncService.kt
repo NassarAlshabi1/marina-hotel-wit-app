@@ -248,6 +248,9 @@ class SyncPreferences @Inject constructor(
         private const val KEY_CLOUDFLARE_SYNC = "appwrite_sync_enabled"
         private const val KEY_REALTIME_SYNC = "appwrite_realtime_sync_enabled"
         private const val KEY_SYNC_INTERVAL = "appwrite_sync_interval_minutes"
+
+        /** ✅ (2026-09-24) تفضيل «تذكرني» — نظير AuthLocalStore في Dart. */
+        private const val KEY_REMEMBER_ME = "remember_me"
     }
 
     /** يثبّت المستخدم الداخل (JSON) كي تحتفظ استعادة الجلسة بالهوية الحقيقية. */
@@ -382,5 +385,12 @@ class SyncPreferences @Inject constructor(
 
     fun setSyncIntervalMinutes(minutes: Int) {
         preferencesManager.saveLong(KEY_SYNC_INTERVAL, minutes.toLong())
+    }
+
+    /** ✅ «تذكرني» — الافتراضي true مثل Dart (_rememberMe = true). */
+    fun getRememberMe(): Boolean = preferencesManager.getBoolean(KEY_REMEMBER_ME, true)
+
+    fun setRememberMe(value: Boolean) {
+        preferencesManager.putBoolean(KEY_REMEMBER_ME, value)
     }
 }
