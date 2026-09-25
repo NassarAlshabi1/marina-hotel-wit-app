@@ -204,6 +204,10 @@ jobs:
       # ندير الإقلاع يدوياً (لا android-emulator-runner) لأن التحكم
       # الكامل بـ config.ini هو الطريقة الوحيدة لضبط vm.heapSize
       # و hw.cpu.ncore بالضبط.
+      # ⚠️ الـ AVD يُبنى يدوياً (ملفات مباشرة) لا عبر avdmanager:
+      # avdmanager في نسخة cmdline-tools المثبتة على الـ runner لا
+      # يفهم package.xml بإصدار 4 الذي تكتبه صور API 35 فيفشل بـ
+      # «AVD not created. null» — البناء اليدوي حتمي ويستغني عنه.
       - name: Boot 1GB Android emulator (API 35, 1024MB, 256MB heap, 2 cores)
         working-directory: ${{ github.workspace }}
         run: |
@@ -214,13 +218,11 @@ jobs:
           sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
             "system-images;android-35;google_apis;x86_64" >/dev/null
 
-          echo no | ${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager create avd \
-            -n marina_1gb -k "system-images;android-35;google_apis;x86_64" \
-            -d pixel_2 --force >/dev/null
-
-          AVD_DIR="$HOME/.android/avd/marina_1gb.avd"
-          cat > "$AVD_DIR/config.ini" <<'EOF'
+          AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$AVD_HOME/marina_1gb.avd"
+          cat > "$AVD_HOME/marina_1gb.avd/config.ini" <<'EOF'
           avd.ini.encoding=UTF-8
+          avd.ini.systempath.channel_id=stable
           hw.device=pixel_2
           hw.cpu.ncore=2
           hw.ramSize=1024
@@ -237,7 +239,14 @@ jobs:
           tag.id=google_apis
           abi.type=x86_64
           hw.cpu.arch=x86_64
+          fastboot.forceColdBoot=yes
           EOF
+          cat > "$AVD_HOME/marina_1gb.ini" <<EOF2
+          avd.ini.encoding=UTF-8
+          path=$AVD_HOME/marina_1gb.avd
+          path.rel=avd/marina_1gb.avd
+          target=android-35
+          EOF2
 
           nohup "$EMULATOR_BIN" -avd marina_1gb -no-window -gpu swiftshader_indirect \
             -noaudio -no-boot-anim -camera-back none -no-snapshot -memory 1024 \
