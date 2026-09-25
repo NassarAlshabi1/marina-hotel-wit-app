@@ -99,3 +99,16 @@ flutter:
   - assets/fonts/Tajawal-Regular.ttf
   - assets/fonts/Tajawal-Bold.ttf
   - assets/images/hotel_logo.jpg
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Patrol CLI configuration (patrol_cli reads this block from pubspec.yaml).
+#  بدون هذا الكتلة يستخدم الـ CLI الافتراضي test_directory = 'patrol_test'
+#  ولا يعرف package_name — فلا تُكتشف أي اختبارات على الجهاز
+#  ("Starting 0 tests" → connectedDebugAndroidTest IOException)
+#  متحقَّق منه في run 36091854729 + patrol#3146 + patrol#3102.
+#  المفاتيح مأخوذة من مصدر patrol_cli (pubspec_reader.dart).
+# ════════════════════════════════════════════════════════════════════════════
+patrol:
+  test_directory: integration_test
+  android:
+    package_name: com.marina.marina
