@@ -33,6 +33,8 @@ on:
   push:
     branches:
       - refactor/performance-fixes-v2
+      # مؤقت لأغراض التحقق من الخطّ قبل الدمج — يُزال بعد التحقق
+      - feat/cloudflare-sync-execution
 
 concurrency:
   group: perf-integration-${{ github.ref }}
