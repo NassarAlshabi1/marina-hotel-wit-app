@@ -50,6 +50,7 @@ fi
 # حتى يكشف الـ artifact القادم الشكل الفعلي لشجرة الوصولية.
 DEBUG_DIR="${LOW_RAM_DEBUG_DIR:-$(dirname "$EVENTS_CSV")/ui_dumps}"
 mkdir -p "$DEBUG_DIR"
+DRAWER_FAIL_COUNT=0
 save_debug_dump() {
   local name="$1" xml
   xml="$(dump_ui || true)"
@@ -397,6 +398,9 @@ drawer_tap() {
   "$ADB_BIN" shell input swipe 540 700 540 1500 300
   sleep_for_ui
   event 'not_found' "$label" 'drawer'
+  # لقطة تشخيصية للفشل — تكشف الشاشة الفعلية في الـ artifact
+  DRAWER_FAIL_COUNT=$(( DRAWER_FAIL_COUNT + 1 ))
+  save_debug_dump "cycle${CYCLE}_drawer_fail_${DRAWER_FAIL_COUNT}"
   # إغلاق القائمة إن كانت ما تزال مفتوحة — BACK على قائمة مفتوحة
   # يغلقها فقط؛ أما إرساله على شاشة قسم فقد يُخرج التطبيق.
   if is_drawer_open; then
@@ -427,6 +431,31 @@ goto_dashboard() {
   sleep_for_ui
 }
 
+# ✅ المُنقذ العام من أي حالة عالقة: إطلاق النشاط بتكبير مهمة
+# جديدة يعيد الجلسة المحفوظة (rememberMe) إلى لوحة التحكم من أي
+# شاشة — بما فيها شاشات push التي لا تحمل AppBar القائمة
+# (تفاصيل الحجز مثلاً: زر القائمة/حافتها غير موجودين عليها أصلاً).
+restore_app_state() {
+  "$ADB_BIN" shell am start -W -n "$PACKAGE/.MainActivity" \
+    -a android.intent.action.MAIN -c android.intent.category.LAUNCHER \
+    -f 0x10008000 >/dev/null 2>&1 || true
+  sleep "$SCREEN_SETTLE_SEC"
+  if is_dashboard_visible; then
+    event 'app_state_restored' 'navigation' 'relaunch'
+    return 0
+  fi
+  return 1
+}
+
+# ضمان العودة للوحة التحكم: قائمة → إعادة إطلاق
+ensure_dashboard() {
+  is_dashboard_visible && return 0
+  goto_dashboard
+  is_dashboard_visible && return 0
+  restore_app_state || true
+  is_dashboard_visible
+}
+
 # تفاصيل الحجز — best-effort: نقر أول عنصر في قائمة الحجوزات
 # (إحداثية إرشادية) والتحقق من تغيّر الواجهة. تثبيت نظيف = لا
 # حجوزات محلياً؛ مع حساب سحابي (Secrets) وبيانات فعلية يفتح
@@ -440,8 +469,13 @@ attempt_booking_details() {
   if [[ -n "$before" && -n "$after" && "$before" != "$after" ]]; then
     event 'target' 'booking_details' 'visited:coordinate_heuristic'
     sleep "$SCREEN_SETTLE_SEC"
+    # BACK واحد فقط — قد يستهلكه حقل نص مركز (بلا IME مع لوحة
+    # أصلية) فلا يغلق الشاشة؛ لذا يليه ensure_dashboard فوراً
     "$ADB_BIN" shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
     sleep_for_ui
+    # شاشة التفاصيل شاشة push بلا AppBar للقائمة — لا يمكن فتح
+    # القائمة منها؛ المُنقذ: إعادة الإطلاق عبر ensure_dashboard
+    ensure_dashboard || event 'state_stuck_after_booking_details' 'navigation' '-'
   else
     event 'target' 'booking_details' 'not_found:no_data_or_list_empty'
   fi
@@ -507,20 +541,20 @@ navigate_target 'rooms' 'إدارة الغرف'
 navigate_target 'reports' 'التقارير'
 
 # 5) بطاقات الغرف (تفاصيل غرفة) — على لوحة التحكم
-goto_dashboard
+ensure_dashboard
 for room in 101 102 103 104; do
   if tap_text "$room"; then
     event 'target' 'room_details' "visited:room_$room"
     sleep "$SCREEN_SETTLE_SEC"
     "$ADB_BIN" shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
     sleep_for_ui
-    goto_dashboard
+    ensure_dashboard
     break
   fi
 done
 
 # 6) العودة للوحة التحكم
-goto_dashboard
+ensure_dashboard
 event 'navigation_cycle_complete' 'navigation' "mode=$CRED_MODE"
 
 # مخرج مضمون: القياس الأم لا يُقتل أبداً بسبب التنقل.
