@@ -110,7 +110,10 @@ jobs:
       # run 36084818552: Binding is already initialized).
       - name: Install patrol CLI
         run: |
-          dart pub global activate patrol_cli
+          # إصدار مثبَّت: patrol_cli 4.8.0 غير متوافق مع patrol 4.7.1
+          # في المشروع — الـ CLI نفسه يوصي بـ 4.6.1 (مُتحقَّق في
+          # run 36086332712). أرقام إصدارات الـ CLI مستقلة عن الحزمة.
+          dart pub global activate patrol_cli 4.6.1
           echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
           patrol --version
 
