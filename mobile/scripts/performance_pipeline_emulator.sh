@@ -110,12 +110,21 @@ run_scenario() {
   else
     echo "$NAME=FAIL" >> "$MET/results.txt"
     echo "::warning::integration scenario $NAME failed — see artifact test_${NAME}.log"
-    # تشخيص：XML نتائج gradle + سجل الجهاز يكشفان سبب فشل الـ instrumentation
-    adb logcat -d 2>/dev/null \
-      | grep -iE "TestRunner|Instrumentation|AndroidJUnit|Process crashed|FATAL EXCEPTION|patrol" \
-      > "$MET/test_${NAME}_device.logcat.txt" || true
-    cp -r build/app/outputs/androidTest-results "$MET/androidTest-results-${NAME}" 2>/dev/null || true
-    cp -r build/app/reports/androidTests "$MET/androidTests-report-${NAME}" 2>/dev/null || true
+    # ── تشخيص عميق ──
+    # 1) إعادة تشغيل أمر gradle نفسه (المستخرج من اللوج) مع --stacktrace
+    #    لكشف مصدر IOException: No such file or directory
+    GRADLE_CMD=$(grep -m1 -o "\./gradlew :app:connectedDebugAndroidTest.*" \
+      "$MET/test_${NAME}.log" | tail -1)
+    if [ -n "$GRADLE_CMD" ]; then
+      (cd android && eval "$GRADLE_CMD --stacktrace") \
+        > "$MET/test_${NAME}_stacktrace.log" 2>&1 || true
+    fi
+    # 2) ذيل logcat كامل (بدون grep — الـ grep أفرغ الملف سابقاً)
+    adb logcat -d -t 3000 > "$MET/test_${NAME}_device.logcat.txt" 2>&1 || true
+    # 3) حالة الجهاز وملفات الـ APK
+    adb devices -l > "$MET/test_${NAME}_adb_devices.txt" 2>&1 || true
+    ls -la build/app/outputs/apk/debug/ build/app/outputs/apk/androidTest/debug/ \
+      >> "$MET/test_${NAME}_adb_devices.txt" 2>&1 || true
   fi
 }
 
