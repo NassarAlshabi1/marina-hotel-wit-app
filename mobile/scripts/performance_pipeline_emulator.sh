@@ -52,6 +52,16 @@ cat "$MET/cold_start.txt"
 # نترك التطبيق يعمل قليلاً ليرسم إطارات (أساس مقاييس gfxinfo)
 sleep 8
 
+# ⚠️ إزالة الـ release APK قبل سيناريوهات patrol:
+# الـ release بُني بـ --build-number=${{ github.run_number }} (versionCode
+# كبير) بينما debug/test APK من pubspec (1.2.0+3 → versionCode=3) —
+# gradle connectedAndroidTest لا يقبل التثبيت النازل (INSTALL_FAILED_
+# VERSION_DOWNGRADE) فيفشل بصمت بـ 0 tests (مُتحقَّق في run 36087698698).
+# flutter test كان ينجو لأن flutter_tools يعيد المحاولة بعد uninstall
+# أما gradle فلا يملك هذا السلوك. مقاييس cold start أعلاه مأخوذة أصلاً
+# من الـ release APK الحقيقي.
+adb uninstall "$PKG" || true
+
 echo "=== Resetting gfxinfo + logcat ==="
 adb shell dumpsys gfxinfo "$PKG" reset > /dev/null 2>&1 || true
 adb logcat -c || true
