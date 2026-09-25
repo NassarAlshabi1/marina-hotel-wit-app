@@ -27,7 +27,10 @@ set -u
 cd "$GITHUB_WORKSPACE" || exit 1
 
 PKG="${APP_PACKAGE:-com.marina.marina}"
-MET="mobile/build/perf-integration"
+# ⚠️ مسار مطلق إلزامي: السكربت يقوم بـ cd mobile لاحقاً (لتشغيل flutter test)
+# والمسار النسبي سيتحول إلى mobile/mobile/... بعد الـ cd — هذا بالضبط ما
+# كسر run 36082917485 (test_*.log: No such file or directory).
+MET="$GITHUB_WORKSPACE/mobile/build/perf-integration"
 APK="mobile/build/app/outputs/flutter-apk/app-release.apk"
 mkdir -p "$MET" || exit 1
 

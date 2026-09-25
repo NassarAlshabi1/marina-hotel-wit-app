@@ -172,14 +172,27 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           cat build/perf-integration/performance_report.md >> "$GITHUB_STEP_SUMMARY"
 
-      # ── 12. بوابة النتيجة: أي سيناريو فاشل = فشل الـ job ─────────────────
-      - name: Gate — fail if any scenario failed
+      # ── 12. بوابة النتيجة: يجب أن تكون جميع السيناريوهات الثمانية PASS ──
+      #      (عدّ سطور =PASS يمنع ثغرة «لا نتيجة = يمر» التي سمحت لنتائج
+      #       مفقودة بالمرور في run 36082917485)
+      - name: Gate — require all 8 scenarios PASS
         run: |
-          if grep -q "=FAIL" build/perf-integration/results.txt; then
-            echo "::error::يوجد سيناريوهات integration فاشلة — راجع artifacts"
+          RES=build/perf-integration/results.txt
+          if [ ! -f "$RES" ]; then
+            echo "::error::results.txt مفقود — خطّ السيناريوهات لم يعمل"
+            cat build/perf-integration/*.log 2>/dev/null || true
             exit 1
           fi
-          echo "جميع السيناريوهات ناجحة ✅"
+          echo "=== results.txt ==="
+          cat "$RES"
+          PASS_COUNT=$(grep -c "=PASS" "$RES" || true)
+          FAIL_COUNT=$(grep -c "=FAIL" "$RES" || true)
+          echo "PASS=$PASS_COUNT FAIL=$FAIL_COUNT (المطلوب: 8/8)"
+          if [ "$FAIL_COUNT" -gt 0 ] || [ "$PASS_COUNT" -lt 8 ]; then
+            echo "::error::ليست جميع السيناريوهات ناجحة (PASS=$PASS_COUNT/8, FAIL=$FAIL_COUNT)"
+            exit 1
+          fi
+          echo "جميع السيناريوهات الثمانية ناجحة ✅"
 
       # ── 13. رفع artifacts (دائماً — حتى عند الفشل) ───────────────────────
       - name: Upload performance artifacts
