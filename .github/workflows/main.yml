@@ -105,12 +105,20 @@ jobs:
       # minSdkVersion = 21 (Android 5.0 Lollipop)
       # targetSdk = 36 (Android 16)
       # المعماريات: arm64-v8a, armeabi-v7a
+      # ── R8 + Dart obfuscation ──
+      # R8 (minifyEnabled/shrinkResources في build.gradle) يقلّص كود
+      # Java/Kotlin ويولّد mapping.txt لتفسير تتبعات الأعطال.
+      # --obfuscate يخفي رموز Dart (أسماء الفئات/الدوال) مما يقلّص
+      # حجم APK إضافياً، و--split-debug-info يحفظ رموز Dart في ملف
+      # .symbols لتفسير الأعطال لاحقاً عبر: flutter symbolize
       - name: Build universal release APK
         run: >
           flutter build apk --release
           --target-platform android-arm64,android-arm
           --build-name ${{ steps.version.outputs.build_name }}
           --build-number ${{ steps.version.outputs.build_number }}
+          --obfuscate
+          --split-debug-info=build/symbols
           --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
           --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
@@ -120,11 +128,32 @@ jobs:
 
       # ─── عرض معلومات الـ APK المبني ─────────────────────
       - name: Inspect APK info
+        id: apkinfo
         run: |
           APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
-          echo "APK size: $(du -h $APK_PATH | cut -f1)"
+          APK_BYTES=$(stat -c%s $APK_PATH)
+          APK_MB=$(awk "BEGIN {printf \"%.2f\", $APK_BYTES/1048576}")
+          echo "APK size: ${APK_MB} MB ($APK_BYTES bytes)"
+          echo "apk_size_mb=${APK_MB}" >> $GITHUB_OUTPUT
           echo "APK path: $APK_PATH"
           unzip -l $APK_PATH | grep "lib/" | awk '{print $4}' | sed 's|lib/||' | cut -d'/' -f1 | sort -u
+
+      # ─── التحقق من ملفات الـ mapping (R8 + Dart) ─────────
+      - name: Verify R8 mapping & Dart symbols
+        run: |
+          echo "=== R8 mapping (Java/Kotlin deobfuscation) ==="
+          MAPPING="build/app/outputs/mapping/release/mapping.txt"
+          if [ -f "$MAPPING" ]; then
+            echo "✓ mapping.txt found: $(du -h $MAPPING | cut -f1) ($(wc -l < $MAPPING) entries)"
+          else
+            echo "::warning::R8 mapping file not found at $MAPPING"
+          fi
+          echo "=== Dart symbols (flutter symbolize) ==="
+          if [ -d "build/symbols" ] && ls build/symbols/*.symbols >/dev/null 2>&1; then
+            ls -la build/symbols/
+          else
+            echo "::warning::Dart symbols not found in build/symbols/"
+          fi
 
       # ─── رفع الـ APK كـ artifact ────────────────────────
       - name: Upload release APK artifact
@@ -133,6 +162,21 @@ jobs:
           name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+          retention-days: 90
+
+      # ─── رفع R8 mapping + رموز Dart كـ artifact ─────────
+      # ملفات تفسير الأعطال — تُرفع كـ artifact (وليس في Release
+      # العام) لأن كشفها للعلن يُلغي فائدة الإخفاء (obfuscation)
+      # R8 mapping:      retrace mapping.txt < stack-trace
+      # Dart symbols:    flutter symbolize -d <arch>.symbols -i <trace>
+      - name: Upload R8 mapping & Dart symbols artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: 'marina-hotel-mapping-${{ steps.version.outputs.build_name }}'
+          path: |
+            mobile/build/app/outputs/mapping/release/mapping.txt
+            mobile/build/symbols/*.symbols
+          if-no-files-found: warn
           retention-days: 90
 
       # ─── إنشاء GitHub Release ────────────────────────────
@@ -150,6 +194,15 @@ jobs:
             - المستهدف: Android 16 (API 36)
             - المعالجات المدعومة: arm64-v8a, armeabi-v7a
             - رقم البناء: ${{ steps.version.outputs.build_number }}
+            - حجم الـ APK: ${{ steps.apkinfo.outputs.apk_size_mb }} MB
+            - R8 minify + shrinkResources + Dart obfuscation مفعّلة
+
+            ### ملفات تفسير الأعطال (Deobfuscation)
+
+            ملف `mapping.txt` (R8) ورموز Dart (`*.symbols`) تُرفع كـ artifact
+            من نفس تشغيل الـ workflow باسم
+            `marina-hotel-mapping-v${{ steps.version.outputs.build_name }}`
+            (Artifacts → تشغيل البناء هذا) — وليس في الـ Release العام لحمايتها.
 
             ### طريقة التثبيت
             1. حمّل ملف APK
