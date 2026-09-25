@@ -162,6 +162,10 @@ EOF
       > "$MET/test_${NAME}_daemon_diag.log" 2>&1 || true
     # 2) ذيل logcat كامل (بدون grep — الـ grep أفرغ الملف سابقاً)
     adb logcat -d -t 3000 > "$MET/test_${NAME}_device.logcat.txt" 2>&1 || true
+    # 5) تقارير الأعطال على الجهاز (orchestrator يكتب تفاصيل انهيار
+    #    كل اختبار في additional_test_output)
+    adb pull /sdcard/Android/media/"$PKG"/additional_test_output \
+      "$MET/test_${NAME}_device_output" >/dev/null 2>&1 || true
     # 3) حالة الجهاز وملفات الـ APK
     adb devices -l > "$MET/test_${NAME}_adb_devices.txt" 2>&1 || true
     ls -la build/app/outputs/apk/debug/ build/app/outputs/apk/androidTest/debug/ \
