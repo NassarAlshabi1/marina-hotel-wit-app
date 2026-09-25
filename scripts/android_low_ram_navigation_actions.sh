@@ -79,12 +79,20 @@ dump_ui() {
   "$ADB_BIN" shell cat "$UI_XML" 2>/dev/null | tr -d '\r\n'
 }
 
-# استخراج حدود عنصر من الـ dump عبر text= أو content-desc=.
+# استخراج حدود عنصر من الـ dump — بثلاث مستويات:
+# 1) مطابقة حرفية text="X" — 2) مطابقة حرفية content-desc="X"
+# 3) سلسلة جزئية داخل أي صفة — لأن Flutter يدمج عقد البطاقات في
+# قيمة واحدة مثل "0&#10;مدفوعات اليوم" (القيمة + التسمية معاً)
+# فتفشل المطابقة الحرفية وحدها (أثبتها الـ dump الحقيقي من CI).
 extract_bounds() {
   local xml="$1" requested="$2" bounds
   bounds=$(printf '%s' "$xml" | grep -o "text=\"$requested\"[^>]*bounds=\"\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]\"" | sed -n '1p' | sed -n 's/.*bounds="\[\([0-9]*\),\([0-9]*\)\]\[\([0-9]*\),\([0-9]*\)\]"/\1 \2 \3 \4/p')
   if [[ -z "$bounds" ]]; then
     bounds=$(printf '%s' "$xml" | grep -o "content-desc=\"$requested\"[^>]*bounds=\"\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]\"" | sed -n '1p' | sed -n 's/.*bounds="\[\([0-9]*\),\([0-9]*\)\]\[\([0-9]*\),\([0-9]*\)\]"/\1 \2 \3 \4/p')
+  fi
+  if [[ -z "$bounds" ]]; then
+    # سلسلة جزئية: التسمية داخل قيمة مدمجة (بطاقات لوحة التحكم)
+    bounds=$(printf '%s' "$xml" | grep -o "[a-z-]*=\"[^\"]*$requested[^\"]*\"[^>]*bounds=\"\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]\"" | sed -n '1p' | sed -n 's/.*bounds="\[\([0-9]*\),\([0-9]*\)\]\[\([0-9]*\),\([0-9]*\)\]"/\1 \2 \3 \4/p')
   fi
   printf '%s' "$bounds"
 }
@@ -188,9 +196,10 @@ is_drawer_open() {
   [[ -n "$ui" ]] || return 1
   count=0
   for marker in "${DRAWER_MARKERS[@]}"; do
-    # Flutter يعرض النص الساكن في content-desc (أو text= حسب الجسر) —
-    # نفحص الصيغتين معاً وإلا فشل الفحص على الشكل الفعلي.
-    printf '%s' "$ui" | grep -q "text=\"$marker\"\|content-desc=\"$marker\"" && count=$((count + 1))
+    # مطابقة بالسلسلة الجزئية: Flutter يدمج العقد (القيمة+التسمية
+    # في قيمة واحدة بـ &#10;) فالمطابقة الحرفية تفشل — وعتبة 3 علامات
+    # متزامنة تمنع ال false positive (شاشة واحدة = عنوان واحد حداً).
+    printf '%s' "$ui" | grep -q "$marker" && count=$((count + 1))
   done
   (( count >= 3 ))
 }
@@ -246,7 +255,8 @@ is_dashboard_visible() {
   [[ -n "$ui" ]] || return 1
   count=0
   for marker in "${DASHBOARD_MARKERS[@]}"; do
-    printf '%s' "$ui" | grep -q "text=\"$marker\"\|content-desc=\"$marker\"" && count=$((count + 1))
+    # سلسلة جزئية: البطاقات الحقيقية مدمجة مثل "0&#10;مدفوعات اليوم"
+    printf '%s' "$ui" | grep -q "$marker" && count=$((count + 1))
   done
   (( count >= 2 ))
 }
@@ -377,7 +387,9 @@ open_drawer() {
 # الشاشة، ثم إعادة التمرير للأعلى).
 drawer_tap() {
   local label="$1"
-  open_drawer || { event 'drawer_open_failed' "$label"; return 1; }
+  # محاولة ثم تحقق — لا العكس: حتى لو أخفق تحقق فتح القائمة قد
+  # تكون مفتوحة فعلاً (فحص العلامات هش تجاه دمج عقد Flutter).
+  open_drawer || true
   if tap_text "$label"; then return 0; fi
   "$ADB_BIN" shell input swipe 540 1500 540 700 300
   sleep_for_ui
