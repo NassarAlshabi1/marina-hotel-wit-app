@@ -105,11 +105,17 @@ run_scenario() {
   # للـ Patrol الأصلي وflutter test على الجهاز يُهيِّئ integration_test
   # binding أولاً فيتعارض مع PatrolBinding.ensureInitialized.
   # ملاحظة: أول استدعاء يبني androidTest APK (~4-5 د) ثم incrementals.
-  if patrol test --target "$FILE" > "$MET/test_${NAME}.log" 2>&1; then
+  if patrol test --verbose --target "$FILE" > "$MET/test_${NAME}.log" 2>&1; then
     echo "$NAME=PASS" >> "$MET/results.txt"
   else
     echo "$NAME=FAIL" >> "$MET/results.txt"
     echo "::warning::integration scenario $NAME failed — see artifact test_${NAME}.log"
+    # تشخيص：XML نتائج gradle + سجل الجهاز يكشفان سبب فشل الـ instrumentation
+    adb logcat -d 2>/dev/null \
+      | grep -iE "TestRunner|Instrumentation|AndroidJUnit|Process crashed|FATAL EXCEPTION|patrol" \
+      > "$MET/test_${NAME}_device.logcat.txt" || true
+    cp -r build/app/outputs/androidTest-results "$MET/androidTest-results-${NAME}" 2>/dev/null || true
+    cp -r build/app/reports/androidTests "$MET/androidTests-report-${NAME}" 2>/dev/null || true
   fi
 }
 
