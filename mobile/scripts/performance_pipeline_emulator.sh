@@ -134,6 +134,28 @@ run_scenario() {
       (cd android && eval "$GRADLE_CMD --stacktrace") \
         > "$MET/test_${NAME}_stacktrace.log" 2>&1 || true
     fi
+    # 4) تشخيص من داخل JVM الـ daemon نفسه: أين يرى user.home؟ وهل
+    #    createTempFile ينجح تحت نفس ظروف AGP تماماً؟
+    cat > "$MET/utp_diag.init.gradle" <<'EOF'
+gradle.settingsEvaluated {
+    def uh = System.getProperty("user.home")
+    def tmp = System.getProperty("java.io.tmpdir")
+    println "DAEMON user.home=${uh} java.io.tmpdir=${tmp}"
+    def utp = new File(uh, ".android/utp")
+    println "utp path=${utp} exists=${utp.exists()} isDir=${utp.isDirectory()}"
+    try {
+        def f = File.createTempFile("diag", ".tmp", utp)
+        println "createTempFile OK: ${f}"
+        f.delete()
+    } catch (Exception e) {
+        println "createTempFile FAILED: ${e}"
+        println "utp parent exists=${utp.getParentFile().exists()}"
+        println "utp list=${utp.getParentFile().list()}"
+    }
+}
+EOF
+    (cd android && ./gradlew -q -I "$MET/utp_diag.init.gradle" :app:help) \
+      > "$MET/test_${NAME}_daemon_diag.log" 2>&1 || true
     # 2) ذيل logcat كامل (بدون grep — الـ grep أفرغ الملف سابقاً)
     adb logcat -d -t 3000 > "$MET/test_${NAME}_device.logcat.txt" 2>&1 || true
     # 3) حالة الجهاز وملفات الـ APK
