@@ -56,4 +56,19 @@ interface BookingNightsDao {
 
     @Query("DELETE FROM booking_nights WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /**
+     * ✅ (2026-09-25) المفتاح الطبيعي الفريد لليلة — (booking_local_id,
+     * hotel_day_key) نفس عقد _naturalUniqueKeys في Dart (إصلاح تجميد
+     * 398 ليلة): صف خادمي يصل بـ local_uuid جديد لكن بنفس المفتاح
+     * الطبيعي = نسخة مكررة منطقياً تُدمج LWW بدل إدراج صف ثانٍ.
+     */
+    @Query(
+        """
+        SELECT * FROM booking_nights
+        WHERE booking_local_id = :bookingLocalId AND hotel_day_key = :hotelDayKey
+        LIMIT 1
+        """
+    )
+    suspend fun getByNaturalKey(bookingLocalId: Long, hotelDayKey: String): BookingNightEntity?
 }

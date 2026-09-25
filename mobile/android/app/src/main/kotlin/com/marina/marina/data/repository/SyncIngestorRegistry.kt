@@ -1,6 +1,11 @@
 package com.marina.marina.data.repository
 
+import androidx.room.withTransaction
+import com.google.gson.ExclusionStrategy
+import com.google.gson.FieldAttributes
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.AppUsersDao
 import com.marina.marina.data.local.dao.AuditLogsDao
 import com.marina.marina.data.local.dao.BlacklistEntriesDao
@@ -29,20 +34,63 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * ✅ (2026-09-24) محرك استيعاب سجلات السحب — يوجّه كل سجل بعلامة `_entity`
- * (يضيفها الخادم لكل سجل في pullChanges) إلى الجدول المحلي الصحيح ويطبّق
- * آخر-كتابة-تفوز بمقارنة last_modified (تكافؤ ingestRecord القديم لكن
- * لكل الكيانات المتزامنة بدل 6 فقط).
+ * ✅ (2026-09-25) محرك استيعاب سجلات السحب — أُعيدت كتابته على العقد
+ * الدارتي الكامل (cloudflare_sync_manager.dart — الجذري الثالث
+ * 2026-09-09 + سجل الانتظار 2026-09-15):
  *
- * الحذف: السجلات المحذوفة تحمل deleted_at من الخادم — تُستوعب كصفوف
- * محذوفة ناعماً (الاستعلامات النشطة تفلتر deleted_at IS NULL)، أي أن
- * tombstone الواصل من جهاز آخر يُطبع محلياً كما يجب.
+ * 1. **تعلّم ظلّ هوية الخادم**: كل صف واصل يحمل `id` (AUTOINCREMENT
+ *    خادمي) — يُخزن في عمود `server_id` المحلي فيصير سجلَّ ترجمة
+ *    دائماً «D1 id → صف محلي» داخل البيانات نفسها (عمود server_id
+ *    الواصل من D1 إرثي وNULL غالباً — لم يكن يُتعلم إطلاقاً).
  *
- * hotel_day_ledger مستبعد عمداً (تأكيد المالك 2026-09-05: «جدول محلي لا
- * أريد أن يتم مزامنته») — محلي-فقط بالتصميم (خطة D8).
+ * 2. **ترجمة FK عند التطبيق** (تكافؤ _fkRules + IdResolver):
+ *    مؤشرات الأبناء الرقمية على السلك (booking_local_id/employee_id/
+ *    cycle_id/item_id) تحمل فضاء id الجهاز الدافع — كتابتها كما هي
+ *    محلياً تربط الابن بأب **خاطئ** (تصادم autoIncrement بين الأجهزة).
+ *    سلّم الحل: uuid-cache (3 صيغ) → الرجل الإرثية (server_booking_id)
+ *    → ظلّ server_id → ما لم يُحلّ يُؤجَّل لإعادة المحاولة بعد اكتمال
+ *    الصفحات (الآب قد يصل في صفحة لاحقة). **لا يُستخدم id الخام من
+ *    جهاز بعيد أبداً** («bookingLocalId=5 على جهاز A ≠ جهاز B»).
+ *
+ * 3. **الدمج بالمفتاح الطبيعي** لليالي الحجز (booking_local_id,
+ *    hotel_day_key — عقد _naturalUniqueKeys): صف بـ local_uuid جديد
+ *    بنفس الليلة = نسخة مكررة منطقياً تُدمج LWW بدل صف ثانٍ.
+ *
+ * 4. **الصفحة كلها في معاملة واحدة** — 7,300 commit → ~18 (تسريع
+ *     السحب الكامل 2026-09-22 في Dart).
+ *
+ * 5. **آخر-كتابة-تفوز** بمقارنة last_modified؛ التعادل للقادم من
+ *    الخادم (حسم التعارض خادمياً). الحذفيات تُستوعب ناعمياً.
+ *
+ * hotel_day_ledger مستبعد عمداً (تأكيد المالك: جدول محلي-فقط — خطة D8).
  */
+
+/** نتيجة تطبيق سجل واحد. */
+private sealed interface ApplyOutcome {
+    data object Applied : ApplyOutcome
+    data object Skipped : ApplyOutcome
+    data object Deferred : ApplyOutcome
+    data class Failed(val error: String) : ApplyOutcome
+}
+
+/** سجل مؤجل — فشلت ترجمة آبائه في هذه الصفحة (تُعاد بعد اكتمال الصفحات). */
+data class DeferredRecord(val entity: String, val record: Map<String, Any>)
+
+/** تقرير تطبيق صفحة كاملة (تكافؤ PullApplyReport في Dart). */
+data class PullApplyReport(
+    val applied: Int,
+    val skipped: Int,
+    val failed: Int,
+    val firstError: String?,
+    val deferred: List<DeferredRecord>
+) {
+    val hasFailures: Boolean get() = failed > 0
+    val hasDeferred: Boolean get() = deferred.isNotEmpty()
+}
+
 @Singleton
 class SyncIngestorRegistry @Inject constructor(
+    private val db: AppDatabase,
     private val roomsDao: RoomsDao,
     private val bookingsDao: BookingsDao,
     private val paymentsDao: PaymentsDao,
@@ -67,183 +115,411 @@ class SyncIngestorRegistry @Inject constructor(
     private val inventoryDao: InventoryDao,
     private val blacklistEntriesDao: BlacklistEntriesDao
 ) {
-    private val gson = Gson()
+    /**
+     * ✅ (2026-09-25) Gson لكل صنف كيان — الإصلاح الجذري لموت الاستيعاب:
+     * الكيانات تعيد إعلان حقول BaseSyncEntity (id، وبعضها local_uuid مثل
+     * PaymentEntity) لتعليقها بـ@PrimaryKey/@ColumnInfo — Gson يفشل
+     * «declares multiple JSON fields named 'id'» على كل سجل، وكان
+     * catch(_: Exception) القديم يبتلع ذلك صمتاً فلا يصل صفّ واحد إلى
+     * Room إطلاقاً. الاستراتيجية: الحقل المورّث يُتجاهل عندما يعيد
+     * الصنف الفعلي إعلانه (الفرعي هو المصدر المرجعي).
+     */
+    private val gsonCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Gson>()
 
-    /** سجل استيعاب واحد: سجل → upsert محلي. يعيد false عند كيان غير مدعوم. */
-    suspend fun ingest(record: Map<String, Any>): Boolean {
-        val entity = record["_entity"] as? String ?: return false
-        val remoteLastModified = (record["last_modified"] as? Number)?.toLong() ?: 0L
-        return when (entity) {
-            "rooms" -> upsert<com.marina.marina.data.local.entity.RoomEntity>(
-                record, remoteLastModified,
-                fetch = { roomsDao.getByLocalUuid(it) },
-                store = { roomsDao.insert(it) }
-            )
-            "bookings" -> upsert<com.marina.marina.data.local.entity.BookingEntity>(
-                record, remoteLastModified,
-                fetch = { bookingsDao.getByLocalUuid(it) },
-                store = { bookingsDao.insert(it) }
-            )
-            "payments" -> upsert<com.marina.marina.data.local.entity.PaymentEntity>(
-                record, remoteLastModified,
-                fetch = { paymentsDao.getByLocalUuid(it) },
-                store = { paymentsDao.insert(it) }
-            )
-            "expenses" -> upsert<com.marina.marina.data.local.entity.ExpenseEntity>(
-                record, remoteLastModified,
-                fetch = { expensesDao.getByLocalUuid(it) },
-                store = { expensesDao.insert(it) }
-            )
-            "employees" -> upsert<com.marina.marina.data.local.entity.EmployeeEntity>(
-                record, remoteLastModified,
-                fetch = { employeesDao.getByLocalUuid(it) },
-                store = { employeesDao.insert(it) }
-            )
-            "debts" -> upsert<com.marina.marina.data.local.entity.DebtEntity>(
-                record, remoteLastModified,
-                fetch = { debtsDao.getByLocalUuid(it) },
-                store = { debtsDao.insert(it) }
-            )
-            "booking_notes" -> upsert<com.marina.marina.data.local.entity.BookingNoteEntity>(
-                record, remoteLastModified,
-                fetch = { bookingNotesDao.getByLocalUuid(it) },
-                store = { bookingNotesDao.insert(it) }
-            )
-            "booking_nights" -> upsert<com.marina.marina.data.local.entity.BookingNightEntity>(
-                record, remoteLastModified,
-                fetch = { bookingNightsDao.getByLocalUuid(it) },
-                store = { bookingNightsDao.insert(it) }
-            )
-            "booking_price_adjustments" -> upsert<com.marina.marina.data.local.entity.BookingPriceAdjustmentEntity>(
-                record, remoteLastModified,
-                fetch = { bookingPriceAdjustmentsDao.getByLocalUuid(it) },
-                store = { bookingPriceAdjustmentsDao.insert(it) }
-            )
-            "guest_infos" -> upsert<com.marina.marina.data.local.entity.GuestInfoEntity>(
-                record, remoteLastModified,
-                fetch = { guestInfosDao.getByLocalUuid(it) },
-                store = { guestInfosDao.insert(it) }
-            )
-            "shift_notes" -> upsert<com.marina.marina.data.local.entity.ShiftNoteEntity>(
-                record, remoteLastModified,
-                fetch = { shiftNotesDao.getByLocalUuid(it) },
-                store = { shiftNotesDao.insert(it) }
-            )
-            "salary_cycles" -> upsert<com.marina.marina.data.local.entity.SalaryCycleEntity>(
-                record, remoteLastModified,
-                fetch = { salaryCyclesDao.getByLocalUuid(it) },
-                store = { salaryCyclesDao.insert(it) }
-            )
-            "salary_payments" -> upsert<com.marina.marina.data.local.entity.SalaryPaymentEntity>(
-                record, remoteLastModified,
-                fetch = { salaryPaymentsDao.getByLocalUuid(it) },
-                store = { salaryPaymentsDao.insert(it) }
-            )
-            "salary_withdrawals" -> upsert<com.marina.marina.data.local.entity.SalaryWithdrawalEntity>(
-                record, remoteLastModified,
-                fetch = { salaryWithdrawalsDao.getByLocalUuid(it) },
-                store = { salaryWithdrawalsDao.insert(it) }
-            )
-            "salary_carry_over_logs" -> upsert<com.marina.marina.data.local.entity.SalaryCarryOverLogEntity>(
-                record, remoteLastModified,
-                fetch = { salaryCarryOverLogsDao.getByLocalUuid(it) },
-                store = { salaryCarryOverLogsDao.insert(it) }
-            )
-            "app_users" -> upsert<com.marina.marina.data.local.entity.AppUserEntity>(
-                record, remoteLastModified,
-                fetch = { appUsersDao.getByLocalUuid(it) },
-                store = { appUsersDao.insert(it) }
-            )
-            "devices" -> upsert<com.marina.marina.data.local.entity.DeviceInfoEntity>(
-                record, remoteLastModified,
-                fetch = { devicesDao.getByLocalUuid(it) },
-                store = { devicesDao.insert(it) }
-            )
-            "cash_transactions" -> upsert<com.marina.marina.data.local.entity.CashTransactionEntity>(
-                record, remoteLastModified,
-                fetch = { cashTransactionsDao.getByLocalUuid(it) },
-                store = { cashTransactionsDao.insert(it) }
-            )
-            "audit_logs" -> upsert<com.marina.marina.data.local.entity.AuditLogEntity>(
-                record, remoteLastModified,
-                fetch = { auditLogsDao.getByLocalUuid(it) },
-                store = { auditLogsDao.insert(it) }
-            )
-            "payment_voids" -> upsert<com.marina.marina.data.local.entity.PaymentVoidEntity>(
-                record, remoteLastModified,
-                fetch = { paymentVoidsDao.getByLocalUuid(it) },
-                store = { paymentVoidsDao.insert(it) }
-            )
-            "price_adjustments" -> upsert<com.marina.marina.data.local.entity.PriceAdjustmentEntity>(
-                record, remoteLastModified,
-                fetch = { priceAdjustmentsDao.getByLocalUuid(it) },
-                store = { priceAdjustmentsDao.insert(it) }
-            )
-            "inventory_items" -> upsert<com.marina.marina.data.local.entity.InventoryItemEntity>(
-                record, remoteLastModified,
-                fetch = { inventoryDao.getItemByLocalUuid(it) },
-                store = { inventoryDao.insertItem(it) }
-            )
-            "inventory_transactions" -> upsert<com.marina.marina.data.local.entity.InventoryTransactionEntity>(
-                record, remoteLastModified,
-                fetch = { inventoryDao.getTransactionByLocalUuid(it) },
-                store = { inventoryDao.insertTransaction(it) }
-            )
-            "blacklist" -> upsert<com.marina.marina.data.local.entity.BlacklistEntryEntity>(
-                record, remoteLastModified,
-                fetch = { blacklistEntriesDao.getByLocalUuid(it) },
-                store = { blacklistEntriesDao.insert(it) }
-            )
-            else -> false
+    private fun gsonFor(clazz: Class<*>): Gson = gsonCache.getOrPut(clazz) {
+        val ownNames = clazz.declaredFields.map { it.name }.toSet()
+        val strategy = object : ExclusionStrategy {
+            override fun shouldSkipField(f: FieldAttributes): Boolean =
+                f.declaringClass != clazz && f.name in ownNames
+
+            override fun shouldSkipClass(c: Class<*>): Boolean = false
+        }
+        GsonBuilder()
+            .addDeserializationExclusionStrategy(strategy)
+            .addSerializationExclusionStrategy(strategy)
+            .create()
+    }
+
+    // ─── واجهات عامة ────────────────────────────────────────────
+
+    /**
+     * استيعاب صفحة كاملة داخل معاملة Room واحدة (ذريّة الأداء — ليس
+     * ذريّة الدلالة: فشل SQL لسجل يُحصى ولا يُجهض الصفحة، عقد Dart).
+     *
+     * @return تقرير [PullApplyReport] — المؤجّلون يُعادون من المستدعي
+     *   بعد اكتمال كل الصفحات (الآباء المتأخرون).
+     */
+    suspend fun ingestPage(records: List<Map<String, Any>>): PullApplyReport {
+        var applied = 0
+        var skipped = 0
+        var failed = 0
+        var firstError: String? = null
+        val deferred = mutableListOf<DeferredRecord>()
+
+        db.withTransaction {
+            for (record in records) {
+                when (val outcome = applyRecord(record)) {
+                    is ApplyOutcome.Applied -> applied++
+                    is ApplyOutcome.Skipped -> skipped++
+                    is ApplyOutcome.Deferred -> deferred += DeferredRecord(
+                        entity = record["_entity"] as? String ?: "unknown",
+                        record = record
+                    )
+                    is ApplyOutcome.Failed -> {
+                        failed++
+                        if (firstError == null) firstError = outcome.error
+                    }
+                }
+            }
+        }
+        return PullApplyReport(applied, skipped, failed, firstError, deferred)
+    }
+
+    /** سجل استيعاب واحد (توافق الاستدعاءات القديمة) — بلا معاملة صفحة. */
+    suspend fun ingest(record: Map<String, Any>): Boolean =
+        applyRecord(record) is ApplyOutcome.Applied
+
+    // ─── تطبيق سجل واحد ─────────────────────────────────────────
+
+    private suspend fun applyRecord(record: Map<String, Any>): ApplyOutcome {
+        val entity = record["_entity"] as? String ?: return ApplyOutcome.Skipped
+
+        // نسخة قابلة للتعديل: يُزال _entity (ليس عموداً محلياً) ويُتعلم
+        // الظل (server_id := id الخادمي AUTOINCREMENT — الرجل الأولى في
+        // ترجمة الأبناء لاحقاً).
+        val mapped = record.toMutableMap()
+        mapped.remove("_entity")
+        (record["id"] as? Number)?.let { mapped["server_id"] = it.toLong() }
+        applyBaseDefaults(mapped)
+
+        // ─── ترجمة FK (سلّم Dart: uuid → إرثي → ظلّ → تأجيل) ───
+        when (entity) {
+            "booking_nights" -> {
+                // NOT NULL + uuid-cache على السلك — لا حلّ = تأجيل.
+                val resolved = resolveBookingId(
+                    uuid = asString(mapped["booking_uuid_cache"])
+                ) ?: return ApplyOutcome.Deferred
+                mapped["booking_local_id"] = resolved
+            }
+            "payments" -> {
+                // nullable=true — لا حلّ يُطبَّق بـ NULL (عقد _fkRules).
+                val resolved = resolveBookingId(
+                    uuid = asString(mapped["booking_uuid_cache"]),
+                    legacyServerId = asLong(mapped["server_booking_id"])
+                )
+                if (resolved != null) mapped["booking_local_id"] = resolved
+                else mapped.remove("booking_local_id")
+                // nullWhenUnresolvable=true — مؤشر صندوق ثانوي بلا مفتاح
+                // عالمي على السلك: «تعذّرت الترجمة → NULL ولا يُعطَّل السحب».
+                mapped.remove("cash_transaction_local_id")
+            }
+            "booking_notes" -> {
+                // NOT NULL، لا uuid-cache على السلك — الرجل الإرثية فقط
+                // (فضاء Appwrite) ثم التأجيل (عقد Dart الحرفي).
+                val resolved = resolveBookingId(
+                    uuid = null,
+                    legacyServerId = asLong(mapped["booking_id"])
+                ) ?: return ApplyOutcome.Deferred
+                mapped["booking_id"] = resolved
+            }
+            "booking_price_adjustments" -> {
+                // رجلان: booking_local_uuid مفتاح طبيعي ثم booking_uuid
+                // (تكافؤ قاعدتَي Dart لهذا الجدول) — nullable=true.
+                val resolvedAdj = resolveBookingByLocalUuid(
+                    asString(mapped["booking_local_uuid"])
+                ) ?: resolveBookingId(uuid = asString(mapped["booking_uuid"]))
+                if (resolvedAdj != null) mapped["booking_local_id"] = resolvedAdj
+                else mapped.remove("booking_local_id")
+            }
+            "salary_cycles" -> {
+                val resolved = resolveEmployeeId(
+                    uuid = asString(mapped["employee_uuid"]),
+                    rawId = asLong(mapped["employee_id"])
+                ) ?: return ApplyOutcome.Deferred
+                mapped["employee_id"] = resolved
+            }
+            "salary_payments" -> {
+                val resolved = resolveSalaryCycleId(
+                    uuid = asString(mapped["cycle_uuid"]),
+                    rawId = asLong(mapped["cycle_id"])
+                ) ?: return ApplyOutcome.Deferred
+                mapped["cycle_id"] = resolved
+            }
+            "salary_withdrawals" -> {
+                val resolved = resolveEmployeeId(
+                    uuid = asString(mapped["employee_uuid"]),
+                    rawId = asLong(mapped["employee_id"])
+                ) ?: return ApplyOutcome.Deferred
+                mapped["employee_id"] = resolved
+            }
+            "salary_carry_over_logs" -> {
+                val resolved = resolveEmployeeId(
+                    uuid = asString(mapped["employee_uuid"]),
+                    rawId = asLong(mapped["employee_id"])
+                ) ?: return ApplyOutcome.Deferred
+                mapped["employee_id"] = resolved
+            }
+            "inventory_transactions" -> {
+                val resolved = resolveItemId(
+                    uuid = asString(mapped["item_local_uuid"]),
+                    rawId = asLong(mapped["item_id"])
+                ) ?: return ApplyOutcome.Deferred
+                mapped["item_id"] = resolved
+            }
+        }
+
+        // ─── تسلسل + LWW ───
+        return try {
+            val clazz = entityClass(entity) ?: return ApplyOutcome.Skipped
+            val entityGson = gsonFor(clazz)
+            @Suppress("UNCHECKED_CAST")
+            val remote = entityGson.fromJson(entityGson.toJson(mapped), clazz) as? BaseSyncEntity
+                ?: return ApplyOutcome.Skipped
+            if (remote.localUuid.isBlank()) return ApplyOutcome.Skipped
+            val remoteLastModified = (record["last_modified"] as? Number)?.toLong() ?: 0L
+
+            val existing = fetchExisting(entity, remote.localUuid)
+                ?: fetchByNaturalKey(entity, remote)
+
+            when {
+                existing == null -> {
+                    store(entity, remote)
+                    ApplyOutcome.Applied
+                }
+                remoteLastModified >= existing.lastModified -> {
+                    // استبدال الصف المحلي نفسه (REPLACE بذات المفتاح).
+                    store(entity, remote.copyWithId(existing.id))
+                    ApplyOutcome.Applied
+                }
+                // المحلي أحدث (تعديل محلي لم يُرفع بعد) — نحتفظ به.
+                else -> ApplyOutcome.Skipped
+            }
+        } catch (e: Exception) {
+            ApplyOutcome.Failed("${entity}: ${e.message ?: e.javaClass.simpleName}")
         }
     }
 
     /**
-     * Upsert عام: إدخال عند الغياب، أو استبدال عند تفوق البعيد محلياً
-     * (last_modified >= المحلي — نفس دلالة ingestRecord السابقة:
-     * التعادل يذهب للقادم من الخادم لأن الخادم حسم التعارض مسبقاً).
+     * ✅ (2026-09-25) تحصين انحراف المخطط: حقول العمود الفقري المشترك
+     * (BaseSyncEntity) غير القابلة للنل تُعبأ بقيمها الافتراضية عند
+     * غيابها عن الصف الواصل — صف قديم في D1 أُضيف عمود بعده أو جدول
+     * يفتقد عموداً لا يُفشل الاستيعاب كله (فلسفة Dart: «الصف يُطبَّق»).
+     * الحقول الخاصة بالكيان تبقى صارمة — نقصها يعني انحرافاً حقيقياً
+     * يجب أن يظهر كفشل مرئي لا صمت.
      */
-    private suspend fun <T : BaseSyncEntity> upsert(
-        record: Map<String, Any>,
-        remoteLastModified: Long,
-        fetch: suspend (String) -> T?,
-        store: suspend (T) -> Unit
-    ): Boolean {
-        return try {
-            @Suppress("UNCHECKED_CAST")
-            val clazz = entityClass(record["_entity"] as String) ?: return false
-            val remote = gson.fromJson(gson.toJson(record), clazz) as? T ?: return false
-            if (remote.localUuid.isBlank()) return false
-            val existing = fetch(remote.localUuid)
-            when {
-                existing == null -> store(remote)
-                remoteLastModified >= existing.lastModified -> {
-                    // copy(id=…) يستبدل الصف المحلي نفسه (REPLACE بذات المفتاح).
-                    store(remote.copyWithId(existing.id))
-                }
-                // المحلي أحدث (تعديل محلي لم يُرفع بعد) — نحتفظ به؛ الدفع
-                // سيرفعه لاحقاً والخادم يحسم.
-                else -> Unit
-            }
-            true
-        } catch (_: Exception) {
-            false
+    private fun applyBaseDefaults(mapped: MutableMap<String, Any>) {
+        mapped.putIfAbsent("created_at", 0L)
+        mapped.putIfAbsent("updated_at", 0L)
+        mapped.putIfAbsent("last_modified", 0L)
+        mapped.putIfAbsent("created_at_epoch", 0L)
+        mapped.putIfAbsent("last_modified_epoch", 0L)
+        mapped.putIfAbsent("version", 1)
+        mapped.putIfAbsent("origin", "local")
+        mapped.putIfAbsent("vector_clock", "{}")
+        mapped.putIfAbsent("device_id", "")
+        mapped.putIfAbsent("sync_timestamp", 0L)
+    }
+
+    /** الجلب بـ local_uuid — ثم بالمفتاح الطبيعي لليالي (دمج 398 ليلة). */
+    private suspend fun fetchExisting(entity: String, localUuid: String): BaseSyncEntity? =
+        when (entity) {
+            "rooms" -> roomsDao.getByLocalUuid(localUuid)
+            "bookings" -> bookingsDao.getByLocalUuid(localUuid)
+            "payments" -> paymentsDao.getByLocalUuid(localUuid)
+            "expenses" -> expensesDao.getByLocalUuid(localUuid)
+            "employees" -> employeesDao.getByLocalUuid(localUuid)
+            "debts" -> debtsDao.getByLocalUuid(localUuid)
+            "booking_notes" -> bookingNotesDao.getByLocalUuid(localUuid)
+            "booking_nights" -> bookingNightsDao.getByLocalUuid(localUuid)
+            "booking_price_adjustments" -> bookingPriceAdjustmentsDao.getByLocalUuid(localUuid)
+            "guest_infos" -> guestInfosDao.getByLocalUuid(localUuid)
+            "shift_notes" -> shiftNotesDao.getByLocalUuid(localUuid)
+            "salary_cycles" -> salaryCyclesDao.getByLocalUuid(localUuid)
+            "salary_payments" -> salaryPaymentsDao.getByLocalUuid(localUuid)
+            "salary_withdrawals" -> salaryWithdrawalsDao.getByLocalUuid(localUuid)
+            "salary_carry_over_logs" -> salaryCarryOverLogsDao.getByLocalUuid(localUuid)
+            "app_users" -> appUsersDao.getByLocalUuid(localUuid)
+            "devices" -> devicesDao.getByLocalUuid(localUuid)
+            "cash_transactions" -> cashTransactionsDao.getByLocalUuid(localUuid)
+            "audit_logs" -> auditLogsDao.getByLocalUuid(localUuid)
+            "payment_voids" -> paymentVoidsDao.getByLocalUuid(localUuid)
+            "price_adjustments" -> priceAdjustmentsDao.getByLocalUuid(localUuid)
+            "inventory_items" -> inventoryDao.getItemByLocalUuid(localUuid)
+            "inventory_transactions" -> inventoryDao.getTransactionByLocalUuid(localUuid)
+            "blacklist" -> blacklistEntriesDao.getByLocalUuid(localUuid)
+            else -> null
+        }
+
+    /** المفتاح الطبيعي الوحيد المتزامن: ليلة الحجز (Dart _naturalUniqueKeys). */
+    private suspend fun fetchByNaturalKey(
+        entity: String,
+        remote: BaseSyncEntity
+    ): BaseSyncEntity? {
+        if (entity != "booking_nights") return null
+        val night = remote as? com.marina.marina.data.local.entity.BookingNightEntity
+            ?: return null
+        return bookingNightsDao.getByNaturalKey(night.bookingLocalId, night.hotelDayKey)
+    }
+
+    private suspend fun store(entity: String, value: BaseSyncEntity) {
+        when (entity) {
+            "rooms" -> roomsDao.insert(value as com.marina.marina.data.local.entity.RoomEntity)
+            "bookings" -> bookingsDao.insert(value as com.marina.marina.data.local.entity.BookingEntity)
+            "payments" -> paymentsDao.insert(value as com.marina.marina.data.local.entity.PaymentEntity)
+            "expenses" -> expensesDao.insert(value as com.marina.marina.data.local.entity.ExpenseEntity)
+            "employees" -> employeesDao.insert(value as com.marina.marina.data.local.entity.EmployeeEntity)
+            "debts" -> debtsDao.insert(value as com.marina.marina.data.local.entity.DebtEntity)
+            "booking_notes" -> bookingNotesDao.insert(value as com.marina.marina.data.local.entity.BookingNoteEntity)
+            "booking_nights" -> bookingNightsDao.insert(value as com.marina.marina.data.local.entity.BookingNightEntity)
+            "booking_price_adjustments" -> bookingPriceAdjustmentsDao.insert(value as com.marina.marina.data.local.entity.BookingPriceAdjustmentEntity)
+            "guest_infos" -> guestInfosDao.insert(value as com.marina.marina.data.local.entity.GuestInfoEntity)
+            "shift_notes" -> shiftNotesDao.insert(value as com.marina.marina.data.local.entity.ShiftNoteEntity)
+            "salary_cycles" -> salaryCyclesDao.insert(value as com.marina.marina.data.local.entity.SalaryCycleEntity)
+            "salary_payments" -> salaryPaymentsDao.insert(value as com.marina.marina.data.local.entity.SalaryPaymentEntity)
+            "salary_withdrawals" -> salaryWithdrawalsDao.insert(value as com.marina.marina.data.local.entity.SalaryWithdrawalEntity)
+            "salary_carry_over_logs" -> salaryCarryOverLogsDao.insert(value as com.marina.marina.data.local.entity.SalaryCarryOverLogEntity)
+            "app_users" -> appUsersDao.insert(value as com.marina.marina.data.local.entity.AppUserEntity)
+            "devices" -> devicesDao.insert(value as com.marina.marina.data.local.entity.DeviceInfoEntity)
+            "cash_transactions" -> cashTransactionsDao.insert(value as com.marina.marina.data.local.entity.CashTransactionEntity)
+            "audit_logs" -> auditLogsDao.insert(value as com.marina.marina.data.local.entity.AuditLogEntity)
+            "payment_voids" -> paymentVoidsDao.insert(value as com.marina.marina.data.local.entity.PaymentVoidEntity)
+            "price_adjustments" -> priceAdjustmentsDao.insert(value as com.marina.marina.data.local.entity.PriceAdjustmentEntity)
+            "inventory_items" -> inventoryDao.insertItem(value as com.marina.marina.data.local.entity.InventoryItemEntity)
+            "inventory_transactions" -> inventoryDao.insertTransaction(value as com.marina.marina.data.local.entity.InventoryTransactionEntity)
+            "blacklist" -> blacklistEntriesDao.insert(value as com.marina.marina.data.local.entity.BlacklistEntryEntity)
         }
     }
 
-    /** نسخ الكيان مع استبدال id — data class copy عبر الانعكاس المباشر. */
+    // ─── محلّلات الهوية (تكافؤ IdResolver في Dart) ──────────────
+
+    /**
+     * حلّ مرجع حجز → id محلي. السلّم: uuid (3 صيغ) → الرجل الإرثية
+     * (فضاء Appwrite عبر server_booking_id للحجز). **لا id خام من
+     * جهاز بعيد أبداً** — يربط الابن بحجز خاطئ (تعليق Dart الحرج).
+     */
+    private suspend fun resolveBookingId(
+        uuid: String?,
+        legacyServerId: Long? = null
+    ): Long? {
+        uuid?.takeIf { it.isNotEmpty() }?.let { candidate ->
+            bookingsDao.getByLocalUuid(candidate)?.let { return it.id }
+            normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
+                bookingsDao.getByLocalUuid(dashed)?.let { return it.id }
+            }
+            stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
+                bookingsDao.getByLocalUuid(stripped)?.let { return it.id }
+            }
+        }
+        legacyServerId?.let { legacy ->
+            bookingsDao.getByServerBookingIdIncludingDeleted(legacy)?.let { return it.id }
+        }
+        return null
+    }
+
+    /** المفتاح الطبيعي للتعديلات: booking_local_uuid → حجز (3 صيغ). */
+    private suspend fun resolveBookingByLocalUuid(uuid: String?): Long? {
+        val candidate = uuid?.takeIf { it.isNotEmpty() } ?: return null
+        bookingsDao.getByLocalUuid(candidate)?.let { return it.id }
+        normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
+            bookingsDao.getByLocalUuid(dashed)?.let { return it.id }
+        }
+        stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
+            bookingsDao.getByLocalUuid(stripped)?.let { return it.id }
+        }
+        return null
+    }
+
+    /**
+     * حلّ مرجع موظف → id محلي: uuid (3 صيغ) → ظلّ server_id (حسم
+     * الازدواج: النشط أولاً ثم الأصغر id — عقد Dart).
+     */
+    private suspend fun resolveEmployeeId(uuid: String?, rawId: Long?): Long? {
+        uuid?.takeIf { it.isNotEmpty() }?.let { candidate ->
+            employeesDao.getByLocalUuid(candidate)?.let { return it.id }
+            normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
+                employeesDao.getByLocalUuid(dashed)?.let { return it.id }
+            }
+            stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
+                employeesDao.getByLocalUuid(stripped)?.let { return it.id }
+            }
+        }
+        rawId?.let { raw ->
+            employeesDao.getByServerIdIncludingDeleted(raw)?.let { return it.id }
+        }
+        return null
+    }
+
+    /** حلّ مرجع دورة راتب: cycle_uuid (3 صيغ) → ظلّ server_id. */
+    private suspend fun resolveSalaryCycleId(uuid: String?, rawId: Long?): Long? {
+        uuid?.takeIf { it.isNotEmpty() }?.let { candidate ->
+            salaryCyclesDao.getByLocalUuid(candidate)?.let { return it.id }
+            normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
+                salaryCyclesDao.getByLocalUuid(dashed)?.let { return it.id }
+            }
+            stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
+                salaryCyclesDao.getByLocalUuid(stripped)?.let { return it.id }
+            }
+        }
+        rawId?.let { raw ->
+            salaryCyclesDao.getByServerIdIncludingDeleted(raw)?.let { return it.id }
+        }
+        return null
+    }
+
+    /** حلّ مرجع صنف مخزون: item_local_uuid (3 صيغ) → ظلّ server_id. */
+    private suspend fun resolveItemId(uuid: String?, rawId: Long?): Long? {
+        uuid?.takeIf { it.isNotEmpty() }?.let { candidate ->
+            inventoryDao.getItemByLocalUuid(candidate)?.let { return it.id }
+            normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
+                inventoryDao.getItemByLocalUuid(dashed)?.let { return it.id }
+            }
+            stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
+                inventoryDao.getItemByLocalUuid(stripped)?.let { return it.id }
+            }
+        }
+        rawId?.let { raw ->
+            inventoryDao.getItemByServerIdIncludingDeleted(raw)?.let { return it.id }
+        }
+        return null
+    }
+
+    // ─── أدوات UUID (تكافؤ normalizeUuid/stripDashes في Dart) ───
+
+    /** 32 خانة سداسية عشري بلا شرطات → الصيغة المعيارية المشرطة. */
+    private fun normalizeUuid(raw: String): String? {
+        val trimmed = raw.trim().lowercase()
+        if (trimmed.length != 32) return null
+        if (trimmed.any { it !in '0'..'9' && it !in 'a'..'f' }) return null
+        return buildString {
+            append(trimmed, 0, 8); append('-')
+            append(trimmed, 8, 12); append('-')
+            append(trimmed, 12, 16); append('-')
+            append(trimmed, 16, 20); append('-')
+            append(trimmed, 20, 32)
+        }
+    }
+
+    private fun stripDashes(raw: String): String = raw.replace("-", "").lowercase()
+
+    // ─── أدوات قراءة آمنة من الخريطة ────────────────────────────
+
+    private fun asString(value: Any?): String? = (value as? String)?.takeIf { it.isNotBlank() }
+
+    private fun asLong(value: Any?): Long? = when (value) {
+        is Number -> value.toLong()
+        is String -> value.toLongOrNull()
+        else -> null
+    }
+
+    /** نسخ الكيان مع استبدال id — Gson round-trip بديل آمن عن copy(). */
     @Suppress("UNCHECKED_CAST")
     private fun <T : BaseSyncEntity> T.copyWithId(newId: Long): T {
-        // BaseSyncEntity.id مُعلن open val — البُناة الفعلية للكيانات تحمله
-        // كمعامل بُناء أول؛ نستخدم Gson round-trip بديلاً آمناً عن copy()
-        // غير المتاح عبر التعميم (T ليس reified هنا).
-        val json = gson.toJson(this)
-        val map = gson.fromJson<Map<String, Any>>(json, Map::class.java)
+        val entityGson = gsonFor(this.javaClass)
+        val json = entityGson.toJson(this)
+        val map = entityGson.fromJson<Map<String, Any>>(json, Map::class.java)
             .toMutableMap()
         map["id"] = newId
-        @Suppress("UNCHECKED_CAST")
-        val result = gson.fromJson(gson.toJson(map), this.javaClass) as T
-        return result
+        return entityGson.fromJson(entityGson.toJson(map), this.javaClass) as T
     }
 
     /** خريطة الكيان → صنف الـ Room المطابق (مرآة جدول D1). */

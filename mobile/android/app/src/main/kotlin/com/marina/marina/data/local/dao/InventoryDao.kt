@@ -73,4 +73,12 @@ interface InventoryDao {
     /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
     @Query("SELECT * FROM inventory_items")
     suspend fun listAllIncludingDeleted(): List<InventoryItemEntity>
+
+    /**
+     * ✅ (2026-09-25) ظلّ هوية الخادم — ترجمة FK عند السحب: item_id
+     * على السلك قد يحمل id خادمياً لصنف سُحب سابقاً (رجل serverId
+     * في Dart inventory rule).
+     */
+    @Query("SELECT * FROM inventory_items WHERE server_id = :serverId LIMIT 1")
+    suspend fun getItemByServerIdIncludingDeleted(serverId: Long): InventoryItemEntity?
 }

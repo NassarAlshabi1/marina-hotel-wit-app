@@ -139,12 +139,21 @@ interface CloudflareWorkerApi {
     @POST("/api/auth/login")
     fun login(@Body request: WorkerLoginRequest): Call<WorkerLoginResponse>
 
-    /** سحب دلتا عبر كل الجداول — مؤشر الخادم updated_at هو المرجع دائماً. */
+    /**
+     * سحب دلتا عبر كل الجداول — مؤشر الخادم updated_at هو المرجع دائماً.
+     * ✅ (2026-09-25) معاملات اختيارية بعقد sync.ts:
+     *  • include_remaining=1 — COUNT خادمي للمتبقي (السحب الكامل فقط،
+     *    يُعيّن كل 5 صفحات كما في Dart — تخفيف الحمل الخادمي ~80%).
+     *  • normalize_timestamps=1 — شفاء خادمي لطوابع المللي القديمة
+     *    (الصفحة الأولى من السحب الكامل مرة واحدة فقط).
+     */
     @GET("/api/sync/pull")
     fun pull(
         @Query("cursor") cursor: Long,
         @Query("limit") limit: Int,
-        @Query("exclude_device") excludeDevice: String? = null
+        @Query("exclude_device") excludeDevice: String? = null,
+        @Query("include_remaining") includeRemaining: Boolean? = null,
+        @Query("normalize_timestamps") normalizeTimestamps: Boolean? = null
     ): Call<WorkerPullResponse>
 
     /** دفع دفعة عمليات outbox — سقف 100 عملية/نداء (حد الخادم). */

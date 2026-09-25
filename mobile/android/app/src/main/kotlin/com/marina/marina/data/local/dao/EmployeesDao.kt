@@ -87,4 +87,18 @@ interface EmployeesDao {
     /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
     @Query("SELECT * FROM employees")
     suspend fun listAllIncludingDeleted(): List<EmployeeEntity>
+
+    /**
+     * ✅ (2026-09-25) ظلّ هوية الخادم — ترجمة FK عند السحب (تكافؤ
+     * IdResolver.resolveEmployee رجل serverId في Dart): مؤشرات الأبناء
+     * (employee_id من جهاز المصدر) قد تحمل id خادمياً؛ يشمل المحذوفة
+     * ناعمياً وظبط الحسم عند الازدواج (النشط أولاً ثم الأصغر id).
+     */
+    @Query(
+        """
+        SELECT * FROM employees WHERE server_id = :serverId
+        ORDER BY deleted_at ASC, id ASC LIMIT 1
+        """
+    )
+    suspend fun getByServerIdIncludingDeleted(serverId: Long): EmployeeEntity?
 }

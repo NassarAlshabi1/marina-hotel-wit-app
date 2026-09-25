@@ -159,11 +159,17 @@ class SyncManager @Inject constructor(
     }
 
     /**
-     * ✅ (2026-09-24) «السحب الكامل من السيرفر» — نقل _runFullSync من
+     * ✅ (2026-09-25) «السحب الكامل من السيرفر» — نقل _runFullSync من
      * unified_sync_settings_screen.dart: fullSync(push: false) — تصفير
      * مؤشر السحب + سحب كل البيانات من الصفر بصفحات أكبر وأسرع
      * ([CloudflareConfig.FULL_PULL_BATCH_SIZE]) — **سحب فقط بدون أي رفع**
      * (فصل صريح عن زر الرفع بناء على طلب المستخدم 2026-09-09).
+     *
+     * ✅ (2026-09-25) العقد الدارتي الحاسم: السحب الكامل **لا يمرر
+     * exclude_device إطلاقاً** (excludeOwnDevice: !wasFullSync) — يجب أن
+     * يشمل صفوف الجهاز نفسه كي يتعلم ظلّ server_id لصفوفه هو (إصلاح
+     * «107 سجلاً بعلاقات أب غير محلولة»). بدون هذا، جهاز دفع بياناته
+     * إلى D1 يسحبها **صفراً** — العلة الجذرية لـ«السحب الكامل لا يعمل».
      *
      * @return عدد السجلات المسحوبة، أو -1 عند الفشل.
      */
@@ -177,7 +183,7 @@ class SyncManager @Inject constructor(
         // 1) إعادة ضبط مؤشر السحب — الجلب يبدأ من الصفر.
         preferences.saveLastPullCursor(0L)
         val pulled = try {
-            pullDelta(batchSize = CloudflareConfig.FULL_PULL_BATCH_SIZE)
+            pullDelta(batchSize = CloudflareConfig.FULL_PULL_BATCH_SIZE, isFullPull = true)
         } catch (e: Exception) {
             finishWithError("فشل السحب الكامل: ${e.message}")
             return -1
@@ -197,25 +203,72 @@ class SyncManager @Inject constructor(
         return pulled
     }
 
+    companion object {
+        /**
+         * ✅ (2026-09-25) سقف الصفحات في الدورة الواحدة (H2 في Dart = 100):
+         * كاتب ساخن بلا توقف يجب ألا يحبس الدورة — خروج نظيف جزئي
+         * والمؤشر تقدم عبر ما طُبّق بسلامة، والبقية تُستأنف تلقائياً.
+         */
+        private const val MAX_PULL_PAGES_PER_CYCLE = 100
+
+        /** ✅ معاينة remaining الخادمية كل 5 صفحات (Dart 2026-09-22 — تخفيف الحمل ~80%). */
+        private const val REMAINING_SAMPLE_EVERY_PAGES = 5
+    }
+
     /**
-     * دلتا واحدة بمؤشر الخادم المحفوظ: صفحات [batchSize] حتى has_more=false.
-     * المؤشر لا يتقدم إلا بعد استيعاب كل الصفحات بنجاح ودون errors خادمية
-     * (عقد PullResult: جداول فاشلة = دورة فاشلة).
+     * ✅ (2026-09-25) أُعيدت كتابتها على العقد الدارتي الكامل:
      *
-     * @param batchSize حجم الصفحة — دلتا عادية [CloudflareConfig.DELTA_PULL_BATCH_SIZE]
+     *  • **السحب الكامل بلا فلتر صدى** ([isFullPull] → بلا exclude_device):
+     *    الجهاز يتعلم ظلّ server_id لصفوفه هو — الدلتا تستمر باستبعاده.
+     *  • **تطبيق الصفحة داخل معاملة** عبر [SyncIngestorRegistry.ingestPage]
+     *    مع ترجمة FK وتعلّم الظل والدمج الطبيعي (تفاصيل السجل هناك).
+     *  • **فشل تطبيق حقيقي (SQL) = دورة فاشلة** — المؤشر لا يتقدم إطلاقاً
+     *    (عقد «لا نجاح مع جداول ناقصة» 2026-09-08).
+     *  • **المؤجلون علاقياً** (أب لم يصل بعد) يُعادون بعد اكتمال الصفحات؛
+     *    ما بقي غير محلول لا يفشل الدورة — المؤشر يتقدم (عقد 2026-09-15
+     *    ضد تجميد المؤشر) ويُستكمل في السحب الكامل القادم.
+     *  • **سقف صفحات** [MAX_PULL_PAGES_PER_CYCLE] — خروج نظيف جزئي.
+     *  • **تقدم حي** لكل صفحة في lastMessage (+ المتبقي الخادمي للسحب
+     *    الكامل كل 5 صفحات) — لا مزيد «يبدو معلقاً».
+     *  • **تطبيع الطوابع** normalize_timestamps في أول صفحة سحب كامل
+     *    مرة واحدة (شفاء خادمي لطوابع المللي القديمة).
+     *
+     * @param batchSize حجم الصفحة — دلتا [CloudflareConfig.DELTA_PULL_BATCH_SIZE]
      *   أو سحب كامل [CloudflareConfig.FULL_PULL_BATCH_SIZE].
-     * @return عدد السجلات المستوعبة، أو -1 عند الفشل.
+     * @param isFullPull true للسحب الكامل: بلا فلتر صدى + remaining + تطبيع.
+     * @return عدد السجلات المستوعبة، أو -1 عند الفشل الخادمي.
+     * @throws Exception فشل شبكة أو فشل تطبيق — المؤشر لا يتقدم (المستدعي
+     *   يلتقط ويعرض الخطأ؛ نقطة التفتيش المحفوظة تبقى كما هي).
      */
-    private suspend fun pullDelta(batchSize: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE): Int {
+    private suspend fun pullDelta(
+        batchSize: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
+        isFullPull: Boolean = false
+    ): Int {
         val deviceId = preferences.getDeviceId()
         var cursor = preferences.getLastPullCursor()
         var ingested = 0
+        var pagesDone = 0
+        val deferredRecords = mutableListOf<DeferredRecord>()
 
         while (true) {
+            // سقف الصفحات (H2) — خروج نظيف والبقية دورة قادمة.
+            if (pagesDone >= MAX_PULL_PAGES_PER_CYCLE) break
+
+            val includeRemaining = isFullPull &&
+                pagesDone % REMAINING_SAMPLE_EVERY_PAGES == 0
+            val normalizeTimestamps = pagesDone == 0 && isFullPull &&
+                !preferences.isTimestampNormalizationDone()
+            // ⚠️ العقد الدارتي: السحب الكامل وحده يستثني فلتر الصدى —
+            // excludeOwnDevice: !wasFullSync (Dart l.2063).
+            val excludeDevice = deviceId
+                ?.takeIf { it.isNotBlank() && !isFullPull }
+
             val result = syncService.pull(
                 cursor = cursor,
                 limit = batchSize,
-                excludeDevice = deviceId?.takeIf { it.isNotBlank() }
+                excludeDevice = excludeDevice,
+                includeRemaining = includeRemaining,
+                normalizeTimestamps = normalizeTimestamps
             )
             val response = result.getOrNull() ?: run {
                 throw result.exceptionOrNull() ?: Exception("empty pull response")
@@ -228,15 +281,48 @@ class SyncManager @Inject constructor(
             }
 
             val changes = response.changes.orEmpty()
-            changes.forEach { record ->
-                ingestorRegistry.ingest(record)
-                ingested++
+            if (changes.isNotEmpty()) {
+                val report = ingestorRegistry.ingestPage(changes)
+                ingested += report.applied
+                deferredRecords.addAll(report.deferred)
+                if (report.hasFailures) {
+                    // فشل تطبيق فعلي — دورة فاشلة: المؤشر لا يتقدم
+                    // (التراجع الكامل يضمن إعادة سحب ما بين الحدين).
+                    throw Exception(
+                        "فشل تطبيق ${report.failed} سجلاً: ${report.firstError ?: "غير معروف"}"
+                    )
+                }
             }
+            if (normalizeTimestamps) preferences.setTimestampNormalizationDone(true)
+            pagesDone++
+
+            // تقدم حي — pulled تراكمي + remaining خادمي عند توفره.
+            val remainingText = response.remaining?.let { " • المتبقي ${it.toLong()}" } ?: ""
+            _syncState.value = _syncState.value.copy(
+                lastMessage = "جارٍ السحب... $ingested$remainingText (صفحة $pagesDone)"
+            )
 
             val nextCursor = response.cursor?.toLongOrNull()
             val hasMore = response.hasMore == true && nextCursor != null && nextCursor > cursor
-            if (!hasMore) break
+            if (!hasMore) {
+                nextCursor?.let { cursor = it }
+                break
+            }
             cursor = nextCursor!!
+        }
+
+        // ✅ إعادة محاولة المؤجلين — الآباء وصلوا الآن (صفحات لاحقة)،
+        // فتُحلّ السلاسل (غرفة → حجز → ليلة / موظف → دورة → دفعة).
+        if (deferredRecords.isNotEmpty()) {
+            val retry = ingestorRegistry.ingestPage(deferredRecords.map { it.record })
+            ingested += retry.applied
+            if (retry.hasFailures) {
+                throw Exception(
+                    "فشل تطبيق ${retry.failed} سجلاً مؤجلاً: ${retry.firstError ?: "غير معروف"}"
+                )
+            }
+            // ما بقي غير محلول: لا يُفشل الدورة — المؤشر يتقدم (عقد
+            // 2026-09-15) ويُستكمل في السحب الكامل القادم تلقائياً.
         }
 
         // دورة نظيفة كاملة — الآن فقط نقدّم نقطة التفتيش المحفوظة.

@@ -84,4 +84,17 @@ interface BookingsDao {
     /** البحث الشامل — كل الصفوف بما فيها المحذوفة ناعمياً (تدقيق المدير). */
     @Query("SELECT * FROM bookings")
     suspend fun listAllIncludingDeleted(): List<BookingEntity>
+
+    /**
+     * ✅ (2026-09-25) ظلّ هوية الخادم — ترجمة FK عند السحب (تكافؤ
+     * IdResolver.resolveBooking رجل serverId في Dart): مؤشرات الأبناء
+     * (booking_local_id القادمة من جهاز المصدر) قد تحمل id خادمياً؛
+     * البحث يشمل المحذوفة ناعمياً — ظل الأب المحذوف يبقى صالحاً للترجمة.
+     */
+    @Query("SELECT * FROM bookings WHERE server_id = :serverId LIMIT 1")
+    suspend fun getByServerIdIncludingDeleted(serverId: Long): BookingEntity?
+
+    /** ✅ الرجل الإرثية (فضاء Appwrite القديم) — booking_id/server_booking_id على السلك. */
+    @Query("SELECT * FROM bookings WHERE server_booking_id = :serverBookingId LIMIT 1")
+    suspend fun getByServerBookingIdIncludingDeleted(serverBookingId: Long): BookingEntity?
 }

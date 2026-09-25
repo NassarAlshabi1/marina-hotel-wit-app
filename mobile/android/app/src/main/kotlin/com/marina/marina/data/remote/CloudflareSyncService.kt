@@ -159,16 +159,23 @@ class CloudflareSyncService @Inject constructor(
 
     /**
      * سحب دلتا (أو سحب كامل عند cursor=0). excludeDevice يمنع صدى
-     * سجلات الجهاز نفسه (خطة 2.5). المؤشر المرجَع دائماً هو مؤشر الخادم
-     * (updated_at المُخصص من sync_clock) — العميل يحفظه كما هو.
+     * سجلات الجهاز نفسه (خطة 2.5) — ⚠️ (2026-09-25) السحب الكامل وحده
+     * لا يمرره إطلاقاً (عقد Dart: excludeOwnDevice: !wasFullSync —
+     * الجهاز يجب أن يتعلم ظلّ server_id لصفوفه هو). المؤشر المرجَع
+     * دائماً هو مؤشر الخادم (updated_at المُخصص من sync_clock).
      */
     suspend fun pull(
         cursor: Long,
         limit: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
-        excludeDevice: String? = null
+        excludeDevice: String? = null,
+        includeRemaining: Boolean? = null,
+        normalizeTimestamps: Boolean? = null
     ): Result<WorkerPullResponse> = withContext(Dispatchers.IO) {
         try {
-            val response = api.pull(cursor, limit, excludeDevice).execute()
+            val response = api.pull(
+                cursor, limit, excludeDevice,
+                includeRemaining, normalizeTimestamps
+            ).execute()
             val body = response.body()
             when {
                 response.isSuccessful && body != null -> Result.success(body)
@@ -251,6 +258,9 @@ class SyncPreferences @Inject constructor(
 
         /** ✅ (2026-09-24) تفضيل «تذكرني» — نظير AuthLocalStore في Dart. */
         private const val KEY_REMEMBER_ME = "remember_me"
+
+        /** ✅ (2026-09-25) علم تطبيع الطوابع الخادمي (normalize_timestamps مرة واحدة). */
+        private const val KEY_TS_NORMALIZATION_DONE = "cf_timestamp_normalization_done"
     }
 
     /** يثبّت المستخدم الداخل (JSON) كي تحتفظ استعادة الجلسة بالهوية الحقيقية. */
@@ -314,6 +324,19 @@ class SyncPreferences @Inject constructor(
 
     fun getLastPullCursor(): Long {
         return preferencesManager.getLong(KEY_LAST_PULL_CURSOR, 0L)
+    }
+
+    // ─── ✅ (2026-09-25) علم تطبيع الطوابع الخادمي ───────────────
+    //
+    // normalize_timestamps=1 يُطلب في أول صفحة من أول سحب كامل فقط
+    // (شفاء خادمي لطوابع المللي القديمة — عقد Dart
+    // _timestampNormalizationDone) — الطلب في كل دورة يضاعف زمن السحب.
+
+    fun isTimestampNormalizationDone(): Boolean =
+        preferencesManager.getBoolean(KEY_TS_NORMALIZATION_DONE, false)
+
+    fun setTimestampNormalizationDone(done: Boolean) {
+        preferencesManager.putBoolean(KEY_TS_NORMALIZATION_DONE, done)
     }
 
     // ─── ✅ (2026-09-24) إعدادات المزامنة — نفس مفاتيح Dart ─────

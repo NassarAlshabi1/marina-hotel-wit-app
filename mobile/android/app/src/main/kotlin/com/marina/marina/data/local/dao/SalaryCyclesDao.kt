@@ -36,4 +36,12 @@ interface SalaryCyclesDao {
 
     @Query("DELETE FROM salary_cycles WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /**
+     * ✅ (2026-09-25) ظلّ هوية الخادم — ترجمة FK عند السحب (تكافؤ
+     * IdResolver.resolveSalaryCycle رجل serverId في Dart): cycle_id
+     * على السلك قد يحمل id خادمياً لدورة سُحبت سابقاً.
+     */
+    @Query("SELECT * FROM salary_cycles WHERE server_id = :serverId LIMIT 1")
+    suspend fun getByServerIdIncludingDeleted(serverId: Long): SalaryCycleEntity?
 }
