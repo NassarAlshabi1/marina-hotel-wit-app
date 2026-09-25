@@ -46,6 +46,18 @@ if [[ ! -f "$EVENTS_CSV" ]]; then
   printf 'cycle,event,target,detail\n' > "$EVENTS_CSV"
 fi
 
+# ✅ لقطات تشخيصية: الـ dump الخام يُحفظ عند خطوات الدخول الحاسمة
+# حتى يكشف الـ artifact القادم الشكل الفعلي لشجرة الوصولية.
+DEBUG_DIR="${LOW_RAM_DEBUG_DIR:-$(dirname "$EVENTS_CSV")/ui_dumps}"
+mkdir -p "$DEBUG_DIR"
+save_debug_dump() {
+  local name="$1" xml
+  xml="$(dump_ui || true)"
+  if [[ -n "$xml" ]]; then
+    printf '%s' "$xml" > "$DEBUG_DIR/${name}.xml" 2>/dev/null || true
+  fi
+}
+
 log() {
   printf 'cycle=%s event=%s\n' "$CYCLE" "$1" | tee -a "$LOG_FILE"
 }
@@ -82,10 +94,11 @@ tap_xy() {
   "$ADB_BIN" shell input tap "$x" "$y"
 }
 
-# النقر على عنصر نصي (محاوتان: إعادة الـ dump بعد مهلة قصيرة).
+# النقر على عنصر نصي (ثلاث محاولات: الشاشة قد تكون مشغولة
+# بالإطارات/لوحة المفاتيح فيفشل uiautomator dump مؤقتاً).
 tap_text() {
   local requested="$1" xml bounds x1 y1 x2 y2 x y attempt
-  for attempt in 1 2; do
+  for attempt in 1 2 3; do
     xml="$(dump_ui || true)"
     [[ -n "$xml" ]] || { sleep_for_ui; continue; }
     bounds="$(extract_bounds "$xml" "$requested")"
@@ -175,7 +188,9 @@ is_drawer_open() {
   [[ -n "$ui" ]] || return 1
   count=0
   for marker in "${DRAWER_MARKERS[@]}"; do
-    printf '%s' "$ui" | grep -q "text=\"$marker\"" && count=$((count + 1))
+    # Flutter يعرض النص الساكن في content-desc (أو text= حسب الجسر) —
+    # نفحص الصيغتين معاً وإلا فشل الفحص على الشكل الفعلي.
+    printf '%s' "$ui" | grep -q "text=\"$marker\"\|content-desc=\"$marker\"" && count=$((count + 1))
   done
   (( count >= 3 ))
 }
@@ -193,19 +208,29 @@ is_dashboard_visible() {
   [[ -n "$ui" ]] || return 1
   count=0
   for marker in "${DASHBOARD_MARKERS[@]}"; do
-    printf '%s' "$ui" | grep -q "text=\"$marker\"" && count=$((count + 1))
+    printf '%s' "$ui" | grep -q "text=\"$marker\"\|content-desc=\"$marker\"" && count=$((count + 1))
   done
   (( count >= 2 ))
 }
 
 # ── تسجيل الدخول الحقيقي ─────────────────────────────────────
 # الترتيب: نقر الحقول عبر EditText (ثم إحداثيات تقريبية كرجوع)،
-# الكتابة، إغلاق لوحة المفاتيح (BACK بعد الكتابة — اللوحة مفتوحة
-# حتماً فلا يخرج BACK من التطبيق)، ثم نقر زر «دخول» وانتظار لوحة
-# التحكم حتى LOGIN_WAIT_SEC (الحسابات السحابية تتصل بالشبكة).
+# الكتابة، إغلاق لوحة المفاتيح (BACK فقط إن كانت مفتوحة فعلاً —
+# BACK دون لوحة يُخرج التطبيق كله من الشاشة فيتعطل التنقل!)،
+# ثم نقر زر «دخول» وانتظار لوحة التحكم حتى LOGIN_WAIT_SEC.
+# كل خطوة تُوثَّق بلقطة dump تشخيصية تُرفع مع الـ artifact.
+keyboard_open() {
+  "$ADB_BIN" shell dumpsys input_method 2>/dev/null | tr -d '\r\n' | grep -q 'mInputShown=true'
+}
+
+process_alive() {
+  "$ADB_BIN" shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' | grep -q '[0-9]'
+}
+
 attempt_login() {
   local kind="${1:-label}"
   log "login_attempt:mode=$CRED_MODE:fields=$kind"
+  save_debug_dump "cycle${CYCLE}_login_initial"
 
   # 1) حقل اسم المستخدم
   if ! tap_edittext 0; then
@@ -223,16 +248,46 @@ attempt_login() {
   fi
   type_text "$MARINA_TEST_PASSWORD"
 
-  # 3) إغلاق لوحة المفاتيح — اللوحة مفتوحة بعد الكتابة فيضمها BACK
-  #    ولا يخرج من التطبيق.
-  "$ADB_BIN" shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
-  sleep 1
+  # 3) إغلاق لوحة المفاتيح — فقط إن كانت مفتوحة فعلاً (dumpsys
+  #    input_method). إرسال BACK دون لوحة مفتوحة على شاشة الدخول
+  #    يُخرج التطبيق فيصبح كل ما بعده على شاشة النظام — وهو عطل
+  #    حدث فعلاً في أول تشغيل حقيقي على CI.
+  if keyboard_open; then
+    log 'login_keyboard_closing'
+    "$ADB_BIN" shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+    sleep 2
+  else
+    log 'login_keyboard_not_open_after_typing'
+  fi
+  save_debug_dump "cycle${CYCLE}_login_before_submit"
 
-  # 4) زر الدخول
-  tap_text 'دخول' || tap_xy 540 1140
+  # 4) زر الدخول — بالنص/content-desc، ثم بإحداثية مشتقة من حدود
+  #    حقل كلمة المرور نفسه (أدق من إحداثية ثابتة)، ثم ENTER.
+  if ! tap_text 'دخول'; then
+    local field_bounds x1 y1 x2 y2 btn_y
+    field_bounds="$(find_edittext_bounds 1)"
+    if [[ -n "$field_bounds" ]]; then
+      read -r x1 y1 x2 y2 <<< "$field_bounds"
+      btn_y=$(( y2 + 110 ))
+      tap_xy 540 "$btn_y"
+      log "login_button_tap_by_field_bounds:y=$btn_y"
+    else
+      tap_xy 540 1140
+      log 'login_button_tap_fixed_fallback'
+    fi
+  fi
   log "login_submit:mode=$CRED_MODE"
+  sleep 3
 
-  # 5) انتظار لوحة التحكم (بصمة متعددة العناصر)
+  # 4-ب) إن لم يُظهر زر الدخول أثراً — محاولة ENTER على الحقل الأخير
+  if ! is_dashboard_visible && is_login_screen; then
+    "$ADB_BIN" shell input keyevent KEYCODE_ENTER >/dev/null 2>&1 || true
+    log 'login_enter_key_fallback'
+    sleep 3
+  fi
+
+  # 5) انتظار لوحة التحكم (بصمة متعددة العناصر) — مع كشف خروج
+  #    التطبيق/انهياره مبكراً بدل إهدار كامل المهلة.
   local deadline=$(( $(date +%s) + LOGIN_WAIT_SEC ))
   while (( $(date +%s) < deadline )); do
     if is_dashboard_visible; then
@@ -246,8 +301,15 @@ attempt_login() {
       log 'login_failed:invalid_credentials'
       return 0
     fi
+    if ! process_alive; then
+      save_debug_dump "cycle${CYCLE}_login_app_died"
+      event 'login_timeout' 'login' "reason=process_gone_early mode=$CRED_MODE"
+      log 'login_process_gone'
+      return 0
+    fi
     sleep 3
   done
+  save_debug_dump "cycle${CYCLE}_login_timeout_final"
   event 'login_timeout' 'login' "mode=$CRED_MODE waited_sec=$LOGIN_WAIT_SEC"
   log "login_timeout:${LOGIN_WAIT_SEC}s"
   return 0

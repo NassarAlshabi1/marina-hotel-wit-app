@@ -296,7 +296,10 @@ measure() {
   raw="$raw_dir/${timestamp}_${label}.txt"
   perf_raw="$raw_dir/${timestamp}_${label}_performance.json"
   "$ADB_BIN" shell dumpsys meminfo -d "$PACKAGE" > "$raw"
-  read_perf_json "$PERF_REPORT_REMOTE_PATH" "$perf_raw"
+  # ✅ best-effort عمداً: فشل قراءة تقرير الأداء (إعادة كتابة لحظية
+  # للملف مثلاً) لا يجوز أن يقتل القياس — كان يفعلها return 1 تحت
+  # set -e فقتل السكربت في منتصف الدورات.
+  read_perf_json "$PERF_REPORT_REMOTE_PATH" "$perf_raw" || true
   # ✅ v2: تشخيص الرسم والمعالج لكل نقطة قياس
   "$ADB_BIN" shell dumpsys gfxinfo "$PACKAGE" > "${raw_dir}/${timestamp}_${label}_gfxinfo.txt" 2>&1 || true
   "$ADB_BIN" shell dumpsys cpuinfo > "${raw_dir}/${timestamp}_${label}_cpuinfo.txt" 2>&1 || true
