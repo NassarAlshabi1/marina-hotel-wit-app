@@ -48,6 +48,11 @@ jobs:
     name: Build → Emulator 1GB/2cores → Integration → Metrics → Report
     runs-on: ubuntu-latest
     timeout-minutes: 75
+    # جميع خطوات run تعمل من مجلد mobile (كما في باقي workflows المشروع) —
+    # خطوات uses لا تتأثر بـ defaults والسكربت الداخلي للـ emulator يقوم بـ cd صراحةً
+    defaults:
+      run:
+        working-directory: mobile
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
