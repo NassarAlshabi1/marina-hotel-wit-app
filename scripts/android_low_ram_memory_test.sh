@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ═══════════════════════════════════════════════════════════════
+# ✅ v2 (2026-09-25): ترقية لبوابة الأداء الكاملة:
+#   - cold_start.csv: توقيتات am start -W لكل إطلاق (بوابة ×5)
+#   - gfxinfo + cpuinfo لكل نقطة قياس (تشخيص الرسم والمعالج)
+#   - قراءة تقرير الأداء الداخلي من بناء Release عبر adb root
+#   - اختبار دورة الحياة (خلفية/أمام + تغيير وضع ليلي + دوران)
+#   - فحص الاستقرار: Crash/ANR/OOM من logcat → crash_scan_summary.txt
+#   - emulator_profile.txt: إثبات مواصفات المحاكي (RAM/Heap/API)
+# ═══════════════════════════════════════════════════════════════
+
 PACKAGE="${ANDROID_PACKAGE:-com.aden.marina}"
 APK_PATH=""
 OUTPUT_DIR="${LOW_RAM_OUTPUT_DIR:-build/low-ram-performance}"
@@ -12,6 +22,8 @@ ACTION_SCRIPT="${LOW_RAM_ACTION_SCRIPT:-}"
 PERF_REPORT_REMOTE_PATH="${LOW_RAM_PERF_REPORT_REMOTE_PATH:-files/marina_performance_report.json}"
 START_TIMEOUT_SEC="${LOW_RAM_START_TIMEOUT_SEC:-45}"
 RELAUNCH_RETRIES="${LOW_RAM_RELAUNCH_RETRIES:-1}"
+# ✅ v2: نوع كل إطلاق (initial/cycle_N/lifecycle) لملف cold_start.csv
+LAUNCH_KIND="initial"
 RUNTIME_PERMISSIONS="${LOW_RAM_RUNTIME_PERMISSIONS:-android.permission.CAMERA android.permission.POST_NOTIFICATIONS android.permission.READ_MEDIA_IMAGES android.permission.READ_MEDIA_AUDIO android.permission.READ_MEDIA_VIDEO}"
 
 usage() {
@@ -74,6 +86,29 @@ fi
 "$ADB_BIN" shell settings put global window_animation_scale 0 || true
 "$ADB_BIN" shell settings put global transition_animation_scale 0 || true
 "$ADB_BIN" shell settings put global animator_duration_scale 0 || true
+
+# ✅ v2 (دعم Release): صور google_apis تسمح بـ adb root — دونه
+# يستحيل قراءة files/marina_performance_report.json من بناء Release
+# (غير debuggable، وrun-as يرفض العمل عليه).
+"$ADB_BIN" root >/dev/null 2>&1 || true
+"$ADB_BIN" wait-for-device >/dev/null 2>&1 || true
+for _ in $(seq 1 30); do
+  booted=$("$ADB_BIN" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+  [[ "$booted" == "1" ]] && break
+  sleep 2
+done
+
+# ✅ v2: توثيق مواصفات المحاكي (إثبات أن القياس على 1GB فعلاً).
+{
+  printf 'api_level=%s\n' "$("$ADB_BIN" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
+  printf 'abis=%s\n' "$("$ADB_BIN" shell getprop ro.product.cpu.abilist 2>/dev/null | tr -d '\r')"
+  printf 'dalvik_heapsize=%s\n' "$("$ADB_BIN" shell getprop dalvik.vm.heapsize 2>/dev/null | tr -d '\r')"
+  printf 'dalvik_heapgrowthlimit=%s\n' "$("$ADB_BIN" shell getprop dalvik.vm.heapgrowthlimit 2>/dev/null | tr -d '\r')"
+  printf 'screen=%s\n' "$("$ADB_BIN" shell wm size 2>/dev/null | tr -d '\r\n')"
+  printf 'density=%s\n' "$("$ADB_BIN" shell wm density 2>/dev/null | tr -d '\r\n')"
+  printf 'memtotal=%s\n' "$("$ADB_BIN" shell cat /proc/meminfo 2>/dev/null | head -1 | tr -d '\r')"
+} > "$OUTPUT_DIR/emulator_profile.txt"
+
 # Keep startup diagnostics scoped to this run; failure artifacts are uploaded by CI.
 "$ADB_BIN" logcat -c >/dev/null 2>&1 || true
 
@@ -110,7 +145,10 @@ fi
 metrics_csv="$OUTPUT_DIR/memory_metrics.csv"
 raw_dir="$OUTPUT_DIR/raw"
 lifecycle_log="$OUTPUT_DIR/lifecycle.log"
+cold_start_csv="$OUTPUT_DIR/cold_start.csv"
 mkdir -p "$raw_dir"
+# ✅ v2: توقيتات الإطلاق (am start -W) — بوابة cold-start ×5
+printf 'label,total_time_ms,wait_time_ms\n' > "$cold_start_csv"
 printf 'label,timestamp_ms,cycle,total_pss_kb,private_other_kb,unknown_kb,java_heap_kb,native_heap_kb,graphics_kb,total_rss_kb,swap_pss_kb,activities,views,webviews\n' > "$metrics_csv"
 printf 'event,timestamp_ms,cycle,process_state\n' > "$lifecycle_log"
 
@@ -235,6 +273,21 @@ collect_startup_diagnostics() {
     > "${prefix}_logcat.txt" || true
 }
 
+# ✅ v2 (دعم Release): run-as يعمل على debug/profile فقط؛ على
+# Release نقرأ مباشرة عبر جذر adbd (صور google_apis تسمح به).
+read_perf_json() {
+  local remote_path="$1" out_file="$2"
+  if "$ADB_BIN" shell run-as "$PACKAGE" cat "$remote_path" > "$out_file" 2>/dev/null && [[ -s "$out_file" ]]; then
+    return 0
+  fi
+  rm -f "$out_file"
+  if "$ADB_BIN" shell cat "/data/data/$PACKAGE/$remote_path" > "$out_file" 2>/dev/null && [[ -s "$out_file" ]]; then
+    return 0
+  fi
+  rm -f "$out_file"
+  return 1
+}
+
 measure() {
   local label="$1"
   local cycle="$2"
@@ -243,9 +296,10 @@ measure() {
   raw="$raw_dir/${timestamp}_${label}.txt"
   perf_raw="$raw_dir/${timestamp}_${label}_performance.json"
   "$ADB_BIN" shell dumpsys meminfo -d "$PACKAGE" > "$raw"
-  if ! "$ADB_BIN" shell run-as "$PACKAGE" cat "$PERF_REPORT_REMOTE_PATH" > "$perf_raw" 2>/dev/null; then
-    rm -f "$perf_raw"
-  fi
+  read_perf_json "$PERF_REPORT_REMOTE_PATH" "$perf_raw"
+  # ✅ v2: تشخيص الرسم والمعالج لكل نقطة قياس
+  "$ADB_BIN" shell dumpsys gfxinfo "$PACKAGE" > "${raw_dir}/${timestamp}_${label}_gfxinfo.txt" 2>&1 || true
+  "$ADB_BIN" shell dumpsys cpuinfo > "${raw_dir}/${timestamp}_${label}_cpuinfo.txt" 2>&1 || true
 
   total_pss=$(awk '/TOTAL PSS:/ {gsub(",", "", $3); print $3; exit}' "$raw")
   private_other=$(awk '/^[[:space:]]*Private Other:/ {gsub(",", "", $3); print $3; exit}' "$raw")
@@ -295,6 +349,13 @@ launch_app_once() {
     -f 0x10008000 \
     2>&1 || true)
   printf 'launch_attempt timestamp_ms=%s output=%s\n' "$(now_ms)" "${output//$'\\n'/ | }" >> "$lifecycle_log"
+  # ✅ v2: تسجيل توقيت الإطلاق في cold_start.csv (بوابة cold-start)
+  launch_total_ms=$(printf '%s' "$output" | grep -oE 'TotalTime: *[0-9]+' | grep -oE '[0-9]+' || true)
+  launch_wait_ms=$(printf '%s' "$output" | grep -oE 'WaitTime: *[0-9]+' | grep -oE '[0-9]+' || true)
+  if [[ -n "${launch_total_ms:-}" ]]; then
+    printf '%s,%s,%s\n' "${LAUNCH_KIND:-launch}" "$launch_total_ms" "${launch_wait_ms:-0}" >> "$cold_start_csv"
+  fi
+
   if printf '%s' "$output" | grep -Eq 'Error type|Error:|Exception|does not exist'; then
     return 1
   fi
@@ -333,8 +394,12 @@ launch_app() {
 run_actions() {
   local cycle="$1"
   if [[ -n "$ACTION_SCRIPT" ]]; then
-    "$ACTION_SCRIPT" "$ADB_BIN" "$PACKAGE" "$cycle"
-    return
+    # ✅ v2: فشل سكربت الإجراءات لا يقتل دورة القياس — تُستكمل
+    # القياسات ويقرر الفشلَ البوابةُ النهائية من الأحداث المفقودة.
+    if ! "$ACTION_SCRIPT" "$ADB_BIN" "$PACKAGE" "$cycle"; then
+      printf 'action_script_failure cycle=%s\n' "$cycle" >> "$lifecycle_log"
+    fi
+    return 0
   fi
 
   # Fallback is intentionally limited to gestures. A real navigation action
@@ -353,6 +418,7 @@ sleep 2
 printf 'cold_start_before,%s,0,absent\n' "$(now_ms)" >> "$lifecycle_log"
 # No meminfo row is written here: dumpsys on an absent process is not a valid
 # cold-start baseline and must never be treated as zero memory.
+LAUNCH_KIND="initial"
 launch_app
 printf 'cold_start_after,%s,0,%s\n' "$(now_ms)" "$(process_state)" >> "$lifecycle_log"
 measure cold_start_after 0
@@ -363,6 +429,7 @@ for cycle in $(seq 1 "$CYCLES"); do
     stop_app || true
     printf 'cycle_force_stop,%s,%s,%s\n' "$(now_ms)" "$cycle" "$(process_state)" >> "$lifecycle_log"
     sleep 2
+    LAUNCH_KIND="cycle_${cycle}"
     launch_app
   fi
   printf 'cycle_start,%s,%s,%s\n' "$(now_ms)" "$cycle" "$(process_state)" >> "$lifecycle_log"
@@ -373,6 +440,60 @@ for cycle in $(seq 1 "$CYCLES"); do
   measure "cycle_${cycle}_after_actions" "$cycle"
   log_foreground "$cycle"
 done
+
+# ═══ ✅ v2 (17): دورة الحياة — خلفية/أمام + تغيير تكوين + حالة العملية ═══
+# تغيير الوضع الليلي (cmd uimode) تغيير تكوين حقيقي يعيد بناء الواجهة
+# (التطبيق يقفل الاتجاه عمودياً بتصميمه فمحاولة الدوران تُسجّل فقط).
+lifecycle_note() {
+  printf 'lifecycle_%s,%s,%s,%s\n' "$1" "$(now_ms)" "$2" "$(process_state)" >> "$lifecycle_log"
+}
+
+"$ADB_BIN" shell input keyevent KEYCODE_HOME >/dev/null 2>&1 || true
+sleep 3
+lifecycle_note "backgrounded" 6
+LAUNCH_KIND="lifecycle_home_return"
+launch_app
+measure "lifecycle_home_return" 6
+lifecycle_note "warm_foreground_return" 6
+
+"$ADB_BIN" shell cmd uimode night yes >/dev/null 2>&1 || true
+sleep 4
+lifecycle_note "dark_mode_config_change" 7
+if [[ "$(process_state)" == "running" ]]; then
+  measure "lifecycle_dark_mode" 7
+else
+  LAUNCH_KIND="lifecycle_dark_mode_relaunch"
+  launch_app
+  measure "lifecycle_dark_mode" 7
+fi
+"$ADB_BIN" shell cmd uimode night no >/dev/null 2>&1 || true
+sleep 3
+lifecycle_note "light_mode_restored" 7
+
+"$ADB_BIN" shell settings put system accelerometer_rotation 0 >/dev/null 2>&1 || true
+"$ADB_BIN" shell settings put system user_rotation 1 >/dev/null 2>&1 || true
+sleep 3
+lifecycle_note "rotate_attempt" 8
+"$ADB_BIN" shell settings put system user_rotation 0 >/dev/null 2>&1 || true
+sleep 2
+
+# ═══ ✅ v2 (12/19): فحص الاستقرار — Crash / ANR / OOM من logcat ═══
+# logcat مُسح في بداية التشغيل فكل ما هنا من هذه الجلسة تحديداً.
+full_log="$raw_dir/logcat_final.txt"
+"$ADB_BIN" logcat -d -v threadtime -t 20000 > "$full_log" 2>/dev/null || true
+PACKAGE_RE="${PACKAGE//./\\.}"
+fatal_count=$(awk '/FATAL EXCEPTION/{inblock=1} inblock && /Process: /{inblock=0; if ($0 ~ Pkg) ours++} END{print ours+0}' Pkg="$PACKAGE_RE" "$full_log" 2>/dev/null || true)
+anr_count=$(grep -cE "ANR in $PACKAGE|am_anr.*$PACKAGE_RE" "$full_log" 2>/dev/null || true)
+oom_count=$(grep -cE 'OutOfMemoryError' "$full_log" 2>/dev/null || true)
+native_crash_count=$(grep -cE 'Fatal signal' "$full_log" 2>/dev/null || true)
+{
+  printf 'fatal_exception_count=%s\n' "${fatal_count:-0}"
+  printf 'anr_count=%s\n' "${anr_count:-0}"
+  printf 'oom_count=%s\n' "${oom_count:-0}"
+  printf 'native_fatal_signal_count=%s\n' "${native_crash_count:-0}"
+} > "$OUTPUT_DIR/crash_scan_summary.txt"
+grep -E "FATAL EXCEPTION|ANR in |am_anr|OutOfMemoryError|Fatal signal|lowmemorykiller|Input dispatching|Process: " "$full_log" \
+  > "$OUTPUT_DIR/crash_scan.txt" 2>/dev/null || true
 
 peak_pss=$(awk -F, 'NR > 1 && $4 > max {max=$4} END {print max + 0}' "$metrics_csv")
 peak_label=$(awk -F, -v max="$peak_pss" 'NR > 1 && $4 == max {print $1; exit}' "$metrics_csv")
@@ -396,6 +517,12 @@ last_pss_kb=$last_pss
 cycle_peak_pss_kb=$cycle_peak_pss
 cycle_last_pss_kb=$cycle_last_pss
 cycle_delta_kb=$((cycle_last_pss - cycle_peak_pss))
+cred_mode=${MARINA_TEST_CRED_MODE:-local-fallback}
+cold_start_records=$(($(wc -l < "$cold_start_csv") - 1))
+fatal_exception_count=${fatal_count:-0}
+anr_count=${anr_count:-0}
+oom_count=${oom_count:-0}
+native_fatal_signal_count=${native_crash_count:-0}
 EOF
 
 if (( peak_pss <= 0 )); then

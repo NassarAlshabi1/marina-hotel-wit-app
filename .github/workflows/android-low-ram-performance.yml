@@ -1,4 +1,31 @@
-name: Android 1GB Low-RAM Performance
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Marina Hotel — Android 1GB Performance Gate
+#  بوابة أداء قوية على محاكي حقيقي محدود الموارد:
+#  API 35 / RAM 1024MB / CPU 2 cores / Dalvik Heap 256MB / Cold boot
+#
+#  الخطوط (مطابقة للتصميم المتفق عليه):
+#   1  Checkout                       11 Android Emulator (1GB مخصص)
+#   2  KVM                            12 Installation test
+#   3  JDK 17                         13 Cold-start benchmark ×5
+#   4  Flutter 3.44.6 (توحيد الأداة)  14 Memory benchmark (PSS/RSS/heaps)
+#   5  Android SDK components         15 Rendering benchmark (frames/jank)
+#   6  Dependency validation          16 Stability (Crash/ANR/OOM)
+#   7  flutter analyze                17 App navigation (دخول حقيقي)
+#   8  Database stress ×3             18 Lifecycle test
+#   9  Sync stress ×3                 19 Diagnostics (logcat/dumpsys/gfx)
+#   10 Build RELEASE (3 ABI)          20 Automatic gates + report
+#                                    21 Upload EVERYTHING
+#
+#  ✅ إصلاح العيب القاتل من التشغيل السابق:
+#  «Login credentials missing → Navigation skipped → Dashboard لم
+#  يُختبر» — الدخول الآن فعلي: MARINA_TEST_EMAIL/MARINA_TEST_PASSWORD
+#  من GitHub Secrets، مع رجوع آمن للحساب المحلي admin/admin فيعمل
+#  التنقل دائماً. لا كلمة مرور داخل المستودع إطلاقاً.
+#
+#  البوابات مُعايَرة على baseline التشغيل المرجعي e6e6daa (ليست
+#  أرقاماً عشوائية) — التفاصيل في scripts/android_perf_gate.py.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+name: Android 1GB Performance Gate
 
 on:
   workflow_dispatch:
@@ -14,18 +41,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  low-ram-emulator:
-    name: Android API 34 — 1GB RAM memory profile
+  performance-gate:
+    name: Android API 35 — 1GB RAM / 2 cores / 256MB heap
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ADB: /usr/local/lib/android/sdk/platform-tools/adb
     defaults:
       run:
         working-directory: mobile
 
     steps:
+      # ─── 1) جلب الكود ──────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v5
 
+      # ─── 2) تمكين KVM (تسريع المحاكي) ──────────────────────
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -33,6 +66,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # ─── 3) Java 17 ────────────────────────────────────────
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -40,6 +74,10 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      # ─── 4) Flutter 3.44.6 ──────────────────────────────────
+      # توحيد الأداة مع ci.yml (وليس ترقية): بوابة الأداء يجب أن
+      # تقيس APK من نفس سلسلة الأدوات التي تبني الإنتاج، وإلا صار
+      # القياس لتوليفة أخرى غير الموزعة.
       - name: Set up Flutter
         uses: subosito/flutter-action@v2.23.0
         with:
@@ -48,113 +86,280 @@ jobs:
           cache: true
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
+      # ─── 5) مكونات Android SDK (كما في main.yml — Release يحتاجها) ─
+      - name: Install Android SDK components
+        run: |
+          echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.0.12077973" \
+            "cmake;3.22.1"
+
+      # ─── 6) التبعيات + توليد الكود (dependency validation) ──
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Generate sources
+      - name: Generate sources (build_runner)
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Run five-cycle CRUD and Outbox stress harness
+      # ─── 7) التحليل الساكن (نفس بوابة CI) ──────────────────
+      - name: Static analysis (flutter analyze)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      # ─── 8) ضغط قاعدة البيانات: CRUD + معاملات + Outbox ────
+      # pipefail ضروري — بدونه يأخذ الـ pipeline حالة خروج tee
+      # (نجاح دائم) فيُبتَع فشل الاختبار صامتاً.
+      - name: Database stress — CRUD/transactions/Outbox (five cycles)
         run: |
-          # ✅ P1 (2026-09-21): pipefail ضروري — بدونه يأخذ الـ pipeline
-          # حالة خروج tee (نجاح دائم) فيُبتَع فشل الاختبار صامتاً.
           set -o pipefail
           mkdir -p build/low-ram-performance
           flutter test test/performance/crud_sync_memory_stress_test.dart --reporter expanded \
             | tee build/low-ram-performance/crud_sync_stress.log
 
-      # ✅ P1 (2026-09-21): تغطية CI لمسار سحب booking_nights (كانت فجوة
-      # كاملة — السيناريو الذي أثبت فقدان ~85% قبل إصلاح P0 المزدوج).
-      # يقيس عبر الكود الإنتاجي نفسه (بلا شبكة): 7000 ليلة على 70 صفحة،
-      # حارس فقدان البيانات (7000 صف)، حارس N+1 القاطع (عدّ SELECTs
-      # مستقل عن سرعة الآلة: ≤ 1000 مقابل 21000+ للمسار القديم)،
-      # idempotency إعادة السحب (0 كتابات)، وحدود RSS/المدة.
-      - name: Run booking_nights full-pull scale harness (P0 regression canary)
+      - name: Database stress — Outbox under load (1000+ entries)
         run: |
-          # pipefail: فشل الحارس يجب أن يُفشل البناء — هذه وظيفته كلها.
           set -o pipefail
-          mkdir -p build/low-ram-performance
+          flutter test test/performance/outbox_load_benchmark_test.dart --reporter expanded \
+            | tee build/low-ram-performance/outbox_load.log
+
+      - name: Database stress — SQLite low-end memory profile
+        run: |
+          set -o pipefail
+          flutter test test/performance/sqlite_low_end_stress_test.dart --reporter expanded \
+            | tee build/low-ram-performance/sqlite_low_end.log
+
+      # ─── 9) ضغط المزامنة: Pull/Delta + 7000 ليلة + canaries ─
+      - name: Sync stress — booking_nights full-pull scale (P0 canary)
+        run: |
+          set -o pipefail
           flutter test test/performance/booking_nights_pull_scale_test.dart --reporter expanded \
             | tee build/low-ram-performance/booking_nights_pull.log
 
-      # ✅ (2026-09-21) درع انحدار انهيار Crashlytics القاتل
-      # CouldNotRollBackException (COMMIT/ROLLBACK «no transaction is
-      # active») من البنية القديمة (transaction واحدة تلف دورة السحب
-      # كاملة). يثبت عبر الكود الإنتاجي نفسه على قاعدة ملف حقيقية مع
-      # اتصال sqlite3 خارجي: (A) كل صفحة سحب تُثبَّت بمعاملتها الخاصة
-      # ومرئية لقارئ خارجي فوراً، (B) write-lock لا تُحتجز بين الصفحات
-      # (الواجهة غير مجمدة)، + تحكم سلبي يثبت أن المنهجية تكشف البنية
-      # القديمة لو ارتدت. لو أعاد أحدٌ غلاف database.transaction حول
-      # دورة السحب «للذرّية» فشل هذا الحارس فوراً.
-      - name: Run pull commit-visibility canary (CouldNotRollBack regression guard)
+      - name: Sync stress — operations benchmark (push/pull/delta)
         run: |
           set -o pipefail
-          mkdir -p build/low-ram-performance
+          flutter test test/performance/sync_operations_benchmark_test.dart --reporter expanded \
+            | tee build/low-ram-performance/sync_operations.log
+
+      - name: Sync stress — pull commit-visibility canary (CouldNotRollBack guard)
+        run: |
+          set -o pipefail
           flutter test test/unit/pull_commit_visibility_test.dart --reporter expanded \
             | tee build/low-ram-performance/pull_commit_visibility.log
 
-      - name: Build profile APK with performance instrumentation
-        run: flutter build apk --profile --dart-define=MARINA_ENABLE_PERF_PROFILE=true
+      # ─── 10) بناء RELEASE (3 معماريات: arm64 + arm للتوزيع،
+      # x86_64 للمحاكي) مع تفعيل المراقب الداخلي —
+      # MARINA_ENABLE_PERF_PROFILE يجعل PerformanceMonitor يعمل
+      # حتى في Release (forceInProfile) فيُقاس الأداء الإنتاجي
+      # الفعلي لا بناء Profile المتسامح.
+      # ملاحظة: BASE_API_URL عبر HTTPS — الـ network_security_config
+      # يرفض cleartext، فأي http:// يجعل كل نداءات API تفشل.
+      - name: Determine build version
+        id: version
+        run: |
+          BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+          echo "build_name=${BASE_VERSION}+${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "Building: ${BASE_VERSION}+${BUILD_NUMBER}"
 
-      - name: Start 1GB Android emulator and measure app PSS
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          force-avd-creation: true
-          emulator-options: >-
-            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-            -camera-back none -no-snapshot -memory 1024
-          disable-animations: true
-          script: |
-            cd "$ANDROID_SDK_ROOT/.." >/dev/null 2>&1 || true
-            cd "$GITHUB_WORKSPACE"
-            mkdir -p mobile/build/low-ram-performance
-            chmod +x scripts/android_low_ram_memory_test.sh scripts/android_low_ram_navigation_actions.sh
-            LOW_RAM_ACTION_LOG="$GITHUB_WORKSPACE/mobile/build/low-ram-performance/navigation_actions.log" LOW_RAM_PERF_REPORT_REMOTE_PATH=files/marina_performance_report.json MAX_PSS_KB=393216 LOW_RAM_CYCLES=5 LOW_RAM_SWIPES=8 scripts/android_low_ram_memory_test.sh --package com.aden.marina --apk mobile/build/app/outputs/flutter-apk/app-profile.apk --cycles 5 --swipes 8 --action-script scripts/android_low_ram_navigation_actions.sh --perf-report-path files/marina_performance_report.json --output mobile/build/low-ram-performance
+      - name: Build release APKs (per-ABI, instrumented)
+        run: >
+          flutter build apk --release
+          --split-per-abi
+          --target-platform android-arm64,android-arm,android-x64
+          --build-name ${{ steps.version.outputs.build_name }}
+          --build-number ${{ steps.version.outputs.build_number }}
+          --obfuscate
+          --split-debug-info=build/symbols
+          --dart-define=BASE_API_URL=https://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
+          --dart-define=MARINA_ENABLE_PERF_PROFILE=true
+        env:
+          GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
+          JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
 
-      - name: Analyze profile Frame/Build/Raster reports
+      # ─── تقرير حجم APK (بوابة الحجم) ────────────────────────
+      - name: Inspect APK sizes
+        id: apkinfo
+        run: |
+          mkdir -p build/low-ram-performance
+          inspect() {
+            APK="$1"; OUT="$2"
+            BYTES=$(stat -c%s "build/app/outputs/flutter-apk/$APK")
+            MB=$(awk "BEGIN {printf \"%.2f\", $BYTES/1048576}")
+            echo "$APK: ${MB} MB ($BYTES bytes)"
+            echo "$OUT=${MB}" >> $GITHUB_OUTPUT
+            echo "$APK: ${MB} MB" >> build/low-ram-performance/apk_sizes.txt
+          }
+          inspect app-arm64-v8a-release.apk apk_arm64_mb
+          inspect app-armeabi-v7a-release.apk apk_arm_mb
+          inspect app-x86_64-release.apk apk_x64_mb
+          cat build/low-ram-performance/apk_sizes.txt
+
+      # ─── 11) إقلاع المحاكي المخصص: API 35 / 1024MB RAM /
+      # 256MB Dalvik heap / نواتان / cold boot (بلا snapshot) /
+      # الرسوم swiftshader البرمجي / بلا صوت ولا كاميرا.
+      # ندير الإقلاع يدوياً (لا android-emulator-runner) لأن التحكم
+      # الكامل بـ config.ini هو الطريقة الوحيدة لضبط vm.heapSize
+      # و hw.cpu.ncore بالضبط.
+      - name: Boot 1GB Android emulator (API 35, 1024MB, 256MB heap, 2 cores)
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          EMULATOR_BIN="${ANDROID_HOME}/emulator/emulator"
+          ADB_BIN="${ANDROID_HOME}/platform-tools/adb"
+
+          sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "system-images;android-35;google_apis;x86_64" >/dev/null
+
+          echo no | ${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager create avd \
+            -n marina_1gb -k "system-images;android-35;google_apis;x86_64" \
+            -d pixel_2 --force >/dev/null
+
+          AVD_DIR="$HOME/.android/avd/marina_1gb.avd"
+          cat > "$AVD_DIR/config.ini" <<'EOF'
+          avd.ini.encoding=UTF-8
+          hw.device=pixel_2
+          hw.cpu.ncore=2
+          hw.ramSize=1024
+          vm.heapSize=256
+          hw.lcd.density=420
+          hw.lcd.width=1080
+          hw.lcd.height=1920
+          hw.keyboard=yes
+          hw.gpu.enabled=yes
+          hw.gpu.mode=swiftshader_indirect
+          disk.dataPartition.size=6G
+          image.sysdir.1=system-images/android-35/google_apis/x86_64/
+          tag.display=Google APIs
+          tag.id=google_apis
+          abi.type=x86_64
+          hw.cpu.arch=x86_64
+          EOF
+
+          nohup "$EMULATOR_BIN" -avd marina_1gb -no-window -gpu swiftshader_indirect \
+            -noaudio -no-boot-anim -camera-back none -no-snapshot -memory 1024 \
+            > /tmp/emulator.log 2>&1 &
+          EMU_PID=$!
+
+          deadline=$(( $(date +%s) + 420 ))
+          booted=""
+          while (( $(date +%s) < deadline )); do
+            if ! kill -0 "$EMU_PID" 2>/dev/null; then
+              echo "::error::انطفأ المحاكي قبل اكتمال الإقلاع — آخر السطور:"
+              tail -40 /tmp/emulator.log
+              exit 1
+            fi
+            "$ADB_BIN" wait-for-device 2>/dev/null || true
+            booted=$("$ADB_BIN" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+            devboot=$("$ADB_BIN" shell getprop dev.bootcomplete 2>/dev/null | tr -d '\r')
+            [[ "$booted" == "1" && "$devboot" == "1" ]] && break
+            sleep 5
+          done
+          if [[ "$booted" != "1" ]]; then
+            echo "::error::لم يكتمل إقلاع المحاكي خلال 420 ثانية"
+            tail -40 /tmp/emulator.log
+            exit 1
+          fi
+          # انتظار جاهزية package manager ثم فتح قفل الشاشة
+          pm_deadline=$(( $(date +%s) + 60 ))
+          while ! "$ADB_BIN" shell pm path android >/dev/null 2>&1; do
+            if (( $(date +%s) > pm_deadline )); then
+              echo "::warning::PackageManager لم يصبح جاهزاً خلال 60 ثانية — نتابع"
+              break
+            fi
+            sleep 2
+          done
+          "$ADB_BIN" shell input keyevent 82 || true
+          "$ADB_BIN" shell wm dismiss-keyguard || true
+          "$ADB_BIN" devices
+
+      # ─── 12-18) حزمة القياس الكاملة على المحاكي ─────────────
+      # التثبيت + دخول حقيقي + تنقل كل الشاشات + cold-start ×5 +
+      # قياس الذاكرة/الإطارات + دورة الحياة + فحص Crash/ANR/OOM.
+      # بيانات الدخول من Secrets فقط (لا شيء في المستودع)؛ عند
+      # غيابها يُستخدم الحساب المحلي الثابت admin/admin فيعمل
+      # التنقل دائماً — لا عودة أبداً لعيب «navigation skipped».
+      - name: Run 1GB performance measurement suite
+        env:
+          MARINA_TEST_USERNAME: ${{ secrets.MARINA_TEST_EMAIL }}
+          MARINA_TEST_PASSWORD: ${{ secrets.MARINA_TEST_PASSWORD }}
+          MARINA_TEST_CRED_MODE: ${{ secrets.MARINA_TEST_EMAIL != '' && 'secrets' || 'local-fallback' }}
+          LOW_RAM_ACTION_LOG: build/low-ram-performance/navigation_actions.log
+          LOW_RAM_NAV_EVENTS_CSV: build/low-ram-performance/navigation_events.csv
+        run: |
+          chmod +x ../scripts/android_low_ram_memory_test.sh \
+            ../scripts/android_low_ram_navigation_actions.sh
+          ../scripts/android_low_ram_memory_test.sh \
+            --package com.aden.marina \
+            --apk build/app/outputs/flutter-apk/app-x86_64-release.apk \
+            --output build/low-ram-performance \
+            --cycles 5 \
+            --swipes 8 \
+            --action-script ../scripts/android_low_ram_navigation_actions.sh \
+            --perf-report-path files/marina_performance_report.json \
+            --max-pss-kb 393216
+
+      # ─── 19) تحليل تقارير الإطارات من المراقب الداخلي ──────
+      - name: Analyze frame/render reports
         if: always()
         run: |
           if [ -d build/low-ram-performance/raw ]; then
             python3 ../scripts/analyze_profile_performance.py \
               --raw-dir build/low-ram-performance/raw \
-              --output-dir build/low-ram-performance
+              --output-dir build/low-ram-performance \
+              || printf 'status=ANALYZER_FAILED\n' > build/low-ram-performance/frame_summary.txt
           else
+            mkdir -p build/low-ram-performance
             printf 'status=NO_MEMINFO_ARTIFACT\n' > build/low-ram-performance/frame_summary.txt
           fi
+          [ -f build/low-ram-performance/frame_summary.txt ] \
+            || printf 'status=NO_FRAME_SUMMARY\n' > build/low-ram-performance/frame_summary.txt
 
-      - name: Publish low-RAM summary
+      # ─── 20) البوابة النهائية: تقييم كل الحدود + التقرير ────
+      # الفشل هنا = فشل الـ workflow كله (بوابة قاطعة).
+      - name: Apply performance gates (final verdict)
         if: always()
         run: |
-          echo '### Android 1GB Low-RAM Performance' >> "$GITHUB_STEP_SUMMARY"
-          if [ -f build/low-ram-performance/booking_nights_pull_metrics.txt ]; then
-            echo '' >> "$GITHUB_STEP_SUMMARY"
-            echo '### booking_nights full-pull scale (P0 regression canary)' >> "$GITHUB_STEP_SUMMARY"
-            echo '```text' >> "$GITHUB_STEP_SUMMARY"
-            cat build/low-ram-performance/booking_nights_pull_metrics.txt >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [ -f build/low-ram-performance/summary.txt ]; then
-            echo '```text' >> "$GITHUB_STEP_SUMMARY"
-            cat build/low-ram-performance/summary.txt >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            echo '' >> "$GITHUB_STEP_SUMMARY"
-            if [ -f build/low-ram-performance/frame_summary.txt ]; then
-              echo '' >> "$GITHUB_STEP_SUMMARY"
-              echo '### Frame/Build/Raster profile summary' >> "$GITHUB_STEP_SUMMARY"
-              echo '```text' >> "$GITHUB_STEP_SUMMARY"
-              cat build/low-ram-performance/frame_summary.txt >> "$GITHUB_STEP_SUMMARY"
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
-            fi
-            echo 'Detailed dumpsys meminfo snapshots and lifecycle.log are included in the artifact.' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo 'The emulator measurement did not produce a summary.' >> "$GITHUB_STEP_SUMMARY"
-          fi
+          cp /tmp/emulator.log build/low-ram-performance/emulator.log 2>/dev/null || true
+          CRED_MODE="${{ secrets.MARINA_TEST_EMAIL != '' && 'secrets' || 'local-fallback' }}"
+          APK_ARGS=""
+          [ -n "${{ steps.apkinfo.outputs.apk_arm64_mb }}" ] \
+            && APK_ARGS="$APK_ARGS --apk-arm64-mb ${{ steps.apkinfo.outputs.apk_arm64_mb }}"
+          [ -n "${{ steps.apkinfo.outputs.apk_arm_mb }}" ] \
+            && APK_ARGS="$APK_ARGS --apk-arm-mb ${{ steps.apkinfo.outputs.apk_arm_mb }}"
+          [ -n "${{ steps.apkinfo.outputs.apk_x64_mb }}" ] \
+            && APK_ARGS="$APK_ARGS --apk-x64-mb ${{ steps.apkinfo.outputs.apk_x64_mb }}"
+          python3 ../scripts/android_perf_gate.py \
+            --report-dir build/low-ram-performance \
+            $APK_ARGS \
+            --cred-mode "$CRED_MODE" \
+            --build-mode release \
+            --commit "$GITHUB_SHA" \
+            --stress-log build/low-ram-performance/crud_sync_stress.log \
+            --stress-log build/low-ram-performance/booking_nights_pull.log \
+            --stress-log build/low-ram-performance/pull_commit_visibility.log \
+            --stress-log build/low-ram-performance/outbox_load.log \
+            --stress-log build/low-ram-performance/sync_operations.log \
+            --stress-log build/low-ram-performance/sqlite_low_end.log
 
-      - name: Upload low-RAM measurements
+      # ─── نشر التقرير في ملخص التشغيل ───────────────────────
+      - name: Publish performance summary
+        if: always()
+        run: |
+          {
+            echo '### Android 1GB Performance Gate'
+            if [ -f build/low-ram-performance/performance-report.md ]; then
+              cat build/low-ram-performance/performance-report.md
+            else
+              echo '_التقرير لم يُولَّد — راجع سجلات الخطوات السابقة._'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ─── 21) رفع كل شيء كـ artifact ────────────────────────
+      - name: Upload performance artifacts
         if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
