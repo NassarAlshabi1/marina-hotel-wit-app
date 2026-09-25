@@ -42,4 +42,13 @@ interface OutboxDao {
 
     @Query("SELECT COUNT(*) FROM outbox WHERE processing_status = 'pending' AND delivered_to_primary = 0")
     fun pendingCount(): Flow<Int>
+
+    /**
+     * ✅ (2026-09-25) استرداد الانهيار — عقد P0-H في Flutter: صفوف حُجزت
+     * processing قبل الدفع وانهار التطبيق قبل إتمامه تبقى معلقة للأبد لأن
+     * getPendingPrimary لا يعيد إلا pending. تُستدعى عند إقلاع التطبيق
+     * (AutoSyncEngine) لتُعاد كل المحجوزات إلى pending.
+     */
+    @Query("UPDATE outbox SET processing_status = 'pending' WHERE processing_status = 'processing'")
+    suspend fun recoverStaleProcessing(): Int
 }

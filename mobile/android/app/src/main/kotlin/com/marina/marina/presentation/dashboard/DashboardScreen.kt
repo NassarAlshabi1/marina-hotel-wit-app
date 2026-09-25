@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.Groups2
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -453,7 +454,8 @@ private fun StatCard(
 ) {
     Box(
         modifier = modifier
-            .background(Color.White, RoundedCornerShape(12.dp))
+            // ✅ (2026-09-25) surface من الثيم بدل أبيض صلب — كان يكسر الوضع الداكن.
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 10.dp, vertical = 10.dp)
     ) {

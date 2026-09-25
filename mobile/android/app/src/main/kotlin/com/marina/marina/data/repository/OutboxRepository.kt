@@ -75,8 +75,18 @@ class OutboxRepository @Inject constructor(
      * @return the number of rows successfully delivered in this pass.
      */
     suspend fun processPending(): Int {
-        val pending = outboxDao.getPendingPrimary().first()
-            .filter { it.attempts < MAX_ATTEMPTS_BEFORE_BACKOFF }
+        val allPending = outboxDao.getPendingPrimary().first()
+
+        // ✅ (2026-09-25) fix BUG-B: الصفوف المتجاوزة لسقف المحاولات كانت تُفلتر
+        // بصمت هنا — لا تُعاد للمحاولة ولا تُدفن، فتبقى pending للأبد (لأن
+        // getPendingPrimary يعيدها) وتضخم عدّاد المعلّقات وتجمّد الدفع. الآن
+        // تُدفن dead-letter (failed + completed) مثل الرفض الدائم تماماً.
+        allPending.filter { it.attempts >= MAX_ATTEMPTS_BEFORE_BACKOFF }.forEach { row ->
+            outboxDao.markFailedPrimary(row.id, "max retry attempts reached (${row.attempts})")
+            outboxDao.markProcessing(row.id, "completed", System.currentTimeMillis(), WORKER_NAME)
+        }
+
+        val pending = allPending.filter { it.attempts < MAX_ATTEMPTS_BEFORE_BACKOFF }
         if (pending.isEmpty()) return 0
 
         // الدخول الكسول: أول دفعة تضمن توكن JWT خادمياً (admin/admin
@@ -170,6 +180,14 @@ class OutboxRepository @Inject constructor(
         outboxDao.cleanupDelivered()
         return 0
     }
+
+    /**
+     * ✅ (2026-09-25) استرداد الانهيار (عقد P0-H): إعادة صفوف processing
+     * المعلقة إلى pending — يستدعيه [AutoSyncEngine] عند إقلاع التطبيق.
+     * بدونه أي انهيار أثناء الدفع يترك الصفوف محجوزة للأبد (getPendingPrimary
+     * لا يعيد إلا pending) فتضيع كتابات المستخدم من المزامنة نهائياً.
+     */
+    suspend fun recoverStaleProcessing(): Int = outboxDao.recoverStaleProcessing()
 
     /** الرفض الدائم (dead-letter) — fix M4: يُعاد للمحاولة بلا فائدة. */
     private fun isPermanentRejection(result: WorkerPushResult): Boolean {

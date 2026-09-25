@@ -17,10 +17,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.a.a.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -131,9 +133,21 @@ val MarinaDarkColorScheme = darkColorScheme(
 // body text keeps a comfortable 24sp line height for Arabic readability.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ✅ (2026-09-25) خط Tajawal — نفس هوية مرجع Flutter (theme.dart:
+// fontFamily: 'Tajawal'): ملفات TTF الأصلية نُقلت من mobile/assets/fonts
+// في فرع feat/cloudflare-sync-execution إلى res/font. بدونه كان النص
+// العربي يُرسم بـ Roboto — وهو سبب رئيسي لاختلاف شكل الواجهة عن
+// التطبيق المرجعي.
+/** عائلة Tajawal — النص العربي في التطبيق كله (مطابق للمرجع Flutter). */
+val TajawalFamily = FontFamily(
+    Font(R.font.tajawal_regular, FontWeight.Normal),
+    Font(R.font.tajawal_medium, FontWeight.Medium),
+    Font(R.font.tajawal_bold, FontWeight.Bold)
+)
+
 val AppTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.Thin,
         fontSize = 57.sp,
         lineHeight = 64.sp,
@@ -141,49 +155,49 @@ val AppTypography = Typography(
         color = AppColors.TextPrimary
     ),
     headlineLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.W700,
         fontSize = 32.sp,
         lineHeight = 40.sp,
         color = AppColors.TextPrimary
     ),
     headlineMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.W700,
         fontSize = 28.sp,
         lineHeight = 36.sp,
         color = AppColors.TextPrimary
     ),
     headlineSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.W700,
         fontSize = 24.sp,
         lineHeight = 32.sp,
         color = AppColors.TextPrimary
     ),
     titleLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.W600,
         fontSize = 20.sp,
         lineHeight = 28.sp,
         color = AppColors.TextPrimary
     ),
     titleMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.W600,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         color = AppColors.TextPrimary
     ),
     titleSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.W600,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         color = AppColors.TextPrimary
     ),
     bodyLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
@@ -191,35 +205,35 @@ val AppTypography = Typography(
         color = AppColors.TextPrimary
     ),
     bodyMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         color = AppColors.TextPrimary
     ),
     bodySmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         color = AppColors.TextSecondary
     ),
     labelLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.W600,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         color = AppColors.TextPrimary
     ),
     labelMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         color = AppColors.TextSecondary
     ),
     labelSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
+        fontFamily = TajawalFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 16.sp,
