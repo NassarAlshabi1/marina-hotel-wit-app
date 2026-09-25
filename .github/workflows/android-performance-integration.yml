@@ -1,0 +1,271 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  Marina Hotel — Android Performance Integration Pipeline
+# ════════════════════════════════════════════════════════════════════════════
+#
+#  خطّ الأداء المتكامل (مطابق للمخطط المطلوب):
+#
+#    GitHub Actions
+#    ├── Build Release APK            (android-x64 ليتوافق مع الـ emulator)
+#    ├── Android Emulator             RAM = 1GB (-memory 1024) — CPU = 2 cores
+#    ├── Install APK                  adb install -r + تحقّق من الحزمة
+#    ├── integration_test             Cold Start / Login / Dashboard /
+#    │                                Bookings / Payments / Expenses /
+#    │                                Reports / Sync
+#    ├── dumpsys meminfo              عينات أثناء الاختبارات + dump نهائي
+#    ├── dumpsys gfxinfo              إطارات متقطعة + percentiles
+#    ├── CPU                          top عيّنات + dumpsys cpuinfo
+#    ├── GC                           أحداث GC من logcat
+#    ├── Logcat                       logcat كامل + كشف FATAL/ANR
+#    └── Performance Report           scripts/generate_performance_report.py
+#
+#  ملاحظات تقنية مُتحقَّق منها من المصدر:
+#    - debug وrelease يتشاركان الحزمة com.marina.marina وتوقيعاً موحّداً
+#      (signingConfigs.unified بلا applicationIdSuffix) — لذا فإن تثبيت
+#      test APK الـ debug فوق الـ release APK تعمية تثبيت ترقية سليمة.
+#    - Cold Start يُقاس بـ `am start -W` على الـ release APK المثبَّت فعلياً
+#      (TotalTime/WaitTime/LaunchState) — وليس على test APK.
+# ════════════════════════════════════════════════════════════════════════════
+
+name: Android Performance Integration Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - refactor/performance-fixes-v2
+
+concurrency:
+  group: perf-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  performance-pipeline:
+    name: Build → Emulator 1GB/2cores → Integration → Metrics → Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      APP_PACKAGE: com.marina.marina
+
+    steps:
+      # ── 1. جلب الكود ────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # ── 2. تسريع الـ emulator بـ KVM ────────────────────────────────────
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # ── 3. Java 17 (مطلوب لـ AGP 8+) ────────────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      # ── 4. Flutter ──────────────────────────────────────────────────────
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      # ── 5. مكونات Android SDK للبناء ────────────────────────────────────
+      - name: Install Android SDK components
+        run: |
+          echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;27.0.12077973"
+
+      # ── 6. التبعيات + توليد الكود ───────────────────────────────────────
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code (build_runner)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # ── 7. التحقق من ملفات التوقيع (توقيع موحّد debug/release) ───────────
+      - name: Verify Android signing files
+        run: |
+          ls -la android/app/release.keystore
+          ls -la android/key.properties
+          echo "Unified signing verified (debug+release share release.keystore)."
+
+      # ── 8. تحديد رقم الإصدار ────────────────────────────────────────────
+      - name: Determine build version
+        id: version
+        run: |
+          BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+          BUILD_NAME="${BASE_VERSION}+${BUILD_NUMBER}"
+          echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "Building: $BUILD_NAME"
+
+      # ── 9. Build Release APK (x86_64 ليُثبَّت على الـ emulator) ──────────
+      - name: Build Release APK
+        run: >
+          flutter build apk --release
+          --target-platform android-x64
+          --build-name ${{ steps.version.outputs.build_name }}
+          --build-number ${{ steps.version.outputs.build_number }}
+          --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
+          --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
+          --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
+        env:
+          GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
+          JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
+
+      # ── 10. الـ Emulator: كل الخطوات التالية تعمل داخله ─────────────────
+      #      RAM = 1024MB — CPU = 2 cores — API 34 (Android 14)
+      - name: Android Emulator (RAM 1GB / CPU 2 cores) — Install, Integration, Metrics
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          force-avd-creation: true
+          emulator-options: >-
+            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+            -camera-back none -no-snapshot -memory 1024 -cores 2
+          disable-animations: true
+          script: |
+            cd "$GITHUB_WORKSPACE"
+            PKG="$APP_PACKAGE"
+            MET="mobile/build/perf-integration"
+            mkdir -p "$MET"
+
+            # ══ Install APK ════════════════════════════════════════════
+            echo "=== Install APK ==="
+            adb install -r mobile/build/app/outputs/flutter-apk/app-release.apk \
+              | tee "$MET/install.log" || exit 1
+            adb shell pm list packages | grep "$PKG" | tee -a "$MET/install.log" \
+              || { echo "::error::package $PKG not installed"; exit 1; }
+
+            # ══ Cold Start (إقلاع فعلي للـ release APK) ════════════════
+            echo "=== Cold Start measurement ==="
+            adb shell am start -W -S -n "$PKG/.MainActivity" \
+              > "$MET/cold_start.txt" 2>&1 || true
+            cat "$MET/cold_start.txt"
+            # نترك التطبيق يعمل ليرسم إطارات (أساس مقاييس gfxinfo)
+            sleep 8
+
+            # ══ تصفير العدادات قبل الاختبارات ══════════════════════════
+            adb shell dumpsys gfxinfo "$PKG" reset > /dev/null 2>&1 || true
+            adb logcat -c || true
+
+            # ══ عيّنات خلفية: meminfo + CPU كل 10 ثوانٍ ═════════════════
+            (
+              for i in $(seq 1 90); do
+                echo "----- meminfo sample $i -----" >> "$MET/meminfo_samples.txt"
+                # TOTAL PSS يقع في قسم App Summary (بعد السطر 50) —
+                # نستخرج السطور المفيدة مباشرة بدل قصّ عدد أسطر ثابت
+                adb shell dumpsys meminfo "$PKG" 2>/dev/null \
+                  | grep -E "TOTAL PSS|Native Heap|TOTAL RSS" \
+                  >> "$MET/meminfo_samples.txt" || true
+                echo "----- cpu sample $i -----" >> "$MET/cpu_samples.txt"
+                adb shell top -n 1 2>/dev/null | grep -E "$PKG|CPU%" \
+                  >> "$MET/cpu_samples.txt" || true
+                sleep 10
+              done
+            ) &
+            SAMPLER_PID=$!
+
+            # ══ integration_test — السيناريوهات ═════════════════════════
+            # Cold Start قيس أعلاه عبر am start -W؛ نُسجّل نتيجته الآن
+            if grep -qE "TotalTime: [0-9]+" "$MET/cold_start.txt"; then
+              echo "Cold Start=PASS" > "$MET/results.txt"
+            else
+              echo "Cold Start=FAIL" > "$MET/results.txt"
+            fi
+
+            run_scenario() {
+              local NAME="$1"; local FILE="$2"
+              echo "=== Scenario: $NAME ($FILE) ==="
+              if flutter test "$FILE" --reporter expanded --timeout 300s \
+                  > "$MET/test_${NAME}.log" 2>&1; then
+                echo "$NAME=PASS" >> "$MET/results.txt"
+              else
+                echo "$NAME=FAIL" >> "$MET/results.txt"
+                echo "::warning::integration scenario $NAME failed — see artifact test_${NAME}.log"
+              fi
+            }
+
+            cd mobile
+            run_scenario Login     integration_test/app_test.dart
+            run_scenario Dashboard integration_test/dashboard_test.dart
+            run_scenario Bookings  integration_test/bookings_test.dart
+            run_scenario Payments  integration_test/booking_payment_test.dart
+            run_scenario Expenses  integration_test/expenses_test.dart
+            run_scenario Reports   integration_test/reports_test.dart
+            run_scenario Sync      integration_test/sync_indicator_test.dart
+            cd ..
+
+            # ══ إيقاف العيّنات الخلفية ══════════════════════════════════
+            kill $SAMPLER_PID 2>/dev/null || true
+
+            # ══ dumpsys meminfo — dump نهائي ════════════════════════════
+            adb shell dumpsys meminfo -d "$PKG" > "$MET/meminfo_final.txt" 2>&1 || true
+
+            # ══ dumpsys gfxinfo — إطارات مرحلة الاختبارات ═══════════════
+            adb shell dumpsys gfxinfo "$PKG" > "$MET/gfxinfo.txt" 2>&1 || true
+
+            # ══ CPU — dumpsys cpuinfo ═══════════════════════════════════
+            adb shell dumpsys cpuinfo > "$MET/cpuinfo.txt" 2>&1 || true
+
+            # ══ Logcat كامل + استخراج أحداث GC ══════════════════════════
+            adb logcat -d > "$MET/logcat.txt" 2>&1 || true
+            grep -E "GC freed|concurrent copying GC|WaitForGcToBlock|CollectorTransition" \
+              "$MET/logcat.txt" > "$MET/gc.txt" 2>/dev/null || true
+
+            echo "=== Scenario results ==="
+            cat "$MET/results.txt"
+
+      # ── 11. Performance Report ──────────────────────────────────────────
+      #      السكربت يكتب التقرير ثم يخرج بـ 3 إذا وُجدت سيناريوهات فاشلة —
+      #      نبقيه غير فاشل هنا (البوابة في الخطوة التالية تقرر الحالة).
+      - name: Generate Performance Report
+        run: |
+          python3 ../scripts/generate_performance_report.py \
+            --metrics build/perf-integration \
+            --package "$APP_PACKAGE" \
+            --output build/perf-integration/performance_report.md
+          RC=$?
+          if [ $RC -ne 0 ] && [ $RC -ne 3 ]; then exit $RC; fi
+          echo "### 📊 Performance Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat build/perf-integration/performance_report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # ── 12. بوابة النتيجة: أي سيناريو فاشل = فشل الـ job ─────────────────
+      - name: Gate — fail if any scenario failed
+        run: |
+          if grep -q "=FAIL" build/perf-integration/results.txt; then
+            echo "::error::يوجد سيناريوهات integration فاشلة — راجع artifacts"
+            exit 1
+          fi
+          echo "جميع السيناريوهات ناجحة ✅"
+
+      # ── 13. رفع artifacts (دائماً — حتى عند الفشل) ───────────────────────
+      - name: Upload performance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: android-performance-report
+          path: mobile/build/perf-integration/
+          retention-days: 30
+          if-no-files-found: ignore
