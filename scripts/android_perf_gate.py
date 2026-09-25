@@ -200,7 +200,16 @@ def parse_navigation(report_dir: Path) -> dict:
             covered.setdefault(ev["target"], status)
             if covered[ev["target"]] != "visited" and status == "visited":
                 covered[ev["target"]] = "visited"
-        elif ev["event"] in ("login_success", "login_failed", "login_timeout", "session_restored"):
+        elif ev["event"] in (
+            "login_success",
+            "login_failed",
+            "login_timeout",
+            "login_blocked",
+            "gdrive_prompt_blocking",
+            "gdrive_skip_dialog_failed",
+            "gdrive_skip_tap_failed",
+            "session_restored",
+        ):
             login_events.append(ev)
     return {"events": events, "covered": covered, "login_events": login_events}
 
@@ -441,6 +450,12 @@ def main() -> int:
         elif "session_restored" in kinds and "login_failed" not in kinds:
             login_status = "PASS"
             login_note = "استعادة جلسة (rememberMe) — دخول فعلي سابق"
+        elif "login_blocked" in kinds or "gdrive_prompt_blocking" in kinds:
+            login_status = "FAIL"
+            login_note = "شاشة Google Drive تحجب الدخول ولم يُنجح تخطيها"
+        elif "gdrive_skip_dialog_failed" in kinds or "gdrive_skip_tap_failed" in kinds:
+            login_status = "FAIL"
+            login_note = "فشل تخطي شاشة Google Drive (زر/حوار التأكيد)"
         elif "login_failed" in kinds:
             login_status = "FAIL"
             login_note = "بيانات الدخول مرفوضة — راجع Secrets/الحساب"

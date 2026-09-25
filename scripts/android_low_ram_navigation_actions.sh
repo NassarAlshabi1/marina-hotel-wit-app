@@ -199,7 +199,45 @@ is_login_screen() {
   local ui
   ui="$(dump_ui || true)"
   [[ -n "$ui" ]] || return 1
-  printf '%s' "$ui" | grep -q 'اسم المستخدم\|كلمة المرور\|تسجيل الدخول'
+  # ⚠️ بدون «تسجيل الدخول» عمداً: شاشة onboarding الخاصة بـ Google
+  # Drive تحمل نفس العبارة (اكتشفها الـ dump الحقيقي من CI — كل
+  # الدورات كانت على شاشة GDrive وليس شاشة الدخول أصلاً).
+  printf '%s' "$ui" | grep -q 'اسم المستخدم\|كلمة المرور\|text="دخول"\|content-desc="دخول"'
+}
+
+# شاشة onboarding الخاصة بتسجيل دخول Google Drive — تظهر قبل شاشة
+# الدخول على أي تثبيت نظيف (root_router: !isAuthenticated &&
+# requiresDriveLogin). زر «تخطي» يفتح حوار تأكيد بزر «المتابعة بدون
+# مزامنة» ثم يستمر التخطي عبر SharedPreferences فلا يتكرر.
+is_gdrive_prompt() {
+  local ui
+  ui="$(dump_ui || true)"
+  [[ -n "$ui" ]] || return 1
+  printf '%s' "$ui" | grep -q 'Google Drive' \
+    && printf '%s' "$ui" | grep -q 'تخطي\|المتابعة بدون مزامنة'
+}
+
+gdrive_prompt_skip() {
+  log 'gdrive_prompt_detected'
+  if tap_text 'تخطي'; then
+    sleep "$SCREEN_SETTLE_SEC"
+    # حوار التأكيد — «المتابعة بدون مزامنة»
+    if tap_text 'المتابعة بدون مزامنة'; then
+      event 'gdrive_prompt_skipped' 'login' 'confirmed'
+      sleep "$SCREEN_SETTLE_SEC"
+      return 0
+    fi
+    # الحوار لم يظهر؟ قد يكون التخطي مباشراً
+    if ! is_gdrive_prompt; then
+      event 'gdrive_prompt_skipped' 'login' 'direct'
+      sleep "$SCREEN_SETTLE_SEC"
+      return 0
+    fi
+    event 'gdrive_skip_dialog_failed' 'login' '-'
+    return 1
+  fi
+  event 'gdrive_skip_tap_failed' 'login' '-'
+  return 1
 }
 
 is_dashboard_visible() {
@@ -400,8 +438,20 @@ attempt_booking_details() {
 # ═══════════════════ التنفيذ لكل دورة ═══════════════════
 log "cycle_start:credentials_mode=$CRED_MODE"
 
-# 1) تسجيل الدخول أو استعادة الجلسة
-if is_login_screen; then
+# 1) تخطي شاشة onboarding الخاصة بـ Google Drive ثم الدخول/استعادة الجلسة
+if is_gdrive_prompt; then
+  if gdrive_prompt_skip; then
+    log 'gdrive_prompt_handled'
+  else
+    event 'gdrive_prompt_blocking' 'login' 'skip_failed'
+  fi
+fi
+
+if is_gdrive_prompt; then
+  # الشاشة ما تزال تحجب الدخول — لا تُهدر مهلة الدخول (تُسجَّل
+  # كفشل دخول عند البوابة النهائية مباشرة)
+  event 'login_blocked' 'login' 'gdrive_prompt_still_visible'
+elif is_login_screen; then
   log 'login_screen_detected'
   attempt_login 'auto'
 else
