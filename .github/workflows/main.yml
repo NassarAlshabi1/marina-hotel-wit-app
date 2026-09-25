@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Universal Release APK
+    name: Build Release APKs (per-ABI)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -101,19 +101,22 @@ jobs:
           flutter pub run build_runner clean
           flutter pub run build_runner build --delete-conflicting-outputs
 
-      # ─── بناء الـ APK الشامل ────────────────────────────
+      # ─── بناء APK لكل معالج (ABI split) ────────────────
       # minSdkVersion = 21 (Android 5.0 Lollipop)
       # targetSdk = 36 (Android 16)
-      # المعماريات: arm64-v8a, armeabi-v7a
-      # ── R8 + Dart obfuscation ──
+      # ── أكبر تقليل للحجم بأقل مخاطرة (PERFORMANCE.md §7.2) ──
+      # --split-per-abi: APK منفصل لكل معمارية — كل ملف يحمل
+      # مكتباته native فقط فلا يدفع المستخدم حجم المعماريتين
+      # معاً (الشامل كان يحتوي arm64+arm فيضعف حجم المكتبات)
       # R8 (minifyEnabled/shrinkResources في build.gradle) يقلّص كود
       # Java/Kotlin ويولّد mapping.txt لتفسير تتبعات الأعطال.
       # --obfuscate يخفي رموز Dart (أسماء الفئات/الدوال) مما يقلّص
       # حجم APK إضافياً، و--split-debug-info يحفظ رموز Dart في ملف
       # .symbols لتفسير الأعطال لاحقاً عبر: flutter symbolize
-      - name: Build universal release APK
+      - name: Build release APKs (per-ABI)
         run: >
           flutter build apk --release
+          --split-per-abi
           --target-platform android-arm64,android-arm
           --build-name ${{ steps.version.outputs.build_name }}
           --build-number ${{ steps.version.outputs.build_number }}
@@ -126,17 +129,24 @@ jobs:
           GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
           JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
 
-      # ─── عرض معلومات الـ APK المبني ─────────────────────
+      # ─── عرض معلومات الـ APKs المبنية ────────────────────
       - name: Inspect APK info
         id: apkinfo
         run: |
-          APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
-          APK_BYTES=$(stat -c%s $APK_PATH)
-          APK_MB=$(awk "BEGIN {printf \"%.2f\", $APK_BYTES/1048576}")
-          echo "APK size: ${APK_MB} MB ($APK_BYTES bytes)"
-          echo "apk_size_mb=${APK_MB}" >> $GITHUB_OUTPUT
-          echo "APK path: $APK_PATH"
-          unzip -l $APK_PATH | grep "lib/" | awk '{print $4}' | sed 's|lib/||' | cut -d'/' -f1 | sort -u
+          inspect() {
+            APK="$1"; OUT="$2"
+            BYTES=$(stat -c%s "build/app/outputs/flutter-apk/$APK")
+            MB=$(awk "BEGIN {printf \"%.2f\", $BYTES/1048576}")
+            echo "$APK: ${MB} MB ($BYTES bytes)"
+            echo "$OUT=${MB}" >> $GITHUB_OUTPUT
+          }
+          inspect app-arm64-v8a-release.apk apk_arm64_mb
+          inspect app-armeabi-v7a-release.apk apk_arm_mb
+          echo "--- native libs per APK ---"
+          for APK in build/app/outputs/flutter-apk/app-*-release.apk; do
+            LIBS=$(unzip -l "$APK" | grep "lib/" | awk '{print $4}' | sed 's|lib/||' | cut -d'/' -f1 | sort -u | tr '\n' ' ')
+            echo "$(basename "$APK"): $LIBS"
+          done
 
       # ─── التحقق من ملفات الـ mapping (R8 + Dart) ─────────
       - name: Verify R8 mapping & Dart symbols
@@ -155,12 +165,14 @@ jobs:
             echo "::warning::Dart symbols not found in build/symbols/"
           fi
 
-      # ─── رفع الـ APK كـ artifact ────────────────────────
-      - name: Upload release APK artifact
+      # ─── رفع الـ APKs كـ artifact ────────────────────────
+      - name: Upload release APKs artifact
         uses: actions/upload-artifact@v7
         with:
           name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
-          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: |
+            mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            mobile/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
           if-no-files-found: error
           retention-days: 90
 
@@ -188,14 +200,19 @@ jobs:
           body: |
             ## Marina Hotel v${{ steps.version.outputs.build_name }}
 
-            **APK شامل يعمل على جميع أجهزة اندرويد**
+            **ملفا APK منفصلان لكل معمارية (ABI split) — تنزيل أصغر لكل جهاز**
 
             - الحد الأدنى: Android 5.0 (API 21)
             - المستهدف: Android 16 (API 36)
-            - المعالجات المدعومة: arm64-v8a, armeabi-v7a
             - رقم البناء: ${{ steps.version.outputs.build_number }}
-            - حجم الـ APK: ${{ steps.apkinfo.outputs.apk_size_mb }} MB
-            - R8 minify + shrinkResources + Dart obfuscation مفعّلة
+            - R8 minify + shrinkResources + Dart obfuscation + jniLibs غير مضغوطة مفعّلة
+
+            ### أي ملف تحمّل؟
+
+            | الملف | المعمارية | الحجم | للأجهزة |
+            |---|---|---|---|
+            | `app-arm64-v8a-release.apk` | arm64-v8a | ${{ steps.apkinfo.outputs.apk_arm64_mb }} MB | الهواتف الحديثة (64-bit) — **الافتراضي إن لم تكن متأكداً** |
+            | `app-armeabi-v7a-release.apk` | armeabi-v7a | ${{ steps.apkinfo.outputs.apk_arm_mb }} MB | الأجهزة القديمة (32-bit) |
 
             ### ملفات تفسير الأعطال (Deobfuscation)
 
@@ -205,10 +222,11 @@ jobs:
             (Artifacts → تشغيل البناء هذا) — وليس في الـ Release العام لحمايتها.
 
             ### طريقة التثبيت
-            1. حمّل ملف APK
+            1. حمّل ملف APK المناسب لجهازك (arm64-v8a للحديثة)
             2. فعّل "مصادر غير معروفة" من إعدادات الأمان
             3. ثبّت التطبيق
           files: |
-            mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            mobile/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

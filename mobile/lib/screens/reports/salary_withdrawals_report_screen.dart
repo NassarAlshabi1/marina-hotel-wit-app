@@ -18,6 +18,7 @@ import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
+
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// بيانات معاملة واحدة من جدول salary_withdrawals
@@ -163,9 +164,7 @@ List<SalaryWithdrawal> dedupeMirrorDuplicates(
       // لا مُرسّاة إطلاقاً، لكن أكثر من يتيمة لنفس المفتاح — على الأرجح
       // نفس مصروف الراتب عُدّل أكثر من مرة قبل أي مزامنة ناجحة؛ نُبقي
       // الأحدث فقط بدل عرضهم جميعاً.
-      final newest = entry.value.reduce(
-        (a, b) => isNewer(b, a) ? b : a,
-      );
+      final newest = entry.value.reduce((a, b) => isNewer(b, a) ? b : a);
       kept.add(newest);
       continue;
     }

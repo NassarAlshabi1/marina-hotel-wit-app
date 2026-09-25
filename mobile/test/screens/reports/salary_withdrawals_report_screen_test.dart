@@ -98,35 +98,32 @@ void main() {
     },
   );
 
-  test(
-    'يتيمتان بلا أي مرآة مُرسّاة لنفس المفتاح → تُبقي الأحدث فقط',
-    () {
-      // لا مصروف محلي يحلّ أياً منهما — مثلاً عُدّل المبلغ مرتين قبل
-      // أي مزامنة ناجحة تُنشئ رابطاً صالحاً.
-      final older = sw(
-        id: 1,
-        employeeId: 5,
-        amount: 100,
-        reason: 'exp_962',
-        expenseId: 962,
-        updatedAt: 1000,
-      );
-      final newer = sw(
-        id: 2,
-        employeeId: 5,
-        amount: 150,
-        reason: 'exp_962',
-        expenseId: 962,
-        updatedAt: 2000,
-      );
+  test('يتيمتان بلا أي مرآة مُرسّاة لنفس المفتاح → تُبقي الأحدث فقط', () {
+    // لا مصروف محلي يحلّ أياً منهما — مثلاً عُدّل المبلغ مرتين قبل
+    // أي مزامنة ناجحة تُنشئ رابطاً صالحاً.
+    final older = sw(
+      id: 1,
+      employeeId: 5,
+      amount: 100,
+      reason: 'exp_962',
+      expenseId: 962,
+      updatedAt: 1000,
+    );
+    final newer = sw(
+      id: 2,
+      employeeId: 5,
+      amount: 150,
+      reason: 'exp_962',
+      expenseId: 962,
+      updatedAt: 2000,
+    );
 
-      final result = dedupeMirrorDuplicates([older, newer], const []);
+    final result = dedupeMirrorDuplicates([older, newer], const []);
 
-      expect(result, hasLength(1));
-      expect(result.single.id, newer.id);
-      expect(result.single.amount, 150);
-    },
-  );
+    expect(result, hasLength(1));
+    expect(result.single.id, newer.id);
+    expect(result.single.amount, 150);
+  });
 
   test('مصروفا راتب مختلفان لنفس الموظف/اليوم → لا يُدمَجان', () {
     final first = sw(
@@ -184,10 +181,11 @@ void main() {
         expense(id: 11, relatedId: 5, amount: 200),
       ];
 
-      final result = dedupeMirrorDuplicates(
-        [anchoredA, anchoredB, orphan],
-        expenses,
-      );
+      final result = dedupeMirrorDuplicates([
+        anchoredA,
+        anchoredB,
+        orphan,
+      ], expenses);
 
       // لا نحذف في حالة الغموض — نُبقي الثلاثة جميعاً.
       expect(result, hasLength(3));

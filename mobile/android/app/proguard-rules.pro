@@ -16,14 +16,14 @@
 -keep class androidx.lifecycle.DefaultLifecycleObserver
 -keep class androidx.lifecycle.FullLifecycleObserver
 
-# Firebase / GMS — قواعد -keep الفضفاضة أُزيلت (تُعطّل تقليص R8 لحزم
-# كاملة = تضخّم شائع وموثّق)؛ مكتبات Firebase/GMS تُرفق consumer rules
-# خاصة بها داخل AARs فلا حاجة لـ keep هنا.
-# ⚠️ لم يُختبر بناء فعلي بعد (لا Flutter SDK محلياً) — قبل التوزيع
-#    اختبر على جهاز حقيقي: Google Sign-In، إشعار FCM، حدث Crashlytics.
-#    التراجع فوري إن ظهر عطل — أعد السطرين المحذوفين:
-#    -keep class com.google.firebase.** { *; }
-#    -keep class com.google.android.gms.** { *; }
+# Firebase / GMS — قواعد keep استُرجعت (قرار المخاطرة):
+# أكبر تقليل للحجم بأقل مخاطرة يأتي من ABI split + obfuscation
+# وليس من حذف قواعد R8 بشكل عدواني — طبقة Java/Kotlin في تطبيق
+# Flutter رقيقة أصلاً فالعائد من إزالتها محدود، بينما خطر كسر
+# Firebase/GMS (FCM، Crashlytics، Google Sign-In) عبر reflection
+# حقيقي وغير قابل للاختبار المحلي.
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
 -dontwarn com.google.firebase.**
 -dontwarn com.google.android.gms.**
 
@@ -31,12 +31,11 @@
 -keep class io.appwrite.** { *; }
 -dontwarn io.appwrite.**
 
-# OkHttp / Okio — قواعد -keep الفضفاضة أُزيلت (نفس سبب Firebase)؛
-# okhttp/okio يرفقان consumer rules خاصة بهما داخل AARs منذ الإصدارات
-# الحديثة، والواجهات المستخدمة تعتمد توليد كود لا reflection.
-# ⚠️ نفس شرط الاختبار على جهاز حقيقي والتراجع أعلاه:
-#    -keep class okhttp3.** { *; }
-#    -keep class okio.** { *; }
+# OkHttp / Okio — قواعد keep استُرجعت (نفس قرار المخاطرة أعلاه:
+# عائد حجم محدود مقابل خطر كسر مسارات الشبكة، والتطبيق يعتمد
+# عليها في كل عمليات المزامنة)
+-keep class okhttp3.** { *; }
+-keep class okio.** { *; }
 -dontwarn okhttp3.**
 -dontwarn okio.**
 
