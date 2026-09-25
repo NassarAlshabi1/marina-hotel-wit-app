@@ -102,6 +102,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # patrol CLI — المشروع مُهيَّأ للـ Patrol الأصلي (PatrolJUnitRunner +
+      # Orchestrator في android/app/build.gradle) واختبارات integration_test
+      # تستخدم patrolTest — لذا المُشغِّل الصحيح هو `patrol test` وليس
+      # `flutter test`: على الجهاز الحقيقي يُهيِّئ integration_test الـ binding
+      # أولاً فيفشل PatrolBinding.ensureInitialized (مُتحقَّق منه في
+      # run 36084818552: Binding is already initialized).
+      - name: Install patrol CLI
+        run: |
+          dart pub global activate patrol_cli
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          patrol --version
+
       - name: Generate code (build_runner)
         run: dart run build_runner build --delete-conflicting-outputs
 
@@ -162,11 +174,14 @@ jobs:
       #      نبقيه غير فاشل هنا (البوابة في الخطوة التالية تقرر الحالة).
       - name: Generate Performance Report
         run: |
+          # ⚠️ الـ run: steps تعمل بـ bash -e — يجب ألا يكون python3 أمراً
+          # عارياً وإلا فإن الخروج بـ 3 (سيناريوهات فاشلة) يقتل الخطوة
+          # قبل التقاط الرمز (حدث فعلياً في run 36084818552).
+          RC=0
           python3 ../scripts/generate_performance_report.py \
             --metrics build/perf-integration \
             --package "$APP_PACKAGE" \
-            --output build/perf-integration/performance_report.md
-          RC=$?
+            --output build/perf-integration/performance_report.md || RC=$?
           if [ $RC -ne 0 ] && [ $RC -ne 3 ]; then exit $RC; fi
           echo "### 📊 Performance Report" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

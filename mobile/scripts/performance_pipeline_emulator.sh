@@ -91,8 +91,11 @@ run_scenario() {
   local NAME="$1"
   local FILE="$2"
   echo "=== Scenario: $NAME ($FILE) ==="
-  if flutter test "$FILE" --reporter expanded --timeout 300s \
-      > "$MET/test_${NAME}.log" 2>&1; then
+  # المُشغِّل الصحيح هو patrol test (وليس flutter test) — المشروع مُهيَّأ
+  # للـ Patrol الأصلي وflutter test على الجهاز يُهيِّئ integration_test
+  # binding أولاً فيتعارض مع PatrolBinding.ensureInitialized.
+  # ملاحظة: أول استدعاء يبني androidTest APK (~4-5 د) ثم incrementals.
+  if patrol test --target "$FILE" > "$MET/test_${NAME}.log" 2>&1; then
     echo "$NAME=PASS" >> "$MET/results.txt"
   else
     echo "$NAME=FAIL" >> "$MET/results.txt"
