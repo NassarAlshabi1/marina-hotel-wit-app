@@ -34,19 +34,23 @@ MET="$GITHUB_WORKSPACE/mobile/build/perf-integration"
 APK="mobile/build/app/outputs/flutter-apk/app-release.apk"
 mkdir -p "$MET" || exit 1
 
-# ══ إصلاح/تشخيص IOException: No such file or directory ═══════════════
-# AGP ينشئ ملفات UTP المؤقتة في ~/.android/utp (getUtpPreferenceRootDir
-# في UtpTestUtils.kt) — إن لم تكن قابلة للإنشاء فشل connectedDebugAndroidTest
-# بـ IOException قبل تشغيل أي اختبار (run 36096436664). ننشئها مسبقاً
-# ونوثّق حالة الأذونات في الـ artifact.
-mkdir -p "$HOME/.android/utp" || true
+# ══ إصلاح IOException: No such file or directory ═════════════════════
+# AGP يحلّل prefsLocation بالتسلسل: TEST_TMPDIR → XDG_CONFIG_HOME →
+# USER_HOME → HOME ثم يضيف ".android" (AbstractAndroidLocations.kt).
+# على runner الـ XDG_CONFIG_HOME=/home/runner/.config مضبوط، فيصبح
+# مجلد التفضيلات ~/.config/.android (وليس ~/.android!) — و utp تحته
+# غير موجود فيفشل createUtpTempFile بـ ENOENT داخل الـ daemon
+# (run 36100906452). نثبّت ANDROID_USER_HOME (الأولوية الأولى)
+# وننشئ utp تحته صراحةً.
+export ANDROID_USER_HOME="$HOME/.android"
+mkdir -p "$ANDROID_USER_HOME/utp" || true
 {
   echo "=== env diagnosis ==="
   id
-  ls -lad "$HOME/.android" "$HOME/.android/utp" 2>&1
-  touch "$HOME/.android/utp/.write_test" 2>&1 && echo "utp dir writable: YES" \
-    && rm -f "$HOME/.android/utp/.write_test" || echo "utp dir writable: NO"
-  env | grep -E "ANDROID|HOME=|TMPDIR" || true
+  ls -lad "$HOME/.android" "$HOME/.android/utp" "$HOME/.config" "$HOME/.config/.android" 2>&1
+  touch "$ANDROID_USER_HOME/utp/.write_test" 2>&1 && echo "utp dir writable: YES" \
+    && rm -f "$ANDROID_USER_HOME/utp/.write_test" || echo "utp dir writable: NO"
+  env | grep -E "ANDROID|HOME=|TMPDIR|XDG" || true
 } > "$MET/env_diagnosis.txt" 2>&1
 
 echo "=== Install APK ==="
