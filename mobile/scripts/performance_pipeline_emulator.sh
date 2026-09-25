@@ -34,6 +34,21 @@ MET="$GITHUB_WORKSPACE/mobile/build/perf-integration"
 APK="mobile/build/app/outputs/flutter-apk/app-release.apk"
 mkdir -p "$MET" || exit 1
 
+# ══ إصلاح/تشخيص IOException: No such file or directory ═══════════════
+# AGP ينشئ ملفات UTP المؤقتة في ~/.android/utp (getUtpPreferenceRootDir
+# في UtpTestUtils.kt) — إن لم تكن قابلة للإنشاء فشل connectedDebugAndroidTest
+# بـ IOException قبل تشغيل أي اختبار (run 36096436664). ننشئها مسبقاً
+# ونوثّق حالة الأذونات في الـ artifact.
+mkdir -p "$HOME/.android/utp" || true
+{
+  echo "=== env diagnosis ==="
+  id
+  ls -lad "$HOME/.android" "$HOME/.android/utp" 2>&1
+  touch "$HOME/.android/utp/.write_test" 2>&1 && echo "utp dir writable: YES" \
+    && rm -f "$HOME/.android/utp/.write_test" || echo "utp dir writable: NO"
+  env | grep -E "ANDROID|HOME=|TMPDIR" || true
+} > "$MET/env_diagnosis.txt" 2>&1
+
 echo "=== Install APK ==="
 if ! adb install -r "$APK" | tee "$MET/install.log"; then
   echo "::error::adb install failed for $APK"
