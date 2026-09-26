@@ -1873,7 +1873,7 @@ class _IncomeExpenseReportScreenState
           ? start + _pdfTableChunkSize
           : rows.length;
       if (start > 0) {
-        widgets.add(const pw.SizedBox(height: 4));
+        widgets.add(pw.SizedBox(height: 4));
       }
       widgets.add(
         EnhancedPdfUtils.buildProfessionalTable(
