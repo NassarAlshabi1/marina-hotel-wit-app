@@ -859,7 +859,9 @@ class _GuestPaymentsDetailReportScreenState
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 18),
-            onPressed: isPdfExporting ? null : () => _exportGuestStatementPdf(b),
+            onPressed: isPdfExporting
+                ? null
+                : () => _exportGuestStatementPdf(b),
             tooltip: 'كشف حساب PDF',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),

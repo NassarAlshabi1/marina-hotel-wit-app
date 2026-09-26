@@ -427,9 +427,7 @@ class _SalaryWithdrawalsReportScreenState
         IconButton(
           icon: const Icon(Icons.picture_as_pdf),
           tooltip: 'تصدير PDF',
-          onPressed: filteredRows.isEmpty || isPdfExporting
-              ? null
-              : _exportPdf,
+          onPressed: filteredRows.isEmpty || isPdfExporting ? null : _exportPdf,
         ),
       ],
       body: Padding(
