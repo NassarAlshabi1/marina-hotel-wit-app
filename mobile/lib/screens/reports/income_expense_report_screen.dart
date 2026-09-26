@@ -48,6 +48,18 @@ class _IncomeExpenseReportScreenState
 
   bool _loading = false;
   bool _detailedMode = false;
+  bool _exporting = false;
+
+  /// الحد الأقصى لعدد الصفوف التفصيلية (دخل/مصروف) التي تُرسم في جدول واحد
+  /// داخل ملف PDF. جدول الـ pdf يصبح بطيئاً جداً (وقد يُجمّد التطبيق أو يستهلك
+  /// ذاكرة كبيرة) عند رسم آلاف الصفوف دفعة واحدة، لذا نحدّ العدد ونوضح
+  /// للمستخدم أن هناك المزيد من الحركات (يمكنه استخدام تصدير CSV لعرض الكل).
+  static const int _maxPdfDetailRows = 500;
+
+  /// الحد الأقصى لعدد "بطاقات الفترة" في التقرير التفصيلي المجمّع (يومي/شهري/
+  /// سنوي). كل بطاقة تحتوي جدولين مصغّرين، فإذا كانت الفترة المختارة تمتد
+  /// لأشهر مع تجميع يومي قد ينتج مئات البطاقات ويؤدي لتجميد التطبيق.
+  static const int _maxPdfPeriodCards = 120;
 
   List<_IncomeEntry> _incomeEntries = [];
   List<_ExpenseEntry> _expenseEntries = [];
@@ -677,21 +689,37 @@ class _IncomeExpenseReportScreenState
                 fonts: fonts,
                 headerColor: PdfColors.success,
                 alternateRowColor: PdfColors.backgroundLight,
-                data: _incomeEntries.asMap().entries.map((entry) {
-                  final e = entry.value;
-                  final i = entry.key + 1;
-                  return [
-                    '$i',
-                    _dateFormat.format(e.date),
-                    if (e.roomNumber.isNotEmpty) e.roomNumber else '-',
-                    if (e.guestName.isNotEmpty) e.guestName else '-',
-                    _paymentMethodName(e.paymentMethod),
-                    _revenueTypeName(e.revenueType),
-                    EnhancedPdfUtils.formatNumber(e.amount),
-                  ];
-                }).toList(),
+                data: _incomeEntries
+                    .take(_maxPdfDetailRows)
+                    .toList()
+                    .asMap()
+                    .entries
+                    .map((entry) {
+                      final e = entry.value;
+                      final i = entry.key + 1;
+                      return [
+                        '$i',
+                        _dateFormat.format(e.date),
+                        if (e.roomNumber.isNotEmpty) e.roomNumber else '-',
+                        if (e.guestName.isNotEmpty) e.guestName else '-',
+                        _paymentMethodName(e.paymentMethod),
+                        _revenueTypeName(e.revenueType),
+                        EnhancedPdfUtils.formatNumber(e.amount),
+                      ];
+                    })
+                    .toList(),
               ),
             );
+            if (_incomeEntries.length > _maxPdfDetailRows) {
+              widgets.add(
+                _buildTruncationNote(
+                  fonts,
+                  'تم عرض أول $_maxPdfDetailRows حركة دخل فقط، وهناك '
+                  '${_incomeEntries.length - _maxPdfDetailRows} حركة إضافية '
+                  'غير معروضة هنا. لعرض كافة الحركات استخدم "تصدير CSV".',
+                ),
+              );
+            }
           }
 
           // ═══════════════════════════════════════
@@ -714,19 +742,35 @@ class _IncomeExpenseReportScreenState
                 fonts: fonts,
                 headerColor: PdfColors.danger,
                 alternateRowColor: PdfColors.backgroundLight,
-                data: _expenseEntries.asMap().entries.map((entry) {
-                  final e = entry.value;
-                  final i = entry.key + 1;
-                  return [
-                    '$i',
-                    _dateFormat.format(e.date),
-                    if (e.isSalary) 'رواتب' else e.type,
-                    if (e.description.isNotEmpty) e.description else '-',
-                    EnhancedPdfUtils.formatNumber(e.amount),
-                  ];
-                }).toList(),
+                data: _expenseEntries
+                    .take(_maxPdfDetailRows)
+                    .toList()
+                    .asMap()
+                    .entries
+                    .map((entry) {
+                      final e = entry.value;
+                      final i = entry.key + 1;
+                      return [
+                        '$i',
+                        _dateFormat.format(e.date),
+                        if (e.isSalary) 'رواتب' else e.type,
+                        if (e.description.isNotEmpty) e.description else '-',
+                        EnhancedPdfUtils.formatNumber(e.amount),
+                      ];
+                    })
+                    .toList(),
               ),
             );
+            if (_expenseEntries.length > _maxPdfDetailRows) {
+              widgets.add(
+                _buildTruncationNote(
+                  fonts,
+                  'تم عرض أول $_maxPdfDetailRows حركة مصروف فقط، وهناك '
+                  '${_expenseEntries.length - _maxPdfDetailRows} حركة إضافية '
+                  'غير معروضة هنا. لعرض كافة الحركات استخدم "تصدير CSV".',
+                ),
+              );
+            }
           }
 
           // ═══════════════════════════════════════
@@ -1235,7 +1279,7 @@ class _IncomeExpenseReportScreenState
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    '$group.index. ${group.label}',
+                    '${group.index}. ${group.label}',
                     style: pw.TextStyle(
                       font: fonts.bold,
                       fontSize: 13,
@@ -1621,8 +1665,25 @@ class _IncomeExpenseReportScreenState
           ];
 
           // بطاقات الفترات
-          for (final group in groupedData) {
+          // نحدّ عدد البطاقات المعروضة لتفادي بناء مئات البطاقات المتداخلة
+          // (كل بطاقة تحتوي جدولين مصغّرين) عند اختيار تجميع يومي على مدى
+          // فترة طويلة، لأن ذلك قد يُجمّد التطبيق أو يستهلك ذاكرة كبيرة.
+          final cardsToRender = groupedData.length > _maxPdfPeriodCards
+              ? groupedData.sublist(0, _maxPdfPeriodCards)
+              : groupedData;
+          for (final group in cardsToRender) {
             widgets.add(buildPeriodCard(group));
+          }
+          if (groupedData.length > _maxPdfPeriodCards) {
+            widgets.add(
+              _buildTruncationNote(
+                fonts,
+                'تم عرض أول $_maxPdfPeriodCards فترة ($groupTypeLabel) فقط، '
+                'وهناك ${groupedData.length - _maxPdfPeriodCards} فترة إضافية '
+                'غير معروضة هنا. جرّب تضييق الفترة الزمنية أو اختيار تجميع '
+                'أوسع (شهري/سنوي)، أو استخدم "تصدير CSV" لعرض كل التفاصيل.',
+              ),
+            );
           }
 
           // ملخص نهائي شامل
@@ -1842,6 +1903,25 @@ class _IncomeExpenseReportScreenState
     return doc;
   }
 
+  /// ملاحظة توضيحية تُضاف عند اقتصاص جدول أو قائمة تفصيلية بسبب عدد كبير من
+  /// العناصر (راجع [_maxPdfDetailRows] و [_maxPdfPeriodCards]). رسم آلاف
+  /// الصفوف/البطاقات في مستند PDF واحد بطيء جداً وقد يُجمّد التطبيق أو
+  /// يستهلك ذاكرة كبيرة، لذا نعرض جزءاً منها فقط ونوضح ذلك للمستخدم.
+  pw.Widget _buildTruncationNote(ArabicPdfFonts fonts, String message) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 6),
+      child: pw.Text(
+        message,
+        style: pw.TextStyle(
+          font: fonts.regular,
+          fontSize: 9,
+          color: PdfColors.textLight,
+          fontStyle: pw.FontStyle.italic,
+        ),
+      ),
+    );
+  }
+
   /// جدول مصغر موحد (مشترك بين جدول المصروفات وجدول الإيرادات)
   pw.Widget _buildMiniTable(
     ArabicPdfFonts fonts,
@@ -2014,39 +2094,85 @@ class _IncomeExpenseReportScreenState
     return 'تقرير-الدورة-المالية-الشامل$s-${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
   }
 
+  /// ينفّذ عملية تصدير/طباعة PDF مع حماية من:
+  /// - التنفيذ المتزامن المتكرر (ضغط المستخدم على الزر أكثر من مرة أثناء
+  ///   بناء تقرير ثقيل).
+  /// - الأخطاء غير المُعالجة (كانت أي استثناء أثناء بناء المستند يتسبب في
+  ///   تجميد الواجهة دون أي رسالة، لأن الدوال كانت تُستدعى عبر `unawaited`
+  ///   بدون `try/catch`).
+  Future<void> _runProtectedExport(
+    Future<void> Function(ScaffoldMessengerState messenger) action,
+  ) async {
+    if (_exporting) {
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _exporting = true);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('جاري تجهيز التقرير...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    try {
+      await action(messenger);
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('تعذر تصدير التقرير: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _exporting = false);
+      }
+    }
+  }
+
   Future<void> _exportPdf() async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
       return;
     }
-    final doc = await _buildPdfDocument();
-    await Printing.sharePdf(bytes: await doc.save(), filename: _getFilename());
+    await _runProtectedExport((_) async {
+      final doc = await _buildPdfDocument();
+      await Printing.sharePdf(
+        bytes: await doc.save(),
+        filename: _getFilename(),
+      );
+    });
   }
 
   Future<void> _exportDetailedGroupedPdf(String groupBy) async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
       return;
     }
-    final doc = await _buildDetailedGroupedPdf(groupBy);
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: _getFilename(suffix: _getGroupTypeLabel(groupBy)),
-    );
+    await _runProtectedExport((_) async {
+      final doc = await _buildDetailedGroupedPdf(groupBy);
+      await Printing.sharePdf(
+        bytes: await doc.save(),
+        filename: _getFilename(suffix: _getGroupTypeLabel(groupBy)),
+      );
+    });
   }
 
   Future<void> _printPdf() async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
       return;
     }
-    final doc = await _buildPdfDocument();
-    await Printing.layoutPdf(onLayout: (format) async => doc.save());
+    await _runProtectedExport((_) async {
+      final doc = await _buildPdfDocument();
+      await Printing.layoutPdf(onLayout: (format) async => doc.save());
+    });
   }
 
   Future<void> _savePdf() async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
       return;
     }
-    final messenger = ScaffoldMessenger.of(context);
-    try {
+    await _runProtectedExport((messenger) async {
       final doc = await _buildPdfDocument();
       final bytes = await doc.save();
       final dir = await getApplicationDocumentsDirectory();
@@ -2060,16 +2186,7 @@ class _IncomeExpenseReportScreenState
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('خطأ في الحفظ: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
+    });
   }
 
   Future<void> _exportCsv() async {
@@ -2350,7 +2467,9 @@ class _IncomeExpenseReportScreenState
         IconButton(
           icon: const Icon(Icons.picture_as_pdf),
           tooltip: 'تصدير PDF',
-          onPressed: !hasData || _loading ? null : _showExportOptions,
+          onPressed: !hasData || _loading || _exporting
+              ? null
+              : _showExportOptions,
         ),
       ],
       body: Padding(
