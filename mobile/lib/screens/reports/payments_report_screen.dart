@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
@@ -27,7 +28,8 @@ class PaymentsReportScreen extends ConsumerStatefulWidget {
       _PaymentsReportScreenState();
 }
 
-class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
+class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
+    with PdfExportGuardMixin {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
@@ -253,6 +255,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     if (_rows.isEmpty) {
       return;
     }
+    await runProtectedPdfExport(_buildAndSharePaymentsPdf);
+  }
+
+  Future<void> _buildAndSharePaymentsPdf() async {
     final selectedRoomLabel = _selectedRoom?.isNotEmpty ?? false
         ? _selectedRoom!
         : '';
@@ -289,7 +295,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
             : null,
         buildContent: (fonts) => [
           pw.SizedBox(height: 20),
-          EnhancedPdfUtils.buildProfessionalTable(
+          ...EnhancedPdfUtils.buildChunkedTable(
             headers: [
               'م',
               'رقم الحجز',
@@ -412,7 +418,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
-      isPdfEnabled: _rows.isNotEmpty,
+      isPdfEnabled: _rows.isNotEmpty && !isPdfExporting,
       isLoading: _loading,
       filterWidgets: [
         SizedBox(

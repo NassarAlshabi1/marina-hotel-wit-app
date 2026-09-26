@@ -425,6 +425,58 @@ class EnhancedPdfUtils {
     );
   }
 
+  /// يبني قائمة صفوف طويلة كعدّة جداول متتالية بدل جدول واحد ضخم.
+  ///
+  /// [buildProfessionalTable] يرسم كل `data` في `pw.Table` واحد؛ لتقارير
+  /// بمدى تاريخي واسع (مئات/آلاف الصفوف) هذا بطيء جداً وقد يُجمّد التطبيق
+  /// أو يستهلك ذاكرة كبيرة (مشكلة معروفة في تخطيط `pdf` package للجداول
+  /// الضخمة). هذه الدالة تقسّم `data` لعدة جداول متتالية بحجم [chunkSize]
+  /// صف كحد أقصى لكل جدول — كل الصفوف تظهر بالكامل بدون اقتصاص، فقط
+  /// موزّعة على عدة جداول/صفحات. استخدم `widgets.addAll(...)` مع النتيجة
+  /// بدل `widgets.add(...)`.
+  static List<pw.Widget> buildChunkedTable({
+    required List<String> headers,
+    required List<List<String>> data,
+    required ArabicPdfFonts fonts,
+    List<double>? columnWidths,
+    PdfColor? headerColor,
+    PdfColor? alternateRowColor,
+    int chunkSize = 200,
+  }) {
+    if (data.isEmpty) {
+      return [
+        buildProfessionalTable(
+          headers: headers,
+          data: data,
+          fonts: fonts,
+          columnWidths: columnWidths,
+          headerColor: headerColor,
+          alternateRowColor: alternateRowColor,
+        ),
+      ];
+    }
+    final widgets = <pw.Widget>[];
+    for (var start = 0; start < data.length; start += chunkSize) {
+      final end = (start + chunkSize < data.length)
+          ? start + chunkSize
+          : data.length;
+      if (start > 0) {
+        widgets.add(pw.SizedBox(height: 4));
+      }
+      widgets.add(
+        buildProfessionalTable(
+          headers: headers,
+          data: data.sublist(start, end),
+          fonts: fonts,
+          columnWidths: columnWidths,
+          headerColor: headerColor,
+          alternateRowColor: alternateRowColor,
+        ),
+      );
+    }
+    return widgets;
+  }
+
   /// بناء صندوق إحصائيات
   static pw.Widget buildStatisticsBox({
     required String title,

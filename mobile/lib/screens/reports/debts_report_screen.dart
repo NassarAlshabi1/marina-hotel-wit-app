@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../components/admin_layout.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/enhanced_pdf_utils.dart';
@@ -22,7 +23,8 @@ class DebtsReportScreen extends ConsumerStatefulWidget {
   ConsumerState<DebtsReportScreen> createState() => _DebtsReportScreenState();
 }
 
-class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
+class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen>
+    with PdfExportGuardMixin {
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
 
@@ -168,6 +170,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
     if (_rows.isEmpty) {
       return;
     }
+    await runProtectedPdfExport(_buildAndShareDebtsPdf);
+  }
+
+  Future<void> _buildAndShareDebtsPdf() async {
     final fromLabel = _fromDate != null
         ? _dateFormat.format(_fromDate!)
         : 'غير محدد';
@@ -436,7 +442,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
               style: pw.TextStyle(font: fonts.bold, fontSize: 14),
             ),
             pw.SizedBox(height: 8),
-            EnhancedPdfUtils.buildProfessionalTable(
+            ...EnhancedPdfUtils.buildChunkedTable(
               headers: detailHeaders,
               data: detailData,
               fonts: fonts,
@@ -459,7 +465,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         IconButton(
           icon: const Icon(Icons.picture_as_pdf),
           tooltip: 'تصدير PDF',
-          onPressed: _rows.isEmpty || _loading ? null : _exportPdf,
+          onPressed: _rows.isEmpty || _loading || isPdfExporting
+              ? null
+              : _exportPdf,
         ),
         IconButton(
           onPressed: _loading ? null : _fetchReport,

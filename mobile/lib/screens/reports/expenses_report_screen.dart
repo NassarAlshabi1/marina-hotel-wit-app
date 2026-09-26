@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
@@ -97,7 +98,8 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
       _ExpensesReportScreenState();
 }
 
-class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
+class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
+    with PdfExportGuardMixin {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
 
@@ -539,6 +541,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     if (_rows.isEmpty) {
       return;
     }
+    await runProtectedPdfExport(_buildAndShareExpensesPdf);
+  }
+
+  Future<void> _buildAndShareExpensesPdf() async {
     final fromLabel = _fromDate != null
         ? DateFormat('yyyy-MM-dd').format(_fromDate!)
         : 'غير محدد';
@@ -672,7 +678,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             pw.SizedBox(height: 16),
             metaInfoCard,
             pw.SizedBox(height: 12),
-            EnhancedPdfUtils.buildProfessionalTable(
+            ...EnhancedPdfUtils.buildChunkedTable(
               headers: headers,
               data: dataRows,
               fonts: fonts,
@@ -756,7 +762,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
-      isPdfEnabled: _rows.isNotEmpty,
+      isPdfEnabled: _rows.isNotEmpty && !isPdfExporting,
       isLoading: _loading,
       filterWidgets: [
         if (widget.showTypeFilter)

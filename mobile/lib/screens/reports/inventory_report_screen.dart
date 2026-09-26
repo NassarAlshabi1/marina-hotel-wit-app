@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/report_pdf_builder.dart';
@@ -20,7 +21,8 @@ class InventoryReportScreen extends ConsumerStatefulWidget {
       _InventoryReportScreenState();
 }
 
-class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
+class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
+    with PdfExportGuardMixin {
   final DateFilterController _filterController = DateFilterController();
   final NumberFormat _numberFormat = NumberFormat('#,##0', 'en_US');
 
@@ -162,6 +164,10 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
 
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
+    await runProtectedPdfExport(_buildAndShareInventoryPdf);
+  }
+
+  Future<void> _buildAndShareInventoryPdf() async {
     final dataRows = [
       for (final entry in _rows.asMap().entries)
         [
@@ -199,7 +205,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
             fonts: fonts,
           ),
           pw.SizedBox(height: 12),
-          EnhancedPdfUtils.buildProfessionalTable(
+          ...EnhancedPdfUtils.buildChunkedTable(
             headers: [
               'م',
               'الصنف',
@@ -236,7 +242,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
-      isPdfEnabled: _rows.isNotEmpty && !_loading,
+      isPdfEnabled: _rows.isNotEmpty && !_loading && !isPdfExporting,
       isLoading: _loading,
       filterWidgets: [
         SizedBox(

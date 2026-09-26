@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/stay_balance_calculator.dart';
@@ -32,7 +33,8 @@ class GuestPaymentsDetailReportScreen extends ConsumerStatefulWidget {
 }
 
 class _GuestPaymentsDetailReportScreenState
-    extends ConsumerState<GuestPaymentsDetailReportScreen> {
+    extends ConsumerState<GuestPaymentsDetailReportScreen>
+    with PdfExportGuardMixin {
   String _searchQuery = '';
   String _filterStatus = 'all'; // all, partial, unpaid, overpaid
   String _sortBy = 'room'; // room, name, remaining
@@ -316,7 +318,7 @@ class _GuestPaymentsDetailReportScreenState
       actions: [
         IconButton(
           icon: const Icon(Icons.print_outlined),
-          onPressed: _exportAllBookingsPdf,
+          onPressed: isPdfExporting ? null : _exportAllBookingsPdf,
           tooltip: 'طباعة التقرير',
         ),
         IconButton(
@@ -857,7 +859,7 @@ class _GuestPaymentsDetailReportScreenState
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 18),
-            onPressed: () => _exportGuestStatementPdf(b),
+            onPressed: isPdfExporting ? null : () => _exportGuestStatementPdf(b),
             tooltip: 'كشف حساب PDF',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -1222,6 +1224,10 @@ class _GuestPaymentsDetailReportScreenState
   // ───────────────────── تصدير PDF ─────────────────────
 
   Future<void> _exportGuestStatementPdf(Booking b) async {
+    await runProtectedPdfExport(() => _buildAndShareGuestStatementPdf(b));
+  }
+
+  Future<void> _buildAndShareGuestStatementPdf(Booking b) async {
     final payments = await ref
         .read(paymentsRepoProvider)
         .paymentsByBooking(b.id)
@@ -1444,7 +1450,7 @@ class _GuestPaymentsDetailReportScreenState
             ),
           ),
           pw.SizedBox(height: 10),
-          epdf.EnhancedPdfUtils.buildProfessionalTable(
+          ...epdf.EnhancedPdfUtils.buildChunkedTable(
             fonts: fonts,
             headers: [
               'التاريخ',
@@ -1582,6 +1588,10 @@ class _GuestPaymentsDetailReportScreenState
       return;
     }
 
+    await runProtectedPdfExport(() => _buildAndShareAllBookingsPdf(filtered));
+  }
+
+  Future<void> _buildAndShareAllBookingsPdf(List<Booking> filtered) async {
     final totalDue = filtered.fold(0.0, (s, b) => s + b.totalDueCached);
     final totalPaid = filtered.fold(0.0, (s, b) => s + b.totalPaidCached);
     final totalRemaining = filtered.fold(

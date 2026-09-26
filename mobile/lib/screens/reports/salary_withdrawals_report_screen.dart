@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
@@ -60,7 +61,8 @@ class SalaryWithdrawalsReportScreen extends ConsumerStatefulWidget {
 }
 
 class _SalaryWithdrawalsReportScreenState
-    extends ConsumerState<SalaryWithdrawalsReportScreen> {
+    extends ConsumerState<SalaryWithdrawalsReportScreen>
+    with PdfExportGuardMixin {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
@@ -250,7 +252,10 @@ class _SalaryWithdrawalsReportScreenState
     if (rows.isEmpty) {
       return;
     }
+    await runProtectedPdfExport(() => _buildAndShareSalaryPdf(rows));
+  }
 
+  Future<void> _buildAndShareSalaryPdf(List<_SalaryTxRow> rows) async {
     final selectedEmpName = _selectedEmployeeId != null
         ? _allEmployees
               .where((e) => e.id == _selectedEmployeeId)
@@ -368,7 +373,7 @@ class _SalaryWithdrawalsReportScreenState
               ],
             ),
             pw.SizedBox(height: 12),
-            EnhancedPdfUtils.buildProfessionalTable(
+            ...EnhancedPdfUtils.buildChunkedTable(
               headers: headers,
               data: dataRows,
               fonts: fonts,
@@ -422,7 +427,9 @@ class _SalaryWithdrawalsReportScreenState
         IconButton(
           icon: const Icon(Icons.picture_as_pdf),
           tooltip: 'تصدير PDF',
-          onPressed: filteredRows.isEmpty ? null : _exportPdf,
+          onPressed: filteredRows.isEmpty || isPdfExporting
+              ? null
+              : _exportPdf,
         ),
       ],
       body: Padding(
