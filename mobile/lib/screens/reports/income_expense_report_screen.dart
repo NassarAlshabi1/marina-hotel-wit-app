@@ -1889,7 +1889,12 @@ class _IncomeExpenseReportScreenState
     return widgets;
   }
 
-  /// جدول مصغر موحد (مشترك بين جدول المصروفات وجدول الإيرادات)
+  /// جدول مصغر موحد (مشترك بين جدول المصروفات وجدول الإيرادات).
+  ///
+  /// عند التجميع الشهري/السنوي قد تحتوي فترة واحدة (شهر كامل مثلاً) على
+  /// مئات أو آلاف الحركات، لذا يُقسَّم `rows` هنا لعدة جداول متتالية بحجم
+  /// [_pdfTableChunkSize] بدل جدول واحد ضخم — لتفادي نفس مشكلة بطء/تجميد
+  /// مكتبة pdf التي عولجت في الجداول التفصيلية العامة، مع عرض كل الحركات.
   pw.Widget _buildMiniTable(
     ArabicPdfFonts fonts,
     String title,
@@ -1900,6 +1905,13 @@ class _IncomeExpenseReportScreenState
   }) {
     if (rows.isEmpty) {
       return pw.Container();
+    }
+    final chunks = <List<List<String>>>[];
+    for (var start = 0; start < rows.length; start += _pdfTableChunkSize) {
+      final end = (start + _pdfTableChunkSize < rows.length)
+          ? start + _pdfTableChunkSize
+          : rows.length;
+      chunks.add(rows.sublist(start, end));
     }
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -1913,39 +1925,60 @@ class _IncomeExpenseReportScreenState
           ),
         ),
         pw.SizedBox(height: 3),
-        pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.textLight, width: 0.3),
+        for (final chunk in chunks) ...[
+          if (chunk != chunks.first) pw.SizedBox(height: 3),
+          _buildMiniTableBlock(
+            fonts,
+            headers,
+            chunk,
+            headerColor,
+            boldColumnIndex: boldColumnIndex,
           ),
-          child: pw.Table(
-            children: [
-              pw.TableRow(
-                decoration: pw.BoxDecoration(color: headerColor),
-                children: headers
-                    .map((h) => _miniCell(h, fonts.bold, PdfColors.textDark))
-                    .toList(),
-              ),
-              ...rows.asMap().entries.map((entry) {
-                final isEven = entry.key.isEven;
-                return pw.TableRow(
-                  decoration: isEven
-                      ? const pw.BoxDecoration(color: PdfColors.backgroundLight)
-                      : null,
-                  children: entry.value.asMap().entries.map((cell) {
-                    final isBold = cell.key == boldColumnIndex;
-                    return _miniCell(
-                      cell.value,
-                      isBold ? fonts.bold : fonts.regular,
-                      PdfColors.textDark,
-                      align: isBold ? pw.TextAlign.left : pw.TextAlign.center,
-                    );
-                  }).toList(),
-                );
-              }),
-            ],
-          ),
-        ),
+        ],
       ],
+    );
+  }
+
+  /// جدول واحد ضمن [_buildMiniTable] (بلا عنوان)، يُستدعى مرة لكل جزء من
+  /// الصفوف بعد التقسيم.
+  pw.Widget _buildMiniTableBlock(
+    ArabicPdfFonts fonts,
+    List<String> headers,
+    List<List<String>> rows,
+    PdfColor headerColor, {
+    int boldColumnIndex = -1,
+  }) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.textLight, width: 0.3),
+      ),
+      child: pw.Table(
+        children: [
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: headerColor),
+            children: headers
+                .map((h) => _miniCell(h, fonts.bold, PdfColors.textDark))
+                .toList(),
+          ),
+          ...rows.asMap().entries.map((entry) {
+            final isEven = entry.key.isEven;
+            return pw.TableRow(
+              decoration: isEven
+                  ? const pw.BoxDecoration(color: PdfColors.backgroundLight)
+                  : null,
+              children: entry.value.asMap().entries.map((cell) {
+                final isBold = cell.key == boldColumnIndex;
+                return _miniCell(
+                  cell.value,
+                  isBold ? fonts.bold : fonts.regular,
+                  PdfColors.textDark,
+                  align: isBold ? pw.TextAlign.left : pw.TextAlign.center,
+                );
+              }).toList(),
+            );
+          }),
+        ],
+      ),
     );
   }
 
