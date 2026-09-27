@@ -1472,7 +1472,7 @@ class _GuestPaymentsDetailReportScreenState
                   ],
                 )
                 .toList(),
-            columnWidths: [80, 80, 70, 70, -1],
+            columnFlex: [80, 80, 70, 70, 120],
           ),
 
           pw.SizedBox(height: 30),

@@ -219,8 +219,6 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
             ],
             data: dataRows,
             fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
           ),
         ],
         fileName: ReportPdfBuilder.generateFileName('التقرير المخزني'),

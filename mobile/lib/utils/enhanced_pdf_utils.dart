@@ -17,69 +17,22 @@ class PdfColors {
   static const warning = PdfColor(1.0, 0.6, 0.0);
   static const danger = PdfColor(0.9, 0.2, 0.2);
   static const info = PdfColor(0.1, 0.6, 0.9);
+
+  // ── نظام التصميم المضغوط (تقارير A4 RTL) ──
+  /// نص ثانوي خافت للعناوين الفرعية والنصوص الصغيرة.
+  static const textMuted = PdfColor(0.42, 0.42, 0.45);
+
+  /// خلفية البطاقات والجداول (أبيض مائل للرمادي البارد).
+  static const cardBackground = PdfColor(0.982, 0.982, 0.985);
+
+  /// حدود البطاقات والفواصل الداخلية للجداول.
+  static const border = PdfColor(0.82, 0.82, 0.85);
+
+  /// تظليل الصفوف الزوجية (striping) خفيف لا يشوش على النص 12pt.
+  static const tableStripe = PdfColor(0.955, 0.955, 0.965);
 }
 
-/// أنماط النصوص المخصصة
-class PdfTextStyles {
-  static pw.TextStyle heading1(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 24,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.primary,
-  );
-
-  static pw.TextStyle heading2(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 18,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textDark,
-  );
-
-  static pw.TextStyle heading3(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 16,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textDark,
-  );
-
-  static pw.TextStyle body(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 12, color: PdfColors.textDark);
-
-  static pw.TextStyle bodySmall(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 10, color: PdfColors.textLight);
-
-  static pw.TextStyle bodyBold(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 12,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textDark,
-  );
-
-  static pw.TextStyle caption(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 9, color: PdfColors.textLight);
-
-  static pw.TextStyle whiteText(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 12, color: PdfColors.textWhite);
-
-  static pw.TextStyle price(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 14,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.secondary,
-  );
-
-  static pw.TextStyle tableHeader(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 11,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textDark,
-  );
-
-  static pw.TextStyle tableCell(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 10, color: PdfColors.textDark);
-}
-
-/// خطوط عربية محسنة
+/// خطوط عربية محسنة (NotoNaskhArabic لتقارير PDF)
 class ArabicPdfFonts {
   ArabicPdfFonts({
     required this.regular,
@@ -92,19 +45,155 @@ class ArabicPdfFonts {
   final pw.Font light;
 }
 
-/// أدوات PDF محسنة مع تصاميم احترافية
+/// أنماط النصوص المخصصة — نظام مضغوط للورقة A4 مع اتجاه RTL.
+class PdfTextStyles {
+  PdfTextStyles._();
+
+  static pw.TextStyle coverHotelName(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.bold,
+      fontSize: 22,
+      color: PdfColors.textWhite,
+    );
+  }
+
+  static pw.TextStyle coverTitle(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.bold,
+      fontSize: 17,
+      color: PdfColors.textWhite,
+    );
+  }
+
+  static pw.TextStyle reportTitle(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.bold,
+      fontSize: 18,
+      color: PdfColors.textDark,
+    );
+  }
+
+  static pw.TextStyle sectionTitle(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.bold,
+      fontSize: 13,
+      color: PdfColors.primary,
+    );
+  }
+
+  static pw.TextStyle sectionSubtitle(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.regular,
+      fontSize: 9,
+      color: PdfColors.textMuted,
+    );
+  }
+
+  static pw.TextStyle body(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.regular,
+      fontSize: 10,
+      lineSpacing: 1.8,
+      color: PdfColors.textDark,
+    );
+  }
+
+  static pw.TextStyle bodyBold(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.bold,
+      fontSize: 10,
+      color: PdfColors.textDark,
+    );
+  }
+
+  static pw.TextStyle small(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.regular,
+      fontSize: 8,
+      color: PdfColors.textMuted,
+    );
+  }
+
+  /// عناوين الأعمدة.
+  static pw.TextStyle tableHeader(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.bold,
+      fontSize: 11,
+      color: PdfColors.textWhite,
+    );
+  }
+
+  /// نص الصفوف: 12 عريض حسب المواصفة المعتمدة.
+  static pw.TextStyle tableCell(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.bold,
+      fontSize: 12,
+      color: PdfColors.textDark,
+    );
+  }
+
+  static pw.TextStyle metricTitle(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.regular,
+      fontSize: 8,
+      color: PdfColors.textWhite,
+    );
+  }
+
+  static pw.TextStyle metricValue(ArabicPdfFonts fonts) {
+    return pw.TextStyle(
+      font: fonts.bold,
+      fontSize: 15,
+      color: PdfColors.textWhite,
+    );
+  }
+}
+
+/// عنصر حجز مُلخّص لجدول الحجوزات في تقارير PDF.
+class ReservationReportItem {
+  ReservationReportItem({
+    required this.bookingNumber,
+    required this.guestName,
+    required this.roomNumber,
+    required this.roomType,
+    required this.checkIn,
+    required this.checkOut,
+    required this.nights,
+    required this.status,
+    required this.total,
+  });
+
+  final String bookingNumber;
+  final String guestName;
+  final String roomNumber;
+  final String roomType;
+  final DateTime checkIn;
+  final DateTime checkOut;
+  final int nights;
+  final String status;
+  final double total;
+}
+
+/// أدوات PDF محسنة مع تصاميم احترافية مضغوطة (A4 / RTL)
 class EnhancedPdfUtils {
+  /// يحمّل عائلة خطوط NotoNaskhArabic لتقارير PDF.
+  ///
+  /// regular و light يستخدمان النسخة العادية، وbold النسخة السميكة —
+  /// من نسخة Google Noto الرسمية (full — تشمل الحروف اللاتينية والأرقام).
+  /// لا يوجد ملف Light مطلوب؛ يستخدم العادي للنصوص الثانوية.
   static Future<ArabicPdfFonts> loadArabicFonts() async {
     final regularData = await rootBundle.load(
-      'assets/fonts/Tajawal-Regular.ttf',
+      'assets/fonts/NotoNaskhArabic-Regular.ttf',
     );
-    final boldData = await rootBundle.load('assets/fonts/Tajawal-Bold.ttf');
-    final lightData = regularData;
+
+    final boldData = await rootBundle.load(
+      'assets/fonts/NotoNaskhArabic-Bold.ttf',
+    );
 
     return ArabicPdfFonts(
       regular: pw.Font.ttf(regularData),
       bold: pw.Font.ttf(boldData),
-      light: pw.Font.ttf(lightData),
+      light: pw.Font.ttf(regularData),
     );
   }
 
@@ -116,6 +205,18 @@ class EnhancedPdfUtils {
     } catch (_) {
       return null;
     }
+  }
+
+  /// خلط لون مع الأبيض لتوليد درجة أفتح للتدرجات.
+  static PdfColor _mixWithWhite(
+    PdfColor color, {
+    required double whiteRatio,
+  }) {
+    return PdfColor(
+      color.red + (1.0 - color.red) * whiteRatio,
+      color.green + (1.0 - color.green) * whiteRatio,
+      color.blue + (1.0 - color.blue) * whiteRatio,
+    );
   }
 
   /// بناء رأس الصفحة الاحترافي للفندق
@@ -148,11 +249,7 @@ class EnhancedPdfUtils {
               children: [
                 pw.Text(
                   'فندق مارينا بلازا',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 24,
-                    color: PdfColors.textWhite,
-                  ),
+                  style: PdfTextStyles.coverHotelName(fonts),
                 ),
                 pw.SizedBox(height: 4),
                 pw.Text(
@@ -174,11 +271,7 @@ class EnhancedPdfUtils {
                   ),
                   child: pw.Text(
                     title.isNotEmpty ? title : 'وثيقة رسمية',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 14,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: PdfTextStyles.coverTitle(fonts),
                   ),
                 ),
                 if (subtitle.isNotEmpty) ...[
@@ -302,51 +395,128 @@ class EnhancedPdfUtils {
     );
   }
 
-  /// بناء بطاقة معلومات أنيقة
+  /// بطاقة إحصاءات مضغوطة (ارتفاع 64) — توفّر مساحة A4 للجداول.
+  static pw.Widget buildStatisticsBox({
+    required String title,
+    required String value,
+    required ArabicPdfFonts fonts,
+    String? subtitle,
+    PdfColor color = PdfColors.primary,
+  }) {
+    final lighterColor = _mixWithWhite(color, whiteRatio: 0.12);
+
+    return pw.Container(
+      height: 64,
+      padding: const pw.EdgeInsets.symmetric(
+        horizontal: 7,
+        vertical: 7,
+      ),
+      decoration: pw.BoxDecoration(
+        gradient: pw.LinearGradient(
+          colors: [color, lighterColor],
+          begin: pw.Alignment.topRight,
+          end: pw.Alignment.bottomLeft,
+        ),
+        borderRadius: const pw.BorderRadius.all(
+          pw.Radius.circular(4),
+        ),
+      ),
+      child: pw.Column(
+        mainAxisAlignment: pw.MainAxisAlignment.center,
+        children: [
+          pw.Text(
+            title,
+            style: PdfTextStyles.metricTitle(fonts),
+            textAlign: pw.TextAlign.center,
+            maxLines: 1,
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(
+            value,
+            style: PdfTextStyles.metricValue(fonts),
+            textAlign: pw.TextAlign.center,
+            maxLines: 1,
+          ),
+          if (subtitle != null && subtitle.trim().isNotEmpty) ...[
+            pw.SizedBox(height: 1),
+            pw.Text(
+              subtitle,
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 6.8,
+                color: PdfColors.textWhite,
+              ),
+              textAlign: pw.TextAlign.center,
+              maxLines: 1,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// شبكة بطاقات إحصاءات بعرض ثابت مضغوط لكل بطاقة.
+  static pw.Widget buildStatisticsGrid({
+    required List<pw.Widget> items,
+  }) {
+    return pw.Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: items.map((item) {
+        return pw.SizedBox(
+          width: 120,
+          child: item,
+        );
+      }).toList(),
+    );
+  }
+
+  /// بطاقة معلومات منخفضة الارتفاع (شريط لوني جانبي + padding صغير).
   static pw.Widget buildInfoCard({
     required String title,
     required List<pw.Widget> content,
     required ArabicPdfFonts fonts,
-    PdfColor? backgroundColor,
-    PdfColor? borderColor,
-    double? borderWidth,
+    PdfColor color = PdfColors.primary,
   }) {
     return pw.Container(
       width: double.infinity,
-      margin: const pw.EdgeInsets.symmetric(vertical: 8),
+      margin: const pw.EdgeInsets.only(bottom: 8),
       decoration: pw.BoxDecoration(
-        color: backgroundColor ?? PdfColors.backgroundLight,
+        color: PdfColors.cardBackground,
+        borderRadius: const pw.BorderRadius.all(
+          pw.Radius.circular(4),
+        ),
         border: pw.Border.all(
-          color: borderColor ?? PdfColors.primary,
-          width: borderWidth ?? 1,
+          color: PdfColors.border,
+          width: 0.5,
         ),
       ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 10,
-            ),
-            decoration: pw.BoxDecoration(
-              color: borderColor ?? PdfColors.primary,
-            ),
-            child: pw.Text(
-              title,
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 14,
-                color: PdfColors.textWhite,
-              ),
-            ),
+            width: 4,
+            color: color,
           ),
-          pw.Container(
-            padding: const pw.EdgeInsets.all(16),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: content,
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.fromLTRB(
+                10,
+                8,
+                10,
+                9,
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    title,
+                    style: PdfTextStyles.sectionTitle(fonts),
+                  ),
+                  pw.SizedBox(height: 5),
+                  ...content,
+                ],
+              ),
             ),
           ),
         ],
@@ -354,73 +524,185 @@ class EnhancedPdfUtils {
     );
   }
 
-  /// بناء جدول احترافي
+  /// صف مفتاح/قيمة مضغوط داخل بطاقات المعلومات.
+  static pw.Widget buildKeyValueRow({
+    required ArabicPdfFonts fonts,
+    required String label,
+    required String value,
+    bool valueLtr = false,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 3),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 88,
+            child: pw.Text(
+              '$label:',
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 9.5,
+                color: PdfColors.textDark,
+              ),
+            ),
+          ),
+          pw.Expanded(
+            child: valueLtr
+                ? pw.Directionality(
+                    textDirection: pw.TextDirection.ltr,
+                    child: pw.Text(
+                      value,
+                      style: PdfTextStyles.body(fonts),
+                      textAlign: pw.TextAlign.right,
+                    ),
+                  )
+                : pw.Text(
+                    value,
+                    style: PdfTextStyles.body(fonts),
+                    textAlign: pw.TextAlign.right,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// جدول احترافي مضغوط: نص صفوف 12pt عريض، فواصل بين كل صف وعمود،
+  /// تظليل صفوف خفيف، واتجاه RTL إجباري.
+  ///
+  /// [headerColor] و[alternateRowColor] اختياريان للتوافق مع الاستدعاءات
+  /// السابقة — الافتراضي: اللون الرئيسي للتقرير وتظليل [PdfColors.tableStripe].
   static pw.Widget buildProfessionalTable({
     required List<String> headers,
     required List<List<String>> data,
     required ArabicPdfFonts fonts,
-    List<double>? columnWidths,
+    List<double>? columnFlex,
+    List<pw.TextAlign>? alignments,
     PdfColor? headerColor,
     PdfColor? alternateRowColor,
   }) {
-    final headerStyle = PdfTextStyles.tableHeader(fonts.bold);
-    final cellStyle = PdfTextStyles.tableCell(fonts.regular);
+    assert(
+      columnFlex == null || columnFlex.length == headers.length,
+      'يجب أن يطابق عدد columnFlex عدد headers',
+    );
 
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.textLight),
-      ),
-      child: pw.Table(
-        columnWidths: columnWidths != null
-            ? Map.fromIterables(
-                List.generate(headers.length, (index) => index),
-                columnWidths.map(pw.FixedColumnWidth.new),
-              )
-            : null,
-        children: [
-          pw.TableRow(
-            decoration: pw.BoxDecoration(
-              color: headerColor ?? PdfColors.primary,
-            ),
-            children: headers
-                .map(
-                  (header) => pw.Padding(
-                    padding: const pw.EdgeInsets.all(12),
-                    child: pw.Text(
-                      header,
-                      style: headerStyle,
-                      textAlign: pw.TextAlign.center,
-                    ),
-                  ),
-                )
-                .toList(),
+    assert(
+      alignments == null || alignments.length == headers.length,
+      'يجب أن يطابق عدد alignments عدد headers',
+    );
+
+    final columnWidths = <int, pw.TableColumnWidth>{};
+
+    if (columnFlex != null) {
+      for (var index = 0; index < columnFlex.length; index++) {
+        columnWidths[index] = pw.FlexColumnWidth(columnFlex[index]);
+      }
+    }
+
+    pw.TextAlign getAlignment(int index) {
+      if (alignments != null && index < alignments.length) {
+        return alignments[index];
+      }
+
+      return pw.TextAlign.right;
+    }
+
+    const insideBorder = pw.BorderSide(
+      color: PdfColors.border,
+      width: 0.55,
+    );
+
+    const outsideBorder = pw.BorderSide(
+      color: PdfColors.primary,
+      width: 0.75,
+    );
+
+    final effectiveHeaderColor = headerColor ?? PdfColors.primary;
+    final effectiveStripeColor = alternateRowColor ?? PdfColors.tableStripe;
+
+    return pw.Directionality(
+      textDirection: pw.TextDirection.rtl,
+      child: pw.Container(
+        decoration: const pw.BoxDecoration(
+          color: PdfColors.cardBackground,
+          borderRadius: pw.BorderRadius.all(
+            pw.Radius.circular(3),
           ),
-          ...data.asMap().entries.map((entry) {
-            final index = entry.key;
-            final row = entry.value;
-            final isEven = index.isEven;
+        ),
+        child: pw.Table(
+          columnWidths: columnWidths.isEmpty ? null : columnWidths,
 
-            return pw.TableRow(
+          /// خطوط خارجية وداخلية كاملة.
+          border: const pw.TableBorder(
+            top: outsideBorder,
+            right: outsideBorder,
+            bottom: outsideBorder,
+            left: outsideBorder,
+
+            /// فاصل بين الصفوف.
+            horizontalInside: insideBorder,
+
+            /// فاصل بين الأعمدة.
+            verticalInside: insideBorder,
+          ),
+
+          children: [
+            /// رأس الجدول.
+            pw.TableRow(
               decoration: pw.BoxDecoration(
-                color: isEven
-                    ? (alternateRowColor ?? PdfColors.backgroundLight)
-                    : null,
+                color: effectiveHeaderColor,
               ),
-              children: row
-                  .map(
-                    (cell) => pw.Padding(
-                      padding: const pw.EdgeInsets.all(10),
-                      child: pw.Text(
-                        cell,
-                        style: cellStyle,
-                        textAlign: pw.TextAlign.center,
-                      ),
+              children: List.generate(headers.length, (columnIndex) {
+                return pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 6,
+                  ),
+                  child: pw.Text(
+                    headers[columnIndex],
+                    style: PdfTextStyles.tableHeader(fonts),
+                    textAlign: getAlignment(columnIndex),
+                    maxLines: 2,
+                  ),
+                );
+              }),
+            ),
+
+            /// صفوف البيانات.
+            ...data.asMap().entries.map((entry) {
+              final rowIndex = entry.key;
+              final row = entry.value;
+
+              return pw.TableRow(
+                decoration: pw.BoxDecoration(
+                  color: rowIndex.isEven
+                      ? effectiveStripeColor
+                      : PdfColors.cardBackground,
+                ),
+                children: List.generate(headers.length, (columnIndex) {
+                  final value = columnIndex < row.length
+                      ? row[columnIndex]
+                      : '';
+
+                  return pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 5,
                     ),
-                  )
-                  .toList(),
-            );
-          }),
-        ],
+                    child: pw.Text(
+                      value,
+                      style: PdfTextStyles.tableCell(fonts),
+                      textAlign: getAlignment(columnIndex),
+                      maxLines: 2,
+                      overflow: pw.TextOverflow.clip,
+                    ),
+                  );
+                }),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -428,17 +710,17 @@ class EnhancedPdfUtils {
   /// يبني قائمة صفوف طويلة كعدّة جداول متتالية بدل جدول واحد ضخم.
   ///
   /// [buildProfessionalTable] يرسم كل `data` في `pw.Table` واحد؛ لتقارير
-  /// بمدى تاريخي واسع (مئات/آلاف الصفوف) هذا بطيء جداً وقد يُجمّد التطبيق
-  /// أو يستهلك ذاكرة كبيرة (مشكلة معروفة في تخطيط `pdf` package للجداول
-  /// الضخمة). هذه الدالة تقسّم `data` لعدة جداول متتالية بحجم [chunkSize]
-  /// صف كحد أقصى لكل جدول — كل الصفوف تظهر بالكامل بدون اقتصاص، فقط
-  /// موزّعة على عدة جداول/صفحات. استخدم `widgets.addAll(...)` مع النتيجة
-  /// بدل `widgets.add(...)`.
+  /// بمدى تاريخي واسع (مئات/آلاف الصفوف) هذا بطيء جداً وقد يُجمّد التطبيق.
+  /// هذه الدالة تقسّم `data` لعدة جداول متتالية بحجم [chunkSize] صف كحد
+  /// أقصى لكل جدول — كل الصفوف تظهر بالكامل بدون اقتصاص، فقط موزّعة على
+  /// عدة جداول/صفحات. استخدم `widgets.addAll(...)` مع النتيجة بدل
+  /// `widgets.add(...)`.
   static List<pw.Widget> buildChunkedTable({
     required List<String> headers,
     required List<List<String>> data,
     required ArabicPdfFonts fonts,
-    List<double>? columnWidths,
+    List<double>? columnFlex,
+    List<pw.TextAlign>? alignments,
     PdfColor? headerColor,
     PdfColor? alternateRowColor,
     int chunkSize = 200,
@@ -449,7 +731,8 @@ class EnhancedPdfUtils {
           headers: headers,
           data: data,
           fonts: fonts,
-          columnWidths: columnWidths,
+          columnFlex: columnFlex,
+          alignments: alignments,
           headerColor: headerColor,
           alternateRowColor: alternateRowColor,
         ),
@@ -468,7 +751,8 @@ class EnhancedPdfUtils {
           headers: headers,
           data: data.sublist(start, end),
           fonts: fonts,
-          columnWidths: columnWidths,
+          columnFlex: columnFlex,
+          alignments: alignments,
           headerColor: headerColor,
           alternateRowColor: alternateRowColor,
         ),
@@ -477,70 +761,91 @@ class EnhancedPdfUtils {
     return widgets;
   }
 
-  /// بناء صندوق إحصائيات
-  static pw.Widget buildStatisticsBox({
-    required String title,
-    required String value,
-    required ArabicPdfFonts fonts,
-    String? subtitle,
-    PdfColor? color,
-    String? icon,
-  }) {
-    final baseColor = color ?? PdfColors.primary;
-    // Replicate the old `flatten(PdfColors.textWhite, 0.2)` logic to maintain visual consistency.
-    // This creates a lighter shade by mixing with 20% white.
-    final secondaryColor = PdfColor(
-      baseColor.red * 0.8 + 0.2,
-      baseColor.green * 0.8 + 0.2,
-      baseColor.blue * 0.8 + 0.2,
-    );
+  /// ترتيب الحجوزات زمنياً (الأقدم أولاً) ثم برقم الحجز —
+  /// ترتيب حتمي قابل للتدقيق في التقارير المالية.
+  static List<ReservationReportItem> sortReservations(
+    List<ReservationReportItem> reservations,
+  ) {
+    final sorted = List<ReservationReportItem>.from(reservations);
+    sorted.sort((a, b) {
+      final byCheckIn = a.checkIn.compareTo(b.checkIn);
+      if (byCheckIn != 0) return byCheckIn;
+      return a.bookingNumber.compareTo(b.bookingNumber);
+    });
+    return sorted;
+  }
 
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(16),
-      decoration: pw.BoxDecoration(
-        gradient: pw.LinearGradient(
-          colors: [baseColor, secondaryColor],
-          begin: pw.Alignment.topLeft,
-          end: pw.Alignment.bottomRight,
-        ),
-      ),
-      child: pw.Column(
-        children: [
-          if (icon != null) ...[
-            pw.Text(icon, style: const pw.TextStyle(fontSize: 24)),
-            pw.SizedBox(height: 8),
-          ],
-          pw.Text(
-            title,
-            style: pw.TextStyle(
-              font: fonts.regular,
-              fontSize: 12,
-              color: PdfColors.textWhite,
-            ),
-            textAlign: pw.TextAlign.center,
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            value,
-            style: pw.TextStyle(
-              font: fonts.bold,
-              fontSize: 20,
-              color: PdfColors.textWhite,
-            ),
-            textAlign: pw.TextAlign.center,
-          ),
-          if (subtitle != null && subtitle.isNotEmpty)
-            pw.Text(
-              subtitle,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 9,
-                color: PdfColors.textWhite,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
-        ],
-      ),
+  /// تاريخ مختصر dd/MM/yyyy — يوفّر مساحة داخل خلايا الجدول.
+  static String formatDateShort(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
+
+  /// رؤوس جدول الحجوزات — 8 أعمدة (دمج "النوع" مع "الغرفة").
+  static const List<String> reservationHeaders = [
+    'رقم الحجز',
+    'اسم النزيل',
+    'الغرفة / النوع',
+    'الدخول',
+    'الخروج',
+    'الليالي',
+    'الحالة',
+    'الإجمالي',
+  ];
+
+  /// تحويل عنصر حجز إلى صف جدول.
+  static List<String> reservationToRow(
+    ReservationReportItem reservation,
+  ) {
+    return [
+      reservation.bookingNumber,
+      reservation.guestName,
+      '${reservation.roomNumber}\n${reservation.roomType}',
+      formatDateShort(reservation.checkIn),
+      formatDateShort(reservation.checkOut),
+      reservation.nights.toString(),
+      reservation.status,
+      formatCurrency(reservation.total),
+    ];
+  }
+
+  /// جدول الحجوزات المحدث — 8 أعمدة بتوزيع مناسب لحجم 12 عريض في A4.
+  static pw.Widget buildReservationsTable({
+    required ArabicPdfFonts fonts,
+    required List<ReservationReportItem> reservations,
+  }) {
+    final sortedReservations = sortReservations(reservations);
+
+    final rows = sortedReservations.map(reservationToRow).toList();
+
+    return buildProfessionalTable(
+      fonts: fonts,
+      headers: reservationHeaders,
+      data: rows,
+
+      /// توزيع مناسب لحجم 12 عريض في ورقة A4.
+      columnFlex: const [
+        1.05, // رقم الحجز
+        1.85, // اسم النزيل
+        1.30, // الغرفة / النوع
+        1.08, // الدخول
+        1.08, // الخروج
+        0.62, // الليالي
+        0.95, // الحالة
+        1.15, // الإجمالي
+      ],
+
+      alignments: const [
+        pw.TextAlign.center,
+        pw.TextAlign.right,
+        pw.TextAlign.center,
+        pw.TextAlign.center,
+        pw.TextAlign.center,
+        pw.TextAlign.center,
+        pw.TextAlign.center,
+        pw.TextAlign.center,
+      ],
     );
   }
 
@@ -574,7 +879,9 @@ class EnhancedPdfUtils {
     final day = arabicDays[dateTime.weekday - 1];
     final month = arabicMonths[dateTime.month - 1];
 
-    return '$day ${dateTime.day} $month ${dateTime.year} - ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    return '$day ${dateTime.day} $month ${dateTime.year} - '
+        '${dateTime.hour.toString().padLeft(2, '0')}:'
+        '${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   /// تنسيق المبلغ بالعملة مع فواصل الآلاف

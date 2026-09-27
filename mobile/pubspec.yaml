@@ -98,6 +98,8 @@ flutter:
   assets:
   - assets/fonts/Tajawal-Regular.ttf
   - assets/fonts/Tajawal-Bold.ttf
+  - assets/fonts/NotoNaskhArabic-Regular.ttf
+  - assets/fonts/NotoNaskhArabic-Bold.ttf
   - assets/images/hotel_logo.jpg
 
 # ════════════════════════════════════════════════════════════════════════════

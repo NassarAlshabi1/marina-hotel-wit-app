@@ -682,8 +682,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
               headers: headers,
               data: dataRows,
               fonts: fonts,
-              headerColor: PdfColors.primary,
-              alternateRowColor: PdfColors.backgroundLight,
             ),
             pw.SizedBox(height: 12),
             // ملخص الإجماليات

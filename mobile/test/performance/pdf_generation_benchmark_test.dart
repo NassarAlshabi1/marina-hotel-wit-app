@@ -4,7 +4,7 @@
 //  يقيس أداء توليد PDF باستخدام package:pdf (يُستخدم بكثرة في التقارير).
 //
 //  المقاييس:
-//    1. زمن تحميل خطوط عربية (Tajawal-Regular.ttf + Tajawal-Bold.ttf)
+//    1. زمن تحميل خطوط عربية (NotoNaskhArabic-Regular.ttf + NotoNaskhArabic-Bold.ttf)
 //    2. زمن بناء PDF بسيط (10 صفوف)
 //    3. زمن بناء PDF متوسط (100 صف)
 //    4. زمن بناء PDF كبير (500 صف)
@@ -34,7 +34,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdf/widgets.dart' as pw;
 
-/// يحمّل خط Tajawal من ملف مباشرة (يتجنب rootBundle الذي قد يفشل في tests).
+/// يحمّل خط NotoNaskhArabic من ملف مباشرة (يتجنب rootBundle الذي قد يفشل في tests).
 Future<pw.Font> _loadFont(String path) async {
   final bytes = await File(path).readAsBytes();
   return pw.Font.ttf(ByteData.sublistView(bytes));
@@ -98,41 +98,41 @@ void main() {
   setUpAll(() async {
     // تحميل الخطوط مرة واحدة قبل كل الاختبارات (لا نُعيد تحميلها في كل test
     // لأن الـ font loading مكلف).
-    regularFont = await _loadFont('assets/fonts/Tajawal-Regular.ttf');
-    boldFont = await _loadFont('assets/fonts/Tajawal-Bold.ttf');
+    regularFont = await _loadFont('assets/fonts/NotoNaskhArabic-Regular.ttf');
+    boldFont = await _loadFont('assets/fonts/NotoNaskhArabic-Bold.ttf');
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  1. Font Loading Performance
   // ═══════════════════════════════════════════════════════════════════════════
   group('🔤 Font Loading Performance', () {
-    test('تحميل Tajawal-Regular.ttf خلال < 100ms', () async {
+    test('تحميل NotoNaskhArabic-Regular.ttf خلال < 100ms', () async {
       final stopwatch = Stopwatch()..start();
-      await _loadFont('assets/fonts/Tajawal-Regular.ttf');
+      await _loadFont('assets/fonts/NotoNaskhArabic-Regular.ttf');
       stopwatch.stop();
 
       debugPrint(
-        '✓ Font load (Tajawal-Regular.ttf, 55KB): ${stopwatch.elapsedMilliseconds}ms',
+        '✓ Font load (NotoNaskhArabic-Regular.ttf, 285KB): ${stopwatch.elapsedMilliseconds}ms',
       );
       expect(
         stopwatch.elapsedMilliseconds,
         lessThan(100),
-        reason: 'تحميل خط 55KB يجب أن يكون < 100ms',
+        reason: 'تحميل خط 285KB يجب أن يكون < 100ms',
       );
     });
 
-    test('تحميل Tajawal-Bold.ttf خلال < 100ms', () async {
+    test('تحميل NotoNaskhArabic-Bold.ttf خلال < 100ms', () async {
       final stopwatch = Stopwatch()..start();
-      await _loadFont('assets/fonts/Tajawal-Bold.ttf');
+      await _loadFont('assets/fonts/NotoNaskhArabic-Bold.ttf');
       stopwatch.stop();
 
       debugPrint(
-        '✓ Font load (Tajawal-Bold.ttf, 55KB): ${stopwatch.elapsedMilliseconds}ms',
+        '✓ Font load (NotoNaskhArabic-Bold.ttf, 318KB): ${stopwatch.elapsedMilliseconds}ms',
       );
       expect(
         stopwatch.elapsedMilliseconds,
         lessThan(100),
-        reason: 'تحميل خط 55KB يجب أن يكون < 100ms',
+        reason: 'تحميل خط 318KB يجب أن يكون < 100ms',
       );
     });
   });
@@ -317,11 +317,11 @@ void main() {
       debugPrint('  📊 PDF Generation Benchmark — Summary');
       debugPrint('═══════════════════════════════════════════════════════════');
       debugPrint('  يقيس:');
-      debugPrint('    • Font loading (Tajawal-Regular + Bold)');
+      debugPrint('    • Font loading (NotoNaskhArabic-Regular + Bold)');
       debugPrint('    • PDF build (10/100/500 rows)');
       debugPrint('    • PDF save (Uint8List)');
       debugPrint('    • Scaling analysis (ms/row)');
-      debugPrint('  Package: pdf 3.12.0 + Tajawal fonts (Arabic RTL)');
+      debugPrint('  Package: pdf 3.12.0 + NotoNaskhArabic fonts (Arabic RTL)');
       debugPrint('═══════════════════════════════════════════════════════════');
       expect(true, isTrue);
     });

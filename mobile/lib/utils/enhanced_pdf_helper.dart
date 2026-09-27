@@ -251,17 +251,17 @@ class EnhancedPdfHelper {
             content: [
               pw.Text(
                 'فترة التقرير: ${EnhancedPdfUtils.formatDateTime(fromDate)} - ${EnhancedPdfUtils.formatDateTime(toDate)}',
-                style: PdfTextStyles.body(fonts.regular),
+                style: PdfTextStyles.body(fonts),
               ),
               pw.SizedBox(height: 6),
               pw.Text(
                 'تاريخ الإنشاء: ${EnhancedPdfUtils.formatDateTime(DateTime.now())}',
-                style: PdfTextStyles.body(fonts.regular),
+                style: PdfTextStyles.body(fonts),
               ),
               pw.SizedBox(height: 6),
               pw.Text(
                 'أُنشئ بواسطة: $generatedBy',
-                style: PdfTextStyles.body(fonts.regular),
+                style: PdfTextStyles.body(fonts),
               ),
             ],
           ),
@@ -271,7 +271,7 @@ class EnhancedPdfHelper {
           // إحصائيات رئيسية
           pw.Text(
             'الإحصائيات الرئيسية',
-            style: PdfTextStyles.heading2(fonts.bold),
+            style: PdfTextStyles.sectionTitle(fonts),
           ),
           pw.SizedBox(height: 12),
 
@@ -284,7 +284,6 @@ class EnhancedPdfHelper {
                   value: EnhancedPdfUtils.formatNumber(totalRevenue),
                   fonts: fonts,
                   color: PdfColors.success,
-                  icon: '💰',
                 ),
               ),
               pw.SizedBox(width: 12),
@@ -294,7 +293,6 @@ class EnhancedPdfHelper {
                   value: EnhancedPdfUtils.formatNumber(totalExpenses),
                   fonts: fonts,
                   color: PdfColors.danger,
-                  icon: '💸',
                 ),
               ),
             ],
@@ -312,7 +310,6 @@ class EnhancedPdfHelper {
                   subtitle: netProfit >= 0 ? 'ربح' : 'خسارة',
                   fonts: fonts,
                   color: netProfit >= 0 ? PdfColors.success : PdfColors.danger,
-                  icon: netProfit >= 0 ? '📈' : '📉',
                 ),
               ),
               pw.SizedBox(width: 12),
@@ -323,7 +320,6 @@ class EnhancedPdfHelper {
                   subtitle: 'حجز',
                   fonts: fonts,
                   color: PdfColors.info,
-                  icon: '🏨',
                 ),
               ),
             ],
@@ -335,18 +331,18 @@ class EnhancedPdfHelper {
           EnhancedPdfUtils.buildInfoCard(
             title: '🏨 معلومات الإشغال',
             fonts: fonts,
-            borderColor: PdfColors.accent,
+            color: PdfColors.accent,
             content: [
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
                     'إجمالي الحجوزات:',
-                    style: PdfTextStyles.bodyBold(fonts.bold),
+                    style: PdfTextStyles.bodyBold(fonts),
                   ),
                   pw.Text(
                     '$totalBookings حجز',
-                    style: PdfTextStyles.body(fonts.regular),
+                    style: PdfTextStyles.body(fonts),
                   ),
                 ],
               ),
@@ -356,11 +352,11 @@ class EnhancedPdfHelper {
                 children: [
                   pw.Text(
                     'النزلاء الحاليون:',
-                    style: PdfTextStyles.bodyBold(fonts.bold),
+                    style: PdfTextStyles.bodyBold(fonts),
                   ),
                   pw.Text(
                     '$checkedInGuests نزيل',
-                    style: PdfTextStyles.body(fonts.regular),
+                    style: PdfTextStyles.body(fonts),
                   ),
                 ],
               ),
@@ -370,7 +366,7 @@ class EnhancedPdfHelper {
                 children: [
                   pw.Text(
                     'متوسط الإيراد لكل حجز:',
-                    style: PdfTextStyles.bodyBold(fonts.bold),
+                    style: PdfTextStyles.bodyBold(fonts),
                   ),
                   pw.Text(
                     totalBookings > 0
@@ -378,7 +374,7 @@ class EnhancedPdfHelper {
                             totalRevenue / totalBookings,
                           )
                         : '0',
-                    style: PdfTextStyles.body(fonts.regular),
+                    style: PdfTextStyles.body(fonts),
                   ),
                 ],
               ),

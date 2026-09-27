@@ -82,7 +82,7 @@ class EnhancedPaymentReceipt {
         EnhancedPdfUtils.buildInfoCard(
           title: '🏨 بيانات النزيل',
           fonts: fonts,
-          borderColor: PdfColors.accent,
+          color: PdfColors.accent,
           content: [
             _buildInfoRow('الاسم الكامل:', guestName, fonts),
             pw.SizedBox(height: 8),
@@ -96,7 +96,7 @@ class EnhancedPaymentReceipt {
         EnhancedPdfUtils.buildInfoCard(
           title: '💰 تفاصيل الدفعة',
           fonts: fonts,
-          borderColor: PdfColors.secondary,
+          color: PdfColors.secondary,
           content: [_buildPaymentDetails(fonts)],
         ),
 
@@ -105,9 +105,9 @@ class EnhancedPaymentReceipt {
           EnhancedPdfUtils.buildInfoCard(
             title: '📝 ملاحظات إضافية',
             fonts: fonts,
-            borderColor: PdfColors.info,
+            color: PdfColors.info,
             content: [
-              pw.Text(notes!, style: PdfTextStyles.body(fonts.regular)),
+              pw.Text(notes!, style: PdfTextStyles.body(fonts)),
             ],
           ),
         ],
@@ -122,7 +122,6 @@ class EnhancedPaymentReceipt {
                 // subtitle: '',
                 fonts: fonts,
                 color: PdfColors.success,
-                icon: '💵',
               ),
             ),
             pw.SizedBox(width: 16),
@@ -133,7 +132,6 @@ class EnhancedPaymentReceipt {
                 subtitle: 'Payment Method',
                 fonts: fonts,
                 color: PdfColors.info,
-                icon: '💳',
               ),
             ),
           ],
@@ -160,17 +158,17 @@ class EnhancedPaymentReceipt {
       children: [
         pw.Text(
           'رقم الإيصال: $receiptNumber',
-          style: PdfTextStyles.heading3(fonts.bold),
+          style: PdfTextStyles.sectionTitle(fonts),
         ),
         pw.SizedBox(height: 4),
         pw.Text(
           'تاريخ الإصدار: ${EnhancedPdfUtils.formatDateTime(issuedAt)}',
-          style: PdfTextStyles.bodySmall(fonts.regular),
+          style: PdfTextStyles.small(fonts),
         ),
         pw.SizedBox(height: 4),
         pw.Text(
           'تاريخ الدفع: ${EnhancedPdfUtils.formatDateTime(paymentDate)}',
-          style: PdfTextStyles.bodySmall(fonts.regular),
+          style: PdfTextStyles.small(fonts),
         ),
       ],
     );
@@ -218,8 +216,8 @@ class EnhancedPaymentReceipt {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(label, style: PdfTextStyles.bodyBold(fonts.bold)),
-        pw.Text(value, style: PdfTextStyles.body(fonts.regular)),
+        pw.Text(label, style: PdfTextStyles.bodyBold(fonts)),
+        pw.Text(value, style: PdfTextStyles.body(fonts)),
       ],
     );
   }
@@ -291,14 +289,14 @@ class EnhancedPaymentReceipt {
             children: [
               pw.Text(
                 'المحاسب:',
-                style: PdfTextStyles.bodySmall(fonts.regular),
+                style: PdfTextStyles.small(fonts),
               ),
               pw.SizedBox(height: 8),
-              pw.Text(receivedBy, style: PdfTextStyles.bodyBold(fonts.bold)),
+              pw.Text(receivedBy, style: PdfTextStyles.bodyBold(fonts)),
               pw.SizedBox(height: 16),
               pw.Container(width: 120, height: 1, color: PdfColors.textLight),
               pw.SizedBox(height: 4),
-              pw.Text('التوقيع', style: PdfTextStyles.caption(fonts.regular)),
+              pw.Text('التوقيع', style: PdfTextStyles.small(fonts)),
             ],
           ),
 
@@ -312,7 +310,7 @@ class EnhancedPaymentReceipt {
               pw.SizedBox(height: 4),
               pw.Text(
                 'كود التحقق',
-                style: PdfTextStyles.caption(fonts.regular),
+                style: PdfTextStyles.small(fonts),
               ),
             ],
           ),
@@ -323,7 +321,7 @@ class EnhancedPaymentReceipt {
             children: [
               pw.Text(
                 'ختم الفندق:',
-                style: PdfTextStyles.bodySmall(fonts.regular),
+                style: PdfTextStyles.small(fonts),
               ),
               pw.SizedBox(height: 20),
               pw.Container(
@@ -420,7 +418,7 @@ class EnhancedInvoice {
           padding: const pw.EdgeInsets.only(top: 8),
           child: pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: PdfTextStyles.caption(fonts.regular),
+            style: PdfTextStyles.small(fonts),
             textAlign: pw.TextAlign.center,
           ),
         ),
@@ -488,7 +486,7 @@ class EnhancedInvoice {
     return EnhancedPdfUtils.buildInfoCard(
       title: '👤 بيانات العميل',
       fonts: fonts,
-      borderColor: PdfColors.accent,
+      color: PdfColors.accent,
       content: [
         _buildInfoRow('اسم العميل:', guestName, fonts),
         pw.SizedBox(height: 6),
@@ -517,7 +515,7 @@ class EnhancedInvoice {
     return EnhancedPdfUtils.buildInfoCard(
       title: '📋 بيانات الفاتورة',
       fonts: fonts,
-      borderColor: PdfColors.secondary,
+      color: PdfColors.secondary,
       content: [
         _buildInfoRow('رقم الفاتورة:', invoiceNumber, fonts),
         pw.SizedBox(height: 6),
@@ -556,7 +554,7 @@ class EnhancedInvoice {
           )
           .toList(),
       fonts: fonts,
-      columnWidths: [0.4, 0.15, 0.2, 0.25],
+      columnFlex: [0.4, 0.15, 0.2, 0.25],
     );
   }
 
@@ -692,7 +690,7 @@ class EnhancedInvoice {
     return EnhancedPdfUtils.buildInfoCard(
       title: '💰 تاريخ المدفوعات',
       fonts: fonts,
-      borderColor: PdfColors.success,
+      color: PdfColors.success,
       content: [
         EnhancedPdfUtils.buildProfessionalTable(
           headers: ['التاريخ', 'المبلغ', 'طريقة الدفع', 'المحاسب'],
@@ -707,7 +705,6 @@ class EnhancedInvoice {
             ];
           }).toList(),
           fonts: fonts,
-          headerColor: PdfColors.success,
         ),
       ],
     );
@@ -717,8 +714,8 @@ class EnhancedInvoice {
     return EnhancedPdfUtils.buildInfoCard(
       title: '📝 ملاحظات',
       fonts: fonts,
-      borderColor: PdfColors.info,
-      content: [pw.Text(notes!, style: PdfTextStyles.body(fonts.regular))],
+      color: PdfColors.info,
+      content: [pw.Text(notes!, style: PdfTextStyles.body(fonts))],
     );
   }
 
@@ -734,12 +731,12 @@ class EnhancedInvoice {
         children: [
           pw.Text(
             'الشروط والأحكام:',
-            style: PdfTextStyles.bodyBold(fonts.bold),
+            style: PdfTextStyles.bodyBold(fonts),
           ),
           pw.SizedBox(height: 6),
           pw.Text(
             '• يجب سداد الفاتورة خلال 30 يوماً من تاريخ الإصدار\n• في حالة التأخير في السداد، يُطبق غرامة 2% شهرياً\n• جميع الأسعار تشمل ضريبة القيمة المضافة\n• للاستفسارات يرجى الاتصال بالمحاسبة',
-            style: PdfTextStyles.bodySmall(fonts.regular),
+            style: PdfTextStyles.small(fonts),
           ),
         ],
       ),
@@ -750,8 +747,8 @@ class EnhancedInvoice {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(label, style: PdfTextStyles.bodyBold(fonts.bold)),
-        pw.Text(value, style: PdfTextStyles.body(fonts.regular)),
+        pw.Text(label, style: PdfTextStyles.bodyBold(fonts)),
+        pw.Text(value, style: PdfTextStyles.body(fonts)),
       ],
     );
   }

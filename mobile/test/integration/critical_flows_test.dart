@@ -369,7 +369,9 @@ String _nowIso() => DateTime.now().toIso8601String().replaceFirst('T', ' ');
 /// Helper: يحمل خط PDF للاختبار عبر rootBundle (آمن على الأجهزة الحقيقية).
 Future<List<int>?> _loadTestFont() async {
   try {
-    final byteData = await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
+    final byteData = await rootBundle.load(
+      'assets/fonts/NotoNaskhArabic-Regular.ttf',
+    );
     return byteData.buffer.asUint8List();
   } catch (_) {
     // في CI قد لا تكون الـ fonts متاحة

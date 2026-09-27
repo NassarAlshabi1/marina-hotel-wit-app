@@ -683,8 +683,6 @@ class _IncomeExpenseReportScreenState
                   'المبلغ',
                 ],
                 fonts: fonts,
-                headerColor: PdfColors.success,
-                alternateRowColor: PdfColors.backgroundLight,
                 rows: _incomeEntries.asMap().entries.map((entry) {
                   final e = entry.value;
                   final i = entry.key + 1;
@@ -720,8 +718,6 @@ class _IncomeExpenseReportScreenState
               _buildChunkedTable(
                 headers: ['#', 'التاريخ', 'النوع', 'الوصف', 'المبلغ'],
                 fonts: fonts,
-                headerColor: PdfColors.danger,
-                alternateRowColor: PdfColors.backgroundLight,
                 rows: _expenseEntries.asMap().entries.map((entry) {
                   final e = entry.value;
                   final i = entry.key + 1;
@@ -753,8 +749,6 @@ class _IncomeExpenseReportScreenState
                   'النسبة من المصروفات',
                 ],
                 fonts: fonts,
-                headerColor: PdfColors.accent,
-                alternateRowColor: PdfColors.backgroundLight,
                 data: sortedExpenseTypes.map((entry) {
                   return [
                     entry.key,
@@ -783,9 +777,7 @@ class _IncomeExpenseReportScreenState
             EnhancedPdfUtils.buildProfessionalTable(
               headers: ['البيان', 'القيمة'],
               fonts: fonts,
-              headerColor: PdfColors.warning,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
+              columnFlex: [200, 130],
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
                 [
@@ -833,9 +825,7 @@ class _IncomeExpenseReportScreenState
             EnhancedPdfUtils.buildProfessionalTable(
               headers: ['البيان', 'القيمة'],
               fonts: fonts,
-              headerColor: PdfColors.info,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
+              columnFlex: [200, 130],
               data: [
                 ['إجمالي الحجوزات في الفترة', '$_bookingsCount حجز'],
                 ['حجوزات نشطة (داخلين)', '$_activeBookingsCount حجز'],
@@ -887,9 +877,7 @@ class _IncomeExpenseReportScreenState
                   EnhancedPdfUtils.buildProfessionalTable(
                     headers: ['البيان', 'المبلغ'],
                     fonts: fonts,
-                    headerColor: PdfColors.primary,
-                    alternateRowColor: PdfColors.backgroundLight,
-                    columnWidths: [200, 130],
+                    columnFlex: [200, 130],
                     data: [
                       [
                         'إيرادات الغرف',
@@ -989,8 +977,6 @@ class _IncomeExpenseReportScreenState
     return EnhancedPdfUtils.buildProfessionalTable(
       headers: ['طريقة الدفع', 'المبلغ', 'العدد', 'النسبة'],
       fonts: fonts,
-      headerColor: PdfColors.secondary,
-      alternateRowColor: PdfColors.backgroundLight,
       data: [
         [
           'نقداً',
@@ -1044,9 +1030,7 @@ class _IncomeExpenseReportScreenState
     return EnhancedPdfUtils.buildProfessionalTable(
       headers: ['البيان', 'القيمة'],
       fonts: fonts,
-      headerColor: PdfColors.danger,
-      alternateRowColor: PdfColors.backgroundLight,
-      columnWidths: [200, 130],
+      columnFlex: [200, 130],
       data: [
         ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
         ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
@@ -1088,8 +1072,6 @@ class _IncomeExpenseReportScreenState
     return EnhancedPdfUtils.buildProfessionalTable(
       headers: ['المؤشر', 'القيمة', 'التقييم'],
       fonts: fonts,
-      headerColor: PdfColors.primary,
-      alternateRowColor: PdfColors.backgroundLight,
       data: [
         [
           'هامش الربح الصافي',
@@ -1709,9 +1691,7 @@ class _IncomeExpenseReportScreenState
             EnhancedPdfUtils.buildProfessionalTable(
               headers: ['البيان', 'القيمة'],
               fonts: fonts,
-              headerColor: PdfColors.warning,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
+              columnFlex: [200, 130],
               data: [
                 ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
                 [
@@ -1793,9 +1773,7 @@ class _IncomeExpenseReportScreenState
             EnhancedPdfUtils.buildProfessionalTable(
               headers: ['البيان', 'القيمة'],
               fonts: fonts,
-              headerColor: PdfColors.info,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
+              columnFlex: [200, 130],
               data: [
                 ['إجمالي الحجوزات في الفترة', '$_bookingsCount حجز'],
                 ['حجوزات نشطة (داخلين)', '$_activeBookingsCount حجز'],
@@ -1860,9 +1838,6 @@ class _IncomeExpenseReportScreenState
     required List<String> headers,
     required List<List<String>> rows,
     required ArabicPdfFonts fonts,
-    List<double>? columnWidths,
-    PdfColor? headerColor,
-    PdfColor? alternateRowColor,
   }) {
     if (rows.isEmpty) {
       return const [];
@@ -1880,9 +1855,6 @@ class _IncomeExpenseReportScreenState
           headers: headers,
           data: rows.sublist(start, end),
           fonts: fonts,
-          columnWidths: columnWidths,
-          headerColor: headerColor,
-          alternateRowColor: alternateRowColor,
         ),
       );
     }
@@ -2054,9 +2026,7 @@ class _IncomeExpenseReportScreenState
           EnhancedPdfUtils.buildProfessionalTable(
             headers: ['البيان', 'القيمة'],
             fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
-            columnWidths: [180, 150],
+            columnFlex: [180, 150],
             data: [
               ['إجمالي المعاملات', '$totalTx معاملة'],
               ['عدد الفترات', '${groups.length} فترة'],

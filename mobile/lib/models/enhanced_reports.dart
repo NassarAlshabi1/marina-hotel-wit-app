@@ -78,11 +78,11 @@ class EnhancedPaymentsReport {
         children: [
           pw.Text(
             'تم إنشاء التقرير بواسطة: $generatedBy',
-            style: PdfTextStyles.caption(fonts.regular),
+            style: PdfTextStyles.small(fonts),
           ),
           pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: PdfTextStyles.caption(fonts.regular),
+            style: PdfTextStyles.small(fonts),
           ),
         ],
       ),
@@ -124,7 +124,7 @@ class EnhancedPaymentsReport {
     return EnhancedPdfUtils.buildInfoCard(
       title: '📊 معلومات التقرير',
       fonts: fonts,
-      borderColor: PdfColors.info,
+      color: PdfColors.info,
       content: [
         _buildInfoRow('فترة التقرير:', periodLabel, fonts),
         pw.SizedBox(height: 6),
@@ -151,7 +151,6 @@ class EnhancedPaymentsReport {
             // subtitle: '',
             fonts: fonts,
             color: PdfColors.success,
-            icon: '💰',
           ),
         ),
         pw.SizedBox(width: 12),
@@ -162,7 +161,6 @@ class EnhancedPaymentsReport {
             subtitle: 'معاملة',
             fonts: fonts,
             color: PdfColors.info,
-            icon: '📊',
           ),
         ),
         pw.SizedBox(width: 12),
@@ -175,7 +173,6 @@ class EnhancedPaymentsReport {
             // subtitle: '',
             fonts: fonts,
             color: PdfColors.accent,
-            icon: '📈',
           ),
         ),
       ],
@@ -193,7 +190,7 @@ class EnhancedPaymentsReport {
     return EnhancedPdfUtils.buildInfoCard(
       title: '💳 تحليل طرق الدفع',
       fonts: fonts,
-      borderColor: PdfColors.secondary,
+      color: PdfColors.secondary,
       content: [
         EnhancedPdfUtils.buildProfessionalTable(
           headers: [
@@ -242,7 +239,6 @@ class EnhancedPaymentsReport {
               ],
           ],
           fonts: fonts,
-          headerColor: PdfColors.secondary,
         ),
       ],
     );
@@ -252,7 +248,6 @@ class EnhancedPaymentsReport {
     return EnhancedPdfUtils.buildInfoCard(
       title: '📋 تفاصيل المدفوعات',
       fonts: fonts,
-      borderColor: PdfColors.primary,
       content: [
         EnhancedPdfUtils.buildProfessionalTable(
           headers: [
@@ -276,7 +271,7 @@ class EnhancedPaymentsReport {
               )
               .toList(),
           fonts: fonts,
-          columnWidths: [0.15, 0.25, 0.1, 0.15, 0.2, 0.15],
+          columnFlex: [0.15, 0.25, 0.1, 0.15, 0.2, 0.15],
         ),
       ],
     );
@@ -305,7 +300,7 @@ class EnhancedPaymentsReport {
     return EnhancedPdfUtils.buildInfoCard(
       title: '📅 ملخص يومي',
       fonts: fonts,
-      borderColor: PdfColors.accent,
+      color: PdfColors.accent,
       content: [
         if (sortedSummaries.isNotEmpty)
           EnhancedPdfUtils.buildProfessionalTable(
@@ -330,12 +325,11 @@ class EnhancedPaymentsReport {
                 )
                 .toList(),
             fonts: fonts,
-            headerColor: PdfColors.accent,
           )
         else
           pw.Text(
             'لا توجد بيانات للفترة المحددة',
-            style: PdfTextStyles.body(fonts.regular),
+            style: PdfTextStyles.body(fonts),
             textAlign: pw.TextAlign.center,
           ),
       ],
@@ -346,9 +340,9 @@ class EnhancedPaymentsReport {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(label, style: PdfTextStyles.bodyBold(fonts.bold)),
+        pw.Text(label, style: PdfTextStyles.bodyBold(fonts)),
         pw.Flexible(
-          child: pw.Text(value, style: PdfTextStyles.body(fonts.regular)),
+          child: pw.Text(value, style: PdfTextStyles.body(fonts)),
         ),
       ],
     );
@@ -483,7 +477,7 @@ class EnhancedExpensesReport {
     return EnhancedPdfUtils.buildInfoCard(
       title: '📊 معلومات التقرير',
       fonts: fonts,
-      borderColor: PdfColors.warning,
+      color: PdfColors.warning,
       content: [
         _buildInfoRow('فترة التقرير:', periodLabel, fonts),
         pw.SizedBox(height: 6),
@@ -514,7 +508,6 @@ class EnhancedExpensesReport {
             // subtitle: '',
             fonts: fonts,
             color: PdfColors.danger,
-            icon: '💸',
           ),
         ),
         pw.SizedBox(width: 12),
@@ -525,7 +518,6 @@ class EnhancedExpensesReport {
             subtitle: 'مصروف',
             fonts: fonts,
             color: PdfColors.warning,
-            icon: '📝',
           ),
         ),
         pw.SizedBox(width: 12),
@@ -536,7 +528,6 @@ class EnhancedExpensesReport {
             // subtitle: '',
             fonts: fonts,
             color: PdfColors.info,
-            icon: '⬆️',
           ),
         ),
       ],
@@ -565,7 +556,7 @@ class EnhancedExpensesReport {
     return EnhancedPdfUtils.buildInfoCard(
       title: '🏷️ تحليل الفئات',
       fonts: fonts,
-      borderColor: PdfColors.secondary,
+      color: PdfColors.secondary,
       content: [
         if (sortedCategories.isNotEmpty)
           EnhancedPdfUtils.buildProfessionalTable(
@@ -589,12 +580,11 @@ class EnhancedExpensesReport {
                 )
                 .toList(),
             fonts: fonts,
-            headerColor: PdfColors.secondary,
           )
         else
           pw.Text(
             'لا توجد بيانات للفترة المحددة',
-            style: PdfTextStyles.body(fonts.regular),
+            style: PdfTextStyles.body(fonts),
             textAlign: pw.TextAlign.center,
           ),
       ],
@@ -605,7 +595,6 @@ class EnhancedExpensesReport {
     return EnhancedPdfUtils.buildInfoCard(
       title: '📋 تفاصيل المصروفات',
       fonts: fonts,
-      borderColor: PdfColors.primary,
       content: [
         if (expenses.isNotEmpty)
           EnhancedPdfUtils.buildProfessionalTable(
@@ -622,12 +611,12 @@ class EnhancedExpensesReport {
                 )
                 .toList(),
             fonts: fonts,
-            columnWidths: [0.15, 0.3, 0.2, 0.15, 0.2],
+            columnFlex: [0.15, 0.3, 0.2, 0.15, 0.2],
           )
         else
           pw.Text(
             'لا توجد مصروفات للفترة المحددة',
-            style: PdfTextStyles.body(fonts.regular),
+            style: PdfTextStyles.body(fonts),
             textAlign: pw.TextAlign.center,
           ),
       ],
@@ -645,11 +634,11 @@ class EnhancedExpensesReport {
         children: [
           pw.Text(
             'تم إنشاء التقرير بواسطة: $generatedBy',
-            style: PdfTextStyles.caption(fonts.regular),
+            style: PdfTextStyles.small(fonts),
           ),
           pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: PdfTextStyles.caption(fonts.regular),
+            style: PdfTextStyles.small(fonts),
           ),
         ],
       ),
@@ -660,9 +649,9 @@ class EnhancedExpensesReport {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(label, style: PdfTextStyles.bodyBold(fonts.bold)),
+        pw.Text(label, style: PdfTextStyles.bodyBold(fonts)),
         pw.Flexible(
-          child: pw.Text(value, style: PdfTextStyles.body(fonts.regular)),
+          child: pw.Text(value, style: PdfTextStyles.body(fonts)),
         ),
       ],
     );

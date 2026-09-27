@@ -377,8 +377,6 @@ class _SalaryWithdrawalsReportScreenState
               headers: headers,
               data: dataRows,
               fonts: fonts,
-              headerColor: PdfColors.primary,
-              alternateRowColor: PdfColors.backgroundLight,
             ),
           ];
         },

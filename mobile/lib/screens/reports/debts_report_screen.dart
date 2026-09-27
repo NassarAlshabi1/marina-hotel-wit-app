@@ -360,9 +360,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen>
                   headers: guestHeaders,
                   data: guestData,
                   fonts: fonts,
-                  columnWidths: guestColWidths,
-                  headerColor: PdfColors.primary,
-                  alternateRowColor: PdfColors.backgroundLight,
+                  columnFlex: guestColWidths,
                 ),
             ],
           );
@@ -446,9 +444,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen>
               headers: detailHeaders,
               data: detailData,
               fonts: fonts,
-              columnWidths: detailColWidths,
-              headerColor: PdfColors.primary,
-              alternateRowColor: PdfColors.backgroundLight,
+              columnFlex: detailColWidths,
             ),
           ];
         },

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfColor;
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
@@ -263,26 +262,57 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
         ? _selectedRoom!
         : '';
 
+    // نسخة مرتبة بدون تعديل _rows الأصلية:
+    // 1) paymentDate من الأحدث إلى الأقدم.
+    // 2) عند تطابق التاريخ: roomNumber تصاعدياً.
+    // 3) عند تطابق الغرفة: bookingCode تصاعدياً.
+    final sortedRows = List<_PaymentReportRow>.from(_rows)
+      ..sort((a, b) {
+        final byDate = b.paymentDate.compareTo(a.paymentDate);
+        if (byDate != 0) return byDate;
+        final byRoom = a.roomNumber.compareTo(b.roomNumber);
+        if (byRoom != 0) return byRoom;
+        return a.bookingCode.compareTo(b.bookingCode);
+      });
+
+    const headers = [
+      'رقم الحجز',
+      'اسم النزيل',
+      'الغرفة',
+      'طريقة الدفع',
+      'التاريخ',
+      'المبلغ',
+    ];
+
+    // توزيع FlexColumnWidth مناسب لحجم 12 عريض في ورقة A4.
+    const columnFlex = [
+      1.20, // رقم الحجز
+      2.20, // اسم النزيل
+      0.85, // الغرفة
+      1.20, // طريقة الدفع
+      1.30, // التاريخ
+      1.25, // المبلغ
+    ];
+
+    const alignments = [
+      pw.TextAlign.center, // رقم الحجز
+      pw.TextAlign.right, // اسم النزيل
+      pw.TextAlign.center, // الغرفة
+      pw.TextAlign.center, // طريقة الدفع
+      pw.TextAlign.center, // التاريخ
+      pw.TextAlign.center, // المبلغ
+    ];
+
     final dataRows = [
-      for (final entry in _rows.asMap().entries)
+      for (final row in sortedRows)
         [
-          (entry.key + 1).toString(),
-          entry.value.bookingCode,
-          entry.value.booking?.guestName ?? entry.value.payerName,
-          entry.value.roomNumber,
-          _translatePaymentMethod(entry.value.payment.paymentMethod),
-          _dateLabelFormat.format(entry.value.paymentDate),
-          EnhancedPdfUtils.formatNumber(entry.value.amount),
+          row.bookingCode,
+          row.booking?.guestName ?? row.payerName,
+          row.roomNumber,
+          _translatePaymentMethod(row.payment.paymentMethod),
+          _formatPdfPaymentDate(row.paymentDate),
+          EnhancedPdfUtils.formatNumber(row.amount),
         ],
-      [
-        '',
-        '',
-        '',
-        '',
-        '',
-        'الإجمالي',
-        EnhancedPdfUtils.formatNumber(_totalPaid),
-      ],
     ];
 
     await ReportPdfBuilder.buildAndShare(
@@ -290,116 +320,131 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
         title: 'مدفوعات النزلاء',
         fromDate: _fromDate,
         toDate: _toDate,
+        compactHeader: true,
         extraHeaderLine: selectedRoomLabel.isNotEmpty
             ? 'الغرفة: $selectedRoomLabel'
             : null,
         buildContent: (fonts) => [
-          pw.SizedBox(height: 20),
+          pw.SizedBox(height: 8),
+          pw.Text('تفاصيل المدفوعات', style: PdfTextStyles.sectionTitle(fonts)),
+          pw.SizedBox(height: 6),
           ...EnhancedPdfUtils.buildChunkedTable(
-            headers: [
-              'م',
-              'رقم الحجز',
-              'اسم النزيل',
-              'الغرفة',
-              'طريقة الدفع',
-              'التاريخ',
-              'المبلغ',
-            ],
+            headers: headers,
             data: dataRows,
             fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
+            columnFlex: columnFlex,
+            alignments: alignments,
           ),
-          pw.SizedBox(height: 12),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.backgroundLight,
-              border: pw.Border.all(color: PdfColors.primary, width: 0.5),
-            ),
-            child: pw.Column(
-              children: [
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Row(
-                      children: [
-                        pw.Text(
-                          'الإجمالي المدفوع: ',
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 12,
-                            color: PdfColors.textDark,
-                          ),
-                        ),
-                        pw.Text(
-                          EnhancedPdfUtils.formatNumber(
-                            _totalPaid + _totalOtherPaid,
-                          ),
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 14,
-                            color: PdfColors.secondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    pw.Row(
-                      children: [
-                        pw.Text(
-                          'المبلغ المتبقي: ',
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 12,
-                            color: _totalRemaining > 0
-                                ? const PdfColor(0.9, 0.2, 0.2)
-                                : const PdfColor(0.0, 0.5, 0.2),
-                          ),
-                        ),
-                        pw.Text(
-                          EnhancedPdfUtils.formatNumber(_totalRemaining),
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 12,
-                            color: _totalRemaining > 0
-                                ? const PdfColor(0.9, 0.2, 0.2)
-                                : const PdfColor(0.0, 0.5, 0.2),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                if (_totalDue > 0) ...[
-                  pw.SizedBox(height: 8),
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.end,
-                    children: [
-                      pw.Text(
-                        'إجمالي ما على النزيل: ',
-                        style: pw.TextStyle(
-                          font: fonts.bold,
-                          fontSize: 11,
-                          color: PdfColors.textDark,
-                        ),
-                      ),
-                      pw.Text(
-                        EnhancedPdfUtils.formatNumber(_totalDue),
-                        style: pw.TextStyle(
-                          font: fonts.bold,
-                          fontSize: 13,
-                          color: PdfColors.info,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
+          _buildCompactTotalsCard(fonts),
         ],
         fileName: ReportPdfBuilder.generateFileName('مدفوعات النزلاء'),
+      ),
+    );
+  }
+
+  /// تاريخ مختصر لخلايا جدول PDF: dd/MM/yyyy ثم HH:mm على سطرين —
+  /// يوفّر عرض العمود بدل تنسيق yyyy/MM/dd HH:mm الطويل.
+  String _formatPdfPaymentDate(DateTime value) {
+    final date =
+        '${value.day.toString().padLeft(2, '0')}/'
+        '${value.month.toString().padLeft(2, '0')}/'
+        '${value.year}';
+    final time =
+        '${value.hour.toString().padLeft(2, '0')}:'
+        '${value.minute.toString().padLeft(2, '0')}';
+    return '$date\n$time';
+  }
+
+  /// بطاقة إجماليات مضغوطة لصفحة A4: صفان كحد أقصى، بدون تدرج،
+  /// خلفية فاتحة جداً وحدود خفيفة، padding بين 8 و10 فقط.
+  pw.Widget _buildCompactTotalsCard(ArabicPdfFonts fonts) {
+    final remainingColor = _totalRemaining > 0
+        ? PdfColors.danger
+        : PdfColors.success;
+
+    return pw.Container(
+      width: double.infinity,
+      margin: const pw.EdgeInsets.only(top: 10),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.cardBackground,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+        border: pw.Border.all(color: PdfColors.border, width: 0.5),
+      ),
+      child: pw.Column(
+        children: [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Row(
+                children: [
+                  pw.Text(
+                    'إجمالي المدفوعات: ',
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 10.5,
+                      color: PdfColors.textDark,
+                    ),
+                  ),
+                  pw.Text(
+                    EnhancedPdfUtils.formatNumber(
+                      _totalPaid + _totalOtherPaid,
+                    ),
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 13,
+                      color: PdfColors.secondary,
+                    ),
+                  ),
+                ],
+              ),
+              pw.Row(
+                children: [
+                  pw.Text(
+                    'المبلغ المتبقي: ',
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 10.5,
+                      color: PdfColors.textDark,
+                    ),
+                  ),
+                  pw.Text(
+                    EnhancedPdfUtils.formatNumber(_totalRemaining),
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 13,
+                      color: remainingColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (_totalDue > 0) ...[
+            pw.SizedBox(height: 4),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: [
+                pw.Text(
+                  'إجمالي المستحق على النزلاء: ',
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 10.5,
+                    color: PdfColors.textDark,
+                  ),
+                ),
+                pw.Text(
+                  EnhancedPdfUtils.formatNumber(_totalDue),
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 13,
+                    color: PdfColors.info,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
