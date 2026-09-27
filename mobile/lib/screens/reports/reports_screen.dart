@@ -17,6 +17,8 @@ import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart' show Booking, Room;
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/manual_sync_trigger.dart';
+import '../finance/cash_flow_forecast_screen.dart';
+import '../finance/kpi_dashboard_screen.dart';
 import '../search/global_search_screen.dart';
 import 'debts_report_screen.dart';
 import 'expenses_report_screen.dart';
@@ -419,6 +421,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   label: 'تقرير الديون',
                   color: Colors.purple,
                   onTap: () => _navigate((_) => const DebtsReportScreen()),
+                ),
+                const SizedBox(height: 10),
+
+                // ─── السيولة والتدفقات النقدية ───
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'السيولة والتدفقات النقدية',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _ReportShortcut(
+                  icon: Icons.waterfall_chart,
+                  label: 'نموذج التدفقات النقدية — 13 أسبوعاً',
+                  color: Colors.blue,
+                  onTap: () => _navigate((_) => const CashFlowForecastScreen()),
+                ),
+                const SizedBox(height: 4),
+                _ReportShortcut(
+                  icon: Icons.speed,
+                  label: 'لوحة المؤشرات الأسبوعية (KPIs)',
+                  color: Colors.teal,
+                  onTap: () => _navigate((_) => const KpiDashboardScreen()),
                 ),
                 const SizedBox(height: 14),
 
