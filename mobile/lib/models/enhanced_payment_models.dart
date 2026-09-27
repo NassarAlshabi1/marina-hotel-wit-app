@@ -5,7 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../services/local_db.dart';
-import '../utils/enhanced_pdf_utils.dart';
+import '../src/pdf/enhanced_pdf_utils.dart';
 import '../utils/time.dart';
 
 /// نموذج إيصال دفع احترافي محسّن

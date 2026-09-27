@@ -4,8 +4,6 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/widgets.dart' as pw;
-
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../mixins/pdf_export_guard_mixin.dart';
@@ -14,10 +12,9 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_mirror_matcher.dart';
 import '../../services/sync/payload_mapper.dart';
+import '../../src/pdf/report_templates/salary_withdrawals_report_pdf.dart';
 import '../../utils/debug_log.dart';
-import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/report_pdf_builder.dart';
 import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 
@@ -263,128 +260,29 @@ class _SalaryWithdrawalsReportScreenState
               ?.name
         : null;
 
-    final headers = _selectedEmployeeId != null
-        ? <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الملاحظات']
-        : <String>[
-            'التاريخ',
-            'المبلغ',
-            'النوع',
-            'السبب',
-            'الملاحظات',
-            'الموظف',
-          ];
-
-    final dataRows = <List<String>>[];
-    for (final row in rows) {
-      // تنظيف حقل السبب: إذا كان يبدأ بـ "exp_" يُعتبر ربط داخلي، لا يُعرض
-      String displayReason = '-';
-      if (row.reason.isNotEmpty && !row.reason.startsWith('exp_')) {
-        displayReason = row.reason;
-      }
-
-      final cells = <String>[
-        _dateLabelFormat.format(row.date),
-        EnhancedPdfUtils.formatNumber(row.amount),
-        if (row.withdrawalType.isNotEmpty) row.withdrawalType else 'سحب',
-        displayReason,
-        if (row.description.isNotEmpty) row.description else '-',
-      ];
-      if (_selectedEmployeeId == null) {
-        cells.add(row.employee?.name ?? 'غير محدد');
-      }
-      dataRows.add(cells);
-    }
-
-    final totalAmount = rows.fold<double>(0, (sum, r) => sum + r.amount);
-    final emptyCells = List.filled(headers.length, '');
-    dataRows.add([
-      'الإجمالي',
-      EnhancedPdfUtils.formatNumber(totalAmount),
-      ...emptyCells.sublist(2),
-    ]);
-
-    await ReportPdfBuilder.buildAndShare(
-      ReportPdfConfig(
-        title: 'تقرير سحبيات الرواتب',
+    // ✅ الشاشة تُمرّر بيانات فقط — التصميم بالكامل في القالب المستقل
+    // lib/src/pdf/report_templates/salary_withdrawals_report_pdf.dart.
+    await SalaryWithdrawalsReportPdf.share(
+      SalaryWithdrawalsReportData(
+        rows: rows.map((row) {
+          // تنظيف حقل السبب: إذا كان يبدأ بـ "exp_" يُعتبر ربط داخلي،
+          // لا يُعرض.
+          String displayReason = '-';
+          if (row.reason.isNotEmpty && !row.reason.startsWith('exp_')) {
+            displayReason = row.reason;
+          }
+          return SalaryWithdrawalsReportRow(
+            date: row.date,
+            amount: row.amount,
+            withdrawalType: row.withdrawalType,
+            displayReason: displayReason,
+            description: row.description,
+            employeeName: row.employee?.name,
+          );
+        }).toList(),
         fromDate: _fromDate,
         toDate: _toDate,
-        buildContent: (fonts) {
-          final fromLabel = _fromDate != null
-              ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-              : 'غير محدد';
-          final toLabel = _toDate != null
-              ? DateFormat('yyyy-MM-dd').format(_toDate!)
-              : 'غير محدد';
-
-          return [
-            pw.SizedBox(height: 16),
-            EnhancedPdfUtils.buildInfoCard(
-              title: 'تقرير سحبيات الرواتب',
-              fonts: fonts,
-              content: [
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'الفترة',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                      ),
-                      pw.Text(
-                        'من $fromLabel إلى $toLabel',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'الموظف',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                      ),
-                      pw.Text(
-                        selectedEmpName ?? 'الكل',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'عدد السجلات',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                      ),
-                      pw.Text(
-                        '${rows.length}',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 12),
-            ...EnhancedPdfUtils.buildChunkedTable(
-              headers: headers,
-              data: dataRows,
-              fonts: fonts,
-            ),
-          ];
-        },
-        fileName: ReportPdfBuilder.generateFileName(
-          selectedEmpName != null
-              ? 'سحبيات راتب $selectedEmpName'
-              : 'تقرير سحبيات الرواتب',
-        ),
+        selectedEmployeeName: selectedEmpName,
       ),
     );
   }

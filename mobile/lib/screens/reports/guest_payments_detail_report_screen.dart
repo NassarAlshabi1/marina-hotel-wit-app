@@ -2,19 +2,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' hide PdfColors;
-import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/stay_balance_calculator.dart';
+import '../../src/pdf/report_templates/guest_statement_pdf.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/debug_log.dart';
-import '../../utils/enhanced_pdf_utils.dart' as epdf;
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/report_pdf_builder.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 
@@ -1241,333 +1238,47 @@ class _GuestPaymentsDetailReportScreenState
         ? coverage.effectiveNightlyRate
         : _getAverageNightlyRate(b);
 
-    final config = ReportPdfConfig(
-      title: 'كشف حساب نزيل تفصيلي',
-      fileName: ReportPdfBuilder.generateFileName('كشف-حساب-${b.guestName}'),
-      extraHeaderLine: 'النزيل: ${b.guestName} | غرفة: ${b.roomNumber}',
-      buildContent: (fonts) {
-        final List<pw.Widget> pdfContent = [
-          // ─── ملخص الحساب والمدة ───
-          epdf.EnhancedPdfUtils.buildInfoCard(
-            title: 'ملخص الحساب والمدة الزمانية',
-            fonts: fonts,
-            content: [
-              _buildPdfInfoRow(
-                fonts,
-                'تاريخ الوصول:',
-                _dateFormatter.format(coverage.checkinDate),
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'تاريخ المغادرة المتوقع (يدوي):',
-                coverage.formatDate(coverage.manualCheckoutDate),
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'عدد الأيام المقضية حتى الآن:',
-                '$actualDays يوم',
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'الأيام المتبقية حتى المغادرة:',
-                '${coverage.manualNightsRemaining} يوم',
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'سعر الغرفة لليلة الواحدة:',
-                '${CurrencyFormatter.formatAmount(nightlyRate)} ريال',
-              ),
-              pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
-              // ✅ عرض الإجمالي والمبلغ المتبقي في سطر واحد
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Expanded(
-                    child: pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Text(
-                          'إجمالي تكلفة الإقامة:',
-                          style: pw.TextStyle(
-                            font: fonts.regular,
-                            fontSize: 11,
-                            color: const PdfColor(0.15, 0.15, 0.15),
-                          ),
-                        ),
-                        pw.Text(
-                          '${CurrencyFormatter.formatAmount(consumedCost)} ريال',
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 11,
-                            color: const PdfColor(0, 0, 0),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  pw.SizedBox(width: 16),
-                  pw.Expanded(
-                    child: pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                      children: [
-                        pw.Text(
-                          b.remainingBalanceCached < 0
-                              ? 'المتبقي (له):'
-                              : 'المتبقي (عليه):',
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 11,
-                            color: b.remainingBalanceCached < 0
-                                ? const PdfColor(0.0, 0.7, 0.3)
-                                : const PdfColor(0.9, 0.2, 0.2),
-                          ),
-                        ),
-                        pw.Text(
-                          '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 11,
-                            color: b.remainingBalanceCached < 0
-                                ? const PdfColor(0.0, 0.7, 0.3)
-                                : const PdfColor(0.9, 0.2, 0.2),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              pw.Divider(
-                color: const PdfColor(0.85, 0.85, 0.85),
-                thickness: 0.3,
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'إجمالي المبالغ المدفوعة:',
-                '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال',
-                valueColor: const PdfColor(0.0, 0.5, 0.2),
-              ),
-            ],
-          ),
-        ];
+    // قسم المغادرة المخططة (محسوبة من المدفوعات) + التمديد عند التجاوز.
+    final plannedCheckout = coverage.autoCheckoutDate;
+    final isAutoOverdue =
+        DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
+    final autoOverdueDays = isAutoOverdue
+        ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
+        : 0;
+    final autoOverdueCost = autoOverdueDays * nightlyRate;
 
-        // ─── قسم المغادرة المخططة (محسوبة من المدفوعات) + التمديد عند التجاوز ───
-        final plannedCheckout = coverage.autoCheckoutDate;
-        final isAutoOverdue =
-            DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-        final autoOverdueDays = isAutoOverdue
-            ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
-            : 0;
-        final autoOverdueCost = autoOverdueDays * nightlyRate;
-
-        pdfContent.add(pw.SizedBox(height: 16));
-
-        pdfContent.add(
-          epdf.EnhancedPdfUtils.buildInfoCard(
-            title: isAutoOverdue
-                ? 'المغادرة المخططة (مُمدَّدة تلقائياً)'
-                : 'المغادرة المخططة (محسوبة من المدفوعات)',
-            fonts: fonts,
-            content: [
-              _buildPdfInfoRow(
-                fonts,
-                'إجمالي المدفوع:',
-                '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال',
-                valueColor: const PdfColor(0.0, 0.5, 0.8),
+    // ✅ الشاشة تُمرّر بيانات فقط — التصميم بالكامل في القالب المستقل
+    // lib/src/pdf/report_templates/guest_statement_pdf.dart.
+    await GuestStatementPdf.share(
+      GuestStatementData(
+        guestName: b.guestName,
+        roomNumber: b.roomNumber,
+        checkinDate: coverage.checkinDate,
+        manualCheckoutDate: coverage.manualCheckoutDate,
+        actualDays: actualDays,
+        nightsRemaining: coverage.manualNightsRemaining,
+        nightlyRate: nightlyRate,
+        consumedCost: consumedCost,
+        remainingBalance: b.remainingBalanceCached,
+        totalPaid: b.totalPaidCached,
+        plannedCheckout: plannedCheckout,
+        totalPaidNights: coverage.totalPaidNights,
+        effectiveBalance: coverage.effectiveBalance,
+        hasPayments: coverage.hasPayments,
+        surplusAfterAllNights: coverage.surplusAfterAllNights,
+        autoOverdueDays: autoOverdueDays,
+        autoOverdueCost: autoOverdueCost,
+        payments: payments
+            .map(
+              (p) => GuestStatementPayment(
+                dateText: p.paymentDate,
+                amount: p.amount,
+                method: p.paymentMethod,
+                reference: p.referenceNumber ?? '---',
+                notes: p.notes ?? '',
               ),
-              _buildPdfInfoRow(
-                fonts,
-                'سعر الليلة:',
-                '${CurrencyFormatter.formatAmount(nightlyRate)} ريال',
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'الليالي المدفوعة:',
-                '${coverage.totalPaidNights} ليلة',
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'المغادرة المخططة:',
-                _dateFormatter.format(plannedCheckout),
-                valueColor: const PdfColor(0.0, 0.6, 0.3),
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'تكلفة الإقامة المستهلكة:',
-                '${CurrencyFormatter.formatAmount(coverage.consumedCost)} ريال',
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'الرصيد الفعلي:',
-                '${CurrencyFormatter.formatAmount(coverage.effectiveBalance)} ريال',
-                valueColor: coverage.effectiveBalance >= 0
-                    ? const PdfColor(0.0, 0.7, 0.3)
-                    : const PdfColor(0.9, 0.3, 0.1),
-              ),
-              if (isAutoOverdue && autoOverdueDays > 0) ...[
-                pw.Divider(
-                  color: const PdfColor(0.8, 0.8, 0.8),
-                  thickness: 0.5,
-                ),
-                _buildPdfInfoRow(
-                  fonts,
-                  'تمديد تلقائي:',
-                  '+$autoOverdueDays يوم',
-                  valueColor: const PdfColor(0.9, 0.5, 0.1),
-                ),
-                _buildPdfInfoRow(
-                  fonts,
-                  'تكلفة التمديد:',
-                  '${CurrencyFormatter.formatAmount(autoOverdueCost)} ريال',
-                  valueColor: const PdfColor(0.9, 0.3, 0.1),
-                ),
-                _buildPdfInfoRow(
-                  fonts,
-                  'ملاحظة:',
-                  'المغادرة يدوياً فقط — لا يتم إخراج النزيل تلقائياً',
-                  valueColor: const PdfColor(0.4, 0.4, 0.4),
-                ),
-              ],
-              if (coverage.surplusAfterAllNights > 0)
-                _buildPdfInfoRow(
-                  fonts,
-                  'فائض:',
-                  '${CurrencyFormatter.formatAmount(coverage.surplusAfterAllNights)} ريال',
-                  valueColor: const PdfColor(0.0, 0.7, 0.3),
-                ),
-            ],
-          ),
-        );
-
-        pdfContent.addAll([
-          pw.SizedBox(height: 20),
-
-          // ─── جدول المدفوعات ───
-          pw.Text(
-            'سجل المدفوعات التفصيلي',
-            style: pw.TextStyle(
-              font: fonts.bold,
-              fontSize: 14,
-              color: const PdfColor(0.0, 0.12, 0.36),
-            ),
-          ),
-          pw.SizedBox(height: 10),
-          ...epdf.EnhancedPdfUtils.buildChunkedTable(
-            fonts: fonts,
-            headers: [
-              'التاريخ',
-              'المبلغ',
-              'طريقة الدفع',
-              'رقم المرجع',
-              'ملاحظات',
-            ],
-            data: payments
-                .map(
-                  (p) => [
-                    p.paymentDate.split('T').first,
-                    CurrencyFormatter.formatAmount(p.amount),
-                    p.paymentMethod,
-                    p.referenceNumber ?? '---',
-                    p.notes ?? '',
-                  ],
-                )
-                .toList(),
-            columnFlex: [80, 80, 70, 70, 120],
-          ),
-
-          pw.SizedBox(height: 30),
-
-          // ─── التذييل ───
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    'ملاحظات:',
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 10),
-                  ),
-                  pw.Text(
-                    'يُحتسب اليوم الفندقي من الساعة 2:00 ظهراً.',
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 9),
-                  ),
-                  pw.Text(
-                    'تاريخ المغادرة التلقائي يُحسب من إجمالي المدفوعات التراكمية مقسومة على سعر الليلة.',
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 9),
-                  ),
-                  pw.Text(
-                    'أي دفعة جديدة تُحدّث تاريخ المغادرة التلقائي فوراً.',
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 9),
-                  ),
-                ],
-              ),
-              pw.Column(
-                children: [
-                  pw.Text(
-                    'ختم وتوقيع الإدارة',
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 12),
-                  ),
-                  pw.SizedBox(height: 40),
-                  pw.Container(
-                    width: 120,
-                    height: 1,
-                    color: const PdfColor(0, 0, 0),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          pw.SizedBox(height: 20),
-          pw.Center(
-            child: pw.Text(
-              'شكراً لاختياركم فندق مارينا - نتمنى لكم إقامة سعيدة',
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 10,
-                color: const PdfColor(0.4, 0.4, 0.4),
-                fontStyle: pw.FontStyle.italic,
-              ),
-            ),
-          ),
-        ]);
-
-        return pdfContent;
-      },
-    );
-
-    await ReportPdfBuilder.buildAndShare(config);
-  }
-
-  pw.Widget _buildPdfInfoRow(
-    epdf.ArabicPdfFonts fonts,
-    String label,
-    String value, {
-    PdfColor? valueColor,
-  }) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 3),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              font: fonts.regular,
-              fontSize: 11,
-              color: const PdfColor(0.15, 0.15, 0.15),
-            ),
-          ),
-          pw.Text(
-            value,
-            style: pw.TextStyle(
-              font: fonts.bold,
-              fontSize: 11,
-              color: valueColor ?? const PdfColor(0, 0, 0),
-            ),
-          ),
-        ],
+            )
+            .toList(),
       ),
     );
   }
@@ -1610,190 +1321,40 @@ class _GuestPaymentsDetailReportScreenState
     final now = DateTime.now();
     final dateStr = DateFormat('yyyy/MM/dd HH:mm').format(now);
 
-    final config = ReportPdfConfig(
-      title: 'تقرير مدفوعات النزلاء التفصيلي',
-      fileName: ReportPdfBuilder.generateFileName('تقرير-مدفوعات-النزلاء'),
-      extraHeaderLine: 'مارينا هوتيل | $dateStr',
-      buildContent: (fonts) {
-        final List<pw.Widget> pdfContent = [
-          // ─── ملخص عام ───
-          epdf.EnhancedPdfUtils.buildInfoCard(
-            title: 'ملخص التقرير',
-            fonts: fonts,
-            content: [
-              _buildPdfInfoRow(fonts, 'تاريخ التقرير:', dateStr),
-              _buildPdfInfoRow(
-                fonts,
-                'عدد النزلاء:',
-                '${filtered.length}',
-                valueColor: const PdfColor(0.0, 0.4, 0.8),
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'إجمالي المستحق:',
-                '${CurrencyFormatter.formatAmount(totalDue)} ريال',
-                valueColor: const PdfColor(0.6, 0.4, 0.0),
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'إجمالي المحصل:',
-                '${CurrencyFormatter.formatAmount(totalPaid)} ريال',
-                valueColor: const PdfColor(0.0, 0.6, 0.2),
-              ),
-              _buildPdfInfoRow(
-                fonts,
-                'إجمالي المتبقي:',
-                '${CurrencyFormatter.formatAmount(totalRemaining)} ريال',
-                valueColor: const PdfColor(0.9, 0.3, 0.1),
-              ),
-              if (totalCredit > 0)
-                _buildPdfInfoRow(
-                  fonts,
-                  'إجمالي الزيادة:',
-                  '${CurrencyFormatter.formatAmount(totalCredit)} ريال',
-                  valueColor: const PdfColor(0.0, 0.6, 0.6),
-                ),
-            ],
-          ),
-        ];
-
-        // ─── بطاقة لكل نزيل ───
-        for (final b in filtered) {
+    // ✅ الشاشة تُمرّر بيانات فقط — التصميم بالكامل في القالب المستقل
+    // lib/src/pdf/report_templates/guest_statement_pdf.dart.
+    await GuestsBalancesPdf.share(
+      GuestsBalancesData(
+        rows: filtered.map((b) {
           final actualDays = _getActualDaysSpent(b);
           final coverage = _calculateCoverage(b);
           final nightlyRate = _getAverageNightlyRate(b);
-
-          pdfContent.add(pw.SizedBox(height: 12));
-          pdfContent.add(
-            epdf.EnhancedPdfUtils.buildInfoCard(
-              title: 'غرفة ${b.roomNumber} — ${b.guestName}',
-              fonts: fonts,
-              content: [
-                _buildPdfInfoRow(
-                  fonts,
-                  'تاريخ الوصول:',
-                  _dateFormatter.format(coverage.checkinDate),
-                ),
-                _buildPdfInfoRow(
-                  fonts,
-                  'المغادرة المتوقعة:',
-                  coverage.formatDate(coverage.manualCheckoutDate),
-                ),
-                _buildPdfInfoRow(fonts, 'الأيام المقضية:', '$actualDays يوم'),
-                _buildPdfInfoRow(
-                  fonts,
-                  'سعر الليلة:',
-                  '${CurrencyFormatter.formatAmount(nightlyRate)} ريال',
-                ),
-                // ✅ عرض الإجمالي والمبلغ المتبقي في سطر واحد
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Expanded(
-                      child: pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text(
-                            'إجمالي العقد:',
-                            style: pw.TextStyle(
-                              font: fonts.regular,
-                              fontSize: 10,
-                              color: const PdfColor(0.15, 0.15, 0.15),
-                            ),
-                          ),
-                          pw.Text(
-                            '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال',
-                            style: pw.TextStyle(
-                              font: fonts.bold,
-                              fontSize: 10,
-                              color: const PdfColor(0, 0, 0),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    pw.SizedBox(width: 12),
-                    pw.Expanded(
-                      child: pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text(
-                            b.remainingBalanceCached < 0
-                                ? 'المتبقي (له):'
-                                : 'المتبقي (عليه):',
-                            style: pw.TextStyle(
-                              font: fonts.bold,
-                              fontSize: 10,
-                              color: b.remainingBalanceCached < 0
-                                  ? const PdfColor(0.0, 0.6, 0.3)
-                                  : const PdfColor(0.9, 0.2, 0.2),
-                            ),
-                          ),
-                          pw.Text(
-                            '${CurrencyFormatter.formatAmount(b.remainingBalanceCached.abs())} ريال',
-                            style: pw.TextStyle(
-                              font: fonts.bold,
-                              fontSize: 10,
-                              color: b.remainingBalanceCached < 0
-                                  ? const PdfColor(0.0, 0.6, 0.3)
-                                  : const PdfColor(0.9, 0.2, 0.2),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                pw.Divider(
-                  color: const PdfColor(0.85, 0.85, 0.85),
-                  thickness: 0.3,
-                ),
-                _buildPdfInfoRow(
-                  fonts,
-                  'إجمالي المدفوع:',
-                  '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال',
-                  valueColor: const PdfColor(0.0, 0.5, 0.2),
-                ),
-                if (coverage.hasPayments) ...[
-                  pw.Divider(
-                    color: const PdfColor(0.8, 0.8, 0.8),
-                    thickness: 0.5,
-                  ),
-                  _buildPdfInfoRow(
-                    fonts,
-                    'المغادرة التلقائية:',
-                    _dateFormatter.format(coverage.autoCheckoutDate),
-                    valueColor: const PdfColor(0.0, 0.4, 0.7),
-                  ),
-                  _buildPdfInfoRow(
-                    fonts,
-                    'الليالي المدفوعة:',
-                    '${coverage.totalPaidNights} ليلة',
-                  ),
-                  if (coverage.isAutoExtended)
-                    _buildPdfInfoRow(
-                      fonts,
-                      'تمديد تلقائي:',
-                      '+${coverage.extraNightsBeyondManual} يوم',
-                      valueColor: const PdfColor(0.0, 0.7, 0.3),
-                    ),
-                  if (coverage.uncoveredDays > 0)
-                    _buildPdfInfoRow(
-                      fonts,
-                      'أيام غير مغطاة:',
-                      '${coverage.uncoveredDays} ليلة',
-                      valueColor: const PdfColor(0.9, 0.3, 0.1),
-                    ),
-                ],
-              ],
-            ),
+          return GuestBalanceRow(
+            roomNumber: b.roomNumber,
+            guestName: b.guestName,
+            checkinDate: coverage.checkinDate,
+            expectedCheckoutText: coverage.manualCheckoutDate != null
+                ? _dateFormatter.format(coverage.manualCheckoutDate!)
+                : 'غير محدد',
+            actualDays: actualDays,
+            nightlyRate: nightlyRate,
+            contractTotal: b.totalDueCached,
+            remainingBalance: b.remainingBalanceCached,
+            totalPaid: b.totalPaidCached,
+            hasPayments: coverage.hasPayments,
+            autoCheckoutText: _dateFormatter.format(coverage.autoCheckoutDate),
+            totalPaidNights: coverage.totalPaidNights,
+            isAutoExtended: coverage.isAutoExtended,
+            extraNightsBeyondManual: coverage.extraNightsBeyondManual,
+            uncoveredDays: coverage.uncoveredDays,
           );
-        }
-
-        return pdfContent;
-      },
+        }).toList(),
+        totalDue: totalDue,
+        totalPaid: totalPaid,
+        totalRemaining: totalRemaining,
+        totalCredit: totalCredit,
+        reportDateText: dateStr,
+      ),
     );
-
-    await ReportPdfBuilder.buildAndShare(config);
   }
 }

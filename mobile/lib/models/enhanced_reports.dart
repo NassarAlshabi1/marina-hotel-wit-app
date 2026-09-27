@@ -3,7 +3,7 @@ import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../utils/enhanced_pdf_utils.dart';
+import '../src/pdf/enhanced_pdf_utils.dart';
 
 /// تقرير دفوعات محسّن
 class EnhancedPaymentsReport {

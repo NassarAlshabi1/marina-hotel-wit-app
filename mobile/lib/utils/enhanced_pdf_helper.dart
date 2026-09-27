@@ -11,7 +11,7 @@ import 'package:printing/printing.dart';
 import '../models/enhanced_payment_models.dart';
 import '../models/enhanced_reports.dart';
 import '../services/local_db.dart';
-import 'enhanced_pdf_utils.dart';
+import '../src/pdf/enhanced_pdf_utils.dart';
 
 DateTime _safeParseDateTime(String? dateStr, {DateTime? fallback}) {
   if (dateStr == null || dateStr.trim().isEmpty) {
