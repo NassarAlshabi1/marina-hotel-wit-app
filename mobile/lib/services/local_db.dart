@@ -1,16 +1,13 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:io';
 
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
 import '../utils/weak_device_optimizer.dart';
+import 'app_db_connection_web.dart'
+    if (dart.library.io) 'app_db_connection_io.dart';
 
 part 'local_db.g.dart';
 
@@ -3791,24 +3788,12 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-LazyDatabase _open() {
-  return LazyDatabase(() async {
-    // ✅ دعم Windows/Linux/macOS عبر path_provider + sqflite_common_ffi
-    // sqflite.getDatabasesPath() لا يعمل على Desktop (Android/iOS فقط)
-    final Directory dbDir;
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      // على Desktop، استخدم ApplicationDocumentsPath
-      final appDir = await getApplicationDocumentsDirectory();
-      dbDir = appDir;
-    } else {
-      // على Mobile، استخدم sqflite path
-      final sqfliteDir = await sqflite.getDatabasesPath();
-      dbDir = Directory(sqfliteDir);
-    }
-    final file = File(p.join(dbDir.path, _dbFileName));
-    return NativeDatabase.createInBackground(file);
-  });
-}
+/// يفتح اتصال قاعدة البيانات عبر استيراد مشروط:
+/// - المنصات الأصلية: app_db_connection_io.dart (NativeDatabase — نفس
+///   المنطق السابق حرفياً).
+/// - الويب: app_db_connection_web.dart (drift WASM — يُمكّن بناء PWA
+///   بدون dart:ffi الذي لا يتوفر على المتصفح).
+QueryExecutor _open() => openAppDatabaseConnection(_dbFileName);
 
 extension EmployeeX on Employee {
   double get salary => basicSalary;
