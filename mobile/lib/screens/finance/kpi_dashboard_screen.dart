@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/finance_kpi_providers.dart';
+import '../../services/cloudflare_finance_service.dart';
 import '../../src/finance/finance_models.dart';
+import '../../utils/currency_formatter.dart';
 
 /// شاشة لوحة المؤشرات الأسبوعية (KPIs).
 ///
@@ -65,6 +67,8 @@ class KpiDashboardScreen extends ConsumerWidget {
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
               ),
+              const SizedBox(height: 14),
+              const _VarianceSection(),
             ],
           ),
         ),
@@ -258,5 +262,323 @@ class _KpiRow extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  الفعلي مقابل المتوقع (حوكمة أسبوعية — خطوات §8)
+//
+//  - اعتماد نسخة أسبوعية من النموذج (manager/admin على الخادم).
+//  - مقارنة الأسابيع المنتهية فعلياً بحركات D1 الحية بعتبات
+//    5% (أخضر) / 10% (أصفر) / >10% (أحمر).
+// ═══════════════════════════════════════════════════════════════════
+
+class _VarianceSection extends ConsumerStatefulWidget {
+  const _VarianceSection();
+
+  @override
+  ConsumerState<_VarianceSection> createState() => _VarianceSectionState();
+}
+
+class _VarianceSectionState extends ConsumerState<_VarianceSection> {
+  bool _approving = false;
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'green':
+        return Colors.green;
+      case 'yellow':
+        return Colors.orange;
+      case 'red':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Future<void> _approve() async {
+    setState(() => _approving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final service = ref.read(cloudflareFinanceServiceProvider);
+      await service
+          .approveSnapshot(
+              label: 'نسخة ${DateTime.now().toIso8601String().substring(0, 10)}')
+          .timeout(const Duration(seconds: 40));
+      ref.invalidate(financeSnapshotsProvider);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('تم اعتماد نسخة الأسبوع بنجاح')),
+      );
+    } on CloudflareFinanceException catch (e) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          e.isForbidden
+              ? 'اعتماد النسخة يتطلب صلاحية مدير'
+              : 'فشل الاعتماد: ${e.message}',
+        ),
+      ));
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('تعذر الاتصال بالخادم: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _approving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final snapshotsAsync = ref.watch(financeSnapshotsProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.fact_check_outlined, size: 16),
+                const SizedBox(width: 6),
+                const Expanded(
+                  child: Text(
+                    'الفعلي مقابل المتوقع (اعتماد أسبوعي)',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _approving ? null : _approve,
+                  icon: _approving
+                      ? const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 1.6),
+                        )
+                      : const Icon(Icons.verified_outlined, size: 15),
+                  label: const Text('اعتماد نسخة الأسبوع',
+                      style: TextStyle(fontSize: 11.5)),
+                ),
+              ],
+            ),
+            Text(
+              'يعتمد المدير نسخة أسبوعية من النموذج، ثم تُقارن الأسابيع '
+              'المنتهية فعلياً بالحركات الحقيقية: أخضر ≤ 5%، أصفر ≤ 10%، '
+              'أحمر > 10% ويُفسَّر بإجراء ومسؤول.',
+              style: TextStyle(fontSize: 10.5, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            snapshotsAsync.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+              error: (e, _) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_off, size: 14, color: Colors.grey[500]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'اللقطات الأسبوعية تتطلب اتصالاً بالخادم وصلاحية '
+                        'مدير أو أعلى.',
+                        style:
+                            TextStyle(fontSize: 10.5, color: Colors.grey[600]),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'إعادة المحاولة',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () =>
+                          ref.invalidate(financeSnapshotsProvider),
+                      icon: const Icon(Icons.refresh, size: 17),
+                    ),
+                  ],
+                ),
+              ),
+              data: (snapshots) {
+                if (snapshots.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      'لا توجد نسخ معتمدة بعد — اعتمد أول نسخة أسبوعية '
+                      'لتبدأ مقارنة الفعلي بالمتوقع.',
+                      style: TextStyle(fontSize: 10.5, color: Colors.grey[600]),
+                    ),
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final snap in snapshots.take(8))
+                      _SnapshotTile(
+                        snapshot: snap,
+                        statusColor: _statusColor,
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── صف لقطة أسبوعية قابل للتوسيع لعرض الانحراف ──────────────────────
+
+class _SnapshotTile extends ConsumerWidget {
+  const _SnapshotTile({required this.snapshot, required this.statusColor});
+
+  final FinanceSnapshotMeta snapshot;
+  final Color Function(String) statusColor;
+
+  String _fmtDate(DateTime d) =>
+      '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final varianceAsync = ref.watch(financeVarianceProvider(snapshot.id));
+
+    return ExpansionTile(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+      childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      dense: true,
+      title: Text(
+        snapshot.label,
+        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        '${snapshot.scenarioKey} • ${_fmtDate(snapshot.approvedAt)} • '
+        'احتياج تمويل: ${CurrencyFormatter.formatAmount(snapshot.financingNeed)}',
+        style: TextStyle(fontSize: 10.5, color: Colors.grey[600]),
+        overflow: TextOverflow.ellipsis,
+      ),
+      children: [
+        varianceAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(10),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+          error: (e, _) => Padding(
+            padding: const EdgeInsets.all(6),
+            child: Text(
+              'تعذر حساب المقارنة: $e',
+              style: TextStyle(fontSize: 10.5, color: Colors.grey[600]),
+            ),
+          ),
+          data: (report) {
+            final ended =
+                report.weeks.where((w) => w.actual != null).toList();
+            if (ended.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.all(6),
+                child: Text(
+                  'لم ينتهِ أي أسبوع من هذه النسخة بعد — المقارنة تظهر '
+                  'بعد مرور أسبوع على الاعتماد.',
+                  style: TextStyle(fontSize: 10.5, color: Colors.grey[600]),
+                ),
+              );
+            }
+            return Column(
+              children: [
+                for (final w in ended)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusColor(w.status).withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border(
+                        left: BorderSide(color: statusColor(w.status), width: 3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_statusIconFor(w.status),
+                            size: 14, color: statusColor(w.status)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'الأسبوع ${w.index}  (${w.start} ← ${w.end})',
+                                style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'داخل متوقع '
+                                '${CurrencyFormatter.formatAmount(w.forecast.inflow)} '
+                                '• فعلي '
+                                '${CurrencyFormatter.formatAmount(w.actual!.inflow)}'
+                                '${w.varianceNetPct == null ? '' : '  |  صافي الانحراف ${w.varianceNetPct!.toStringAsFixed(1)}%'}',
+                                style: TextStyle(
+                                    fontSize: 10, color: Colors.grey[700]),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor(w.status),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            _statusLabel(w.status),
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  IconData _statusIconFor(String status) {
+    switch (status) {
+      case 'green':
+        return Icons.check_circle_outline;
+      case 'yellow':
+        return Icons.warning_amber_rounded;
+      case 'red':
+        return Icons.error_outline;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'green':
+        return 'مطابق';
+      case 'yellow':
+        return 'يراقب';
+      case 'red':
+        return 'انحراف';
+      default:
+        return '—';
+    }
   }
 }

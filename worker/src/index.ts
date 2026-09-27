@@ -10,6 +10,7 @@ import { SyncLockDO, type RealtimeMessage } from './sync-lock';
 import { RealtimeHubDO } from './realtime-hub';
 import { handleAiRequest } from './ai';
 import { handleScheduledCleanup } from './maintenance';
+import { handleFinanceRequest } from './finance-routes';
 
 // ─── Environment bindings ─────────────────────────────────────
 
@@ -511,6 +512,16 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           logRequest(method, path, 500, Date.now() - startTime, clientIp);
           return json({ error: 'Device token fetch failed', detail: String(err) }, 500, env);
         }
+      }
+
+      // ─── Finance: نموذج 13 أسبوعاً + KPI + اللقطات والانحراف ───
+      // الحساب خادمي على D1 الحية (مصدر حقيقة واحد عبر الأجهزة).
+      // القراءة لكل الأدوار؛ الاعتماد والمقارنة admin/manager
+      // (بوابة الدور داخل handleFinanceRequest نفسه).
+      if (path.startsWith('/api/finance/')) {
+        const response = await handleFinanceRequest(request, db.raw, ctx, url, env);
+        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
+        return response;
       }
 
       // ─── Durable Object: Sync Lock ────────────────────────

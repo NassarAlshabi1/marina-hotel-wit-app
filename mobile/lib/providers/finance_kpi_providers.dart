@@ -1,9 +1,11 @@
 /// Providers المالية العليا: نموذج التدفقات النقدية لـ13 أسبوعاً
 /// ولوحة مؤشرات الأداء الأسبوعية.
 ///
-/// تقرأ البيانات من قاعدة البيانات المحلية (drift) المتزامنة حياً من
-/// Appwrite — نفس مصدر باقي شاشات التطبيق — وتغذي المحركات في
-/// `lib/src/finance`.
+/// مصدر الحقيقة: **Cloudflare D1 الحية** — النموذج يُحسب على الـWorker
+/// (`worker/src/finance.ts`) ليكون موحداً عبر كل الأجهزة. عند تعذر
+/// الوصول (لا توكن / شبكة ضعيفة / خطأ خادم) يسقط المزود تلقائياً إلى
+/// المحركات المحلية في `lib/src/finance` على بيانات drift المتزامنة،
+/// فتبقى الشاشات عاملة دون اتصال.
 library;
 
 import 'dart:async';
@@ -14,11 +16,13 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/cloudflare_finance_service.dart';
 import '../services/local_db.dart' as db;
 import '../src/finance/finance_models.dart';
 import '../src/finance/forecast_engine.dart';
 import '../src/finance/kpi_engine.dart';
 import '../src/finance/payment_profile_analyzer.dart';
+import 'cloudflare_providers.dart';
 import 'repository_providers.dart';
 
 // ── حفظ معاملات السيناريوهات ────────────────────────────────────────
@@ -105,7 +109,17 @@ final scenarioSettingsProvider =
   (ref) => ScenarioSettingsController(),
 );
 
-// ── لقطة البيانات المشتركة ──────────────────────────────────────────
+// ── عميل التمويل السحابي ────────────────────────────────────────────
+
+/// عميل نقاط /api/finance/* — يقرأ توكن الـWorker الحي وقت الإنشاء.
+final cloudflareFinanceServiceProvider = Provider<CloudflareFinanceService>(
+  (ref) {
+    final manager = ref.watch(cloudflareSyncManagerProvider);
+    return CloudflareFinanceService(token: manager.token);
+  },
+);
+
+// ── لقطة البيانات المشتركة (المسار المحلي الاحتياطي) ────────────────
 
 /// لقطة السجلات النشطة المطلوبة للمحركين (تُجلب مرة واحدة).
 class FinanceDataBundle {
@@ -169,20 +183,55 @@ final paymentProfileProvider = FutureProvider<PaymentProfile>((ref) async {
   );
 });
 
+// ── مصدر الحساب (للعرض الشفاف في الواجهة) ───────────────────────────
+
+/// مصدر آخر حساب للنموذج لكل سيناريو: d1 (خادمي) أو local (احتياطي).
+final forecastSourceProvider =
+    Provider.family<FinanceComputeSource?, String>((ref, scenarioKey) {
+  // يعاد تقييمه عند كل تغير لحالة مزود النموذج (تحميل/نجاح/فشل)
+  ref.watch(forecastResultProvider(scenarioKey));
+  return _forecastSources[scenarioKey];
+});
+
+final _forecastSources = <String, FinanceComputeSource>{};
+
 // ── نموذج الـ13 أسبوعاً (حسب السيناريو) ──────────────────────────────
 
 /// توقع التدفقات لسيناريو بمفتاحه (base / conservative / stress).
+///
+/// يُحسب على الـWorker من D1 الحية أولاً؛ وعند الفشل يعاد الحساب
+/// محلياً بنفس المنطق من بيانات drift المتزامنة.
 final forecastResultProvider =
     FutureProvider.family<ForecastResult, String>((ref, scenarioKey) async {
-  final bundle = await ref.watch(financeDataBundleProvider.future);
-  final profile = await ref.watch(paymentProfileProvider.future);
   final scenarios = ref.watch(scenarioSettingsProvider);
   final scenario = scenarios
           .where((s) => s.key == scenarioKey)
           .firstOrNull ??
       ScenarioParams.defaults.first;
 
-  return const ForecastEngine().build(
+  // 1) الخادم أولاً — مصدر الحقيقة الموحد عبر الأجهزة
+  if (ref.read(cloudflareSyncManagerProvider).token != null) {
+    try {
+      final service = ref.read(cloudflareFinanceServiceProvider);
+      final result = await service
+          .fetchForecast(
+            scenarioKey: scenario.key,
+            revenueFactor: scenario.revenueFactor,
+            collectionFactor: scenario.collectionFactor,
+          )
+          .timeout(const Duration(seconds: 25));
+      _forecastSources[scenarioKey] = FinanceComputeSource.d1;
+      return result;
+    } catch (_) {
+      // سقوط مقصود إلى الحساب المحلي
+    }
+  }
+
+  // 2) الاحتياطي المحلي (بدون اتصال)
+  final bundle = await ref.watch(financeDataBundleProvider.future);
+  final profile = await ref.watch(paymentProfileProvider.future);
+
+  final result = const ForecastEngine().build(
     bookings: bundle.bookings,
     payments: bundle.payments,
     expenses: bundle.expenses,
@@ -191,11 +240,26 @@ final forecastResultProvider =
     scenario: scenario,
     profile: profile,
   );
+  _forecastSources[scenarioKey] = FinanceComputeSource.local;
+  return result;
 });
 
 // ── لوحة المؤشرات الأسبوعية ─────────────────────────────────────────
 
 final kpiSnapshotProvider = FutureProvider<KpiSnapshot>((ref) async {
+  // 1) الخادم أولاً — يحسب النسبة المؤكدة داخلياً من السيناريو الأساسي
+  if (ref.read(cloudflareSyncManagerProvider).token != null) {
+    try {
+      final service = ref.read(cloudflareFinanceServiceProvider);
+      final snapshot =
+          await service.fetchKpi().timeout(const Duration(seconds: 25));
+      return snapshot;
+    } catch (_) {
+      // سقوط مقصود إلى الحساب المحلي
+    }
+  }
+
+  // 2) الاحتياطي المحلي
   final bundle = await ref.watch(financeDataBundleProvider.future);
 
   // نسبة التدفق المؤكد من الأسبوع الأول للسيناريو الأساسي
@@ -217,4 +281,24 @@ final kpiSnapshotProvider = FutureProvider<KpiSnapshot>((ref) async {
     totalRooms: bundle.totalRooms,
     forecastWeek1ConfirmedRatio: confirmedRatio,
   );
+});
+
+// ── اللقطات الأسبوعية المعتمدة + الفعلي مقابل المتوقع ────────────────
+
+/// قائمة النسخ الأسبوعية المعتمدة (تحتاج manager/admin على الخادم).
+final financeSnapshotsProvider =
+    FutureProvider<List<FinanceSnapshotMeta>>((ref) async {
+  final service = ref.read(cloudflareFinanceServiceProvider);
+  return service
+      .fetchSnapshots()
+      .timeout(const Duration(seconds: 25));
+});
+
+/// تقرير الانحراف لنسخة معتمدة بمعرّفها (عتبات 5% / 10%).
+final financeVarianceProvider =
+    FutureProvider.family<FinanceVarianceReport, int>((ref, snapshotId) async {
+  final service = ref.read(cloudflareFinanceServiceProvider);
+  return service
+      .fetchVariance(snapshotId)
+      .timeout(const Duration(seconds: 25));
 });
