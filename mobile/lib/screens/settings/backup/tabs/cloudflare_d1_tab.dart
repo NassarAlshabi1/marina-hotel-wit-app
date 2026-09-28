@@ -5,15 +5,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../providers/repository_providers.dart';
 import '../../../../services/cloudflare_config.dart';
+import '../../../../services/cloudflare_d1_push_mirror.dart';
 import '../../../../services/cloudflare_d1_service.dart';
+import '../../../../services/cloudflare_sync_manager.dart';
 import '../../../../services/daos/outbox_dao.dart';
 import '../../../../widgets/cloudflare_auto_connection_card.dart';
 
 /// تبويب رفع بيانات جداول المزامنة (المطابقة لمجموعات Appwrite Cloud)
 /// إلى Cloudflare D1.
 ///
-/// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT OR REPLACE
-/// إلى D1 — لا يمس حلقة مزامنة Appwrite ولا يحذف أي سجل بعيد.
+/// ✅ (2026-09-28 — قرار RU3) الرفع الفعلي للبيانات يمر عبر outbox +
+/// CloudflareSyncManager (نفس بروتوكول /api/sync/push الذي تستخدمه
+/// المزامنة العادية) بدل INSERT OR REPLACE الخام عبر REST API الإداري.
+/// السبب: INSERT OR REPLACE لا يفحص version/الساعة المتجهة قبل
+/// الاستبدال — أُثبت تجريبياً (raw_d1_backup_upload_outbox_test.dart،
+/// RU3) أنه يمحو صمتاً تعديلات خادمية أحدث حقيقية إن رفع جهاز يحمل
+/// نسخة محلية قديمة. مسار /push محمي بـ resolveLwwDecision
+/// (worker/src/database.ts:976) الذي يرفض أي دفعة أقدم زمنياً/إصدارياً
+/// من الصف المخزَّن حالياً — التفاصيل في CloudflareD1PushMirror.
+/// القراءة تبقى من القاعدة المحلية فقط (SELECT) — لا يمس حلقة مزامنة
+/// Appwrite ولا يحذف أي سجل بعيد.
 /// النطاق: [CloudflareConfig.d1BackupTables] = كيانات النطاق الافتراضي
 /// للمزامنة حصراً (migrationOrder — 24 كياناً بتأكيد المستخدم
 /// 2026-09-05 الذي أضاف user_app/app_users ثم devices)، ومعها يُجسَّد كيان
@@ -81,7 +92,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   String _stage = '';
   final List<String> _logs = <String>[];
   CloudflareD1UploadResult? _result;
-  CloudflareD1Service? _activeService;
+  CloudflareD1PushMirror? _activeMirror;
   int _outboxPending = 0;
 
   @override
@@ -145,6 +156,12 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     databaseId: _databaseIdCtrl.text.trim(),
     apiToken: _tokenCtrl.text.trim(),
   );
+
+  /// ✅ الرفع الفعلي (CloudflareD1PushMirror) يمر عبر جلسة مزامنة الجهاز
+  /// العادية (JWT عبر CloudflareSyncManager) لا التوكن الإداري أعلاه —
+  /// هذا هو الشرط الحقيقي لتفعيل زر الرفع الآن، لا فحص DML الإداري
+  /// (probe) الذي بات تشخيصياً بحتاً بعد قرار RU3.
+  bool get _syncSessionReady => CloudflareSyncManager().token != null;
 
   Future<void> _probe() async {
     if (!_config.isComplete) {
@@ -297,11 +314,16 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الرفع إلى Cloudflare D1'),
         content: Text(
-          'سيتم رفع ${_selected.length} جدولاً ($totalRows صفاً) إلى قاعدة '
-          'D1 المحددة باستخدام INSERT OR REPLACE.\n\n'
+          'سيتم رفع ${_selected.length} جدولاً ($totalRows صفاً) عبر بروتوكول '
+          'المزامنة الحقيقي (/api/sync/push) — كل صف يمر بنفس فحص الإصدار '
+          'والساعة المتجهة الذي يحمي التعديلات العادية.\n\n'
           '• لا يُحذف أي سجل موجود في D1 غير موجود محلياً.\n'
-          '• إعادة الرفع آمنة (نفس البيانات تستبدل نفسها).\n'
-          '• يُنصح بعدد صفوف كبير بألا تكون هناك عمليات كتابة كثيرة أثناء الرفع.',
+          '• الخادم يرفض تلقائياً أي صف قديم على هذا الجهاز إن كان أحدث '
+          'فعلياً على D1 (لا يمكن لجهاز لم يُزامن منذ فترة أن يمحو عمل '
+          'جهاز آخر).\n'
+          '• إعادة الرفع آمنة (نفس البيانات تُعاد إرسالها بلا ضرر).\n'
+          '• قد يستغرق وقتاً أطول من الرفع المباشر السابق لأنه يمر بحدود '
+          'المعدّل العادية للمزامنة — هذا مقصود وجزء من الحماية.',
         ),
         actions: [
           TextButton(
@@ -321,8 +343,12 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
 
   Future<void> _upload() async {
     final db = ref.read(databaseProvider);
-    final service = CloudflareD1Service(_config);
-    _activeService = service;
+    // ✅ الكتابة الفعلية إلى D1 تمر عبر CloudflareD1PushMirror (outbox +
+    // /api/sync/push) لا عبر CloudflareD1Service — الأعضاء الساكنة
+    // (blacklistSourceSql/blacklistRowFromShiftNote/shiftNotesSourceSql)
+    // أدناه لا تحتاج نسخة (instance)، فقط بناء الأعمدة/التحويل محلياً.
+    final mirror = CloudflareD1PushMirror(db);
+    _activeMirror = mirror;
 
     final sources = <CloudflareD1SourceTable>[];
     for (final t in _localTables) {
@@ -382,10 +408,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     });
 
     try {
-      final label = _deviceLabelCtrl.text.trim();
-      final result = await service.uploadData(
+      final result = await mirror.upload(
         tables: sources,
-        deviceLabel: label.isEmpty ? null : label,
         onProgress: (p) {
           if (!mounted) return;
           setState(() {
@@ -410,14 +434,14 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
             ..addAll(result.errors.take(10));
         });
       }
-    } on CloudflareD1Exception catch (e) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _uploading = false;
-        _stage = 'فشل الرفع: ${e.message}';
+        _stage = 'فشل الرفع: $e';
       });
     } finally {
-      _activeService = null;
+      _activeMirror = null;
     }
   }
 
@@ -461,14 +485,15 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         const SizedBox(height: 8),
         const Text(
           'ينقل هذا التبويب بيانات جداول المزامنة (كيانات مزامنة '
-          'Cloudflare حصراً) إلى قاعدة Cloudflare D1 كنسخة استشارية على '
-          'السحابة. '
-          'القراءة من القاعدة المحلية فقط، والكتابة بأسلوب INSERT OR '
-          'REPLACE الآمن. القائمة السوداء blacklist كيان بلا جدول '
-          'محلي فتُجسَّد من ملاحظات الورديات الموسومة إلى جدولها في '
-          'D1، أما hotel_day_ledger (محلي-فقط) وجداول البنية المحلية '
-          '(outbox، sync_remote_meta، sync_state، sync_log، …) '
-          'فتُستبعد كلياً.',
+          'Cloudflare حصراً) إلى قاعدة Cloudflare D1. '
+          'القراءة من القاعدة المحلية فقط (SELECT)، والكتابة عبر بروتوكول '
+          'المزامنة الحقيقي (outbox + /api/sync/push) — كل صف يمر بنفس '
+          'فحص الإصدار والساعة المتجهة الذي يحمي أي تعديل عادي، فلا يمكن '
+          'لجهاز قديم لم يُزامن منذ فترة أن يمحو عمل جهاز أحدث. القائمة '
+          'السوداء blacklist كيان بلا جدول محلي فتُجسَّد من ملاحظات '
+          'الورديات الموسومة إلى جدولها في D1، أما hotel_day_ledger '
+          '(محلي-فقط) وجداول البنية المحلية (outbox، sync_remote_meta، '
+          'sync_state، sync_log، …) فتُستبعد كلياً.',
           textAlign: TextAlign.start,
         ),
         if (_outboxPending > 0) ...[
@@ -586,8 +611,11 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                   ),
                   _probeRow(
                     _probeResult!.dmlAllowed,
-                    'صلاحية الكتابة (DML) متاحة — الرفع ممكن',
-                    'صلاحية الكتابة (DML) محجوبة',
+                    'صلاحية الكتابة (DML) متاحة على التوكن الإداري '
+                    '(تشخيصي فقط — الرفع الفعلي يمر عبر /push ولا يعتمد '
+                    'على هذا التوكن)',
+                    'صلاحية الكتابة (DML) محجوبة على التوكن الإداري '
+                    '(لا يمنع الرفع الفعلي)',
                     detail: _probeResult!.dmlError,
                   ),
                   _probeRow(
@@ -717,9 +745,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
             Expanded(
               child: FilledButton.icon(
                 onPressed:
-                    (_uploading ||
-                        _localTables.isEmpty ||
-                        !(_probeResult?.dmlAllowed ?? false))
+                    (_uploading || _localTables.isEmpty || !_syncSessionReady)
                     ? null
                     : _confirmAndUpload,
                 icon: _uploading
@@ -737,17 +763,19 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
             if (_uploading) ...[
               const SizedBox(width: 10),
               OutlinedButton.icon(
-                onPressed: () => _activeService?.cancel(),
+                onPressed: () => _activeMirror?.cancel(),
                 icon: const Icon(Icons.stop),
                 label: const Text('إيقاف'),
               ),
             ],
           ],
         ),
-        if (!(_probeResult?.dmlAllowed ?? false) && _probeResult != null) ...[
+        if (!_syncSessionReady) ...[
           const SizedBox(height: 8),
           Text(
-            'لا يمكن الرفع: صلاحية الكتابة غير متاحة بالتوكن الحالي.',
+            'لا يمكن الرفع: جلسة مزامنة Cloudflare للجهاز غير مهيّأة بعد '
+            '(الرفع الفعلي يمر عبر /api/sync/push بنفس مصادقة المزامنة '
+            'العادية، لا التوكن الإداري أعلاه). فعّل المزامنة العادية أولاً.',
             style: TextStyle(color: colorScheme.error),
           ),
         ],
