@@ -49,6 +49,9 @@ void main() {
   setUp(() {
     ResilientHttpClient.resetSharedState();
     WorkerEndpoints.resetForTests();
+    // ✅ (2026-09-28) الجسر معطّل هنا للحفاظ على عقود المرشحَين
+    // (المخصّص/المدمج) كما هي — عقود الجسر الثلاثية في مجموعة مستقلة أدناه.
+    WorkerEndpoints.setRelayForTests('');
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
@@ -177,6 +180,83 @@ void main() {
       expect(cleared, isNull);
       expect(WorkerEndpoints.active, 'https://$builtinHost');
       expect(WorkerEndpoints.hasCustom, isFalse);
+    });
+  });
+
+  group('WorkerEndpoints جسر pages.dev (ثلاثة مرشحين)', () {
+    const relayHost = 'marina-hotel-api-relay.pages.dev';
+    const relayUrl = 'https://$relayHost';
+
+    test('بدون نطاق مخصص: الجسر أول مرشح وفعّال فوراً (تركيبة يمنية جديدة)', () async {
+      WorkerEndpoints.setRelayForTests(relayUrl);
+      await WorkerEndpoints.load();
+      expect(WorkerEndpoints.active, relayUrl);
+      expect(WorkerEndpoints.hasRelay, isTrue);
+
+      // طلب بُني على المدمج المحجوب → الجسر يليه فوراً.
+      final fromBuiltin = WorkerEndpoints.candidatesFor(
+        Uri.parse('https://$builtinHost/x'),
+      );
+      expect(fromBuiltin.map((u) => u.host).toList(), <String>[
+        builtinHost,
+        relayHost,
+      ]);
+
+      // طلب بُني على الجسر → الجسر أولاً ثم المدمج.
+      final fromRelay = WorkerEndpoints.candidatesFor(
+        Uri.parse('$relayUrl/x'),
+      );
+      expect(fromRelay.map((u) => u.host).toList(), <String>[
+        relayHost,
+        builtinHost,
+      ]);
+    });
+
+    test('سلسلة الفشل تلتف: الجسر → المدمج → (التفاف) الجسر', () async {
+      WorkerEndpoints.setRelayForTests(relayUrl);
+      await WorkerEndpoints.load();
+      expect(WorkerEndpoints.active, relayUrl);
+
+      WorkerEndpoints.reportFailure(Uri.parse(relayUrl));
+      expect(WorkerEndpoints.active, 'https://$builtinHost');
+
+      WorkerEndpoints.reportFailure(Uri.parse('https://$builtinHost'));
+      expect(WorkerEndpoints.active, relayUrl);
+    });
+
+    test('نطاق مخصص + جسر: المخصّص ← الجسر ← المدمج بالترتيب', () async {
+      WorkerEndpoints.setRelayForTests(relayUrl);
+      await WorkerEndpoints.load();
+      await WorkerEndpoints.setCustomUrl('api.mydomain.com');
+
+      final fromBuiltin = WorkerEndpoints.candidatesFor(
+        Uri.parse('https://$builtinHost/x'),
+      );
+      expect(fromBuiltin.map((u) => u.host).toList(), <String>[
+        builtinHost,
+        'api.mydomain.com',
+        relayHost,
+      ]);
+
+      // فشل المخصّص ينزل للجسر (المرشح التالي في السلسلة) لا للمدمج.
+      WorkerEndpoints.reportFailure(Uri.parse('https://api.mydomain.com'));
+      expect(WorkerEndpoints.active, relayUrl);
+    });
+
+    test('مسح المخصّص مع جسر مفعّل يعيد للجسر (أول مرشح مسجّل)', () async {
+      WorkerEndpoints.setRelayForTests(relayUrl);
+      await WorkerEndpoints.load();
+      await WorkerEndpoints.setCustomUrl('api.mydomain.com');
+      await WorkerEndpoints.setCustomUrl(null);
+      expect(WorkerEndpoints.active, relayUrl);
+    });
+
+    test('تعطيل الجسر (القيمة الفارغة) يعيد عقود المرشحَين القديمة', () async {
+      WorkerEndpoints.setRelayForTests('');
+      await WorkerEndpoints.load();
+      expect(WorkerEndpoints.active, 'https://$builtinHost');
+      final url = Uri.parse('https://$builtinHost/api/sync/pull');
+      expect(WorkerEndpoints.candidatesFor(url), hasLength(1));
     });
   });
 
@@ -320,6 +400,40 @@ void main() {
         expect(hits.last, builtinHost);
       },
     );
+  });
+
+  group('تدوير ثلاثي مع الجسر (الفعّال = الجسر)', () {
+    const relayHost = 'marina-hotel-api-relay.pages.dev';
+    const relayUrl = 'https://$relayHost';
+
+    test('تدوير ثلاثي: المدمج محجوب → الجسر ينجح → sticky على الجسر', () async {
+      WorkerEndpoints.setRelayForTests(relayUrl);
+      await WorkerEndpoints.load();
+      // بلا مخصص: الفعّال = الجسر.
+      final hits2 = <String>[];
+      final client2 = ResilientHttpClient(
+        innerClient: MockClient((request) async {
+          hits2.add(request.url.host);
+          if (request.url.host == builtinHost) {
+            throw const SocketException('SNI blocked (Yemen)');
+          }
+          return http.Response('{"status":"ok"}', 200);
+        }),
+        fastTimeout: const Duration(milliseconds: 300),
+        dohResolver: (_) async => const <String>[],
+        systemResolver: (_) async => const <String>[],
+        endpointPlanner: WorkerEndpoints.candidatesFor,
+        onEndpointSuccess: WorkerEndpoints.reportSuccess,
+        onEndpointFailure: WorkerEndpoints.reportFailure,
+      );
+
+      // الطلب يُبنى على الفعّال (الجسر) — نجاح مباشر بلا عبور المدمج.
+      final base = WorkerEndpoints.active;
+      final r = await client2.get(Uri.parse('$base/api/ping'));
+      expect(r.statusCode, 200);
+      expect(hits2, <String>[relayUrl.substring('https://'.length)]);
+      expect(WorkerEndpoints.active, relayUrl);
+    });
   });
 
   group('e2e: تدوير فوق النفق بـTLS حقيقي', () {

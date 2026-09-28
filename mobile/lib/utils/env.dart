@@ -197,6 +197,19 @@ class Env {
     defaultValue: 'https://marina-hotel-api.adenmarina2.workers.dev',
   );
 
+  /// ✅ (2026-09-28) جسر pages.dev المجاني — الحل الفعلي لحجب
+  /// *.workers.dev في اليمن دون شراء دومين: نطاق مختلف كلياً في ترويسة
+  /// TLS SNI ينهي على نفس حافة Cloudflare ويعيد التوجيه نحو الـ Worker
+  /// من داخل الشبكة (الرقيب لا يرى قفزة workers.dev). مُثبت تشغيلياً
+  /// (200 + WebSocket عبره) ومرشّح دائم في WorkerEndpoints — قبل
+  /// المدمج المحجوب وبعد أي نطاق مخصص يضبطه المستخدم.
+  /// --dart-define=CLOUDFLARE_RELAY_URL=… يتجاوزه، والقيمة الفارغة تعطّله.
+
+  static const String cloudflareRelayUrl = String.fromEnvironment(
+    'CLOUDFLARE_RELAY_URL',
+    defaultValue: 'https://marina-hotel-api-relay.pages.dev',
+  );
+
   /// اسم مستخدم مزامنة الخدمة الافتراضي لدى الـ Worker.
   ///
   /// ✅ (2026-09-07) إحياء المزامنة الافتراضية: كان الحقل فارغاً بدون

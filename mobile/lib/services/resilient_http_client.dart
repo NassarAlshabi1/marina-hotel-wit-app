@@ -272,10 +272,12 @@ class ResilientHttpClient extends http.BaseClient {
       throw SocketException(
         isWorkersDev
             ? 'Could not resolve $host via DoH — الحجب كامل على هذه '
-                  'الشبكة: فشل كل مزوّدي DoH وDNS النظام. الحل المضمون: '
-                  'أضف نطاقاً مخصّصاً للـ Worker من الإعدادات («نطاق Worker '
-                  'مخصص») — حجب workers.dev في اليمن على مستوى الشبكة لا '
-                  'يُتجاوَز تطبيقياً'
+                  'الشبكة: فشل كل مزوّدي DoH وDNS النظام. التطبيق يدور '
+                  'تلقائياً على جسر pages.dev المدمج '
+                  '(marina-hotel-api-relay.pages.dev) — إن فشل هو أيضاً '
+                  'فافحص الإنترنت أولاً، وإن '
+                  'استمر الفشل أضف نطاقاً مخصّصاً من الإعدادات («نطاق Worker '
+                  'مخصص»)'
             : 'Could not resolve $host via DoH — network may be offline or '
                   'DoH endpoints are blocked',
       );

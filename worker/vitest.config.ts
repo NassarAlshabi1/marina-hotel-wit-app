@@ -33,6 +33,9 @@ export default defineWorkersConfig({
           // wrangler.toml) — injected here for tests only.
           bindings: {
             JWT_SECRET: 'test-only-secret-0123456789abcdef',
+            // ✅ (2026-09-28) سر جسر pages.dev للاختبارات فقط (الإنتاج =
+            // Cloudflare Secret عبر wrangler secret put RELAY_SECRET).
+            RELAY_SECRET: 'test-relay-secret-0123456789abcdef',
           },
         },
       },

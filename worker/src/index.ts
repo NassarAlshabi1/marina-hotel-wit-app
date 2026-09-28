@@ -36,6 +36,12 @@ export interface Env {
   // أيام الاحتفاظ (افتراضي 30) وحجم دفعة الحذف (افتراضي 500، سقف صلب 500).
   IDEMPOTENCY_RETENTION_DAYS?: string;
   IDEMPOTENCY_CLEANUP_BATCH?: string;
+  // ✅ (2026-09-28) سر جسر pages.dev (wrangler secret put RELAY_SECRET):
+  // يوقّع طلبات marina-hotel-api-relay.pages.dev ليُقبل منها هوية
+  // العميل الحقيقية (x-mh-client-ip / x-mh-client-country) رغم اقتطاع
+  // Cloudflare لترويسات CF-* في الـsubrequest. اختياري — غيابه يعني
+  // تجاهل ترويسات الجسر كلياً (السلوك السابق).
+  RELAY_SECRET?: string;
 }
 
 // ─── Realtime Broadcast Adapter (plan phase 3) ────────────────
@@ -101,6 +107,39 @@ async function checkRateLimit(
     console.warn('Rate limit D1 error (allowing request):', err);
     return { allowed: true, remaining: maxRequests, resetAt: now + window * 1000 };
   }
+}
+
+// ─── Trusted relay identity (pages.dev bridge) ────────────
+// ✅ (2026-09-28) جسر marina-hotel-api-relay.pages.dev (حل حجب
+// workers.dev في اليمن بلا شراء دومين): داخل subrequest تقتطع
+// Cloudflare ترويسات CF-* فيرى الـ Worker عنوان خروج الجسر لكل
+// العملاء — مثبت بـwrangler tail (client_id = 2a06:98c0:…). الجسر
+// يعيد الهوية الحقيقية تحت x-mh-client-ip/x-mh-client-country ويوقّع
+// الطلب بـx-mh-relay-key = RELAY_SECRET. القبول مشروط بمطابقة السر
+// (مقارنة زمن-ثابت) — لا انتحال هوية من المتصلين المباشرين بـ
+// workers.dev ولا من عبر الجسر، وتحديد المعدل يبقى لكل عميل حقيقي.
+function secureCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const subtleExt = (
+    globalThis as unknown as { crypto?: Crypto }
+  ).crypto?.subtle as SubtleCrypto & {
+    timingSafeEqual?: (a: ArrayBuffer, b: ArrayBuffer) => boolean;
+  };
+  if (typeof subtleExt?.timingSafeEqual === 'function') {
+    try {
+      const enc = new TextEncoder();
+      return subtleExt.timingSafeEqual(
+        enc.encode(a).buffer as ArrayBuffer,
+        enc.encode(b).buffer as ArrayBuffer,
+      );
+    } catch {
+      return false;
+    }
+  }
+  // Fallback: XOR تراكمي — الطول متساوٍ مسبقاً فلا تسريب طول.
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 // Cloudflare adds the request country through request.cf at the edge.
@@ -198,10 +237,24 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }
 
     // ─── Extract client ID for rate limiting ─────────────────
-    const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+    // ✅ (2026-09-28) هوية موثوقة عبر جسر pages.dev (انظر secureCompare
+    // أعلاه): بلا سر مطابق تبقى ترويسات x-mh-* مهملة تماماً.
+    const relaySecret = env.RELAY_SECRET ?? '';
+    const relayKey = request.headers.get('x-mh-relay-key') ?? '';
+    const relayIp = request.headers.get('x-mh-client-ip');
+    const relayCountry = request.headers.get('x-mh-client-country');
+    const trustedRelay =
+      relaySecret !== '' && relayIp !== null && secureCompare(relayKey, relaySecret);
+    const clientIp = trustedRelay
+      ? relayIp!
+      : request.headers.get('CF-Connecting-IP') || 'unknown';
     const rateLimitWindow = parseInt(env.RATE_LIMIT_WINDOW, 10) || 60;
     const rateLimitMax = parseInt(env.RATE_LIMIT_MAX, 10) || 1000;
-    const isYemen = isYemenRequest(request);
+    // عبر الجسر يعكس cf.country البيئة الداخلية لا العميل — بلد العميل
+    // الحقيقي يصل في x-mh-client-country (مضاعف اليمن 3× يبقى منصفاً).
+    const isYemen = trustedRelay
+      ? (relayCountry ?? '').toUpperCase() === 'YE'
+      : isYemenRequest(request);
 
     // ─── Rate limit check (D1-based, no KV daily limit) ─────
     // ✅ P2: اليمن حزمة أعلى (مضاعف) وليست إعفاءً — الحماية فعالة للجميع.

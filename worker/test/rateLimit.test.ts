@@ -102,6 +102,93 @@ describe('rate limiting: login brute-force bucket', () => {
   });
 });
 
+describe('rate limiting: trusted relay identity (pages.dev bridge)', () => {
+  const SECRET = 'test-relay-secret-0123456789abcdef';
+  const RELAY_IP = '41.200.12.34'; // عنوان عميل افتراضي خلف الجسر
+
+  const relayHeaders = (extra: Record<string, string> = {}): Record<string, string> => ({
+    'x-mh-relay-key': SECRET,
+    'x-mh-client-ip': RELAY_IP,
+    'x-mh-client-country': 'YE',
+    ...extra,
+  });
+
+  it('trusts x-mh-client-ip for the login bucket when x-mh-relay-key matches RELAY_SECRET', async () => {
+    // دلو الدخول الخاص بالعميل الحقيقي خلف الجسر معبأ إلى الحد الأخير
+    // (20) — محاولة الدخول التالية عبر ترويسات الجسر يجب أن تشتعل 429.
+    const WINDOW_MS = 60 * 1000;
+    const windowStart = Math.floor(Date.now() / WINDOW_MS) * WINDOW_MS;
+    await env.DB.prepare(
+      'INSERT INTO rate_limits (client_id, window_start, count) VALUES (?, ?, ?) ' +
+        'ON CONFLICT (client_id, window_start) DO UPDATE SET count = ?'
+    )
+      .bind(`login:${RELAY_IP}`, windowStart, 20, 20)
+      .run();
+
+    const res = await SELF.fetch('https://example.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...relayHeaders(),
+      },
+      body: JSON.stringify({ username: 'no-such-user', password: 'x' }),
+    });
+    expect(res.status).toBe(429);
+  });
+
+  it('ignores relay headers when the key does not match the secret (no spoofing)', async () => {
+    // نفس الدلو المعبأ لكن بمفتاح توقيع خاطئ — الطلب يُعامَل كمتصل
+    // مباشر (client_id مختلف: 'unknown' في miniflare) فيمرّ 401 ولا 429.
+    const WINDOW_MS = 60 * 1000;
+    const windowStart = Math.floor(Date.now() / WINDOW_MS) * WINDOW_MS;
+    await env.DB.prepare(
+      'INSERT INTO rate_limits (client_id, window_start, count) VALUES (?, ?, ?) ' +
+        'ON CONFLICT (client_id, window_start) DO UPDATE SET count = ?'
+    )
+      .bind(`login:${RELAY_IP}`, windowStart, 20, 20)
+      .run();
+
+    const res = await SELF.fetch('https://example.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...relayHeaders({ 'x-mh-relay-key': 'wrong-secret-aaaaaaaaaaaaaaaaaa' }),
+      },
+      body: JSON.stringify({ username: 'no-such-user', password: 'x' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('direct callers sending relay headers without any secret stay untrusted (env secret absent → headers ignored)', async () => {
+    // يغطي المسار التراجعي: لو لم يُضبط RELAY_SECRET على البيئة فترويسات
+    // x-mh-* لا تُقرأ أصلاً — نفس سلوك ما قبل الجسر.
+    const WINDOW_MS = 60 * 1000;
+    const windowStart = Math.floor(Date.now() / WINDOW_MS) * WINDOW_MS;
+    // عبّئ دلو 'unknown' (هوية miniflare المباشرة) — لو قُبلت الترويسات
+    // لانتقل الفحص إلى دلو RELAY_IP ولم يشتعل 429 أبداً.
+    await env.DB.prepare(
+      'INSERT INTO rate_limits (client_id, window_start, count) VALUES (?, ?, ?) ' +
+        'ON CONFLICT (client_id, window_start) DO UPDATE SET count = ?'
+    )
+      .bind('login:unknown', windowStart, 20, 20)
+      .run();
+
+    // مفتاح صحيح لكن سيناريو env بلا سر غير قابل للمحاكاة هنا لأن
+    // vitest.config يضبط RELAY_SECRET — لذا يكفي إثبات أن مفتاحاً
+    // فارغاً (بلا ترويسة توقيع) لا يمنح الثقة حتى مع وجود x-mh-client-ip.
+    const res = await SELF.fetch('https://example.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-mh-client-ip': RELAY_IP,
+        'x-mh-client-country': 'YE',
+      },
+      body: JSON.stringify({ username: 'no-such-user', password: 'x' }),
+    });
+    expect(res.status).toBe(429);
+  });
+});
+
 describe('rate limiting: D1 counter mechanics', () => {
   it('increments count atomically per (client, window) and enforces the max', async () => {
     // Drive the limiter through its real SQL path: same fixed window,

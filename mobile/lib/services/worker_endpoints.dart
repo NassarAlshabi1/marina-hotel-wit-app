@@ -38,11 +38,27 @@ class WorkerEndpoints {
 
   static String? _customUrl;
   static String? _activeOverride;
+
+  /// ✅ (2026-09-28) تجاوز مرشّح الجسر للاختبارات فقط: null = اتبع
+  /// [Env.cloudflareRelayUrl] (سلوك الإنتاج)، '' = معطّل (عقود
+  /// المرشحَين القديمة في الاختبارات)، غير فارغ = قاعدة اختبار محددة.
+  static String? _relayOverride;
   static bool _loaded = false;
   static SharedPreferences? _prefsRef;
 
   /// النقطة المدمجة من بيئة البناء (workers.dev).
   static String get builtin => Env.cloudflareWorkerUrl;
+
+  /// ✅ (2026-09-28) جسر pages.dev المجاني — نطاق مختلف كلياً في SNI
+  /// ينهي على نفس حافة Cloudflare ويعيد التوجيه نحو الـ Worker من
+  /// داخل شبكة Cloudflare (حل حجب *.workers.dev في اليمن دون شراء
+  /// دومين؛ مُثبت تشغيلياً: /health 200 + WebSocket عبره). مرشّح
+  /// دائم بين المخصّص والمدمج.
+  static String get relay => _relayOverride ?? Env.cloudflareRelayUrl;
+
+  /// هل مرشّح الجسر مفعّل؟ (القيمة الفارغة تعطّله، والتطابق مع المدمج
+  /// يعالجه إزالة التكرار في المرشحين تلقائياً).
+  static bool get hasRelay => relay.isNotEmpty;
 
   /// هل حُمّل السجل من التفضيلات؟ (يستدعى من main مبكراً).
   static bool get isLoaded => _loaded;
@@ -107,11 +123,14 @@ class WorkerEndpoints {
 
   /// العنوان الفعّال الذي تُبنى عليه كل روابط الـ Worker.
   /// قبل التحميل يعيد المدمج (سلوك مطابق للسابق — لا كسر للاختبارات).
+  /// بلا sticky: أول مرشح مسجّل (المخصّص ← الجسر ← المدمج) — أول نجاح
+  /// يبني sticky بعدها (تثبيت الجسر على التركيبات الجديدة في اليمن).
   static String get active {
     if (!_loaded) return builtin;
     final sticky = _sanitize(_activeOverride);
     if (sticky != null && _isRegisteredBase(sticky)) return sticky;
-    return _customUrl ?? builtin;
+    final bases = _orderedBases;
+    return bases.isNotEmpty ? bases.first : builtin;
   }
 
   /// هل [uri] يشير إلى إحدى نقاط الـ worker المسجلة؟
@@ -144,8 +163,7 @@ class WorkerEndpoints {
 
     // العنوان الذي بُني عليه الطلب أولاً (محاولة صفر كلفة إعادة كتابة).
     add(requestUrl.toString());
-    if (_customUrl != null) add(_customUrl!);
-    add(builtin);
+    _orderedBases.forEach(add);
     return result;
   }
 
@@ -172,11 +190,22 @@ class WorkerEndpoints {
   static void reportFailure(Uri base) {
     final normalized = _sanitize(_toBaseUrl(base));
     if (normalized == null) return;
-    if (_sanitize(_activeOverride) != normalized) return;
-    // انتقل للمرشح التالي: فشل المخصّص → المدمج، وفشل المدمج → المخصّص.
-    _activeOverride = _customUrl != null && normalized == builtin
-        ? _customUrl
-        : (normalized == _customUrl ? builtin : null);
+    final bases = _orderedBases;
+    final failedKey = _hostKey(Uri.parse(normalized));
+    final idx = bases.indexWhere((b) {
+      final u = Uri.tryParse(b);
+      return u != null && _hostKey(u) == failedKey;
+    });
+    if (idx < 0) return;
+    // الفعّال المحسوب (sticky خام أو أول مرشح مسجّل بلا sticky) هو
+    // الوحيد الذي يُنزَّل — فشل مرشح غير فعّال لا يغيّر التثبيت.
+    final effectiveActive =
+        _sanitize(_activeOverride) ?? (bases.isNotEmpty ? bases.first : null);
+    if (effectiveActive == null ||
+        _hostKey(Uri.parse(effectiveActive)) != failedKey) {
+      return;
+    }
+    _activeOverride = bases.length > 1 ? bases[(idx + 1) % bases.length] : null;
     if (_sanitize(_activeOverride) == normalized) _activeOverride = null;
     dwarn(() => '⚠️ WorkerEndpoints: demoted $normalized (failure)');
   }
@@ -199,7 +228,7 @@ class WorkerEndpoints {
     _customUrl = normalized;
     // المخصّص الجديد يتقدم فوراً (المستخدم وضعه لسبب) — والمسح يعيد
     // للمدمج. يُحفظ sticky الجديد ليُستعاد عند الإطلاق القادم.
-    _activeOverride = normalized ?? builtin;
+    _activeOverride = normalized ?? (hasRelay ? relay : builtin);
     await sp.setString(activeUrlKey, _activeOverride!);
     return normalized;
   }
@@ -209,6 +238,7 @@ class WorkerEndpoints {
   /// المرشحون المسجلون بترتيب الأولوية: المخصّص ثم المدمج.
   static List<String> get _orderedBases => <String>[
     if (_customUrl != null) _customUrl!,
+    if (hasRelay) relay,
     builtin,
   ];
 
@@ -255,7 +285,12 @@ class WorkerEndpoints {
   static void resetForTests() {
     _customUrl = null;
     _activeOverride = null;
+    _relayOverride = null;
     _loaded = false;
     _prefsRef = null;
   }
+
+  /// Test-only: ضبط مرشّح الجسر (null = اتبع Env، '' = معطّل).
+  @visibleForTesting
+  static void setRelayForTests(String? url) => _relayOverride = url;
 }
