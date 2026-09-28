@@ -544,49 +544,70 @@ class ResilientHttpClient extends http.BaseClient {
   // ═══════════════════════════════════════════════════════════
   //  DNS-over-HTTPS — all endpoints raced in parallel
   // ═══════════════════════════════════════════════════════════
+  /// DoH endpoints with hardcoded IPs (no chicken-and-egg DNS).
+  /// ✅ (2026-09-10) 6 مزوّدين — اليمن يحجب Cloudflare/Google تحديداً؛
+  /// الصغار ينجون من نفس قوائم الحجب. الكل JSON-API مؤكد
+  /// (application/dns-json) — من لا يدعمه يرمي داخل السباق بلا ضرر.
+  /// ✅ (2026-09-28) الكاتب السابع: بوابة DoH لحساب الفندق نفسه على
+  /// Zero Trust Gateway (فريق nassaralshabi) — تنويع بمسار Cloudflare
+  /// آخر غير workers.dev. مُثبت تشغيلياً: يحل دومين الـ Worker
+  /// الإنتاجي (Status:0 في ~30ms). تقبل بلا مصادقة (النطاق الفرعي هو
+  /// السر حسب توثيق Gateway)؛ توكن خدمة doh-gateway-hotel موجود على
+  /// الحساب إن لزمت ترويسات CF-Access لاحقاً — لا نضع أسراراً في الكود.
+  static const List<_DohEndpoint> _dohEndpoints = <_DohEndpoint>[
+    _DohEndpoint(
+      hostname: 'cloudflare-dns.com',
+      path: '/dns-query',
+      ips: ['1.1.1.1', '1.0.0.1', '104.16.248.249', '104.16.249.249'],
+    ),
+    _DohEndpoint(
+      hostname: 'dns.google',
+      path: '/resolve',
+      ips: ['8.8.8.8', '8.8.4.4'],
+    ),
+    _DohEndpoint(
+      hostname: 'dns.quad9.net',
+      port: 5053, // JSON API حصرياً هنا؛ 443 = wireformat فقط
+      path: '/dns-query',
+      ips: ['9.9.9.9', '149.112.112.112'],
+    ),
+    _DohEndpoint(
+      hostname: 'dns.sb',
+      path: '/dns-query',
+      ips: ['185.222.222.222', '45.11.45.11'],
+    ),
+    _DohEndpoint(
+      hostname: 'dns.adguard-dns.com',
+      path: '/dns-query',
+      ips: ['94.140.14.14', '94.140.15.15'],
+    ),
+    _DohEndpoint(
+      hostname: 'freedns.controld.com',
+      path: '/dns-query',
+      ips: ['76.76.2.0', '76.76.10.0'],
+    ),
+    _DohEndpoint(
+      hostname: 'nassaralshabi.cloudflare-gateway.com',
+      path: '/dns-query',
+      ips: ['162.159.36.20', '162.159.36.5'],
+    ),
+  ];
+
+  /// Test-only: وصف مُنقّح لقائمة الكتّاب (بلا النوع الخاص) ليثبّت
+  /// الاختبار تركيبة المزوّدين دون كشف [_DohEndpoint] نفسها.
+  @visibleForTesting
+  static List<Map<String, Object>> describeDohEndpointsForTests() => [
+    for (final e in _dohEndpoints)
+      {'hostname': e.hostname, 'path': e.path, 'ips': e.ips, 'port': e.port},
+  ];
+
   static Future<List<String>> _defaultDohResolver(String hostname) async {
     final cached = _dnsCache[hostname];
     if (cached != null && !cached.isExpired) {
       return cached.ips;
     }
 
-    // DoH endpoints with hardcoded IPs (no chicken-and-egg DNS).
-    // ✅ (2026-09-10) 6 مزوّدين بدل 2 — اليمن يحجب Cloudflare/Google
-    // تحديداً؛ الصغار ينجون من نفس قوائم الحجب. الكل JSON-API مؤكد
-    // (application/dns-json) — من لا يدعمه يرمي داخل السباق بلا ضرر.
-    const endpoints = <_DohEndpoint>[
-      _DohEndpoint(
-        hostname: 'cloudflare-dns.com',
-        path: '/dns-query',
-        ips: ['1.1.1.1', '1.0.0.1', '104.16.248.249', '104.16.249.249'],
-      ),
-      _DohEndpoint(
-        hostname: 'dns.google',
-        path: '/resolve',
-        ips: ['8.8.8.8', '8.8.4.4'],
-      ),
-      _DohEndpoint(
-        hostname: 'dns.quad9.net',
-        port: 5053, // JSON API حصرياً هنا؛ 443 = wireformat فقط
-        path: '/dns-query',
-        ips: ['9.9.9.9', '149.112.112.112'],
-      ),
-      _DohEndpoint(
-        hostname: 'dns.sb',
-        path: '/dns-query',
-        ips: ['185.222.222.222', '45.11.45.11'],
-      ),
-      _DohEndpoint(
-        hostname: 'dns.adguard-dns.com',
-        path: '/dns-query',
-        ips: ['94.140.14.14', '94.140.15.15'],
-      ),
-      _DohEndpoint(
-        hostname: 'freedns.controld.com',
-        path: '/dns-query',
-        ips: ['76.76.2.0', '76.76.10.0'],
-      ),
-    ];
+    const endpoints = _dohEndpoints;
 
     // Race ALL endpoint IPs in parallel — first non-empty answer wins.
     // (Sequential probing burned up to 8s per blocked IP: 1.1.1.1 is

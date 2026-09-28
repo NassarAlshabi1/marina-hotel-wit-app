@@ -224,4 +224,52 @@ void main() {
       resilient.close();
     });
   });
+
+  group('DoH provider roster', () {
+    test('includes the account Zero Trust Gateway resolver as 7th writer', () {
+      final roster = ResilientHttpClient.describeDohEndpointsForTests();
+
+      // سبعة كتّاب بعد دمج بوابة الحساب (2026-09-28)
+      expect(roster.length, equals(7));
+
+      final gateway = roster
+          .where(
+            (e) => (e['hostname'] as String).endsWith(
+              '.cloudflare-gateway.com',
+            ),
+          )
+          .toList();
+      expect(gateway.length, equals(1));
+      expect(gateway.first['hostname'], equals('nassaralshabi.cloudflare-gateway.com'));
+      expect(gateway.first['path'], equals('/dns-query'));
+      expect(
+        gateway.first['ips'],
+        containsAll(<String>['162.159.36.20', '162.159.36.5']),
+      );
+    });
+
+    test('every provider is fully specified (hardcoded IPs, JSON API path)', () {
+      for (final e in ResilientHttpClient.describeDohEndpointsForTests()) {
+        expect((e['hostname'] as String).isNotEmpty, isTrue);
+        expect(
+          (e['path'] as String),
+          anyOf(equals('/dns-query'), equals('/resolve')),
+          reason: '${e['hostname']} path غير متوقع',
+        );
+        expect(
+          (e['ips'] as List<String>).where((ip) => ip.isNotEmpty),
+          isNotEmpty,
+          reason: '${e['hostname']} بلا عناوين مثبتة',
+        );
+      }
+    });
+
+    test('google resolver keeps its dedicated /resolve JSON path', () {
+      final roster = ResilientHttpClient.describeDohEndpointsForTests();
+      final google = roster.firstWhere(
+        (e) => e['hostname'] == 'dns.google',
+      );
+      expect(google['path'], equals('/resolve'));
+    });
+  });
 }
