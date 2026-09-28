@@ -61,9 +61,17 @@ class CloudflareD1PushMirror {
     final warnings = <String>[];
     final doneTables = <String>[];
     final totalTables = tables.length;
+    // ✅ (2026-09-28 — عطل مُلاحَظ) دائرة توقف مبكر: أول فشل دفع شبكي
+    // (timeout/DNS/إلخ) يوقف الرفع بالكامل بدل الاستمرار عبر كل صف/جدول
+    // متبقٍّ وكل واحد منها يهدر مهلة شبكة أخرى (30 ثانية) بلا فائدة —
+    // لوحظ ذلك فعلياً: 4 محاولات منفصلة فشلت جميعها بعد 30ث كل واحدة
+    // بدل التوقف عند أول فشل. لا فقدان بيانات هنا: الصفوف المُرسَلة
+    // بالفعل تبقى آمنة في outbox وتُعاد محاولتها في دورة المزامنة
+    // التلقائية القادمة تماماً كأي تعديل محلي عادي فشل رفعه أول مرة.
+    var networkFailed = false;
 
     for (var ti = 0; ti < totalTables; ti++) {
-      if (_cancelled) break;
+      if (_cancelled || networkFailed) break;
       final t = tables[ti];
       onProgress?.call(
         CloudflareD1Progress(
@@ -86,7 +94,7 @@ class CloudflareD1PushMirror {
         var rowsForTable = 0;
         var skippedNoUuid = 0;
         while (offset < t.rowCount) {
-          if (_cancelled) break;
+          if (_cancelled || networkFailed) break;
           final chunk = await t.readChunk(_readChunkSize, offset);
           if (chunk.isEmpty) break;
 
@@ -151,14 +159,23 @@ class CloudflareD1PushMirror {
           // (CloudflareSyncManager._pushCooldownUntil) تدريجياً بدل صدمة
           // واحدة ضخمة.
           if (!_cancelled) {
-            await _flush();
+            final flushError = await _flush();
             flushCalls++;
+            if (flushError != null) {
+              networkFailed = true;
+              errors.add(
+                'توقف الرفع عند ${t.name} (صف $offset تقريباً): $flushError '
+                '— الصفوف المُرسَلة فعلاً آمنة في outbox وستُعاد محاولتها '
+                'تلقائياً، لا حاجة لإعادة الرفع من الصفر.',
+              );
+              break;
+            }
           }
         }
         if (skippedNoUuid > 0) {
           warnings.add('${t.name}: تخطي $skippedNoUuid صف بلا local_uuid');
         }
-        doneTables.add(t.name);
+        if (!networkFailed) doneTables.add(t.name);
       } catch (e) {
         errors.add('${t.name}: $e');
       }
@@ -179,13 +196,18 @@ class CloudflareD1PushMirror {
 
   /// دفع outbox عبر البروتوكول الحقيقي (سحب مُعطَّل — نريد الدفع فقط هنا،
   /// السحب الدوري العادي مستقل تماماً عن هذه الشاشة).
-  Future<void> _flush() async {
+  ///
+  /// ✅ (2026-09-28) يُعيد رسالة الخطأ (لا يكتفي بابتلاعها) — sync() لا
+  /// يرمي استثناءً عند فشل الدفع (يلتقطه داخلياً ويُرجعه عبر
+  /// SyncResult.errorMessage)، فالاعتماد على try/catch وحده هنا كان
+  /// يُخفي كل فشل شبكي عن upload() ويترك حلقة القراءة تُكرر نفس الخطأ
+  /// (30 ثانية timeout) على كل دفعة/جدول متبقٍّ دون توقف.
+  Future<String?> _flush() async {
     try {
-      await _syncManager.sync(pull: false, forcePull: true);
-    } catch (_) {
-      // ✅ فشل دورة دفع واحدة (شبكة/تهدئة 429) لا يوقف بقية الجداول —
-      // السجلات تبقى في outbox وتُعاد محاولتها في دورة الدفع التلقائية
-      // القادمة (نفس ضمان أي تعديل محلي عادي فشل رفعه أول مرة).
+      final result = await _syncManager.sync(pull: false, forcePull: true);
+      return result.isSuccess ? null : (result.errorMessage ?? 'فشل غير معروف');
+    } catch (e) {
+      return e.toString();
     }
   }
 }

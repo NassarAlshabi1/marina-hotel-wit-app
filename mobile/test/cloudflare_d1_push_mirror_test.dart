@@ -45,8 +45,19 @@ class _CapturingWorker extends http.BaseClient {
   final rows = <String, Map<String, Map<String, dynamic>>>{};
   final capturedOperations = <Map<String, dynamic>>[];
   int serverClock = 1750000000;
+  int pushAttempts = 0;
+
+  /// ✅ محاكاة عطل شبكي مستمر (DNS/timeout/socket) على كل نداء /push
+  /// لاحق — يُستخدم لإثبات أن CloudflareD1PushMirror يتوقف عند أول
+  /// فشل بدل استنزاف مهلة شبكة جديدة على كل جدول/دفعة متبقية (العطل
+  /// المُلاحَظ فعلياً: 4 محاولات فشلت جميعها بعد 30 ثانية كل واحدة).
+  bool failPush = false;
 
   Future<http.Response> _handlePush(http.Request request) async {
+    pushAttempts++;
+    if (failPush) {
+      throw Exception('Simulated network failure (fail-fast regression)');
+    }
     final raw = request.bodyBytes;
     final isGzip = raw.length >= 2 && raw[0] == 0x1f && raw[1] == 0x8b;
     final bodyText = isGzip ? utf8.decode(gzip.decode(raw)) : utf8.decode(raw);
@@ -296,5 +307,60 @@ void main() {
             'العادي: كلاهما يُسقطان id الوارد).',
       );
     });
+
+    test(
+      'W6 (عطل 2026-09-28 المُلاحَظ فعلياً): فشل شبكي أول يوقف الرفع '
+      'فوراً — لا يُهدر مهلة 30ث جديدة على كل جدول/دفعة متبقية',
+      () async {
+        final uuid = await produceRoom();
+        await CloudflareSyncManager().sync(pull: false, forcePull: true);
+        worker.capturedOperations.clear();
+        worker.pushAttempts = 0;
+
+        final row = await db
+            .customSelect('SELECT * FROM rooms WHERE local_uuid = ?',
+                variables: [d.Variable<String>(uuid)])
+            .getSingle();
+
+        worker.failPush = true;
+        final mirror = CloudflareD1PushMirror(db);
+        final result = await mirror.upload(
+          tables: [
+            // جدولان — لو لم يتوقف الرفع عند أول فشل لحاول دفع الثاني
+            // أيضاً (نفس نمط العطل الفعلي: محاولة تلو أخرى كل واحدة
+            // تنتظر timeout كاملاً بلا جدوى).
+            CloudflareD1SourceTable(
+              name: 'rooms',
+              rowCount: 1,
+              readChunk: (limit, offset) async =>
+                  offset == 0 ? [row.data] : const [],
+            ),
+            CloudflareD1SourceTable(
+              name: 'rooms_b',
+              rowCount: 1,
+              readChunk: (limit, offset) async =>
+                  offset == 0 ? [row.data] : const [],
+            ),
+          ],
+        );
+
+        expect(
+          worker.pushAttempts,
+          1,
+          reason: 'W6: يجب التوقف فور أول فشل — محاولة ثانية للجدول '
+              'التالي تعني استمرار استنزاف مهلات شبكة فاشلة بلا فائدة '
+              '(العطل الفعلي: 4 محاولات متتالية، كل واحدة 30ث).',
+        );
+        expect(result.ok, isFalse);
+        expect(result.tablesDone, 0);
+        expect(result.errors, isNotEmpty);
+        expect(
+          await outboxCount(db),
+          1,
+          reason: 'W6: الصف الذي فشل دفعه يبقى آمناً في outbox — لا فقدان '
+              'بيانات، دورة المزامنة التالية ستعيد محاولته.',
+        );
+      },
+    );
   });
 }
