@@ -53,8 +53,13 @@ class _CapturingWorker extends http.BaseClient {
   /// المُلاحَظ فعلياً: 4 محاولات فشلت جميعها بعد 30 ثانية كل واحدة).
   bool failPush = false;
 
+  /// ✅ محاكاة مزامنة أخرى تشغل قفل re-entrancy لفترة — تُستخدم لإثبات
+  /// أن CloudflareD1PushMirror لا يعتبر تصادماً عابراً «فشلاً» يوقف الرفع.
+  Duration pushDelay = Duration.zero;
+
   Future<http.Response> _handlePush(http.Request request) async {
     pushAttempts++;
+    if (pushDelay > Duration.zero) await Future<void>.delayed(pushDelay);
     if (failPush) {
       throw Exception('Simulated network failure (fail-fast regression)');
     }
@@ -360,6 +365,68 @@ void main() {
           reason: 'W6: الصف الذي فشل دفعه يبقى آمناً في outbox — لا فقدان '
               'بيانات، دورة المزامنة التالية ستعيد محاولته.',
         );
+      },
+    );
+
+    test(
+      'W7: تصادم عابر مع مزامنة أخرى قيد التشغيل (P0-I re-entrancy) '
+      'ليس فشلاً — يُعاد المحاولة بدل إيقاف الرفع',
+      () async {
+        // صف «شاغل» يُبقي قفل sync() مشغولاً 600ms — يحاكي مزامنة يدوية
+        // أو تلقائية أخرى تعمل بالتوازي أثناء استخدام شاشة الرفع.
+        await produceRoom(price: 100.0);
+        worker.pushDelay = const Duration(milliseconds: 600);
+        final blockingSync = CloudflareSyncManager().sync(
+          pull: false,
+          forcePull: true,
+        );
+
+        // صف مستقل تماماً (لا علاقة له بالصف الشاغل) يدفعه المرآة أثناء
+        // انشغال القفل — لا حاجة لوجوده فعلياً في جدول rooms المحلي،
+        // readChunk وهمي يكفي لعزل هذا الاختبار عن تعقيد الصف الشاغل.
+        const fabricatedUuid = 'row-b-standalone-uuid';
+        final fabricatedRow = <String, Object?>{
+          'id': 999,
+          'local_uuid': fabricatedUuid,
+          'server_id': null,
+          'created_at': 1790000000,
+          'updated_at': 1790000000,
+          'deleted_at': null,
+          'last_modified': 1790000000,
+          'version': 1,
+          'origin': 'local',
+          'vector_clock': '{"contract-device":1}',
+          'device_id': 'contract-device',
+          'room_number': '999',
+          'type': 'standard',
+          'price': 300.0,
+          'status': 'شاغرة',
+        };
+
+        final mirror = CloudflareD1PushMirror(db);
+        final result = await mirror.upload(
+          tables: [
+            CloudflareD1SourceTable(
+              name: 'rooms',
+              rowCount: 1,
+              readChunk: (limit, offset) async =>
+                  offset == 0 ? [fabricatedRow] : const [],
+            ),
+          ],
+        );
+
+        await blockingSync; // تنظيف — لا نترك Future معلّقاً بعد الاختبار
+
+        expect(
+          result.ok,
+          isTrue,
+          reason: 'W7: تصادم القفل تصادُف عابر لا فشل حقيقي — كان يجب أن '
+              'يُعاد المحاولة بعد انتظار قصير بدل اعتباره فشل شبكة يوقف '
+              'الرفع بالكامل (لولا ذلك، سيُجهَض أي رفع بمجرد أن يضغط '
+              'المستخدم زر مزامنة يدوي في نفس اللحظة).',
+        );
+        expect(worker.rows['rooms']?[fabricatedUuid], isNotNull,
+            reason: 'الصف وصل فعلاً بعد إعادة المحاولة الناجحة');
       },
     );
   });

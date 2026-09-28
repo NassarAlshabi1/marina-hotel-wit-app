@@ -194,6 +194,13 @@ class CloudflareD1PushMirror {
     );
   }
 
+  /// ✅ (2026-09-28) عدد محاولات إعادة الدفع عند تصادم عابر مع مزامنة
+  /// أخرى شغّالة بالتوازي (زر مزامنة يدوي آخر، أو مؤقّت الخلفية) — هذا
+  /// ليس عطلاً شبكياً ولا يستحق إيقاف الرفع بالكامل، فقط انتظاراً قصيراً
+  /// حتى تُحرَّر القفلة (P0-I re-entrancy) في cloudflare_sync_manager.dart.
+  static const int _reentrancyRetries = 3;
+  static const String _reentrancyMessage = 'Sync already in progress';
+
   /// دفع outbox عبر البروتوكول الحقيقي (سحب مُعطَّل — نريد الدفع فقط هنا،
   /// السحب الدوري العادي مستقل تماماً عن هذه الشاشة).
   ///
@@ -202,12 +209,33 @@ class CloudflareD1PushMirror {
   /// SyncResult.errorMessage)، فالاعتماد على try/catch وحده هنا كان
   /// يُخفي كل فشل شبكي عن upload() ويترك حلقة القراءة تُكرر نفس الخطأ
   /// (30 ثانية timeout) على كل دفعة/جدول متبقٍّ دون توقف.
+  ///
+  /// ✅ يُميّز بين فشلين مختلفين تماماً بنفس isSuccess=false:
+  ///   - «Sync already in progress» (قفل re-entrancy، cloudflare_sync_
+  ///     manager.dart:1299-1308): تصادم عابر لا علاقة له بالشبكة أو
+  ///     صحة البيانات — إيقاف الرفع كله بسببه كان سيُجهض عملية سليمة
+  ///     تماماً لمجرد أن المستخدم ضغط زر مزامنة يدوي في نفس اللحظة.
+  ///     يُعاد المحاولة بعد انتظار قصير بدل اعتباره فشلاً.
+  ///   - أي فشل آخر (شبكة/تعطيل عن بعد/تعطيل محلي): توقف فوري كما هو،
+  ///     لأن إعادة المحاولة لن تُغيّر شيئاً.
   Future<String?> _flush() async {
-    try {
-      final result = await _syncManager.sync(pull: false, forcePull: true);
-      return result.isSuccess ? null : (result.errorMessage ?? 'فشل غير معروف');
-    } catch (e) {
-      return e.toString();
+    for (var attempt = 0; attempt <= _reentrancyRetries; attempt++) {
+      String? errorMessage;
+      try {
+        final result = await _syncManager.sync(pull: false, forcePull: true);
+        if (result.isSuccess) return null;
+        errorMessage = result.errorMessage ?? 'فشل غير معروف';
+      } catch (e) {
+        errorMessage = e.toString();
+      }
+
+      if (errorMessage != _reentrancyMessage || attempt == _reentrancyRetries) {
+        return errorMessage;
+      }
+      // ✅ تصادم عابر — انتظار قصير متصاعد ثم إعادة محاولة فورية (ليست
+      // فشلاً يُسجَّل ولا يُوقف الرفع).
+      await Future<void>.delayed(Duration(milliseconds: 400 * (attempt + 1)));
     }
+    return null; // لا يُصل إليه فعلياً — للاكتمال النوعي فقط
   }
 }
