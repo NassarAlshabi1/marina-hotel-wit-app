@@ -13,7 +13,8 @@
 - كل المسارات/الاستعلامات/الترويسات/الأجسام (gzip بايت-ببايت).
 - ترقية WebSocket `/api/realtime` نصاً (passthrough بلمس Request الأصلي).
 - هوية العميل الحقيقية تحت `x-mh-client-ip` / `x-mh-client-country`
-  (لأن CF- تُقتطع في subrequest) — الـ Worker يتجاهلها حالياً.
+  (لأن CF- تُقتطع في subrequest) — الـ Worker يقبلها فقط عند مطابقة
+  `x-mh-relay-key` مع سر `RELAY_SECRET` (worker/src/index.ts:242-257).
 
 ## النشر
 ```bash
@@ -26,4 +27,25 @@ CLOUDFLARE_API_TOKEN=... npx wrangler pages deploy relay \
 
 العنوان النهائي: `https://marina-hotel-api-relay.pages.dev`
 (مدمج في التطبيق كمرشح ثالث في `WorkerEndpoints` — قبل workers.dev
-المحمي وبعد أي نطاق مخصص يضبطه المستخدم).
+المحجوب وبعد أي نطاق مخصص يضبطه المستخدم).
+
+## سر الجسر (RELAY_SECRET) — إلزامي لهوية العميل
+بدونه تُهمل ترويسات x-mh-* ويُحدد المعدل بعنوان خروج CF المشترك:
+```bash
+# نفس القيمة 64-hex على الطرفين (خارج المستودع، مثلاً .relay_secret)
+CLOUDFLARE_API_TOKEN=... npx wrangler secret put RELAY_SECRET \
+  --name marina-hotel-api          # طرف الـ Worker
+cd relay && CLOUDFLARE_API_TOKEN=... npx wrangler pages secret put RELAY_SECRET \
+  --project-name marina-hotel-api-relay   # طرف الجسر
+# ثم إعادة نشر الجسر لالتقاط السر:
+CLOUDFLARE_API_TOKEN=... npx wrangler pages deploy relay \
+  --project-name marina-hotel-api-relay --branch main --commit-dirty=true
+```
+
+## التحقق بعد النشر
+```bash
+curl -sS https://marina-hotel-api-relay.pages.dev/health          # 200
+curl -sS -X POST https://marina-hotel-api-relay.pages.dev/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin"}'
+npx wrangler tail marina-hotel-api --format pretty   # راقب client_id عبر الجسر
+```
