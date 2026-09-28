@@ -243,6 +243,13 @@ void main() {
         await seedLocalRoom('101'); // الأب قبل الابن — ترتيب السحب الإنتاجي
         final manager = await makeManager();
 
+        // لقطة الساعة قبل السحب: المدير يستدعي المشتق بعد السحب بساعة
+        // الحائط الحقيقية (refreshAllActiveBookings بلا now) — فسلوك
+        // الترقية W3 يتحدد بساعة التشغيل نفسها، ولذلك يفرع توقع الحالة
+        // والعدّاد معاً على هذه اللقطة (كان السطران متناقضين سابقاً:
+        // العدّاد يتفرع والحالة لا — فانفجر الاختبار بعد 14:01).
+        final afterCutoff = HotelTimeEngine.isAfterCutoff(DateTime.now());
+
         await manager.sync(push: false); // سحب دلتا فقط — عزل أثر السحب
 
         // الحجز وصل محلياً (يحرس ضد نجاح زيف بسبب فشل تطبيق صامت)
@@ -250,7 +257,14 @@ void main() {
           "SELECT id, status FROM bookings WHERE local_uuid = 'bk-pull-001'",
         ).getSingleOrNull();
         expect(local, isNotNull, reason: 'الحجز المسحوب يجب أن يُطبَّق محلياً');
-        expect(local!.data['status'], 'مؤقت');
+        expect(
+          local!.data['status'],
+          afterCutoff ? 'محجوزة' : 'مؤقت',
+          reason: afterCutoff
+              ? 'بعد 14:01: المشتق بعد السحب (ساعة حقيقية) يرقّى المؤقت '
+                  '→ محجوزة — نفس مصدر فرع العدّاد أدناه (W3)'
+              : 'قبل 14:01: لا ترقية → الحالة تبقى مؤقت',
+        );
 
         // إثبات أن إعادة البناء المشتق بعد السحب اشتغلت فعلاً (الأسلاك
         // بين السحب و _refreshDerivedAfterPull تعمل): الليالي بُنيت
@@ -261,11 +275,10 @@ void main() {
         expect(nights.data['c'] as int, greaterThan(0),
             reason: 'إعادة البناء المشتق بعد السحب يجب أن تكون قد شغلت');
 
-        final now = DateTime.now();
-        final afterCutoff = HotelTimeEngine.isAfterCutoff(now);
         final count = await outboxCount(db);
         // ignore: avoid_print
-        print('── T6 وقت التشغيل المحلي: $now (بعد الحدّ: $afterCutoff) ──');
+        print('── T6 وقت التشغيل المحلي: ${DateTime.now()} '
+            '(بعد الحدّ: $afterCutoff) ──');
         for (final r in await outboxRows(db)) {
           // ignore: avoid_print
           print('── T6 outbox: ${r['entity']}/${r['op']}');
