@@ -112,7 +112,7 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
       } else if (connection.isD1Connected == false) {
         dotColor = Colors.orange;
         label =
-            'السحابة متصلة — قاعدة D1 لا تستجيب'
+            '${d1FailureHeadline(connection.d1Failure)}'
             '${connection.d1Error == null ? '' : ' (${connection.d1Error})'}';
       } else {
         dotColor = colorScheme.primary;
