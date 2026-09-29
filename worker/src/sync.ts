@@ -371,9 +371,13 @@ export async function handlePull(
       includeRemaining
     );
 
+    // ✅ (2026-09-29) جيل البيانات — العميل يصفّر مؤشره عند تغيّره.
+    const epoch = await db.getSyncEpoch();
+
     return jsonResponse({
       changes: result.changes,
       cursor: result.cursor.toString(),
+      epoch,
       has_more: result.has_more,
       remaining: result.remaining,
       errors: result.errors,

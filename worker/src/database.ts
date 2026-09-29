@@ -596,6 +596,48 @@ export class Database {
    */
   static readonly CLOCK_SKEW_ALLOWANCE_S = 90;
 
+  // ─── Sync epoch (data generation) ─────────────────────────
+  // ✅ (2026-09-29) انظر migrations/0010_sync_meta.sql.
+
+  /**
+   * جيل بيانات المزامنة الحالي. يُزرع كسولاً (INSERT OR IGNORE — آمن
+   * تحت التزامن) إن غاب. يعيد null إن تعذّر (جدول غائب في نشر لم يطبّق
+   * الترحيل): السحب يستمر بلا epoch والعميل يتجاهله — لا يُكسر السحب
+   * أبداً بسبب هذه الميزة.
+   */
+  async getSyncEpoch(): Promise<string | null> {
+    try {
+      const row = await this.db
+        .prepare("SELECT v FROM sync_meta WHERE k = 'epoch'")
+        .first<{ v: string }>();
+      if (row?.v) return row.v;
+      await this.db
+        .prepare("INSERT OR IGNORE INTO sync_meta (k, v) VALUES ('epoch', ?)")
+        .bind(crypto.randomUUID().replace(/-/g, ''))
+        .run();
+      const seeded = await this.db
+        .prepare("SELECT v FROM sync_meta WHERE k = 'epoch'")
+        .first<{ v: string }>();
+      return seeded?.v ?? null;
+    } catch (err) {
+      console.warn('[SYNC] epoch unavailable (pull continues without it):', err);
+      return null;
+    }
+  }
+
+  /** تدوير الجيل — كل جهاز يرى القيمة الجديدة يعيد السحب من الصفر. */
+  async rotateSyncEpoch(): Promise<string> {
+    const epoch = crypto.randomUUID().replace(/-/g, '');
+    await this.db
+      .prepare(
+        "INSERT INTO sync_meta (k, v, updated_at) VALUES ('epoch', ?, unixepoch()) " +
+          'ON CONFLICT (k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at',
+      )
+      .bind(epoch)
+      .run();
+    return epoch;
+  }
+
   /**
    * Progressively repair poisoned timestamps in entity tables.
    *

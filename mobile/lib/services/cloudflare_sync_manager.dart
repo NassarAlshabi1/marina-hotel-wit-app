@@ -417,6 +417,19 @@ class CloudflareSyncManager {
   /// تُخزَّن في SharedPreferences لتعيش بين جلسات التطبيق.
   bool _fullSyncCompleted = false;
   static const String _kFullSyncCompletedKey = 'cf_full_sync_completed';
+
+  /// ✅ (2026-09-29) جيل بيانات الخادم (epoch) كما رآه هذا الجهاز آخر مرة.
+  /// المؤشر زمني (updated_at) فيبقى صالحاً عبر الكتابات العادية، لكنه
+  /// يفقد معناه بعد جراحة بيانات خادمية تحفظ الطوابع القديمة (إعادة
+  /// استيراد، استعادة Time Travel، إصلاح جماعي): صفوف أقدم من مؤشر الجهاز
+  /// لن تصله أبداً. تدوير epoch على الخادم (POST /api/admin/sync/rotate-epoch)
+  /// هو الرافعة الصريحة: كل جهاز يرى جيلاً مختلفاً يصفّر مؤشره ويعيد
+  /// السحب الكامل من الصفر — بديل حتمي لحراس «المؤشر المسموم» الظنية.
+  static const String kSyncEpochKey = 'cf_sync_epoch';
+
+  /// حارس إعادة التشغيل: تغيّر الجيل يعيد السحب من الصفر مرة واحدة
+  /// داخل الدورة نفسها — لا حلقة لو تدوّر الجيل مجدداً أثناءها.
+  bool _epochRestartInProgress = false;
   bool? _timestampNormalizationDone;
   static const String _kTimestampNormalizationDoneKey =
       'cf_timestamp_normalization_v1_done';
@@ -1017,6 +1030,46 @@ class CloudflareSyncManager {
       return Duration(seconds: seconds < 1 ? 1 : seconds);
     }
     return Duration(seconds: 2 * attempt);
+  }
+
+  /// ✅ (2026-09-29) مقارنة جيل الخادم في رد السحب بالمحفوظ محلياً.
+  /// يعيد true فقط حين تغيّر الجيل **ويجب** التخلي عن الصفحة الحالية
+  /// (بُنيت على مؤشر من جيل سابق). الحالات:
+  ///  - worker قديم بلا epoch → لا شيء (توافق خلفي).
+  ///  - أول مشاهدة (لا محفوظ) → تبنٍّ صامت: الأجهزة القائمة لا تعيد سحباً
+  ///    كاملاً مكلفاً لمجرد ترقية التطبيق.
+  ///  - جيل مختلف وهذه أول صفحة من سحب يبدأ من الصفر أصلاً → تبنٍّ
+  ///    والمتابعة (الصفحة صحيحة للجيل الجديد).
+  ///  - جيل مختلف غير ذلك → حفظ الجيل الجديد + تصفير المؤشر وعلامة
+  ///    full sync (في الذاكرة وprefs) → true.
+  Future<bool> _handleServerEpoch(
+    Object? rawEpoch, {
+    required bool pageBuiltFromZero,
+  }) async {
+    final epoch = rawEpoch is String ? rawEpoch.trim() : '';
+    if (epoch.isEmpty) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(kSyncEpochKey);
+    if (stored == epoch) return false;
+    await prefs.setString(kSyncEpochKey, epoch);
+    if (stored == null || stored.isEmpty || pageBuiltFromZero) return false;
+
+    _lastPullCursor = 0;
+    _fullSyncCompleted = false;
+    await prefs.setInt('cf_last_pull_cursor', 0);
+    await prefs.remove(_kFullSyncCompletedKey);
+    logError(
+      title: 'تغيّر جيل بيانات الخادم — إعادة مزامنة كاملة',
+      message:
+          'epoch الخادم تغيّر ($stored → $epoch): جراحة بيانات خادمية '
+          '(استعادة/إعادة استيراد). صُفّر المؤشر وعلامة full sync، '
+          'ويُعاد السحب من الصفر تلقائياً.',
+      category: ErrorCategory.sync,
+      source: 'sync:pull',
+      severity: LogLevel.warning,
+    );
+    debugPrint('🔁 Server epoch changed $stored → $epoch — full re-pull');
+    return true;
   }
 
   bool _isTokenExpired(String token) {
@@ -2025,6 +2078,8 @@ class CloudflareSyncManager {
     int pagesDone = 0;
     // ✅ سقف الصفحات (H2): يُكسر حلقة pagination عند بلوغه — تُضبط أدناه.
     var hitPageCap = false;
+    // ✅ (2026-09-29) تغيّر جيل الخادم أثناء الدورة → إعادة من الصفر.
+    var epochReset = false;
     // كيانات مؤثرة على الحقول المشتقة للحجوزات — يُعاد بناء الليالي
     // والإجماليات المخزنة بعد اكتمال السحب (refreshAllActiveBookings
     // مع enqueueOutbox:false — البيانات المشتقة تُحسب محلياً ولا تُرفع،
@@ -2182,6 +2237,17 @@ class CloudflareSyncManager {
             category: ErrorCategory.sync,
             source: 'sync:pull',
           );
+          break;
+        }
+
+        // ✅ (2026-09-29) جيل الخادم: صفحة من جيل مختلف بُنيت على مؤشر
+        // جيل سابق — تُهمل كاملة ويُعاد السحب من الصفر (بعد الحلقة).
+        if (await _handleServerEpoch(
+          data['epoch'],
+          pageBuiltFromZero: pendingCursor == 0 && pagesDone == 0,
+        )) {
+          epochReset = true;
+          hasMore = false;
           break;
         }
 
@@ -2767,13 +2833,26 @@ class CloudflareSyncManager {
           pulledRows: totalPulled,
           // ✅ سقف الصفحات (H2) = نهاية دورة لا نهاية بيانات: remaining
           // مجهول لا صفر — المؤشر يبقى غير-محدد بصدق.
-          remainingRows: (hadError || hitPageCap) ? null : 0,
+          remainingRows: (hadError || hitPageCap || epochReset) ? null : 0,
           pages: pagesDone,
           isFullSync: wasFullSync,
           isDone: true,
           errorMessage: hadError ? errorMessage : null,
         ),
       );
+    }
+
+    // ✅ (2026-09-29) تغيّر جيل الخادم: المؤشر وعلامة full sync صُفّرا في
+    // _handleServerEpoch — لا يُثبَّت pendingCursor القديم. إعادة السحب
+    // من الصفر مرة واحدة داخل الدورة (الحارس يمنع الحلقة).
+    if (epochReset) {
+      if (_epochRestartInProgress) return totalPulled;
+      _epochRestartInProgress = true;
+      try {
+        return totalPulled + await _pullChanges(deltaOnly: deltaOnly);
+      } finally {
+        _epochRestartInProgress = false;
+      }
     }
 
     // P0-C: only advance checkpoint in prefs on full success

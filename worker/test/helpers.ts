@@ -220,6 +220,8 @@ export interface PushResponseBody {
 export interface PullResponseBody {
   changes: Array<Record<string, unknown>>;
   cursor: string;
+  /** ✅ (2026-09-29) جيل بيانات المزامنة — null إن تعذّر (جدول غائب). */
+  epoch: string | null;
   has_more: boolean;
   /** ✅ (2026-09-10) مؤشر التقدم — null إلا مع include_remaining=1 */
   remaining: number | null;

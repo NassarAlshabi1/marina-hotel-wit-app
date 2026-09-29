@@ -484,6 +484,25 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         }
       }
 
+      // ─── Admin: rotate sync epoch ────────────────────────
+      // ✅ (2026-09-29) رافعة «أعد مزامنة كل الأجهزة من الصفر» بعد جراحة
+      // بيانات خادمية (استعادة Time Travel، إعادة استيراد بطوابع قديمة).
+      // admin فقط — كل جهاز سيعيد سحباً كاملاً (كلفة شبكية حقيقية).
+      if (path === '/api/admin/sync/rotate-epoch' && method === 'POST') {
+        if (ctx.role !== 'admin') {
+          logRequest(method, path, 403, Date.now() - startTime, clientIp);
+          return json({ error: 'Admin role required' }, 403, env);
+        }
+        try {
+          const epoch = await db.rotateSyncEpoch();
+          logRequest(method, path, 200, Date.now() - startTime, clientIp);
+          return json({ success: true, epoch }, 200, env);
+        } catch (err) {
+          logRequest(method, path, 500, Date.now() - startTime, clientIp);
+          return json({ error: 'Epoch rotation failed', detail: String(err) }, 500, env);
+        }
+      }
+
       // ─── Sync Log ───────────────────────────────────────
       if (path === '/api/sync/log' && method === 'GET') {
         const response = await handleSyncLog(request, db, ctx);

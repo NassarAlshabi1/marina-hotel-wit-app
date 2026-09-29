@@ -1106,3 +1106,14 @@ CREATE INDEX IF NOT EXISTS idx_finance_snapshots_approved
   ON finance_snapshots(approved_at DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_snapshots_scenario
   ON finance_snapshots(scenario_key, approved_at DESC);
+
+-- ═══════════════════════════════════════════════════════════════
+--  0010 — sync_meta: جيل بيانات المزامنة (epoch) — انظر migrations/0010_sync_meta.sql
+-- ═══════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS sync_meta (
+  k TEXT PRIMARY KEY,
+  v TEXT NOT NULL,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+INSERT OR IGNORE INTO sync_meta (k, v) VALUES ('epoch', lower(hex(randomblob(16))));
