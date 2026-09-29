@@ -30,6 +30,7 @@ import 'sync/payload_normalizer.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_enums.dart';
 import 'vector_clock_service.dart';
+import 'worker_endpoints.dart';
 
 // ✅ المرحلة 3: التنفيذ الكامل للـ Realtime في cloudflare_realtime_sync.dart
 // (WebSocket على SyncLockDO) — الاستيراد أعلاه + هذا الـ export يحفظان
@@ -678,6 +679,10 @@ class CloudflareSyncManager {
   @visibleForTesting
   Duration lazyInitCooldown = const Duration(seconds: 60);
 
+  /// ميزانية آخر مرشح في دورة الدخول (المهلة التاريخية 15ث) — تُضاف
+  /// إليها ميزانية كل مرشح سابق عبر [ResilientHttpClient.rotationDeadline].
+  static const Duration _loginLastCandidateBudget = Duration(seconds: 15);
+
   /// عملية تهيئة واحدة مشتركة؛ تمنع عدة شاشات من إرسال login متزامن.
   Future<void>? _initializeInFlight;
 
@@ -854,10 +859,21 @@ class CloudflareSyncManager {
     // 45 ثانية كاملة على شبكة محجوبة.
     final maxAttempts = loginAttempts.clamp(1, 10);
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      // ✅ (2026-09-29) C3: المهلة الخارجية تُبنى على ميزانية التدوير
+      // الفعلية — كانت 15ث ثابتة تلف التدوير كاملاً، فمرشح أول معلّق
+      // (إسقاط SNI صامت) يستهلكها قبل الوصول إلى الجسر العامل. الآن:
+      // 12ث لكل مرشح غير أخير + 15ث كاملة للأخير.
+      final loginUri = Uri.parse(
+        '${CloudflareConfig.workerUrl}/api/auth/login',
+      );
+      final loginTimeout = ResilientHttpClient.rotationDeadline(
+        WorkerEndpoints.candidatesFor(loginUri).length,
+        lastCandidateBudget: _loginLastCandidateBudget,
+      );
       try {
         final response = await _httpClient
             .post(
-              Uri.parse('${CloudflareConfig.workerUrl}/api/auth/login'),
+              loginUri,
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode({
                 'username': CloudflareConfig.username,
@@ -865,7 +881,7 @@ class CloudflareSyncManager {
                 'device_id': _deviceId,
               }),
             )
-            .timeout(const Duration(seconds: 15));
+            .timeout(loginTimeout);
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -889,6 +905,21 @@ class CloudflareSyncManager {
             responseBody: response.body,
             source: 'sync:login',
           );
+          // ✅ (2026-09-29) C5: 429/502/503/504 عابرة — إعادة داخل الدورة
+          // باحترام Retry-After (بسقف)، بدل ترك الجلسة فارغة 60ث كاملة.
+          if (_isTransientLoginStatus(response.statusCode) &&
+              attempt < maxAttempts) {
+            final delay = _loginRetryDelay(response, attempt);
+            if (delay != null) {
+              debugPrint(
+                '⏳ Cloudflare login HTTP ${response.statusCode} (transient) '
+                '— retrying in ${delay.inSeconds}s '
+                '(attempt $attempt/$maxAttempts)',
+              );
+              await Future<void>.delayed(delay);
+              continue;
+            }
+          }
           return;
         }
       } catch (e) {
@@ -929,7 +960,8 @@ class CloudflareSyncManager {
               'الخطأ الأصلي: $e';
         } else if (errStr.contains('TimeoutException')) {
           _initError =
-              'تعذّر الوصول إلى خادم المزامنة خلال المهلة (15 ثانية). '
+              'تعذّر الوصول إلى خادم المزامنة خلال المهلة '
+              '(${loginTimeout.inSeconds} ثانية). '
               'حاول التطبيق تلقائياً المسار البديل (DoH + اتصال مباشر) — إن '
               'استمر الفشل فالشبكة نفسها لا تصل إلى workers.dev: جرّب '
               'تغيير الشبكة (Wi-Fi/بيانات) أو VPN. الخطأ الأصلي: $e';
@@ -940,6 +972,51 @@ class CloudflareSyncManager {
         return;
       }
     }
+  }
+
+  /// ✅ (2026-09-29) C7: إبطال توكن رفضه الخادم (401/403) من خارج
+  /// المدير (فحص صحة D1) — نفس أثر مسار الدفع: تصفير `_token` يشعل
+  /// إعادة الدخول الكسولة في المزامنة القادمة فوراً (بلا تبريد).
+  /// مشروط بالتطابق: إن صدرت جلسة أحدث أثناء طلب الفحص فلا تُمس.
+  /// يعيد true إن أُبطل شيء فعلاً.
+  bool invalidateRejectedToken(String rejectedToken) {
+    if (rejectedToken.isEmpty) return false;
+    var changed = false;
+    if (_token == rejectedToken) {
+      _token = null;
+      _lastLazyInitAttempt = null;
+      changed = true;
+    }
+    if (Env.cloudflareAuthToken == rejectedToken) {
+      Env.cloudflareAuthToken = null;
+      changed = true;
+    }
+    if (changed) {
+      debugPrint('🔑 Cloudflare token rejected by server — invalidated');
+    }
+    return changed;
+  }
+
+  /// ✅ (2026-09-29) C5: رموز دخول عابرة تستحق إعادة المحاولة داخل
+  /// نفس الدورة — 429 (بعد Retry-After) و502/503/504 (خلل مؤقت في
+  /// الجسر/الحافة). 401/400/500 نهائية: إعادتها لا تغيّر النتيجة.
+  static bool _isTransientLoginStatus(int code) =>
+      code == 429 || code == 502 || code == 503 || code == 504;
+
+  /// أقصى انتظار مقبول لـ Retry-After داخل دورة الدخول — ما زاد يُترك
+  /// لدورة الدخول الكسولة التالية بدل حجب المُنادي.
+  static const int _maxLoginRetryAfterSeconds = 20;
+
+  /// زمن الانتظار قبل إعادة دخول عابر؛ null = لا تنتظر (أوقف الحلقة).
+  static Duration? _loginRetryDelay(http.Response response, int attempt) {
+    if (response.statusCode == 429) {
+      final raw =
+          response.headers['retry-after'] ?? response.headers['Retry-After'];
+      final seconds = int.tryParse(raw?.trim() ?? '') ?? 5;
+      if (seconds > _maxLoginRetryAfterSeconds) return null;
+      return Duration(seconds: seconds < 1 ? 1 : seconds);
+    }
+    return Duration(seconds: 2 * attempt);
   }
 
   bool _isTokenExpired(String token) {

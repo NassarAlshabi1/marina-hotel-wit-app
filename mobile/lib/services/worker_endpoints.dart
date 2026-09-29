@@ -112,6 +112,13 @@ class WorkerEndpoints {
       // والنجاح على المدمج يعيده sticky خلال الجلسة.
       if (_customUrl != null && _activeOverride == builtin) {
         _activeOverride = _customUrl;
+      } else if (_customUrl == null && hasRelay && _activeOverride == builtin) {
+        // ✅ (2026-09-29) C4: ترقية تركيبات ما قبل الجسر — sticky قديم
+        // على workers.dev (حُفظ قبل وجود الجسر) كان يُبقي الجلسة الأولى
+        // بعد التحديث على النطاق المحجوب فتدخل مسار المهلات كاملاً قبل
+        // أي تدوير. نبدأ على الجسر بنفس منطق المخصّص أعلاه: في الذاكرة
+        // فقط — النجاح وحده ما يُحفظ، والفشل يدوّر للمدمج تلقائياً.
+        _activeOverride = relay;
       }
     } catch (e) {
       dwarn(() => 'WorkerEndpoints.load failed (fail-open to builtin): $e');

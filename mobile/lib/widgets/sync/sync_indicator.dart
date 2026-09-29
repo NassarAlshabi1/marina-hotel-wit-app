@@ -143,7 +143,8 @@ class SyncIndicator extends ConsumerWidget {
       return 'فشلت آخر مزامنة — اضغط للتفاصيل وتسجيل الدخول';
     }
     if (checked && connection.isD1Connected == false) {
-      return 'قاعدة D1 لا تستجيب (${connection.d1Error ?? 'غير معروف'}) — اضغط للتفاصيل';
+      return '${d1FailureHeadline(connection.d1Failure)} '
+          '(${connection.d1Error ?? 'غير معروف'}) — اضغط للتفاصيل';
     }
     if (pending > 0) return '$pending تغييراً معلقاً — اضغط للمزامنة';
     if (status == SyncStatus.success) return 'تمت المزامنة بنجاح';

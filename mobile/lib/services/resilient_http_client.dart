@@ -65,7 +65,9 @@ class ResilientHttpClient extends http.BaseClient {
     EndpointPlanner? endpointPlanner,
     void Function(Uri base)? onEndpointSuccess,
     void Function(Uri base)? onEndpointFailure,
+    Duration? candidateBudget,
   }) : _inner = innerClient ?? _createDefaultInnerClient(),
+       _candidateBudget = candidateBudget,
        _timeout = timeout ?? const Duration(seconds: 30),
        _fastTimeout = fastTimeout ?? const Duration(seconds: 6),
        _dohResolver = dohResolver ?? _defaultDohResolver,
@@ -96,6 +98,31 @@ class ResilientHttpClient extends http.BaseClient {
   final EndpointPlanner? _endpointPlanner;
   final void Function(Uri base)? _onEndpointSuccess;
   final void Function(Uri base)? _onEndpointFailure;
+
+  /// ✅ (2026-09-29) C3: سقف زمني لكل مرشح **غير أخير** في التدوير
+  /// (حتى وصول ترويسات الرد). بدونه كان مرشح معلّق (إسقاط SNI صامت)
+  /// يستهلك مسار سريع 6ث + DoH ≤8ث + نفق 30ث/IP قبل الانتقال للتالي،
+  /// فتنتهي مهلة المُنادي (دخول 15ث) قبل أن يصل الطلب إلى الجسر العامل.
+  /// المرشح الأخير يبقى بميزانيته الكاملة (لا بديل بعده). null = بلا
+  /// سقف (السلوك السابق — اختبارات العقود القديمة).
+  final Duration? _candidateBudget;
+
+  /// ميزانية الإنتاج لكل مرشح غير أخير: تتسع لمسار سريع (6ث) + DoH
+  /// متوازٍ (عادة < 2ث) + مصافحة نفق واحدة، وتبقي التدوير الكامل
+  /// محدوداً بزمن معروف مسبقاً يستطيع المُنادي بناء مهلته عليه.
+  static const Duration defaultCandidateBudget = Duration(seconds: 12);
+
+  /// أسوأ زمن حتى يحصل **آخر** مرشح على [lastCandidateBudget] كاملة:
+  /// المُنادون (الدخول) يبنون مهلتهم الخارجية على هذا بدل رقم ثابت
+  /// أقصر من التدوير نفسه (جذر C3).
+  static Duration rotationDeadline(
+    int candidateCount, {
+    required Duration lastCandidateBudget,
+    Duration candidateBudget = defaultCandidateBudget,
+  }) {
+    final others = candidateCount > 1 ? candidateCount - 1 : 0;
+    return candidateBudget * others + lastCandidateBudget;
+  }
 
   // ── Shared learning across instances (single isolate) ──
   /// Fresh DoH results (hostname → IPs), TTL 5 minutes.
@@ -171,7 +198,9 @@ class ResilientHttpClient extends http.BaseClient {
     List<Uri> candidates,
   ) async {
     Object? lastError;
-    for (final base in candidates) {
+    for (var i = 0; i < candidates.length; i++) {
+      final base = candidates[i];
+      final isLast = i == candidates.length - 1;
       final targetUrl = _mergeUrl(base, request.url);
       final http.BaseRequest attempt;
       try {
@@ -179,8 +208,41 @@ class ResilientHttpClient extends http.BaseClient {
       } on ArgumentError {
         rethrow; // نوع طلب غير مدعوم للنسخ — خطأ برمجي لا تدوير شبكي.
       }
+      final budget = _candidateBudget;
+      // المحاولة المتروكة بعد انقضاء الميزانية تُعلَّم ملغاة حتى لا
+      // تكمل مرور IPs النفق ولا تمس البنية المشتركة (خادم النفق وعميل
+      // الاحتياط) التي قد يستخدمها المرشح التالي الآن.
+      final cancel = _AttemptCancellation();
       try {
-        final response = await _sendWithFastPathAndTunnel(attempt, targetUrl);
+        final pending = _sendWithFastPathAndTunnel(
+          attempt,
+          targetUrl,
+          cancel: cancel,
+        );
+        final http.StreamedResponse response;
+        if (budget != null && !isLast) {
+          response = await pending.timeout(
+            budget,
+            onTimeout: () {
+              cancel.cancel();
+              // رد متأخر يصل بعد التخلي عنه: صرّف جسمه كي لا يبقى
+              // المقبس محجوزاً في المجمع.
+              unawaited(
+                pending.then(
+                  (abandoned) =>
+                      abandoned.stream.drain<void>().catchError((Object _) {}),
+                  onError: (Object _) {},
+                ),
+              );
+              throw TimeoutException(
+                'Endpoint ${base.host} exceeded rotation budget '
+                '${budget.inSeconds}s',
+              );
+            },
+          );
+        } else {
+          response = await pending;
+        }
         _onEndpointSuccess?.call(base);
         debugPrint('✅ [ResilientHTTP] endpoint ${base.host} succeeded');
         return response;
@@ -205,8 +267,9 @@ class ResilientHttpClient extends http.BaseClient {
   /// تصل حلقة التدوير فوق مباشرة.
   Future<http.StreamedResponse> _sendWithFastPathAndTunnel(
     http.BaseRequest request,
-    Uri uri,
-  ) async {
+    Uri uri, {
+    _AttemptCancellation? cancel,
+  }) async {
     final host = uri.host;
 
     // Fast-path breaker open → go straight to the tunnel fallback.
@@ -215,7 +278,7 @@ class ResilientHttpClient extends http.BaseClient {
         '↪️ [ResilientHTTP] fast path is cooling down for $host — '
         'going straight to tunnel fallback',
       );
-      return _sendViaTunnelFallback(request, host);
+      return _sendViaTunnelFallback(request, host, cancel: cancel);
     }
 
     // Fast path (short budget). ANY failure → fallback.
@@ -239,7 +302,8 @@ class ResilientHttpClient extends http.BaseClient {
         '⚠️ [ResilientHTTP] fast path failed for $host '
         '(${e.runtimeType}) → tunnel fallback: $e',
       );
-      return _sendViaTunnelFallback(request, host);
+      cancel?.throwIfCancelled(host);
+      return _sendViaTunnelFallback(request, host, cancel: cancel);
     }
   }
 
@@ -261,9 +325,11 @@ class ResilientHttpClient extends http.BaseClient {
   // ═══════════════════════════════════════════════════════════
   Future<http.StreamedResponse> _sendViaTunnelFallback(
     http.BaseRequest request,
-    String host,
-  ) async {
+    String host, {
+    _AttemptCancellation? cancel,
+  }) async {
     final ips = await _candidateIps(host);
+    cancel?.throwIfCancelled(host);
     if (ips.isEmpty) {
       // ✅ (2026-09-10) رسالة قابلة للتنفيذ: workers.dev محجوب شبكياً في
       // اليمن — إن فشل الحلّ هنا فالمخرج الوحيد نطاق مخصّص، فنوجّه
@@ -285,6 +351,10 @@ class ResilientHttpClient extends http.BaseClient {
 
     Exception? lastError;
     for (final ip in ips) {
+      // محاولة متروكة (تجاوزت ميزانية التدوير) لا تبدأ IP جديداً: كل
+      // _sendViaTunnel يعيد بناء عميل الاحتياط المشترك وقد يقطع طلب
+      // المرشح التالي الجاري عليه.
+      cancel?.throwIfCancelled(host);
       try {
         final response = await _sendViaTunnel(request, host, ip).timeout(
           _timeout,
@@ -299,9 +369,12 @@ class ResilientHttpClient extends http.BaseClient {
         lastError = e is Exception ? e : Exception(e.toString());
         debugPrint('⚠️ [ResilientHTTP] fallback via $ip failed: $e');
         // If the local tunnel itself died (bind/port closed), force a
-        // re-bind on the next attempt.
+        // re-bind on the next attempt. محاولة متروكة لا تمس خادم النفق
+        // المشترك — فشلها قد يكون أثراً لإعادة بناء المرشح التالي له.
         final t = _tunnelServer;
-        if (t != null && e is SocketException) {
+        if (t != null &&
+            e is SocketException &&
+            !(cancel?.isCancelled ?? false)) {
           unawaited(() async {
             try {
               await t.close();
@@ -794,8 +867,24 @@ class _DohEndpoint {
 http.Client createResilientHttpClient({Duration? timeout}) {
   return ResilientHttpClient(
     timeout: timeout,
+    candidateBudget: ResilientHttpClient.defaultCandidateBudget,
     endpointPlanner: WorkerEndpoints.candidatesFor,
     onEndpointSuccess: WorkerEndpoints.reportSuccess,
     onEndpointFailure: WorkerEndpoints.reportFailure,
   );
+}
+
+/// ✅ (2026-09-29) علم إلغاء تعاوني لمحاولة مرشح تجاوزت ميزانية
+/// التدوير — Dart لا يلغي Future، فالمحاولة المتروكة تفحص العلم عند كل
+/// نقطة قرار (قبل النفق، قبل كل IP) وتتوقف بدل منافسة المرشح التالي
+/// على البنية المشتركة.
+class _AttemptCancellation {
+  bool _cancelled = false;
+  bool get isCancelled => _cancelled;
+  void cancel() => _cancelled = true;
+  void throwIfCancelled(String host) {
+    if (_cancelled) {
+      throw TimeoutException('Attempt for $host abandoned (rotation budget)');
+    }
+  }
 }
