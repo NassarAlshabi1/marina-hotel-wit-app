@@ -51,7 +51,14 @@ class _ActiveBookingsReminderScreenState
     }
     try {
       final db = ref.read(databaseProvider);
-      await BookingDerivedFieldsService(db).refreshAllActiveBookings();
+      // ✅ (2026-09-30) enqueueOutbox:false — فتح الشاشة قراءة وليس تعديلاً؛
+      // الحقول المشتقة كاش محلي يُعاد حسابه بعد كل سحب (خريطة W2 الموثقة
+      // في bookings_outbox_pull_diagnosis_test) — كتابتها في outbox عند كل
+      // دخول كانت تلوث الطابور بسجلات bookings/update لكل حجز نشط بلا أي
+      // تغيير مادي (كانت الشكوى المبلغبة: «كل دخول يضيف بيانات إلى outbox»).
+      await BookingDerivedFieldsService(
+        db,
+      ).refreshAllActiveBookings(enqueueOutbox: false);
       if (mounted) {
         setState(() => _isInitialLoading = false);
       }
@@ -253,9 +260,12 @@ class _ActiveBookingsReminderScreenState
             final scaffoldMessenger = ScaffoldMessenger.of(context);
             try {
               final db = ref.read(databaseProvider);
+              // ✅ (2026-09-30) enqueueOutbox:false — زر التحديث للعرض فقط،
+              // نفس منطق التحديث التلقائي أعلاه (ترقية الحجز المؤقت W3
+              // تستمر بالبث حتى مع false — كتابتها غير مشروطة أصلاً).
               final refreshedCount = await BookingDerivedFieldsService(
                 db,
-              ).refreshAllActiveBookings();
+              ).refreshAllActiveBookings(enqueueOutbox: false);
               if (mounted) {
                 scaffoldMessenger.showSnackBar(
                   SnackBar(

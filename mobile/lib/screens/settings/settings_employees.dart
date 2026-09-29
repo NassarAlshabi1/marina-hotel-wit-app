@@ -664,7 +664,12 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       // ✅ استخدام اليوم الفندقي كتاريخ افتراضي عند إضافة موظف جديد
       text: employee?.hireDate ?? HotelTimeEngine.getHotelDayKey(),
     );
-    String status = employee?.status ?? 'نشط';
+    // ✅ (2026-09-30) إصلاح «الحالة لا تظهر»: القيمة الخام من القاعدة
+    // (مثل 'active' الإنجليزية أو '' من مزامنة قديمة) لا تطابق أي عنصر
+    // من عناصر القائمة المنسدلة فتصبح فارغة. employeeStatusLabel تعيد
+    // دائماً تسمية عربية ضمن عناصر القائمة — نفس نمط employees_list.dart:786.
+    String status =
+        employee != null ? StatusUtils.employeeStatusLabel(employee.status) : 'نشط';
 
     unawaited(
       showDialog<void>(

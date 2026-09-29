@@ -65,10 +65,12 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
     await _loadRooms();
     // تحديث القيم المحسوبة (totalDueCached, totalPaidCached, remainingBalanceCached)
     // لضمان دقة المجاميع في التقرير
+    // ✅ (2026-09-30) enqueueOutbox:false — فتح التقرير قراءة؛ نفس منطق
+    // شاشة تذكير المتبقي (W2 موثقة) — لا تلوث لطابور outbox عند كل فتح.
     try {
       final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
-      await derivedService.refreshAllActiveBookings();
+      await derivedService.refreshAllActiveBookings(enqueueOutbox: false);
     } catch (_) {}
     await _fetchReport();
   }
