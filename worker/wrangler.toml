@@ -16,6 +16,20 @@ database_id = "607f1090-83b1-4281-975f-d81b8f6154e7"
 # 1000 writes/day cap, no eventual consistency). The former dead
 # RATE_LIMIT KV binding was removed — it was never read by the code.
 
+# ─── Custom Domain (الدومين المجاني dpdns.org — حل حجب اليمن الدائم) ───
+# adenmarina.dpdns.org (DigitalPlat، ملك حتى 2027-09-28، على Public
+# Suffix List فيُقبل كـ zone مستقلة). فعّل الأسطر التالية بعد:
+#   1) إضافة الـ zone على Cloudflare (لوحة → Add a domain → Free)
+#   2) تغيير NS عند DigitalPlat نحو الـ NS المعيّنين من Cloudflare
+#   3) تفعيل الـ zone (status = active)
+# بعدها `wrangler deploy` يلحق النطاق تلقائياً (DNS + شهادة تلقائية).
+# بديل بلا توكن: لوحة Cloudflare → Workers & Pages → marina-hotel-api
+#   → Settings → Domains & Routes → Add → Custom domain.
+# أو: scripts/attach_dpdns_domain.sh (توكن بـ Zone:Edit + Routes:Edit).
+# [[routes]]
+# pattern = "adenmarina.dpdns.org"
+# custom_domain = true
+
 # ─── Scheduled (cron) maintenance ──────────────────────────
 # ✅ (2026-09-24) تنظيف idempotency_log اليومي — يغلق ملاحظة
 # «الجدول ينمو بلا حد». 03:17 UTC ≈ 06:17 بتوقيت اليمن — بعد تدوير
