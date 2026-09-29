@@ -11,10 +11,9 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

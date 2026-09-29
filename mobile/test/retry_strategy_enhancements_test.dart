@@ -67,7 +67,6 @@ void main() {
     test('النوع المدرج يُعاد محاولته بشكل طبيعي', () async {
       final rs = RetryStrategy(
         config: fastConfig(
-          maxAttempts: 3,
           retryableErrors: const <Type>[NetworkishError],
         ),
       );

@@ -44,7 +44,7 @@ void main() {
   });
 
   group('shouldShowConnectionSnackbar — قرار العرض', () {
-    final t0 = DateTime(2026, 9, 17, 12, 0, 0);
+    final t0 = DateTime(2026, 9, 17, 12);
 
     test('أول فحص مكتمل (previous=null) يُعرض دائماً', () {
       expect(
@@ -131,7 +131,6 @@ void main() {
     test('متصل بلا فحص D1 (null) لا يدّعي استجابة D1', () {
       final view = buildConnectionSnackbar(
         ConnectionSnackbarKind.connected,
-        d1LatencyMs: null,
       );
       expect(view.message, contains('متصل بخادم Cloudflare'));
       expect(view.message, isNot(contains('D1 يستجيب')));

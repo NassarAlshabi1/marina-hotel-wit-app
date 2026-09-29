@@ -13,7 +13,7 @@ void main() {
         final hashed = PasswordHasher.hash('mypassword');
         expect(hashed, isNotEmpty);
         // Format: pbkdf2_sha256$<iterations>$<salt_b64>$<hash_b64>
-        expect(hashed.startsWith('pbkdf2_sha256\$'), isTrue);
+        expect(hashed.startsWith(r'pbkdf2_sha256$'), isTrue);
         final parts = hashed.split(r'$');
         expect(parts.length, equals(4));
         expect(parts[0], equals('pbkdf2_sha256'));
@@ -71,13 +71,13 @@ void main() {
       test('rejects malformed hash gracefully', () {
         expect(PasswordHasher.verify('password', 'malformed'), isFalse);
         expect(
-          PasswordHasher.verify('password', 'pbkdf2_sha256\$abc'),
+          PasswordHasher.verify('password', r'pbkdf2_sha256$abc'),
           isFalse,
         );
         expect(
           PasswordHasher.verify(
             'password',
-            'pbkdf2_sha256\$abc\$def\$ghi\$extra',
+            r'pbkdf2_sha256$abc$def$ghi$extra',
           ),
           isFalse,
         );
@@ -86,7 +86,7 @@ void main() {
       test('rejects corrupted base64 in hash', () {
         const password = 'testPassword';
         // Build a hash with invalid base64
-        const corrupted = 'pbkdf2_sha256\$100000\$!!!invalidbase64!!!\$abc';
+        const corrupted = r'pbkdf2_sha256$100000$!!!invalidbase64!!!$abc';
         expect(PasswordHasher.verify(password, corrupted), isFalse);
       });
     });

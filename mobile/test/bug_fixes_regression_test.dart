@@ -1,35 +1,35 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marina_hotel_mobile/utils/time.dart';
 import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 
 void main() {
   group('Time - Hotel Day Calculations', () {
     test('hotelDayStart returns correct boundary for before 14:01', () {
-      final beforeBoundary = DateTime(2026, 1, 15, 10, 0, 0);
+      final beforeBoundary = DateTime(2026, 1, 15, 10);
       final result = Time.hotelDayStart(beforeBoundary);
-      expect(result, DateTime(2026, 1, 14, 14, 1, 0));
+      expect(result, DateTime(2026, 1, 14, 14, 1));
     });
 
     test('hotelDayStart returns correct boundary for after 14:01', () {
-      final afterBoundary = DateTime(2026, 1, 15, 16, 0, 0);
+      final afterBoundary = DateTime(2026, 1, 15, 16);
       final result = Time.hotelDayStart(afterBoundary);
-      expect(result, DateTime(2026, 1, 15, 14, 1, 0));
+      expect(result, DateTime(2026, 1, 15, 14, 1));
     });
 
     test('hotelDayStart keeps exactly 14:00 in the previous hotel day', () {
-      final exact14 = DateTime(2026, 1, 15, 14, 0, 0);
+      final exact14 = DateTime(2026, 1, 15, 14);
       final result = Time.hotelDayStart(exact14);
-      expect(result, DateTime(2026, 1, 14, 14, 1, 0));
+      expect(result, DateTime(2026, 1, 14, 14, 1));
     });
 
     test('hotelDayKey returns correct date string for before 14:00', () {
-      final before14 = DateTime(2026, 1, 15, 10, 0, 0);
+      final before14 = DateTime(2026, 1, 15, 10);
       final result = Time.hotelDayKey(now: before14);
       expect(result, '2026-01-14');
     });
 
     test('hotelDayKey returns correct date string for after 14:00', () {
-      final after14 = DateTime(2026, 1, 15, 16, 0, 0);
+      final after14 = DateTime(2026, 1, 15, 16);
       final result = Time.hotelDayKey(now: after14);
       expect(result, '2026-01-15');
     });
@@ -37,22 +37,22 @@ void main() {
     test(
       'nightsWithCutoff counts 1 night for same-day checkout before next cutoff',
       () {
-        final checkin = DateTime(2026, 1, 15, 16, 0, 0);
-        final checkout = DateTime(2026, 1, 16, 14, 0, 0);
+        final checkin = DateTime(2026, 1, 15, 16);
+        final checkout = DateTime(2026, 1, 16, 14);
         final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
         expect(nights, 1);
       },
     );
 
     test('nightsWithCutoff counts 2 nights spanning two hotel days', () {
-      final checkin = DateTime(2026, 1, 15, 16, 0, 0);
-      final checkout = DateTime(2026, 1, 17, 10, 0, 0);
+      final checkin = DateTime(2026, 1, 15, 16);
+      final checkout = DateTime(2026, 1, 17, 10);
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
       expect(nights, 2);
     });
 
     test('nightsWithCutoff returns minimum 1 night even for same datetime', () {
-      final checkin = DateTime(2026, 1, 15, 16, 0, 0);
+      final checkin = DateTime(2026, 1, 15, 16);
       final nights = Time.nightsWithCutoff(checkin, checkout: checkin);
       expect(nights, 1);
     });
@@ -87,7 +87,7 @@ void main() {
 
   group('Discount Calculations - Hotel Day Based', () {
     test('discount start date should use hotel day 14:01 boundary', () {
-      final discountStartDate = DateTime(2026, 1, 15, 0, 0, 0);
+      final discountStartDate = DateTime(2026, 1, 15);
       final hotelDayStart = DateTime(
         discountStartDate.year,
         discountStartDate.month,
@@ -100,16 +100,16 @@ void main() {
     });
 
     test('segment at midnight should be counted as previous hotel day', () {
-      final segmentStart = DateTime(2026, 1, 16, 2, 0, 0);
+      final segmentStart = DateTime(2026, 1, 16, 2);
       final hotelDay = Time.hotelDayStart(segmentStart);
-      expect(hotelDay, DateTime(2026, 1, 15, 14, 1, 0));
+      expect(hotelDay, DateTime(2026, 1, 15, 14, 1));
     });
 
     test(
       'discount applies correctly when segment is on or after discount start hotel day',
       () {
-        final segmentStart = DateTime(2026, 1, 16, 16, 0, 0);
-        final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
+        final segmentStart = DateTime(2026, 1, 16, 16);
+        final discountStartDate = DateTime(2026, 1, 16);
 
         final hotelDay = Time.hotelDayStart(segmentStart);
         final hotelDayDate = DateTime(
@@ -130,8 +130,8 @@ void main() {
     test(
       'discount does not apply when segment hotel day is before discount start',
       () {
-        final segmentStart = DateTime(2026, 1, 15, 10, 0, 0);
-        final discountStartDate = DateTime(2026, 1, 16, 0, 0, 0);
+        final segmentStart = DateTime(2026, 1, 15, 10);
+        final discountStartDate = DateTime(2026, 1, 16);
 
         final hotelDay = Time.hotelDayStart(segmentStart);
         final hotelDayDate = DateTime(

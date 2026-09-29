@@ -3,6 +3,8 @@
 //  Tests for CloudflareSyncManager (singleton, state, sync logic)
 // ═══════════════════════════════════════════════════════════════
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/sync_enums.dart';
@@ -56,8 +58,8 @@ void main() {
       final sub2 = manager.syncStatusStream.listen((_) {});
       expect(sub1, isNotNull);
       expect(sub2, isNotNull);
-      sub1.cancel();
-      sub2.cancel();
+      unawaited(sub1.cancel());
+      unawaited(sub2.cancel());
     });
 
     test('sync without initialization returns failed SyncResult', () async {
@@ -205,7 +207,6 @@ void main() {
         duration: Duration.zero,
         recordsPushed: 10,
         recordsPulled: 5,
-        conflicts: 0,
       );
       expect(success.isSuccess, isTrue);
       expect(success.hasConflicts, isFalse);
@@ -237,7 +238,7 @@ void main() {
         final realtime = CloudflareRealtimeSync();
         await realtime.initialize(deviceId: 'test-device');
         await realtime.start();
-        realtime.stop();
+        await realtime.stop();
         expect(realtime.pendingRemoteChangesCount.value, equals(0));
         expect(realtime.hasRemoteChanges.value, isFalse);
       },
@@ -272,7 +273,7 @@ void main() {
       expect(state['cursor'], 0);
       expect(state['fullSyncFlag'], isFalse);
       expect(
-        (state['manager'] as CloudflareSyncManager).isFullSyncCompleted,
+        (state['manager']! as CloudflareSyncManager).isFullSyncCompleted,
         isFalse,
       );
     });

@@ -18,7 +18,7 @@ SyncHealthReport _makeReport({
     tableSizes: const {},
     fkViolations: 0,
     status: status,
-    timestamp: DateTime(2026, 1, 1),
+    timestamp: DateTime(2026),
   );
 }
 
@@ -45,7 +45,7 @@ void main() {
 
   group('SyncHealthReport', () {
     test('oldestPendingAgeFormatted returns "—" when null', () {
-      final report = _makeReport(oldestPendingAge: null);
+      final report = _makeReport();
       expect(report.oldestPendingAgeFormatted, equals('—'));
     });
 

@@ -5,7 +5,7 @@ void main() {
   group('AppwriteSyncUtils', () {
     group('collectionSchema', () {
       test('booking_price_adjustments should have hotelDayKey', () {
-        final schema = AppwriteSyncUtils.collectionSchema;
+        const schema = AppwriteSyncUtils.collectionSchema;
         final bpaSchema = schema['booking_price_adjustments'];
         expect(bpaSchema, isNotNull);
         expect(bpaSchema!.containsKey('hotelDayKey'), isTrue);
@@ -13,7 +13,7 @@ void main() {
       });
 
       test('booking_price_adjustments should have appliedDate', () {
-        final schema = AppwriteSyncUtils.collectionSchema;
+        const schema = AppwriteSyncUtils.collectionSchema;
         final bpaSchema = schema['booking_price_adjustments'];
         expect(bpaSchema, isNotNull);
         expect(bpaSchema!.containsKey('appliedDate'), isTrue);
@@ -21,7 +21,7 @@ void main() {
       });
 
       test('booking_price_adjustments amount should be double', () {
-        final schema = AppwriteSyncUtils.collectionSchema;
+        const schema = AppwriteSyncUtils.collectionSchema;
         final bpaSchema = schema['booking_price_adjustments'];
         expect(bpaSchema, isNotNull);
         expect(bpaSchema!['amount'], 'double');
@@ -30,7 +30,7 @@ void main() {
       test(
         'booking_price_adjustments should have all required sync fields',
         () {
-          final schema = AppwriteSyncUtils.collectionSchema;
+          const schema = AppwriteSyncUtils.collectionSchema;
           final bpaSchema = schema['booking_price_adjustments']!;
 
           final requiredFields = [
@@ -60,21 +60,21 @@ void main() {
 
     group('validFieldsPerCollection', () {
       test('booking_price_adjustments should include hotelDayKey', () {
-        final fields = AppwriteSyncUtils.validFieldsPerCollection;
+        const fields = AppwriteSyncUtils.validFieldsPerCollection;
         final bpaFields = fields['booking_price_adjustments'];
         expect(bpaFields, isNotNull);
         expect(bpaFields!.contains('hotelDayKey'), isTrue);
       });
 
       test('booking_price_adjustments should include appliedDate', () {
-        final fields = AppwriteSyncUtils.validFieldsPerCollection;
+        const fields = AppwriteSyncUtils.validFieldsPerCollection;
         final bpaFields = fields['booking_price_adjustments'];
         expect(bpaFields, isNotNull);
         expect(bpaFields!.contains('appliedDate'), isTrue);
       });
 
       test('booking_price_adjustments should include amount', () {
-        final fields = AppwriteSyncUtils.validFieldsPerCollection;
+        const fields = AppwriteSyncUtils.validFieldsPerCollection;
         final bpaFields = fields['booking_price_adjustments'];
         expect(bpaFields, isNotNull);
         expect(bpaFields!.contains('amount'), isTrue);

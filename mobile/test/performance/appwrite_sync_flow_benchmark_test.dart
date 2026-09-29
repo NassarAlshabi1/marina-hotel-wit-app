@@ -271,8 +271,8 @@ void main() {
       var localWins = 0;
       var remoteWins = 0;
       for (final c in conflicts) {
-        final localTs = c['localLastModified'] as int;
-        final remoteTs = c['remoteLastModified'] as int;
+        final localTs = c['localLastModified']! as int;
+        final remoteTs = c['remoteLastModified']! as int;
         if (localTs >= remoteTs) {
           localWins++;
         } else {
@@ -326,7 +326,7 @@ void main() {
       // Phase 2: محاكاة serialize + send
       sw = Stopwatch()..start();
       // محاكاة serialize (تحويل payload لـ string — يقيس زمن المعالجة)
-      final serialized = batch.map((e) => e.payload.toString()).join(',');
+      final serialized = batch.map((e) => e.payload).join(',');
       expect(serialized.length, greaterThan(0)); // منع optimizer من حذفها
       await _simulateNetworkLatency(ms: 30);
       sw.stop();

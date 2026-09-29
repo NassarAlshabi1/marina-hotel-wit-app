@@ -394,7 +394,7 @@ void main() {
       });
       final manager = CloudflareSyncManager()..reset();
       manager.configureForTesting(database: db, httpClient: client);
-      await manager.initialize(database: db, loginAttempts: 3);
+      await manager.initialize(database: db);
       return served;
     }
 

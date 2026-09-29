@@ -65,7 +65,7 @@ void main() {
           );
 
       // إنشاء حجز نشط (تاريخ دخول في الماضي)
-      final checkinDate = _dayFromNow(-9, hour: 15);
+      final checkinDate = _dayFromNow(-9);
       final bookingId = await db
           .into(db.bookings)
           .insert(
@@ -154,7 +154,7 @@ void main() {
             ),
           );
 
-      final checkinDate = _dayFromNow(-4, hour: 15);
+      final checkinDate = _dayFromNow(-4);
       final bookingId = await db
           .into(db.bookings)
           .insert(
@@ -238,7 +238,7 @@ void main() {
             ),
           );
 
-      final checkinDate = _dayFromNow(-9, hour: 15);
+      final checkinDate = _dayFromNow(-9);
       final bookingId = await db
           .into(db.bookings)
           .insert(
@@ -352,7 +352,7 @@ void main() {
           );
 
       // حجز مُغلق (actualCheckout موجود، status=مغادر)
-      final checkinDate = _dayFromNow(-5, hour: 15);
+      final checkinDate = _dayFromNow(-5);
       final checkoutDate = _dayFromNow(-1, hour: 11);
       final bookingId = await db
           .into(db.bookings)

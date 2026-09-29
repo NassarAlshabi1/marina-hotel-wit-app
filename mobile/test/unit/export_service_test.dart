@@ -10,7 +10,7 @@ void main() {
     group('SalaryExportData', () {
       test('should create with required fields', () {
         final data = SalaryExportData(
-          date: DateTime(2026, 7, 1),
+          date: DateTime(2026, 7),
           employeeName: 'Ahmed',
           role: 'Receptionist',
           type: 'سحب راتب',
@@ -23,7 +23,7 @@ void main() {
 
       test('should handle negative amounts (deductions)', () {
         final data = SalaryExportData(
-          date: DateTime(2026, 7, 1),
+          date: DateTime(2026, 7),
           employeeName: 'Ahmed',
           role: 'Receptionist',
           type: 'خصم راتب',
@@ -49,7 +49,7 @@ void main() {
 
     group('InvoiceItem', () {
       test('should create with required fields', () {
-        final item = InvoiceItem(
+        const item = InvoiceItem(
           description: 'إيجار غرفة 101 (3 ليالٍ)',
           qty: 3,
           unitPrice: 15000,
@@ -60,7 +60,7 @@ void main() {
       });
 
       test('should handle negative amounts (discounts)', () {
-        final item = InvoiceItem(
+        const item = InvoiceItem(
           description: 'خصم إقامة طويلة (10%)',
           qty: 1,
           unitPrice: -4500,

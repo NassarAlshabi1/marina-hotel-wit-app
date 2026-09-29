@@ -11,7 +11,7 @@ void main() {
     group('getHotelDayKey', () {
       test('before 14:01 returns previous day', () {
         // 10:00 AM → previous day
-        final dt = DateTime(2026, 8, 2, 10, 0, 0);
+        final dt = DateTime(2026, 8, 2, 10);
         final key = HotelTimeEngine.getHotelDayKey(dateTime: dt);
         expect(key, equals('2026-08-01'));
       });
@@ -23,20 +23,20 @@ void main() {
       });
 
       test('at exactly 14:01:00 returns current day', () {
-        final dt = DateTime(2026, 8, 2, 14, 1, 0);
+        final dt = DateTime(2026, 8, 2, 14, 1);
         final key = HotelTimeEngine.getHotelDayKey(dateTime: dt);
         expect(key, equals('2026-08-02'));
       });
 
       test('after 14:01 returns current day', () {
         // 3:00 PM → same day
-        final dt = DateTime(2026, 8, 2, 15, 0, 0);
+        final dt = DateTime(2026, 8, 2, 15);
         final key = HotelTimeEngine.getHotelDayKey(dateTime: dt);
         expect(key, equals('2026-08-02'));
       });
 
       test('midnight (00:00:00) returns previous day', () {
-        final dt = DateTime(2026, 8, 2, 0, 0, 0);
+        final dt = DateTime(2026, 8, 2);
         final key = HotelTimeEngine.getHotelDayKey(dateTime: dt);
         expect(key, equals('2026-08-01'));
       });
@@ -50,7 +50,7 @@ void main() {
 
     group('getHotelDay', () {
       test('before cutoff returns DateTime of previous day', () {
-        final dt = DateTime(2026, 8, 2, 10, 0);
+        final dt = DateTime(2026, 8, 2, 10);
         final hotelDay = HotelTimeEngine.getHotelDay(dt);
         expect(hotelDay.year, equals(2026));
         expect(hotelDay.month, equals(8));
@@ -59,7 +59,7 @@ void main() {
       });
 
       test('after cutoff returns DateTime of same day', () {
-        final dt = DateTime(2026, 8, 2, 15, 0);
+        final dt = DateTime(2026, 8, 2, 15);
         final hotelDay = HotelTimeEngine.getHotelDay(dt);
         expect(hotelDay.day, equals(2));
       });
@@ -72,17 +72,17 @@ void main() {
       });
 
       test('14:01:00 IS after cutoff', () {
-        final dt = DateTime(2026, 8, 2, 14, 1, 0);
+        final dt = DateTime(2026, 8, 2, 14, 1);
         expect(HotelTimeEngine.isAfterCutoff(dt), isTrue);
       });
 
       test('10:00 is NOT after cutoff', () {
-        final dt = DateTime(2026, 8, 2, 10, 0);
+        final dt = DateTime(2026, 8, 2, 10);
         expect(HotelTimeEngine.isAfterCutoff(dt), isFalse);
       });
 
       test('20:00 IS after cutoff', () {
-        final dt = DateTime(2026, 8, 2, 20, 0);
+        final dt = DateTime(2026, 8, 2, 20);
         expect(HotelTimeEngine.isAfterCutoff(dt), isTrue);
       });
     });
@@ -91,7 +91,7 @@ void main() {
       // These tests verify the business logic used by cancelAdjustment()
       test('yesterday hotel day is one day before today', () {
         final todayHotelDay = HotelTimeEngine.getHotelDayKey(
-          dateTime: DateTime(2026, 8, 2, 15, 0),
+          dateTime: DateTime(2026, 8, 2, 15),
         );
         final yesterdayHotelDay = DateTime.parse(
           todayHotelDay,
@@ -149,25 +149,25 @@ void main() {
 
     group('Hotel day boundary edge cases', () {
       test('month boundary: Aug 1 before 14:01 → Jul 31', () {
-        final dt = DateTime(2026, 8, 1, 10, 0);
+        final dt = DateTime(2026, 8, 1, 10);
         final key = HotelTimeEngine.getHotelDayKey(dateTime: dt);
         expect(key, equals('2026-07-31'));
       });
 
       test('month boundary: Aug 1 after 14:01 → Aug 1', () {
-        final dt = DateTime(2026, 8, 1, 15, 0);
+        final dt = DateTime(2026, 8, 1, 15);
         final key = HotelTimeEngine.getHotelDayKey(dateTime: dt);
         expect(key, equals('2026-08-01'));
       });
 
       test('year boundary: Jan 1 before 14:01 → Dec 31 previous year', () {
-        final dt = DateTime(2026, 1, 1, 10, 0);
+        final dt = DateTime(2026, 1, 1, 10);
         final key = HotelTimeEngine.getHotelDayKey(dateTime: dt);
         expect(key, equals('2025-12-31'));
       });
 
       test('year boundary: Jan 1 after 14:01 → Jan 1', () {
-        final dt = DateTime(2026, 1, 1, 15, 0);
+        final dt = DateTime(2026, 1, 1, 15);
         final key = HotelTimeEngine.getHotelDayKey(dateTime: dt);
         expect(key, equals('2026-01-01'));
       });

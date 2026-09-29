@@ -108,7 +108,6 @@ void main() {
   group('Payment copyWith', () {
     test('يغيّر الحقل المطلوب فقط ويحافظ على البقية', () {
       final original = _payment(
-        amount: 15000,
         notes: 'ملاحظة أصلية',
         referenceNumber: 'REF-1',
       );

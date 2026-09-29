@@ -82,8 +82,8 @@ void main() {
         osVersion: 'o',
         lastSeen: DateTime.utc(2026, 1, 2, 3, 4, 5),
         status: 'inactive',
-        createdAt: DateTime.utc(2026, 1, 1),
-        updatedAt: DateTime.utc(2026, 1, 1),
+        createdAt: DateTime.utc(2026),
+        updatedAt: DateTime.utc(2026),
         version: 2,
       );
       final json = device.toJson();
@@ -91,7 +91,7 @@ void main() {
       expect(json['lastSeen'], device.lastSeen.toIso8601String());
       expect(
         json['createdAt'],
-        DateTime.utc(2026, 1, 1).millisecondsSinceEpoch ~/ 1000,
+        DateTime.utc(2026).millisecondsSinceEpoch ~/ 1000,
       );
       expect(json.containsKey('lastActive'), isFalse);
       expect(json.containsKey('origin'), isFalse);

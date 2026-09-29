@@ -10,9 +10,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/auth_local_store.dart';
-import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/password_hasher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,14 +20,12 @@ void main() {
 
   late AppDatabase db;
   late AuthLocalStore store;
-  late OutboxDao outbox;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     db = AppDatabase.forTesting(NativeDatabase.memory());
     DatabaseManager.attachForTesting(db);
     store = AuthLocalStore();
-    outbox = OutboxDao(db, AdapterRegistry.testing(db));
   });
 
   tearDown(() async {
@@ -157,7 +153,7 @@ void main() {
 
       final before = await appUsersRows('kareem').then((r) => r.first);
       final credBefore = before['credentials_version'];
-      final versionBefore = before['version'];
+      final versionBefore = before['version'] as int;
 
       final saved = await store.setPermissions('kareem', ['reports']);
       expect(saved, isTrue);

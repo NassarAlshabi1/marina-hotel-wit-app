@@ -49,7 +49,7 @@ void main() {
   setUpAll(() async {
     // خادم «الوجهة» الحقيقي على loopback — TLS كامل بشهادة CA اختبارية
     // (CN = دومين الـworker) — التحقق من الشهادة حقيقي 100% عميلياً.
-    final certChain = 'test/fixtures/tunnel_certs';
+    const certChain = 'test/fixtures/tunnel_certs';
     final serverCtx = SecurityContext()
       ..useCertificateChain('$certChain/server.crt')
       ..usePrivateKey('$certChain/server.testkey');
@@ -90,9 +90,7 @@ void main() {
     await upstream?.close(force: true);
   });
 
-  setUp(() {
-    ResilientHttpClient.resetSharedState();
-  });
+  setUp(ResilientHttpClient.resetSharedState);
 
   ResilientHttpClient buildClient({
     required http.Client inner,
@@ -170,7 +168,10 @@ void main() {
         );
 
         expect(response.statusCode, 200);
-        expect(jsonDecode(response.body)['status'], 'ok');
+        expect(
+          (jsonDecode(response.body) as Map<String, dynamic>)['status'],
+          'ok',
+        );
         client.close();
       },
     );

@@ -2,13 +2,12 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/auth_local_store.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/password_hasher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// ✅ (2026-09-16) عقد ردّم الحسابات المحلية المخصصة إلى السحابة
 /// [AuthLocalStore.backfillLocalAccountsToCloud]:

@@ -21,7 +21,6 @@ void main() {
       AdapterRegistry.initialize(db);
       final repository = PaymentsRepository(db);
       const paymentDate = '2026-08-21T15:00:00.000Z';
-      final hotelDay = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
 
       PaymentSessionContext.start(
         userId: 1,
@@ -66,7 +65,7 @@ void main() {
         revenueType: 'room',
       );
       await (db.update(db.payments)..where((p) => p.id.equals(voidedId))).write(
-        PaymentsCompanion(isVoided: Value(true)),
+        const PaymentsCompanion(isVoided: Value(true)),
       );
 
       final total = await repository.watchTotalByCurrentPaymentSession().first;

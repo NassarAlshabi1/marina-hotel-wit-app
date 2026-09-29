@@ -40,7 +40,6 @@ void main() {
       username: 'admin-user',
       fullName: 'مدير النظام',
       userType: 'admin',
-      permissions: const [],
     );
     const allPermissions = AuthUser(
       id: 14,

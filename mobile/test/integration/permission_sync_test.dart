@@ -51,7 +51,8 @@ void main() {
     expect(rows, hasLength(1));
     expect(rows.single.localUuid, docId);
     expect(
-      jsonDecode(rows.single.payload)['permissions'],
+      (jsonDecode(rows.single.payload)
+          as Map<String, dynamic>)['permissions'],
       jsonEncode(['inventory.view']),
     );
     expect(await outbox.countPendingPushable(), 1);

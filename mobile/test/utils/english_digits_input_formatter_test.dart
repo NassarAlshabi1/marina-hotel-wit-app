@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:marina_hotel_mobile/utils/english_digits_input_formatter.dart';
@@ -8,7 +7,7 @@ void main() {
 
   test('يحوّل الأرقام العربية والفارسية إلى أرقام إنجليزية', () {
     final result = formatter.formatEditUpdate(
-      const TextEditingValue(),
+      TextEditingValue.empty,
       const TextEditingValue(text: '١٢۳٤'),
     );
 
@@ -17,7 +16,7 @@ void main() {
 
   test('يحذف الحروف والفواصل والكسور من حقول الأعداد الصحيحة', () {
     final result = formatter.formatEditUpdate(
-      const TextEditingValue(),
+      TextEditingValue.empty,
       const TextEditingValue(text: '12.5 ريالabc,٣'),
     );
 
@@ -26,7 +25,7 @@ void main() {
 
   test('يحافظ على الأرقام الإنجليزية الصالحة كما هي', () {
     final result = formatter.formatEditUpdate(
-      const TextEditingValue(),
+      TextEditingValue.empty,
       const TextEditingValue(text: '42,900'),
     );
 

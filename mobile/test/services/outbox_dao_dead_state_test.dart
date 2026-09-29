@@ -32,7 +32,6 @@ void main() {
         localUuid: 'test-room-001',
         payload: {'roomNumber': '101'},
         clientTs: DateTime.now().millisecondsSinceEpoch,
-        source: 'local',
       );
 
       // 2) ضعه في dead
@@ -70,7 +69,6 @@ void main() {
         localUuid: 'test-room-002',
         payload: {'roomNumber': '102'},
         clientTs: DateTime.now().millisecondsSinceEpoch,
-        source: 'local',
       );
 
       await outboxDao.setDead(id, 'Test dead', 10);
@@ -113,7 +111,6 @@ void main() {
           localUuid: 'room-pending',
           payload: {},
           clientTs: DateTime.now().millisecondsSinceEpoch,
-          source: 'local',
         );
         final id2 = await outboxDao.merge(
           entity: 'rooms',
@@ -121,7 +118,6 @@ void main() {
           localUuid: 'room-failed',
           payload: {},
           clientTs: DateTime.now().millisecondsSinceEpoch + 1,
-          source: 'local',
         );
         final id3 = await outboxDao.merge(
           entity: 'rooms',
@@ -129,7 +125,6 @@ void main() {
           localUuid: 'room-dead',
           payload: {},
           clientTs: DateTime.now().millisecondsSinceEpoch + 2,
-          source: 'local',
         );
 
         // محاكاة Secondary مُفعّل: ضع delivered_to_secondary=0 يدوياً
@@ -191,7 +186,6 @@ void main() {
           localUuid: 'room-max-attempts',
           payload: {},
           clientTs: DateTime.now().millisecondsSinceEpoch,
-          source: 'local',
         );
 
         // محاكاة Secondary مُفعّل

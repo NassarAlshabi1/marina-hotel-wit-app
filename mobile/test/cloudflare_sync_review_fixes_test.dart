@@ -642,7 +642,7 @@ void main() {
         token: 'test-token',
         deviceId: 'review-fixes-device',
       );
-      await manager.fullSync(push: false);
+      await manager.fullSync();
       expect(
         pullOnlyClient.pushCalls,
         0,
@@ -665,7 +665,7 @@ void main() {
       const roomUuid = 'rm-f1-lost';
       final liveClient = _ReviewFakeClient(
         pullHandler: (request) => {
-          'changes': [_roomRow(roomUuid, updatedAt: 1700000100)],
+          'changes': [_roomRow(roomUuid)],
           'cursor': '1700000100',
           'has_more': false,
           'errors': <dynamic>[],

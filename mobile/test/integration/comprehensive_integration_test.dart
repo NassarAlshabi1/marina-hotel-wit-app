@@ -10,13 +10,13 @@
 // 6. الأمان (تشفير/فك تشفير)
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
 import 'package:marina_hotel_mobile/services/crashlytics_service.dart';
+import 'package:marina_hotel_mobile/services/export_service.dart';
 import 'package:marina_hotel_mobile/services/performance_monitor.dart';
 import 'package:marina_hotel_mobile/services/posthog_service.dart';
-import 'package:marina_hotel_mobile/services/export_service.dart';
-import 'package:marina_hotel_mobile/utils/secure_storage.dart';
 import 'package:marina_hotel_mobile/utils/hotel_time_engine.dart';
-import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
+import 'package:marina_hotel_mobile/utils/secure_storage.dart';
 
 void main() {
   group('🔧 Integration Tests — Critical Flows', () {
@@ -49,7 +49,7 @@ void main() {
       });
 
       test('hotel day key should change at 14:01 boundary', () {
-        final before = DateTime(2026, 7, 27, 14, 0);
+        final before = DateTime(2026, 7, 27, 14);
         final after = DateTime(2026, 7, 27, 14, 1);
         final keyBefore = HotelTimeEngine.getHotelDayKey(dateTime: before);
         final keyAfter = HotelTimeEngine.getHotelDayKey(dateTime: after);
@@ -133,7 +133,7 @@ void main() {
 
       test('SalaryExportData should handle negative amounts', () {
         final data = SalaryExportData(
-          date: DateTime(2026, 7, 1),
+          date: DateTime(2026, 7),
           employeeName: 'Test',
           role: 'Test',
           type: 'deduction',
@@ -147,7 +147,7 @@ void main() {
       test(
         'booking_price_adjustments schema should have all required fields',
         () {
-          final schema = AppwriteSyncUtils.collectionSchema;
+          const schema = AppwriteSyncUtils.collectionSchema;
           final bpa = schema['booking_price_adjustments']!;
 
           // Required fields for Appwrite Cloud
@@ -208,7 +208,7 @@ void main() {
         final result = await PerformanceMonitor.instance.traceOperation(
           'integration_test',
           operation: () async {
-            await Future.delayed(const Duration(milliseconds: 50));
+            await Future<void>.delayed(const Duration(milliseconds: 50));
             return 'completed';
           },
         );

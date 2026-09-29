@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_config.dart';
@@ -117,7 +116,7 @@ void main() {
     });
 
     test('devices في migrationOrder بعد app_users وقبل blacklist', () {
-      final order = CloudflareConfig.migrationOrder;
+      const order = CloudflareConfig.migrationOrder;
       final devicesIdx = order.indexOf('devices');
       final appUsersIdx = order.indexOf('app_users');
       final blacklistIdx = order.indexOf('blacklist');

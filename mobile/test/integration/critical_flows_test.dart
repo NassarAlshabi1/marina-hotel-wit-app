@@ -18,24 +18,17 @@ library marina_hotel_mobile.test.integration_critical_flows_test;
 
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart';
-import 'package:marina_hotel_mobile/utils/time.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-
-import 'package:marina_hotel_mobile/providers/core_providers.dart';
-import 'package:marina_hotel_mobile/providers/repository_providers.dart';
-import 'package:marina_hotel_mobile/providers/room_payment_status_provider.dart';
+import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/expenses_dao.dart';
-import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/payments_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/rooms_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
-import 'package:marina_hotel_mobile/services/sync_service.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 
 /// Helper: ينشئ DB مع بيانات حقيقية شاملة.
 Future<AppDatabase> _seedFullDatabase() async {
@@ -100,34 +93,6 @@ Future<AppDatabase> _seedFullDatabase() async {
   return db;
 }
 
-/// Helper: يبني ProviderScope مع Timer-safe overrides.
-Widget _buildTestWidget({required AppDatabase db, required Widget child}) {
-  return ProviderScope(
-    overrides: [
-      databaseProvider.overrideWithValue(db),
-      simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
-      syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
-      roomsWithPaymentStatusProvider.overrideWith(
-        (ref) => Stream.value(const <RoomWithPaymentStatus>[]),
-      ),
-      todayPaymentsProvider.overrideWith((ref) => Stream.value(0.0)),
-      todayExpensesProvider.overrideWith((ref) => Stream.value(0.0)),
-      roomsListProvider.overrideWith((ref) => Stream.value(const <Room>[])),
-      bookingsListProvider.overrideWith(
-        (ref) => Stream.value(const <Booking>[]),
-      ),
-      employeesListProvider.overrideWith(
-        (ref) => Stream.value(const <Employee>[]),
-      ),
-      debtsListProvider.overrideWith((ref) => Stream.value(const <Debt>[])),
-      expensesListProvider.overrideWith(
-        (ref) => Stream.value(const <Expense>[]),
-      ),
-      appVersionProvider.overrideWith((ref) async => '1.0.0+1'),
-    ],
-    child: MaterialApp(home: child),
-  );
-}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

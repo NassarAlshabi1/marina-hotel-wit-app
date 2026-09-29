@@ -5,7 +5,6 @@
 
 import 'dart:convert';
 import 'dart:io' show GZipCodec;
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -234,7 +233,7 @@ void main() {
 
       final gateway = roster
           .where(
-            (e) => (e['hostname'] as String).endsWith(
+            (e) => (e['hostname']! as String).endsWith(
               '.cloudflare-gateway.com',
             ),
           )
@@ -250,14 +249,14 @@ void main() {
 
     test('every provider is fully specified (hardcoded IPs, JSON API path)', () {
       for (final e in ResilientHttpClient.describeDohEndpointsForTests()) {
-        expect((e['hostname'] as String).isNotEmpty, isTrue);
+        expect((e['hostname']! as String).isNotEmpty, isTrue);
         expect(
-          (e['path'] as String),
+          e['path']! as String,
           anyOf(equals('/dns-query'), equals('/resolve')),
           reason: '${e['hostname']} path غير متوقع',
         );
         expect(
-          (e['ips'] as List<String>).where((ip) => ip.isNotEmpty),
+          (e['ips']! as List<String>).where((ip) => ip.isNotEmpty),
           isNotEmpty,
           reason: '${e['hostname']} بلا عناوين مثبتة',
         );

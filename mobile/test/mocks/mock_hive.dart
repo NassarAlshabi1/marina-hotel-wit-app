@@ -6,12 +6,12 @@ import 'dart:typed_data';
 
 /// Mock لـ Hive Box
 class MockHiveBox<T> {
+
+  MockHiveBox(this.name);
   final Map<String, T> _data = {};
   final String name;
   final StreamController<String> _changeController =
       StreamController<String>.broadcast();
-
-  MockHiveBox(this.name);
 
   T? get(String key) => _data[key];
 
@@ -22,9 +22,7 @@ class MockHiveBox<T> {
 
   Future<void> putAll(Map<String, T> entries) async {
     _data.addAll(entries);
-    for (final key in entries.keys) {
-      _changeController.add(key);
-    }
+    entries.keys.forEach(_changeController.add);
   }
 
   Future<void> delete(String key) async {
@@ -33,9 +31,7 @@ class MockHiveBox<T> {
   }
 
   Future<void> deleteAll(Iterable<String> keys) async {
-    for (final key in keys) {
-      _data.remove(key);
-    }
+    keys.forEach(_data.remove);
     _changeController.add('batch_delete');
   }
 
@@ -78,12 +74,12 @@ class MockHiveLazyBox<T> extends MockHiveBox<T> {
 
 /// Mock لـ Hive
 class MockHive {
-  static final MockHive _instance = MockHive._internal();
   factory MockHive() => _instance;
   MockHive._internal();
+  static final MockHive _instance = MockHive._internal();
 
-  final Map<String, MockHiveBox> _boxes = {};
-  final Map<String, MockHiveLazyBox> _lazyBoxes = {};
+  final Map<String, MockHiveBox<dynamic>> _boxes = {};
+  final Map<String, MockHiveLazyBox<dynamic>> _lazyBoxes = {};
 
   Future<void> initFlutter() async {
     // لا شيء للتهيئة في الاختبار
@@ -117,10 +113,10 @@ class MockHive {
 
   void reset() {
     for (final box in _boxes.values) {
-      box.close();
+      unawaited(box.close());
     }
     for (final box in _lazyBoxes.values) {
-      box.close();
+      unawaited(box.close());
     }
     _boxes.clear();
     _lazyBoxes.clear();
@@ -135,9 +131,9 @@ class MockHiveCipher {
 
 /// Mock للـ Hive AES Cipher
 class MockHiveAesCipher implements MockHiveCipher {
-  final List<int> key;
 
   MockHiveAesCipher(this.key);
+  final List<int> key;
 
   @override
   Uint8List encrypt(Uint8List data) {
@@ -154,9 +150,9 @@ class MockHiveAesCipher implements MockHiveCipher {
 
 /// Mock للـ Hive Reader
 class MockHiveReader {
-  final Map<String, dynamic> _data;
 
   MockHiveReader(this._data);
+  final Map<String, dynamic> _data;
 
   dynamic read() => _data;
 }

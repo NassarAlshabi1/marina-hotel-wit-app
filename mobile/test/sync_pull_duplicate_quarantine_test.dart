@@ -228,22 +228,22 @@ void main() {
     // (refreshAllActiveBookings) تعالج الحجوزات النشطة فقط، فلا تعيد
     // كتابة الليلة المدمجة وتُبطل قيود الاختبار.
     await db.customStatement(
-      "INSERT INTO rooms (local_uuid, room_number, type, price, status,"
-      " created_at, updated_at, last_modified)"
+      'INSERT INTO rooms (local_uuid, room_number, type, price, status,'
+      ' created_at, updated_at, last_modified)'
       " VALUES ('rm-u', 'RN-7', 'double', 100.0, 'available', 1, 1, 1)",
     );
     await db.customStatement(
-      "INSERT INTO bookings (local_uuid, room_number, guest_name,"
-      " guest_phone, guest_nationality, checkin_date, status, server_id,"
-      " created_at, updated_at, last_modified)"
+      'INSERT INTO bookings (local_uuid, room_number, guest_name,'
+      ' guest_phone, guest_nationality, checkin_date, status, server_id,'
+      ' created_at, updated_at, last_modified)'
       " VALUES ('bk-1', 'RN-7', 'ضيف', '077', 'يمني', '2026-09-09',"
       " 'completed', 501, 1, 1, 1)",
     );
     await db.customStatement(
-      "INSERT INTO booking_nights (booking_local_id, hotel_day_key,"
-      " night_start, night_end, nightly_rate, sequence, base_rate,"
-      " adjustment, final_rate, local_uuid, created_at, updated_at,"
-      " last_modified, origin)"
+      'INSERT INTO booking_nights (booking_local_id, hotel_day_key,'
+      ' night_start, night_end, nightly_rate, sequence, base_rate,'
+      ' adjustment, final_rate, local_uuid, created_at, updated_at,'
+      ' last_modified, origin)'
       " VALUES (1, '2026-09-09', '2026-09-09 15:00', '2026-09-10 12:00',"
       " 100.0, 1, 100.0, 0.0, 100.0, 'n-local', 100, 100, 100, 'local')",
     );
@@ -264,7 +264,6 @@ void main() {
                   'n-server-copy',
                   bookingLocalId: 424242, // رقم خادمي غريب — uuid-cache يفوز
                   bookingUuidCache: 'bk-1',
-                  updatedAt: 1700000300,
                   finalRate: 150.0,
                 ),
               ],
@@ -346,7 +345,6 @@ void main() {
             'n-server-copy',
             bookingLocalId: 424242,
             bookingUuidCache: 'bk-1',
-            updatedAt: 1700000300,
             finalRate: 150.0,
           ),
         ],
@@ -501,14 +499,14 @@ void main() {
       () async {
         // محلياً: موظف بلا ظلّ + دورة لشهر 2026-09.
         await db.customStatement(
-          "INSERT INTO employees (local_uuid, name, basic_salary, position,"
-          " status, created_at, updated_at, last_modified, origin)"
+          'INSERT INTO employees (local_uuid, name, basic_salary, position,'
+          ' status, created_at, updated_at, last_modified, origin)'
           " VALUES ('emp-1', 'موظف', 1000.0, 'موظف', 'active', 1, 1, 1, 'local')",
         );
         await db.customStatement(
-          "INSERT INTO salary_cycles (employee_id, cycle_key, expected_amount,"
-          " actual_paid, remaining_amount, status, local_uuid, created_at,"
-          " updated_at, last_modified, origin)"
+          'INSERT INTO salary_cycles (employee_id, cycle_key, expected_amount,'
+          ' actual_paid, remaining_amount, status, local_uuid, created_at,'
+          ' updated_at, last_modified, origin)'
           " VALUES (1, '2026-09', 1000, 0, 1000, 'draft', 'sc-local',"
           " 1, 1, 1, 'local')",
         );
@@ -538,10 +536,10 @@ void main() {
         expect(first.status, SyncStatus.success);
         expect(await pref('cf_last_pull_cursor'), 1700000610);
         final pending1 =
-            (jsonDecode(
+            jsonDecode(
                   (await pref('cf_pull_blocked_pending')).toString(),
                 )
-                as Map<String, dynamic>);
+                as Map<String, dynamic>;
         expect(pending1.keys, contains('salary_cycles/sc-dup'));
 
         // الدورة 2: إعادة المحاولة من الحمولة تصطدم مجدداً — عدّاد 2،
@@ -564,17 +562,17 @@ void main() {
         );
         expect(await cell('salary_cycles', 'local_uuid', byId: 1), 'sc-local');
         expect(
-          (jsonDecode(
+          jsonDecode(
                 (await pref('cf_pull_blocked_pending')).toString(),
               )
-              as Map<String, dynamic>),
+              as Map<String, dynamic>,
           isNot(contains('salary_cycles/sc-dup')),
         );
         final quarantined =
-            (jsonDecode(
+            jsonDecode(
                   (await pref('cf_pull_quarantined_records')).toString(),
                 )
-                as Map<String, dynamic>);
+                as Map<String, dynamic>;
         expect(quarantined.keys, contains('salary_cycles/sc-dup'));
         // حمولة المعزول محفوظة — أساس الشفاء الدوري من الحمولة.
         expect(

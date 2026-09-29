@@ -48,7 +48,7 @@ class _ReportRow {
 /// نسخة وفية من استعلام salary_withdrawals_report_screen._loadSalaryData:
 /// deleted_at IS NULL + فلتر hotel_day_key (مع fallback withdraw_date
 /// للمفاتيح الفارغة) + فلتر الموظف الاختياري.
-Future<List<_ReportRow>> salaryReportRows(
+Future<List<_ReportRow>> _salaryReportRows(
   AppDatabase db, {
   required String fromHotelDay,
   required String toHotelDay,
@@ -145,7 +145,6 @@ Future<int> createSalaryExpensePair(
     amount: amount,
     date: date,
     hotelDayKey: date,
-    employeeUuid: null,
   );
   await salaryRepo.saveFromExpense(
     expenseId: expenseId,
@@ -192,7 +191,6 @@ Future<void> editExpenseViaScreenPath(
     amount: amount,
     date: date,
     hotelDayKey: date,
-    employeeUuid: null,
   );
 
   await salaryRepo.saveFromExpense(
@@ -250,7 +248,7 @@ void main() {
       )..where((t) => t.id.equals(orphanId))).getSingle();
 
       // قبل التعديل: صفّان حيّان بنفس المبلغ — عين المستخدم تراهما مكررين
-      final before = await salaryReportRows(
+      final before = await _salaryReportRows(
         db,
         fromHotelDay: '2026-09-25',
         toHotelDay: '2026-09-25',
@@ -270,7 +268,7 @@ void main() {
       );
 
       // بعد التعديل: سحوبة واحدة حية فقط
-      final after = await salaryReportRows(
+      final after = await _salaryReportRows(
         db,
         fromHotelDay: '2026-09-25',
         toHotelDay: '2026-09-25',
@@ -338,7 +336,7 @@ void main() {
         date: '2026-09-25',
       );
 
-      final after = await salaryReportRows(
+      final after = await _salaryReportRows(
         db,
         fromHotelDay: '2026-09-25',
         toHotelDay: '2026-09-25',
@@ -384,7 +382,7 @@ void main() {
         runCleanup: false,
       );
 
-      final after = await salaryReportRows(
+      final after = await _salaryReportRows(
         db,
         fromHotelDay: '2026-09-25',
         toHotelDay: '2026-09-25',
@@ -433,7 +431,7 @@ void main() {
         date: '2026-09-25',
       );
 
-      final after = await salaryReportRows(
+      final after = await _salaryReportRows(
         db,
         fromHotelDay: '2026-09-25',
         toHotelDay: '2026-09-25',

@@ -182,7 +182,7 @@ void main() {
       final payload = AuthLocalStore.appUsersSyncPayload(
         localUuid: 'user_admin',
         username: 'admin',
-        password: 'pbkdf2\$hash',
+        password: r'pbkdf2$hash',
         fullName: 'مدير النظام',
         userType: 'admin',
         permissionsJson: '["dashboard"]',
@@ -191,7 +191,6 @@ void main() {
         credentialsVersion: 1,
         role: 'admin',
         now: 1700000000,
-        version: 1,
         deviceId: 'dev-1',
       );
       // كل المفاتيح snake_case — لا مفتاح camelCase يُرشَّح في worker
@@ -274,7 +273,6 @@ void main() {
         credentialsVersion: 1,
         role: 'admin',
         now: 1,
-        version: 1,
         deviceId: 'd',
         tombstone: true,
       );

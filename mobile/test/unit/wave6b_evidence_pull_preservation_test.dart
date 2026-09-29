@@ -12,15 +12,17 @@
 
 // ignore_for_file: lines_longer_than_80_chars
 
+import 'dart:async';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marina_hotel_mobile/services/adapters/debts_adapter.dart';
-import 'package:marina_hotel_mobile/services/adapters/payments_adapter.dart';
-import 'package:marina_hotel_mobile/services/adapters/bookings_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/booking_price_adjustments_adapter.dart';
-import 'package:marina_hotel_mobile/services/adapters/price_adjustments_adapter.dart';
+import 'package:marina_hotel_mobile/services/adapters/bookings_adapter.dart';
+import 'package:marina_hotel_mobile/services/adapters/debts_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/id_resolver.dart';
+import 'package:marina_hotel_mobile/services/adapters/payments_adapter.dart';
+import 'package:marina_hotel_mobile/services/adapters/price_adjustments_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 
@@ -34,7 +36,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     resolver = IdResolver(db);
     // Disable FK for field verification tests
-    db.customStatement("PRAGMA foreign_keys = OFF");
+    unawaited(db.customStatement('PRAGMA foreign_keys = OFF'));
   });
 
   tearDown(() async {
@@ -586,7 +588,7 @@ void main() {
   group('secondary sync removal evidence', () {
     test('secondary_sync_manager.dart does not exist', () {
       expect(
-        () => _attemptImportSecondarySyncManager(),
+        _attemptImportSecondarySyncManager,
         throwsA(isA<StateError>()),
         reason: 'SecondarySyncManager class must not exist',
       );
@@ -594,7 +596,7 @@ void main() {
 
     test('secondary_sync_provider.dart does not exist', () {
       expect(
-        () => _attemptImportSecondarySyncProvider(),
+        _attemptImportSecondarySyncProvider,
         throwsA(isA<StateError>()),
         reason: 'secondarySyncProvider must not exist',
       );

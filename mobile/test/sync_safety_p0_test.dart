@@ -10,14 +10,13 @@
 //    - P0-F: SmartConflictResolver returns pushedToRemote=true on merges
 // ═══════════════════════════════════════════════════════════════
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
-import 'package:drift/drift.dart' show Value, Variable;
-
-import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
-import 'package:marina_hotel_mobile/services/sync_guard.dart';
+import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync_core/smart_conflict_resolver.dart';
+import 'package:marina_hotel_mobile/services/sync_guard.dart';
 import 'package:marina_hotel_mobile/services/vector_clock_service.dart';
 
 void main() {
@@ -54,7 +53,7 @@ void main() {
       var row = await db
           .customSelect(
             'SELECT delivered_to_primary FROM outbox WHERE local_uuid = ?',
-            variables: [Variable<String>('p0d-test-001')],
+            variables: [const Variable<String>('p0d-test-001')],
           )
           .getSingle();
       expect(row.read<int>('delivered_to_primary'), equals(1));
@@ -72,7 +71,7 @@ void main() {
       row = await db
           .customSelect(
             'SELECT delivered_to_primary, attempts, last_error FROM outbox WHERE local_uuid = ?',
-            variables: [Variable<String>('p0d-test-001')],
+            variables: [const Variable<String>('p0d-test-001')],
           )
           .getSingle();
       expect(
@@ -120,7 +119,7 @@ void main() {
         final row = await db
             .customSelect(
               'SELECT delivered_to_primary FROM outbox WHERE local_uuid = ?',
-              variables: [Variable<String>('p0d-test-002')],
+              variables: [const Variable<String>('p0d-test-002')],
             )
             .getSingle();
         // Should still be 1 because payload did not change
@@ -140,7 +139,7 @@ void main() {
       // Mark both delivery flags as true (would normally trigger deletion,
       // but we set processing_status to failed first to keep it alive)
       await db.customStatement(
-        "UPDATE outbox SET delivered_to_primary = 1, delivered_to_secondary = 1, "
+        'UPDATE outbox SET delivered_to_primary = 1, delivered_to_secondary = 1, '
         "processing_status = 'failed' WHERE local_uuid = 'p0d-test-003'",
       );
 
@@ -155,7 +154,7 @@ void main() {
           .customSelect(
             'SELECT delivered_to_primary, delivered_to_secondary, processing_status '
             'FROM outbox WHERE local_uuid = ?',
-            variables: [Variable<String>('p0d-test-003')],
+            variables: [const Variable<String>('p0d-test-003')],
           )
           .getSingle();
       expect(
@@ -247,7 +246,7 @@ void main() {
       // Mark both as processing (simulating crash during push)
       await db.customStatement(
         "UPDATE outbox SET processing_status = 'processing', "
-        "processing_started_at = 1785549800 "
+        'processing_started_at = 1785549800 '
         "WHERE local_uuid IN ('p0h-stuck-001', 'p0h-stuck-002')",
       );
 
@@ -278,11 +277,7 @@ void main() {
 
   group('P0-I: SyncGuard tryAcquire/release atomic (Wave 5 token ownership)', () {
     // SyncGuard uses static state, so reset between tests
-    setUp(() {
-      // Force-release any prior state by directly accessing internals
-      // via the public markFinished (clears state regardless)
-      SyncGuard.markFinished();
-    });
+    setUp(SyncGuard.markFinished);
     tearDown(() {
       SyncGuard.markFinished();
       // إعادة مهلة stale الافتراضية (10 دقائق — قيمة _defaultStaleLockTimeout)

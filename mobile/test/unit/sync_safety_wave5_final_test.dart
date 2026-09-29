@@ -47,7 +47,7 @@ void main() {
       // سيفشل (الملف غير موجود).
       // نتحقق بـ lookup بسيط: لا يوجد class SecondarySyncManager.
       expect(
-        () => SecondarySyncManagerStub.lookupClass(),
+        SecondarySyncManagerStub.lookupClass,
         throwsA(isA<StateError>()),
         reason: 'SecondarySyncManager يجب أن يكون محذوفاً تماماً بعد Wave 5',
       );
@@ -64,7 +64,6 @@ void main() {
           localUuid: 'room-1',
           payload: {'roomNumber': '101'},
           clientTs: 1000,
-          source: 'local',
         );
         // السجل يُلتقط عادي بدون secondary
         final batch = await outboxDao.takeBatch(
@@ -89,10 +88,7 @@ void main() {
   // المجموعة 3: Ownership-Safe SyncGuard
   // ═══════════════════════════════════════════════════════════════════════
   group('3. Ownership-Safe SyncGuard', () {
-    setUp(() {
-      // إعادة ضبط الحالة قبل كل اختبار
-      SyncGuard.markFinished();
-    });
+    setUp(SyncGuard.markFinished);
 
     test('3a. tryAcquire يُرجع token (ليس bool) عند النجاح', () {
       final token = SyncGuard.tryAcquire(label: 'test_a');
@@ -193,7 +189,6 @@ void main() {
         localUuid: 'room-ack-1',
         payload: {'value': 'v1'},
         clientTs: 1000,
-        source: 'local',
       );
       // قراءة payload_version الأولي
       var record = await (db.select(
@@ -208,7 +203,6 @@ void main() {
         localUuid: 'room-ack-1',
         payload: {'value': 'v2'},
         clientTs: 2000,
-        source: 'local',
       );
       record = await (db.select(
         db.outbox,
@@ -227,7 +221,6 @@ void main() {
         localUuid: 'room-ack-2',
         payload: {'value': 'v1'},
         clientTs: 1000,
-        source: 'local',
       );
       final batch = await outboxDao.takeBatch(
         10,
@@ -261,7 +254,6 @@ void main() {
         localUuid: 'room-ack-3',
         payload: {'value': 'v1'},
         clientTs: 1000,
-        source: 'local',
       );
 
       // 1. worker-A يلتقط السجل
@@ -282,7 +274,6 @@ void main() {
         localUuid: 'room-ack-3',
         payload: {'value': 'v2'},
         clientTs: 2000,
-        source: 'local',
       );
 
       // تحقق أن payloadVersion زاد
@@ -326,7 +317,6 @@ void main() {
         localUuid: 'room-ack-4',
         payload: {'value': 'v1'},
         clientTs: 1000,
-        source: 'local',
       );
 
       // worker يلتقط
@@ -364,7 +354,6 @@ void main() {
           localUuid: 'missing-pending',
           payload: {'data': 'important'},
           clientTs: 100,
-          source: 'local',
         );
 
         final cleaned = await outboxDao.cleanupForMissingEntities([
@@ -372,7 +361,7 @@ void main() {
         ]);
         expect(cleaned, 0, reason: 'عنصر pending يجب أن يُترك للأمان');
 
-        final remaining = await (db.select(db.outbox)).get();
+        final remaining = await db.select(db.outbox).get();
         expect(remaining.length, 1);
         expect(remaining.first.payload, contains('important'));
       },
@@ -387,7 +376,6 @@ void main() {
           localUuid: 'missing-failed',
           payload: {'data': 'failed'},
           clientTs: 100,
-          source: 'local',
         );
         await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
           const OutboxCompanion(processingStatus: drift.Value('failed')),
@@ -398,7 +386,7 @@ void main() {
         ]);
         expect(cleaned, 0, reason: 'عنصر failed يجب أن يُترك للأمان');
 
-        final remaining = await (db.select(db.outbox)).get();
+        final remaining = await db.select(db.outbox).get();
         expect(remaining.length, 1);
       },
     );
@@ -410,7 +398,6 @@ void main() {
         localUuid: 'missing-completed',
         payload: {},
         clientTs: 100,
-        source: 'local',
       );
       await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
         const OutboxCompanion(processingStatus: drift.Value('completed')),
@@ -436,7 +423,6 @@ void main() {
         localUuid: 'room-delete-1',
         payload: {},
         clientTs: 1000,
-        source: 'local',
       );
 
       // محاولة تحديث payload بـ op='update'
@@ -446,7 +432,6 @@ void main() {
         localUuid: 'room-delete-1',
         payload: {'extra': 'data'},
         clientTs: 2000,
-        source: 'local',
       );
 
       final record = await (db.select(
@@ -468,7 +453,6 @@ void main() {
         localUuid: 'room-restore-1',
         payload: {'v': 1},
         clientTs: 1000,
-        source: 'local',
       );
 
       // محاكاة تسليم للرئيسي
@@ -483,7 +467,6 @@ void main() {
         localUuid: 'room-restore-1',
         payload: {'v': 2},
         clientTs: 2000,
-        source: 'local',
       );
 
       final record = await (db.select(

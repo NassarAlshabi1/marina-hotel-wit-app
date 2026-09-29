@@ -64,7 +64,7 @@ void main() {
           final json = jsonEncode(entry);
           final decoded = jsonDecode(json) as Map<String, dynamic>;
           // التحقق من صلاحية الـ payload
-          assert(decoded['entity'] != null);
+          assert(decoded['entity'] != null, 'entity is required in payload');
           processed++;
         }
       }
@@ -88,12 +88,12 @@ void main() {
     test('تجميع وتصنيف 200 outbox entry يستغرق < 30ms', () {
       final entries = List.generate(
         200,
-        (i) => ({
+        (i) => {
           'entity': ['bookings', 'payments', 'expenses', 'debts'][i % 4],
           'op': ['create', 'update', 'delete'][i % 3],
           'priority': i < 10 ? 'high' : 'normal',
           'payload': <String, dynamic>{'id': i},
-        }),
+        },
       );
 
       // محاكاة تجميع الـ outbox حسب entity (التجميع يقلل من عدد الطلبات)
@@ -101,7 +101,7 @@ void main() {
 
       final grouped = <String, List<Map<String, dynamic>>>{};
       for (final entry in entries) {
-        final entity = entry['entity'] as String;
+        final entity = entry['entity']! as String;
         grouped.putIfAbsent(entity, () => []).add(entry);
       }
 
@@ -126,7 +126,7 @@ void main() {
     test('JSON serialize/deserialize 100 outbox entries < 20ms', () {
       final entries = List.generate(
         100,
-        (i) => ({
+        (i) => {
           'id': i,
           'entity': 'bookings',
           'op': 'create',
@@ -142,7 +142,7 @@ void main() {
             'amount': i * 200.0,
             'localUuid': 'uuid-$i',
           },
-        }),
+        },
       );
 
       double serializeTime = 0;
@@ -216,13 +216,11 @@ void main() {
         final localUuid = row['localUuid'] as String;
         final status = row['status'] as String;
         final roomNumber = row['roomNumber'] as String;
-        final guestName = row['guestName'] as String;
-        final checkinDate = row['checkinDate'] as String;
 
         // التحقق من أن البيانات مكتملة (كما يفعل الـ adapter)
-        assert(localUuid.isNotEmpty);
-        assert(status.isNotEmpty);
-        assert(roomNumber.isNotEmpty);
+        assert(localUuid.isNotEmpty, 'localUuid must not be empty');
+        assert(status.isNotEmpty, 'status must not be empty');
+        assert(roomNumber.isNotEmpty, 'roomNumber must not be empty');
       }
 
       stopwatch.stop();
@@ -348,7 +346,7 @@ void main() {
     test('تحويل 200 كائن إلى JSON للإرسال (push) < 100ms', () {
       final objects = List.generate(
         200,
-        (i) => ({
+        (i) => {
           'id': i,
           'localUuid': 'uuid-$i',
           'roomNumber': '${100 + (i % 20)}',
@@ -364,7 +362,7 @@ void main() {
           'deviceId': 'device-${i % 5}',
           'origin': 'local',
           'notes': i % 5 == 0 ? 'Some notes for entry $i' : null,
-        }),
+        },
       );
 
       final stopwatch = Stopwatch()..start();
@@ -377,7 +375,7 @@ void main() {
         // إضافة الوقت الحالي
         payload['lastModified'] = DateTime.now().millisecondsSinceEpoch;
         // التحقق من صحة المفتاح
-        assert(payload['localUuid'] != null);
+        assert(payload['localUuid'] != null, 'localUuid is required');
       }
 
       stopwatch.stop();
@@ -421,7 +419,7 @@ void main() {
             'generated-${data.hashCode}';
 
         // التحقق من أن السجل جاهز للحفظ
-        assert(data['localUuid'] != null);
+        assert(data['localUuid'] != null, 'localUuid is required');
       }
 
       stopwatch.stop();
@@ -447,11 +445,11 @@ void main() {
     test('مقارنة LWW لـ 500 سجل مالي < 10ms', () {
       final records = List.generate(
         500,
-        (i) => ({
+        (i) => {
           'localUuid': 'uuid-$i',
           'localLastModified': (i < 250 ? 2000 : 1000), // 250 أحدث محلياً
           'remoteLastModified': (i < 250 ? 1000 : 2000), // 250 أحدث عن بعد
-        }),
+        },
       );
 
       final stopwatch = Stopwatch()..start();
@@ -460,8 +458,8 @@ void main() {
       var localWins = 0;
       var remoteWins = 0;
       for (final record in records) {
-        final localTs = record['localLastModified'] as int;
-        final remoteTs = record['remoteLastModified'] as int;
+        final localTs = record['localLastModified']! as int;
+        final remoteTs = record['remoteLastModified']! as int;
         if (localTs >= remoteTs) {
           localWins++;
         } else {
@@ -488,23 +486,23 @@ void main() {
       // محاكاة vectorClock التصادمية (التعارضات الحقيقية)
       final clocks = List.generate(
         1000,
-        (i) => ({
+        (i) => {
           'local': {'device-1': i, 'device-2': i ~/ 2},
           'remote': {'device-1': i ~/ 3, 'device-3': i ~/ 4},
-        }),
+        },
       );
 
       final stopwatch = Stopwatch()..start();
 
       // محاكاة دمج الـ vector clocks
       for (final clock in clocks) {
-        final local = clock['local'] as Map<String, dynamic>;
-        final remote = clock['remote'] as Map<String, dynamic>;
+        final local = clock['local']! as Map<String, dynamic>;
+        final remote = clock['remote']! as Map<String, dynamic>;
 
         // حساب الـ merged version
         final merged = <String, int>{};
         for (final entry in local.entries) {
-          merged[entry.key] = (entry.value as int);
+          merged[entry.key] = entry.value as int;
         }
         for (final entry in remote.entries) {
           merged[entry.key] = (entry.value as int) > (merged[entry.key] ?? 0)
@@ -513,13 +511,7 @@ void main() {
         }
 
         // تحديد الفائز
-        final localGreater = local.entries.every(
-          (e) => (e.value as int) >= (remote[e.key] as int? ?? 0),
-        );
-        final remoteGreater = remote.entries.every(
-          (e) => (e.value as int) >= (local[e.key] as int? ?? 0),
-        );
-        assert(localGreater || remoteGreater || true); // تعارض حقيقي
+        assert(true, 'true conflict path reached');
       }
 
       stopwatch.stop();
@@ -555,7 +547,7 @@ void main() {
       };
 
       final dir = Directory('build/performance');
-      if (!await dir.exists()) {
+      if (!dir.existsSync()) {
         await dir.create(recursive: true);
       }
 
@@ -564,7 +556,7 @@ void main() {
         '${const JsonEncoder.withIndent('  ').convert(report)}\n',
       );
 
-      expect(await file.exists(), true);
+      expect(file.existsSync(), true);
       debugPrint('✅ Sync perf report saved to ${file.path}');
     });
   });

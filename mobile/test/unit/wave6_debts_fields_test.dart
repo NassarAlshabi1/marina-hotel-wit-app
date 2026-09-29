@@ -17,7 +17,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/adapters/debts_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/id_resolver.dart';
-import 'package:marina_hotel_mobile/services/adapters/resolve_result.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
 import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
@@ -71,7 +70,7 @@ void main() {
     test(
       '1e. payload لا يحتوي على amount عندما null (سلوك putIfNotNull)',
       () async {
-        final debt = await _insertDebt(db, amount: null);
+        final debt = await _insertDebt(db);
         final payload = payloadMapper.debtToRemote(debt);
         expect(
           payload.containsKey('amount'),
@@ -82,7 +81,7 @@ void main() {
     );
 
     test('1f. payload لا يحتوي على bookingUuidCache عندما null/فارغ', () async {
-      final debt = await _insertDebt(db, bookingUuidCache: null);
+      final debt = await _insertDebt(db);
       final payload = payloadMapper.debtToRemote(debt);
       // putIfStringNotEmpty لا يرسل القيم الفارغة
       expect(payload.containsKey('bookingUuidCache'), isFalse);
@@ -482,7 +481,7 @@ class _StubResolver implements IdResolver {
   }) async => localId;
 
   @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 /// Helper: إنشاء Debt في DB بحقول إضافية.

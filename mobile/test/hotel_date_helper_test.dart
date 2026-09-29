@@ -18,7 +18,7 @@ import 'package:marina_hotel_mobile/utils/hotel_date_helper.dart';
 void main() {
   group('getHotelDay', () {
     test('الساعة 14:01 بالضبط → نفس اليوم', () {
-      final dt = DateTime(2026, 8, 6, 14, 1, 0);
+      final dt = DateTime(2026, 8, 6, 14, 1);
       final hotelDay = HotelDateHelper.getHotelDay(dt);
       expect(hotelDay.year, 2026);
       expect(hotelDay.month, 8);
@@ -36,25 +36,25 @@ void main() {
     });
 
     test('الساعة 15:00 → نفس اليوم', () {
-      final dt = DateTime(2026, 8, 6, 15, 0, 0);
+      final dt = DateTime(2026, 8, 6, 15);
       final hotelDay = HotelDateHelper.getHotelDay(dt);
       expect(hotelDay.day, 6);
     });
 
     test('الساعة 10:00 صباحاً → اليوم السابق', () {
-      final dt = DateTime(2026, 8, 6, 10, 0, 0);
+      final dt = DateTime(2026, 8, 6, 10);
       final hotelDay = HotelDateHelper.getHotelDay(dt);
       expect(hotelDay.day, 5);
     });
 
     test('منتصف الليل 00:00 → اليوم السابق', () {
-      final dt = DateTime(2026, 8, 6, 0, 0, 0);
+      final dt = DateTime(2026, 8, 6);
       final hotelDay = HotelDateHelper.getHotelDay(dt);
       expect(hotelDay.day, 5);
     });
 
     test('آخر يوم في الشهر → اليوم الأول من الشهر التالي', () {
-      final dt = DateTime(2026, 1, 31, 14, 1, 0);
+      final dt = DateTime(2026, 1, 31, 14, 1);
       final hotelDay = HotelDateHelper.getHotelDay(dt);
       expect(hotelDay.month, 1);
       expect(hotelDay.day, 31);
@@ -63,13 +63,13 @@ void main() {
 
   group('getHotelDayKey', () {
     test('يُرجع مفتاح YYYY-MM-DD', () {
-      final dt = DateTime(2026, 8, 6, 15, 0, 0);
+      final dt = DateTime(2026, 8, 6, 15);
       final key = HotelDateHelper.getHotelDayKey(dateTime: dt);
       expect(key, '2026-08-06');
     });
 
     test('يُرجع اليوم السابق للوقت قبل 14:01', () {
-      final dt = DateTime(2026, 8, 6, 10, 0, 0);
+      final dt = DateTime(2026, 8, 6, 10);
       final key = HotelDateHelper.getHotelDayKey(dateTime: dt);
       expect(key, '2026-08-05');
     });
@@ -113,7 +113,7 @@ void main() {
 
   group('calculateNights', () {
     test('نفس اليوم = ليلة واحدة كحد أدنى', () {
-      final checkin = DateTime(2026, 8, 6, 15, 0, 0);
+      final checkin = DateTime(2026, 8, 6, 15);
       final nights = HotelDateHelper.calculateNights(
         checkIn: checkin,
         checkOut: checkin.add(const Duration(hours: 2)),
@@ -122,8 +122,8 @@ void main() {
     });
 
     test('دخول اليوم 1 مغادرة اليوم 2 = ليلة واحدة', () {
-      final checkin = DateTime(2026, 8, 6, 15, 0, 0);
-      final checkout = DateTime(2026, 8, 7, 10, 0, 0);
+      final checkin = DateTime(2026, 8, 6, 15);
+      final checkout = DateTime(2026, 8, 7, 10);
       final nights = HotelDateHelper.calculateNights(
         checkIn: checkin,
         checkOut: checkout,
@@ -132,8 +132,8 @@ void main() {
     });
 
     test('دخول اليوم 1 مغادرة اليوم 4 = 3 ليالي', () {
-      final checkin = DateTime(2026, 8, 6, 15, 0, 0);
-      final checkout = DateTime(2026, 8, 9, 10, 0, 0);
+      final checkin = DateTime(2026, 8, 6, 15);
+      final checkout = DateTime(2026, 8, 9, 10);
       final nights = HotelDateHelper.calculateNights(
         checkIn: checkin,
         checkOut: checkout,
@@ -142,8 +142,8 @@ void main() {
     });
 
     test('المغادرة بعد 14:01 تُحتسب كـ ليلة إضافية', () {
-      final checkin = DateTime(2026, 8, 6, 15, 0, 0);
-      final checkout = DateTime(2026, 8, 7, 14, 30, 0); // بعد 14:01
+      final checkin = DateTime(2026, 8, 6, 15);
+      final checkout = DateTime(2026, 8, 7, 14, 30); // بعد 14:01
       final nights = HotelDateHelper.calculateNights(
         checkIn: checkin,
         checkOut: checkout,
@@ -154,8 +154,8 @@ void main() {
 
   group('calculateNightsWithDiscount', () {
     test('بدون discountStartDate = نفس calculateNights', () {
-      final checkin = DateTime(2026, 8, 6, 15, 0, 0);
-      final checkout = DateTime(2026, 8, 9, 10, 0, 0);
+      final checkin = DateTime(2026, 8, 6, 15);
+      final checkout = DateTime(2026, 8, 9, 10);
       final withoutDiscount = HotelDateHelper.calculateNightsWithDiscount(
         checkIn: checkin,
         checkOut: checkout,
@@ -163,15 +163,14 @@ void main() {
       final withNullDiscount = HotelDateHelper.calculateNightsWithDiscount(
         checkIn: checkin,
         checkOut: checkout,
-        discountStartDate: null,
       );
       expect(withoutDiscount, withNullDiscount);
     });
 
     test('discountStartDate قبل checkin = نفس calculateNights', () {
-      final checkin = DateTime(2026, 8, 6, 15, 0, 0);
-      final checkout = DateTime(2026, 8, 9, 10, 0, 0);
-      final discountStart = DateTime(2026, 8, 1);
+      final checkin = DateTime(2026, 8, 6, 15);
+      final checkout = DateTime(2026, 8, 9, 10);
+      final discountStart = DateTime(2026, 8);
 
       final nights = HotelDateHelper.calculateNightsWithDiscount(
         checkIn: checkin,
@@ -182,8 +181,8 @@ void main() {
     });
 
     test('discountStartDate بعد checkout = 0 ليالي', () {
-      final checkin = DateTime(2026, 8, 6, 15, 0, 0);
-      final checkout = DateTime(2026, 8, 9, 10, 0, 0);
+      final checkin = DateTime(2026, 8, 6, 15);
+      final checkout = DateTime(2026, 8, 9, 10);
       final discountStart = DateTime(2026, 8, 20);
 
       final nights = HotelDateHelper.calculateNightsWithDiscount(
@@ -195,8 +194,8 @@ void main() {
     });
 
     test('discountStartDate في وسط الإقامة', () {
-      final checkin = DateTime(2026, 8, 6, 15, 0, 0);
-      final checkout = DateTime(2026, 8, 9, 10, 0, 0);
+      final checkin = DateTime(2026, 8, 6, 15);
+      final checkout = DateTime(2026, 8, 9, 10);
       final discountStart = DateTime(2026, 8, 8); // اليوم الثالث
 
       final nights = HotelDateHelper.calculateNightsWithDiscount(
@@ -211,22 +210,22 @@ void main() {
 
   group('isAfterCutoff', () {
     test('الساعة 15:00 = true', () {
-      final dt = DateTime(2026, 8, 6, 15, 0, 0);
+      final dt = DateTime(2026, 8, 6, 15);
       expect(HotelDateHelper.isAfterCutoff(dt), isTrue);
     });
 
     test('الساعة 14:01 = true', () {
-      final dt = DateTime(2026, 8, 6, 14, 1, 0);
+      final dt = DateTime(2026, 8, 6, 14, 1);
       expect(HotelDateHelper.isAfterCutoff(dt), isTrue);
     });
 
     test('الساعة 14:00 = false', () {
-      final dt = DateTime(2026, 8, 6, 14, 0, 0);
+      final dt = DateTime(2026, 8, 6, 14);
       expect(HotelDateHelper.isAfterCutoff(dt), isFalse);
     });
 
     test('الساعة 10:00 = false', () {
-      final dt = DateTime(2026, 8, 6, 10, 0, 0);
+      final dt = DateTime(2026, 8, 6, 10);
       expect(HotelDateHelper.isAfterCutoff(dt), isFalse);
     });
   });

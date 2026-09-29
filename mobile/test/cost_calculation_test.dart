@@ -4,7 +4,7 @@ import 'package:marina_hotel_mobile/utils/time.dart';
 void main() {
   group('اختبارات منطق احتساب التكلفة الجديد - قاعدة 14:01', () {
     test('المثال الأصلي: دخول 05/11 19:00، خروج 06/11 14:01', () {
-      final checkin = DateTime(2024, 11, 5, 19, 0);
+      final checkin = DateTime(2024, 11, 5, 19);
       final checkout = DateTime(2024, 11, 6, 14, 1);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
@@ -21,7 +21,7 @@ void main() {
     });
 
     test('مغادرة قبل 14:00 - لا يُضاف يوم إضافي', () {
-      final checkin = DateTime(2024, 11, 5, 19, 0);
+      final checkin = DateTime(2024, 11, 5, 19);
       final checkout = DateTime(2024, 11, 6, 13, 59);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
@@ -30,8 +30,8 @@ void main() {
     });
 
     test('مغادرة في تمام 14:00 - لا يُضاف يوم إضافي', () {
-      final checkin = DateTime(2024, 11, 5, 19, 0);
-      final checkout = DateTime(2024, 11, 6, 14, 0);
+      final checkin = DateTime(2024, 11, 5, 19);
+      final checkout = DateTime(2024, 11, 6, 14);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
@@ -39,7 +39,7 @@ void main() {
     });
 
     test('مغادرة بعد 14:00 بدقيقة واحدة - يُضاف يوم إضافي', () {
-      final checkin = DateTime(2024, 11, 5, 19, 0);
+      final checkin = DateTime(2024, 11, 5, 19);
       final checkout = DateTime(2024, 11, 6, 14, 1);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
@@ -52,8 +52,8 @@ void main() {
     });
 
     test('إقامة في نفس اليوم - يوم واحد على الأقل', () {
-      final checkin = DateTime(2024, 11, 5, 10, 0);
-      final checkout = DateTime(2024, 11, 5, 13, 0);
+      final checkin = DateTime(2024, 11, 5, 10);
+      final checkout = DateTime(2024, 11, 5, 13);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
@@ -61,8 +61,8 @@ void main() {
     });
 
     test('إقامة في نفس اليوم مع مغادرة بعد 14:00', () {
-      final checkin = DateTime(2024, 11, 5, 10, 0);
-      final checkout = DateTime(2024, 11, 5, 15, 0);
+      final checkin = DateTime(2024, 11, 5, 10);
+      final checkout = DateTime(2024, 11, 5, 15);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
@@ -70,8 +70,8 @@ void main() {
     });
 
     test('إقامة يومين كاملين مع مغادرة قبل 14:00', () {
-      final checkin = DateTime(2024, 11, 5, 19, 0);
-      final checkout = DateTime(2024, 11, 7, 13, 0);
+      final checkin = DateTime(2024, 11, 5, 19);
+      final checkout = DateTime(2024, 11, 7, 13);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
@@ -83,8 +83,8 @@ void main() {
     });
 
     test('إقامة يومين كاملين مع مغادرة بعد 14:00', () {
-      final checkin = DateTime(2024, 11, 5, 19, 0);
-      final checkout = DateTime(2024, 11, 7, 15, 0);
+      final checkin = DateTime(2024, 11, 5, 19);
+      final checkout = DateTime(2024, 11, 7, 15);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
@@ -92,7 +92,7 @@ void main() {
     });
 
     test('إقامة أسبوع كامل مع مغادرة بعد 14:00', () {
-      final checkin = DateTime(2024, 11, 5, 10, 0);
+      final checkin = DateTime(2024, 11, 5, 10);
       final checkout = DateTime(2024, 11, 12, 16, 30);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
@@ -118,8 +118,8 @@ void main() {
     });
 
     test('حالة خاصة: دخول وخروج في ساعات الصباح الباكر', () {
-      final checkin = DateTime(2024, 11, 5, 2, 0);
-      final checkout = DateTime(2024, 11, 5, 6, 0);
+      final checkin = DateTime(2024, 11, 5, 2);
+      final checkout = DateTime(2024, 11, 5, 6);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
@@ -129,7 +129,7 @@ void main() {
     test('اختبار شامل للتكلفة مع أسعار مختلفة', () {
       final testCases = [
         {
-          'checkin': DateTime(2024, 11, 5, 19, 0),
+          'checkin': DateTime(2024, 11, 5, 19),
           'checkout': DateTime(2024, 11, 6, 14, 1),
           'expectedDays': 2,
           'roomPrice': 15000.0,
@@ -137,7 +137,7 @@ void main() {
           'description': 'المثال الأصلي',
         },
         {
-          'checkin': DateTime(2024, 11, 5, 19, 0),
+          'checkin': DateTime(2024, 11, 5, 19),
           'checkout': DateTime(2024, 11, 8, 14, 1),
           'expectedDays': 4,
           'roomPrice': 20000.0,
@@ -145,8 +145,8 @@ void main() {
           'description': 'إقامة 3 أيام + يوم إضافي',
         },
         {
-          'checkin': DateTime(2024, 11, 5, 10, 0),
-          'checkout': DateTime(2024, 11, 5, 16, 0),
+          'checkin': DateTime(2024, 11, 5, 10),
+          'checkout': DateTime(2024, 11, 5, 16),
           'expectedDays': 2,
           'roomPrice': 12000.0,
           'expectedCost': 24000.0,
@@ -155,12 +155,12 @@ void main() {
       ];
 
       for (final testCase in testCases) {
-        final checkin = testCase['checkin'] as DateTime;
-        final checkout = testCase['checkout'] as DateTime;
-        final expectedDays = testCase['expectedDays'] as int;
-        final roomPrice = testCase['roomPrice'] as double;
-        final expectedCost = testCase['expectedCost'] as double;
-        final description = testCase['description'] as String;
+        final checkin = testCase['checkin']! as DateTime;
+        final checkout = testCase['checkout']! as DateTime;
+        final expectedDays = testCase['expectedDays']! as int;
+        final roomPrice = testCase['roomPrice']! as double;
+        final expectedCost = testCase['expectedCost']! as double;
+        final description = testCase['description']! as String;
 
         final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
         final totalCost = nights * roomPrice;
@@ -179,14 +179,13 @@ void main() {
     });
 
     test('اختبار مع ساعات القطع المختلفة', () {
-      final checkin = DateTime(2024, 11, 5, 19, 0);
+      final checkin = DateTime(2024, 11, 5, 19);
       final checkout = DateTime(2024, 11, 6, 15, 1);
 
       // اختبار مع ساعة قطع 14:00 (الافتراضية)
       final nights14 = Time.nightsWithCutoff(
         checkin,
         checkout: checkout,
-        cutoffHour: 14,
       );
       expect(nights14, 2, reason: 'مع ساعة قطع 14:00 يجب أن يكون يومين');
 
@@ -234,7 +233,7 @@ void main() {
           'description': 'قبل 14:01 بثانية واحدة',
         },
         {
-          'checkout': DateTime(2024, 11, 6, 14, 1, 0), // تمام 14:01
+          'checkout': DateTime(2024, 11, 6, 14, 1), // تمام 14:01
           'expectedDays': 2,
           'description': 'تمام الساعة 14:01',
         },
@@ -251,10 +250,10 @@ void main() {
       ];
 
       for (final testCase in testCases) {
-        final checkin = DateTime(2024, 11, 5, 19, 0);
-        final checkout = testCase['checkout'] as DateTime;
-        final expectedDays = testCase['expectedDays'] as int;
-        final description = testCase['description'] as String;
+        final checkin = DateTime(2024, 11, 5, 19);
+        final checkout = testCase['checkout']! as DateTime;
+        final expectedDays = testCase['expectedDays']! as int;
+        final description = testCase['description']! as String;
 
         final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 

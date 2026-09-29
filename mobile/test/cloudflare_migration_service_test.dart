@@ -37,7 +37,7 @@ void main() {
 
   group('MigrationResult', () {
     test('isSuccess requires totalPushed > 0 and totalFailed == 0', () {
-      final success = MigrationResult(
+      const success = MigrationResult(
         totalRecords: 100,
         totalPushed: 100,
         totalFailed: 0,
@@ -50,7 +50,7 @@ void main() {
     });
 
     test('isPartialSuccess when some pushed, some failed', () {
-      final partial = MigrationResult(
+      const partial = MigrationResult(
         totalRecords: 100,
         totalPushed: 60,
         totalFailed: 40,
@@ -63,7 +63,7 @@ void main() {
     });
 
     test('isCompleteFailure when nothing pushed', () {
-      final failure = MigrationResult(
+      const failure = MigrationResult(
         totalRecords: 100,
         totalPushed: 0,
         totalFailed: 100,
@@ -76,7 +76,7 @@ void main() {
     });
 
     test('isCompleteFailure when nothing pushed and nothing failed (0/0)', () {
-      final empty = MigrationResult(
+      const empty = MigrationResult(
         totalRecords: 0,
         totalPushed: 0,
         totalFailed: 0,
@@ -89,7 +89,7 @@ void main() {
     });
 
     test('isSuccess false when totalPushed > 0 but totalFailed > 0', () {
-      final mixed = MigrationResult(
+      const mixed = MigrationResult(
         totalRecords: 50,
         totalPushed: 40,
         totalFailed: 10,
@@ -103,7 +103,7 @@ void main() {
 
   group('MigrationResult edge cases', () {
     test('empty errors list with 0 pushed is complete failure', () {
-      final result = MigrationResult(
+      const result = MigrationResult(
         totalRecords: 4934,
         totalPushed: 0,
         totalFailed: 0,
@@ -117,7 +117,7 @@ void main() {
     });
 
     test('all records pushed with no errors is success', () {
-      final result = MigrationResult(
+      const result = MigrationResult(
         totalRecords: 4934,
         totalPushed: 4934,
         totalFailed: 0,

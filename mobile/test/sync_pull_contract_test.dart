@@ -17,7 +17,6 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
@@ -56,9 +55,9 @@ Map<String, dynamic> _roomRow(
 /// عميل وهمي يخدم صفحات pull من طابور بالترتيب، ويرمي على أي طلب آخر
 /// (لكي يُظهر الاختبار أي نداء غير متوقع حدث).
 class _PullQueueClient extends http.BaseClient {
+  _PullQueueClient(this.pages);
   final List<Map<String, dynamic>> pages;
   int _served = 0;
-  _PullQueueClient(this.pages);
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -84,9 +83,9 @@ class _PullQueueClient extends http.BaseClient {
 
 /// عميل وهمي: POST (دفع) يرمي خطأ شبكة، GET (سحب) يخدم الطابور.
 class _PushBrokenClient extends http.BaseClient {
+  _PushBrokenClient(this.pullPages);
   final List<Map<String, dynamic>> pullPages;
   int _served = 0;
-  _PushBrokenClient(this.pullPages);
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -110,13 +109,13 @@ class _PushBrokenClient extends http.BaseClient {
 /// GET /api/sync/pull → يخدم [pullPages] بالترتيب؛ أي شيء آخر = خطأ
 /// برمجي ظاهر يكشف نداءات غير متوقعة.
 class _LazyHealClient extends http.BaseClient {
-  final http.Response Function()? onLogin;
-  final List<Map<String, dynamic>> pullPages;
-  int _served = 0;
   _LazyHealClient({
     this.onLogin,
     this.pullPages = const <Map<String, dynamic>>[],
   });
+  final http.Response Function()? onLogin;
+  final List<Map<String, dynamic>> pullPages;
+  int _served = 0;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -213,7 +212,7 @@ void main() {
           _PullQueueClient([
             {
               'changes': [
-                _roomRow('uuid-a', updatedAt: 1700000100),
+                _roomRow('uuid-a'),
                 _roomRow('uuid-b', updatedAt: 1700000101, roomNumber: 'RN-2'),
               ],
               'cursor': '1700000101',
@@ -316,7 +315,7 @@ void main() {
         final manager = await makeManager(
           _PushBrokenClient([
             {
-              'changes': [_roomRow('uuid-pull', updatedAt: 1700000100)],
+              'changes': [_roomRow('uuid-pull')],
               'cursor': '1700000100',
               'has_more': false,
               'errors': <dynamic>[],
@@ -374,7 +373,7 @@ void main() {
           database: db,
           httpClient: _PullQueueClient([
             {
-              'changes': [_roomRow('uuid-healed', updatedAt: 1700000100)],
+              'changes': [_roomRow('uuid-healed')],
               'cursor': '1700000100',
               'has_more': false,
               'errors': <dynamic>[],
@@ -414,7 +413,7 @@ void main() {
           },
           pullPages: [
             {
-              'changes': [_roomRow('uuid-lazy', updatedAt: 1700000100)],
+              'changes': [_roomRow('uuid-lazy')],
               'cursor': '1700000100',
               'has_more': false,
               'errors': <dynamic>[],
@@ -476,7 +475,7 @@ void main() {
             },
             pullPages: [
               {
-                'changes': [_roomRow('uuid-manual', updatedAt: 1700000100)],
+                'changes': [_roomRow('uuid-manual')],
                 'cursor': '1700000100',
                 'has_more': false,
                 'errors': <dynamic>[],
@@ -572,7 +571,7 @@ void main() {
           },
           pullPages: [
             {
-              'changes': [_roomRow('uuid-healed', updatedAt: 1700000100)],
+              'changes': [_roomRow('uuid-healed')],
               'cursor': '1700000100',
               'has_more': false,
               'errors': <dynamic>[],

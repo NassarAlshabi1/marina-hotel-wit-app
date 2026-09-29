@@ -86,7 +86,7 @@ void main() {
               localUuid: Value(debtUuid),
               bookingLocalId: Value(bookingId),
               guestName: const Value('أحمد'),
-              checkinDate: Value(DateTime(2024, 10, 1).toIso8601String()),
+              checkinDate: Value(DateTime(2024, 10).toIso8601String()),
               checkoutDate: Value(DateTime(2024, 10, 4).toIso8601String()),
               totalAmount: const Value(1200),
               paidAmount: const Value(0),

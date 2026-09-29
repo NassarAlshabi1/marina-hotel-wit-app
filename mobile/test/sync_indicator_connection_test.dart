@@ -61,7 +61,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       harness(
-        connection: ConnectionState(isConnected: false, lastCheckedAt: null),
+        connection: ConnectionState(isConnected: false),
       ),
     );
 

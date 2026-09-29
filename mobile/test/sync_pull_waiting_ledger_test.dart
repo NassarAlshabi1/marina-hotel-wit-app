@@ -120,8 +120,6 @@ void main() {
       httpClient: client,
       token: 'test-token',
       deviceId: 'waiting-ledger-device',
-      fullSyncCompleted: false,
-      lastPullCursor: 0,
     );
     return manager;
   }

@@ -3,13 +3,10 @@
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:marina_hotel_mobile/services/database_fixer.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
-import 'package:marina_hotel_mobile/services/repositories/expenses_repository.dart';
-import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
 import 'package:marina_hotel_mobile/services/salary_fix_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// ✅ اختبارات وظيفية للإصلاح المرة واحدة لمصروفات الرواتب اليتيمة.
 ///
@@ -28,15 +25,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppDatabase db;
-  late ExpensesRepository expensesRepo;
-  late SalaryWithdrawalsRepository salaryRepo;
   late DatabaseFixer fixer;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    expensesRepo = ExpensesRepository(db);
-    salaryRepo = SalaryWithdrawalsRepository(db);
     fixer = DatabaseFixer(db);
   });
 
@@ -174,7 +167,6 @@ void main() {
       final expenseId = await createOrphanSalaryExpense(
         expenseType: 'سحب من الراتب',
         relatedId: 999, // معرّف غير صالح (موظف غير موجود)
-        employeeUuid: null, // UUID فارغ (بيانات قديمة)
       );
       await createSalaryWithdrawal(expenseId: expenseId, employeeId: empId);
 
@@ -221,12 +213,9 @@ void main() {
         final empId = await createEmployee();
         final expenseId = await createOrphanSalaryExpense(
           expenseType: 'خصم من الراتب',
-          relatedId: null,
-          employeeUuid: null,
         );
         // إنشاء سحب بـ reason فقط (محاكاة pre-migration 40)
-        final swId = await db
-            .into(db.salaryWithdrawals)
+        await db.into(db.salaryWithdrawals)
             .insert(
               SalaryWithdrawalsCompanion(
                 employeeId: d.Value(empId),
@@ -290,7 +279,6 @@ void main() {
       final expenseId = await createOrphanSalaryExpense(
         expenseType: 'رواتب',
         relatedId: 999, // غير صالح
-        employeeUuid: null, // لا UUID
       );
       // لا سحب مرتبط
 
@@ -317,7 +305,6 @@ void main() {
       final expenseId = await createOrphanSalaryExpense(
         expenseType: 'سحب من الراتب',
         relatedId: 999,
-        employeeUuid: null,
         // localUuid فريد لهذا الاختبار
       );
       // تحديث localUuid للمصروف ليكون فريداً
@@ -350,7 +337,6 @@ void main() {
       final expenseId = await createOrphanSalaryExpense(
         expenseType: 'سحب من الراتب',
         relatedId: 999,
-        employeeUuid: null,
       );
       await createSalaryWithdrawal(
         expenseId: expenseId,
@@ -386,7 +372,6 @@ void main() {
       final expenseId = await createOrphanSalaryExpense(
         expenseType: 'سحب من الراتب',
         relatedId: 999,
-        employeeUuid: null,
       );
 
       final helper = SalaryFixHelper(db);
@@ -420,7 +405,6 @@ void main() {
       final expenseId = await createOrphanSalaryExpense(
         expenseType: 'سحب من الراتب',
         relatedId: 999, // غير صالح
-        employeeUuid: null,
       );
 
       await fixer.fixAllIssues();
@@ -499,7 +483,6 @@ void main() {
       final exp1 = await createOrphanSalaryExpense(
         expenseType: 'سحب من الراتب',
         relatedId: 999,
-        employeeUuid: null,
         localUuid: 'exp-int-1',
       );
       await createSalaryWithdrawal(expenseId: exp1, employeeId: emp1);
@@ -531,7 +514,6 @@ void main() {
       final exp3 = await createOrphanSalaryExpense(
         expenseType: 'رواتب',
         relatedId: 999,
-        employeeUuid: null,
         localUuid: 'exp-int-3',
       );
 

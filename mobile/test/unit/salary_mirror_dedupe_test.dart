@@ -165,7 +165,7 @@ void main() {
 
   group('SalaryMirrorMatcher.hasMirrorMarker', () {
     test('العمود الخام expense_id = علامة', () {
-      final sw = SalaryWithdrawal(
+      const sw = SalaryWithdrawal(
         localUuid: 'u1',
         createdAt: 0,
         updatedAt: 0,
@@ -181,17 +181,13 @@ void main() {
         employeeId: 1,
         amount: 100,
         withdrawDate: _dayKey,
-        reason: null,
-        hotelDayKey: null,
-        withdrawalType: null,
-        description: null,
         expenseId: 5,
       );
       expect(SalaryMirrorMatcher.hasMirrorMarker(sw), isTrue);
     });
 
     test('reason بعلامة exp_<رقم> = علامة حتى بلا عمود', () {
-      final sw = SalaryWithdrawal(
+      const sw = SalaryWithdrawal(
         localUuid: 'u2',
         createdAt: 0,
         updatedAt: 0,
@@ -208,10 +204,6 @@ void main() {
         amount: 100,
         withdrawDate: _dayKey,
         reason: 'سحب مرتبط exp_12',
-        hotelDayKey: null,
-        withdrawalType: null,
-        description: null,
-        expenseId: null,
       );
       expect(SalaryMirrorMatcher.hasMirrorMarker(sw), isTrue);
     });
@@ -235,9 +227,6 @@ void main() {
             amount: 100,
             withdrawDate: _dayKey,
             reason: reason,
-            hotelDayKey: null,
-            withdrawalType: null,
-            description: null,
             expenseId: expenseId,
           );
 
@@ -388,7 +377,6 @@ void main() {
           employeeId: empId,
           amount: 300,
           expenseId: expenseId,
-          updatedAt: 1000,
         );
         final newerId = await _insertWithdrawal(
           db,
@@ -433,7 +421,6 @@ void main() {
         employeeId: empId,
         amount: 300,
         expenseId: expenseId,
-        updatedAt: 1000,
       );
       final earlierInsertedId = await _insertWithdrawal(
         db,
@@ -463,7 +450,6 @@ void main() {
         employeeId: empId,
         amount: 300,
         expenseId: expenseId,
-        updatedAt: 1000,
       );
       await _insertWithdrawal(
         db,
@@ -510,7 +496,6 @@ void main() {
         employeeId: empId,
         amount: 999, // مبلغ مختلف عمداً — النوع/اليوم/الموظف وحدها هي المفتاح
         reason: 'exp_987654',
-        updatedAt: 1000,
       );
 
       final rows = await _reportRows(db, fromDay: _fromDay, toDay: _toDay);
@@ -637,7 +622,6 @@ void main() {
         db,
         employeeId: empId,
         amount: 200,
-        reason: null,
       );
 
       final rows = await _reportRows(db, fromDay: _fromDay, toDay: _toDay);
@@ -689,7 +673,6 @@ void main() {
         employeeId: empId,
         amount: 300,
         expenseId: expenseId,
-        updatedAt: 1000,
       );
       await _insertWithdrawal(
         db,
@@ -726,7 +709,6 @@ void main() {
         employeeId: empId,
         amount: 500,
         reason: 'exp_$expenseId',
-        updatedAt: 1000,
       );
       await _insertWithdrawal(
         db,

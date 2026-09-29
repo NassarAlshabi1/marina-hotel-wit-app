@@ -13,15 +13,10 @@ BookingNote _bookingNote({
 }) {
   return BookingNote(
     localUuid: localUuid,
-    serverId: null,
     createdAt: 1,
     updatedAt: 1,
-    deletedAt: null,
     lastModified: 1,
     syncTimestamp: 1,
-    createdAtIso: null,
-    updatedAtIso: null,
-    deletedAtIso: null,
     createdAtEpoch: 1,
     lastModifiedEpoch: 1,
     version: 1,
@@ -47,8 +42,6 @@ void main() {
       shiftType: adapter.ShiftType.night,
       createdAt: DateTime.utc(2024, 1, 2, 3, 4, 5),
       expiresAt: DateTime.utc(2024, 1, 3, 4, 5, 6),
-      isRead: false,
-      status: adapter.NoteStatus.active,
       createdBy: 'user',
     );
 

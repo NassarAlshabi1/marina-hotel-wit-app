@@ -29,7 +29,6 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "**/generated_plugin_registrant.dart"
-    - "test/**"
     - "build/**"
     - "integration_test/**"
     - android/**

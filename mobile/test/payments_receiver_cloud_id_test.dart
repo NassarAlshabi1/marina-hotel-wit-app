@@ -7,7 +7,7 @@ import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/payment_session_context.dart';
 import 'package:marina_hotel_mobile/services/repositories/payments_repository.dart';
 
-/// ✅ (2026-09-16) عقد هوية مستلم الدفعة السحابية [_resolveReceiverCloudId]:
+/// ✅ (2026-09-16) عقد هوية مستلم الدفعة السحابية `_resolveReceiverCloudId`:
 /// الجلسة المستعادة تفقد cloud_user_id (AuthUser.toJson لا يضمّنه) —
 /// الدفعة يجب أن تحمل الهوية السحابية الثابتة عبر مطابقة الاسم الفريدة
 /// في مرآة app_users، وأي غموض يعيد NULL (السلوك السابق) بلا إسناد خاطئ.
@@ -65,7 +65,7 @@ void main() {
               createdAt: nowMs,
               updatedAt: nowMs,
               lastModified: nowMs,
-              fullName: Value('موظف الاستقبال'),
+              fullName: const Value('موظف الاستقبال'),
             ),
           );
 
@@ -144,7 +144,7 @@ void main() {
             createdAt: nowMs,
             updatedAt: nowMs,
             lastModified: nowMs,
-            fullName: Value('أحمد'),
+            fullName: const Value('أحمد'),
           ),
         );
     await db
@@ -156,7 +156,7 @@ void main() {
             createdAt: nowMs,
             updatedAt: nowMs,
             lastModified: nowMs,
-            fullName: Value('أحمد'),
+            fullName: const Value('أحمد'),
           ),
         );
 
@@ -218,7 +218,7 @@ void main() {
             createdAt: nowMs,
             updatedAt: nowMs,
             lastModified: nowMs,
-            fullName: Value('موظف محذوف'),
+            fullName: const Value('موظف محذوف'),
             deletedAt: Value(nowMs),
           ),
         );

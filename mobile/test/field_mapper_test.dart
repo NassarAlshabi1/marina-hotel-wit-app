@@ -106,8 +106,8 @@ void main() {
 
       final php = FieldMapper.toPhpMap('rooms', flutter);
 
-      expect(php['items'], isA<List>());
-      final items = php['items'] as List;
+      expect(php['items'], isA<List<dynamic>>());
+      final items = (php['items'] as List).cast<Map<dynamic, dynamic>>();
       expect(items[0]['is_active'], 1);
       expect(items[1]['is_active'], 0);
     });
@@ -119,8 +119,8 @@ void main() {
 
       final php = FieldMapper.toPhpMap('rooms', flutter);
 
-      expect(php['meta'], isA<Map>());
-      final meta = php['meta'] as Map;
+      expect(php['meta'], isA<Map<dynamic, dynamic>>());
+      final meta = php['meta'] as Map<dynamic, dynamic>;
       expect(meta['is_active'], 1);
       expect(meta['count'], 5);
     });
@@ -235,7 +235,7 @@ void main() {
         'localUuid': 'abc-123',
         'serverId': 5,
         'roomNumber': '101',
-        'createdAt': DateTime(2026, 1, 1),
+        'createdAt': DateTime(2026),
       };
 
       final php = FieldMapper.prepareForUpdate('rooms', flutter);

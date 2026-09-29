@@ -1,12 +1,13 @@
 // Production Readiness Tests — verifies the app is ready for production.
 
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:marina_hotel_mobile/services/local_db.dart';
-import 'package:marina_hotel_mobile/utils/weak_device_optimizer.dart';
 import 'package:marina_hotel_mobile/utils/circular_buffer_logger.dart';
+import 'package:marina_hotel_mobile/utils/weak_device_optimizer.dart';
 
 void main() {
   late AppDatabase db;
@@ -24,7 +25,7 @@ void main() {
     group('WeakDeviceOptimizer', () {
       test('1GB RAM detected as critical-low-memory (level 3)', () {
         final opt = WeakDeviceOptimizer.instance;
-        opt.initialize(processorCount: 2, memoryMB: 1024);
+        unawaited(opt.initialize(processorCount: 2, memoryMB: 1024));
         expect(opt.isWeakDevice, isTrue);
         expect(opt.isCriticalLowMemoryDevice, isTrue);
         expect(opt.optimizationLevel, equals(3));
@@ -35,14 +36,14 @@ void main() {
 
       test('4GB RAM detected as mid-range (level 1)', () {
         final opt = WeakDeviceOptimizer.instance;
-        opt.initialize(processorCount: 4, memoryMB: 4096);
+        unawaited(opt.initialize(processorCount: 4, memoryMB: 4096));
         expect(opt.isWeakDevice, isFalse);
         expect(opt.optimizationLevel, equals(1));
       });
 
       test('8GB RAM detected as high-end (level 0)', () {
         final opt = WeakDeviceOptimizer.instance;
-        opt.initialize(processorCount: 8, memoryMB: 8192);
+        unawaited(opt.initialize(processorCount: 8, memoryMB: 8192));
         expect(opt.isWeakDevice, isFalse);
         expect(opt.optimizationLevel, equals(0));
         expect(opt.syncConcurrency, equals(4));
@@ -50,9 +51,9 @@ void main() {
 
       test('debounceDuration scales', () {
         final opt = WeakDeviceOptimizer.instance;
-        opt.initialize(processorCount: 2, memoryMB: 1024);
+        unawaited(opt.initialize(processorCount: 2, memoryMB: 1024));
         expect(opt.debounceDuration.inMilliseconds, equals(700));
-        opt.initialize(processorCount: 8, memoryMB: 8192);
+        unawaited(opt.initialize(processorCount: 8, memoryMB: 8192));
         expect(opt.debounceDuration.inMilliseconds, equals(150));
       });
     });
@@ -68,7 +69,7 @@ void main() {
 
       test('readLast returns recent entries', () {
         final logger = CircularBufferLogger.instance;
-        logger.clear();
+        unawaited(logger.clear());
         for (var i = 0; i < 10; i++) {
           logger.info('msg $i', tag: 'TEST');
         }
@@ -81,7 +82,7 @@ void main() {
         final logger = CircularBufferLogger.instance;
         logger.info('test', tag: 'TEST');
         expect(logger.bufferSize, greaterThan(0));
-        logger.clear();
+        unawaited(logger.clear());
         expect(logger.bufferSize, equals(0));
       });
     });

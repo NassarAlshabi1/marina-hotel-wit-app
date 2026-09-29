@@ -25,13 +25,12 @@ import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:marina_hotel_mobile/services/auth_local_store.dart';
 import 'package:marina_hotel_mobile/services/booking_price_adjustment_service.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_config.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
-import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/booking_notes_dao.dart';
+import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/cash_transactions_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/debts_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/employees_dao.dart';
@@ -331,11 +330,11 @@ void main() {
 
     // غرفة وحجز نشط بليالٍ (للدفعات والملاحظات والديون والتسويات)
     await roomsDao.insertOne(
-      RoomsCompanion(
-        roomNumber: const d.Value('701'),
-        type: const d.Value('standard'),
-        price: const d.Value(150.0),
-        status: const d.Value('شاغرة'),
+      const RoomsCompanion(
+        roomNumber: d.Value('701'),
+        type: d.Value('standard'),
+        price: d.Value(150.0),
+        status: d.Value('شاغرة'),
       ),
     );
     final now = DateTime.now();
@@ -381,10 +380,10 @@ void main() {
 
     // موظف
     await employeesDao.insertOne(
-      EmployeesCompanion(
-        name: const d.Value('موظف السلسلة'),
-        basicSalary: const d.Value(3000.0),
-        status: const d.Value('active'),
+      const EmployeesCompanion(
+        name: d.Value('موظف السلسلة'),
+        basicSalary: d.Value(3000.0),
+        status: d.Value('active'),
       ),
     );
 
@@ -880,7 +879,7 @@ void main() {
 
         // 6) مطابقة القيم عموداً عموداً بين ما دُفع وما هبط
         final failures = <String>[];
-        var checkedEntities = <String>{};
+        final checkedEntities = <String>{};
         for (final (entity, _) in ops) {
           checkedEntities.add(entity);
         }

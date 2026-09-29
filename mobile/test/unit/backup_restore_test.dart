@@ -8,9 +8,9 @@ import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marina_hotel_mobile/services/backup_serializers.dart';
 import 'package:marina_hotel_mobile/services/backup_data_service.dart'
     show BackupFormat, BackupMetadata, BackupDataService;
+import 'package:marina_hotel_mobile/services/backup_serializers.dart';
 import 'package:marina_hotel_mobile/services/local_backup_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sqlite_backup_restore.dart';
@@ -306,13 +306,13 @@ void main() {
 
         // ✅ التحقق: الملف موجود
         expect(
-          await File(backupPath).exists(),
+          File(backupPath).existsSync(),
           isTrue,
           reason: 'backup file should exist',
         );
 
         // ✅ التحقق: الحجم أصغر من JSON الخام (ضغط فعال)
-        final compressedSize = (await File(backupPath).length());
+        final compressedSize = await File(backupPath).length();
         expect(
           compressedSize,
           lessThan(jsonBytes.length),
@@ -652,7 +652,7 @@ void main() {
 
       // ✅ التحقق من header (نفس المنطق في _restoreFromSqliteBackup)
       final bytes = await File(fakePath).readAsBytes();
-      bool isValidSqlite =
+      final bool isValidSqlite =
           bytes.length >= 16 &&
           bytes[0] == 0x53 && // 'S'
           bytes[1] == 0x51 && // 'Q'
@@ -678,7 +678,7 @@ void main() {
 
       // ✅ التحقق من header
       final bytes = await File(dbPath).readAsBytes();
-      bool isValidSqlite =
+      final bool isValidSqlite =
           bytes.length >= 16 &&
           bytes[0] == 0x53 && // 'S'
           bytes[1] == 0x51 && // 'Q'
@@ -706,7 +706,7 @@ void main() {
       // 2. محاكاة backup (نسخ الملف)
       final backupPath = p.join(backupDir.path, 'backup_test.db');
       await File(sourcePath).copy(backupPath);
-      expect(await File(backupPath).exists(), isTrue);
+      expect(File(backupPath).existsSync(), isTrue);
 
       // 3. محاكاة restore (نسخ لملف آخر)
       final restoredPath = p.join(tempDir.path, 'restored.db');
@@ -926,7 +926,7 @@ void main() {
         expect(rows[0]['value'], equals('new_data'));
 
         // 5. ✅ التحقق: ملف pre_restore لا يزال موجود (للأمان)
-        expect(await File(preRestorePath).exists(), isTrue);
+        expect(File(preRestorePath).existsSync(), isTrue);
       },
     );
 
@@ -949,12 +949,12 @@ void main() {
       // ✅ محاكاة فشل rename (لن يكون هناك ملف tmp على الإطلاق)
       // في الكود الفعلي: rollback → استعادة pre_restore
       expect(
-        await File(preRestorePath).exists(),
+        File(preRestorePath).existsSync(),
         isTrue,
         reason: 'pre_restore file should exist for rollback',
       );
       expect(
-        await File(dbPath).exists(),
+        File(dbPath).existsSync(),
         isFalse,
         reason: 'main db file should not exist yet',
       );
@@ -1254,7 +1254,6 @@ void main() {
         await oldDb.close();
 
         // التحقق من وجود ملف -wal (يعتمد على توقيت checkpoint)
-        final oldWalPath = '$oldDbPath-wal';
         // ملاحظة: قد يكون -wal فارغاً أو غير موجود اعتماداً على auto-checkpoint.
         // الاختبار الفعلي أدناه يتحقق من السلوك المستقل عن وجود -wal.
 
@@ -1335,7 +1334,6 @@ void main() {
 
         // التحقق من وجود -wal
         final walFile = File('$oldDbPath-wal');
-        final shmFile = File('$oldDbPath-shm');
         // قد يكون walFile موجوداً وغير فارغ، أو قد يكون sqflite قد checkpoint تلقائياً
         final walExisted = walFile.existsSync();
         debugPrint(
@@ -1521,8 +1519,8 @@ void main() {
         ).writeAsBytes([0x53, 0x51, 0x4c, 0x69]); // SQLite header
         await File(metadataPath).writeAsString('{"app_version":"1.0"}');
 
-        expect(await File(sqlitePath).exists(), isTrue);
-        expect(await File(metadataPath).exists(), isTrue);
+        expect(File(sqlitePath).existsSync(), isTrue);
+        expect(File(metadataPath).existsSync(), isTrue);
 
         // ✅ محاكاة منطق deleteLocalBackup الصحيح (مع cleanup):
         // 1. حذف ملف .sqlite
@@ -1533,12 +1531,12 @@ void main() {
         }
 
         expect(
-          await File(sqlitePath).exists(),
+          File(sqlitePath).existsSync(),
           isFalse,
           reason: 'sqlite file should be deleted',
         );
         expect(
-          await File(metadataPath).exists(),
+          File(metadataPath).existsSync(),
           isFalse,
           reason: 'metadata file should also be deleted',
         );
@@ -1565,9 +1563,9 @@ void main() {
         await File(sqlitePath).delete();
 
         // ⚠️ الـ bug: ملف metadata يبقى موجوداً
-        expect(await File(sqlitePath).exists(), isFalse);
+        expect(File(sqlitePath).existsSync(), isFalse);
         expect(
-          await File(metadataPath).exists(),
+          File(metadataPath).existsSync(),
           isTrue,
           reason: 'BUG: current code leaves .metadata.json orphaned on disk',
         );

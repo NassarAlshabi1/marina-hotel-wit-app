@@ -80,7 +80,6 @@ void main() {
       await CrashlyticsService.instance.recordSyncError(
         operation: 'push',
         error: 'test error',
-        severity: CrashlyticsSeverity.error,
       );
       expect(true, isTrue);
     });
@@ -113,7 +112,7 @@ void main() {
       test('الأنواع الأصلية من dart:io وdart:async → عابرة', () {
         expect(
           CrashlyticsService.isTransientNetworkError(
-            SocketException('Software caused connection abort'),
+            const SocketException('Software caused connection abort'),
           ),
           isTrue,
         );

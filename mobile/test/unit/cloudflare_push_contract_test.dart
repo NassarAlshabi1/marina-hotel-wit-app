@@ -17,17 +17,15 @@
 // camel (guest_infos/inventory/salary_withdrawals/blacklist/
 // payment_voids/price_adjustments/audit_logs)، وعقد app_users الثابت.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:marina_hotel_mobile/services/auth_local_store.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_config.dart';
-import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/booking_notes_dao.dart';
+import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/cash_transactions_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/debts_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/employees_dao.dart';
@@ -137,7 +135,7 @@ void main() {
 
   /// يفرغ outbox — لفصل عملية عن أخرى عند اختبار القبور الصافية
   Future<void> clearOutbox() async {
-    await (outboxDao.delete(outboxDao.outbox)).go();
+    await outboxDao.delete(outboxDao.outbox).go();
   }
 
   /// يمرر كل صفوف outbox الحالية عبر buildPushOperation ويطابق العقد.
@@ -227,11 +225,11 @@ void main() {
   group('عقد الدفع لكل نمط بناء حمولة', () {
     test('rooms — DAO snake + قبورة softDelete', () async {
       final roomUuid = await roomsDao.insertOne(
-        RoomsCompanion(
-          roomNumber: const d.Value('201'),
-          type: const d.Value('standard'),
-          price: const d.Value(100.0),
-          status: const d.Value('شاغرة'),
+        const RoomsCompanion(
+          roomNumber: d.Value('201'),
+          type: d.Value('standard'),
+          price: d.Value(100.0),
+          status: d.Value('شاغرة'),
         ),
       );
       expect(roomUuid, '201');
@@ -350,10 +348,10 @@ void main() {
 
     test('employees — adapter camelCase', () async {
       await employeesDao.insertOne(
-        EmployeesCompanion(
-          name: const d.Value('موظف العقد'),
-          basicSalary: const d.Value(3000.0),
-          status: const d.Value('active'),
+        const EmployeesCompanion(
+          name: d.Value('موظف العقد'),
+          basicSalary: d.Value(3000.0),
+          status: d.Value('active'),
         ),
       );
       final ops = await pushedOperations();
@@ -455,10 +453,10 @@ void main() {
 
     test('salary_withdrawals — خرائط يدوية camelCase (كانت مكسورة)', () async {
       await employeesDao.insertOne(
-        EmployeesCompanion(
-          name: const d.Value('موظف السحب'),
-          basicSalary: const d.Value(2000.0),
-          status: const d.Value('active'),
+        const EmployeesCompanion(
+          name: d.Value('موظف السحب'),
+          basicSalary: d.Value(2000.0),
+          status: d.Value('active'),
         ),
       );
       await SalaryWithdrawalsRepository(db).createFromExpense(
@@ -493,11 +491,11 @@ void main() {
 
     test('price_adjustments + audit_logs — خدمة تعديل الأسعار', () async {
       await roomsDao.insertOne(
-        RoomsCompanion(
-          roomNumber: const d.Value('301'),
-          type: const d.Value('standard'),
-          price: const d.Value(100.0),
-          status: const d.Value('شاغرة'),
+        const RoomsCompanion(
+          roomNumber: d.Value('301'),
+          type: d.Value('standard'),
+          price: d.Value(100.0),
+          status: d.Value('شاغرة'),
         ),
       );
       // حجز نشط ليولد سجل تدقيق (auditEntries تتطلب ليلًا متأثرة)

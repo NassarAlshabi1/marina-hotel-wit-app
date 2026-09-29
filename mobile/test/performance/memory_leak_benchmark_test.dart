@@ -34,8 +34,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:marina_hotel_mobile/providers/auth_provider.dart';
 import 'package:marina_hotel_mobile/providers/core_providers.dart';
 import 'package:marina_hotel_mobile/providers/repository_providers.dart';
@@ -46,12 +44,13 @@ import 'package:marina_hotel_mobile/screens/employees/employees_list.dart';
 import 'package:marina_hotel_mobile/screens/expenses/expenses_list.dart';
 import 'package:marina_hotel_mobile/screens/rooms/rooms_list.dart';
 import 'package:marina_hotel_mobile/services/daos/employees_dao.dart';
-import 'package:marina_hotel_mobile/services/fcm_sender.dart';
 import 'package:marina_hotel_mobile/services/daos/expenses_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/rooms_dao.dart';
+import 'package:marina_hotel_mobile/services/fcm_sender.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Fake AuthNotifier يتجنب SharedPreferences (الذي يفشل في tests بدون plugin).
 class _FakeAuthNotifier extends AuthNotifier {

@@ -82,7 +82,7 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           sync_providers.connectionStatusProvider.overrideWith(
-            (ref) => _AlwaysConnectedNotifier(ref),
+            _AlwaysConnectedNotifier.new,
           ),
         ],
         child: const MaterialApp(
@@ -122,7 +122,7 @@ void main() {
     // فقط: entity/op/local_uuid/payload/client_ts — processing_status
     // افتراضه 'pending' وdelivered_to_primary افتراضه false).
     await db.customStatement(
-      "INSERT INTO outbox (entity, op, local_uuid, payload, client_ts) "
+      'INSERT INTO outbox (entity, op, local_uuid, payload, client_ts) '
       "VALUES ('rooms', 'INSERT', 'test-uuid-1', '{}', 0)",
     );
     await pumpButton(tester);
@@ -163,8 +163,8 @@ void main() {
       // للاسترجاع وإعادة الرفع عند الضغط على الزر.
       final stuckTs = (DateTime.now().millisecondsSinceEpoch ~/ 1000) - 60;
       await db.customStatement(
-        "INSERT INTO outbox (entity, op, local_uuid, payload, client_ts, "
-        "processing_status, processing_started_at) "
+        'INSERT INTO outbox (entity, op, local_uuid, payload, client_ts, '
+        'processing_status, processing_started_at) '
         "VALUES ('rooms', 'UPDATE', 'stuck-processing-uuid', '{}', 0, "
         "'processing', $stuckTs)",
       );
@@ -197,7 +197,7 @@ void main() {
     'الضغط على «رفع التغييرات» مع backend غير متاح يُظهر فشلاً صادقاً لا نجاحاً زائفاً',
     (tester) async {
       await db.customStatement(
-        "INSERT INTO outbox (entity, op, local_uuid, payload, client_ts) "
+        'INSERT INTO outbox (entity, op, local_uuid, payload, client_ts) '
         "VALUES ('rooms', 'INSERT', 'test-uuid-push', '{}', 0)",
       );
       await pumpButtonConnected(tester);

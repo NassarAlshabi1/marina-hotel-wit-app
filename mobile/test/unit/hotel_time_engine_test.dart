@@ -23,19 +23,19 @@ void main() {
     });
 
     test('الوقت بعد 14:01 بفترة يعود لنفس اليوم', () {
-      final dt = DateTime(2025, 6, 15, 20, 0);
+      final dt = DateTime(2025, 6, 15, 20);
       final result = HotelTimeEngine.getHotelDay(dt);
       expect(result, DateTime(2025, 6, 15));
     });
 
     test('الوقت قبل 14:01 يعود لليوم السابق', () {
-      final dt = DateTime(2025, 6, 15, 10, 0);
+      final dt = DateTime(2025, 6, 15, 10);
       final result = HotelTimeEngine.getHotelDay(dt);
       expect(result, DateTime(2025, 6, 14));
     });
 
     test('الوقت بالضبط 14:00 يعود لليوم السابق', () {
-      final dt = DateTime(2025, 6, 15, 14, 0);
+      final dt = DateTime(2025, 6, 15, 14);
       final result = HotelTimeEngine.getHotelDay(dt);
       expect(result, DateTime(2025, 6, 14));
     });
@@ -47,19 +47,19 @@ void main() {
     });
 
     test('الوقت بالضبط 14:01:00 يعود لنفس اليوم', () {
-      final dt = DateTime(2025, 6, 15, 14, 1, 0);
+      final dt = DateTime(2025, 6, 15, 14, 1);
       final result = HotelTimeEngine.getHotelDay(dt);
       expect(result, DateTime(2025, 6, 15));
     });
 
     test('منتصف الليل (00:00) يعود لليوم السابق', () {
-      final dt = DateTime(2025, 6, 15, 0, 0);
+      final dt = DateTime(2025, 6, 15);
       final result = HotelTimeEngine.getHotelDay(dt);
       expect(result, DateTime(2025, 6, 14));
     });
 
     test('بداية سنة جديدة — 1 يناير 00:00 يعود لـ 31 ديسمبر', () {
-      final dt = DateTime(2025, 1, 1, 0, 0);
+      final dt = DateTime(2025);
       final result = HotelTimeEngine.getHotelDay(dt);
       expect(result, DateTime(2024, 12, 31));
     });
@@ -67,7 +67,7 @@ void main() {
     test('بداية سنة جديدة — 1 يناير 14:01 يعود لنفس اليوم', () {
       final dt = DateTime(2025, 1, 1, 14, 1);
       final result = HotelTimeEngine.getHotelDay(dt);
-      expect(result, DateTime(2025, 1, 1));
+      expect(result, DateTime(2025));
     });
   });
 
@@ -77,7 +77,7 @@ void main() {
   group('getHotelDayKey', () {
     test('يعيد نص بصيغة YYYY-MM-DD', () {
       final key = HotelTimeEngine.getHotelDayKey(
-        dateTime: DateTime(2025, 6, 15, 15, 0),
+        dateTime: DateTime(2025, 6, 15, 15),
       );
       expect(key, '2025-06-15');
     });
@@ -151,7 +151,6 @@ void main() {
           days: 3,
           roomPrice: 100,
           discount: 10,
-          discountType: 'per_night',
         ),
         270,
       );
@@ -185,7 +184,6 @@ void main() {
           days: 2,
           roomPrice: 30,
           discount: 50,
-          discountType: 'per_night',
         ),
         0,
       );
@@ -332,14 +330,14 @@ void main() {
   group('isAfterCutoff', () {
     test('قبل 14:01 = false', () {
       expect(
-        HotelTimeEngine.isAfterCutoff(DateTime(2025, 6, 15, 10, 0)),
+        HotelTimeEngine.isAfterCutoff(DateTime(2025, 6, 15, 10)),
         isFalse,
       );
     });
 
     test('14:00 بالضبط = false', () {
       expect(
-        HotelTimeEngine.isAfterCutoff(DateTime(2025, 6, 15, 14, 0)),
+        HotelTimeEngine.isAfterCutoff(DateTime(2025, 6, 15, 14)),
         isFalse,
       );
     });
@@ -353,7 +351,7 @@ void main() {
 
     test('بعد 14:01 = true', () {
       expect(
-        HotelTimeEngine.isAfterCutoff(DateTime(2025, 6, 15, 20, 0)),
+        HotelTimeEngine.isAfterCutoff(DateTime(2025, 6, 15, 20)),
         isTrue,
       );
     });
@@ -365,7 +363,7 @@ void main() {
   group('getHotelDayRange', () {
     test('قبل 14:01: البداية أمس 14:01 والنهاية اليوم 14:00:59', () {
       final range = HotelTimeEngine.getHotelDayRange(
-        DateTime(2025, 6, 15, 10, 0),
+        DateTime(2025, 6, 15, 10),
       );
       expect(range['start'], DateTime(2025, 6, 14, 14, 1));
       expect(range['end'], DateTime(2025, 6, 15, 14, 0, 59, 999));
@@ -373,7 +371,7 @@ void main() {
 
     test('بعد 14:01: البداية اليوم 14:01 والنهاية غداً 14:00:59', () {
       final range = HotelTimeEngine.getHotelDayRange(
-        DateTime(2025, 6, 15, 16, 0),
+        DateTime(2025, 6, 15, 16),
       );
       expect(range['start'], DateTime(2025, 6, 15, 14, 1));
       expect(range['end'], DateTime(2025, 6, 16, 14, 0, 59, 999));
@@ -385,8 +383,8 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('calculateDaysWithDiscount', () {
     test('بدون تاريخ بداية خصم = نفس calculateDays', () {
-      final checkIn = DateTime(2025, 6, 10, 15, 0);
-      final checkOut = DateTime(2025, 6, 13, 12, 0);
+      final checkIn = DateTime(2025, 6, 10, 15);
+      final checkOut = DateTime(2025, 6, 13, 12);
       final result = HotelTimeEngine.calculateDaysWithDiscount(
         checkIn: checkIn,
         checkOut: checkOut,
@@ -398,8 +396,8 @@ void main() {
     });
 
     test('تاريخ بداية الخصم بعد الدخول = ليالي أقل', () {
-      final checkIn = DateTime(2025, 6, 10, 15, 0);
-      final checkOut = DateTime(2025, 6, 15, 12, 0);
+      final checkIn = DateTime(2025, 6, 10, 15);
+      final checkOut = DateTime(2025, 6, 15, 12);
       final discountStart = DateTime(2025, 6, 13, 14, 1);
       final result = HotelTimeEngine.calculateDaysWithDiscount(
         checkIn: checkIn,
@@ -410,8 +408,8 @@ void main() {
     });
 
     test('تاريخ بداية الخصم قبل الدخول = نفس calculateDays', () {
-      final checkIn = DateTime(2025, 6, 10, 15, 0);
-      final checkOut = DateTime(2025, 6, 15, 12, 0);
+      final checkIn = DateTime(2025, 6, 10, 15);
+      final checkOut = DateTime(2025, 6, 15, 12);
       final discountStart = DateTime(2025, 6, 5, 14, 1);
       final result = HotelTimeEngine.calculateDaysWithDiscount(
         checkIn: checkIn,
@@ -425,8 +423,8 @@ void main() {
     });
 
     test('تاريخ بداية الخصم بعد الخروج = 0', () {
-      final checkIn = DateTime(2025, 6, 10, 15, 0);
-      final checkOut = DateTime(2025, 6, 12, 12, 0);
+      final checkIn = DateTime(2025, 6, 10, 15);
+      final checkOut = DateTime(2025, 6, 12, 12);
       final discountStart = DateTime(2025, 6, 20, 14, 1);
       final result = HotelTimeEngine.calculateDaysWithDiscount(
         checkIn: checkIn,

@@ -24,7 +24,6 @@ import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/rooms_dao.dart';
@@ -52,14 +51,14 @@ String _mergeClocks(String a, String b) {
   return jsonEncode(out);
 }
 
-class _StatefulWorker extends http.BaseClient {
+class _StatefulWorker extends http.BaseClient { // ctx.deviceId من الـ JWT
+
+  _StatefulWorker(this.authDeviceId);
   /// صفوف الخادم: entity → local_uuid → row
   final rows = <String, Map<String, Map<String, dynamic>>>{};
   final _seenIdempotency = <String>{};
   int serverClock = 1750000000; // allocateUpdatedAt أحادي التصاعد
-  final String authDeviceId; // ctx.deviceId من الـ JWT
-
-  _StatefulWorker(this.authDeviceId);
+  final String authDeviceId;
 
   int get _nextStamp => ++serverClock;
 
@@ -290,10 +289,16 @@ Future<List<String>> outboxDump(AppDatabase db) async {
   ).get();
   return [
     for (final r in rows)
-      '${r.data['entity']}/${r.data['op']}/${r.data['processing_status']} '
-          'clockInPayload='
-      '${(_parsePayloadClock(r.data['payload'] as String?))}',
+      _outboxRowLabel(
+        r.data,
+        _parsePayloadClock(r.data['payload'] as String?),
+      ),
   ];
+}
+
+String _outboxRowLabel(Map<String, dynamic> data, String clock) {
+  return '${data['entity']}/${data['op']}/${data['processing_status']} '
+      'clockInPayload=$clock';
 }
 
 String _parsePayloadClock(String? payload) {
@@ -446,7 +451,7 @@ void main() {
       ).getSingle();
       await roomsDao.updateById(
         localRow.data['id'] as int,
-        RoomsCompanion(price: d.Value(200.0)),
+        const RoomsCompanion(price: d.Value(200.0)),
       );
       expect(await outboxCount(db), 1, reason: 'التعديل المحلي يسجل outbox');
 
@@ -499,7 +504,7 @@ void main() {
       ).getSingle();
       await roomsDao.updateById(
         localRow.data['id'] as int,
-        RoomsCompanion(price: d.Value(210.0)),
+        const RoomsCompanion(price: d.Value(210.0)),
       );
       expect(await outboxCount(db), 1);
 

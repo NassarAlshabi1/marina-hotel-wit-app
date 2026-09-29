@@ -73,12 +73,12 @@ String _mergeClocks(String a, String b) {
 }
 
 class _StatefulWorker extends http.BaseClient {
+
+  _StatefulWorker(this.authDeviceId);
   final rows = <String, Map<String, Map<String, dynamic>>>{};
   final _seenIdempotency = <String>{};
   int serverClock = 1750000000;
   final String authDeviceId;
-
-  _StatefulWorker(this.authDeviceId);
 
   int get _nextStamp => ++serverClock;
 
@@ -282,9 +282,16 @@ Future<List<String>> outboxDump(AppDatabase db) async {
   ).get();
   return [
     for (final r in rows)
-      '${r.data['entity']}/${r.data['op']}/${r.data['processing_status']} '
-          'price=${_parsePayloadField(r.data['payload'] as String?, 'price')}',
+      _outboxRowPrice(
+        r.data,
+        _parsePayloadField(r.data['payload'] as String?, 'price'),
+      ),
   ];
+}
+
+String _outboxRowPrice(Map<String, dynamic> data, String price) {
+  return '${data['entity']}/${data['op']}/${data['processing_status']} '
+      'price=$price';
 }
 
 String _parsePayloadField(String? payload, String field) {
@@ -368,7 +375,7 @@ void main() {
         final outboxDao = OutboxDao(db);
         final roomsDao = RoomsDao(db, outboxDao);
         var row = await localRow(db, uuid);
-        await roomsDao.updateById(row['id'] as int, RoomsCompanion(price: d.Value(200.0)));
+        await roomsDao.updateById(row['id'] as int, const RoomsCompanion(price: d.Value(200.0)));
         expect(await outboxCount(db), 1);
 
         // ✅ محاكاة الرفع الخام: بدل أن يُدفع هذا التعديل عبر /push
@@ -409,7 +416,7 @@ void main() {
 
         // تعديل محلي أول (معلّق، غير مدفوع)
         var row = await localRow(db, uuid);
-        await roomsDao.updateById(row['id'] as int, RoomsCompanion(price: d.Value(200.0)));
+        await roomsDao.updateById(row['id'] as int, const RoomsCompanion(price: d.Value(200.0)));
 
         // ✅ رفع خام لهذه الحالة (بدل الدفع الطبيعي)
         row = await localRow(db, uuid);
@@ -418,7 +425,7 @@ void main() {
 
         // تعديل محلي ثانٍ (لا يزال غير مدفوع — المستخدم يعتمد على الرفع الخام لا على sync)
         row = await localRow(db, uuid);
-        await roomsDao.updateById(row['id'] as int, RoomsCompanion(price: d.Value(205.0)));
+        await roomsDao.updateById(row['id'] as int, const RoomsCompanion(price: d.Value(205.0)));
 
         // جهاز آخر يعدّل نفس الصف عبر البروتوكول الطبيعي، بعد استقرار الرفع
         // الخام — مرتين، حتى يتقدّم version على الخادم فعلياً فوق version
@@ -464,11 +471,11 @@ void main() {
         final roomsDao = RoomsDao(db, outboxDao);
 
         var row = await localRow(db, uuid);
-        await roomsDao.updateById(row['id'] as int, RoomsCompanion(price: d.Value(200.0)));
+        await roomsDao.updateById(row['id'] as int, const RoomsCompanion(price: d.Value(200.0)));
         // ⛔ لا رفع خام هنا — نفس المتغيرات الأخرى فقط
 
         row = await localRow(db, uuid);
-        await roomsDao.updateById(row['id'] as int, RoomsCompanion(price: d.Value(205.0)));
+        await roomsDao.updateById(row['id'] as int, const RoomsCompanion(price: d.Value(205.0)));
 
         worker.editAsDevice('rooms', uuid, 'device-A', {'price': 190.0});
         worker.editAsDevice('rooms', uuid, 'device-A', {'price': 191.0});
@@ -503,7 +510,7 @@ void main() {
       'أحدث بنسخة محلية أقدم (لا علاقة بـ outbox، بل فقدان بيانات)',
       () async {
         final manager = await makeManager();
-        final uuid = await produceRoom(price: 150.0);
+        final uuid = await produceRoom();
         await manager.sync();
 
         // خُذ لقطة من الصف المحلي *الآن* (قديمة) لمحاكاة جهاز لم يُزامن منذ فترة

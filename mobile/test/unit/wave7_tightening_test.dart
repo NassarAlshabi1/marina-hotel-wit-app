@@ -13,8 +13,8 @@
 // ignore_for_file: lines_longer_than_80_chars
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/services/remote_change_notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

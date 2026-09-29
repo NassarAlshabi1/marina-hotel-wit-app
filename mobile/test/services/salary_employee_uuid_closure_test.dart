@@ -20,16 +20,15 @@
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:marina_hotel_mobile/services/adapters/id_resolver.dart';
 import 'package:marina_hotel_mobile/services/adapters/salary_cycles_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/salary_payments_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/salary_withdrawals_adapter.dart';
-import 'package:marina_hotel_mobile/services/adapters/id_resolver.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
 import 'package:marina_hotel_mobile/services/sync/payload_normalizer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -92,8 +91,7 @@ void main() {
     final empB = await seedEmployee('uuid-bbbb');
 
     // صفوف ما قبل الترقية: موظف صالح + يتيم مقصود (employee_id=999)
-    final wdA = await db
-        .into(db.salaryWithdrawals)
+    await db.into(db.salaryWithdrawals)
         .insert(
           SalaryWithdrawalsCompanion.insert(
             employeeId: empA,
@@ -105,14 +103,13 @@ void main() {
             lastModified: 1700000000,
           ),
         );
-    final wdOrphan = -1;
     // يتيم مقصود (employee_id=999) — FK المحلي يمنعه عبر ORM، فيُحاكى
     // كصف ما قبل الترقية عبر SQL خام مع تعطيل FK مؤقتاً (نفس وضع
     // قواعد الإنتاج المتقادمة التي أُنشئت قبل تشديد القيود)
     await db.customStatement('PRAGMA foreign_keys = OFF');
     await db.customStatement(
-      "INSERT INTO salary_withdrawals (employee_id, amount, withdraw_date, "
-      "local_uuid, created_at, updated_at, last_modified, version, origin, vector_clock, device_id) "
+      'INSERT INTO salary_withdrawals (employee_id, amount, withdraw_date, '
+      'local_uuid, created_at, updated_at, last_modified, version, origin, vector_clock, device_id) '
       "VALUES (999, 50, '2026-09-02', 'wd-orphan', 1700000000, 1700000000, 1700000000, 1, 'local', '{}', '')",
     );
     await db.customStatement('PRAGMA foreign_keys = ON');

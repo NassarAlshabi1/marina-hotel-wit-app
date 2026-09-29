@@ -6,12 +6,12 @@ void main() {
     // DateTime(2024, 1, 10, 10) with cutoff 14 → 10:00 is before 14:00
     // → subtract 14h → 2024-01-09 20:00 → dateToString → '2024-01-09'
     final t = DateTime(2024, 1, 10, 10);
-    expect(Time.hotelDayKey(now: t, cutoffHour: 14), '2024-01-09');
+    expect(Time.hotelDayKey(now: t), '2024-01-09');
 
     // DateTime(2024, 1, 10, 16) with cutoff 14 → 16:00 is after 14:00
     // → subtract 14h → 2024-01-10 02:00 → dateToString → '2024-01-10'
     final late = DateTime(2024, 1, 10, 16);
-    expect(Time.hotelDayKey(now: late, cutoffHour: 14), '2024-01-10');
+    expect(Time.hotelDayKey(now: late), '2024-01-10');
   });
 
   test('hotelDayKeyFromIso trims/normalizes and falls back on parse errors', () {
@@ -43,7 +43,7 @@ void main() {
       '2024-11-13T09:01:00',
     );
     expect(
-      Time.hotelDayEndIso('2024-11-13', cutoffHour: 14),
+      Time.hotelDayEndIso('2024-11-13'),
       '2024-11-14T14:01:00',
     );
   });
@@ -64,7 +64,7 @@ void main() {
     final checkin = DateTime(2024, 3, 1, 15);
     final checkout = DateTime(2024, 3, 2, 10);
     expect(
-      Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14),
+      Time.nightsWithCutoff(checkin, checkout: checkout),
       1,
     );
 
@@ -79,7 +79,6 @@ void main() {
       Time.nightsWithCutoff(
         earlyCheckin,
         checkout: lateCheckout,
-        cutoffHour: 14,
       ),
       3,
     );

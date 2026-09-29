@@ -439,13 +439,11 @@ void main() {
         db,
         3000,
         paymentDate: '2026-09-05T23:00:00',
-        hotelDayKey: null,
       );
       await insertPayment(
         db,
         4000,
         paymentDate: '2026-08-05T10:00:00',
-        hotelDayKey: null,
       );
       final service = serviceFor(db);
 

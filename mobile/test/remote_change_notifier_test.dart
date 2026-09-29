@@ -7,10 +7,9 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:marina_hotel_mobile/services/local_notification_service.dart';
 import 'package:marina_hotel_mobile/services/remote_change_notifier.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _CapturedNotification {
   _CapturedNotification({

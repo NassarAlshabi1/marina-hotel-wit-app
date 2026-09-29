@@ -748,7 +748,7 @@ void main() {
     });
 
     test('listByEmployeeId يرجع سحوبات الموظف المحدد فقط', () async {
-      final empId1 = await insertEmployee(uuid: 'emp-1', name: 'أحمد');
+      final empId1 = await insertEmployee();
       final empId2 = await insertEmployee(uuid: 'emp-2', name: 'محمد');
       final repo = SalaryWithdrawalsRepository(db);
 

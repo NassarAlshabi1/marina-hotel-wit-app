@@ -42,7 +42,6 @@ void main() {
     test('غياب توكن المدير → نسخة Env المرآتية', () {
       expect(
         CloudflareAiService.resolveWorkerToken(
-          managerToken: null,
           envToken: 'env-jwt',
         ),
         'env-jwt',
@@ -69,8 +68,7 @@ void main() {
     test('كلا المصدرين غائب → null', () {
       expect(
         CloudflareAiService.resolveWorkerToken(
-          managerToken: null,
-          envToken: null,
+          
         ),
         isNull,
       );

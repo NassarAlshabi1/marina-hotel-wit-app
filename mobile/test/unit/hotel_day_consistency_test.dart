@@ -38,7 +38,7 @@ void main() {
 
     test('a pre-cutoff booking starts with the previous hotel day', () {
       expect(
-        Time.hotelDayStartForNewBooking(DateTime(2026, 8, 13, 14, 0)),
+        Time.hotelDayStartForNewBooking(DateTime(2026, 8, 13, 14)),
         DateTime(2026, 8, 12, 14, 1),
       );
     });

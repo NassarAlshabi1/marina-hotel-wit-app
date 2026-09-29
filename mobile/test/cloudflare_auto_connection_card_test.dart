@@ -2,15 +2,14 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart' hide ConnectionState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/providers/appwrite_providers.dart';
 import 'package:marina_hotel_mobile/providers/cloudflare_connection_providers.dart';
 import 'package:marina_hotel_mobile/providers/repository_providers.dart'
     show databaseProvider;
-import 'package:marina_hotel_mobile/services/cloudflare_d1_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/widgets/cloudflare_auto_connection_card.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// اختبارات تثبيت بطاقة «بيانات الاتصال التلقائي مع Cloudflare»:

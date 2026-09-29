@@ -14,13 +14,13 @@
 
 library marina_hotel_mobile.test.booking_price_adjustment_test;
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
-import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/booking_price_adjustment_service.dart';
-import 'package:marina_hotel_mobile/utils/time.dart';
+import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/utils/id.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 
 AppDatabase _createTestDb() {
   return AppDatabase.forTesting(NativeDatabase.memory());
@@ -83,7 +83,7 @@ void main() {
         );
 
     // تاريخ دخول في الماضي ليكون الحجز "نشطاً" ومحسوباً للفترة المعنية
-    final checkinDate = _dayFromNow(-(nightCount - 1), hour: 15);
+    final checkinDate = _dayFromNow(-(nightCount - 1));
     await db
         .into(db.bookings)
         .insert(
@@ -522,7 +522,7 @@ void main() {
       );
 
       final longStays = await adjustmentService
-          .getLongStayBookingsWithoutSurcharge(minimumNights: 30);
+          .getLongStayBookingsWithoutSurcharge();
 
       expect(longStays.length, greaterThanOrEqualTo(1));
       expect(longStays.any((b) => b.id == seed.booking.id), isTrue);
@@ -550,7 +550,7 @@ void main() {
       );
 
       final longStays = await adjustmentService
-          .getLongStayBookingsWithoutSurcharge(minimumNights: 30);
+          .getLongStayBookingsWithoutSurcharge();
 
       expect(
         longStays.any((b) => b.id == seed.booking.id),
@@ -575,7 +575,7 @@ void main() {
       final stream = adjustmentService.watchActiveAdjustments(seed.bookingUuid);
 
       // لا توجد تعديلات في البداية
-      var firstEmission = await stream.first;
+      final firstEmission = await stream.first;
       expect(firstEmission, isEmpty);
 
       // إضافة تعديل

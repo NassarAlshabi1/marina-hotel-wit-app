@@ -2,16 +2,16 @@
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 // local_db.dart exports ExpensesCompanion, EmployeesCompanion, etc.
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/repositories/employees_repository.dart';
 import 'package:marina_hotel_mobile/services/repositories/expenses_repository.dart';
 import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
 import 'package:marina_hotel_mobile/services/salary_entitlement_service.dart';
-import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/utils/expense_reason_matcher.dart';
 import 'package:marina_hotel_mobile/utils/status_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// اختبارات تكاملية فعلية لـ:
 /// 1. إضافة/تعديل/حذف الموظفين
@@ -591,7 +591,7 @@ void main() {
 
         // نفس تحويل الشاشة: أخرى → سحب راتب (النوع المعترف به محاسبياً)
         const withdrawalType = 'أخرى';
-        final expenseType = withdrawalType == 'أخرى'
+        const expenseType = withdrawalType == 'أخرى'
             ? 'سحب راتب'
             : withdrawalType;
         final expenseId = await expensesRepo.create(

@@ -19,10 +19,9 @@
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/repositories/employees_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +40,7 @@ void main() {
   });
 
   const now = 1700000000;
-  final dashedUuid = 'aaaa1111-2222-3333-4444-555566667777';
+  const dashedUuid = 'aaaa1111-2222-3333-4444-555566667777';
   final dashlessUuid = dashedUuid.replaceAll('-', '');
 
   Future<int> seedEmployee({String? uuid}) async {
@@ -137,7 +136,7 @@ void main() {
 
     test('سحب قديم بمسك رقمي (uuid=NULL) يمنع الحذف', () async {
       final id = await seedEmployee();
-      await seedWithdrawal(employeeId: id, employeeUuid: null);
+      await seedWithdrawal(employeeId: id);
       final h = await historyFor(id);
       expect(h.withdrawals, 1);
       expect(h.blocksDeletion, true);
@@ -156,7 +155,6 @@ void main() {
       await seedExpense(
         expenseType: 'سحب من الراتب',
         relatedId: id,
-        employeeUuid: null,
       );
       final h = await historyFor(id);
       expect(h.expenses, 1);
@@ -170,7 +168,6 @@ void main() {
         await seedExpense(
           expenseType: 'حجز',
           relatedId: id,
-          employeeUuid: null,
         );
         final h = await historyFor(id);
         expect(h.expenses, 0, reason: 'related_id متعدد الدلالة — ليس تاريخاً');
@@ -205,7 +202,7 @@ void main() {
               employeeId: idA,
               cycleKey: '2026-09',
               localUuid: 'cyc-a',
-              employeeUuid: d.Value(dashedUuid),
+              employeeUuid: const d.Value(dashedUuid),
               createdAt: now,
               updatedAt: now,
               lastModified: now,
@@ -246,7 +243,7 @@ void main() {
               cycleId: cycB,
               paymentDateIso: '2026-09-10',
               localUuid: 'pay-b',
-              employeeUuid: d.Value('bbbb1111-2222-3333-4444-555566667777'),
+              employeeUuid: const d.Value('bbbb1111-2222-3333-4444-555566667777'),
               createdAt: now,
               updatedAt: now,
               lastModified: now,

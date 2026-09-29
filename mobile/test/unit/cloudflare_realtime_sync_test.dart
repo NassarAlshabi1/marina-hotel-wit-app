@@ -198,7 +198,7 @@ void main() {
       fakeAsync((async) {
         final realtime = CloudflareRealtimeSync();
         realtime.resetForTest();
-        realtime.initialize(deviceId: 'my-device');
+        unawaited(realtime.initialize(deviceId: 'my-device'));
         int pulls = 0;
         realtime.setSyncTrigger(() async {
           pulls++;
@@ -364,7 +364,7 @@ void main() {
           change(entity: 'rooms', deviceId: 'device-B'),
         );
         expect(realtime.hasRemoteChanges.value, true);
-        realtime.stop();
+        unawaited(realtime.stop());
 
         async.elapse(const Duration(seconds: 2));
         expect(pulls, 0); // debounce cancelled — لا سحب بعد الإيقاف
@@ -398,7 +398,7 @@ void main() {
           tokenProvider: () async => null, // لم يكتمل login بعد
         );
 
-        realtime.start();
+        unawaited(realtime.start());
         // 6 محاولات بأُسّية ثم استسلام — لا استثناءات ولا شبكة
         async.elapse(const Duration(minutes: 5));
         expect(realtime.isListening, true);

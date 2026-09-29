@@ -255,7 +255,7 @@ void main() {
         expect(result.conflictingFields, isNot(contains('version')));
       });
 
-      test('metadata fields starting with \$ are excluded', () {
+      test(r'metadata fields starting with $ are excluded', () {
         final result = ConflictDetector.detect(
           localData: {
             'vectorClock': '{"d1": 2}',

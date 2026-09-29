@@ -42,6 +42,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ═══════════════════════════════════════════════════════════════
 
 class _WorkerSim extends http.BaseClient {
+
+  _WorkerSim({this.poisonLocalUuids = const {}, this.failHttpWith});
   /// uuids تُرفض دائماً برفض دائم (validation_error) — عقد fix M4.
   final Set<String> poisonLocalUuids;
 
@@ -57,8 +59,6 @@ class _WorkerSim extends http.BaseClient {
   final _seenIdempotency = <String>{};
 
   int pushRequestCount = 0;
-
-  _WorkerSim({this.poisonLocalUuids = const {}, this.failHttpWith});
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {

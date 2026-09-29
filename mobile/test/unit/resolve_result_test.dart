@@ -7,7 +7,7 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('ResolveResult — القيم الافتراضية', () {
     test('القيم الافتراضية كلها null أو false', () {
-      const result = ResolveResult();
+      const result = ResolveResult.empty;
       expect(result.bookingLocalId, isNull);
       expect(result.bookingUuidCache, isNull);
       expect(result.employeeLocalId, isNull);
@@ -71,7 +71,6 @@ void main() {
       const original = ResolveResult(
         bookingLocalId: 5,
         employeeLocalId: 10,
-        shouldSkip: false,
       );
       final copy = original.copyWith();
       expect(copy.bookingLocalId, 5);
@@ -83,7 +82,6 @@ void main() {
       const original = ResolveResult(
         bookingLocalId: 5,
         employeeLocalId: 10,
-        shouldSkip: false,
       );
       final copy = original.copyWith(shouldSkip: true, skipReason: 'orphan');
       expect(copy.bookingLocalId, 5);

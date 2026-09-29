@@ -116,7 +116,7 @@ void main() {
         // ✅ (2026-09-17) عقد snake_case: الدمج يكتب vector_clock لا
         // vectorClock — انظر حزمة «snake_case contract» أدناه.
         final mergedVc = VectorClock.fromString(
-          result.mergedData['vector_clock'],
+          result.mergedData['vector_clock'] as String,
         );
         expect(mergedVc.get('d1'), equals(1));
         expect(mergedVc.get('d2'), equals(1));
@@ -496,7 +496,7 @@ void main() {
           },
         );
         final mergedVc = VectorClock.fromString(
-          result.mergedData['vector_clock'],
+          result.mergedData['vector_clock'] as String,
         );
         expect(mergedVc.get('d1'), equals(5)); // max(5, 2)
         expect(mergedVc.get('d2'), equals(7)); // max(3, 7)

@@ -58,7 +58,7 @@ void main() {
 
   group('SyncTask', () {
     test('canRetry is true only while attempts < maxRetries', () {
-      final task = _task('t1', maxRetries: 3);
+      final task = _task('t1');
       expect(task.canRetry, isTrue);
       task.attempts = 3;
       expect(task.canRetry, isFalse);
@@ -303,7 +303,9 @@ void main() {
         expect(health.isHealthy, isTrue);
         expect(health.successRate, 0);
         expect(health.circuitStates['appwrite'], CircuitState.closed);
-        expect(health.toJson()['circuitStates']['appwrite'], 'closed');
+        final circuits =
+            health.toJson()['circuitStates'] as Map<String, dynamic>;
+        expect(circuits['appwrite'], 'closed');
       },
     );
 

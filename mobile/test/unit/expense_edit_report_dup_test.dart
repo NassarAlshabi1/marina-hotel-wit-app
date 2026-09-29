@@ -149,7 +149,6 @@ void main() {
   late AppDatabase db;
   late ExpensesRepository expensesRepo;
   late SalaryWithdrawalsRepository salaryRepo;
-  final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -172,7 +171,6 @@ void main() {
       amount: 100,
       date: '2026-09-25',
       hotelDayKey: '2026-09-25',
-      employeeUuid: null,
     );
     await salaryRepo.saveFromExpense(
       expenseId: expenseId,
@@ -219,7 +217,6 @@ void main() {
       amount: 250,
       date: '2026-09-25',
       hotelDayKey: '2026-09-25',
-      employeeUuid: null,
     );
     await salaryRepo.saveFromExpense(
       expenseId: expenseId,

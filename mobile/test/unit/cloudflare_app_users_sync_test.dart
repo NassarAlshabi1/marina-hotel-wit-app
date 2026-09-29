@@ -77,7 +77,7 @@ void main() {
       final row = <String, dynamic>{
         'local_uuid': 'user_admin',
         'username': 'admin',
-        'password': 'pbkdf2\$hash',
+        'password': r'pbkdf2$hash',
         'full_name': 'مدير النظام',
         'user_type': 'admin',
         'permissions': '["dashboard","rooms"]',
@@ -126,9 +126,9 @@ void main() {
 
   test('تحديث جزئي مثل updateRecord في worker (SET بأعمدة الحمولة)', () async {
     await db.customStatement(
-      "INSERT INTO app_users (local_uuid, username, full_name, user_type, "
-      "active, credentials_version, created_at, updated_at, last_modified, "
-      "version, origin, vector_clock) VALUES "
+      'INSERT INTO app_users (local_uuid, username, full_name, user_type, '
+      'active, credentials_version, created_at, updated_at, last_modified, '
+      'version, origin, vector_clock) VALUES '
       "('user_a', 'a', 'A', 'staff', 1, 1, 100, 100, 100, 1, 'local', '{}')",
     );
 
@@ -163,10 +163,10 @@ void main() {
   });
 
   test('local_uuid UNIQUE — هوية docId الحتمية تحمي من التكرار', () async {
-    final base =
-        "INSERT OR IGNORE INTO app_users "
-        "(local_uuid, username, full_name, user_type, active, created_at, "
-        "updated_at, last_modified, version, origin, vector_clock) VALUES "
+    const base =
+        'INSERT OR IGNORE INTO app_users '
+        '(local_uuid, username, full_name, user_type, active, created_at, '
+        'updated_at, last_modified, version, origin, vector_clock) VALUES '
         "('user_dup', '%s', 'D', 'staff', 1, 100, 100, 100, 1, 'local', '{}')";
     await db.customStatement(base.replaceAll('%s', 'first'));
     await db.customStatement(base.replaceAll('%s', 'second'));

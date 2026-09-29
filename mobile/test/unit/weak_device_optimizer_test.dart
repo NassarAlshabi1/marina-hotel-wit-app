@@ -4,32 +4,40 @@
 // بشكل صحيح، لأن تعديل PRAGMA في local_db.dart يعتمد على isWeakDevice
 // لتقليل بصمة الذاكرة (mmap_size/cache_size/temp_store) ومنع OOM-kill.
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/utils/weak_device_optimizer.dart';
 
 void main() {
   group('WeakDeviceOptimizer classification', () {
     test('ذاكرة 1GB → جهاز حرج (optimizationLevel=3)', () {
-      WeakDeviceOptimizer.instance.initialize(
-        processorCount: 4,
-        memoryMB: 1024,
+      unawaited(
+        WeakDeviceOptimizer.instance.initialize(
+          processorCount: 4,
+          memoryMB: 1024,
+        ),
       );
       expect(WeakDeviceOptimizer.instance.isWeakDevice, isTrue);
       expect(WeakDeviceOptimizer.instance.optimizationLevel, equals(3));
     });
 
     test('ذاكرة 2GB مع 2 أنوية → جهاز ضعيف', () {
-      WeakDeviceOptimizer.instance.initialize(
-        processorCount: 2,
-        memoryMB: 2048,
+      unawaited(
+        WeakDeviceOptimizer.instance.initialize(
+          processorCount: 2,
+          memoryMB: 2048,
+        ),
       );
       expect(WeakDeviceOptimizer.instance.isWeakDevice, isTrue);
     });
 
     test('ذاكرة 4GB مع 8 أنوية → جهاز عادي', () {
-      WeakDeviceOptimizer.instance.initialize(
-        processorCount: 8,
-        memoryMB: 4096,
+      unawaited(
+        WeakDeviceOptimizer.instance.initialize(
+          processorCount: 8,
+          memoryMB: 4096,
+        ),
       );
       expect(WeakDeviceOptimizer.instance.isWeakDevice, isFalse);
       expect(WeakDeviceOptimizer.instance.optimizationLevel, equals(0));

@@ -27,10 +27,9 @@ import 'dart:async';
 import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory, File;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:marina_hotel_mobile/utils/performance_monitor.dart';
 
 void main() {
@@ -200,7 +199,7 @@ void main() {
 
       final paymentTrace = slowest.firstWhere(
         (t) => (t as Map<String, dynamic>)['name'] == 'payment_aggregation',
-      );
+      ) as Map<String, dynamic>;
       final elapsed = paymentTrace['elapsedMs'] as int;
       debugPrint('✓ Payment aggregation time: ${elapsed}ms');
       expect(elapsed, lessThan(500));
@@ -301,7 +300,7 @@ void main() {
     test('يُصدِّر تقرير JSON string قابل للتحليل', () async {
       final jsonStr = PerformanceMonitor.instance.exportReportJson();
 
-      final decoded = jsonDecode(jsonStr);
+      final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
       expect(decoded, isA<Map<String, dynamic>>());
       expect(decoded['score'], isA<int>());
     });
@@ -313,10 +312,10 @@ void main() {
       await PerformanceMonitor.instance.saveReportToFile(reportPath);
 
       final file = File(reportPath);
-      expect(await file.exists(), true);
+      expect(file.existsSync(), true);
 
       final content = await file.readAsString();
-      final decoded = jsonDecode(content);
+      final decoded = jsonDecode(content) as Map<String, dynamic>;
       expect(decoded['score'], isA<int>());
 
       // تنظيف
@@ -587,7 +586,7 @@ void main() {
     test('تصفير قائمة 1000 عنصر (filter) يستغرق < 10ms', () {
       final data = List.generate(
         1000,
-        (i) => {'id': i, 'name': 'Item $i', 'active': i % 2 == 0},
+        (i) => {'id': i, 'name': 'Item $i', 'active': i.isEven},
       );
 
       final stopwatch = Stopwatch()..start();
@@ -657,7 +656,7 @@ void main() {
 
       final grouped = <String, List<Map<String, dynamic>>>{};
       for (final r in records) {
-        grouped.putIfAbsent(r['status'] as String, () => []).add(r);
+        grouped.putIfAbsent(r['status']! as String, () => []).add(r);
       }
 
       stopwatch.stop();
@@ -679,7 +678,7 @@ void main() {
       final jsonLines = List.generate(
         100,
         (i) => '{"id":$i,"name":"Booking $i","status":"active"}\n',
-      ).join('');
+      ).join();
 
       final stopwatch = Stopwatch()..start();
 

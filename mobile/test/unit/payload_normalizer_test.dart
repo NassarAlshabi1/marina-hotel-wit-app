@@ -128,7 +128,6 @@ void main() {
         _outboxItem(
           payload: {'roomNumber': '101'},
           localUuid: 'room-uuid',
-          entity: 'rooms',
         ),
         resolveRowVectorClock: (entity, uuid) async {
           expect(entity, 'rooms');
@@ -190,7 +189,7 @@ OutboxData _outboxItem({
   String entity = 'rooms',
   String op = 'create',
 }) {
-  final clientTs = 1720000000;
+  const clientTs = 1720000000;
   return OutboxData(
     id: 1,
     entity: entity,
