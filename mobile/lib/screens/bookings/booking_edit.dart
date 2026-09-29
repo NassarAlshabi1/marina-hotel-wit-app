@@ -98,6 +98,31 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   static const _statusOptions = ['محجوزة', 'مؤقت', 'شاغرة', 'مكتمل', 'ملغي'];
 
+  /// ✅ (2026-09-30) تطبيع أي حالة خام من القاعدة/المزامنة إلى أقرب خيار
+  /// قانوني من [_statusOptions] — يمنع القائمة المنسدلة العمياء.
+  static String _normalizeBookingStatus(String raw) {
+    final s = raw.trim();
+    if (_statusOptions.contains(s)) {
+      return s;
+    }
+    if (StatusUtils.isProvisional(s)) {
+      return 'مؤقت';
+    }
+    if (s.contains('مكتمل') ||
+        s == 'completed' ||
+        s == 'checked_out' ||
+        s == 'checked out') {
+      return 'مكتمل';
+    }
+    if (s == 'ملغي' || s == 'ملغى' || s == 'cancelled' || s == 'canceled') {
+      return 'ملغي';
+    }
+    if (StatusUtils.isActiveBooking(s)) {
+      return 'محجوزة';
+    }
+    return 'محجوزة';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -133,7 +158,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       _checkout.text = b.checkoutDate ?? '';
       _expectedNights.text = b.expectedNights.toString();
       _notes.text = b.notes ?? '';
-      _status = b.status;
+      // ✅ (2026-09-30) تطبيع الحالة: القيم الواردة بالمزامنة ('نشط'/
+      // 'active'/'محجوز'/'confirmed'/'قيد الحجز'...) لا تطابق عناصر
+      // القائمة المنسدلة (_statusOptions) فيظهر حقل «الحالة» فارغاً
+      // (عائلة خطأ حالة الموظف) — نحوّلها لأقرب قيمة قانونية بنفس الدلالة.
+      _status = _normalizeBookingStatus(b.status);
       _idType = b.guestIdType;
       _roomInitialized = true;
     } else {

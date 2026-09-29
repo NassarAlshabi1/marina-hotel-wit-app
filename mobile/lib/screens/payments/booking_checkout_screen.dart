@@ -58,7 +58,14 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
-    await derivedService.refreshForBookingId(widget.booking.id);
+    // ✅ (2026-09-30) enqueueOutbox:false — تُستدعى من initState ومن مؤقّت
+    // اليوم الفندقي للعرض فقط؛ تسجيل الخروج الفعلي يتم عبر bookingsRepo
+    // (W1) ولا يعتمد على هذا الاستدعاء — كان كل فتح للشاشة يدمج سجل
+    // bookings/update في outbox بلا أي تغيير مادي (نمط شاشة التذكير).
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      enqueueOutbox: false,
+    );
   }
 
   DateTime? _parseDateTime(String? value) => DateParser.parse(value);

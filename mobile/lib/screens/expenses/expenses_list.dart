@@ -78,6 +78,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   static const String _salaryDeductionAction = 'خصم من الراتب';
   static const String _salaryAdvanceAction = 'سلفة';
   static const List<String> _salaryActions = [
+    _salaryAdvanceAction,
     _salaryWithdrawAction,
     _salaryDeductionAction,
   ];
@@ -966,6 +967,21 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }).toList();
       int? selectedEmployeeId = existing?.relatedId;
 
+      // ✅ (2026-09-30) حماية عرض وحفظ: موظف مرجعي (محذوف) لا يظهر في
+      // availableEmployees — نجيبه بالاستعلام الخام (يشمل المؤرشفين)
+      // ليُعرض بعلامة (مؤرشف) وتنجو عملية الحفظ من StateError.
+      Employee? archivedEmployee;
+      final missingEmployeeId = selectedEmployeeId;
+      if (missingEmployeeId != null &&
+          !availableEmployees.any((e) => e.id == missingEmployeeId)) {
+        final db = ref.read(databaseProvider);
+        archivedEmployee =
+            await (db.select(
+              db.employees,
+            )..where((tbl) => tbl.id.equals(missingEmployeeId)))
+                .getSingleOrNull();
+      }
+
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => StatefulBuilder(
@@ -990,14 +1006,23 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         labelText: 'نوع المصروف',
                       ),
                       style: dropdownTextStyle,
-                      items: _expenseTypes
-                          .map(
-                            (type) => DropdownMenuItem<String>(
-                              value: type,
-                              child: Text(type, style: dropdownTextStyle),
-                            ),
-                          )
-                          .toList(),
+                          items: [
+                            // ✅ (2026-09-30) حماية عرض: نوع قديم/مخصص من
+                            // القاعدة لا يطابق عناصر القائمة فيظهر الحقل فارغاً
+                            // (عائلة خطأ حالة الموظف) — نضيفه ديناميكياً حفظاً
+                            // للبيانات بدل إسكات نوع المستخدم.
+                            ..._expenseTypes,
+                            if (!_isSalaryAction(selectedType) &&
+                                !_expenseTypes.contains(selectedType))
+                              selectedType,
+                          ]
+                              .map(
+                                (type) => DropdownMenuItem<String>(
+                                  value: type,
+                                  child: Text(type, style: dropdownTextStyle),
+                                ),
+                              )
+                              .toList(),
                       onChanged: (value) {
                         if (value == null) {
                           return;
@@ -1027,17 +1052,28 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           decoration: const InputDecoration(
                             labelText: 'اسم الموظف',
                           ),
-                          items: availableEmployees
-                              .map(
-                                (employee) => DropdownMenuItem<int>(
-                                  value: employee.id,
-                                  child: Text(
-                                    employee.name,
-                                    style: dropdownTextStyle,
-                                  ),
+                          items: [
+                            // ✅ (2026-09-30) حماية عرض وحفظ: موظف مؤرشف
+                            // (محذوف) لا يظهر في availableEmployees — يُعرض
+                            // بعلامة (مؤرشف) بدل حقل فارغ وانهيار الحفظ.
+                            if (archivedEmployee != null)
+                              DropdownMenuItem<int>(
+                                value: archivedEmployee.id,
+                                child: Text(
+                                  '${archivedEmployee.name} (مؤرشف)',
+                                  style: dropdownTextStyle,
                                 ),
-                              )
-                              .toList(),
+                              ),
+                            ...availableEmployees.map(
+                              (employee) => DropdownMenuItem<int>(
+                                value: employee.id,
+                                child: Text(
+                                  employee.name,
+                                  style: dropdownTextStyle,
+                                ),
+                              ),
+                            ),
+                          ],
                           onChanged: (value) =>
                               setState(() => selectedEmployeeId = value),
                         ),
@@ -1178,12 +1214,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           // ✅ التوصية 1: حل الموظف مرة واحدة لاستخدام محليUuid في إنشاء المصروف.
           // قبل هذا الإصلاح كان employeeUuid يُحقن فقط وقت الرفع (خطر #1)،
           // الآن يُكتب فورًا فيُصبح المصروف محمولاً عبر الأجهزة حتى قبل المزامنة.
-          // ملاحظة: نُبقي سلوك firstWhere الأصلي (StateError عند عدم الإيجاد) لأن
-          // الشاشة تتحقق مسبقًا من وجود موظفين ومن اختيار موظف قبل الحفظ.
-          final Employee? resolvedEmployee =
-              (isSalaryExpense && selectedEmployeeId != null)
-              ? availableEmployees.firstWhere((e) => e.id == selectedEmployeeId)
-              : null;
+          // ✅ (2026-09-30) حل بلا استثناء: firstWhere بلا orElse كان يرمي
+          // StateError لموظف مؤرشف — الآن fallback إلى الاستعلام الخام.
+          Employee? resolvedEmployee;
+          if (isSalaryExpense && selectedEmployeeId != null) {
+            for (final e in availableEmployees) {
+              if (e.id == selectedEmployeeId) {
+                resolvedEmployee = e;
+                break;
+              }
+            }
+            resolvedEmployee ??= archivedEmployee;
+          }
 
           final newId = await repo.create(
             expenseType: savedType,
@@ -1235,10 +1277,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           );
 
           // ✅ التوصية 1: حل الموظف مرة واحدة لاستخدام localUuid في تعديل المصروف.
-          final Employee? resolvedEmployee =
-              (isSalaryExpense && selectedEmployeeId != null)
-              ? availableEmployees.firstWhere((e) => e.id == selectedEmployeeId)
-              : null;
+          // ✅ (2026-09-30) حل بلا استثناء — نفس حماية مسار الإنشاء أعلاه.
+          Employee? resolvedEmployee;
+          if (isSalaryExpense && selectedEmployeeId != null) {
+            for (final e in availableEmployees) {
+              if (e.id == selectedEmployeeId) {
+                resolvedEmployee = e;
+                break;
+              }
+            }
+            resolvedEmployee ??= archivedEmployee;
+          }
 
           await repo.update(
             existing.id,
@@ -1460,6 +1509,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         normalized == 'سحب راتب' ||
         normalized == _salaryWithdrawAction ||
         normalized == _salaryDeductionAction ||
+        // ✅ (2026-09-30) إضافة السلفة — كانت مفقودة رغم أن المصوّف
+        // _mapExpenseTypeToSalaryAction يتعامل معها (تناقض داخلي):
+        // مصروف «سلفة» (تولّده خدمة أقساط السلف) كان يفتح بحقل نوع فارغ
+        // لأن القيمة مستبعدة من _expenseTypes وغير معترف بها كإجراء راتب.
+        normalized == _salaryAdvanceAction ||
         normalized == 'خصم راتب';
   }
 

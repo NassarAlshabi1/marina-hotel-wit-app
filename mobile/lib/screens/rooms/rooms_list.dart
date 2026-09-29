@@ -571,33 +571,44 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'شاغرة',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    color: AppColors.successColor,
-                                    size: 18,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text('شاغرة'),
-                                ],
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 'محجوزة',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.block,
-                                    color: AppColors.dangerColor,
-                                    size: 18,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text('محجوزة'),
-                                ],
+                          // ✅ (2026-09-30) إضافة «صيانة» + حماية عرض:
+                          // الغرف قد تحمل 'صيانة' (تُقرأ في الموفرات والواجهة
+                          // عبر StatusUtils.isUnderMaintenance وتأتي بالمزامنة
+                          // من النسخ الأخرى) ولم تكن ضمن العناصر فيظهر حقل
+                          // «الحالة» فارغاً — كذلك أي قيمة غير معروفة تُضاف
+                          // ديناميكياً حفظاً للبيانات.
+                          items: [
+                            ...{
+                              'شاغرة',
+                              'محجوزة',
+                              'صيانة',
+                              if (status.isNotEmpty &&
+                                  status != 'شاغرة' &&
+                                  status != 'محجوزة' &&
+                                  status != 'صيانة')
+                                status,
+                            }.map(
+                              (value) => DropdownMenuItem(
+                                value: value,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      value == 'شاغرة'
+                                          ? Icons.check_circle
+                                          : value == 'صيانة'
+                                          ? Icons.build
+                                          : Icons.block,
+                                      color: value == 'شاغرة'
+                                          ? AppColors.successColor
+                                          : value == 'صيانة'
+                                          ? Colors.orange
+                                          : AppColors.dangerColor,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(value),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
