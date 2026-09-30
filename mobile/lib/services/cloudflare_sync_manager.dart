@@ -2308,7 +2308,10 @@ class CloudflareSyncManager {
                     ) ==
                     id,
               );
-              if (_quarantine.noteLedgerHealed(id, keepCounter: stillConflicted)) {
+              if (_quarantine.noteLedgerHealed(
+                id,
+                keepCounter: stillConflicted,
+              )) {
                 ledgerDirty = true;
               }
             }
@@ -3595,7 +3598,6 @@ class CloudflareSyncManager {
       debugPrint('⚠️ post-rejection local tombstone skipped: $e');
     }
   }
-
 
   /// ✅ (مراجعة #1) مسح تقارب الحذفيات لمرة واحدة: يجلب كل tombstones
   /// الخادمية عبر نافذة tombstones_only الرخيصة (بترتيب updated_at،

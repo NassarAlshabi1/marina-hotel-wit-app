@@ -1,4 +1,4 @@
-# TEMPORARY debug workflow — show manager format diff.
+# TEMPORARY debug workflow — re-verify manager format after fix.
 # DELETE AFTER VERIFICATION.
 name: TMP Debug Unit Tests
 on:
@@ -23,16 +23,13 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
-      - name: Show format diff
+      - name: Re-verify format
         run: |
           set +e
-          dart format --output=show lib/services/cloudflare_sync_manager.dart > /tmp/formatted.dart 2> /dev/null
-          python3 -c "
-          import subprocess
-          d = subprocess.run(['diff', '-U1', 'lib/services/cloudflare_sync_manager.dart', '/tmp/formatted.dart'], capture_output=True, text=True).stdout
-          d = '\n'.join([l for l in d.split('\n') if not l.startswith(('---', '+++', '+Formatted'))])
-          print('DIFFCHARS=' + str(len(d)))
-          d = d[:5500]
-          enc = d.replace('%', '%25').replace('\n', '%0A').replace('\r', '%0D')
-          print('::error::FMT_DIFF%0A' + enc)
-          "
+          for f in lib/services/sync/pull_quarantine.dart lib/services/cloudflare_sync_manager.dart; do
+            if dart format --set-exit-if-changed --output=none "$f" > /dev/null 2>&1; then
+              echo "::notice::FMT_OK: $f"
+            else
+              echo "::error::STILL_BAD: $f"
+            fi
+          done
