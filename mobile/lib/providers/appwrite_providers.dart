@@ -249,11 +249,21 @@ final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
 });
 
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
-  ConnectionStatusNotifier(this.ref, {http.Client? client})
-    : _client = client ?? http.Client(),
+  ConnectionStatusNotifier(this.ref, {http.Client? client, this.clientFactory})
+    : _injectedClient = client,
       super(ConnectionState(isConnected: false));
   final Ref ref;
-  final http.Client _client;
+
+  /// مصنع العملاء للاختبارات — يحقن عدّاداً لإثبات «عميل جديد لكل
+  /// فحص». الإنتاج (null) يبني [http.Client] حقيقياً جديداً كل مرة.
+  final http.Client Function()? clientFactory;
+
+  /// عميل محقون للاختبارات فقط — يُستخدم كما هو ولا يُغلق بين الفحوص.
+  /// الإنتاج (null) يبني عميلاً جديداً لكل فحص ويغلقه بعده (راجع
+  /// [_runCheck]): عميل واحد لعمر الجلسة كان يحتفظ بوصلات keep-alive
+  /// ميتة (الخادم/الشبكة يغلقها بصمت) فيفشل كل فحص لاحق → شارة حمراء
+  /// دائمة بعد فترة استخدام رغم سلامة الشبكة والمزامنة.
+  final http.Client? _injectedClient;
 
   /// مهلة كل طلب فحص (/health أو /api/health/d1) على مرشح واحد.
   static const Duration _probeTimeout = Duration(seconds: 8);
@@ -281,6 +291,21 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
   }
 
   Future<void> _runCheck() async {
+    final http.Client? injected = _injectedClient;
+    if (injected != null) {
+      return _runCheckWith(injected);
+    }
+    // عميل جديد لكل فحص: وصلات keep-alive القديمة قد تكون ميتة بصمت
+    // (NAT/ISP يغلق الخامل) فيفشل الفحص دائماً — الإغلاق في finally.
+    final http.Client client = (clientFactory ?? () => http.Client())();
+    try {
+      await _runCheckWith(client);
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<void> _runCheckWith(http.Client client) async {
     if (!mounted) return;
     state = state.copyWith(isChecking: true);
     final candidates = WorkerEndpoints.candidatesFor(
@@ -291,7 +316,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
     for (final base in candidates) {
       final healthUri = base.replace(path: '/health');
       try {
-        final res = await _client.get(healthUri).timeout(_probeTimeout);
+        final res = await client.get(healthUri).timeout(_probeTimeout);
         if (res.statusCode != 200) {
           lastStatus = res.statusCode;
           continue;
@@ -300,7 +325,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
         WorkerEndpoints.reportSuccess(base);
         // فحص D1 على نفس القاعدة التي أجابت (لا على active الذي قد
         // يتغير بين الطلبين).
-        final d1 = await _probeD1(base);
+        final d1 = await _probeD1(client, base);
         if (!mounted) return;
         state = ConnectionState(
           isConnected: true,
@@ -329,14 +354,14 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
   /// فحص D1 عبر النقطة المحمية /api/health/d1 بتوكن الجلسة الحالية
   /// ([Env.cloudflareAuthToken] — يُصدَّر عند الدخول من مدير المزامنة).
   /// يعيد null عند غياب الجلسة (D1 «لم يُفحص» وليس «فاشلاً»).
-  Future<_D1ProbeResult?> _probeD1(Uri base) async {
+  Future<_D1ProbeResult?> _probeD1(http.Client client, Uri base) async {
     final token = Env.cloudflareAuthToken;
     if (token == null || token.isEmpty) {
       return null;
     }
     final uri = base.replace(path: '/api/health/d1');
     try {
-      final res = await _client
+      final res = await client
           .get(uri, headers: {'Authorization': 'Bearer $token'})
           .timeout(_probeTimeout);
       if (res.statusCode == 200) {
@@ -399,7 +424,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 
   @override
   void dispose() {
-    _client.close();
+    _injectedClient?.close();
     super.dispose();
   }
 }
