@@ -8,30 +8,52 @@ jobs:
     steps:
       - run: pip install -q websockets
       - name: https-health-builtin
-        run: python3 -c "import urllib.request; r=urllib.request.urlopen('https://marina-hotel-api.adenmarina2.workers.dev/health', timeout=15); print(r.status, r.read(100)); assert r.status==200"
-      - name: wss-realtime-builtin
+        if: always()
         run: >-
           python3 -c "
-          import asyncio;
+          import sys, traceback, urllib.request;
+          url='https://marina-hotel-api.adenmarina2.workers.dev/health';
+          try:
+              r=urllib.request.urlopen(url, timeout=15);
+              body=r.read(120); print('STATUS', r.status, body);
+              sys.exit(0 if r.status==200 else 1);
+          except Exception: traceback.print_exc(); sys.exit(1)"
+      - name: wss-realtime-builtin
+        if: always()
+        run: >-
+          python3 -c "
+          import asyncio, sys, traceback;
           from websockets.asyncio.client import connect;
           async def m():
-              async with connect('wss://marina-hotel-api.adenmarina2.workers.dev/api/realtime?deviceId=wss-probe&entity=*') as ws:
+              async with connect('wss://marina-hotel-api.adenmarina2.workers.dev/api/realtime?deviceId=wss-probe&entity=*', open_timeout=20) as ws:
                   print('101 UPGRADED builtin');
                   try:
                       async with asyncio.timeout(6): print('welcome:', (await ws.recv())[:200]);
-                  except TimeoutError: print('no-welcome-in-6s');
-          asyncio.run(m())"
+                  except TimeoutError: print('no-welcome-in-6s (socket open)');
+          try: asyncio.run(m())
+          except Exception: traceback.print_exc(); sys.exit(1)"
       - name: https-health-relay
-        run: python3 -c "import urllib.request; r=urllib.request.urlopen('https://marina-hotel-api-relay.pages.dev/health', timeout=15); print(r.status, r.read(100)); assert r.status==200"
-      - name: wss-realtime-relay
+        if: always()
         run: >-
           python3 -c "
-          import asyncio;
+          import sys, traceback, urllib.request;
+          url='https://marina-hotel-api-relay.pages.dev/health';
+          try:
+              r=urllib.request.urlopen(url, timeout=15);
+              body=r.read(120); print('STATUS', r.status, body);
+              sys.exit(0 if r.status==200 else 1);
+          except Exception: traceback.print_exc(); sys.exit(1)"
+      - name: wss-realtime-relay
+        if: always()
+        run: >-
+          python3 -c "
+          import asyncio, sys, traceback;
           from websockets.asyncio.client import connect;
           async def m():
-              async with connect('wss://marina-hotel-api-relay.pages.dev/api/realtime?deviceId=wss-probe&entity=*') as ws:
+              async with connect('wss://marina-hotel-api-relay.pages.dev/api/realtime?deviceId=wss-probe&entity=*', open_timeout=20) as ws:
                   print('101 UPGRADED relay');
                   try:
                       async with asyncio.timeout(6): print('welcome:', (await ws.recv())[:200]);
-                  except TimeoutError: print('no-welcome-in-6s');
-          asyncio.run(m())"
+                  except TimeoutError: print('no-welcome-in-6s (socket open)');
+          try: asyncio.run(m())
+          except Exception: traceback.print_exc(); sys.exit(1)"
