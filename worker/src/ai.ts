@@ -388,19 +388,51 @@ function normalizePayoutType(raw: string | undefined): string | undefined {
   return undefined;
 }
 
+const VALID_PLAN_KINDS: readonly AiPlan['kind'][] = [
+  'query',
+  'add_expense',
+  'update_room_price',
+  'record_payment',
+  'record_debt',
+  'add_salary_payout',
+  'update_room_status',
+  'unsupported',
+];
+
+function trimOptional(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 /// ✅ (2026-09-30) تطبيع حتمي للخطة قبل أي تحقق أو تنفيذ — يُطبَّق على
 /// ناتج التصنيف وعلى أي plan مُرسل يدوياً مع confirm:true على حد سواء،
 /// فلا تعتمد السلامة على التزام النموذج بالمفردات (مرادفات شائعة تُطوى
 /// على canonical، والقيم المجهولة تُسقَط ليكشفها التحقق برسالة واضحة).
 export function normalizePlan(plan: AiPlan): AiPlan {
-  if (plan.kind !== 'record_payment' && plan.kind !== 'record_debt' && plan.kind !== 'add_salary_payout' && plan.kind !== 'update_room_status') {
-    return plan;
-  }
+  const kind: AiPlan['kind'] = (VALID_PLAN_KINDS as readonly string[]).includes(plan.kind as string)
+    ? plan.kind
+    : 'unsupported';
   return {
     ...plan,
-    paymentMethod: plan.kind === 'record_payment' ? normalizePaymentMethod(plan.paymentMethod) : plan.paymentMethod,
-    payoutType: plan.kind === 'add_salary_payout' ? normalizePayoutType(plan.payoutType) : plan.payoutType,
-    roomStatus: plan.kind === 'update_room_status' ? normalizeRoomStatus(plan.roomStatus) : plan.roomStatus,
+    kind,
+    employeeName: trimOptional(plan.employeeName),
+    guestName: trimOptional(plan.guestName),
+    roomNumber: trimOptional(plan.roomNumber),
+    roomNumbers: Array.isArray(plan.roomNumbers)
+      ? plan.roomNumbers
+          .filter((v): v is string => typeof v === 'string')
+          .map((v) => v.trim())
+          .filter((v) => v.length > 0)
+      : plan.roomNumbers,
+    expenseType: trimOptional(plan.expenseType),
+    description: trimOptional(plan.description),
+    notes: trimOptional(plan.notes),
+    debtReason: trimOptional(plan.debtReason),
+    guestPhone: trimOptional(plan.guestPhone),
+    paymentMethod: kind === 'record_payment' ? normalizePaymentMethod(plan.paymentMethod) : plan.paymentMethod,
+    payoutType: kind === 'add_salary_payout' ? normalizePayoutType(plan.payoutType) : plan.payoutType,
+    roomStatus: kind === 'update_room_status' ? normalizeRoomStatus(plan.roomStatus) : plan.roomStatus,
   };
 }
 
@@ -448,10 +480,13 @@ function validatePlan(plan: AiPlan): string | null {
     }
     return null;
   }
-  if (!plan.expenseType || !plan.description || !Number.isFinite(plan.amountPerDay) || (plan.amountPerDay ?? 0) <= 0) return 'اذكر نوع المصروف والوصف والمبلغ الصحيح.';
-  if (!validDate(plan.dateFrom) || !validDate(plan.dateTo) || plan.dateFrom! > plan.dateTo!) return 'التاريخ يجب أن يكون بصيغة YYYY-MM-DD وبمدى صحيح.';
-  if (daysBetween(plan.dateFrom!, plan.dateTo!).length === 0) return 'مدى التاريخ غير صالح أو أكبر من سنة.';
-  return null;
+  if (plan.kind === 'add_expense') {
+    if (!plan.expenseType || !plan.description || !Number.isFinite(plan.amountPerDay) || (plan.amountPerDay ?? 0) <= 0) return 'اذكر نوع المصروف والوصف والمبلغ الصحيح.';
+    if (!validDate(plan.dateFrom) || !validDate(plan.dateTo) || plan.dateFrom! > plan.dateTo!) return 'التاريخ يجب أن يكون بصيغة YYYY-MM-DD وبمدى صحيح.';
+    if (daysBetween(plan.dateFrom!, plan.dateTo!).length === 0) return 'مدى التاريخ غير صالح أو أكبر من سنة.';
+    return null;
+  }
+  return plan.explanation || 'الطلب غير مدعوم أو يحتاج توضيحاً.';
 }
 
 export async function handleAiRequest(
@@ -673,15 +708,15 @@ async function addSalaryPayout(env: AiEnv, plan: AiPlan): Promise<Response> {
   const name = plan.employeeName!.trim();
   // مطابقة دقيقة أولاً، ثم احتواء — تعدد المرشحين يُنهي بلا كتابة.
   const exact = await env.DB.prepare(
-    'SELECT local_uuid, name FROM employees WHERE TRIM(name) = ? AND deleted_at IS NULL LIMIT 2',
-  ).bind(name).all<{ local_uuid: string; name: string }>();
+    'SELECT id, local_uuid, name FROM employees WHERE TRIM(name) = ? AND deleted_at IS NULL LIMIT 2',
+  ).bind(name).all<{ id: number; local_uuid: string; name: string }>();
   let candidates = exact.results ?? [];
   if (candidates.length === 0) {
     // هروب wildcards قبل LIKE — اسم يحوي % أو _ يجب ألا يقلب الاستعلام.
     const escaped = name.replace(/[%_\\]/g, (c) => `\\${c}`);
     const fuzzy = await env.DB.prepare(
-      "SELECT local_uuid, name FROM employees WHERE name LIKE ? ESCAPE '\\' AND deleted_at IS NULL LIMIT 3",
-    ).bind(`%${escaped}%`).all<{ local_uuid: string; name: string }>();
+      "SELECT id, local_uuid, name FROM employees WHERE name LIKE ? ESCAPE '\\' AND deleted_at IS NULL LIMIT 3",
+    ).bind(`%${escaped}%`).all<{ id: number; local_uuid: string; name: string }>();
     candidates = fuzzy.results ?? [];
   }
   if (candidates.length === 0) {
@@ -698,9 +733,9 @@ async function addSalaryPayout(env: AiEnv, plan: AiPlan): Promise<Response> {
   const nowMs = Date.now();
   const description = plan.description?.trim() || `${plan.payoutType} عبر المساعد`;
   await env.DB.prepare(
-    `INSERT INTO expenses (expense_type, description, amount, date, hotel_day_key, employee_uuid, local_uuid, created_at, updated_at, last_modified, origin, device_id)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-  ).bind(plan.payoutType, description, plan.amount, today, today, match.local_uuid, crypto.randomUUID(), nowSec, nowSec, nowMs, 'ai', 'worker').run();
+    `INSERT INTO expenses (expense_type, related_id, description, amount, date, hotel_day_key, is_auto_generated, employee_uuid, local_uuid, created_at, updated_at, last_modified, origin, device_id)
+     VALUES (?,?,?,?,?,?,0,?,?,?,?,?,?,?)`,
+  ).bind(plan.payoutType, match.id, description, plan.amount, today, today, match.local_uuid, crypto.randomUUID(), nowSec, nowSec, nowMs, 'ai', 'worker').run();
   return jsonResponse({ plan, requires_confirmation: false, answer: `تم تسجيل ${plan.payoutType} ${plan.amount} ريال للموظف ${match.name}.` });
 }
 

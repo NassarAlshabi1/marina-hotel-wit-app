@@ -22,6 +22,17 @@ final appwriteRealtimeSyncProvider = Provider<AppwriteRealtimeSync>((ref) {
 /// مزود حالة الاتصال بالـ Realtime
 final realtimeSyncStateProvider = Provider<RealtimeSyncState>((ref) {
   final sync = ref.watch(appwriteRealtimeSyncProvider);
+  void onChanged() => ref.invalidateSelf();
+  sync.connected.addListener(onChanged);
+  sync.hasRemoteChanges.addListener(onChanged);
+  sync.pendingRemoteChangesCount.addListener(onChanged);
+  sync.diagnosticsRevision.addListener(onChanged);
+  ref.onDispose(() {
+    sync.connected.removeListener(onChanged);
+    sync.hasRemoteChanges.removeListener(onChanged);
+    sync.pendingRemoteChangesCount.removeListener(onChanged);
+    sync.diagnosticsRevision.removeListener(onChanged);
+  });
   return RealtimeSyncState(
     isListening: sync.isListening,
     isConnected: sync.isConnected,

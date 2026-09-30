@@ -99,6 +99,14 @@ class CloudflareRealtimeSync {
   /// حالة الاتصال للمراقبة/الاختبارات.
   final connected = ValueNotifier<bool>(false);
 
+  /// عدّاد مراجعة التشخيصات — يُشعِر مراقِبات Riverpod عند تغيّر أي حقل
+  /// تشخيصي (محاولات الاتصال، آخر خطأ، آخر إطار، حالة الاستماع).
+  final diagnosticsRevision = ValueNotifier<int>(0);
+
+  void _bumpDiagnostics() {
+    diagnosticsRevision.value++;
+  }
+
   // ─── إعدادات الاتصال (تُضبط من main.dart بعد login المدير) ────
   String? _baseUrl;
   Future<String?> Function()? _tokenProvider;
@@ -246,6 +254,7 @@ class CloudflareRealtimeSync {
     if (_isListening && !_intentionallyStopped) return;
     _isListening = true;
     _intentionallyStopped = false;
+    _bumpDiagnostics();
     await _connect();
   }
 
@@ -272,6 +281,7 @@ class CloudflareRealtimeSync {
     _channel = null;
     connected.value = false;
     resetRemoteChangesFlag();
+    _bumpDiagnostics();
   }
 
   /// تصفير شارة الـ UI بعد نجاح السحب — نفس عقد فرع perf
@@ -304,6 +314,7 @@ class CloudflareRealtimeSync {
     connected.value = false;
     hasRemoteChanges.value = false;
     pendingRemoteChangesCount.value = 0;
+    diagnosticsRevision.value = 0;
   }
 
   /// استئناف بعد stop()/استسلام إعادة الاتصال (foreground — 3.3):
@@ -315,6 +326,7 @@ class CloudflareRealtimeSync {
     if (_intentionallyStopped || !_isListening) {
       _intentionallyStopped = false;
       _isListening = true;
+      _bumpDiagnostics();
     }
     if (isConnected || _connectInFlight) return;
     await _connect();
@@ -325,6 +337,7 @@ class CloudflareRealtimeSync {
   void noteConnected() {
     connected.value = true;
     _lastConnectedAt = clock.now();
+    _bumpDiagnostics();
   }
 
   /// توثيق مشكلة مقبس/اتصال — تُحفظ للتشخيص في شاشة الإعدادات.
@@ -349,12 +362,14 @@ class CloudflareRealtimeSync {
         ? '${detail.substring(0, 157)}...'
         : detail;
     _lastErrorAt = clock.now();
+    _bumpDiagnostics();
   }
 
   /// توثيق استلام إطار على المقبس — دليل حياة الاتصال (ومنه الاختبار).
   @visibleForTesting
   void noteEventReceived() {
     _lastEventAt = clock.now();
+    _bumpDiagnostics();
   }
 
   Future<void> _connect() async {
@@ -373,6 +388,7 @@ class CloudflareRealtimeSync {
     }
 
     _connectAttempts++;
+    _bumpDiagnostics();
     _connectInFlight = true;
     try {
       // ✅ (2026-09-09) تدوير نقاط النهاية للـ WebSocket (جزء A):
@@ -413,16 +429,19 @@ class CloudflareRealtimeSync {
           _socketSub = channel.stream.listen(
             _onData,
             onDone: () {
+              if (!identical(_channel, channel)) return;
               // سبب الإغلاق يُلتقط قبل تصفير القناة (تشخيص الإعدادات).
-              final int? code = _channel?.closeCode;
-              final String? reason = _channel?.closeReason;
+              final int? code = channel.closeCode;
+              final String? reason = channel.closeReason;
               noteSocketIssue(closeCode: code, closeReason: reason);
               _onSocketClosed();
             },
             onError: (Object error) {
+              if (!identical(_channel, channel)) return;
               noteSocketIssue(error: error);
               _onSocketClosed();
             },
+            cancelOnError: true,
           );
           try {
             await channel.ready;
@@ -462,6 +481,7 @@ class CloudflareRealtimeSync {
       dwarn(() => 'realtime: connect failed: $e\n$st');
       connected.value = false;
       noteSocketIssue(error: e);
+      _connectInFlight = false;
       _scheduleReconnect();
     } finally {
       _connectInFlight = false;

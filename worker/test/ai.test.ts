@@ -1262,13 +1262,34 @@ describe('ai: add_salary_payout (canonical salary movement)', () => {
     const body = (await res.json()) as { answer: string };
     expect(body.answer).toContain('خالد العتيبي');
     const row = await env.DB.prepare(
-      'SELECT expense_type, amount, employee_uuid, origin, device_id FROM expenses',
-    ).first<{ expense_type: string; amount: number; employee_uuid: string; origin: string; device_id: string }>();
+      'SELECT expense_type, related_id, amount, employee_uuid, origin, device_id FROM expenses',
+    ).first<{ expense_type: string; related_id: number; amount: number; employee_uuid: string; origin: string; device_id: string }>();
     expect(row?.expense_type).toBe('سلفة');
+    expect(row?.related_id).toBe(emp.id);
     expect(row?.amount).toBe(20000);
     expect(row?.employee_uuid).toBe(emp.uuid);
     expect(row?.origin).toBe('ai');
     expect(row?.device_id).toBe('worker');
+  });
+
+  it('rejects whitespace-only employeeName and unknown plan kind in direct plan payloads', async () => {
+    await seedEmployee('خالد العتيبي', 90000);
+    const blankName = await handleAiRequest(
+      aiRequest({ plan: { kind: 'add_salary_payout', employeeName: '   ', amount: 5000, payoutType: 'سلفة', explanation: 'x' }, confirm: true }),
+      { DB: env.DB, AI: mockAi({}) },
+      'admin',
+    );
+    expect(blankName.status).toBe(200);
+    expect((await blankName.json() as { answer: string }).answer).toContain('اذكر اسم الموظف');
+
+    const badKind = await handleAiRequest(
+      aiRequest({ plan: { kind: 'hack_kind' as never, explanation: 'غير مدعوم' }, confirm: true }),
+      { DB: env.DB, AI: mockAi({}) },
+      'admin',
+    );
+    expect(badKind.status).toBe(200);
+    expect((await badKind.json() as { requires_confirmation: boolean }).requires_confirmation).toBe(false);
+    expect(await expenseCount()).toBe(0);
   });
 
   it('normalizes payout synonyms (سلفه → سلفة، خصم → خصم راتب)', async () => {

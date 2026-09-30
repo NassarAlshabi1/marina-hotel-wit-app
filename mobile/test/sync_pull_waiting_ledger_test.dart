@@ -217,7 +217,7 @@ void main() {
           'has_more': false,
           'errors': <dynamic>[],
         },
-        // الدورتان 2 و3: صفحة مسح الحذفيات + دلتا فارغة — العدّاد يصل 3.
+        // الدورتان 2 و3: صفحة مسح الحذفيات + دلتان فارغتان — العدّاد يصل 3.
         ...List.generate(
           2,
           (i) => <String, dynamic>{
@@ -227,13 +227,21 @@ void main() {
             'errors': <dynamic>[],
           },
         ),
-        // الدورة 4: الموظف وصل أخيراً — الشفاء من حمولة المعزول.
         {
           'changes': <dynamic>[],
-          'cursor': '0',
+          'cursor': '1700000822',
           'has_more': false,
           'errors': <dynamic>[],
         },
+        // الدورة 4: دلتا فارغة بعد العزل — الأب لم يصل بعد؛ يجب أن يبقى
+        // المعزول محفوظاً في الحجر ولا يُمسح خطأً.
+        {
+          'changes': <dynamic>[],
+          'cursor': '1700000825',
+          'has_more': false,
+          'errors': <dynamic>[],
+        },
+        // الدورة 5: الموظف وصل أخيراً — الشفاء من حمولة المعزول.
         {
           'changes': [_employeeRow('emp-late', serverId: 77)],
           'cursor': '1700000831',
@@ -257,10 +265,19 @@ void main() {
       expect(quarantined.keys, contains('salary_withdrawals/sw-late'));
       expect(await count('salary_withdrawals'), 0);
 
-      // الدورة 4: الأب وصل — الشفاء من الحمولة يُدرج السحوبة بمفتاح
-      // الأب المترجم ويُخرجها من الحجر (تحقيق وعد رسالة الحجر).
+      // الدورة 4 (الأب ما زال غائباً): المعزول يبقى في الحجر ولا يُحذف.
       final fourth = await manager.sync();
       expect(fourth.status, SyncStatus.success);
+      expect(await count('salary_withdrawals'), 0);
+      expect(
+        pendingMap(await pref('cf_pull_quarantined_records')).keys,
+        contains('salary_withdrawals/sw-late'),
+      );
+
+      // الدورة 5: الأب وصل — الشفاء من الحمولة يُدرج السحوبة بمفتاح
+      // الأب المترجم ويُخرجها من الحجر (تحقيق وعد رسالة الحجر).
+      final fifth = await manager.sync();
+      expect(fifth.status, SyncStatus.success);
       expect(await count('salary_withdrawals'), 1);
       expect(await cell('salary_withdrawals', 'employee_id', 'sw-late'), 1);
       expect(
