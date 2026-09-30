@@ -20,8 +20,8 @@ import '../../services/database_health_checker.dart';
 import '../../services/local_db.dart'
     show DatabaseManager, SyncAuditDao, SyncLogData;
 import '../../services/sqlite_backup_restore.dart';
-import '../../services/sync_orchestrator.dart' show DataIntegrityCheck;
 import '../../services/sync_integrity_checker.dart';
+import '../../services/sync_orchestrator.dart' show DataIntegrityCheck;
 import '../../utils/debug_log.dart';
 import '../../utils/env.dart';
 import '../../widgets/settings/settings_section_header.dart';
