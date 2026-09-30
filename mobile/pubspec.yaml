@@ -2,7 +2,12 @@ name: marina_hotel_mobile
 description: Marina Hotel - Complete Hotel Management System (RTL, Offline-First,
   Arabic)
 publish_to: none
-version: 1.2.0+3
+# ✅ (2026-09-30) +3 → +4: build مميَّز يحمل إصلاحات الاتصال الحرجة
+# (جسر pages.dev + ترقية sticky للجسر C4 + ميزانية التدوير C3 +
+# إعادة الدخول C5 + WebSocket عبر الجسر C6-WS + جيل المزامنة epoch).
+# رقم البناء الجديد يتيح تمييز APK الموزَّع (فرضية H1 في تقرير التشخيص)
+# وتمكين تحديث النسخ المثبتة عبر versionCode.
+version: 1.2.0+4
 environment:
   sdk: '>=3.9.0 <4.0.0'
   flutter: '>=3.44.0'

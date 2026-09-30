@@ -381,27 +381,13 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: AuthLocalStore.permissionEditorKeys.map((
-                          key,
-                        ) {
-                          final selected = selectedPerms.contains(key);
-                          return FilterChip(
-                            label: Text(_permLabel(key)),
-                            selected: selected,
-                            onSelected: (value) {
-                              setStateDialog(() {
-                                if (value) {
-                                  selectedPerms.add(key);
-                                } else if (selectedPerms.length > 1) {
-                                  selectedPerms.remove(key);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
+                      _PermissionModuleEditor(
+                        permissions: selectedPerms.toList(),
+                        onChanged: (next) => setStateDialog(() {
+                          selectedPerms
+                            ..clear()
+                            ..addAll(next);
+                        }),
                       ),
                       if (localError != null)
                         Padding(
@@ -747,27 +733,13 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: AuthLocalStore.permissionEditorKeys.map((
-                            k,
-                          ) {
-                            final selected = selectedPerms.contains(k);
-                            return FilterChip(
-                              label: Text(_permLabel(k)),
-                              selected: selected,
-                              onSelected: (v) {
-                                setDialog(() {
-                                  if (v) {
-                                    selectedPerms.add(k);
-                                  } else if (selectedPerms.length > 1) {
-                                    selectedPerms.remove(k);
-                                  }
-                                });
-                              },
-                            );
-                          }).toList(),
+                        _PermissionModuleEditor(
+                          permissions: selectedPerms.toList(),
+                          onChanged: (next) => setDialog(() {
+                            selectedPerms
+                              ..clear()
+                              ..addAll(next);
+                          }),
                         ),
                       ],
                       const SizedBox(height: 12),
@@ -1008,7 +980,6 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
   Widget build(BuildContext context) {
     final isAdminUser =
         widget.username == 'admin' || widget.userType.toLowerCase() == 'admin';
-    final allKeys = AuthLocalStore.permissionEditorKeys;
     final hintColor = Theme.of(context).hintColor;
 
     // ✅ (2026-09-17) بطاقة مدمجة: رأس (صورة رمزية + هوية + شارات) ثم
@@ -1119,54 +1090,194 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                 ),
               )
             else ...[
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: allKeys.map((k) {
-                  final checked = isAdminUser ? true : _perms.contains(k);
-                  return FilterChip(
-                    label: Text(
-                      _permLabel(k),
-                      style: const TextStyle(fontSize: 11.5),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    selected: checked,
-                    onSelected: isAdminUser || _savingPermissions
-                        ? null
-                        : (v) {
-                            final next = List<String>.from(_perms);
-                            if (v) {
-                              if (!next.contains(k)) next.add(k);
-                            } else {
-                              next.remove(k);
-                            }
-                            unawaited(_savePermissions(next));
-                          },
-                  );
-                }).toList(),
+              _PermissionModuleEditor(
+                // المدير: عرض الأقسام كاملة وممنوحة (معطّلة) كما كان.
+                permissions: isAdminUser
+                    ? AuthLocalStore.permissionKeys
+                    : _perms,
+                enabled: !isAdminUser && !_savingPermissions,
+                onChanged: (next) => unawaited(_savePermissions(next)),
               ),
               if (!isAdminUser)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      foregroundColor: Colors.red.shade700,
-                      textStyle: const TextStyle(fontSize: 11.5),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        textStyle: const TextStyle(fontSize: 11.5),
+                      ),
+                      onPressed: _savingPermissions
+                          ? null
+                          : () => _savePermissions(
+                              AuthLocalStore.permissionKeys,
+                            ),
+                      icon: const Icon(Icons.done_all, size: 14),
+                      label: const Text('تحديد الكل'),
                     ),
-                    onPressed: _savingPermissions
-                        ? null
-                        : () => _savePermissions(const <String>[]),
-                    icon: const Icon(Icons.clear, size: 14),
-                    label: const Text('إزالة جميع الصلاحيات'),
-                  ),
+                    const Spacer(),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: Colors.red.shade700,
+                        textStyle: const TextStyle(fontSize: 11.5),
+                      ),
+                      onPressed: _savingPermissions
+                          ? null
+                          : () => _savePermissions(const <String>[]),
+                      icon: const Icon(Icons.clear, size: 14),
+                      label: const Text('إزالة الكل'),
+                    ),
+                  ],
                 ),
             ],
           ],
         ),
       ),
     );
+  }
+}
+
+/// ✅ (2026-09-30) محرر صلاحيات مجمّع حسب القسم — بديل العرض المسطح
+/// (65 شريحة مختلطة بلا ترتيب): كل قسم صف مستقل بأيقونة + زر «الكل»
+/// + 4 عمليات دقيقة. التخزين مطابق تماماً (نفس المفاتيح النصية —
+/// مطبّعة عبر withModuleGranted/withOperationToggled) — بلا أي ترحيل.
+/// يُستخدم في بطاقة المستخدم وحِواري الإضافة والتعديل معاً.
+class _PermissionModuleEditor extends StatelessWidget {
+  const _PermissionModuleEditor({
+    required this.permissions,
+    required this.onChanged,
+    this.enabled = true,
+  });
+
+  /// قائمة المفاتيح الحالية (قديمة «rooms» أو دقيقة «rooms.view»).
+  final List<String> permissions;
+  final ValueChanged<List<String>> onChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        for (final module in AuthLocalStore.permissionKeys)
+          Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      _moduleIcon(module),
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _moduleLabel(module),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    FilterChip(
+                      label: const Text(
+                        'الكل',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      selected: AuthLocalStore.moduleFullyGranted(
+                        permissions,
+                        module,
+                      ),
+                      onSelected: enabled
+                          ? (v) => onChanged(
+                              AuthLocalStore.withModuleGranted(
+                                permissions,
+                                module,
+                                v,
+                              ),
+                            )
+                          : null,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    for (final action
+                        in AuthLocalStore.operationPermissionKeys)
+                      FilterChip(
+                        label: Text(
+                          AuthLocalStore.operationLabel(action),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        selected:
+                            permissions.contains(module) ||
+                            permissions.contains('$module.$action'),
+                        onSelected: enabled
+                            ? (v) => onChanged(
+                                AuthLocalStore.withOperationToggled(
+                                  permissions,
+                                  module,
+                                  action,
+                                  v,
+                                ),
+                              )
+                            : null,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// أيقونة كل قسم (filled classics — أسماء مستقرة عبر إصدارات Flutter).
+IconData _moduleIcon(String key) {
+  switch (key) {
+    case 'dashboard':
+      return Icons.dashboard;
+    case 'rooms':
+      return Icons.hotel;
+    case 'bookings':
+      return Icons.book_online;
+    case 'payments':
+      return Icons.payments;
+    case 'debts':
+      return Icons.credit_card;
+    case 'employees':
+      return Icons.people;
+    case 'expenses':
+      return Icons.receipt_long;
+    case 'finance':
+      return Icons.account_balance;
+    case 'reports':
+      return Icons.assessment;
+    case 'notes':
+      return Icons.note;
+    case 'information':
+      return Icons.info;
+    case 'settings':
+      return Icons.settings;
+    case 'inventory':
+      return Icons.inventory_2;
+    default:
+      return Icons.key;
   }
 }
 
@@ -1215,16 +1326,6 @@ String _initials(String? name) {
   return chars.isEmpty ? '؟' : chars.first;
 }
 
-String _permLabel(String key) {
-  final separator = key.indexOf('.');
-  if (separator > 0 && separator < key.length - 1) {
-    final module = key.substring(0, separator);
-    final action = key.substring(separator + 1);
-    return '${AuthLocalStore.operationLabel(action)} ${_moduleLabel(module)}';
-  }
-  return _moduleLabel(key);
-}
-
 String _moduleLabel(String key) {
   switch (key) {
     case 'dashboard':
@@ -1245,6 +1346,36 @@ String _moduleLabel(String key) {
       return 'المالية';
     case 'reports':
       return 'التقارير';
+    case 'notes':
+      return 'الملاحظات';
+    case 'information':
+      return 'المعلومية';
+    case 'settings':
+      return 'الإعدادات';
+    case 'inventory':
+      return 'المخزون';
+    default:
+      return key;
+  }
+}
+
+String _typeLabel(String type) {
+  switch (type) {
+    case 'admin':
+      return 'مدير';
+    case 'manager':
+      return 'مدير فرعي';
+    case 'supervisor':
+      return 'مشرف';
+    case 'accountant':
+      return 'محاسب';
+    case 'employee':
+      return 'موظف';
+    default:
+      return type;
+  }
+}
+;
     case 'notes':
       return 'الملاحظات';
     case 'information':

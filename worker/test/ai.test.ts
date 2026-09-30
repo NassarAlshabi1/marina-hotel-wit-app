@@ -1048,3 +1048,361 @@ describe('ai: occupancy and booking analytics', () => {
     expect(body.rows[29]?.date).toBe(today);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  ✅ (2026-09-30) الأنواع التنفيذية الجديدة: record_payment /
+//  record_debt / add_salary_payout / update_room_status.
+// ═══════════════════════════════════════════════════════════════
+
+describe('ai: record_payment (two-step write, linked to the active booking)', () => {
+  const paymentPlan = {
+    kind: 'record_payment',
+    roomNumber: '101',
+    amount: 50000,
+    paymentMethod: 'نقدي',
+    notes: 'دفعة مقدمة',
+    explanation: 'تسجيل دفعة',
+  };
+  const paymentCount = () =>
+    env.DB.prepare('SELECT COUNT(*) AS c FROM payments').first<{ c: number }>();
+
+  it('first pass asks for confirmation and writes nothing', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+    await seedBooking(uniqueUuid('b101'), '101', 'أحمد محمد', 'محجوزة');
+    const res = await handleAiRequest(
+      aiRequest({ prompt: 'سجل دفعة 50 ألف للغرفة 101' }),
+      { DB: env.DB, AI: mockAi(paymentPlan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { requires_confirmation: boolean; answer: string };
+    expect(body.requires_confirmation).toBe(true);
+    expect(body.answer).toContain('50000');
+    expect(body.answer).toContain('101');
+    expect((await paymentCount())?.c).toBe(0);
+  });
+
+  it('confirmed plan inserts a payment linked by uuid-cache + D1 id, room revenue, ai origin', async () => {
+    const bookingUuid = uniqueUuid('b101');
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+    await seedBooking(bookingUuid, '101', 'أحمد محمد', 'محجوزة');
+    const res = await handleAiRequest(
+      aiRequest({ plan: paymentPlan, confirm: true }),
+      { DB: env.DB, AI: mockAi(paymentPlan) },
+      'manager',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string; requires_confirmation: boolean };
+    expect(body.requires_confirmation).toBe(false);
+    expect(body.answer).toContain('أحمد محمد');
+    const row = await env.DB.prepare(
+      'SELECT amount, payment_method, revenue_type, room_number, booking_uuid_cache, booking_local_id, origin, device_id, hotel_day_key, payment_date FROM payments',
+    ).first<{
+      amount: number; payment_method: string; revenue_type: string; room_number: string;
+      booking_uuid_cache: string; booking_local_id: number; origin: string; device_id: string;
+      hotel_day_key: string; payment_date: string;
+    }>();
+    expect(row?.amount).toBe(50000);
+    expect(row?.payment_method).toBe('نقدي');
+    expect(row?.revenue_type).toBe('room');
+    expect(row?.room_number).toBe('101');
+    expect(row?.booking_uuid_cache).toBe(bookingUuid);
+    expect(row?.booking_local_id).toBeGreaterThan(0);
+    expect(row?.origin).toBe('ai');
+    expect(row?.device_id).toBe('worker');
+    expect(row?.hotel_day_key).toBe(row?.payment_date);
+  });
+
+  it('normalizes a client-sent plan too (كاش → نقدي) instead of trusting it', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+    await seedBooking(uniqueUuid('b101'), '101', 'أحمد محمد', 'محجوزة');
+    const res = await handleAiRequest(
+      aiRequest({ plan: { ...paymentPlan, paymentMethod: 'كاش' }, confirm: true }),
+      { DB: env.DB, AI: mockAi(paymentPlan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const row = await env.DB.prepare('SELECT payment_method FROM payments').first<{ payment_method: string }>();
+    expect(row?.payment_method).toBe('نقدي');
+  });
+
+  it('ends terminally with zero writes when no active booking exists', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+    await seedBooking(uniqueUuid('b101'), '101', 'غادر', 'مكتملة'); // inactive status
+    const res = await handleAiRequest(
+      aiRequest({ plan: paymentPlan, confirm: true }),
+      { DB: env.DB, AI: mockAi(paymentPlan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string; requires_confirmation: boolean };
+    expect(body.requires_confirmation).toBe(false);
+    expect(body.answer).toContain('لا يوجد حجز نشط');
+    expect((await paymentCount())?.c).toBe(0);
+  });
+
+  it('rejects missing room/amount and roles below manager', async () => {
+    for (const bad of [
+      { kind: 'record_payment', amount: 50000, explanation: 'x' },
+      { kind: 'record_payment', roomNumber: '101', amount: 0, explanation: 'x' },
+      { kind: 'record_payment', roomNumber: '101', amount: 100_000_001, explanation: 'x' },
+    ]) {
+      const res = await handleAiRequest(
+        aiRequest({ plan: bad, confirm: true }),
+        { DB: env.DB, AI: mockAi(bad) },
+        'admin',
+      );
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { requires_confirmation: boolean };
+      expect(body.requires_confirmation).toBe(false);
+    }
+    const forbidden = await handleAiRequest(
+      aiRequest({ plan: paymentPlan, confirm: true }),
+      { DB: env.DB, AI: mockAi(paymentPlan) },
+      'employee',
+    );
+    expect(forbidden.status).toBe(403);
+  });
+});
+
+describe('ai: record_debt (guest debt, optional booking link)', () => {
+  const debtCount = () =>
+    env.DB.prepare('SELECT COUNT(*) AS c FROM debts').first<{ c: number }>();
+
+  it('confirmed plan inserts a debt with paid=0 and remaining=total', async () => {
+    const plan = { kind: 'record_debt', guestName: 'أحمد محمد', amount: 30000, debtReason: 'باقي حساب', explanation: 'تسجيل دين' };
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const row = await env.DB.prepare(
+      'SELECT guest_name, total_amount, paid_amount, remaining_amount, debt_reason, booking_local_id, booking_uuid_cache, origin FROM debts',
+    ).first<{
+      guest_name: string; total_amount: number; paid_amount: number; remaining_amount: number;
+      debt_reason: string; booking_local_id: number | null; booking_uuid_cache: string | null; origin: string;
+    }>();
+    expect(row?.guest_name).toBe('أحمد محمد');
+    expect(row?.total_amount).toBe(30000);
+    expect(row?.paid_amount).toBe(0);
+    expect(row?.remaining_amount).toBe(30000);
+    expect(row?.debt_reason).toBe('باقي حساب');
+    expect(row?.booking_local_id).toBeNull();
+    expect(row?.booking_uuid_cache).toBeNull();
+    expect(row?.origin).toBe('ai');
+  });
+
+  it('links the debt to the active booking when a room is given', async () => {
+    const bookingUuid = uniqueUuid('b102');
+    await seedRoom(uniqueUuid('r102'), '102', 'available');
+    await seedBooking(bookingUuid, '102', 'سارة علي', 'محجوزة');
+    const plan = { kind: 'record_debt', guestName: 'سارة علي', amount: 15000, roomNumber: '102', explanation: 'تسجيل دين' };
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'manager',
+    );
+    expect(res.status).toBe(200);
+    const row = await env.DB.prepare(
+      'SELECT booking_local_id, booking_uuid_cache FROM debts',
+    ).first<{ booking_local_id: number; booking_uuid_cache: string }>();
+    expect(row?.booking_uuid_cache).toBe(bookingUuid);
+    expect(row?.booking_local_id).toBeGreaterThan(0);
+  });
+
+  it('ends terminally when the given room has no active booking', async () => {
+    await seedRoom(uniqueUuid('r102'), '102', 'available');
+    const plan = { kind: 'record_debt', guestName: 'سارة علي', amount: 15000, roomNumber: '102', explanation: 'تسجيل دين' };
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string; requires_confirmation: boolean };
+    expect(body.requires_confirmation).toBe(false);
+    expect(body.answer).toContain('لا يوجد حجز نشط');
+    expect((await debtCount())?.c).toBe(0);
+  });
+
+  it('rejects missing guest/amount and roles below manager', async () => {
+    for (const bad of [
+      { kind: 'record_debt', amount: 30000, explanation: 'x' },
+      { kind: 'record_debt', guestName: 'أحمد محمد', explanation: 'x' },
+    ]) {
+      const res = await handleAiRequest(
+        aiRequest({ plan: bad, confirm: true }),
+        { DB: env.DB, AI: mockAi(bad) },
+        'admin',
+      );
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { requires_confirmation: boolean };
+      expect(body.requires_confirmation).toBe(false);
+    }
+    const forbidden = await handleAiRequest(
+      aiRequest({ plan: { kind: 'record_debt', guestName: 'أحمد محمد', amount: 30000, explanation: 'x' }, confirm: true }),
+      { DB: env.DB, AI: mockAi({}) },
+      'employee',
+    );
+    expect(forbidden.status).toBe(403);
+  });
+});
+
+describe('ai: add_salary_payout (canonical salary movement)', () => {
+  it('confirmed plan inserts an expense row linked by employee_uuid', async () => {
+    const emp = await seedEmployee('خالد العتيبي', 90000);
+    const plan = { kind: 'add_salary_payout', employeeName: 'خالد العتيبي', amount: 20000, payoutType: 'سلفة', explanation: 'صرف سلفة' };
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'manager',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string };
+    expect(body.answer).toContain('خالد العتيبي');
+    const row = await env.DB.prepare(
+      'SELECT expense_type, amount, employee_uuid, origin, device_id FROM expenses',
+    ).first<{ expense_type: string; amount: number; employee_uuid: string; origin: string; device_id: string }>();
+    expect(row?.expense_type).toBe('سلفة');
+    expect(row?.amount).toBe(20000);
+    expect(row?.employee_uuid).toBe(emp.uuid);
+    expect(row?.origin).toBe('ai');
+    expect(row?.device_id).toBe('worker');
+  });
+
+  it('normalizes payout synonyms (سلفه → سلفة، خصم → خصم راتب)', async () => {
+    const emp = await seedEmployee('منى سالم', 80000);
+    for (const [raw, canonical] of [['سلفه', 'سلفة'], ['خصم', 'خصم راتب']] as const) {
+      const plan = { kind: 'add_salary_payout', employeeName: 'منى سالم', amount: 5000, payoutType: raw, explanation: 'x' };
+      const res = await handleAiRequest(
+        aiRequest({ plan, confirm: true }),
+        { DB: env.DB, AI: mockAi(plan) },
+        'admin',
+      );
+      expect(res.status).toBe(200);
+    }
+    const rows = await env.DB.prepare('SELECT expense_type FROM expenses ORDER BY id').all<{ expense_type: string }>();
+    expect(rows.results.map((r) => r.expense_type)).toEqual(['سلفة', 'خصم راتب']);
+    expect(emp.uuid).toBeTruthy();
+  });
+
+  it('unknown employee ends terminally with zero writes', async () => {
+    await seedEmployee('موظف حقيقي', 70000);
+    const plan = { kind: 'add_salary_payout', employeeName: 'شبح وهمي', amount: 5000, payoutType: 'سحب راتب', explanation: 'x' };
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string; requires_confirmation: boolean };
+    expect(body.requires_confirmation).toBe(false);
+    expect(body.answer).toContain('لم أجد موظفاً');
+    expect(await expenseCount()).toBe(0);
+  });
+
+  it('ambiguous name lists candidates and writes nothing', async () => {
+    await seedEmployee('محمد علي', 70000);
+    await seedEmployee('محمد حسن', 70000);
+    const plan = { kind: 'add_salary_payout', employeeName: 'محمد', amount: 5000, payoutType: 'سحب راتب', explanation: 'x' };
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string; requires_confirmation: boolean };
+    expect(body.requires_confirmation).toBe(false);
+    expect(body.answer).toContain('محمد علي');
+    expect(body.answer).toContain('محمد حسن');
+    expect(await expenseCount()).toBe(0);
+  });
+
+  it('rejects unknown payout type and roles below manager', async () => {
+    await seedEmployee('خالد العتيبي', 90000);
+    const res = await handleAiRequest(
+      aiRequest({ plan: { kind: 'add_salary_payout', employeeName: 'خالد العتيبي', amount: 5000, payoutType: 'مكافأة', explanation: 'x' }, confirm: true }),
+      { DB: env.DB, AI: mockAi({}) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { requires_confirmation: boolean; answer: string };
+    expect(body.requires_confirmation).toBe(false);
+    expect(body.answer).toContain('سحب راتب');
+    const forbidden = await handleAiRequest(
+      aiRequest({ plan: { kind: 'add_salary_payout', employeeName: 'خالد العتيبي', amount: 5000, payoutType: 'سلفة', explanation: 'x' }, confirm: true }),
+      { DB: env.DB, AI: mockAi({}) },
+      'employee',
+    );
+    expect(forbidden.status).toBe(403);
+  });
+});
+
+describe('ai: update_room_status (through the LWW pipeline)', () => {
+  const statusRow = (roomNumber: string) =>
+    env.DB.prepare(
+      'SELECT status, version, origin FROM rooms WHERE room_number = ?',
+    ).bind(roomNumber).first<{ status: string; version: number; origin: string }>();
+
+  it('confirmed plan flips status via updateRecord (version bumped, origin=ai)', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+    const plan = { kind: 'update_room_status', roomNumber: '101', roomStatus: 'صيانة', explanation: 'تغيير الحالة' };
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'manager',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string };
+    expect(body.answer).toContain('صيانة');
+    const row = await statusRow('101');
+    expect(row?.status).toBe('صيانة');
+    expect(row?.version).toBe(2);
+    expect(row?.origin).toBe('ai');
+  });
+
+  it('normalizes status synonyms (متاحة → شاغرة)', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'occupied');
+    const plan = { kind: 'update_room_status', roomNumber: '101', roomStatus: 'متاحة', explanation: 'x' };
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    expect((await statusRow('101'))?.status).toBe('شاغرة');
+  });
+
+  it('unknown room ends terminally with no change', async () => {
+    const plan = { kind: 'update_room_status', roomNumber: '999', roomStatus: 'صيانة', explanation: 'x' };
+    const res = await handleAiRequest(
+      aiRequest({ plan, confirm: true }),
+      { DB: env.DB, AI: mockAi(plan) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string; requires_confirmation: boolean };
+    expect(body.requires_confirmation).toBe(false);
+    expect(body.answer).toContain('تعذّر العثور');
+  });
+
+  it('rejects unknown status and roles below manager', async () => {
+    await seedRoom(uniqueUuid('r101'), '101', 'available');
+    const res = await handleAiRequest(
+      aiRequest({ plan: { kind: 'update_room_status', roomNumber: '101', roomStatus: 'مجهولة', explanation: 'x' }, confirm: true }),
+      { DB: env.DB, AI: mockAi({}) },
+      'admin',
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { requires_confirmation: boolean };
+    expect(body.requires_confirmation).toBe(false);
+    expect((await statusRow('101'))?.status).toBe('available');
+    const forbidden = await handleAiRequest(
+      aiRequest({ plan: { kind: 'update_room_status', roomNumber: '101', roomStatus: 'صيانة', explanation: 'x' }, confirm: true }),
+      { DB: env.DB, AI: mockAi({}) },
+      'employee',
+    );
+    expect(forbidden.status).toBe(403);
+  });
+});

@@ -20,8 +20,21 @@ export interface AiEnv {
   CLOUDFLARE_ACCOUNT_ID?: string;
 }
 
+/// ✅ (2026-09-30) أنواع الكتابة القابلة للتنفيذ — كلها خلف بوابة الدور
+/// (admin/manager في handleAiRequest) وخطوة التأكيد، وتُطبَّع مدخلاتها في
+/// normalizePlan قبل أي تحقق أو تنفيذ (حماية من هلوسة النموذج ومن plan
+/// مُرسل يدوياً مع confirm:true). أُجّل عمداً: checkout/add_booking/
+/// settle_debt — تحتاج حساب أرصدة وحقولاً مشتقة (راجع final message).
+export type AiWriteKind =
+  | 'add_expense'
+  | 'update_room_price'
+  | 'record_payment'
+  | 'record_debt'
+  | 'add_salary_payout'
+  | 'update_room_status';
+
 export interface AiPlan {
-  kind: 'query' | 'add_expense' | 'update_room_price' | 'unsupported';
+  kind: 'query' | AiWriteKind | 'unsupported';
   queryType?: 'expenses_total' | 'employee_withdrawals' | 'employee_salary' | 'daily_summary' | 'rooms_available' | 'rooms_all' | 'current_guests' | 'guest_search' | 'bookings_current' | 'occupancy_summary' | 'occupancy_trend' | 'booking_analysis' | 'overdue_bookings' | 'stay_statistics' | 'salary_expenses';
   employeeName?: string;
   guestName?: string;
@@ -35,6 +48,20 @@ export interface AiPlan {
   amountPerDay?: number;
   dateFrom?: string;
   dateTo?: string;
+  /** مبلغ مفرد للإجراءات أحادية المبلغ (دفعة/دين/سحب راتب). */
+  amount?: number;
+  /** طريقة الدفع — تُطبَّع على [نقدي/تحويل/بطاقة/شيك] (افتراضي نقدي). */
+  paymentMethod?: string;
+  /** ملاحظات حرة (دفعة/دين). */
+  notes?: string;
+  /** سبب الدين — record_debt. */
+  debtReason?: string;
+  /** نوع حركة الموظف — يُطبَّع على canonical (سحب راتب/سلفة/خصم راتب). */
+  payoutType?: string;
+  /** هاتف المدين — record_debt (اختياري). */
+  guestPhone?: string;
+  /** حالة الغرفة الجديدة — تُطبَّع على (شاغرة/محجوزة/صيانة). */
+  roomStatus?: string;
   explanation: string;
 }
 
@@ -146,8 +173,9 @@ function extractJson(raw: unknown): AiPlan {
   const end = cleaned.lastIndexOf('}');
   if (start < 0 || end <= start) throw new Error('AI returned no JSON plan');
   const value = JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
+  const WRITE_KINDS: readonly string[] = ['add_expense', 'update_room_price', 'record_payment', 'record_debt', 'add_salary_payout', 'update_room_status'];
   return {
-    kind: value.kind === 'query' || value.kind === 'add_expense' || value.kind === 'update_room_price' ? value.kind : 'unsupported',
+    kind: value.kind === 'query' || (typeof value.kind === 'string' && WRITE_KINDS.includes(value.kind)) ? value.kind as AiPlan['kind'] : 'unsupported',
     queryType: typeof value.queryType === 'string' ? value.queryType as AiPlan['queryType'] : undefined,
     employeeName: typeof value.employeeName === 'string' ? value.employeeName.trim() : undefined,
     guestName: typeof value.guestName === 'string' ? value.guestName.trim() : undefined,
@@ -164,6 +192,13 @@ function extractJson(raw: unknown): AiPlan {
     amountPerDay: typeof value.amountPerDay === 'number' ? value.amountPerDay : undefined,
     dateFrom: typeof value.dateFrom === 'string' ? value.dateFrom : undefined,
     dateTo: typeof value.dateTo === 'string' ? value.dateTo : undefined,
+    amount: typeof value.amount === 'number' ? value.amount : undefined,
+    paymentMethod: typeof value.paymentMethod === 'string' ? value.paymentMethod.trim() : undefined,
+    notes: typeof value.notes === 'string' ? value.notes.trim() : undefined,
+    debtReason: typeof value.debtReason === 'string' ? value.debtReason.trim() : undefined,
+    payoutType: typeof value.payoutType === 'string' ? value.payoutType.trim() : undefined,
+    guestPhone: typeof value.guestPhone === 'string' ? value.guestPhone.trim() : undefined,
+    roomStatus: typeof value.roomStatus === 'string' ? value.roomStatus.trim() : undefined,
     explanation: typeof value.explanation === 'string' ? value.explanation : 'تم تحليل الطلب.',
   };
 }
@@ -222,7 +257,7 @@ function daysBetween(from: string, to: string): string[] {
 async function classify(env: { AI: AiBinding; AI_TOKEN?: string; CLOUDFLARE_ACCOUNT_ID?: string }, prompt: string): Promise<AiPlan> {
   const today = new Date().toISOString().slice(0, 10);
   const instruction = `أنت محلل طلبات لنظام إدارة فندق. تاريخ اليوم ${today}. أعد JSON فقط بلا markdown.
-الأنواع المسموحة: query أو add_expense أو update_room_price أو unsupported.
+الأنواع المسموحة: query أو add_expense أو update_room_price أو record_payment أو record_debt أو add_salary_payout أو update_room_status أو unsupported.
 للاستعلام استخدم queryType واحداً من expenses_total, employee_withdrawals, employee_salary, salary_expenses, daily_summary, rooms_available, rooms_all, current_guests, guest_search, bookings_current, occupancy_summary, occupancy_trend, booking_analysis, overdue_bookings, stay_statistics.
 expenses_total لإجمالي المصروفات مصنّفة حسب النوع — ضع dateFrom وdateTo إذا ذُكرت فترة (مثل "من تاريخ إلى تاريخ")، واتركهما فارغين لإجمالي كل الفترة.
 rooms_available للغرف الشاغرة، rooms_all لكل الغرف وحالتها، current_guests للنزلاء الموجودين، guest_search للبحث عن نزيل باسمه أو رقم غرفته، bookings_current للحجوزات النشطة.
@@ -230,8 +265,18 @@ employee_withdrawals لسحوبات وسلف وخصومات موظف — ضع em
 occupancy_summary للإشغال الحالي (النسبة والغرف المشغولة والشاغرة والوصولات اليوم). occupancy_trend لاتجاه الإشغال مع الإيرادات والمصروفات اليومية خلال فترة — إن لم تذكر فترة فاستخدم آخر 30 يوماً حتى اليوم في dateFrom وdateTo. booking_analysis لتحليل الحجوزات خلال فترة (عددها اليومي والغرف والإيراد المتوقع والمغادرات) — إن لم تذكر فترة فاجعل dateFrom أول يوم من الشهر الحالي وdateTo اليوم. overdue_bookings للحجوزات المتأخرة عن موعد المغادرة. stay_statistics لإحصائيات الإقامة الحالية (متوسط الليالي وأطول إقامة والإيراد المتوقع والمحصل والمتبقي).
 لإضافة مصروف: expenseType, description, amountPerDay, dateFrom, dateTo بصيغة YYYY-MM-DD. description وصف موجز دائماً (مثل "مصروف نظافة"). إذا لم يذكر المستخدم تاريخاً فاجعل dateFrom=dateTo=${today}. أي تاريخ ذُكر بلا سنة فسنته هي ${today.slice(0, 4)} — مثلاً "من 15 الى 18 سبتمبر" يعني ${today.slice(0, 4)}-09-15 إلى ${today.slice(0, 4)}-09-18. المبلغ في مثال "40 ألف لكل يوم" هو 40000 لكل يوم وليس إجمالياً، و"60 ألف شهرياً" يعني 2000 لكل يوم.
 لتعديل سعر غرف: update_room_price — ضع roomNumbers مصفوفة بكل أرقام الغرف المذكورة (مثل ["101","102","103","104"])، وnewPrice السعر الجديد المطلق لكل الغرف المذكورة (وليس زيادة أو نسبة). لا يوجد مفهوم "تاريخ سريان" لسعر الغرفة — التعديل يسري فوراً من لحظة التنفيذ دائماً، فتجاهل dateFrom/dateTo لهذا النوع حتى لو ذُكرت عبارة مثل "ابتداءً من اليوم". إذا لم يُذكر رقم غرفة واحد على الأقل أو لم يُذكر مبلغ، استخدم unsupported.
-لا تخترع اسماً أو مبلغاً أو تاريخاً أو رقم غرفة. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
-JSON schema: {kind,queryType,employeeName,guestName,roomNumber,roomNumbers,newPrice,expenseType,description,amountPerDay,dateFrom,dateTo,explanation}
+لتسجيل دفعة: record_payment — ضع roomNumber رقم الغرفة وamount المبلغ المدفوع (رقم مطلق، وليس متبقياً)، وpaymentMethod من (نقدي، تحويل، بطاقة، شيك) إن ذُكرت وإلا اتركها فارغة (نقدي افتراضياً)، وnotes لأي ملاحظة. إن لم يُذكر رقم الغرفة أو المبلغ فاستخدم unsupported.
+لتسجيل دين: record_debt — ضع guestName اسم المدين وamount مبلغ الدين، وroomNumber إن ذُكرت غرفة لربط الدين بحجزها، وdebtReason للسبب إن ذُكر. إن لم يُذكر الاسم أو المبلغ فاستخدم unsupported.
+لحركة مالية لموظف: add_salary_payout — ضع employeeName اسم الموظف وamount المبلغ وpayoutType واحداً من (سحب راتب، سلفة، خصم راتب): "سحب/استلم من راتبه" → سحب راتب، "سلفة/سلفه" → سلفة، "اخصم/خصم من راتبه" → خصم راتب. إن لم يُذكر الموظف أو المبلغ فاستخدم unsupported.
+لتغيير حالة غرفة: update_room_status — ضع roomNumber وroomStatus واحداً من (شاغرة، محجوزة، صيانة): "شاغرة/فارغة/متاحة" → شاغرة، "مشغولة/محجوزة" → محجوزة، "صيانة/عطل" → صيانة. إن لم يُذكر الرقم أو الحالة فاستخدم unsupported.
+كلمات المبالغ: "ألف" تعني ×1000 (40 ألف = 40000)، "مليون" تعني ×1000000. "اليوم" تعني ${today}، "أمس" تعني اليوم ناقص يوم، "غداً" تعني اليوم زائد يوم.
+أمثلة (few-shot):
+طلب: "سجل دفعة 50 ألف للغرفة 101 نقدي" → {"kind":"record_payment","roomNumber":"101","amount":50000,"paymentMethod":"نقدي","explanation":"تسجيل دفعة للغرفة 101."}
+طلب: "سجل دين 30 ألف على أحمد محمد سببه باقي حساب" → {"kind":"record_debt","guestName":"أحمد محمد","amount":30000,"debtReason":"باقي حساب","explanation":"تسجيل دين على النزيل."}
+طلب: "اصرف سلفة 20 ألف للموظف خالد" → {"kind":"add_salary_payout","employeeName":"خالد","amount":20000,"payoutType":"سلفة","explanation":"صرف سلفة للموظف."}
+طلب: "حط الغرفة 102 صيانة" → {"kind":"update_room_status","roomNumber":"102","roomStatus":"صيانة","explanation":"تغيير حالة الغرفة."}
+لا تخترع اسماً أو مبلغاً أو تاريخاً أو رقم غرفة أو طريقة دفع. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
+JSON schema: {kind,queryType,employeeName,guestName,roomNumber,roomNumbers,newPrice,expenseType,description,amountPerDay,dateFrom,dateTo,amount,paymentMethod,notes,debtReason,payoutType,guestPhone,roomStatus,explanation}
 طلب المستخدم: ${prompt}`;
   const input = {
     messages: [
@@ -299,6 +344,70 @@ async function runRestAi(
  * مُهلوَسة من النموذج؛ أكبر فندق واقعي هنا أبعد ما يكون عن هذا الرقم. */
 const MAX_ROOM_PRICE_UPDATE_COUNT = 200;
 
+/** ✅ (2026-09-30) سقف المبلغ المفرد (دفعة/دين/سحب راتب) — يمسك الأصفار
+ * المُهلوَسة الشاذة فقط (100 مليون فوق أي حركة مفردة واقعية)؛ المراجعة
+ * البشرية في خطوة التأكيد تبقى الحارس الحقيقي للمبالغ المعقولة. */
+const MAX_AI_SINGLE_AMOUNT = 100_000_000;
+
+/** طرق الدفع المقبولة كتابةً — تُطابق ما يكتبه التطبيق (نقدي/تحويل
+ * أساساً، والباقي يُعرض كما هو في التقارير عبر default-echo). */
+const PAYMENT_METHODS = ['نقدي', 'تحويل', 'بطاقة', 'شيك'] as const;
+
+/** حالات الغرفة القابلة للضبط عبر المساعد — canonical فقط. */
+const ROOM_STATUSES = ['شاغرة', 'محجوزة', 'صيانة'] as const;
+
+/** أنواع حركات الموظف — canonical مطابقة لتصنيف التطبيق
+ * (SalaryExpenseClassification): WITHDRAWAL/سلفة/خصم. */
+const PAYOUT_TYPES = ['سحب راتب', 'سلفة', 'خصم راتب'] as const;
+
+function normalizePaymentMethod(raw: string | undefined): string {
+  const v = (raw ?? '').trim();
+  if ((PAYMENT_METHODS as readonly string[]).includes(v)) return v;
+  if (['نقداً', 'كاش', 'cash', 'نقد'].includes(v)) return 'نقدي';
+  if (['transfer', 'حوالة'].includes(v)) return 'تحويل';
+  if (['شبكة', 'card', 'فيزا'].includes(v)) return 'بطاقة';
+  if (['check', 'صك'].includes(v)) return 'شيك';
+  return 'نقدي';
+}
+
+function normalizeRoomStatus(raw: string | undefined): string | undefined {
+  const v = (raw ?? '').trim();
+  if ((ROOM_STATUSES as readonly string[]).includes(v)) return v;
+  if (['شاغره', 'فارغة', 'فارغه', 'متاحة', 'متاح', 'available', 'vacant', 'empty'].includes(v)) return 'شاغرة';
+  if (['محجوز', 'مشغولة', 'مشغول', 'occupied', 'نشط'].includes(v)) return 'محجوزة';
+  if (['maintenance', 'عطل', 'عطلانة', 'تحت الصيانة'].includes(v)) return 'صيانة';
+  return undefined;
+}
+
+function normalizePayoutType(raw: string | undefined): string | undefined {
+  const v = (raw ?? '').trim();
+  if ((PAYOUT_TYPES as readonly string[]).includes(v)) return v;
+  if (['سحب من الراتب', 'سحب', 'راتب', 'استلام راتب'].includes(v)) return 'سحب راتب';
+  if (['سلفه', 'سُلفة'].includes(v)) return 'سلفة';
+  if (['خصم', 'غياب'].includes(v)) return 'خصم راتب';
+  return undefined;
+}
+
+/// ✅ (2026-09-30) تطبيع حتمي للخطة قبل أي تحقق أو تنفيذ — يُطبَّق على
+/// ناتج التصنيف وعلى أي plan مُرسل يدوياً مع confirm:true على حد سواء،
+/// فلا تعتمد السلامة على التزام النموذج بالمفردات (مرادفات شائعة تُطوى
+/// على canonical، والقيم المجهولة تُسقَط ليكشفها التحقق برسالة واضحة).
+export function normalizePlan(plan: AiPlan): AiPlan {
+  if (plan.kind !== 'record_payment' && plan.kind !== 'record_debt' && plan.kind !== 'add_salary_payout' && plan.kind !== 'update_room_status') {
+    return plan;
+  }
+  return {
+    ...plan,
+    paymentMethod: plan.kind === 'record_payment' ? normalizePaymentMethod(plan.paymentMethod) : plan.paymentMethod,
+    payoutType: plan.kind === 'add_salary_payout' ? normalizePayoutType(plan.payoutType) : plan.payoutType,
+    roomStatus: plan.kind === 'update_room_status' ? normalizeRoomStatus(plan.roomStatus) : plan.roomStatus,
+  };
+}
+
+function validSingleAmount(amount: unknown): boolean {
+  return typeof amount === 'number' && Number.isFinite(amount) && amount > 0 && amount <= MAX_AI_SINGLE_AMOUNT;
+}
+
 function validatePlan(plan: AiPlan): string | null {
   if (plan.kind === 'unsupported') return plan.explanation || 'الطلب غير مدعوم أو يحتاج توضيحاً.';
   if (plan.kind === 'query') {
@@ -310,6 +419,33 @@ function validatePlan(plan: AiPlan): string | null {
     if (!plan.roomNumbers || plan.roomNumbers.length === 0) return 'اذكر رقم غرفة واحداً على الأقل.';
     if (plan.roomNumbers.length > MAX_ROOM_PRICE_UPDATE_COUNT) return `عدد الغرف كبير جداً (الحد الأقصى ${MAX_ROOM_PRICE_UPDATE_COUNT}).`;
     if (!Number.isFinite(plan.newPrice) || (plan.newPrice ?? 0) <= 0) return 'اذكر السعر الجديد الصحيح.';
+    return null;
+  }
+  // ✅ (2026-09-30) الأنواع التنفيذية الجديدة — تعمل على خطة مُطبَّعة
+  // (normalizePlan) فالقيم هنا canonical أو مسقطة.
+  if (plan.kind === 'record_payment') {
+    if (!plan.roomNumber) return 'اذكر رقم الغرفة لتسجيل الدفعة.';
+    if (!validSingleAmount(plan.amount)) return 'اذكر مبلغ الدفعة الصحيح.';
+    return null;
+  }
+  if (plan.kind === 'record_debt') {
+    if (!plan.guestName) return 'اذكر اسم المدين لتسجيل الدين.';
+    if (!validSingleAmount(plan.amount)) return 'اذكر مبلغ الدين الصحيح.';
+    return null;
+  }
+  if (plan.kind === 'add_salary_payout') {
+    if (!plan.employeeName) return 'اذكر اسم الموظف.';
+    if (!validSingleAmount(plan.amount)) return 'اذكر مبلغ الحركة الصحيح.';
+    if (!plan.payoutType || !(PAYOUT_TYPES as readonly string[]).includes(plan.payoutType)) {
+      return 'اذكر نوع الحركة: سحب راتب أو سلفة أو خصم راتب.';
+    }
+    return null;
+  }
+  if (plan.kind === 'update_room_status') {
+    if (!plan.roomNumber) return 'اذكر رقم الغرفة.';
+    if (!plan.roomStatus || !(ROOM_STATUSES as readonly string[]).includes(plan.roomStatus)) {
+      return 'اذكر الحالة: شاغرة أو محجوزة أو صيانة.';
+    }
     return null;
   }
   if (!plan.expenseType || !plan.description || !Number.isFinite(plan.amountPerDay) || (plan.amountPerDay ?? 0) <= 0) return 'اذكر نوع المصروف والوصف والمبلغ الصحيح.';
@@ -324,11 +460,13 @@ export async function handleAiRequest(
   role: string,
 ): Promise<Response> {
   const body = await request.json() as { prompt?: string; plan?: AiPlan; confirm?: boolean };
-  let plan = body.plan;
+  // ✅ (2026-09-30) التطبيع يشمل plan العميل المُرسل يدوياً مع confirm
+  // أيضاً — لا ثقة عمياء بمفردات النموذج ولا بمدخلات العميل.
+  let plan = body.plan ? normalizePlan(body.plan) : undefined;
   if (!plan) {
     if (!body.prompt?.trim()) return jsonResponse({ error: 'prompt is required' }, 400);
     try {
-      plan = await classify(env, body.prompt.trim());
+      plan = normalizePlan(await classify(env, body.prompt.trim()));
     } catch (error) {
       console.error('[AI] classification failed', error);
       return jsonResponse({ error: 'تعذر تحليل الطلب حالياً' }, 502);
@@ -354,6 +492,53 @@ export async function handleAiRequest(
       });
     }
     return updateRoomPrices(env, roomNumbers, plan.newPrice!, plan);
+  }
+
+  // ✅ (2026-09-30) الأنواع التنفيذية الجديدة — نفس العقد: تأكيد صريح
+  // أولاً (يعرض الخطة المُطبَّعة)، ثم تنفيذ يتحقق من وجود الهدف (حجز
+  // نشط/موظف/غرفة) قبل أي كتابة — الغياب يُنهي بجواب نهائي بلا كتابة.
+  if (plan.kind === 'record_payment') {
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأسجل دفعة ${plan.amount} ريال للغرفة ${plan.roomNumber} (${plan.paymentMethod ?? 'نقدي'})${plan.notes ? ` — ${plan.notes}` : ''}. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return recordPayment(env, plan);
+  }
+
+  if (plan.kind === 'record_debt') {
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأسجل دين ${plan.amount} ريال على ${plan.guestName}${plan.roomNumber ? ` (الغرفة ${plan.roomNumber})` : ''}${plan.debtReason ? ` — ${plan.debtReason}` : ''}. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return recordDebt(env, plan);
+  }
+
+  if (plan.kind === 'add_salary_payout') {
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأسجل ${plan.payoutType} ${plan.amount} ريال للموظف ${plan.employeeName} بتاريخ اليوم. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return addSalaryPayout(env, plan);
+  }
+
+  if (plan.kind === 'update_room_status') {
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأغيّر حالة الغرفة ${plan.roomNumber} إلى «${plan.roomStatus}» ابتداءً من الآن. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return updateRoomStatus(env, plan.roomNumber!, plan.roomStatus!, plan);
   }
 
   if (!body.confirm) return jsonResponse({ plan, requires_confirmation: true, answer: `سأضيف ${plan.amountPerDay} يومياً من ${plan.dateFrom} إلى ${plan.dateTo}. راجع التفاصيل ثم أكد التنفيذ.` });
@@ -422,6 +607,119 @@ async function updateRoomPrices(
   if (rejected.length > 0) parts.push(`تعارض تحديث متزامن — أعد المحاولة لـ: ${rejected.join('، ')}`);
   const answer = parts.length > 0 ? `${parts.join('. ')}.` : 'لم يُحدَّث أي شيء.';
   return jsonResponse({ plan, requires_confirmation: false, answer });
+}
+
+// ─── Executors for the 2026-09-30 write kinds ────────────────────
+// Conventions (all AI writes):
+// - Single-row INSERTs stamp created_at/updated_at via allocateUpdatedAt
+//   (monotonic, cursor-safe); last_modified stays ms like clients.
+// - origin='ai', device_id='worker' — every AI row is attributable.
+// - Booking links set BOTH booking_local_id (D1 id) and booking_uuid_cache
+//   (global key): devices resolve via the uuid-cache first (_FkRule), so
+//   the D1-local number never corrupts device FKs.
+// - No active booking / unknown employee / unknown room → terminal answer
+//   (requires_confirmation:false) with ZERO writes.
+
+interface ActiveBookingRef {
+  id: number;
+  local_uuid: string;
+  guest_name: string;
+}
+
+async function findActiveBooking(db: D1Database, roomNumber: string): Promise<ActiveBookingRef | null> {
+  return db.prepare(
+    `SELECT id, local_uuid, guest_name FROM bookings
+     WHERE room_number = ? AND deleted_at IS NULL AND status IN ${sqlList(ACTIVE_BOOKING_STATUSES)}
+     ORDER BY checkin_date DESC, id DESC LIMIT 1`,
+  ).bind(roomNumber).first<ActiveBookingRef>();
+}
+
+async function recordPayment(env: AiEnv, plan: AiPlan): Promise<Response> {
+  const db = new Database(env.DB);
+  const booking = await findActiveBooking(env.DB, plan.roomNumber!);
+  if (!booking) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `لا يوجد حجز نشط في الغرفة ${plan.roomNumber} — لم يُسجَّل شيء.` });
+  }
+  const today = utcDate();
+  const nowSec = await db.allocateUpdatedAt();
+  const nowMs = Date.now();
+  const method = plan.paymentMethod ?? 'نقدي';
+  await env.DB.prepare(
+    `INSERT INTO payments (booking_local_id, room_number, amount, payment_date, notes, payment_method, revenue_type, hotel_day_key, booking_uuid_cache, local_uuid, created_at, updated_at, last_modified, origin, device_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  ).bind(booking.id, plan.roomNumber, plan.amount, today, plan.notes ?? null, method, 'room', today, booking.local_uuid, crypto.randomUUID(), nowSec, nowSec, nowMs, 'ai', 'worker').run();
+  return jsonResponse({ plan, requires_confirmation: false, answer: `تم تسجيل دفعة ${plan.amount} ريال (${method}) للغرفة ${plan.roomNumber} — النزيل ${booking.guest_name}.` });
+}
+
+async function recordDebt(env: AiEnv, plan: AiPlan): Promise<Response> {
+  const db = new Database(env.DB);
+  // ربط اختياري بالحجز النشط للغرفة المذكورة — غرفة بلا حجز نشط تُنهي
+  // بلا كتابة (أرجح أنها خطأ في الرقم) بدل دين يتيم مضلل.
+  const booking = plan.roomNumber ? await findActiveBooking(env.DB, plan.roomNumber) : null;
+  if (plan.roomNumber && !booking) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `لا يوجد حجز نشط في الغرفة ${plan.roomNumber} — سجّل الدين بلا غرفة أو صحّح الرقم. لم يُسجَّل شيء.` });
+  }
+  const today = utcDate();
+  const nowSec = await db.allocateUpdatedAt();
+  const nowMs = Date.now();
+  await env.DB.prepare(
+    `INSERT INTO debts (booking_local_id, guest_name, guest_phone, checkin_date, checkout_date, date_recorded, debt_reason, total_amount, paid_amount, remaining_amount, payment_date, booking_uuid_cache, local_uuid, created_at, updated_at, last_modified, origin, device_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  ).bind(booking?.id ?? null, plan.guestName, plan.guestPhone ?? null, today, today, today, plan.debtReason ?? plan.notes ?? '', plan.amount, 0, plan.amount, today, booking?.local_uuid ?? null, crypto.randomUUID(), nowSec, nowSec, nowMs, 'ai', 'worker').run();
+  return jsonResponse({ plan, requires_confirmation: false, answer: `تم تسجيل دين ${plan.amount} ريال على ${plan.guestName}${booking ? ` (الغرفة ${plan.roomNumber})` : ''}.` });
+}
+
+async function addSalaryPayout(env: AiEnv, plan: AiPlan): Promise<Response> {
+  const name = plan.employeeName!.trim();
+  // مطابقة دقيقة أولاً، ثم احتواء — تعدد المرشحين يُنهي بلا كتابة.
+  const exact = await env.DB.prepare(
+    'SELECT local_uuid, name FROM employees WHERE TRIM(name) = ? AND deleted_at IS NULL LIMIT 2',
+  ).bind(name).all<{ local_uuid: string; name: string }>();
+  let candidates = exact.results ?? [];
+  if (candidates.length === 0) {
+    // هروب wildcards قبل LIKE — اسم يحوي % أو _ يجب ألا يقلب الاستعلام.
+    const escaped = name.replace(/[%_\\]/g, (c) => `\\${c}`);
+    const fuzzy = await env.DB.prepare(
+      "SELECT local_uuid, name FROM employees WHERE name LIKE ? ESCAPE '\\' AND deleted_at IS NULL LIMIT 3",
+    ).bind(`%${escaped}%`).all<{ local_uuid: string; name: string }>();
+    candidates = fuzzy.results ?? [];
+  }
+  if (candidates.length === 0) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `لم أجد موظفاً باسم «${name}» — لم يُسجَّل شيء.` });
+  }
+  const match = candidates[0];
+  if (candidates.length > 1 || !match) {
+    const names = candidates.map((c) => c.name).join('، ');
+    return jsonResponse({ plan, requires_confirmation: false, answer: `الاسم «${name}» يطابق أكثر من موظف (${names}) — حدّد الاسم الكامل. لم يُسجَّل شيء.` });
+  }
+  const db = new Database(env.DB);
+  const today = utcDate();
+  const nowSec = await db.allocateUpdatedAt();
+  const nowMs = Date.now();
+  const description = plan.description?.trim() || `${plan.payoutType} عبر المساعد`;
+  await env.DB.prepare(
+    `INSERT INTO expenses (expense_type, description, amount, date, hotel_day_key, employee_uuid, local_uuid, created_at, updated_at, last_modified, origin, device_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+  ).bind(plan.payoutType, description, plan.amount, today, today, match.local_uuid, crypto.randomUUID(), nowSec, nowSec, nowMs, 'ai', 'worker').run();
+  return jsonResponse({ plan, requires_confirmation: false, answer: `تم تسجيل ${plan.payoutType} ${plan.amount} ريال للموظف ${match.name}.` });
+}
+
+async function updateRoomStatus(env: AiEnv, roomNumber: string, status: string, plan: AiPlan): Promise<Response> {
+  const db = new Database(env.DB);
+  const row = await env.DB.prepare(
+    'SELECT local_uuid FROM rooms WHERE room_number = ? AND deleted_at IS NULL',
+  ).bind(roomNumber).first<{ local_uuid: string }>();
+  if (!row) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `تعذّر العثور على الغرفة ${roomNumber} — لم يُغيَّر شيء.` });
+  }
+  const nowSec = await db.allocateUpdatedAt();
+  // نفس خط update_room_price: updateRecord (LWW/version/vector-clock)
+  // وليس UPDATE خام — كي يُكتشف أي تعارض متزامن لاحقاً.
+  const result = await db.updateRecord('rooms', row.local_uuid, { status, origin: 'ai' }, '{}', 'worker', nowSec);
+  if (String(result.status) === status) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `تم تغيير حالة الغرفة ${roomNumber} إلى «${status}».` });
+  }
+  return jsonResponse({ plan, requires_confirmation: false, answer: `تعارض تحديث متزامن على الغرفة ${roomNumber} — أعد المحاولة.` });
 }
 
 // ─── Query dispatch ────────────────────────────────────────────

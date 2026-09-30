@@ -351,6 +351,20 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         if (!['admin', 'manager', 'staff'].includes(role)) {
           return json({ error: 'Invalid role' }, 400, env);
         }
+        // ✅ (2026-09-30) Credential policy — the endpoint previously
+        // accepted ANY non-empty password (even 1 char) and unbounded
+        // usernames. Applies to bootstrap AND admin-created accounts;
+        // existing stored hashes are unaffected (policy is create-time
+        // only — no forced rotation, no login-side minimum).
+        if (username.length > 64) {
+          return json({ error: 'Username too long (max 64 characters)' }, 400, env);
+        }
+        if (password.length < 8) {
+          return json({ error: 'Password too short (min 8 characters)' }, 400, env);
+        }
+        if (password.length > 256) {
+          return json({ error: 'Password too long (max 256 characters)' }, 400, env);
+        }
 
         const hash = await hashPassword(password);
         const userId = await db.createUser(username, hash, role);

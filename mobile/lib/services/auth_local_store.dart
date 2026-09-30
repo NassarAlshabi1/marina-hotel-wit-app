@@ -84,20 +84,24 @@ class AuthLocalStore {
   static const _kRememberMe = 'remember_me';
   static const _kAuthType = 'auth_type';
 
+  /// ✅ (2026-09-30) ترتيب منطقي لسير العمل اليومي (كان ترتيباً تاريخياً):
+  /// لوحة → غرف → حجوزات → مدفوعات → ديون → مصروفات → مالية → تقارير →
+  /// مخزون → موظفون → ملاحظات → معلومية → إعدادات (الأخيرة حساسة).
+  /// الترتيب عرضي فقط — كل الفحوصات contains-based فلا أثر سلوكي.
   static const List<String> permissionKeys = [
     'dashboard',
     'rooms',
     'bookings',
     'payments',
     'debts',
-    'employees',
     'expenses',
     'finance',
     'reports',
+    'inventory',
+    'employees',
     'notes',
     'information',
     'settings',
-    'inventory',
   ];
 
   /// صلاحيات العمليات الدقيقة. وجود المفتاح القديم للقسم يبقى متوافقاً
@@ -151,6 +155,62 @@ class AuthLocalStore {
     if (userType == 'admin' || permissions.contains('all')) return true;
     if (permissions.contains(module)) return true;
     return permissionKeysForModule(module).any(permissions.contains);
+  }
+
+  /// ✅ (2026-09-30) تبسيط محرر الصلاحيات — مجمّع حسب القسم:
+  /// هل القسم ممنوح بالكامل؟ (المفتاح القديم وحده أو العمليات الأربع معاً).
+  /// تُستخدم لحالة زر «الكل» في كل قسم — قراءة فقط، لا تغيّر التخزين.
+  static bool moduleFullyGranted(List<String> permissions, String module) =>
+      permissions.contains(module) ||
+      permissionKeysForModule(module).every(permissions.contains);
+
+  /// نسخة جديدة من القائمة بعد منح/سحب قسم كامل — مطبّعة تخزينياً:
+  /// المنح يخزّن المفتاح القديم وحده (وصول كامل — نفس دلالة العمليات
+  /// الأربع تماماً في canPerform/canAccessModule لكن بمفتاح واحد)،
+  /// والسحب يزيل المفتاح القديم وكل عمليات القسم. لا تمس بقية الأقسام.
+  static List<String> withModuleGranted(
+    List<String> permissions,
+    String module,
+    bool granted,
+  ) {
+    final next = List<String>.from(permissions)
+      ..removeWhere((k) => k == module || k.startsWith('$module.'));
+    if (granted) next.add(module);
+    return next;
+  }
+
+  /// نسخة جديدة بعد تبديل عملية واحدة — مع تطبيع يحفظ الدلالة:
+  /// إكمال العمليات الأربع يطويها في المفتاح القديم وحده، وإسقاط عملية
+  /// من مفتاح قديم يفكّه إلى العمليات الثلاث الباقية (لا يضيع حق الوصول)،
+  /// ومنح عملية مغطاة بالمفتاح القديم أصلاً = بلا تغيير.
+  static List<String> withOperationToggled(
+    List<String> permissions,
+    String module,
+    String action,
+    bool granted,
+  ) {
+    final key = '$module.$action';
+    final next = List<String>.from(permissions);
+    if (granted) {
+      if (next.contains(module) || next.contains(key)) return next;
+      next.add(key);
+      final ops = permissionKeysForModule(module);
+      if (ops.every(next.contains)) {
+        next
+          ..removeWhere((k) => k.startsWith('$module.'))
+          ..add(module);
+      }
+      return next;
+    }
+    if (next.contains(module)) {
+      next.removeWhere((k) => k == module);
+      for (final op in permissionKeysForModule(module)) {
+        if (op != key && !next.contains(op)) next.add(op);
+      }
+      return next;
+    }
+    next.remove(key);
+    return next;
   }
 
   /// حسابات افتراضية للوصول المحلي (fallback عند عدم توفر Appwrite Cloud).
