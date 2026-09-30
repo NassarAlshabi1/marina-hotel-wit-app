@@ -1,30 +1,21 @@
-# TEMPORARY debug workflow — diagnoses unit-test failures.
-# Emits failing test names + expect context as annotations (readable via API
-# where logs are unreachable). DELETE AFTER DIAGNOSIS.
+# TEMPORARY debug workflow — diagnoses lint-test failure steps.
+# DELETE AFTER DIAGNOSIS.
 name: TMP Debug Unit Tests
 on:
   push:
     branches:
       - arena/01a0eff0-marina-hotel-wit-app
-  workflow_dispatch:
-    inputs:
-      checkout_ref:
-        description: 'Code ref to test (bisect without pushing)'
-        required: false
-        default: 'arena/01a0eff0-marina-hotel-wit-app'
 permissions:
   contents: read
 jobs:
   debug:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.checkout_ref || github.sha }}
       - uses: subosito/flutter-action@v2.23.0
         with:
           flutter-version: '3.44.4'
@@ -32,33 +23,34 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
-      - name: Run unit tests (fixed seed for comparability)
+      - name: Diagnose build_runner
         run: |
           set +e
-          flutter test \
-            --concurrency=2 \
-            --timeout=180s \
-            --exclude-tags performance,slow,integration \
-            --test-randomize-ordering-seed 12345 \
-            --reporter expanded \
-            > /tmp/full_test.log 2>&1
-          echo "TEST_EXIT=$?" >> "$GITHUB_ENV"
-          echo "== summary =="
-          tail -n 3 /tmp/full_test.log || true
-      - name: Emit failures as annotations
+          timeout 300 dart run build_runner build > /tmp/br.log 2>&1
+          echo "BR_EXIT=$?" >> "$GITHUB_ENV"
+          tail -n 5 /tmp/br.log || true
+      - name: Diagnose analyze errors
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings > /tmp/ana.log 2>&1
+          echo "ANA_EXIT=$?" >> "$GITHUB_ENV"
+          grep -E "error •|error:" /tmp/ana.log | head -n 10 || true
+      - name: Diagnose format
+        run: |
+          set +e
+          dart format --set-exit-if-changed lib test > /tmp/fmt.log 2>&1
+          echo "FMT_EXIT=$?" >> "$GITHUB_ENV"
+          grep -E "Changed" /tmp/fmt.log | head -n 40 || true
+      - name: Emit diagnosis as annotations
         if: always()
         run: |
-          grep -E "\[E\]" /tmp/full_test.log | head -n 20 > /tmp/fails.txt || true
-          echo "FAILED_COUNT=$(wc -l < /tmp/fails.txt)" >> "$GITHUB_ENV"
-          while IFS= read -r line; do
-            echo "::error::FAIL: $line"
-          done < /tmp/fails.txt
-          # first expect-context after each [E] (what was expected vs actual)
-          grep -A 8 -E "\[E\]" /tmp/full_test.log | grep -E "Expected|Actual|Which|Test failed|EXCEPTION" | head -n 30 > /tmp/ctx.txt || true
-          while IFS= read -r line; do
-            echo "::notice::CTX: $line"
-          done < /tmp/ctx.txt
-          tail -n 2 /tmp/full_test.log | while IFS= read -r line; do
-            echo "::notice::TAIL: $line"
+          echo "::notice::DIAG BR_EXIT=${{ env.BR_EXIT }} ANA_EXIT=${{ env.ANA_EXIT }} FMT_EXIT=${{ env.FMT_EXIT }}"
+          grep -E "error •|error:" /tmp/ana.log | head -n 8 | while IFS= read -r line; do
+            echo "::error::ANA: $line"
           done
-          echo "TEST_EXIT=${{ env.TEST_EXIT }} FAILED_COUNT=$(cat /tmp/fails.txt | wc -l)"
+          grep -E "^Changed " /tmp/fmt.log | head -n 30 | while IFS= read -r line; do
+            echo "::error::FMT: $line"
+          done
+          tail -n 3 /tmp/br.log | while IFS= read -r line; do
+            echo "::notice::BR: $line"
+          done
