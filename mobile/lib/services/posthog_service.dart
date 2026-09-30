@@ -20,6 +20,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import '../utils/env.dart';
+import '../utils/weak_device_optimizer.dart';
 
 /// خدمة PostHog — تحليلات + Session Replay + Feature Flags
 ///
@@ -104,14 +105,18 @@ class PostHogService {
     }
 
     try {
+      // ✅ (2026-09-30) الأجهزة الضعيفة: Session Replay يلتقط لقطات شاشة
+      // دورية (CPU + ذاكرة + بطارية) وpreload للـ flags يعني شبكة ومعالجة
+      // زائدة عند الإقلاع — نعطّلهما على المستوى 2+ ونُبقي الأحداث العادية.
+      final weak = WeakDeviceOptimizer.instance.isWeakDevice;
       final config = PostHogConfig(apiKey)
         ..host = host
         // تفعيل تتبع دورة حياة التطبيق (foreground/background)
         ..captureApplicationLifecycleEvents = true
-        // تفعيل Session Replay (5K تسجيل/شهر مجاناً)
-        ..sessionReplay = true
-        // تفعيل Feature Flags التلقائي
-        ..preloadFeatureFlags = true
+        // تفعيل Session Replay (5K تسجيل/شهر مجاناً) — للأجهزة القوية فقط
+        ..sessionReplay = !weak
+        // تفعيل Feature Flags التلقائي — للأجهزة القوية فقط
+        ..preloadFeatureFlags = !weak
         // وضع التصحيح في development فقط
         ..debug = kDebugMode;
 

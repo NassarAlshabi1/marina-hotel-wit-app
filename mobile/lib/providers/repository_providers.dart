@@ -214,7 +214,7 @@ final roomsListProvider = StreamProvider.autoDispose<List<Room>>(
         .watchAll(
           limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
         ),
-    const Duration(milliseconds: 150),
+    WeakDeviceOptimizer.instance.debounceDuration,
   ),
 );
 final availableRoomsProvider = StreamProvider.autoDispose(
@@ -225,7 +225,7 @@ final availableRoomsProvider = StreamProvider.autoDispose(
             .watchAll(
               limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
             ),
-        const Duration(milliseconds: 150),
+        WeakDeviceOptimizer.instance.debounceDuration,
       ).map(
         (rooms) => rooms
             .where((room) => StatusUtils.isRoomAvailable(room.status))
@@ -243,7 +243,7 @@ final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
     ).watchList(
       limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
     ),
-    const Duration(milliseconds: 150),
+    WeakDeviceOptimizer.instance.debounceDuration,
   ),
 );
 final activeNotesProvider = FutureProvider.autoDispose(
@@ -254,13 +254,13 @@ final activeNotesProvider = FutureProvider.autoDispose(
 final simpleNotesListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
     ref.watch(simpleNotesRepoProvider).watchAllNotes(),
-    const Duration(milliseconds: 150),
+    WeakDeviceOptimizer.instance.debounceDuration,
   ),
 );
 final simpleNotesUnreadCountProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
     ref.watch(simpleNotesRepoProvider).watchUnreadCount(),
-    const Duration(milliseconds: 150),
+    WeakDeviceOptimizer.instance.debounceDuration,
   ),
 );
 final allSimpleNotesProvider = FutureProvider.autoDispose(
@@ -280,7 +280,7 @@ final employeesListProvider = StreamProvider.autoDispose<List<Employee>>(
         .watchAll(
           limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
         ),
-    const Duration(milliseconds: 150),
+    WeakDeviceOptimizer.instance.debounceDuration,
   ),
 );
 
@@ -291,7 +291,7 @@ final guestInfoListProvider = StreamProvider.autoDispose(
         .watchAll(
           limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
         ),
-    const Duration(milliseconds: 150),
+    WeakDeviceOptimizer.instance.debounceDuration,
   ),
 );
 
@@ -304,7 +304,7 @@ final expensesListProvider = StreamProvider.autoDispose(
     ).watchList(
       limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
     ),
-    const Duration(milliseconds: 150),
+    WeakDeviceOptimizer.instance.debounceDuration,
   ),
 );
 
@@ -323,7 +323,7 @@ final cashTransactionsListProvider = StreamProvider.autoDispose(
         .watchAll(
           limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
         ),
-    const Duration(milliseconds: 150),
+    WeakDeviceOptimizer.instance.debounceDuration,
   ),
 );
 
@@ -338,9 +338,9 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
 //
 // كانت البطاقة تعدّ عناصر القوائم المعروضة (roomsListProvider /
 // bookingsListProvider / employeesListProvider) — وهذه مقيّدة بحد
-// الترقيم maxListItemsBeforePagination (15..100 حسب قوة الجهاز)
-// فكانت الأرقام مبتورة على الأجهزة الضعيفة (فندق بـ 40 غرفة يعرض
-// «15» مثلاً). هذه الـ providers تعدّ في SQL مباشرة (COUNT) وتتفاعل
+// الترقيم maxListItemsBeforePagination (150..500 حسب قوة الجهاز بعد
+// رفعه في 2026-09-30 — كان 15..100 فيبتُر العرض نفسه لا العدّادات فقط).
+// هذه الـ providers تعدّ في SQL مباشرة (COUNT) وتتفاعل
 // مع أي تغيير في الجداول عبر readsFrom — بدون تحميل أي صفوف، وبدون
 // تجاهل الحذف الناعم (deleted_at IS NULL) مثل قوائم العرض تماماً.
 // ═══════════════════════════════════════════════════════════════
@@ -486,7 +486,7 @@ final bookingPaymentsProvider = StreamProvider.family
       final paymentsRepo = ref.watch(paymentsRepoProvider);
       return debounceStream(
         paymentsRepo.paymentsByBooking(bookingId),
-        const Duration(milliseconds: 150),
+        WeakDeviceOptimizer.instance.debounceDuration,
       );
     });
 
@@ -509,7 +509,7 @@ final debtsListProvider = StreamProvider.autoDispose(
     ).watchList(
       limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
     ),
-    const Duration(milliseconds: 150),
+    WeakDeviceOptimizer.instance.debounceDuration,
   ),
 );
 final pendingDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {

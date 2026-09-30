@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/settings/error_tracker_screen.dart'
     show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
+import '../utils/weak_device_optimizer.dart';
 import 'appwrite_models.dart' show AppwriteDevice;
 import 'booking_derived_fields_service.dart';
 import 'cloudflare_config.dart';
@@ -1616,7 +1617,9 @@ class CloudflareSyncManager {
                   )),
         )
         ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
-        ..limit(CloudflareConfig.batchSize);
+        // ✅ (2026-09-30) دفعات أصغر على الأجهزة الضعيفة (10/20/50 بدل
+        // 100): ترميز JSON أخف على الـ main isolate وذروة ذاكرة أدنى.
+        ..limit(WeakDeviceOptimizer.instance.syncBatchSize);
       if (failedThisCall.isNotEmpty) {
         query.where((t) => t.id.isNotIn(failedThisCall));
       }
@@ -2121,9 +2124,12 @@ class CloudflareSyncManager {
     // ✅ (2026-09-15) الدلتا تصعد إلى [deltaPullBatchSize] (طلب
     // المستخدم: تسريع الدلتا أيضاً) — مستقلة عن [batchSize] الذي يبقى
     // سقف دفع outbox.
+    // ✅ (2026-09-30) صفحات سحب أصغر على الأجهزة الضعيفة — تحليل JSON
+    // على الـ main isolate: صفحة 500/250 صف تجمّد الواجهة (~100-300ms)
+    // على أجهزة 1GB. القيم القصوى موثقة في [CloudflareConfig].
     final pageLimit = wasFullSync
-        ? CloudflareConfig.fullPullBatchSize
-        : CloudflareConfig.deltaPullBatchSize;
+        ? WeakDeviceOptimizer.instance.syncFullPullPageSize
+        : WeakDeviceOptimizer.instance.syncDeltaPullPageSize;
     // ✅ (2026-09-10) السحب الكامل يطلب remaining الخادمي للمؤشر الدقيق
     // (COUNT batch واحد) — الدلتا بلا كلفة إضافية.
     // ✅ (2026-09-22 تسريع full sync) طلبه في كل صفحة كان يعني 24 استعلام
@@ -4086,7 +4092,8 @@ class CloudflareSyncManager {
                 ).replace(
                   queryParameters: <String, String>{
                     'cursor': cursor.toString(),
-                    'limit': CloudflareConfig.deltaPullBatchSize.toString(),
+                    'limit': WeakDeviceOptimizer.instance.syncDeltaPullPageSize
+                        .toString(),
                     'tombstones_only': '1',
                     if (_deviceId case final ownDevice?
                         when ownDevice.isNotEmpty)
