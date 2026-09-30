@@ -1,4 +1,4 @@
-# TEMPORARY debug workflow — failures-only format verdicts on test files.
+# TEMPORARY debug workflow — fresh verdicts on unchecked lib files + diffs for bad files.
 # DELETE AFTER DIAGNOSIS.
 name: TMP Debug Unit Tests
 on:
@@ -23,16 +23,25 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
-      - name: Failures-only verdicts
+      - name: Fresh verdicts + diffs
         run: |
           set +e
-          BAD=0
-          for f in test/auth/permission_actions_test.dart test/hotel_day_key_fix_guard_test.dart test/production_readiness_test.dart test/utils/low_ram_performance_test.dart test/bookings_outbox_pull_diagnosis_test.dart lib/screens/settings/settings_users.dart; do
+          for f in lib/main.dart lib/providers/repository_providers.dart lib/screens/ai/ai_chat_screen.dart lib/services/auth_local_store.dart lib/services/cloudflare_sync_manager.dart lib/services/hotel_day_key_fix_service.dart lib/services/posthog_service.dart lib/utils/weak_device_optimizer.dart; do
             if dart format --set-exit-if-changed --output=none "$f" > /dev/null 2>&1; then
               echo "OK: $f"
             else
               echo "::error::FMT_BAD: $f"
-              BAD=$((BAD+1))
             fi
           done
-          echo "::notice::DIAG BAD_COUNT=$BAD"
+          for f in lib/screens/settings/settings_users.dart test/bookings_outbox_pull_diagnosis_test.dart test/auth/permission_actions_test.dart; do
+            dart format --output=show "$f" > /tmp/formatted.dart 2> /dev/null
+            python3 -c "
+          import subprocess, urllib.parse
+          f = '$f'
+          d = subprocess.run(['diff', '-U2', f, '/tmp/formatted.dart'], capture_output=True, text=True).stdout
+          d = d[:6000] if len(d) > 6000 else d
+          enc = d.replace('%', '%25').replace('\n', '%0A').replace('\r', '%0D')
+          print('::error::FMT_DIFF ' + f + '%0A' + enc)
+          "
+          done
+          echo DONE
