@@ -9,30 +9,66 @@ jobs:
       - run: pip install -q websockets
       - name: run-probe
         if: always()
-        run: >-
-          python3 -c "
-          import asyncio, socket, traceback, urllib.request;
-          from websockets.asyncio.client import connect;
-          out = [];
-          def log(s): out.append(s); print(s, flush=True);
-          for name, host in [('builtin','marina-hotel-api.adenmarina2.workers.dev'),('relay','marina-hotel-api-relay.pages.dev')]:
-              try: log(f'{name} dns=' + repr(socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)[:2]));
-              except Exception as e: log(f'{name} dns FAIL {e!r}');
+        run: |
+          python3 - <<'PYEOF'
+          import asyncio
+          import socket
+          import traceback
+          import urllib.request
+          from websockets.asyncio.client import connect
+
+          out = []
+
+          def log(s):
+              out.append(s)
+              print(s, flush=True)
+
+          async def wss_probe(name, host):
+              uri = f'wss://{host}/api/realtime?deviceId=wss-probe&entity=*'
               try:
-                  r = urllib.request.urlopen(f'https://{host}/health', timeout=15);
-                  log(f'{name} https STATUS {r.status} {r.read(120)!r}');
-              except Exception: log(f'{name} https FAIL'); traceback.print_exc();
-              async def wss(h=host, n=name):
+                  async with connect(uri, open_timeout=20) as ws:
+                      log(f'{name} wss 101 UPGRADED')
+                      try:
+                          async with asyncio.timeout(6):
+                              welcome = await ws.recv()
+                          log(f'{name} wss welcome={welcome[:200]!r}')
+                      except TimeoutError:
+                          log(f'{name} wss no-welcome-in-6s (socket open)')
+              except Exception:
+                  log(f'{name} wss FAIL:')
+                  traceback.print_exc()
+                  out.append(traceback.format_exc())
+
+          async def main():
+              hosts = [
+                  ('builtin', 'marina-hotel-api.adenmarina2.workers.dev'),
+                  ('relay', 'marina-hotel-api-relay.pages.dev'),
+              ]
+              for name, host in hosts:
                   try:
-                      async with connect(f'wss://{h}/api/realtime?deviceId=wss-probe&entity=*', open_timeout=20) as ws:
-                          log(f'{n} wss 101 UPGRADED');
-                          try:
-                              async with asyncio.timeout(6): log(f'{n} wss welcome=' + repr((await ws.recv())[:200]));
-                          except TimeoutError: log(f'{n} wss no-welcome-in-6s (socket open)');
-                  except Exception: log(f'{n} wss FAIL'); traceback.print_exc();
-              try: asyncio.run(wss())
-              except Exception: pass;
-          open('/tmp/wss-results.txt','w').write(chr(10).join(out) + chr(10));"
+                      addrs = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+                      log(f'{name} dns={addrs[0][4]!r}')
+                  except Exception as e:
+                      log(f'{name} dns FAIL {e!r}')
+                  try:
+                      req = urllib.request.Request(
+                          f'https://{host}/health',
+                          headers={'User-Agent': 'wss-probe'},
+                      )
+                      with urllib.request.urlopen(req, timeout=15) as r:
+                          log(f'{name} https STATUS {r.status} {r.read(120)!r}')
+                  except Exception:
+                      log(f'{name} https FAIL:')
+                      traceback.print_exc()
+                      out.append(traceback.format_exc())
+                  await wss_probe(name, host)
+
+          try:
+              asyncio.run(main())
+          finally:
+              with open('/tmp/wss-results.txt', 'w') as f:
+                  f.write('\n'.join(out) + '\n')
+          PYEOF
       - name: upload-results
         if: always()
         uses: actions/upload-artifact@v4
