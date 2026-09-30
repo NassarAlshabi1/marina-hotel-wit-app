@@ -1,4 +1,4 @@
-# TEMPORARY debug workflow — checks formatting of session-touched files only.
+# TEMPORARY debug workflow — failures-only format verdicts on test files.
 # DELETE AFTER DIAGNOSIS.
 name: TMP Debug Unit Tests
 on:
@@ -23,23 +23,16 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
-      - name: Format only session-touched files, list changes
+      - name: Failures-only verdicts
         run: |
           set +e
-          FILES="lib/main.dart lib/providers/repository_providers.dart lib/screens/ai/ai_chat_screen.dart lib/screens/settings/settings_users.dart lib/services/auth_local_store.dart lib/services/cloudflare_sync_manager.dart lib/services/hotel_day_key_fix_service.dart lib/services/posthog_service.dart lib/utils/weak_device_optimizer.dart test/auth/permission_actions_test.dart test/hotel_day_key_fix_guard_test.dart test/production_readiness_test.dart test/utils/low_ram_performance_test.dart test/bookings_outbox_pull_diagnosis_test.dart"
-          # shellcheck disable=SC2086
-          dart format --set-exit-if-changed $FILES > /tmp/myfmt.log 2>&1
-          echo "MYFMT_EXIT=$?" >> "$GITHUB_ENV"
-          cat /tmp/myfmt.log || true
-      - name: Emit per-file verdicts
-        if: always()
-        run: |
-          set +e
-          echo "::notice::DIAG MYFMT_EXIT=${{ env.MYFMT_EXIT }}"
-          for f in lib/main.dart lib/providers/repository_providers.dart lib/screens/ai/ai_chat_screen.dart lib/screens/settings/settings_users.dart lib/services/auth_local_store.dart lib/services/cloudflare_sync_manager.dart lib/services/hotel_day_key_fix_service.dart lib/services/posthog_service.dart lib/utils/weak_device_optimizer.dart test/auth/permission_actions_test.dart test/hotel_day_key_fix_guard_test.dart test/production_readiness_test.dart test/utils/low_ram_performance_test.dart test/bookings_outbox_pull_diagnosis_test.dart; do
+          BAD=0
+          for f in test/auth/permission_actions_test.dart test/hotel_day_key_fix_guard_test.dart test/production_readiness_test.dart test/utils/low_ram_performance_test.dart test/bookings_outbox_pull_diagnosis_test.dart lib/screens/settings/settings_users.dart; do
             if dart format --set-exit-if-changed --output=none "$f" > /dev/null 2>&1; then
-              echo "::notice::FMT_OK: $f"
+              echo "OK: $f"
             else
               echo "::error::FMT_BAD: $f"
+              BAD=$((BAD+1))
             fi
           done
+          echo "::notice::DIAG BAD_COUNT=$BAD"
