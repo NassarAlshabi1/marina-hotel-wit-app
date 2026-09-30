@@ -1375,33 +1375,3 @@ String _typeLabel(String type) {
       return type;
   }
 }
-;
-    case 'notes':
-      return 'الملاحظات';
-    case 'information':
-      return 'المعلومية';
-    case 'settings':
-      return 'الإعدادات';
-    case 'inventory':
-      return 'المخزون';
-    default:
-      return key;
-  }
-}
-
-String _typeLabel(String type) {
-  switch (type) {
-    case 'admin':
-      return 'مدير';
-    case 'manager':
-      return 'مدير فرعي';
-    case 'supervisor':
-      return 'مشرف';
-    case 'accountant':
-      return 'محاسب';
-    case 'employee':
-      return 'موظف';
-    default:
-      return type;
-  }
-}
