@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
@@ -150,6 +151,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   List<_SettingsItem> _getSectionItems(BuildContext context, String section) {
+    final canManageMaintenance =
+        ref.watch(authProvider).currentUser?.isAdmin ?? false;
+
     switch (section) {
       case 'data':
         return [
@@ -201,18 +205,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ),
-          _SettingsItem(
-            title: 'صيانة النظام',
-            subtitle: 'أدوات الصيانة والفحص',
-            icon: Icons.build,
-            color: Colors.orange,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const SettingsMaintenanceScreen(),
+          if (canManageMaintenance)
+            _SettingsItem(
+              title: 'صيانة النظام',
+              subtitle: 'أدوات الصيانة والفحص',
+              icon: Icons.build,
+              color: Colors.orange,
+              onTap: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (context) => const SettingsMaintenanceScreen(),
+                ),
               ),
             ),
-          ),
           _SettingsItem(
             title: 'القائمة السوداء',
             subtitle: 'إضافة/إدارة الأشخاص المطلوبين',

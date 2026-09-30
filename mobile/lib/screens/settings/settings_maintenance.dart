@@ -11,13 +11,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
-import '../../providers/appwrite_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
-import '../../services/local_db.dart' show DatabaseManager;
+import '../../services/cloudflare_sync_manager.dart';
+import '../../services/database_health_checker.dart';
+import '../../services/local_db.dart'
+    show DatabaseManager, SyncAuditDao, SyncLogData;
 import '../../services/sqlite_backup_restore.dart';
 import '../../services/sync_orchestrator.dart' show DataIntegrityCheck;
+import '../../services/sync_integrity_checker.dart';
 import '../../utils/debug_log.dart';
 import '../../utils/env.dart';
 import '../../widgets/settings/settings_section_header.dart';
@@ -65,6 +69,28 @@ class _SystemInfo {
   final String apiEndpoint;
 }
 
+class _DatabaseInspectionResult {
+  const _DatabaseInspectionResult({
+    required this.sqliteHealthy,
+    required this.sqliteMessage,
+    required this.foreignKeyViolations,
+    required this.logicalReport,
+    required this.tableChecks,
+  });
+
+  final bool sqliteHealthy;
+  final String sqliteMessage;
+  final int foreignKeyViolations;
+  final IntegrityReport logicalReport;
+  final List<DataIntegrityCheck> tableChecks;
+
+  bool get isHealthy =>
+      sqliteHealthy &&
+      foreignKeyViolations == 0 &&
+      !logicalReport.hasIssues &&
+      tableChecks.length == 6;
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  الشاشة الرئيسية
 // ═══════════════════════════════════════════════════════════════
@@ -82,11 +108,16 @@ class _SettingsMaintenanceScreenState
   _SystemInfo? _info;
   bool _isLoadingInfo = true;
   bool _isWorking = false;
+  bool _canManageMaintenance = false;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_loadSystemInfo());
+    _canManageMaintenance =
+        ref.read(authProvider).currentUser?.isAdmin ?? false;
+    if (_canManageMaintenance) {
+      unawaited(_loadSystemInfo());
+    }
   }
 
   // ─── تحميل البيانات الحقيقية ───────────────────────────
@@ -108,7 +139,6 @@ class _SettingsMaintenanceScreenState
   }
 
   Future<_SystemInfo> _collectSystemInfo() async {
-    final prefs = await SharedPreferences.getInstance();
     final db = ref.read(databaseProvider);
 
     // حجم ملف قاعدة البيانات
@@ -152,24 +182,39 @@ class _SettingsMaintenanceScreenState
       } catch (_) {}
     }
 
-    // آخر مزامنة
-    final lastSyncMs = prefs.getInt('appwrite_last_sync_time');
+    // آخر مزامنة ناجحة من سجل Cloudflare الفعلي.
     String? lastSyncTime;
-    if (lastSyncMs != null) {
-      final dt = DateTime.fromMillisecondsSinceEpoch(lastSyncMs);
-      final diff = DateTime.now().difference(dt);
-      if (diff.inMinutes < 1) {
-        lastSyncTime = 'الآن';
-      } else if (diff.inMinutes < 60) {
-        lastSyncTime = 'منذ ${diff.inMinutes} دقيقة';
-      } else if (diff.inHours < 24) {
-        lastSyncTime = 'منذ ${diff.inHours} ساعة';
-      } else {
-        lastSyncTime = 'منذ ${diff.inDays} يوم';
+    try {
+      final logs = await SyncAuditDao(db).fetchRecentLogs(50);
+      SyncLogData? lastSuccess;
+      for (final log in logs) {
+        if (log.status == 'success') {
+          lastSuccess = log;
+          break;
+        }
       }
-    }
+      if (lastSuccess != null) {
+        final timestamp = _parseSyncTimestamp(
+          lastSuccess.completedAt ?? lastSuccess.createdAt,
+        );
+        final diff = timestamp == null
+            ? null
+            : DateTime.now().difference(timestamp);
+        if (diff != null) {
+          if (diff.inMinutes < 1) {
+            lastSyncTime = 'الآن';
+          } else if (diff.inMinutes < 60) {
+            lastSyncTime = 'منذ ${diff.inMinutes} دقيقة';
+          } else if (diff.inHours < 24) {
+            lastSyncTime = 'منذ ${diff.inHours} ساعة';
+          } else {
+            lastSyncTime = 'منذ ${diff.inDays} يوم';
+          }
+        }
+      }
+    } catch (_) {}
 
-    // Outbox: نعرض فقط العمليات غير المسلّمة إلى Appwrite، لا السجل
+    // Outbox: نعرض فقط العمليات غير المسلّمة إلى Cloudflare، لا السجل
     // التاريخي للعمليات المكتملة حتى لا تبدو الشاشة وكأن لديها عمليات معلقة.
     int outboxCount = 0;
     try {
@@ -217,10 +262,30 @@ class _SettingsMaintenanceScreenState
     );
   }
 
+  DateTime? _parseSyncTimestamp(String value) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed != null) {
+      return parsed;
+    }
+    final epoch = int.tryParse(value);
+    if (epoch == null) {
+      return null;
+    }
+    return DateTime.fromMillisecondsSinceEpoch(
+      epoch < 100000000000 ? epoch * 1000 : epoch,
+    );
+  }
+
   // ─── بناء الواجهة ─────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    _canManageMaintenance =
+        ref.watch(authProvider).currentUser?.isAdmin ?? false;
+    if (!_canManageMaintenance) {
+      return _buildPermissionDenied();
+    }
+
     return AppScaffold(
       title: 'صيانة النظام',
       body: ListView(
@@ -245,7 +310,7 @@ class _SettingsMaintenanceScreenState
 
           _buildMaintenanceCard(
             title: 'فحص قاعدة البيانات',
-            subtitle: 'التحقق من سلامة البيانات وإصلاح الأخطاء',
+            subtitle: 'فحص SQLite والمراجع والجداول دون تعديل البيانات',
             icon: Icons.storage,
             color: Colors.green,
             onTap: () => _showDatabaseCheckDialog(context),
@@ -290,8 +355,8 @@ class _SettingsMaintenanceScreenState
           ),
 
           _buildMaintenanceCard(
-            title: 'إعادة تشغيل الخدمات',
-            subtitle: 'إعادة تشغيل جميع خدمات التطبيق',
+            title: 'إعادة تشغيل مزامنة Cloudflare',
+            subtitle: 'إعادة تشغيل مراقب المزامنة وفحص اتصاله',
             icon: Icons.restart_alt,
             color: Colors.red,
             onTap: () => _showRestartDialog(context),
@@ -325,6 +390,35 @@ class _SettingsMaintenanceScreenState
           // ─── تحذير ───
           _buildWarningBanner(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPermissionDenied() {
+    return Scaffold(
+      appBar: AppBar(title: const Text('صيانة النظام')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 12),
+              const Text(
+                'يتطلب هذا القسم صلاحية مدير النظام',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'لا تُعرض أدوات الصيانة أو إعادة تعيين البيانات إلا للمدير.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -570,7 +664,10 @@ class _SettingsMaintenanceScreenState
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
         trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-        onTap: _isWorking ? null : onTap,
+        onTap:
+            _isWorking || !_canManageMaintenance
+                ? null
+                : onTap,
       ),
     );
   }
@@ -681,9 +778,11 @@ class _SettingsMaintenanceScreenState
                   await ref
                       .read(backupStatusProvider.notifier)
                       .cleanupTempFiles();
-                  ref.read(diagnosticsLoggerProvider).clear();
                   _hideLoading();
-                  _showSnack('تم التنظيف بنجاح', color: Colors.green);
+                  _showSnack(
+                    'تم تنظيف الملفات المؤقتة دون مسح سجلات التشخيص',
+                    color: Colors.green,
+                  );
                   unawaited(_loadSystemInfo());
                 } catch (e) {
                   _hideLoading();
@@ -706,7 +805,10 @@ class _SettingsMaintenanceScreenState
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('فحص قاعدة البيانات'),
-          content: const Text('سيتم التحقق من سلامة الجداول وبياناتها.'),
+          content: const Text(
+            'سيتم تشغيل PRAGMA integrity_check وفحص المراجع '
+            'والمراجعات المنطقية دون تعديل البيانات.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -717,12 +819,31 @@ class _SettingsMaintenanceScreenState
                 Navigator.pop(ctx);
                 _showLoading('جاري فحص قاعدة البيانات...');
                 try {
-                  final checks = await ref
+                  final db = ref.read(databaseProvider);
+                  final sqliteResult =
+                      await DatabaseHealthChecker.instance.checkIntegrity();
+                  if (sqliteResult == null) {
+                    throw StateError('تعذر تنفيذ PRAGMA integrity_check');
+                  }
+                  final foreignKeyViolations = await db
+                      .customSelect('PRAGMA foreign_key_check')
+                      .get();
+                  final logicalReport =
+                      await SyncIntegrityChecker.instance.verify(db);
+                  final tableChecks = await ref
                       .read(syncOrchestratorProvider)
                       .verifyDataIntegrity();
                   _hideLoading();
                   if (mounted) {
-                    _showIntegrityResults(checks);
+                    _showIntegrityResults(
+                      _DatabaseInspectionResult(
+                        sqliteHealthy: sqliteResult == 'ok',
+                        sqliteMessage: sqliteResult,
+                        foreignKeyViolations: foreignKeyViolations.length,
+                        logicalReport: logicalReport,
+                        tableChecks: tableChecks,
+                      ),
+                    );
                   }
                 } catch (e) {
                   _hideLoading();
@@ -737,16 +858,20 @@ class _SettingsMaintenanceScreenState
     );
   }
 
-  void _showIntegrityResults(List<DataIntegrityCheck> checks) {
+  void _showIntegrityResults(_DatabaseInspectionResult result) {
+    final checks = result.tableChecks;
     unawaited(
       showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.verified, color: Colors.green),
-              SizedBox(width: 8),
-              Text('نتائج الفحص'),
+              Icon(
+                result.isHealthy ? Icons.verified : Icons.error,
+                color: result.isHealthy ? Colors.green : Colors.red,
+              ),
+              const SizedBox(width: 8),
+              const Text('نتائج الفحص'),
             ],
           ),
           content: SizedBox(
@@ -755,7 +880,21 @@ class _SettingsMaintenanceScreenState
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${checks.length} جدول تم فحصها',
+                  result.isHealthy
+                      ? 'القاعدة سليمة: SQLite والمراجع والجداول سليمة'
+                      : 'تم اكتشاف مشكلة في سلامة القاعدة',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: result.isHealthy ? Colors.green : Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'SQLite: ${result.sqliteMessage} · '
+                  'مخالفات FK: ${result.foreignKeyViolations} · '
+                  'مشاكل منطقية: ${result.logicalReport.issueCount} · '
+                  'جداول: ${checks.length}/6',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 12),
@@ -991,45 +1130,57 @@ class _SettingsMaintenanceScreenState
     final db = ref.read(databaseProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final derivedService = BookingDerivedFieldsService(db);
-    final results = <Map<String, dynamic>>[];
 
     final pendingPayments =
         await (db.select(db.payments)
               ..where((p) => p.isPendingBalance.equals(true))
+              ..where((p) => p.isVoided.equals(false))
               ..where((p) => p.deletedAt.isNull()))
             .get();
 
     if (pendingPayments.isEmpty) {
-      return results;
+      return const <Map<String, dynamic>>[];
     }
 
-    final affectedBookingIds = <int>{};
-    for (final payment in pendingPayments) {
-      await paymentsRepo.update(
-        payment.id,
-        isPendingBalance: false,
-        revenueType: 'room',
-      );
-      results.add({
-        'id': payment.id,
-        'roomNumber': payment.roomNumber ?? '—',
-        'amount': payment.amount,
-        'paymentDate': payment.paymentDate,
-        'paymentMethod': payment.paymentMethod,
-      });
-      if (payment.bookingLocalId != null) {
-        affectedBookingIds.add(payment.bookingLocalId!);
+    final results = await db.transaction(() async {
+      final batchResults = <Map<String, dynamic>>[];
+      final affectedBookingIds = <int>{};
+      for (final payment in pendingPayments) {
+        final updated = await paymentsRepo.update(
+          payment.id,
+          isPendingBalance: false,
+          revenueType: 'room',
+        );
+        if (updated != 1) {
+          throw StateError('تعذر تحويل الدفعة رقم ${payment.id}');
+        }
+        batchResults.add({
+          'id': payment.id,
+          'roomNumber': payment.roomNumber ?? '—',
+          'amount': payment.amount,
+          'paymentDate': payment.paymentDate,
+          'paymentMethod': payment.paymentMethod,
+        });
+        if (payment.bookingLocalId != null) {
+          affectedBookingIds.add(payment.bookingLocalId!);
+        }
       }
+
+      for (final bookingId in affectedBookingIds) {
+        await derivedService.refreshForBookingId(bookingId);
+      }
+      await derivedService.refreshAllActiveBookings();
+      return batchResults;
+    });
+
+    try {
+      await CloudflareSyncManager.instance.pushLocalChanges();
+    } catch (e) {
+      throw StateError(
+        'تم التحويل محلياً داخل معاملة واحدة، لكن فشل رفع '
+        'التغييرات إلى Cloudflare: $e',
+      );
     }
-
-    for (final bookingId in affectedBookingIds) {
-      await derivedService.refreshForBookingId(bookingId);
-    }
-    await derivedService.refreshAllActiveBookings();
-
-    // ✅ رفع فوري بعد تحويل المدفوعات المعلقة إلى مدفوعات غرفة فعلية.
-    unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
-
     return results;
   }
 
@@ -1184,17 +1335,17 @@ class _SettingsMaintenanceScreenState
     );
   }
 
-  // ─── إعادة تشغيل الخدمات ──────────────────────────────
+  // ─── إعادة تشغيل مزامنة Cloudflare ─────────────────────
 
   void _showRestartDialog(BuildContext context) {
     unawaited(
       showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('إعادة تشغيل الخدمات'),
+          title: const Text('إعادة تشغيل مزامنة Cloudflare'),
           content: const Text(
-            'سيتم إعادة تشغيل جميع خدمات التطبيق. '
-            'قد يستغرق ذلك بضع ثوانٍ.',
+            'سيتم إعادة تشغيل مراقب المزامنة وإعادة فحص '
+            'اتصال Cloudflare. قد يستغرق ذلك بضع ثوانٍ.',
           ),
           actions: [
             TextButton(
@@ -1204,12 +1355,12 @@ class _SettingsMaintenanceScreenState
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(ctx);
-                _showLoading('جاري إعادة تشغيل الخدمات...');
+                _showLoading('جاري إعادة تشغيل مزامنة Cloudflare...');
                 try {
                   await ref.read(syncGuardianProvider).restart();
                   _hideLoading();
                   _showSnack(
-                    'تم إعادة تشغيل الخدمات بنجاح',
+                    'تم إعادة تشغيل مزامنة Cloudflare بنجاح',
                     color: Colors.green,
                   );
                   unawaited(_loadSystemInfo());
@@ -1269,6 +1420,7 @@ class _SettingsMaintenanceScreenState
     unawaited(
       showDialog<void>(
         context: context,
+        barrierDismissible: false,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setDialogState) => AlertDialog(
             title: const Text('تأكيد نهائي'),
@@ -1301,80 +1453,7 @@ class _SettingsMaintenanceScreenState
               ),
               ElevatedButton(
                 onPressed: confirmationController.text.trim() == 'حذف'
-                    ? () async {
-                        try {
-                          final pending = await ref
-                              .read(outboxDaoProvider)
-                              .countUndeliveredToPrimary();
-                          if (pending > 0) {
-                            Navigator.pop(ctx);
-                            _showSnack(
-                              'تم إلغاء الحذف: توجد $pending تغييرات لم تُرفع. '
-                              'ارفعها إلى Cloudflare أولاً.',
-                              color: Colors.orange,
-                            );
-                            return;
-                          }
-
-                          Navigator.pop(ctx);
-                          _showLoading('جاري إعادة تعيين التطبيق...');
-                          try {
-                            await DatabaseManager.close();
-                            final dbPath = p.join(
-                              await sqflite.getDatabasesPath(),
-                              SqliteBackupRestore.kDefaultDbFileName,
-                            );
-                            await sqflite.deleteDatabase(dbPath);
-
-                            // نحذف مفاتيح البيانات فقط ونحتفظ بإعدادات الاتصال.
-                            final prefs = await SharedPreferences.getInstance();
-                            const keysToRemove = [
-                              'appwrite_last_sync_time',
-                              'appwrite_pull_after_drive_skip_done',
-                              'sync_last_pull_booking_nights',
-                              'appwrite_delta_sync_enabled',
-                              'last_auto_backup_timestamp',
-                              'auto_backup_enabled',
-                              'delta_sync_enabled',
-                              'backup_mode',
-                              'appwrite_last_delta_sync',
-                              'last_app_open_pull',
-                              'device_id',
-                              'appwrite_delta_device_id',
-                            ];
-                            for (final key in keysToRemove) {
-                              await prefs.remove(key);
-                            }
-
-                            try {
-                              await ref.read(syncGuardianProvider).restart();
-                            } catch (_) {}
-
-                            _hideLoading();
-                            _showSnack(
-                              'تمت إعادة التعيين. افتح المزامنة لاستعادة البيانات من Cloudflare.',
-                              color: Colors.green,
-                            );
-                            unawaited(_loadSystemInfo());
-                          } catch (e) {
-                            _hideLoading();
-                            _showSnack(
-                              'خطأ في إعادة التعيين: $e',
-                              color: Colors.red,
-                            );
-                          } finally {
-                            // ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف.
-                            try {
-                              await DatabaseManager.reopen();
-                            } catch (_) {}
-                          }
-                        } catch (e) {
-                          _showSnack(
-                            'تعذر التحقق من Outbox: $e',
-                            color: Colors.red,
-                          );
-                        }
-                      }
+                    ? () => _confirmResetApp(ctx)
                     : null,
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 child: const Text('تأكيد الحذف'),
@@ -1384,5 +1463,125 @@ class _SettingsMaintenanceScreenState
         ),
       ).whenComplete(confirmationController.dispose),
     );
+  }
+
+  Future<void> _confirmResetApp(BuildContext dialogContext) async {
+    if (!_canManageMaintenance || !mounted) {
+      return;
+    }
+
+    var dialogClosed = false;
+    try {
+      final pending = await ref
+          .read(outboxDaoProvider)
+          .countUndeliveredToPrimary();
+      if (pending > 0) {
+        if (mounted) {
+          Navigator.pop(dialogContext);
+          dialogClosed = true;
+          _showSnack(
+            'تم إلغاء الحذف: توجد $pending تغييرات لم تُرفع. '
+            'ارفعها إلى Cloudflare أولاً.',
+            color: Colors.orange,
+          );
+        }
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(dialogContext);
+      dialogClosed = true;
+      _showLoading('جاري إعادة تعيين التطبيق...');
+      await _performDatabaseReset();
+    } catch (e) {
+      if (mounted && !dialogClosed) {
+        Navigator.pop(dialogContext);
+      }
+      if (mounted) {
+        _hideLoading();
+        _showSnack('تعذر التحقق من Outbox: $e', color: Colors.red);
+      }
+    }
+  }
+
+  Future<void> _performDatabaseReset() async {
+    var needsRecovery = true;
+    try {
+      await ref.read(syncGuardianProvider).stop();
+      await DatabaseManager.close();
+
+      final dbPath = p.join(
+        await sqflite.getDatabasesPath(),
+        SqliteBackupRestore.kDefaultDbFileName,
+      );
+      await sqflite.deleteDatabase(dbPath);
+
+      final prefs = await SharedPreferences.getInstance();
+      const keysToRemove = [
+        'appwrite_last_sync_time',
+        'appwrite_pull_after_drive_skip_done',
+        'sync_last_pull_booking_nights',
+        'appwrite_delta_sync_enabled',
+        'last_auto_backup_timestamp',
+        'auto_backup_enabled',
+        'delta_sync_enabled',
+        'backup_mode',
+        'appwrite_last_delta_sync',
+        'last_app_open_pull',
+        'device_id',
+        'appwrite_delta_device_id',
+        'cf_last_pull_cursor',
+        'cf_full_sync_completed',
+      ];
+      for (final key in keysToRemove) {
+        await prefs.remove(key);
+      }
+
+      await DatabaseManager.reopen();
+      final reopenedDatabase = DatabaseManager.instance;
+      ref.read(databaseGenerationProvider.notifier).state++;
+
+      final cloudflare = CloudflareSyncManager.instance;
+      cloudflare.reattachDatabase(reopenedDatabase);
+      await cloudflare.resetSyncState();
+      await ref.read(syncGuardianProvider).replaceDatabase(reopenedDatabase);
+      needsRecovery = false;
+
+      _hideLoading();
+      _showSnack(
+        'تمت إعادة التعيين وربط Cloudflare بالقاعدة الجديدة.',
+        color: Colors.green,
+      );
+      unawaited(_loadSystemInfo());
+    } catch (e) {
+      _hideLoading();
+      _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
+    } finally {
+      if (needsRecovery) {
+        await _recoverAfterDatabaseReset();
+      }
+    }
+  }
+
+  Future<void> _recoverAfterDatabaseReset() async {
+    try {
+      if (!DatabaseManager.isInitialized) {
+        await DatabaseManager.reopen();
+      }
+      final recoveredDatabase = DatabaseManager.instance;
+      ref.read(databaseGenerationProvider.notifier).state++;
+
+      final cloudflare = CloudflareSyncManager.instance;
+      cloudflare.reattachDatabase(recoveredDatabase);
+      await cloudflare.resetSyncState();
+      await ref.read(syncGuardianProvider).replaceDatabase(recoveredDatabase);
+    } catch (e) {
+      dlog(() => '❌ Database reset recovery failed: $e');
+      if (mounted) {
+        _showSnack('تعذر استعادة قاعدة البيانات بعد الفشل: $e', color: Colors.red);
+      }
+    }
   }
 }

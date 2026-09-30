@@ -57,79 +57,83 @@ final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>(
   (ref) => DiagnosticsLogger.instance,
 );
 
-final databaseProvider = Provider<AppDatabase>(
-  (ref) => DatabaseManager.instance,
-);
+/// يُستخدم بعد إعادة فتح قاعدة البيانات لبناء كل المزودات المرتبطة بها من جديد.
+final databaseGenerationProvider = StateProvider<int>((_) => 0);
+
+final databaseProvider = Provider<AppDatabase>((ref) {
+  ref.watch(databaseGenerationProvider);
+  return DatabaseManager.instance;
+});
 final adapterRegistryProvider = Provider<AdapterRegistry>(
   (ref) => AdapterRegistry.instance,
 );
 
 final outboxDaoProvider = Provider<OutboxDao>(
   (ref) =>
-      OutboxDao(ref.read(databaseProvider), ref.read(adapterRegistryProvider)),
+      OutboxDao(ref.watch(databaseProvider), ref.read(adapterRegistryProvider)),
 );
 final bookingsDaoProvider = Provider<BookingsDao>(
   (ref) => BookingsDao(
-    ref.read(databaseProvider),
-    ref.read(outboxDaoProvider),
+    ref.watch(databaseProvider),
+    ref.watch(outboxDaoProvider),
     ref.read(adapterRegistryProvider),
   ),
 );
 final paymentsDaoProvider = Provider<PaymentsDao>(
   (ref) => PaymentsDao(
-    ref.read(databaseProvider),
-    ref.read(outboxDaoProvider),
+    ref.watch(databaseProvider),
+    ref.watch(outboxDaoProvider),
     ref.read(adapterRegistryProvider),
   ),
 );
 final expensesDaoProvider = Provider<ExpensesDao>(
   (ref) => ExpensesDao(
-    ref.read(databaseProvider),
-    ref.read(outboxDaoProvider),
+    ref.watch(databaseProvider),
+    ref.watch(outboxDaoProvider),
     ref.read(adapterRegistryProvider),
   ),
 );
 final debtsDaoProvider = Provider<DebtsDao>(
   (ref) => DebtsDao(
-    ref.read(databaseProvider),
-    ref.read(outboxDaoProvider),
+    ref.watch(databaseProvider),
+    ref.watch(outboxDaoProvider),
     ref.read(adapterRegistryProvider),
   ),
 );
 final employeesDaoProvider = Provider<EmployeesDao>(
   (ref) => EmployeesDao(
-    ref.read(databaseProvider),
-    ref.read(outboxDaoProvider),
+    ref.watch(databaseProvider),
+    ref.watch(outboxDaoProvider),
     ref.read(adapterRegistryProvider),
   ),
 );
 
 final roomsRepoProvider = Provider<RoomsRepository>(
-  (ref) => RoomsRepository(ref.read(databaseProvider)),
+  (ref) => RoomsRepository(ref.watch(databaseProvider)),
 );
 final bookingsRepoProvider = Provider<BookingsRepository>(
-  (ref) => BookingsRepository(ref.read(databaseProvider)),
+  (ref) => BookingsRepository(ref.watch(databaseProvider)),
 );
 final employeesRepoProvider = Provider<EmployeesRepository>(
-  (ref) => EmployeesRepository(ref.read(databaseProvider)),
+  (ref) => EmployeesRepository(ref.watch(databaseProvider)),
 );
 final guestInfoRepoProvider = Provider<GuestInfosRepository>(
-  (ref) => GuestInfosRepository(ref.read(databaseProvider)),
+  (ref) => GuestInfosRepository(ref.watch(databaseProvider)),
 );
 final expensesRepoProvider = Provider<ExpensesRepository>(
-  (ref) => ExpensesRepository(ref.read(databaseProvider)),
+  (ref) => ExpensesRepository(ref.watch(databaseProvider)),
 );
 final cashRepoProvider = Provider<CashRepository>(
-  (ref) => CashRepository(ref.read(databaseProvider)),
+  (ref) => CashRepository(ref.watch(databaseProvider)),
 );
 final paymentsRepoProvider = Provider<PaymentsRepository>(
-  (ref) => PaymentsRepository(ref.read(databaseProvider)),
+  (ref) => PaymentsRepository(ref.watch(databaseProvider)),
 );
 final debtsRepoProvider = Provider<DebtsRepository>(
-  (ref) => DebtsRepository(ref.read(databaseProvider)),
+  (ref) => DebtsRepository(ref.watch(databaseProvider)),
 );
 final inventoryRepoProvider = Provider<InventoryRepository>(
-  (ref) => InventoryRepository(ref.read(databaseProvider)),
+  (ref) => InventoryRepository(ref.watch(databaseProvider)),
 );
 
 final inventoryItemsProvider = StreamProvider.autoDispose<List<InventoryItem>>(
@@ -137,27 +141,27 @@ final inventoryItemsProvider = StreamProvider.autoDispose<List<InventoryItem>>(
 );
 
 final notesRepoProvider = Provider<NotesRepository>(
-  (ref) => NotesRepository(ref.read(databaseProvider)),
+  (ref) => NotesRepository(ref.watch(databaseProvider)),
 );
 final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
-  (ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)),
+  (ref) => SalaryWithdrawalsRepository(ref.watch(databaseProvider)),
 );
 final salaryAdvanceInstallmentsServiceProvider =
     Provider<SalaryAdvanceInstallmentsService>(
       (ref) => SalaryAdvanceInstallmentsService(
-        ref.read(databaseProvider),
-        ref.read(expensesRepoProvider),
-        ref.read(salaryWithdrawalsRepoProvider),
+        ref.watch(databaseProvider),
+        ref.watch(expensesRepoProvider),
+        ref.watch(salaryWithdrawalsRepoProvider),
       ),
     );
 final simpleNotesRepoProvider = Provider<SimpleNotesRepository>(
-  (ref) => SimpleNotesRepository(ref.read(databaseProvider)),
+  (ref) => SimpleNotesRepository(ref.watch(databaseProvider)),
 );
 final shiftNotesRepoProvider = Provider<ShiftNotesRepository>(
-  (ref) => ShiftNotesRepository(ref.read(databaseProvider)),
+  (ref) => ShiftNotesRepository(ref.watch(databaseProvider)),
 );
 final blacklistRepoProvider = Provider<BlacklistRepository>(
-  (ref) => BlacklistRepository(ref.read(databaseProvider)),
+  (ref) => BlacklistRepository(ref.watch(databaseProvider)),
 );
 final whatsappSettingsProvider = FutureProvider<Map<String, String>>((
   ref,

@@ -11,7 +11,7 @@ import '../services/booking_computed_stream_service.dart';
 final bookingComputedServiceProvider = Provider<BookingComputedStreamService>((
   ref,
 ) {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   return BookingComputedStreamService(db);
 });
 

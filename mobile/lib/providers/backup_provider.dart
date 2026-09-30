@@ -896,6 +896,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         status: BackupStatus.error,
         message: 'خطأ في تنظيف الملفات المؤقتة: $e',
       );
+      rethrow;
     }
   }
 }

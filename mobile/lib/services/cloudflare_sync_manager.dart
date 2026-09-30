@@ -4396,6 +4396,17 @@ class CloudflareSyncManager {
     }
   }
 
+  /// يعيد ربط المدير بنسخة جديدة بعد إغلاق/حذف/إعادة فتح قاعدة محلية.
+  /// لا يمسح بيانات Cloudflare؛ يجبر المزامنة التالية على بدء دلتا جديدة.
+  void reattachDatabase(AppDatabase database) {
+    _db = database;
+    _localColumnsCache.clear();
+    _failedCollectionsInLastSync.clear();
+    _isFullSyncInProgress = false;
+    _fullSyncRemainingPages = 0;
+    _lastLazyInitAttempt = null;
+  }
+
   /// إعادة تعيين cursor — يُجبر الـ pull التالي على جلب كل البيانات (full sync).
   /// يستخدم عند: تبديل الجهاز، استعادة backup، إصلاح تعارضات.
   ///

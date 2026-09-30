@@ -1,5 +1,5 @@
 import '../utils/debug_log.dart';
-import 'appwrite_sync_manager.dart';
+import 'cloudflare_sync_manager.dart';
 import 'unified_sync_orchestrator.dart';
 
 /// خدمة الصيانة — تُجمّع عمليات الصيانة المتعددة الخطوات في method واحد
@@ -11,26 +11,33 @@ class MaintenanceService {
   static MaintenanceService get instance => _instance;
 
   /// إعادة تعيين المزامنة بالكامل:
-  /// 1. reset الحالة في Appwrite
+  /// 1. reset الحالة في Cloudflare
   /// 2. reset أخطاء الـ outbox (يتم عبر المُعامل الخارجي)
   /// 3. بدء مزامنة جديدة
   Future<void> resetSyncAndResync({
     Future<void> Function()? resetOutboxErrors,
   }) async {
     try {
-      final appwriteManager = AppwriteSyncManager.instance;
+      final cloudflareManager = CloudflareSyncManager.instance;
+      final orchestrator = UnifiedSyncOrchestrator.instance;
+      if (orchestrator.isSyncing) {
+        throw StateError('توجد دورة Cloudflare قيد التنفيذ؛ أعد المحاولة لاحقاً');
+      }
 
-      await appwriteManager.resetSyncState();
+      await cloudflareManager.resetSyncState();
 
       if (resetOutboxErrors != null) {
         await resetOutboxErrors();
       }
 
-      await UnifiedSyncOrchestrator.instance.syncNow(
+      final success = await orchestrator.syncNow(
         reason: 'maintenance_reset',
       );
+      if (!success) {
+        throw StateError('فشلت دورة Cloudflare بعد إعادة تعيين المؤشرات');
+      }
 
-      dlog('✅ MaintenanceService: Sync reset and resync completed');
+      dlog('✅ MaintenanceService: Cloudflare reset and resync completed');
     } catch (e) {
       dlog(() => '❌ MaintenanceService: reset failed: $e');
       rethrow;

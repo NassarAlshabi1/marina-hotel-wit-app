@@ -79,7 +79,7 @@ final customListProvider = FutureProvider.family<List<CustomListItem>, String>((
   ref,
   listKey,
 ) async {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   try {
     final rows = await db
         .customSelect(
@@ -135,7 +135,7 @@ Future<void> addCustomListItem(
   String listKey,
   String name,
 ) async {
-  final db = ref.read(databaseProvider);
+      final db = ref.watch(databaseProvider);
   // فحص التكرار: هل يوجد عنصر بنفس الاسم في نفس القائمة؟
   final existing = await db
       .customSelect(

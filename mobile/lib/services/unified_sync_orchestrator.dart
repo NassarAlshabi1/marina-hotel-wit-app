@@ -74,6 +74,7 @@ class UnifiedSyncOrchestrator {
 
   bool _initialized = false;
   bool _syncing = false;
+  bool get isSyncing => _syncing;
 
   final _stateController = StreamController<UnifiedSyncState>.broadcast();
   Stream<UnifiedSyncState> get stateStream => _stateController.stream;
@@ -162,6 +163,27 @@ class UnifiedSyncOrchestrator {
     await _appwriteSub?.cancel();
     unawaited(_stateController.close());
     _initialized = false;
+  }
+
+  /// يستبدل القاعدة المحلية بعد إعادة تهيئتها دون إغلاق Stream الحالة.
+  Future<void> replaceDatabase(AppDatabase database) async {
+    _debounceTimer?.cancel();
+    await _appwriteSub?.cancel();
+
+    _database = database;
+    final cloudflare = _appwrite ?? AppwriteSyncManager();
+    cloudflare.reattachDatabase(database);
+    _appwrite = cloudflare;
+    await cloudflare.initialize(database: database);
+    await _attachListeners();
+
+    _emit(
+      UnifiedSyncState(
+        phase: 'idle',
+        message: 'جاهز',
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)

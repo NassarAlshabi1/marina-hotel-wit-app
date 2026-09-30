@@ -621,6 +621,7 @@ class FileManagementService {
       dlog('✅ تم تنظيف الملفات المؤقتة');
     } catch (e) {
       dlog(() => '❌ خطأ في تنظيف الملفات المؤقتة: $e');
+      rethrow;
     }
   }
 
@@ -647,6 +648,7 @@ class FileManagementService {
         }
       } catch (e) {
         dlog(() => '⚠️ خطأ في حذف ${entity.path}: $e');
+        rethrow;
       }
     }
   }

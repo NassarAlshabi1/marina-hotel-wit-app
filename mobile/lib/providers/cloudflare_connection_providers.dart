@@ -65,7 +65,7 @@ final autoSyncSnapshotProvider = FutureProvider.autoDispose<AutoSyncSnapshot>((
 final lastSuccessfulSyncProvider = FutureProvider.autoDispose<SyncLogData?>((
   ref,
 ) async {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   final logs = await SyncAuditDao(db).fetchRecentLogs(10);
   for (final log in logs) {
     if (log.status == 'success') {
@@ -79,7 +79,7 @@ final lastSuccessfulSyncProvider = FutureProvider.autoDispose<SyncLogData?>((
 /// نفس عدّاد زر «رفع التغييرات» في لوحة التحكم (delivered_to_primary=0
 /// وغير النهائية) مقصوراً على المصدر المحلي.
 final pendingUploadCountProvider = FutureProvider.autoDispose<int>((ref) async {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   return OutboxDao(db).countUndeliveredToPrimary(sources: ['local']);
 });
 

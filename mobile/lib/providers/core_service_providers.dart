@@ -23,7 +23,7 @@ import 'repository_providers.dart';
 
 final bookingDerivedFieldsServiceProvider =
     Provider<BookingDerivedFieldsService>((ref) {
-      final db = ref.read(databaseProvider);
+      final db = ref.watch(databaseProvider);
       return BookingDerivedFieldsService(db);
     });
 
@@ -34,7 +34,7 @@ final authLocalStoreProvider = Provider<AuthLocalStore>((ref) {
 final salaryEntitlementServiceProvider = Provider<SalaryEntitlementService>((
   ref,
 ) {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   return SalaryEntitlementService(db);
 });
 
@@ -43,7 +43,7 @@ final stayBalanceCalculatorProvider = Provider<StayBalanceCalculator>((ref) {
 });
 
 final priceAdjustmentServiceProvider = Provider<PriceAdjustmentService>((ref) {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   return PriceAdjustmentService(db);
 });
 
@@ -66,12 +66,12 @@ final appwriteLoggerProvider = Provider<AppwriteLogger>((ref) {
 
 final bookingPriceAdjustmentServiceProvider =
     Provider<BookingPriceAdjustmentService>((ref) {
-      final db = ref.read(databaseProvider);
+      final db = ref.watch(databaseProvider);
       return BookingPriceAdjustmentService(db);
     });
 
 final paymentsRepositoryProvider = Provider<PaymentsRepository>((ref) {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   return PaymentsRepository(db);
 });
 
@@ -79,7 +79,7 @@ final paymentsRepositoryProvider = Provider<PaymentsRepository>((ref) {
 // (config/service/backup) — لا مشروع ثانوي بعد إزالة Appwrite Cloud.
 
 final appwriteSyncManagerProvider2 = Provider<AppwriteSyncManager>((ref) {
-  final database = ref.read(databaseProvider);
+  final database = ref.watch(databaseProvider);
   final manager = AppwriteSyncManager(database: database);
   ref.onDispose(manager.dispose);
   return manager;
@@ -90,12 +90,12 @@ final syncGuardianProvider2 = Provider<SyncGuardian>((ref) {
 });
 
 final conflictManagerProvider = Provider<ConflictManager>((ref) {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   return ConflictManager(db);
 });
 
 final syncLogDaoProvider = Provider<SyncLogDao>((ref) {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   return SyncLogDao(db);
 });
 

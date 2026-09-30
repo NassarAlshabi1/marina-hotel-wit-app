@@ -8,7 +8,7 @@ import 'repository_providers.dart';
 final syncDashboardProvider = FutureProvider.autoDispose<SyncHealthReport>((
   ref,
 ) async {
-  final db = ref.read(databaseProvider);
+  final db = ref.watch(databaseProvider);
   return SyncHealthMonitor.instance.getHealthReport(db);
 });
 

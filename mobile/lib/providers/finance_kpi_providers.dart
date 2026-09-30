@@ -144,7 +144,7 @@ class FinanceDataBundle {
 }
 
 final financeDataBundleProvider = FutureProvider<FinanceDataBundle>((ref) async {
-  final database = ref.read(databaseProvider);
+  final database = ref.watch(databaseProvider);
 
   final rooms = await database.select(database.rooms).get();
   final bookings = await (database.select(database.bookings)

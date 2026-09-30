@@ -265,4 +265,13 @@ class SyncGuardian {
     }
     _log('✅ SyncGuardian restarted');
   }
+
+  /// إعادة ربط الحارس بعد استبدال قاعدة البيانات المحلية.
+  Future<void> replaceDatabase(AppDatabase database) async {
+    await stop();
+    await UnifiedSyncOrchestrator.instance.replaceDatabase(database);
+    _orchestrator = UnifiedSyncOrchestrator.instance;
+    await initialize(database: database);
+    _log('✅ SyncGuardian attached to reopened database');
+  }
 }
