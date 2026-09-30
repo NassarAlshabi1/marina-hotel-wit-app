@@ -1,0 +1,49 @@
+# TEMPORARY debug workflow — diagnoses unit-test failures on this branch.
+# Emits failing test names as annotations (readable via API where logs are
+# unreachable). DELETE AFTER DIAGNOSIS.
+name: TMP Debug Unit Tests
+on:
+  push:
+    branches:
+      - arena/01a0eff0-marina-hotel-wit-app
+permissions:
+  contents: read
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Run unit tests (same flags as quality gate)
+        run: |
+          set +e
+          flutter test \
+            --concurrency=2 \
+            --timeout=180s \
+            --exclude-tags performance,slow,integration \
+            --test-randomize-ordering-seed 12345 \
+            --reporter expanded \
+            > /tmp/full_test.log 2>&1
+          echo "TEST_EXIT=$?" >> "$GITHUB_ENV"
+          echo "== failing lines =="
+          grep -E "\[E\]|Some tests failed|Test failed|EXCEPTION CAUGHT|failed to load|Compilation failed" /tmp/full_test.log | head -n 60 || true
+      - name: Emit failing tests as annotations
+        if: always()
+        run: |
+          grep -E "\[E\]" /tmp/full_test.log | head -n 40 | while IFS= read -r line; do
+            echo "::error::FAIL: $line"
+          done
+          grep -E "Some tests failed|failed to load|Compilation failed" /tmp/full_test.log | head -n 5 | while IFS= read -r line; do
+            echo "::error::SUMMARY: $line"
+          done
+          echo "TEST_EXIT=${{ env.TEST_EXIT }}"

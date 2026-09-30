@@ -46,8 +46,8 @@ void main() {
 
     // تلوث payments عبر مسار السحب الحقيقي (ذاكرة + حفظ مؤجل).
     HotelDayKeyFixService.markTableDirtyFromSync('payments');
-    // الحفظ المؤجل 500ms — الانتظار يحاكي الإقلاع التالي (ذاكرة فارغة).
-    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    // حفظ حتمي يحاكي الإقلاع التالي (ذاكرة فارغة + تلوث مخزّن).
+    await HotelDayKeyFixService.flushDirtyForTesting();
     svc.resetForTesting();
 
     await svc.runIfNeeded(db);
@@ -63,7 +63,7 @@ void main() {
 
     // employees مصدر مشترك: links + withdrawals_uuid يعادان، payments لا.
     HotelDayKeyFixService.markTableDirtyFromSync('employees');
-    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    await HotelDayKeyFixService.flushDirtyForTesting();
     svc.resetForTesting();
 
     await svc.runIfNeeded(db);

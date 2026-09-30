@@ -117,6 +117,14 @@ class HotelDayKeyFixService {
     }
   }
 
+  /// حفظ فوري لعلامات التلوث (ي bypass المهلة) — للاختبارات فقط.
+  @visibleForTesting
+  static Future<void> flushDirtyForTesting() async {
+    _dirtyFlushTimer?.cancel();
+    _dirtyFlushTimer = null;
+    await _flushDirtyTables();
+  }
+
   @visibleForTesting
   void resetForTesting() {
     _applied = false;
