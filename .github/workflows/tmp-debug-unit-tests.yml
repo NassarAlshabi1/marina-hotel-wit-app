@@ -1,4 +1,4 @@
-# TEMPORARY debug workflow — lists unformatted files (robust: rewrite + git).
+# TEMPORARY debug workflow — checks formatting of session-touched files only.
 # DELETE AFTER DIAGNOSIS.
 name: TMP Debug Unit Tests
 on:
@@ -23,21 +23,23 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
-      - name: List unformatted files via rewrite + git status
+      - name: Format only session-touched files, list changes
         run: |
           set +e
-          dart format lib test > /tmp/fmt2.log 2>&1
-          echo "FMT_WRITE_EXIT=$?" >> "$GITHUB_ENV"
-          tail -n 3 /tmp/fmt2.log || true
-          git -C "$GITHUB_WORKSPACE" status --short | head -n 60 || true
-      - name: Emit file list as annotations
+          FILES="lib/main.dart lib/providers/repository_providers.dart lib/screens/ai/ai_chat_screen.dart lib/screens/settings/settings_users.dart lib/services/auth_local_store.dart lib/services/cloudflare_sync_manager.dart lib/services/hotel_day_key_fix_service.dart lib/services/posthog_service.dart lib/utils/weak_device_optimizer.dart test/auth/permission_actions_test.dart test/hotel_day_key_fix_guard_test.dart test/production_readiness_test.dart test/utils/low_ram_performance_test.dart test/bookings_outbox_pull_diagnosis_test.dart"
+          # shellcheck disable=SC2086
+          dart format --set-exit-if-changed $FILES > /tmp/myfmt.log 2>&1
+          echo "MYFMT_EXIT=$?" >> "$GITHUB_ENV"
+          cat /tmp/myfmt.log || true
+      - name: Emit per-file verdicts
         if: always()
         run: |
           set +e
-          echo "::notice::DIAG FMT_WRITE_EXIT=${{ env.FMT_WRITE_EXIT }}"
-          git -C "$GITHUB_WORKSPACE" status --short | head -n 50 | while IFS= read -r line; do
-            echo "::error::UNFORMATTED: $line"
-          done
-          git -C "$GITHUB_WORKSPACE" status --short | wc -l | while IFS= read -r n; do
-            echo "::notice::DIAG UNFORMATTED_COUNT=$n"
+          echo "::notice::DIAG MYFMT_EXIT=${{ env.MYFMT_EXIT }}"
+          for f in lib/main.dart lib/providers/repository_providers.dart lib/screens/ai/ai_chat_screen.dart lib/screens/settings/settings_users.dart lib/services/auth_local_store.dart lib/services/cloudflare_sync_manager.dart lib/services/hotel_day_key_fix_service.dart lib/services/posthog_service.dart lib/utils/weak_device_optimizer.dart test/auth/permission_actions_test.dart test/hotel_day_key_fix_guard_test.dart test/production_readiness_test.dart test/utils/low_ram_performance_test.dart test/bookings_outbox_pull_diagnosis_test.dart; do
+            if dart format --set-exit-if-changed --output=none "$f" > /dev/null 2>&1; then
+              echo "::notice::FMT_OK: $f"
+            else
+              echo "::error::FMT_BAD: $f"
+            fi
           done
