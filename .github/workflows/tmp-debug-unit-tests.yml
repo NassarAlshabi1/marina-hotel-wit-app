@@ -1,0 +1,46 @@
+# TEMPORARY debug workflow — verify quarantine extraction.
+# DELETE AFTER VERIFICATION.
+name: TMP Debug Unit Tests
+on:
+  push:
+    branches:
+      - arena/01a0eff0-marina-hotel-wit-app
+permissions:
+  contents: read
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Verify quarantine extraction
+        run: |
+          set +e
+          for f in lib/services/sync/pull_quarantine.dart lib/services/cloudflare_sync_manager.dart; do
+            if dart format --set-exit-if-changed --output=none "$f" > /dev/null 2>&1; then
+              echo "::notice::FMT_OK: $f"
+            else
+              echo "::error::FMT_BAD: $f"
+            fi
+          done
+          flutter analyze lib/services/sync/pull_quarantine.dart lib/services/cloudflare_sync_manager.dart > /tmp/ana.log 2>&1
+          echo "::notice::DIAG ANA_EXIT=$?"
+          grep -E ' (error|warning|info) • ' /tmp/ana.log | head -n 8 | while IFS= read -r line; do
+            echo "::error::ANA: $line"
+          done
+          flutter test test/unit/database_startup_guard_test.dart test/cloudflare_sync_review_fixes_test.dart test/sync_pull_duplicate_quarantine_test.dart test/sync_pull_fk_contract_test.dart test/sync_pull_waiting_ledger_test.dart --reporter compact > /tmp/t.log 2>&1
+          echo "::notice::DIAG TEST_EXIT=$? (quarantine tests)"
+          grep -E '\-[0-9]+:|Some tests failed|All tests passed' /tmp/t.log | tail -n 12 | while IFS= read -r line; do
+            echo "::error::TEST: $line"
+          done
+          tail -n 3 /tmp/t.log
