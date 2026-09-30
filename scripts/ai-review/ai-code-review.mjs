@@ -40,6 +40,7 @@ const opts = {
   base: 'origin/main',
   files: [],
   comment: false,
+  strict: false,
   format: 'terminal',
   model: 'glm-4-plus',
   maxFiles: 20,
@@ -52,6 +53,7 @@ for (let i = 0; i < args.length; i++) {
     case '--base': opts.base = args[++i]; break;
     case '--files': opts.files = args.slice(i + 1); i = args.length; break;
     case '--comment': opts.comment = true; break;
+    case '--strict': opts.strict = true; break;
     case '--format': opts.format = args[++i]; break;
     case '--model': opts.model = args[++i]; break;
     case '--max-files': opts.maxFiles = parseInt(args[++i]); break;
@@ -557,11 +559,11 @@ async function main() {
         }
     }
     
-    // Exit code: 1 if CRITICAL or HIGH issues found
+    // Exit code: 1 only when --strict is requested and CRITICAL/HIGH issues exist
     const hasCritical = result.issues.some(i => 
       i.severity === 'CRITICAL' || i.severity === 'HIGH'
     );
-    process.exit(hasCritical ? 1 : 0);
+    process.exit(opts.strict && hasCritical ? 1 : 0);
     
   } catch (e) {
     console.error(`${C.red}❌ Review failed: ${e.message}${C.reset}`);

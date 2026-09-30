@@ -2285,7 +2285,7 @@ class CloudflareSyncManager {
             ...ledgerErrored,
             ...ledgerRemaining,
           ];
-          final failedIds = {
+          final failedIds = <String>{
             for (final item in [...ledgerRemaining, ...ledgerErrored])
               PullQuarantine.identity(
                 item.entity,
@@ -2332,16 +2332,17 @@ class CloudflareSyncManager {
                   item.entity,
                   item.record['local_uuid']?.toString(),
                 );
-                _quarantine.noteQuarantineHealed(id);
-                ledgerDirty = true;
-                totalPulled++;
-                pulledDerivedEntities.add(item.entity);
-                HotelDayKeyFixService.markTableDirtyFromSync(item.entity);
-                debugPrint(
-                  '🏥 Pull: quarantined ${item.entity}/'
-                  '${item.record['local_uuid']} healed — parent arrived '
-                  'or key freed',
-                );
+                if (_quarantine.noteQuarantineHealed(id)) {
+                  ledgerDirty = true;
+                  totalPulled++;
+                  pulledDerivedEntities.add(item.entity);
+                  HotelDayKeyFixService.markTableDirtyFromSync(item.entity);
+                  debugPrint(
+                    '🏥 Pull: quarantined ${item.entity}/'
+                    '${item.record['local_uuid']} healed — parent arrived '
+                    'or key freed',
+                  );
+                }
               }
             } catch (_) {
               // ما زال محجوباً — يبقى معزولاً بصمت (المحاولة محلية
@@ -3175,8 +3176,12 @@ class CloudflareSyncManager {
     }
 
     // ✅ (مراجعة #2+#16) تطبيق ناجح لسجل كان معزولاً — يُمسح من الحجر
-    // (بلا كتابة prefs إلا فعلاً كان في الحجر).
-    await _quarantine.clear(entity, localUuid);
+    // (بلا كتابة prefs إلا فعلاً كان في الحجر). عند استدعائه من حلقة
+    // شفاء الحجر (allowQuarantineSkip: false) تتولى noteQuarantineHealed
+    // إخراجه وحفظ السجل الموحّد.
+    if (allowQuarantineSkip) {
+      await _quarantine.clear(entity, localUuid);
+    }
 
     return true;
   }
