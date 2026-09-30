@@ -406,4 +406,66 @@ void main() {
       });
     });
   });
+
+  group('diagnostics (settings observability, no network)', () {
+    test('noteConnected stamps connection time and raises the flag', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.resetForTest();
+      expect(realtime.lastConnectedAt, isNull);
+
+      realtime.noteConnected();
+
+      expect(realtime.connected.value, true);
+      expect(realtime.lastConnectedAt, isNotNull);
+    });
+
+    test('noteSocketIssue records error text with timestamp', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.resetForTest();
+
+      realtime.noteSocketIssue(error: 'WebSocketException: refused');
+
+      expect(realtime.lastError, 'WebSocketException: refused');
+      expect(realtime.lastErrorAt, isNotNull);
+    });
+
+    test('noteSocketIssue formats close code and truncates long text', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.resetForTest();
+
+      realtime.noteSocketIssue(closeCode: 1006, closeReason: 'abnormal');
+      expect(realtime.lastError, 'closed 1006: abnormal');
+
+      realtime.noteSocketIssue(error: 'x' * 200);
+      expect(realtime.lastError!.length, 160);
+      expect(realtime.lastError, endsWith('...'));
+    });
+
+    test(
+      'noteEventReceived stamps lastEventAt (socket liveness proof)',
+      () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.resetForTest();
+      expect(realtime.lastEventAt, isNull);
+
+      realtime.noteEventReceived();
+
+      expect(realtime.lastEventAt, isNotNull);
+    });
+
+    test('resetForTest clears all diagnostics', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.noteConnected();
+      realtime.noteSocketIssue(error: 'boom');
+
+      realtime.resetForTest();
+
+      expect(realtime.lastError, isNull);
+      expect(realtime.lastErrorAt, isNull);
+      expect(realtime.lastEventAt, isNull);
+      expect(realtime.lastConnectedAt, isNull);
+      expect(realtime.connectAttempts, 0);
+      expect(realtime.connected.value, false);
+    });
+  });
 }

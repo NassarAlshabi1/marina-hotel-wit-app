@@ -24,9 +24,30 @@ final realtimeSyncStateProvider = Provider<RealtimeSyncState>((ref) {
   final sync = ref.watch(appwriteRealtimeSyncProvider);
   return RealtimeSyncState(
     isListening: sync.isListening,
+    isConnected: sync.isConnected,
     hasRemoteChanges: sync.hasRemoteChanges.value,
     pendingRemoteChangesCount: sync.pendingRemoteChangesCount.value,
+    lastError: sync.lastError,
+    lastErrorAt: sync.lastErrorAt,
+    lastEventAt: sync.lastEventAt,
+    lastConnectedAt: sync.lastConnectedAt,
+    connectAttempts: sync.connectAttempts,
   );
+});
+
+/// مزود Stream لحالة اتصال مقبس الريل تايم (تفاعلي لشارة الإعدادات)
+final realtimeConnectedProvider = StreamProvider<bool>((ref) {
+  final sync = ref.watch(appwriteRealtimeSyncProvider);
+  final notifier = sync.connected;
+  final controller = StreamController<bool>.broadcast();
+  void onChanged() => controller.add(notifier.value);
+  controller.add(notifier.value);
+  notifier.addListener(onChanged);
+  ref.onDispose(() {
+    notifier.removeListener(onChanged);
+    unawaited(controller.close());
+  });
+  return controller.stream;
 });
 
 /// مزود Stream للتغييرات المعلقة
@@ -63,11 +84,23 @@ final hasRemoteChangesProvider = StreamProvider<bool>((ref) {
 class RealtimeSyncState {
   RealtimeSyncState({
     required this.isListening,
+    required this.isConnected,
     required this.hasRemoteChanges,
     required this.pendingRemoteChangesCount,
+    required this.lastError,
+    required this.lastErrorAt,
+    required this.lastEventAt,
+    required this.lastConnectedAt,
+    required this.connectAttempts,
   });
 
   final bool isListening;
+  final bool isConnected;
   final bool hasRemoteChanges;
   final int pendingRemoteChangesCount;
+  final String? lastError;
+  final DateTime? lastErrorAt;
+  final DateTime? lastEventAt;
+  final DateTime? lastConnectedAt;
+  final int connectAttempts;
 }

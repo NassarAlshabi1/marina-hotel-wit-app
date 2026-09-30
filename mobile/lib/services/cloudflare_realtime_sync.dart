@@ -120,6 +120,13 @@ class CloudflareRealtimeSync {
   // التلقائية كل 15 دقيقة لا تعوّض الفورية).
   Timer? _rearmTimer;
 
+  // ─── تشخيصات دائمة (تُقرأ في شاشة الإعدادات) ────────────────
+  String? _lastError;
+  DateTime? _lastErrorAt;
+  DateTime? _lastEventAt;
+  DateTime? _lastConnectedAt;
+  int _connectAttempts = 0;
+
   // ─── محرّك السحب (طابور أحداث بنمط فرع perf) ──────────────────
   RemoteChangePull? _syncTrigger;
   Timer? _debounceTimer;
@@ -155,6 +162,21 @@ class CloudflareRealtimeSync {
   static const Duration _connectTimeout = Duration(seconds: 15);
 
   bool get isListening => _isListening;
+
+  /// آخر خطأ اتصال (مختصر ≤160 حرفاً) — null إن لم يفشل أي اتصال بعد.
+  String? get lastError => _lastError;
+
+  /// وقت آخر خطأ — null مع [lastError].
+  DateTime? get lastErrorAt => _lastErrorAt;
+
+  /// وقت آخر إطار مستلم على المقبس (أي نوع) — null إن لم يصل شيء بعد.
+  DateTime? get lastEventAt => _lastEventAt;
+
+  /// وقت آخر اتصال ناجح — null إن لم ينجح أي اتصال بعد.
+  DateTime? get lastConnectedAt => _lastConnectedAt;
+
+  /// عدد محاولات الاتصال الفعلية منذ بدء الاستماع (تشمل الفاشلة).
+  int get connectAttempts => _connectAttempts;
 
   bool get isConnected =>
       _channel != null && _channel!.closeCode == null && connected.value;
@@ -264,6 +286,11 @@ class CloudflareRealtimeSync {
   void resetForTest() {
     unawaited(stop());
     _reconnectAttempt = 0;
+    _lastError = null;
+    _lastErrorAt = null;
+    _lastEventAt = null;
+    _lastConnectedAt = null;
+    _connectAttempts = 0;
     _recoveryPullPending = false;
     _rearmTimer?.cancel();
     _rearmTimer = null;
@@ -293,6 +320,43 @@ class CloudflareRealtimeSync {
     await _connect();
   }
 
+  /// توثيق نجاح الاتصال — تُستدعى من [_connect] فقط (ومنه الاختبار).
+  @visibleForTesting
+  void noteConnected() {
+    connected.value = true;
+    _lastConnectedAt = clock.now();
+  }
+
+  /// توثيق مشكلة مقبس/اتصال — تُحفظ للتشخيص في شاشة الإعدادات.
+  /// [error] من onError، أو [closeCode]/[closeReason] من onDone، أو
+  /// نص اصطناعي من مسارات الفشل قبل إنشاء القناة.
+  @visibleForTesting
+  void noteSocketIssue({Object? error, int? closeCode, String? closeReason}) {
+    final String detail;
+    if (error != null) {
+      detail = error.toString();
+    } else if (closeCode != null) {
+      final String reason = (closeReason == null || closeReason.isEmpty)
+          ? ''
+          : ': $closeReason';
+      detail = 'closed $closeCode$reason';
+    } else if (closeReason != null && closeReason.isNotEmpty) {
+      detail = closeReason;
+    } else {
+      detail = 'socket closed';
+    }
+    _lastError = detail.length > 160
+        ? '${detail.substring(0, 157)}...'
+        : detail;
+    _lastErrorAt = clock.now();
+  }
+
+  /// توثيق استلام إطار على المقبس — دليل حياة الاتصال (ومنه الاختبار).
+  @visibleForTesting
+  void noteEventReceived() {
+    _lastEventAt = clock.now();
+  }
+
   Future<void> _connect() async {
     if (!_isListening || _intentionallyStopped || _connectInFlight) return;
 
@@ -303,10 +367,12 @@ class CloudflareRealtimeSync {
       // لم يكتمل login بعد — أعادة محاولة بأُسّية (start() بعد login
       // عبر ensureStarted() يقطع الطريق أيضاً).
       dwarn('realtime: connect skipped (no token/url yet)');
+      noteSocketIssue(error: 'connect skipped (no token/url yet)');
       _scheduleReconnect();
       return;
     }
 
+    _connectAttempts++;
     _connectInFlight = true;
     try {
       // ✅ (2026-09-09) تدوير نقاط النهاية للـ WebSocket (جزء A):
@@ -346,8 +412,17 @@ class CloudflareRealtimeSync {
           // (يلبي cancel_subscriptions بلا تسريب).
           _socketSub = channel.stream.listen(
             _onData,
-            onDone: _onSocketClosed,
-            onError: (Object error) => _onSocketClosed(),
+            onDone: () {
+              // سبب الإغلاق يُلتقط قبل تصفير القناة (تشخيص الإعدادات).
+              final int? code = _channel?.closeCode;
+              final String? reason = _channel?.closeReason;
+              noteSocketIssue(closeCode: code, closeReason: reason);
+              _onSocketClosed();
+            },
+            onError: (Object error) {
+              noteSocketIssue(error: error);
+              _onSocketClosed();
+            },
           );
           try {
             await channel.ready;
@@ -361,7 +436,7 @@ class CloudflareRealtimeSync {
           // ✅ (مراجعة #17) نجاح الاتصال ينهي دورة إعادة التسليح الدورية.
           _rearmTimer?.cancel();
           _rearmTimer = null;
-          connected.value = true;
+          noteConnected();
           WorkerEndpoints.reportSuccess(base);
           debugPrint('✅ Cloudflare realtime connected (${uri.host})');
           established = true;
@@ -386,6 +461,7 @@ class CloudflareRealtimeSync {
     } catch (e, st) {
       dwarn(() => 'realtime: connect failed: $e\n$st');
       connected.value = false;
+      noteSocketIssue(error: e);
       _scheduleReconnect();
     } finally {
       _connectInFlight = false;
@@ -395,6 +471,8 @@ class CloudflareRealtimeSync {
   // ─── معالجة الرسائل ──────────────────────────────────────────
 
   void _onData(dynamic data) {
+    // أي إطار مستلم (حتى المشوّه) يثبت حياة المقبس.
+    noteEventReceived();
     final CloudflareRealtimeMessage? msg = CloudflareRealtimeMessage.tryParse(
       data,
     );

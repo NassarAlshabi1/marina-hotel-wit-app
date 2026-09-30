@@ -1,0 +1,32 @@
+name: tmp-debug-gate
+on:
+  push:
+    branches: [arena/01a0eff0-marina-hotel-wit-app]
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.35.5
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: |
+          set +e
+          flutter test test/unit/cloudflare_realtime_sync_test.dart test/connection_client_freshness_test.dart > /tmp/t.log 2>&1
+          echo "TEST_EXIT=$?"
+          tail -n 5 /tmp/t.log
+          echo "=== FMT ==="
+          for f in lib/services/cloudflare_realtime_sync.dart lib/providers/realtime_sync_provider.dart lib/screens/settings/sync/unified_sync_settings_screen.dart test/unit/cloudflare_realtime_sync_test.dart; do
+            dart format --output=none --set-exit-if-changed "$f" >/dev/null 2>&1;
+            echo "FMT($f)=$?";
+          done
+          echo "=== ANA ==="
+          flutter analyze --no-pub > /tmp/a.log 2>&1
+          echo "ANA_EXIT=$?"
+          grep -E 'error|warning|info' /tmp/a.log | grep -E 'realtime|unified_sync' | head -n 10
