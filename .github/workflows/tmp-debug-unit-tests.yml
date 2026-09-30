@@ -1,4 +1,4 @@
-# TEMPORARY debug workflow — diagnoses lint-test failure steps.
+# TEMPORARY debug workflow — lists unformatted files (robust: rewrite + git).
 # DELETE AFTER DIAGNOSIS.
 name: TMP Debug Unit Tests
 on:
@@ -10,7 +10,7 @@ permissions:
 jobs:
   debug:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: mobile
@@ -23,34 +23,21 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
-      - name: Diagnose build_runner
+      - name: List unformatted files via rewrite + git status
         run: |
           set +e
-          timeout 300 dart run build_runner build > /tmp/br.log 2>&1
-          echo "BR_EXIT=$?" >> "$GITHUB_ENV"
-          tail -n 5 /tmp/br.log || true
-      - name: Diagnose analyze errors
-        run: |
-          set +e
-          flutter analyze --no-fatal-infos --no-fatal-warnings > /tmp/ana.log 2>&1
-          echo "ANA_EXIT=$?" >> "$GITHUB_ENV"
-          grep -E "error •|error:" /tmp/ana.log | head -n 10 || true
-      - name: Diagnose format
-        run: |
-          set +e
-          dart format --set-exit-if-changed lib test > /tmp/fmt.log 2>&1
-          echo "FMT_EXIT=$?" >> "$GITHUB_ENV"
-          grep -E "Changed" /tmp/fmt.log | head -n 40 || true
-      - name: Emit diagnosis as annotations
+          dart format lib test > /tmp/fmt2.log 2>&1
+          echo "FMT_WRITE_EXIT=$?" >> "$GITHUB_ENV"
+          tail -n 3 /tmp/fmt2.log || true
+          git -C "$GITHUB_WORKSPACE" status --short | head -n 60 || true
+      - name: Emit file list as annotations
         if: always()
         run: |
-          echo "::notice::DIAG BR_EXIT=${{ env.BR_EXIT }} ANA_EXIT=${{ env.ANA_EXIT }} FMT_EXIT=${{ env.FMT_EXIT }}"
-          grep -E "error •|error:" /tmp/ana.log | head -n 8 | while IFS= read -r line; do
-            echo "::error::ANA: $line"
+          set +e
+          echo "::notice::DIAG FMT_WRITE_EXIT=${{ env.FMT_WRITE_EXIT }}"
+          git -C "$GITHUB_WORKSPACE" status --short | head -n 50 | while IFS= read -r line; do
+            echo "::error::UNFORMATTED: $line"
           done
-          grep -E "^Changed " /tmp/fmt.log | head -n 30 | while IFS= read -r line; do
-            echo "::error::FMT: $line"
-          done
-          tail -n 3 /tmp/br.log | while IFS= read -r line; do
-            echo "::notice::BR: $line"
+          git -C "$GITHUB_WORKSPACE" status --short | wc -l | while IFS= read -r n; do
+            echo "::notice::DIAG UNFORMATTED_COUNT=$n"
           done
