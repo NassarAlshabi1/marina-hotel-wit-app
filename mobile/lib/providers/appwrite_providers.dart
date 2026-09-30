@@ -297,7 +297,7 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
     }
     // عميل جديد لكل فحص: وصلات keep-alive القديمة قد تكون ميتة بصمت
     // (NAT/ISP يغلق الخامل) فيفشل الفحص دائماً — الإغلاق في finally.
-    final http.Client client = (clientFactory ?? () => http.Client())();
+    final http.Client client = (clientFactory ?? http.Client.new)();
     try {
       await _runCheckWith(client);
     } finally {
