@@ -1,4 +1,4 @@
-# TEMPORARY debug workflow — verify quarantine extraction.
+# TEMPORARY debug workflow — show manager format diff.
 # DELETE AFTER VERIFICATION.
 name: TMP Debug Unit Tests
 on:
@@ -10,7 +10,7 @@ permissions:
 jobs:
   debug:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: mobile
@@ -23,24 +23,16 @@ jobs:
           cache: true
       - name: Install dependencies
         run: flutter pub get
-      - name: Verify quarantine extraction
+      - name: Show format diff
         run: |
           set +e
-          for f in lib/services/sync/pull_quarantine.dart lib/services/cloudflare_sync_manager.dart; do
-            if dart format --set-exit-if-changed --output=none "$f" > /dev/null 2>&1; then
-              echo "::notice::FMT_OK: $f"
-            else
-              echo "::error::FMT_BAD: $f"
-            fi
-          done
-          flutter analyze lib/services/sync/pull_quarantine.dart lib/services/cloudflare_sync_manager.dart > /tmp/ana.log 2>&1
-          echo "::notice::DIAG ANA_EXIT=$?"
-          grep -E ' (error|warning|info) • ' /tmp/ana.log | head -n 8 | while IFS= read -r line; do
-            echo "::error::ANA: $line"
-          done
-          flutter test test/unit/database_startup_guard_test.dart test/cloudflare_sync_review_fixes_test.dart test/sync_pull_duplicate_quarantine_test.dart test/sync_pull_fk_contract_test.dart test/sync_pull_waiting_ledger_test.dart --reporter compact > /tmp/t.log 2>&1
-          echo "::notice::DIAG TEST_EXIT=$? (quarantine tests)"
-          grep -E '\-[0-9]+:|Some tests failed|All tests passed' /tmp/t.log | tail -n 12 | while IFS= read -r line; do
-            echo "::error::TEST: $line"
-          done
-          tail -n 3 /tmp/t.log
+          dart format --output=show lib/services/cloudflare_sync_manager.dart > /tmp/formatted.dart 2> /dev/null
+          python3 -c "
+          import subprocess
+          d = subprocess.run(['diff', '-U1', 'lib/services/cloudflare_sync_manager.dart', '/tmp/formatted.dart'], capture_output=True, text=True).stdout
+          d = '\n'.join([l for l in d.split('\n') if not l.startswith(('---', '+++', '+Formatted'))])
+          print('DIFFCHARS=' + str(len(d)))
+          d = d[:5500]
+          enc = d.replace('%', '%25').replace('\n', '%0A').replace('\r', '%0D')
+          print('::error::FMT_DIFF%0A' + enc)
+          "
