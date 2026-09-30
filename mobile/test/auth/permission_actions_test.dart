@@ -110,37 +110,39 @@ void main() {
       expect(revoked, contains('payments'));
     });
 
-    test('withOperationToggled folds complete sets and expands legacy keys',
-        () {
-      // إكمال الرابعة يطوي الكل في المفتاح القديم وحده.
-      final folded = AuthLocalStore.withOperationToggled(
-        ['rooms.view', 'rooms.create', 'rooms.update'],
-        'rooms',
-        'delete',
-        true,
-      );
-      expect(folded, contains('rooms'));
-      expect(folded.where((k) => k.startsWith('rooms.')), isEmpty);
+    test(
+      'withOperationToggled folds complete sets and expands legacy keys',
+      () {
+        // إكمال الرابعة يطوي الكل في المفتاح القديم وحده.
+        final folded = AuthLocalStore.withOperationToggled(
+          ['rooms.view', 'rooms.create', 'rooms.update'],
+          'rooms',
+          'delete',
+          true,
+        );
+        expect(folded, contains('rooms'));
+        expect(folded.where((k) => k.startsWith('rooms.')), isEmpty);
 
-      // إسقاط عملية من مفتاح قديم يُبقي الثلاث الباقية (لا ضياع).
-      final expanded = AuthLocalStore.withOperationToggled(
-        ['rooms'],
-        'rooms',
-        'delete',
-        false,
-      );
-      expect(expanded, isNot(contains('rooms')));
-      expect(
-        expanded,
-        containsAll(['rooms.view', 'rooms.create', 'rooms.update']),
-      );
-      expect(expanded, isNot(contains('rooms.delete')));
+        // إسقاط عملية من مفتاح قديم يُبقي الثلاث الباقية (لا ضياع).
+        final expanded = AuthLocalStore.withOperationToggled(
+          ['rooms'],
+          'rooms',
+          'delete',
+          false,
+        );
+        expect(expanded, isNot(contains('rooms')));
+        expect(
+          expanded,
+          containsAll(['rooms.view', 'rooms.create', 'rooms.update']),
+        );
+        expect(expanded, isNot(contains('rooms.delete')));
 
-      // منح عملية مغطاة بالمفتاح القديم أصلاً = بلا تغيير.
-      expect(
-        AuthLocalStore.withOperationToggled(['rooms'], 'rooms', 'view', true),
-        ['rooms'],
-      );
-    });
+        // منح عملية مغطاة بالمفتاح القديم أصلاً = بلا تغيير.
+        expect(
+          AuthLocalStore.withOperationToggled(['rooms'], 'rooms', 'view', true),
+          ['rooms'],
+        );
+      },
+    );
   });
 }
