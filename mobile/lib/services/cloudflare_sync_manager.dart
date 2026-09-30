@@ -28,6 +28,7 @@ import 'local_db.dart';
 import 'logging/log_models.dart' show LogLevel;
 import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
+import 'sync/fk_rules.dart';
 import 'sync/payload_normalizer.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_enums.dart';
@@ -38,191 +39,6 @@ import 'worker_endpoints.dart';
 // (WebSocket على SyncLockDO) — الاستيراد أعلاه + هذا الـ export يحفظان
 // كل imports القائمة دون تغيير في بقية الملفات.
 export 'cloudflare_realtime_sync.dart';
-
-// ─── قواعد ترجمة علاقات FK بين هوية الخادم والهوية المحلية ─────
-
-/// نوع قاعدة FK:
-/// - [numericPointer]: العمود الرقمي على الابن يحمل id الأب في فضاء
-///   الخادم (D1) — تُترجم القيمة إلى id الصف المحلي عند التطبيق.
-/// - [naturalKey]: العمود نصّي يحمل مفتاحاً عالمياً ثابتاً بين الأجهزة
-///   (room_number أو local_uuid للأب) — القيمة تمر كما هي، والمطلوب
-///   فقط التأكد من وجود الأب (وإلا يؤجَّل الصف).
-enum _FkKind { numericPointer, naturalKey }
-
-class _FkRule {
-  const _FkRule({
-    required this.entity,
-    required this.column,
-    required this.kind,
-    required this.parentTable,
-    required this.parentKeyColumn,
-    this.nullable = false,
-    this.uuidCacheColumn,
-    this.legacyServerBookingId = false,
-    this.nullWhenUnresolvable = false,
-  });
-
-  /// كيان الابن (اسم جدول D1).
-  final String entity;
-
-  /// عمود FK على الابن.
-  final String column;
-
-  final _FkKind kind;
-
-  /// جدول الأب المحلي.
-  final String parentTable;
-
-  /// عمود المفتاح على الأب: 'id' للمؤشرات الرقمية، أو المفتاح الطبيعي
-  /// (room_number / local_uuid) لقواعد naturalKey.
-  final String parentKeyColumn;
-
-  /// هل يقبل العمود NULL محلياً؟ (غير القابل للـ null بلا حل = تأجيل).
-  final bool nullable;
-
-  /// عمود uuid-cache على الابن يحمل local_uuid الأب — المفتاح العالمي
-  /// الأول (مثل booking_uuid_cache / item_local_uuid).
-  final String? uuidCacheColumn;
-
-  /// جرّب أيضاً فضاء Appwrite القديم: server_booking_id على الابن ضد
-  /// server_booking_id على الأب (الصفوف المهاجرة من Appwrite تشترك
-  /// في فضاء المعرفات هذا).
-  final bool legacyServerBookingId;
-
-  /// مؤشر ثانوي غير جوهري (cash_transaction_local_id): تعذّرت الترجمة
-  /// → NULL بدل تعطيل دورة السحب كلها. لا يُستخدم إلا مع nullable.
-  final bool nullWhenUnresolvable;
-}
-
-/// خريطة علاقات FK المحلية التي تحمل هوية خادمية — مستخرجة آلياً من
-/// local_db.dart (كل .references) وschema.sql الخادمي.
-///
-/// ملاحظات:
-///  * payment_voids وprice_adjustments أعمدتها كلها uuid عالمية بلا
-///    قيود FK محلية — تمر بلا ترجمة، فلا قاعدة لها هنا.
-///  * bookings.room_number → rooms.room_number مفتاح طبيعي ثابت بين
-///    الأجهزة (نفس النص)، المطلوب وجود الغرفة فقط.
-const List<_FkRule> _fkRules = [
-  // الحجوزات: room_number مفتاح طبيعي على الغرف.
-  _FkRule(
-    entity: 'bookings',
-    column: 'room_number',
-    kind: _FkKind.naturalKey,
-    parentTable: 'rooms',
-    parentKeyColumn: 'room_number',
-  ),
-  // ليالي الحجز → الحجز.
-  _FkRule(
-    entity: 'booking_nights',
-    column: 'booking_local_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'bookings',
-    parentKeyColumn: 'id',
-    uuidCacheColumn: 'booking_uuid_cache',
-    legacyServerBookingId: true,
-  ),
-  // ملاحظات الحجز → الحجز (لا uuid-cache على السلك — الاعتماد على
-  // ظلّ server_id للأب أو فضاء Appwrite).
-  _FkRule(
-    entity: 'booking_notes',
-    column: 'booking_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'bookings',
-    parentKeyColumn: 'id',
-    legacyServerBookingId: true,
-  ),
-  // المدفوعات → الحجز (قابل للـ null — دفعة بلا حجز تمر بـ NULL).
-  _FkRule(
-    entity: 'payments',
-    column: 'booking_local_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'bookings',
-    parentKeyColumn: 'id',
-    nullable: true,
-    uuidCacheColumn: 'booking_uuid_cache',
-    legacyServerBookingId: true,
-  ),
-  // المدفوعات → معاملة الصندوق: مؤشر ثانوي بلا مفتاح عالمي على السلك
-  // (local_id المحلي للجهاز الدافع لا معنى له بين الأجهزة) — تعذّرت
-  // الترجمة → NULL ولا يُعطَّل السحب لمجرد مؤشر صندوق.
-  _FkRule(
-    entity: 'payments',
-    column: 'cash_transaction_local_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'cash_transactions',
-    parentKeyColumn: 'id',
-    nullable: true,
-    nullWhenUnresolvable: true,
-  ),
-  // تسويات السعر → الحجز (بالمعرّفين معاً).
-  _FkRule(
-    entity: 'booking_price_adjustments',
-    column: 'booking_local_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'bookings',
-    parentKeyColumn: 'id',
-    nullable: true,
-    uuidCacheColumn: 'booking_uuid',
-    legacyServerBookingId: true,
-  ),
-  _FkRule(
-    entity: 'booking_price_adjustments',
-    column: 'booking_local_uuid',
-    kind: _FkKind.naturalKey,
-    parentTable: 'bookings',
-    parentKeyColumn: 'local_uuid',
-  ),
-  // دورات الرواتب → الموظف.
-  _FkRule(
-    entity: 'salary_cycles',
-    column: 'employee_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'employees',
-    parentKeyColumn: 'id',
-  ),
-  // دفعات الدورة → الدورة (سلّتان: موظف ثم دورة — ترتيب الأولويات
-  // في إعادة المحاولة يضمن اكتمال السلسلة).
-  _FkRule(
-    entity: 'salary_payments',
-    column: 'cycle_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'salary_cycles',
-    parentKeyColumn: 'id',
-  ),
-  // السحب من الراتب → الموظف.
-  _FkRule(
-    entity: 'salary_withdrawals',
-    column: 'employee_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'employees',
-    parentKeyColumn: 'id',
-  ),
-  // سجلات ترحيل الراتب → الموظف.
-  _FkRule(
-    entity: 'salary_carry_over_logs',
-    column: 'employee_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'employees',
-    parentKeyColumn: 'id',
-  ),
-  // حركات المخزون → صنف المخزون (item_local_uuid مفتاح عالمي).
-  _FkRule(
-    entity: 'inventory_transactions',
-    column: 'item_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'inventory_items',
-    parentKeyColumn: 'id',
-    uuidCacheColumn: 'item_local_uuid',
-  ),
-];
-
-final Map<String, List<_FkRule>> _fkRulesByEntity = (() {
-  final map = <String, List<_FkRule>>{};
-  for (final rule in _fkRules) {
-    map.putIfAbsent(rule.entity, () => <_FkRule>[]).add(rule);
-  }
-  return map;
-})();
 
 /// أولوية الآباء عند إعادة محاولة الصفوف المؤجلة — الأب قبل الابن.
 const Map<String, int> _pullApplyPriority = {
@@ -3098,13 +2914,13 @@ class CloudflareSyncManager {
     required Map<String, dynamic> record,
     required Map<String, dynamic>? existing,
   }) async {
-    final rules = _fkRulesByEntity[entity];
+    final rules = fkRulesByEntity[entity];
     if (rules == null || rules.isEmpty) return true;
 
     for (final rule in rules) {
       final wireValue = record[rule.column];
 
-      if (rule.kind == _FkKind.numericPointer) {
+      if (rule.kind == FkKind.numericPointer) {
         if (wireValue == null) {
           if (record.containsKey(rule.column) && !rule.nullable) {
             // null صريح على عمود NOT NULL — علاقة مفقودة خادمياً.

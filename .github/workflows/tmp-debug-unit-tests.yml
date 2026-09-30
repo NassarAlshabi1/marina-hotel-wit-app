@@ -1,0 +1,41 @@
+# TEMPORARY debug workflow — verify FK extraction: format + targeted tests.
+# DELETE AFTER VERIFICATION.
+name: TMP Debug Unit Tests
+on:
+  push:
+    branches:
+      - arena/01a0eff0-marina-hotel-wit-app
+permissions:
+  contents: read
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Verify extraction
+        run: |
+          set +e
+          for f in lib/services/sync/fk_rules.dart lib/services/cloudflare_sync_manager.dart test/unit/cloudflare_full_chain_contract_test.dart; do
+            if dart format --set-exit-if-changed --output=none "$f" > /dev/null 2>&1; then
+              echo "::notice::FMT_OK: $f"
+            else
+              echo "::error::FMT_BAD: $f"
+            fi
+          done
+          flutter analyze lib/services/sync/fk_rules.dart lib/services/cloudflare_sync_manager.dart > /tmp/ana.log 2>&1
+          echo "::notice::DIAG ANA_EXIT=$? (fk extraction files)"
+          grep -E 'error|warning' /tmp/ana.log | head -n 10 || true
+          flutter test test/unit/cloudflare_full_chain_contract_test.dart test/bookings_outbox_pull_diagnosis_test.dart --reporter compact > /tmp/t.log 2>&1
+          echo "::notice::DIAG TEST_EXIT=$? (fk-related tests)"
+          tail -n 5 /tmp/t.log

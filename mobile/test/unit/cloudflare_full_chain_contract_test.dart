@@ -149,7 +149,7 @@ Future<Set<String>> localColumns(AppDatabase db, String table) async {
   return rows.map((r) => r.data['name'] as String).toSet();
 }
 
-// مؤشرات FK الرقمية على السلك (مرآة _fkRules في cloudflare_sync_manager):
+// مؤشرات FK الرقمية على السلك (مرآة fkRules في sync/fk_rules.dart):
 // {الكيان: {العمود: جدول الأب}} — الترجمة عند السحب تتم عبر uuid_cache
 // أو ظلّ server_id للأب (اعتماداً على ترتيب السحب الخادمي).
 const Map<String, Map<String, String>> _fkPointers = {
