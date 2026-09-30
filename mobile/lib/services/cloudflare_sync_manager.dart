@@ -19,6 +19,7 @@ import '../utils/weak_device_optimizer.dart';
 import 'appwrite_models.dart' show AppwriteDevice;
 import 'booking_derived_fields_service.dart';
 import 'cloudflare_config.dart';
+import 'hotel_day_key_fix_service.dart';
 import 'cloudflare_d1_service.dart';
 import 'cloudflare_dual_run_service.dart';
 import 'cloudflare_realtime_sync.dart';
@@ -2476,6 +2477,7 @@ class CloudflareSyncManager {
           onApplied: (entity) {
             totalPulled++;
             pulledDerivedEntities.add(entity);
+            HotelDayKeyFixService.markTableDirtyFromSync(entity);
           },
           errors: retryErrors,
           conflictedSink: conflictedRecords,
@@ -2524,6 +2526,7 @@ class CloudflareSyncManager {
             onApplied: (entity) {
               totalPulled++;
               pulledDerivedEntities.add(entity);
+              HotelDayKeyFixService.markTableDirtyFromSync(entity);
             },
             errors: ledgerErrors,
             conflictedSink: conflictedRecords,
@@ -3636,6 +3639,7 @@ class CloudflareSyncManager {
           if (ok) {
             applied++;
             touched.add(item.entity);
+            HotelDayKeyFixService.markTableDirtyFromSync(item.entity);
           } else {
             stillPending.add(item);
           }
