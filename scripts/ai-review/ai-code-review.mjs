@@ -176,21 +176,28 @@ async function reviewWithAI(diffs) {
   ).join('\n\n');
   
   const systemPrompt = `You are an expert code reviewer for a production hotel management system (Flutter/Dart + Cloudflare Worker + TypeScript).
-Your job is to find REAL bugs, security issues, data loss risks, and performance problems.
+Your job is to find REAL bugs, security issues, data loss risks, and performance problems in the NEW code after the diff is applied.
+
+CRITICAL DIFF RULES:
+- In unified git diffs, lines starting with "-" are REMOVED old code, and lines starting with "+" are ADDED new code.
+- NEVER report an issue about "-" (removed) lines that have already been replaced by "+" (added) lines in the diff.
+- NEVER report an issue if your proposed code is already present in the "+" lines of the diff.
+- NEVER emit items saying "Already implemented" or "Already using" — only report unaddressed defects that still exist in the resulting code.
+- Remember Dart runs on a single-threaded event loop per isolate: synchronous Set/Map mutations without an \`await\` gap cannot race with other code on the same isolate.
 
 Focus on:
-1. 🔴 CRITICAL: Data loss, race conditions, security vulnerabilities, financial calculation errors
+1. 🔴 CRITICAL: Data loss, race conditions across async/await boundaries, security vulnerabilities, financial calculation errors
 2. 🟠 HIGH: Null safety issues, unhandled exceptions, resource leaks, missing error handling
 3. 🟡 MEDIUM: Performance issues, code smell, missing edge cases, API misuse
 4. 🔵 LOW: Style issues, documentation gaps, minor improvements
 
-For each issue, provide:
-- severity: CRITICAL | HIGH | MEDIUM | LOW
-- file: filename
+For each issue, provide a JSON object with:
+- severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+- file: filename string
 - line: approximate line number (or "unknown")
-- category: bug | security | performance | style | logic
-- message: what's wrong (in Arabic + English)
-- suggestion: how to fix it (code snippet if possible)
+- category: "bug" | "security" | "performance" | "style" | "logic"
+- message: plain string explaining what is wrong (in Arabic + English)
+- suggestion: plain string showing how to fix it (code snippet if possible)
 
 Respond as JSON array. If no issues found, return empty array [].
 Only report REAL issues — do not report false positives or style preferences.`;
@@ -260,6 +267,70 @@ ${codeBlocks}`;
       suggestion: 'See full AI response above.',
     }];
   }
+
+  // Build map of added lines per file to filter out diff-inversion hallucinations
+  const addedLinesByFile = new Map();
+  for (const d of diffs) {
+    const added = d.diff
+      .split('\n')
+      .filter(l => l.startsWith('+') && !l.startsWith('+++'))
+      .map(l => l.slice(1).trim())
+      .filter(Boolean);
+    addedLinesByFile.set(d.file, added);
+  }
+
+  issues = issues.filter(issue => {
+    if (!issue || typeof issue !== 'object') return false;
+    let suggestionObj = null;
+    if (issue.suggestion && typeof issue.suggestion === 'object') {
+      suggestionObj = issue.suggestion;
+    } else if (typeof issue.suggestion === 'string' && issue.suggestion.trim().startsWith('{')) {
+      try {
+        suggestionObj = JSON.parse(issue.suggestion);
+      } catch (_) {
+        // plain string suggestion
+      }
+    }
+    if (suggestionObj) {
+      if (!issue.message && typeof suggestionObj.explanation === 'string') {
+        issue.message = suggestionObj.explanation;
+      }
+      if (issue.line == null && suggestionObj.line != null) {
+        issue.line = suggestionObj.line;
+      }
+      if (typeof suggestionObj.proposedCode === 'string') {
+        issue.suggestion = suggestionObj.proposedCode;
+      } else {
+        issue.suggestion = JSON.stringify(suggestionObj, null, 2);
+      }
+    }
+    if (!issue.message) {
+      issue.message = typeof issue.explanation === 'string'
+        ? issue.explanation
+        : 'Review suggestion';
+    }
+
+    const combinedText = `${issue.message || ''} ${suggestionObj?.explanation || ''}`;
+    if (/\balready\s+(implemented|using|applied|fixed|present)\b/i.test(combinedText)) {
+      return false;
+    }
+
+    const proposed = (suggestionObj?.proposedCode ?? issue.proposedCode ?? '').toString().trim();
+    if (proposed && issue.file && addedLinesByFile.has(issue.file)) {
+      const addedLines = addedLinesByFile.get(issue.file);
+      const proposedLines = proposed
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0 && !l.startsWith('//'));
+      if (
+        proposedLines.length > 0 &&
+        proposedLines.every(pl => addedLines.some(al => al.includes(pl)))
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
   
   return {
     issues,

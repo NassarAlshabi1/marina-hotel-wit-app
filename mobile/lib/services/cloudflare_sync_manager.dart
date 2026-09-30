@@ -2286,7 +2286,7 @@ class CloudflareSyncManager {
             ...ledgerRemaining,
           ];
           final failedIds = {
-            for (final item in ledgerRemaining)
+            for (final item in [...ledgerRemaining, ...ledgerErrored])
               PullQuarantine.identity(
                 item.entity,
                 item.record['local_uuid']?.toString(),
@@ -2322,22 +2322,26 @@ class CloudflareSyncManager {
           final retryItems = _quarantine.collectHealCandidates();
           for (final item in retryItems) {
             try {
-              final ok = await _applyChange(item.entity, item.record);
+              final ok = await _applyChange(
+                item.entity,
+                item.record,
+                allowQuarantineSkip: false,
+              );
               if (ok) {
                 final id = PullQuarantine.identity(
                   item.entity,
                   item.record['local_uuid']?.toString(),
                 );
-                if (_quarantine.noteQuarantineHealed(id)) {
-                  ledgerDirty = true;
-                  totalPulled++;
-                  pulledDerivedEntities.add(item.entity);
-                  debugPrint(
-                    '🏥 Pull: quarantined ${item.entity}/'
-                    '${item.record['local_uuid']} healed — parent arrived '
-                    'or key freed',
-                  );
-                }
+                _quarantine.noteQuarantineHealed(id);
+                ledgerDirty = true;
+                totalPulled++;
+                pulledDerivedEntities.add(item.entity);
+                HotelDayKeyFixService.markTableDirtyFromSync(item.entity);
+                debugPrint(
+                  '🏥 Pull: quarantined ${item.entity}/'
+                  '${item.record['local_uuid']} healed — parent arrived '
+                  'or key freed',
+                );
               }
             } catch (_) {
               // ما زال محجوباً — يبقى معزولاً بصمت (المحاولة محلية
@@ -2743,6 +2747,20 @@ class CloudflareSyncManager {
     required Map<String, dynamic> record,
     required Map<String, dynamic>? existing,
   }) async {
+    if (entity == 'expenses') {
+      final empUuid = record['employee_uuid']?.toString().trim();
+      if (empUuid != null && empUuid.isNotEmpty) {
+        final localEmpId = await _lookupLocalParentId(
+          'employees',
+          'local_uuid',
+          empUuid,
+        );
+        if (localEmpId != null) {
+          record['related_id'] = localEmpId;
+        }
+      }
+    }
+
     final rules = fkRulesByEntity[entity];
     if (rules == null || rules.isEmpty) return true;
 
@@ -2859,7 +2877,11 @@ class CloudflareSyncManager {
     _db?.notifyUpdates({TableUpdate(tableName, kind: kind)});
   }
 
-  Future<bool> _applyChange(String entity, Map<String, dynamic> record) async {
+  Future<bool> _applyChange(
+    String entity,
+    Map<String, dynamic> record, {
+    bool allowQuarantineSkip = true,
+  }) async {
     if (_db == null) return true;
 
     if (record.isEmpty) return true;
@@ -2929,9 +2951,11 @@ class CloudflareSyncManager {
     );
     if (!relationsResolved) {
       // ✅ (مراجعة #2+#16) سجل معزول سابقاً وما زال أبُه مفقوداً —
-      // يُتخطى (لا يُؤجَّل ولا يُفشل الدورة): الحجر سبق أن منحه
-      // فرصته العادلة، وبقية البيانات يجب ألا تُرهق بسببه.
-      if (_quarantine.isQuarantined(entity, localUuid)) {
+      // يُتخطى عند وروده في صفحات السحب (لا يُؤجَّل ولا يُفشل الدورة):
+      // الحجر سبق أن منحه فرصته العادلة. أما في حلقة شفاء الحجر
+      // (allowQuarantineSkip: false) فيجب أن يعيد false ليبقى في الحجر.
+      final alreadyQuarantined = _quarantine.isQuarantined(entity, localUuid);
+      if (allowQuarantineSkip && alreadyQuarantined) {
         debugPrint(
           '⏭️ Pull: quarantined $entity/$localUuid still unresolvable — '
           'skipped (parent still missing server-side)',

@@ -142,6 +142,7 @@ const List<FkRule> fkRules = [
     kind: FkKind.numericPointer,
     parentTable: 'employees',
     parentKeyColumn: 'id',
+    uuidCacheColumn: 'employee_uuid',
   ),
   // دفعات الدورة → الدورة (سلّتان: موظف ثم دورة — ترتيب الأولويات
   // في إعادة المحاولة يضمن اكتمال السلسلة).
@@ -159,6 +160,7 @@ const List<FkRule> fkRules = [
     kind: FkKind.numericPointer,
     parentTable: 'employees',
     parentKeyColumn: 'id',
+    uuidCacheColumn: 'employee_uuid',
   ),
   // سجلات ترحيل الراتب → الموظف.
   FkRule(

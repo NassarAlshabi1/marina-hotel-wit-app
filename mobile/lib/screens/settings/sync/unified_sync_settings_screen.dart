@@ -241,13 +241,12 @@ class _UnifiedSyncSettingsScreenState
     final realtimeLabel = realtimeOk
         ? 'متصل'
         : (realtimeState.isListening ? 'يستمع — غير متصل' : 'متوقف');
-    final detailParts = <String>[
-      'محاولات: ${realtimeState.connectAttempts}',
-    ];
+    final detailParts = <String>['محاولات: ${realtimeState.connectAttempts}'];
     final lastEvent = realtimeState.lastEventAt;
     if (lastEvent != null) {
-      final String ago =
-          DateTimeFormatter.getRelativeTime(lastEvent.toIso8601String());
+      final String ago = DateTimeFormatter.getRelativeTime(
+        lastEvent.toIso8601String(),
+      );
       detailParts.add('آخر حدث: $ago');
     }
     final lastError = realtimeState.lastError;
