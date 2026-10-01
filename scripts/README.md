@@ -57,7 +57,8 @@ GRAPHITE_TOKEN=xxxx bash scripts/setup-graphite.sh
 ```
 
 #### مع الـ CI:
-`.github/workflows/graphite-pr.yml` يكرر نفس الخطوات تلقائيًا عند كل Pull Request:
+`.github/workflows/graphite-pr.yml` يكرر نفس الخطوات تلقائيًا على **كل الفروع**:
+عند كل Pull Request وعند كل `push` (ويمكن تشغيله يدويًا من تبويب Actions):
 `npm install -g @withgraphite/graphite-cli@stable` ثم `gt auth --token $GRAPHITE_TOKEN`.
 التوكن في CI يُقرأ من سرّ المستودع: **Settings → Secrets → Actions → `GRAPHITE_TOKEN`**.
 

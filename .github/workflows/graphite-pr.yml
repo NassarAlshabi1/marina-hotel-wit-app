@@ -1,6 +1,7 @@
 # ═══════════════════════════════════════════════════════════════
-# Graphite PR Workflow
-# يعمل تلقائيًا عند كل Pull Request ويقوم بـ:
+# Graphite Workflow — يعمل على كل الفروع
+# المشغّلات: كل Pull Request + كل push على أي فرع + تشغيل يدوي
+# ويقوم بـ:
 #   1) تثبيت Graphite CLI:  npm install -g @withgraphite/graphite-cli@stable
 #   2) التوثيق:             gt auth --token $GRAPHITE_TOKEN (من repo secret)
 #   3) عرض معلومات الـ stack للتحقق من التكامل مع GitHub PR
@@ -15,13 +16,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-name: Graphite PR
+name: Graphite
 
 permissions:
   contents: read
   pull-requests: write
 
 on:
+  push:
+    branches: ['**']   # كل الفروع (بدون tags)
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
@@ -65,7 +68,7 @@ jobs:
           GH_BRANCH: ${{ github.ref_name }}
         run: |
           {
-            echo "### ✅ Graphite PR Workflow"
+            echo "### ✅ Graphite Workflow"
             echo ""
             echo "| البند | القيمة |"
             echo "|-------|--------|"
