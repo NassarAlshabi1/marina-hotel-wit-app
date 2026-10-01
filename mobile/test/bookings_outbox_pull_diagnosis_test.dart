@@ -194,6 +194,11 @@ void main() {
       'cloudflare_sync_local_override': true,
       'cf_device_id': 'bookings-diag-device',
     });
+    // ✅ (2026-09-30) عزل حتمي: vector-clock bump في OutboxDao يُتخطى
+    // بصمت عندما يكون معرّف الجهاز الساكن فارغاً — T7 كان يفشل عندما
+    // يُنفَّذ قبل أي اختبار يضبطه (T6 عبر makeManager) لأن ترتيب seed
+    // عشوائي. الضبط هنا يجعل كل اختبار مكتفياً بذاته.
+    CloudflareSyncManager.setStaticDeviceId('bookings-diag-device');
     db = AppDatabase.forTesting(NativeDatabase.memory());
     worker = _StatefulWorker('bookings-diag-device');
   });

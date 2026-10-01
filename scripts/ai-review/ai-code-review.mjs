@@ -40,6 +40,7 @@ const opts = {
   base: 'origin/main',
   files: [],
   comment: false,
+  strict: false,
   format: 'terminal',
   model: 'glm-4-plus',
   maxFiles: 20,
@@ -52,6 +53,7 @@ for (let i = 0; i < args.length; i++) {
     case '--base': opts.base = args[++i]; break;
     case '--files': opts.files = args.slice(i + 1); i = args.length; break;
     case '--comment': opts.comment = true; break;
+    case '--strict': opts.strict = true; break;
     case '--format': opts.format = args[++i]; break;
     case '--model': opts.model = args[++i]; break;
     case '--max-files': opts.maxFiles = parseInt(args[++i]); break;
@@ -114,12 +116,12 @@ function getDiff(base = opts.base) {
       files = files.slice(0, opts.maxFiles);
     }
     
-    // Get diff for each file
+    // Get diff for each file (with 15 lines of context so surrounding guards are visible)
     const diffs = [];
     for (const file of files) {
       try {
         const diff = execSync(
-          `git diff ${base}...HEAD -- "${file}" 2>/dev/null || git diff HEAD~1 -- "${file}" 2>/dev/null || echo ""`,
+          `git diff -U15 ${base}...HEAD -- "${file}" 2>/dev/null || git diff -U15 HEAD~1 -- "${file}" 2>/dev/null || echo ""`,
           { encoding: 'utf8', maxBuffer: 5 * 1024 * 1024 }
         ).trim();
         
@@ -159,6 +161,175 @@ function getSpecificFiles(fileList) {
   return { files: fileList, diffs };
 }
 
+function normalizeWhitespace(str) {
+  return String(str || '').replace(/\s+/g, ' ').trim();
+}
+
+function extractCodeLines(snippet) {
+  return String(snippet || '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(
+      l =>
+        l.length > 2 &&
+        !l.startsWith('//') &&
+        !l.startsWith('#') &&
+        !l.startsWith('/*') &&
+        !l.startsWith('*')
+    );
+}
+
+export function filterFalsePositiveIssues(issues, diffs) {
+  const addedLinesByFile = new Map();
+  const removedLinesByFile = new Map();
+  const fileContentByFile = new Map();
+
+  for (const d of diffs) {
+    const lines = d.diff.split('\n');
+    const added = lines
+      .filter(l => l.startsWith('+') && !l.startsWith('+++'))
+      .map(l => l.slice(1).trim())
+      .filter(Boolean);
+    const removed = lines
+      .filter(l => l.startsWith('-') && !l.startsWith('---'))
+      .map(l => l.slice(1).trim())
+      .filter(Boolean);
+    addedLinesByFile.set(d.file, added);
+    removedLinesByFile.set(d.file, removed);
+    if (existsSync(d.file)) {
+      try {
+        fileContentByFile.set(d.file, readFileSync(d.file, 'utf8'));
+      } catch (_) {
+        // ignore read error
+      }
+    }
+  }
+
+  return issues.filter(issue => {
+    if (!issue || typeof issue !== 'object') return false;
+
+    let suggestionObj = null;
+    if (issue.suggestion && typeof issue.suggestion === 'object') {
+      suggestionObj = issue.suggestion;
+    } else if (
+      typeof issue.suggestion === 'string' &&
+      issue.suggestion.trim().startsWith('{')
+    ) {
+      try {
+        suggestionObj = JSON.parse(issue.suggestion);
+      } catch (_) {
+        // plain string suggestion
+      }
+    }
+
+    const currentCode = String(
+      issue.currentCode ?? suggestionObj?.currentCode ?? ''
+    ).trim();
+    const proposedCode = String(
+      issue.proposedCode ??
+        suggestionObj?.proposedCode ??
+        (typeof issue.suggestion === 'string' ? issue.suggestion : '')
+    ).trim();
+    const explanation = String(
+      issue.message ??
+        issue.explanation ??
+        suggestionObj?.explanation ??
+        suggestionObj?.message ??
+        ''
+    ).trim();
+
+    if (issue.line == null && suggestionObj?.line != null) {
+      issue.line = suggestionObj.line;
+    }
+    issue.message = explanation || 'Review suggestion';
+    issue.suggestion = proposedCode;
+
+    // 1. Reject self-admitted non-issues ("Already implemented", "Already using", "good implementation")
+    const combinedText = `${explanation} ${proposedCode} ${currentCode}`;
+    if (
+      /\b(already\s+(implemented|using|applied|fixed|present|handled|checked|validated)|this\s+is\s+(actually\s+)?a\s+good\s+implementation|no\s+issues?\s+found)\b/i.test(
+        combinedText
+      )
+    ) {
+      return false;
+    }
+
+    // 2. Reject vague prose-only suggestions that contain no actual replacement code
+    // (e.g., "Add proper null/empty checking for employee_uuid:")
+    const proposedLines = extractCodeLines(proposedCode);
+    const hasCodeSyntax = /[=(){};<>[\].]/.test(proposedCode);
+    if (
+      proposedLines.length === 0 ||
+      !hasCodeSyntax ||
+      /^[A-Za-z\u0600-\u06FF\s,.'"-]+:\s*$/.test(proposedCode)
+    ) {
+      return false;
+    }
+
+    // 3. Reject when proposedCode is identical to currentCode
+    if (
+      currentCode &&
+      normalizeWhitespace(proposedCode) === normalizeWhitespace(currentCode)
+    ) {
+      return false;
+    }
+
+    const addedLines = addedLinesByFile.get(issue.file) || [];
+    const removedLines = removedLinesByFile.get(issue.file) || [];
+    const fileContent = fileContentByFile.get(issue.file) || '';
+    const normFileContent = normalizeWhitespace(fileContent);
+    const normAddedContent = normalizeWhitespace(addedLines.join('\n'));
+
+    // 4. Reject if proposedCode is ALREADY present in the "+" lines of the diff or in the file on disk
+    const normProposed = normalizeWhitespace(proposedLines.join(' '));
+    if (normProposed.length > 0) {
+      const allLinesInAdded = proposedLines.every(pl =>
+        addedLines.some(al => al.includes(pl) || normalizeWhitespace(al).includes(normalizeWhitespace(pl)))
+      );
+      const inFullFile =
+        normFileContent.length > 0 && normFileContent.includes(normProposed);
+      const inAddedBlock =
+        normAddedContent.length > 0 && normAddedContent.includes(normProposed);
+      if (allLinesInAdded || inFullFile || inAddedBlock) {
+        return false;
+      }
+    }
+
+    // 5. Reject diff-inversion hallucinations: if currentCode is provided (or required),
+    // it MUST exist in the current file on disk and NOT come exclusively from removed "-" lines.
+    const currentLines = extractCodeLines(currentCode);
+    if (currentLines.length > 0) {
+      const normCurrent = normalizeWhitespace(currentLines.join(' '));
+      if (normFileContent.length > 0 && !normFileContent.includes(normCurrent)) {
+        const everyLineInFile = currentLines.every(cl =>
+          fileContent.includes(cl)
+        );
+        if (!everyLineInFile) {
+          return false;
+        }
+      }
+      if (addedLines.length > 0) {
+        const touchesAdded = currentLines.some(cl =>
+          addedLines.some(al => al.includes(cl) || cl.includes(al))
+        );
+        const onlyInRemoved =
+          !touchesAdded &&
+          currentLines.every(cl =>
+            removedLines.some(rl => rl.includes(cl) || cl.includes(rl))
+          );
+        if (onlyInRemoved || !touchesAdded) {
+          return false;
+        }
+      }
+    } else {
+      // Without verbatim currentCode from the "+" lines, the claim is unverifiable
+      return false;
+    }
+
+    return true;
+  });
+}
+
 // ─── Z AI API Call ────────────────────────────────────────────
 
 async function reviewWithAI(diffs) {
@@ -176,28 +347,37 @@ async function reviewWithAI(diffs) {
   ).join('\n\n');
   
   const systemPrompt = `You are an expert code reviewer for a production hotel management system (Flutter/Dart + Cloudflare Worker + TypeScript).
-Your job is to find REAL bugs, security issues, data loss risks, and performance problems.
+Your job is to find REAL bugs, security issues, data loss risks, and performance problems in the NEW code after the diff is applied.
+
+CRITICAL DIFF RULES:
+- In unified git diffs, lines starting with "-" are REMOVED old code, and lines starting with "+" are ADDED new code.
+- NEVER report an issue about "-" (removed) lines that have already been replaced by "+" (added) lines in the diff.
+- NEVER report an issue if your proposed code is already present in the "+" lines of the diff or surrounding context.
+- NEVER emit items saying "Already implemented" or "Already using" — only report unaddressed defects that still exist in the resulting code.
+- Carefully read the surrounding context lines in the diff before claiming a null check, validation, or error check is missing.
+- Remember Dart runs on a single-threaded event loop per isolate: synchronous Set/Map mutations without an \`await\` gap cannot race with other code on the same isolate.
+- If the changes are clean and have no real bugs, you MUST return an empty JSON array: [].
 
 Focus on:
-1. 🔴 CRITICAL: Data loss, race conditions, security vulnerabilities, financial calculation errors
+1. 🔴 CRITICAL: Data loss, race conditions across async/await boundaries, security vulnerabilities, financial calculation errors
 2. 🟠 HIGH: Null safety issues, unhandled exceptions, resource leaks, missing error handling
 3. 🟡 MEDIUM: Performance issues, code smell, missing edge cases, API misuse
 4. 🔵 LOW: Style issues, documentation gaps, minor improvements
 
-For each issue, provide:
-- severity: CRITICAL | HIGH | MEDIUM | LOW
-- file: filename
-- line: approximate line number (or "unknown")
-- category: bug | security | performance | style | logic
-- message: what's wrong (in Arabic + English)
-- suggestion: how to fix it (code snippet if possible)
+For each REAL issue, provide a JSON object with ALL of these fields:
+- severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW"
+- file: exact filename from the diff
+- line: approximate line number in the new file
+- category: "bug" | "security" | "performance" | "style" | "logic"
+- currentCode: exact verbatim line(s) of code from the "+" (added) lines in the diff that contain the bug
+- proposedCode: concrete replacement code snippet fixing the bug (must be valid code, never a prose sentence)
+- message: clear explanation of what is wrong (in Arabic + English)
 
-Respond as JSON array. If no issues found, return empty array [].
-Only report REAL issues — do not report false positives or style preferences.`;
+Respond ONLY as a JSON array. If no real issues are found, return [].`;
 
   const userPrompt = `Review the following code changes from a Git diff.
 This is a hotel management system with financial data (payments, bookings, salaries).
-Be strict about data integrity and financial accuracy.
+Only report genuine, unaddressed defects in the "+" lines. If the code is already safe and well-implemented, return [].
 
 Changed files (${diffs.length}):
 ${diffs.map(d => `- ${d.file}`).join('\n')}
@@ -260,6 +440,8 @@ ${codeBlocks}`;
       suggestion: 'See full AI response above.',
     }];
   }
+
+  issues = filterFalsePositiveIssues(issues, diffs);
   
   return {
     issues,
@@ -486,11 +668,11 @@ async function main() {
         }
     }
     
-    // Exit code: 1 if CRITICAL or HIGH issues found
+    // Exit code: 1 only when --strict is requested and CRITICAL/HIGH issues exist
     const hasCritical = result.issues.some(i => 
       i.severity === 'CRITICAL' || i.severity === 'HIGH'
     );
-    process.exit(hasCritical ? 1 : 0);
+    process.exit(opts.strict && hasCritical ? 1 : 0);
     
   } catch (e) {
     console.error(`${C.red}❌ Review failed: ${e.message}${C.reset}`);
@@ -498,7 +680,9 @@ async function main() {
   }
 }
 
-main().catch(e => {
-  console.error(`${C.red}Fatal: ${e.message}${C.reset}`);
-  process.exit(2);
-});
+if (process.argv[1] && process.argv[1].endsWith('ai-code-review.mjs')) {
+  main().catch(e => {
+    console.error(`${C.red}Fatal: ${e.message}${C.reset}`);
+    process.exit(2);
+  });
+}

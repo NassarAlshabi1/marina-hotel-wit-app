@@ -165,6 +165,62 @@ describe('auth: login + JWT', () => {
     );
   });
 
+  // ✅ (2026-09-30) عقد سياسة الاعتمادات: create-time فقط — كلمات المرور
+  // المخزنة سابقاً (مهما قصُرت) لا تتأثر، والتسجيل الجديد مرفوض تحت 8.
+  it('register enforces credential policy (short/long password, long username → 400)', async () => {
+    const attempt = (payload: Record<string, string>): Promise<Response> =>
+      SELF.fetch(REGISTER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+    const short = await attempt({ username: 'u-short', password: '1234567' });
+    expect(short.status).toBe(400);
+    expect(((await short.json()) as { error: string }).error).toContain('min 8');
+
+    const longPw = await attempt({ username: 'u-long', password: 'x'.repeat(257) });
+    expect(longPw.status).toBe(400);
+    expect(((await longPw.json()) as { error: string }).error).toContain('max 256');
+
+    const longUser = await attempt({ username: 'u'.repeat(65), password: 'valid-pass-1' });
+    expect(longUser.status).toBe(400);
+    expect(((await longUser.json()) as { error: string }).error).toContain('max 64');
+
+    // الحد الأدنى نفسه مقبول (8 أحرف بالضبط).
+    const boundary = await attempt({ username: 'u-ok', password: '12345678' });
+    expect(boundary.status).toBe(201);
+  });
+
+  // ✅ (2026-09-30) عقد سقوف الدخول: upper bounds فقط — القصير الموجود
+  // يعمل، والشاذ يُرفض 400 قبل أي عمل PBKDF2 (حارس DoS).
+  it('login rejects oversized fields with 400 (policy, not credentials)', async () => {
+    const attempt = (payload: Record<string, string>): Promise<Response> =>
+      SELF.fetch(LOGIN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+    const longUser = await attempt({ username: 'u'.repeat(129), password: 'x' });
+    expect(longUser.status).toBe(400);
+
+    const longPw = await attempt({ username: 'admin', password: 'x'.repeat(1025) });
+    expect(longPw.status).toBe(400);
+
+    const longDevice = await attempt({
+      username: 'admin',
+      password: 'x',
+      device_id: 'd'.repeat(129),
+    });
+    expect(longDevice.status).toBe(400);
+
+    // قيمة عادية لمستخدم غير موجود تبقى 401 (لا 400) — عقد التمييز سليم.
+    const unknown = await attempt({ username: 'no-such-user', password: 'x' });
+    expect(unknown.status).toBe(401);
+    expect(((await unknown.json()) as { error: string }).error).toBe('Invalid credentials');
+  });
+
   it('rejects tampered, unsigned and expired tokens on protected endpoints (401)', async () => {
     const auth = await adminAuthHeader();
 

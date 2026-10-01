@@ -76,9 +76,25 @@ import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
 import 'utils/performance_config.dart';
 import 'utils/theme.dart';
+import 'utils/weak_device_optimizer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ─── ✅ (2026-09-30) كشف قدرة الجهاز أولاً وقبل كل شيء ───
+  // كان هذا الاستدعاء غائباً تماماً: كل حدود الأجهزة الضعيفة (SQLite
+  // low-RAM pragmas، image/API caches، دفعات المزامنة، debounce) كانت
+  // حبراً على ورق — كل الأجهزة (حتى 1GB) تعمل بملف الجهاز القوي.
+  // يجب أن يكتمل قبل configurePerformance() وقبل أول فتح لقاعدة البيانات.
+  // fail-open: أي فشل يُبقي المستوى 0 (سلوك اليوم) بدل تعطيل الإقلاع.
+  try {
+    await WeakDeviceOptimizer.instance.initialize().timeout(
+      const Duration(seconds: 2),
+      onTimeout: () => debugPrint('⚠️ WeakDeviceOptimizer init timed out'),
+    );
+  } catch (e) {
+    debugPrint('⚠️ WeakDeviceOptimizer init failed (fail-open): $e');
+  }
 
   // ─── ✅ (2026-09-09) سجل نقاط نهاية Worker: تحميل مبكر قبل أي
   // مزامنة/اتصال — النطاق المخصّص (تجاوز حجب workers.dev في اليمن)

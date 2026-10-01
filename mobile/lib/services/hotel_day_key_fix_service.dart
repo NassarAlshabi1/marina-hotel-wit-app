@@ -1,4 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
@@ -39,6 +44,96 @@ class HotelDayKeyFixService {
   /// هل تم الإصلاح بالفعل في هذه الجلسة؟
   bool _applied = false;
 
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ (2026-09-30) حارس البصمة — تخطي الفحص عند ثبات البيانات.
+  //
+  // التشخيص (بأدلة الكود): runIfNeeded كان يحمّل ~12 جدولاً كاملاً في
+  // ذاكرة Dart عند كل إقلاع بارد — audit_logs وpayments وexpenses×2
+  // وsalary_withdrawals×3 وemployees×2 وغيرها — حتى في الحالة المستقرة
+  // (totalFixed == 0). على جهاز 1GB: عاصفة deserialization + ضغط GC
+  // وتأخير بدء المزامنة. الحارس يختزلها إلى 9 استعلامات تجميعية
+  // (COUNT+MAX) ثم تخطٍّ كامل.
+  //
+  // برهان سلامة التخطي — الفحص يُتخطى فقط إذا تحققت كلها:
+  // 1) لا صف مطبَّق من السحب على جداول المصدر منذ آخر فحص نظيف
+  //    (أعلام تلوث دائمة عبر markTableDirtyFromSync من مدير المزامنة).
+  // 2) بصمة الجداول (COUNT + MAX(updated_at)) مطابقة للمخزّن —
+  //    تكشف الاستعادة من نسخة قديمة.
+  // 3) نسخة السكيمة وقاعدة الحساب لم تتغيرا.
+  // الكتابة المحلية تستخدم القاعدة الحالية فمفاتيحها سليمة بالبناء،
+  // وكتابات المزامنة الأخرى (tombstones/derived/version) لا تمس مادة
+  // المفتاح (العمود الزمني + hotelDayKey). أي استثناء → الفحص الأصلي.
+  // ═══════════════════════════════════════════════════════════════
+
+  /// جداول المصدر لكل فحص من الفحوص التسعة (مطابق لأجسام _fix*).
+  static const Map<String, List<String>> _sweepSources = {
+    'expenses': ['expenses'],
+    'withdrawals': ['salary_withdrawals'],
+    'withdrawals_uuid': ['salary_withdrawals', 'employees'],
+    'links': ['expenses', 'salary_withdrawals', 'employees'],
+    'payments': ['payments'],
+    'nights': ['booking_nights'],
+    'salary_payments': ['salary_payments'],
+    'voids': ['payment_voids'],
+    'audit': ['audit_logs'],
+  };
+
+  static const String _stampsPrefsKey = 'hdkf_clean_stamps_v1';
+  static const String _dirtyPrefsKey = 'hdkf_dirty_tables_v1';
+
+  /// نسخة قاعدة [computeCorrectHotelDayKey] — تُرفع يدوياً عند تغييرها.
+  static const int _ruleVersion = 1;
+
+  /// جداول لوثها السحب ولم يُحفظ تلوثها بعد.
+  static final Set<String> _dirtyTables = {};
+  static Timer? _dirtyFlushTimer;
+
+  /// قرارات آخر تشغيل (sweep → هل أُجري فعلاً؟) — للتشخيص والاختبارات.
+  final Map<String, bool> lastSweepRan = {};
+
+  /// يُستدعى من مدير المزامنة بعد تطبيق صف مسحوب بنجاح.
+  ///
+  /// أسماء الكيانات مطابقة لأسماء الجداول على الجداول المفحوصة؛ أي
+  /// كيان آخر يُخزّن بلا أثر (لا يطابق أي مصدر فحص). الحفظ مُجمَّع
+  /// بمهلة قصيرة حتى لا تُغرق دفعة سحب كبيرة قناة SharedPreferences.
+  static void markTableDirtyFromSync(String entity) {
+    _dirtyTables.add(entity);
+    _dirtyFlushTimer ??= Timer(const Duration(milliseconds: 500), () {
+      _dirtyFlushTimer = null;
+      unawaited(_flushDirtyTables());
+    });
+  }
+
+  static Future<void> _flushDirtyTables() async {
+    if (_dirtyTables.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final persisted = prefs.getStringList(_dirtyPrefsKey) ?? const [];
+      final merged = <String>{...persisted, ..._dirtyTables}.toList();
+      await prefs.setStringList(_dirtyPrefsKey, merged);
+    } catch (_) {
+      // فشل الحفظ يُعوَّض تلقائياً: العلامات تبقى في الذاكرة وأي
+      // تلوث لاحق يعيد الحفظ شاملاً إياها.
+    }
+  }
+
+  /// حفظ فوري لعلامات التلوث (ي bypass المهلة) — للاختبارات فقط.
+  @visibleForTesting
+  static Future<void> flushDirtyForTesting() async {
+    _dirtyFlushTimer?.cancel();
+    _dirtyFlushTimer = null;
+    await _flushDirtyTables();
+  }
+
+  @visibleForTesting
+  void resetForTesting() {
+    _applied = false;
+    lastSweepRan.clear();
+    _dirtyFlushTimer?.cancel();
+    _dirtyFlushTimer = null;
+    _dirtyTables.clear();
+  }
+
   /// تشغيل الإصلاح (مرة واحدة فقط لكل جلسة)
   Future<void> runIfNeeded(AppDatabase db) async {
     if (_applied) return;
@@ -49,15 +144,113 @@ class HotelDayKeyFixService {
     int totalFixed = 0;
 
     try {
-      totalFixed += await _fixExpenses(db);
-      totalFixed += await _fixSalaryWithdrawals(db);
-      totalFixed += await _fixSalaryWithdrawalsEmployeeUuid(db);
-      totalFixed += await _fixExpenseWithdrawalLinks(db);
-      totalFixed += await _fixPayments(db);
-      totalFixed += await _fixBookingNights(db);
-      totalFixed += await _fixSalaryPayments(db);
-      totalFixed += await _fixPaymentVoids(db);
-      totalFixed += await _fixAuditLogs(db);
+      // تثبيت علامات التلوث التي سبقت التشغيل (سحب متسابق مع الإقلاع):
+      // تُدمج مع المخزّن ثم تُصفَّر الذاكرة لتمييز ما يصل أثناء التشغيل
+      // (يبقى ملوثاً للتشغيل التالي لأن صفوفه وصلت بعد الفحص).
+      _dirtyFlushTimer?.cancel();
+      _dirtyFlushTimer = null;
+      final racedMarks = Set<String>.of(_dirtyTables);
+      _dirtyTables.clear();
+      final persistedDirty = await _loadDirtyTables();
+      final dirtyAtStart = <String>{...persistedDirty, ...racedMarks};
+
+      final stamps = await _loadStamps();
+      final schemaVersion = db.schemaVersion;
+      lastSweepRan.clear();
+      final sweptSources = <String>{};
+      totalFixed += await _guardedSweep(
+        db,
+        stamps,
+        schemaVersion,
+        dirtyAtStart,
+        sweptSources,
+        'expenses',
+        _fixExpenses,
+      );
+      totalFixed += await _guardedSweep(
+        db,
+        stamps,
+        schemaVersion,
+        dirtyAtStart,
+        sweptSources,
+        'withdrawals',
+        _fixSalaryWithdrawals,
+      );
+      totalFixed += await _guardedSweep(
+        db,
+        stamps,
+        schemaVersion,
+        dirtyAtStart,
+        sweptSources,
+        'withdrawals_uuid',
+        _fixSalaryWithdrawalsEmployeeUuid,
+      );
+      totalFixed += await _guardedSweep(
+        db,
+        stamps,
+        schemaVersion,
+        dirtyAtStart,
+        sweptSources,
+        'links',
+        _fixExpenseWithdrawalLinks,
+      );
+      totalFixed += await _guardedSweep(
+        db,
+        stamps,
+        schemaVersion,
+        dirtyAtStart,
+        sweptSources,
+        'payments',
+        _fixPayments,
+      );
+      totalFixed += await _guardedSweep(
+        db,
+        stamps,
+        schemaVersion,
+        dirtyAtStart,
+        sweptSources,
+        'nights',
+        _fixBookingNights,
+      );
+      totalFixed += await _guardedSweep(
+        db,
+        stamps,
+        schemaVersion,
+        dirtyAtStart,
+        sweptSources,
+        'salary_payments',
+        _fixSalaryPayments,
+      );
+      totalFixed += await _guardedSweep(
+        db,
+        stamps,
+        schemaVersion,
+        dirtyAtStart,
+        sweptSources,
+        'voids',
+        _fixPaymentVoids,
+      );
+      totalFixed += await _guardedSweep(
+        db,
+        stamps,
+        schemaVersion,
+        dirtyAtStart,
+        sweptSources,
+        'audit',
+        _fixAuditLogs,
+      );
+      // حفظ الطوابع + التلوث المتبقي: (قديم − مفحوص) ∪ (وصل أثناء
+      // التشغيل). الترتيب مقصود: علامة وصلت بعد فحص جدولها يجب أن
+      // تبقى (صفوفها لم تُفحص)، وunion بعد الإزالة يضمن ذلك.
+      final remainingDirty = <String>{...dirtyAtStart}
+        ..removeAll(sweptSources)
+        ..addAll(_dirtyTables);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_stampsPrefsKey, jsonEncode(stamps));
+      await prefs.setStringList(_dirtyPrefsKey, remainingDirty.toList());
+      _dirtyTables
+        ..clear()
+        ..addAll(remainingDirty);
     } catch (e) {
       dwarn(() => '⚠️ HotelDayKeyFixService: خطأ أثناء الإصلاح: $e');
     }
@@ -66,6 +259,111 @@ class HotelDayKeyFixService {
       dlog(() => '✅ HotelDayKeyFixService: تم إصلاح $totalFixed سجل إجمالاً');
     } else {
       dlog('✅ HotelDayKeyFixService: لا توجد سجلات تحتاج إصلاح');
+    }
+  }
+
+  /// فحص واحد محروس: تخطٍّ عند (لا تلوث + بصمة مطابقة + نسخ مطابقة).
+  ///
+  /// استثناءات الفحص نفسه تنتشر كما كانت قبل الحارس (تُجهض البقية
+  /// ويُمسكها catch في [runIfNeeded]) — لا تغيير في سلوك الأخطاء.
+  Future<int> _guardedSweep(
+    AppDatabase db,
+    Map<String, dynamic> stamps,
+    int schemaVersion,
+    Set<String> dirtyAtStart,
+    Set<String> sweptSources,
+    String name,
+    Future<int> Function(AppDatabase) sweep,
+  ) async {
+    var skip = false;
+    try {
+      final sources = _sweepSources[name]!;
+      if (!sources.any(dirtyAtStart.contains)) {
+        final fp = await _fingerprint(db, sources);
+        skip = _stampMatches(stamps[name], fp, schemaVersion);
+      }
+    } catch (_) {
+      skip = false;
+    }
+    if (skip) {
+      lastSweepRan[name] = false;
+      return 0;
+    }
+    lastSweepRan[name] = true;
+    final fixed = await sweep(db);
+    try {
+      // إعادة قراءة البصمة بعد الفحص (الفحص نفسه يكتب version+1).
+      final fpAfter = await _fingerprint(db, _sweepSources[name]!);
+      stamps[name] = {
+        'schema': schemaVersion,
+        'rule': _ruleVersion,
+        'fp': fpAfter,
+      };
+      sweptSources.addAll(_sweepSources[name]!);
+    } catch (_) {
+      // فشل التخزين = إعادة الفحص عند التشغيل التالي (fail-open).
+    }
+    return fixed;
+  }
+
+  /// بصمة خفيفة: COUNT + MAX(updated_at) لكل جدول (تجميع فقط، بلا
+  /// تحميل صفوف). أسماء الجداول من ثابت داخلي — لا حقن SQL.
+  Future<Map<String, List<int>>> _fingerprint(
+    AppDatabase db,
+    List<String> tables,
+  ) async {
+    final fp = <String, List<int>>{};
+    for (final t in tables) {
+      final row = await db
+          .customSelect(
+            'SELECT COUNT(*) AS c, COALESCE(MAX(updated_at), 0) AS m FROM $t',
+          )
+          .getSingle();
+      final c = row.data['c'];
+      final m = row.data['m'];
+      fp[t] = [(c is num) ? c.toInt() : 0, (m is num) ? m.toInt() : 0];
+    }
+    return fp;
+  }
+
+  bool _stampMatches(
+    dynamic stamp,
+    Map<String, List<int>> fp,
+    int schemaVersion,
+  ) {
+    if (stamp is! Map) return false;
+    if (stamp['schema'] != schemaVersion) return false;
+    if (stamp['rule'] != _ruleVersion) return false;
+    final sfp = stamp['fp'];
+    if (sfp is! Map) return false;
+    for (final entry in fp.entries) {
+      final s = sfp[entry.key];
+      if (s is! List || s.length != 2) return false;
+      if (s[0] != entry.value[0] || s[1] != entry.value[1]) return false;
+    }
+    return true;
+  }
+
+  Future<Map<String, dynamic>> _loadStamps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_stampsPrefsKey);
+      if (raw == null || raw.isEmpty) return {};
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<Set<String>> _loadDirtyTables() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return Set<String>.of(
+        prefs.getStringList(_dirtyPrefsKey) ?? const [],
+      );
+    } catch (_) {
+      return {};
     }
   }
 

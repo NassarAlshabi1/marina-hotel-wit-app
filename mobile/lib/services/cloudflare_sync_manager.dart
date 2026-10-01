@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/settings/error_tracker_screen.dart'
     show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
+import '../utils/weak_device_optimizer.dart';
 import 'appwrite_models.dart' show AppwriteDevice;
 import 'booking_derived_fields_service.dart';
 import 'cloudflare_config.dart';
@@ -22,11 +23,15 @@ import 'cloudflare_d1_service.dart';
 import 'cloudflare_dual_run_service.dart';
 import 'cloudflare_realtime_sync.dart';
 import 'daos/outbox_dao.dart';
+import 'hotel_day_key_fix_service.dart';
 import 'local_db.dart';
 import 'logging/log_models.dart' show LogLevel;
 import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
+import 'sync/fk_rules.dart';
 import 'sync/payload_normalizer.dart';
+import 'sync/pull_apply_rules.dart';
+import 'sync/pull_quarantine.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_enums.dart';
 import 'vector_clock_service.dart';
@@ -36,226 +41,6 @@ import 'worker_endpoints.dart';
 // (WebSocket على SyncLockDO) — الاستيراد أعلاه + هذا الـ export يحفظان
 // كل imports القائمة دون تغيير في بقية الملفات.
 export 'cloudflare_realtime_sync.dart';
-
-// ─── قواعد ترجمة علاقات FK بين هوية الخادم والهوية المحلية ─────
-
-/// نوع قاعدة FK:
-/// - [numericPointer]: العمود الرقمي على الابن يحمل id الأب في فضاء
-///   الخادم (D1) — تُترجم القيمة إلى id الصف المحلي عند التطبيق.
-/// - [naturalKey]: العمود نصّي يحمل مفتاحاً عالمياً ثابتاً بين الأجهزة
-///   (room_number أو local_uuid للأب) — القيمة تمر كما هي، والمطلوب
-///   فقط التأكد من وجود الأب (وإلا يؤجَّل الصف).
-enum _FkKind { numericPointer, naturalKey }
-
-class _FkRule {
-  const _FkRule({
-    required this.entity,
-    required this.column,
-    required this.kind,
-    required this.parentTable,
-    required this.parentKeyColumn,
-    this.nullable = false,
-    this.uuidCacheColumn,
-    this.legacyServerBookingId = false,
-    this.nullWhenUnresolvable = false,
-  });
-
-  /// كيان الابن (اسم جدول D1).
-  final String entity;
-
-  /// عمود FK على الابن.
-  final String column;
-
-  final _FkKind kind;
-
-  /// جدول الأب المحلي.
-  final String parentTable;
-
-  /// عمود المفتاح على الأب: 'id' للمؤشرات الرقمية، أو المفتاح الطبيعي
-  /// (room_number / local_uuid) لقواعد naturalKey.
-  final String parentKeyColumn;
-
-  /// هل يقبل العمود NULL محلياً؟ (غير القابل للـ null بلا حل = تأجيل).
-  final bool nullable;
-
-  /// عمود uuid-cache على الابن يحمل local_uuid الأب — المفتاح العالمي
-  /// الأول (مثل booking_uuid_cache / item_local_uuid).
-  final String? uuidCacheColumn;
-
-  /// جرّب أيضاً فضاء Appwrite القديم: server_booking_id على الابن ضد
-  /// server_booking_id على الأب (الصفوف المهاجرة من Appwrite تشترك
-  /// في فضاء المعرفات هذا).
-  final bool legacyServerBookingId;
-
-  /// مؤشر ثانوي غير جوهري (cash_transaction_local_id): تعذّرت الترجمة
-  /// → NULL بدل تعطيل دورة السحب كلها. لا يُستخدم إلا مع nullable.
-  final bool nullWhenUnresolvable;
-}
-
-/// خريطة علاقات FK المحلية التي تحمل هوية خادمية — مستخرجة آلياً من
-/// local_db.dart (كل .references) وschema.sql الخادمي.
-///
-/// ملاحظات:
-///  * payment_voids وprice_adjustments أعمدتها كلها uuid عالمية بلا
-///    قيود FK محلية — تمر بلا ترجمة، فلا قاعدة لها هنا.
-///  * bookings.room_number → rooms.room_number مفتاح طبيعي ثابت بين
-///    الأجهزة (نفس النص)، المطلوب وجود الغرفة فقط.
-const List<_FkRule> _fkRules = [
-  // الحجوزات: room_number مفتاح طبيعي على الغرف.
-  _FkRule(
-    entity: 'bookings',
-    column: 'room_number',
-    kind: _FkKind.naturalKey,
-    parentTable: 'rooms',
-    parentKeyColumn: 'room_number',
-  ),
-  // ليالي الحجز → الحجز.
-  _FkRule(
-    entity: 'booking_nights',
-    column: 'booking_local_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'bookings',
-    parentKeyColumn: 'id',
-    uuidCacheColumn: 'booking_uuid_cache',
-    legacyServerBookingId: true,
-  ),
-  // ملاحظات الحجز → الحجز (لا uuid-cache على السلك — الاعتماد على
-  // ظلّ server_id للأب أو فضاء Appwrite).
-  _FkRule(
-    entity: 'booking_notes',
-    column: 'booking_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'bookings',
-    parentKeyColumn: 'id',
-    legacyServerBookingId: true,
-  ),
-  // المدفوعات → الحجز (قابل للـ null — دفعة بلا حجز تمر بـ NULL).
-  _FkRule(
-    entity: 'payments',
-    column: 'booking_local_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'bookings',
-    parentKeyColumn: 'id',
-    nullable: true,
-    uuidCacheColumn: 'booking_uuid_cache',
-    legacyServerBookingId: true,
-  ),
-  // المدفوعات → معاملة الصندوق: مؤشر ثانوي بلا مفتاح عالمي على السلك
-  // (local_id المحلي للجهاز الدافع لا معنى له بين الأجهزة) — تعذّرت
-  // الترجمة → NULL ولا يُعطَّل السحب لمجرد مؤشر صندوق.
-  _FkRule(
-    entity: 'payments',
-    column: 'cash_transaction_local_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'cash_transactions',
-    parentKeyColumn: 'id',
-    nullable: true,
-    nullWhenUnresolvable: true,
-  ),
-  // تسويات السعر → الحجز (بالمعرّفين معاً).
-  _FkRule(
-    entity: 'booking_price_adjustments',
-    column: 'booking_local_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'bookings',
-    parentKeyColumn: 'id',
-    nullable: true,
-    uuidCacheColumn: 'booking_uuid',
-    legacyServerBookingId: true,
-  ),
-  _FkRule(
-    entity: 'booking_price_adjustments',
-    column: 'booking_local_uuid',
-    kind: _FkKind.naturalKey,
-    parentTable: 'bookings',
-    parentKeyColumn: 'local_uuid',
-  ),
-  // دورات الرواتب → الموظف.
-  _FkRule(
-    entity: 'salary_cycles',
-    column: 'employee_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'employees',
-    parentKeyColumn: 'id',
-  ),
-  // دفعات الدورة → الدورة (سلّتان: موظف ثم دورة — ترتيب الأولويات
-  // في إعادة المحاولة يضمن اكتمال السلسلة).
-  _FkRule(
-    entity: 'salary_payments',
-    column: 'cycle_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'salary_cycles',
-    parentKeyColumn: 'id',
-  ),
-  // السحب من الراتب → الموظف.
-  _FkRule(
-    entity: 'salary_withdrawals',
-    column: 'employee_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'employees',
-    parentKeyColumn: 'id',
-  ),
-  // سجلات ترحيل الراتب → الموظف.
-  _FkRule(
-    entity: 'salary_carry_over_logs',
-    column: 'employee_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'employees',
-    parentKeyColumn: 'id',
-  ),
-  // حركات المخزون → صنف المخزون (item_local_uuid مفتاح عالمي).
-  _FkRule(
-    entity: 'inventory_transactions',
-    column: 'item_id',
-    kind: _FkKind.numericPointer,
-    parentTable: 'inventory_items',
-    parentKeyColumn: 'id',
-    uuidCacheColumn: 'item_local_uuid',
-  ),
-];
-
-final Map<String, List<_FkRule>> _fkRulesByEntity = (() {
-  final map = <String, List<_FkRule>>{};
-  for (final rule in _fkRules) {
-    map.putIfAbsent(rule.entity, () => <_FkRule>[]).add(rule);
-  }
-  return map;
-})();
-
-/// أولوية الآباء عند إعادة محاولة الصفوف المؤجلة — الأب قبل الابن.
-const Map<String, int> _pullApplyPriority = {
-  'rooms': 0,
-  'employees': 1,
-  'inventory_items': 1,
-  'cash_transactions': 1,
-  'bookings': 2,
-  'salary_cycles': 3,
-  'booking_nights': 4,
-  'payments': 4,
-  'booking_notes': 4,
-  'guest_infos': 4,
-  'booking_price_adjustments': 4,
-  'inventory_transactions': 4,
-  'salary_withdrawals': 4,
-  'salary_carry_over_logs': 4,
-  'salary_payments': 5,
-};
-
-/// ✅ (2026-09-09) إصلاح تجميد السحب (398 ليلة): المفاتيح الطبيعية
-/// الفريدة محلياً لكل كيان (uniqueKeys في local_db.dart). صف خادمي
-/// يصل بـ local_uuid جديد لكن بمفتاح طبيعي موجود محلياً = نسخة
-/// مكررة منطقياً (أصل: سطر restore نسخة احتياطية بـ idempotency_key
-/// «backup_*»، أو إعادة بناء مشتقات محلية origin='auto_fix' مقابل
-/// نسخ خادمية لنفس الليلة). INSERT عليها كان يرمي SqliteException(2067)
-/// فيُفشل كل دورة سحب إلى الأبد.
-///
-/// العقد: قبل INSERT نبحث بالمفتاح الطبيعي — إن وُجد صف محلي فالوارد
-/// نسخة مكررة تُدمج بـ LWW (الأحدث بيانات يفوز، هوية الصف المحلي
-/// تبقى) ولا يُدرج صف ثانٍ. UNIQUE المحلي يبقى ضامناً لصف واحد لكل
-/// ليلة، والدورة تكمل بدل أن تتجمد.
-const Map<String, List<String>> _naturalUniqueKeys = {
-  'booking_nights': ['booking_local_id', 'hotel_day_key'],
-};
 
 // ─── SyncPullProgress (2026-09-10 مؤشر تقدم السحب) ─────────────
 
@@ -469,64 +254,8 @@ class CloudflareSyncManager {
   /// لا يُحرّك checkpoint لأي collection فشلت حتى تنجح في محاولة لاحقة.
   final Set<String> _failedCollectionsInLastSync = <String>{};
 
-  // ─── الحجر الصحي وسجل الانتظار للصفوف اليتيمة (2026-09-09 → 2026-09-15) ──
-  //
-  // المشكلة: صف واحد بأبٍ مفقود خادمياً (يتيم بنيوي — أبُه حُذف يدوياً
-  // من D1 أو لم يُنشأ أصلاً) كان يُفشل دورة السحب كلها عند كل محاولة
-  // → المؤشر لا يتحرك → full sync لا يكتمل → bootstrap يعيد المحاولة
-  // عند كل إقلاع إلى الأبد (خطأ بيانات واحد = جهاز مجمّد نهائياً).
-  //
-  // السياسة القديمة (2026-09-09): تدرّج 3 دورات لكن عبر «تراجع المؤشر» —
-  // كل دورة بهوية محجوبة تعيد سحب كل الصفحات وتطبيقها من أول الدورة
-  // (7,300+ صف) حتى تكتمل العتبة. مكلف زمنياً جداً على شبكة يمن، ويولّد
-  // تكراراً مزعجاً في مركز الأخطاء (تقرير 2026-09-14: 55 سجلاً محجوباً).
-  //
-  // السياسة المصححة (2026-09-15 — طلب المستخدم: تسريع السحب وإصلاح
-  // تجميد المؤشر): «سجل انتظار» بالحمولات الكاملة —
-  //   1. المؤشر يتقدم في نفس الدورة طالما الصفحات نفسها سليمة (لا شبكة/
-  //      HTTP/JSON/جداول متخطاة) — الصفحات طبّقت كلها فعلاً.
-  //   2. كل سجل محجوب (أب غير محلول أو تعارض مفتاح فريد) تُحفظ حمولته
-  //      كاملة في [_blockedPending] (persistent) ويُعاد حلّه من الحمولة
-  //      في كل دورة — بلا إعادة سحب أي صفحة إطلاقاً.
-  //   3. بعد [_quarantineBlockThreshold] دورات بنفس الهوية: يُنقل لسجل
-  //      الحجر [_quarantinedRecords] (مع حمولته أيضاً) ويتوقف عن إثقال
-  //      الدورة نهائياً.
-  //   4. الشفاء تلقائي من الحمولة: وصول الأب أو تفريغ المفتاح أو وصول
-  //      tombstone → التطبيق ينجح في إعادة المحاولة الدورية → يُمسح من
-  //      السجلين معاً. (وعد السابق كان معلقاً على إعادة بث الصف من
-  //      الخادم — الآن محقق دائماً لأن الحمولة محلية.)
-  static const String _kQuarantineCountsKey = 'cf_pull_orphan_block_counts';
-  static const String _kQuarantinedKey = 'cf_pull_quarantined_records';
-  static const String _kBlockedPendingKey = 'cf_pull_blocked_pending';
-  static const int _quarantineBlockThreshold = 3;
-
-  /// عدد الدورات التي حُجب فيها كل سجل معتّق (identity = 'entity/uuid').
-  final Map<String, int> _orphanBlockCounts = <String, int>{};
-
-  /// سجل الحجر الصحي: identity -> بيانات التشخيص + حمولة السجل (record)
-  /// لإعادة المحاولة الدورية (الشفاء من الحمولة المحلية).
-  final Map<String, Map<String, dynamic>> _quarantinedRecords =
-      <String, Map<String, dynamic>>{};
-
-  /// ✅ (2026-09-15) سجل الانتظار: المحجوبون تحت العتبة مع حمولاتهم —
-  /// يُعاد حلّهم من الحمولة كل دورة بدل إعادة سحب الصفحات عبر تراجع
-  /// المؤشر. السقف يمنع انفجار التخزين في حالات مرضية قصوى.
-  final Map<String, ({String entity, Map<String, dynamic> record})>
-  _blockedPending = <String, ({String entity, Map<String, dynamic> record})>{};
-
-  /// سقف سجل الانتظار (عدد السجلات). تجاوزه = عزل فوري للفائض الأقرب
-  /// للعتبة (صمام أمان — الحالة الواقعية عشرات).
-  static const int _blockedPendingCap = 300;
-
-  /// ✅ (M2) سقف سجل الحجر الصحي — كان بلا حد والحمولات الكاملة تُخزَّن
-  /// في SharedPreferences (بطء كل initialize + خطر TransactionTooLarge
-  /// على أندرويد). الإخلاء بالأقدم first_seen مع عدّاده (بداية نظيفة
-  /// إن عاد الصف ببث خادمي لاحق).
-  static const int _quarantineCap = 300;
-
-  /// سقف محاولات الشفاء الدورية للمعزولين في كل دورة (تكلفة محلية صفرية
-  /// تقريباً لكن بلا سقف قد تنمو مع تاريخ الحجب الطويل).
-  static const int _quarantineHealRetryLimit = 100;
+  /// الحجر الصحي وسجل الانتظار — الحالة والسياسة في [PullQuarantine].
+  final PullQuarantine _quarantine = PullQuarantine();
 
   /// ✅ سقف صفحات السحب في الدورة الواحدة — حلقة `while (hasMore)` بلا سقف
   /// كانت قد تعلق إلى الأبد أمام كاتب ساخن ينتج صفوفاً بلا توقف، حاجبةً
@@ -730,10 +459,8 @@ class CloudflareSyncManager {
     _localColumnsCache.clear();
     _fkLogSeen.clear();
     // ✅ (مراجعة #2+#16) عزل حالة الحجر بين الاختبارات (singleton).
-    _orphanBlockCounts.clear();
-    _quarantinedRecords.clear();
     // ✅ (2026-09-15) عزل سجل الانتظار بين الاختبارات (singleton).
-    _blockedPending.clear();
+    _quarantine.clearAll();
     // ✅ (2026-09-10) عزل حالة إعادة التهيئة الكسولة بين الاختبارات.
     _lastLazyInitAttempt = null;
     lazyInitCooldown = const Duration(seconds: 60);
@@ -812,7 +539,7 @@ class CloudflareSyncManager {
 
     // ✅ (مراجعة #2+#16) استعادة حالة الحجر الصحي للصفوف اليتيمة —
     // يجب أن تعيش عبر الجلسات حتى يُقارب bootstrap خلال دورات متتالية.
-    _loadQuarantineState(prefs);
+    _quarantine.restore(prefs);
 
     // ✅ (2026-09-08) صيانة ذاتية للمؤشر المسموم بوحدات مختلطة:
     // نسخ migration قديمة خلّفت طوابع updated_at بالميلي ثانية (‎>1e11)
@@ -1616,7 +1343,9 @@ class CloudflareSyncManager {
                   )),
         )
         ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
-        ..limit(CloudflareConfig.batchSize);
+        // ✅ (2026-09-30) دفعات أصغر على الأجهزة الضعيفة (10/20/50 بدل
+        // 100): ترميز JSON أخف على الـ main isolate وذروة ذاكرة أدنى.
+        ..limit(WeakDeviceOptimizer.instance.syncBatchSize);
       if (failedThisCall.isNotEmpty) {
         query.where((t) => t.id.isNotIn(failedThisCall));
       }
@@ -2121,9 +1850,12 @@ class CloudflareSyncManager {
     // ✅ (2026-09-15) الدلتا تصعد إلى [deltaPullBatchSize] (طلب
     // المستخدم: تسريع الدلتا أيضاً) — مستقلة عن [batchSize] الذي يبقى
     // سقف دفع outbox.
+    // ✅ (2026-09-30) صفحات سحب أصغر على الأجهزة الضعيفة — تحليل JSON
+    // على الـ main isolate: صفحة 500/250 صف تجمّد الواجهة (~100-300ms)
+    // على أجهزة 1GB. القيم القصوى موثقة في [CloudflareConfig].
     final pageLimit = wasFullSync
-        ? CloudflareConfig.fullPullBatchSize
-        : CloudflareConfig.deltaPullBatchSize;
+        ? WeakDeviceOptimizer.instance.syncFullPullPageSize
+        : WeakDeviceOptimizer.instance.syncDeltaPullPageSize;
     // ✅ (2026-09-10) السحب الكامل يطلب remaining الخادمي للمؤشر الدقيق
     // (COUNT batch واحد) — الدلتا بلا كلفة إضافية.
     // ✅ (2026-09-22 تسريع full sync) طلبه في كل صفحة كان يعني 24 استعلام
@@ -2470,6 +2202,7 @@ class CloudflareSyncManager {
           onApplied: (entity) {
             totalPulled++;
             pulledDerivedEntities.add(entity);
+            HotelDayKeyFixService.markTableDirtyFromSync(entity);
           },
           errors: retryErrors,
           conflictedSink: conflictedRecords,
@@ -2497,7 +2230,7 @@ class CloudflareSyncManager {
 
       // ✅ (2026-09-15) سجل الانتظار — تسريع السحب وإصلاح تجميد المؤشر
       // (تقرير 2026-09-14: «55 سجل محجوب — تجميد مؤشر السحب»):
-      // • محجوبو دورات سابقة (حمولاتهم في [_blockedPending]) يُعاد
+      // • محجوبو دورات سابقة (حمولاتهم في سجل الانتظار) يُعاد
       //   حلّهم من حمولتهم هنا — محلي صفر شبكة.
       // • المعزولون سابقاً يُجَرَّب شفاؤهم من حمولاتهم — تحقيق وعد
       //   رسالة الحجر («وصل الأب أو تفريغ المفتاح → يُطبَّق تلقائياً»)
@@ -2507,9 +2240,9 @@ class CloudflareSyncManager {
       // الصفحات ولا يجمّدون المؤشر بعد اليوم.
       var ledgerDirty = false;
       final quarantinePrefs = await SharedPreferences.getInstance();
-      if (_blockedPending.isNotEmpty || _quarantinedRecords.isNotEmpty) {
-        if (_blockedPending.isNotEmpty) {
-          final ledgerItems = List.of(_blockedPending.values);
+      if (_quarantine.hasWork) {
+        if (_quarantine.hasBlocked) {
+          final ledgerItems = _quarantine.pendingForRetry();
           final ledgerErrors = <String>[];
           final ledgerErrored =
               <({String entity, Map<String, dynamic> record})>[];
@@ -2518,6 +2251,7 @@ class CloudflareSyncManager {
             onApplied: (entity) {
               totalPulled++;
               pulledDerivedEntities.add(entity);
+              HotelDayKeyFixService.markTableDirtyFromSync(entity);
             },
             errors: ledgerErrors,
             conflictedSink: conflictedRecords,
@@ -2551,64 +2285,58 @@ class CloudflareSyncManager {
             ...ledgerErrored,
             ...ledgerRemaining,
           ];
-          final failedIds = {
-            for (final item in ledgerRemaining)
-              _quarantineIdentity(
+          final failedIds = <String>{
+            for (final item in [...ledgerRemaining, ...ledgerErrored])
+              PullQuarantine.identity(
                 item.entity,
                 item.record['local_uuid']?.toString(),
               ),
           };
           for (final item in ledgerItems) {
-            final identity = _quarantineIdentity(
+            final id = PullQuarantine.identity(
               item.entity,
               item.record['local_uuid']?.toString(),
             );
-            if (!failedIds.contains(identity)) {
+            if (!failedIds.contains(id)) {
               // شُفي (أب وصل/مفتاح تحرر) — أو أصبح متعارضاً وسيُحاسب
               // أدناه على نفس الهوية (عدّاده يبقى معلقاً حتى العتبة).
-              if (_blockedPending.remove(identity) != null) {
+              final stillConflicted = conflictedRecords.any(
+                (c) =>
+                    PullQuarantine.identity(
+                      c.entity,
+                      c.record['local_uuid']?.toString(),
+                    ) ==
+                    id,
+              );
+              if (_quarantine.noteLedgerHealed(
+                id,
+                keepCounter: stillConflicted,
+              )) {
                 ledgerDirty = true;
-                if (!conflictedRecords.any(
-                  (c) =>
-                      _quarantineIdentity(
-                        c.entity,
-                        c.record['local_uuid']?.toString(),
-                      ) ==
-                      identity,
-                )) {
-                  _orphanBlockCounts.remove(identity);
-                }
               }
             }
           }
         }
         // شفاء المعزولين من حمولاتهم (بسقف لكل دورة).
-        if (_quarantinedRecords.isNotEmpty) {
-          final retryItems = <({String entity, Map<String, dynamic> record})>[];
-          for (final entry in _quarantinedRecords.entries) {
-            if (retryItems.length >= _quarantineHealRetryLimit) break;
-            final raw = entry.value['record'];
-            final entity = entry.value['entity']?.toString();
-            if (raw is Map && raw.isNotEmpty && entity != null) {
-              retryItems.add((
-                entity: entity,
-                record: Map<String, dynamic>.from(raw),
-              ));
-            }
-          }
+        if (_quarantine.hasQuarantined) {
+          final retryItems = _quarantine.collectHealCandidates();
           for (final item in retryItems) {
             try {
-              final ok = await _applyChange(item.entity, item.record);
+              final ok = await _applyChange(
+                item.entity,
+                item.record,
+                allowQuarantineSkip: false,
+              );
               if (ok) {
-                final identity = _quarantineIdentity(
+                final id = PullQuarantine.identity(
                   item.entity,
                   item.record['local_uuid']?.toString(),
                 );
-                if (_quarantinedRecords.remove(identity) != null) {
-                  _orphanBlockCounts.remove(identity);
+                if (_quarantine.noteQuarantineHealed(id)) {
                   ledgerDirty = true;
                   totalPulled++;
                   pulledDerivedEntities.add(item.entity);
+                  HotelDayKeyFixService.markTableDirtyFromSync(item.entity);
                   debugPrint(
                     '🏥 Pull: quarantined ${item.entity}/'
                     '${item.record['local_uuid']} healed — parent arrived '
@@ -2637,52 +2365,24 @@ class CloudflareSyncManager {
               ...unresolvedAfterRetry,
               ...conflictedRecords,
             ])
-              _quarantineIdentity(
+              PullQuarantine.identity(
                 item.entity,
                 item.record['local_uuid']?.toString(),
               ): item,
           };
       if (quarantinePoolByIdentity.isNotEmpty) {
-        final toWait = <({String entity, Map<String, dynamic> record})>[];
-        final toQuarantine = <({String entity, Map<String, dynamic> record})>[];
-        for (final entry in quarantinePoolByIdentity.entries) {
-          final count = (_orphanBlockCounts[entry.key] ?? 0) + 1;
-          _orphanBlockCounts[entry.key] = count;
-          if (count >= _quarantineBlockThreshold) {
-            toQuarantine.add(entry.value);
-          } else {
-            toWait.add(entry.value);
-          }
-        }
+        final accounted = _quarantine.accountBlocked(quarantinePoolByIdentity);
 
-        if (toQuarantine.isNotEmpty) {
+        if (accounted.toQuarantine.isNotEmpty) {
           final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          final newlyQuarantined =
-              <({String entity, Map<String, dynamic> record})>[];
-          for (final item in toQuarantine) {
-            final identity = _quarantineIdentity(
-              item.entity,
-              item.record['local_uuid']?.toString(),
-            );
-            // ✅ (2026-09-09) إشعار الحجر فقط للهويات المعزولة حديثاً —
-            // السجل المعزول سابقاً يعاد عزله صامتاً بلا إزعاج.
-            if (!_quarantinedRecords.containsKey(identity)) {
-              newlyQuarantined.add(item);
-            }
-            // ✅ (2026-09-15) الحمولة تُحفظ مع الحجر — أساس الشفاء
-            // الدوري من الحمولة أعلاه.
-            _quarantinedRecords[identity] = <String, dynamic>{
-              'entity': item.entity,
-              'local_uuid': item.record['local_uuid']?.toString(),
-              'first_seen': nowSec,
-              'updated_at': item.record['updated_at'],
-              'record': item.record,
-            };
-            // خرج من سجل الانتظار (إن كان فيه) — الحجر يحل محله.
-            if (_blockedPending.remove(identity) != null) {
-              ledgerDirty = true;
-            }
+          final promotion = _quarantine.promote(
+            accounted.toQuarantine,
+            nowSec,
+          );
+          if (promotion.ledgerTouched) {
+            ledgerDirty = true;
           }
+          final newlyQuarantined = promotion.fresh;
           if (newlyQuarantined.isNotEmpty) {
             final quarantinedNames = [
               for (final item in newlyQuarantined.take(3))
@@ -2700,7 +2400,7 @@ class CloudflareSyncManager {
               message:
                   'السجلات: ${quarantinedNames.join(', ')} — أبُها مفقود '
                   'خادمياً أو مفتاحها الفريد مشغول بصف محلي حتى بعد '
-                  '$_quarantineBlockThreshold دورات من سجل الانتظار '
+                  '${_quarantine.blockThreshold} دورات من سجل الانتظار '
                   '(يتيم بنيوي: أب محذوف يدوياً من D1، أو نسخة مكررة من '
                   'استعادة نسخة احتياطية). عُزلت في سجل الحجر مع حمولتها '
                   'ويتقدم المؤشر — وصول الأب أو تفريغ المفتاح أو وصول '
@@ -2712,50 +2412,21 @@ class CloudflareSyncManager {
           }
         }
 
-        if (toWait.isNotEmpty) {
+        if (accounted.toWait.isNotEmpty) {
           // ✅ (2026-09-15) تحت العتبة = حمولة محفوظة في سجل الانتظار،
           // تُعاد محاولتها من الحمولة في بداية كل دورة سحب — لا تراجع
           // مؤشر ولا إعادة سحب صفحات (التصميم القديم كان يجمّد المؤشر
           // هنا ويعيد سحب كل شيء حتى تكتمل العتبة).
-          final newEntries = <String>{};
-          for (final item in toWait) {
-            final identity = _quarantineIdentity(
-              item.entity,
-              item.record['local_uuid']?.toString(),
-            );
-            if (!_blockedPending.containsKey(identity)) {
-              newEntries.add(identity);
-            }
-            _blockedPending[identity] = item;
-          }
+          final newEntries = _quarantine.stageWaiting(accounted.toWait);
           ledgerDirty = true;
           // صمام الأمان: سقف السجل — الفائض الأقرب للعتبة يُعزل فوراً
           // (حمولته تبقى في الحجر للشفاء الدوري).
-          if (_blockedPending.length > _blockedPendingCap) {
-            final overflow =
-                (_blockedPending.keys.toList()..sort(
-                      (a, b) => (_orphanBlockCounts[b] ?? 0).compareTo(
-                        _orphanBlockCounts[a] ?? 0,
-                      ),
-                    ))
-                    .take(_blockedPending.length - _blockedPendingCap)
-                    .toList();
-            final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-            for (final identity in overflow) {
-              final item = _blockedPending.remove(identity)!;
-              if (!_quarantinedRecords.containsKey(identity)) {
-                _quarantinedRecords[identity] = <String, dynamic>{
-                  'entity': item.entity,
-                  'local_uuid': item.record['local_uuid']?.toString(),
-                  'first_seen': nowSec,
-                  'updated_at': item.record['updated_at'],
-                  'record': item.record,
-                };
-              }
-            }
+          final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+          final overflowCount = _quarantine.evictWaitingOverflow(nowSec);
+          if (overflowCount > 0) {
             debugPrint(
-              '🏥 Pull: waiting-ledger cap $_blockedPendingCap exceeded — '
-              'force-quarantined ${overflow.length} record(s)',
+              '🏥 Pull: waiting-ledger cap ${_quarantine.blockedPendingCap} exceeded — '
+              'force-quarantined $overflowCount record(s)',
             );
           }
           if (newEntries.isNotEmpty) {
@@ -2769,7 +2440,7 @@ class CloudflareSyncManager {
                   'سجل الانتظار وسيُعاد حلّها من الحمولة في بداية كل دورة '
                   'سحب دون إعادة سحب أي صفحة (التصميم قبل 2026-09-15 كان '
                   'يراجع المؤشر ويعيد سحب كل البيانات كل دورة حتى اكتمال '
-                  'عتبة الحجر). بعد $_quarantineBlockThreshold دورات تُنقل '
+                  'عتبة الحجر). بعد ${_quarantine.blockThreshold} دورات تُنقل '
                   'لسجل الحجر تلقائياً.',
               category: ErrorCategory.sync,
               source: 'sync:pull-apply',
@@ -2782,28 +2453,16 @@ class CloudflareSyncManager {
       }
 
       // ✅ (M2) فرض سقف الحجر بعد كل محاسبة — الإخلاء بالأقدم first_seen.
-      if (_quarantinedRecords.length > _quarantineCap) {
-        final ordered = _quarantinedRecords.entries.toList()
-          ..sort(
-            (a, b) => _quarantineFirstSeen(
-              a.value,
-            ).compareTo(_quarantineFirstSeen(b.value)),
-          );
-        final victims = ordered
-            .take(_quarantinedRecords.length - _quarantineCap)
-            .toList();
-        for (final victim in victims) {
-          _quarantinedRecords.remove(victim.key);
-          _orphanBlockCounts.remove(victim.key);
-        }
+      final evictedCount = _quarantine.evictQuarantineOverflow();
+      if (evictedCount > 0) {
         ledgerDirty = true;
         debugPrint(
-          '🏥 Pull: quarantine cap $_quarantineCap exceeded — '
-          'evicted ${victims.length} oldest record(s)',
+          '🏥 Pull: quarantine cap ${_quarantine.quarantineCap} exceeded — '
+          'evicted $evictedCount oldest record(s)',
         );
       }
       if (ledgerDirty) {
-        await _persistQuarantineState(quarantinePrefs);
+        await _quarantine.persist(quarantinePrefs);
       }
     } finally {
       // ✅ استهلاك أي استجابة صفحة معلّقة انطلقت ولم تُقطف (خطأ منتصف
@@ -3089,13 +2748,27 @@ class CloudflareSyncManager {
     required Map<String, dynamic> record,
     required Map<String, dynamic>? existing,
   }) async {
-    final rules = _fkRulesByEntity[entity];
+    if (entity == 'expenses') {
+      final empUuid = record['employee_uuid']?.toString().trim();
+      if (empUuid != null && empUuid.isNotEmpty) {
+        final localEmpId = await _lookupLocalParentId(
+          'employees',
+          'local_uuid',
+          empUuid,
+        );
+        if (localEmpId != null) {
+          record['related_id'] = localEmpId;
+        }
+      }
+    }
+
+    final rules = fkRulesByEntity[entity];
     if (rules == null || rules.isEmpty) return true;
 
     for (final rule in rules) {
       final wireValue = record[rule.column];
 
-      if (rule.kind == _FkKind.numericPointer) {
+      if (rule.kind == FkKind.numericPointer) {
         if (wireValue == null) {
           if (record.containsKey(rule.column) && !rule.nullable) {
             // null صريح على عمود NOT NULL — علاقة مفقودة خادمياً.
@@ -3205,7 +2878,11 @@ class CloudflareSyncManager {
     _db?.notifyUpdates({TableUpdate(tableName, kind: kind)});
   }
 
-  Future<bool> _applyChange(String entity, Map<String, dynamic> record) async {
+  Future<bool> _applyChange(
+    String entity,
+    Map<String, dynamic> record, {
+    bool allowQuarantineSkip = true,
+  }) async {
     if (_db == null) return true;
 
     if (record.isEmpty) return true;
@@ -3275,9 +2952,11 @@ class CloudflareSyncManager {
     );
     if (!relationsResolved) {
       // ✅ (مراجعة #2+#16) سجل معزول سابقاً وما زال أبُه مفقوداً —
-      // يُتخطى (لا يُؤجَّل ولا يُفشل الدورة): الحجر سبق أن منحه
-      // فرصته العادلة، وبقية البيانات يجب ألا تُرهق بسببه.
-      if (_isQuarantined(entity, localUuid)) {
+      // يُتخطى عند وروده في صفحات السحب (لا يُؤجَّل ولا يُفشل الدورة):
+      // الحجر سبق أن منحه فرصته العادلة. أما في حلقة شفاء الحجر
+      // (allowQuarantineSkip: false) فيجب أن يعيد false ليبقى في الحجر.
+      final alreadyQuarantined = _quarantine.isQuarantined(entity, localUuid);
+      if (allowQuarantineSkip && alreadyQuarantined) {
         debugPrint(
           '⏭️ Pull: quarantined $entity/$localUuid still unresolvable — '
           'skipped (parent still missing server-side)',
@@ -3497,8 +3176,12 @@ class CloudflareSyncManager {
     }
 
     // ✅ (مراجعة #2+#16) تطبيق ناجح لسجل كان معزولاً — يُمسح من الحجر
-    // (بلا كتابة prefs إلا فعلاً كان في الحجر).
-    await _clearQuarantine(entity, localUuid);
+    // (بلا كتابة prefs إلا فعلاً كان في الحجر). عند استدعائه من حلقة
+    // شفاء الحجر (allowQuarantineSkip: false) تتولى noteQuarantineHealed
+    // إخراجه وحفظ السجل الموحّد.
+    if (allowQuarantineSkip) {
+      await _quarantine.clear(entity, localUuid);
+    }
 
     return true;
   }
@@ -3506,7 +3189,7 @@ class CloudflareSyncManager {
   /// ✅ (2026-09-09) مسبار المفتاح الطبيعي قبل INSERT — إصلاح تجميد
   /// السحب (398 ليلة + 381 مجموعة مكررة مؤكدة على D1).
   ///
-  /// صف وارد بـ local_uuid جديد لكن مفتاحه الطبيعي ([_naturalUniqueKeys])
+  /// صف وارد بـ local_uuid جديد لكن مفتاحه الطبيعي ([naturalUniqueKeys])
   /// موجود محلياً = نسخة مكررة منطقياً لنفس الصف (سطر restore نسخة
   /// احتياطية، أو نسخة خادمية مقابل إعادة بناء محلية origin='auto_fix').
   /// العقد:
@@ -3522,7 +3205,7 @@ class CloudflareSyncManager {
     required Map<String, dynamic> filtered,
     required int remoteUpdatedAt,
   }) async {
-    final keys = _naturalUniqueKeys[entity];
+    final keys = naturalUniqueKeys[entity];
     if (keys == null || keys.isEmpty) return false;
 
     final keyValues = <Object?>[];
@@ -3619,8 +3302,8 @@ class CloudflareSyncManager {
       // (rooms/employees/bookings) قبل الأبناء (nights/payments/salary_*),
       // ويقلل دورات التأجيل وإعادة المحاولة في السحب الأولي.
       pending.sort(
-        (a, b) => (_pullApplyPriority[a.entity] ?? 9).compareTo(
-          _pullApplyPriority[b.entity] ?? 9,
+        (a, b) => (pullApplyPriority[a.entity] ?? 9).compareTo(
+          pullApplyPriority[b.entity] ?? 9,
         ),
       );
       final stillPending = <({String entity, Map<String, dynamic> record})>[];
@@ -3630,6 +3313,7 @@ class CloudflareSyncManager {
           if (ok) {
             applied++;
             touched.add(item.entity);
+            HotelDayKeyFixService.markTableDirtyFromSync(item.entity);
           } else {
             stillPending.add(item);
           }
@@ -3703,8 +3387,8 @@ class CloudflareSyncManager {
     var remaining = List.of(deferred);
     for (var pass = 0; pass < 2 && remaining.isNotEmpty; pass++) {
       remaining.sort(
-        (a, b) => (_pullApplyPriority[a.entity] ?? 9).compareTo(
-          _pullApplyPriority[b.entity] ?? 9,
+        (a, b) => (pullApplyPriority[a.entity] ?? 9).compareTo(
+          pullApplyPriority[b.entity] ?? 9,
         ),
       );
       final stillPending = <({String entity, Map<String, dynamic> record})>[];
@@ -3783,7 +3467,7 @@ class CloudflareSyncManager {
         debugPrint(
           '⏭️ Tombstone: $entity/$localUuid not present locally — no-op',
         );
-        await _clearQuarantine(entity, localUuid);
+        await _quarantine.clear(entity, localUuid);
         return true;
       }
       final localId = existing.data['id'];
@@ -3821,7 +3505,7 @@ class CloudflareSyncManager {
         deletedAt: deletedAt,
         updatedAt: updatedAt,
       );
-      await _clearQuarantine(entity, localUuid);
+      await _quarantine.clear(entity, localUuid);
     } catch (e) {
       // فشل قاعدة بيانات حقيقي — يُفسد الدورة (لا كتم).
       throw Exception('Tombstone apply failed for $entity/$localUuid: $e');
@@ -3944,111 +3628,6 @@ class CloudflareSyncManager {
     }
   }
 
-  String _quarantineIdentity(String entity, String? localUuid) =>
-      '$entity/$localUuid';
-
-  /// ✅ (M2) طابع first_seen للمقارنة أثناء الإخلاء — غياب/تشوه = 0
-  /// (الأقدم) فيُخلى أولاً بأمان.
-  int _quarantineFirstSeen(Map<String, dynamic> entry) =>
-      (entry['first_seen'] as num?)?.toInt() ?? 0;
-
-  void _loadQuarantineState(SharedPreferences prefs) {
-    try {
-      final countsRaw = prefs.getString(_kQuarantineCountsKey);
-      if (countsRaw != null && countsRaw.isNotEmpty) {
-        final decoded = jsonDecode(countsRaw) as Map<String, dynamic>;
-        decoded.forEach((key, value) {
-          _orphanBlockCounts[key] = (value as num?)?.toInt() ?? 0;
-        });
-      }
-      final quarantinedRaw = prefs.getString(_kQuarantinedKey);
-      if (quarantinedRaw != null && quarantinedRaw.isNotEmpty) {
-        final decoded = jsonDecode(quarantinedRaw) as Map<String, dynamic>;
-        decoded.forEach((key, value) {
-          if (value is Map) {
-            _quarantinedRecords[key] = Map<String, dynamic>.from(value);
-          }
-        });
-      }
-      // ✅ (2026-09-15) استعادة سجل الانتظار (الحمولات المحجوبة تحت
-      // العتبة) — تعيش عبر الجلسات كالحجر، وإلا فُقدت حمولة سجل
-      // محجوب عند إعادة تشغيل التطبيق وعاد الحجب من الصفر.
-      final pendingRaw = prefs.getString(_kBlockedPendingKey);
-      if (pendingRaw != null && pendingRaw.isNotEmpty) {
-        final decoded = jsonDecode(pendingRaw) as Map<String, dynamic>;
-        decoded.forEach((key, value) {
-          if (value is Map &&
-              value['entity'] != null &&
-              value['record'] is Map) {
-            _blockedPending[key] = (
-              entity: value['entity'].toString(),
-              record: Map<String, dynamic>.from(value['record'] as Map),
-            );
-          }
-        });
-      }
-      if (_orphanBlockCounts.isNotEmpty ||
-          _quarantinedRecords.isNotEmpty ||
-          _blockedPending.isNotEmpty) {
-        debugPrint(
-          '🏥 Quarantine state restored: ${_orphanBlockCounts.length} '
-          'counter(s), ${_quarantinedRecords.length} quarantined, '
-          '${_blockedPending.length} pending',
-        );
-      }
-    } catch (e) {
-      debugPrint('⚠️ quarantine state load failed: $e');
-    }
-  }
-
-  Future<void> _persistQuarantineState(SharedPreferences prefs) async {
-    try {
-      // ✅ (M2) تقليم عدّادات يتيمة لا تنتمي لأي سجل — تمنع نمو الخريطة
-      // بلا حد عبر الجلسات (الشفاء/الإخلاء يزيلان السجلات وقد يُبقيان
-      // العدّاد).
-      _orphanBlockCounts.removeWhere(
-        (key, _) =>
-            !_quarantinedRecords.containsKey(key) &&
-            !_blockedPending.containsKey(key),
-      );
-      await prefs.setString(
-        _kQuarantineCountsKey,
-        jsonEncode(_orphanBlockCounts),
-      );
-      await prefs.setString(_kQuarantinedKey, jsonEncode(_quarantinedRecords));
-      // ✅ (2026-09-15) حمولات سجل الانتظار تُخزَّن كاملة (persistent).
-      await prefs.setString(
-        _kBlockedPendingKey,
-        jsonEncode({
-          for (final entry in _blockedPending.entries)
-            entry.key: {
-              'entity': entry.value.entity,
-              'record': entry.value.record,
-            },
-        }),
-      );
-    } catch (e) {
-      debugPrint('⚠️ quarantine state persist failed: $e');
-    }
-  }
-
-  bool _isQuarantined(String entity, String? localUuid) =>
-      _quarantinedRecords.containsKey(_quarantineIdentity(entity, localUuid));
-
-  /// يمسح السجل من الحجر وسجل الانتظار وعدّاد الحجب — يكتب prefs فقط
-  /// حين يُزال شيء فعلاً. (M3: إغفال سجل الانتظار هنا كان يُبقي حمولة
-  /// ميتة تُعاد محاولتها دورة إضافية هدراً.)
-  Future<void> _clearQuarantine(String entity, String? localUuid) async {
-    final identity = _quarantineIdentity(entity, localUuid);
-    final removedLedger = _quarantinedRecords.remove(identity) != null;
-    final removedPending = _blockedPending.remove(identity) != null;
-    final removedCounter = _orphanBlockCounts.remove(identity) != null;
-    if (removedLedger || removedPending || removedCounter) {
-      final prefs = await SharedPreferences.getInstance();
-      await _persistQuarantineState(prefs);
-    }
-  }
-
   /// ✅ (مراجعة #1) مسح تقارب الحذفيات لمرة واحدة: يجلب كل tombstones
   /// الخادمية عبر نافذة tombstones_only الرخيصة (بترتيب updated_at،
   /// بلا مساس بالمؤشر الرئيسي) ويطبّقها كحذف محلي.
@@ -4086,7 +3665,8 @@ class CloudflareSyncManager {
                 ).replace(
                   queryParameters: <String, String>{
                     'cursor': cursor.toString(),
-                    'limit': CloudflareConfig.deltaPullBatchSize.toString(),
+                    'limit': WeakDeviceOptimizer.instance.syncDeltaPullPageSize
+                        .toString(),
                     'tombstones_only': '1',
                     if (_deviceId case final ownDevice?
                         when ownDevice.isNotEmpty)

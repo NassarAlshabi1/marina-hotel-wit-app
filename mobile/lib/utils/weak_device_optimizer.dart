@@ -192,16 +192,56 @@ class WeakDeviceOptimizer {
   }
 
   /// حجم الصفحة الافتراضي للقوائم المحمّلة من SQLite.
+  ///
+  /// ✅ (2026-09-30) أرضيات مُصحّحة للدقة: لا توجد في التطبيق واجهة ترقيم
+  /// صفحات حقيقية — كل الشاشات تعرض كامل نتيجة الاستعلام، وبعضها يصفّي
+  /// محلياً (بحث الديون/النزلاء) أو يصدّر PDF من القائمة (سجل المعلومية).
+  /// أي حد أصغر من حجم الجدول الفعلي كان سيُخفي بيانات بلا طريق استرجاع.
+  /// جداول الفندق صغيرة (عشرات/مئات الصفوف) وكائن الصف رخيص (~بضع مئات
+  /// البايت)، فالتوفير الحقيقي للذاكرة يأتي من image/API/DB caches ودفعات
+  /// المزامنة — لا من تقليص القوائم التشغيلية. هذه القيم تحدّ الجداول
+  /// الشاذة فقط (آلاف الصفوف) على الأجهزة الضعيفة.
   int get maxListItemsBeforePagination {
     switch (_optimizationLevel) {
       case 3:
-        return 15;
+        return 150;
       case 2:
-        return 20;
+        return 200;
       case 1:
-        return 50;
+        return 300;
       default:
+        return 500;
+    }
+  }
+
+  /// حجم صفحة السحب الكامل (full pull) من D1.
+  ///
+  /// ✅ (2026-09-30) تحليل JSON يتم على الـ main isolate — صفحة 500 صف
+  /// على جهاز 1GB تعني تجميداً متكرراً (~100-300ms لكل صفحة) وذروة ذاكرة
+  /// عالية. صفحات أصغر على الأجهزة الضعيفة = سلاسة أعلى بكلفة طلبات أكثر
+  /// (مقبولة: السحب الكامل نادر — أول تثبيت/تغيّر epoch).
+  int get syncFullPullPageSize {
+    switch (_optimizationLevel) {
+      case 3:
+      case 2:
         return 100;
+      case 1:
+        return 250;
+      default:
+        return 500;
+    }
+  }
+
+  /// حجم صفحة سحب الدلتا (delta pull) من D1.
+  int get syncDeltaPullPageSize {
+    switch (_optimizationLevel) {
+      case 3:
+      case 2:
+        return 100;
+      case 1:
+        return 150;
+      default:
+        return 250;
     }
   }
 

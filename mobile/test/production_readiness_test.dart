@@ -29,7 +29,9 @@ void main() {
         expect(opt.isWeakDevice, isTrue);
         expect(opt.isCriticalLowMemoryDevice, isTrue);
         expect(opt.optimizationLevel, equals(3));
-        expect(opt.maxListItemsBeforePagination, equals(15));
+        expect(opt.maxListItemsBeforePagination, equals(150));
+        expect(opt.syncFullPullPageSize, equals(100));
+        expect(opt.syncDeltaPullPageSize, equals(100));
         expect(opt.maxDataCacheSizeMB, equals(2));
         expect(opt.syncConcurrency, equals(1));
       });
@@ -47,6 +49,9 @@ void main() {
         expect(opt.isWeakDevice, isFalse);
         expect(opt.optimizationLevel, equals(0));
         expect(opt.syncConcurrency, equals(4));
+        expect(opt.maxListItemsBeforePagination, equals(500));
+        expect(opt.syncFullPullPageSize, equals(500));
+        expect(opt.syncDeltaPullPageSize, equals(250));
       });
 
       test('debounceDuration scales', () {

@@ -406,4 +406,103 @@ void main() {
       });
     });
   });
+
+  group('diagnostics (settings observability, no network)', () {
+    test('noteConnected stamps connection time and raises the flag', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.resetForTest();
+      expect(realtime.lastConnectedAt, isNull);
+
+      realtime.noteConnected();
+
+      expect(realtime.connected.value, true);
+      expect(realtime.lastConnectedAt, isNotNull);
+    });
+
+    test('noteSocketIssue records error text with timestamp', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.resetForTest();
+
+      realtime.noteSocketIssue(error: 'WebSocketException: refused');
+
+      expect(realtime.lastError, 'WebSocketException: refused');
+      expect(realtime.lastErrorAt, isNotNull);
+    });
+
+    test('noteSocketIssue formats close code and truncates long text', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.resetForTest();
+
+      realtime.noteSocketIssue(closeCode: 1006, closeReason: 'abnormal');
+      expect(realtime.lastError, 'closed 1006: abnormal');
+
+      realtime.noteSocketIssue(error: 'x' * 200);
+      expect(realtime.lastError!.length, 160);
+      expect(realtime.lastError, endsWith('...'));
+    });
+
+    test('noteEventReceived stamps lastEventAt (socket liveness proof)', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.resetForTest();
+      expect(realtime.lastEventAt, isNull);
+
+      realtime.noteEventReceived();
+
+      expect(realtime.lastEventAt, isNotNull);
+    });
+
+    test('diagnosticsRevision increments on state/diagnostic mutations', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.resetForTest();
+      expect(realtime.diagnosticsRevision.value, 0);
+
+      realtime.noteSocketIssue(error: 'first error');
+      final rev1 = realtime.diagnosticsRevision.value;
+      expect(rev1, greaterThan(0));
+
+      realtime.noteConnected();
+      final rev2 = realtime.diagnosticsRevision.value;
+      expect(rev2, greaterThan(rev1));
+
+      realtime.noteEventReceived();
+      expect(realtime.diagnosticsRevision.value, greaterThan(rev2));
+    });
+
+    test('connect failure clears in-flight lock before retry', () {
+      fakeAsync((async) {
+        final realtime = CloudflareRealtimeSync();
+        realtime.resetForTest();
+        realtime.configure(
+          // مخطط غير مدعوم يفشل داخل _connect بعد تفعيل _connectInFlight
+          baseUrl: 'ftp://invalid.example.com',
+          tokenProvider: () async => 'test-token',
+        );
+
+        unawaited(realtime.start());
+        async.flushMicrotasks();
+        expect(realtime.connectAttempts, 1);
+        expect(realtime.lastError, isNotNull);
+
+        // بعد 1s (أول backoff) يجب أن تعمل إعادة المحاولة بدلاً من التعليق
+        async.elapse(const Duration(seconds: 2));
+        expect(realtime.connectAttempts, greaterThanOrEqualTo(2));
+        unawaited(realtime.stop());
+      });
+    });
+
+    test('resetForTest clears all diagnostics', () {
+      final realtime = CloudflareRealtimeSync();
+      realtime.noteConnected();
+      realtime.noteSocketIssue(error: 'boom');
+
+      realtime.resetForTest();
+
+      expect(realtime.lastError, isNull);
+      expect(realtime.lastErrorAt, isNull);
+      expect(realtime.lastEventAt, isNull);
+      expect(realtime.lastConnectedAt, isNull);
+      expect(realtime.connectAttempts, 0);
+      expect(realtime.connected.value, false);
+    });
+  });
 }

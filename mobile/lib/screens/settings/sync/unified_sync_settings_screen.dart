@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
 import '../../../providers/appwrite_providers.dart' as ap;
+import '../../../providers/realtime_sync_provider.dart';
 import '../../../providers/repository_providers.dart' show databaseProvider;
 import '../../../services/appwrite_sync_manager.dart';
 import '../../../services/cloudflare_config.dart';
@@ -232,6 +233,27 @@ class _UnifiedSyncSettingsScreenState
         ? 'لم تُنفَّذ مزامنة بعد'
         : DateTimeFormatter.getRelativeTime(lastSyncIso);
     final pending = outboxAsync.valueOrNull ?? 0;
+    // ✅ تشخيص الريل تايم الدائم — يكشف سبب «لا تعمل» من الشاشة نفسها:
+    // متصل؟ يستمع؟ كم محاولة؟ آخر حدث مستلم؟ آخر خطأ ونصه؟
+    final realtimeAsync = ref.watch(realtimeConnectedProvider);
+    final realtimeState = ref.watch(realtimeSyncStateProvider);
+    final realtimeOk = realtimeAsync.valueOrNull ?? realtimeState.isConnected;
+    final realtimeLabel = realtimeOk
+        ? 'متصل'
+        : (realtimeState.isListening ? 'يستمع — غير متصل' : 'متوقف');
+    final detailParts = <String>['محاولات: ${realtimeState.connectAttempts}'];
+    final lastEvent = realtimeState.lastEventAt;
+    if (lastEvent != null) {
+      final String ago = DateTimeFormatter.getRelativeTime(
+        lastEvent.toIso8601String(),
+      );
+      detailParts.add('آخر حدث: $ago');
+    }
+    final lastError = realtimeState.lastError;
+    if (lastError != null && lastError.isNotEmpty) {
+      detailParts.add('آخر خطأ: $lastError');
+    }
+    final realtimeDetail = detailParts.join(' • ');
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -273,6 +295,18 @@ class _UnifiedSyncSettingsScreenState
               value: '$pending',
               icon: Icons.pending,
               iconColor: pending > 0 ? Colors.orange : Colors.green,
+            ),
+            InfoRow(
+              label: 'الريل تايم',
+              value: realtimeLabel,
+              icon: Icons.bolt,
+              iconColor: realtimeOk ? Colors.green : Colors.red,
+            ),
+            InfoRow(
+              label: 'تشخيص الريل تايم',
+              value: realtimeDetail,
+              icon: Icons.bug_report,
+              isExpandable: true,
             ),
           ],
         ),

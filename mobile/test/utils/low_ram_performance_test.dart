@@ -14,7 +14,9 @@ void main() {
       expect(optimizer.isWeakDevice, isTrue);
       expect(optimizer.isCriticalLowMemoryDevice, isTrue);
       expect(optimizer.optimizationLevel, 3);
-      expect(optimizer.maxListItemsBeforePagination, 15);
+      expect(optimizer.maxListItemsBeforePagination, 150);
+      expect(optimizer.syncFullPullPageSize, 100);
+      expect(optimizer.syncDeltaPullPageSize, 100);
       expect(optimizer.syncBatchSize, 10);
       expect(optimizer.syncConcurrency, 1);
       expect(optimizer.maxDataCacheSizeMB, 2);
@@ -27,7 +29,9 @@ void main() {
 
       expect(optimizer.isWeakDevice, isFalse);
       expect(optimizer.optimizationLevel, 0);
-      expect(optimizer.maxListItemsBeforePagination, 100);
+      expect(optimizer.maxListItemsBeforePagination, 500);
+      expect(optimizer.syncFullPullPageSize, 500);
+      expect(optimizer.syncDeltaPullPageSize, 250);
     });
   });
 
