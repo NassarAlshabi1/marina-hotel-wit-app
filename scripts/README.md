@@ -38,6 +38,32 @@ chmod +x scripts/create-release.sh
 6. **تشغيل GitHub Action** للبناء التلقائي
 7. **فتح صفحة متابعة** في المتصفح
 
+### 🔗 `setup-graphite.sh`
+**الوظيفة**: إعداد Graphite CLI تلقائيًا + تركيب hook يعمل عند كل `git pull`
+
+#### ماذا يفعل:
+- ✅ تثبيت `@withgraphite/graphite-cli@stable` عبر npm (إن لم يكن مثبتًا)
+- ✅ التوثيق: `gt auth --token` (من متغير `GRAPHITE_TOKEN` أو ملف `.graphite-token` أو إدخال يدوي)
+- ✅ تركيب `.git/hooks/post-merge` — بعد كل `git pull` يتحقق صامتًا من التثبيت والتوثيق
+- ✅ حفظ التوكن محليًا في `.graphite-token` (مُستثنى من git — لا يُرفع أبدًا)
+
+#### الاستخدام:
+```bash
+# مرة واحدة بعد clone المستودع
+bash scripts/setup-graphite.sh
+
+# أو مع توكن مباشر
+GRAPHITE_TOKEN=xxxx bash scripts/setup-graphite.sh
+```
+
+#### مع الـ CI:
+`.github/workflows/graphite-pr.yml` يكرر نفس الخطوات تلقائيًا عند كل Pull Request:
+`npm install -g @withgraphite/graphite-cli@stable` ثم `gt auth --token $GRAPHITE_TOKEN`.
+التوكن في CI يُقرأ من سرّ المستودع: **Settings → Secrets → Actions → `GRAPHITE_TOKEN`**.
+
+#### متطلبات:
+- `git` و `npm` (Node.js 18+)
+
 ## 🎯 سيناريوهات الاستخدام
 
 ### إصدار جديد كامل:
