@@ -1,0 +1,78 @@
+# ═══════════════════════════════════════════════════════════════
+# Graphite Workflow — يعمل على كل الفروع
+# المشغّلات: كل Pull Request + كل push على أي فرع + تشغيل يدوي
+# ويقوم بـ:
+#   1) تثبيت Graphite CLI:  npm install -g @withgraphite/graphite-cli@stable
+#   2) التوثيق:             gt auth --token $GRAPHITE_TOKEN (من repo secret)
+#   3) عرض معلومات الـ stack للتحقق من التكامل مع GitHub PR
+#
+# التوكن يُضبط مرة واحدة من:
+#   Settings → Secrets and variables → Actions → New repository secret
+#   الاسم: GRAPHITE_TOKEN   القيمة: التوكن من https://app.graphite.com/activate
+#
+# مرجع: https://graphite.com/guides/github-pull-request-workflow
+# ═══════════════════════════════════════════════════════════════
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+name: Graphite
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  push:
+    branches: ['**']   # كل الفروع (بدون tags)
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  graphite-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # تاريخ git كامل — مطلوب لأوامر gt (stacks/branches)
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install Graphite CLI
+        run: npm install -g @withgraphite/graphite-cli@stable
+
+      - name: Authenticate Graphite
+        env:
+          GRAPHITE_TOKEN: ${{ secrets.GRAPHITE_TOKEN }}
+        run: |
+          if [ -z "$GRAPHITE_TOKEN" ]; then
+            echo "::warning::السر GRAPHITE_TOKEN غير مضبوط في إعدادات المستودع — تم تخطي التوثيق"
+            exit 0
+          fi
+          gt auth --token "$GRAPHITE_TOKEN"
+
+      - name: Graphite stack info
+        continue-on-error: true
+        env:
+          GRAPHITE_TOKEN: ${{ secrets.GRAPHITE_TOKEN }}
+        run: gt log short
+
+      - name: Summary
+        if: always()
+        env:
+          GH_EVENT: ${{ github.event_name }}
+          GH_BRANCH: ${{ github.ref_name }}
+        run: |
+          {
+            echo "### ✅ Graphite Workflow"
+            echo ""
+            echo "| البند | القيمة |"
+            echo "|-------|--------|"
+            echo "| CLI | $(gt --version 2>/dev/null | head -1) |"
+            echo "| الحساب | NassarAlshabi1 |"
+            echo "| الحدث | $GH_EVENT ($GH_BRANCH) |"
+          } >> "$GITHUB_STEP_SUMMARY"
