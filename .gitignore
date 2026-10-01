@@ -22,3 +22,6 @@ scripts/appwrite/backup_splits/
 # Python cache
 __pycache__/
 *.pyc
+
+# Graphite CLI local token (لا يُرفع أبدًا إلى git)
+.graphite-token
