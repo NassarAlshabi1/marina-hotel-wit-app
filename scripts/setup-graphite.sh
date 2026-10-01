@@ -93,7 +93,7 @@ if ! command -v gt >/dev/null 2>&1; then
 fi
 
 # 2) توثيق عند الحاجة فقط (توكن جديد/مختلف عن الموثّق سابقًا)
-if [ -n "$TOKEN" ] && ! grep -q "$TOKEN" "$AUTH_FILE" 2>/dev/null; then
+if [ -n "$TOKEN" ] && ! grep -qF -- "$TOKEN" "$AUTH_FILE" 2>/dev/null; then
   if gt auth --token "$TOKEN" >/dev/null 2>&1; then
     echo "✔ [graphite] تم التوثيق (gt auth)"
   else
