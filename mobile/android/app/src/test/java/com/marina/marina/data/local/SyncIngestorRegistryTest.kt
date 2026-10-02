@@ -101,6 +101,29 @@ class SyncIngestorRegistryTest {
         assertEquals(55L, room.serverId?.toLong())
     }
 
+    @Test
+    fun integerBooleanColumnsFromD1AreNormalizedBeforeDeserialization() = runBlocking {
+        val report = registry.ingestPage(
+            listOf(
+                mapOf(
+                    "_entity" to "rooms",
+                    "id" to 56,
+                    "local_uuid" to "room-integer-boolean",
+                    "room_number" to "102",
+                    "type" to "single",
+                    "price" to 100.0,
+                    "status" to "available",
+                    "cleaning_status" to "clean",
+                    "requires_maintenance" to 1,
+                    "last_modified" to 101L
+                )
+            )
+        )
+
+        assertEquals(1, report.applied)
+        assertTrue(db.roomsDao().getByLocalUuid("room-integer-boolean")!!.requiresMaintenance)
+    }
+
     // ─── 2) ترجمة FK عبر uuid-cache — لا id خام من جهاز بعيد ───
 
     @Test
@@ -248,6 +271,7 @@ class SyncIngestorRegistryTest {
                 type = "single",
                 price = 250.0,
                 status = "occupied",
+                requiresMaintenance = true,
                 localUuid = "room-delete-wins",
                 updatedAt = 2_000L,
                 lastModified = 2_000L
@@ -280,6 +304,7 @@ class SyncIngestorRegistryTest {
         assertEquals(localId, saved.id)
         assertEquals(250.0, saved.price, 0.001)
         assertEquals("occupied", saved.status)
+        assertTrue(saved.requiresMaintenance)
         assertEquals(900L, saved.deletedAt)
         assertEquals(1_000L, saved.updatedAt)
         assertEquals(1_000L, saved.lastModified)

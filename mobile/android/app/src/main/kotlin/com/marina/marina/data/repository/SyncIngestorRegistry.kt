@@ -5,6 +5,7 @@ import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.annotations.SerializedName
 import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.AppUsersDao
 import com.marina.marina.data.local.dao.AuditLogsDao
@@ -125,6 +126,7 @@ class SyncIngestorRegistry @Inject constructor(
      * الصنف الفعلي إعلانه (الفرعي هو المصدر المرجعي).
      */
     private val gsonCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Gson>()
+    private val booleanWireFieldsCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Set<String>>()
 
     private fun gsonFor(clazz: Class<*>): Gson = gsonCache.getOrPut(clazz) {
         val ownNames = clazz.declaredFields.map { it.name }.toSet()
@@ -138,6 +140,38 @@ class SyncIngestorRegistry @Inject constructor(
             .addDeserializationExclusionStrategy(strategy)
             .addSerializationExclusionStrategy(strategy)
             .create()
+    }
+
+    /** D1/SQLite booleans arrive over both sync transports as INTEGER 0/1. */
+    private fun normalizeBooleanWireFields(mapped: MutableMap<String, Any>, clazz: Class<*>) {
+        val fieldNames = booleanWireFieldsCache.getOrPut(clazz) {
+            generateSequence(clazz) { it.superclass }
+                .takeWhile { it != Any::class.java }
+                .flatMap { it.declaredFields.asSequence() }
+                .filter { field ->
+                    field.type == Boolean::class.javaPrimitiveType ||
+                        field.type == Boolean::class.javaObjectType
+                }
+                .map { field ->
+                    field.getAnnotation(SerializedName::class.java)?.value ?: field.name
+                }
+                .toSet()
+        }
+
+        fieldNames.forEach { name ->
+            val wireValue = mapped[name] ?: return@forEach
+            val booleanValue = when (wireValue) {
+                is Boolean -> wireValue
+                is Number -> wireValue.toDouble() != 0.0
+                is String -> when (val normalized = wireValue.trim().lowercase()) {
+                    "true" -> true
+                    "false" -> false
+                    else -> normalized.toDoubleOrNull()?.let { it != 0.0 }
+                }
+                else -> null
+            }
+            if (booleanValue != null) mapped[name] = booleanValue
+        }
     }
 
     // ─── واجهات عامة ────────────────────────────────────────────
@@ -271,6 +305,7 @@ class SyncIngestorRegistry @Inject constructor(
         // ─── تسلسل + LWW ───
         return try {
             val clazz = entityClass(entity) ?: return ApplyOutcome.Skipped
+            normalizeBooleanWireFields(mapped, clazz)
             val entityGson = gsonFor(clazz)
             @Suppress("UNCHECKED_CAST")
             val remote = entityGson.fromJson(entityGson.toJson(mapped), clazz) as? BaseSyncEntity
