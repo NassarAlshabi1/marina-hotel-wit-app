@@ -93,12 +93,20 @@ jobs:
         if: failure()
         run: |
           if [ -f "$RUNNER_TEMP/android-gradle-tests.log" ]; then
-            diagnostic=$(tail -n 60 "$RUNNER_TEMP/android-gradle-tests.log" | tr '\r\n' '  ' | sed 's/%/%25/g')
-            echo "::error file=.github/workflows/android-kotlin-build.yml,line=99,title=Gradle diagnostic::$diagnostic"
+            diagnostics=$(grep -E 'e: file:|e: .*\.kt:|Compilation error|FAILED|What went wrong|Execution failed|Caused by:|error:' \
+              "$RUNNER_TEMP/android-gradle-tests.log" | tail -n 30 | tr '\r\n' '  ' | sed 's/%/%25/g') || true
+            if [ -n "$diagnostics" ]; then
+              echo "::error file=.github/workflows/android-kotlin-build.yml,line=99,title=Gradle compiler diagnostics::$diagnostics"
+            else
+              diagnostic=$(tail -n 60 "$RUNNER_TEMP/android-gradle-tests.log" | tr '\r\n' '  ' | sed 's/%/%25/g')
+              echo "::error file=.github/workflows/android-kotlin-build.yml,line=99,title=Gradle diagnostic tail::$diagnostic"
+            fi
             {
               echo '### Android unit-test failure output'
               echo '```text'
-              tail -n 120 "$RUNNER_TEMP/android-gradle-tests.log"
+              grep -E 'e: file:|e: .*\.kt:|Compilation error|FAILED|What went wrong|Execution failed|Caused by:|error:' \
+                "$RUNNER_TEMP/android-gradle-tests.log" | tail -n 80 || true
+              tail -n 80 "$RUNNER_TEMP/android-gradle-tests.log"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           else
