@@ -96,11 +96,8 @@ jobs:
             echo '### Android unit-test failure output'
             echo '```text'
             if [ -f "$RUNNER_TEMP/android-gradle-tests.log" ]; then
-              grep -E '(^e: |^> Task .*FAILED|^FAILURE:|^Execution failed|^\* What went wrong:|^Caused by:|^BUILD FAILED)' \
-                "$RUNNER_TEMP/android-gradle-tests.log" | tail -n 40 | while IFS= read -r line; do
-                  escaped=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
-                  echo "::error title=Gradle diagnostic::$escaped"
-                done || true
+              diagnostic=$(tail -n 60 "$RUNNER_TEMP/android-gradle-tests.log" | tr '\r\n' '  ' | sed 's/%/%25/g')
+              echo "::error file=.github/workflows/android-kotlin-build.yml,line=99,title=Gradle diagnostic::$diagnostic"
               tail -n 120 "$RUNNER_TEMP/android-gradle-tests.log"
             else
               echo 'Gradle log was not produced before the failure.'
