@@ -7,7 +7,6 @@ import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.runtime.Composable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarData
@@ -15,6 +14,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.marina.marina.ui.theme.AppColors
 
 /**
  * أدوات مشتركة لشاشات المدفوعات — نظير `PaymentMethod` من
@@ -23,18 +23,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
  * payments_main_screen.dart و payment_history_screen.dart.
  */
 
-/** Dart `PaymentMethod` (payment_models.dart l.13-19): label/icon/color بالضبط. */
 enum class PayMethodUi(
     val db: String,
     val label: String,
-    val icon: ImageVector,
-    val color: Color
+    val icon: ImageVector
 ) {
-    CASH("نقدي", "نقدي", Icons.Filled.Money, Color(0xFF4CAF50)),
-    CARD("بطاقة", "بطاقة ائتمانية", Icons.Filled.CreditCard, Color(0xFF2196F3)),
-    TRANSFER("تحويل", "تحويل بنكي", Icons.Filled.AccountBalance, Color(0xFF9C27B0)),
-    CHECK("شيك", "شيك", Icons.Filled.ReceiptLong, Color(0xFFFF9800)),
-    INSTALLMENT("تقسيط", "تقسيط", Icons.Filled.Schedule, Color(0xFF3F51B5));
+    CASH("نقدي", "نقدي", Icons.Filled.Money),
+    CARD("بطاقة", "بطاقة ائتمانية", Icons.Filled.CreditCard),
+    TRANSFER("تحويل", "تحويل بنكي", Icons.Filled.AccountBalance),
+    CHECK("شيك", "شيك", Icons.Filled.ReceiptLong),
+    INSTALLMENT("تقسيط", "تقسيط", Icons.Filled.Schedule);
 
     companion object {
         /** Dart `_mapDbMethodToUi` (booking_payment_screen.dart l.94-111). */
@@ -49,13 +47,30 @@ enum class PayMethodUi(
     }
 }
 
+/** Theme-aware tint for method labels/icons on surfaces. */
+@Composable
+fun PayMethodUi.colorForTheme(): Color = when (this) {
+    PayMethodUi.CASH -> AppColors.SuccessColor
+    PayMethodUi.CARD, PayMethodUi.INSTALLMENT -> AppColors.PrimaryColor
+    PayMethodUi.TRANSFER -> AppColors.WarningColor
+    PayMethodUi.CHECK -> AppColors.InfoColor
+}
+
+/** Strong, fixed fill colors keep white labels legible on selected method chips. */
+fun PayMethodUi.actionColor(): Color = when (this) {
+    PayMethodUi.CASH -> AppColors.SuccessActionColor
+    PayMethodUi.TRANSFER -> AppColors.WarningActionColor
+    PayMethodUi.CARD, PayMethodUi.CHECK, PayMethodUi.INSTALLMENT -> AppColors.PrimaryActionColor
+}
+
 /** Dart `_getPaymentMethodColor` (payments_main_screen.dart l.639-653). */
+@Composable
 fun dbMethodColor(method: String): Color = when (method) {
-    "نقدي" -> Color(0xFF4CAF50)
-    "بطاقة" -> Color(0xFF2196F3)
-    "تحويل" -> Color(0xFFFF9800)
-    "شيك" -> Color(0xFF9C27B0)
-    else -> Color(0xFF9E9E9E)
+    "نقدي" -> AppColors.SuccessColor
+    "بطاقة" -> AppColors.InfoColor
+    "تحويل" -> AppColors.WarningColor
+    "شيك" -> AppColors.InfoColor
+    else -> AppColors.TextSecondary
 }
 
 /** Dart `_getPaymentMethodIcon` (payments_main_screen.dart l.655-669). */
@@ -79,15 +94,14 @@ fun revenueTypeLabel(type: String?): String = when (type) {
 /** لون سناك-بار الرسالة — نظير backgroundColor في Dart SnackBar. */
 enum class MsgTone { INFO, SUCCESS, ERROR, ERROR_DARK, WARN }
 
-/** Dart snackbar colors: green / red / red.shade900 / orange / default theme. */
+/** Snackbar colors use strong action fills to keep white content accessible. */
 @Composable
 fun PaymentSnackbarHost(hostState: SnackbarHostState, tone: MsgTone) {
     SnackbarHost(hostState) { data: SnackbarData ->
         val container = when (tone) {
-            MsgTone.SUCCESS -> Color(0xFF4CAF50)
-            MsgTone.ERROR -> Color(0xFFF44336)
-            MsgTone.ERROR_DARK -> Color(0xFFB71C1C)
-            MsgTone.WARN -> Color(0xFFFF9800)
+            MsgTone.SUCCESS -> AppColors.SuccessActionColor
+            MsgTone.ERROR, MsgTone.ERROR_DARK -> AppColors.DangerActionColor
+            MsgTone.WARN -> AppColors.WarningActionColor
             MsgTone.INFO -> MaterialTheme.colorScheme.inverseSurface
         }
         Snackbar(

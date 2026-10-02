@@ -62,13 +62,19 @@ import kotlinx.coroutines.launch
  * العامة والإدارة الوهمية (قرار Dart 2026-09-05).
  */
 object BackupUi {
-    /** نظير UIConstants.backupColor = Color(0xFF4CAF50). */
-    val backupColor = Color(0xFF4CAF50)
-    val grey100 = Color(0xFFF5F5F5)
-    val grey400 = Color(0xFFBDBDBD)
-    val grey500 = Color(0xFF9E9E9E)
-    val grey600 = Color(0xFF757575)
-    val grey700 = Color(0xFF616161)
+    /** ألوان متوافقة مع السمة الحالية، مع الإبقاء على ثوابت المسافات القديمة. */
+    val backupColor: Color
+        @Composable get() = AppColors.SuccessColor
+    val grey100: Color
+        @Composable get() = AppColors.LightGray
+    val grey400: Color
+        @Composable get() = AppColors.TextSecondary
+    val grey500: Color
+        @Composable get() = AppColors.TextSecondary
+    val grey600: Color
+        @Composable get() = AppColors.TextSecondary
+    val grey700: Color
+        @Composable get() = AppColors.TextPrimary
     const val spacingSM = 8
     const val spacingMD = 16
     const val spacingLG = 24

@@ -39,7 +39,7 @@ import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -129,7 +129,7 @@ fun SettingsScreen(
         HubItem(
             "النسخ الاحتياطي والاستعادة",
             "نسخ محلية آمنة ومزامنة Cloudflare D1",
-            Icons.Default.Backup, Color(0xFFFF5722), route = "backup"
+            Icons.Default.Backup, AppColors.WarningColor, route = "backup"
         )
     )
     val whatsappItems = listOf(
@@ -164,7 +164,7 @@ fun SettingsScreen(
                                 Icon(
                                     Icons.Default.Sync,
                                     contentDescription = "مزامنة مع Cloudflare",
-                                    tint = if (state.isError) Color(0xFFFF5349) else AppColors.TextPrimary
+                                    tint = if (state.isError) AppColors.DangerColor else AppColors.TextPrimary
                                 )
                             }
                         }
@@ -322,17 +322,26 @@ fun SettingsScreen(
 
 // ═══════════════ مكونات مطابقة لعناصر Dart ═══════════════
 
-/** ألوان Dart المستخدمة في الشاشة (Colors.* الفعلية). */
+/** Semantic accents resolved from the active palette on every recomposition. */
 private object DartColors {
-    val blue = Color(0xFF2196F3)
-    val green = Color(0xFF4CAF50)
-    val orange = Color(0xFFFF9800)
-    val purple = Color(0xFF9C27B0)
-    val indigo = Color(0xFF3F51B5)
-    val red = Color(0xFFF44336)
-    val brown = Color(0xFF795548)
-    val grey = Color(0xFF9E9E9E)
-    val amber700 = Color(0xFFFFA000)
+    val blue: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val green: Color
+        @Composable get() = MaterialTheme.colorScheme.tertiary
+    val orange: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
+    val purple: Color
+        @Composable get() = AppColors.InfoColor
+    val indigo: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val red: Color
+        @Composable get() = MaterialTheme.colorScheme.error
+    val brown: Color
+        @Composable get() = AppColors.WarningColor
+    val grey: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+    val amber700: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
 }
 
 /** عنصر شبكة الإعدادات — نظير _SettingsItem في Dart. */
@@ -354,7 +363,7 @@ private fun QuickStatsCard(
     users: Int,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
@@ -450,7 +459,7 @@ private fun SettingsGrid(items: List<HubItem>, onClick: (HubItem) -> Unit) {
 /** بطاقة عنصر — Card elevation 1 + padding 10 + عمود متمركز (Dart). */
 @Composable
 private fun GridCard(item: HubItem, onClick: (HubItem) -> Unit, modifier: Modifier = Modifier) {
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),

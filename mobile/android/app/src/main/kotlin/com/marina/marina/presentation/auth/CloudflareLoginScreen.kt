@@ -33,12 +33,13 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -100,7 +101,7 @@ fun CloudflareLoginScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppColors.PrimaryColor,
+                    containerColor = AppColors.PrimaryActionColor,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
@@ -129,7 +130,7 @@ fun CloudflareLoginScreen(
             }
 
             // ─── بطاقة الاعتمادات ───
-            Card(
+            OutlinedCard(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -187,7 +188,7 @@ fun CloudflareLoginScreen(
                         onClick = viewModel::login,
                         enabled = !state.isLoggingIn,
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = AppColors.PrimaryColor,
+                            containerColor = AppColors.PrimaryActionColor,
                             contentColor = Color.White
                         ),
                         modifier = Modifier.fillMaxWidth()
@@ -288,10 +289,14 @@ fun CloudflareLoginScreen(
 
 /** ألوان حالات SyncStatus في Dart (Colors.blue/green/orange/grey). */
 private object StatusColors {
-    val blue = Color(0xFF2196F3)
-    val green = Color(0xFF4CAF50)
-    val orange = Color(0xFFFF9800)
-    val grey = Color(0xFF9E9E9E)
+    val blue: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val green: Color
+        @Composable get() = MaterialTheme.colorScheme.tertiary
+    val orange: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
+    val grey: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 /** بطاقة الحالة العلوية — لحظية (نظير _StatusCard في Dart). */
@@ -304,7 +309,7 @@ private fun StatusCard(status: CfSyncStatus, workerUrl: String, account: String)
         CfSyncStatus.IDLE -> Triple(Icons.Outlined.Cloud, StatusColors.grey, "جاهز — لا مزامنة جارية")
     }
 
-    Card(
+    OutlinedCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),

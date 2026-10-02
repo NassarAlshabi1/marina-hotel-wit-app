@@ -60,7 +60,7 @@ fun EmployeesListScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { showAddDialog = true },
-                    containerColor = AppColors.PrimaryColor,
+                    containerColor = AppColors.PrimaryActionColor,
                     contentColor = Color.White
                 ) {
                     Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -96,7 +96,7 @@ fun EmployeesListScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Card(
+                OutlinedCard(
                     colors = CardDefaults.cardColors(containerColor = AppColors.AccentSoft),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -281,7 +281,7 @@ private fun EmployeeCard(
 ) {
     val employee = item.employee
     val isActive = StatusUtils.isEmployeeActive(employee.status)
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),

@@ -54,25 +54,25 @@ data class RoomWithPaymentStatus(
         }
 
     companion object {
-        /** محجوزة — occupied red (Material red 600 ≈ 0xFFE53935). */
-        val OccupiedColor: Color = Color(0xFFE53935)
+        /** Occupied room — restrained Marina terracotta. */
+        val OccupiedColor: Color = Color(0xFFB44D49)
 
-        /** شاغرة — vacant green (Material green 600 ≈ 0xFF43A047). */
-        val VacantColor: Color = Color(0xFF43A047)
+        /** Vacant room — deep sea-green for clear positive contrast. */
+        val VacantColor: Color = Color(0xFF2F725C)
 
-        /** صيانة — maintenance orange (Material orange 600 ≈ 0xFFFB8C00). */
-        val MaintenanceColor: Color = Color(0xFFFB8C00)
+        /** Maintenance — warm brass warning tone. */
+        val MaintenanceColor: Color = Color(0xFF92611E)
 
-        /** متأخر 23:00 — overdue dark red (Material red 800 ≈ 0xFFC62828). */
-        val OverdueColor: Color = Color(0xFFC62828)
+        /** Overdue — deeper terracotta for the high-priority state. */
+        val OverdueColor: Color = Color(0xFF873B38)
 
-        /** Overdue tile border — Material red 900 ≈ 0xFFB71C1C. */
-        val OverdueDark: Color = Color(0xFFB71C1C)
+        /** Overdue tile border. */
+        val OverdueDark: Color = Color(0xFF702F2C)
 
-        /** تنبيه 22:00 strip — alert orange (Material orange 500 ≈ 0xFFF57C00). */
-        val LatePaymentColor: Color = Color(0xFFF57C00)
+        /** Late payment — distinct brass accent. */
+        val LatePaymentColor: Color = Color(0xFF79501D)
 
-        /** Unregistered room fallback (Material grey 400 ≈ 0xFFBDBDBD). */
-        val UnregisteredColor: Color = Color(0xFFBDBDBD)
+        /** Unregistered room fallback. */
+        val UnregisteredColor: Color = Color(0xFF8B9692)
     }
 }

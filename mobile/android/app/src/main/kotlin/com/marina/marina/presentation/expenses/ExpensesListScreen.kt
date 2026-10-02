@@ -55,7 +55,7 @@ fun ExpensesListScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { showAddDialog = true },
-                    containerColor = AppColors.PrimaryColor,
+                    containerColor = AppColors.PrimaryActionColor,
                     contentColor = Color.White
                 ) {
                     Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -96,7 +96,7 @@ fun ExpensesListScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Card(
+                OutlinedCard(
                     colors = CardDefaults.cardColors(containerColor = AppColors.AccentSoft),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -187,7 +187,7 @@ private fun ExpenseCard(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(10.dp),

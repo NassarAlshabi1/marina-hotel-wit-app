@@ -36,7 +36,7 @@ import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -108,13 +108,17 @@ private val PAYMENT_METHODS = listOf("نقدي", "تحويل بنكي")
 private val STATUS_OPTIONS = listOf("محجوزة", "مؤقت", "شاغرة", "مكتمل", "ملغي")
 
 // ألوان Flutter المستخدمة في الشاشة.
-private val FLUTTER_GREEN = Color(0xFF4CAF50)
-private val FLUTTER_BLUE = Color(0xFF2196F3)
-private val FLUTTER_ORANGE = Color(0xFFFF9800)
-private val FLUTTER_GREEN_50 = Color(0xFFE8F5E9)
-private val FLUTTER_GREY_50 = Color(0xFFFAFAFA)
-private val FLUTTER_RED_900 = Color(0xFFB71C1C)
-private val FLUTTER_YELLOW = Color(0xFFFFEB3B)
+private val FLUTTER_GREEN: Color
+    @Composable get() = AppColors.SuccessColor
+private val FLUTTER_BLUE: Color
+    @Composable get() = AppColors.InfoColor
+private val FLUTTER_ORANGE: Color
+    @Composable get() = AppColors.WarningColor
+private val FLUTTER_GREEN_50: Color
+    @Composable get() = AppColors.SuccessContainerColor
+private val FLUTTER_GREY_50: Color
+    @Composable get() = AppColors.LightGray
+private val FLUTTER_RED_900 = AppColors.DangerActionColor
 
 /**
  * شاشة «إضافة/تعديل حجز» — نقل 1:1 لـ booking_edit.dart
@@ -338,7 +342,7 @@ fun BookingEditScreen(
                             )
                         }
                         TextButton(onClick = { data.performAction() }) {
-                            Text("متابعة الحجز", color = FLUTTER_YELLOW)
+                            Text("متابعة الحجز", color = Color.White)
                         }
                     }
                 } else {
@@ -409,7 +413,7 @@ fun BookingEditScreen(
             ) {
                 // ─── بيانات النزيل ──────────────────────────────────────
                 SectionTitle("بيانات النزيل")
-                Card(
+                OutlinedCard(
                     colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -521,7 +525,7 @@ fun BookingEditScreen(
 
                 // ─── تفاصيل الحجز ───────────────────────────────────────
                 SectionTitle("تفاصيل الحجز")
-                Card(
+                OutlinedCard(
                     colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -591,7 +595,7 @@ fun BookingEditScreen(
 
                 // ─── الدفع المقدم (اختياري) ─────────────────────────────
                 SectionTitle("الدفع المقدم (اختياري)")
-                Card(
+                OutlinedCard(
                     colors = CardDefaults.cardColors(
                         containerColor = if (hasAdvancePayment) FLUTTER_GREEN_50 else FLUTTER_GREY_50
                     ),
@@ -651,7 +655,7 @@ fun BookingEditScreen(
 
                 // ─── ملاحظات الحجز ──────────────────────────────────────
                 SectionTitle("ملاحظات الحجز")
-                Card(
+                OutlinedCard(
                     colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -678,7 +682,10 @@ fun BookingEditScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryColor),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.PrimaryActionColor,
+                        contentColor = Color.White
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(Icons.Filled.Save, contentDescription = null)

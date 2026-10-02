@@ -19,7 +19,8 @@ import javax.inject.Singleton
  *    (local:admin-session من [LocalAdminAuth]) — الدخول المحلي يفتح
  *    التطبيق بلا شبكة، والمزامنة تُكمّل الدخول الشبكي كسولاً عند الحاجة.
  *  • pull: GET /api/sync/pull?cursor&limit&exclude_device — سحب دلتا
- *    عبر كل الجداول دفعة واحدة (كل سجل يحمل _entity).
+ *    عبر كل الجداول دفعة واحدة (كل سجل يحمل _entity) + epoch اختياري
+ *    لإبطال المؤشر بعد استعادة/إعادة استيراد خادمية.
  *  • push: POST /api/sync/push {operations:[…]} — دفعة واحدة ≤100 عملية.
  */
 @Singleton
@@ -244,6 +245,7 @@ class SyncPreferences @Inject constructor(
         private const val KEY_FULL_SYNC_COMPLETE = "full_sync_complete"
         private const val KEY_CURRENT_USER = "current_user_json"
         private const val KEY_LAST_PULL_CURSOR = "last_pull_cursor"
+        private const val KEY_SYNC_EPOCH = "cf_sync_epoch"
 
         // ✅ (2026-09-24) مفاتيح إعدادات المزامنة — نفس سلاسل Dart حرفياً
         // (unified_sync_settings_screen.dart l.59-68) لضمان التوافق.
@@ -324,6 +326,14 @@ class SyncPreferences @Inject constructor(
 
     fun getLastPullCursor(): Long {
         return preferencesManager.getLong(KEY_LAST_PULL_CURSOR, 0L)
+    }
+
+    /** آخر جيل خادمي معتمد؛ null قبل أول استجابة Worker تحمل epoch. */
+    fun getSyncEpoch(): String? =
+        preferencesManager.getString(KEY_SYNC_EPOCH)?.trim()?.takeIf { it.isNotEmpty() }
+
+    fun saveSyncEpoch(epoch: String) {
+        preferencesManager.saveString(KEY_SYNC_EPOCH, epoch.trim())
     }
 
     // ─── ✅ (2026-09-25) علم تطبيع الطوابع الخادمي ───────────────

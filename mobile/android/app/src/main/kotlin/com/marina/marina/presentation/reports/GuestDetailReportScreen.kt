@@ -21,6 +21,7 @@ import com.marina.marina.domain.util.BookingFinancials
 import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.domain.util.HotelTimeEngine
 import com.marina.marina.ui.theme.AppColors
+import com.marina.marina.ui.theme.MarinaPalette
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 import com.marina.marina.util.PdfExporter
@@ -91,14 +92,14 @@ fun GuestDetailReportScreen(
                 }
 
                 // Summary bar (Dart l.644-680).
-                Card(
+                OutlinedCard(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                     modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
-                            .background(Brush.horizontalGradient(listOf(Color(0xFF0D47A1), Color(0xFF1565C0))), RoundedCornerShape(12.dp))
+                            .background(Brush.horizontalGradient(listOf(MarinaPalette.OceanDeep, MarinaPalette.OceanDeep)), RoundedCornerShape(12.dp))
                             .padding(12.dp)
                             .fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -148,7 +149,7 @@ private fun SummaryBarItem(label: String, value: String) {
 @Composable
 private fun GuestDetailCard(row: GuestDetailRow, onShare: () -> Unit) {
     val b = row.booking
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -163,7 +164,7 @@ private fun GuestDetailCard(row: GuestDetailRow, onShare: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         "غرفة ${b.roomNumber}", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.background(Color(0xFF1565C0), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp)
+                        modifier = Modifier.background(MarinaPalette.OceanDeep, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                     Text(b.guestName.ifBlank { "ضيف" }, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -229,7 +230,7 @@ private fun GuestDetailCard(row: GuestDetailRow, onShare: () -> Unit) {
                     fontSize = 10.sp, color = AppColors.TextSecondary
                 )
                 TextButton(onClick = onShare, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                    Text("إرسال كشف (واتساب)", fontSize = 10.sp, color = Color(0xFF25D366))
+                    Text("إرسال كشف (واتساب)", fontSize = 10.sp, color = AppColors.SuccessColor)
                 }
             }
         }

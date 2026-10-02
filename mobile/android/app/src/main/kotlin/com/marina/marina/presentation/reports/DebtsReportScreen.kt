@@ -78,7 +78,7 @@ fun DebtsReportScreen(
                 // Guest summary table (Dart l.591-620).
                 if (state.guestSummaries.isNotEmpty()) {
                     item {
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -111,7 +111,7 @@ fun DebtsReportScreen(
                 } else {
                     items(state.rows.size, key = { state.rows[it].id }) { index ->
                         val debt = state.rows[index]
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                             shape = RoundedCornerShape(10.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),

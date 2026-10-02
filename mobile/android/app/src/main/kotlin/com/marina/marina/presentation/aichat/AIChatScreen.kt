@@ -118,7 +118,7 @@ fun AIChatScreen(
                                 viewModel.send(input)
                                 input = ""
                             },
-                            containerColor = AppColors.PrimaryColor,
+                            containerColor = AppColors.PrimaryActionColor,
                             contentColor = Color.White,
                             modifier = Modifier.size(44.dp)
                         ) {
@@ -154,7 +154,10 @@ fun AIChatScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = { showSettings = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryColor),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.PrimaryActionColor,
+                            contentColor = Color.White
+                        ),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text("ضبط المفتاح", color = Color.White)

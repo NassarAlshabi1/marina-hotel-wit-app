@@ -32,7 +32,7 @@ import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -268,7 +268,7 @@ private fun InventoryItemCard(
     val isLow = item.minimumQuantity > 0.0 && item.currentQuantity <= item.minimumQuantity
     val balanceColor = if (isLow) DartPalette.orange800 else DartPalette.green700
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // CircleAvatar(radius: 20) — أفاتار 40dp بخلفية فاتحة.
@@ -412,7 +412,7 @@ private fun InventoryErrorWidget(
                 onClick = onResync,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = DartPalette.blue,
+                    containerColor = AppColors.PrimaryActionColor,
                     contentColor = Color.White
                 ),
                 contentPadding = PaddingValues(16.dp)

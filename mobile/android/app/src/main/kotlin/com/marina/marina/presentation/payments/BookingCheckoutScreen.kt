@@ -74,7 +74,10 @@ fun BookingCheckoutScreen(
                         onClick = { showAddPayment = true },
                         enabled = !state.isProcessing,
                         modifier = Modifier.weight(1f).height(52.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.SuccessColor),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.SuccessActionColor,
+                            contentColor = Color.White
+                        ),
                         shape = RoundedCornerShape(12.dp)
                     ) { Text("إضافة دفعة جديدة", color = Color.White, fontWeight = FontWeight.Bold) }
                     Button(
@@ -82,7 +85,8 @@ fun BookingCheckoutScreen(
                         enabled = !state.isProcessing && state.remaining <= 0.0,
                         modifier = Modifier.weight(1f).height(52.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AppColors.PrimaryColor,
+                            containerColor = AppColors.PrimaryActionColor,
+                            contentColor = Color.White,
                             disabledContainerColor = AppColors.LightGray
                         ),
                         shape = RoundedCornerShape(12.dp)
@@ -110,7 +114,7 @@ fun BookingCheckoutScreen(
 
                     // Booking info card (Dart l.196-278).
                     item {
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                             shape = RoundedCornerShape(12.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -180,7 +184,7 @@ fun BookingCheckoutScreen(
 
                     if (state.payments.isEmpty()) {
                         item {
-                            Card(
+                            OutlinedCard(
                                 colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
@@ -192,7 +196,7 @@ fun BookingCheckoutScreen(
                     } else {
                         items(state.payments.size) { index ->
                             val p = state.payments[index]
-                            Card(
+                            OutlinedCard(
                                 colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                                 shape = RoundedCornerShape(10.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -271,16 +275,16 @@ private fun revenueLabelShort(revenueType: String): String = when (revenueType.l
 }
 
 @Composable
-private fun CheckoutDetailRow(label: String, value: String, valueColor: Color = AppColors.TextPrimary) {
+private fun CheckoutDetailRow(label: String, value: String, valueColor: Color? = null) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = AppTypography.bodySmall, color = AppColors.TextSecondary)
-        Text(value, style = AppTypography.bodySmall, color = valueColor, fontWeight = FontWeight.SemiBold)
+        Text(value, style = AppTypography.bodySmall, color = valueColor ?: AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun CheckoutStatBox(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
-    Card(
+    OutlinedCard(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))

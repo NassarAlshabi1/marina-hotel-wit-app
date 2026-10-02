@@ -29,7 +29,7 @@
 --  Writers: /api/devices/register (upsert by device_id, allocateUpdatedAt
 --  via sync_clock), sync push/pull (ENTITY_TABLES), bulk migration.
 --
---  Apply with: npm run db:migrate
+--  Apply with: npm run db:migrate:devices
 -- ═══════════════════════════════════════════════════════════════
 
 -- ─── devices (rebuild, rows preserved) ──────────────────────

@@ -49,7 +49,7 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -201,7 +201,7 @@ fun CloudflareSyncSettingsScreen(
                     onClick = onOpenCloudflareLogin,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = SyncColor,
+                        containerColor = AppColors.PrimaryActionColor,
                         contentColor = Color.White
                     )
                 ) {
@@ -284,7 +284,7 @@ fun CloudflareSyncSettingsScreen(
 
             // 4-ب) المزامنة الذكية
             SectionCard {
-                SectionHeader(icon = Icons.Default.Psychology, title = "المزامنة الذكية", tint = Color(0xFF9C27B0))
+                SectionHeader(icon = Icons.Default.Psychology, title = "المزامنة الذكية", tint = AppColors.InfoColor)
                 CardDivider()
                 SettingsSwitchRow(
                     icon = Icons.Default.SmartToy,
@@ -380,7 +380,7 @@ fun CloudflareSyncSettingsScreen(
 
             // ─── 5) Cloudflare Sync ──────────────────────────────
             SectionCard {
-                SectionHeader(icon = Icons.Default.CloudSync, title = "Cloudflare Sync", tint = Color(0xFF2196F3))
+                SectionHeader(icon = Icons.Default.CloudSync, title = "Cloudflare Sync", tint = AppColors.InfoColor)
                 CardDivider()
                 SettingsSwitchRow(
                     icon = Icons.Default.Cloud,
@@ -408,7 +408,7 @@ fun CloudflareSyncSettingsScreen(
                 CardDivider()
                 ManualActionRow(
                     icon = Icons.Default.CloudDownload,
-                    iconTint = Color(0xFF2196F3),
+                    iconTint = AppColors.InfoColor,
                     title = "سحب التغييرات الآن",
                     subtitle = "يجلب التغييرات الجديدة من السيرفر فقط (بدون رفع)",
                     busy = state.isManualSyncing,
@@ -418,7 +418,7 @@ fun CloudflareSyncSettingsScreen(
                 CardDivider()
                 ManualActionRow(
                     icon = Icons.Default.Restore,
-                    iconTint = Color(0xFF673AB7),
+                    iconTint = AppColors.InfoColor,
                     title = "السحب الكامل من السيرفر",
                     subtitle = "سحب فقط بدون رفع: يعيد ضبط مؤشر السحب ويجلب كل البيانات " +
                         "من السيرفر من الصفر (صفحات أكبر وأسرع)",
@@ -429,7 +429,7 @@ fun CloudflareSyncSettingsScreen(
                 CardDivider()
                 ManualActionRow(
                     icon = Icons.Default.CloudUpload,
-                    iconTint = Color(0xFF009688),
+                    iconTint = AppColors.PrimaryColor,
                     title = "رفع التغييرات المحلية",
                     subtitle = "رفع فقط بدون سحب: يرفع كل التغييرات المحلية المعلّقة " +
                         "في outbox إلى السيرفر",
@@ -515,16 +515,20 @@ fun CloudflareSyncSettingsScreen(
 
 // ═══════════════ مكونات مشتركة (نظائر widgets Dart) ═══════════════
 
-/** لون المزامنة — UIConstants.syncColor في Dart. */
-private val SyncColor = Color(0xFF0288D1)
-private val SuccessGreen = Color(0xFF2E7D5B)
-private val ErrorRed = Color(0xFFE5484D)
-private val WarningOrange = Color(0xFFF57C00)
+/** ألوان المزامنة الدلالية المتوافقة مع السمة الحالية. */
+private val SyncColor: Color
+    @Composable get() = AppColors.PrimaryColor
+private val SuccessGreen: Color
+    @Composable get() = AppColors.SuccessColor
+private val ErrorRed: Color
+    @Composable get() = AppColors.DangerColor
+private val WarningOrange: Color
+    @Composable get() = AppColors.WarningColor
 
 /** بطاقة قسم قياسية — نظير Card elevation:2 radiusLG في Dart. */
 @Composable
 private fun SectionCard(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),

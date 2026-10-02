@@ -11,7 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -120,7 +120,7 @@ fun SalaryEntitlementsScreen(
 
 @Composable
 private fun SummaryCard(state: SalaryEntitlementsUiState) {
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
@@ -133,7 +133,7 @@ private fun SummaryCard(state: SalaryEntitlementsUiState) {
                 StatCell("إجمالي السحبيات", CurrencyFormatter.formatAmount(state.totalWithdrawals), AppColors.WarningColor)
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                StatCell("إجمالي السلف", CurrencyFormatter.formatAmount(state.totalAdvances), Color(0xFF3F51B5))
+                StatCell("إجمالي السلف", CurrencyFormatter.formatAmount(state.totalAdvances), AppColors.PrimaryColor)
                 StatCell("إجمالي الخصومات", CurrencyFormatter.formatAmount(state.totalDeductions), AppColors.DangerColor)
             }
             HorizontalRule()
@@ -143,7 +143,7 @@ private fun SummaryCard(state: SalaryEntitlementsUiState) {
                     CurrencyFormatter.formatAmount(state.totalNet),
                     style = AppTypography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (state.totalNet >= 0) Color(0xFF1976D2) else AppColors.DangerColor
+                    color = if (state.totalNet >= 0) AppColors.PrimaryColor else AppColors.DangerColor
                 )
             }
         }
@@ -171,7 +171,7 @@ private fun EntitlementCard(
     onToggle: () -> Unit
 ) {
     val ent = entitlement
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
@@ -202,7 +202,7 @@ private fun EntitlementCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 StatCell("الاستحقاق", CurrencyFormatter.formatAmount(ent.totalEntitlement), AppColors.SuccessColor)
                 StatCell("السحبيات", CurrencyFormatter.formatAmount(ent.totalWithdrawals), AppColors.WarningColor)
-                StatCell("السلف", CurrencyFormatter.formatAmount(ent.totalAdvances), Color(0xFF3F51B5))
+                StatCell("السلف", CurrencyFormatter.formatAmount(ent.totalAdvances), AppColors.PrimaryColor)
                 StatCell("الخصومات", CurrencyFormatter.formatAmount(ent.totalDeductions), AppColors.DangerColor)
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -210,7 +210,7 @@ private fun EntitlementCard(
                 Text(
                     CurrencyFormatter.formatAmount(ent.netEntitlement),
                     style = AppTypography.bodyMedium, fontWeight = FontWeight.Bold,
-                    color = if (ent.netEntitlement >= 0) Color(0xFF1976D2) else AppColors.DangerColor
+                    color = if (ent.netEntitlement >= 0) AppColors.PrimaryColor else AppColors.DangerColor
                 )
             }
 
@@ -228,7 +228,7 @@ private fun EntitlementCard(
                                     when {
                                         c.carryOverToNext > 0 -> AppColors.DangerColor.copy(alpha = 0.08f)
                                         c.carriedOverFromPrevious > 0 -> AppColors.WarningColor.copy(alpha = 0.08f)
-                                        else -> Color(0xFF1976D2).copy(alpha = 0.06f)
+                                        else -> AppColors.PrimaryColor.copy(alpha = 0.06f)
                                     },
                                     RoundedCornerShape(10.dp)
                                 )
@@ -244,7 +244,7 @@ private fun EntitlementCard(
                             CycleLine(
                                 "المتبقي",
                                 CurrencyFormatter.formatAmount(c.remainingBalance),
-                                valueColor = if (c.remainingBalance > 0) Color(0xFF1976D2) else AppColors.SuccessColor
+                                valueColor = if (c.remainingBalance > 0) AppColors.PrimaryColor else AppColors.SuccessColor
                             )
                             if (c.carryOverToNext > 0) {
                                 Text(
@@ -269,7 +269,7 @@ private fun EntitlementCard(
                                     CurrencyFormatter.formatAmount(t.amount),
                                     style = AppTypography.labelSmall,
                                     color = when (t.type) {
-                                        "سلفة" -> Color(0xFF3F51B5)
+                                        "سلفة" -> AppColors.PrimaryColor
                                         "سحب" -> AppColors.WarningColor
                                         else -> AppColors.DangerColor
                                     }
@@ -284,9 +284,9 @@ private fun EntitlementCard(
 }
 
 @Composable
-private fun CycleLine(label: String, value: String, valueColor: Color = AppColors.TextPrimary) {
+private fun CycleLine(label: String, value: String, valueColor: Color? = null) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = AppTypography.labelSmall, color = AppColors.TextSecondary)
-        Text(value, style = AppTypography.labelSmall, fontWeight = FontWeight.SemiBold, color = valueColor)
+        Text(value, style = AppTypography.labelSmall, fontWeight = FontWeight.SemiBold, color = valueColor ?: AppColors.TextPrimary)
     }
 }

@@ -1,6 +1,8 @@
 package com.marina.marina.ui.theme
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -14,7 +16,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -32,99 +38,166 @@ import kotlinx.coroutines.flow.asStateFlow
 // New code should prefer MaterialTheme.colorScheme below.
 // ─────────────────────────────────────────────────────────────────────────────
 
+object MarinaPalette {
+    // Marina's coastal-luxury identity: deep sea glass, warm limestone, brass.
+    val Ocean = Color(0xFF14545A)
+    val OceanDeep = Color(0xFF0D383D)
+    val OceanNight = Color(0xFF092C31)
+    val OceanMid = Color(0xFF3D787B)
+    val OceanSoft = Color(0xFFDDEBE7)
+    val Brass = Color(0xFFBE965B)
+    val BrassSoft = Color(0xFFF3EBDD)
+    val Canvas = Color(0xFFF5F4EF)
+    val Paper = Color(0xFFFFFEFB)
+    val Ink = Color(0xFF1B2D2F)
+    val Muted = Color(0xFF667779)
+    val Neutral = Color(0xFF8B9692)
+    val NeutralSoft = Color(0xFFF0F2EE)
+    val Line = Color(0xFFD6DEDA)
+    val LineSoft = Color(0xFFE8ECE7)
+    val Success = Color(0xFF2F725C)
+    val SuccessDeep = Color(0xFF285D4C)
+    val SuccessSoft = Color(0xFFE5F0E9)
+    val Warning = Color(0xFF92611E)
+    val WarningDeep = Color(0xFF79501D)
+    val WarningSoft = Color(0xFFFAF0DC)
+    val Danger = Color(0xFFB44D49)
+    val DangerDeep = Color(0xFF873B38)
+    val DangerSoft = Color(0xFFF7E7E5)
+    val Info = Color(0xFF376B78)
+    val InfoSoft = Color(0xFFE5EFF1)
+    val Violet = Color(0xFF71617E)
+    val VioletSoft = Color(0xFFEEEAF1)
+    val Slate = Color(0xFF52686B)
+    val Walnut = Color(0xFF705B43)
+    val WhatsApp = Color(0xFF25D366)
+    val WhatsAppDeep = Color(0xFF0E6B3B)
+}
+
+/** Dynamic compatibility aliases so legacy screens follow light and dark themes. */
 object AppColors {
-    val PrimaryColor = Color(0xFF242476)
-    val PrimaryDark = Color(0xFF3D3D9E)
-    val PrimaryLight = Color(0xFFEAEAF2)
-    val Secondary = Color(0xFF0A0E2F)
-    val AccentColor = Color(0xFFFABA3E)
-    val BackgroundColor = Color(0xFFF8F8FC)
-    val SurfaceColor = Color(0xFFFFFFFF)
-    val SuccessColor = Color(0xFF2E7D5B)
-    val DangerColor = Color(0xFFE5484D)
-    val WarningColor = Color(0xFFFABA3E)
-    val InfoColor = Color(0xFF242476)
-    val TextPrimary = Color(0xFF0A0E2F)
-    val TextSecondary = Color(0xFF6C6F8F)
-    val LightGray = Color(0xFFEAEAF2)
-    val MediumGray = Color(0xFF6C6F8F)
-    val DarkGray = Color(0xFF0A0E2F)
-    val CardBackground = Color(0xFFFFFFFF)
-    val DividerColor = Color(0xFFD3D3E4)
-    val SidebarColor = Color(0xFF0A0E2F)
-    val SidebarAccent = Color(0xFF242476)
-    val AccentSoft = Color(0xFFFFF3DC)
+    /** Deep brand accents reserved for filled controls with white labels. */
+    val PrimaryActionColor: Color = MarinaPalette.Ocean
+    val SuccessActionColor: Color = MarinaPalette.Success
+    val WarningActionColor: Color = MarinaPalette.Warning
+    val DangerActionColor: Color = MarinaPalette.Danger
+
+    val PrimaryColor: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val PrimaryDark: Color
+        @Composable get() = MaterialTheme.colorScheme.primaryContainer
+    val PrimaryLight: Color
+        @Composable get() = MaterialTheme.colorScheme.primaryContainer
+    val Secondary: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurface
+    val AccentColor: Color = MarinaPalette.Brass
+    val BackgroundColor: Color
+        @Composable get() = MaterialTheme.colorScheme.background
+    val SurfaceColor: Color
+        @Composable get() = MaterialTheme.colorScheme.surface
+    val SuccessColor: Color
+        @Composable get() = MaterialTheme.colorScheme.tertiary
+    val SuccessContainerColor: Color
+        @Composable get() = MaterialTheme.colorScheme.tertiaryContainer
+    val DangerContainerColor: Color
+        @Composable get() = MaterialTheme.colorScheme.errorContainer
+    val WarningContainerColor: Color
+        @Composable get() = MaterialTheme.colorScheme.secondaryContainer
+    val InfoContainerColor: Color
+        @Composable get() = MaterialTheme.colorScheme.primaryContainer
+    val DangerColor: Color
+        @Composable get() = MaterialTheme.colorScheme.error
+    val WarningColor: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
+    val InfoColor: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val TextPrimary: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurface
+    val TextSecondary: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+    val LightGray: Color
+        @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+    val MediumGray: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+    val DarkGray: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurface
+    val CardBackground: Color
+        @Composable get() = MaterialTheme.colorScheme.surface
+    val DividerColor: Color
+        @Composable get() = MaterialTheme.colorScheme.outlineVariant
+    val SidebarColor: Color
+        @Composable get() = MaterialTheme.colorScheme.primaryContainer
+    val SidebarAccent: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val AccentSoft: Color
+        @Composable get() = MaterialTheme.colorScheme.secondaryContainer
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Marina Brand — full Material3 color schemes (serenity-style structure):
-// proper container colors, surface variants and error containers for both
-// light and dark, built on the original navy + gold brand identity.
+// Marina Brand — deep sea-glass teal, brushed brass and warm limestone.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Light scheme — navy primary with gold secondary on a soft ivory surface. */
 val MarinaLightColorScheme = lightColorScheme(
-    primary = Color(0xFF242476),
+    primary = MarinaPalette.Ocean,
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFEAEAF2),
-    onPrimaryContainer = Color(0xFF0A0E2F),
-    secondary = Color(0xFFFABA3E),
-    onSecondary = Color(0xFF0A0E2F),
-    secondaryContainer = Color(0xFFFFF3DC),
-    onSecondaryContainer = Color(0xFF3D2E00),
-    tertiary = Color(0xFF2E7D5B),
+    primaryContainer = MarinaPalette.OceanSoft,
+    onPrimaryContainer = MarinaPalette.OceanDeep,
+    secondary = MarinaPalette.Warning,
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = MarinaPalette.BrassSoft,
+    onSecondaryContainer = Color(0xFF45351A),
+    tertiary = MarinaPalette.Success,
     onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFDFF2E9),
-    onTertiaryContainer = Color(0xFF0E3324),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF0A0E2F),
-    surfaceVariant = Color(0xFFEAEAF2),
-    onSurfaceVariant = Color(0xFF6C6F8F),
-    surfaceTint = Color(0xFF242476),
-    inverseSurface = Color(0xFF2A2A3C),
-    inverseOnSurface = Color(0xFFF4F4F8),
-    inversePrimary = Color(0xFFBFC2FF),
-    outline = Color(0xFFD3D3E4),
-    outlineVariant = Color(0xFFE6E6F0),
-    background = Color(0xFFF8F8FC),
-    onBackground = Color(0xFF0A0E2F),
-    error = Color(0xFFE5484D),
+    tertiaryContainer = MarinaPalette.SuccessSoft,
+    onTertiaryContainer = Color(0xFF183F31),
+    surface = MarinaPalette.Paper,
+    onSurface = MarinaPalette.Ink,
+    surfaceVariant = MarinaPalette.LineSoft,
+    onSurfaceVariant = MarinaPalette.Muted,
+    surfaceTint = MarinaPalette.Ocean,
+    inverseSurface = MarinaPalette.Ink,
+    inverseOnSurface = MarinaPalette.Canvas,
+    inversePrimary = Color(0xFF9FCBC5),
+    outline = MarinaPalette.Line,
+    outlineVariant = MarinaPalette.Line,
+    background = MarinaPalette.Canvas,
+    onBackground = MarinaPalette.Ink,
+    error = MarinaPalette.Danger,
     onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFFCE8E8),
-    onErrorContainer = Color(0xFF5C1A1D),
+    errorContainer = MarinaPalette.DangerSoft,
+    onErrorContainer = Color(0xFF5C2522),
     scrim = Color(0xFF000000)
 )
 
-/** Dark scheme — inverted navy surfaces, softened gold accents. */
 val MarinaDarkColorScheme = darkColorScheme(
-    primary = Color(0xFFBFC2FF),
-    onPrimary = Color(0xFF101044),
-    primaryContainer = Color(0xFF3D3D9E),
-    onPrimaryContainer = Color(0xFFEAEAF2),
-    secondary = Color(0xFFFABA3E),
-    onSecondary = Color(0xFF241A00),
-    secondaryContainer = Color(0xFF5A4508),
-    onSecondaryContainer = Color(0xFFFFF3DC),
-    tertiary = Color(0xFF8FD4AE),
-    onTertiary = Color(0xFF0E3324),
-    tertiaryContainer = Color(0xFF1F4A36),
-    onTertiaryContainer = Color(0xFFDFF2E9),
-    surface = Color(0xFF11142B),
-    onSurface = Color(0xFFE8E8F0),
-    surfaceVariant = Color(0xFF2A2A3C),
-    onSurfaceVariant = Color(0xFFB9BBD0),
-    surfaceTint = Color(0xFFBFC2FF),
-    inverseSurface = Color(0xFFF4F4F8),
-    inverseOnSurface = Color(0xFF2A2A3C),
-    inversePrimary = Color(0xFF242476),
-    outline = Color(0xFF4A4A5E),
-    outlineVariant = Color(0xFF333348),
-    background = Color(0xFF0A0E2F),
-    onBackground = Color(0xFFE8E8F0),
-    error = Color(0xFFF25555),
-    onError = Color(0xFF2A0D0E),
-    errorContainer = Color(0xFF5C1A1D),
-    onErrorContainer = Color(0xFFFCE8E8),
+    primary = Color(0xFF9FCBC5),
+    onPrimary = MarinaPalette.OceanDeep,
+    primaryContainer = Color(0xFF1B5256),
+    onPrimaryContainer = Color(0xFFDDEBE7),
+    secondary = Color(0xFFE0C18B),
+    onSecondary = Color(0xFF32250D),
+    secondaryContainer = Color(0xFF5A4727),
+    onSecondaryContainer = Color(0xFFF3EBDD),
+    tertiary = Color(0xFF9BD0B1),
+    onTertiary = Color(0xFF15392D),
+    tertiaryContainer = Color(0xFF204B3B),
+    onTertiaryContainer = Color(0xFFE5F0E9),
+    surface = Color(0xFF142122),
+    onSurface = Color(0xFFE8EFEB),
+    surfaceVariant = Color(0xFF293738),
+    onSurfaceVariant = Color(0xFFBAC8C2),
+    surfaceTint = Color(0xFF9FCBC5),
+    inverseSurface = Color(0xFFE8EFEB),
+    inverseOnSurface = Color(0xFF293738),
+    inversePrimary = MarinaPalette.Ocean,
+    outline = Color(0xFF526260),
+    outlineVariant = Color(0xFF384644),
+    background = Color(0xFF0E191A),
+    onBackground = Color(0xFFE8EFEB),
+    error = Color(0xFFFFB4AA),
+    onError = Color(0xFF5C2522),
+    errorContainer = Color(0xFF7A3935),
+    onErrorContainer = Color(0xFFFFDAD4),
     scrim = Color(0xFF000000)
 )
 
@@ -152,49 +225,49 @@ val AppTypography = Typography(
         fontSize = 57.sp,
         lineHeight = 64.sp,
         letterSpacing = (-0.25).sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     headlineLarge = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.W700,
         fontSize = 32.sp,
         lineHeight = 40.sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     headlineMedium = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.W700,
         fontSize = 28.sp,
         lineHeight = 36.sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     headlineSmall = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.W700,
         fontSize = 24.sp,
         lineHeight = 32.sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     titleLarge = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.W600,
         fontSize = 20.sp,
         lineHeight = 28.sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     titleMedium = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.W600,
         fontSize = 16.sp,
         lineHeight = 24.sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     titleSmall = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.W600,
         fontSize = 14.sp,
         lineHeight = 20.sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     bodyLarge = TextStyle(
         fontFamily = TajawalFamily,
@@ -202,35 +275,35 @@ val AppTypography = Typography(
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     bodyMedium = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     bodySmall = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        color = AppColors.TextSecondary
+        color = Color.Unspecified
     ),
     labelLarge = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.W600,
         fontSize = 14.sp,
         lineHeight = 20.sp,
-        color = AppColors.TextPrimary
+        color = Color.Unspecified
     ),
     labelMedium = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        color = AppColors.TextSecondary
+        color = Color.Unspecified
     ),
     labelSmall = TextStyle(
         fontFamily = TajawalFamily,
@@ -238,7 +311,7 @@ val AppTypography = Typography(
         fontSize = 11.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.5.sp,
-        color = AppColors.TextSecondary
+        color = Color.Unspecified
     )
 )
 
@@ -249,12 +322,12 @@ val AppTypography = Typography(
 val MarinaShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
+    medium = RoundedCornerShape(18.dp),
     large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp)
+    extraLarge = RoundedCornerShape(30.dp)
 )
 
-val AppShapes = RoundedCornerShape(12.dp)
+val AppShapes = RoundedCornerShape(18.dp)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme entry point
@@ -275,9 +348,13 @@ object ThemePrefs {
     val isDark: StateFlow<Boolean> = _isDark.asStateFlow()
 
     /** قراءة القيمة المحفوظة وتحديث الحالة — تُستدعى عند أول تركيب. */
-    fun load(context: Context): Boolean {
-        val value = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_DARK_MODE, false)
+    fun load(context: Context, systemDark: Boolean): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val value = if (prefs.contains(KEY_DARK_MODE)) {
+            prefs.getBoolean(KEY_DARK_MODE, systemDark)
+        } else {
+            systemDark
+        }
         _isDark.value = value
         return value
     }
@@ -290,13 +367,21 @@ object ThemePrefs {
     }
 }
 
+/** Resolve the hosting Activity through Compose's possible context wrappers. */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 /** مصدر الوضع: تفضيل المستخدم إن وُجد وإلا إعداد النظام (نفس Dart). */
 @Composable
 private fun rememberThemeSetting(): Boolean {
     val context = LocalContext.current
-    var dark by remember { mutableStateOf(ThemePrefs.isDark.value) }
-    LaunchedEffect(context) {
-        dark = ThemePrefs.load(context)
+    val systemDark = isSystemInDarkTheme()
+    var dark by remember { mutableStateOf(systemDark) }
+    LaunchedEffect(context, systemDark) {
+        dark = ThemePrefs.load(context, systemDark)
         ThemePrefs.isDark.collect { dark = it }
     }
     return dark
@@ -308,6 +393,19 @@ fun MarinaTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) MarinaDarkColorScheme else MarinaLightColorScheme
+    val view = LocalView.current
+
+    SideEffect {
+        val window = view.context.findActivity()?.window
+        if (window != null) {
+            val systemBarColor = colorScheme.background.toArgb()
+            window.statusBarColor = systemBarColor
+            window.navigationBarColor = systemBarColor
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !darkTheme
+            insetsController.isAppearanceLightNavigationBars = !darkTheme
+        }
+    }
 
     MaterialTheme(
         colorScheme = colorScheme,

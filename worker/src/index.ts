@@ -358,6 +358,25 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         }
       }
 
+      // ─── Admin: rotate sync data generation ─────────────
+      // After a server-side restore/import that reuses old timestamps, every
+      // client must discard its old cursor and pull from zero. This is an
+      // explicit admin-only operation because it causes real network work.
+      if (path === '/api/admin/sync/rotate-epoch' && method === 'POST') {
+        if (ctx.role !== 'admin') {
+          logRequest(method, path, 403, Date.now() - startTime, clientIp);
+          return json({ error: 'Admin role required' }, 403, env);
+        }
+        try {
+          const epoch = await db.rotateSyncEpoch();
+          logRequest(method, path, 200, Date.now() - startTime, clientIp);
+          return json({ success: true, epoch }, 200, env);
+        } catch (err) {
+          logRequest(method, path, 500, Date.now() - startTime, clientIp);
+          return json({ error: 'Sync epoch rotation failed', detail: String(err) }, 500, env);
+        }
+      }
+
       // ─── Sync Pull ──────────────────────────────────────
       if (path === '/api/sync/pull' && method === 'GET') {
         const response = await handlePull(request, db, ctx);

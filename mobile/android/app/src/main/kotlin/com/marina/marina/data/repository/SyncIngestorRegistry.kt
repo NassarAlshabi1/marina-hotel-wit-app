@@ -286,6 +286,18 @@ class SyncIngestorRegistry @Inject constructor(
                     store(entity, remote)
                     ApplyOutcome.Applied
                 }
+                remote.deletedAt != null -> {
+                    // A tombstone is a terminal server decision. Apply only
+                    // its sync fields so a stale remote snapshot cannot also
+                    // overwrite newer local business data.
+                    applyRemoteTombstone(
+                        entity = entity,
+                        localId = existing.id,
+                        deletedAt = requireNotNull(remote.deletedAt),
+                        updatedAt = remote.updatedAt
+                    )
+                    ApplyOutcome.Applied
+                }
                 remoteLastModified >= existing.lastModified -> {
                     // استبدال الصف المحلي نفسه (REPLACE بذات المفتاح).
                     store(entity, remote.copyWithId(existing.id))
@@ -318,6 +330,71 @@ class SyncIngestorRegistry @Inject constructor(
         mapped.putIfAbsent("vector_clock", "{}")
         mapped.putIfAbsent("device_id", "")
         mapped.putIfAbsent("sync_timestamp", 0L)
+    }
+
+    /** Apply only deletion metadata, preserving newer local business fields. */
+    private fun applyRemoteTombstone(
+        entity: String,
+        localId: Long,
+        deletedAt: Long,
+        updatedAt: Long
+    ) {
+        val table = localTableName(entity)
+            ?: throw IllegalArgumentException("No local table for tombstoned entity: $entity")
+        db.openHelper.writableDatabase.execSQL(
+            "UPDATE $table SET deleted_at = ?, updated_at = ?, last_modified = ? WHERE id = ?",
+            arrayOf<Any?>(deletedAt, updatedAt, updatedAt, localId)
+        )
+    }
+
+    /**
+     * Immediately mirror the server's delete-wins push disposition locally.
+     * The following pull remains authoritative and can refresh the exact
+     * server timestamp; this prevents a stale edited row from staying visible
+     * when the user selected push-only.
+     */
+    suspend fun tombstoneLocalRecord(entity: String, localUuid: String): Boolean {
+        val canonicalEntity = if (entity == "blacklist_entries") "blacklist" else entity
+        val existing = fetchExisting(canonicalEntity, localUuid) ?: return false
+        if (existing.deletedAt != null) return true
+        val table = localTableName(canonicalEntity) ?: return false
+        val now = System.currentTimeMillis() / 1_000L
+        db.withTransaction {
+            db.openHelper.writableDatabase.execSQL(
+                "UPDATE $table SET deleted_at = ?, updated_at = ?, last_modified = ? WHERE id = ?",
+                arrayOf<Any?>(now, now, now, existing.id)
+            )
+        }
+        return true
+    }
+
+    /** Local table mapping is explicit so dynamic SQL never uses wire input. */
+    private fun localTableName(entity: String): String? = when (entity) {
+        "rooms" -> "rooms"
+        "bookings" -> "bookings"
+        "payments" -> "payments"
+        "expenses" -> "expenses"
+        "employees" -> "employees"
+        "debts" -> "debts"
+        "booking_notes" -> "booking_notes"
+        "booking_nights" -> "booking_nights"
+        "booking_price_adjustments" -> "booking_price_adjustments"
+        "guest_infos" -> "guest_infos"
+        "shift_notes" -> "shift_notes"
+        "salary_cycles" -> "salary_cycles"
+        "salary_payments" -> "salary_payments"
+        "salary_withdrawals" -> "salary_withdrawals"
+        "salary_carry_over_logs" -> "salary_carry_over_logs"
+        "app_users" -> "app_users"
+        "devices" -> "devices"
+        "cash_transactions" -> "cash_transactions"
+        "audit_logs" -> "audit_logs"
+        "payment_voids" -> "payment_voids"
+        "price_adjustments" -> "price_adjustments"
+        "inventory_items" -> "inventory_items"
+        "inventory_transactions" -> "inventory_transactions"
+        "blacklist", "blacklist_entries" -> "blacklist_entries"
+        else -> null
     }
 
     /** الجلب بـ local_uuid — ثم بالمفتاح الطبيعي لليالي (دمج 398 ليلة). */

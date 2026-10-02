@@ -29,7 +29,7 @@ import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -317,7 +317,7 @@ fun InformationScreen(
                         viewModel.delete(info)
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF5252), // Colors.redAccent
+                        containerColor = AppColors.DangerActionColor, // strong, high-contrast destructive action
                         contentColor = Color.White
                     )
                 ) {
@@ -410,12 +410,12 @@ private fun InformationTable(
         InfoColumn("الملاحظات", 170.dp)
     )
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
             Column {
                 Row(
                     modifier = Modifier
-                        .background(AppColors.PrimaryColor)
+                        .background(AppColors.PrimaryActionColor)
                         .padding(vertical = 14.dp)
                 ) {
                     columns.forEach { column ->
@@ -460,13 +460,13 @@ private fun InformationTable(
                                                 }
                                             )
                                             DropdownMenuItem(
-                                                text = { Text("حذف", color = Color(0xFFF44336)) },
+                                                text = { Text("حذف", color = AppColors.DangerColor) },
                                                 leadingIcon = {
                                                     Icon(
                                                         Icons.Outlined.DeleteOutline,
                                                         contentDescription = null,
                                                         modifier = Modifier.size(18.dp),
-                                                        tint = Color(0xFFF44336)
+                                                        tint = AppColors.DangerColor
                                                     )
                                                 },
                                                 onClick = {

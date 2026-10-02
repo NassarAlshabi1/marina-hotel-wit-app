@@ -42,7 +42,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -87,22 +87,37 @@ import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 import kotlin.math.roundToInt
 
-// ─── Dart palette (payments_main_screen.dart) ───
-private val GreenPrimary = Color(0xFF4CAF50)
-private val Green800 = Color(0xFF2E7D32)
-private val Grey600 = Color(0xFF757575)
-private val Grey = Color(0xFF9E9E9E)
-private val Amber700 = Color(0xFFFFA000)
-private val BluePrimary = Color(0xFF2196F3)
-private val Blue50 = Color(0xFFE3F2FD)
-private val OrangePrimary = Color(0xFFFF9800)
-private val Orange600 = Color(0xFFFB8C00)
-private val Orange700 = Color(0xFFF57C00)
-private val Orange800 = Color(0xFFEF6C00)
-private val Orange100 = Color(0xFFFFE0B2)
-private val Red700 = Color(0xFFD32F2F)
-private val Red800 = Color(0xFFC62828)
-private val Red100 = Color(0xFFFFCDD2)
+// ─── Theme-aware semantic shades (filled actions use separate strong tones). ───
+private val GreenPrimary: Color
+    @Composable get() = AppColors.SuccessColor
+private val Green800: Color
+    @Composable get() = AppColors.SuccessColor
+private val Grey600: Color
+    @Composable get() = AppColors.TextSecondary
+private val Grey: Color
+    @Composable get() = AppColors.TextSecondary
+private val Amber700: Color
+    @Composable get() = AppColors.WarningColor
+private val BluePrimary: Color
+    @Composable get() = AppColors.InfoColor
+private val Blue50: Color
+    @Composable get() = AppColors.InfoContainerColor
+private val OrangePrimary: Color
+    @Composable get() = AppColors.WarningColor
+private val Orange600: Color
+    @Composable get() = AppColors.WarningColor
+private val Orange700: Color
+    @Composable get() = AppColors.WarningColor
+private val Orange800: Color
+    @Composable get() = AppColors.WarningColor
+private val Orange100: Color
+    @Composable get() = AppColors.WarningContainerColor
+private val Red700: Color
+    @Composable get() = AppColors.DangerColor
+private val Red800: Color
+    @Composable get() = AppColors.DangerColor
+private val Red100: Color
+    @Composable get() = AppColors.DangerContainerColor
 
 /**
  * إدارة المدفوعات — نقل 1:1 لـ payments_main_screen.dart
@@ -157,7 +172,7 @@ fun PaymentsMainScreen(
                     onClick = { if (!state.isSaving) showNewPayment = true },
                     icon = { Icon(Icons.Filled.AddCard, contentDescription = null) },
                     text = { Text("دفعة جديدة") },
-                    containerColor = GreenPrimary,
+                    containerColor = AppColors.SuccessActionColor,
                     contentColor = Color.White
                 )
             }
@@ -292,7 +307,7 @@ private fun StatCard(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier) {
+    OutlinedCard(modifier = modifier) {
         Column(
             modifier = Modifier.padding(vertical = 6.dp, horizontal = 8.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -414,7 +429,7 @@ private fun ActiveBookingCard(booking: Booking, onPay: (Booking) -> Unit) {
         else -> OrangePrimary
     }
 
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         shape = RoundedCornerShape(8.dp),
@@ -467,9 +482,9 @@ private fun ActiveBookingCard(booking: Booking, onPay: (Booking) -> Unit) {
                 onClick = { onPay(booking) },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = when {
-                        isOverdue -> Red700
-                        isLate -> Orange600
-                        else -> GreenPrimary
+                        isOverdue -> AppColors.DangerActionColor
+                        isLate -> AppColors.WarningActionColor
+                        else -> AppColors.SuccessActionColor
                     },
                     contentColor = Color.White
                 ),
@@ -552,19 +567,19 @@ private fun StandalonePaymentDialog(
                                     method.label,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) Color.White else method.color
+                                    color = if (isSelected) Color.White else method.colorForTheme()
                                 )
                             },
                             leadingIcon = {
                                 Icon(
                                     method.icon, null,
                                     modifier = Modifier.size(16.dp),
-                                    tint = if (isSelected) Color.White else method.color
+                                    tint = if (isSelected) Color.White else method.colorForTheme()
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = Color.Transparent,
-                                selectedContainerColor = method.color
+                                selectedContainerColor = method.actionColor()
                             )
                         )
                     }
@@ -611,7 +626,7 @@ private fun StandalonePaymentDialog(
                     )
                 },
                 enabled = !isSaving,
-                colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary, contentColor = Color.White)
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.SuccessActionColor, contentColor = Color.White)
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(

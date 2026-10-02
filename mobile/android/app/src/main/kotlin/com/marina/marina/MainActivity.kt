@@ -6,7 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,33 +30,38 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MarinaTheme {
-                // The app is fully Arabic (like the Flutter original, which
-                // wrapped everything in Directionality.rtl): force RTL so the
-                // side navigation always sits on the right edge, regardless
-                // of the device locale.
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                val authViewModel: AuthViewModel = hiltViewModel()
-                val authState by authViewModel.authState.collectAsState()
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.onBackground
+                ) {
+                    // Force RTL for the fully Arabic application so the sidebar
+                    // remains on the right edge on every device locale.
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                        val authViewModel: AuthViewModel = hiltViewModel()
+                        val authState by authViewModel.authState.collectAsState()
 
-                // Wait for the persisted session check to finish before we
-                // pick a start destination — otherwise NavHost would always
-                // start at "login" since restoreSession() resolves async.
-                if (authState.isRestoring) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    val navController = rememberNavController()
-                    MarinaNavGraph(
-                        navController = navController,
-                        authViewModel = authViewModel,
-                        startDestination = if (authState.isAuthenticated) {
-                            Screen.Dashboard.route
+                        // Resolve the saved session before choosing the start route.
+                        if (authState.isRestoring) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
                         } else {
-                            Screen.Login.route
+                            val navController = rememberNavController()
+                            MarinaNavGraph(
+                                navController = navController,
+                                authViewModel = authViewModel,
+                                startDestination = if (authState.isAuthenticated) {
+                                    Screen.Dashboard.route
+                                } else {
+                                    Screen.Login.route
+                                }
+                            )
                         }
-                    )
-                }
+                    }
                 }
             }
         }

@@ -60,7 +60,7 @@ fun NotesScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { showAddDialog = true },
-                    containerColor = AppColors.PrimaryColor,
+                    containerColor = AppColors.PrimaryActionColor,
                     contentColor = Color.White
                 ) {
                     Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -170,7 +170,7 @@ private fun NoteCard(
         "medium" -> AppColors.WarningColor
         else -> AppColors.SuccessColor
     }
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(10.dp),

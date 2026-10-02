@@ -19,9 +19,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.marina.marina.domain.model.AuthUser
+import com.marina.marina.ui.theme.MarinaPalette
 import kotlinx.coroutines.launch
 
 /**
@@ -103,7 +103,7 @@ fun AdminScaffold(
                     drawerState = drawerState,
                     drawerContent = {
                         ModalDrawerSheet(
-                            drawerContainerColor = Color(0xFF0F172A),
+                            drawerContainerColor = MarinaPalette.OceanNight,
                             modifier = Modifier.width(280.dp)
                         ) {
                             AdminSidebar(

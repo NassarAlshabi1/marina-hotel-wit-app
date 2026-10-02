@@ -15,7 +15,7 @@ import retrofit2.http.Query
 //   • login: POST /api/auth/login {username, password, device_id}
 //       → {token, user:{id, username, role}} — لا حقل success إطلاقاً.
 //   • pull: GET /api/sync/pull?cursor=&limit=&exclude_device=
-//       → {changes:[{_entity, ...row}], cursor:"N", has_more,
+//       → {changes:[{_entity, ...row}], cursor:"N", epoch, has_more,
 //          remaining, errors, server_time} — GET وليس POST.
 //   • push: POST /api/sync/push {operations:[PushOperation]} (≤100)
 //       → {results:[{idempotencyKey, success, entityId?, error?,
@@ -71,6 +71,8 @@ data class WorkerPullResponse(
     @SerializedName("changes") val changes: List<Map<String, Any>>?,
     /** المؤشر التالي كسلسلة (الخادم يرسله toString). */
     @SerializedName("cursor") val cursor: String?,
+    /** جيل قاعدة D1؛ null من Workers الأقدم قبل migration 0010. */
+    @SerializedName("epoch") val epoch: String?,
     @SerializedName("has_more") val hasMore: Boolean?,
     /** عدد الصفوف الباقية بعد cursor — null ما لم يُطلب include_remaining. */
     @SerializedName("remaining") val remaining: Double?,

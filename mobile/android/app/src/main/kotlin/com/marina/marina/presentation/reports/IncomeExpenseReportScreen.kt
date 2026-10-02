@@ -99,18 +99,18 @@ fun IncomeExpenseReportScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            ReportStat("إجمالي الدخل", CurrencyFormatter.formatAmount(state.incomeTotal), Color(0xFF2E7D5B), Modifier.weight(1f))
+                            ReportStat("إجمالي الدخل", CurrencyFormatter.formatAmount(state.incomeTotal), AppColors.SuccessColor, Modifier.weight(1f))
                             ReportStat("إجمالي المصروفات", CurrencyFormatter.formatAmount(state.expenseTotal), AppColors.DangerColor, Modifier.weight(1f))
                             ReportStat("مصروفات الرواتب", CurrencyFormatter.formatAmount(state.salaryTotal), AppColors.WarningColor, Modifier.weight(1f))
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             ReportStat(
                                 "صافي الربح", CurrencyFormatter.formatAmount(state.net),
-                                if (state.net >= 0) Color(0xFF00897B) else AppColors.DangerColor,
+                                if (state.net >= 0) AppColors.PrimaryColor else AppColors.DangerColor,
                                 Modifier.weight(1f), large = true
                             )
-                            ReportStat("ديون مستحقة", CurrencyFormatter.formatAmount(state.unsettledDebtsAmount), Color(0xFF7B1FA2), Modifier.weight(1f), large = true)
-                            ReportStat("التزام الرواتب", CurrencyFormatter.formatAmount(state.totalSalaryObligation), Color(0xFF3F51B5), Modifier.weight(1f), large = true)
+                            ReportStat("ديون مستحقة", CurrencyFormatter.formatAmount(state.unsettledDebtsAmount), AppColors.InfoColor, Modifier.weight(1f), large = true)
+                            ReportStat("التزام الرواتب", CurrencyFormatter.formatAmount(state.totalSalaryObligation), AppColors.PrimaryColor, Modifier.weight(1f), large = true)
                         }
                     }
                 }
@@ -118,7 +118,7 @@ fun IncomeExpenseReportScreen(
                 // Summary mode counts (Dart _buildStatsList).
                 if (!state.detailedMode) {
                     item {
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -136,7 +136,7 @@ fun IncomeExpenseReportScreen(
 
                 // Financial indicators table (Dart l.1080-1133).
                 item {
-                    Card(
+                    OutlinedCard(
                         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -158,7 +158,7 @@ fun IncomeExpenseReportScreen(
                             IndicatorsRow(
                                 "قدرة تغطية الديون",
                                 if (state.debtCoverage > 0) "${"%.2f".format(state.debtCoverage)}x ${rating(state.debtCoverage, 2.0, 1.0, false)}" else "غير كافٍ",
-                                if (state.debtCoverage > 2) Color(0xFF2E7D5B) else if (state.debtCoverage > 1) Color(0xFFF57C00) else AppColors.DangerColor
+                                if (state.debtCoverage > 2) AppColors.SuccessColor else if (state.debtCoverage > 1) AppColors.WarningColor else AppColors.DangerColor
                             )
                         }
                     }
@@ -188,24 +188,25 @@ private fun rating(value: Double, excellent: Double, good: Double, greaterIsBett
     else -> if (greaterIsBetter) "خسارة" else "مرتفع"
 }
 
+@Composable
 private fun ratingColor(value: Double, excellent: Double, good: Double, greaterIsBetter: Boolean): Color = when {
-    value >= excellent -> Color(0xFF2E7D5B)
-    value >= good -> Color(0xFFF57C00)
-    value > 0 -> Color(0xFF6C6F8F)
+    value >= excellent -> AppColors.SuccessColor
+    value >= good -> AppColors.WarningColor
+    value > 0 -> AppColors.TextSecondary
     else -> AppColors.DangerColor
 }
 
 @Composable
-private fun IndicatorsRow(label: String, value: String, valueColor: Color = AppColors.TextPrimary) {
+private fun IndicatorsRow(label: String, value: String, valueColor: Color? = null) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, fontSize = 11.sp, color = AppColors.TextSecondary)
-        Text(value, fontSize = 11.sp, color = valueColor, fontWeight = FontWeight.SemiBold)
+        Text(value, fontSize = 11.sp, color = valueColor ?: AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun IncomeExpenseGroupCard(group: ReportGroup) {
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -221,16 +222,16 @@ private fun IncomeExpenseGroupCard(group: ReportGroup) {
                 Text(
                     if (group.net >= 0) "ربح: ${CurrencyFormatter.formatAmount(group.net)}" else "خسارة: ${CurrencyFormatter.formatAmount(-group.net)}",
                     fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = if (group.net >= 0) Color(0xFF2E7D5B) else AppColors.DangerColor
+                    color = if (group.net >= 0) AppColors.SuccessColor else AppColors.DangerColor
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                ReportStat("الدخل", CurrencyFormatter.formatAmount(group.incomeTotal), Color(0xFF2E7D5B), Modifier.weight(1f))
+                ReportStat("الدخل", CurrencyFormatter.formatAmount(group.incomeTotal), AppColors.SuccessColor, Modifier.weight(1f))
                 ReportStat("المصروفات", CurrencyFormatter.formatAmount(group.expenseTotal), AppColors.DangerColor, Modifier.weight(1f))
                 ReportStat("الرواتب", CurrencyFormatter.formatAmount(group.salaryTotal), AppColors.WarningColor, Modifier.weight(1f))
                 ReportStat(
                     "الصافي", CurrencyFormatter.formatAmount(group.net),
-                    if (group.net >= 0) Color(0xFF00897B) else AppColors.DangerColor,
+                    if (group.net >= 0) AppColors.PrimaryColor else AppColors.DangerColor,
                     Modifier.weight(1f)
                 )
             }
@@ -260,7 +261,7 @@ private fun IncomeExpenseGroupCard(group: ReportGroup) {
                     Text(
                         (if (entry.isIncome) "+" else "-") + CurrencyFormatter.formatAmount(entry.amount),
                         fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                        color = if (entry.isIncome) Color(0xFF2E7D5B) else AppColors.DangerColor
+                        color = if (entry.isIncome) AppColors.SuccessColor else AppColors.DangerColor
                     )
                 }
             }

@@ -31,7 +31,7 @@
 --    * NO FOREIGN KEY constraints — referential integrity is owned by
 --      the app layer
 --
---  Apply with: npm run db:migrate
+--  Apply with: npm run db:migrate:app-users
 -- ═══════════════════════════════════════════════════════════════
 
 -- ─── app_users ──────────────────────────────────────────────

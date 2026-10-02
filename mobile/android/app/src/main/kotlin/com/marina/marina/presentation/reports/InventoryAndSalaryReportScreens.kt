@@ -107,7 +107,7 @@ fun InventoryReportScreen(
                 } else {
                     items(state.rows.size, key = { state.rows[it].item.id }) { index ->
                         val row = state.rows[index]
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                             shape = RoundedCornerShape(10.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -262,8 +262,8 @@ fun SalaryWithdrawalsReportScreen(
 
                 // Summary strip (Dart l.517-558).
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1976D2).copy(alpha = 0.1f)),
+                    OutlinedCard(
+                        colors = CardDefaults.cardColors(containerColor = AppColors.PrimaryColor.copy(alpha = 0.1f)),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -278,7 +278,7 @@ fun SalaryWithdrawalsReportScreen(
                             )
                             Text(
                                 "${CurrencyFormatter.formatAmount(state.totalAmount)} ريال",
-                                fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1976D2)
+                                fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AppColors.PrimaryColor
                             )
                         }
                     }
@@ -289,7 +289,7 @@ fun SalaryWithdrawalsReportScreen(
                 } else {
                     state.groups.forEach { group ->
                         item(key = "salary_group_${group.employeeId}") {
-                            Card(
+                            OutlinedCard(
                                 colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                                 shape = RoundedCornerShape(12.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -301,12 +301,12 @@ fun SalaryWithdrawalsReportScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(group.employeeName, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1976D2))
+                                        Text(group.employeeName, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppColors.PrimaryColor)
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Text("${group.rows.size} عملية", fontSize = 10.sp, color = AppColors.TextSecondary)
                                             Text(
                                                 CurrencyFormatter.formatAmount(group.totalAmount),
-                                                fontWeight = FontWeight.Bold, color = Color(0xFF7B1FA2), fontSize = 14.sp
+                                                fontWeight = FontWeight.Bold, color = AppColors.InfoColor, fontSize = 14.sp
                                             )
                                         }
                                     }
@@ -344,7 +344,7 @@ fun SalaryWithdrawalsReportScreen(
                                             Text(
                                                 CurrencyFormatter.formatAmount(w.amount),
                                                 fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                                                color = if (row.isDeduction) AppColors.DangerColor else Color(0xFF7B1FA2)
+                                                color = if (row.isDeduction) AppColors.DangerColor else AppColors.InfoColor
                                             )
                                         }
                                     }

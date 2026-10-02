@@ -35,7 +35,7 @@ import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -135,17 +135,13 @@ fun kindIcon(kind: SearchEntityKind): ImageVector = when (kind) {
     SearchEntityKind.blacklist -> Icons.Outlined.Block
 }
 
+@Composable
 fun kindColor(kind: SearchEntityKind): Color = when (kind) {
-    SearchEntityKind.booking -> Color(0xFF3F51B5)   // Colors.indigo
-    SearchEntityKind.guestInfo -> Color(0xFF009688) // Colors.teal
-    SearchEntityKind.payment -> Color(0xFF4CAF50)   // Colors.green
-    SearchEntityKind.expense -> Color(0xFFFF9800)   // Colors.orange
-    SearchEntityKind.withdrawal -> Color(0xFF2196F3) // Colors.blue
-    SearchEntityKind.debt -> Color(0xFF9C27B0)      // Colors.purple
-    SearchEntityKind.employee -> Color(0xFF795548)  // Colors.brown
-    SearchEntityKind.room -> Color(0xFF0097A7)      // Colors.cyan.shade700
-    SearchEntityKind.inventoryItem -> Color(0xFFFF5722) // Colors.deepOrange
-    SearchEntityKind.blacklist -> Color(0xFFF44336) // Colors.red
+    SearchEntityKind.booking, SearchEntityKind.guestInfo, SearchEntityKind.employee -> AppColors.PrimaryColor
+    SearchEntityKind.payment -> AppColors.SuccessColor
+    SearchEntityKind.expense, SearchEntityKind.debt, SearchEntityKind.inventoryItem -> AppColors.WarningColor
+    SearchEntityKind.withdrawal, SearchEntityKind.room -> AppColors.InfoColor
+    SearchEntityKind.blacklist -> AppColors.DangerColor
 }
 
 private val currencyFmt = DecimalFormat("#,##0")
@@ -401,7 +397,7 @@ private fun ResultsList(state: GlobalSearchUiState) {
                     Text(
                         if (hits.size < total) "${hits.size} من $total" else "$total",
                         fontSize = 10.sp,
-                        color = Color(0xFF757575),
+                        color = AppColors.TextSecondary,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -417,7 +413,7 @@ private fun ResultsList(state: GlobalSearchUiState) {
                 "${results.totalHits} نتيجة معروضة" +
                     if (results.elapsedMs > 0) " في ${results.elapsedMs} م.ث" else "",
                 fontSize = 10.sp,
-                color = Color(0xFF9E9E9E),
+                color = AppColors.TextSecondary,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -432,7 +428,7 @@ private fun HitCard(hit: GlobalSearchHit) {
     val color = kindColor(hit.kind)
     var showDetails by remember { mutableStateOf(false) }
 
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
@@ -455,7 +451,7 @@ private fun HitCard(hit: GlobalSearchHit) {
                         currencyFmt.format(amount),
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
-                        color = if (amount < 0) Color(0xFFF44336) else Color(0xFF4CAF50)
+                        color = if (amount < 0) AppColors.DangerColor else AppColors.SuccessColor
                     )
                 }
             }
@@ -466,7 +462,7 @@ private fun HitCard(hit: GlobalSearchHit) {
                         .filter { it.isNotEmpty() }
                         .joinToString(" • "),
                     fontSize = 10.sp,
-                    color = Color(0xFF757575),
+                    color = AppColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -524,7 +520,7 @@ private fun HitCard(hit: GlobalSearchHit) {
                             Text(
                                 label,
                                 fontSize = 11.sp,
-                                color = Color(0xFF757575),
+                                color = AppColors.TextSecondary,
                                 modifier = Modifier.width(110.dp)
                             )
                             Text(value, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
@@ -543,7 +539,7 @@ private fun EmptyStateView(icon: ImageVector, title: String, message: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(42.dp), tint = Color(0xFFBDBDBD))
+        Icon(icon, contentDescription = null, modifier = Modifier.size(42.dp), tint = AppColors.TextSecondary)
         Spacer(modifier = Modifier.height(10.dp))
         Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = AppColors.TextPrimary)
         Spacer(modifier = Modifier.height(4.dp))

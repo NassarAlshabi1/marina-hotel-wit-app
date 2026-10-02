@@ -3,8 +3,11 @@
     <!-- Base application theme. The app is pure Jetpack Compose; this XML
          theme is only the window container before the Compose tree mounts. -->
     <style name="Theme.MarinaHotel" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@color/marina_canvas</item>
+        <item name="android:navigationBarColor">@color/marina_canvas</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 
     <style name="Theme.MarinaHotel.NoActionBar" parent="Theme.MarinaHotel">

@@ -75,6 +75,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import com.marina.marina.ui.theme.AppColors
+import com.marina.marina.ui.theme.MarinaPalette
 /**
  * Dashboard — a 1:1 Compose port of the Flutter `DashboardScreen`
  * (`lib/screens/dashboard_screen.dart`):
@@ -265,7 +267,7 @@ private fun DashboardHeader(
                 .size(34.dp)
                 .background(
                     brush = Brush.linearGradient(
-                        listOf(Color(0xFF1E88E5), Color(0xFF42A5F5))
+                        listOf(MarinaPalette.Ocean, MarinaPalette.OceanMid)
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ),
@@ -371,7 +373,7 @@ private fun SyncIndicatorIcon(
                 color = Color.White,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .background(DashboardColors.DangerRed, RoundedCornerShape(6.dp))
+                    .background(AppColors.DangerActionColor, RoundedCornerShape(6.dp))
                     .padding(horizontal = 3.dp, vertical = 1.dp)
             )
         }
@@ -454,10 +456,10 @@ private fun StatCard(
 ) {
     Box(
         modifier = modifier
-            // ✅ (2026-09-25) surface من الثيم بدل أبيض صلب — كان يكسر الوضع الداكن.
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+            .border(1.dp, AppColors.DividerColor, RoundedCornerShape(16.dp))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 10.dp, vertical = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
         Column(horizontalAlignment = androidx.compose.ui.Alignment.Start) {
             Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
@@ -502,10 +504,12 @@ private fun RoomsSection(
     onRoomLongPress: (Room) -> Unit
 ) {
     Surface(
-        color = Color.White,
-        shape = RoundedCornerShape(16.dp),
-        shadowElevation = 2.dp,
-        modifier = Modifier.fillMaxWidth()
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = 1.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, AppColors.DividerColor, RoundedCornerShape(20.dp))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -783,7 +787,10 @@ private fun RoomOptionsDialog(
                 if (room.status != "صيانة") {
                     Button(
                         onClick = onMaintenance,
-                        colors = ButtonDefaults.buttonColors(containerColor = DashboardColors.WarningOrange),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.WarningActionColor,
+                            contentColor = Color.White
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(text = "تحويل إلى صيانة", color = Color.White)
@@ -867,24 +874,34 @@ private fun handleRoomTap(
 /** "HH:mm" — the Dart `DateFormat('HH:mm')`. */
 internal fun formatHourMinute(epochMillis: Long): String = DashboardFormatters.hourMinute(epochMillis)
 
-/** Dashboard palette — mirrors the Material shades used by the Dart screen. */
+/** Dashboard aliases follow the active Material color scheme. */
 internal object DashboardColors {
-    val Background = Color(0xFFF5F5F5)
-    val TextPrimary = Color(0xFF212121)
-    val TextSecondary = Color(0xFF757575)
-    val Indigo = Color(0xFF3F51B5)
-    val SuccessGreen = Color(0xFF43A047)
-    val SuccessGreenDark = Color(0xFF2E7D32)
-    val SuccessGreenLight = Color(0xFFA5D6A7)
-    val SuccessGreenLightest = Color(0xFFE8F5E9)
-    val DangerRed = Color(0xFFE53935)
-    val WarningOrange = Color(0xFFFB8C00)
-    val WarningOrangeDark = Color(0xFFF57C00)
-    val PrimaryBlue = Color(0xFF1E88E5)
-    val PrimaryBlueDark = Color(0xFF1565C0)
-    val PrimaryBlueLight = Color(0xFFE3F2FD)
-    val PrimaryBlueBorder = Color(0xFF90CAF9)
-    val InfoBlue = Color(0xFF1976D2)
+    val Background: Color
+        @Composable get() = AppColors.BackgroundColor
+    val TextPrimary: Color
+        @Composable get() = AppColors.TextPrimary
+    val TextSecondary: Color
+        @Composable get() = AppColors.TextSecondary
+    val Indigo: Color
+        @Composable get() = AppColors.PrimaryColor
+    val SuccessGreen: Color
+        @Composable get() = AppColors.SuccessColor
+    val DangerRed: Color
+        @Composable get() = AppColors.DangerColor
+    val WarningOrange: Color
+        @Composable get() = AppColors.WarningColor
+    val WarningOrangeDark: Color
+        @Composable get() = AppColors.WarningColor
+    val PrimaryBlue: Color
+        @Composable get() = AppColors.PrimaryColor
+    val PrimaryBlueDark: Color
+        @Composable get() = AppColors.PrimaryColor
+    val PrimaryBlueLight: Color
+        @Composable get() = MaterialTheme.colorScheme.primaryContainer
+    val PrimaryBlueBorder: Color
+        @Composable get() = MaterialTheme.colorScheme.outline
+    val InfoBlue: Color
+        @Composable get() = AppColors.InfoColor
 }
 
 /** App version label — BuildConfig-driven, parity with package_info_plus. */

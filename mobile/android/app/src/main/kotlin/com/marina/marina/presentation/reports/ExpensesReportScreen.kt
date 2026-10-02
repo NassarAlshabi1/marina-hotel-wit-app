@@ -88,7 +88,7 @@ fun ExpensesReportScreen(
 
                 // Summary strip (Dart _buildDetailedSummary l.1177-1364).
                 item {
-                    Card(
+                    OutlinedCard(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = AppColors.WarningColor.copy(alpha = 0.1f)),
                         modifier = Modifier.fillMaxWidth()
@@ -113,11 +113,11 @@ fun ExpensesReportScreen(
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                     ReportStat(
                                         "سحوبات الرواتب", CurrencyFormatter.formatAmount(state.salaryTotal),
-                                        Color(0xFF7B1FA2), Modifier.weight(1f)
+                                        AppColors.InfoColor, Modifier.weight(1f)
                                     )
                                     ReportStat(
                                         "مصروفات تشغيلية", CurrencyFormatter.formatAmount(state.operationalTotal),
-                                        Color(0xFF00897B), Modifier.weight(1f)
+                                        AppColors.PrimaryColor, Modifier.weight(1f)
                                     )
                                 }
                             }
@@ -139,21 +139,22 @@ fun ExpensesReportScreen(
     }
 }
 
+@Composable
 private fun typeVisual(type: String): Pair<Color, String> = when {
-    type.contains("رواتب") || type.contains("سحب راتب") || type.contains("سحب من الراتب") -> Color(0xFF7B1FA2) to "👛"
-    type.contains("خصم") -> Color(0xFF7B1FA2) to "➖"
-    type.contains("ديزل") -> Color(0xFFFFA000) to "⛽"
-    type.contains("صيانة") -> Color(0xFFF57C00) to "🔧"
-    type.contains("كهرباء") || type.contains("مياه") -> Color(0xFF00897B) to "⚡"
-    type.contains("مستلزمات") -> Color(0xFF3F51B5) to "📦"
-    type.contains("مساعدة") -> Color(0xFFD81B60) to "🤝"
-    else -> Color(0xFF6C6F8F) to "🧾"
+    type.contains("رواتب") || type.contains("سحب راتب") || type.contains("سحب من الراتب") -> AppColors.InfoColor to "👛"
+    type.contains("خصم") -> AppColors.InfoColor to "➖"
+    type.contains("ديزل") -> AppColors.WarningColor to "⛽"
+    type.contains("صيانة") -> AppColors.WarningColor to "🔧"
+    type.contains("كهرباء") || type.contains("مياه") -> AppColors.PrimaryColor to "⚡"
+    type.contains("مستلزمات") -> AppColors.PrimaryColor to "📦"
+    type.contains("مساعدة") -> AppColors.DangerColor to "🤝"
+    else -> AppColors.TextSecondary to "🧾"
 }
 
 @Composable
 private fun ExpenseGroupCard(group: ExpenseTypeGroup) {
     val (color, icon) = typeVisual(group.type)
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -200,10 +201,10 @@ private fun ExpenseGroupCard(group: ExpenseTypeGroup) {
                             Text(row.description, fontSize = 11.sp, color = AppColors.TextPrimary, maxLines = 2)
                         }
                         if (row.isSalaryWithdrawal) {
-                            Text("سحب راتب", fontSize = 9.sp, color = Color(0xFF7B1FA2))
+                            Text("سحب راتب", fontSize = 9.sp, color = AppColors.InfoColor)
                         }
                         row.employeeName?.let {
-                            Text("👤 $it", fontSize = 10.sp, color = if (row.type.contains("راتب") || row.type.contains("خصم")) Color(0xFF7B1FA2) else AppColors.PrimaryColor)
+                            Text("👤 $it", fontSize = 10.sp, color = if (row.type.contains("راتب") || row.type.contains("خصم")) AppColors.InfoColor else AppColors.PrimaryColor)
                         }
                     }
                     Text(

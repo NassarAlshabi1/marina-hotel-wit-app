@@ -9,6 +9,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import com.marina.marina.domain.repository.SyncRepository
+import com.marina.marina.ui.theme.AppColors
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -75,34 +77,47 @@ suspend fun SnackbarHostState.showAppSnackbar(event: AppSnackbar) {
  * (Colors.green/orange/red/red.shade900/blue من Flutter).
  */
 object SnackColors {
-    val green = Color(0xFF4CAF50)   // Colors.green
-    val orange = Color(0xFFFF9800)  // Colors.orange
-    val red = Color(0xFFF44336)     // Colors.red
-    val red900 = Color(0xFFB71C1C)  // Colors.red.shade900
-    val blue = Color(0xFF2196F3)    // Colors.blue
+    val green = AppColors.SuccessActionColor   // Colors.green
+    val orange = AppColors.WarningActionColor  // Colors.orange
+    val red = AppColors.DangerActionColor     // Colors.red
+    val red900 = AppColors.DangerActionColor  // Colors.red.shade900
+    val blue = AppColors.PrimaryActionColor    // Colors.blue
 }
 
-/**
- * ظلال لوحة Flutter المستخدمة في شاشات المجموعة — نظائر مباشرة لـ
- * Colors.grey.shade200 وغيرها حتى تبقى الألوان مطابقة للحرف.
- */
+/** Semantic status colors aligned with the active light/dark Material scheme. */
 object DartPalette {
-    val blue = Color(0xFF2196F3)      // Colors.blue
-    val grey = Color(0xFF9E9E9E)      // Colors.grey
-    val grey200 = Color(0xFFEEEEEE)   // Colors.grey.shade200
-    val grey300 = Color(0xFFE0E0E0)   // Colors.grey.shade300
-    val grey600 = Color(0xFF757575)   // Colors.grey.shade600
-    val red = Color(0xFFF44336)       // Colors.red
-    val red50 = Color(0xFFFFEBEE)     // Colors.red.shade50
-    val red100 = Color(0xFFFFCDD2)    // Colors.red.shade100
-    val red400 = Color(0xFFEF5350)    // Colors.red.shade400
-    val orange = Color(0xFFFF9800)    // Colors.orange
-    val orange50 = Color(0xFFFFF3E0)  // Colors.orange.shade50
-    val orange400 = Color(0xFFFFA726) // Colors.orange.shade400
-    val orange800 = Color(0xFFEF6C00) // Colors.orange.shade800
-    val green700 = Color(0xFF388E3C)  // Colors.green.shade700
-    val blue50 = Color(0xFFE3F2FD)    // Colors.blue.shade50
-    val redAccent = Color(0xFFFF5252) // Colors.redAccent
+    val blue: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val grey: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+    val grey200: Color
+        @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+    val grey300: Color
+        @Composable get() = MaterialTheme.colorScheme.outlineVariant
+    val grey600: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+    val red: Color
+        @Composable get() = MaterialTheme.colorScheme.error
+    val red50: Color
+        @Composable get() = MaterialTheme.colorScheme.errorContainer
+    val red100: Color
+        @Composable get() = MaterialTheme.colorScheme.errorContainer
+    val red400: Color
+        @Composable get() = MaterialTheme.colorScheme.error
+    val orange: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
+    val orange50: Color
+        @Composable get() = MaterialTheme.colorScheme.secondaryContainer
+    val orange400: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
+    val orange800: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
+    val green700: Color
+        @Composable get() = MaterialTheme.colorScheme.tertiary
+    val blue50: Color
+        @Composable get() = MaterialTheme.colorScheme.primaryContainer
+    val redAccent: Color
+        @Composable get() = MaterialTheme.colorScheme.error
 }
 
 /**

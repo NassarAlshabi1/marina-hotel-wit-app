@@ -23,6 +23,7 @@ import com.marina.marina.domain.model.Payment
 import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.domain.util.HotelTimeEngine
 import com.marina.marina.ui.theme.AppColors
+import com.marina.marina.ui.theme.MarinaPalette
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 import java.util.Calendar
@@ -103,7 +104,7 @@ fun PaymentHistoryScreen(
                 ) {
                     item {
                         // Total banner (Dart l.180-218) — green gradient card.
-                        Card(
+                        OutlinedCard(
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                             modifier = Modifier.fillMaxWidth()
@@ -112,7 +113,7 @@ fun PaymentHistoryScreen(
                                 modifier = Modifier
                                     .background(
                                         Brush.horizontalGradient(
-                                            listOf(Color(0xFF2E7D5B), Color(0xFF1B5E40))
+                                            listOf(MarinaPalette.Success, MarinaPalette.SuccessDeep)
                                         ),
                                         RoundedCornerShape(12.dp)
                                     )
@@ -198,7 +199,7 @@ fun PaymentHistoryScreen(
 @Composable
 private fun HistoryPaymentRow(payment: Payment, onTap: () -> Unit) {
     val (color, icon) = methodVisual(payment.paymentMethod)
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         shape = RoundedCornerShape(10.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -332,25 +333,26 @@ private fun revenueLabel(revenueType: String): String = when (revenueType.lowerc
     else -> "أخرى"
 }
 
+@Composable
 private fun methodVisual(method: String): Pair<Color, String> = when {
-    method.contains("نقدي") -> Color(0xFF2E7D5B) to "💵"
-    method.contains("بطاقة") -> Color(0xFF1976D2) to "💳"
-    method.contains("تحويل") -> Color(0xFFF57C00) to "🏦"
-    method.contains("شيك") -> Color(0xFF7B1FA2) to "🧾"
-    else -> Color(0xFF6C6F8F) to "💳"
+    method.contains("نقدي") -> AppColors.SuccessColor to "💵"
+    method.contains("بطاقة") -> AppColors.PrimaryColor to "💳"
+    method.contains("تحويل") -> AppColors.WarningColor to "🏦"
+    method.contains("شيك") -> AppColors.InfoColor to "🧾"
+    else -> AppColors.TextSecondary to "💳"
 }
 
 @Composable
-private fun HistoryDetailRow(label: String, value: String, valueColor: Color = AppColors.TextPrimary) {
+private fun HistoryDetailRow(label: String, value: String, valueColor: Color? = null) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = AppTypography.bodySmall, color = AppColors.TextSecondary)
-        Text(value, style = AppTypography.bodySmall, color = valueColor, fontWeight = FontWeight.SemiBold)
+        Text(value, style = AppTypography.bodySmall, color = valueColor ?: AppColors.TextPrimary, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun EmptyHistoryCard(message: String) {
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
