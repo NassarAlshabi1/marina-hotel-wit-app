@@ -84,7 +84,24 @@ jobs:
           ls "$ANDROID_HOME/build-tools" 2>/dev/null || true
 
       - name: Run unit tests (launch smoke + domain logic)
-        run: ./gradlew testDebugUnitTest --console=plain --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest --console=plain --stacktrace 2>&1 \
+            | tee "$RUNNER_TEMP/android-gradle-tests.log"
+
+      - name: Summarize Android test failure
+        if: failure()
+        run: |
+          {
+            echo '### Android unit-test failure output'
+            echo '```text'
+            if [ -f "$RUNNER_TEMP/android-gradle-tests.log" ]; then
+              tail -n 120 "$RUNNER_TEMP/android-gradle-tests.log"
+            else
+              echo 'Gradle log was not produced before the failure.'
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test results (evidence)
         if: always()
