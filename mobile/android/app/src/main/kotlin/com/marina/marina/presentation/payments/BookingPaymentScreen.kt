@@ -1293,7 +1293,7 @@ private fun ActionsTab(
         Spacer(Modifier.height(12.dp))
 
         // بطاقة معلومات الحجز (Dart l.166-199).
-        Card {
+        OutlinedCard {
             Column(modifier = Modifier.padding(10.dp)) {
                 Text("معلومات الحجز", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))

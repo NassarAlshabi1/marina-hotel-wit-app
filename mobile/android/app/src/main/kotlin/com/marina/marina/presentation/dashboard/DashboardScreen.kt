@@ -890,8 +890,7 @@ internal object DashboardColors {
         @Composable get() = AppColors.DangerColor
     val WarningOrange: Color
         @Composable get() = AppColors.WarningColor
-    val WarningOrangeDark: Color
-        @Composable get() = AppColors.WarningColor
+    val WarningOrangeDark: Color = AppColors.WarningActionColor
     val PrimaryBlue: Color
         @Composable get() = AppColors.PrimaryColor
     val PrimaryBlueDark: Color
