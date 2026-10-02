@@ -1,18 +1,26 @@
 # ═══════════════════════════════════════════════════════════════
 #  AI Code Review — فحص الكود تلقائياً عند كل PR
 #  يستخدم Z AI API (GLM-4-Plus) لتحليل التغييرات واقتراح إصلاحات
+#
+#  ⛔ مُعطَّل مؤقتاً (2026-10-01) — التلقائي أصبح يدوياً فقط:
+#  تقرير الـ بوت على PR #591 احتوى 7 نتائج؛ الفحص اليدوي أثبت
+#  أنها جميعاً إيجابيات كاذبة (ادعاءات فيض غير ممكنة في Dart،
+#  "حقن SQL" في أسماء جداول من ثابت داخلي، خاصية غير موجودة في
+#  PostHogConfig، واقتراح كتابة على دالة بدل خاصية في #2).
+#  يُعاد التفعيل التلقائي بعد اعتماد Graphite Agent أو استبدال
+#  النموذج/السكربت. للتشغيل الآن: Actions → AI Code Review.
 # ═══════════════════════════════════════════════════════════════
 
 name: AI Code Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - 'mobile/lib/**'
-      - 'mobile/test/**'
-      - 'worker/src/**'
-      - 'scripts/**'
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: 'الفرع الأساس للمقارنة عند التشغيل اليدوي'
+        required: false
+        type: string
+        default: 'main'
 
 permissions:
   contents: read
@@ -43,7 +51,7 @@ jobs:
           GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           node scripts/ai-review/ai-code-review.mjs \
-            --base origin/${{ github.base_ref }} \
+            --base origin/${{ github.base_ref || inputs.base_ref }} \
             --comment \
             --format markdown \
             --model glm-4-plus \

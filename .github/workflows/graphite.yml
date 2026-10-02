@@ -1,0 +1,147 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Marina Hotel — Graphite / Merge Queue CI
+#
+#  يعمل هذا الـ workflow داخل طابور الدمج (Merge Queue):
+#    - GitHub Merge Queue يرسل حدث `merge_group` عند إضافة PR إلى
+#      الطابور، حيث يُنشأ فرع مؤقت بالصيغة:
+#        gh-readonly-queue/<base>/pr-<number>-<sha>
+#      يجمع تغييرات الـ PR مع أحدث trunk (+ PRs السابقة في الطابور).
+#    - بدون مُشغِّل `merge_group` لن تعمل أي فحوصات داخل الطابور
+#      وسيبقى الـ PR معلقاً بانتظار فحوصات لا تبدأ أبداً.
+#
+#  ملاحظة: طابور Graphite الخاص و GitHub Merge Queue غير متوافقين —
+#  فعّل أحدهما فقط (راجع دليل Graphite للـ merge queue). الفحوصات
+#  المطلوبة (required checks) يجب أن تُضاف في قواعد حماية الفرع.
+#
+#  اسم الـ job هو `lint-test` — نفس اسم الـ job في ci.yml — حتى
+#  تتطابق أسماء الـ checks المطلوبة في قواعد حماية الفرع بين
+#  سياقي الـ PR وطابور الدمج دون الحاجة لأي تغيير في الإعدادات.
+#
+#  الخطوات مطابقة لـ ci.yml (نفس إصدار Flutter، نفس استبعاد
+#  الاختبارات الثقيلة، نفس بوابة التغطية 15%) لضمان تطابق
+#  النتيجة بين الـ PR والطابور.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+name: Graphite Merge Queue
+
+on:
+  merge_group:
+    types: [checks_requested]
+  # يسمح بالتشغيل اليدوي للتجربة من تبويب Actions
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# ⚠️ لا نلغي تشغيلات الطابور: إلغاء تشغيل داخل طابور الدمج
+# قد يترك الـ PR معلقاً بانتظار فحص لن يكتمل.
+concurrency:
+  group: graphite-merge-queue-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  lint-test:
+    name: lint-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build
+
+      - name: Flutter Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Dart Format
+        run: |
+          BASE_REF="${{ github.base_ref }}"
+          if [ -n "$BASE_REF" ] && git rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+            DIFF_RANGE="origin/$BASE_REF...HEAD"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            DIFF_RANGE="HEAD~1..HEAD"
+          else
+            DIFF_RANGE=""
+          fi
+          if [ -n "$DIFF_RANGE" ]; then
+            CHANGED_DART=$(git diff --name-only --diff-filter=ACMR $DIFF_RANGE -- '*.dart' | grep -vE '\.(g|freezed)\.dart$' | sed 's|^mobile/||' || true)
+          else
+            CHANGED_DART=""
+          fi
+          if [ -n "$CHANGED_DART" ]; then
+            echo "Checking formatting on changed Dart files:"
+            echo "$CHANGED_DART"
+            # shellcheck disable=SC2086
+            dart format --output=none --set-exit-if-changed $CHANGED_DART
+          else
+            echo "No changed non-generated Dart files in diff."
+          fi
+
+      # ═══════════════════════════════════════════════════════════════
+      #  نفس إعدادات الاختبار في ci.yml:
+      #  --exclude-tags integration,performance,slow: يستثني الاختبارات
+      #    التي تحتاج Appwrite حقيقي وتسبب تعليقاً (hang) في CI.
+      #  --concurrency=2: تقليل ضغط الذاكرة.
+      # ═══════════════════════════════════════════════════════════════
+      - name: Run tests
+        run: flutter test --coverage --concurrency=2 --timeout=180s --exclude-tags integration,performance,slow --reporter compact
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          sudo apt-get update -y -qq
+          sudo apt-get install -y -qq lcov > /dev/null 2>&1
+          if [ -f coverage/lcov.info ]; then
+            lcov --summary coverage/lcov.info | tee /tmp/coverage-summary.txt
+            COVERAGE_PCT=$(grep "lines" /tmp/coverage-summary.txt | grep -oE '[0-9.]+%' | head -1 | tr -d '%')
+            echo "COVERAGE_PCT=$COVERAGE_PCT" >> $GITHUB_ENV
+            echo "Coverage: ${COVERAGE_PCT}%"
+            {
+              echo "## 📊 Coverage Summary (Merge Queue)"
+              echo ""
+              echo "**Branch:** \`${{ github.ref_name }}\`"
+              echo "**Coverage:** ${COVERAGE_PCT}%"
+              echo ""
+              echo '```'
+              tail -n 4 /tmp/coverage-summary.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## 📊 Coverage" >> "$GITHUB_STEP_SUMMARY"
+            echo "No coverage file generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: 🚦 Coverage gate (minimum 15%)
+        if: always() && env.COVERAGE_PCT != ''
+        run: |
+          echo "Coverage: ${COVERAGE_PCT}%"
+          if (( $(echo "${COVERAGE_PCT} < 15.0" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE_PCT}% is below minimum 15%"
+            exit 1
+          else
+            echo "✅ Coverage ${COVERAGE_PCT}% meets minimum 15%"
+          fi
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: coverage-report-${{ github.run_id }}
+          path: mobile/coverage
+          if-no-files-found: ignore
+          retention-days: 14
