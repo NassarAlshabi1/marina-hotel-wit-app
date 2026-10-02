@@ -324,7 +324,7 @@ private fun StatCard(
 /** Dart `_buildRecentPayments` (l.327-384) — مدفوعات اليوم الفندقي (أول 10). */
 @Composable
 private fun RecentPaymentsCard(state: PaymentsUiState, onShowAll: () -> Unit) {
-    Card {
+    OutlinedCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -436,7 +436,7 @@ private fun ActiveBookingCard(booking: Booking, onPay: (Booking) -> Unit) {
         border = when {
             isOverdue -> androidx.compose.foundation.BorderStroke(1.5.dp, Red700)
             isLate -> androidx.compose.foundation.BorderStroke(1.2.dp, Orange700)
-            else -> null
+            else -> androidx.compose.foundation.BorderStroke(1.dp, AppColors.DividerColor)
         }
     ) {
         Row(
