@@ -39,10 +39,10 @@ describe('financial integrity regression guards', () => {
     expect((await push('salary_withdrawals', 'create', withdrawal('mirror-b', 'expense-b'))).summary.failed).toBe(0);
     expect((await push('salary_withdrawals', 'update', {
       ...withdrawal('mirror-a', 'expense-a'), amount: 150,
-    })).summary.failed).toBe(0);
+    })).summary.failed).toBe(1);
     const rows = await env.DB.prepare('SELECT local_uuid, expense_uuid, amount FROM salary_withdrawals ORDER BY local_uuid').all();
     expect(rows.results).toEqual([
-      { local_uuid: 'mirror-a', expense_uuid: 'expense-a', amount: 150 },
+      { local_uuid: 'mirror-a', expense_uuid: 'expense-a', amount: 100 },
       { local_uuid: 'mirror-b', expense_uuid: 'expense-b', amount: 100 },
     ]);
     expect((await push('salary_withdrawals', 'create', withdrawal('duplicate', 'expense-a'))).summary.failed).toBe(1);
@@ -54,7 +54,7 @@ describe('financial integrity regression guards', () => {
     await push('salary_withdrawals', 'create', withdrawal('mirror-a', 'expense-a'));
     expect((await push('salary_withdrawals', 'update', {
       local_uuid: 'mirror-a', expense_uuid: null, amount: 110,
-    })).summary.failed).toBe(0);
+    })).summary.failed).toBe(1);
     expect(await env.DB.prepare('SELECT expense_uuid FROM salary_withdrawals WHERE local_uuid = ?')
       .bind('mirror-a').first()).toEqual({ expense_uuid: 'expense-a' });
     expect((await push('salary_withdrawals', 'create', withdrawal('orphan', 'unknown'))).summary.failed).toBe(1);
@@ -63,6 +63,8 @@ describe('financial integrity regression guards', () => {
   it('fails closed rather than silently dropping source UUID on a pre-0013 schema', async () => {
     await parents();
     await env.DB.prepare('DROP INDEX idx_salary_withdrawals_active_expense').run();
+    await env.DB.prepare('DROP TRIGGER financial_close_requires_complete_mirrors').run();
+    await env.DB.prepare('DROP TRIGGER salary_withdrawals_immutable').run(); // Reconstruct pre-0015 schema.
     await env.DB.prepare('ALTER TABLE salary_withdrawals DROP COLUMN expense_uuid').run();
     const result = await push('salary_withdrawals', 'create', withdrawal('mirror-a', 'expense-a'));
     expect(result.summary.failed).toBe(1);
@@ -100,7 +102,9 @@ describe('financial integrity regression guards', () => {
     await parents();
     await push('salary_withdrawals', 'create', withdrawal('mirror-a', 'expense-a'));
     const db = new Database(env.DB);
-    await db.deleteRecord('salary_withdrawals', 'mirror-a', 'device-A');
+    // Tombstone predates append-only policy; simulate the historical stored state.
+    await env.DB.prepare('DROP TRIGGER salary_withdrawals_immutable').run();
+    await env.DB.prepare("UPDATE salary_withdrawals SET deleted_at = 500 WHERE local_uuid = 'mirror-a'").run();
     const result = await push('salary_withdrawals', 'update', {
       local_uuid: 'mirror-a', employee_uuid: 'missing', expense_uuid: 'missing',
     });
@@ -139,6 +143,8 @@ describe('incremental financial migrations', () => {
     await parents();
     await push('salary_withdrawals', 'create', withdrawal('legacy', 'expense-a'));
     await env.DB.prepare('DROP INDEX idx_salary_withdrawals_active_expense').run();
+    await env.DB.prepare('DROP TRIGGER financial_close_requires_complete_mirrors').run();
+    await env.DB.prepare('DROP TRIGGER salary_withdrawals_immutable').run(); // Reconstruct pre-0015 schema.
     await env.DB.prepare('ALTER TABLE salary_withdrawals DROP COLUMN expense_uuid').run();
     for (const sql of schemaStatements(expenseMigration)) await env.DB.prepare(sql).run();
     expect(await env.DB.prepare('SELECT amount, reason, expense_uuid FROM salary_withdrawals WHERE local_uuid = ?')

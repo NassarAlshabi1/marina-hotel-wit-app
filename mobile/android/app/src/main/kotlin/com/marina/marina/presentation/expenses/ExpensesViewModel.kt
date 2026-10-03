@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 data class ExpensesUiState(
     val isLoading: Boolean = false,
     val expenses: List<Expense> = emptyList(),
+    val reversalRequests: Map<String, String> = emptyMap(),
     val employeeNames: Map<Long, String> = emptyMap(),
     val searchQuery: String = "",
     val typeFilter: String = "today", // today (hotel day) | week | month | all
@@ -72,10 +73,10 @@ class ExpensesViewModel @Inject constructor(
     val state: StateFlow<ExpensesUiState> = _state.asStateFlow()
 
     init {
-        combine(expensesRepository.getAll(), employeesRepository.getAll()) { expenses, employees ->
-            expenses to employees.associate { it.id to it.name }
-        }.onEach { (expenses, names) ->
-            _state.value = _state.value.copy(isLoading = false, expenses = expenses, employeeNames = names, error = null)
+        combine(expensesRepository.getAll(), employeesRepository.getAll(), expensesRepository.watchReversalRequests()) { expenses, employees, requests ->
+            Triple(expenses, employees.associate { it.id to it.name }, requests)
+        }.onEach { (expenses, names, requests) ->
+            _state.value = _state.value.copy(isLoading = false, expenses = expenses, employeeNames = names, reversalRequests = requests, error = null)
         }.launchIn(viewModelScope)
     }
 
@@ -103,11 +104,11 @@ class ExpensesViewModel @Inject constructor(
         }
     }
 
-    fun deleteExpense(expense: Expense) {
+    fun reverseExpense(expense: Expense, reason: String) {
         viewModelScope.launch {
             try {
-                expensesRepository.softDelete(expense.id)
-                _state.value = _state.value.copy(message = "تم حذف المصروف")
+                expensesRepository.reverse(expense.id, reason)
+                _state.value = _state.value.copy(message = "حُفظ طلب الإلغاء؛ لن يتغير الرصيد حتى قبول الخادم وجلب القيد")
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = e.message)
             }

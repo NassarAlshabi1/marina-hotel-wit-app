@@ -10,6 +10,9 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 data class SalaryWithdrawal(
     val id: Long = 0,
+    val reversalOfUuid: String? = null,
+    val reversalReason: String? = null,
+    val reversalActor: String? = null,
     val employeeId: Long = 0,
     val employeeUuid: String? = null,
     val employeeName: String = "",

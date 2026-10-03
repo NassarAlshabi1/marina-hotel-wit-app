@@ -789,7 +789,7 @@ class SyncIngestorRegistryTest {
     }
 
     @Test
-    fun salaryExpenseWritesAndUnlinksExactlyOneUuidMirrorAtomically() = runBlocking {
+    fun postedExpenseIsImmutableAndReversalQueuesOnceWithoutChangingMoney() = runBlocking {
         val employeeId = db.employeesDao().insert(EmployeeEntity(name = "A", basicSalary = 1000.0, status = "active", localUuid = "employee-a"))
         val employeeB = db.employeesDao().insert(EmployeeEntity(name = "B", basicSalary = 1000.0, status = "active", localUuid = "employee-b"))
         // An unrelated remote legacy reference must never be mistaken for the new local expense.
@@ -809,25 +809,21 @@ class SyncIngestorRegistryTest {
         val wire = db.outboxDao().getPendingPrimary().first().map { PushWireContract.buildOperation(it, "device") }
         assertEquals(expense.localUuid, wire.single { it.entity == "salary_withdrawals" }.data["expense_uuid"])
 
-        repository.update(expense.copy(relatedId = employeeB, employeeUuid = "employee-b", amount = 150.0))
-        val updated = db.salaryWithdrawalsDao().getByExpenseUuid(expense.localUuid).single()
-        assertEquals(mirror.localUuid, updated.localUuid)
-        assertEquals("employee-b", updated.employeeUuid)
-        assertEquals(150.0, updated.amount, 0.0)
-        repository.update(db.expensesDao().getById(id)!!.toDomain().copy(expenseType = "تشغيلية"))
-        assertTrue(db.salaryWithdrawalsDao().getByLocalUuid(mirror.localUuid)!!.deletedAt != null)
-        assertNull(db.salaryWithdrawalsDao().getByLocalUuid("unrelated")!!.deletedAt)
-        assertNull(db.expensesDao().getById(id)!!.relatedId)
-        val beforeRetryCount = db.outboxDao().getPendingPrimary().first().size
-        assertTrue(runCatching {
-            repository.update(db.expensesDao().getById(id)!!.toDomain().copy(
-                expenseType = "سلفة", relatedId = employeeB, employeeUuid = "employee-b"
-            ))
-        }.isFailure) // A terminal tombstone must not be resurrected via INSERT OR REPLACE.
-        assertEquals("تشغيلية", db.expensesDao().getById(id)!!.expenseType)
-        assertEquals(beforeRetryCount, db.outboxDao().getPendingPrimary().first().size)
-        val keys = db.outboxDao().getPendingPrimary().first().map { it.idempotencyKey }
-        assertEquals(keys.size, keys.toSet().size) // distinct edits must not replay the first edit's receipt
+        assertTrue(runCatching { repository.update(expense.copy(relatedId = employeeB, amount = 150.0)) }.isFailure)
+        assertTrue(runCatching { repository.softDelete(id) }.isFailure)
+        assertTrue(runCatching { repository.reverse(id, " ") }.isFailure)
+        repository.reverse(id, "مصروف مكرر بالخطأ")
+        repository.reverse(id, "مصروف مكرر بالخطأ")
+        assertEquals(100.0, db.expensesDao().getById(id)!!.amount, 0.0)
+        assertNull(db.expensesDao().getById(id)!!.deletedAt)
+        assertNull(db.salaryWithdrawalsDao().getByLocalUuid(mirror.localUuid)!!.deletedAt)
+        val requests = db.outboxDao().getPendingPrimary().first().filter { it.op == "reverse" }
+        assertEquals(1, requests.size)
+        val command = PushWireContract.buildOperation(requests.single(), "device")
+        assertEquals("reverse", command.operation)
+        assertEquals(expense.localUuid, command.data["local_uuid"])
+        assertEquals("مصروف مكرر بالخطأ", command.data["reason"])
+        assertEquals(3, db.outboxDao().getPendingPrimary().first().size)
     }
 
     @Test
@@ -959,4 +955,28 @@ class SyncIngestorRegistryTest {
         assertEquals(500L, db.salaryWithdrawalsDao().getByLocalUuid("deleted-orphan")!!.deletedAt)
         assertTrue(db.pendingSyncLinksDao().getAll().isEmpty())
     }
+    @Test
+    fun financialReceiptRollsBackBothLegsUntilAllParentsExist() = runBlocking {
+        val expense = wireRecord("_entity" to "expenses", "id" to 810, "local_uuid" to "reversal-expense",
+            "expense_type" to "تشغيلية", "description" to "Correction", "amount" to -100,
+            "date" to "2026-10-03", "hotel_day_key" to "2026-10-03",
+            "reversal_of_uuid" to "source-expense", "reversal_reason" to "Duplicate", "reversal_actor" to "admin-id")
+        val salary = wireRecord("_entity" to "salary_withdrawals", "id" to 811, "local_uuid" to "reversal-salary",
+            "employee_id" to 999, "employee_uuid" to "missing-parent", "expense_uuid" to "reversal-expense",
+            "amount" to -100, "withdraw_date" to "2026-10-03", "reversal_of_uuid" to "source-salary")
+        assertTrue(runCatching { registry.ingestFinancialReceipt(listOf(expense, salary)) }.isFailure)
+        assertNull(db.expensesDao().getByLocalUuid("reversal-expense"))
+        db.employeesDao().insert(EmployeeEntity(name = "A", basicSalary = 1000.0, status = "active", localUuid = "missing-parent"))
+        registry.ingestFinancialReceipt(listOf(expense, salary))
+        registry.ingestFinancialReceipt(listOf(expense, salary)) // Lost-ack retry must not add money.
+        assertEquals(1, db.expensesDao().getAllOnce().size)
+        assertEquals(1, db.salaryWithdrawalsDao().getAllOnce().size)
+        val correction = db.expensesDao().getByLocalUuid("reversal-expense")!!.toDomain()
+        assertEquals("source-expense", correction.reversalOfUuid)
+        assertEquals("Duplicate", correction.reversalReason)
+        assertEquals("admin-id", correction.reversalActor)
+        assertEquals(-100.0, correction.amount, 0.0)
+        assertEquals("source-salary", db.salaryWithdrawalsDao().getByLocalUuid("reversal-salary")!!.reversalOfUuid)
+    }
+
 }

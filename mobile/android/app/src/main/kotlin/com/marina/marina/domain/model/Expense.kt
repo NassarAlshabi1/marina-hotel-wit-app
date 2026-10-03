@@ -7,6 +7,9 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 data class Expense(
     val id: Long = 0,
+    val reversalOfUuid: String? = null,
+    val reversalReason: String? = null,
+    val reversalActor: String? = null,
     val expenseType: String = "",
     val relatedId: Long? = null,
     val description: String = "",

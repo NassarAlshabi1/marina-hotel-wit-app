@@ -1,3 +1,4 @@
+import { FinancialPolicyError, reverseFinancial, financialReceipt } from './financial';
 // ═══════════════════════════════════════════════════════════════
 //  sync.ts — Sync Pull/Push Handlers
 //  Delta sync + idempotent push + conflict resolution (LWW + VC)
@@ -55,7 +56,7 @@ function validatePushOperation(op: PushOperation): string | null {
   if (!op.entity || typeof op.entity !== 'string') {
     return 'entity is required';
   }
-  if (!['create', 'update', 'delete'].includes(op.operation)) {
+  if (!['create', 'update', 'delete', 'reverse'].includes(op.operation)) {
     return `Invalid operation: ${op.operation}`;
   }
   if (!op.data || typeof op.data !== 'object') {
@@ -309,6 +310,7 @@ export async function handlePush(
       entityId?: string;
       error?: string;
       skipped?: boolean;
+      records?: Record<string, unknown>[];
       /** Stable operation disposition for the client (including delete-wins). */
       status?: 'validation_error' | 'conflict' | 'internal_error' | 'deleted';
     }> = [];
@@ -342,7 +344,7 @@ export async function handlePush(
         const idempResult = await db.checkIdempotency(op.idempotencyKey);
         if (idempResult.exists) {
           const cached = idempResult.response as
-            | { entityId?: string; status?: 'deleted' }
+            | { entityId?: string; status?: 'deleted'; records?: Record<string, unknown>[] }
             | undefined;
           results.push({
             idempotencyKey: op.idempotencyKey,
@@ -351,6 +353,7 @@ export async function handlePush(
             entity: op.entity,
             entityId: cached?.entityId,
             status: cached?.status,
+            records: cached?.records,
           });
           continue;
         }
@@ -402,6 +405,13 @@ export async function handlePush(
             }
             break;
           }
+          case 'reverse': {
+            entityId = await reverseFinancial(db.financialDatabase(), op.entity, requireEntityId(op.data), op.data.reason, ctx, opDeviceId(op, ctx));
+            // Server-authored rows must also reach the requesting device (no own-device echo exclusion).
+            touched.set('salary_withdrawals', { entityId, deviceId: 'financial-ledger', operation: 'create' });
+            touched.set(op.entity, { entityId, deviceId: 'financial-ledger', operation: 'create' });
+            break;
+          }
           case 'delete': {
             entityId = requireEntityId(op.data);
             await db.deleteRecord(op.entity, entityId, opDeviceId(op, ctx));
@@ -412,7 +422,8 @@ export async function handlePush(
         }
 
         // ─── Save idempotency ──────────────────────────────────
-        const responsePayload = { entity: op.entity, entityId, operation: op.operation };
+        const records = op.operation === 'reverse' ? await financialReceipt(db.financialDatabase(), entityId) : undefined;
+        const responsePayload = { entity: op.entity, entityId, operation: op.operation, records };
         await db.saveIdempotency(op.idempotencyKey, op.entity, op.operation, entityId, responsePayload);
 
         if (!touched.has(op.entity)) {
@@ -428,12 +439,14 @@ export async function handlePush(
           success: true,
           entity: op.entity,
           entityId,
+          records,
         });
       } catch (err) {
         console.error(`[SYNC/PUSH] Operation failed: ${op.idempotencyKey}`, err);
         results.push({
           idempotencyKey: op.idempotencyKey,
           success: false,
+          status: err instanceof FinancialPolicyError || String(err).includes('FINANCIAL_') ? 'validation_error' : 'internal_error',
           error: String(err),
         });
       }
@@ -570,7 +583,7 @@ export async function handleMigrate(
     // individually validated to be a plain INSERT into a whitelisted entity
     // table — any comment or other prefix fails the regex and the whole
     // batch is rejected BEFORE anything executes.
-    const validTargets = new Set<string>(SYNC_ENTITY_TABLES);
+    const validTargets = new Set<string>(SYNC_ENTITY_TABLES.filter(t => t !== 'expenses' && t !== 'salary_withdrawals'));
     const statements = splitSqlStatements(sqlText);
 
     if (statements.length === 0) {

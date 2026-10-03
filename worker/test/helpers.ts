@@ -23,10 +23,16 @@ export function schemaStatements(sqlText: string): string[] {
     .split('\n')
     .filter((line) => !line.trimStart().startsWith('--'))
     .join('\n');
-  return noComments
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  const result: string[] = [];
+  let trigger = '';
+  for (const part of noComments.split(';').map(s => s.trim()).filter(Boolean)) {
+    if (trigger || /^CREATE TRIGGER/i.test(part)) {
+      trigger += (trigger ? '; ' : '') + part;
+      if (/END$/i.test(part)) { result.push(trigger); trigger = ''; }
+    } else result.push(part);
+  }
+  if (trigger) throw new Error('Incomplete trigger in schema');
+  return result;
 }
 
 /** Rebuild the full schema from scratch. */
@@ -119,7 +125,7 @@ export function roomPayload(overrides: Record<string, unknown> = {}): Record<str
 
 export function pushOp(
   entity: string,
-  operation: 'create' | 'update' | 'delete',
+  operation: 'create' | 'update' | 'delete' | 'reverse',
   data: Record<string, unknown>,
   overrides: Record<string, unknown> = {}
 ): Record<string, unknown> {
@@ -152,6 +158,7 @@ export async function pushOperations(
 }
 
 export interface PushResultItem {
+  records?: Record<string, unknown>[];
   idempotencyKey: string;
   success: boolean;
   entity?: string;

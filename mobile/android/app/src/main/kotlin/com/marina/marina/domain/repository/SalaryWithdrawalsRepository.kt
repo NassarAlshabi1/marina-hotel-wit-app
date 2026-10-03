@@ -30,6 +30,7 @@ interface SalaryWithdrawalsRepository {
     )
 
     suspend fun softDelete(id: Long)
+    suspend fun reverse(id: Long, reason: String)
     suspend fun getTotalForEmployee(employeeId: Long): Double
     suspend fun getTotalForEmployeeByType(employeeId: Long, type: String): Double
 }

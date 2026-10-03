@@ -60,17 +60,17 @@ class FinancialMigrationTest {
     }
 
     @Test
-    fun migrate70To72PreservesMoneyAndUndeliveredOutboxAndValidatesRoomSchema() {
+    fun migrate70To73PreservesMoneyAndUndeliveredOutboxAndValidatesRoomSchema() {
         val name = "migration-70-72.db"
         createV70(name)
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72)
+                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73)
                 .allowMainThreadQueries().build()
             try {
                     // Opening invokes Room's generated full schema validation, not just column checks.
                     val db = room.openHelper.writableDatabase
-                    assertEquals(72, db.version)
+                    assertEquals(73, db.version)
                     for (table in listOf("expenses", "salary_withdrawals")) {
                         db.query("SELECT amount FROM $table").use { cursor ->
                             assertTrue(cursor.moveToFirst())
@@ -94,7 +94,7 @@ class FinancialMigrationTest {
     }
 
     @Test
-    fun migrate71To72PreservesExistingUuidColumns() {
+    fun migrate71To73PreservesExistingUuidColumns() {
         val name = "migration-71-72.db"
         createV70(name)
         // Use the actual 70->71 migration to produce a version-71 file.
@@ -111,9 +111,42 @@ class FinancialMigrationTest {
         helper.close()
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_71_72).allowMainThreadQueries().build()
-            try { assertEquals(72, room.openHelper.writableDatabase.version) }
+                .addMigrations(DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73).allowMainThreadQueries().build()
+            try { assertEquals(73, room.openHelper.writableDatabase.version) }
             finally { room.close() }
+        } finally { context.deleteDatabase(name) }
+    }
+
+    @Test
+    fun migrate72To73PreservesOriginalAndAddsNullableAuditLinks() {
+        val name = "migration-72-73.db"
+        createV70(name)
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name(name)
+                .callback(object : SupportSQLiteOpenHelper.Callback(72) {
+                    override fun onCreate(db: SupportSQLiteDatabase) = Unit
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
+                        DatabaseModule.MIGRATION_70_71.migrate(db)
+                        DatabaseModule.MIGRATION_71_72.migrate(db)
+                    }
+                }).build()
+        )
+        helper.writableDatabase
+        helper.close()
+        try {
+            val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
+                .addMigrations(DatabaseModule.MIGRATION_72_73).allowMainThreadQueries().build()
+            try {
+                val db = room.openHelper.writableDatabase
+                assertEquals(73, db.version)
+                for (table in listOf("expenses", "salary_withdrawals")) {
+                    db.query("SELECT amount, reversal_of_uuid, reversal_reason, reversal_actor FROM $table").use {
+                        assertTrue(it.moveToFirst())
+                        assertEquals(12345.0, it.getDouble(0), 0.0)
+                        assertTrue(it.isNull(1) && it.isNull(2) && it.isNull(3))
+                    }
+                }
+            } finally { room.close() }
         } finally { context.deleteDatabase(name) }
     }
 
@@ -126,7 +159,7 @@ class FinancialMigrationTest {
         }
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72)
+                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73)
                 .allowMainThreadQueries().build()
             try { assertTrue(runCatching { room.openHelper.writableDatabase }.isFailure) }
             finally { room.close() }

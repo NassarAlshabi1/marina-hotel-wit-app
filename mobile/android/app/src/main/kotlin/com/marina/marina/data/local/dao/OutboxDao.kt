@@ -10,6 +10,12 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface OutboxDao {
+    @Query("SELECT * FROM outbox WHERE op = 'reverse' ORDER BY id ASC")
+    fun watchReversals(): Flow<List<OutboxEntity>>
+
+    @Query("SELECT * FROM outbox WHERE op = 'reverse' AND entity = :entity AND local_uuid = :uuid ORDER BY id DESC LIMIT 1")
+    suspend fun findReversal(entity: String, uuid: String): OutboxEntity?
+
     @Query("SELECT * FROM outbox WHERE processing_status = 'pending' AND delivered_to_primary = 0 ORDER BY client_ts ASC, id ASC")
     fun getPendingPrimary(): Flow<List<OutboxEntity>>
 
@@ -37,7 +43,7 @@ interface OutboxDao {
     @Query("UPDATE outbox SET primary_processing_status = 'failed', primary_attempts = primary_attempts + 1, primary_last_error = :error WHERE id = :id")
     suspend fun markFailedPrimary(id: Long, error: String): Int
 
-    @Query("DELETE FROM outbox WHERE delivered_to_primary = 1 AND delivered_to_secondary = 1")
+    @Query("DELETE FROM outbox WHERE delivered_to_primary = 1 AND delivered_to_secondary = 1 AND op != 'reverse'")
     suspend fun cleanupDelivered(): Int
 
     @Query("SELECT COUNT(*) FROM outbox WHERE processing_status = 'pending' AND delivered_to_primary = 0")

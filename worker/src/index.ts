@@ -1,3 +1,4 @@
+import { closeFinancialPeriod, financialPolicy, FinancialPolicyError } from './financial';
 // ═══════════════════════════════════════════════════════════════
 //  index.ts — Cloudflare Worker Main Entry
 //  Router + Rate Limiting + CORS + Auth Middleware
@@ -374,6 +375,20 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         } catch (err) {
           logRequest(method, path, 500, Date.now() - startTime, clientIp);
           return json({ error: 'Sync epoch rotation failed', detail: String(err) }, 500, env);
+        }
+      }
+
+      if (path === '/api/financial/policy' && method === 'GET') {
+        return json(await financialPolicy(env.DB), 200, env);
+      }
+      if (path === '/api/admin/financial/close-period' && method === 'POST') {
+        if (ctx.role !== 'admin') return json({ error: 'Admin role required' }, 403, env);
+        try {
+          const body = await request.json() as { closed_through?: string; reason?: string };
+          await closeFinancialPeriod(env.DB, body.closed_through, body.reason, ctx);
+          return json(await financialPolicy(env.DB), 200, env);
+        } catch (error) {
+          return json({ error: String(error) }, error instanceof FinancialPolicyError || String(error).includes('FINANCIAL_') ? 400 : 503, env);
         }
       }
 

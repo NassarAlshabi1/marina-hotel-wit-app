@@ -333,6 +333,9 @@ describe('migration 0007: employee_uuid closure + guarded backfill', () => {
       'SELECT COUNT(*) AS n FROM expenses'
     ).first<{ n: number }>();
 
+    // Historical migration executes before append-only policy 0015.
+    await env.DB.prepare('DROP TRIGGER IF EXISTS expenses_immutable').run();
+    await env.DB.prepare('DROP TRIGGER IF EXISTS salary_withdrawals_immutable').run();
     for (const stmt of schemaStatements(migrationSql0007)) {
       await env.DB.prepare(stmt).run();
     }

@@ -139,6 +139,7 @@ fun ExpensesListScreen(
                                 expense = expense,
                                 employeeName = state.employeeNames[expense.relatedId ?: -1],
                                 onClick = { editingExpense = expense },
+                                reversalStatus = if (state.expenses.any { it.reversalOfUuid == expense.localUuid }) "أُلغي بقيد عكسي" else state.reversalRequests[expense.localUuid],
                                 onDelete = { deleteConfirmExpense = expense }
                             )
                         }
@@ -165,13 +166,19 @@ fun ExpensesListScreen(
     }
 
     deleteConfirmExpense?.let { expense ->
+        var reason by remember(expense.localUuid) { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { deleteConfirmExpense = null },
-            title = { Text("حذف المصروف") },
-            text = { Text("سيتم حذف مصروف \"${expense.expenseType}\" بمبلغ ${expense.amount.toInt()} ريال. المتابعة؟") },
+            title = { Text("إلغاء بقيد عكسي") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("سيبقى الأصل محفوظاً. سيُسجّل الخادم تصحيحاً بمبلغ ${expense.amount.toInt()} ريال في اليوم الفندقي الحالي، دون تغيير الفترات المقفلة. الطلب دون اتصال يبقى معلّقاً.")
+                    OutlinedTextField(value = reason, onValueChange = { if (it.length <= 500) reason = it }, label = { Text("سبب الإلغاء") })
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { viewModel.deleteExpense(expense); deleteConfirmExpense = null }) {
-                    Text("حذف", color = AppColors.DangerColor)
+                TextButton(enabled = reason.trim().length in 3..500, onClick = { viewModel.reverseExpense(expense, reason); deleteConfirmExpense = null }) {
+                    Text("طلب الإلغاء", color = AppColors.DangerColor)
                 }
             },
             dismissButton = {
@@ -186,7 +193,8 @@ private fun ExpenseCard(
     expense: Expense,
     employeeName: String?,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    reversalStatus: String? = null
 ) {
     OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
@@ -230,8 +238,17 @@ private fun ExpenseCard(
                 fontWeight = FontWeight.Bold,
                 color = AppColors.DangerColor
             )
-            TextButton(onClick = onDelete) {
-                Text("حذف", fontSize = 11.sp, color = AppColors.DangerColor)
+            Column {
+                if (expense.reversalOfUuid != null) {
+                    Text("قيد عكسي", fontSize = 11.sp)
+                    Text(expense.reversalReason.orEmpty(), fontSize = 11.sp)
+                } else if (reversalStatus != null) {
+                    Text(reversalStatus, fontSize = 11.sp, color = AppColors.TextSecondary)
+                } else {
+                    TextButton(onClick = onDelete) {
+                        Text("إلغاء بقيد عكسي", fontSize = 11.sp, color = AppColors.DangerColor)
+                    }
+                }
             }
         }
     }

@@ -113,7 +113,7 @@ import com.marina.marina.data.local.entity.SyncStateEntity
         AppUserEntity::class,
         DeviceInfoEntity::class
     ],
-    version = 72,
+    version = 73,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -156,6 +156,6 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "marina_hotel.db"
-        const val SCHEMA_VERSION = 72
+        const val SCHEMA_VERSION = 73
     }
 }

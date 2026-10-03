@@ -76,6 +76,9 @@ fun InventoryTransaction.toEntity(): InventoryTransactionEntity = InventoryTrans
 )
 
 fun SalaryWithdrawalEntity.toDomain(): SalaryWithdrawal = SalaryWithdrawal(
+    reversalOfUuid = reversalOfUuid,
+    reversalReason = reversalReason,
+    reversalActor = reversalActor,
     id = id,
     employeeId = employeeId,
     employeeUuid = employeeUuid,
@@ -96,6 +99,9 @@ fun SalaryWithdrawalEntity.toDomain(): SalaryWithdrawal = SalaryWithdrawal(
 )
 
 fun SalaryWithdrawal.toEntity(): SalaryWithdrawalEntity = SalaryWithdrawalEntity(
+    reversalOfUuid = reversalOfUuid,
+    reversalReason = reversalReason,
+    reversalActor = reversalActor,
     id = id,
     employeeId = employeeId,
     employeeUuid = employeeUuid,

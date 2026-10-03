@@ -85,12 +85,12 @@ class OutboxRepository @Inject constructor(
         // بصمت هنا — لا تُعاد للمحاولة ولا تُدفن، فتبقى pending للأبد (لأن
         // getPendingPrimary يعيدها) وتضخم عدّاد المعلّقات وتجمّد الدفع. الآن
         // تُدفن dead-letter (failed + completed) مثل الرفض الدائم تماماً.
-        allPending.filter { it.attempts >= MAX_ATTEMPTS_BEFORE_BACKOFF }.forEach { row ->
+        allPending.filter { it.op != "reverse" && it.attempts >= MAX_ATTEMPTS_BEFORE_BACKOFF }.forEach { row ->
             outboxDao.markFailedPrimary(row.id, "max retry attempts reached (${row.attempts})")
             outboxDao.markProcessing(row.id, "completed", System.currentTimeMillis(), WORKER_NAME)
         }
 
-        val pending = allPending.filter { it.attempts < MAX_ATTEMPTS_BEFORE_BACKOFF }
+        val pending = allPending.filter { it.op == "reverse" || it.attempts < MAX_ATTEMPTS_BEFORE_BACKOFF }
         if (pending.isEmpty()) return 0
 
         // الدخول الكسول: أول دفعة تضمن توكن JWT خادمياً (admin/admin
@@ -128,6 +128,15 @@ class OutboxRepository @Inject constructor(
                                 outboxDao.markProcessing(row.id, "pending", System.currentTimeMillis(), WORKER_NAME)
                             }
                             opResult.success == true -> {
+                                if (row.op == "reverse") {
+                                    try {
+                                        syncIngestorRegistry.ingestFinancialReceipt(opResult.records.orEmpty())
+                                    } catch (error: Exception) {
+                                        outboxDao.markFailedPrimary(row.id, error.message ?: "Incomplete financial receipt")
+                                        outboxDao.markProcessing(row.id, "pending", System.currentTimeMillis(), WORKER_NAME)
+                                        return@forEachIndexed
+                                    }
+                                }
                                 if (opResult.status == "deleted") {
                                     // Server delete-wins is final: stop showing
                                     // the losing local edit immediately, even
