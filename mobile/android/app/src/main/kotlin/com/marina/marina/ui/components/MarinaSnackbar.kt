@@ -7,150 +7,116 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.WarningAmber
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarData
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarVisuals
-import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.contentColorFor
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.marina.marina.ui.theme.AppTypography
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/**
- * Marina snackbar system — styled after the Flutter app's colored snackbars
- * (green sync success / red errors / orange warnings) with the soft,
- * floating aesthetic of the serenity & syncforge reference designs:
- * rounded 16dp, elevated, leading status icon, RTL-friendly.
- */
+enum class MarinaSnackbarType { SUCCESS, ERROR, WARNING, INFO }
 
-enum class MarinaSnackbarType {
-    SUCCESS,
-    ERROR,
-    WARNING,
-    INFO
-}
-
-/**
- * Custom [SnackbarVisuals] carrying the Marina type so it can travel through
- * the standard [SnackbarHostState] pipeline.
- */
+/** Helper messages are plain text; callers opt into an icon (e.g. auto-pull). */
 class MarinaSnackbarVisuals(
     override val message: String,
-    val type: MarinaSnackbarType = MarinaSnackbarType.INFO,
+    val type: MarinaSnackbarType? = MarinaSnackbarType.INFO,
     override val actionLabel: String? = null,
     override val withDismissAction: Boolean = false,
-    override val duration: SnackbarDuration = SnackbarDuration.Short,
-) : SnackbarVisuals
+    val requestedDuration: SnackbarDuration = SnackbarDuration.Short,
+    val icon: ImageVector? = null,
+    val floating: Boolean = true,
+    val timeoutOverrideMillis: Long? = null,
+) : SnackbarVisuals {
+    init { require(timeoutOverrideMillis == null || timeoutOverrideMillis > 0L) }
 
-/** Typed palette for each snackbar flavor. */
-private data class SnackbarStyle(
-    val container: Color,
-    val content: Color,
-    val icon: ImageVector
-)
-
-@Composable
-private fun styleFor(type: MarinaSnackbarType): SnackbarStyle {
-    val scheme = MaterialTheme.colorScheme
-    val container = when (type) {
-        MarinaSnackbarType.SUCCESS -> scheme.tertiary
-        MarinaSnackbarType.ERROR -> scheme.error
-        MarinaSnackbarType.WARNING -> scheme.secondary
-        MarinaSnackbarType.INFO -> scheme.primary
-    }
-    val icon = when (type) {
-        MarinaSnackbarType.SUCCESS -> Icons.Filled.CloudDone
-        MarinaSnackbarType.ERROR -> Icons.Filled.ErrorOutline
-        MarinaSnackbarType.WARNING -> Icons.Filled.WarningAmber
-        MarinaSnackbarType.INFO -> Icons.Filled.CloudDownload
-    }
-    return SnackbarStyle(
-        container = container,
-        content = contentColorFor(container),
-        icon = icon
-    )
+    // The host owns the reference 3s/4s timer, extended for accessibility.
+    override val duration: SnackbarDuration = SnackbarDuration.Indefinite
+    val timeoutMillis: Long
+        get() = when {
+            requestedDuration == SnackbarDuration.Indefinite || actionLabel != null -> Long.MAX_VALUE
+            timeoutOverrideMillis != null -> timeoutOverrideMillis
+            type == MarinaSnackbarType.ERROR || requestedDuration == SnackbarDuration.Long -> 4_000L
+            else -> 3_000L
+        }
 }
 
-/**
- * Shows a typed Marina snackbar through the standard host state.
- * Safe to call from any coroutine scope (usually rememberedCoroutineScope).
- */
+/** Darker shades preserve white-label contrast instead of Flutter's weak green/orange. */
+internal fun snackbarContainer(type: MarinaSnackbarType): Color = when (type) {
+    MarinaSnackbarType.SUCCESS -> Color(0xFF2E7D32)
+    MarinaSnackbarType.ERROR -> Color(0xFFC62828)
+    MarinaSnackbarType.WARNING -> Color(0xFFAD4B00)
+    MarinaSnackbarType.INFO -> Color(0xFF1565C0)
+}
+
 fun CoroutineScope.showMarinaSnackbar(
     hostState: SnackbarHostState,
     message: String,
     type: MarinaSnackbarType = MarinaSnackbarType.INFO,
     duration: SnackbarDuration = SnackbarDuration.Short
 ) = launch {
-    hostState.showSnackbar(
-        MarinaSnackbarVisuals(
-            message = message,
-            type = type,
-            duration = duration
-        )
-    )
+    hostState.currentSnackbarData?.dismiss()
+    hostState.showSnackbar(MarinaSnackbarVisuals(message, type, requestedDuration = duration))
 }
 
-/**
- * Floating snackbar host — rounded 16dp, color-coded by type with a leading
- * status icon. Falls back to a neutral container for visuals that are not
- * [MarinaSnackbarVisuals].
- */
 @Composable
-fun MarinaSnackbarHost(
-    hostState: SnackbarHostState,
-    modifier: Modifier = Modifier
-) {
-    SnackbarHost(
-        hostState = hostState,
-        modifier = modifier
-    ) { data ->
-        MarinaSnackbarRow(data = data)
+fun MarinaSnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Modifier) {
+    val current = hostState.currentSnackbarData
+    val accessibility = LocalAccessibilityManager.current
+    LaunchedEffect(current, accessibility) {
+        val visuals = current?.visuals as? MarinaSnackbarVisuals ?: return@LaunchedEffect
+        if (visuals.timeoutMillis != Long.MAX_VALUE) {
+            val timeout = accessibility?.calculateRecommendedTimeoutMillis(
+                originalTimeoutMillis = visuals.timeoutMillis,
+                containsIcons = visuals.icon != null,
+                containsText = true,
+                containsControls = visuals.withDismissAction || visuals.actionLabel != null
+            ) ?: visuals.timeoutMillis
+            delay(timeout)
+            current?.dismiss()
+        }
     }
-}
-
-@Composable
-private fun MarinaSnackbarRow(data: SnackbarData) {
-    val visuals = data.visuals
-    val marinaType = (visuals as? MarinaSnackbarVisuals)?.type ?: MarinaSnackbarType.INFO
-    val style = styleFor(marinaType)
-
-    Snackbar(
-        containerColor = style.container,
-        contentColor = style.content,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = style.icon,
-                contentDescription = null,
-                tint = style.content.copy(alpha = 0.95f),
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = visuals.message,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f, fill = false)
-            )
+    SnackbarHost(hostState, modifier) { data ->
+        val visuals = data.visuals
+        val typed = visuals as? MarinaSnackbarVisuals
+        val container = typed?.type?.let(::snackbarContainer)
+            ?: MaterialTheme.colorScheme.inverseSurface
+        val foreground = if (typed?.type != null) Color.White else MaterialTheme.colorScheme.inverseOnSurface
+        ProvideTextStyle(AppTypography.bodyMedium) {
+            Snackbar(
+                modifier = Modifier.padding(if (typed?.floating == false) 0.dp else 16.dp),
+                shape = RoundedCornerShape(when {
+                    typed?.floating == false -> 0.dp
+                    typed?.icon != null -> 10.dp
+                    else -> 8.dp
+                }),
+                containerColor = container,
+                contentColor = foreground,
+                actionOnNewLine = visuals.actionLabel != null,
+                action = visuals.actionLabel?.let { label ->
+                    { TextButton(onClick = data::performAction) { Text(label, color = foreground) } }
+                },
+                dismissAction = if (visuals.withDismissAction) {
+                    { IconButton(onClick = data::dismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "إغلاق الرسالة", tint = foreground)
+                    } }
+                } else null
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    typed?.icon?.let {
+                        Icon(it, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(12.dp))
+                    }
+                    Text(visuals.message, style = AppTypography.bodyMedium, modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 }

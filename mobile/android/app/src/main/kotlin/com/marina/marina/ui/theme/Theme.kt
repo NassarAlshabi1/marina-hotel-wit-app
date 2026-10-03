@@ -206,16 +206,14 @@ val MarinaDarkColorScheme = darkColorScheme(
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Typography — serenity-inspired: display weights breathe (thin/normal),
+// Typography — bundled Tajawal for every Material role; Arabic tracking stays natural,
 // body text keeps a comfortable 24sp line height for Arabic readability.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ✅ (2026-09-25) خط Tajawal — نفس هوية مرجع Flutter (theme.dart:
-// fontFamily: 'Tajawal'): ملفات TTF الأصلية نُقلت من mobile/assets/fonts
-// في فرع feat/cloudflare-sync-execution إلى res/font. بدونه كان النص
-// العربي يُرسم بـ Roboto — وهو سبب رئيسي لاختلاف شكل الواجهة عن
-// التطبيق المرجعي.
-/** عائلة Tajawal — النص العربي في التطبيق كله (مطابق للمرجع Flutter). */
+// Regular/Bold are byte-identical to reference mobile/assets/fonts. Flutter's
+// pubspec declares these as assets, not a fonts family; runtime rendering there
+// cannot be inferred from the fontFamily string alone. Android registers them.
+/** Bundled Tajawal: regular, medium, bold; version chips intentionally use monospace. */
 val TajawalFamily = FontFamily(
     Font(R.font.tajawal_regular, FontWeight.Normal),
     Font(R.font.tajawal_medium, FontWeight.Medium),
@@ -225,12 +223,14 @@ val TajawalFamily = FontFamily(
 val AppTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = TajawalFamily,
-        fontWeight = FontWeight.Thin,
+        fontWeight = FontWeight.Normal,
         fontSize = 57.sp,
         lineHeight = 64.sp,
         letterSpacing = (-0.25).sp,
         color = Color.Unspecified
     ),
+    displayMedium = TextStyle(fontFamily = TajawalFamily, fontSize = 45.sp, lineHeight = 52.sp),
+    displaySmall = TextStyle(fontFamily = TajawalFamily, fontSize = 36.sp, lineHeight = 44.sp),
     headlineLarge = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.W700,
@@ -278,7 +278,7 @@ val AppTypography = Typography(
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.sp,
         color = Color.Unspecified
     ),
     bodyMedium = TextStyle(
@@ -314,7 +314,7 @@ val AppTypography = Typography(
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.sp,
         color = Color.Unspecified
     )
 )

@@ -54,25 +54,25 @@ data class RoomWithPaymentStatus(
         }
 
     companion object {
-        /** Occupied room — restrained Marina terracotta. */
-        val OccupiedColor: Color = Color(0xFFB44D49)
+        /** Occupied room — Flutter red600. */
+        val OccupiedColor: Color = Color(0xFFE53935)
 
-        /** Vacant room — deep sea-green for clear positive contrast. */
-        val VacantColor: Color = Color(0xFF2F725C)
+        /** Vacant room — Flutter green600. */
+        val VacantColor: Color = Color(0xFF43A047)
 
-        /** Maintenance — warm brass warning tone. */
-        val MaintenanceColor: Color = Color(0xFF92611E)
+        /** Maintenance — Flutter orange600. */
+        val MaintenanceColor: Color = Color(0xFFFB8C00)
 
-        /** Overdue — deeper terracotta for the high-priority state. */
-        val OverdueColor: Color = Color(0xFF873B38)
+        /** Overdue — Flutter red800. */
+        val OverdueColor: Color = Color(0xFFC62828)
 
         /** Overdue tile border. */
-        val OverdueDark: Color = Color(0xFF702F2C)
+        val OverdueDark: Color = Color(0xFFB71C1C)
 
-        /** Late payment — distinct brass accent. */
-        val LatePaymentColor: Color = Color(0xFF79501D)
+        /** Late payment — Flutter orange500. */
+        val LatePaymentColor: Color = Color(0xFFFF9800)
 
         /** Unregistered room fallback. */
-        val UnregisteredColor: Color = Color(0xFF8B9692)
+        val UnregisteredColor: Color = Color(0xFFBDBDBD)
     }
 }

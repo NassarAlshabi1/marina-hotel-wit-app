@@ -1,7 +1,8 @@
 package com.marina.marina.presentation.settings
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,7 +48,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
+import com.marina.marina.ui.components.MarinaSnackbarHost as SnackbarHost
+import com.marina.marina.ui.components.MarinaSnackbarVisuals
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -82,7 +84,7 @@ import com.marina.marina.components.MarinaTopAppBar
 import com.marina.marina.components.MarinaToolbarActionButton
 
 /**
- * الإعدادات — نقل 1:1 لـ `settings_screen.dart` (فرع feat/cloudflare-sync-
+ * الإعدادات — مواءمة مرئية مرجعية لـ `settings_screen.dart` (فرع feat/cloudflare-sync-
  * execution، إلغاء الأقسام المخفية 2026-09-17):
  *  • بطاقة إحصائيات سريعة مُصغّرة (dashboard icon 18 + 4 عدادات بأيقونات).
  *  • أقسام مسطحة ظاهرة دائماً: SettingsSectionHeader (أيقونة 22 زرقاء +
@@ -108,7 +110,10 @@ fun SettingsScreen(
     LaunchedEffect(state.message, state.error) {
         val msg = state.error ?: state.message
         if (msg != null) {
-            snackbarHostState.showSnackbar(msg)
+            snackbarHostState.showSnackbar(MarinaSnackbarVisuals(
+                message = msg, type = null, floating = false,
+                timeoutOverrideMillis = if (state.error != null) 3_000L else 2_000L
+            ))
             viewModel.consumeMessage()
         }
     }
@@ -173,13 +178,11 @@ fun SettingsScreen(
                         } else {
                             MarinaToolbarActionButton(
                                 onClick = viewModel::syncNow,
-                                containerColor = if (state.isError) AppColors.DangerActionColor
-                                else AppColors.PrimaryActionColor
                             ) {
                                 Icon(
                                     Icons.Default.Sync,
                                     contentDescription = "مزامنة مع Cloudflare",
-                                    tint = Color.White
+                                    tint = if (state.isError) Color(0xFFFF5252) else MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -197,8 +200,7 @@ fun SettingsScreen(
                     rooms = state.roomsCount,
                     active = state.activeBookings,
                     employees = state.employeesCount,
-                    users = state.usersCount,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    users = state.usersCount
                 )
 
                 Column(
@@ -323,8 +325,8 @@ fun SettingsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("الإصدار: ${BuildConfig.VERSION_NAME}", fontSize = 13.sp)
                     Text("تطبيق شامل لإدارة العمليات الفندقية", fontSize = 13.sp)
-                    Text("تصميم Eng: Nassar Alshabi", fontSize = 12.sp, color = AppColors.TextSecondary)
-                    Text("Phone: +967 734587456", fontSize = 12.sp, color = AppColors.TextSecondary)
+                    Text("تصميم Eng: Nassar Alshabi", fontSize = 12.sp, lineHeight = 16.sp, color = AppColors.TextSecondary)
+                    Text("Phone: +967 734587456", fontSize = 12.sp, lineHeight = 16.sp, color = AppColors.TextSecondary)
                     Text("© 2026 Marina Hotel", fontSize = 11.sp, color = AppColors.TextSecondary)
                 }
             },
@@ -337,26 +339,18 @@ fun SettingsScreen(
 
 // ═══════════════ مكونات مطابقة لعناصر Dart ═══════════════
 
-/** Semantic accents resolved from the active palette on every recomposition. */
+/** Flutter section/icon accents; neutral text and borders still follow the active theme. */
 private object DartColors {
-    val blue: Color
-        @Composable get() = MaterialTheme.colorScheme.primary
-    val green: Color
-        @Composable get() = MaterialTheme.colorScheme.tertiary
-    val orange: Color
-        @Composable get() = MaterialTheme.colorScheme.secondary
-    val purple: Color
-        @Composable get() = AppColors.InfoColor
-    val indigo: Color
-        @Composable get() = MaterialTheme.colorScheme.primary
-    val red: Color
-        @Composable get() = MaterialTheme.colorScheme.error
-    val brown: Color
-        @Composable get() = AppColors.WarningColor
+    val blue = Color(0xFF2196F3)
+    val green = Color(0xFF4CAF50)
+    val orange = Color(0xFFFF9800)
+    val purple = Color(0xFF9C27B0)
+    val indigo = Color(0xFF3F51B5)
+    val red = Color(0xFFF44336)
+    val brown = Color(0xFF795548)
+    val amber700 = Color(0xFFFFA000)
     val grey: Color
         @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
-    val amber700: Color
-        @Composable get() = MaterialTheme.colorScheme.secondary
 }
 
 /** عنصر شبكة الإعدادات — نظير _SettingsItem في Dart. */
@@ -379,18 +373,19 @@ private fun QuickStatsCard(
     modifier: Modifier = Modifier
 ) {
     OutlinedCard(
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Dashboard, contentDescription = null, tint = AppColors.PrimaryColor, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Dashboard, contentDescription = null, tint = DartColors.blue, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("إحصائيات سريعة", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text("إحصائيات سريعة", fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -409,8 +404,8 @@ private fun StatItem(title: String, value: String, icon: ImageVector, color: Col
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
         Spacer(Modifier.height(4.dp))
-        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = color)
-        Text(title, fontSize = 10.sp, color = DartColors.grey, textAlign = TextAlign.Center)
+        Text(value, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, color = color)
+        Text(title, fontSize = 10.sp, lineHeight = 14.sp, color = DartColors.grey, textAlign = TextAlign.Center)
     }
 }
 
@@ -426,7 +421,7 @@ private fun SectionHeader(title: String, icon: ImageVector, count: Int, subtitle
             Spacer(Modifier.width(8.dp))
             Text(
                 title,
-                fontSize = 16.sp,
+                fontSize = 16.sp, lineHeight = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = DartColors.blue,
                 maxLines = 1,
@@ -439,15 +434,15 @@ private fun SectionHeader(title: String, icon: ImageVector, count: Int, subtitle
                     .background(DartColors.blue.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
                     .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
-                Text("$count", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = DartColors.blue)
+                Text("$count", fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Bold, color = DartColors.blue)
             }
         }
         if (subtitle != null) {
             Spacer(Modifier.height(2.dp))
             Text(
                 subtitle,
-                fontSize = 12.sp,
-                color = AppColors.TextSecondary.copy(alpha = 0.7f),
+                fontSize = 12.sp, lineHeight = 16.sp,
+                color = AppColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -475,12 +470,15 @@ private fun SettingsGrid(items: List<HubItem>, onClick: (HubItem) -> Unit) {
 @Composable
 private fun GridCard(item: HubItem, onClick: (HubItem) -> Unit, modifier: Modifier = Modifier) {
     OutlinedCard(
+        onClick = { onClick(item) },
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         modifier = modifier
-            .height(130.dp)
-            .clickable { onClick(item) }
+            .height(130.dp * maxOf(1f, LocalDensity.current.fontScale))
+            .padding(8.dp)
+
     ) {
         Column(
             modifier = Modifier
@@ -493,7 +491,7 @@ private fun GridCard(item: HubItem, onClick: (HubItem) -> Unit, modifier: Modifi
             Spacer(Modifier.height(8.dp))
             Text(
                 item.title,
-                fontSize = 12.sp,
+                fontSize = 12.sp, lineHeight = 16.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
@@ -502,7 +500,7 @@ private fun GridCard(item: HubItem, onClick: (HubItem) -> Unit, modifier: Modifi
             Spacer(Modifier.height(4.dp))
             Text(
                 item.subtitle,
-                fontSize = 12.sp,
+                fontSize = 12.sp, lineHeight = 16.sp,
                 color = DartColors.grey,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
