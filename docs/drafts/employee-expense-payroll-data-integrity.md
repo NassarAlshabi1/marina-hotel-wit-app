@@ -51,15 +51,15 @@
 | الرفع والسحب | تطبيق Android يستخدم Worker API وOutbox؛ Worker يرفع عبر `/api/sync/push` ويسحب عبر `/api/sync/pull`. | هذا هو مسار المزامنة الحالي. لا تخلطه مع واجهة D1 الاحتياطية المباشرة. |
 | مؤشر السحب | Worker يخصص `updated_at` عبر `sync_clock`، وتوجد `sync_meta.epoch` لكشف جيل قاعدة البيانات بعد الاستعادة. | المسار الحالي لا يستخدم `server_seq`; تغيير المؤشر يتطلب تصميم ترحيل منفصل. |
 | حذف السجلات | مسار المزامنة يستخدم `deleted_at`/عمليات حذف منطقية، وOutbox لإعادة الإرسال. | حافظ على tombstones وعلى idempotency؛ لا تحوّل الحذف المالي إلى حذف مادي. |
-| نسخة Room | `AppDatabase` في هذه الشجرة `version = 70`. | لا تنقل رقم Migration 68 الخاص بـDrift إلى Room. أي توسعة محلية تحتاج migration متوافقة مع النسخ المنشورة. |
+| نسخة Room | `AppDatabase` في الشجرة الحالية `version = 71`، مع Migration 70→71 لحقول UUID الخاصة بدفعات الدورة وسجلات الترحيل. | لا تنقل رقم Migration 68 الخاص بـDrift إلى Room. أي توسعة محلية تحتاج migration متوافقة مع النسخ المنشورة. |
 | نسخة D1 الاحتياطية | توجد خدمة مستقلة للاتصال المباشر بـCloudflare D1 عبر REST/API token، وتستخدم مسارات نسخ/استعادة فيها `INSERT OR REPLACE`. | ليست عقد المزامنة عبر Worker. تعامل معها كمسار احتياطي منفصل؛ لا تستخدم استعادتها فوق قاعدة المزامنة الحية دون خطة دمج واختبار. |
 
 ### سلوك مهم موجود حالياً
 
-- `SyncIngestorRegistry` يحل الموظف أولاً عبر UUID، ثم يستعمل `server_id` كاحتياط متوافق؛ لا ينبغي وصف ذلك بأنه قبول مباشر لـ`employee_id` المحلي القادم من جهاز آخر. يبقى نجاح الاحتياط معتمداً على سلامة `server_id` وعدم التباسه.
-- الترحيل `0007_salary_tables_employee_uuid.sql` يحتوي ردماً تاريخياً محروساً: يختار المرشح الرقمي عند تحقق شروط التفرد، ويترك الصفوف الملتبسة/اليتيمة دون ربط. هذا لا يغني عن قياس بيانات الإنتاج الآن.
-- `SalaryWithdrawalsRepositoryImpl.saveFromExpense` يحدّث `employeeUuid` من القيمة التي يستقبلها عند العثور على المرآة؛ لذلك الادعاء القديم بأن Kotlin لا يحدّثه مطلقاً غير صحيح، لكن القيمة قد تظل `null` إذا كان مصدر المصروف نفسه لا يحمل UUID صحيحاً.
-- `ExpensesViewModel.salaryActionTypes` لا يضم القيمة النصية `سلفة`، في حين أن مسار إنشاء السحب من شاشة الموظفين يعالج السلفة صراحةً. اختلاف المسارين يستحق توحيداً واختباراً.
+- `SyncIngestorRegistry` يعامل UUID كمرجع حاسم؛ لا يرجع إلى `server_id` إذا كان UUID موجوداً وغير قابل للحل، ويرفض المطابقة الرقمية الملتبسة. يُستخدم ظل `server_id` فقط عندما يغيب UUID، ولا تُكتب قيمة الجهاز البعيد الخام كـFK محلي.
+- الترحيل `0007_salary_tables_employee_uuid.sql` يحتوي ردمًا تاريخيًا محروسًا، لكن وجود الملف لا يثبت أنه نُفّذ على الإنتاج أو يبرر تشغيله الآن. لا تُجرَ هجرة أو backfill إنتاجي قبل جرد موثوق وموافقة منفصلة.
+- `SalaryWithdrawalsRepositoryImpl.saveFromExpense` يشتق UUID الموظف من صف الموظف المحلي ويتحقق من اتساق UUID القادم، ويرفض المطابقات الملتبسة بدلاً من حذف سجلات إضافية بالتخمين.
+- `ExpensesViewModel.salaryActionTypes` يضم الآن `سلفة` وبقية أنواع إجراءات الرواتب المستخدمة في المسارات الحالية؛ تبقى تغطية جميع الأنواع واختبار أثر كل منها شرطاً للتحقق.
 - يوجد فرق بين عمود `employee_name` المحلي وغيابه من مخطط Worker، وبين `expense_id` الموجود في مخطط Worker وغيابه عن كيان Room. يجب تقرير أيهما بيانات محلية فقط وأيهما يجب نقله؛ لا تملأ الفرق بتخمين.
 
 ---
@@ -75,7 +75,7 @@
 | C5 | التصنيف النصي قد يغير سلوك المحاسبة | تصنيف بعض مسارات Android قائمة على قيم `expense_type` حرفية، ولا تشمل مجموعة `ExpensesViewModel` كل الأنواع المستخدمة في مسارات الموظفين. | إضافة `expense_kind` محدود القيم في ترحيل متوافق بعد مراجعة القيم القديمة؛ يبقى `expense_type` للعرض. لا تعتمد على `contains()` أو نص الوصف. |
 | C6 | مخطط Room وD1 غير متطابق في حقول الرواتب | `employee_name` محلي فقط حالياً، و`expense_id` موجود في D1 دون حقل مطابق في كيان Room. | تحديد مالك كل حقل؛ إضافة اختبار تكافؤ schema/wire، وعدم إرسال حقل لا يستهلكه الطرف الآخر باعتباره رابطاً موثوقاً. |
 | C7 | مسار النسخ المباشر قد يكتب فوق قاعدة المزامنة | خدمة النسخ السحابي المباشر تستخدم D1 REST و`INSERT OR REPLACE`، وهي منفصلة عن Worker sync وقد تستهدف قاعدة D1 نفسها. | عدم استخدام استعادة النسخة المباشرة كآلية مزامنة أو بذر حي. اختبرها على قاعدة مرحلية، أو اعزل وجهة النسخ، أو أوقفها بقرار صريح. |
-| C8 | تقارير الرواتب ما زالت تعتمد جزئياً على أرقام محلية | `SalaryEntitlementCalculator` يفلتر بعض مصروفات الموظف عبر `relatedId == employee.id`. | اجعل الاستعلامات الجديدة على UUID؛ أبقِ fallback الرقمي محصوراً في السجلات القديمة وبعد التحقق من دلالته. |
+| C8 | بعض السجلات التاريخية قد تفتقر إلى UUID للموظف | `SalaryEntitlementCalculator` ودمج التقرير يقدّمان UUID على الرقم المحلي، ولا يستخدمان `relatedId` إلا عند غياب UUID من الجانبين. | اجعل الاستعلامات الجديدة على UUID؛ أبقِ fallback الرقمي محصوراً بالسجلات القديمة وبعد التحقق من دلالته، ولا تحذف بيانات أثناء بناء التقرير. |
 | C9 | الاستعادة والنسخ المحليان يحتاجان اختباراً مستقلاً | وجود `ComprehensiveBackup` ومسارات محلية لا يثبت وحده أن outbox والمؤشرات والروابط تُستعاد معاً أو تُعاد تهيئتها بأمان. | اختبار round-trip بقاعدة اختبار؛ لا تمسح Outbox أو checkpoints دون سياسة صريحة تحفظ التعديلات غير المرفوعة وتفرض سحباً متسقاً. |
 
 ---
@@ -270,14 +270,14 @@
 
 ## مراجع الشجرة الحالية
 
-- `mobile/android/app/src/main/kotlin/com/marina/marina/data/local/AppDatabase.kt` — Room version 70.
+- `mobile/android/app/src/main/kotlin/com/marina/marina/data/local/AppDatabase.kt` — Room version 71 (Migration 70→71).
 - `mobile/android/app/src/main/kotlin/com/marina/marina/data/local/entity/ExpenseEntity.kt` و`SalaryWithdrawalEntity.kt` و`EmployeeEntity.kt` — حقول Android الحالية.
 - `mobile/android/app/src/main/kotlin/com/marina/marina/presentation/expenses/ExpensesViewModel.kt` و`presentation/employees/EmployeesViewModel.kt` — مسارات إنشاء المصروف/السحب.
 - `mobile/android/app/src/main/kotlin/com/marina/marina/data/repository/ExpensesRepositoryImpl.kt` و`SalaryWithdrawalsRepositoryImpl.kt` — كتابة الصفوف والـOutbox وربط `exp_<id>`.
 - `mobile/android/app/src/main/kotlin/com/marina/marina/data/repository/SyncIngestorRegistry.kt` و`SyncManager.kt` و`OutboxRepository.kt` — حل UUID/`server_id`، السجلات المؤجلة، ومؤشر السحب.
 - `mobile/android/app/src/main/kotlin/com/marina/marina/data/remote/CloudflareSyncService.kt` و`PushWireContract.kt` و`CloudflareConfig.kt` — عقد Worker من التطبيق.
 - `worker/schema.sql` و`worker/src/database.ts` و`worker/src/sync.ts` و`worker/wrangler.toml` — مخطط D1 وسلوك Worker الحالي.
-- `worker/migrations/0006_salary_withdrawals_employee_uuid.sql` و`0007_salary_tables_employee_uuid.sql` و`0010_sync_meta.sql` — ترحيلات UUID وجيل قاعدة المزامنة.
+- `worker/migrations/0006_salary_withdrawals_employee_uuid.sql` و`0007_salary_tables_employee_uuid.sql` و`0010_sync_meta.sql` و`0011_salary_parent_uuids.sql` و`0012_expense_employee_link_clear_flag.sql` — ملفات ترحيل محلية لم تُطبّق هنا؛ لا تشغّل 0006/0007 أو backfill تاريخياً بلا مصدر حقيقة وموافقة مستقلة.
 - `mobile/android/app/src/main/kotlin/com/marina/marina/data/backup/CloudflareD1BackupService.kt` و`data/remote/CloudflareD1Service.kt` — النسخ المباشر المنفصل عن Worker sync.
 
 ### مراجع المصدر القديم التي تحتاج تدقيقاً منفصلاً
