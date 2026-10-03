@@ -302,9 +302,11 @@ class SyncIngestorRegistry @Inject constructor(
         db.withTransaction {
             records.forEach { record ->
                 require(record["_entity"] in setOf("expenses", "salary_withdrawals"))
+                require((record["local_uuid"] as? String)?.isNotBlank() == true) { "قيد الإيصال بلا UUID" }
                 val outcome = applyRecord(record, forceFinancial = true)
-                check(outcome is ApplyOutcome.Applied || outcome is ApplyOutcome.Skipped) {
-                    "تعذر تطبيق إيصال التصحيح كاملاً؛ ستُعاد المحاولة"
+                check(outcome is ApplyOutcome.Applied) {
+                    "تعذر تطبيق إيصال التصحيح كاملاً؛ ستُعاد المحاولة: " +
+                        ((outcome as? ApplyOutcome.Failed)?.error ?: "علاقة أب مؤجلة أو قيد غير صالح")
                 }
             }
         }

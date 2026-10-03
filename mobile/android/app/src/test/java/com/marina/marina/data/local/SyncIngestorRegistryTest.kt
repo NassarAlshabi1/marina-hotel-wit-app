@@ -963,7 +963,7 @@ class SyncIngestorRegistryTest {
             "reversal_of_uuid" to "source-expense", "reversal_reason" to "Duplicate", "reversal_actor" to "admin-id")
         val salary = wireRecord("_entity" to "salary_withdrawals", "id" to 811, "local_uuid" to "reversal-salary",
             "employee_id" to 999, "employee_uuid" to "missing-parent", "expense_uuid" to "reversal-expense",
-            "amount" to -100, "withdraw_date" to "2026-10-03", "reversal_of_uuid" to "source-salary")
+            "amount" to -100, "withdraw_date" to "2026-10-03", "withdrawal_type" to "سلفة", "reversal_of_uuid" to "source-salary")
         assertTrue(runCatching { registry.ingestFinancialReceipt(listOf(expense, salary)) }.isFailure)
         assertNull(db.expensesDao().getByLocalUuid("reversal-expense"))
         db.employeesDao().insert(EmployeeEntity(name = "A", basicSalary = 1000.0, status = "active", localUuid = "missing-parent"))
