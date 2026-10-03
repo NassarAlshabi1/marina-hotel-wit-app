@@ -33,8 +33,6 @@ class CloudflareSyncService @Inject constructor(
     private val preferences: SyncPreferences
 ) {
     companion object {
-        private const val TAG = "CloudflareSync"
-
         /** محاولات الدخول لأعطال الشبكة العابرة (DNS/socket) — نفس Flutter. */
         private const val LOGIN_ATTEMPTS = 2
 

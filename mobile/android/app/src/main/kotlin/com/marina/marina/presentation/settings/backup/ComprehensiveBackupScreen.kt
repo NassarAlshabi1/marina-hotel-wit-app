@@ -31,12 +31,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,7 +52,6 @@ import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.components.MarinaBackButton
 import com.marina.marina.components.MarinaTopAppBar
 import com.marina.marina.components.MarinaToolbarActionButton
-import kotlinx.coroutines.launch
 
 /**
  * الشاشة الرئيسية للنسخ الاحتياطي — نقل ComprehensiveBackupScreen
@@ -92,10 +89,7 @@ fun ComprehensiveBackupScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var showHelp by remember { mutableStateOf(false) }
-    val backupState by backupViewModel.state.collectAsState()
-    val d1State by d1ViewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     // سناك-بارات النسخ المحلي (ألوان Dart الصريحة)
     LaunchedEffect(Unit) {

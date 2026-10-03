@@ -8,4 +8,3 @@ data class SidebarDestination(
     val route: String,
     val icon: ImageVector
 )
-

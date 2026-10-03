@@ -105,8 +105,6 @@ private val Blue50: Color
     @Composable get() = AppColors.InfoContainerColor
 private val OrangePrimary: Color
     @Composable get() = AppColors.WarningColor
-private val Orange600: Color
-    @Composable get() = AppColors.WarningColor
 private val Orange700: Color
     @Composable get() = AppColors.WarningColor
 private val Orange800: Color

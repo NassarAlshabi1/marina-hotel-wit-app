@@ -168,7 +168,7 @@ class BackupViewModel @Inject constructor(
                         progress = 0.5
                     )
                 }
-                val fixReport = restoreFixService.runAutoFixAfterRestore()
+                restoreFixService.runAutoFixAfterRestore()
 
                 _state.update {
                     it.copy(

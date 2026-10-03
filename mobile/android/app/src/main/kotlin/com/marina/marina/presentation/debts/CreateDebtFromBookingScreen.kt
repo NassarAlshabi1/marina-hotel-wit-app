@@ -52,12 +52,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,7 +69,6 @@ import com.marina.marina.util.PdfExporter
 import com.marina.marina.components.MarinaBackButton
 import com.marina.marina.components.MarinaTopAppBar
 import java.util.Calendar
-import kotlinx.coroutines.launch
 
 // ─── Flutter shade constants used by create_debt_from_booking.dart ───
 private val FlutterOrange = AppColors.WarningActionColor
@@ -104,7 +101,6 @@ fun CreateDebtFromBookingScreen(
     onSaved: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var snackbarColor by remember { mutableStateOf<Color?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }

@@ -148,15 +148,15 @@ fun IncomeExpenseReportScreen(
                             Text("المؤشرات المالية الرئيسية", fontWeight = FontWeight.Bold, color = AppColors.PrimaryColor, fontSize = 13.sp)
                             IndicatorsRow(
                                 "هامش الربح", "${"%.1f".format(state.profitMargin)}% ${rating(state.profitMargin, 20.0, 10.0, true)}",
-                                ratingColor(state.profitMargin, 20.0, 10.0, true)
+                                ratingColor(state.profitMargin, 20.0, 10.0)
                             )
                             IndicatorsRow(
                                 "نسبة المصروفات من الدخل", "${"%.1f".format(state.expenseRatio)}% ${rating(100 - state.expenseRatio, 40.0, 20.0, true)}",
-                                ratingColor(100 - state.expenseRatio, 40.0, 20.0, true)
+                                ratingColor(100 - state.expenseRatio, 40.0, 20.0)
                             )
                             IndicatorsRow(
                                 "نسبة الرواتب من الدخل", "${"%.1f".format(state.salaryExpenseRatio)}% ${rating(100 - state.salaryExpenseRatio, 70.0, 50.0, true)}",
-                                ratingColor(100 - state.salaryExpenseRatio, 70.0, 50.0, true)
+                                ratingColor(100 - state.salaryExpenseRatio, 70.0, 50.0)
                             )
                             IndicatorsRow(
                                 "قدرة تغطية الديون",
@@ -184,7 +184,7 @@ fun IncomeExpenseReportScreen(
     }
 }
 
-private fun rating(value: Double, excellent: Double, good: Double, greaterIsBetter: Boolean): String = when {
+private fun rating(value: Double, excellent: Double, good: Double): String = when {
     value >= excellent -> "ممتاز"
     value >= good -> "جيد"
     value > 0 -> "مقبول"
@@ -192,7 +192,7 @@ private fun rating(value: Double, excellent: Double, good: Double, greaterIsBett
 }
 
 @Composable
-private fun ratingColor(value: Double, excellent: Double, good: Double, greaterIsBetter: Boolean): Color = when {
+private fun ratingColor(value: Double, excellent: Double, good: Double): Color = when {
     value >= excellent -> AppColors.SuccessColor
     value >= good -> AppColors.WarningColor
     value > 0 -> AppColors.TextSecondary
