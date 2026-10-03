@@ -94,6 +94,46 @@ class ArabicPdfFonts {
 
 /// أدوات PDF محسنة مع تصاميم احترافية
 class EnhancedPdfUtils {
+  /// ✅ كاش بايتات الخطوط: تحليل ملفّي TTF في كل تصدير كان يستهلك
+  /// وحدة معالجة وذاكرة على الخيط الرئيسي دون داعٍ.
+  static Uint8List? _cachedRegularBytes;
+  static Uint8List? _cachedBoldBytes;
+
+  /// بايتات الخط العربي الخام — قابلة للإرسال إلى isolate منفصل
+  /// (pw.Font لا يمكن عبور حدود الـ isolate، لكن Uint8List يعبور).
+  static Future<Uint8List> regularFontBytes() async {
+    final cached = _cachedRegularBytes;
+    if (cached != null) return cached;
+    final data = await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
+    final bytes = data.buffer.asUint8List(
+      data.offsetInBytes,
+      data.lengthInBytes,
+    );
+    _cachedRegularBytes = bytes;
+    return bytes;
+  }
+
+  static Future<Uint8List> boldFontBytes() async {
+    final cached = _cachedBoldBytes;
+    if (cached != null) return cached;
+    final data = await rootBundle.load('assets/fonts/Tajawal-Bold.ttf');
+    final bytes = data.buffer.asUint8List(
+      data.offsetInBytes,
+      data.lengthInBytes,
+    );
+    _cachedBoldBytes = bytes;
+    return bytes;
+  }
+
+  /// بناء خطوط عربية من بايتات خام — يعمل داخل isolate (دون rootBundle).
+  static ArabicPdfFonts fontsFromBytes(Uint8List regular, Uint8List bold) {
+    return ArabicPdfFonts(
+      regular: pw.Font.ttf(ByteData.sublistView(regular)),
+      bold: pw.Font.ttf(ByteData.sublistView(bold)),
+      light: pw.Font.ttf(ByteData.sublistView(regular)),
+    );
+  }
+
   static Future<ArabicPdfFonts> loadArabicFonts() async {
     final regularData = await rootBundle.load(
       'assets/fonts/Tajawal-Regular.ttf',

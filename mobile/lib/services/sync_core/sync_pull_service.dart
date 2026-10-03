@@ -425,14 +425,22 @@ class SyncPullService {
   /// المؤشر: يُشتق من `max($updatedAt)` في الصفحة المسحوبة (سلطة الخادم)،
   /// لا من `Time.nowEpoch()` (وقت الجهاز الساحب).
   ///
-  /// نافذة الأمان: 15 ثانية — كافية لتفادي انحراف الساعات بين الأجهزة
-  /// دون التسبب بجلب مكرر كبير.
+  /// نافذة الأمان: 300 ثانية (كانت 15 ثانية).
+  ///
+  /// ✅ (2026-09-21) توسيع إلزامي مع Resumable Full Sync: السحب الكامل
+  /// التدفقي أصبح طويلاً (بلا سقف — آلاف الصفحات على شبكة ضعيفة)، وسجل
+  /// قد يُحدَّث على الخادم **بعد** أن مرّت صفحته في المسح لكن قبل اكتمال
+  /// الدورة. نافذة 15 ثانية كانت كافية زمن الدورات القصيرة السابقة، أما
+  /// مع دورات تدوم دقائق فتُفوّت هذه التحديثات إلى الأبد (فحص
+  /// `_isRemoteDataNewer` يتخطى المطابق محلياً). 300 ثانية تغطي دورة
+  /// سحب كاملة نموذجية وتكلفة الجلب المكرر ضئيلة (المستندات المتغيرة
+  /// داخل النافذة فقط — استعلام خادم مفهرس بـ $updatedAt).
   ///
   /// fallback: `lastModified` يُستخدم فقط إذا كان `lastPullTs` قديماً جداً
   /// (قبل تطبيق هذا الإصلاح) — لضمان عدم فقدان السجلات القديمة.
   ///
   /// إذا كان lastPullTs <= 0 → يُعيد قائمة فارغة (سحب كامل).
-  static const int _safetyWindowSeconds = 15;
+  static const int _safetyWindowSeconds = 300;
 
   /// استعلام السحب الكامل للكيانات المتزامنة.
   ///
@@ -454,6 +462,30 @@ class SyncPullService {
       : [
           Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
         ];
+
+  /// ✅ Resumable Full Sync (2026-09-21): استعلام صفحة واحدة من السحب الكامل.
+  ///
+  /// يبني استعلامات صفحة واحدة (لا حلقة ترقيم داخلية — المتصل
+  /// [UnifiedPullEngine] يدير الحلقة بنفسه ليطبّق كل صفحة قبل جلب التالية):
+  ///   - `orderAsc($id)` — ترتيب حتمي عبر الصفحات (شرط cursorAfter).
+  ///   - `limit(pageSize)` — صفحة واحدة.
+  ///   - `cursorAfter(cursor)` — استئناف بعد آخر `$id` تم تطبيقه.
+  ///
+  /// [baseQueries] عادة ناتج [buildFullSyncQueries] (فلتر tombstones أو لا).
+  static List<String> buildFullSyncPageQueries({
+    required List<String> baseQueries,
+    required String? cursor,
+    required int pageSize,
+  }) {
+    final queries = List<String>.from(baseQueries);
+    // ترتيب ثابت بـ $id مطلوب في كل صفحة (متطلب cursor pagination).
+    queries.add(Query.orderAsc(r'$id'));
+    queries.add(Query.limit(pageSize));
+    if (cursor != null && cursor.isNotEmpty) {
+      queries.add(Query.cursorAfter(cursor));
+    }
+    return queries;
+  }
 
   /// كيانات "الآباء" المرجعية التي يجب سحب tombstones الخاصة بها حتى على
   /// جهاز جديد، لأن أبناءها (سجلات مالية) يُحلّ FK ضدّها عبر serverId.

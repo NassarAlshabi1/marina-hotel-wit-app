@@ -250,6 +250,45 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     return (delete(employees)..where((t) => t.id.equals(id))).go();
   }
 
+  /// ✅ حارس حذف الموظفين: عدد السجلات المالية المرتبطة بالموظف.
+  ///
+  /// المنطق (منع العدّ المزدوج):
+  /// - مصروفات الرواتب/السلف المرتبطة (relatedId أو employeeUuid) —
+  ///   كل مصروف مرتبط يُعدّ مرة واحدة.
+  /// - سحوبات الرواتب غير المرتبطة بمصروف (expenseId فارغ) — السحب
+  ///   المرتبط بمصروف سبق عده في المجموعة الأولى (العلاقة 1:1 عبر
+  ///   expense_id كما في saveFromExpense/createFromExpense).
+  /// الربط بـ UUID إلى جانب id يضمن التقاط السجلات الواصلة من أجهزة
+  /// أخرى حيث قد يختلف المعرف الرقمي (autoIncrement) — نفس نهج
+  /// EmployeeLinkConsistencyService.
+  Future<int> countFinancialRecords(int employeeId, String localUuid) async {
+    final expensesCountExp = db.expenses.id.count();
+    final expensesQuery = db.selectOnly(db.expenses)
+      ..addColumns([expensesCountExp])
+      ..where(
+        (db.expenses.relatedId.equals(employeeId) |
+                db.expenses.employeeUuid.equals(localUuid)) &
+            db.expenses.deletedAt.isNull(),
+      );
+    final expensesCount =
+        (await expensesQuery.getSingle()).read(expensesCountExp) ?? 0;
+
+    final withdrawalsCountExp = db.salaryWithdrawals.id.count();
+    final withdrawalsQuery = db.selectOnly(db.salaryWithdrawals)
+      ..addColumns([withdrawalsCountExp])
+      ..where(
+        (db.salaryWithdrawals.employeeId.equals(employeeId) |
+                db.salaryWithdrawals.employeeUuid.equals(localUuid)) &
+            db.salaryWithdrawals.deletedAt.isNull() &
+            (db.salaryWithdrawals.expenseId.isNull() |
+                db.salaryWithdrawals.expenseId.equals(0)),
+      );
+    final unlinkedWithdrawalsCount =
+        (await withdrawalsQuery.getSingle()).read(withdrawalsCountExp) ?? 0;
+
+    return expensesCount + unlinkedWithdrawalsCount;
+  }
+
   Future<Employee?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
     if (parsedServerId == null) {

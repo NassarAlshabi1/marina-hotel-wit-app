@@ -146,6 +146,23 @@ class _RemoteNewerResult {
   bool get hasMerge => mergedData != null;
 }
 
+/// ✅ Resumable Full Sync (2026-09-21): مدخل كتابة مجمّعة لليلة واحدة في
+/// [_syncBookingNights] — يحمل الـ companion الجاهز + المعرف المحلي الموجود
+/// (إن وُجد) + البيانات الخام للـ fallback الفردي عند فشل الدفعة.
+class _NightUpsertEntry {
+  const _NightUpsertEntry({
+    required this.localUuid,
+    required this.companion,
+    required this.existingId,
+    required this.remoteData,
+  });
+
+  final String localUuid;
+  final BookingNightsCompanion companion;
+  final int? existingId;
+  final Map<String, dynamic> remoteData;
+}
+
 /// مدير المزامنة الثنائية
 class AppwriteSyncManager {
   factory AppwriteSyncManager({
@@ -2474,6 +2491,44 @@ class AppwriteSyncManager {
           localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
+        }
+
+        // ✅ (2026-09-19) إصلاح فجوة employee_uuid لمصروفات الرواتب:
+        // سابقاً كان relatedId البعيد (معرف الموظف على جهاز الإنشاء) يُخزّن
+        // كما هو — فيشير إلى موظف مختلف أو سجل يتيم على هذا الجهاز.
+        // الآن: إن وُجد employeeUuid نعيد تعيين relatedId للمعرف المحلي
+        // الصحيح للموظف (نفس نمط salary_withdrawals ثلاثي المستويات،
+        // لكن هنا UUID هو المستوى الأول والوحيد الموثوق عبر الأجهزة).
+        final expenseEmployeeUuid =
+            (data['employeeUuid'] as String?) ??
+            (data['employee_uuid'] as String?);
+        final remoteRelatedId = _asIntSafe(data, 'relatedId');
+        if (expenseEmployeeUuid != null &&
+            expenseEmployeeUuid.isNotEmpty &&
+            _isSalaryExpenseType(
+              (data['expenseType'] as String?) ??
+                  (data['expense_type'] as String?) ??
+                  '',
+            )) {
+          final linkedEmployee =
+              await (database.select(database.employees)
+                    ..where((e) => e.localUuid.equals(expenseEmployeeUuid))
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (linkedEmployee != null) {
+            data['relatedId'] = linkedEmployee.id;
+          }
+          // إن لم يوجد الموظف محلياً بعد: نترك relatedId كما ورد —
+          // _relinkOrphanSalaryExpenses سيعالجه بعد وصول الموظفين
+          // (الموظفون يُزامَنون قبل المصروفات في ترتيب السحب).
+          // مرجع تشخيصي فقط:
+          if (linkedEmployee == null && remoteRelatedId != null) {
+            _logger.debug(
+              '⏳ مصروف راتب $localUuid بانتظار وصول الموظف '
+              'uuid=$expenseEmployeeUuid — سيُعاد ربطه لاحقاً',
+              tag: 'SYNC',
+            );
+          }
         }
 
         await _adapterRegistry.expenses.upsertFromJson(
@@ -5147,18 +5202,27 @@ class AppwriteSyncManager {
       ),
       CollectionPullTask(
         name: 'booking_nights',
-        fetch: (plan) {
-          // ✅ عند السحب الأولي: تحديد 1000 سجل كحد أقصى — booking_nights
-          // قد يحوي عشرات الآلاف من الليالي التاريخية (بطء التثبيت الأول).
-          // ✅ Unified Pull: المؤشر الآن مشتق من max($updatedAt) (سلطة
-          // الخادم) بدل Time.nowEpoch() — إصلاح الخلل التاريخي.
-          const int kInitialBookingNightsLimit = 1000;
-          return appwriteService.listBookingNights(
-            queries: plan.queries,
-            useCache: false,
-            maxRecords: plan.isFullSync ? kInitialBookingNightsLimit : null,
-          );
-        },
+        // ✅ Resumable Full Sync (2026-09-21) — إصلاح P0 فقدان البيانات:
+        // Full pull أصبح تدفقياً قابلاً للاستئناف وبلا سقف — السقف القديم
+        // (1000) كان يُثبّت checkpoint من أول 1000 سجل بأقدم $id ثم يعلن
+        // الاكتمال → الليالي الباقية (قد تتجاوز 85% من بيانات سنة كاملة)
+        // لا تُسحب أبداً → تقارير مالية ناقصة على أي تثبيت جديد.
+        //
+        // الآن: صفحة (100) → تطبيق مجمع → تقدّم cursor → الصفحة التالية،
+        // حتى النفاد الفعلي. الذاكرة محدودة بصفحة واحدة (أجهزة 1GB)،
+        // والانقطاع (شبكة ضعيفة/قتل التطبيق) يُستأنف من آخر صفحة نجحت
+        // في الدورة التالية (المزامنة التلقائية أو فتح التطبيق).
+        //
+        // مسار Delta (غير الأولي) يبقى كما هو عبر fetch — بلا سقف أصلاً.
+        streamFullSync: true,
+        fetchPage: (queries) => appwriteService.listDocumentsPage(
+          collectionId: AppwriteConfig.bookingNightsCollectionId,
+          queries: queries,
+        ),
+        fetch: (plan) => appwriteService.listBookingNights(
+          queries: plan.queries,
+          useCache: false,
+        ),
         apply: (docs) => _syncBookingNights(docs),
       ),
       CollectionPullTask(
@@ -5313,7 +5377,16 @@ class AppwriteSyncManager {
   /// سحب التغييرات من Appwrite
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   /// Guarded by [SyncLocks.appwriteSyncLock] to prevent concurrent pulls.
-  /// All collection syncs are wrapped in a single database transaction for atomicity.
+  ///
+  /// ⚠️ INVARIANT — لا تلف دورة السحب في `database.transaction` واحدة:
+  /// كانت هذه هي بنية الإنتاج القديم (pre-21ab42cb) وتسببت في انهيار
+  /// Crashlytics القاتل `CouldNotRollBackException` (COMMIT/ROLLBACK
+  /// «no transaction is active»): أي خطأ كشف صف (SQLITE_FULL/IOERR...)
+  /// يُنهي معاملة SQLite تلقائياً، والمحرك يواصل السحب (onTaskError لا
+  /// يُوقف الدورة) فتنفّذ الكتابات اللاحقة في auto-commit، ثم يفشل COMMIT
+  /// النهائي بعد دقائق. كل صفحة/مهمة تُطبَّق الآن بذرّيتها الخاصة
+  /// (db.batch داخل `_syncBookingNights`) والمؤشرات تُثبَّت تدريجياً —
+  /// محروس باختبار pull_commit_visibility_test.dart.
   Future<bool> pullRemoteChanges() async {
     final pendingLocalChanges = await outboxDao.countUndeliveredToPrimary();
     if (!OutboxPullPolicy.canPull(
@@ -5347,21 +5420,28 @@ class AppwriteSyncManager {
         // Full pull لكل مجموعة، وبعدها Delta فقط على مستوى كل مجموعة مستقلة
         // (checkpoint خاص في جدول sync_checkpoints). المؤشر مشتق من
         // max($updatedAt) — سلطة الخادم — لا Time.nowEpoch() زمن الجهاز.
-        await database.transaction(() async {
-          final result = await _unifiedPull.run(
-            _buildPullTasks(),
-            onTaskError: (name, error, stackTrace) async {
-              _logger.error(
-                '❌ فشل سحب $name (pullRemoteChanges)',
-                error: error,
-                stackTrace: stackTrace,
-                tag: 'SYNC',
-              );
-            },
-          );
-          recordsPulled = result.recordsPulled;
-          failedCollections.addAll(result.failedCollections);
-        });
+        //
+        // ✅ Resumable Full Sync (2026-09-21): أُزيل غلاف database.transaction
+        // عن الدورة كاملة — السحب الكامل التدفقي لـ booking_nights (بلا سقف)
+        // قد يستغرق دقائق على شبكة ضعيفة، وكان الغلاف سيحتجز write-transaction
+        // واحدة طوال المدة → حجب كل الكتابات المحلية (حجز/دفعة/مصروف من
+        // الواجهة) وتجميد التطبيق على الأجهزة الضعيفة. الآن كل صفحة تُطبَّق
+        // بذرّيتها الخاصة (db.batch داخل _syncBookingNights / كتابات فردية
+        // للمسارات الكلاسيكية) والمؤشرات تُثبَّت تدريجياً — انقطاع الدورة
+        // لا يُلغي التقدم المحفوظ (cursor) بل يُستأنف في الدورة التالية.
+        final result = await _unifiedPull.run(
+          _buildPullTasks(),
+          onTaskError: (name, error, stackTrace) async {
+            _logger.error(
+              '❌ فشل سحب $name (pullRemoteChanges)',
+              error: error,
+              stackTrace: stackTrace,
+              tag: 'SYNC',
+            );
+          },
+        );
+        recordsPulled = result.recordsPulled;
+        failedCollections.addAll(result.failedCollections);
 
         // ✅ تسجيل نتيجة الدورة للعرض في شاشة الإعدادات (زر «سحب الآن»).
         // يُسجَّل حتى مع فشل جزئي (failedCollections) لأن السجلات المطبَّقة
@@ -5712,6 +5792,21 @@ class AppwriteSyncManager {
         if (skipDeleted && cycle.deletedAt != null) continue;
         try {
           final payload = _salaryCycleToRemote(cycle);
+          // ✅ (2026-09-19) إغلاق فجوة employee_uuid في الرفع الكامل أيضاً
+          // (نفس منطق _processSalaryCycleEntry التزايدي).
+          final fullPushEmployee =
+              await (database.select(database.employees)
+                    ..where((e) => e.id.equals(cycle.employeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (fullPushEmployee != null) {
+            payload['employeeUuid'] = fullPushEmployee.localUuid;
+            payload['employeeLocalUuid'] = fullPushEmployee.localUuid;
+          } else if (cycle.employeeUuid != null &&
+              cycle.employeeUuid!.isNotEmpty) {
+            payload['employeeUuid'] = cycle.employeeUuid;
+            payload['employeeLocalUuid'] = cycle.employeeUuid;
+          }
           await appwriteService.upsertSalaryCycle(
             cycle.localUuid,
             _filterPayload('salary_cycles', payload),
@@ -5732,6 +5827,31 @@ class AppwriteSyncManager {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
           final payload = _salaryPaymentToRemote(payment);
+          // ✅ (2026-09-19) إغلاق فجوة employee_uuid في الرفع الكامل أيضاً:
+          // cycleLocalUuid + employeeUuid (نفس منطق _processSalaryPaymentEntry).
+          final fullPushCycle =
+              await (database.select(database.salaryCycles)
+                    ..where((c) => c.id.equals(payment.cycleId))
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (fullPushCycle != null) {
+            payload['cycleLocalUuid'] = fullPushCycle.localUuid;
+            if (fullPushCycle.employeeUuid != null &&
+                fullPushCycle.employeeUuid!.isNotEmpty) {
+              payload['employeeUuid'] = fullPushCycle.employeeUuid;
+              payload['employeeLocalUuid'] = fullPushCycle.employeeUuid;
+            } else {
+              final fullPushPayEmployee =
+                  await (database.select(database.employees)
+                        ..where((e) => e.id.equals(fullPushCycle.employeeId))
+                        ..limit(1))
+                      .getSingleOrNull();
+              if (fullPushPayEmployee != null) {
+                payload['employeeUuid'] = fullPushPayEmployee.localUuid;
+                payload['employeeLocalUuid'] = fullPushPayEmployee.localUuid;
+              }
+            }
+          }
           await appwriteService.upsertSalaryPayment(
             payment.localUuid,
             _filterPayload('salary_payments', payload),
@@ -5952,6 +6072,32 @@ class AppwriteSyncManager {
       );
     }
     final payload = _payloadMapper.salaryPaymentToRemote(item);
+    // ✅ (2026-09-19) إغلاق فجوة employee_uuid لدفعات الرواتب:
+    // الربط عبر دورة الراتب (cycleLocalUuid) ثم الموظف (employeeUuid) —
+    // المعرفات الرقمية (cycleId/employeeId) تختلف بين الأجهزة.
+    final paymentCycle =
+        await (database.select(database.salaryCycles)
+              ..where((c) => c.id.equals(item.cycleId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (paymentCycle != null) {
+      payload['cycleLocalUuid'] = paymentCycle.localUuid;
+      if (paymentCycle.employeeUuid != null &&
+          paymentCycle.employeeUuid!.isNotEmpty) {
+        payload['employeeUuid'] = paymentCycle.employeeUuid;
+        payload['employeeLocalUuid'] = paymentCycle.employeeUuid;
+      } else {
+        final paymentEmployee =
+            await (database.select(database.employees)
+                  ..where((e) => e.id.equals(paymentCycle.employeeId))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (paymentEmployee != null) {
+          payload['employeeUuid'] = paymentEmployee.localUuid;
+          payload['employeeLocalUuid'] = paymentEmployee.localUuid;
+        }
+      }
+    }
     final occPayload = await _occPushCheck(
       entity: 'salary_payments',
       documentId: item.localUuid,
@@ -6093,6 +6239,17 @@ class AppwriteSyncManager {
       );
     }
     final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
+    // ✅ (2026-09-19) إغلاق فجوة employee_uuid: سجلات الترحيل تحتاج ربط
+    // الموظف عبر UUID لأن employeeId الرقمي يختلف بين الأجهزة.
+    final carryEmployee =
+        await (database.select(database.employees)
+              ..where((e) => e.id.equals(log.employeeId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (carryEmployee != null) {
+      payload['employeeUuid'] = carryEmployee.localUuid;
+      payload['employeeLocalUuid'] = carryEmployee.localUuid;
+    }
     final occPayload = await _occPushCheck(
       entity: 'salary_carry_over_logs',
       documentId: entry.localUuid,
@@ -7141,24 +7298,99 @@ class AppwriteSyncManager {
     return processed;
   }
 
+  /// ✅ Resumable Full Sync (2026-09-21) — إعادة كتابة كاملة (إصلاح P0 #2).
+  ///
+  /// **المسار القديم (N+1)**: لكل ليلة — SELECT موجودة + `existing.toJson()`
+  /// كامل + SELECT آخر بنفس localUuid داخل upsertFromJson + حتى 4 SELECTs
+  /// في resolveBooking + INSERT منفصل بـ transaction/fsync خاص + كتابة
+  /// SharedPreferences dedup. لـ 1000 ليلة ≈ 5,000–7,000 عملية DB متسلسلة
+  /// وكتابة disk لكل سجل — دقائق من الـ churn على أجهزة 1GB.
+  ///
+  /// **المسار الجديد (مجمّع، مطابق دلالياً للقديم)**:
+  ///   1. حالة محلية لكل uuid بدفعة **استعلام واحد** (`IN`).
+  ///   2. فهرس حجوزات في الذاكرة (**استعلام واحد**) → resolveBooking O(1).
+  ///   3. تصنيف في الذاكرة: skip (ليس أحدث) / apply / defer (FK مفقود)
+  ///      — بنفس [checkAndResolveConflict] (الـ localData يُبناء فقط عند
+  ///      احتمال تعارض VC فعلي، لا لكل سجل).
+  ///   4. كتابة `db.batch` ذرّية بدفعات 250 (fallback صف-بصف عند فشل دفعة
+  ///      — نفس نمط batchUpsertFromJson في BaseRepository).
+  ///   5. إشعارات مجمّعة — كتابة disk واحدة للدفعة بدل كتابة لكل سجل.
+  ///   6. الليالي المؤجلة (FK/NOT NULL) تُعاد محاولتها بالمسار الفردي
+  ///      بعد انتهاء الدفعة — نفس سلوك المرحلة الثانية القديم.
+  /// ✅ P1 (2026-09-21): جسر اختبار بلا شبكة لمسار تطبيق الليالي المجمّع.
+  ///
+  /// يُستخدم من harness الأداء في CI
+  /// (test/performance/booking_nights_pull_scale_test.dart — خطوة
+  /// booking-nights-pull-scale في android-low-ram-performance.yml) لقياس
+  /// مدة التطبيق والذاكرة وإثبات عدم فقدان سجلات على جدول حقيقي، بنفس
+  /// الكود الإنتاجي تماماً (`_syncBookingNights`) بلا محاكاة أو نسخ.
+  ///
+  /// لا يُنشئ اتصالاً بالشبكة: المستندات تُولَّد محلياً (models.Document)
+  /// وكل مسارات المُنشئ تعيينات حقول فقط (تم التحقق: AppwriteService
+  /// المُنشئ فارغ، وcheckAndResolveConflict منطق CPU/DB بلا شبكة).
+  @visibleForTesting
+  Future<int> applyBookingNightsForTesting(List<models.Document> documents) =>
+      _syncBookingNights(documents);
+
   Future<int> _syncBookingNights(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
-    var processed = 0;
-    final deferred = <models.Document>[];
 
-    // المرحلة الأولى: معالجة الليالي
-    for (final doc in documents) {
-      try {
+    // ── المرحلة 1: الحالة المحلية لكل uuid (استعلام واحد) ──────────────────
+    final uuids = documents
+        .map((doc) => (doc.data['localUuid'] as String?) ?? doc.$id)
+        .where((u) => u.isNotEmpty)
+        .toList();
+    if (uuids.isEmpty) return 0;
+
+    final localState = await _bulkLoadNightsState(uuids);
+
+    // ── المرحلة 2: فهرس الحجوزات (استعلام واحد → O(1) لكل ليلة) ──────────
+    final resolver = _adapterRegistry.nightsResolver;
+    await resolver.buildBookingIndex();
+
+    final appliedNotifications = <RemoteRecordApplied>[];
+    final deferred = <models.Document>[];
+    var processed = 0;
+    try {
+      // ── المرحلة 3: تصنيف + بناء companions في الذاكرة ──────────────────
+      final batchEntries = <_NightUpsertEntry>[];
+      for (final doc in documents) {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-
-        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existing =
-            await (database.select(database.bookingNights)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
+        if (localUuid.isEmpty) continue;
+        final existing = localState[localUuid];
+
+        // ✅ نفس منطق BaseRepository.upsertFromJson لإزالة/تعيين id:
+        // id هو autoIncrement محلي — تمرير id البعيد يسبب تصادم UNIQUE
+        // (id=505 على جهاز A ≠ id=505 على جهاز B). للسجل الموجود نستخدم
+        // id المحلي؛ للجديد نُزيده ليُعيّنه SQLite تلقائياً.
+        if (existing != null) {
+          data['id'] = existing.id;
+        } else {
+          data.remove('id');
+        }
+
+        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة/أقدم (نفس فحص
+        // المسار القديم — localData يُبناء فقط عند احتمال تعارض VC فعلي).
+        Map<String, dynamic>? localData;
+        if (existing != null) {
+          // vectorClock عمود NOT NULL (withDefault '{}') — لا حاجة لـ ??.
+          final localVc = existing.vectorClock;
+          final remoteVc =
+              (data['vectorClock'] as String?) ??
+              (data['vector_clock'] as String?) ??
+              '{}';
+          final bothNonTrivial =
+              localVc.isNotEmpty &&
+              localVc != '{}' &&
+              remoteVc.isNotEmpty &&
+              remoteVc != '{}';
+          if (bothNonTrivial) {
+            // فقط هنا يحتاج SmartConflictResolver نسخة محلية (3-way merge).
+            localData = existing.toJson();
+          }
+        }
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,
@@ -7167,48 +7399,86 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'booking_nights',
           localUuid: localUuid,
-          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
-          localData: existing?.toJson(),
+          localData: localData,
         )).shouldApplyRemote) {
           continue;
         }
 
-        await _adapterRegistry.nights.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
-        // ✅ Wave 7 tighten: notify remote change from another device
-        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-          entity: 'booking_nights',
-          localUuid: (data['localUuid'] as String?) ?? '',
-          remoteDeviceId: (data['deviceId'] as String?) ?? '',
-          currentDeviceId: _currentDeviceId,
-          lastModified: _asIntNullable(data['lastModified']),
-        );
-        processed++;
-      } catch (e) {
-        // ✅ تأجيل الليالي فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
-        // bookingLocalId هو NOT NULL في booking_nights، لذا إذا فشل resolveBooking
-        // سيحدث خطأ NOT NULL constraint بدلاً من FK constraint
-        // لا نشمل 'constraint failed' عام لأنه يطابق UNIQUE أيضاً
-        final errStr = e.toString();
-        if (errStr.contains('FOREIGN KEY constraint failed') ||
-            errStr.contains('NOT NULL constraint failed')) {
-          _logger.debug(
-            'Deferring booking night ${doc.$id}: FK/NOT NULL constraint (missing booking)',
-            tag: 'SYNC',
+        // ── resolveRefs + fromJson (بلا I/O مع الفهرس) ──
+        try {
+          final refs = await _adapterRegistry.nights.adapter.resolveRefs(
+            database,
+            data,
+            src: Source.appwrite,
           );
-          deferred.add(doc);
-        } else {
-          _logger.warning(
-            'Failed to sync booking night ${doc.$id}: $e',
-            tag: 'SYNC',
+          if (refs.shouldSkip) {
+            // الحجز المرجعي غير موجود → تأجيل (نفس منطق القديم: FK/NOT NULL
+            // يُحل غالباً بعد سحب bookings في نفس الدورة أو التالية).
+            deferred.add(doc);
+            continue;
+          }
+          final comp = _adapterRegistry.nights.adapter.fromJson(
+            data,
+            src: Source.appwrite,
+            refs: refs,
           );
+          batchEntries.add(
+            _NightUpsertEntry(
+              localUuid: localUuid,
+              companion: comp,
+              existingId: existing?.id,
+              remoteData: data,
+            ),
+          );
+          appliedNotifications.add(
+            RemoteRecordApplied(
+              entity: 'booking_nights',
+              localUuid: localUuid,
+              remoteDeviceId: (data['deviceId'] as String?) ?? '',
+              currentDeviceId: _currentDeviceId,
+              lastModified: _asIntNullable(data['lastModified']),
+            ),
+          );
+        } catch (e) {
+          // تأجيل فقط لأخطاء القيود (نفس منطق المسار القديم).
+          final errStr = e.toString();
+          if (errStr.contains('FOREIGN KEY constraint failed') ||
+              errStr.contains('NOT NULL constraint failed')) {
+            _logger.debug(
+              'Deferring booking night ${doc.$id}: FK/NOT NULL constraint (missing booking)',
+              tag: 'SYNC',
+            );
+            deferred.add(doc);
+          } else {
+            _logger.warning(
+              'Failed to sync booking night ${doc.$id}: $e',
+              tag: 'SYNC',
+            );
+          }
         }
+      }
+
+      // ── المرحلة 4: كتابة مجمّعة db.batch (ذرة واحدة لكل دفعة) ─────────
+      processed = await _applyNightBatchEntries(batchEntries);
+    } finally {
+      resolver.clearBookingIndex();
+    }
+
+    // ── المرحلة 5: إشعارات مجمّعة (كتابة disk واحدة) ──────────────────────
+    if (appliedNotifications.isNotEmpty) {
+      try {
+        await RemoteChangeNotificationService.instance
+            .onRemoteRecordsAppliedBatch(appliedNotifications);
+      } catch (e) {
+        _logger.warning(
+          '⚠️ batched remote change notification failed (non-critical): $e',
+          tag: 'SYNC',
+        );
       }
     }
 
-    // المرحلة الثانية: إعادة محاولة الليالي المؤجلة
+    // ── المرحلة 6: إعادة محاولة الليالي المؤجلة (نفس المرحلة الثانية
+    // القديمة — مسار فردي لأنها حالات قليلة ومتبعثرة) ─────────────────────
     if (deferred.isNotEmpty) {
       _logger.info(
         'Retrying ${deferred.length} deferred booking nights after all bookings synced',
@@ -7242,6 +7512,89 @@ class AppwriteSyncManager {
     }
 
     return processed;
+  }
+
+  /// حالة ليلة محلية موجودة — الأعمدة المطلوبة فقط لفحص الأحدثية والتعارض.
+  Future<Map<String, BookingNight>> _bulkLoadNightsState(
+    List<String> uuids,
+  ) async {
+    final result = <String, BookingNight>{};
+    if (uuids.isEmpty) return result;
+    const chunkSize = 500; // حد SQLITE_MAX_VARIABLE_NUMBER (~999).
+    for (var i = 0; i < uuids.length; i += chunkSize) {
+      final end = (i + chunkSize < uuids.length) ? i + chunkSize : uuids.length;
+      final chunk = uuids.sublist(i, end);
+      final rows = await (database.select(
+        database.bookingNights,
+      )..where((t) => t.localUuid.isIn(chunk))).get();
+      for (final row in rows) {
+        result[row.localUuid] = row;
+      }
+    }
+    return result;
+  }
+
+  /// كتابة دفعات الليالي مجمّعة: `db.batch` ذرّي لكل 250 سجل، مع fallback
+  /// فردي عند فشل دفعة (عزل الأخطاء — نفس نمط BaseRepository.batchUpsertFromJson).
+  Future<int> _applyNightBatchEntries(List<_NightUpsertEntry> entries) async {
+    if (entries.isEmpty) return 0;
+    var inserted = 0;
+    const chunkSize = SyncConstants.bookingNightsApplyChunkSize;
+
+    for (var i = 0; i < entries.length; i += chunkSize) {
+      final end = (i + chunkSize < entries.length)
+          ? i + chunkSize
+          : entries.length;
+      final chunk = entries.sublist(i, end);
+
+      try {
+        // ✅ insertOrReplace (نفس نمط BaseRepository.batchUpsertFromJson):
+        // للسجل الموجود حوّلنا id للمعرف المحلي فوق → REPLACE يحدّث الصف
+        // الصحيح؛ للجديد يُدرج — وتعارض unique(local_uuid) أو
+        // unique(booking_local_id, hotel_day_key) يُحل بالاستبدال (نفس
+        // دلالة "طبّق البعيد كاملاً" — الحذف الناعم القديم يُزال أيضاً).
+        await database.batch((b) {
+          for (final e in chunk) {
+            b.insert(
+              database.bookingNights,
+              e.companion,
+              mode: drift.InsertMode.insertOrReplace,
+            );
+          }
+        });
+        inserted += chunk.length;
+      } catch (e, st) {
+        _logger.debug(
+          'Batch insert failed for booking_nights chunk $i-$end, '
+          'falling back to per-row insert: $e',
+          tag: 'SYNC',
+        );
+        developer.log(
+          'Batch insert failed for booking_nights chunk $i-$end',
+          error: e,
+          stackTrace: st,
+          name: 'AppwriteSyncManager._syncBookingNights',
+        );
+        // ✅ fallback: صف-بصف عبر upsertFromJson (أهداف conflict متعددة
+        // لكل صف — نفس ضمانات المسار القديم).
+        for (final e in chunk) {
+          try {
+            final data = Map<String, dynamic>.from(e.remoteData);
+            await _adapterRegistry.nights.upsertFromJson(
+              data,
+              src: Source.appwrite,
+            );
+            inserted++;
+          } catch (e2) {
+            _logger.warning(
+              'Per-row fallback failed for a booking night: $e2',
+              tag: 'SYNC',
+            );
+          }
+        }
+      }
+    }
+    return inserted;
   }
 
   Future<int> _syncCashTransactions(List<models.Document> documents) async {
@@ -8545,7 +8898,10 @@ class AppwriteSyncManager {
   Future<int> _relinkOrphanSalaryExpenses() async {
     var relinked = 0;
     try {
-      // ابحث عن مصروفات الرواتب اليتيمة: employeeUuid موجود، relatedId فارغ.
+      // ابحث عن مصروفات الرواتب اليتيمة: employeeUuid موجود، relatedId فارغ
+      // أو يشير إلى موظف مختلف (فجوة تاريخية: المعرف الرقمي البعيد كان
+      // يُخزّن كما هو قبل إصلاح إعادة التعيين في _syncExpenses —
+      // ✅ 2026-09-19: نعالج اليتيم والمربوط خطأ معاً).
       // نُجري فحص نوع الراتب في Dart عبر PayloadMapper.isSalaryExpenseType
       // لأن الكلمات المفتاحية عربية ومتعددة (رواتب / سحب راتب / خصم راتب…)
       // ولا تُترجم بسهولة إلى LIKE في SQL.
@@ -8554,10 +8910,11 @@ class AppwriteSyncManager {
       // كسلسلة نصية، فتُنتج "no such column". (تلميح رسالة الخطأ كان صريحًا.)
       final candidates = await database
           .customSelect(
-            'SELECT id, employee_uuid, expense_type FROM expenses '
+            'SELECT id, employee_uuid, related_id, expense_type FROM expenses '
             'WHERE employee_uuid IS NOT NULL '
             "AND employee_uuid != '' "
-            'AND related_id IS NULL '
+            'AND (related_id IS NULL OR related_id NOT IN '
+            '  (SELECT id FROM employees WHERE local_uuid = expenses.employee_uuid)) '
             'AND deleted_at IS NULL',
             readsFrom: {database.expenses},
           )
@@ -8577,13 +8934,14 @@ class AppwriteSyncManager {
       }
 
       _logger.info(
-        '🔗 إعادة ربط ${orphans.length} مصروف راتب يتيم عبر employeeUuid',
+        '🔗 إعادة ربط ${orphans.length} مصروف راتب (يتيم أو معرّف خاطئ) عبر employeeUuid',
         tag: 'SYNC_RELINK',
       );
 
       for (final row in orphans) {
         final expenseId = row.read<int>('id');
         final employeeUuid = row.read<String>('employee_uuid');
+        final currentRelatedId = row.read<int?>('related_id');
 
         // حل الموظف عبر localUuid (نفس آلية expenses_adapter).
         final employee =
@@ -8593,7 +8951,15 @@ class AppwriteSyncManager {
                 .getSingleOrNull();
 
         if (employee != null) {
-          // ✅ وجدنا الموظف — أعد الربط.
+          // ✅ وجدنا الموظف — أعد الربط (تصحيح اليتيم أو المعرّف الخاطئ).
+          if (currentRelatedId != null && currentRelatedId != employee.id) {
+            _logger.info(
+              '🩹 تصحيح ربط خاطئ: Expense #$expenseId كان مرتبطاً '
+              'بالموظف #$currentRelatedId — يُعاد إلى #${employee.id} '
+              'وفقاً لـ employeeUuid',
+              tag: 'SYNC_RELINK',
+            );
+          }
           await (database.update(database.expenses)
                 ..where((t) => t.id.equals(expenseId)))
               .write(ExpensesCompanion(relatedId: drift.Value(employee.id)));

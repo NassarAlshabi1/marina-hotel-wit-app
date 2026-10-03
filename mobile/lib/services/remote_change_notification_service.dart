@@ -40,6 +40,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 import 'sync_notification_manager.dart';
 
+/// ✅ Resumable Full Sync (2026-09-21): سجل بعيد طُبّق محلياً — مدخل
+/// [RemoteChangeNotificationService.onRemoteRecordsAppliedBatch].
+class RemoteRecordApplied {
+  const RemoteRecordApplied({
+    required this.entity,
+    required this.localUuid,
+    required this.remoteDeviceId,
+    required this.currentDeviceId,
+    required this.lastModified,
+  });
+
+  final String entity;
+  final String localUuid;
+  final String remoteDeviceId;
+  final String? currentDeviceId;
+  final int? lastModified;
+}
+
 /// ✅ Wave 7: Service for showing local notifications when remote changes
 /// from another device are successfully applied locally.
 ///
@@ -167,6 +185,96 @@ class RemoteChangeNotificationService {
     _pendingChanges[remoteDeviceId] =
         (_pendingChanges[remoteDeviceId] ?? 0) + 1;
     _pendingEntities.add(entity);
+  }
+
+  /// يُستدعى بعد تطبيق سجلات بعيدة **دفعة واحدة** (bulk pull) محلياً.
+  ///
+  /// ✅ Resumable Full Sync (2026-09-21) — إصلاح عاصفة كتابات disk:
+  /// كان مسار السحب الكامل لـ booking_nights يستدعي [onRemoteRecordApplied]
+  /// لكل ليلة → 1000 setBool + 1000 تحديث فهرس LRU + فحوصات تنظيف متتالية
+  /// على SharedPreferences (كتابة disk لكل سجل!) — عبء قاتل على تخزين
+  /// eMMC بطيء في أجهزة 1GB.
+  ///
+  /// الدفعة:
+  ///   1. ترشيح نفس-الجهاز/الفارغ في الذاكرة (بلا I/O).
+  ///   2. dedup جلسة في الذاكرة (بلا I/O).
+  ///   3. **مفتاح dedup دائم واحد لكل (entity, deviceId)** ببصمة
+  ///      `entity:deviceId:maxLastModified` — حماية إعادة الإشعار عبر
+  ///      الجلسات دون كتابة لكل سجل (إعادة سحب صفحة بعد استئناف cursor
+  ///      نادرة والتطبيق idempotent).
+  ///   4. عدّ _pendingChanges كالمعتاد — [flushPendingNotifications] تعرض
+  ///      إشعاراً واحداً مجمّعاً في نهاية الدورة (سلوك غير مُغيَّر).
+  Future<void> onRemoteRecordsAppliedBatch(
+    List<RemoteRecordApplied> records,
+  ) async {
+    if (records.isEmpty) return;
+    final pendingGeneration = _pendingGeneration;
+
+    // 1) ترشيح + dedup جلسة في الذاكرة.
+    final surviving = <RemoteRecordApplied>[];
+    for (final r in records) {
+      if (r.currentDeviceId != null &&
+          r.currentDeviceId!.isNotEmpty &&
+          r.remoteDeviceId == r.currentDeviceId) {
+        continue; // نفس الجهاز — لا إشعار.
+      }
+      if (r.remoteDeviceId.isEmpty) continue; // مصدر غير معروف — تخطٍّ آمن.
+      final fingerprint =
+          '${r.entity}:${r.localUuid}:${r.remoteDeviceId}:${r.lastModified ?? 0}';
+      if (_sessionNotified.contains(fingerprint)) continue;
+      _sessionNotified.add(fingerprint);
+      surviving.add(r);
+    }
+    if (surviving.isEmpty) return;
+
+    // 2) كتابة dedup دائمة مجمّعة: مفتاح واحد لكل (entity, deviceId) بآخر
+    //    lastModified في الدفعة — بدل N كتابة، كتابة واحدة لكل جهاز مصدر.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final indexUpdates = <String, int>{};
+      final groups = <String, List<RemoteRecordApplied>>{};
+      for (final r in surviving) {
+        groups.putIfAbsent('${r.entity}:${r.remoteDeviceId}', () => []).add(r);
+      }
+      for (final entry in groups.entries) {
+        final maxLastModified = entry.value
+            .map((r) => r.lastModified ?? 0)
+            .fold<int>(0, (a, b) => a > b ? a : b);
+        final fingerprint =
+            '${entry.key}:$maxLastModified'; // entity:deviceId:maxLastModified
+        if (prefs.getBool('$_dedupKeyPrefix$fingerprint') == true) {
+          continue; // سبق الإشعار عن هذه الدفعة المجمّعة.
+        }
+        await prefs.setBool('$_dedupKeyPrefix$fingerprint', true);
+        indexUpdates[fingerprint] = now;
+      }
+      if (indexUpdates.isNotEmpty) {
+        // ✅ كتابة فهرس LRU واحدة لكل الدفعة (بدل كتابة لكل سجل).
+        try {
+          final indexJson = prefs.getString(_dedupIndexKey) ?? '{}';
+          final index = Map<String, dynamic>.from(
+            jsonDecode(indexJson) as Map<String, dynamic>,
+          );
+          index.addAll(indexUpdates);
+          await prefs.setString(_dedupIndexKey, jsonEncode(index));
+        } catch (_) {
+          // الـ dedup يعمل بدون الفهرس — غير حرج.
+        }
+        await _cleanupOldDedupKeys(prefs);
+      }
+    } catch (e) {
+      dlog(() => '⚠️ RemoteChangeNotification: batch dedup failed: $e');
+      // نُكمل — إشعار مكرر أفضل من تفويت تغيير.
+    }
+
+    // 3) عدّ الإشعارات المعلقة (نفس منطق onRemoteRecordApplied).
+    if (pendingGeneration != _pendingGeneration) return;
+    for (final r in surviving) {
+      _pendingChanges[r.remoteDeviceId] =
+          (_pendingChanges[r.remoteDeviceId] ?? 0) + 1;
+      _pendingEntities.add(r.entity);
+    }
   }
 
   /// Flush pending notifications — called after all sync phases complete.

@@ -357,6 +357,13 @@ class EnhancedBookingCalculationService {
     );
   }
 
+  /// إجمالي المدفوعات الفعلية للحجز (الرصيد الفعلي).
+  ///
+  /// القاعدة: كل مبلغ استُلم فعلاً لهذا الحجز (مرتبط بـ localId أو uuid)
+  /// يُحتسب في الرصيد — بغض النظر عن تصنيف الإيراد (room/deposit/service/
+  /// other) لأن تصنيف الإيراد لأغراض التقارير وليس شرط أهلية للرصيد.
+  /// العرابون (deposit) ودفعة «رصيد تراكمي» ودفعة Gemini كلها أموال حقيقية.
+  /// تُستثنى فقط: الملغاة (voided) والمعلّقة (isPendingBalance) والمحذوفة.
   Future<int> _getTotalPayments(Booking booking) async {
     final payments =
         await (db.select(db.payments)
@@ -367,13 +374,7 @@ class EnhancedBookingCalculationService {
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
-              ..where((p) => p.isPendingBalance.equals(false))
-              ..where(
-                (p) =>
-                    p.revenueType.equals('room') |
-                    p.revenueType.equals('') |
-                    p.revenueType.isNull(),
-              ))
+              ..where((p) => p.isPendingBalance.equals(false)))
             .get();
 
     return payments.fold<int>(0, (sum, p) => sum + _asInt(p.amount));

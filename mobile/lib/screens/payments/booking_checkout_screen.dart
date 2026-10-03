@@ -177,9 +177,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         ? (nightTotal - discount).clamp(0.0, nightTotal)
         : nightTotal;
 
-    // ✅ استبعاد المدفوعات الملغاة — حساب مرة واحدة (بدلاً من StreamBuilder مكرر)
+    // ✅ الرصيد الفعلي (قاعدة موحدة مع المحرك): الدفعات الفعلية فقط —
+    // غير الملغاة وغير المعلّقة، بغض النظر عن نوع الإيراد (deposit/service
+    // أموال فعلية تُخصم من المتبقي) — حساب مرة واحدة بدلاً من StreamBuilder مكرر.
     final totalPaid = payments
-        .where((p) => !p.isVoided)
+        .where((p) => !p.isVoided && !p.isPendingBalance)
         .fold<double>(0, (sum, p) => sum + p.amount);
     final remainingAmount = (totalDue - totalPaid)
         .clamp(0, totalDue)

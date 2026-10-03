@@ -28,7 +28,46 @@ class SalaryCarryOverLogsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    return ResolveResult.empty;
+    // ✅ (2026-09-19) إغلاق فجوة employee_uuid: نفس إصلاح salary_cycles_adapter —
+    // 1) لا يُخزّن employeeId البعيد (id جهاز المصدر) كما هو لأن autoIncrement
+    //    يختلف بين الأجهزة — الربط الصحيح عبر UUID أولاً ثم serverId.
+    // 2) employeeUuid الجديد (migration 67) يُخزّن كما هو لأنه مستقل عن الأجهزة.
+    final remoteEmployeeUuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_uuid', src) ??
+        _asString(json, 'employeeLocalUuid', src) ??
+        _asString(json, 'employee_local_uuid', src);
+    final remoteEmployeeId =
+        _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
+
+    final fromRemote = src == Source.appwrite || src == Source.drive;
+    final resolvedEmployeeId = await resolver.resolveEmployee(
+      uuid: remoteEmployeeUuid,
+      serverId: fromRemote ? remoteEmployeeId : null,
+      localId: fromRemote ? null : remoteEmployeeId,
+      fromRemote: fromRemote,
+    );
+
+    final createdAt = _asInt(json, 'createdAt', src);
+    final lastModified = _asInt(json, 'lastModified', src);
+
+    // إذا لم يُعثر على الموظف (يتيم): نتخطى لأن employeeId مطلوب (NOT NULL FK)
+    final shouldSkip =
+        resolvedEmployeeId == null &&
+        (src == Source.appwrite || src == Source.drive);
+    final skipReason = shouldSkip
+        ? 'salary_carry_over_log: لا يمكن العثور على الموظف المرتبط '
+              '(uuid=$remoteEmployeeUuid, originEmployeeId=$remoteEmployeeId, '
+              'src=$src) — تم التخطي لتجنب ربط خاطئ عبر الأجهزة'
+        : null;
+
+    return ResolveResult(
+      employeeLocalId: resolvedEmployeeId,
+      createdAtEpoch: createdAt,
+      lastModifiedEpoch: lastModified,
+      shouldSkip: shouldSkip,
+      skipReason: skipReason,
+    );
   }
 
   @override
@@ -45,7 +84,13 @@ class SalaryCarryOverLogsAdapter
             _asString(json, 'local_uuid', src) ??
             IdGen.uuid(),
       ),
-      employeeId: _vInt(json, 'employeeId', src, altKey: 'employee_id'),
+      employeeId: refs.employeeLocalId != null
+          ? d.Value(refs.employeeLocalId!)
+          : (src == Source.appwrite || src == Source.drive)
+          ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
+          : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
+      // ✅ (2026-09-19) تخزين UUID الموظف — الربط الدائم عبر الأجهزة
+      employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       amount: d.Value(_asDouble(json, 'amount', src) ?? 0),
       previousCycleStart: d.Value(
         _asString(json, 'previousCycleStart', src) ??
@@ -109,6 +154,7 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'amount', 'amount'): model.amount,
       _k(src, 'previousCycleStart', 'previous_cycle_start'):
           model.previousCycleStart,

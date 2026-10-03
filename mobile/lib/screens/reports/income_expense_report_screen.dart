@@ -7,8 +7,6 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart' show PdfColor;
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -27,6 +25,7 @@ import '../../services/salary_expense_classifier.dart';
 import '../../services/salary_mirror_matcher.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/income_expense_pdf_isolate.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../widgets/report_date_filter.dart';
@@ -418,65 +417,6 @@ class _IncomeExpenseReportScreenState
     return rows;
   }
 
-  // ===== أسماء الأيام والشهور بالعربي =====
-  static const _arabicDays = [
-    'الاثنين',
-    'الثلاثاء',
-    'الأربعاء',
-    'الخميس',
-    'الجمعة',
-    'السبت',
-    'الأحد',
-  ];
-  static const _arabicMonths = [
-    '',
-    'يناير',
-    'فبراير',
-    'مارس',
-    'أبريل',
-    'مايو',
-    'يونيو',
-    'يوليو',
-    'أغسطس',
-    'سبتمبر',
-    'أكتوبر',
-    'نوفمبر',
-    'ديسمبر',
-  ];
-
-  String _arabicDayName(DateTime date) {
-    return _arabicDays[date.weekday - 1];
-  }
-
-  // ===== تجميع البيانات =====
-  String _getGroupKey(DateTime date, String groupBy) {
-    switch (groupBy) {
-      case 'daily':
-        return DateFormat('yyyy-MM-dd').format(date);
-      case 'monthly':
-        return DateFormat('yyyy-MM').format(date);
-      case 'yearly':
-        return DateFormat('yyyy').format(date);
-      default:
-        return 'all';
-    }
-  }
-
-  String _getGroupLabel(String key, String groupBy) {
-    switch (groupBy) {
-      case 'daily':
-        final dt = DateTime.parse(key);
-        return '${dt.day} ${_arabicMonths[dt.month]} ${dt.year} (${_arabicDayName(dt)})';
-      case 'monthly':
-        final parts = key.split('-');
-        return '${_arabicMonths[int.parse(parts[1])]} ${parts[0]}';
-      case 'yearly':
-        return '$key م';
-      default:
-        return '';
-    }
-  }
-
   String _getGroupTypeLabel(String groupBy) {
     switch (groupBy) {
       case 'daily':
@@ -490,1617 +430,71 @@ class _IncomeExpenseReportScreenState
     }
   }
 
-  List<_GroupedData> _buildGroupedData(String groupBy) {
-    final incomeMap = <String, List<_IncomeEntry>>{};
-    final expenseMap = <String, List<_ExpenseEntry>>{};
+  // ═══════════════════════════════════════════════════════════════
+  // بناء PDF داخل isolate منفصل (إصلاح توقف التطبيق عند التصدير):
+  // كان بناء المستند + doc.save() يُنفَّذان على الخيط الرئيسي فتتجمد
+  // الواجهة ثم يظهر ANR. الآن تُبنى كل التخطيطات في الخلفية عبر compute
+  // والخطوط تُمرَّر كبايتات خام قابلة للإرسال بين isolates.
+  // ═══════════════════════════════════════════════════════════════
 
-    for (final e in _incomeEntries) {
-      final key = _getGroupKey(e.date, groupBy);
-      incomeMap.putIfAbsent(key, () => []).add(e);
-    }
-    for (final e in _expenseEntries) {
-      final key = _getGroupKey(e.date, groupBy);
-      expenseMap.putIfAbsent(key, () => []).add(e);
-    }
+  Map<String, Object?> _incomeEntryToMap(_IncomeEntry e) => {
+    'date': e.date.millisecondsSinceEpoch,
+    'roomNumber': e.roomNumber,
+    'guestName': e.guestName,
+    'paymentMethod': e.paymentMethod,
+    'revenueType': e.revenueType,
+    'amount': e.amount,
+  };
 
-    final allKeys = <String>{...incomeMap.keys, ...expenseMap.keys}.toList()
-      ..sort();
+  Map<String, Object?> _expenseEntryToMap(_ExpenseEntry e) => {
+    'date': e.date.millisecondsSinceEpoch,
+    'type': e.type,
+    'description': e.description,
+    'amount': e.amount,
+    'isSalary': e.isSalary,
+  };
 
-    return allKeys.asMap().entries.map((entry) {
-      final idx = entry.key;
-      final key = entry.value;
-      final inc = incomeMap[key] ?? [];
-      final exp = expenseMap[key] ?? [];
-      final incTotal = inc.fold<double>(0, (s, e) => s + e.amount);
-      final expTotal = exp.fold<double>(0, (s, e) => s + e.amount);
-      final salTotal = exp
-          .where((e) => e.isSalary)
-          .fold<double>(0, (s, e) => s + e.amount);
-      return _GroupedData(
-        index: idx + 1,
-        key: key,
-        label: _getGroupLabel(key, groupBy),
-        incomeEntries: inc,
-        expenseEntries: exp,
-        incomeTotal: incTotal,
-        expenseTotal: expTotal,
-        salaryTotal: salTotal,
-        net: incTotal - expTotal,
-        incomeCount: inc.length,
-        expenseCount: exp.length,
-      );
-    }).toList();
-  }
-
-  // ===== بناء PDF التقرير التفصيلي للدورة المالية الكاملة =====
-  Future<pw.Document> _buildPdfDocument() async {
-    final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final doc = pw.Document();
-    final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate!);
-    final toLabel = DateFormat('yyyy-MM-dd').format(_toDate!);
-    final nonSalaryExpenses = _expenseTotal - _salaryTotal;
-
-    // ===== حسابات تحليل أنواع الإيرادات =====
-    final roomRevenue = _incomeEntries
-        .where((e) => e.revenueType == 'room' || e.revenueType.isEmpty)
-        .fold<double>(0, (s, e) => s + e.amount);
-    final otherRevenue = _incomeTotal - roomRevenue;
-
-    // ===== حسابات تحليل أنواع المصروفات =====
-    final expenseByType = <String, double>{};
-    for (final e in _expenseEntries) {
-      final key = e.isSalary ? 'رواتب' : e.type;
-      expenseByType[key] = (expenseByType[key] ?? 0) + e.amount;
-    }
-    final sortedExpenseTypes = expenseByType.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    // ===== مؤشرات مالية =====
-    final profitMargin = _incomeTotal > 0 ? (_net / _incomeTotal * 100) : 0.0;
-    final expenseRatio = _incomeTotal > 0
-        ? (_expenseTotal / _incomeTotal * 100)
-        : 0.0;
-    final salaryExpenseRatio = _incomeTotal > 0
-        ? (_salaryTotal / _incomeTotal * 100)
-        : 0.0;
-    final debtCoverage = _unsettledDebtsAmount > 0 && _net > 0
-        ? _net / _unsettledDebtsAmount
-        : 0.0;
-
-    /// صندوق ملخص
-    pw.Widget buildSummaryBox(String title, String value, PdfColor color) {
-      return pw.Container(
-        padding: const pw.EdgeInsets.all(10),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.backgroundLight,
-          border: pw.Border.all(color: color, width: 0.8),
-          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-        ),
-        child: pw.Column(
-          children: [
-            pw.Text(
-              title,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 10,
-                color: PdfColors.textLight,
-              ),
-            ),
-            pw.SizedBox(height: 3),
-            pw.Text(
-              value,
-              style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: color),
-            ),
-          ],
-        ),
-      );
-    }
-
-    /// عنوان قسم
-    pw.Widget buildSectionTitle(String title, PdfColor color) {
-      return pw.Container(
-        width: double.infinity,
-        padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-        decoration: pw.BoxDecoration(
-          color: color,
-          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-        ),
-        child: pw.Text(
-          title,
-          style: pw.TextStyle(
-            font: fonts.bold,
-            fontSize: 13,
-            color: PdfColors.textWhite,
-          ),
-        ),
-      );
-    }
-
-    doc.addPage(
-      pw.MultiPage(
-        textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
-        footer: (context) => pw.Align(
-          child: pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
-          ),
-        ),
-        build: (context) {
-          final widgets = <pw.Widget>[];
-
-          // ═══════════════════════════════════════
-          // القسم 1: رأس التقرير
-          // ═══════════════════════════════════════
-          widgets.add(
-            pw.Container(
-              width: double.infinity,
-              decoration: const pw.BoxDecoration(color: PdfColors.primary),
-              padding: const pw.EdgeInsets.all(20),
-              child: pw.Column(
-                children: [
-                  pw.Text(
-                    'تقرير الدورة المالية الشامل',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 22,
-                      color: PdfColors.textWhite,
-                    ),
-                  ),
-                  pw.SizedBox(height: 4),
-                  pw.Text(
-                    'فندق مارينا بلازا',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 14,
-                      color: PdfColors.secondary,
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    'الفترة من $fromLabel إلى $toLabel',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 12,
-                      color: PdfColors.textWhite,
-                    ),
-                  ),
-                  pw.SizedBox(height: 4),
-                  pw.Text(
-                    'تاريخ الإنشاء: ${EnhancedPdfUtils.formatDateTime(DateTime.now())}',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: PdfColors.textWhite,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-
-          // ═══════════════════════════════════════
-          // القسم 2: الملخص التنفيذي
-          // ═══════════════════════════════════════
-          widgets.add(pw.SizedBox(height: 16));
-          widgets.add(buildSectionTitle('الملخص التنفيذي', PdfColors.primary));
-
-          widgets.add(
-            pw.Row(
-              children: [
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'إجمالي الإيرادات',
-                    EnhancedPdfUtils.formatNumber(_incomeTotal),
-                    PdfColors.success,
-                  ),
-                ),
-                pw.SizedBox(width: 6),
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'إجمالي المصروفات',
-                    EnhancedPdfUtils.formatNumber(_expenseTotal),
-                    PdfColors.danger,
-                  ),
-                ),
-              ],
-            ),
-          );
-          widgets.add(pw.SizedBox(height: 6));
-          widgets.add(
-            pw.Row(
-              children: [
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'مصروفات الرواتب',
-                    EnhancedPdfUtils.formatNumber(_salaryTotal),
-                    PdfColors.warning,
-                  ),
-                ),
-                pw.SizedBox(width: 6),
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'مصروفات تشغيلية',
-                    EnhancedPdfUtils.formatNumber(nonSalaryExpenses),
-                    PdfColors.info,
-                  ),
-                ),
-              ],
-            ),
-          );
-          widgets.add(pw.SizedBox(height: 6));
-          widgets.add(
-            pw.Row(
-              children: [
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'صافي الربح / الخسارة',
-                    EnhancedPdfUtils.formatNumber(_net),
-                    _net >= 0 ? PdfColors.success : PdfColors.danger,
-                  ),
-                ),
-                pw.SizedBox(width: 6),
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'هامش الربح',
-                    '${profitMargin.toStringAsFixed(1)}%',
-                    profitMargin > 0 ? PdfColors.success : PdfColors.danger,
-                  ),
-                ),
-              ],
-            ),
-          );
-
-          // ═══════════════════════════════════════
-          // القسم 3: تفاصيل الإيرادات
-          // ═══════════════════════════════════════
-          widgets.add(buildSectionTitle('تفاصيل الإيرادات', PdfColors.success));
-
-          if (_incomeEntries.isNotEmpty) {
-            widgets.add(
-              EnhancedPdfUtils.buildProfessionalTable(
-                headers: [
-                  '#',
-                  'التاريخ',
-                  'الغرفة',
-                  'النزيل',
-                  'طريقة الدفع',
-                  'نوع الإيراد',
-                  'المبلغ',
-                ],
-                fonts: fonts,
-                headerColor: PdfColors.success,
-                alternateRowColor: PdfColors.backgroundLight,
-                data: _incomeEntries.asMap().entries.map((entry) {
-                  final e = entry.value;
-                  final i = entry.key + 1;
-                  return [
-                    '$i',
-                    _dateFormat.format(e.date),
-                    if (e.roomNumber.isNotEmpty) e.roomNumber else '-',
-                    if (e.guestName.isNotEmpty) e.guestName else '-',
-                    _paymentMethodName(e.paymentMethod),
-                    _revenueTypeName(e.revenueType),
-                    EnhancedPdfUtils.formatNumber(e.amount),
-                  ];
-                }).toList(),
-              ),
-            );
-          }
-
-          // ═══════════════════════════════════════
-          // القسم 4: تحليل طرق الدفع
-          // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('تحليل طرق الدفع', PdfColors.secondary),
-          );
-          widgets.add(_buildPaymentMethodsTable(fonts));
-
-          // ═══════════════════════════════════════
-          // القسم 5: تفاصيل المصروفات
-          // ═══════════════════════════════════════
-          widgets.add(buildSectionTitle('تفاصيل المصروفات', PdfColors.danger));
-
-          if (_expenseEntries.isNotEmpty) {
-            widgets.add(
-              EnhancedPdfUtils.buildProfessionalTable(
-                headers: ['#', 'التاريخ', 'النوع', 'الوصف', 'المبلغ'],
-                fonts: fonts,
-                headerColor: PdfColors.danger,
-                alternateRowColor: PdfColors.backgroundLight,
-                data: _expenseEntries.asMap().entries.map((entry) {
-                  final e = entry.value;
-                  final i = entry.key + 1;
-                  return [
-                    '$i',
-                    _dateFormat.format(e.date),
-                    if (e.isSalary) 'رواتب' else e.type,
-                    if (e.description.isNotEmpty) e.description else '-',
-                    EnhancedPdfUtils.formatNumber(e.amount),
-                  ];
-                }).toList(),
-              ),
-            );
-          }
-
-          // ═══════════════════════════════════════
-          // القسم 6: تحليل المصروفات حسب الفئة
-          // ═══════════════════════════════════════
-          if (sortedExpenseTypes.isNotEmpty) {
-            widgets.add(
-              buildSectionTitle('تحليل المصروفات حسب الفئة', PdfColors.accent),
-            );
-            widgets.add(
-              EnhancedPdfUtils.buildProfessionalTable(
-                headers: [
-                  'الفئة',
-                  'المبلغ',
-                  'النسبة من الإيرادات',
-                  'النسبة من المصروفات',
-                ],
-                fonts: fonts,
-                headerColor: PdfColors.accent,
-                alternateRowColor: PdfColors.backgroundLight,
-                data: sortedExpenseTypes.map((entry) {
-                  return [
-                    entry.key,
-                    EnhancedPdfUtils.formatNumber(entry.value),
-                    if (_incomeTotal > 0)
-                      '${(entry.value / _incomeTotal * 100).toStringAsFixed(1)}%'
-                    else
-                      '0%',
-                    if (_expenseTotal > 0)
-                      '${(entry.value / _expenseTotal * 100).toStringAsFixed(1)}%'
-                    else
-                      '0%',
-                  ];
-                }).toList(),
-              ),
-            );
-          }
-
-          // ═══════════════════════════════════════
-          // القسم 7: تكاليف الموارد البشرية
-          // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('تكاليف الموارد البشرية', PdfColors.warning),
-          );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['البيان', 'القيمة'],
-              fonts: fonts,
-              headerColor: PdfColors.warning,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
-              data: [
-                ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
-                [
-                  'عدد الموظفين المنهية خدمتهم',
-                  '$_terminatedEmployeesCount موظف',
-                ],
-                [
-                  'إجمالي الالتزامات الرواتب الشهرية',
-                  EnhancedPdfUtils.formatNumber(_totalSalaryObligation),
-                ],
-                [
-                  'الرواتب المدفوعة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_salaryTotal),
-                ],
-                [
-                  'نسبة الرواتب من الإيرادات',
-                  '${salaryExpenseRatio.toStringAsFixed(1)}%',
-                ],
-                [
-                  'نسبة الرواتب من المصروفات',
-                  if (_expenseTotal > 0)
-                    '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%'
-                  else
-                    '0%',
-                ],
-              ],
-            ),
-          );
-
-          // ═══════════════════════════════════════
-          // القسم 8: تحليل الديون
-          // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('تحليل الديون المستحقة', PdfColors.danger),
-          );
-          widgets.add(_buildDebtAnalysisTable(fonts, debtCoverage));
-
-          // ═══════════════════════════════════════
-          // القسم 9: إحصائيات الحجوزات والإشغال
-          // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('إحصائيات الحجوزات والإشغال', PdfColors.info),
-          );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['البيان', 'القيمة'],
-              fonts: fonts,
-              headerColor: PdfColors.info,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
-              data: [
-                ['إجمالي الحجوزات في الفترة', '$_bookingsCount حجز'],
-                ['حجوزات نشطة (داخلين)', '$_activeBookingsCount حجز'],
-                ['حجوزات مغادرة', '$_checkoutBookingsCount حجز'],
-                [
-                  'متوسط الإيراد لكل حجز',
-                  if (_bookingsCount > 0)
-                    EnhancedPdfUtils.formatNumber(_incomeTotal / _bookingsCount)
-                  else
-                    '0',
-                ],
-              ],
-            ),
-          );
-
-          // ═══════════════════════════════════════
-          // القسم 10: المؤشرات المالية الرئيسية
-          // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('المؤشرات المالية الرئيسية', PdfColors.primary),
-          );
-          widgets.add(
-            _buildFinancialIndicatorsTable(
-              fonts,
-              profitMargin,
-              expenseRatio,
-              salaryExpenseRatio,
-              debtCoverage,
-            ),
-          );
-
-          // ═══════════════════════════════════════
-          // القسم 11: الملخص المحاسبي الشامل
-          // ═══════════════════════════════════════
-          widgets.add(
-            buildSectionTitle('الملخص المحاسبي الشامل', PdfColors.primary),
-          );
-          widgets.add(
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.backgroundCard,
-                border: pw.Border.all(color: PdfColors.primary),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-              ),
-              child: pw.Column(
-                children: [
-                  EnhancedPdfUtils.buildProfessionalTable(
-                    headers: ['البيان', 'المبلغ'],
-                    fonts: fonts,
-                    headerColor: PdfColors.primary,
-                    alternateRowColor: PdfColors.backgroundLight,
-                    columnWidths: [200, 130],
-                    data: [
-                      [
-                        'إيرادات الغرف',
-                        EnhancedPdfUtils.formatNumber(roomRevenue),
-                      ],
-                      [
-                        'إيرادات أخرى',
-                        EnhancedPdfUtils.formatNumber(otherRevenue),
-                      ],
-                      [
-                        'إجمالي الإيرادات',
-                        EnhancedPdfUtils.formatNumber(_incomeTotal),
-                      ],
-                      [
-                        '(-) مصروفات تشغيلية',
-                        EnhancedPdfUtils.formatNumber(nonSalaryExpenses),
-                      ],
-                      [
-                        '(-) رواتب ومخصصات',
-                        EnhancedPdfUtils.formatNumber(_salaryTotal),
-                      ],
-                      [
-                        'إجمالي المصروفات',
-                        EnhancedPdfUtils.formatNumber(_expenseTotal),
-                      ],
-                      [
-                        'صافي الربح / الخسارة',
-                        EnhancedPdfUtils.formatNumber(_net),
-                      ],
-                      [
-                        '(+) ديون مستحقة غير مسددة',
-                        EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),
-                      ],
-                      [
-                        'الوضع المالي الصافي',
-                        EnhancedPdfUtils.formatNumber(
-                          _net - _unsettledDebtsAmount,
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-
-          // تذييل
-          widgets.add(pw.SizedBox(height: 20));
-          widgets.add(pw.Divider(color: PdfColors.textLight));
-          widgets.add(pw.SizedBox(height: 8));
-          widgets.add(
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'تم إنشاء هذا التقرير تلقائياً - فندق مارينا بلازا',
-                  style: pw.TextStyle(
-                    font: fonts.regular,
-                    fontSize: 9,
-                    color: PdfColors.textLight,
-                  ),
-                ),
-                pw.Text(
-                  'تقرير الدورة المالية الشامل',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 9,
-                    color: PdfColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          );
-
-          return widgets;
-        },
-      ),
-    );
-
-    return doc;
-  }
-
-  /// جدول تحليل طرق الدفع (مشترك بين PDF العادي والمجمع)
-  pw.Widget _buildPaymentMethodsTable(ArabicPdfFonts fonts) {
-    final cashIncome = _incomeEntries
-        .where((e) => e.paymentMethod == 'cash')
-        .fold<double>(0, (s, e) => s + e.amount);
-    final cardIncome = _incomeEntries
-        .where((e) => e.paymentMethod == 'card')
-        .fold<double>(0, (s, e) => s + e.amount);
-    final transferIncome = _incomeEntries
-        .where((e) => e.paymentMethod == 'transfer')
-        .fold<double>(0, (s, e) => s + e.amount);
-    final otherMethodIncome =
-        _incomeTotal - cashIncome - cardIncome - transferIncome;
-
-    return EnhancedPdfUtils.buildProfessionalTable(
-      headers: ['طريقة الدفع', 'المبلغ', 'العدد', 'النسبة'],
-      fonts: fonts,
-      headerColor: PdfColors.secondary,
-      alternateRowColor: PdfColors.backgroundLight,
-      data: [
-        [
-          'نقداً',
-          EnhancedPdfUtils.formatNumber(cashIncome),
-          '${_incomeEntries.where((e) => e.paymentMethod == 'cash').length}',
-          if (_incomeTotal > 0)
-            '${(cashIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-          else
-            '0%',
-        ],
-        [
-          'بطاقة ائتمانية',
-          EnhancedPdfUtils.formatNumber(cardIncome),
-          '${_incomeEntries.where((e) => e.paymentMethod == 'card').length}',
-          if (_incomeTotal > 0)
-            '${(cardIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-          else
-            '0%',
-        ],
-        [
-          'تحويل بنكي',
-          EnhancedPdfUtils.formatNumber(transferIncome),
-          '${_incomeEntries.where((e) => e.paymentMethod == 'transfer').length}',
-          if (_incomeTotal > 0)
-            '${(transferIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-          else
-            '0%',
-        ],
-        if (otherMethodIncome > 0)
-          [
-            'أخرى',
-            EnhancedPdfUtils.formatNumber(otherMethodIncome),
-            '${_incomeEntries.where((e) => e.paymentMethod != 'cash' && e.paymentMethod != 'card' && e.paymentMethod != 'transfer').length}',
-            if (_incomeTotal > 0)
-              '${(otherMethodIncome / _incomeTotal * 100).toStringAsFixed(1)}%'
-            else
-              '0%',
-          ],
-        [
-          'الإجمالي',
-          EnhancedPdfUtils.formatNumber(_incomeTotal),
-          '${_incomeEntries.length}',
-          '100%',
-        ],
-      ],
+  Future<IncomeExpensePdfParams> _collectPdfParams({
+    String groupBy = '',
+  }) async {
+    final regular = await EnhancedPdfUtils.regularFontBytes();
+    final bold = await EnhancedPdfUtils.boldFontBytes();
+    return IncomeExpensePdfParams(
+      incomeRows: _incomeEntries.map(_incomeEntryToMap).toList(),
+      expenseRows: _expenseEntries.map(_expenseEntryToMap).toList(),
+      fromDate: _fromDate!,
+      toDate: _toDate!,
+      incomeTotal: _incomeTotal,
+      expenseTotal: _expenseTotal,
+      salaryTotal: _salaryTotal,
+      net: _net,
+      bookingsCount: _bookingsCount,
+      activeBookingsCount: _activeBookingsCount,
+      checkoutBookingsCount: _checkoutBookingsCount,
+      totalDebtsCount: _totalDebtsCount,
+      unsettledDebtsCount: _unsettledDebtsCount,
+      unsettledDebtsAmount: _unsettledDebtsAmount,
+      unsettledDebtsInPeriodCount: _unsettledDebtsInPeriodCount,
+      unsettledDebtsInPeriodAmount: _unsettledDebtsInPeriodAmount,
+      activeEmployeesCount: _activeEmployeesCount,
+      terminatedEmployeesCount: _terminatedEmployeesCount,
+      totalSalaryObligation: _totalSalaryObligation,
+      groupBy: groupBy,
+      fontRegularBytes: regular,
+      fontBoldBytes: bold,
     );
   }
 
-  /// جدول تحليل الديون المستحقة (مشترك بين PDF العادي والمجمع)
-  pw.Widget _buildDebtAnalysisTable(ArabicPdfFonts fonts, double debtCoverage) {
-    return EnhancedPdfUtils.buildProfessionalTable(
-      headers: ['البيان', 'القيمة'],
-      fonts: fonts,
-      headerColor: PdfColors.danger,
-      alternateRowColor: PdfColors.backgroundLight,
-      columnWidths: [200, 130],
-      data: [
-        ['إجمالي الديون في الفترة', '$_totalDebtsCount دين'],
-        ['ديون غير مسددة في الفترة', '$_unsettledDebtsInPeriodCount دين'],
-        [
-          'مبلغ الديون غير المسددة في الفترة',
-          EnhancedPdfUtils.formatNumber(_unsettledDebtsInPeriodAmount),
-        ],
-        ['إجمالي الديون غير المسددة (كل الفترات)', '$_unsettledDebtsCount دين'],
-        [
-          'مبلغ الديون غير المسددة الكلي',
-          EnhancedPdfUtils.formatNumber(_unsettledDebtsAmount),
-        ],
-        [
-          'نسبة الديون غير المسددة الكلية من الإيرادات',
-          if (_incomeTotal > 0)
-            '${(_unsettledDebtsAmount / _incomeTotal * 100).toStringAsFixed(1)}%'
-          else
-            '0%',
-        ],
-        [
-          'قدرة تغطية الديون (صافي / ديون)',
-          if (debtCoverage > 0)
-            '${debtCoverage.toStringAsFixed(2)}x'
-          else
-            'غير كافٍ',
-        ],
-      ],
-    );
+  /// بايتات تقرير الدورة المالية الشامل — تُبنى في خلفية isolate.
+  Future<Uint8List> _buildMainPdfBytes() async {
+    final params = await _collectPdfParams();
+    return incomeExpensePdfMainJob(params);
   }
 
-  /// جدول المؤشرات المالية الرئيسية (مشترك بين PDF العادي والمجمع)
-  pw.Widget _buildFinancialIndicatorsTable(
-    ArabicPdfFonts fonts,
-    double profitMargin,
-    double expenseRatio,
-    double salaryExpenseRatio,
-    double debtCoverage,
-  ) {
-    return EnhancedPdfUtils.buildProfessionalTable(
-      headers: ['المؤشر', 'القيمة', 'التقييم'],
-      fonts: fonts,
-      headerColor: PdfColors.primary,
-      alternateRowColor: PdfColors.backgroundLight,
-      data: [
-        [
-          'هامش الربح الصافي',
-          '${profitMargin.toStringAsFixed(1)}%',
-          if (profitMargin > 20)
-            'ممتاز'
-          else if (profitMargin > 10)
-            'جيد'
-          else if (profitMargin > 0)
-            'مقبول'
-          else
-            'خسارة',
-        ],
-        [
-          'نسبة المصروفات إلى الإيرادات',
-          '${expenseRatio.toStringAsFixed(1)}%',
-          if (expenseRatio < 60)
-            'ممتاز'
-          else if (expenseRatio < 80)
-            'جيد'
-          else
-            'مرتفع',
-        ],
-        [
-          'نسبة الرواتب إلى الإيرادات',
-          '${salaryExpenseRatio.toStringAsFixed(1)}%',
-          if (salaryExpenseRatio < 30)
-            'ممتاز'
-          else if (salaryExpenseRatio < 50)
-            'جيد'
-          else
-            'مرتفع',
-        ],
-        [
-          'معدل تغطية الديون',
-          if (debtCoverage > 0)
-            '${debtCoverage.toStringAsFixed(2)}x'
-          else
-            'غير كافٍ',
-          if (debtCoverage > 2)
-            'ممتاز'
-          else if (debtCoverage > 1)
-            'جيد'
-          else
-            'ضعيف',
-        ],
-      ],
-    );
-  }
-
-  /// ترجمة طريقة الدفع
-  String _paymentMethodName(String method) {
-    switch (method) {
-      case 'cash':
-        return 'نقداً';
-      case 'card':
-        return 'بطاقة';
-      case 'transfer':
-        return 'تحويل';
-      case 'check':
-        return 'شيك';
-      default:
-        return method.isNotEmpty ? method : '-';
-    }
-  }
-
-  /// ترجمة نوع الإيراد
-  String _revenueTypeName(String type) {
-    switch (type) {
-      case 'room':
-        return 'إقامة';
-      case 'restaurant':
-        return 'مطعم';
-      case 'services':
-        return 'خدمات';
-      case 'other':
-        return 'أخرى';
-      default:
-        return type.isNotEmpty ? type : 'إقامة';
-    }
-  }
-
-  // ===== بناء PDF التقرير التفصيلي المجمع =====
-  Future<pw.Document> _buildDetailedGroupedPdf(String groupBy) async {
-    final fonts = await EnhancedPdfUtils.loadArabicFonts();
-    final doc = pw.Document();
-    final groupedData = _buildGroupedData(groupBy);
-    final groupTypeLabel = _getGroupTypeLabel(groupBy);
-    final fromLabel = DateFormat('yyyy-MM-dd').format(_fromDate!);
-    final toLabel = DateFormat('yyyy-MM-dd').format(_toDate!);
-
-    /// بناء صندوق ملخص ملون
-    pw.Widget buildSummaryBox(String title, String value, PdfColor color) {
-      return pw.Container(
-        padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.backgroundLight,
-          border: pw.Border.all(color: color, width: 0.8),
-          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-        ),
-        child: pw.Column(
-          children: [
-            pw.Text(
-              title,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 10,
-                color: PdfColors.textLight,
-              ),
-            ),
-            pw.SizedBox(height: 3),
-            pw.Text(
-              value,
-              style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: color),
-            ),
-          ],
-        ),
-      );
-    }
-
-    /// بناء بطاقة فترة مرقمة
-    pw.Widget buildPeriodCard(_GroupedData group) {
-      final isProfit = group.net >= 0;
-      return pw.Container(
-        margin: const pw.EdgeInsets.only(bottom: 10),
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(
-            color: isProfit ? PdfColors.success : PdfColors.danger,
-            width: 0.8,
-          ),
-          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            // عنوان الفترة المرقم
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-              decoration: const pw.BoxDecoration(
-                color: PdfColors.primary,
-                borderRadius: pw.BorderRadius.only(
-                  topLeft: pw.Radius.circular(7),
-                  topRight: pw.Radius.circular(7),
-                ),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    '$group.index. ${group.label}',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 13,
-                      color: PdfColors.textWhite,
-                    ),
-                  ),
-                  pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: pw.BoxDecoration(
-                      color: isProfit ? PdfColors.success : PdfColors.danger,
-                      borderRadius: const pw.BorderRadius.all(
-                        pw.Radius.circular(10),
-                      ),
-                    ),
-                    child: pw.Text(
-                      isProfit ? 'ربح' : 'خسارة',
-                      style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 9,
-                        color: PdfColors.textWhite,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              child: pw.Column(
-                children: [
-                  // 4 صناديق ملخص مصغرة
-                  pw.Row(
-                    children: [
-                      pw.Expanded(
-                        child: pw.Container(
-                          padding: const pw.EdgeInsets.all(6),
-                          margin: const pw.EdgeInsets.only(left: 4),
-                          decoration: const pw.BoxDecoration(
-                            color: PdfColors.success,
-                            borderRadius: pw.BorderRadius.all(
-                              pw.Radius.circular(4),
-                            ),
-                          ),
-                          child: pw.Column(
-                            children: [
-                              pw.Text(
-                                'الدخل',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 9,
-                                  color: PdfColors.textWhite,
-                                ),
-                              ),
-                              pw.SizedBox(height: 2),
-                              pw.Text(
-                                EnhancedPdfUtils.formatNumber(
-                                  group.incomeTotal,
-                                ),
-                                style: pw.TextStyle(
-                                  font: fonts.bold,
-                                  fontSize: 12,
-                                  color: PdfColors.textWhite,
-                                ),
-                              ),
-                              pw.Text(
-                                '${group.incomeCount} معاملة',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 8,
-                                  color: PdfColors.textWhite,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      pw.Expanded(
-                        child: pw.Container(
-                          padding: const pw.EdgeInsets.all(6),
-                          margin: const pw.EdgeInsets.only(left: 4),
-                          decoration: const pw.BoxDecoration(
-                            color: PdfColors.danger,
-                            borderRadius: pw.BorderRadius.all(
-                              pw.Radius.circular(4),
-                            ),
-                          ),
-                          child: pw.Column(
-                            children: [
-                              pw.Text(
-                                'المصروفات',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 9,
-                                  color: PdfColors.textWhite,
-                                ),
-                              ),
-                              pw.SizedBox(height: 2),
-                              pw.Text(
-                                EnhancedPdfUtils.formatNumber(
-                                  group.expenseTotal,
-                                ),
-                                style: pw.TextStyle(
-                                  font: fonts.bold,
-                                  fontSize: 12,
-                                  color: PdfColors.textWhite,
-                                ),
-                              ),
-                              pw.Text(
-                                '${group.expenseCount} معاملة',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 8,
-                                  color: PdfColors.textWhite,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      pw.Expanded(
-                        child: pw.Container(
-                          padding: const pw.EdgeInsets.all(6),
-                          decoration: pw.BoxDecoration(
-                            color: group.salaryTotal > 0
-                                ? PdfColors.warning
-                                : PdfColors.backgroundCard,
-                            borderRadius: const pw.BorderRadius.all(
-                              pw.Radius.circular(4),
-                            ),
-                          ),
-                          child: pw.Column(
-                            children: [
-                              pw.Text(
-                                'الرواتب',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 9,
-                                  color: group.salaryTotal > 0
-                                      ? PdfColors.textWhite
-                                      : PdfColors.textLight,
-                                ),
-                              ),
-                              pw.SizedBox(height: 2),
-                              pw.Text(
-                                EnhancedPdfUtils.formatNumber(
-                                  group.salaryTotal,
-                                ),
-                                style: pw.TextStyle(
-                                  font: fonts.bold,
-                                  fontSize: 12,
-                                  color: group.salaryTotal > 0
-                                      ? PdfColors.textWhite
-                                      : PdfColors.textLight,
-                                ),
-                              ),
-                              pw.SizedBox(height: 10),
-                            ],
-                          ),
-                        ),
-                      ),
-                      pw.Expanded(
-                        child: pw.Container(
-                          padding: const pw.EdgeInsets.all(6),
-                          decoration: pw.BoxDecoration(
-                            color: isProfit
-                                ? PdfColors.success
-                                : PdfColors.danger,
-                            borderRadius: const pw.BorderRadius.all(
-                              pw.Radius.circular(4),
-                            ),
-                          ),
-                          child: pw.Column(
-                            children: [
-                              pw.Text(
-                                'الصافي',
-                                style: pw.TextStyle(
-                                  font: fonts.regular,
-                                  fontSize: 9,
-                                  color: PdfColors.textWhite,
-                                ),
-                              ),
-                              pw.SizedBox(height: 2),
-                              pw.Text(
-                                EnhancedPdfUtils.formatNumber(group.net),
-                                style: pw.TextStyle(
-                                  font: fonts.bold,
-                                  fontSize: 12,
-                                  color: PdfColors.textWhite,
-                                ),
-                              ),
-                              pw.SizedBox(height: 10),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // جداول تفصيلية مضغوطة
-                  pw.SizedBox(height: 8),
-                  _buildMiniTable(
-                    fonts,
-                    'الدخل',
-                    ['التاريخ', 'الغرفة', 'الدفع', 'النوع', 'المبلغ'],
-                    group.incomeEntries
-                        .map(
-                          (e) => [
-                            DateFormat('dd/MM').format(e.date),
-                            if (e.roomNumber.isNotEmpty) e.roomNumber else '-',
-                            _paymentMethodName(e.paymentMethod),
-                            _revenueTypeName(e.revenueType),
-                            EnhancedPdfUtils.formatNumber(e.amount),
-                          ],
-                        )
-                        .toList(),
-                    PdfColors.success,
-                    boldColumnIndex: 4,
-                  ),
-                  pw.SizedBox(height: 4),
-                  _buildMiniTable(
-                    fonts,
-                    'المصروفات',
-                    ['التاريخ', 'الوصف', 'المبلغ'],
-                    group.expenseEntries
-                        .map(
-                          (e) => [
-                            DateFormat('dd/MM').format(e.date),
-                            if (e.description.isNotEmpty)
-                              e.description
-                            else
-                              e.type,
-                            EnhancedPdfUtils.formatNumber(e.amount),
-                          ],
-                        )
-                        .toList(),
-                    PdfColors.danger,
-                    boldColumnIndex: 2,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    doc.addPage(
-      pw.MultiPage(
-        textDirection: pw.TextDirection.rtl,
-        theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
-        footer: (context) => pw.Align(
-          child: pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 10),
-          ),
-        ),
-        build: (context) {
-          final widgets = <pw.Widget>[
-            // رأس التقرير
-            pw.Container(
-              width: double.infinity,
-              decoration: const pw.BoxDecoration(color: PdfColors.primary),
-              padding: const pw.EdgeInsets.all(20),
-              child: pw.Column(
-                children: [
-                  pw.Text(
-                    'تقرير الدخل والمصروفات التفصيلي',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 20,
-                      color: PdfColors.textWhite,
-                    ),
-                  ),
-                  pw.SizedBox(height: 4),
-                  pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: const pw.BoxDecoration(
-                      color: PdfColors.secondary,
-                    ),
-                    child: pw.Text(
-                      'تجميع $groupTypeLabel',
-                      style: pw.TextStyle(
-                        font: fonts.bold,
-                        fontSize: 12,
-                        color: PdfColors.textWhite,
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    'الفترة من $fromLabel إلى $toLabel',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 12,
-                      color: PdfColors.textWhite,
-                    ),
-                  ),
-                  pw.SizedBox(height: 4),
-                  pw.Text(
-                    'عدد الفترات: ${groupedData.length}',
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: PdfColors.textWhite,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            pw.SizedBox(height: 16),
-
-            // 4 صناديق الملخص العام
-            pw.Row(
-              children: [
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'إجمالي الدخل',
-                    EnhancedPdfUtils.formatNumber(_incomeTotal),
-                    PdfColors.success,
-                  ),
-                ),
-                pw.SizedBox(width: 6),
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'إجمالي المصروفات',
-                    EnhancedPdfUtils.formatNumber(_expenseTotal),
-                    PdfColors.danger,
-                  ),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 6),
-            pw.Row(
-              children: [
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'مصروفات الرواتب',
-                    EnhancedPdfUtils.formatNumber(_salaryTotal),
-                    PdfColors.warning,
-                  ),
-                ),
-                pw.SizedBox(width: 6),
-                pw.Expanded(
-                  child: buildSummaryBox(
-                    'صافي الربح / الخسارة',
-                    EnhancedPdfUtils.formatNumber(_net),
-                    _net >= 0 ? PdfColors.success : PdfColors.danger,
-                  ),
-                ),
-              ],
-            ),
-
-            pw.SizedBox(height: 16),
-
-            // عنوان الأقسام
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.symmetric(vertical: 8),
-              decoration: const pw.BoxDecoration(
-                color: PdfColors.accent,
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
-              ),
-              child: pw.Text(
-                'التفاصيل حسب الفترة ($groupTypeLabel)',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 14,
-                  color: PdfColors.textWhite,
-                ),
-                textAlign: pw.TextAlign.center,
-              ),
-            ),
-
-            pw.SizedBox(height: 12),
-          ];
-
-          // بطاقات الفترات
-          for (final group in groupedData) {
-            widgets.add(buildPeriodCard(group));
-          }
-
-          // ملخص نهائي شامل
-          widgets.add(pw.SizedBox(height: 16));
-          widgets.add(_buildFinalSummarySection(fonts, groupedData));
-
-          // ═══════════════════════════════════════
-          // أقسام الدورة المالية في التقرير المجمع
-          // ═══════════════════════════════════════
-
-          // مؤشرات مالية
-          final profitMargin = _incomeTotal > 0
-              ? (_net / _incomeTotal * 100)
-              : 0.0;
-          final expenseRatio = _incomeTotal > 0
-              ? (_expenseTotal / _incomeTotal * 100)
-              : 0.0;
-          final salaryExpenseRatio = _incomeTotal > 0
-              ? (_salaryTotal / _incomeTotal * 100)
-              : 0.0;
-          final debtCoverage = _unsettledDebtsAmount > 0 && _net > 0
-              ? _net / _unsettledDebtsAmount
-              : 0.0;
-
-          // تحليل طرق الدفع
-          widgets.add(
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.symmetric(
-                vertical: 8,
-                horizontal: 12,
-              ),
-              margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: const pw.BoxDecoration(
-                color: PdfColors.secondary,
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
-              ),
-              child: pw.Text(
-                'تحليل طرق الدفع',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
-              ),
-            ),
-          );
-          widgets.add(_buildPaymentMethodsTable(fonts));
-
-          // تكاليف الموارد البشرية
-          widgets.add(
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.symmetric(
-                vertical: 8,
-                horizontal: 12,
-              ),
-              margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: const pw.BoxDecoration(
-                color: PdfColors.warning,
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
-              ),
-              child: pw.Text(
-                'تكاليف الموارد البشرية',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
-              ),
-            ),
-          );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['البيان', 'القيمة'],
-              fonts: fonts,
-              headerColor: PdfColors.warning,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
-              data: [
-                ['عدد الموظفين النشطين', '$_activeEmployeesCount موظف'],
-                [
-                  'عدد الموظفين المنهية خدمتهم',
-                  '$_terminatedEmployeesCount موظف',
-                ],
-                [
-                  'إجمالي الالتزامات الرواتب الشهرية',
-                  EnhancedPdfUtils.formatNumber(_totalSalaryObligation),
-                ],
-                [
-                  'الرواتب المدفوعة في الفترة',
-                  EnhancedPdfUtils.formatNumber(_salaryTotal),
-                ],
-                [
-                  'نسبة الرواتب من الإيرادات',
-                  '${salaryExpenseRatio.toStringAsFixed(1)}%',
-                ],
-                [
-                  'نسبة الرواتب من المصروفات',
-                  if (_expenseTotal > 0)
-                    '${(_salaryTotal / _expenseTotal * 100).toStringAsFixed(1)}%'
-                  else
-                    '0%',
-                ],
-              ],
-            ),
-          );
-
-          // تحليل الديون المستحقة
-          widgets.add(
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.symmetric(
-                vertical: 8,
-                horizontal: 12,
-              ),
-              margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: const pw.BoxDecoration(
-                color: PdfColors.danger,
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
-              ),
-              child: pw.Text(
-                'تحليل الديون المستحقة',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
-              ),
-            ),
-          );
-          widgets.add(_buildDebtAnalysisTable(fonts, debtCoverage));
-
-          // إحصائيات الحجوزات والإشغال
-          widgets.add(
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.symmetric(
-                vertical: 8,
-                horizontal: 12,
-              ),
-              margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: const pw.BoxDecoration(
-                color: PdfColors.info,
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
-              ),
-              child: pw.Text(
-                'إحصائيات الحجوزات والإشغال',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
-              ),
-            ),
-          );
-          widgets.add(
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: ['البيان', 'القيمة'],
-              fonts: fonts,
-              headerColor: PdfColors.info,
-              alternateRowColor: PdfColors.backgroundLight,
-              columnWidths: [200, 130],
-              data: [
-                ['إجمالي الحجوزات في الفترة', '$_bookingsCount حجز'],
-                ['حجوزات نشطة (داخلين)', '$_activeBookingsCount حجز'],
-                ['حجوزات مغادرة', '$_checkoutBookingsCount حجز'],
-                [
-                  'متوسط الإيراد لكل حجز',
-                  if (_bookingsCount > 0)
-                    EnhancedPdfUtils.formatNumber(_incomeTotal / _bookingsCount)
-                  else
-                    '0',
-                ],
-              ],
-            ),
-          );
-
-          // المؤشرات المالية الرئيسية
-          widgets.add(
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.symmetric(
-                vertical: 8,
-                horizontal: 12,
-              ),
-              margin: const pw.EdgeInsets.only(top: 16, bottom: 8),
-              decoration: const pw.BoxDecoration(
-                color: PdfColors.primary,
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
-              ),
-              child: pw.Text(
-                'المؤشرات المالية الرئيسية',
-                style: pw.TextStyle(
-                  font: fonts.bold,
-                  fontSize: 13,
-                  color: PdfColors.textWhite,
-                ),
-              ),
-            ),
-          );
-          widgets.add(
-            _buildFinancialIndicatorsTable(
-              fonts,
-              profitMargin,
-              expenseRatio,
-              salaryExpenseRatio,
-              debtCoverage,
-            ),
-          );
-
-          return widgets;
-        },
-      ),
-    );
-
-    return doc;
-  }
-
-  /// جدول مصغر موحد (مشترك بين جدول المصروفات وجدول الإيرادات)
-  pw.Widget _buildMiniTable(
-    ArabicPdfFonts fonts,
-    String title,
-    List<String> headers,
-    List<List<String>> rows,
-    PdfColor headerColor, {
-    int boldColumnIndex = -1,
-  }) {
-    if (rows.isEmpty) {
-      return pw.Container();
-    }
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          title,
-          style: pw.TextStyle(
-            font: fonts.bold,
-            fontSize: 10,
-            color: headerColor,
-          ),
-        ),
-        pw.SizedBox(height: 3),
-        pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.textLight, width: 0.3),
-          ),
-          child: pw.Table(
-            children: [
-              pw.TableRow(
-                decoration: pw.BoxDecoration(color: headerColor),
-                children: headers
-                    .map((h) => _miniCell(h, fonts.bold, PdfColors.textDark))
-                    .toList(),
-              ),
-              ...rows.asMap().entries.map((entry) {
-                final isEven = entry.key.isEven;
-                return pw.TableRow(
-                  decoration: isEven
-                      ? const pw.BoxDecoration(color: PdfColors.backgroundLight)
-                      : null,
-                  children: entry.value.asMap().entries.map((cell) {
-                    final isBold = cell.key == boldColumnIndex;
-                    return _miniCell(
-                      cell.value,
-                      isBold ? fonts.bold : fonts.regular,
-                      PdfColors.textDark,
-                      align: isBold ? pw.TextAlign.left : pw.TextAlign.center,
-                    );
-                  }).toList(),
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _miniCell(
-    String text,
-    pw.Font font,
-    PdfColor color, {
-    pw.TextAlign align = pw.TextAlign.center,
-  }) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 3, horizontal: 4),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(font: font, fontSize: 8, color: color),
-        textAlign: align,
-      ),
-    );
-  }
-
-  /// ملخص نهائي شامل في آخر التقرير
-  pw.Widget _buildFinalSummarySection(
-    ArabicPdfFonts fonts,
-    List<_GroupedData> groups,
-  ) {
-    // أطول فترة ربحية وخاسرة
-    _GroupedData? bestPeriod;
-    _GroupedData? worstPeriod;
-    double maxProfit = double.negativeInfinity;
-    double maxLoss = double.infinity;
-
-    for (final g in groups) {
-      if (g.net > maxProfit) {
-        maxProfit = g.net;
-        bestPeriod = g;
-      }
-      if (g.net < maxLoss) {
-        maxLoss = g.net;
-        worstPeriod = g;
-      }
-    }
-
-    // إجمالي المعاملات
-    final totalTx = _incomeEntries.length + _expenseEntries.length;
-    final avgDaily = groups.isEmpty ? 0.0 : _net / groups.length;
-
-    return pw.Container(
-      width: double.infinity,
-      padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.backgroundCard,
-        border: pw.Border.all(color: PdfColors.primary),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(vertical: 6),
-            child: pw.Text(
-              'الملخص النهائي الشامل',
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 14,
-                color: PdfColors.primary,
-              ),
-              textAlign: pw.TextAlign.center,
-            ),
-          ),
-          pw.SizedBox(height: 8),
-
-          // جدول الملخص النهائي
-          EnhancedPdfUtils.buildProfessionalTable(
-            headers: ['البيان', 'القيمة'],
-            fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
-            columnWidths: [180, 150],
-            data: [
-              ['إجمالي المعاملات', '$totalTx معاملة'],
-              ['عدد الفترات', '${groups.length} فترة'],
-              [
-                'متوسط الصافي لكل فترة',
-                EnhancedPdfUtils.formatNumber(avgDaily),
-              ],
-              ['إجمالي الدخل', EnhancedPdfUtils.formatNumber(_incomeTotal)],
-              [
-                'إجمالي المصروفات',
-                EnhancedPdfUtils.formatNumber(_expenseTotal),
-              ],
-              ['مصروفات الرواتب', EnhancedPdfUtils.formatNumber(_salaryTotal)],
-              ['الصافي النهائي', EnhancedPdfUtils.formatNumber(_net)],
-              if (bestPeriod != null)
-                [
-                  'أفضل فترة (أعلى ربح)',
-                  '${bestPeriod.label} - ${EnhancedPdfUtils.formatNumber(bestPeriod.net)}',
-                ],
-              if (worstPeriod != null && worstPeriod.net < 0)
-                [
-                  'أسوأ فترة (أعلى خسارة)',
-                  '${worstPeriod.label} - ${EnhancedPdfUtils.formatNumber(worstPeriod.net)}',
-                ],
-            ],
-          ),
-        ],
-      ),
-    );
+  /// بايتات التقرير التفصيلي المجمّع — تُبنى في خلفية isolate.
+  Future<Uint8List> _buildGroupedPdfBytes(String groupBy) async {
+    final params = await _collectPdfParams(groupBy: groupBy);
+    return incomeExpensePdfGroupedJob(params);
   }
 
   // ===== تصدير =====
@@ -2109,31 +503,84 @@ class _IncomeExpenseReportScreenState
     return 'تقرير-الدورة-المالية-الشامل$s-${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
   }
 
+  /// غلاف موحد لأعمال التصدير الطويلة: حوار انتظار غير قابل للإغلاق
+  /// + معالجة أي خطأ برسالة واضحة بدل انهيار صامت للتطبيق.
+  Future<void> _runLongExport(Future<void> Function() job) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Dialog(
+          backgroundColor: Colors.transparent,
+          child: Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('جاري تجهيز ملف PDF...'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    try {
+      await job();
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('تعذر إنشاء التقرير: $e'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (navigator.canPop()) {
+        navigator.pop();
+      }
+    }
+  }
+
   Future<void> _exportPdf() async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
       return;
     }
-    final doc = await _buildPdfDocument();
-    await Printing.sharePdf(bytes: await doc.save(), filename: _getFilename());
+    await _runLongExport(() async {
+      final bytes = await _buildMainPdfBytes();
+      await Printing.sharePdf(bytes: bytes, filename: _getFilename());
+    });
   }
 
   Future<void> _exportDetailedGroupedPdf(String groupBy) async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
       return;
     }
-    final doc = await _buildDetailedGroupedPdf(groupBy);
-    await Printing.sharePdf(
-      bytes: await doc.save(),
-      filename: _getFilename(suffix: _getGroupTypeLabel(groupBy)),
-    );
+    await _runLongExport(() async {
+      final bytes = await _buildGroupedPdfBytes(groupBy);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: _getFilename(suffix: _getGroupTypeLabel(groupBy)),
+      );
+    });
   }
 
   Future<void> _printPdf() async {
     if (_incomeEntries.isEmpty && _expenseEntries.isEmpty) {
       return;
     }
-    final doc = await _buildPdfDocument();
-    await Printing.layoutPdf(onLayout: (format) async => doc.save());
+    await _runLongExport(() async {
+      final bytes = await _buildMainPdfBytes();
+      await Printing.layoutPdf(onLayout: (format) async => bytes);
+    });
   }
 
   Future<void> _savePdf() async {
@@ -2141,9 +588,8 @@ class _IncomeExpenseReportScreenState
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
-    try {
-      final doc = await _buildPdfDocument();
-      final bytes = await doc.save();
+    await _runLongExport(() async {
+      final bytes = await _buildMainPdfBytes();
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/${_getFilename()}');
       await file.writeAsBytes(bytes);
@@ -2155,16 +601,7 @@ class _IncomeExpenseReportScreenState
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('خطأ في الحفظ: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
+    });
   }
 
   Future<void> _exportCsv() async {
@@ -2780,33 +1217,6 @@ class _IncomeExpenseReportScreenState
 }
 
 // ===== نماذج البيانات =====
-
-class _GroupedData {
-  _GroupedData({
-    required this.index,
-    required this.key,
-    required this.label,
-    required this.incomeEntries,
-    required this.expenseEntries,
-    required this.incomeTotal,
-    required this.expenseTotal,
-    required this.salaryTotal,
-    required this.net,
-    required this.incomeCount,
-    required this.expenseCount,
-  });
-  final int index;
-  final String key;
-  final String label;
-  final List<_IncomeEntry> incomeEntries;
-  final List<_ExpenseEntry> expenseEntries;
-  final double incomeTotal;
-  final double expenseTotal;
-  final double salaryTotal;
-  final double net;
-  final int incomeCount;
-  final int expenseCount;
-}
 
 class _IncomeEntry {
   _IncomeEntry({

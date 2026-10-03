@@ -9,12 +9,16 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/daos/expenses_dao.dart';
+import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
+import '../../services/salary_mirror_matcher.dart';
 import '../../utils/device_attribution.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
+
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// بيانات معاملة واحدة من جدول salary_withdrawals
@@ -65,6 +69,111 @@ class _EmployeeSalaryGroup {
   final List<_SalaryTxRow> transactions = [];
   double totalAmount = 0;
   int txCount = 0;
+}
+
+/// ✅ (2026-09-21) اسم الموظف للعرض في التقارير — المحذوف ناعماً يظهر
+/// باسمه الحقيقي مع وسم "(محذوف)" بدل "غير محدد":
+/// السحوبات التاريخية المرتبطة به يجب أن تظل قابلة للقراءة في التقارير
+/// و PDF، مع تمييز واضح أنه غير نشط (حتى لا يبدو خطأً في البيانات).
+/// [fallback] نص بديل عندما لا يمكن حل الموظف إطلاقاً (صف مفقود محلياً).
+String _employeeDisplayName(Employee? e, {String fallback = 'غير محدد'}) {
+  if (e == null) return fallback;
+  return e.deletedAt == null ? e.name : '${e.name} (محذوف)';
+}
+
+/// يدمج سحوبات المرآة المكرّرة لنفس مصروف راتب واحد في سحبة تمثيلية
+/// واحدة (الأحدث تحديثاً) — انظر التعليق عند نقطة الاستدعاء في
+/// [_SalaryWithdrawalsReportScreenState._loadSalaryData] لتفصيل العيب.
+///
+/// القاعدة:
+/// - سحبة تُحلّ (Level 1/2 عبر [SalaryMirrorMatcher.resolveLinkedExpenseId])
+///   لمصروف محلي حقيقي واحد → "مُرسّاة" على ذلك المصروف. إن ترسّت أكثر
+///   من سحبة على نفس المصروف (لا يجب أن يحدث عادة) تُبقى الأحدث فقط.
+/// - سحبة تحمل علامة مرآة (expense_id/exp_N) لكن رابطها لا يُحلّ محلياً
+///   (مرآة يتيمة من جهاز آخر) → تُجمَّع بمفتاح احتياطي (موظف+يوم+عائلة
+///   نقدية). إن وُجدت لنفس المفتاح سحبة "مُرسّاة" واحدة بالضبط فهذه
+///   اليتيمة مكرّرة لها أكيداً وتُحذف. إن كان هناك أكثر من مُرسّاة
+///   لنفس المفتاح (موظف لديه أكثر من مصروف راتب في نفس اليوم) فالحالة
+///   غامضة ولا نحذف — نُبقي اليتيمة احتياطاً حتى لا نُخفي سحبة حقيقية.
+/// - سحبة بلا أي علامة مرآة إطلاقاً (سحوبات مباشرة، أو سجلات قديمة
+///   يدوية) → تبقى كما هي دائماً، لا علاقة لها بهذا العيب.
+@visibleForTesting
+List<SalaryWithdrawal> dedupeMirrorDuplicates(
+  List<SalaryWithdrawal> withdrawals,
+  List<MirrorExpenseCandidate> expenses,
+) {
+  bool isNewer(SalaryWithdrawal a, SalaryWithdrawal b) {
+    if (a.updatedAt != b.updatedAt) return a.updatedAt > b.updatedAt;
+    return a.id > b.id;
+  }
+
+  String groupKey(SalaryWithdrawal sw) {
+    final day = (sw.hotelDayKey ?? '').trim().isNotEmpty
+        ? sw.hotelDayKey!.trim()
+        : sw.withdrawDate.trim();
+    final family = sw.amount >= 0 ? 'cash' : 'deduction';
+    return '${sw.employeeId}|$day|$family';
+  }
+
+  final kept = <SalaryWithdrawal>[];
+  final anchored = <int, SalaryWithdrawal>{}; // expenseId → أحدث سحبة
+  final orphansByGroup = <String, List<SalaryWithdrawal>>{};
+
+  for (final sw in withdrawals) {
+    final resolvedId = SalaryMirrorMatcher.resolveLinkedExpenseId(
+      expenseId: sw.expenseId,
+      reason: sw.reason,
+      expenses: expenses,
+    );
+    if (resolvedId != null) {
+      final current = anchored[resolvedId];
+      if (current == null || isNewer(sw, current)) {
+        anchored[resolvedId] = sw;
+      }
+      continue;
+    }
+
+    final hasMarker = SalaryMirrorMatcher.hasMirrorMarker(
+      expenseId: sw.expenseId,
+      reason: sw.reason,
+    );
+    if (!hasMarker) {
+      kept.add(sw); // لا علاقة لها بهذا العيب — تبقى كما هي
+      continue;
+    }
+
+    orphansByGroup.putIfAbsent(groupKey(sw), () => []).add(sw);
+  }
+
+  kept.addAll(anchored.values);
+
+  // مجموعات المُرسّاة (موظف+يوم+عائلة) — لتقرير غموض التبنّي.
+  final anchoredGroupCounts = <String, int>{};
+  for (final sw in anchored.values) {
+    final key = groupKey(sw);
+    anchoredGroupCounts[key] = (anchoredGroupCounts[key] ?? 0) + 1;
+  }
+
+  for (final entry in orphansByGroup.entries) {
+    final anchoredCount = anchoredGroupCounts[entry.key] ?? 0;
+    if (anchoredCount == 1) {
+      // مصروف واحد بالضبط مُرسّى لنفس المفتاح — كل اليتامى هنا مكرّرون له.
+      continue;
+    }
+    if (anchoredCount == 0 && entry.value.length > 1) {
+      // لا مُرسّاة إطلاقاً، لكن أكثر من يتيمة لنفس المفتاح — على الأرجح
+      // نفس مصروف الراتب عُدّل أكثر من مرة قبل أي مزامنة ناجحة؛ نُبقي
+      // الأحدث فقط بدل عرضهم جميعاً.
+      final newest = entry.value.reduce((a, b) => isNewer(b, a) ? b : a);
+      kept.add(newest);
+      continue;
+    }
+    // أُخرى: لا مُرسّاة (يتيمة وحيدة) أو حالة غامضة (أكثر من مُرسّاة
+    // لنفس المفتاح) — نُبقي الكل احتياطاً لتفادي إخفاء سحبة حقيقية.
+    kept.addAll(entry.value);
+  }
+
+  return kept;
 }
 
 class SalaryWithdrawalsReportScreen extends ConsumerStatefulWidget {
@@ -139,10 +248,14 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   Future<_SalaryReportData> _loadSalaryData(AppDatabase db) async {
-    // جلب كل الموظفين للقائمة المنسدلة
-    final allEmployees = await (db.select(
-      db.employees,
-    )..where((tbl) => tbl.deletedAt.isNull())).get();
+    // ✅ (2026-09-21) إصلاح الموظفين المحذوفين في التقارير: كان هذا
+    // الاستعلام يستبعد الموظفين المحذوفين ناعماً (deletedAt IS NULL)، فتُبنى
+    // خريطة الأسماء من النشطين فقط → سحوبات موظف محذوف تظهر باسم
+    // "غير محدد" وتُجمّع تحت مجموعة مجهولة (id=0) رغم أن صف الموظف
+    // موجود محلياً (tombstone يُسحب عبر entityNeedsTombstoneParents) —
+    // السجلات المالية التاريخية يجب أن تحلّ أسماء أصحابها دائماً.
+    // المحذوف يُوسَم في العرض بـ "(محذوف)" — انظر _employeeDisplayName.
+    final allEmployees = await (db.select(db.employees)).get();
     allEmployees.sort((a, b) => a.name.compareTo(b.name));
 
     // جلب سجلات salary_withdrawals مع فلترة التاريخ
@@ -197,9 +310,59 @@ class _SalaryWithdrawalsReportScreenState
         ..where((tbl) => tbl.employeeId.equals(_selectedEmployeeId!));
     }
 
-    final withdrawals = await query.get();
+    final rawWithdrawals = await query.get();
 
-    // بناء خريطة الموظفين
+    // ═══════════════════════════════════════════════════════════════
+    // ✅ إصلاح تكرار «تقرير سحبيات الرواتب» عند تعديل مبلغ مصروف راتب
+    // من شاشة المصروفات (2026-09-24):
+    //
+    // مصدر هذا التقرير الوحيد جدول salary_withdrawals. عند تعديل مبلغ
+    // مصروف راتب وصل عبر المزامنة من جهاز آخر، تحاول شاشة التعديل
+    // "تبنّي" مرآته اليتيمة القديمة بدل إنشاء واحدة جديدة — لكن هذا
+    // التبنّي يفشل في حالات (أكثر من سحبة/مصروف لنفس الموظف في نفس
+    // اليوم، أو مرآة يتيمة موجودة أصلاً من قبل هذا الإصلاح)، فيبقى
+    // صفّان في salary_withdrawals يمثّلان نفس مصروف الراتب الواحد.
+    //
+    // خلافاً لتقرير المصروفات وتقرير الإيرادات/المصروفات — اللذين
+    // "يُخفيان" سحبة المرآة كلياً لأن قيمتها تُعرض من جدول expenses
+    // مباشرة — هذا التقرير ليس لديه صف آخر يعوّض الإخفاء، فبدل
+    // الإخفاء **ندمج**: كل السحوبات التي تُحلّ لنفس مصروف واحد (أو
+    // يُرجَّح جداً أنها نفس المصروف: مرآة يتيمة وحيدة لنفس الموظف
+    // واليوم والعائلة النقدية لمصروف مُحلّ بالفعل) تصبح سحبة واحدة
+    // تمثيلية (الأحدث تحديثاً)، فيُحسب كل مصروف راتب مرة واحدة بالضبط.
+    // ═══════════════════════════════════════════════════════════════
+    final expensesDao = ExpensesDao(db, OutboxDao(db));
+    List<Expense> rangeExpenses = [];
+    try {
+      rangeExpenses = await expensesDao.listFilteredByHotelDay(
+        fromHotelDay: fromHotelDay,
+        toHotelDay: toHotelDay,
+      );
+    } catch (_) {
+      // فشل جلب المصروفات لا يجب أن يمنع عرض التقرير — يبقى الدمج
+      // معطّلاً لهذه الدورة فقط (سلوك ما قبل هذا الإصلاح).
+    }
+    final expenseCandidates = rangeExpenses
+        .map(
+          (e) => MirrorExpenseCandidate(
+            id: e.id,
+            serverId: e.serverId,
+            expenseType: e.expenseType,
+            amount: e.amount,
+            date: e.date,
+            hotelDayKey: e.hotelDayKey,
+            relatedId: e.relatedId,
+          ),
+        )
+        .toList(growable: false);
+
+    final withdrawals = dedupeMirrorDuplicates(
+      rawWithdrawals,
+      expenseCandidates,
+    );
+
+    // بناء خريطة الموظفين — من **كل** الموظفين (نشطين ومحذوفين ناعماً):
+    // سحوبات الموظف المحذوف يجب أن تحلّ اسمه في التقارير (fix أعلاه).
     final employeeMap = <int, Employee>{};
     for (final emp in allEmployees) {
       employeeMap[emp.id] = emp;
@@ -272,10 +435,9 @@ class _SalaryWithdrawalsReportScreenState
     }
 
     final selectedEmpName = _selectedEmployeeId != null
-        ? _allEmployees
-              .where((e) => e.id == _selectedEmployeeId)
-              .firstOrNull
-              ?.name
+        ? _employeeDisplayName(
+            _allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull,
+          )
         : null;
 
     final headers = _selectedEmployeeId != null
@@ -305,7 +467,7 @@ class _SalaryWithdrawalsReportScreenState
         if (row.description.isNotEmpty) row.description else '-',
       ];
       if (_selectedEmployeeId == null) {
-        cells.add(row.employee?.name ?? 'غير محدد');
+        cells.add(_employeeDisplayName(row.employee));
       }
       dataRows.add(cells);
     }
@@ -514,7 +676,7 @@ class _SalaryWithdrawalsReportScreenState
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      emp.name,
+                                      _employeeDisplayName(emp),
                                       style: const TextStyle(fontSize: 13),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -572,7 +734,7 @@ class _SalaryWithdrawalsReportScreenState
                     Expanded(
                       child: Text(
                         _selectedEmployeeId != null
-                            ? 'سحبيات: ${_allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull?.name ?? ""} — ${filteredRows.length} عملية'
+                            ? 'سحبيات: ${_employeeDisplayName(_allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull, fallback: "")} — ${filteredRows.length} عملية'
                             : 'جميع الموظفين — ${filteredRows.length} عملية',
                         style: TextStyle(
                           fontSize: 12,
@@ -669,7 +831,10 @@ class _SalaryWithdrawalsReportScreenState
 
   /// بطاقة الموظف مع التفاصيل القابلة للتوسيع
   Widget _buildEmployeeCard(_EmployeeSalaryGroup group, {required int rank}) {
-    final empName = group.employee?.name ?? 'موظف غير محدد';
+    final empName = _employeeDisplayName(
+      group.employee,
+      fallback: 'موظف غير محدد',
+    );
 
     return Card(
       elevation: 1,

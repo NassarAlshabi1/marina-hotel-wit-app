@@ -112,6 +112,9 @@ android {
     }
 
     packagingOptions {
+        // ✅ PERFORMANCE.md §7.4: تقليل حجم التثبيت — مكتبات native
+        // تُخزَّن غير مضغوطة فيتجنّب النظام مضاعفة حجمها عند التثبيت
+        jniLibs { useLegacyPackaging = false }
         resources {
             excludes += ['META-INF/LICENSE*', 'META-INF/AL2.0', 'META-INF/LGPL2.1']
         }

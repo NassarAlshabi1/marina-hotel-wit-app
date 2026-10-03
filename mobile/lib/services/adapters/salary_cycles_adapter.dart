@@ -105,6 +105,8 @@ class SalaryCyclesAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
+      // ✅ (2026-09-19) تخزين UUID الموظف — الربط الدائم عبر الأجهزة
+      employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       cycleKey: _vStr(json, 'cycleKey', src, altKey: 'cycle_key', fallback: ''),
       hotelDayStart: _vStr(
         json,
@@ -179,6 +181,7 @@ class SalaryCyclesAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'cycleKey', 'cycle_key'): model.cycleKey,
       _k(src, 'hotelDayStart', 'hotel_day_start'): model.hotelDayStart,
       _k(src, 'hotelDayEnd', 'hotel_day_end'): model.hotelDayEnd,

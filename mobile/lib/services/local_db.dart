@@ -689,6 +689,9 @@ class AppSessions extends Table {
 class SalaryCycles extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get employeeId => integer().references(Employees, #id)();
+  // ✅ (migration 67) UUID الموظف — الربط عبر الأجهزة. الرقمي المحلي
+  // (employeeId) يختلف بين الأجهزة ولا يصلح للإسناد عبر السحابة.
+  TextColumn get employeeUuid => text().nullable()();
   TextColumn get cycleKey => text()();
   TextColumn get hotelDayStart => text().nullable()();
   TextColumn get hotelDayEnd => text().nullable()();
@@ -701,12 +704,22 @@ class SalaryCycles extends Table with SyncFields {
   List<Set<Column>>? get uniqueKeys => [
     {employeeId, cycleKey},
   ];
+
+  List<Index> get indexes => [
+    Index(
+      'idx_salary_cycles_employee_uuid',
+      'CREATE INDEX idx_salary_cycles_employee_uuid ON salary_cycles (employee_uuid)',
+    ),
+  ];
 }
 
 @DataClassName('SalaryPayment')
 class SalaryPayments extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get cycleId => integer().references(SalaryCycles, #id)();
+  // ✅ (migration 67) UUID الموظف المالك للدفعة (مُشتق من الدورة) —
+  // يُخزّن مباشرة ليُستعلم بدل الانحدار عبر cycleId الرقمي المحلي.
+  TextColumn get employeeUuid => text().nullable()();
   IntColumn get amount => integer().withDefault(const Constant(0))();
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get paymentDateIso => text()();
@@ -719,6 +732,10 @@ class SalaryPayments extends Table with SyncFields {
       'idx_salary_payments_cycle',
       'CREATE INDEX idx_salary_payments_cycle ON salary_payments (cycle_id, hotel_day_key)',
     ),
+    Index(
+      'idx_salary_payments_employee_uuid',
+      'CREATE INDEX idx_salary_payments_employee_uuid ON salary_payments (employee_uuid)',
+    ),
   ];
 }
 
@@ -727,6 +744,10 @@ class SalaryWithdrawals extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   // ✅ إصلاح: إضافة FK constraint إلى جدول الموظفين
   IntColumn get employeeId => integer().references(Employees, #id)();
+  // ✅ (migration 67) UUID الموظف — السحابة تملكه لكن المحلي لم يكن يخزّنه؛
+  // تخزينه محلياً يجعل التقارير والاستعلامات تعمل عبر الأجهزة ويعيد الربط
+  // الموثوق بعد تغيّر المعرفات الرقمية.
+  TextColumn get employeeUuid => text().nullable()();
   RealColumn get amount => real()();
   TextColumn get withdrawDate => text()();
   TextColumn get reason => text().nullable()();
@@ -750,6 +771,10 @@ class SalaryWithdrawals extends Table with SyncFields {
       'CREATE INDEX idx_salary_withdrawals_employee ON salary_withdrawals (employee_id)',
     ),
     Index(
+      'idx_salary_withdrawals_employee_uuid',
+      'CREATE INDEX idx_salary_withdrawals_employee_uuid ON salary_withdrawals (employee_uuid)',
+    ),
+    Index(
       'idx_salary_withdrawals_expense',
       'CREATE INDEX idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
     ),
@@ -762,6 +787,8 @@ class SalaryWithdrawals extends Table with SyncFields {
 class SalaryCarryOverLogs extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get employeeId => integer().references(Employees, #id)();
+  // ✅ (migration 67) UUID الموظف — لربط سجل الترحيل عبر الأجهزة.
+  TextColumn get employeeUuid => text().nullable()();
   RealColumn get amount => real()();
   TextColumn get previousCycleStart => text()();
   TextColumn get previousCycleEnd => text()();
@@ -780,6 +807,10 @@ class SalaryCarryOverLogs extends Table with SyncFields {
     Index(
       'idx_salary_carryover_employee',
       'CREATE INDEX idx_salary_carryover_employee ON salary_carry_over_logs (employee_id)',
+    ),
+    Index(
+      'idx_salary_carryover_employee_uuid',
+      'CREATE INDEX idx_salary_carryover_employee_uuid ON salary_carry_over_logs (employee_uuid)',
     ),
   ];
 }
@@ -1144,7 +1175,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 66;
+  int get schemaVersion => 67;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1173,6 +1204,111 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-09-19) الإصدار 67: سد فجوة employee_uuid في جداول الرواتب.
+      //
+      // المشكلة: جداول الرواتب كانت تربط الموظف بمعرّف رقمي محلي
+      // (employeeId / relatedId / cycleId) يختلف بين الأجهزة → عند التنزيل
+      // من السحابة تُنسب الدورة/الدفعة/السحبة لموظف خاطئ أو تُهمل →
+      // استحقاق ومصروفات رواتب غير صحيحة.
+      //
+      // الحل: عمود employee_uuid في (salary_cycles / salary_payments /
+      // salary_withdrawals / salary_carry_over_logs) + backfill من الروابط
+      // الرقمية المحلية الحالية. كل العمليات إضافية (ALTER TABLE ADD COLUMN
+      // على أعمدة nullable + UPDATE تعبئة) — لا حذف ولا إعادة بناء ولا فقدان
+      // بيانات بأي شكل.
+      if (from < 67) {
+        await m.addColumn(salaryCycles, salaryCycles.employeeUuid);
+        await m.addColumn(salaryPayments, salaryPayments.employeeUuid);
+        await m.addColumn(salaryWithdrawals, salaryWithdrawals.employeeUuid);
+        await m.addColumn(
+          salaryCarryOverLogs,
+          salaryCarryOverLogs.employeeUuid,
+        );
+
+        // ── Backfill: تعبئة uuid من الروابط الرقمية المحلية الصحيحة ──
+        // 1) الدورات: من employees.id (نفس الجهاز — الربط المحلي موثوق)
+        await m.database.customStatement(
+          'UPDATE salary_cycles SET employee_uuid = '
+          '(SELECT e.local_uuid FROM employees e WHERE e.id = salary_cycles.employee_id) '
+          'WHERE employee_uuid IS NULL '
+          'AND employee_id IS NOT NULL '
+          "AND EXISTS (SELECT 1 FROM employees e2 WHERE e2.id = salary_cycles.employee_id)",
+        );
+        // 2) المدفوعات: عبر الدورة → الموظف
+        await m.database.customStatement(
+          'UPDATE salary_payments SET employee_uuid = '
+          '(SELECT sc.employee_uuid FROM salary_cycles sc WHERE sc.id = salary_payments.cycle_id) '
+          'WHERE employee_uuid IS NULL '
+          'AND cycle_id IS NOT NULL '
+          'AND EXISTS (SELECT 1 FROM salary_cycles sc2 '
+          '  WHERE sc2.id = salary_payments.cycle_id AND sc2.employee_uuid IS NOT NULL)',
+        );
+        // 3) السحوبات: من employees.id
+        await m.database.customStatement(
+          'UPDATE salary_withdrawals SET employee_uuid = '
+          '(SELECT e.local_uuid FROM employees e WHERE e.id = salary_withdrawals.employee_id) '
+          'WHERE employee_uuid IS NULL '
+          'AND employee_id IS NOT NULL '
+          "AND EXISTS (SELECT 1 FROM employees e2 WHERE e2.id = salary_withdrawals.employee_id)",
+        );
+        // 3-ب) السحوبات المباشرة: reason يضمّن UUID الموظف بصيغة
+        //    direct_withdrawal_<uuid> (أنشئه settings_employees.dart — مصدر
+        //    موثق قطعياً لا يعتمد على المعرفات الرقمية إطلاقاً).
+        //    'direct_withdrawal_' طولها 18 حرفاً → UUID يبدأ من الموضع 19
+        //    والطول الكلي 18 + 36 = 54.
+        //    (نستخدم substr بدل LIKE لأن '_' حرف بدل في نمط LIKE).
+        await m.database.customStatement(
+          "UPDATE salary_withdrawals SET employee_uuid = SUBSTR(reason, 19) "
+          'WHERE employee_uuid IS NULL '
+          "AND SUBSTR(reason, 1, 18) = 'direct_withdrawal_' "
+          'AND LENGTH(reason) = 54 '
+          'AND EXISTS (SELECT 1 FROM employees e '
+          '  WHERE e.local_uuid = SUBSTR(reason, 19))',
+        );
+        // 4) سجلات الترحيل: من employees.id
+        await m.database.customStatement(
+          'UPDATE salary_carry_over_logs SET employee_uuid = '
+          '(SELECT e.local_uuid FROM employees e WHERE e.id = salary_carry_over_logs.employee_id) '
+          'WHERE employee_uuid IS NULL '
+          'AND employee_id IS NOT NULL '
+          "AND EXISTS (SELECT 1 FROM employees e2 WHERE e2.id = salary_carry_over_logs.employee_id)",
+        );
+        // 5) مصروفات الرواتب القديمة (related_id = معرف الموظف على جهاز الإنشاء):
+        //    تعبئة ما أمكن — الأنواع الرواتب فقط، حفاظاً على دلالة related_id
+        //    للمصروفات العادية.
+        await m.database.customStatement(
+          "UPDATE expenses SET employee_uuid = "
+          '(SELECT e.local_uuid FROM employees e WHERE e.id = expenses.related_id) '
+          'WHERE employee_uuid IS NULL '
+          'AND related_id IS NOT NULL '
+          "AND TRIM(expense_type) IN "
+          "('سحب راتب','خصم راتب','سحب من الراتب','خصم من الراتب','سلفة','رواتب') "
+          'AND EXISTS (SELECT 1 FROM employees e2 WHERE e2.id = expenses.related_id)',
+        );
+
+        // ── فهارس على الأعمدة الجديدة ──
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_cycles_employee_uuid '
+          'ON salary_cycles (employee_uuid)',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid '
+          'ON salary_payments (employee_uuid)',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee_uuid '
+          'ON salary_withdrawals (employee_uuid)',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee_uuid '
+          'ON salary_carry_over_logs (employee_uuid)',
+        );
+
+        developer.log(
+          'Migration 67: added employee_uuid to salary tables + backfill',
+          name: 'db.migration',
+        );
+      }
       // ✅ (2026-09-14) الإصدار 66: إسناد سحوبات الرواتب لمسجّلها.
       // recorder_name على salary_withdrawals — من سجّل السحبة (اسم المستخدم).
       // Nullable عمداً؛ السجلات القديمة تبقى بلا إسناد ولا نجتهي عليها.

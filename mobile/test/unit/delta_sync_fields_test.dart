@@ -3,7 +3,8 @@
 // ✅ اختبارات مزامنة Delta Appwrite (2026-08-08).
 // تثبت:
 //  - البناء الصحيح لاستعلامات delta المعتمدة على زمن الخادم ($updatedAt)
-//    لا على زمن الجهاز، مع نافذة أمان 15 ثانية.
+//    لا على زمن الجهاز، مع نافذة أمان 300 ثانية (كانت 15s — وُسّعت
+//    ✅ 2026-09-21 مع Resumable Full Sync لتغطية دورات السحب الطويلة).
 //  - عند lastPullTs <= 0 يُرجَع [] (سحب كامل لا delta).
 //  - ارتباط delta بمعالجة التعارضات: كل مستند مُسحوب يمر عبر
 //    checkAndResolveConflict (مغطى في conflict_resolution_fix_test).
@@ -39,32 +40,32 @@ void main() {
       expect(q, isEmpty);
     });
 
-    test('lastPullTs > 0 → فلتر updatedAt مع نافذة أمان 15s', () async {
+    test('lastPullTs > 0 → فلتر updatedAt مع نافذة أمان 300s', () async {
       // ✅ Sync Safety Wave 2 (2026-08-12): full_sync_complete يجب أن = 1
       // قبل السماح بـ delta queries. نضبطه يدوياً هنا للاختبار.
       await pull.markFullSyncComplete();
 
-      // lastPullTs = 1000 ثانية، cutoff = 1000 - 15 = 985 ثانية.
+      // lastPullTs = 1000 ثانية، cutoff = 1000 - 300 = 700 ثانية.
       final q = await pull.buildDeltaQueries(1000);
       expect(q, hasLength(1));
       expect(q.first, contains(r'$updatedAt'));
-      // cutoff ISO لـ 985 ثانية = 1970-01-01T00:16:25.000Z
-      expect(q.first, contains('1970-01-01T00:16:25'));
+      // cutoff ISO لـ 700 ثانية = 1970-01-01T00:11:40.000Z
+      expect(q.first, contains('1970-01-01T00:11:40'));
       // يجب أن يكون greaterThan (ليس greaterThanEqual) لتفادي التكرار اللانهائي.
       expect(q.first, contains('greaterThan'));
     });
 
     test(
-      'تقدّم المؤشر لا يفقد السجلات: cutoff أقدم بـ 15s من lastPullTs',
+      'تقدّم المؤشر لا يفقد السجلات: cutoff أقدم بـ 300s من lastPullTs',
       () async {
         // ✅ Sync Safety Wave 2 (2026-08-12): full_sync_complete يجب أن = 1
         await pull.markFullSyncComplete();
 
         const lastPull = 2000000000; // ~2033
         final q = await pull.buildDeltaQueries(lastPull);
-        // cutoff ISO لـ (2000000000 - 15) ثانية.
+        // cutoff ISO لـ (2000000000 - 300) ثانية.
         final expectedCutoffIso = DateTime.fromMillisecondsSinceEpoch(
-          (lastPull - 15) * 1000,
+          (lastPull - 300) * 1000,
           isUtc: true,
         ).toIso8601String();
         expect(q.first, contains(expectedCutoffIso));

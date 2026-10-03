@@ -48,6 +48,32 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     'استبيان',
   ];
 
+  /// مقارنة أرقام الغرف تصاعدياً (أرقام أولاً، ثم أبجدي).
+  /// ✅ مصدر فرز واحد تُشاركه الشاشة وتصدير PDF — يضمن تطابق الترتيب
+  /// في المكانين ويمنع انحراف أي منهما عن الآخر مستقبلاً.
+  static int _compareRoomNumbers(GuestInfo a, GuestInfo b) {
+    final aNum = int.tryParse(a.roomNumber);
+    final bNum = int.tryParse(b.roomNumber);
+    if (aNum != null && bNum != null) {
+      return aNum.compareTo(bNum);
+    }
+    if (aNum != null) {
+      return -1;
+    }
+    if (bNum != null) {
+      return 1;
+    }
+    return a.roomNumber.compareTo(b.roomNumber);
+  }
+
+  /// نسخة مرتبة تصاعدياً حسب رقم الغرفة — لا تُعدّل القائمة الأصلية
+  /// (قائمة الـ provider تُستخدم في مواضع أخرى ويجب بقاؤها كما هي).
+  static List<GuestInfo> _sortByRoomNumber(List<GuestInfo> entries) {
+    final sorted = List<GuestInfo>.from(entries);
+    sorted.sort(_compareRoomNumbers);
+    return sorted;
+  }
+
   @override
   String get screenId => 'information_screen';
 
@@ -135,22 +161,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
     final scrollCtrl = _verticalScrollController;
 
-    // ترتيب حسب رقم الغرفة (أرقام أولاً، ثم أبجدي)
-    final sorted = List<GuestInfo>.from(entries);
-    sorted.sort((a, b) {
-      final aNum = int.tryParse(a.roomNumber);
-      final bNum = int.tryParse(b.roomNumber);
-      if (aNum != null && bNum != null) {
-        return aNum.compareTo(bNum);
-      }
-      if (aNum != null) {
-        return -1;
-      }
-      if (bNum != null) {
-        return 1;
-      }
-      return a.roomNumber.compareTo(b.roomNumber);
-    });
+    // ترتيب تصاعدي حسب رقم الغرفة (أرقام أولاً، ثم أبجدي)
+    final sorted = _sortByRoomNumber(entries);
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -599,8 +611,12 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         return s.isEmpty ? '-' : s;
       }
 
-      final data = List.generate(entries.length, (i) {
-        final info = entries[i];
+      // ✅ فرز تصاعدي حسب رقم الغرفة قبل بناء صفوف PDF — نفس ترتيب الشاشة.
+      // سابقاً كان التصدير يستخدم ترتيب القاعدة الخام (updatedAt DESC)
+      // فكان الملف يخرج بترتيب آخر-تحديث-أولاً بدلاً من أرقام الغرف.
+      final sortedEntries = _sortByRoomNumber(entries);
+      final data = List.generate(sortedEntries.length, (i) {
+        final info = sortedEntries[i];
         return [
           safe(info.notes),
           safe(info.governorate),
