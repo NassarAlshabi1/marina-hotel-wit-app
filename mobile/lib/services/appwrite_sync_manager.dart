@@ -4214,19 +4214,32 @@ class AppwriteSyncManager {
         // نُعيد false ليبقى في الطابور للمحاولة لاحقاً
         return false;
       }
-    } else if (employee == null) {
-      // الموظف غير موجود محلياً — سجل يتيم
+    }
+
+    // ✅ (2026-10-02) R6: لا يُحذف سحب راتب من الطابور أبداً لغياب موظفه.
+    // سابقاً `return true` → السجل لا يصل للسحابة إطلاقاً (فقدان صامت).
+    // - الموظف موجود محلياً → UUID الموظف.
+    // - غير موجود لكن السحبة تحمل employee_uuid → نرفع به (Appwrite بلا FK،
+    //   والموظف غالباً موجود في السحابة).
+    // - لا هذا ولا ذاك → يبقى في الطابور (false) للمحاولة لاحقاً.
+    final rowEmployeeUuid = withdrawal.employeeUuid;
+    final effectiveEmployeeUuid =
+        employee?.localUuid ??
+        ((rowEmployeeUuid != null && rowEmployeeUuid.isNotEmpty)
+            ? rowEmployeeUuid
+            : null);
+    if (effectiveEmployeeUuid == null) {
       _logger.warning(
-        '⏭️ تخطي salary_withdrawal: الموظف ${withdrawal.employeeId} غير موجود محلياً (سجل يتيم)',
+        '⏸️ تأجيل salary_withdrawal ${withdrawal.localUuid}: الموظف '
+        '${withdrawal.employeeId} غير موجود محلياً ولا employee_uuid — يبقى في الطابور',
         tag: 'SYNC',
       );
-      // لا نستطيع رفع سحب راتب بدون موظف — نحذفه من الطابور
-      return true;
+      return false;
     }
 
     final payload = _payloadMapper.salaryWithdrawalToRemote(
       withdrawal,
-      employeeUuid: employee.localUuid,
+      employeeUuid: effectiveEmployeeUuid,
     );
     final occPayload = await _occPushCheck(
       entity: 'salary_withdrawals',
