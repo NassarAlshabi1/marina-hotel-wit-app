@@ -45,7 +45,11 @@ class CollectionPullTask {
   final Future<List<models.Document>> Function(CollectionPullPlan plan) fetch;
 
   /// تطبيق المستندات محلياً — يعيد عدد السجلات المطبَّقة.
-  final Future<int> Function(List<models.Document> docs) apply;
+  /// 
+  /// ✅ R5 Fix: يمكن أن يعيد كائن `ApplyResult` يحتوي على عدد السجلات
+  /// المطبقة وأقصى $updatedAt للمستندات المطبقة فعلياً (باستثناء المتخطاة).
+  /// إذا أعاد `int` فقط، يُستخدم سلوك التوافق: يُحسب maxUpdatedAt من كل المستندات المجلوبة.
+  final Future<dynamic> Function(List<models.Document> docs) apply;
 
   /// ✅ Resumable Full Sync (2026-09-21): جلب **صفحة واحدة** بمعطى استعلاماتها
   /// الكاملة (orderAsc($id) + limit + cursorAfter مضمنة من
@@ -74,6 +78,23 @@ class PullRunResult {
   final List<String> failedCollections;
 }
 
+/// ✅ R5 Fix: نتيجة دالة التطبيق — تحتفظ بأقصى $updatedAt للمستندات
+/// المطبقة فعلياً (باستثناء المتخطاة/اليتيمة). هذا يمنع تقدم المؤشر
+/// فوق السجلات التي لم تُعالج، مما يضمن إعادة جلبها في الدورة التالية.
+class ApplyResult {
+  const ApplyResult({
+    required this.recordsApplied,
+    this.maxProcessedUpdatedAtSec,
+  });
+
+  /// عدد السجلات التي تمت معالجتها بنجاح
+  final int recordsApplied;
+
+  /// أقصى $updatedAt (ثواني epoch) للمستندات التي تمت معالجتها فعلياً.
+  /// إذا كان null، يُستخدم max من كل المستندات المجلوبة (سلوك التوافق).
+  final int? maxProcessedUpdatedAtSec;
+}
+
 /// مراقب اختياري لكل مهمة (للمقاييس والتسجيل).
 typedef UnifiedPullTaskObserver =
     void Function(String name, int elapsedMs, bool success);
@@ -100,6 +121,8 @@ typedef UnifiedPullTaskErrorHandler =
 ///   - pullRemoteChanges كان يفقد 3 مجموعات موجودة في sync()
 ///     (inventory_items, inventory_transactions, salary_carry_over_logs) —
 ///     القائمة الموحدة تُغلق هذه الفجوة.
+///   - **R5 Fix**: المؤشر لا يتقدم فوق السجلات المتخطاة (يتيمة) — تُستبعد
+///     من حساب `maxUpdatedAtSec` لضمان إعادة جلبها في الدورة التالية.
 ///
 /// ✅ Resumable Full Sync (2026-09-21) — إصلاح P0 فقدان البيانات:
 ///
@@ -116,12 +139,12 @@ typedef UnifiedPullTaskErrorHandler =
 ///     كاملة بلا حد كما هو مطلوب.
 ///   - **ذاكرة محدودة**: صفحة (100 مستند) تُطبَّق ثم تُنسى — لا تجميع
 ///     آلاف المستندات في الذاكرة (حماية أجهزة 1GB).
-///   - **crash-safe**: مؤشر الصفحة (`full_sync_cursor`) يُثبَّت بعد نجاح
+///   - **crash-safe**: مؤشر الصفحة (`full_sync_cursor`) يُثبّت بعد نجاح
 ///     التطبيق فقط؛ الانقطاع (إنترنت ضعيف، قتل التطبيق، نفاد مهلة الدورة)
 ///     يُستأنف من آخر صفحة في الدورة التالية (المزامنة التلقائية 15 دقيقة
 ///     أو فتح التطبيق).
 ///   - **checkpoint عند النفاد فقط**: `completeFullSync` يُثبّت مؤشر Delta
-///     من أقصى `$updatedAt` مُشاهد عبر كل الصفحات — لا فقدان أبداً.
+///     النهائي من أقصى `$updatedAt` مُشاهد عبر كل الصفحات — لا فقدان أبداً.
 ///   - **تنفّس للأجهزة الضعيفة**: مهلة قصيرة بين الصفحات (250ms على
 ///     الأجهزة الضعيفة / yield للأجهزة القوية) تمنع تجويع حلقة الأحداث
 ///     واضطراب الواجهة أثناء سحب طويل.
@@ -222,10 +245,23 @@ class UnifiedPullEngine {
         } else {
           // المسار الكلاسيكي — Full أحادي الطلب أو Delta.
           final docs = await task.fetch(pullPlan);
-          recordsPulled += await task.apply(docs);
+          final applyResult = await task.apply(docs);
+          int appliedCount;
+          int? maxProcessedTs;
+          if (applyResult is ApplyResult) {
+            appliedCount = applyResult.recordsApplied;
+            maxProcessedTs = applyResult.maxProcessedUpdatedAtSec;
+          } else if (applyResult is int) {
+            appliedCount = applyResult;
+            maxProcessedTs = null;
+          } else {
+            appliedCount = 0;
+            maxProcessedTs = null;
+          }
+          recordsPulled += appliedCount;
           await commit(
             task.name,
-            maxUpdatedAtSec: maxUpdatedAtOf(docs),
+            maxUpdatedAtSec: maxProcessedTs ?? maxUpdatedAtOf(docs),
             sinceTs: pullPlan.sinceTs,
           );
         }
