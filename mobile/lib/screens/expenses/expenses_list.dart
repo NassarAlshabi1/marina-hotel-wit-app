@@ -859,7 +859,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       // ✅ إصلاح: حذف سحب الراتب أولاً ثم المصروف — لحماية تكامل البيانات
       // إذا فشل حذف المصروف، سحب الراتب يبقى مرتبطاً (آمن)
       // إذا فشل حذف سحب الراتب بعد حذف المصروف، نحاول مرة أخرى
-      await salaryRepo.deleteByExpenseId(expense.id);
+      // ✅ (2026-10-02) تمرير موظف المصروف — لا تُحذف سحبة موظف آخر
+      // يتصادف رقم مصروفها (من جهاز آخر) مع هذا المصروف (R3).
+      await salaryRepo.deleteByExpenseId(
+        expense.id,
+        employeeId: expense.relatedId,
+        employeeUuid: expense.employeeUuid,
+      );
       await repo.delete(expense.id);
 
       markDataChanged();
@@ -1284,9 +1290,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               hotelDayKey: updatedHotelDayKey,
               // ✅ المبلغ القديم الموقّع — للتبنّي بدل التكرار
               previousAmount: previousSignedAmount,
+              // ✅ (2026-10-02) الموظف السابق — لإيجاد المرآة القديمة عند
+              // تغيير الموظف دون قبول سحبة موظف ثالث برقم مصروف متصادم.
+              previousEmployeeId: existing.relatedId,
             );
           } else {
-            await salaryRepo.deleteByExpenseId(existing.id);
+            await salaryRepo.deleteByExpenseId(
+              existing.id,
+              employeeId: existing.relatedId,
+              employeeUuid: existing.employeeUuid,
+            );
           }
         }
 

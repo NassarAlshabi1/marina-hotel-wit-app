@@ -173,10 +173,26 @@ class SalaryWithdrawalsRepository {
     String? note,
     String? hotelDayKey,
     double? previousAmount,
+    int? previousEmployeeId,
     bool originIsServer = false,
   }) async {
     // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
     final employeeUuid = await _employeeUuidFor(employeeId);
+
+    // ✅ (2026-10-02) حارس تصادم expense_id عبر الأجهزة (R3):
+    // expense_id / exp_N في السحوبات المسحوبة من جهاز آخر = id مصروف
+    // ذلك الجهاز، وقد يساوي رقماً لمصروف محلي لا علاقة له. لذلك لا تُقبل
+    // مطابقة بالرقم إلا لسحبة تخص موظف هذا المصروف (الحالي، أو السابق
+    // عند تغيير الموظف في شاشة التعديل). بدونه كانت تُعاد كتابة employeeId
+    // ومبلغ سحبة موظف آخر، وتنتشر للسحابة.
+    final allowedEmployeeIds = <int>{
+      employeeId,
+      if (previousEmployeeId != null) previousEmployeeId,
+    };
+    final uuid = employeeUuid.present ? employeeUuid.value : null;
+    bool belongsToExpense(SalaryWithdrawal w) =>
+        allowedEmployeeIds.contains(w.employeeId) ||
+        (uuid != null && uuid.isNotEmpty && w.employeeUuid == uuid);
 
     // ✅ البحث عن سجل موجود — محاولة عبر عمود expense_id أولاً
     SalaryWithdrawal? matched;
@@ -185,20 +201,19 @@ class SalaryWithdrawalsRepository {
     try {
       final rows = await _db
           .customSelect(
-            'SELECT * FROM salary_withdrawals WHERE expense_id = ? AND deleted_at IS NULL LIMIT 1',
+            'SELECT id FROM salary_withdrawals WHERE expense_id = ? AND deleted_at IS NULL ORDER BY id',
             variables: [d.Variable.withInt(expenseId)],
           )
           .get();
       if (rows.isNotEmpty) {
-        // نقرأ بيانات السجل من جدول salary_withdrawals عبر Drift
-        final byId =
+        // نقرأ بيانات السجلات عبر Drift ونقبل أول سجل يخص موظف المصروف
+        final ids = rows.map((r) => r.read<int>('id')).toList();
+        final byIds =
             await (_db.select(_db.salaryWithdrawals)
-                  ..where((t) => t.id.equals(rows.first.read<int>('id')))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (byId != null) {
-          matched = byId;
-        }
+                  ..where((t) => t.id.isIn(ids))
+                  ..orderBy([(t) => d.OrderingTerm(expression: t.id)]))
+                .get();
+        matched = byIds.where(belongsToExpense).firstOrNull;
       }
     } catch (_) {
       // العمود قد لا يكون موجوداً
@@ -213,6 +228,7 @@ class SalaryWithdrawalsRepository {
               .get();
       matched = existing
           .where((w) => matchesExpenseRef(w.reason, expenseId))
+          .where(belongsToExpense)
           .firstOrNull;
     }
 
@@ -248,7 +264,7 @@ class SalaryWithdrawalsRepository {
               ))
               .get();
       for (final w in allExisting) {
-        if (matchesExpenseRef(w.reason, expenseId)) {
+        if (matchesExpenseRef(w.reason, expenseId) && belongsToExpense(w)) {
           staleRecords.add(w);
         }
       }
@@ -300,6 +316,9 @@ class SalaryWithdrawalsRepository {
         )..where((t) => t.id.equals(matchedId))).write(
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
+            // ✅ (2026-10-02) تحديث UUID مع الموظف عند التعديل (R12) — كان
+            // يبقى UUID الموظف القديم بعد تغيير موظف المصروف.
+            employeeUuid: employeeUuid,
             amount: d.Value(amount),
             withdrawDate: d.Value(date),
             reason: d.Value(reasonText),
@@ -326,6 +345,7 @@ class SalaryWithdrawalsRepository {
             serverId: matchedServerId,
             payload: {
               'employeeId': employeeId,
+              if (employeeUuid.present) 'employeeUuid': employeeUuid.value,
               'amount': amount,
               'withdrawDate': date,
               'reason': reasonText,
@@ -502,8 +522,14 @@ class SalaryWithdrawalsRepository {
   /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي
   /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
   /// ✅ إصلاح خبير: البحث أولاً عبر عمود expense_id ثم عبر reason
+  ///
+  /// ✅ (2026-10-02) [employeeId] = موظف المصروف (relatedId)، و[employeeUuid]
+  /// = UUID موظف المصروف. عند تمرير أحدهما لا تُحذف إلا سحوبات هذا الموظف — حماية من تصادم expense_id مع سحوبات
+  /// قادمة من جهاز آخر تحمل رقم مصروف ذلك الجهاز (R3). null = سلوك قديم.
   Future<void> deleteByExpenseId(
     int expenseId, {
+    int? employeeId,
+    String? employeeUuid,
     bool originIsServer = false,
   }) async {
     // الطريقة 1: بحث عبر عمود expense_id
@@ -534,6 +560,17 @@ class SalaryWithdrawalsRepository {
               .get();
       toDelete = candidates
           .where((w) => matchesExpenseRef(w.reason, expenseId))
+          .toList();
+    }
+
+    final hasUuid = employeeUuid != null && employeeUuid.isNotEmpty;
+    if (employeeId != null || hasUuid) {
+      toDelete = toDelete
+          .where(
+            (w) =>
+                (employeeId != null && w.employeeId == employeeId) ||
+                (hasUuid && w.employeeUuid == employeeUuid),
+          )
           .toList();
     }
 
