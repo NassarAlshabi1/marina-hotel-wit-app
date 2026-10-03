@@ -241,10 +241,14 @@ export async function handlePull(
       tombstonesOnly,
       includeRemaining
     );
+    // Optional on old deployments without migration 0010; getSyncEpoch is
+    // deliberately fail-open so the ordinary pull contract stays available.
+    const epoch = await db.getSyncEpoch();
 
     return jsonResponse({
       changes: result.changes,
       cursor: result.cursor.toString(),
+      epoch,
       has_more: result.has_more,
       remaining: result.remaining,
       errors: result.errors,
@@ -305,8 +309,8 @@ export async function handlePush(
       entityId?: string;
       error?: string;
       skipped?: boolean;
-      /** ✅ (fix M4) تصنيف الرفض — يتيح للعميل فصل الأخطاء الدائمة عن المؤقتة */
-      status?: 'validation_error' | 'conflict' | 'internal_error';
+      /** Stable operation disposition for the client (including delete-wins). */
+      status?: 'validation_error' | 'conflict' | 'internal_error' | 'deleted';
     }> = [];
 
     // Distinct entities touched by SUCCESSFUL, non-skipped ops — one change
@@ -337,12 +341,16 @@ export async function handlePush(
         // ─── Idempotency check ─────────────────────────────────
         const idempResult = await db.checkIdempotency(op.idempotencyKey);
         if (idempResult.exists) {
+          const cached = idempResult.response as
+            | { entityId?: string; status?: 'deleted' }
+            | undefined;
           results.push({
             idempotencyKey: op.idempotencyKey,
             success: true,
             skipped: true,
             entity: op.entity,
-            entityId: (idempResult.response as { entityId?: string })?.entityId,
+            entityId: cached?.entityId,
+            status: cached?.status,
           });
           continue;
         }
@@ -367,6 +375,31 @@ export async function handlePush(
               op.updatedAt
             );
             entityId = record.local_uuid;
+            if ((record as SyncRecord & { opStatus?: string }).opStatus === 'deleted') {
+              const rejectedPayload = {
+                entity: op.entity,
+                entityId,
+                operation: op.operation,
+                status: 'deleted',
+              };
+              await db.saveIdempotency(
+                op.idempotencyKey,
+                op.entity,
+                op.operation,
+                entityId,
+                rejectedPayload
+              );
+              results.push({
+                idempotencyKey: op.idempotencyKey,
+                success: true,
+                status: 'deleted',
+                entity: op.entity,
+                entityId,
+              });
+              // Do not broadcast a no-op edit; the deletion already owns the
+              // durable state and will reach this client through pull.
+              continue;
+            }
             break;
           }
           case 'delete': {

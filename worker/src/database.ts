@@ -549,6 +549,51 @@ export class Database {
    */
   static readonly FUTURE_TIMESTAMP_THRESHOLD = 2_000_000_000;
 
+  /** Maximum future clock skew accepted from a client, in seconds. */
+  static readonly CLOCK_SKEW_ALLOWANCE_S = 90;
+
+  // ─── Sync epoch (data generation) ─────────────────────────
+
+  /**
+   * Current sync data generation. The lazy insert keeps pull backward
+   * compatible with deployments that have not applied migration 0010 yet.
+   */
+  async getSyncEpoch(): Promise<string | null> {
+    try {
+      const row = await this.db
+        .prepare("SELECT v FROM sync_meta WHERE k = 'epoch'")
+        .first<{ v: string }>();
+      if (row?.v) return row.v;
+
+      await this.db
+        .prepare("INSERT OR IGNORE INTO sync_meta (k, v) VALUES ('epoch', ?)")
+        .bind(crypto.randomUUID().replace(/-/g, ''))
+        .run();
+      const seeded = await this.db
+        .prepare("SELECT v FROM sync_meta WHERE k = 'epoch'")
+        .first<{ v: string }>();
+      return seeded?.v ?? null;
+    } catch (err) {
+      // The epoch is an optional safety contract; a missing/unavailable
+      // migration must never turn an otherwise valid pull into a failure.
+      console.warn('[SYNC] epoch unavailable (pull continues without it):', err);
+      return null;
+    }
+  }
+
+  /** Rotate the generation after a server-side restore or data rewrite. */
+  async rotateSyncEpoch(): Promise<string> {
+    const epoch = crypto.randomUUID().replace(/-/g, '');
+    await this.db
+      .prepare(
+        "INSERT INTO sync_meta (k, v, updated_at) VALUES ('epoch', ?, unixepoch()) " +
+          'ON CONFLICT (k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
+      )
+      .bind(epoch)
+      .run();
+    return epoch;
+  }
+
   /**
    * Progressively repair poisoned timestamps in entity tables.
    *
@@ -857,6 +902,22 @@ export class Database {
       return this.createRecord(entity, { ...data, local_uuid: recordId }, deviceId, vectorClock);
     }
 
+    // Delete wins over every later-arriving edit. Returning an explicit
+    // operation status lets the client clear the losing outbox item without
+    // treating the rejection as a transient network failure.
+    if (existing.deleted_at !== null && existing.deleted_at !== undefined) {
+      await this.saveConflict(
+        entity,
+        recordId,
+        existing,
+        data,
+        existing.vector_clock ?? '{}',
+        vectorClock,
+        'edit_on_deleted'
+      );
+      return { ...existing, opStatus: 'deleted' };
+    }
+
     // ─── Conflict Detection: Vector Clock ───────────────────
     const conflict = this.detectConflict(existing.vector_clock || '{}', vectorClock);
     // LWW input precedence (fix proven by test + client code): the op-level
@@ -864,24 +925,28 @@ export class Database {
     // authoritative edit timestamp of the operation; `data.updated_at` is a
     // row snapshot that can be stale relative to the edit. The protocol
     // field wins; the row field is the legacy fallback.
-    const incomingTimestamp =
+    const incomingTimestampRaw =
       fallbackUpdatedAt !== undefined && Number.isFinite(fallbackUpdatedAt)
         ? Math.floor(fallbackUpdatedAt)
         : Number(data.updated_at) || Math.floor(Date.now() / 1000);
 
-    // LWW resolution (plan 2.4): wall-clock timestamps are not monotonic
-    // across devices (a slow clock must not win) — timestamps decide only
-    // when they DIFFER; on a tie the monotonic `version` counter decides.
-    // The client increments SyncFields.version on every local edit, so a
-    // genuinely newer edit from a slow-clock device still carries a higher
-    // version and wins the tie instead of being silently dropped.
+    // Bound future client clocks. Inside the 90-second skew window, the
+    // monotonic version breaks ties in either direction; an edit older than
+    // that window loses even if its client claims an inflated version.
+    const serverNow = Math.floor(Date.now() / 1000);
+    const incomingTimestamp = Math.min(
+      incomingTimestampRaw,
+      serverNow + Database.CLOCK_SKEW_ALLOWANCE_S
+    );
+    const incomingDelta = incomingTimestamp - existing.updated_at;
+    const existingVersion = this.sanitizeVersion(existing.version);
     const timestampLoss =
-      incomingTimestamp < existing.updated_at ||
-      (incomingTimestamp === existing.updated_at &&
-        !this.incomingVersionWins(
-          this.sanitizeVersion(existing.version),
-          data.version
-        ));
+      incomingDelta > 0
+        ? false
+        : incomingDelta === 0
+          ? !this.incomingVersionWins(existingVersion, data.version)
+          : -incomingDelta > Database.CLOCK_SKEW_ALLOWANCE_S ||
+            !this.incomingVersionWins(existingVersion, data.version);
 
     if (conflict === 'concurrent') {
       // Save conflict for audit
@@ -1083,7 +1148,8 @@ export class Database {
     localRecord: unknown,
     remoteData: unknown,
     localVc: string,
-    remoteVc: string
+    remoteVc: string,
+    resolution = 'last_write_wins'
   ): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     await this.db
@@ -1098,7 +1164,7 @@ export class Database {
         JSON.stringify(remoteData),
         localVc,
         remoteVc,
-        'last_write_wins',
+        resolution,
         now,
         now,
         ''

@@ -5,6 +5,7 @@ import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.annotations.SerializedName
 import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.AppUsersDao
 import com.marina.marina.data.local.dao.AuditLogsDao
@@ -30,6 +31,7 @@ import com.marina.marina.data.local.dao.SalaryPaymentsDao
 import com.marina.marina.data.local.dao.SalaryWithdrawalsDao
 import com.marina.marina.data.local.dao.ShiftNotesDao
 import com.marina.marina.data.local.entity.BaseSyncEntity
+import com.marina.marina.domain.util.HotelTimeEngine
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -125,6 +127,7 @@ class SyncIngestorRegistry @Inject constructor(
      * الصنف الفعلي إعلانه (الفرعي هو المصدر المرجعي).
      */
     private val gsonCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Gson>()
+    private val booleanWireFieldsCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Set<String>>()
 
     private fun gsonFor(clazz: Class<*>): Gson = gsonCache.getOrPut(clazz) {
         val ownNames = clazz.declaredFields.map { it.name }.toSet()
@@ -139,6 +142,78 @@ class SyncIngestorRegistry @Inject constructor(
             .addSerializationExclusionStrategy(strategy)
             .create()
     }
+
+    /** D1/SQLite booleans arrive over both sync transports as INTEGER 0/1. */
+    private fun normalizeBooleanWireFields(mapped: MutableMap<String, Any>, clazz: Class<*>) {
+        val fieldNames = booleanWireFieldsCache.getOrPut(clazz) {
+            generateSequence(clazz) { it.superclass }
+                .takeWhile { it != Any::class.java }
+                .flatMap { it.declaredFields.asSequence() }
+                .filter { field ->
+                    field.type == Boolean::class.javaPrimitiveType ||
+                        field.type == Boolean::class.javaObjectType
+                }
+                .map { field ->
+                    field.getAnnotation(SerializedName::class.java)?.value ?: field.name
+                }
+                .toSet()
+        }
+
+        fieldNames.forEach { name ->
+            val wireValue = mapped[name] ?: return@forEach
+            val booleanValue = when (wireValue) {
+                is Boolean -> wireValue
+                is Number -> wireValue.toDouble() != 0.0
+                is String -> when (val normalized = wireValue.trim().lowercase()) {
+                    "true" -> true
+                    "false" -> false
+                    else -> normalized.toDoubleOrNull()?.let { it != 0.0 }
+                }
+                else -> null
+            }
+            if (booleanValue != null) mapped[name] = booleanValue
+        }
+    }
+
+    /**
+     * D1 stores `salary_withdrawals.withdraw_date` as TEXT (usually yyyy-MM-dd),
+     * while the local Room entity stores epoch milliseconds. Normalize at the
+     * wire boundary before Gson attempts to coerce the date string to Long.
+     */
+    private suspend fun normalizeSalaryWithdrawalFields(mapped: MutableMap<String, Any>) {
+        val rawDate = mapped["withdraw_date"]
+            ?: throw IllegalArgumentException("salary_withdrawals.withdraw_date is missing")
+        val withdrawDateMillis = when (rawDate) {
+            is Number -> normalizeEpochMillis(rawDate.toLong())
+            is String -> {
+                val raw = rawDate.trim()
+                val numeric = raw.toLongOrNull()
+                if (numeric != null) {
+                    normalizeEpochMillis(numeric)
+                } else {
+                    HotelTimeEngine.parseDate(raw)
+                }
+            }
+            else -> null
+        } ?: throw IllegalArgumentException(
+            "salary_withdrawals.withdraw_date has an unsupported date format"
+        )
+        mapped["withdraw_date"] = withdrawDateMillis
+
+        // `employee_name` is a local display snapshot and is not present in
+        // every deployed Worker schema. Never let its absence turn an otherwise
+        // valid salary row into a NOT NULL insert failure.
+        val remoteName = (mapped["employee_name"] as? String)?.trim().orEmpty()
+        if (remoteName.isEmpty()) {
+            val employeeUuid = asString(mapped["employee_uuid"])
+            val employee = employeeUuid?.let { employeesDao.getByLocalUuid(it) }
+                ?: asLong(mapped["employee_id"])?.let { employeesDao.getByIdIncludingDeleted(it) }
+            mapped["employee_name"] = employee?.name.orEmpty()
+        }
+    }
+
+    private fun normalizeEpochMillis(value: Long): Long =
+        if (value in -99_999_999_999L..99_999_999_999L) value * 1_000L else value
 
     // ─── واجهات عامة ────────────────────────────────────────────
 
@@ -271,6 +346,8 @@ class SyncIngestorRegistry @Inject constructor(
         // ─── تسلسل + LWW ───
         return try {
             val clazz = entityClass(entity) ?: return ApplyOutcome.Skipped
+            normalizeBooleanWireFields(mapped, clazz)
+            if (entity == "salary_withdrawals") normalizeSalaryWithdrawalFields(mapped)
             val entityGson = gsonFor(clazz)
             @Suppress("UNCHECKED_CAST")
             val remote = entityGson.fromJson(entityGson.toJson(mapped), clazz) as? BaseSyncEntity
@@ -284,6 +361,18 @@ class SyncIngestorRegistry @Inject constructor(
             when {
                 existing == null -> {
                     store(entity, remote)
+                    ApplyOutcome.Applied
+                }
+                remote.deletedAt != null -> {
+                    // A tombstone is a terminal server decision. Apply only
+                    // its sync fields so a stale remote snapshot cannot also
+                    // overwrite newer local business data.
+                    applyRemoteTombstone(
+                        entity = entity,
+                        localId = existing.id,
+                        deletedAt = requireNotNull(remote.deletedAt),
+                        updatedAt = remote.updatedAt
+                    )
                     ApplyOutcome.Applied
                 }
                 remoteLastModified >= existing.lastModified -> {
@@ -318,6 +407,71 @@ class SyncIngestorRegistry @Inject constructor(
         mapped.putIfAbsent("vector_clock", "{}")
         mapped.putIfAbsent("device_id", "")
         mapped.putIfAbsent("sync_timestamp", 0L)
+    }
+
+    /** Apply only deletion metadata, preserving newer local business fields. */
+    private fun applyRemoteTombstone(
+        entity: String,
+        localId: Long,
+        deletedAt: Long,
+        updatedAt: Long
+    ) {
+        val table = localTableName(entity)
+            ?: throw IllegalArgumentException("No local table for tombstoned entity: $entity")
+        db.openHelper.writableDatabase.execSQL(
+            "UPDATE $table SET deleted_at = ?, updated_at = ?, last_modified = ? WHERE id = ?",
+            arrayOf<Any?>(deletedAt, updatedAt, updatedAt, localId)
+        )
+    }
+
+    /**
+     * Immediately mirror the server's delete-wins push disposition locally.
+     * The following pull remains authoritative and can refresh the exact
+     * server timestamp; this prevents a stale edited row from staying visible
+     * when the user selected push-only.
+     */
+    suspend fun tombstoneLocalRecord(entity: String, localUuid: String): Boolean {
+        val canonicalEntity = if (entity == "blacklist_entries") "blacklist" else entity
+        val existing = fetchExisting(canonicalEntity, localUuid) ?: return false
+        if (existing.deletedAt != null) return true
+        val table = localTableName(canonicalEntity) ?: return false
+        val now = System.currentTimeMillis() / 1_000L
+        db.withTransaction {
+            db.openHelper.writableDatabase.execSQL(
+                "UPDATE $table SET deleted_at = ?, updated_at = ?, last_modified = ? WHERE id = ?",
+                arrayOf<Any?>(now, now, now, existing.id)
+            )
+        }
+        return true
+    }
+
+    /** Local table mapping is explicit so dynamic SQL never uses wire input. */
+    private fun localTableName(entity: String): String? = when (entity) {
+        "rooms" -> "rooms"
+        "bookings" -> "bookings"
+        "payments" -> "payments"
+        "expenses" -> "expenses"
+        "employees" -> "employees"
+        "debts" -> "debts"
+        "booking_notes" -> "booking_notes"
+        "booking_nights" -> "booking_nights"
+        "booking_price_adjustments" -> "booking_price_adjustments"
+        "guest_infos" -> "guest_infos"
+        "shift_notes" -> "shift_notes"
+        "salary_cycles" -> "salary_cycles"
+        "salary_payments" -> "salary_payments"
+        "salary_withdrawals" -> "salary_withdrawals"
+        "salary_carry_over_logs" -> "salary_carry_over_logs"
+        "app_users" -> "app_users"
+        "devices" -> "devices"
+        "cash_transactions" -> "cash_transactions"
+        "audit_logs" -> "audit_logs"
+        "payment_voids" -> "payment_voids"
+        "price_adjustments" -> "price_adjustments"
+        "inventory_items" -> "inventory_items"
+        "inventory_transactions" -> "inventory_transactions"
+        "blacklist", "blacklist_entries" -> "blacklist_entries"
+        else -> null
     }
 
     /** الجلب بـ local_uuid — ثم بالمفتاح الطبيعي لليالي (دمج 398 ليلة). */

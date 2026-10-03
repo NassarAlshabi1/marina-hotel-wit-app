@@ -32,17 +32,15 @@ import androidx.compose.material.icons.outlined.StackedLineChart
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +65,9 @@ import com.marina.marina.presentation.common.SnackColors
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
+import com.marina.marina.components.SidebarMenuButton
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.MarinaToolbarActionButton
 import java.text.DecimalFormat
 
 /**
@@ -111,18 +112,19 @@ fun ReportsScreen(
             containerColor = AppColors.BackgroundColor,
             snackbarHost = { AppSnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("التقارير", style = AppTypography.titleLarge) },
+                    navigationIcon = { SidebarMenuButton() },
                     actions = {
                         // ✅ نُقل من ترويسة لوحة التحكم (dashboard_screen.dart) إلى هنا —
                         // قسم التقارير هو المكان الطبيعي لنقطة دخول البحث الشامل.
-                        IconButton(onClick = onOpenSearch) {
+                        MarinaToolbarActionButton(onClick = onOpenSearch) {
                             Icon(Icons.Outlined.ManageSearch, contentDescription = "بحث شامل")
                         }
-                        IconButton(onClick = { viewModel.loadCharts() }) {
+                        MarinaToolbarActionButton(onClick = { viewModel.loadCharts() }) {
                             Icon(Icons.Outlined.Refresh, contentDescription = "تحديث")
                         }
-                        IconButton(onClick = { viewModel.runManualSync() }) {
+                        MarinaToolbarActionButton(onClick = { viewModel.runManualSync() }) {
                             Icon(Icons.Outlined.Sync, contentDescription = "مزامنة")
                         }
                     },
@@ -146,28 +148,28 @@ fun ReportsScreen(
                     // ─── التقارير المالية ───
                     item { SectionHeader("التقارير المالية") }
                     item {
-                        ReportShortcut(Icons.Outlined.ReceiptLong, "تقرير دفوعات النزلاء", Color(0xFF4CAF50)) { onOpenReport("payments_report") }
+                        ReportShortcut(Icons.Outlined.ReceiptLong, "تقرير دفوعات النزلاء", AppColors.SuccessColor) { onOpenReport("payments_report") }
                     }
                     item {
-                        ReportShortcut(Icons.Outlined.Assignment, "تقرير تفصيلي - الأيام والمدفوعات", Color(0xFF3F51B5)) { onOpenReport("guest_detail_report") }
+                        ReportShortcut(Icons.Outlined.Assignment, "تقرير تفصيلي - الأيام والمدفوعات", AppColors.PrimaryColor) { onOpenReport("guest_detail_report") }
                     }
                     item {
-                        ReportShortcut(Icons.Outlined.AccountBalanceWallet, "تقرير المصروفات", Color(0xFFFF9800)) { onOpenReport("expenses_report") }
+                        ReportShortcut(Icons.Outlined.AccountBalanceWallet, "تقرير المصروفات", AppColors.WarningColor) { onOpenReport("expenses_report") }
                     }
                     item {
-                        ReportShortcut(Icons.Outlined.StackedLineChart, "تقرير الدخل والخرج", Color(0xFF009688)) { onOpenReport("income_expense_report") }
+                        ReportShortcut(Icons.Outlined.StackedLineChart, "تقرير الدخل والخرج", AppColors.PrimaryColor) { onOpenReport("income_expense_report") }
                     }
                     item {
-                        ReportShortcut(Icons.Outlined.Payments, "تقرير سحبيات الرواتب", Color(0xFF2196F3)) { onOpenReport("salary_report") }
+                        ReportShortcut(Icons.Outlined.Payments, "تقرير سحبيات الرواتب", AppColors.InfoColor) { onOpenReport("salary_report") }
                     }
                     item {
-                        ReportShortcut(Icons.Outlined.Inventory2, "التقرير المخزني", Color(0xFF795548)) { onOpenReport("inventory_report") }
+                        ReportShortcut(Icons.Outlined.Inventory2, "التقرير المخزني", AppColors.WarningColor) { onOpenReport("inventory_report") }
                     }
 
                     // ─── تقارير المخاطر والمتابعة ───
                     item { SectionHeader("تقارير المخاطر والمتابعة") }
                     item {
-                        ReportShortcut(Icons.Outlined.PieChart, "تقرير الديون", Color(0xFF9C27B0)) { onOpenReport("debts_report") }
+                        ReportShortcut(Icons.Outlined.PieChart, "تقرير الديون", AppColors.InfoColor) { onOpenReport("debts_report") }
                     }
 
                     // ─── مؤشرات سريعة ───
@@ -181,11 +183,11 @@ fun ReportsScreen(
                                 ErrorRetryCard(message = state.loadError!!, onRetry = { viewModel.loadCharts() })
                             }
                             Text("الإشغال اليومي (آخر 7 أيام)", fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = AppColors.TextPrimary)
-                            SimpleBarChart(values = state.dailyOccupancy.map { it.toDouble() }, barColor = Color(0xFF009688))
+                            SimpleBarChart(values = state.dailyOccupancy.map { it.toDouble() }, barColor = AppColors.PrimaryColor)
                             Text("الإيرادات مقابل المصروفات (الشهر)", fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = AppColors.TextPrimary)
                             SimpleBarChart(values = listOf(state.monthIncome, state.monthExpense), barColor = null)
                             Text("أعلى الغرف إشغالاً (آخر 30 يوم فندقي)", fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = AppColors.TextPrimary)
-                            SimpleBarChart(values = state.topRooms.map { it.second.toDouble() }, barColor = Color(0xFF2196F3))
+                            SimpleBarChart(values = state.topRooms.map { it.second.toDouble() }, barColor = AppColors.InfoColor)
                         }
                     }
                 }
@@ -209,7 +211,7 @@ private fun SectionHeader(title: String) {
 /** اختصار تقرير — نظير `_ReportShortcut` (Card + ListTile + دائرة أيقونة). */
 @Composable
 private fun ReportShortcut(icon: ImageVector, label: String, color: Color, onTap: () -> Unit) {
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
@@ -244,7 +246,7 @@ private fun ReportShortcut(icon: ImageVector, label: String, color: Color, onTap
 @Composable
 private fun QuickFinancialSummary(state: ReportsHubUiState) {
     val net = state.income - state.expenses
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
@@ -253,22 +255,22 @@ private fun QuickFinancialSummary(state: ReportsHubUiState) {
         Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             // عنوان اليوم الفندقي
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Today, contentDescription = null, modifier = Modifier.size(12.dp), tint = Color(0xFF9E9E9E))
+                Icon(Icons.Outlined.Today, contentDescription = null, modifier = Modifier.size(12.dp), tint = AppColors.TextSecondary)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     "اليوم الفندقي: ${state.hotelDayKey}",
                     fontSize = 9.sp,
-                    color = Color(0xFF9E9E9E),
+                    color = AppColors.TextSecondary,
                     fontWeight = FontWeight.Bold
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                FinIndicator("الإيرادات", state.income, Color(0xFF4CAF50), Modifier.weight(1f))
-                Box(modifier = Modifier.width(1.dp).height(36.dp).background(Color(0xFFEEEEEE)))
-                FinIndicator("المصروفات", state.expenses, Color(0xFFF44336), Modifier.weight(1f))
-                Box(modifier = Modifier.width(1.dp).height(36.dp).background(Color(0xFFEEEEEE)))
-                FinIndicator("صافي", net, if (net >= 0) Color(0xFF009688) else Color(0xFFFF9800), Modifier.weight(1f))
+                FinIndicator("الإيرادات", state.income, AppColors.SuccessColor, Modifier.weight(1f))
+                Box(modifier = Modifier.width(1.dp).height(36.dp).background(AppColors.DividerColor))
+                FinIndicator("المصروفات", state.expenses, AppColors.DangerColor, Modifier.weight(1f))
+                Box(modifier = Modifier.width(1.dp).height(36.dp).background(AppColors.DividerColor))
+                FinIndicator("صافي", net, if (net >= 0) AppColors.PrimaryColor else AppColors.WarningColor, Modifier.weight(1f))
             }
         }
     }
@@ -279,14 +281,14 @@ private fun FinIndicator(label: String, value: Double, color: Color, modifier: M
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(hubMoneyFmt.format(value), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = color)
         Spacer(modifier = Modifier.height(2.dp))
-        Text(label, fontSize = 10.sp, color = Color(0xFF9E9E9E))
+        Text(label, fontSize = 10.sp, color = AppColors.TextSecondary)
     }
 }
 
 /** بطاقة خطأ مع إعادة المحاولة — نظير EmptyState + زر «إعادة المحاولة». */
 @Composable
 private fun ErrorRetryCard(message: String, onRetry: () -> Unit) {
-    Card(
+    OutlinedCard(
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         modifier = Modifier.fillMaxWidth()
@@ -295,7 +297,7 @@ private fun ErrorRetryCard(message: String, onRetry: () -> Unit) {
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = SnackColors.red, modifier = Modifier.size(28.dp))
+            Icon(Icons.Outlined.ErrorOutline, contentDescription = null, tint = AppColors.DangerColor, modifier = Modifier.size(28.dp))
             Spacer(modifier = Modifier.height(6.dp))
             Text("تعذر تحميل التقارير", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppColors.TextPrimary)
             Text(message, fontSize = 11.sp, color = AppColors.TextSecondary, textAlign = TextAlign.Center)
@@ -316,8 +318,8 @@ private fun ErrorRetryCard(message: String, onRetry: () -> Unit) {
  */
 @Composable
 private fun SimpleBarChart(values: List<Double>, barColor: Color?, modifier: Modifier = Modifier) {
-    val incomeColor = Color(0xFF4CAF50)
-    val expenseColor = Color(0xFFF44336)
+    val incomeColor = AppColors.SuccessColor
+    val expenseColor = AppColors.DangerColor
     Box(modifier = modifier.fillMaxWidth().height(150.dp)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             if (values.isEmpty()) return@Canvas

@@ -37,7 +37,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,6 +70,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import com.marina.marina.ui.theme.AppColors
 /**
  * تبويب النسخ المحلية — نقل LocalBackupsTab (local_backups_tab.dart)
  * 1:1: بطاقة معلومات التخزين، أزرار الإجراءات السريعة (نسخ الآن /
@@ -171,7 +172,7 @@ fun LocalBackupsTab(
                 Spacer(Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { (state.progress ?: 0.0).toFloat() },
-                    trackColor = BackupUi.grey100,
+                    trackColor = AppColors.LightGray,
                     color = BackupUi.backupColor,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -202,7 +203,7 @@ fun LocalBackupsTab(
                         viewModel.restoreFromLocalBackup(backup.filePath)
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF9800),
+                        containerColor = AppColors.WarningActionColor,
                         contentColor = Color.White
                     )
                 ) { Text("استعادة") }
@@ -231,7 +232,7 @@ fun LocalBackupsTab(
                         viewModel.deleteLocalBackup(backup.filePath)
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF44336),
+                        containerColor = AppColors.DangerActionColor,
                         contentColor = Color.White
                     )
                 ) { Text("حذف") }
@@ -243,7 +244,7 @@ fun LocalBackupsTab(
 /** بطاقة معلومات التخزين — نظير _buildStorageInfoCard. */
 @Composable
 private fun StorageInfoCard(state: BackupState, viewModel: BackupViewModel) {
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(BackupUi.radiusLG.dp)
     ) {
@@ -252,7 +253,7 @@ private fun StorageInfoCard(state: BackupState, viewModel: BackupViewModel) {
                 Icon(
                     Icons.Filled.SdStorage,
                     contentDescription = null,
-                    tint = if (state.hasStoragePermission) Color(0xFF4CAF50) else Color(0xFFF44336),
+                    tint = if (state.hasStoragePermission) AppColors.SuccessColor else AppColors.DangerColor,
                     modifier = Modifier.size(BackupUi.iconSizeMD.dp)
                 )
                 Spacer(Modifier.width(BackupUi.spacingSM.dp))
@@ -266,7 +267,7 @@ private fun StorageInfoCard(state: BackupState, viewModel: BackupViewModel) {
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(4.dp))
-                        Text("منح الأذونات", color = Color(0xFFF44336))
+                        Text("منح الأذونات", color = AppColors.DangerColor)
                     }
                 }
             }
@@ -297,7 +298,7 @@ private fun QuickActionsRow(
                 enabled = !busy,
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.elevatedButtonColors(
-                    containerColor = BackupUi.backupColor,
+                    containerColor = AppColors.SuccessActionColor,
                     contentColor = Color.White
                 )
             ) {
@@ -344,7 +345,7 @@ private fun QuickActionsRow(
 /** بطاقة آخر نسخة محلية — نظير _buildLastBackupCard. */
 @Composable
 private fun LastBackupCard(lastBackupTime: Long, viewModel: BackupViewModel) {
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(BackupUi.radiusLG.dp)
     ) {
@@ -352,7 +353,7 @@ private fun LastBackupCard(lastBackupTime: Long, viewModel: BackupViewModel) {
             Icon(
                 Icons.Filled.History,
                 contentDescription = null,
-                tint = Color(0xFF42A5F5),
+                tint = AppColors.PrimaryColor,
                 modifier = Modifier.size(BackupUi.iconSizeMD.dp)
             )
             Spacer(Modifier.width(BackupUi.spacingSM.dp))
@@ -362,7 +363,7 @@ private fun LastBackupCard(lastBackupTime: Long, viewModel: BackupViewModel) {
                 Text(
                     "${viewModel.relativeTime(lastBackupTime)} - ${formatDateTime(lastBackupTime)}",
                     fontSize = 12.sp,
-                    color = BackupUi.grey600
+                    color = AppColors.TextSecondary
                 )
             }
         }
@@ -372,7 +373,7 @@ private fun LastBackupCard(lastBackupTime: Long, viewModel: BackupViewModel) {
 /** حالة فارغة — نظير _buildEmptyState. */
 @Composable
 private fun EmptyBackupsCard() {
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(BackupUi.radiusLG.dp)
     ) {
@@ -385,7 +386,7 @@ private fun EmptyBackupsCard() {
             Icon(
                 Icons.Outlined.Backup,
                 contentDescription = null,
-                tint = BackupUi.grey400,
+                tint = AppColors.TextSecondary,
                 modifier = Modifier.size(48.dp)
             )
             Spacer(Modifier.height(BackupUi.spacingMD.dp))
@@ -393,13 +394,13 @@ private fun EmptyBackupsCard() {
                 "لا توجد نسخ احتياطية محلية",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = BackupUi.grey700
+                color = AppColors.TextPrimary
             )
             Spacer(Modifier.height(BackupUi.spacingSM.dp))
             Text(
                 "اضغط \"نسخ الآن\" لإنشاء أول نسخة احتياطية",
                 fontSize = 13.sp,
-                color = BackupUi.grey500,
+                color = AppColors.TextSecondary,
                 textAlign = TextAlign.Center
             )
         }
@@ -417,7 +418,7 @@ private fun BackupItem(
     var menuOpen by remember { mutableStateOf(false) }
     val formatLabel = if (backup.format == BackupFormat.sqlite) "SQLite" else "JSON"
 
-    Card(
+    OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = BackupUi.spacingSM.dp)
@@ -426,10 +427,10 @@ private fun BackupItem(
             // leading — أيقونة الملف على خلفية خضراء شفافة
             Box(
                 Modifier
-                    .background(Color(0x1A4CAF50), RoundedCornerShape(BackupUi.radiusMD.dp))
+                    .background(AppColors.SuccessColor.copy(alpha = 0.10f), RoundedCornerShape(BackupUi.radiusMD.dp))
                     .padding(BackupUi.spacingSM.dp)
             ) {
-                Icon(Icons.Filled.FilePresent, contentDescription = null, tint = Color(0xFF4CAF50))
+                Icon(Icons.Filled.FilePresent, contentDescription = null, tint = AppColors.SuccessColor)
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -444,13 +445,13 @@ private fun BackupItem(
                     Spacer(Modifier.width(8.dp))
                     Box(
                         Modifier
-                            .background(Color(0x1A2196F3), RoundedCornerShape(4.dp))
+                            .background(AppColors.InfoColor.copy(alpha = 0.10f), RoundedCornerShape(4.dp))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             formatLabel,
                             fontSize = 10.sp,
-                            color = Color(0xFF1976D2),
+                            color = AppColors.PrimaryColor,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -466,7 +467,7 @@ private fun BackupItem(
                         Text(
                             "v${meta.databaseVersion}",
                             fontSize = 11.sp,
-                            color = BackupUi.grey500
+                            color = AppColors.TextSecondary
                         )
                     }
                 }
@@ -491,13 +492,13 @@ private fun BackupItem(
                         onClick = { menuOpen = false; onShare() }
                     )
                     androidx.compose.material3.DropdownMenuItem(
-                        text = { Text("حذف", color = Color(0xFFF44336)) },
+                        text = { Text("حذف", color = AppColors.DangerColor) },
                         leadingIcon = {
                             Icon(
                                 Icons.Filled.Delete,
                                 null,
                                 modifier = Modifier.size(20.dp),
-                                tint = Color(0xFFF44336)
+                                tint = AppColors.DangerColor
                             )
                         },
                         onClick = { menuOpen = false; onDelete() }

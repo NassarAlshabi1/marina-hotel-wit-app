@@ -28,6 +28,10 @@ interface EmployeesDao {
     @Query("SELECT * FROM employees WHERE id = :id AND deleted_at IS NULL")
     suspend fun getById(id: Long): EmployeeEntity?
 
+    /** Include archived employees when resolving immutable financial history. */
+    @Query("SELECT * FROM employees WHERE id = :id")
+    suspend fun getByIdIncludingDeleted(id: Long): EmployeeEntity?
+
     @Query("SELECT * FROM employees WHERE name LIKE :search AND deleted_at IS NULL ORDER BY name")
     fun search(search: String): Flow<List<EmployeeEntity>>
 

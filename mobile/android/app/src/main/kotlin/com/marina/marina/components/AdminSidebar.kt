@@ -1,6 +1,7 @@
 package com.marina.marina.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.marina.marina.domain.model.AuthUser
 import com.marina.marina.navigation.Screen
+import com.marina.marina.ui.theme.MarinaPalette
 
 /** One navigation entry in the side navigation. */
 data class SidebarDestination(
@@ -156,14 +158,14 @@ private fun SidebarHeader(currentUser: AuthUser?) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(
-                color = SidebarColors.CardOverlay,
-                shape = RoundedCornerShape(12.dp),
+                color = MarinaPalette.Brass,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Hotel,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MarinaPalette.OceanNight,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -228,25 +230,45 @@ private fun SidebarEntry(
     isLogout: Boolean = false
 ) {
     val selected = !isLogout && currentRoute == route
-    val contentColor = if (selected) Color.White else SidebarColors.Inactive
-    // Compact metrics (user request): 20dp icon, 14sp label, 44dp row.
+    val contentColor = when {
+        selected -> Color.White
+        isLogout -> SidebarColors.Logout
+        else -> SidebarColors.Inactive
+    }
+    // Consistent touch target with a restrained brass selection marker.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 10.dp)
-            .height(44.dp)
+            .height(48.dp)
             .background(
                 if (selected) SidebarColors.SelectedBackground else Color.Transparent,
-                RoundedCornerShape(10.dp)
+                RoundedCornerShape(14.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = if (selected) SidebarColors.SelectedBorder else Color.Transparent,
+                shape = RoundedCornerShape(14.dp)
             )
             .clickable { onRouteSelected(route) }
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = 10.dp)
     ) {
+        if (selected) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(24.dp)
+                    .background(MarinaPalette.Brass, RoundedCornerShape(2.dp))
+            )
+            Spacer(modifier = Modifier.width(9.dp))
+        } else {
+            Spacer(modifier = Modifier.width(12.dp))
+        }
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = contentColor,
+            tint = if (selected) MarinaPalette.Brass else contentColor,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -261,12 +283,14 @@ private fun SidebarEntry(
     }
 }
 
-/** Sidebar palette ported from the Flutter AdminSidebar constants. */
+/** Warm brass-accented sidebar colors in the Marina coastal palette. */
 private object SidebarColors {
-    val Background = Color(0xFF0F172A)
-    val HeaderBackground = Color(0xFF16213C)
-    val CardOverlay = Color(0x14FFFFFF)   // white 8%
-    val Divider = Color(0x1FFFFFFF)       // white 12%
-    val Inactive = Color(0xB8FFFFFF)      // white 72%
-    val SelectedBackground = Color(0x1FFFFFFF) // white 12%
+    val Background = MarinaPalette.OceanNight
+    val HeaderBackground = MarinaPalette.OceanDeep
+    val CardOverlay = Color(0x14FFFFFF)
+    val Divider = Color(0x24FFFFFF)
+    val Inactive = Color(0xCCFFFFFF)
+    val SelectedBackground = MarinaPalette.Ocean.copy(alpha = 0.26f)
+    val SelectedBorder = MarinaPalette.Brass.copy(alpha = 0.42f)
+    val Logout = Color(0xFFE4AAA5)
 }

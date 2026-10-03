@@ -5,7 +5,10 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.marina.marina.data.local.entity.BookingEntity
 import com.marina.marina.data.local.entity.BookingNightEntity
+import com.marina.marina.data.local.entity.EmployeeEntity
+import com.marina.marina.data.local.entity.RoomEntity
 import com.marina.marina.data.repository.SyncIngestorRegistry
+import com.marina.marina.domain.util.HotelTimeEngine
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -98,6 +101,63 @@ class SyncIngestorRegistryTest {
         val room = db.roomsDao().getByLocalUuid("room-uuid-1")!!
         // serverId عمود Int — القيمة 55 هي جوهر العقد (ظلّ id الخادمي).
         assertEquals(55L, room.serverId?.toLong())
+    }
+
+    @Test
+    fun integerBooleanColumnsFromD1AreNormalizedBeforeDeserialization() = runBlocking {
+        val report = registry.ingestPage(
+            listOf(
+                mapOf(
+                    "_entity" to "rooms",
+                    "id" to 56,
+                    "local_uuid" to "room-integer-boolean",
+                    "room_number" to "102",
+                    "type" to "single",
+                    "price" to 100.0,
+                    "status" to "available",
+                    "cleaning_status" to "clean",
+                    "requires_maintenance" to 1,
+                    "last_modified" to 101L
+                )
+            )
+        )
+
+        assertEquals(1, report.applied)
+        assertTrue(db.roomsDao().getByLocalUuid("room-integer-boolean")!!.requiresMaintenance)
+    }
+
+    @Test
+    fun salaryWithdrawalPullNormalizesIsoDateAndMissingEmployeeSnapshot() = runBlocking {
+        val employeeUuid = "employee-withdrawal-date"
+        val employeeId = db.employeesDao().insert(
+            EmployeeEntity(
+                name = "موظف اختبار",
+                basicSalary = 300_000.0,
+                status = "active",
+                localUuid = employeeUuid
+            )
+        )
+
+        val report = registry.ingestPage(
+            listOf(
+                mapOf(
+                    "_entity" to "salary_withdrawals",
+                    "id" to 561,
+                    "local_uuid" to "withdrawal-iso-date",
+                    "employee_id" to employeeId,
+                    "employee_uuid" to employeeUuid,
+                    "amount" to 2500.0,
+                    "withdraw_date" to "2026-05-04",
+                    "withdrawal_type" to "سلفة",
+                    "last_modified" to 200L
+                )
+            )
+        )
+
+        assertEquals(1, report.applied)
+        val withdrawal = db.salaryWithdrawalsDao().getByLocalUuid("withdrawal-iso-date")!!
+        assertEquals(HotelTimeEngine.parseDate("2026-05-04"), withdrawal.withdrawDate)
+        assertEquals("موظف اختبار", withdrawal.employeeName)
     }
 
     // ─── 2) ترجمة FK عبر uuid-cache — لا id خام من جهاز بعيد ───
@@ -235,5 +295,77 @@ class SyncIngestorRegistryTest {
         assertEquals(1, report.applied)
         val payment = db.paymentsDao().getByLocalUuid("payment-remote-1")!!
         assertNull(payment.bookingLocalId)
+    }
+
+    // ─── 6) الحذف البعيد يفوز على تعديل محلي أحدث ويحفظ بيانات الصف ───
+
+    @Test
+    fun remoteTombstoneWinsWithoutReplacingNewerLocalBusinessFields() = runBlocking {
+        val localId = db.roomsDao().insert(
+            RoomEntity(
+                roomNumber = "T-101",
+                type = "single",
+                price = 250.0,
+                status = "occupied",
+                requiresMaintenance = true,
+                localUuid = "room-delete-wins",
+                updatedAt = 2_000L,
+                lastModified = 2_000L
+            )
+        )
+
+        val report = registry.ingestPage(
+            listOf(
+                mapOf(
+                    "_entity" to "rooms",
+                    "id" to 451,
+                    "local_uuid" to "room-delete-wins",
+                    "room_number" to "T-101",
+                    "type" to "single",
+                    "price" to 100.0,
+                    "status" to "available",
+                    "cleaning_status" to "clean",
+                    "requires_maintenance" to 0,
+                    "created_at" to 500L,
+                    "updated_at" to 1_000L,
+                    "deleted_at" to 900L,
+                    "last_modified" to 1_000L,
+                    "version" to 2
+                )
+            )
+        )
+
+        assertEquals(1, report.applied)
+        val saved = db.roomsDao().getByLocalUuid("room-delete-wins")!!
+        assertEquals(localId, saved.id)
+        assertEquals(250.0, saved.price, 0.001)
+        assertEquals("occupied", saved.status)
+        assertTrue(saved.requiresMaintenance)
+        assertEquals(900L, saved.deletedAt)
+        assertEquals(1_000L, saved.updatedAt)
+        assertEquals(1_000L, saved.lastModified)
+    }
+
+    // ─── 7) رد Worker opStatus=deleted يُختم محلياً حتى في push-only ───
+
+    @Test
+    fun serverDeleteDispositionTombstonesLocalRowIdempotently() = runBlocking {
+        db.roomsDao().insert(
+            RoomEntity(
+                roomNumber = "T-102",
+                type = "double",
+                price = 180.0,
+                status = "available",
+                localUuid = "room-local-server-delete"
+            )
+        )
+
+        assertTrue(registry.tombstoneLocalRecord("rooms", "room-local-server-delete"))
+        val firstStamp = db.roomsDao().getByLocalUuid("room-local-server-delete")!!.deletedAt
+        assertTrue(firstStamp != null)
+        assertTrue(registry.tombstoneLocalRecord("rooms", "room-local-server-delete"))
+        val saved = db.roomsDao().getByLocalUuid("room-local-server-delete")!!
+        assertEquals(firstStamp, saved.deletedAt)
+        assertEquals(180.0, saved.price, 0.001)
     }
 }

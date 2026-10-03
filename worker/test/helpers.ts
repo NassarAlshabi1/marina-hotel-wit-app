@@ -158,6 +158,7 @@ export interface PushResultItem {
   entityId?: string;
   error?: string;
   skipped?: boolean;
+  status?: 'validation_error' | 'conflict' | 'internal_error' | 'deleted';
 }
 
 export interface PushResponseBody {
@@ -169,6 +170,8 @@ export interface PushResponseBody {
 export interface PullResponseBody {
   changes: Array<Record<string, unknown>>;
   cursor: string;
+  /** Stable D1 data generation; null only on a pre-migration deployment. */
+  epoch: string | null;
   has_more: boolean;
   /** ✅ (2026-09-10) مؤشر التقدم — null إلا مع include_remaining=1 */
   remaining: number | null;

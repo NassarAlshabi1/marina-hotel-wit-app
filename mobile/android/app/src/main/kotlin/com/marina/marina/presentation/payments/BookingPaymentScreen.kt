@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.AttachMoney
@@ -56,7 +55,7 @@ import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -76,7 +75,6 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -108,47 +106,84 @@ import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 import com.marina.marina.util.PdfExporter
+import com.marina.marina.components.MarinaBackButton
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.MarinaToolbarActionButton
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// ─── Dart palette (booking_payment_screen.dart + payment_summary_card.dart) ───
-private val GreenPrimary = Color(0xFF4CAF50)
-private val Green50 = Color(0xFFE8F5E9)
-private val Green100 = Color(0xFFC8E6C9)
-private val Green200 = Color(0xFFA5D6A7)
-private val Green300 = Color(0xFF81C784)
-private val Green800 = Color(0xFF2E7D32)
-private val BluePrimary = Color(0xFF2196F3)
-private val Blue50 = Color(0xFFE3F2FD)
-private val Blue100 = Color(0xFFBBDEFB)
-private val Blue200 = Color(0xFF90CAF9)
-private val OrangePrimary = Color(0xFFFF9800)
-private val Orange50 = Color(0xFFFFF3E0)
-private val Orange100 = Color(0xFFFFE0B2)
-private val Orange300 = Color(0xFFFFB74D)
-private val Orange400 = Color(0xFFFFA726)
-private val Orange700 = Color(0xFFF57C00)
-private val Orange800 = Color(0xFFEF6C00)
-private val RedPrimary = Color(0xFFF44336)
-private val Red50 = Color(0xFFFFEBEE)
-private val Red100 = Color(0xFFFFCDD2)
-private val Red200 = Color(0xFFEF9A9A)
-private val Red300 = Color(0xFFE57373)
-private val Red700 = Color(0xFFD32F2F)
-private val Red900 = Color(0xFFB71C1C)
-private val Amber700 = Color(0xFFFFA000)
-private val PurplePrimary = Color(0xFF9C27B0)
-private val TealPrimary = Color(0xFF009688)
-private val Teal700 = Color(0xFF00796B)
-private val IndigoPrimary = Color(0xFF3F51B5)
-private val BlueGrey = Color(0xFF607D8B)
-private val Grey300 = Color(0xFFE0E0E0)
-private val Grey50 = Color(0xFFFAFAFA)
-private val Grey100 = Color(0xFFF5F5F5)
-private val Grey600 = Color(0xFF757575)
-private val Grey700 = Color(0xFF616161)
+// ─── Theme-aware semantic shades used by payment and booking surfaces. ───
+private val GreenPrimary: Color
+    @Composable get() = AppColors.SuccessColor
+private val Green50: Color
+    @Composable get() = AppColors.SuccessContainerColor
+private val Green100: Color
+    @Composable get() = AppColors.SuccessContainerColor
+private val Green200: Color
+    @Composable get() = AppColors.SuccessContainerColor
+private val Green300: Color
+    @Composable get() = AppColors.SuccessColor
+private val Green800: Color
+    @Composable get() = AppColors.SuccessColor
+private val BluePrimary: Color
+    @Composable get() = AppColors.InfoColor
+private val Blue50: Color
+    @Composable get() = AppColors.InfoContainerColor
+private val Blue100: Color
+    @Composable get() = AppColors.InfoContainerColor
+private val Blue200: Color
+    @Composable get() = AppColors.DividerColor
+private val OrangePrimary: Color
+    @Composable get() = AppColors.WarningColor
+private val Orange50: Color
+    @Composable get() = AppColors.WarningContainerColor
+private val Orange100: Color
+    @Composable get() = AppColors.WarningContainerColor
+private val Orange300: Color
+    @Composable get() = AppColors.WarningContainerColor
+private val Orange400: Color
+    @Composable get() = AppColors.WarningColor
+private val Orange700: Color
+    @Composable get() = AppColors.WarningColor
+private val Orange800: Color
+    @Composable get() = AppColors.WarningColor
+private val RedPrimary: Color
+    @Composable get() = AppColors.DangerColor
+private val Red50: Color
+    @Composable get() = AppColors.DangerContainerColor
+private val Red100: Color
+    @Composable get() = AppColors.DangerContainerColor
+private val Red200: Color
+    @Composable get() = AppColors.DangerContainerColor
+private val Red300: Color
+    @Composable get() = AppColors.DangerContainerColor
+private val Red700: Color
+    @Composable get() = AppColors.DangerColor
+private val Red900: Color
+    @Composable get() = AppColors.DangerColor
+private val Amber700: Color
+    @Composable get() = AppColors.WarningColor
+private val PurplePrimary: Color
+    @Composable get() = AppColors.InfoColor
+private val TealPrimary: Color
+    @Composable get() = AppColors.PrimaryColor
+private val Teal700 = AppColors.PrimaryActionColor
+private val IndigoPrimary: Color
+    @Composable get() = AppColors.PrimaryColor
+private val BlueGrey: Color
+    @Composable get() = AppColors.TextSecondary
+private val Grey300: Color
+    @Composable get() = AppColors.DividerColor
+private val Grey50: Color
+    @Composable get() = AppColors.LightGray
+private val Grey100: Color
+    @Composable get() = AppColors.BackgroundColor
+private val Grey600: Color
+    @Composable get() = AppColors.TextSecondary
+private val Grey700: Color
+    @Composable get() = AppColors.TextPrimary
 
 /** طلب فتح حوار الدفع (Dart `_showPaymentDialog` arguments). */
 private data class PayDialogRequest(
@@ -262,16 +297,14 @@ fun BookingPaymentScreen(
             containerColor = AppColors.BackgroundColor,
             snackbarHost = { PaymentSnackbarHost(snackbarHostState, snackbarTone) },
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("معالجة المدفوعات", style = AppTypography.titleLarge) },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع")
-                        }
+                        MarinaBackButton(onClick = onBack)
                     },
                     // Dart actions: IconButton(Icons.history, tooltip: 'سجل المدفوعات').
                     actions = {
-                        IconButton(onClick = onOpenPaymentHistory) {
+                        MarinaToolbarActionButton(onClick = onOpenPaymentHistory) {
                             Icon(Icons.Filled.History, contentDescription = "سجل المدفوعات")
                         }
                     },
@@ -475,7 +508,7 @@ fun BookingPaymentScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة",
-                        color = Color(0xFF9E9E9E),
+                        color = AppColors.TextSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -483,7 +516,7 @@ fun BookingPaymentScreen(
             confirmButton = {
                 Button(
                     onClick = { viewModel.confirmExtensionAndPay("نقدي") },
-                    colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryActionColor, contentColor = Color.White)
                 ) { Text("تأكيد التمديد والدفع", color = Color.White) }
             },
             dismissButton = {
@@ -571,7 +604,10 @@ fun BookingPaymentScreen(
                             viewModel.createDebtFromRemainingBalance()
                             showCreateDebt = false
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.WarningActionColor,
+                            contentColor = Color.White
+                        )
                     ) { Text("إنشاء الدين", color = Color.White) }
                 },
                 dismissButton = {
@@ -753,7 +789,7 @@ private fun PaymentSummaryCard(state: BookingPaymentUiState, onAddBalancePayment
         // صف معلومات النزيل.
         Row(verticalAlignment = Alignment.Top) {
             Box(
-                modifier = Modifier.size(36.dp).background(BluePrimary, CircleShape),
+                modifier = Modifier.size(36.dp).background(AppColors.PrimaryActionColor, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(booking.roomNumber, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -913,7 +949,7 @@ private fun PaymentSummaryCard(state: BookingPaymentUiState, onAddBalancePayment
         Button(
             onClick = onAddBalancePayment,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary, contentColor = Color.White),
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryActionColor, contentColor = Color.White),
             contentPadding = PaddingValues(vertical = 3.dp),
             shape = RoundedCornerShape(10.dp)
         ) {
@@ -1056,23 +1092,23 @@ private fun NewPaymentTab(
 
 @Composable
 private fun PayMethodCard(method: PayMethodUi, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(
+    OutlinedCard(
         modifier = modifier.clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, method.color.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .border(1.dp, method.colorForTheme().copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                 .padding(horizontal = 6.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(method.icon, null, tint = method.color, modifier = Modifier.size(14.dp))
+            Icon(method.icon, null, tint = method.colorForTheme(), modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(4.dp))
             Text(
                 method.label,
-                fontWeight = FontWeight.Bold, color = method.color, fontSize = 11.sp,
+                fontWeight = FontWeight.Bold, color = method.colorForTheme(), fontSize = 11.sp,
                 textAlign = TextAlign.Center
             )
         }
@@ -1092,9 +1128,9 @@ private fun QuickPaymentButton(
         enabled = amount > 0,
         modifier = modifier,
         colors = ButtonDefaults.buttonColors(
-            containerColor = BluePrimary,
+            containerColor = AppColors.PrimaryActionColor,
             contentColor = Color.White,
-            disabledContainerColor = BluePrimary.copy(alpha = 0.3f)
+            disabledContainerColor = AppColors.PrimaryActionColor.copy(alpha = 0.3f)
         ),
         contentPadding = PaddingValues(vertical = 4.dp),
         shape = RoundedCornerShape(8.dp)
@@ -1169,7 +1205,7 @@ private fun ActionsTab(
                         "متبقي: ${CurrencyFormatter.formatAmount(summary.remainingAmount)}"
                     },
                     fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = if (hasUnsettledDebt) Red900 else Color(0xFFE65100)
+                    color = if (hasUnsettledDebt) Red900 else AppColors.WarningColor
                 )
             }
             Spacer(Modifier.height(6.dp))
@@ -1178,7 +1214,7 @@ private fun ActionsTab(
                     Button(
                         onClick = onCreateDebt,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary, contentColor = Color.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.WarningActionColor, contentColor = Color.White),
                         contentPadding = PaddingValues(vertical = 6.dp),
                         shape = RoundedCornerShape(6.dp)
                     ) {
@@ -1191,7 +1227,7 @@ private fun ActionsTab(
                     Button(
                         onClick = onDiscount,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047), contentColor = Color.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.SuccessActionColor, contentColor = Color.White),
                         contentPadding = PaddingValues(vertical = 6.dp),
                         shape = RoundedCornerShape(6.dp)
                     ) {
@@ -1203,7 +1239,7 @@ private fun ActionsTab(
                     Button(
                         onClick = onDiscount,
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD), contentColor = Color.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryActionColor, contentColor = Color.White),
                         contentPadding = PaddingValues(vertical = 6.dp),
                         shape = RoundedCornerShape(6.dp)
                     ) {
@@ -1256,7 +1292,7 @@ private fun ActionsTab(
         Spacer(Modifier.height(12.dp))
 
         // بطاقة معلومات الحجز (Dart l.166-199).
-        Card {
+        OutlinedCard {
             Column(modifier = Modifier.padding(10.dp)) {
                 Text("معلومات الحجز", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
@@ -1284,7 +1320,7 @@ private fun ActionCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Card(
+    OutlinedCard(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -1344,7 +1380,7 @@ private fun PaymentDialog(
         onDismissRequest = { if (!isSaving) onDismiss() },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(request.method.icon, null, tint = request.method.color)
+                Icon(request.method.icon, null, tint = request.method.colorForTheme())
                 Spacer(Modifier.width(8.dp))
                 Text("دفع ${request.method.label}")
             }
@@ -1516,7 +1552,7 @@ private fun CheckoutConfirmDialog(
             Button(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (hasRemaining) RedPrimary else GreenPrimary,
+                    containerColor = if (hasRemaining) AppColors.DangerActionColor else AppColors.SuccessActionColor,
                     contentColor = Color.White
                 )
             ) { Text(if (hasRemaining) "متابعة رغم ذلك" else "تأكيد المغادرة") }
@@ -1612,7 +1648,7 @@ private fun EarlyCheckoutDialog(
                             early.actualNights
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary, contentColor = Color.White)
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.SuccessActionColor, contentColor = Color.White)
                 ) {
                     Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
@@ -1621,7 +1657,7 @@ private fun EarlyCheckoutDialog(
             } else {
                 Button(
                     onClick = onCheckoutOnly,
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary, contentColor = Color.White)
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.WarningActionColor, contentColor = Color.White)
                 ) {
                     Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
@@ -1636,13 +1672,13 @@ private fun EarlyCheckoutDialog(
 }
 
 @Composable
-private fun RefundInfoRow(label: String, value: String, valueColor: Color = AppColors.TextPrimary) {
+private fun RefundInfoRow(label: String, value: String, valueColor: Color? = null) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, color = Grey600, fontSize = 13.sp)
-        Text(value, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = valueColor)
+        Text(value, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = valueColor ?: AppColors.TextPrimary)
     }
 }
 
@@ -1739,7 +1775,7 @@ private fun CancelTodayDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = RedPrimary, contentColor = Color.White)
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.DangerActionColor, contentColor = Color.White)
             ) {
                 Icon(Icons.Filled.CheckCircle, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
@@ -1813,7 +1849,7 @@ private fun DiscountDialog(
                 onClick = {
                     CurrencyFormatter.parseAmount(amountText)?.let { onApply(it) }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary, contentColor = Color.White)
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.SuccessActionColor, contentColor = Color.White)
             ) { Text("تطبيق الخصم") }
         },
         dismissButton = {
@@ -1866,7 +1902,7 @@ private fun StatementDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Orange50, RoundedCornerShape(8.dp))
-                        .border(1.dp, Color(0xFFFFCC80), RoundedCornerShape(8.dp))
+                        .border(1.dp, AppColors.WarningColor, RoundedCornerShape(8.dp))
                         .padding(12.dp)
                 ) {
                     StatementPreviewRow("العميل", booking.guestName)
@@ -1916,7 +1952,7 @@ private fun StatementDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 260.dp)
-                            .background(Color(0xFFE8F5E9), RoundedCornerShape(8.dp))
+                            .background(AppColors.SuccessContainerColor, RoundedCornerShape(8.dp))
                             .border(1.dp, Green300, RoundedCornerShape(8.dp))
                             .padding(10.dp)
                             .verticalScroll(rememberScrollState())
@@ -1973,7 +2009,7 @@ private fun StatementDialog(
                         onDismiss()
                         onSharePdf()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary, contentColor = Color.White)
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.WarningActionColor, contentColor = Color.White)
                 ) {
                     Icon(Icons.Filled.Share, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
@@ -2049,7 +2085,7 @@ private fun DialogPaymentsTable(state: BookingPaymentUiState) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(if (index % 2 == 0) Color.White else Grey50)
+                        .background(if (index % 2 == 0) AppColors.SurfaceColor else Grey50)
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -2073,7 +2109,7 @@ private fun DialogPaymentsTable(state: BookingPaymentUiState) {
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(method.icon, null, modifier = Modifier.size(12.dp), tint = method.color)
+                        Icon(method.icon, null, modifier = Modifier.size(12.dp), tint = method.colorForTheme())
                         Spacer(Modifier.width(3.dp))
                         Text(method.label, fontSize = 10.sp)
                     }
@@ -2090,7 +2126,7 @@ private fun DialogPaymentsTable(state: BookingPaymentUiState) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Orange50)
-                    .border(1.dp, Color(0xFFFFCC80))
+                    .border(1.dp, AppColors.WarningColor)
                     .padding(horizontal = 8.dp, vertical = 10.dp)
             ) {
                 Spacer(Modifier.weight(1f))
@@ -2119,7 +2155,7 @@ private val TableHeaderStyle = androidx.compose.ui.text.TextStyle(
 )
 
 @Composable
-private fun StatementPreviewRow(label: String, value: String, valueColor: Color = AppColors.TextPrimary) {
+private fun StatementPreviewRow(label: String, value: String, valueColor: Color? = null) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween
@@ -2127,7 +2163,7 @@ private fun StatementPreviewRow(label: String, value: String, valueColor: Color 
         Text(label, color = Grey600, fontSize = 13.sp)
         Text(
             value,
-            fontWeight = FontWeight.Bold, color = valueColor, fontSize = 13.sp,
+            fontWeight = FontWeight.Bold, color = valueColor ?: AppColors.TextPrimary, fontSize = 13.sp,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f, fill = false)
         )

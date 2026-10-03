@@ -36,6 +36,16 @@ CREATE TABLE IF NOT EXISTS sync_clock (
 );
 INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, 0);
 
+-- ─── Sync data generation (migration 0010) ───────────────────
+-- Rotating epoch after a server-side restore resets client pull cursors.
+CREATE TABLE IF NOT EXISTS sync_meta (
+  k TEXT PRIMARY KEY,
+  v TEXT NOT NULL,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+INSERT OR IGNORE INTO sync_meta (k, v)
+VALUES ('epoch', lower(hex(randomblob(16))));
+
 -- ─── Rate limiting (D1-based; no KV daily-write cap) ──────────
 CREATE TABLE IF NOT EXISTS rate_limits (
   client_id TEXT NOT NULL,

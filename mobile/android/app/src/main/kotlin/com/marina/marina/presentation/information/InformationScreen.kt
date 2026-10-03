@@ -29,7 +29,7 @@ import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -48,7 +48,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
@@ -69,7 +68,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.GuestInfo
 import com.marina.marina.presentation.common.AppSnackbar
 import com.marina.marina.presentation.common.AppSnackbarHost
@@ -81,6 +79,9 @@ import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 import com.marina.marina.util.PdfExporter
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.SidebarMenuButton
+import com.marina.marina.components.MarinaToolbarActionButton
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -207,15 +208,16 @@ fun InformationScreen(
             containerColor = AppColors.BackgroundColor,
             snackbarHost = { AppSnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("سجل المعلومية", style = AppTypography.titleLarge) },
                     navigationIcon = { SidebarMenuButton() },
                     actions = {
                         // نظير SyncActionButton في AppScaffold (Dart).
                         AppBarSyncIconButton(syncViewModel, snackbarHostState)
-                        IconButton(
+                        MarinaToolbarActionButton(
                             onClick = { handleExport(state.entries) },
-                            enabled = !exportingPdf && state.entries.isNotEmpty()
+                            enabled = !exportingPdf && state.entries.isNotEmpty(),
+                            containerColor = AppColors.DangerActionColor
                         ) {
                             if (exportingPdf) {
                                 CircularProgressIndicator(
@@ -317,7 +319,7 @@ fun InformationScreen(
                         viewModel.delete(info)
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF5252), // Colors.redAccent
+                        containerColor = AppColors.DangerActionColor, // strong, high-contrast destructive action
                         contentColor = Color.White
                     )
                 ) {
@@ -410,12 +412,12 @@ private fun InformationTable(
         InfoColumn("الملاحظات", 170.dp)
     )
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
             Column {
                 Row(
                     modifier = Modifier
-                        .background(AppColors.PrimaryColor)
+                        .background(AppColors.PrimaryActionColor)
                         .padding(vertical = 14.dp)
                 ) {
                     columns.forEach { column ->
@@ -460,13 +462,13 @@ private fun InformationTable(
                                                 }
                                             )
                                             DropdownMenuItem(
-                                                text = { Text("حذف", color = Color(0xFFF44336)) },
+                                                text = { Text("حذف", color = AppColors.DangerColor) },
                                                 leadingIcon = {
                                                     Icon(
                                                         Icons.Outlined.DeleteOutline,
                                                         contentDescription = null,
                                                         modifier = Modifier.size(18.dp),
-                                                        tint = Color(0xFFF44336)
+                                                        tint = AppColors.DangerColor
                                                     )
                                                 },
                                                 onClick = {

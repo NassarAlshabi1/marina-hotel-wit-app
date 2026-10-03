@@ -32,7 +32,7 @@ import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -44,7 +44,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,7 +65,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.InventoryItem
 import com.marina.marina.presentation.common.AppSnackbar
 import com.marina.marina.presentation.common.AppSnackbarHost
@@ -78,6 +76,9 @@ import com.marina.marina.presentation.common.showAppSnackbar
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.SidebarMenuButton
+import com.marina.marina.components.MarinaToolbarActionButton
 import kotlinx.coroutines.launch
 
 /**
@@ -135,13 +136,13 @@ fun InventoryScreen(
             containerColor = AppColors.BackgroundColor,
             snackbarHost = { AppSnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("المخزون", style = AppTypography.titleLarge) },
                     navigationIcon = { SidebarMenuButton() },
                     actions = {
                         // نظير SyncActionButton في AppScaffold (Dart).
                         AppBarSyncIconButton(syncViewModel, snackbarHostState)
-                        IconButton(
+                        MarinaToolbarActionButton(
                             onClick = { openAddItemDialog() },
                             enabled = state.canCreate
                         ) {
@@ -268,7 +269,7 @@ private fun InventoryItemCard(
     val isLow = item.minimumQuantity > 0.0 && item.currentQuantity <= item.minimumQuantity
     val balanceColor = if (isLow) DartPalette.orange800 else DartPalette.green700
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // CircleAvatar(radius: 20) — أفاتار 40dp بخلفية فاتحة.
@@ -412,7 +413,7 @@ private fun InventoryErrorWidget(
                 onClick = onResync,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = DartPalette.blue,
+                    containerColor = AppColors.PrimaryActionColor,
                     contentColor = Color.White
                 ),
                 contentPadding = PaddingValues(16.dp)

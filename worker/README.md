@@ -11,19 +11,20 @@ worker/
     index.ts               ← Router + CORS + rate limit (D1) + Auth middleware
     auth.ts                ← JWT HMAC-SHA256 + PBKDF2 (25k، versioned) + أدوار
     sync.ts                ← pull / push / migrate / log / conflicts + SQL whitelist
-    database.ts            ← 22 كياناً + sync_clock أحادي + LWW/VC + PRAGMA whitelist
+    database.ts            ← كيانات المزامنة + sync_clock/epoch + LWW/VC + PRAGMA whitelist
     sync-lock.ts           ← SyncLockDO: أقفال 30s + WebSocket hub + cursors
-  schema.sql               ← مخطط D1 الكامل (30 جدولاً: 22 كياناً + 8 بنية تحتية)
+  schema.sql               ← مخطط D1 الكامل (يتضمن sync_meta لجيل المزامنة)
   migrations/
     0002_inventory_blacklist.sql ← ترقيع الفجوة: inventory×2 + blacklist
-  test/                    ← vitest + @cloudflare/vitest-pool-workers (82 اختباراً)
+    0010_sync_meta.sql       ← جيل البيانات لإبطال مؤشرات السحب بعد الاستعادة
+  test/                    ← vitest + @cloudflare/vitest-pool-workers (اختبارات Worker/D1)
   wrangler.toml            ← إعدادات النشر (D1 + DO، بلا KV)
   vitest.config.ts
   tsconfig.json / tsconfig.test.json
 ```
 
 > ملاحظة: **لا يوجد R2 ولا storage.ts ولا مجلد flutter/ داخل هذا المستودع** —
-> عميل المزامنة هو `mobile/lib/services/cloudflare_*` في نفس المستودع.
+> عميل المزامنة هو تطبيق Android/Kotlin داخل `mobile/android/` في نفس المستودع.
 
 ## الإعداد
 
@@ -34,13 +35,23 @@ worker/
 wrangler d1 create marina-hotel-db
 # ← ضع database_id الناتج في wrangler.toml
 
-# قاعدة جديدة: طبّق المخطط الكامل ثم الترقيع
+# قاعدة جديدة: schema.sql يتضمن الحالة الحالية كاملة (بما فيها 0010)
 npm run db:init
-npm run db:migrate
 
-# قاعدة قائمة أُنشئت قبل ترقيع inventory/blacklist: الترقيع فقط
-npm run db:migrate
+# قاعدة قائمة: نفّذ فقط الترحيلات غير المطبّقة، بالترتيب الرقمي، ومرة واحدة:
+npm run db:migrate                       # 0002 inventory/blacklist
+npm run db:migrate:app-users             # 0003 app_users
+npm run db:migrate:devices               # 0004 devices
+npm run db:migrate:parity                # 0005 parity
+npm run db:migrate:salary-withdrawals    # 0006 employee_uuid withdrawals
+npm run db:migrate:salary-employee-uuid  # 0007 employee_uuid salary tables
+npm run db:migrate:sync-meta             # 0010 epoch
 ```
+
+لا تُعِد تشغيل ترحيل سبق تطبيقه؛ خصوصاً 0005–0007 التي تحتوي ALTER TABLE.
+قاعدة حالية مطبّق عليها 0002–0007 تحتاج 0010 فقط. تدوير epoch إجراء صيانة
+بعد استعادة/إعادة استيراد خادمية، وليس في كل نشر؛ endpoint محمي بدور admin
+(راجع جدول نقاط النهاية أدناه).
 
 ### 2. سر JWT
 
@@ -72,7 +83,7 @@ curl -X POST https://<worker>.workers.dev/api/auth/register \
 
 ```bash
 npm install
-npm test          # 82 اختباراً عبر vitest-pool-workers + miniflare D1/DO محلي
+npm test          # اختبارات العقود والتكامل عبر vitest-pool-workers وD1/DO محلياً
 npm run typecheck # tsc للـ src وللـ tests
 ```
 
@@ -84,8 +95,9 @@ npm run typecheck # tsc للـ src وللـ tests
 | GET | `/api/ping` | — | قياس سرعة الشبكة (~1KB) |
 | POST | `/api/auth/register` | — (أول مستخدم فقط) ثم admin | bootstrap + إنشاء مستخدمين |
 | POST | `/api/auth/login` | — | دخول → JWT (24h) |
-| GET | `/api/sync/pull?cursor=0&limit=200&exclude_device=X` | ✅ | سحب دلتا + مرشح echo |
+| GET | `/api/sync/pull?cursor=0&limit=200&exclude_device=X` | ✅ | سحب دلتا + epoch + مرشح echo |
 | POST | `/api/sync/push` (gzip اختياري) | ✅ | دفع outbox ≤100 عملية |
+| POST | `/api/admin/sync/rotate-epoch` | ✅ admin | إبطال مؤشرات كل الأجهزة بعد استعادة/إعادة استيراد |
 | POST | `/api/sync/migrate` (gzip) | ✅ | ترحيل SQL دفعي — INSERT whitelist ذرّية |
 | GET | `/api/sync/log?limit=&offset=` | ✅ | سجل تدقيق المزامنة |
 | GET | `/api/sync/conflicts?limit=` | ✅ | سجل التعارضات |
@@ -103,22 +115,27 @@ npm run typecheck # tsc للـ src وللـ tests
 - **الدفع:** كل عملية تحمل `idempotencyKey` — التكرار يُعاد كـ `skipped`
   بنفس الاستجابة المخزنة في `idempotency_log`.
 - **السحب:** مؤشر صحيح `updated_at` مُخصص من `sync_clock` أحادي
-  (غير قابل للتكرار عالمياً) — مؤشر الخادم هو المرجع دائماً.
-- **`exclude_device`:** يستبعد سجلات الجهاز نفسه من السحب (echo filter) —
-  أعمدة الخادم (`device_id=''`) لا تُستبعد أبداً.
-- **الحد الزمني للسحب:** `limit` يُقص فعلياً إلى [1, 200].
+  (غير قابل للتكرار عالمياً) — مؤشر الخادم هو المرجع دائماً؛ الصفحة لا
+  تُقطع داخل مجموعة طوابع متساوية.
+- **الجيل (`epoch`):** كل رد pull يحمل جيل D1. عند استعادة/استيراد يعيد
+  المسؤول تدويره، فتصفّر التطبيقات مؤشرها وتسحب من البداية. التوافق مع
+  Worker أقدم محفوظ: غياب epoch لا يوقف المزامنة.
+- **`exclude_device`:** يستبعد سجلات الجهاز نفسه من الدلتا — السحب الكامل
+  لا يمرره كي يتعلم الجهاز ظلال `server_id` لصفوفه؛ أعمدة الخادم لا تُستبعد.
+- **الحد الزمني للسحب:** `limit` يُقص فعلياً إلى [1, 500]؛ سقف الدفع 100.
 
 ## حل التعارض
 
 - **التصنيف:** مقارنة ساعات المتجهات — equal / local_newer / remote_newer /
   concurrent.
-- **LWW:** الطابع الزمني للعملية (`updatedAt` من الـ outbox = clientTs) هو
-  مرجع القرار؛ عند **تساوي** الزمن يفصل العداد `version` الأعلى — جهاز
-  بساعة متأخرة يفوز برباط الزمن فقط إذا كان تعديله أحدث فعلاً.
-- **التعارض المتزامن:** يُحفظ في `sync_conflicts` (الحل `last_write_wins`)
-  مع كامل الحمولتين، وتُدمج ساعات المتجهات.
-- **الحذف:** tombstone ناعم (`deleted_at`) بطابع `updated_at` فريد — يصل
-  لكل الأجهزة مرة واحدة بالضبط عبر مؤشر الدلتا.
+- **LWW:** مرجع القرار `updatedAt` للعملية؛ يُقصّ المستقبل إلى سماحية 90
+  ثانية، وداخل نافذة انحراف الساعة يفصل `version` الأعلى. تعديل أقدم من
+  النافذة يخسر حتى لو ادّعى العميل نسخة أعلى.
+- **التعارض المتزامن:** يُحفظ في `sync_conflicts` مع كامل الحمولتين، وتُدمج
+  ساعات المتجهات.
+- **الحذف:** tombstone ناعم (`deleted_at`) ينتشر عبر مؤشر الدلتا، والحذف
+  يفوز دائماً على تعديل يصل لاحقاً؛ الرفض يعود `success: true, status: deleted`
+  ويُحفظ idempotently كي لا يعيد العميل دفع التعديل الخاسر.
 
 ## الأمان
 

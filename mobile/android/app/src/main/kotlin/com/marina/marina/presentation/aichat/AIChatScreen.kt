@@ -17,11 +17,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.ChatMessage
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.SidebarMenuButton
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -48,7 +49,7 @@ fun AIChatScreen(
         Scaffold(
             containerColor = AppColors.BackgroundColor,
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("المساعد الذكي", style = AppTypography.titleLarge) },
                     navigationIcon = { SidebarMenuButton() },
                     actions = {
@@ -118,7 +119,7 @@ fun AIChatScreen(
                                 viewModel.send(input)
                                 input = ""
                             },
-                            containerColor = AppColors.PrimaryColor,
+                            containerColor = AppColors.PrimaryActionColor,
                             contentColor = Color.White,
                             modifier = Modifier.size(44.dp)
                         ) {
@@ -154,7 +155,10 @@ fun AIChatScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = { showSettings = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.PrimaryColor),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.PrimaryActionColor,
+                            contentColor = Color.White
+                        ),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text("ضبط المفتاح", color = Color.White)

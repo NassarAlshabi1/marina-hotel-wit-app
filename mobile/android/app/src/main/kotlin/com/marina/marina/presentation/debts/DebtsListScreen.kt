@@ -44,7 +44,7 @@ import androidx.compose.material.icons.outlined.Hotel
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -55,7 +55,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -69,7 +68,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
@@ -92,47 +90,74 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.Debt
 import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.domain.util.HotelTimeEngine
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.util.PdfExporter
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.SidebarMenuButton
+import com.marina.marina.components.MarinaToolbarActionButton
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // ─── Flutter Colors.* shades used by debts_list.dart (exact ARGB values) ───
-private val Green50 = Color(0xFFE8F5E9)
-private val Green300 = Color(0xFF81C784)
-private val Green700 = Color(0xFF388E3C)
-private val FlutterGreen = Color(0xFF4CAF50)
-private val Red50 = Color(0xFFFFEBEE)
-private val Red300 = Color(0xFFE57373)
-private val Red700 = Color(0xFFD32F2F)
-private val Red900 = Color(0xFFB71C1C)
-private val FlutterRed = Color(0xFFF44336)
-private val Red400 = Color(0xFFEF5350)
-private val Orange50 = Color(0xFFFFF3E0)
-private val Orange300 = Color(0xFFFFB74D)
-private val Orange200 = Color(0xFFFFCC80)
-private val FlutterOrange = Color(0xFFFF9800)
-private val Blue50 = Color(0xFFE3F2FD)
-private val Blue100 = Color(0xFFBBDEFB)
-private val Blue200 = Color(0xFF90CAF9)
-private val Blue600 = Color(0xFF1E88E5)
-private val Blue700 = Color(0xFF1976D2)
-private val Blue800 = Color(0xFF1565C0)
-private val Blue900 = Color(0xFF0D47A1)
-private val FlutterBlue = Color(0xFF2196F3)
-private val Grey50 = Color(0xFFFAFAFA)
-private val Grey200 = Color(0xFFEEEEEE)
-private val Grey300 = Color(0xFFE0E0E0)
-private val Grey400 = Color(0xFFBDBDBD)
-private val Grey500 = Color(0xFF9E9E9E)
-private val Grey600 = Color(0xFF757575)
-private val FlutterGrey = Color(0xFF9E9E9E)
+private val Green50: Color
+    @Composable get() = AppColors.SuccessContainerColor
+private val Green300: Color
+    @Composable get() = AppColors.SuccessColor
+private val Green700: Color
+    @Composable get() = AppColors.SuccessColor
+private val FlutterGreen: Color
+    @Composable get() = AppColors.SuccessColor
+private val Red50: Color
+    @Composable get() = AppColors.DangerContainerColor
+private val Red300: Color
+    @Composable get() = AppColors.DangerColor
+private val Red700: Color
+    @Composable get() = AppColors.DangerColor
+private val Red900 = AppColors.DangerActionColor
+private val FlutterRed: Color
+    @Composable get() = AppColors.DangerColor
+private val Red400: Color
+    @Composable get() = AppColors.DangerColor
+private val Orange50: Color
+    @Composable get() = AppColors.WarningContainerColor
+private val Orange300: Color
+    @Composable get() = AppColors.WarningColor
+private val FlutterOrange: Color
+    @Composable get() = AppColors.WarningColor
+private val Blue50: Color
+    @Composable get() = AppColors.InfoContainerColor
+private val Blue100: Color
+    @Composable get() = AppColors.InfoContainerColor
+private val Blue200: Color
+    @Composable get() = AppColors.DividerColor
+private val Blue600 = AppColors.PrimaryActionColor
+private val Blue700: Color
+    @Composable get() = AppColors.PrimaryColor
+private val Blue800: Color
+    @Composable get() = AppColors.PrimaryColor
+private val Blue900: Color
+    @Composable get() = AppColors.PrimaryColor
+private val FlutterBlue: Color
+    @Composable get() = AppColors.InfoColor
+private val Grey50: Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+private val Grey200: Color
+    @Composable get() = MaterialTheme.colorScheme.outlineVariant
+private val Grey300: Color
+    @Composable get() = MaterialTheme.colorScheme.outlineVariant
+private val Grey400: Color
+    @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val Grey500: Color
+    @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val Grey600: Color
+    @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val FlutterGrey: Color
+    @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 
 /** Dart Time.safeIsoToDateString — empty/unparseable falls back to today. */
 internal fun debtsSafeIsoToDateString(value: String?): String {
@@ -183,11 +208,11 @@ fun DebtsListScreen(
         val msg = state.message ?: return@LaunchedEffect
         snackbarColor = when (msg.kind) {
             DebtsMsgKind.DEFAULT -> null
-            DebtsMsgKind.SUCCESS_GREEN -> FlutterGreen
-            DebtsMsgKind.ERROR_RED -> FlutterRed
+            DebtsMsgKind.SUCCESS_GREEN -> AppColors.SuccessActionColor
+            DebtsMsgKind.ERROR_RED -> AppColors.DangerActionColor
             DebtsMsgKind.ERROR_RED900 -> Red900
-            DebtsMsgKind.ORANGE -> FlutterOrange
-            DebtsMsgKind.BLUE -> FlutterBlue
+            DebtsMsgKind.ORANGE -> AppColors.WarningActionColor
+            DebtsMsgKind.BLUE -> AppColors.PrimaryActionColor
         }
         snackbarHostState.showSnackbar(msg.text, duration = SnackbarDuration.Short)
         viewModel.consumeMessage()
@@ -198,10 +223,10 @@ fun DebtsListScreen(
         val share = state.share ?: return@LaunchedEffect
         try {
             PdfExporter.openWhatsAppText(context, share.phoneE164, share.message)
-            snackbarColor = FlutterGreen
+            snackbarColor = AppColors.SuccessActionColor
             snackbarHostState.showSnackbar("تم إرسال تنبيه واتساب لـ ${share.guestName}")
         } catch (_: Exception) {
-            snackbarColor = FlutterRed
+            snackbarColor = AppColors.DangerActionColor
             snackbarHostState.showSnackbar("تعذّر إرسال واتساب لـ ${share.guestName}")
         }
         viewModel.consumeShare()
@@ -218,11 +243,11 @@ fun DebtsListScreen(
             }
         },
         topBar = {
-            TopAppBar(
+            MarinaTopAppBar(
                 title = { Text("إدارة الديون") },
                 navigationIcon = { SidebarMenuButton() },
                 actions = {
-                    IconButton(onClick = { showQuickAddMenu = true }) {
+                    MarinaToolbarActionButton(onClick = { showQuickAddMenu = true }) {
                         Icon(Icons.Filled.AddCircle, contentDescription = "إضافة دين جديد")
                     }
                 },
@@ -328,7 +353,7 @@ fun DebtsListScreen(
                         viewModel.settleDebt(debt)
                         settleConfirmDebt = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = FlutterGreen)
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.SuccessActionColor, contentColor = Color.White)
                 ) { Text("تأكيد السداد") }
             },
             dismissButton = {
@@ -354,7 +379,7 @@ fun DebtsListScreen(
         DebtFormDialog(
             existing = editingDebt,
             onValidationError = { text, orange ->
-                snackbarColor = if (orange) FlutterOrange else null
+                snackbarColor = if (orange) AppColors.WarningActionColor else null
                 scope.launch { snackbarHostState.showSnackbar(text) }
             },
             onDismiss = { showEditDialog = false; editingDebt = null },
@@ -391,7 +416,7 @@ fun DebtsListScreen(
                         viewModel.deleteDebt(debt)
                         deleteConfirmDebt = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = FlutterRed)
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.DangerActionColor, contentColor = Color.White)
                 ) { Text("حذف") }
             },
             dismissButton = {
@@ -540,7 +565,7 @@ private fun DebtCard(
         cardColor = Orange50; borderColor = Orange300
     }
 
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor),
         shape = RoundedCornerShape(8.dp),
@@ -631,7 +656,7 @@ private fun DebtCard(
                         onClick = onSettle,
                         modifier = Modifier.weight(1f).height(28.dp),
                         contentPadding = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
-                        colors = ButtonDefaults.elevatedButtonColors(containerColor = FlutterGreen, contentColor = Color.White)
+                        colors = ButtonDefaults.elevatedButtonColors(containerColor = AppColors.SuccessActionColor, contentColor = Color.White)
                     ) {
                         Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(12.dp))
                         Spacer(Modifier.width(2.dp))
@@ -902,7 +927,10 @@ private fun PartialPaymentDialog(
                     val parsed = CurrencyFormatter.parseAmount(amount) ?: 0.0
                     onConfirm(parsed, dateText, note)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = FlutterBlue)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.PrimaryActionColor,
+                    contentColor = Color.White
+                )
             ) { Text("تسجيل الدفعة") }
         },
         dismissButton = {
