@@ -296,22 +296,6 @@ class SyncIngestorRegistry @Inject constructor(
         return PullApplyReport(applied, skipped, failed, firstError, deferred)
     }
 
-    /** Server receipt is all-or-nothing; acknowledgement must wait for all parent links. */
-    suspend fun ingestFinancialReceipt(records: List<Map<String, Any>>) {
-        require(records.isNotEmpty()) { "الخادم لم يُرجع إيصال التصحيح" }
-        db.withTransaction {
-            records.forEach { record ->
-                require(record["_entity"] in setOf("expenses", "salary_withdrawals"))
-                require((record["local_uuid"] as? String)?.isNotBlank() == true) { "قيد الإيصال بلا UUID" }
-                val outcome = applyRecord(record, forceFinancial = true)
-                check(outcome is ApplyOutcome.Applied) {
-                    "تعذر تطبيق إيصال التصحيح كاملاً؛ ستُعاد المحاولة: " +
-                        ((outcome as? ApplyOutcome.Failed)?.error ?: "علاقة أب مؤجلة أو قيد غير صالح")
-                }
-            }
-        }
-    }
-
     /** Retry across process restarts; parent/child chains may require more than one pass. */
     suspend fun retryPendingLinks(): PullApplyReport {
         var total = 0
@@ -333,7 +317,7 @@ class SyncIngestorRegistry @Inject constructor(
 
     // ─── تطبيق سجل واحد ─────────────────────────────────────────
 
-    private suspend fun applyRecord(record: Map<String, Any>, forceFinancial: Boolean = false): ApplyOutcome {
+    private suspend fun applyRecord(record: Map<String, Any>): ApplyOutcome {
         val entity = record["_entity"] as? String ?: return ApplyOutcome.Skipped
 
         // نسخة قابلة للتعديل: يُزال _entity (ليس عموداً محلياً) ويُتعلم
@@ -551,7 +535,7 @@ class SyncIngestorRegistry @Inject constructor(
                     )
                     ApplyOutcome.Applied
                 }
-                (forceFinancial && entity in setOf("expenses", "salary_withdrawals")) || remoteLastModified >= existing.lastModified -> {
+                remoteLastModified >= existing.lastModified -> {
                     // استبدال الصف المحلي نفسه (REPLACE بذات المفتاح).
                     store(entity, remote.copyWithId(existing.id))
                     ApplyOutcome.Applied

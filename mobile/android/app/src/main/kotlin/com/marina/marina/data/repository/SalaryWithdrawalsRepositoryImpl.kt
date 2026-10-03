@@ -32,9 +32,6 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
         salaryWithdrawalsDao.getByEmployee(employeeId).map { entities -> entities.map { it.toDomain() } }
 
     override suspend fun insert(withdrawal: SalaryWithdrawal): Long = db.withTransaction {
-        require(withdrawal.amount.isFinite() && withdrawal.amount > 0 && withdrawal.reversalOfUuid == null) {
-            "المبلغ يجب أن يكون موجباً؛ الإلغاء يتم بأمر مستقل"
-        }
         val employee = employeesDao.getByIdIncludingDeleted(withdrawal.employeeId)
             ?: throw IllegalArgumentException("لا يمكن تسجيل سحب لموظف غير موجود")
         val employeeUuid = employee.localUuid.trim()
@@ -57,14 +54,13 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun softDelete(id: Long) {
-        error("لا يمكن حذف سحب معتمد؛ استخدم الإلغاء بقيد عكسي مع السبب")
-    }
-
-    override suspend fun reverse(id: Long, reason: String) = db.withTransaction {
-        val row = requireNotNull(salaryWithdrawalsDao.getAllOnce().find { it.id == id }) { "السحب غير موجود" }
-        require(row.reversalOfUuid == null && row.amount > 0) { "لا يمكن عكس هذه الحركة" }
-        val entity = if (row.expenseUuid.isNullOrBlank()) "salary_withdrawals" else "expenses"
-        FinancialReversalQueue.enqueue(db, outboxRepository, entity, row.expenseUuid ?: row.localUuid, reason)
+      db.withTransaction {
+        val now = System.currentTimeMillis()
+        val entity = salaryWithdrawalsDao.getAllOnce().find { it.id == id } ?: return@withTransaction
+        salaryWithdrawalsDao.softDelete(id, deletedAt = now, updatedAt = now)
+        val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
+        outboxRepository.enqueueObject("salary_withdrawals", "delete", deleted.localUuid, deleted)
+      }
     }
 
     /** No exp_N fallback: numeric references cannot prove cross-device identity. */
@@ -90,15 +86,15 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
             }
             val candidates = salaryWithdrawalsDao.getByExpenseUuid(expense.localUuid)
             check(candidates.size <= 1) { "توجد روابط مصروف مكررة؛ يلزم مراجعتها" }
-            check(candidates.isEmpty()) { "السحب معتمد؛ لا يمكن تعديله، استخدم قيداً عكسياً" }
-            check(allowCreate) {
+            val matched = candidates.singleOrNull()
+            check(matched != null || allowCreate) {
                 "المصروف القديم بلا رابط UUID موثوق؛ يلزم مراجعته قبل التعديل، ولم تُحفظ تغييرات"
             }
             val now = System.currentTimeMillis()
-            val prepared = SalaryWithdrawal(
+            val prepared = (matched?.toDomain() ?: SalaryWithdrawal(
                 // Identical source UUID => identical mirror identity on every device/retry.
                 localUuid = UUID.nameUUIDFromBytes(("salary-expense:" + expense.localUuid).toByteArray(Charsets.UTF_8)).toString()
-            ).copy(
+            )).copy(
                 expenseUuid = expense.localUuid,
                 employeeId = employee.id,
                 employeeUuid = employee.localUuid,
@@ -110,9 +106,14 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
                 reason = "expense_uuid:" + expense.localUuid,
                 description = note,
                 updatedAt = now,
-                version = 1
+                version = if (matched == null) 1 else matched.version.coerceIn(0, 999_999) + 1
             )
-            insert(prepared)
+            if (matched == null) {
+                insert(prepared)
+            } else {
+                salaryWithdrawalsDao.update(prepared.toEntity())
+                outboxRepository.enqueueObject("salary_withdrawals", "update", prepared.localUuid, prepared)
+            }
         }
     }
 

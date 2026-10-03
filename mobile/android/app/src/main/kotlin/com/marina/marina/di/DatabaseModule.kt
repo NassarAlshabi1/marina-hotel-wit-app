@@ -40,16 +40,6 @@ object DatabaseModule {
         }
     }
 
-    val MIGRATION_72_73 = object : Migration(72, 73) {
-        override fun migrate(db: SupportSQLiteDatabase) {
-            for (table in listOf("expenses", "salary_withdrawals")) {
-                for (column in listOf("reversal_of_uuid", "reversal_reason", "reversal_actor")) {
-                    db.execSQL("ALTER TABLE $table ADD COLUMN $column TEXT")
-                }
-            }
-        }
-    }
-
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -58,7 +48,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73)
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72)
             // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }

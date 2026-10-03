@@ -113,7 +113,6 @@ data class WorkerPushResponse(
 )
 
 data class WorkerPushResult(
-    @SerializedName("records") val records: List<Map<String, Any>>? = null,
     @SerializedName("idempotencyKey") val idempotencyKey: String?,
     @SerializedName("success") val success: Boolean?,
     @SerializedName("entity") val entity: String?,

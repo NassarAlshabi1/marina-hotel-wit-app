@@ -164,7 +164,3 @@ npm run typecheck # tsc للـ src وللـ tests
 
 لم تعد مطابقة المرآة في Android تعتمد `exp_N` أو تشابه المبلغ واليوم؛ السجلات
 القديمة غير المؤكدة تبقى للمراجعة ولا تُصلح تلقائياً.
-
-## Append-only expense corrections (0015)
-
-See [financial reversals](../docs/financial-reversals.md) for the `reverse` sync command, admin period-closure API, required maintenance rollout and scope limitations. Existing expenses and salary withdrawals cannot be edited/deleted after this migration. General SQL import no longer accepts those two tables. No production migration is automatic.

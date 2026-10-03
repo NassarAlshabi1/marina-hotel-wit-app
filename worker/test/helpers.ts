@@ -23,16 +23,10 @@ export function schemaStatements(sqlText: string): string[] {
     .split('\n')
     .filter((line) => !line.trimStart().startsWith('--'))
     .join('\n');
-  const result: string[] = [];
-  let trigger = '';
-  for (const part of noComments.split(';').map(s => s.trim()).filter(Boolean)) {
-    if (trigger || /^CREATE TRIGGER/i.test(part)) {
-      trigger += (trigger ? '; ' : '') + part;
-      if (/END$/i.test(part)) { result.push(trigger); trigger = ''; }
-    } else result.push(part);
-  }
-  if (trigger) throw new Error('Incomplete trigger in schema');
-  return result;
+  return noComments
+    .split(';')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 }
 
 /** Rebuild the full schema from scratch. */
@@ -104,7 +98,7 @@ export function uniqueUuid(prefix = 'uuid'): string {
 export function roomPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     local_uuid: uniqueUuid('room'),
-    room_number: `R${uuidCounter}`, // local_uuid just advanced the monotonic fixture counter
+    room_number: `R${Math.floor(Math.random() * 100000)}`,
     type: 'double',
     price: 100.5,
     status: 'available',
@@ -125,7 +119,7 @@ export function roomPayload(overrides: Record<string, unknown> = {}): Record<str
 
 export function pushOp(
   entity: string,
-  operation: 'create' | 'update' | 'delete' | 'reverse',
+  operation: 'create' | 'update' | 'delete',
   data: Record<string, unknown>,
   overrides: Record<string, unknown> = {}
 ): Record<string, unknown> {
@@ -158,7 +152,6 @@ export async function pushOperations(
 }
 
 export interface PushResultItem {
-  records?: Record<string, unknown>[];
   idempotencyKey: string;
   success: boolean;
   entity?: string;

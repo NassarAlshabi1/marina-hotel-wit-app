@@ -29,9 +29,6 @@ class ExpensesRepositoryImpl @Inject constructor(
         expensesDao.getAll().map { entities -> entities.map { it.toDomain() } }
 
     override suspend fun insert(expense: Expense): Long = db.withTransaction {
-        require(expense.amount.isFinite() && expense.amount > 0 && expense.reversalOfUuid == null) {
-            "المبلغ يجب أن يكون موجباً؛ الإلغاء يتم بأمر مستقل"
-        }
         val now = System.currentTimeMillis()
         val linkedExpense = attachEmployeeUuid(expense)
         val prepared = linkedExpense.copy(
@@ -41,7 +38,7 @@ class ExpensesRepositoryImpl @Inject constructor(
             createdAt = if (linkedExpense.createdAt == 0L) now else linkedExpense.createdAt,
             updatedAt = now
         )
-        check(expensesDao.getByLocalUuid(prepared.localUuid) == null) { "المصروف موجود؛ استخدم الإلغاء بقيد عكسي عند التصحيح" }
+        check(expensesDao.getByLocalUuid(prepared.localUuid) == null) { "المصروف موجود؛ استخدم التعديل بدلاً من إعادة الإنشاء" }
         val id = expensesDao.insert(prepared.toEntity())
         outboxRepository.enqueueObject("expenses", "insert", prepared.localUuid, prepared)
         saveMirror(prepared.copy(id = id), allowCreate = true)
@@ -49,34 +46,32 @@ class ExpensesRepositoryImpl @Inject constructor(
     }
 
     override suspend fun update(expense: Expense) {
-        error("المصروف معتمد؛ ألغِه بقيد عكسي ثم سجّل المصروف الصحيح")
+        db.withTransaction {
+            val old = requireNotNull(expensesDao.getById(expense.id)) { "المصروف غير موجود" }
+            val wasLinked = old.expenseType.trim() in employeeExpenseTypes &&
+                (old.relatedId != null || !old.employeeUuid.isNullOrBlank())
+            val linkedExpense = attachEmployeeUuid(expense.copy(localUuid = old.localUuid))
+            val isLinked = linkedExpense.expenseType.trim() in employeeExpenseTypes && linkedExpense.relatedId != null
+            // Read the old row while unlinking, not the edited (possibly cleared) relationship.
+            if (!isLinked) withdrawals.deleteByExpenseId(old.id, old.relatedId, old.employeeUuid)
+            val prepared = (if (isLinked) linkedExpense else linkedExpense.copy(relatedId = null, employeeUuid = ""))
+                .copy(updatedAt = System.currentTimeMillis(), version = old.version.coerceIn(0, 999_999) + 1)
+            expensesDao.update(prepared.toEntity())
+            outboxRepository.enqueueObject("expenses", "update", prepared.localUuid, prepared)
+            if (isLinked) saveMirror(prepared, allowCreate = !wasLinked)
+        }
     }
 
     override suspend fun softDelete(id: Long) {
-        error("لا يمكن حذف مصروف معتمد؛ استخدم الإلغاء بقيد عكسي مع السبب")
-    }
-
-    override suspend fun reverse(id: Long, reason: String) = db.withTransaction {
-        val expense = requireNotNull(expensesDao.getById(id)) { "المصروف غير موجود" }
-        require(expense.deletedAt == null && expense.reversalOfUuid == null && expense.amount > 0) { "لا يمكن عكس هذه الحركة" }
-        if (expense.expenseType.trim() in employeeExpenseTypes &&
-            (expense.relatedId != null || !expense.employeeUuid.isNullOrBlank())) {
-            val mirrors = db.salaryWithdrawalsDao().getByExpenseUuid(expense.localUuid)
-            check(mirrors.size == 1) { "رابط السحب غير مؤكد؛ يلزم المزامنة أو المراجعة قبل الإلغاء" }
+        db.withTransaction {
+            val entity = expensesDao.getById(id) ?: return@withTransaction
+            withdrawals.deleteByExpenseId(id, entity.relatedId, entity.employeeUuid)
+            val now = System.currentTimeMillis()
+            expensesDao.softDelete(id, deletedAt = now, updatedAt = now)
+            val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
+            outboxRepository.enqueueObject("expenses", "delete", deleted.localUuid, deleted)
         }
-        FinancialReversalQueue.enqueue(db, outboxRepository, "expenses", expense.localUuid, reason)
     }
-
-    override fun watchReversalRequests(): Flow<Map<String, String>> =
-        db.outboxDao().watchReversals().map { rows ->
-            rows.filter { it.entity == "expenses" }.associate { row ->
-                row.localUuid to when {
-                    row.deliveredToPrimary -> "قُبل الطلب؛ بانتظار جلب القيد"
-                    row.processingStatus == "completed" -> "رُفض الطلب: ${row.primaryLastError.orEmpty()}"
-                    else -> "إلغاء بانتظار المزامنة"
-                }
-            }
-        }
 
     private suspend fun saveMirror(expense: Expense, allowCreate: Boolean) {
         if (expense.expenseType.trim() !in employeeExpenseTypes || expense.relatedId == null) return

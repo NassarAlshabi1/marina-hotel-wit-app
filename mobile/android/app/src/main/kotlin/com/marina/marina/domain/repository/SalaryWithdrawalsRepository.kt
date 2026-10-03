@@ -8,7 +8,7 @@ interface SalaryWithdrawalsRepository {
     fun getByEmployee(employeeId: Long): Flow<List<SalaryWithdrawal>>
     suspend fun insert(withdrawal: SalaryWithdrawal): Long
 
-    /** Create-only UUID mirror; posted rows are immutable. Creation is authorized by the expense transaction. */
+    /** UUID-only mirror upsert; creation is explicitly authorized by the expense transaction. */
     suspend fun saveFromExpense(
         expenseId: Long,
         employeeId: Long,
@@ -22,7 +22,7 @@ interface SalaryWithdrawalsRepository {
         allowCreate: Boolean = false
     )
 
-    /** Legacy entry point; posted financial rows must never be deleted. */
+    /** Dart deleteByExpenseId — orphan cleanup when a salary expense is deleted. */
     suspend fun deleteByExpenseId(
         expenseId: Long,
         employeeId: Long? = null,
@@ -30,7 +30,6 @@ interface SalaryWithdrawalsRepository {
     )
 
     suspend fun softDelete(id: Long)
-    suspend fun reverse(id: Long, reason: String)
     suspend fun getTotalForEmployee(employeeId: Long): Double
     suspend fun getTotalForEmployeeByType(employeeId: Long, type: String): Double
 }

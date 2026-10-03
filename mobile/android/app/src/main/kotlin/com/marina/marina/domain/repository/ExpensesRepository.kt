@@ -8,8 +8,6 @@ interface ExpensesRepository {
     suspend fun insert(expense: Expense): Long
     suspend fun update(expense: Expense)
     suspend fun softDelete(id: Long)
-    suspend fun reverse(id: Long, reason: String)
-    fun watchReversalRequests(): Flow<Map<String, String>>
 
     /** One-shot full list (non-deleted), newest first. */
     suspend fun getAllOnce(): List<Expense>

@@ -31,15 +31,4 @@ class SalaryMirrorReportTest {
         assertFalse(hasExplicitSalaryMirror(linked.copy(employeeUuid = "employee-b"), listOf(expense), listOf(linked)))
         assertFalse(hasExplicitSalaryMirror(linked, listOf(expense), listOf(linked, linked.copy(localUuid = "duplicate"))))
     }
-    @Test
-    fun negativeReversalMirrorDoesNotDoubleCountCorrectionOrHideOriginal() {
-        val correction = expense.copy(localUuid = "reversal-expense", reversalOfUuid = expense.localUuid,
-            amount = -100.0, hotelDayKey = "2026-11-01")
-        val mirror = withdrawal.copy(localUuid = "reversal-salary", expenseUuid = correction.localUuid,
-            reversalOfUuid = withdrawal.localUuid, amount = -100.0, hotelDayKey = "2026-11-01")
-        assertTrue(hasExplicitSalaryMirror(mirror, listOf(expense, correction), listOf(mirror)))
-        org.junit.Assert.assertEquals(100.0, listOf(expense, correction).filter { it.hotelDayKey == "2026-10-03" }.sumOf { it.amount }, 0.0)
-        org.junit.Assert.assertEquals(0.0, listOf(expense, correction).sumOf { it.amount }, 0.0)
-    }
-
 }

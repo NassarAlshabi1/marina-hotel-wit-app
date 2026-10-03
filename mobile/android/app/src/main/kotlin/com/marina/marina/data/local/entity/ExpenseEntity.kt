@@ -18,13 +18,6 @@ import com.google.gson.annotations.SerializedName
     ]
 )
 data class ExpenseEntity(
-    @SerializedName("reversal_of_uuid") @ColumnInfo(name = "reversal_of_uuid")
-    val reversalOfUuid: String? = null,
-    @SerializedName("reversal_reason") @ColumnInfo(name = "reversal_reason")
-    val reversalReason: String? = null,
-    @SerializedName("reversal_actor") @ColumnInfo(name = "reversal_actor")
-    val reversalActor: String? = null,
-
     @PrimaryKey(autoGenerate = true)
     @SerializedName("id")
     override val id: Long = 0,

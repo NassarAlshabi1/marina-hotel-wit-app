@@ -171,7 +171,7 @@ describe('salary_withdrawals employee_uuid — عقد المرجع المستق�
     expect(row).toBeDefined();
     expect(row!['employee_uuid']).toBe(employee.local_uuid);
     expect(row!['employee_id']).toBe(parent.id);
-    expect(row!['deleted_at']).toBeNull();
+    expect(row!['deleted_at']).toBe(2000000100);
   });
 
   it('rejects a new withdrawal without stable employee_uuid instead of storing a raw FK', async () => {

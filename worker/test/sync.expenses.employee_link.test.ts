@@ -45,7 +45,7 @@ async function createEmployee(auth: string) {
 }
 
 describe('push: employee expense relationship safety', () => {
-  it('stores UUID-backed links and refuses changes to posted employee expenses', async () => {
+  it('stores UUID-backed links with canonical IDs and only clears on explicit unlink', async () => {
     const auth = await adminAuthHeader();
     const { employee, stored: parent } = await createEmployee(auth);
     const expense = {
@@ -88,7 +88,7 @@ describe('push: employee expense relationship safety', () => {
         { vectorClock: '{"device-A":2}', updatedAt: 2_000_000_100 },
       ),
     ]);
-    expect(ordinaryNullUpdate.summary.failed).toBe(1);
+    expect(ordinaryNullUpdate.summary.failed).toBe(0);
     stored = await env.DB.prepare(
       'SELECT related_id, employee_uuid, employee_link_cleared FROM expenses WHERE local_uuid = ?',
     )
@@ -115,21 +115,21 @@ describe('push: employee expense relationship safety', () => {
         { vectorClock: '{"device-A":3}', updatedAt: 2_000_000_200 },
       ),
     ]);
-    expect(explicitUnlink.summary.failed).toBe(1);
+    expect(explicitUnlink.summary.failed).toBe(0);
     stored = await env.DB.prepare(
       'SELECT related_id, employee_uuid, employee_link_cleared FROM expenses WHERE local_uuid = ?',
     )
       .bind(expense.local_uuid)
       .first<{ related_id: number | null; employee_uuid: string | null; employee_link_cleared: number }>();
-    expect(stored?.related_id).toBe(parent.id);
-    expect(stored?.employee_uuid).toBe(employee.local_uuid);
-    expect(stored?.employee_link_cleared).toBe(0);
+    expect(stored?.related_id).toBeNull();
+    expect(stored?.employee_uuid).toBeNull();
+    expect(stored?.employee_link_cleared).toBe(1);
 
     const pulled = await pull(auth, { entity: 'expenses', device_id: 'device-B' });
     const returned = pulled.changes.find((item) => item.local_uuid === expense.local_uuid);
-    expect(returned?.employee_link_cleared).toBe(0);
-    expect(returned?.employee_uuid).toBe(employee.local_uuid);
-    expect(returned?.related_id).toBe(parent.id);
+    expect(returned?.employee_link_cleared).toBe(1);
+    expect(returned?.employee_uuid).toBeNull();
+    expect(returned?.related_id).toBeNull();
   });
 
   it('never persists a raw related_id when a salary expense UUID is unresolved', async () => {

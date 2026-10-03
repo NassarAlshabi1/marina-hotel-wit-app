@@ -1,4 +1,3 @@
-import { FinancialPolicyError, isPostedFinancialEntity, validateFinancialCreate } from './financial';
 // ═══════════════════════════════════════════════════════════════
 //  database.ts — D1 Database Layer
 //  Handles all SQL queries with parameterized statements (SQL injection safe)
@@ -47,7 +46,7 @@ export interface PullResult {
 export interface PushOperation {
   idempotencyKey: string;
   entity: string;
-  operation: 'create' | 'update' | 'delete' | 'reverse';
+  operation: 'create' | 'update' | 'delete';
   data: Record<string, unknown>;
   vectorClock: string;
   updatedAt: number;
@@ -159,8 +158,6 @@ export const SYNC_ENTITY_TABLES: readonly string[] = Object.values(ENTITY_TABLES
 
 export class Database {
   constructor(private readonly db: D1Database) {}
-
-  financialDatabase(): D1Database { return this.db; }
 
   /** Raw D1 access for narrowly scoped infrastructure queries. */
   get raw(): D1Database {
@@ -1007,11 +1004,6 @@ export class Database {
     clientVectorClock?: string
   ): Promise<SyncRecord> {
     const table = getTableName(entity);
-    if (isPostedFinancialEntity(entity)) {
-      const existing = await this.db.prepare(`SELECT * FROM ${table} WHERE local_uuid = ?`).bind(String(data.local_uuid || '')).first<SyncRecord>();
-      if (existing) return existing; // Transport replay does not rewrite posted history.
-      await validateFinancialCreate(this.db, entity, data);
-    }
     const normalizedData = await this.normalizePushReferences(entity, data, 'create');
     const now = Math.floor(Date.now() / 1000);
 
@@ -1145,9 +1137,6 @@ export class Database {
       .bind(recordId)
       .first<SyncRecord>();
 
-    if (isPostedFinancialEntity(entity) && existing?.deleted_at == null) {
-      throw new FinancialPolicyError('الحركة معتمدة؛ استخدم الإلغاء بقيد عكسي ثم سجّل البديل');
-    }
     if (!existing) {
       // Record doesn't exist — create it instead
       return this.createRecord(entity, { ...data, local_uuid: recordId }, deviceId, vectorClock);
@@ -1305,7 +1294,6 @@ export class Database {
     recordId: string,
     deviceId: string
   ): Promise<{ deleted: boolean }> {
-    if (isPostedFinancialEntity(entity)) throw new FinancialPolicyError('لا يمكن حذف حركة معتمدة؛ استخدم reverse');
     const table = getTableName(entity);
     // ✅ Tombstones must be pullable too — allocate a unique updated_at so
     // the deletion surfaces exactly once in every client's delta stream.

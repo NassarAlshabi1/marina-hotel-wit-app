@@ -236,9 +236,6 @@ fun Employee.toEntity(): EmployeeEntity = EmployeeEntity(
 )
 
 fun ExpenseEntity.toDomain(): Expense = Expense(
-    reversalOfUuid = reversalOfUuid,
-    reversalReason = reversalReason,
-    reversalActor = reversalActor,
     id = id,
     expenseType = expenseType,
     relatedId = relatedId,
@@ -258,9 +255,6 @@ fun ExpenseEntity.toDomain(): Expense = Expense(
 )
 
 fun Expense.toEntity(): ExpenseEntity = ExpenseEntity(
-    reversalOfUuid = reversalOfUuid,
-    reversalReason = reversalReason,
-    reversalActor = reversalActor,
     id = id,
     expenseType = expenseType,
     relatedId = relatedId,
