@@ -959,4 +959,63 @@ class SyncIngestorRegistryTest {
         assertEquals(500L, db.salaryWithdrawalsDao().getByLocalUuid("deleted-orphan")!!.deletedAt)
         assertTrue(db.pendingSyncLinksDao().getAll().isEmpty())
     }
+    @Test
+    fun wrongEmployeeMirrorBlocksBothExpenseEditAndDeleteAtomically() = runBlocking {
+        val employeeA = db.employeesDao().insert(EmployeeEntity(name = "A", basicSalary = 1000.0, status = "active", localUuid = "owner-a"))
+        val employeeB = db.employeesDao().insert(EmployeeEntity(name = "B", basicSalary = 1000.0, status = "active", localUuid = "owner-b"))
+        val id = db.expensesDao().insert(ExpenseEntity(expenseType = "سلفة", relatedId = employeeA,
+            employeeUuid = "owner-a", description = "original", amount = 100.0, date = "2026-10-03", localUuid = "expense-owner"))
+        db.salaryWithdrawalsDao().insert(SalaryWithdrawalEntity(employeeId = employeeB, employeeUuid = "owner-b",
+            expenseUuid = "expense-owner", amount = 100.0, withdrawDate = 1L, localUuid = "wrong-owner-mirror"))
+        val repository = expensesRepository()
+        assertTrue(runCatching { repository.softDelete(id) }.isFailure)
+        assertTrue(runCatching { repository.update(db.expensesDao().getById(id)!!.toDomain().copy(amount = 300.0)) }.isFailure)
+        assertEquals(100.0, db.expensesDao().getById(id)!!.amount, 0.0)
+        assertNull(db.expensesDao().getById(id)!!.deletedAt)
+        assertNull(db.salaryWithdrawalsDao().getByLocalUuid("wrong-owner-mirror")!!.deletedAt)
+        assertTrue(db.outboxDao().getPendingPrimary().first().isEmpty())
+    }
+
+    @Test
+    fun importedRawEmployeeIdNeverAuthorizesMirrorDeletion() = runBlocking {
+        val employee = db.employeesDao().insert(EmployeeEntity(name = "A", basicSalary = 1000.0, status = "active", localUuid = "owner-a"))
+        val id = db.expensesDao().insert(ExpenseEntity(expenseType = "سلفة", relatedId = employee,
+            employeeUuid = null, description = "imported", amount = 100.0, date = "2026-10-03",
+            localUuid = "imported-expense", origin = "cloud", serverId = 600))
+        db.salaryWithdrawalsDao().insert(SalaryWithdrawalEntity(employeeId = employee, employeeUuid = "owner-a",
+            expenseUuid = "imported-expense", amount = 100.0, withdrawDate = 1L, localUuid = "legacy-mirror-owner"))
+        assertTrue(runCatching { expensesRepository().softDelete(id) }.isFailure)
+        assertNull(db.salaryWithdrawalsDao().getByLocalUuid("legacy-mirror-owner")!!.deletedAt)
+        assertTrue(db.outboxDao().getPendingPrimary().first().isEmpty())
+    }
+
+    @Test
+    fun orphanSalaryWritesRemainRetryableBeyondNormalQueueLimit() {
+        for (attempts in listOf(0, 5, 10, 1000)) {
+            assertTrue(!OutboxRepository.retryLimitReached("salary_withdrawals", attempts))
+        }
+        assertTrue(OutboxRepository.retryLimitReached("rooms", 5))
+        assertTrue(!OutboxRepository.retryLimitReached("rooms", 4))
+    }
+
+    @Test
+    fun localBackupManifestIncludesBothSalaryHistoryTables() {
+        val keys = com.marina.marina.data.backup.LocalBackupService.BACKUP_TABLE_KEYS
+        assertTrue("salary_withdrawals" in keys)
+        assertTrue("salary_carry_over_logs" in keys)
+        assertEquals(keys.size, keys.distinct().size)
+    }
+
+    @Test
+    fun missingSalaryParentDoesNotMatchCoincidentLocalId() = runBlocking {
+        val localId = db.employeesDao().insert(EmployeeEntity(name = "Unrelated", basicSalary = 1000.0,
+            status = "active", localUuid = "unrelated-local-employee"))
+        val result = registry.ingestPage(listOf(wireRecord("_entity" to "salary_withdrawals",
+            "local_uuid" to "orphan-numeric", "employee_id" to localId, "amount" to 100,
+            "withdraw_date" to "2026-10-03", "withdrawal_type" to "سلفة")))
+        assertEquals(1, result.deferred.size)
+        assertNull(db.salaryWithdrawalsDao().getByLocalUuid("orphan-numeric"))
+        assertEquals(1, db.pendingSyncLinksDao().getAll().size)
+    }
+
 }

@@ -107,6 +107,26 @@ describe('financial integrity regression guards', () => {
     expect(result.results[0]?.status).toBe('deleted');
   });
 
+  it('does not acknowledge an orphan withdrawal and accepts the same request once its parent arrives', async () => {
+    const auth = await adminAuthHeader();
+    const operation = pushOp('salary_withdrawals', 'create', {
+      local_uuid: 'orphan-retry', employee_uuid: 'late-employee', employee_id: 999,
+      amount: 250, withdraw_date: '2026-10-03',
+    }, { idempotencyKey: 'orphan-request-stable' });
+    for (let retry = 0; retry < 7; retry++) {
+      const response = await pushOperations(auth, [operation]);
+      const result = await response.json() as PushResponseBody;
+      expect(result.results[0]?.success).toBe(false);
+      expect(result.results[0]?.skipped).not.toBe(true);
+    }
+    expect(await env.DB.prepare("SELECT key FROM idempotency_log WHERE key = 'orphan-request-stable'").first()).toBeNull();
+    expect(await env.DB.prepare("SELECT id FROM salary_withdrawals WHERE local_uuid = 'orphan-retry'").first()).toBeNull();
+    await push('employees', 'create', {local_uuid: 'late-employee', name: 'Late', basic_salary: 1000});
+    const retried = await pushOperations(auth, [operation]);
+    expect((await retried.json() as PushResponseBody).summary.failed).toBe(0);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM salary_withdrawals WHERE local_uuid = 'orphan-retry'").first()).toEqual({n: 1});
+  });
+
   it('uses wall-clock edit time, not the logical cursor, after a large clock advance', async () => {
     const now = Math.floor(Date.now() / 1000);
     await env.DB.prepare('UPDATE sync_clock SET last_ts = ? WHERE id = 1').bind(now + 3600).run();

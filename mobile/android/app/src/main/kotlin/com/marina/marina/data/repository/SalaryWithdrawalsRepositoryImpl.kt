@@ -36,6 +36,9 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
             ?: throw IllegalArgumentException("لا يمكن تسجيل سحب لموظف غير موجود")
         val employeeUuid = employee.localUuid.trim()
         require(employeeUuid.isNotEmpty()) { "لا يمكن مزامنة سحب راتب بلا employee_uuid" }
+        require(withdrawal.employeeUuid.isNullOrBlank() || uuidComparable(withdrawal.employeeUuid) == uuidComparable(employeeUuid)) {
+            "employee_uuid does not match the selected employee"
+        }
         val now = System.currentTimeMillis()
         val prepared = withdrawal.copy(
             employeeUuid = employeeUuid,
@@ -74,7 +77,8 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
         date: String,
         note: String?,
         hotelDayKey: String,
-        allowCreate: Boolean
+        allowCreate: Boolean,
+        previousEmployeeUuid: String?
     ) {
         db.withTransaction {
             val expense = requireNotNull(expensesDao.getById(expenseId)) { "المصروف غير موجود" }
@@ -84,9 +88,12 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
             require(employeeUuid.isNullOrBlank() || uuidComparable(employeeUuid) == uuidComparable(employee.localUuid)) {
                 "employee_uuid does not match the selected employee"
             }
+            // Numeric expense/employee IDs only load local rows; they never prove ownership.
+            requireSameEmployee(expense.employeeUuid, employee.localUuid)
             val candidates = salaryWithdrawalsDao.getByExpenseUuid(expense.localUuid)
             check(candidates.size <= 1) { "توجد روابط مصروف مكررة؛ يلزم مراجعتها" }
             val matched = candidates.singleOrNull()
+            matched?.let { requireSameEmployee(it.employeeUuid, previousEmployeeUuid ?: employee.localUuid) }
             check(matched != null || allowCreate) {
                 "المصروف القديم بلا رابط UUID موثوق؛ يلزم مراجعته قبل التعديل، ولم تُحفظ تغييرات"
             }
@@ -126,7 +133,24 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
                 (expense.relatedId == null && expense.employeeUuid.isNullOrBlank())) {
                 "المصروف القديم بلا رابط UUID موثوق؛ يلزم مراجعته قبل الحذف"
             }
-            matches.singleOrNull()?.let { softDelete(it.id) }
+            matches.singleOrNull()?.let { mirror ->
+                val owner = requireNotNull(expense.employeeUuid?.takeIf { it.isNotBlank() }) {
+                    "علاقة الموظف التاريخية غير مؤكدة؛ لم يُرسل أي حذف"
+                }
+                requireSameEmployee(mirror.employeeUuid, owner)
+                if (!employeeUuid.isNullOrBlank()) requireSameEmployee(employeeUuid, owner)
+                if (employeeId != null) {
+                    val selectedEmployee = requireNotNull(employeesDao.getByIdIncludingDeleted(employeeId)) { "الموظف غير موجود" }
+                    requireSameEmployee(selectedEmployee.localUuid, owner)
+                }
+                softDelete(mirror.id)
+            }
+        }
+    }
+
+    private fun requireSameEmployee(actual: String?, expected: String) {
+        require(!actual.isNullOrBlank() && expected.isNotBlank() && uuidComparable(actual) == uuidComparable(expected)) {
+            "رابط السحب يشير إلى موظف آخر أو غير مؤكد؛ لم تُحفظ تغييرات"
         }
     }
 

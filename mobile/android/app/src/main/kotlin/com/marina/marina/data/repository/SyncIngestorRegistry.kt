@@ -1,5 +1,6 @@
 package com.marina.marina.data.repository
 
+import android.util.Log
 import androidx.room.withTransaction
 import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
@@ -292,6 +293,10 @@ class SyncIngestorRegistry @Inject constructor(
                     }
                 }
             }
+        }
+        val salaryOrphans = deferred.count { it.entity in setOf("salary_withdrawals", "salary_cycles", "salary_carry_over_logs") }
+        if (salaryOrphans > 0) {
+            Log.w("SyncIngestorRegistry", "Preserved $salaryOrphans unresolved salary records in durable inbox; no rows deleted")
         }
         return PullApplyReport(applied, skipped, failed, firstError, deferred)
     }

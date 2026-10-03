@@ -58,7 +58,7 @@ class ExpensesRepositoryImpl @Inject constructor(
                 .copy(updatedAt = System.currentTimeMillis(), version = old.version.coerceIn(0, 999_999) + 1)
             expensesDao.update(prepared.toEntity())
             outboxRepository.enqueueObject("expenses", "update", prepared.localUuid, prepared)
-            if (isLinked) saveMirror(prepared, allowCreate = !wasLinked)
+            if (isLinked) saveMirror(prepared, allowCreate = !wasLinked, previousEmployeeUuid = old.employeeUuid)
         }
     }
 
@@ -73,14 +73,14 @@ class ExpensesRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun saveMirror(expense: Expense, allowCreate: Boolean) {
+    private suspend fun saveMirror(expense: Expense, allowCreate: Boolean, previousEmployeeUuid: String? = null) {
         if (expense.expenseType.trim() !in employeeExpenseTypes || expense.relatedId == null) return
         withdrawals.saveFromExpense(
             expenseId = expense.id, employeeId = expense.relatedId,
             employeeUuid = expense.employeeUuid, employeeName = "",
             action = expense.expenseType, amount = expense.amount, date = expense.date,
             note = expense.description, hotelDayKey = expense.hotelDayKey ?: HotelTimeEngine.currentHotelDayKey(),
-            allowCreate = allowCreate
+            allowCreate = allowCreate, previousEmployeeUuid = previousEmployeeUuid
         )
     }
 

@@ -40,6 +40,12 @@ class OutboxRepository @Inject constructor(
     companion object {
         private const val WORKER_NAME = "outbox-processor"
         private const val MAX_ATTEMPTS_BEFORE_BACKOFF = 5
+
+        // A missing parent can arrive days later. Never turn an unacknowledged
+        // salary withdrawal into a dead letter merely because time/retries elapsed.
+        // Explicit validation_error/conflict responses still require manual review.
+        internal fun retryLimitReached(entity: String, attempts: Int): Boolean =
+            entity != "salary_withdrawals" && attempts >= MAX_ATTEMPTS_BEFORE_BACKOFF
     }
 
     private val gson = Gson()
@@ -85,12 +91,12 @@ class OutboxRepository @Inject constructor(
         // بصمت هنا — لا تُعاد للمحاولة ولا تُدفن، فتبقى pending للأبد (لأن
         // getPendingPrimary يعيدها) وتضخم عدّاد المعلّقات وتجمّد الدفع. الآن
         // تُدفن dead-letter (failed + completed) مثل الرفض الدائم تماماً.
-        allPending.filter { it.attempts >= MAX_ATTEMPTS_BEFORE_BACKOFF }.forEach { row ->
+        allPending.filter { retryLimitReached(it.entity, it.attempts) }.forEach { row ->
             outboxDao.markFailedPrimary(row.id, "max retry attempts reached (${row.attempts})")
             outboxDao.markProcessing(row.id, "completed", System.currentTimeMillis(), WORKER_NAME)
         }
 
-        val pending = allPending.filter { it.attempts < MAX_ATTEMPTS_BEFORE_BACKOFF }
+        val pending = allPending.filter { !retryLimitReached(it.entity, it.attempts) }
         if (pending.isEmpty()) return 0
 
         // الدخول الكسول: أول دفعة تضمن توكن JWT خادمياً (admin/admin

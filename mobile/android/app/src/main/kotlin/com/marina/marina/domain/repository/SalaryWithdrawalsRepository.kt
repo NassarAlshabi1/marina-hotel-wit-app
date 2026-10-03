@@ -19,7 +19,8 @@ interface SalaryWithdrawalsRepository {
         date: String,
         note: String?,
         hotelDayKey: String,
-        allowCreate: Boolean = false
+        allowCreate: Boolean = false,
+        previousEmployeeUuid: String? = null
     )
 
     /** Dart deleteByExpenseId — orphan cleanup when a salary expense is deleted. */
