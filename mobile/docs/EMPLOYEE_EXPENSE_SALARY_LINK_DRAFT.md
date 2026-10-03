@@ -79,6 +79,23 @@
 | P0.5 | `return true` في رفع المسحوب عند غياب الموظف → `return false` (يبقى في الطابور) + تسجيل | R6 |
 | P0.6 | إضافة `case 'salary_withdrawals'` و`case 'salary_carry_over_logs'` في `GoogleDriveDeltaSync._applyChange` | R7 |
 
+> **حالة التنفيذ (2026-10-03):**
+> - ✅ P0.1 — `_performPostSyncIntegrityCheck` لم يعد يحذف سجلات الرواتب اليتيمة: يسجّل فقط.
+> - ✅ P0.2 — أُزيلت "الطريقة 2" من `_syncSalaryWithdrawals` و`_syncSalaryCycles`، ولم يعد `data['employeeId']` يُستبدل.
+>   - `IdResolver` (مصدر بعيد): `serverId` مكرر → null، وUUID غير موجود → null (لا سقوط إلى serverId).
+> - ✅ P0.3 — حارس الموظف في `saveFromExpense` و`deleteByExpenseId` (`employeeId` / `employeeUuid` / `previousEmployeeId`)، وتحديث `employee_uuid` للمرآة عند تغيير الموظف (R12).
+> - ✅ P0.4 — `ExpensesAdapter`: لا `relatedId` خام لمصروف مرتبط بموظف من مصدر بعيد (يشمل السلفة). غير المحلول → `absent`.
+> - ✅ P0.5 — رفع السحبة بـ `employee_uuid` الخاص بها عند غياب الموظف محلياً. لا UUID → يبقى في الطابور (`false`) بدل `true`.
+> - ✅ P0.6 — Drive delta يطبق `salary_withdrawals` و`salary_carry_over_logs`، ويتجاهل الحذف النهائي للبيانات المالية.
+> - ✅ تعطيل `--apply` في `scripts/appwrite/backfill_salary_withdrawals_employee_uuid.js` (§11) وإزالة المفتاح المضمّن منه.
+> - الاختبارات: `test/services/salary_link_protection_test.dart` (7 اختبارات جديدة) + تحديث `id_resolver_cross_device_test.dart`. `test/unit` + `test/services`: 844 ناجحة.
+>
+> **متبقٍّ مرتبط (لم يُنفَّذ بعد):**
+> - دفع السحبة يكتب `employees.serverId = employee.id` محلياً (`appwrite_sync_manager.dart`، حول `_pushSalaryWithdrawal`). هذا مصدر تصادم `serverId` (R14)، ويحتاج قراراً لأن الشرط `serverId == null` يُستخدم لمعرفة إن كان الموظف قد رُفع.
+> - `OutboxDao` يحذف العناصر بعد `maxAttempts = 10` (حول السطر 989). السحبة المؤجلة قد تُحذف من الطابور في النهاية (ليس من الجدول).
+> - `writeExpenseIdRaw` ما زال يكتب `expense_id` الأجنبي للسحوبات المسحوبة. الحل الجذري هو `expense_uuid` (المرحلة 1).
+> - مفاتيح Appwrite API مضمّنة في سكربتات أخرى داخل `scripts/` يجب تدويرها وإزالتها.
+
 ### المرحلة 1 — ربط المصروف بالمسحوب عبر UUID
 
 **Migration 68:**
