@@ -1,12 +1,14 @@
 package com.marina.marina.data.repository
 
+import androidx.room.withTransaction
+import com.marina.marina.data.local.AppDatabase
+import com.marina.marina.data.local.dao.ExpensesDao
 import com.marina.marina.data.local.dao.EmployeesDao
 import com.marina.marina.data.local.dao.SalaryWithdrawalsDao
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.SalaryWithdrawal
 import com.marina.marina.domain.repository.SalaryWithdrawalsRepository
-import com.marina.marina.domain.util.ExpenseReasonMatcher
 import com.marina.marina.domain.util.HotelTimeEngine
 import java.util.UUID
 import javax.inject.Inject
@@ -16,6 +18,8 @@ import kotlinx.coroutines.flow.map
 
 @Singleton
 class SalaryWithdrawalsRepositoryImpl @Inject constructor(
+    private val db: AppDatabase,
+    private val expensesDao: ExpensesDao,
     private val salaryWithdrawalsDao: SalaryWithdrawalsDao,
     private val employeesDao: EmployeesDao,
     private val outboxRepository: OutboxRepository
@@ -27,7 +31,7 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
     override fun getByEmployee(employeeId: Long): Flow<List<SalaryWithdrawal>> =
         salaryWithdrawalsDao.getByEmployee(employeeId).map { entities -> entities.map { it.toDomain() } }
 
-    override suspend fun insert(withdrawal: SalaryWithdrawal): Long {
+    override suspend fun insert(withdrawal: SalaryWithdrawal): Long = db.withTransaction {
         val employee = employeesDao.getByIdIncludingDeleted(withdrawal.employeeId)
             ?: throw IllegalArgumentException("لا يمكن تسجيل سحب لموظف غير موجود")
         val employeeUuid = employee.localUuid.trim()
@@ -43,54 +47,20 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
         )
         val id = salaryWithdrawalsDao.insert(prepared.toEntity())
         outboxRepository.enqueueObject("salary_withdrawals", "insert", prepared.localUuid, prepared)
-        return id
+        id
     }
 
     override suspend fun softDelete(id: Long) {
+      db.withTransaction {
         val now = System.currentTimeMillis()
-        val entity = salaryWithdrawalsDao.getAllOnce().find { it.id == id } ?: return
+        val entity = salaryWithdrawalsDao.getAllOnce().find { it.id == id } ?: return@withTransaction
         salaryWithdrawalsDao.softDelete(id, deletedAt = now, updatedAt = now)
         val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
         outboxRepository.enqueueObject("salary_withdrawals", "delete", deleted.localUuid, deleted)
+      }
     }
 
-    /**
-     * Dart createFromExpense — paired with the salary expense: reason carries
-     * `exp_<expenseId>` so the reports can dedup expense vs withdrawal.
-     */
-    override suspend fun insertFromExpense(
-        expenseId: Long,
-        employeeId: Long,
-        employeeUuid: String?,
-        employeeName: String,
-        amount: Double,
-        dateIso: String,
-        hotelDayKey: String,
-        withdrawalType: String,
-        description: String?
-    ): Long {
-        return insert(
-            SalaryWithdrawal(
-                employeeId = employeeId,
-                employeeUuid = employeeUuid,
-                employeeName = employeeName,
-                amount = amount,
-                withdrawDate = HotelTimeEngine.parseDate(dateIso) ?: System.currentTimeMillis(),
-                hotelDayKey = hotelDayKey,
-                withdrawalType = withdrawalType,
-                reason = "exp_$expenseId",
-                description = description
-            )
-        )
-    }
-
-    /**
-     * Dart saveFromExpense (salary_withdrawals_repository.dart l.164-395):
-     * upsert the withdrawal paired with a salary expense via the
-     * `exp_<expenseId>` reason key — update in place when it already exists
-     * (so repeated edits never duplicate), insert otherwise. Ambiguous
-     * legacy matches are rejected; no unrelated withdrawal is auto-deleted.
-     */
+    /** No exp_N fallback: numeric references cannot prove cross-device identity. */
     override suspend fun saveFromExpense(
         expenseId: Long,
         employeeId: Long,
@@ -100,118 +70,64 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
         amount: Double,
         date: String,
         note: String?,
-        hotelDayKey: String
+        hotelDayKey: String,
+        allowCreate: Boolean
     ) {
-        val reasonText = "exp_$expenseId"
-        val localEmployeeUuid = employeesDao.getByIdIncludingDeleted(employeeId)
-            ?.localUuid?.trim()?.takeIf { it.isNotEmpty() }
-        val suppliedEmployeeUuid = employeeUuid?.trim()?.takeIf { it.isNotEmpty() }
-        if (
-            localEmployeeUuid != null && suppliedEmployeeUuid != null &&
-            uuidComparable(localEmployeeUuid) != uuidComparable(suppliedEmployeeUuid)
-        ) {
-            throw IllegalArgumentException("employee_uuid does not match the selected employee")
-        }
-        val stableEmployeeUuid = localEmployeeUuid ?: suppliedEmployeeUuid
-        val now = System.currentTimeMillis()
-
-        // `exp_<id>` is a legacy local cache, not a global expense key.
-        // Scope candidates to the employee and refuse ambiguous matches rather
-        // than tombstoning another device's real withdrawal by guess.
-        val candidates = salaryWithdrawalsDao.getByReasonLike(reasonText)
-            .filter { matchesExpenseRef(it.reason, expenseId) }
-            .filter { belongsToEmployee(it.employeeUuid, it.employeeId, stableEmployeeUuid, employeeId) }
-        if (candidates.size > 1) {
-            throw IllegalStateException(
-                "يوجد أكثر من سحب مرشح للمصروف $expenseId للموظف نفسه؛ أوقف التعديل للمراجعة اليدوية"
-            )
-        }
-        val matched = candidates.singleOrNull()
-
-        if (matched != null) {
-            // Dart l.259-287: تحديث السجل المقترن في مكانه بكل الحقول المزامنة.
-            val updated = matched.toDomain().copy(
-                employeeId = employeeId,
-                employeeUuid = stableEmployeeUuid
-                    ?: matched.employeeUuid?.takeIf { matched.employeeId == employeeId },
-                employeeName = employeeName,
+        db.withTransaction {
+            val expense = requireNotNull(expensesDao.getById(expenseId)) { "المصروف غير موجود" }
+            require(expense.localUuid.isNotBlank()) { "المصروف بلا UUID" }
+            val employee = requireNotNull(employeesDao.getByIdIncludingDeleted(employeeId)) { "الموظف غير موجود" }
+            require(employee.localUuid.isNotBlank()) { "الموظف بلا UUID" }
+            require(employeeUuid.isNullOrBlank() || uuidComparable(employeeUuid) == uuidComparable(employee.localUuid)) {
+                "employee_uuid does not match the selected employee"
+            }
+            val candidates = salaryWithdrawalsDao.getByExpenseUuid(expense.localUuid)
+            check(candidates.size <= 1) { "توجد روابط مصروف مكررة؛ يلزم مراجعتها" }
+            val matched = candidates.singleOrNull()
+            check(matched != null || allowCreate) {
+                "المصروف القديم بلا رابط UUID موثوق؛ يلزم مراجعته قبل التعديل، ولم تُحفظ تغييرات"
+            }
+            val now = System.currentTimeMillis()
+            val prepared = (matched?.toDomain() ?: SalaryWithdrawal(
+                // Identical source UUID => identical mirror identity on every device/retry.
+                localUuid = UUID.nameUUIDFromBytes(("salary-expense:" + expense.localUuid).toByteArray(Charsets.UTF_8)).toString()
+            )).copy(
+                expenseUuid = expense.localUuid,
+                employeeId = employee.id,
+                employeeUuid = employee.localUuid,
+                employeeName = employee.name,
                 amount = amount,
                 withdrawDate = HotelTimeEngine.parseDate(date) ?: now,
                 hotelDayKey = hotelDayKey,
                 withdrawalType = action,
-                reason = reasonText,
+                reason = "expense_uuid:" + expense.localUuid,
                 description = note,
-                updatedAt = now
+                updatedAt = now,
+                version = if (matched == null) 1 else matched.version.coerceIn(0, 999_999) + 1
             )
-            salaryWithdrawalsDao.update(updated.toEntity())
-            outboxRepository.enqueueObject("salary_withdrawals", "update", updated.localUuid, updated)
-        } else {
-            insert(
-                SalaryWithdrawal(
-                    employeeId = employeeId,
-                    employeeUuid = employeeUuid,
-                    employeeName = employeeName,
-                    amount = amount,
-                    withdrawDate = HotelTimeEngine.parseDate(date) ?: now,
-                    hotelDayKey = hotelDayKey,
-                    withdrawalType = action,
-                    reason = reasonText,
-                    description = note
-                )
-            )
+            if (matched == null) {
+                insert(prepared)
+            } else {
+                salaryWithdrawalsDao.update(prepared.toEntity())
+                outboxRepository.enqueueObject("salary_withdrawals", "update", prepared.localUuid, prepared)
+            }
         }
     }
 
-    /**
-     * Soft-delete only the unique withdrawal associated with this expense
-     * and employee. Never guess across duplicate or cross-employee matches.
-     */
-    override suspend fun deleteByExpenseId(
-        expenseId: Long,
-        employeeId: Long?,
-        employeeUuid: String?
-    ) {
-        val stableEmployeeUuid = employeeUuid?.trim()?.takeIf { it.isNotEmpty() }
-            ?: employeeId?.let { employeesDao.getByIdIncludingDeleted(it)?.localUuid?.trim() }
-                ?.takeIf { it.isNotEmpty() }
-        if (employeeId == null && stableEmployeeUuid == null) return
-
-        val candidates = salaryWithdrawalsDao.getByReasonLike("exp_$expenseId")
-            .filter { matchesExpenseRef(it.reason, expenseId) }
-            .filter { belongsToEmployee(it.employeeUuid, it.employeeId, stableEmployeeUuid, employeeId) }
-        if (candidates.size > 1) {
-            throw IllegalStateException(
-                "يوجد أكثر من سحب مرشح للمصروف $expenseId للموظف نفسه؛ لم يُرسل أي حذف"
-            )
+    override suspend fun deleteByExpenseId(expenseId: Long, employeeId: Long?, employeeUuid: String?) {
+        db.withTransaction {
+            val expense = expensesDao.getById(expenseId) ?: return@withTransaction
+            val matches = salaryWithdrawalsDao.getByExpenseUuid(expense.localUuid)
+            check(matches.size <= 1) { "توجد روابط مصروف مكررة؛ لم يُرسل أي حذف" }
+            check(matches.isNotEmpty() || expense.expenseType.trim() !in EmployeeExpenseTypes.values ||
+                (expense.relatedId == null && expense.employeeUuid.isNullOrBlank())) {
+                "المصروف القديم بلا رابط UUID موثوق؛ يلزم مراجعته قبل الحذف"
+            }
+            matches.singleOrNull()?.let { softDelete(it.id) }
         }
-        val linked = candidates.singleOrNull() ?: return
-        val now = System.currentTimeMillis()
-        salaryWithdrawalsDao.softDelete(linked.id, now, now)
-        val deleted = linked.toDomain().copy(deletedAt = now, updatedAt = now)
-        outboxRepository.enqueueObject("salary_withdrawals", "delete", deleted.localUuid, deleted)
     }
 
-    private fun belongsToEmployee(
-        currentUuid: String?,
-        currentEmployeeId: Long,
-        targetUuid: String?,
-        targetEmployeeId: Long?
-    ): Boolean {
-        val target = targetUuid?.trim()?.takeIf { it.isNotEmpty() }
-        val current = currentUuid?.trim()?.takeIf { it.isNotEmpty() }
-        if (target != null) {
-            return current != null && uuidComparable(target) == uuidComparable(current)
-        }
-        if (current != null) return false
-        return targetEmployeeId != null && targetEmployeeId == currentEmployeeId
-    }
-
-    private fun uuidComparable(value: String): String =
-        value.replace("-", "").trim().lowercase()
-
-    /** Dart expense_reason_matcher.dart حرفياً — exp_<id>(?!\\d). */
-    private fun matchesExpenseRef(reason: String?, expenseId: Long): Boolean =
-        ExpenseReasonMatcher.matchesExpenseRef(reason, expenseId)
+    private fun uuidComparable(value: String): String = value.trim().replace("-", "").lowercase()
 
     override suspend fun getTotalForEmployee(employeeId: Long): Double =
         salaryWithdrawalsDao.getTotalForEmployee(employeeId)

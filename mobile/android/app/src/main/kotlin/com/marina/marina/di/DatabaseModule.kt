@@ -17,7 +17,7 @@ import javax.inject.Singleton
 object DatabaseModule {
 
     /** Add stable UUID references for salary-payment cycles and carry-over employees. */
-    private val MIGRATION_70_71 = object : Migration(70, 71) {
+    val MIGRATION_70_71 = object : Migration(70, 71) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT")
             db.execSQL("ALTER TABLE salary_carry_over_logs ADD COLUMN employee_uuid TEXT")
@@ -32,6 +32,14 @@ object DatabaseModule {
         }
     }
 
+    val MIGRATION_71_72 = object : Migration(71, 72) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE salary_withdrawals ADD COLUMN expense_uuid TEXT")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_salary_wd_expense_uuid ON salary_withdrawals(expense_uuid)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS pending_sync_links (entity TEXT NOT NULL, localUuid TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(entity, localUuid))")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -40,8 +48,8 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71)
-            .fallbackToDestructiveMigration()
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72)
+            // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }
 

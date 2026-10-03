@@ -681,6 +681,7 @@ CREATE TABLE IF NOT EXISTS salary_withdrawals (
   withdrawal_type TEXT,
   description TEXT,
   expense_id INTEGER,
+  expense_uuid TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -1088,3 +1089,15 @@ CREATE TABLE IF NOT EXISTS app_users (
 CREATE INDEX IF NOT EXISTS idx_app_users_updated ON app_users(updated_at);
 CREATE INDEX IF NOT EXISTS idx_app_users_deleted ON app_users(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_salary_withdrawals_active_expense
+  ON salary_withdrawals(expense_uuid) WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL;
+
+-- 0014: wall-clock conflict timestamps must not use the logical pull cursor.
+-- Restore this table alongside entity data; rotate epoch after a server restore.
+CREATE TABLE IF NOT EXISTS sync_write_times (
+  entity TEXT NOT NULL,
+  local_uuid TEXT NOT NULL,
+  edited_at INTEGER NOT NULL,
+  PRIMARY KEY (entity, local_uuid)
+);

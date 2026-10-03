@@ -144,6 +144,10 @@ android {
         }
     }
 
+    sourceSets {
+        test.resources.srcDir("schemas")
+    }
+
     testOptions {
         unitTests {
             includeAndroidResources = true

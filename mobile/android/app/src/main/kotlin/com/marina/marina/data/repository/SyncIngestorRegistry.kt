@@ -6,6 +6,8 @@ import com.google.gson.FieldAttributes
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
+import com.google.gson.reflect.TypeToken
+import com.marina.marina.data.local.entity.PendingSyncLinkEntity
 import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.AppUsersDao
 import com.marina.marina.data.local.dao.AuditLogsDao
@@ -268,7 +270,16 @@ class SyncIngestorRegistry @Inject constructor(
 
         db.withTransaction {
             for (record in records) {
-                when (val outcome = applyRecord(record)) {
+                val entity = record["_entity"] as? String ?: "unknown"
+                val uuid = record["local_uuid"] as? String ?: ""
+                val outcome = applyRecord(record)
+                if (outcome is ApplyOutcome.Deferred) {
+                    require(uuid.isNotBlank()) { "Deferred row has no local_uuid" }
+                    db.pendingSyncLinksDao().put(PendingSyncLinkEntity(entity, uuid, Gson().toJson(record)))
+                } else if (outcome is ApplyOutcome.Applied || outcome is ApplyOutcome.Skipped) {
+                    db.pendingSyncLinksDao().remove(entity, uuid)
+                }
+                when (outcome) {
                     is ApplyOutcome.Applied -> applied++
                     is ApplyOutcome.Skipped -> skipped++
                     is ApplyOutcome.Deferred -> deferred += DeferredRecord(
@@ -285,9 +296,24 @@ class SyncIngestorRegistry @Inject constructor(
         return PullApplyReport(applied, skipped, failed, firstError, deferred)
     }
 
+    /** Retry across process restarts; parent/child chains may require more than one pass. */
+    suspend fun retryPendingLinks(): PullApplyReport {
+        var total = 0
+        while (true) {
+            val pending = db.pendingSyncLinksDao().getAll()
+            if (pending.isEmpty()) return PullApplyReport(total, 0, 0, null, emptyList())
+            val type = object : TypeToken<Map<String, Any>>() {}.type
+            val report = ingestPage(pending.map { Gson().fromJson<Map<String, Any>>(it.payload, type) })
+            total += report.applied
+            if (report.hasFailures || report.applied == 0) return report.copy(applied = total)
+        }
+    }
+
+    suspend fun clearPendingLinksForEpochReset() = db.pendingSyncLinksDao().clear()
+
     /** سجل استيعاب واحد (توافق الاستدعاءات القديمة) — بلا معاملة صفحة. */
     suspend fun ingest(record: Map<String, Any>): Boolean =
-        applyRecord(record) is ApplyOutcome.Applied
+        ingestPage(listOf(record)).applied == 1
 
     // ─── تطبيق سجل واحد ─────────────────────────────────────────
 
@@ -371,13 +397,9 @@ class SyncIngestorRegistry @Inject constructor(
                         if (employee != null) {
                             mapped["employee_uuid"] = employee.localUuid
                             mapped["related_id"] = employee.id
-                        } else if (existing != null) {
-                            preserveExpenseEmployeeLink(mapped, existing)
                         } else {
-                            // Nullable relationship: retain its stable UUID for
-                            // diagnostics, but never persist a foreign device id.
-                            mapped["employee_uuid"] = incomingUuid
-                            mapped.remove("related_id")
+                            // Preserve the incoming identity in the durable inbox, not the old employee.
+                            return ApplyOutcome.Deferred
                         }
                     }
                     existing != null -> preserveExpenseEmployeeLink(mapped, existing)
@@ -435,6 +457,9 @@ class SyncIngestorRegistry @Inject constructor(
             }
             "salary_withdrawals" -> {
                 val existing = existingForLink as? SalaryWithdrawalEntity
+                if (asString(mapped["expense_uuid"]).isNullOrBlank()) {
+                    existing?.expenseUuid?.let { mapped["expense_uuid"] = it }
+                }
                 if (!mapEmployeeReference(
                         mapped = mapped,
                         uuidKey = "employee_uuid",

@@ -10,6 +10,7 @@ import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.PushWireContract
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.data.remote.WorkerPushResult
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -54,7 +55,8 @@ class OutboxRepository @Inject constructor(
             localUuid = localUuid,
             payload = gson.toJson(payload),
             clientTs = System.currentTimeMillis(),
-            idempotencyKey = "${entity}_${op}_${localUuid}"
+            // Each mutation has its own key; retries reuse this persisted row/key.
+            idempotencyKey = "${entity}_${op}_${localUuid}_${UUID.randomUUID()}"
         )
         return outboxDao.insert(outbox)
     }

@@ -35,6 +35,9 @@ interface SalaryWithdrawalsDao {
     @Update
     suspend fun update(withdrawal: SalaryWithdrawalEntity)
 
+    @Query("SELECT * FROM salary_withdrawals WHERE deleted_at IS NULL AND expense_uuid = :expenseUuid")
+    suspend fun getByExpenseUuid(expenseUuid: String): List<SalaryWithdrawalEntity>
+
     @Query("SELECT * FROM salary_withdrawals WHERE deleted_at IS NULL AND reason = :reason LIMIT 1")
     suspend fun getByReason(reason: String): SalaryWithdrawalEntity?
 

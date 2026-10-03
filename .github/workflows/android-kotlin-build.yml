@@ -10,6 +10,7 @@ on:
       - agent/pulse-storm-pdj1
       - agent/android-cloudflare
       - arena/01a0fdf3-marina-hotel-wit-app
+      - arena/01a0ffdb-marina-hotel-wit-app
     paths:
       - 'mobile/android/**'
       - 'mobile/Keystore.txt'
@@ -122,6 +123,7 @@ jobs:
           # <rootProject.buildDir>/<projectName>, i.e. mobile/build/app — not
           # the AGP default mobile/android/app/build.
           path: |
+            mobile/android/app/schemas
             mobile/build/app/test-results
             mobile/build/app/reports/tests
             mobile/android/app/build/test-results

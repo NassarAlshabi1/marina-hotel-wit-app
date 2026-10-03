@@ -84,7 +84,6 @@ class SyncManager @Inject constructor(
             return _syncState.value
         }
         preferences.saveLastPullTs(System.currentTimeMillis())
-        preferences.setFullSyncComplete(true)
 
         _syncState.value = _syncState.value.copy(
             isSyncing = false,
@@ -183,6 +182,7 @@ class SyncManager @Inject constructor(
             return -1
         }
         // 1) إعادة ضبط مؤشر السحب — الجلب يبدأ من الصفر.
+        preferences.setFullReplayPending(true)
         preferences.saveLastPullCursor(0L)
         val pulled = try {
             pullDelta(batchSize = CloudflareConfig.FULL_PULL_BATCH_SIZE, isFullPull = true)
@@ -195,11 +195,11 @@ class SyncManager @Inject constructor(
             return -1
         }
         preferences.saveLastPullTs(System.currentTimeMillis())
-        preferences.setFullSyncComplete(true)
         _syncState.value = _syncState.value.copy(
             isSyncing = false,
             lastSyncAt = System.currentTimeMillis(),
-            lastMessage = "اكتمل السحب الكامل: $pulled سجل (بدون رفع)",
+            lastMessage = if (preferences.isFullReplayPending()) "سُحب $pulled سجل؛ ستُستكمل بقية الصفحات في الدورة القادمة"
+                else "اكتمل السحب الكامل: $pulled سجل (بدون رفع)",
             pulledCount = pulled
         )
         return pulled
@@ -249,23 +249,25 @@ class SyncManager @Inject constructor(
     ): Int {
         val deviceId = preferences.getDeviceId()
         var cursor = preferences.getLastPullCursor()
+        val fullReplay = isFullPull || cursor == 0L || preferences.isFullReplayPending()
+        if (fullReplay) preferences.setFullReplayPending(true)
+        var reachedEnd = false
         var ingested = 0
         var pagesDone = 0
         var epochReset = false
-        val deferredRecords = mutableListOf<DeferredRecord>()
 
         while (true) {
             // سقف الصفحات (H2) — خروج نظيف والبقية دورة قادمة.
             if (pagesDone >= MAX_PULL_PAGES_PER_CYCLE) break
 
-            val includeRemaining = isFullPull &&
+            val includeRemaining = fullReplay &&
                 pagesDone % REMAINING_SAMPLE_EVERY_PAGES == 0
-            val normalizeTimestamps = pagesDone == 0 && isFullPull &&
+            val normalizeTimestamps = pagesDone == 0 && fullReplay &&
                 !preferences.isTimestampNormalizationDone()
             // ⚠️ العقد الدارتي: السحب الكامل وحده يستثني فلتر الصدى —
             // excludeOwnDevice: !wasFullSync (Dart l.2063).
             val excludeDevice = deviceId
-                ?.takeIf { it.isNotBlank() && !isFullPull }
+                ?.takeIf { it.isNotBlank() && !fullReplay }
 
             val result = syncService.pull(
                 cursor = cursor,
@@ -286,15 +288,21 @@ class SyncManager @Inject constructor(
                 responseEpoch = response.epoch,
                 pageBuiltFromZero = cursor == 0L && pagesDone == 0
             )
-            epochDecision.epochToPersist?.let(preferences::saveSyncEpoch)
             if (epochDecision.restartFromZero) {
+                preferences.setFullReplayPending(true)
                 preferences.saveLastPullCursor(0L)
                 preferences.setFullSyncComplete(false)
+                ingestorRegistry.clearPendingLinksForEpochReset()
                 epochReset = true
                 _syncState.value = _syncState.value.copy(
                     lastMessage = "تغير جيل بيانات الخادم — إعادة السحب من البداية..."
                 )
                 break
+            }
+
+            epochDecision.epochToPersist?.let { epoch ->
+                if (preferences.getSyncEpoch() != null) ingestorRegistry.clearPendingLinksForEpochReset()
+                preferences.saveSyncEpoch(epoch)
             }
 
             // جداول فاشلة على الخادم (schema drift عادةً) — لا نقدّم المؤشر؛
@@ -332,7 +340,6 @@ class SyncManager @Inject constructor(
             if (changes.isNotEmpty()) {
                 val report = ingestorRegistry.ingestPage(changes)
                 ingested += report.applied
-                deferredRecords.addAll(report.deferred)
                 if (report.hasFailures) {
                     // فشل تطبيق فعلي — دورة فاشلة: المؤشر لا يتقدم
                     // (التراجع الكامل يضمن إعادة سحب ما بين الحدين).
@@ -351,6 +358,7 @@ class SyncManager @Inject constructor(
             )
 
             if (!hasMore) {
+                reachedEnd = true
                 cursor = nextCursor
                 break
             }
@@ -365,27 +373,25 @@ class SyncManager @Inject constructor(
             }
             return ingested + pullDelta(
                 batchSize = batchSize,
-                isFullPull = isFullPull,
+                isFullPull = true,
                 allowEpochRestart = false
             )
         }
 
-        // ✅ إعادة محاولة المؤجلين — الآباء وصلوا الآن (صفحات لاحقة),
-        // فتُحلّ السلاسل (غرفة → حجز → ليلة / موظف → دورة → دفعة).
-        if (deferredRecords.isNotEmpty()) {
-            val retry = ingestorRegistry.ingestPage(deferredRecords.map { it.record })
-            ingested += retry.applied
-            if (retry.hasFailures) {
-                throw Exception(
-                    "فشل تطبيق ${retry.failed} سجلاً مؤجلاً: ${retry.firstError ?: "غير معروف"}"
-                )
-            }
-            // ما بقي غير محلول: لا يُفشل الدورة — المؤشر يتقدم (عقد
-            // 2026-09-15) ويُستكمل في السحب الكامل القادم تلقائياً.
+        // Every unresolved payload is already durable before advancing the checkpoint.
+        // Retry on every cycle, including an empty delta after the parent arrived earlier.
+        val retry = ingestorRegistry.retryPendingLinks()
+        ingested += retry.applied
+        if (retry.hasFailures) {
+            throw Exception("فشل تطبيق سجل مؤجل: ${retry.firstError ?: "غير معروف"}")
         }
 
         // دورة نظيفة كاملة — الآن فقط نقدّم نقطة التفتيش المحفوظة.
         preferences.saveLastPullCursor(cursor)
+        if (fullReplay && reachedEnd) {
+            preferences.setFullReplayPending(false)
+            preferences.setFullSyncComplete(true)
+        }
         return ingested
     }
 

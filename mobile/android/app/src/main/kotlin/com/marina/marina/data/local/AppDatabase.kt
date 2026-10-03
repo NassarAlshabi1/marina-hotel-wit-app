@@ -75,6 +75,7 @@ import com.marina.marina.data.local.entity.SyncStateEntity
 
 @Database(
     entities = [
+        com.marina.marina.data.local.entity.PendingSyncLinkEntity::class,
         RoomEntity::class,
         BookingEntity::class,
         BookingNoteEntity::class,
@@ -112,10 +113,12 @@ import com.marina.marina.data.local.entity.SyncStateEntity
         AppUserEntity::class,
         DeviceInfoEntity::class
     ],
-    version = 71,
+    version = 72,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun pendingSyncLinksDao(): com.marina.marina.data.local.dao.PendingSyncLinksDao
+
     abstract fun roomsDao(): RoomsDao
     abstract fun bookingsDao(): BookingsDao
     abstract fun paymentsDao(): PaymentsDao
@@ -153,6 +156,6 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "marina_hotel.db"
-        const val SCHEMA_VERSION = 71
+        const val SCHEMA_VERSION = 72
     }
 }

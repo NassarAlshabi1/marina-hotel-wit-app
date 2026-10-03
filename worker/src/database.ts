@@ -813,13 +813,46 @@ export class Database {
           return { ...data, booking_local_id: matches.results[0].id };
         }
       }
-      return data;
+      if (mode === 'create') {
+        throw new Error('booking_nights requires a resolvable booking_uuid_cache or server_booking_id');
+      }
+      // A legacy partial update cannot change the canonical parent by raw id.
+      const partial = { ...data };
+      delete partial.booking_local_id;
+      delete partial.booking_uuid_cache;
+      delete partial.server_booking_id;
+      return partial;
     }
 
     const normalized = { ...data };
     const readUuid = (value: unknown): string =>
       typeof value === 'string' ? value.trim() : '';
     const employeeUuid = readUuid(normalized.employee_uuid);
+
+    if (entity === 'salary_withdrawals') {
+      const expenseUuid = readUuid(normalized.expense_uuid);
+      if (expenseUuid) {
+        if (!(await this.getTableColumns('salary_withdrawals')).has('expense_uuid')) {
+          throw new Error('Migration 0013 is required before syncing expense-linked withdrawals');
+        }
+        const expense = await this.db.prepare(
+          'SELECT local_uuid, employee_uuid FROM expenses WHERE local_uuid = ?'
+        ).bind(expenseUuid).first<{ local_uuid: string; employee_uuid: string | null }>();
+        if (!expense) throw new Error('salary_withdrawals parent expense_uuid is not present in D1 yet');
+        if (!employeeUuid || !expense.employee_uuid ||
+            this.uuidComparable(employeeUuid) !== this.uuidComparable(expense.employee_uuid)) {
+          throw new Error('salary_withdrawals employee_uuid does not match its expense');
+        }
+        normalized.expense_uuid = expense.local_uuid;
+        // One source cannot acquire a second active mirror with a different UUID.
+        const mirror = await this.db.prepare(
+          'SELECT local_uuid FROM salary_withdrawals WHERE expense_uuid = ? AND deleted_at IS NULL AND local_uuid != ? LIMIT 1'
+        ).bind(expense.local_uuid, readUuid(normalized.local_uuid)).first();
+        if (mirror) throw new Error('salary_withdrawals expense_uuid already has an active mirror');
+      } else {
+        delete normalized.expense_uuid; // absent/null never unlinks a known source
+      }
+    }
 
     if (entity === 'salary_cycles' || entity === 'salary_withdrawals' || entity === 'salary_carry_over_logs') {
       if (!employeeUuid) {
@@ -911,9 +944,7 @@ export class Database {
         normalized.related_id = null;
         normalized.employee_link_cleared = 0;
       } else {
-        // An unresolvable link on an update must not overwrite a good link.
-        delete normalized.employee_uuid;
-        delete normalized.related_id;
+        throw new Error('expenses parent employee_uuid is not present in D1 yet');
       }
       return normalized;
     }
@@ -1055,14 +1086,15 @@ export class Database {
 
     // Use INSERT OR IGNORE for idempotency (duplicate local_uuid = skip)
     // but check the actual row count to detect silent failures
-    const insertResult = await this.db
-      .prepare(`INSERT OR IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
-      .bind(...values)
-      .run();
+    const [insertResult] = await this.db.batch([
+      this.db.prepare(`INSERT OR IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`).bind(...values),
+      this.db.prepare('INSERT OR IGNORE INTO sync_write_times (entity, local_uuid, edited_at) VALUES (?, ?, ?)')
+        .bind(entity, localUuid, now),
+    ]);
 
     // If no rows were written, check if the record already exists
     // (idempotent skip) or if there was a silent constraint violation
-    if (insertResult.meta.changes === 0) {
+    if (insertResult!.meta.changes === 0) {
       const existing = await this.db
         .prepare(`SELECT local_uuid FROM ${table} WHERE local_uuid = ?`)
         .bind(localUuid)
@@ -1098,7 +1130,6 @@ export class Database {
     const table = getTableName(entity);
     const clearEmployeeLink =
       entity === 'expenses' && this.isExplicitLinkClear(data.clear_employee_link);
-    data = await this.normalizePushReferences(entity, data, 'update');
 
     // Fetch existing record by local_uuid (not id — id is autoIncrement)
     const existing = await this.db
@@ -1127,6 +1158,16 @@ export class Database {
       return { ...existing, opStatus: 'deleted' };
     }
 
+    if (entity === 'salary_withdrawals' && existing.expense_uuid && data.expense_uuid &&
+        existing.expense_uuid !== data.expense_uuid) {
+      throw new Error('Cannot reassign the source expense_uuid of a salary withdrawal');
+    }
+    if (entity === 'salary_withdrawals' && existing.expense_uuid) {
+      data = { ...data, expense_uuid: existing.expense_uuid,
+        employee_uuid: data.employee_uuid || existing.employee_uuid };
+    }
+    data = await this.normalizePushReferences(entity, { ...data, local_uuid: recordId }, 'update');
+
     // ─── Conflict Detection: Vector Clock ───────────────────
     const conflict = this.detectConflict(existing.vector_clock || '{}', vectorClock);
     // LWW input precedence (fix proven by test + client code): the op-level
@@ -1147,7 +1188,13 @@ export class Database {
       incomingTimestampRaw,
       serverNow + Database.CLOCK_SKEW_ALLOWANCE_S
     );
-    const incomingDelta = incomingTimestamp - existing.updated_at;
+    const writeTime = await this.db.prepare(
+      'SELECT edited_at FROM sync_write_times WHERE entity = ? AND local_uuid = ?'
+    ).bind(entity, recordId).first<{ edited_at: number }>();
+    // Legacy rows have no trustworthy separate edit time. Bound their old cursor
+    // to wall time once; all subsequent writes store an independent timestamp.
+    const existingEditTime = writeTime?.edited_at ?? Math.min(existing.updated_at, serverNow);
+    const incomingDelta = incomingTimestamp - existingEditTime;
     const existingVersion = this.sanitizeVersion(existing.version);
     const timestampLoss =
       incomingDelta > 0
@@ -1226,10 +1273,12 @@ export class Database {
       .join(', ');
     const values = Object.keys(cleanUpdate).map((col) => cleanUpdate[col]);
 
-    await this.db
-      .prepare(`UPDATE ${table} SET ${setClauses} WHERE local_uuid = ?`)
-      .bind(...values, recordId)
-      .run();
+    await this.db.batch([
+      this.db.prepare(`UPDATE ${table} SET ${setClauses} WHERE local_uuid = ?`).bind(...values, recordId),
+      this.db.prepare('INSERT INTO sync_write_times (entity, local_uuid, edited_at) VALUES (?, ?, ?) ' +
+        'ON CONFLICT(entity, local_uuid) DO UPDATE SET edited_at = excluded.edited_at')
+        .bind(entity, recordId, incomingTimestamp),
+    ]);
 
     // Log to sync_log
     await this.logSync(entity, recordId, 'update', newVersion, deviceId, cleanUpdate);

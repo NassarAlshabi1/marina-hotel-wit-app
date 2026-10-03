@@ -12,8 +12,18 @@ import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.CloudflareWorkerApi
 import com.marina.marina.data.remote.PushWireContract
 import com.marina.marina.data.remote.SyncPreferences
+import com.marina.marina.data.repository.ExpensesRepositoryImpl
+import com.marina.marina.data.repository.SalaryWithdrawalsRepositoryImpl
+import com.marina.marina.data.local.entity.ExpenseEntity
+import com.marina.marina.data.local.entity.SalaryWithdrawalEntity
+import com.marina.marina.data.mapper.toDomain
+import com.marina.marina.domain.model.Expense
 import com.marina.marina.data.repository.BookingNightsRepositoryImpl
 import com.marina.marina.data.repository.OutboxRepository
+import com.marina.marina.data.remote.WorkerPullResponse
+import com.marina.marina.data.repository.SyncManager
+import retrofit2.Call
+import retrofit2.Response
 import com.marina.marina.data.repository.SyncIngestorRegistry
 import com.marina.marina.di.EncryptedSharedPreferencesManager
 import com.marina.marina.domain.model.BookingNight
@@ -61,7 +71,10 @@ class SyncIngestorRegistryTest {
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        registry = SyncIngestorRegistry(
+        registry = newRegistry()
+    }
+
+    private fun newRegistry() = SyncIngestorRegistry(
             db = db,
             roomsDao = db.roomsDao(),
             bookingsDao = db.bookingsDao(),
@@ -87,14 +100,13 @@ class SyncIngestorRegistryTest {
             inventoryDao = db.inventoryDao(),
             blacklistEntriesDao = db.blacklistEntriesDao()
         )
-    }
 
     @After
     fun closeDatabase() {
         db.close()
     }
 
-    private fun bookingNightsRepository(): BookingNightsRepositoryImpl {
+    private fun outboxRepository(): OutboxRepository {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val encryptedPrefs = EncryptedSharedPreferencesManager(context)
         val syncPreferences = SyncPreferences(encryptedPrefs)
@@ -109,19 +121,22 @@ class SyncIngestorRegistryTest {
             config = CloudflareConfig(context),
             preferences = syncPreferences
         )
-        val outbox = OutboxRepository(
+        return OutboxRepository(
             outboxDao = db.outboxDao(),
             syncService = syncService,
             preferences = syncPreferences,
             syncIngestorRegistry = registry
         )
+    }
+
+    private fun bookingNightsRepository(): BookingNightsRepositoryImpl {
         return BookingNightsRepositoryImpl(
             db = db,
             bookingsDao = db.bookingsDao(),
             nightsDao = db.bookingNightsDao(),
             adjustmentsDao = db.bookingPriceAdjustmentsDao(),
             ledgerDao = db.hotelDayLedgerDao(),
-            outboxRepository = outbox
+            outboxRepository = outboxRepository()
         )
     }
 
@@ -763,5 +778,162 @@ class SyncIngestorRegistryTest {
         val saved = db.roomsDao().getByLocalUuid("room-local-server-delete")!!
         assertEquals(firstStamp, saved.deletedAt)
         assertEquals(180.0, saved.price, 0.001)
+    }
+
+    private fun expensesRepository(): ExpensesRepositoryImpl {
+        val outbox = outboxRepository()
+        val withdrawals = SalaryWithdrawalsRepositoryImpl(
+            db, db.expensesDao(), db.salaryWithdrawalsDao(), db.employeesDao(), outbox
+        )
+        return ExpensesRepositoryImpl(db, withdrawals, db.expensesDao(), db.employeesDao(), outbox)
+    }
+
+    @Test
+    fun salaryExpenseWritesAndUnlinksExactlyOneUuidMirrorAtomically() = runBlocking {
+        val employeeId = db.employeesDao().insert(EmployeeEntity(name = "A", basicSalary = 1000.0, status = "active", localUuid = "employee-a"))
+        val employeeB = db.employeesDao().insert(EmployeeEntity(name = "B", basicSalary = 1000.0, status = "active", localUuid = "employee-b"))
+        // An unrelated remote legacy reference must never be mistaken for the new local expense.
+        db.salaryWithdrawalsDao().insert(SalaryWithdrawalEntity(
+            employeeId = employeeId, employeeUuid = "employee-a", amount = 999.0,
+            withdrawDate = 1L, localUuid = "unrelated", reason = "exp_1"
+        ))
+        val repository = expensesRepository()
+        val id = repository.insert(Expense(
+            expenseType = "سلفة", relatedId = employeeId, amount = 100.0,
+            date = "2026-10-03", hotelDayKey = "2026-10-03"
+        ))
+        val expense = db.expensesDao().getById(id)!!.toDomain()
+        val mirror = db.salaryWithdrawalsDao().getByExpenseUuid(expense.localUuid).single()
+        assertEquals("employee-a", mirror.employeeUuid)
+        assertEquals(2, db.outboxDao().getPendingPrimary().first().size)
+        val wire = db.outboxDao().getPendingPrimary().first().map { PushWireContract.buildOperation(it, "device") }
+        assertEquals(expense.localUuid, wire.single { it.entity == "salary_withdrawals" }.data["expense_uuid"])
+
+        repository.update(expense.copy(relatedId = employeeB, employeeUuid = "employee-b", amount = 150.0))
+        val updated = db.salaryWithdrawalsDao().getByExpenseUuid(expense.localUuid).single()
+        assertEquals(mirror.localUuid, updated.localUuid)
+        assertEquals("employee-b", updated.employeeUuid)
+        assertEquals(150.0, updated.amount, 0.0)
+        repository.update(db.expensesDao().getById(id)!!.toDomain().copy(expenseType = "تشغيلية"))
+        assertTrue(db.salaryWithdrawalsDao().getByLocalUuid(mirror.localUuid)!!.deletedAt != null)
+        assertNull(db.salaryWithdrawalsDao().getByLocalUuid("unrelated")!!.deletedAt)
+        assertNull(db.expensesDao().getById(id)!!.relatedId)
+        val keys = db.outboxDao().getPendingPrimary().first().map { it.idempotencyKey }
+        assertEquals(keys.size, keys.toSet().size) // distinct edits must not replay the first edit's receipt
+    }
+
+    @Test
+    fun legacyMirrorWithoutUuidBlocksEditAndRollsBackExpenseAndOutbox() = runBlocking {
+        val employeeId = db.employeesDao().insert(EmployeeEntity(name = "A", basicSalary = 1000.0, status = "active", localUuid = "employee-a"))
+        val expenseId = db.expensesDao().insert(ExpenseEntity(
+            expenseType = "سلفة", relatedId = employeeId, employeeUuid = "employee-a",
+            amount = 100.0, description = "old", date = "2026-10-03", localUuid = "old-expense"
+        ))
+        db.salaryWithdrawalsDao().insert(SalaryWithdrawalEntity(
+            employeeId = employeeId, amount = 100.0, withdrawDate = 1L,
+            reason = "exp_$expenseId", localUuid = "legacy-mirror", employeeUuid = null
+        ))
+        val repository = expensesRepository()
+        val failure = runCatching { repository.update(db.expensesDao().getById(expenseId)!!.toDomain().copy(amount = 900.0)) }
+        assertTrue(failure.isFailure)
+        assertEquals(100.0, db.expensesDao().getById(expenseId)!!.amount, 0.0)
+        assertEquals(1, db.salaryWithdrawalsDao().getAllOnce().size)
+        assertTrue(db.outboxDao().getPendingPrimary().first().isEmpty())
+        assertTrue(runCatching { repository.softDelete(expenseId) }.isFailure)
+        assertTrue(db.expensesDao().getById(expenseId) != null)
+    }
+
+    @Test
+    fun failingMirrorInsertRollsBackNewExpenseAndItsOutbox() = runBlocking {
+        val employeeId = db.employeesDao().insert(EmployeeEntity(name = "A", basicSalary = 1000.0, status = "active", localUuid = "employee-a"))
+        db.openHelper.writableDatabase.execSQL(
+            "CREATE TRIGGER fail_mirror BEFORE INSERT ON salary_withdrawals BEGIN SELECT RAISE(ABORT, 'injected failure'); END"
+        )
+        val result = runCatching {
+            expensesRepository().insert(Expense(expenseType = "سلفة", relatedId = employeeId, amount = 100.0))
+        }
+        assertTrue(result.isFailure)
+        assertTrue(db.expensesDao().getAllOnce().isEmpty())
+        assertTrue(db.outboxDao().getPendingPrimary().first().isEmpty())
+    }
+
+    @Test
+    fun pendingEmployeeReassignmentSurvivesDatabaseReopen() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "pending-links-regression.db"
+        db.close()
+        context.deleteDatabase(name)
+        db = Room.databaseBuilder(context, AppDatabase::class.java, name).allowMainThreadQueries().build()
+        registry = newRegistry()
+        try {
+            val employeeId = db.employeesDao().insert(EmployeeEntity(name = "A", basicSalary = 1000.0, status = "active", localUuid = "employee-a"))
+            db.expensesDao().insert(ExpenseEntity(
+                expenseType = "سلفة", relatedId = employeeId, employeeUuid = "employee-a",
+                amount = 100.0, description = "old", date = "2026-10-03", localUuid = "expense-move"
+            ))
+            val incoming = mapOf<String, Any>(
+                "_entity" to "expenses", "local_uuid" to "expense-move", "employee_uuid" to "employee-b",
+                "related_id" to 987L, "expense_type" to "سلفة", "amount" to 200.0,
+                "description" to "new", "date" to "2026-10-03", "last_modified" to 500L
+            )
+            assertEquals(1, registry.ingestPage(listOf(incoming)).deferred.size)
+            assertEquals(1, db.pendingSyncLinksDao().getAll().size)
+            assertEquals(100.0, db.expensesDao().getByLocalUuid("expense-move")!!.amount, 0.0)
+            db.close()
+            db = Room.databaseBuilder(context, AppDatabase::class.java, name).allowMainThreadQueries().build()
+            registry = newRegistry()
+            val newId = db.employeesDao().insert(EmployeeEntity(name = "B", basicSalary = 1000.0, status = "active", localUuid = "employee-b"))
+            assertEquals(1, registry.retryPendingLinks().applied)
+            val saved = db.expensesDao().getByLocalUuid("expense-move")!!
+            assertEquals("employee-b", saved.employeeUuid)
+            assertEquals(newId, saved.relatedId)
+            assertEquals(200.0, saved.amount, 0.0)
+            assertTrue(db.pendingSyncLinksDao().getAll().isEmpty())
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    @Test
+    fun epochReplayIncludesOwnRowsAcrossPageLimitAndManagerRestart() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))
+        prefs.saveAuthToken("test-worker-token")
+        prefs.saveDeviceId("device-A")
+        prefs.saveLastPullCursor(999L)
+        prefs.saveSyncEpoch("old")
+        prefs.setFullReplayPending(false)
+        val requests = mutableListOf<Pair<Long, String?>>()
+        var calls = 0
+        val api = Proxy.newProxyInstance(
+            CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
+        ) { _, method, args ->
+            check(method.name == "pull") { "Unexpected call: ${method.name}" }
+            val cursor = args!![0] as Long
+            val excluded = args[2] as String?
+            requests.add(cursor to excluded)
+            calls++
+            val body = WorkerPullResponse(
+                changes = emptyList(), cursor = (if (calls == 1) 999L else cursor + 1).toString(),
+                epoch = "new", hasMore = calls <= 101, remaining = null, errors = emptyList(), serverTime = null
+            )
+            Proxy.newProxyInstance(Call::class.java.classLoader, arrayOf(Call::class.java)) { _, callMethod, _ ->
+                check(callMethod.name == "execute")
+                Response.success(body)
+            } as Call<*>
+        } as CloudflareWorkerApi
+        val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
+        val outbox = OutboxRepository(db.outboxDao(), service, prefs, registry)
+        assertEquals(0, SyncManager(outbox, service, prefs, registry).pullOnly())
+        assertTrue(prefs.isFullReplayPending())
+        assertEquals(100L, prefs.getLastPullCursor())
+        assertEquals(999L to "device-A", requests.first())
+        assertTrue(requests.drop(1).all { it.second == null })
+        // New manager resumes from the saved non-zero cursor WITHOUT re-enabling echo filtering.
+        assertEquals(0, SyncManager(outbox, service, prefs, newRegistry()).pullOnly())
+        assertNull(requests.last().second)
+        assertTrue(!prefs.isFullReplayPending())
+        assertEquals("new", prefs.getSyncEpoch())
     }
 }

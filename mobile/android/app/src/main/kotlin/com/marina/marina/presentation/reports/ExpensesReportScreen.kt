@@ -88,6 +88,17 @@ fun ExpensesReportScreen(
                     }
                 }
 
+                if (state.unresolvedMirrorCount > 0) {
+                    item {
+                        Text(
+                            "تنبيه: ${state.unresolvedMirrorCount} سحباً بلا مرآة مؤكدة ضمن النتائج. " +
+                                "لم تُخفَ السجلات بالتخمين؛ قد تتضمن المجاميع ازدواجاً تاريخياً يحتاج مراجعة.",
+                            color = AppColors.WarningColor,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+
                 // Summary strip (Dart _buildDetailedSummary l.1177-1364).
                 item {
                     OutlinedCard(

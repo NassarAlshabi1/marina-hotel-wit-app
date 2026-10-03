@@ -258,6 +258,7 @@ class SyncPreferences @Inject constructor(
         private const val KEY_FULL_SYNC_COMPLETE = "full_sync_complete"
         private const val KEY_CURRENT_USER = "current_user_json"
         private const val KEY_LAST_PULL_CURSOR = "last_pull_cursor"
+        private const val KEY_FULL_REPLAY_PENDING = "cf_full_replay_pending"
         private const val KEY_SYNC_EPOCH = "cf_sync_epoch"
         private const val KEY_SYNC_ERROR_HISTORY = "cf_sync_error_history"
         private const val MAX_SYNC_ERROR_RECORDS = 40
@@ -381,6 +382,12 @@ class SyncPreferences @Inject constructor(
 
     fun getLastPullCursor(): Long {
         return preferencesManager.getLong(KEY_LAST_PULL_CURSOR, 0L)
+    }
+
+    fun isFullReplayPending(): Boolean = preferencesManager.getBoolean(KEY_FULL_REPLAY_PENDING, false)
+
+    fun setFullReplayPending(pending: Boolean) {
+        preferencesManager.putBoolean(KEY_FULL_REPLAY_PENDING, pending)
     }
 
     /** آخر جيل خادمي معتمد؛ null قبل أول استجابة Worker تحمل epoch. */

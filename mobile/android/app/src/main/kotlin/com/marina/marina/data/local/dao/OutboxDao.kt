@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface OutboxDao {
-    @Query("SELECT * FROM outbox WHERE processing_status = 'pending' AND delivered_to_primary = 0 ORDER BY client_ts ASC")
+    @Query("SELECT * FROM outbox WHERE processing_status = 'pending' AND delivered_to_primary = 0 ORDER BY client_ts ASC, id ASC")
     fun getPendingPrimary(): Flow<List<OutboxEntity>>
 
-    @Query("SELECT * FROM outbox WHERE processing_status = 'pending' AND delivered_to_secondary = 0 ORDER BY client_ts ASC")
+    @Query("SELECT * FROM outbox WHERE processing_status = 'pending' AND delivered_to_secondary = 0 ORDER BY client_ts ASC, id ASC")
     fun getPendingSecondary(): Flow<List<OutboxEntity>>
 
     @Query("SELECT * FROM outbox WHERE id = :id")

@@ -13,6 +13,7 @@ data class SalaryWithdrawal(
     val employeeId: Long = 0,
     val employeeUuid: String? = null,
     val employeeName: String = "",
+    val expenseUuid: String? = null,
     val amount: Double = 0.0,
     val withdrawDate: Long = 0,
     val hotelDayKey: String? = null,
