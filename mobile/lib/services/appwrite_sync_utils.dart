@@ -849,6 +849,7 @@ class AppwriteSyncUtils {
       'employeeLocalUuid',
       'employeeUuid',
       'expenseId',
+      'expenseUuid',
       'hotelDayKey',
       'appliedDate',
       'idempotencyKey',

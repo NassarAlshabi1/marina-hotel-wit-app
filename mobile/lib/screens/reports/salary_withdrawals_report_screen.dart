@@ -352,6 +352,7 @@ class _SalaryWithdrawalsReportScreenState
             date: e.date,
             hotelDayKey: e.hotelDayKey,
             relatedId: e.relatedId,
+            expenseUuid: e.localUuid,
           ),
         )
         .toList(growable: false);

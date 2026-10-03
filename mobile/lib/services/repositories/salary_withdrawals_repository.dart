@@ -492,6 +492,12 @@ class SalaryWithdrawalsRepository {
         if (await _activeExpenseExists(wExpId)) continue;
       }
 
+      // ✅ (migration 68) رابط expense_uuid يشير لمصروف محلي قائم آخر → مرآة ذلك المصروف.
+      final wExpUuid = w.expenseUuid;
+      if (wExpUuid != null && wExpUuid.isNotEmpty && wExpUuid != expenseUuid) {
+        if (await _activeExpenseExistsByUuid(wExpUuid)) continue;
+      }
+
       // reason=exp_M يشير لمصروف محلي قائم آخر → مرآة ذلك المصروف.
       final m = RegExp(r'exp_(\d+)').firstMatch(r);
       if (m != null) {
@@ -518,6 +524,16 @@ class SalaryWithdrawalsRepository {
     final row =
         await (_db.select(_db.expenses)
               ..where((t) => t.id.equals(id) & t.deletedAt.isNull())
+              ..limit(1))
+            .getSingleOrNull();
+    return row != null;
+  }
+
+  /// هل يوجد مصروف نشط (غير محذوف) بهذا UUID؟
+  Future<bool> _activeExpenseExistsByUuid(String uuid) async {
+    final row =
+        await (_db.select(_db.expenses)
+              ..where((t) => t.localUuid.equals(uuid) & t.deletedAt.isNull())
               ..limit(1))
             .getSingleOrNull();
     return row != null;

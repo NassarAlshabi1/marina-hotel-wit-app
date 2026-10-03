@@ -813,6 +813,7 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'withdrawalType', withdrawal.withdrawalType);
     putIfStringNotEmpty(data, 'description', withdrawal.description);
     putIfNotNull(data, 'expenseId', withdrawal.expenseId);
+    putIfStringNotEmpty(data, 'expenseUuid', withdrawal.expenseUuid);
     putIfStringNotEmpty(data, 'idempotencyKey', withdrawal.idempotencyKey);
 
     if (employeeUuid != null && employeeUuid.isNotEmpty) {

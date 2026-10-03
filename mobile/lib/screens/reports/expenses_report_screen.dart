@@ -404,6 +404,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             date: e.date,
             hotelDayKey: e.hotelDayKey,
             relatedId: e.relatedId,
+            expenseUuid: e.localUuid,
           ),
         )
         .toList(growable: false);
@@ -460,6 +461,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         // يُغلق ثغرة العد المزدوج عبر الأجهزة (حالة «الاورمو محمد» 2026-09-14).
         final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
           expenseId: sw.expenseId,
+          expenseUuid: sw.expenseUuid,
           reason: sw.reason,
           amount: sw.amount,
           hotelDayKey: sw.hotelDayKey,
