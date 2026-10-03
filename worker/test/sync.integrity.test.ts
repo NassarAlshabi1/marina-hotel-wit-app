@@ -1,7 +1,9 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Database } from '../src/database';
-import { adminAuthHeader, pushOp, pushOperations, resetDb, roomPayload, type PushResponseBody } from './helpers';
+import expenseMigration from '../migrations/0013_salary_withdrawal_expense_uuid.sql?raw';
+import writeTimesMigration from '../migrations/0014_sync_write_times.sql?raw';
+import { adminAuthHeader, pushOp, pushOperations, resetDb, roomPayload, schemaStatements, type PushResponseBody } from './helpers';
 
 beforeEach(resetDb);
 
@@ -128,5 +130,29 @@ describe('financial integrity regression guards', () => {
     const result = await push('rooms', 'create', roomPayload({ local_uuid: 'must-not-persist' }));
     expect(result.summary.failed).toBe(1);
     expect(await env.DB.prepare('SELECT id FROM rooms WHERE local_uuid = ?').bind('must-not-persist').first()).toBeNull();
+  });
+});
+
+
+describe('incremental financial migrations', () => {
+  it('0013 adds a nullable source without inferring legacy numeric references', async () => {
+    await parents();
+    await push('salary_withdrawals', 'create', withdrawal('legacy', 'expense-a'));
+    await env.DB.prepare('DROP INDEX idx_salary_withdrawals_active_expense').run();
+    await env.DB.prepare('ALTER TABLE salary_withdrawals DROP COLUMN expense_uuid').run();
+    for (const sql of schemaStatements(expenseMigration)) await env.DB.prepare(sql).run();
+    expect(await env.DB.prepare('SELECT amount, reason, expense_uuid FROM salary_withdrawals WHERE local_uuid = ?')
+      .bind('legacy').first()).toEqual({ amount: 100, reason: 'exp_5', expense_uuid: null });
+  });
+
+  it('0014 creates independent timestamp storage without touching entity rows and is idempotent', async () => {
+    await push('rooms', 'create', roomPayload({ local_uuid: 'preserved' }));
+    const before = await env.DB.prepare('SELECT * FROM rooms WHERE local_uuid = ?').bind('preserved').first();
+    await env.DB.prepare('DROP TABLE sync_write_times').run();
+    for (const sql of schemaStatements(writeTimesMigration)) await env.DB.prepare(sql).run();
+    await env.DB.prepare('INSERT INTO sync_write_times VALUES (?, ?, ?)').bind('rooms', 'preserved', 12345).run();
+    for (const sql of schemaStatements(writeTimesMigration)) await env.DB.prepare(sql).run();
+    expect(await env.DB.prepare('SELECT edited_at FROM sync_write_times').first()).toEqual({ edited_at: 12345 });
+    expect(await env.DB.prepare('SELECT * FROM rooms WHERE local_uuid = ?').bind('preserved').first()).toEqual(before);
   });
 });

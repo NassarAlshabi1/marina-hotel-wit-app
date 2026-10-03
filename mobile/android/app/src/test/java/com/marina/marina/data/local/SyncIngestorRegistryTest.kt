@@ -818,6 +818,14 @@ class SyncIngestorRegistryTest {
         assertTrue(db.salaryWithdrawalsDao().getByLocalUuid(mirror.localUuid)!!.deletedAt != null)
         assertNull(db.salaryWithdrawalsDao().getByLocalUuid("unrelated")!!.deletedAt)
         assertNull(db.expensesDao().getById(id)!!.relatedId)
+        val beforeRetryCount = db.outboxDao().getPendingPrimary().first().size
+        assertTrue(runCatching {
+            repository.update(db.expensesDao().getById(id)!!.toDomain().copy(
+                expenseType = "سلفة", relatedId = employeeB, employeeUuid = "employee-b"
+            ))
+        }.isFailure) // A terminal tombstone must not be resurrected via INSERT OR REPLACE.
+        assertEquals("تشغيلية", db.expensesDao().getById(id)!!.expenseType)
+        assertEquals(beforeRetryCount, db.outboxDao().getPendingPrimary().first().size)
         val keys = db.outboxDao().getPendingPrimary().first().map { it.idempotencyKey }
         assertEquals(keys.size, keys.toSet().size) // distinct edits must not replay the first edit's receipt
     }
@@ -935,5 +943,20 @@ class SyncIngestorRegistryTest {
         assertNull(requests.last().second)
         assertTrue(!prefs.isFullReplayPending())
         assertEquals("new", prefs.getSyncEpoch())
+    }
+
+    @Test
+    fun remoteSalaryTombstoneDoesNotWaitForMissingEmployee() = runBlocking {
+        db.salaryWithdrawalsDao().insert(SalaryWithdrawalEntity(
+            employeeId = 777, employeeUuid = "missing-parent", amount = 100.0,
+            withdrawDate = 1L, localUuid = "deleted-orphan"
+        ))
+        val report = registry.ingestPage(listOf(mapOf(
+            "_entity" to "salary_withdrawals", "local_uuid" to "deleted-orphan",
+            "employee_uuid" to "missing-parent", "deleted_at" to 500L, "updated_at" to 501L
+        )))
+        assertEquals(1, report.applied)
+        assertEquals(500L, db.salaryWithdrawalsDao().getByLocalUuid("deleted-orphan")!!.deletedAt)
+        assertTrue(db.pendingSyncLinksDao().getAll().isEmpty())
     }
 }

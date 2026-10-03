@@ -327,6 +327,17 @@ class SyncIngestorRegistry @Inject constructor(
         mapped.remove("_entity")
         (record["id"] as? Number)?.let { mapped["server_id"] = it.toLong() }
         applyBaseDefaults(mapped)
+        // A server tombstone does not need its parent to exist locally. Apply it
+        // before resolving required references so delete-wins cannot get stuck.
+        val deletionStamp = asLong(mapped["deleted_at"])
+        val deletionUuid = asString(mapped["local_uuid"])
+        if (deletionStamp != null && deletionUuid != null) {
+            fetchExisting(entity, deletionUuid)?.let { existing ->
+                applyRemoteTombstone(entity, existing.id, deletionStamp,
+                    asLong(mapped["updated_at"]) ?: deletionStamp)
+                return ApplyOutcome.Applied
+            }
+        }
         val existingForLink = if (
             entity in setOf("expenses", "salary_cycles", "salary_payments", "salary_withdrawals", "salary_carry_over_logs")
         ) {

@@ -45,6 +45,9 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
             createdAt = if (withdrawal.createdAt == 0L) now else withdrawal.createdAt,
             updatedAt = now
         )
+        check(salaryWithdrawalsDao.getByLocalUuid(prepared.localUuid) == null) {
+            "السحب موجود أو محذوف سابقاً؛ لا يمكن إعادة إنشائه تحت الهوية نفسها"
+        }
         val id = salaryWithdrawalsDao.insert(prepared.toEntity())
         outboxRepository.enqueueObject("salary_withdrawals", "insert", prepared.localUuid, prepared)
         id
