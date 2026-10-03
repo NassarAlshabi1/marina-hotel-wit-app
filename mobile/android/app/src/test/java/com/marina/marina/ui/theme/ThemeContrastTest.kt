@@ -2,6 +2,11 @@ package com.marina.marina.ui.theme
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,4 +50,31 @@ class ThemeContrastTest {
             assertTrue("White action label lost contrast", contrast(Color.White, background) >= 4.5)
         }
     }
+    @Test
+    fun referencePaletteAndLayoutMeasurementsRemainStable() {
+        // Flutter reference 78c17381: utils/theme.dart, admin_layout/sidebar,
+        // and report_page_scaffold.dart. Prevent accidental coastal-style drift.
+        assertEquals(Color(0xFF242476), MarinaLightColorScheme.primary)
+        assertEquals(Color(0xFFF8F8FC), MarinaLightColorScheme.background)
+        assertEquals(Color(0xFFD3D3E4), MarinaLightColorScheme.outlineVariant)
+        assertEquals(Color(0xFFEAEAF2), MarinaLightColorScheme.primaryContainer)
+        assertEquals(Color(0xFF0A0E2F), MarinaLightColorScheme.onSurface)
+        assertEquals(Color(0xFF11142B), MarinaDarkColorScheme.surface)
+        assertEquals(Color(0xFF2A2D4A), MarinaDarkColorScheme.outlineVariant)
+        assertEquals(280.dp, ReferenceLayout.SidebarWidth)
+        assertEquals(768.dp, ReferenceLayout.SidebarBreakpoint)
+        assertEquals(8.dp, ReferenceLayout.ReportSectionGap)
+        val size = Size(100f, 100f)
+        val density = Density(1f)
+        assertEquals(8f, MarinaShapes.small.topStart.toPx(size, density), 0.001f)
+        assertEquals(12f, MarinaShapes.medium.topStart.toPx(size, density), 0.001f)
+        assertEquals(16f, MarinaShapes.large.topStart.toPx(size, density), 0.001f)
+        for (direction in listOf(LayoutDirection.Ltr, LayoutDirection.Rtl)) {
+            assertEquals(8.dp, ReferenceLayout.ReportPadding.calculateLeftPadding(direction))
+            assertEquals(8.dp, ReferenceLayout.ReportPadding.calculateRightPadding(direction))
+        }
+        assertEquals(6.dp, ReferenceLayout.ReportPadding.calculateTopPadding())
+        assertEquals(6.dp, ReferenceLayout.ReportPadding.calculateBottomPadding())
+    }
+
 }

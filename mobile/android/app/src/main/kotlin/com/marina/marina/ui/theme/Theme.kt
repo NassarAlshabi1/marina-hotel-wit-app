@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -39,23 +40,24 @@ import kotlinx.coroutines.flow.asStateFlow
 // ─────────────────────────────────────────────────────────────────────────────
 
 object MarinaPalette {
-    // Coastal identity: ocean blue, cool neutral surfaces and restrained brass accents.
-    val Ocean = Color(0xFF155E75)
-    val OceanDeep = Color(0xFF123B50)
-    val OceanNight = Color(0xFF0D2335)
-    val OceanMid = Color(0xFF427E94)
-    val OceanSoft = Color(0xFFE0EFF4)
-    val Brass = Color(0xFFB88A4A)
-    val BrassSoft = Color(0xFFF5ECDD)
-    val Canvas = Color(0xFFF2F5F9)
+    // Reference: feat/cloudflare-sync-execution@78c17381 mobile/lib/utils/theme.dart.
+    // Legacy names retained to avoid changing screen contracts; values follow MarketKy.
+    val Ocean = Color(0xFF242476)
+    val OceanDeep = Color(0xFF0A0E2F)
+    val OceanNight = Color(0xFF0F172A)
+    val OceanMid = Color(0xFF3D3D9E)
+    val OceanSoft = Color(0xFFEAEAF2)
+    val Brass = Color(0xFFFABA3E)
+    val BrassSoft = Color(0xFFFFF3DC)
+    val Canvas = Color(0xFFF8F8FC)
     val Paper = Color(0xFFFFFFFF)
-    val Ink = Color(0xFF192D40)
-    val Muted = Color(0xFF526578)
+    val Ink = Color(0xFF0A0E2F)
+    val Muted = Color(0xFF6C6F8F)
     val Neutral = Color(0xFF8495A5)
-    val NeutralSoft = Color(0xFFEDF2F7)
-    val Line = Color(0xFFCCD8E3)
-    val LineSoft = Color(0xFFE7EEF5)
-    val Success = Color(0xFF256E55)
+    val NeutralSoft = Color(0xFFEAEAF2)
+    val Line = Color(0xFFD3D3E4)
+    val LineSoft = Color(0xFFEAEAF2)
+    val Success = Color(0xFF2E7D5B)
     val SuccessDeep = Color(0xFF1D5844)
     val SuccessSoft = Color(0xFFE1F1E8)
     val Warning = Color(0xFF875918)
@@ -64,8 +66,8 @@ object MarinaPalette {
     val Danger = Color(0xFFAF3E49)
     val DangerDeep = Color(0xFF852C36)
     val DangerSoft = Color(0xFFFBE7E9)
-    val Info = Color(0xFF286B88)
-    val InfoSoft = Color(0xFFE2EFF8)
+    val Info = Color(0xFF242476)
+    val InfoSoft = Color(0xFFEAEAF2)
     val Violet = Color(0xFF71617E)
     val VioletSoft = Color(0xFFEEEAF1)
     val Slate = Color(0xFF52686B)
@@ -108,7 +110,9 @@ object AppColors {
     val DangerColor: Color
         @Composable get() = MaterialTheme.colorScheme.error
     val WarningColor: Color
-        @Composable get() = MaterialTheme.colorScheme.secondary
+        @Composable get() = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+            MarinaPalette.Warning // Gold remains decorative; small warning text needs contrast.
+        } else MaterialTheme.colorScheme.secondary
     val InfoColor: Color
         @Composable get() = MaterialTheme.colorScheme.primary
     val TextPrimary: Color
@@ -134,7 +138,7 @@ object AppColors {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Marina Brand — ocean blue, brushed brass and cool neutral surfaces.
+// MarketKy reference — indigo, soft lavender borders and navy surfaces.
 // ─────────────────────────────────────────────────────────────────────────────
 
 val MarinaLightColorScheme = lightColorScheme(
@@ -142,8 +146,8 @@ val MarinaLightColorScheme = lightColorScheme(
     onPrimary = Color(0xFFFFFFFF),
     primaryContainer = MarinaPalette.OceanSoft,
     onPrimaryContainer = MarinaPalette.OceanDeep,
-    secondary = MarinaPalette.Warning,
-    onSecondary = Color(0xFFFFFFFF),
+    secondary = MarinaPalette.Brass,
+    onSecondary = MarinaPalette.Ink,
     secondaryContainer = MarinaPalette.BrassSoft,
     onSecondaryContainer = Color(0xFF45351A),
     tertiary = MarinaPalette.Success,
@@ -157,8 +161,8 @@ val MarinaLightColorScheme = lightColorScheme(
     surfaceTint = MarinaPalette.Ocean,
     inverseSurface = MarinaPalette.Ink,
     inverseOnSurface = MarinaPalette.Canvas,
-    inversePrimary = Color(0xFF95D4E4),
-    outline = Color(0xFF6C8193),
+    inversePrimary = Color(0xFFBDBDFF),
+    outline = Color(0xFF787890),
     outlineVariant = MarinaPalette.Line,
     background = MarinaPalette.Canvas,
     onBackground = MarinaPalette.Ink,
@@ -170,30 +174,30 @@ val MarinaLightColorScheme = lightColorScheme(
 )
 
 val MarinaDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF95D4E4),
+    primary = Color(0xFFBDBDFF),
     onPrimary = MarinaPalette.OceanDeep,
-    primaryContainer = Color(0xFF1A465B),
-    onPrimaryContainer = Color(0xFFE0EFF4),
-    secondary = Color(0xFFE0C18B),
+    primaryContainer = Color(0xFF29295C),
+    onPrimaryContainer = Color(0xFFEAEAF2),
+    secondary = MarinaPalette.Brass,
     onSecondary = Color(0xFF32250D),
     secondaryContainer = Color(0xFF5A4727),
-    onSecondaryContainer = Color(0xFFF5ECDD),
+    onSecondaryContainer = Color(0xFFFFF3DC),
     tertiary = Color(0xFF9BD0B1),
     onTertiary = Color(0xFF15392D),
     tertiaryContainer = Color(0xFF204B3B),
     onTertiaryContainer = Color(0xFFE1F1E8),
-    surface = Color(0xFF142638),
-    onSurface = Color(0xFFE7EFF7),
-    surfaceVariant = Color(0xFF25394B),
-    onSurfaceVariant = Color(0xFFBACAD9),
-    surfaceTint = Color(0xFF95D4E4),
-    inverseSurface = Color(0xFFE7EFF7),
-    inverseOnSurface = Color(0xFF25394B),
+    surface = Color(0xFF11142B),
+    onSurface = Color(0xFFE8E8F0),
+    surfaceVariant = Color(0xFF20233C),
+    onSurfaceVariant = Color(0xFFAAAAD0),
+    surfaceTint = Color(0xFFBDBDFF),
+    inverseSurface = Color(0xFFE8E8F0),
+    inverseOnSurface = Color(0xFF20233C),
     inversePrimary = MarinaPalette.Ocean,
-    outline = Color(0xFF7D93A7),
-    outlineVariant = Color(0xFF3B5165),
-    background = Color(0xFF0D1926),
-    onBackground = Color(0xFFE7EFF7),
+    outline = Color(0xFF8A8AA8),
+    outlineVariant = Color(0xFF2A2D4A),
+    background = Color(0xFF0A0E2F),
+    onBackground = Color(0xFFE8E8F0),
     error = Color(0xFFFFB4AA),
     onError = Color(0xFF5C2522),
     errorContainer = Color(0xFF7A3935),
@@ -250,9 +254,9 @@ val AppTypography = Typography(
     ),
     titleLarge = TextStyle(
         fontFamily = TajawalFamily,
-        fontWeight = FontWeight.W600,
-        fontSize = 20.sp,
-        lineHeight = 28.sp,
+        fontWeight = FontWeight.W700,
+        fontSize = 18.sp,
+        lineHeight = 26.sp,
         color = Color.Unspecified
     ),
     titleMedium = TextStyle(
@@ -316,15 +320,15 @@ val AppTypography = Typography(
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shapes — shared corners for controls, cards and outer frames (12 / 16 / 20 dp).
+// Reference radii: controls 8dp, cards 12dp, dashboard panels 16dp.
 // ─────────────────────────────────────────────────────────────────────────────
 
 val MarinaShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(28.dp)
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(24.dp)
 )
 
 val AppShapes = MarinaShapes.medium

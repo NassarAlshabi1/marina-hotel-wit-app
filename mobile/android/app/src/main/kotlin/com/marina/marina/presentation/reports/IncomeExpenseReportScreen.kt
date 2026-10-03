@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.marina.marina.domain.util.CurrencyFormatter
+import com.marina.marina.ui.theme.ReferenceLayout
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
@@ -60,8 +61,8 @@ fun IncomeExpenseReportScreen(
         ) { padding ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = ReferenceLayout.ReportPadding,
+                verticalArrangement = Arrangement.spacedBy(ReferenceLayout.ReportSectionGap)
             ) {
                 item {
                     ReportDateFilter(range = state.range, onChange = { viewModel.setRange(it) })

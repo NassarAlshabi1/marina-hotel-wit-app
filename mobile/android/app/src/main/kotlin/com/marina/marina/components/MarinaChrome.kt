@@ -1,8 +1,6 @@
 package com.marina.marina.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -17,16 +15,15 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import com.marina.marina.ui.theme.ReferenceLayout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.marina.marina.ui.theme.AppColors
 
 /**
  * Consistent Marina app bar: Material colors stay theme-aware and a fine
@@ -49,10 +46,12 @@ fun MarinaTopAppBar(
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     val dividerColor = MaterialTheme.colorScheme.outlineVariant
+    val wideLayout = LocalConfiguration.current.screenWidthDp.dp >= ReferenceLayout.SidebarBreakpoint
     TopAppBar(
         title = title,
         modifier = modifier.drawWithContent {
             drawContent()
+            if (!wideLayout) return@drawWithContent
             val lineWidth = 1.dp.toPx()
             val y = size.height - lineWidth / 2f
             drawLine(
@@ -69,21 +68,20 @@ fun MarinaTopAppBar(
     )
 }
 
-/** Shared framed control for navigation and app-bar actions. */
+/** Plain AppScaffold-style toolbar action; explicit custom fills remain supported. */
 @Composable
 fun MarinaToolbarActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    containerColor: Color = AppColors.PrimaryActionColor,
-    contentColor: Color = Color.White,
+    containerColor: Color = Color.Transparent,
+    contentColor: Color = if (containerColor == Color.Transparent) LocalContentColor.current else Color.White,
     content: @Composable () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.small
-    val actualContainer = if (enabled) containerColor else scheme.surfaceVariant
+    val actualContainer = if (enabled) containerColor else Color.Transparent
     val actualContent = if (enabled) contentColor else scheme.onSurface.copy(alpha = 0.38f)
-    val borderColor = if (enabled) contentColor.copy(alpha = 0.35f) else scheme.outlineVariant
     IconButton(
         onClick = onClick,
         enabled = enabled,
@@ -91,7 +89,6 @@ fun MarinaToolbarActionButton(
             .size(48.dp)
             .clip(shape)
             .background(actualContainer)
-            .border(BorderStroke(1.dp, borderColor), shape)
     ) {
         CompositionLocalProvider(LocalContentColor provides actualContent) {
             content()
@@ -99,7 +96,7 @@ fun MarinaToolbarActionButton(
     }
 }
 
-/** Framed, RTL-aware icon control used by back and navigation buttons. */
+/** Plain, RTL-aware icon control matching Flutter AppScaffold. */
 @Composable
 fun MarinaToolbarIconButton(
     imageVector: ImageVector,
@@ -109,17 +106,12 @@ fun MarinaToolbarIconButton(
     enabled: Boolean = true
 ) {
     val scheme = MaterialTheme.colorScheme
-    val shape = MaterialTheme.shapes.small
-    val iconColor = if (enabled) scheme.onPrimaryContainer else scheme.onSurface.copy(alpha = 0.38f)
-    val containerColor = if (enabled) scheme.primaryContainer else scheme.surfaceVariant
+    val iconColor = if (enabled) LocalContentColor.current else scheme.onSurface.copy(alpha = 0.38f)
     IconButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
             .size(48.dp)
-            .clip(shape)
-            .background(containerColor)
-            .border(BorderStroke(1.dp, scheme.outlineVariant), shape)
     ) {
         Icon(
             imageVector = imageVector,
@@ -130,7 +122,7 @@ fun MarinaToolbarIconButton(
     }
 }
 
-/** Standard framed back arrow; AutoMirrored follows the app's RTL direction. */
+/** AutoMirrored back arrow follows the app's RTL direction. */
 @Composable
 fun MarinaBackButton(
     onClick: () -> Unit,
@@ -145,11 +137,3 @@ fun MarinaBackButton(
         enabled = enabled
     )
 }
-
-/** Shared quiet frame: clipped content, one-dp outline and a soft lifted edge. */
-@Composable
-fun Modifier.marinaPanelFrame(shape: Shape = MaterialTheme.shapes.medium): Modifier =
-    this.shadow(elevation = 2.dp, shape = shape, clip = false)
-        .clip(shape)
-        .background(MaterialTheme.colorScheme.surface)
-        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape)

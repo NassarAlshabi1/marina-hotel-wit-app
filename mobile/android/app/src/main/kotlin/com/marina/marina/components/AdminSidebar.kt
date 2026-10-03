@@ -1,7 +1,6 @@
 package com.marina.marina.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -52,7 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.marina.marina.domain.model.AuthUser
 import com.marina.marina.navigation.Screen
-import com.marina.marina.ui.theme.MarinaPalette
+import com.marina.marina.ui.theme.ReferenceLayout
 
 /** One navigation entry in the side navigation. */
 data class SidebarDestination(
@@ -111,7 +110,7 @@ fun AdminSidebar(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .width(260.dp)
+                .width(ReferenceLayout.SidebarWidth)
                 .statusBarsPadding()
         ) {
             SidebarHeader(currentUser)
@@ -155,38 +154,38 @@ private fun SidebarHeader(currentUser: AuthUser?) {
         modifier = Modifier
             .fillMaxWidth()
             .background(SidebarColors.HeaderBackground)
-            .padding(16.dp)
+            .padding(24.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(
-                color = MarinaPalette.Brass,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.size(44.dp)
+                color = SidebarColors.CardOverlay,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.size(56.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Hotel,
                     contentDescription = null,
-                    tint = MarinaPalette.OceanNight,
-                    modifier = Modifier.size(24.dp)
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = "فندق مارينا",
-                fontSize = 17.sp,
+                fontSize = 18.sp,
                 color = Color.White,
                 fontWeight = FontWeight.Bold
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
                 .background(SidebarColors.CardOverlay, RoundedCornerShape(12.dp))
-                .padding(10.dp)
+                .padding(12.dp)
         ) {
             Surface(
                 color = Color(0x33FFFFFF),
@@ -201,7 +200,7 @@ private fun SidebarHeader(currentUser: AuthUser?) {
                 )
             }
             Spacer(modifier = Modifier.width(10.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = currentUser?.name?.ifEmpty { "مستخدم" } ?: "مستخدم",
                     fontSize = 14.sp,
@@ -236,41 +235,25 @@ private fun SidebarEntry(
         isLogout -> SidebarColors.Logout
         else -> SidebarColors.Inactive
     }
-    // Consistent touch target with a restrained brass selection marker.
+    // Reference selection is a white 12% overlay, without a decorative outline or rail.
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 10.dp)
             .height(48.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(
                 if (selected) SidebarColors.SelectedBackground else Color.Transparent,
-                RoundedCornerShape(14.dp)
-            )
-            .border(
-                width = 1.dp,
-                color = if (selected) SidebarColors.SelectedBorder else Color.Transparent,
-                shape = RoundedCornerShape(14.dp)
+                RoundedCornerShape(8.dp)
             )
             .clickable { onRouteSelected(route) }
-            .padding(horizontal = 10.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        if (selected) {
-            androidx.compose.foundation.layout.Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(24.dp)
-                    .background(MarinaPalette.Brass, RoundedCornerShape(2.dp))
-            )
-            Spacer(modifier = Modifier.width(9.dp))
-        } else {
-            Spacer(modifier = Modifier.width(12.dp))
-        }
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (selected) MarinaPalette.Brass else contentColor,
+            tint = contentColor,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -285,14 +268,13 @@ private fun SidebarEntry(
     }
 }
 
-/** Warm brass-accented sidebar colors in the Marina coastal palette. */
+/** Exact navy/white overlays from the Flutter admin_sidebar.dart reference. */
 private object SidebarColors {
-    val Background = MarinaPalette.OceanNight
-    val HeaderBackground = MarinaPalette.OceanDeep
+    val Background = Color(0xFF0F172A)
+    val HeaderBackground = Color(0xFF16213C)
     val CardOverlay = Color(0x14FFFFFF)
-    val Divider = Color(0x24FFFFFF)
-    val Inactive = Color(0xCCFFFFFF)
-    val SelectedBackground = MarinaPalette.Ocean.copy(alpha = 0.26f)
-    val SelectedBorder = MarinaPalette.Brass.copy(alpha = 0.42f)
+    val Divider = Color(0x1FFFFFFF)
+    val Inactive = Color(0xB8FFFFFF)
+    val SelectedBackground = Color.White.copy(alpha = 0.12f)
     val Logout = Color(0xFFE4AAA5)
 }
