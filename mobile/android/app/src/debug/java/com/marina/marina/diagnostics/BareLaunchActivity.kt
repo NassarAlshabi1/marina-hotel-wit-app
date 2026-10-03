@@ -7,7 +7,7 @@ import android.os.Looper
 import android.util.TypedValue
 import android.widget.ScrollView
 import android.widget.TextView
-import com.marina.marina.R
+import com.a.a.R
 
 /**
  * Bare launch probe: framework [Activity] + [TextView] only.

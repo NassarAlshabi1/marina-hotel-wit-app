@@ -2,7 +2,7 @@ package com.marina.marina.diagnostics
 
 import android.content.Context
 import android.os.Looper
-import com.marina.marina.R
+import com.a.a.R
 import java.time.Duration
 import org.junit.Assert.assertEquals
 import androidx.test.core.app.ActivityScenario

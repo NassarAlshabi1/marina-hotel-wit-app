@@ -6,7 +6,7 @@ import android.graphics.drawable.AdaptiveIconDrawable
 import android.os.Build
 import android.view.ContextThemeWrapper
 import androidx.test.core.app.ApplicationProvider
-import com.marina.marina.R
+import com.a.a.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
