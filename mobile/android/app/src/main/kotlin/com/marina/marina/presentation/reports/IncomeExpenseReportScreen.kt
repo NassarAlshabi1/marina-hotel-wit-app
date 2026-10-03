@@ -184,7 +184,7 @@ fun IncomeExpenseReportScreen(
     }
 }
 
-private fun rating(value: Double, excellent: Double, good: Double): String = when {
+private fun rating(value: Double, excellent: Double, good: Double, greaterIsBetter: Boolean): String = when {
     value >= excellent -> "ممتاز"
     value >= good -> "جيد"
     value > 0 -> "مقبول"
