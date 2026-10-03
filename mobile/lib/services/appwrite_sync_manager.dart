@@ -2557,7 +2557,6 @@ class AppwriteSyncManager {
   Future<int> _syncPayments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    final deferred = <models.Document>[];
 
     // المرحلة الأولى: معالجة الدفعات
     for (final doc in documents) {
@@ -2640,48 +2639,34 @@ class AppwriteSyncManager {
         if (errStr.contains('FOREIGN KEY constraint failed') ||
             errStr.contains('NOT NULL constraint failed')) {
           _logger.debug(
-            'Deferring payment ${doc.$id}: FK/NOT NULL constraint (missing booking)',
+            'Deferring payment ${doc.$id}: FK/NOT NULL constraint (missing booking) — registering pending link',
             tag: 'SYNC',
           );
-          deferred.add(doc);
+          // ✅ Phase 4: تسجيل الرابط المؤجل في pending_links بدلاً من القائمة المؤقتة
+          final localUuid = (data['localUuid'] as String?) ?? doc.$id;
+          final bookingUuidCache = (data['bookingUuidCache'] as String?) ?? (data['booking_uuid_cache'] as String?);
+          final bookingLocalId = (data['bookingLocalId'] as int?) ?? (data['booking_local_id'] as int?);
+          await _pendingLinksService.registerPendingLink(
+            childEntity: 'payments',
+            childLocalUuid: localUuid,
+            parentEntity: 'bookings',
+            childField: 'bookingLocalId',
+            parentLocalUuid: bookingUuidCache,
+            parentServerId: bookingLocalId?.toString(),
+            linkType: 'fk',
+          );
         } else {
           _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
         }
       }
     }
 
-    // المرحلة الثانية: إعادة محاولة الدفعات المؤجلة
-    if (deferred.isNotEmpty) {
-      _logger.info(
-        'Retrying ${deferred.length} deferred payments after all bookings synced',
-        tag: 'SYNC',
-      );
-
-      for (final doc in deferred) {
-        try {
-          final data = Map<String, dynamic>.from(doc.data);
-          data['localUuid'] ??= doc.$id;
-          await _adapterRegistry.payments.upsertFromJson(
-            data,
-            src: Source.appwrite,
-          );
-          // ✅ Wave 7: notify remote change from another device
-          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-            entity: 'payments',
-            localUuid: (data['localUuid'] as String?) ?? '',
-            remoteDeviceId: (data['deviceId'] as String?) ?? '',
-            currentDeviceId: _currentDeviceId,
-            lastModified: _asIntNullable(data['lastModified']),
-          );
-          processed++;
-        } catch (e) {
-          _logger.warning(
-            'Failed to sync deferred payment ${doc.$id} after retry: $e',
-            tag: 'SYNC',
-          );
-        }
-      }
-    }
+    // ✅ Phase 4: محاولة حل الروابط المؤجلة للحجوزات بعد مزامنة الحجوزات
+    await _pendingLinksService.tryResolveForParent(
+      parentEntity: 'bookings',
+      parentLocalUuid: '', // سيتم استدعاؤها لكل حجز في _syncBookings
+      parentServerId: null,
+    );
 
     return processed;
   }
