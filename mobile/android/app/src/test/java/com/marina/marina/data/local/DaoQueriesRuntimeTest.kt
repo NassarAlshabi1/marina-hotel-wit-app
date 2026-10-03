@@ -47,6 +47,41 @@ class DaoQueriesRuntimeTest {
         db.close()
     }
 
+    @Test
+    fun paymentScreenQueriesAreScopedToTheBookingAndExcludeDeletedRows() = runBlocking {
+        val booking = com.marina.marina.data.local.entity.BookingEntity(
+            roomNumber = "101", guestName = "ضيف", guestPhone = "", guestNationality = "يمني",
+            checkinDate = "2026-10-01", status = "نشط", localUuid = "booking-one"
+        )
+        val firstId = db.bookingsDao().insert(booking)
+        db.bookingsDao().insert(booking.copy(roomNumber = "102", localUuid = "booking-two"))
+        assertEquals("101", db.bookingsDao().watchById(firstId).first()!!.roomNumber)
+        val debt = com.marina.marina.data.local.entity.DebtEntity(
+            bookingLocalId = firstId, guestName = "ضيف", checkinDate = "2026-10-01",
+            checkoutDate = "2026-10-02", totalAmount = 50.0, paidAmount = 0.0,
+            remainingAmount = 50.0, paymentDate = "", localUuid = "debt-one"
+        )
+        db.debtsDao().insert(debt)
+        db.debtsDao().insert(debt.copy(bookingLocalId = firstId + 1, localUuid = "debt-other"))
+        db.debtsDao().insert(debt.copy(deletedAt = 1L, localUuid = "debt-deleted"))
+        assertEquals(listOf("debt-one"), db.debtsDao().getByBooking(firstId).first().map { it.localUuid })
+        db.bookingsDao().softDelete(firstId, 1L, 1L, 1L)
+        assertNull(db.bookingsDao().watchById(firstId).first())
+    }
+
+    @Test
+    fun undeliveredBadgeIncludesProcessingAndFailedLocalRowsOnly() = runBlocking {
+        val row = com.marina.marina.data.local.entity.OutboxEntity(
+            entity = "payments", op = "insert", localUuid = "payment", payload = "{}", clientTs = 1L
+        )
+        listOf("pending", "processing", "failed").forEachIndexed { index, status ->
+            db.outboxDao().insert(row.copy(localUuid = "local-$index", processingStatus = status))
+        }
+        db.outboxDao().insert(row.copy(localUuid = "delivered", deliveredToPrimary = true))
+        db.outboxDao().insert(row.copy(localUuid = "remote", source = "remote"))
+        assertEquals(3, db.outboxDao().undeliveredCount().first())
+    }
+
     /** Schema-level assertions for the two porting bugs fixed on this branch. */
     @Test
     fun schemaExposesFixedColumnsAndSyncLogIndices() {

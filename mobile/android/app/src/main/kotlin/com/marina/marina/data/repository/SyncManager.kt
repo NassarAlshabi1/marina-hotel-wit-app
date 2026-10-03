@@ -45,6 +45,7 @@ class SyncManager @Inject constructor(
     override val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
 
     override fun pendingCount(): Flow<Int> = outboxRepository.pendingCount()
+    override fun undeliveredCount(): Flow<Int> = outboxRepository.undeliveredCount()
 
     /**
      * Runs a full sync cycle: ensure login, push local changes, then pull

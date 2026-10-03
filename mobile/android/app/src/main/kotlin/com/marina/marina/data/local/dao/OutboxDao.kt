@@ -43,6 +43,10 @@ interface OutboxDao {
     @Query("SELECT COUNT(*) FROM outbox WHERE processing_status = 'pending' AND delivered_to_primary = 0")
     fun pendingCount(): Flow<Int>
 
+    /** Include pending, processing and failed rows until primary acknowledgement. */
+    @Query("SELECT COUNT(*) FROM outbox WHERE source = 'local' AND delivered_to_primary = 0")
+    fun undeliveredCount(): Flow<Int>
+
     /**
      * ✅ (2026-09-25) استرداد الانهيار — عقد P0-H في Flutter: صفوف حُجزت
      * processing قبل الدفع وانهار التطبيق قبل إتمامه تبقى معلقة للأبد لأن

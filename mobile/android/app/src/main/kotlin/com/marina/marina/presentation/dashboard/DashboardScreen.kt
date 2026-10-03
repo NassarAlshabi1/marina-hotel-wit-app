@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -64,6 +65,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
@@ -73,6 +75,7 @@ import com.a.a.BuildConfig
 import com.marina.marina.domain.model.Room
 import com.marina.marina.domain.model.RoomWithPaymentStatus
 import com.marina.marina.domain.util.StatusUtils
+import com.marina.marina.ui.components.SyncProgressBanner
 import com.marina.marina.ui.components.MarinaSnackbarHost
 import com.marina.marina.ui.components.MarinaSnackbarType
 import com.marina.marina.ui.components.MarinaSnackbarVisuals
@@ -171,7 +174,12 @@ fun DashboardScreen(
 
     Scaffold(
         containerColor = DashboardColors.Background,
-        snackbarHost = { MarinaSnackbarHost(snackbarHostState) }
+        snackbarHost = {
+            Column {
+                MarinaSnackbarHost(snackbarHostState)
+                SyncProgressBanner(viewModel.syncState)
+            }
+        }
     ) { insets ->
         Column(modifier = Modifier.fillMaxSize().padding(insets)) {
             Column(
@@ -261,14 +269,32 @@ fun DashboardScreen(
 private fun DashboardLiveHeader(viewModel: DashboardViewModel) {
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val pendingChanges by viewModel.pendingChanges.collectAsStateWithLifecycle()
-    DashboardHeader(syncState, pendingChanges, onSyncClick = { viewModel.triggerSync() })
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        DashboardHeader(syncState, pendingChanges)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DashboardSyncAction(
+                text = "سحب التغييرات", icon = Icons.Filled.CloudDownload,
+                color = Color(0xFF2196F3), enabled = !syncState.isSyncing,
+                onClick = viewModel::pullChanges, modifier = Modifier.weight(1f)
+            )
+            DashboardSyncAction(
+                text = when {
+                    pendingChanges < 0 -> "جارٍ الفحص…"
+                    pendingChanges == 0 -> "محدّث"
+                    else -> "رفع التغييرات ($pendingChanges)"
+                },
+                icon = Icons.Filled.CloudUpload, color = Color(0xFF9C27B0),
+                enabled = !syncState.isSyncing && pendingChanges > 0,
+                onClick = viewModel::pushChanges, modifier = Modifier.weight(1f)
+            )
+        }
+    }
 }
 
 @Composable
 private fun DashboardHeader(
     syncState: com.marina.marina.domain.model.SyncUiState,
-    pendingChanges: Int,
-    onSyncClick: () -> Unit
+    pendingChanges: Int
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         // Phone layout: hamburger that opens the side-navigation drawer
@@ -323,16 +349,32 @@ private fun DashboardHeader(
             isError = syncState.isError,
             pendingChanges = pendingChanges
         )
-        Spacer(modifier = Modifier.width(4.dp))
 
-        // Manual sync button (cloud download).
-        IconButton(onClick = onSyncClick, enabled = !syncState.isSyncing) {
-            Icon(
-                imageVector = Icons.Filled.CloudDownload,
-                contentDescription = "مزامنة",
-                tint = if (syncState.isSyncing) DashboardColors.InfoBlue else DashboardColors.PrimaryBlue
-            )
-        }
+    }
+}
+
+@Composable
+private fun DashboardSyncAction(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier
+) {
+    val fill = if (enabled) color else Color(0xFF757575)
+    Row(
+        modifier = modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(10.dp))
+            .background(Brush.linearGradient(listOf(fill.copy(alpha = 0.85f), fill)))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(text, color = Color.White, fontSize = 11.sp, lineHeight = 16.sp,
+            fontWeight = FontWeight.Bold, maxLines = 2)
     }
 }
 

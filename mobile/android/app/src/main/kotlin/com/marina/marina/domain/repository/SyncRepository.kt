@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 interface SyncRepository {
     val syncState: StateFlow<SyncUiState>
     fun pendingCount(): Flow<Int>
+    fun undeliveredCount(): Flow<Int> = pendingCount()
     suspend fun syncNow(): SyncUiState
     suspend fun pullOnly(): Int
 

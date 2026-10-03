@@ -23,9 +23,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 /**
@@ -97,20 +100,22 @@ class BookingPaymentViewModel @Inject constructor(
     private val _state = MutableStateFlow(BookingPaymentUiState(isLoading = true))
     val state: StateFlow<BookingPaymentUiState> = _state.asStateFlow()
 
+    val syncState = syncRepository.syncState
+
     init {
         combine(
-            bookingsRepository.getAll(),
-            paymentsRepository.getByBooking(bookingId)
-        ) { bookings, payments ->
-            bookings.find { it.id == bookingId } to payments
-        }.onEach { (booking, payments) ->
+            bookingsRepository.watchById(bookingId).distinctUntilChanged(),
+            paymentsRepository.getByBooking(bookingId).distinctUntilChanged(),
+            debtsRepository.getByBooking(bookingId).distinctUntilChanged()
+        ) { booking, payments, debts ->
+            Triple(booking, payments, debts)
+        }.onEach { (booking, payments, debts) ->
             if (booking == null) {
                 _state.value = _state.value.copy(isLoading = false, booking = null)
                 return@onEach
             }
             val price = roomsRepository.getByNumber(booking.roomNumber)?.price ?: 0.0
             val nights = nightsRepository.getByBooking(booking.id)
-            val debts = debtsRepository.getAll().firstOrNull() ?: emptyList()
             // Dart `_checkForDebts` (l.190-210): ديون غير مسددة مرتبطة بالحجز.
             val debtRemaining = debts
                 .filter { it.bookingLocalId == booking.id && !it.isSettled && it.remainingAmount > 0 }
@@ -118,7 +123,9 @@ class BookingPaymentViewModel @Inject constructor(
 
             // Derived-fields refresh (Dart refreshForBookingId with
             // enqueueOutbox:false) — display-only, لا ينشئ Outbox.
-            val summary = BookingFinancials.calculate(booking, price, payments, nights, debtRemaining)
+            val summary = withContext(Dispatchers.Default) {
+                BookingFinancials.calculate(booking, price, payments, nights, debtRemaining)
+            }
             val checkin = HotelTimeEngine.parseDate(booking.checkinDate)
             val liveNights = if (checkin != null) {
                 val checkout = HotelTimeEngine.parseDate(booking.actualCheckout)
@@ -143,6 +150,8 @@ class BookingPaymentViewModel @Inject constructor(
                 debtRemaining = debtRemaining,
                 error = null
             )
+        }.catch { error ->
+            _state.value = _state.value.copy(isLoading = false, error = "تعذر تحميل بيانات الدفع: ${error.message}")
         }.launchIn(viewModelScope)
     }
 
@@ -276,7 +285,6 @@ class BookingPaymentViewModel @Inject constructor(
                         roomsRepository.update(room.copy(status = "شاغرة"))
                     }
                 }
-                pushSilently()
                 _state.value = _state.value.copy(
                     message = "تم تسجيل المغادرة بنجاح وتحرير الغرفة",
                     tone = MsgTone.SUCCESS,
@@ -338,7 +346,6 @@ class BookingPaymentViewModel @Inject constructor(
                         roomsRepository.update(room.copy(status = "شاغرة"))
                     }
                 }
-                pushSilently()
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     error = "فشل تسجيل المغادرة المبكرة: ${e.message}",
@@ -362,7 +369,6 @@ class BookingPaymentViewModel @Inject constructor(
                     return@launch
                 }
                 todays.forEach { paymentsRepository.softDelete(it.id) }
-                pushSilently()
                 _state.value = _state.value.copy(
                     message = "تم إلغاء ${todays.size} دفعة بنجاح",
                     tone = MsgTone.SUCCESS
@@ -401,7 +407,6 @@ class BookingPaymentViewModel @Inject constructor(
                             "عند وجود مبلغ متبقي لدى النزيل."
                     )
                 )
-                pushSilently()
                 _state.value = _state.value.copy(
                     message = "✅ تم إنشاء دين بقيمة ${CurrencyFormatter.formatAmount(remaining)} " +
                         "وإضافته إلى قائمة الديون",
@@ -439,7 +444,6 @@ class BookingPaymentViewModel @Inject constructor(
             try {
                 val newDiscount = booking.discount + amount
                 bookingsRepository.update(booking.copy(discount = newDiscount, discountType = "total"))
-                pushSilently()
                 _state.value = _state.value.copy(
                     message = "✅ تم خصم ${CurrencyFormatter.formatAmount(amount)} من الليالي الفعلية. " +
                         "المتبقي الجديد: ${CurrencyFormatter.formatAmount((summary.remainingAmount - amount).coerceAtLeast(0.0))}",
@@ -559,13 +563,12 @@ class BookingPaymentViewModel @Inject constructor(
                 isPendingBalance = isPendingBalance
             )
         )
-        pushSilently()
         if (!emitUi) return
         val remaining = (calculateCurrentTotals().remaining).coerceAtLeast(0.0)
         val phone = BookingFinancials.cleanAndFormatPhone(booking.guestPhone)
         _state.value = _state.value.copy(
             isSaving = false,
-            message = "تم تسجيل دفعة بقيمة ${CurrencyFormatter.formatAmount(amount)}",
+            message = "تم حفظ الدفعة محلياً بقيمة ${CurrencyFormatter.formatAmount(amount)}",
             tone = MsgTone.INFO,
             receipt = PaymentReceiptUi(
                 amount = amount,
@@ -588,11 +591,7 @@ class BookingPaymentViewModel @Inject constructor(
         return PaymentTotals(summary.totalAmount, summary.remainingAmount)
     }
 
-    private suspend fun pushSilently() {
-        try {
-            syncRepository.syncNow()
-        } catch (_: Exception) {
-            // Sync failure never fails the business operation (Dart contract).
-        }
-    }
+    // Repositories enqueue durable outbox mutations before returning. The
+    // application-owned AutoSyncEngine handles upload/retry independently of
+    // this screen. Do not await network sync before showing a local receipt.
 }

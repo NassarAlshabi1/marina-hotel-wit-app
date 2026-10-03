@@ -17,6 +17,9 @@ interface DebtsDao {
     @Query("SELECT * FROM debts WHERE deleted_at IS NULL ORDER BY date_recorded DESC")
     fun getAll(): Flow<List<DebtEntity>>
 
+    @Query("SELECT * FROM debts WHERE booking_local_id = :bookingId AND deleted_at IS NULL ORDER BY date_recorded DESC")
+    fun getByBooking(bookingId: Long): Flow<List<DebtEntity>>
+
     @Query("SELECT * FROM debts WHERE id = :id")
     suspend fun getById(id: Long): DebtEntity?
 

@@ -29,6 +29,9 @@ class BookingsRepositoryImpl @Inject constructor(
     override fun getAll(): Flow<List<Booking>> =
         bookingsDao.getAll().map { entities -> entities.map { it.toDomain() } }
 
+    override fun watchById(id: Long): Flow<Booking?> =
+        bookingsDao.watchById(id).map { it?.toDomain() }
+
     override suspend fun getById(id: Long): Booking? =
         bookingsDao.getById(id)?.toDomain()
 

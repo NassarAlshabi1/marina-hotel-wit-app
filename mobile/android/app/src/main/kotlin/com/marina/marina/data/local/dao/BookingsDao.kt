@@ -17,6 +17,9 @@ interface BookingsDao {
     suspend fun getAllOnce(): List<BookingEntity>
 
     @Query("SELECT * FROM bookings WHERE id = :id AND deleted_at IS NULL")
+    fun watchById(id: Long): Flow<BookingEntity?>
+
+    @Query("SELECT * FROM bookings WHERE id = :id AND deleted_at IS NULL")
     suspend fun getById(id: Long): BookingEntity?
 
     @Query("SELECT * FROM bookings WHERE room_number = :roomNumber AND deleted_at IS NULL ORDER BY checkin_date DESC")

@@ -24,6 +24,9 @@ class DebtsRepositoryImpl @Inject constructor(
     override fun getAll(): Flow<List<Debt>> =
         debtsDao.getAll().map { entities -> entities.map { it.toDomain() } }
 
+    override fun getByBooking(bookingId: Long): Flow<List<Debt>> =
+        debtsDao.getByBooking(bookingId).map { rows -> rows.map { it.toDomain() } }
+
     override suspend fun getById(id: Long): Debt? =
         debtsDao.getById(id)?.toDomain()
 

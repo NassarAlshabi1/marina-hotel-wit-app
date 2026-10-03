@@ -20,6 +20,8 @@ import com.marina.marina.domain.util.StatusUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Calendar
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -173,8 +175,8 @@ class DashboardViewModel @Inject constructor(
 
     /** Live sync engine state + pending outbox count (header indicators). */
     val syncState: StateFlow<SyncUiState> = syncManager.syncState
-    val pendingChanges: StateFlow<Int> = syncManager.pendingCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    val pendingChanges: StateFlow<Int> = syncManager.undeliveredCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), -1)
 
     /** One-shot UI events (snackbars). */
     private val _events = MutableSharedFlow<DashboardEvent>(extraBufferCapacity = 8)
@@ -224,17 +226,21 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    /** Manual full sync (header sync button). */
-    fun triggerSync() {
-        viewModelScope.launch {
-            val state = syncManager.syncNow()
-            _events.emit(
-                if (state.isError) {
-                    DashboardEvent.SyncFailed(state.lastMessage)
-                } else {
-                    DashboardEvent.SyncCompleted(state.pushedCount, state.pulledCount)
-                }
-            )
+    private var manualSyncJob: Job? = null
+
+    fun pushChanges() = runDirectionalSync(push = true)
+    fun pullChanges() = runDirectionalSync(push = false)
+
+    private fun runDirectionalSync(push: Boolean) {
+        if (manualSyncJob?.isActive == true || syncState.value.isSyncing) return
+        manualSyncJob = viewModelScope.launch {
+            try {
+                _events.emit(runDashboardDirectionalSync(syncManager, push))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _events.emit(DashboardEvent.SyncFailed(error.message ?: "تعذرت المزامنة"))
+            }
         }
     }
 

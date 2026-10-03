@@ -53,6 +53,7 @@ class OutboxRepository @Inject constructor(
     fun getPending(): Flow<List<OutboxEntity>> = outboxDao.getPendingPrimary()
 
     fun pendingCount(): Flow<Int> = outboxDao.pendingCount()
+    fun undeliveredCount(): Flow<Int> = outboxDao.undeliveredCount()
 
     suspend fun enqueue(entity: String, op: String, localUuid: String, payload: Map<String, Any>): Long {
         val outbox = OutboxEntity(
