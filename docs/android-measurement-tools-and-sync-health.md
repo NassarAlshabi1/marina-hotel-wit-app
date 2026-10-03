@@ -10,7 +10,7 @@
 | [detekt/detekt](https://github.com/detekt/detekt) | تحليل Kotlin، التعقيد ومشكلات جودة الكود | إعداد Detekt 1.23.6 مع تقارير HTML/XML/SARIF؛ الإصدار مختار لسلسلة Kotlin 1.9.23 الحالية وليس ادعاء أنه الأحدث |
 | Android Lint | فحص Android والموارد والاستخدامات غير السليمة | مهمة lintDebug مستقلة ضمن مسار الجودة |
 
-مصادر جرى فحصها: README الرسمي للمشاريع أعلاه، [صفحة مشغّل المحاكي](https://github.com/marketplace/actions/android-emulator-runner)، و[وثائق Macrobenchmark](https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview).
+مصادر جرى فحصها: README الرسمي للمشاريع أعلاه، [1](https://github.com/marketplace/actions/android-emulator-runner)، و[2](https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview).
 
 **فصل مهم:** المحاكي ليس مقياس سرعة الهاتف. توضح وثائق Android أن Macrobenchmark يحذّر من القياس على المحاكي لأن النتائج تتأثر بموارد الحاسوب المضيف، وتوصي بجهاز حقيقي. ولا يعطي Lint أو Detekt وحدهما نسبة «جودة التطبيق» أو ضماناً لصحة الحسابات.
 
@@ -80,3 +80,13 @@ maestro test --format junit --output performance-evidence/maestro.xml .maestro/d
 - اختبار Room حقيقي: الحالات المحلية/المستوردة، أولوية acknowledgement، فشل primary، طوابع الثواني، العالق، توزيع الكيانات وعدم تغيير صفوف DB.
 - فحص Bash النحوي ناجح، واختبار قارئ تقارير الجودة بملفات XML اصطناعية ناجح. أرقام هذه الملفات **ليست نتائج جودة المشروع**.
 - التجميع واختبارات Android وعمليات المحاكي/الجودة يجب تأكيدها من GitHub Actions بعد الدفع؛ لا Java/SDK محليين، ولا قياسات هاتف أو نتائج جودة فعلية يُستنتج نجاحها من إعداد الملفات.
+
+## نتائج التشغيل الفعلية — 2026-10-04
+
+على نسخة الكود **26f1526**:
+
+- [تشغيل الأدلة 37161255965](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37161255965): مهمة **emulator نجحت** خلال 8 دقائق و53 ثانية، بما فيها بناء Debug، تشغيل المحاكي، حجب شبكة التطبيق، جمع خمس محاولات الإقلاع ورفع الصور وبيانات الذاكرة والرسم.
+- مهمة **quality فشلت بسبب الملاحظات**، لكنها أنتجت ورفعت التقارير: **Android Lint: 63**، **Detekt: 1494**. هذه أعداد findings دون تصنيف تفصيلي للشدة هنا؛ ليست عدد أعطال تشغيل ولا درجة من 100. لا ندّعي إصلاح هذه الملاحظات في هذه الدفعة.
+- [تشغيل Android 37161255870](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37161255870): اختبارات الوحدة نجحت، ومنها اختبارات شاشة الحالة وقراءة SQLite. بناء release الموقّع كان ما يزال جاريًا عند تدوين التقرير.
+- الأدلة محفوظة في artifacts الخاصة بالتشغيل. تعذّر تنزيل أرشيف التقارير داخل بيئة هذه الجلسة، لذلك لم تُراجع الصور أو كل الملاحظات فردياً هنا. الأعداد أعلاه مؤكدة من annotations الخاصة بمهمة الجودة، ونجاح المحاكي من حالة job.
+- لم يُشغّل تدفق Maestro للحساب الاصطناعي، ولم يُقَس أداء Dashboard/المدفوعات على جهاز فعلي بعد.
