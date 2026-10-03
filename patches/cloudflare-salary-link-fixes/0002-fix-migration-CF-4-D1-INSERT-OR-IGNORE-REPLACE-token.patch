@@ -1,0 +1,111 @@
+From 972d0e0cc702d5ac5d2ceb51df422d7d9e4460b1 Mon Sep 17 00:00:00 2001
+From: NassarAlshabi1 <NassarAlshabi1@users.noreply.github.com>
+Date: Sat, 3 Oct 2026 01:26:36 +0000
+Subject: [PATCH 2/5] =?UTF-8?q?fix(migration):=20CF-4=20=E2=80=94=20=D8=AA?=
+ =?UTF-8?q?=D8=B1=D8=AD=D9=8A=D9=84=20D1=20=D8=A8=D9=80=20INSERT=20OR=20IG?=
+ =?UTF-8?q?NORE=20=D8=A8=D8=AF=D9=84=20REPLACE=20+=20=D8=AD=D9=85=D8=A7?=
+ =?UTF-8?q?=D9=8A=D8=A9=20token/deviceId=20=D8=A7=D9=84=D9=81=D8=A7=D8=B1?=
+ =?UTF-8?q?=D8=BA=D9=8A=D9=86?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ mobile/lib/main.dart                            | 13 ++++++++++---
+ .../services/cloudflare_migration_service.dart  |  8 ++++++--
+ .../test/cloudflare_migration_service_test.dart | 17 +++++++++++++++++
+ 3 files changed, 33 insertions(+), 5 deletions(-)
+
+diff --git a/mobile/lib/main.dart b/mobile/lib/main.dart
+index 8f52ef8e..db01e98a 100755
+--- a/mobile/lib/main.dart
++++ b/mobile/lib/main.dart
+@@ -466,13 +466,20 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
+         // الفشل الصامت إلى Full Sync متكرر.
+ 
+         // ✅ Cloudflare migration: push local data to D1 on first run
+-        if (!await CloudflareMigrationService.instance.isMigrationComplete()) {
++        // ✅ (2026-10-03) CF-4: لا `!` على token/deviceId — كان null عند أول
++        // تشغيل يرمي استثناءً ويُبقي العلم غير معلَّم فيُعاد الترحيل لاحقاً.
++        // الترحيل نفسه صار INSERT OR IGNORE (لا كتابة فوق بيانات D1).
++        final migrationToken = syncManager.token;
++        final migrationDeviceId = AppwriteSyncManager.currentDeviceIdStatic;
++        if (migrationToken != null &&
++            migrationDeviceId != null &&
++            !await CloudflareMigrationService.instance.isMigrationComplete()) {
+           debugPrint('🔄 Starting Cloudflare migration...');
+           try {
+             final result = await CloudflareMigrationService.instance.migrate(
+               db: DatabaseManager.instance,
+-              token: syncManager.token!,
+-              deviceId: AppwriteSyncManager.currentDeviceIdStatic!,
++              token: migrationToken,
++              deviceId: migrationDeviceId,
+             );
+             debugPrint(
+               '🔄 Migration: ${result.totalPushed}/${result.totalRecords} pushed, ${result.totalFailed} failed',
+diff --git a/mobile/lib/services/cloudflare_migration_service.dart b/mobile/lib/services/cloudflare_migration_service.dart
+index e4311524..06f61d65 100755
+--- a/mobile/lib/services/cloudflare_migration_service.dart
++++ b/mobile/lib/services/cloudflare_migration_service.dart
+@@ -326,7 +326,11 @@ class CloudflareMigrationService {
+   }
+ 
+   /// Build a SQL INSERT statement with multiple VALUES from a batch of records.
+-  /// Uses INSERT OR REPLACE for idempotent re-runs (unique local_uuid).
++  /// ✅ (2026-10-03) CF-4: INSERT OR IGNORE (كان INSERT OR REPLACE).
++  /// REPLACE = حذف + إدراج في D1: يكتب فوق تعديلات أحدث من أجهزة أخرى،
++  /// ويمسح أعمدة الخادم، وعلى `salary_cycles` (UNIQUE(employee_id,
++  /// cycle_key)) يحذف دورة موظف آخر يتصادف رقمه المحلي. IGNORE يُدرج
++  /// فقط ما ليس في D1 — إعادة التشغيل تبقى آمنة (idempotent) دون كتابة فوق.
+   /// All values are properly SQL-escaped to prevent injection.
+   /// Fills NOT NULL columns (without defaults) with empty values to prevent
+   /// silent constraint violations.
+@@ -417,7 +421,7 @@ class CloudflareMigrationService {
+       valuesClauses.add('(${values.join(', ')})');
+     }
+ 
+-    return 'INSERT OR REPLACE INTO $tableName ($columnsStr) VALUES\n'
++    return 'INSERT OR IGNORE INTO $tableName ($columnsStr) VALUES\n'
+         '${valuesClauses.join(',\n')};';
+   }
+ 
+diff --git a/mobile/test/cloudflare_migration_service_test.dart b/mobile/test/cloudflare_migration_service_test.dart
+index d1fcbb9b..06d3733f 100755
+--- a/mobile/test/cloudflare_migration_service_test.dart
++++ b/mobile/test/cloudflare_migration_service_test.dart
+@@ -3,6 +3,8 @@
+ //  Tests for CloudflareMigrationService (SQL building, batch logic)
+ // ═══════════════════════════════════════════════════════════════
+ 
++import 'dart:io';
++
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:marina_hotel_mobile/services/cloudflare_migration_service.dart';
+ 
+@@ -35,6 +37,21 @@ void main() {
+     });
+   });
+ 
++  group('CF-4: الترحيل لا يكتب فوق بيانات D1', () {
++    test('عبارة الترحيل INSERT OR IGNORE لا INSERT OR REPLACE', () {
++      final src = File(
++        'lib/services/cloudflare_migration_service.dart',
++      ).readAsStringSync();
++      expect(src, contains("'INSERT OR IGNORE INTO \$tableName"));
++      expect(src, isNot(contains("'INSERT OR REPLACE INTO \$tableName")));
++    });
++
++    test('main.dart لا يستخدم ! على token/deviceId عند الترحيل', () {
++      final src = File('lib/main.dart').readAsStringSync();
++      expect(src, isNot(contains('token: syncManager.token!')));
++    });
++  });
++
+   group('MigrationResult', () {
+     test('isSuccess requires totalPushed > 0 and totalFailed == 0', () {
+       const success = MigrationResult(
+-- 
+2.39.5
+

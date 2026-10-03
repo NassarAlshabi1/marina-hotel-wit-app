@@ -396,6 +396,16 @@ class GoogleDriveDeltaSync {
     dlog(() => '🔄 تطبيق $operation على $entity/$localUuid');
 
     if (operation == 'delete') {
+      // ✅ (2026-10-02) لا حذف نهائي لبيانات الموظفين/المصروفات/الرواتب عبر
+      // Drive delta — الحذف فيها soft (deletedAt) ويصل كعملية update.
+      if (_financialEntities.contains(entity)) {
+        dwarn(
+          () =>
+              '🛡️ تجاهل حذف نهائي لـ $entity/$localUuid عبر Drive delta '
+              '(بيانات مالية — soft delete فقط)',
+        );
+        return;
+      }
       await _deleteEntity(db, entity, localUuid);
       return;
     }
@@ -443,8 +453,31 @@ class GoogleDriveDeltaSync {
         await registry.auditLogs.upsertFromJson(payload, src: Source.drive);
       case 'payment_voids':
         await registry.paymentVoids.upsertFromJson(payload, src: Source.drive);
+      // ✅ (2026-10-02) R7: كانت تغييرات هذين الجدولين تُنتج في
+      // DeltaSyncService لكنها تُسقط هنا بصمت (لا case).
+      case 'salary_withdrawals':
+        await registry.salaryWithdrawals.upsertFromJson(
+          payload,
+          src: Source.drive,
+        );
+      case 'salary_carry_over_logs':
+        await registry.salaryCarryOverLogs.upsertFromJson(
+          payload,
+          src: Source.drive,
+        );
+      default:
+        dwarn(() => '⚠️ Drive delta: كيان غير مدعوم $entity — لم يُطبَّق');
     }
   }
+
+  static const Set<String> _financialEntities = {
+    'employees',
+    'expenses',
+    'salary_cycles',
+    'salary_payments',
+    'salary_withdrawals',
+    'salary_carry_over_logs',
+  };
 
   Future<void> _deleteEntity(
     AppDatabase db,

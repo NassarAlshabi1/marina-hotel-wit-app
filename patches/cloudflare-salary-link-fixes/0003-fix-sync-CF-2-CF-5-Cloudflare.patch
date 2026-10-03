@@ -1,0 +1,521 @@
+From bfee9ad0619e6826cff6d9442338e578234dbede Mon Sep 17 00:00:00 2001
+From: NassarAlshabi1 <NassarAlshabi1@users.noreply.github.com>
+Date: Sat, 3 Oct 2026 01:32:04 +0000
+Subject: [PATCH 3/5] =?UTF-8?q?fix(sync):=20CF-2/CF-5=20=E2=80=94=20=D8=AD?=
+ =?UTF-8?q?=D9=84=20=D8=B1=D9=88=D8=A7=D8=A8=D8=B7=20=D8=A7=D9=84=D8=B1?=
+ =?UTF-8?q?=D9=88=D8=A7=D8=AA=D8=A8=20=D9=81=D9=8A=20=D8=B3=D8=AD=D8=A8=20?=
+ =?UTF-8?q?Cloudflare=20=D8=A8=D9=84=D8=A7=20=D8=AA=D8=AE=D9=85=D9=8A?=
+ =?UTF-8?q?=D9=86?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- UUID موجود وغير محلول → تأجيل بدل السقوط إلى server_id (فضاء D1 مقابل
+  id محلي في جهاز المصدر).
+- server_id مكرر محلياً → لا تخمين (كان LIMIT 1 بلا ترتيب).
+- صف رواتب موجود لا يُكتب فوق ربطه إلا بمطابقة UUID.
+- مصروف مرتبط بموظف بلا UUID محلول → لا related_id خام (NULL للجديد،
+  والإبقاء على الموجود). PayloadMapper.isEmployeeLinkedExpenseType يشمل السلفة.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../lib/services/cloudflare_sync_manager.dart | 102 +++++-
+ mobile/lib/services/sync/payload_mapper.dart  |  20 ++
+ .../cloudflare_salary_fk_protection_test.dart | 294 ++++++++++++++++++
+ 3 files changed, 408 insertions(+), 8 deletions(-)
+ create mode 100644 mobile/test/cloudflare_salary_fk_protection_test.dart
+
+diff --git a/mobile/lib/services/cloudflare_sync_manager.dart b/mobile/lib/services/cloudflare_sync_manager.dart
+index cb43b5ba..69dfc6d6 100755
+--- a/mobile/lib/services/cloudflare_sync_manager.dart
++++ b/mobile/lib/services/cloudflare_sync_manager.dart
+@@ -29,6 +29,7 @@ import 'logging/log_models.dart' show LogLevel;
+ import 'remote_change_notifier.dart';
+ import 'resilient_http_client.dart';
+ import 'sync/fk_rules.dart';
++import 'sync/payload_mapper.dart';
+ import 'sync/payload_normalizer.dart';
+ import 'sync/pull_apply_rules.dart';
+ import 'sync/pull_quarantine.dart';
+@@ -2707,6 +2708,43 @@ class CloudflareSyncManager {
+     }
+   }
+ 
++  /// ✅ (2026-10-03) CF-2: جداول الرواتب التي لا يُخمَّن فيها الأب.
++  static const Set<String> _salaryFkEntities = {
++    'salary_withdrawals',
++    'salary_cycles',
++    'salary_payments',
++    'salary_carry_over_logs',
++  };
++
++  /// مثل [_lookupLocalParentId] لكن يُرجع null عند تعدد المطابقات
++  /// (server_id مكرر محلياً) بدل اختيار صف عشوائي بـ LIMIT 1.
++  Future<Object?> _lookupUniqueLocalParentId(
++    String parentTable,
++    String keyColumn,
++    Object? keyValue,
++  ) async {
++    try {
++      final rows = await _db!
++          .customSelect(
++            'SELECT id FROM $parentTable WHERE $keyColumn = ? LIMIT 2',
++            variables: [Variable(keyValue)],
++          )
++          .get();
++      if (rows.length != 1) {
++        if (rows.length > 1) {
++          _logFkOnce(
++            'ambiguous $parentTable.$keyColumn=$keyValue — no guess',
++          );
++        }
++        return null;
++      }
++      return rows.single.data['id'] as Object?;
++    } catch (e) {
++      _logFkOnce('parent lookup failed $parentTable.$keyColumn: $e');
++      return null;
++    }
++  }
++
+   /// هل يوجد صف في [parentTable] بمفتاح طبيعي معطى؟
+   Future<bool> _parentKeyExists(
+     String parentTable,
+@@ -2750,8 +2788,9 @@ class CloudflareSyncManager {
+   }) async {
+     if (entity == 'expenses') {
+       final empUuid = record['employee_uuid']?.toString().trim();
++      Object? localEmpId;
+       if (empUuid != null && empUuid.isNotEmpty) {
+-        final localEmpId = await _lookupLocalParentId(
++        localEmpId = await _lookupLocalParentId(
+           'employees',
+           'local_uuid',
+           empUuid,
+@@ -2760,6 +2799,19 @@ class CloudflareSyncManager {
+           record['related_id'] = localEmpId;
+         }
+       }
++      // ✅ (2026-10-03) CF-5: مصروف مرتبط بموظف لم يُحل UUID موظفه → لا
++      // نُبقي related_id الخام (id موظف في جهاز آخر — يُنسب لموظف خاطئ هنا).
++      // صف موجود → نحتفظ بربطه المحلي، وصف جديد → NULL (يُربط لاحقاً
++      // عند وصول الموظف عبر employee_uuid).
++      final type = record['expense_type']?.toString() ?? '';
++      final employeeLinked =
++          PayloadMapper.isEmployeeLinkedExpenseType(type) ||
++          (empUuid != null && empUuid.isNotEmpty);
++      if (localEmpId == null &&
++          employeeLinked &&
++          record.containsKey('related_id')) {
++        record['related_id'] = existing?['related_id'];
++      }
+     }
+ 
+     final rules = fkRulesByEntity[entity];
+@@ -2785,24 +2837,43 @@ class CloudflareSyncManager {
+             ? wireValue
+             : int.tryParse(wireValue.toString());
+         Object? resolved;
++        // ✅ (2026-10-03) CF-2: هل جاء الحل من UUID (موثوق) أم من server_id؟
++        var resolvedByUuid = false;
+         if (serverValue != null) {
+           // 1) uuid-cache: المفتاح العالمي.
+           final cacheKey = rule.uuidCacheColumn == null
+               ? null
+-              : record[rule.uuidCacheColumn]?.toString();
+-          if (cacheKey != null && cacheKey.isNotEmpty) {
++              : record[rule.uuidCacheColumn]?.toString().trim();
++          final hasUuid = cacheKey != null && cacheKey.isNotEmpty;
++          if (hasUuid) {
+             resolved = await _lookupLocalParentId(
+               rule.parentTable,
+               'local_uuid',
+               cacheKey,
+             );
++            resolvedByUuid = resolved != null;
+           }
+           // 2) ظلّ server_id للأب.
+-          resolved ??= await _lookupLocalParentId(
+-            rule.parentTable,
+-            'server_id',
+-            serverValue,
+-          );
++          // ✅ CF-2: لجداول الرواتب، الرقم على السلك = id محلي في جهاز
++          // المصدر، بينما server_id المحلي = id الأب في D1 — فضاءان
++          // مختلفان. لذلك:
++          //  • UUID موجود لكنه لم يُحل → لا سقوط إلى server_id (يُؤجَّل
++          //    حتى يصل الأب) بدل ربطه بموظف آخر يتصادف رقمه.
++          //  • server_id مكرر محلياً → لا تخمين.
++          final salaryRule = _salaryFkEntities.contains(entity);
++          if (resolved == null && !(salaryRule && hasUuid)) {
++            resolved = salaryRule
++                ? await _lookupUniqueLocalParentId(
++                    rule.parentTable,
++                    'server_id',
++                    serverValue,
++                  )
++                : await _lookupLocalParentId(
++                    rule.parentTable,
++                    'server_id',
++                    serverValue,
++                  );
++          }
+           // 3) فضاء Appwrite القديم.
+           if (resolved == null && rule.legacyServerBookingId) {
+             final legacy = record['server_booking_id'];
+@@ -2819,6 +2890,21 @@ class CloudflareSyncManager {
+           }
+         }
+ 
++        // ✅ CF-2: صف رواتب موجود محلياً لا يُكتب فوق ربطه إلا بمطابقة UUID
++        // — مطابقة server_id (فضاء مختلط) كانت تفسد علاقة صحيحة مثبتة.
++        if (resolved != null &&
++            !resolvedByUuid &&
++            existing != null &&
++            _salaryFkEntities.contains(entity) &&
++            existing[rule.column] != null &&
++            existing[rule.column] != resolved) {
++          _logFkOnce(
++            'kept existing $entity.${rule.column}=${existing[rule.column]} '
++            '(server_id match $resolved ignored — no uuid)',
++          );
++          record[rule.column] = existing[rule.column];
++          continue;
++        }
+         if (resolved != null) {
+           record[rule.column] = resolved;
+           continue;
+diff --git a/mobile/lib/services/sync/payload_mapper.dart b/mobile/lib/services/sync/payload_mapper.dart
+index bb031c0d..42fafc39 100755
+--- a/mobile/lib/services/sync/payload_mapper.dart
++++ b/mobile/lib/services/sync/payload_mapper.dart
+@@ -929,6 +929,26 @@ class PayloadMapper {
+   }
+ 
+   /// هل نوع المصروف مرتبط بالرواتب
++  /// ✅ (2026-10-03) هل المصروف مرتبط بموظف (related_id = موظف)؟
++  /// أوسع من [isSalaryExpenseType]: يشمل السلفة والخصم والغياب والنوع القديم
++  /// 'employee' (نفس مجموعة EmployeesRepository). يُستخدم لقرار "لا related_id
++  /// خام من جهاز آخر" عند السحب (CF-5 / R8).
++  static bool isEmployeeLinkedExpenseType(String type) {
++    const linked = {
++      'سحب راتب',
++      'رواتب',
++      'سحب من الراتب',
++      'سلفة',
++      'خصم من الراتب',
++      'خصم راتب',
++      'خصم',
++      'غياب',
++      'employee',
++    };
++    final t = type.trim();
++    return linked.contains(t) || t.contains('سلفة') || isSalaryExpenseType(t);
++  }
++
+   static bool isSalaryExpenseType(String type) {
+     const salaryKeywords = [
+       'رواتب',
+diff --git a/mobile/test/cloudflare_salary_fk_protection_test.dart b/mobile/test/cloudflare_salary_fk_protection_test.dart
+new file mode 100644
+index 00000000..a1f4f860
+--- /dev/null
++++ b/mobile/test/cloudflare_salary_fk_protection_test.dart
+@@ -0,0 +1,294 @@
++// ═══════════════════════════════════════════════════════════════
++//  cloudflare_salary_fk_protection_test.dart
++//  (2026-10-03) CF-2 / CF-5 — حل روابط الرواتب في سحب Cloudflare بلا تخمين.
++//
++//  الخلفية: employee_id / related_id على السلك = id محلي في جهاز المصدر،
++//  بينما employees.server_id المحلي = id الموظف في D1 (فضاءان مختلفان).
++//  المطابقة بينهما كانت تنسب سحوبات/مصروفات لموظف خاطئ.
++//  انظر docs/CLOUDFLARE_BRANCH_SALARY_LINK_REVIEW.md.
++// ═══════════════════════════════════════════════════════════════
++
++import 'package:drift/drift.dart' hide isNull, isNotNull;
++import 'package:drift/native.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:http/http.dart' as http;
++import 'package:marina_hotel_mobile/screens/settings/error_tracker_screen.dart';
++import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
++import 'package:marina_hotel_mobile/services/local_db.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++
++class _NoNetworkClient extends http.BaseClient {
++  @override
++  Future<http.StreamedResponse> send(http.BaseRequest request) =>
++      throw StateError('no network in this test: ${request.url}');
++}
++
++Map<String, dynamic> _sync(
++  String uuid, {
++  int? wireId,
++  int updatedAt = 1700000500,
++}) => {
++  'id': wireId,
++  'local_uuid': uuid,
++  'created_at': updatedAt,
++  'updated_at': updatedAt,
++  'last_modified': updatedAt,
++  'created_at_epoch': 0,
++  'last_modified_epoch': 0,
++  'version': 1,
++  'origin': 'local',
++  'vector_clock': '{}',
++  'device_id': 'other-device',
++};
++
++Map<String, dynamic> _withdrawal(
++  String uuid, {
++  required int employeeId,
++  String? employeeUuid,
++  int updatedAt = 1700000500,
++  int version = 1,
++}) => {
++  ..._sync(uuid, wireId: 900, updatedAt: updatedAt),
++  'version': version,
++  'employee_id': employeeId,
++  'employee_uuid': employeeUuid,
++  'amount': 5000.0,
++  'withdraw_date': '2026-10-01',
++  'reason': 'exp_42',
++  'hotel_day_key': '2026-10-01',
++  'withdrawal_type': 'سحب راتب',
++  'description': 'test',
++};
++
++Map<String, dynamic> _expense(
++  String uuid, {
++  required String type,
++  int? relatedId,
++  String? employeeUuid,
++  int updatedAt = 1700000500,
++  int version = 1,
++}) => {
++  ..._sync(uuid, wireId: 700, updatedAt: updatedAt),
++  'version': version,
++  'expense_type': type,
++  'related_id': relatedId,
++  'employee_uuid': employeeUuid,
++  'description': 'test',
++  'amount': 15000.0,
++  'date': '2026-10-01',
++  'hotel_day_key': '2026-10-01',
++  'is_auto_generated': 0,
++};
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++
++  late AppDatabase db;
++  late CloudflareSyncManager manager;
++
++  Future<int> insertEmployee(String uuid, {int? serverId}) => db
++      .into(db.employees)
++      .insert(
++        EmployeesCompanion(
++          name: Value('موظف $uuid'),
++          basicSalary: const Value(100000),
++          status: const Value('active'),
++          localUuid: Value(uuid),
++          serverId: Value(serverId),
++          createdAt: const Value(1000),
++          updatedAt: const Value(1000),
++          lastModified: const Value(1000),
++        ),
++      );
++
++  Future<SalaryWithdrawal?> withdrawal(String uuid) => (db.select(
++    db.salaryWithdrawals,
++  )..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
++
++  Future<Expense?> expense(String uuid) => (db.select(
++    db.expenses,
++  )..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
++
++  // ملاحظة: _fkParentIdCache في المدير (singleton) لا يُصفَّر بين الاختبارات،
++  // لذلك كل اختبار يستخدم UUIDs فريدة للموظفين.
++  setUp(() {
++    SharedPreferences.setMockInitialValues(<String, Object>{
++      'cloudflare_sync_local_override': true,
++    });
++    ErrorTrackerStore.instance.clear();
++    db = AppDatabase.forTesting(NativeDatabase.memory());
++    manager = CloudflareSyncManager();
++    manager.reset();
++    manager.configureForTesting(
++      database: db,
++      httpClient: _NoNetworkClient(),
++      token: 'test-token',
++      deviceId: 'fk-protection-device',
++    );
++  });
++
++  tearDown(() async {
++    await db.close();
++  });
++
++  group('CF-2: salary_withdrawals.employee_id', () {
++    test('UUID موجود وغير محلول → يُؤجَّل ولا يسقط إلى server_id', () async {
++      // موظف محلي آخر يتصادف server_id (id في D1) مع رقم جهاز المصدر.
++      await insertEmployee('emp-other', serverId: 5);
++
++      final report = await manager.applyPulledRecords([
++        (
++          entity: 'salary_withdrawals',
++          record: _withdrawal(
++            'sw-uuid-missing',
++            employeeId: 5,
++            employeeUuid: 'emp-not-pulled-yet',
++          ),
++        ),
++      ]);
++
++      expect(report.appliedCount, 0);
++      expect(await withdrawal('sw-uuid-missing'), isNull);
++    });
++
++    test('UUID محلول → يُربط بالموظف الصحيح رغم رقم مختلف', () async {
++      await insertEmployee('emp-other', serverId: 5);
++      final right = await insertEmployee('emp-right', serverId: 77);
++
++      await manager.applyPulledRecords([
++        (
++          entity: 'salary_withdrawals',
++          record: _withdrawal(
++            'sw-uuid-ok',
++            employeeId: 5,
++            employeeUuid: 'emp-right',
++          ),
++        ),
++      ]);
++
++      expect((await withdrawal('sw-uuid-ok'))!.employeeId, right);
++    });
++
++    test('بلا UUID و server_id مكرر محلياً → لا تخمين', () async {
++      await insertEmployee('emp-dup-1', serverId: 10);
++      await insertEmployee('emp-dup-2', serverId: 10);
++
++      final report = await manager.applyPulledRecords([
++        (
++          entity: 'salary_withdrawals',
++          record: _withdrawal('sw-ambiguous', employeeId: 10),
++        ),
++      ]);
++
++      expect(report.appliedCount, 0);
++      expect(await withdrawal('sw-ambiguous'), isNull);
++    });
++
++    test('صف موجود: مطابقة server_id بلا UUID لا تكتب فوق ربطه', () async {
++      final a = await insertEmployee('emp-a', serverId: 1);
++      await insertEmployee('emp-b', serverId: 7);
++
++      await manager.applyPulledRecords([
++        (
++          entity: 'salary_withdrawals',
++          record: _withdrawal(
++            'sw-existing',
++            employeeId: 1,
++            employeeUuid: 'emp-a',
++          ),
++        ),
++      ]);
++      expect((await withdrawal('sw-existing'))!.employeeId, a);
++
++      // تحديث لاحق بلا UUID، ورقمه يطابق server_id موظف آخر.
++      await manager.applyPulledRecords([
++        (
++          entity: 'salary_withdrawals',
++          record: _withdrawal(
++            'sw-existing',
++            employeeId: 7,
++            updatedAt: 1700000900,
++            version: 2,
++          ),
++        ),
++      ]);
++      expect((await withdrawal('sw-existing'))!.employeeId, a);
++    });
++  });
++
++  group('CF-5: expenses.related_id', () {
++    test('سلفة بلا UUID → related_id = NULL لا الرقم الخام', () async {
++      final local = await insertEmployee('emp-local');
++
++      await manager.applyPulledRecords([
++        (
++          entity: 'expenses',
++          record: _expense('exp-advance', type: 'سلفة', relatedId: local),
++        ),
++      ]);
++
++      final row = await expense('exp-advance');
++      expect(row, isNotNull);
++      expect(row!.relatedId, isNull);
++    });
++
++    test('سلفة بـ UUID محلول → الموظف الصحيح', () async {
++      final right = await insertEmployee('emp-right-advance');
++
++      await manager.applyPulledRecords([
++        (
++          entity: 'expenses',
++          record: _expense(
++            'exp-advance-ok',
++            type: 'سلفة',
++            relatedId: 999,
++            employeeUuid: 'emp-right-advance',
++          ),
++        ),
++      ]);
++
++      expect((await expense('exp-advance-ok'))!.relatedId, right);
++    });
++
++    test('تحديث بلا UUID لا يمسح ربطاً محلياً صحيحاً', () async {
++      final a = await insertEmployee('emp-a');
++
++      await manager.applyPulledRecords([
++        (
++          entity: 'expenses',
++          record: _expense(
++            'exp-keep',
++            type: 'سحب راتب',
++            relatedId: 1,
++            employeeUuid: 'emp-a',
++          ),
++        ),
++      ]);
++      expect((await expense('exp-keep'))!.relatedId, a);
++
++      await manager.applyPulledRecords([
++        (
++          entity: 'expenses',
++          record: _expense(
++            'exp-keep',
++            type: 'سحب راتب',
++            relatedId: 999,
++            updatedAt: 1700000900,
++            version: 2,
++          ),
++        ),
++      ]);
++      expect((await expense('exp-keep'))!.relatedId, a);
++    });
++
++    test('مصروف عام يحتفظ بـ related_id كما هو', () async {
++      await manager.applyPulledRecords([
++        (
++          entity: 'expenses',
++          record: _expense('exp-general', type: 'صيانة', relatedId: 42),
++        ),
++      ]);
++      expect((await expense('exp-general'))!.relatedId, 42);
++    });
++  });
++}
+-- 
+2.39.5
+

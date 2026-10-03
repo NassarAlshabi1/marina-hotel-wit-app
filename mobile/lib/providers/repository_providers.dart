@@ -146,6 +146,9 @@ final notesRepoProvider = Provider<NotesRepository>(
 final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
   (ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)),
 );
+final salaryExpenseServiceProvider = Provider<SalaryExpenseService>(
+  (ref) => SalaryExpenseService(ref.read(databaseProvider)),
+);
 final salaryAdvanceInstallmentsServiceProvider =
     Provider<SalaryAdvanceInstallmentsService>(
       (ref) => SalaryAdvanceInstallmentsService(

@@ -225,7 +225,14 @@ class IdResolver {
   /// فضاءتي المعرفتين يربط الابن بموظف عشوائي إذا تصادفا رقمياً.
   ///
   /// ازدواج serverId في السحابة (خطأ بيانات — موظفان بـ serverId=1):
-  /// المطابقة حتمية: النشط (deletedAt NULL/0) أولاً ثم الأصغر id، مع تحذير.
+  /// - للمصدر البعيد ([fromRemote]=true): **لا تخمين** — يُرجع null (السجل
+  ///   يُعامل كيتيم ويُعاد حله لاحقاً) بدل اختيار أحدهما. فحص Appwrite الفعلي
+  ///   (2026-10-02) أثبت أن قاعدة "النشط ثم الأصغر" تنسب رواتب لموظف خاطئ.
+  /// - للمصدر المحلي: النشط (deletedAt NULL/0) أولاً ثم الأصغر id، مع تحذير.
+  ///
+  /// UUID مُمرَّر لكنه غير موجود محلياً (مصدر بعيد): يُرجع null ولا يسقط إلى
+  /// serverId — الـ UUID هو الحقيقة، وغيابه يعني أن الموظف لم يُسحب بعد، لا
+  /// أن الرقم صالح للربط (انظر docs/EMPLOYEE_EXPENSE_SALARY_LINK_DRAFT.md §11).
   Future<int?> resolveEmployee({
     int? localId,
     String? uuid,
@@ -270,6 +277,14 @@ class IdResolver {
           return row.id;
         }
       }
+      if (fromRemote) {
+        AppLogger.warning(
+          'employeeUuid=$uuid غير موجود محلياً — لا سقوط إلى serverId '
+          '(منع ربط خاطئ عبر الأجهزة)',
+          tag: 'IdResolver',
+        );
+        return null;
+      }
     }
     // 2. البحث بالـ serverId (المعرف الأصلي من جهاز المصدر)
     if (serverId != null) {
@@ -287,6 +302,16 @@ class IdResolver {
                 ]))
               .get();
       if (rows.isNotEmpty) {
+        if (rows.length > 1 && fromRemote) {
+          // ✅ (2026-10-02) ازدواج serverId من مصدر بعيد: لا تخمين — السجل
+          // يبقى بلا ربط بدل نسبته لأب خاطئ.
+          AppLogger.warning(
+            'ازدواج serverId=$serverId (${rows.map((r) => 'id=${r.id}').join(', ')}) '
+            '— مصدر بعيد: لا تخمين، يُترك بلا ربط',
+            tag: 'IdResolver',
+          );
+          return null;
+        }
         if (rows.length > 1) {
           AppLogger.warning(
             'ازدواج serverId=$serverId في employees: '
@@ -392,6 +417,16 @@ class IdResolver {
                 ]))
               .get();
       if (rows.isNotEmpty) {
+        if (rows.length > 1 && fromRemote) {
+          // ✅ (2026-10-02) ازدواج serverId من مصدر بعيد: لا تخمين — السجل
+          // يبقى بلا ربط بدل نسبته لأب خاطئ.
+          AppLogger.warning(
+            'ازدواج serverId=$serverId (${rows.map((r) => 'id=${r.id}').join(', ')}) '
+            '— مصدر بعيد: لا تخمين، يُترك بلا ربط',
+            tag: 'IdResolver',
+          );
+          return null;
+        }
         if (rows.length > 1) {
           AppLogger.warning(
             'ازدواج serverId=$serverId في salary_cycles: '

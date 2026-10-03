@@ -4,6 +4,7 @@ import '../../utils/app_logger.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
+import '../salary_expense_classifier.dart';
 import '../sync/payload_mapper.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
@@ -23,6 +24,15 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
   @override
   String get tableName => 'expenses';
 
+  /// ✅ (2026-10-02) هل المصروف مرتبط بموظف؟ (R8)
+  /// أوسع من [PayloadMapper.isSalaryExpenseType] الذي لا يشمل 'سلفة' — كانت
+  /// السلف تأخذ relatedId الخام (id موظف في جهاز آخر). يكفي أيضاً وجود
+  /// employeeUuid في الحمولة.
+  static bool isEmployeeLinked(String expenseType, String? employeeUuid) =>
+      PayloadMapper.isSalaryExpenseType(expenseType) ||
+      SalaryExpenseClassifier.isSalaryRelated(expenseType) ||
+      (employeeUuid != null && employeeUuid.isNotEmpty);
+
   @override
   Future<ResolveResult> resolveRefs(
     AppDatabase db,
@@ -40,10 +50,11 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
     // ✅ التوصية (توحيد isSalaryExpenseType): استدعاء النسخة العامة الموحدة
     // من PayloadMapper بدل تكرار المنطق الخاص محليًا — يمنع تباعد الكلمات
     // المفتاحية بين النسختين مستقبلًا.
-    if (PayloadMapper.isSalaryExpenseType(expenseType)) {
-      final remoteEmployeeUuid =
-          _asString(json, 'employeeUuid', src) ??
-          _asString(json, 'employee_local_uuid', src);
+    final payloadEmployeeUuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_local_uuid', src);
+    if (isEmployeeLinked(expenseType, payloadEmployeeUuid)) {
+      final remoteEmployeeUuid = payloadEmployeeUuid;
       final remoteRelatedId =
           _asInt(json, 'relatedId', src) ?? _asInt(json, 'related_id', src);
 
@@ -99,6 +110,21 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
     );
   }
 
+  d.Value<int?> _relatedIdFor(
+    Map<String, dynamic> json,
+    Source src,
+    ResolveResult refs,
+  ) {
+    final type = _asString(json, 'expenseType', src) ?? '';
+    final uuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_local_uuid', src);
+    if (!isEmployeeLinked(type, uuid)) return _vInt(json, 'relatedId', src);
+    if (refs.employeeRelatedId != null) return d.Value(refs.employeeRelatedId);
+    if (src == Source.local) return _vInt(json, 'relatedId', src);
+    return const d.Value.absent();
+  }
+
   @override
   ExpensesCompanion fromJson(
     Map<String, dynamic> json, {
@@ -123,13 +149,11 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       expenseType: _vStr(json, 'expenseType', src, fallback: ''),
       // ✅ إصلاح: لمصروفات الرواتب، استخدم relatedId المحلول عبر UUID
       // لتوافق الأجهزة المختلفة (relatedId على جهاز آخر قد لا يتطابق)
-      relatedId:
-          (PayloadMapper.isSalaryExpenseType(
-                _asString(json, 'expenseType', src) ?? '',
-              ) &&
-              refs.employeeRelatedId != null)
-          ? d.Value(refs.employeeRelatedId)
-          : _vInt(json, 'relatedId', src),
+      // ✅ (2026-10-02) R8: للمصروف المرتبط بموظف من مصدر بعيد لا نستخدم
+      // relatedId الخام أبداً (id موظف في جهاز آخر). غير محلول → absent:
+      // الإدراج يبقى NULL (يُربط لاحقاً عبر employeeUuid)، والتحديث لا يمسح
+      // ربطاً محلياً صحيحاً موجوداً.
+      relatedId: _relatedIdFor(json, src, refs),
       description: _vStr(json, 'description', src, fallback: ''),
       amount: _vDouble(json, 'amount', src),
       date: _vStr(json, 'date', src, fallback: ''),

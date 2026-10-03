@@ -3985,9 +3985,14 @@ class AppwriteSyncManager {
 
   // ─── SalaryWithdrawals ──────────────────────────────────────────────────
 
-  Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
+  /// ✅ R5 Fix: تطبيق مع تتبع أقصى $updatedAt للمعالجات الفعلية
+  /// (باستثناء السجلات المتخطاة/اليتيمة) لمنع تقدم المؤشر فوقها.
+  Future<dynamic> _syncSalaryWithdrawals(List<models.Document> documents) async {
+    if (documents.isEmpty) {
+      return const ApplyResult(recordsApplied: 0, maxProcessedUpdatedAtSec: null);
+    }
     var processed = 0;
+    int? maxProcessedUpdatedAtSec;
     final deferred = <Map<String, dynamic>>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
     // (بيانات قديمة بلا employeeUuid — تُشفى عبر
@@ -4020,7 +4025,7 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
+        // ✅ حل FK الموظف: UUID ← serverId فريد (لا id محلي لمصدر بعيد)
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -4029,36 +4034,19 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
-        Employee? employee;
+        // ✅ (2026-10-02) حل الموظف عبر IdResolver فقط: UUID ← serverId فريد.
+        // أُزيلت "الطريقة 2" (مطابقة employeeId البعيد كـ id محلي) التي أعادها
+        // الدمج 07c26a65 بعد إصلاح 1c83e916 — id جهاز آخر لا يعني شيئاً هنا،
+        // وكانت تنسب الرواتب لموظف خاطئ على الأجهزة الجديدة (R2). serverId
+        // المكرر أو UUID غير الموجود → يتيم (لا تخمين).
+        final resolvedEmployeeLocalId = await IdResolver(database)
+            .resolveEmployee(
+              uuid: employeeUuid,
+              serverId: remoteEmployeeId,
+              fromRemote: true,
+            );
 
-        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-        if (employeeUuid != null && employeeUuid.isNotEmpty) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.localUuid.equals(employeeUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 2: البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        if (employee == null) {
+        if (resolvedEmployeeLocalId == null) {
           // ✅ تقليل السبام: تجميع بدل تحذير لكل سجل (قد تصل 70+ سجل/دورة)
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
@@ -4066,9 +4054,9 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ استبدال employeeId البعيد بالمعرف المحلي للموظف
-        // هذا يضمن أن FK يشير للمعرف المحلي الصحيح
-        data['employeeId'] = employee.id;
+        // ✅ (2026-10-02) لا نستبدل data['employeeId'] بالـ id المحلي: الـ adapter
+        // يعيد الحل بنفس المدخلات (UUID ← serverId) — استبداله كان يجعل
+        // الـ adapter يطابق serverId == id محلي فيربط بموظف آخر.
 
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
@@ -4084,6 +4072,15 @@ class AppwriteSyncManager {
               insertedId,
               remoteExpenseId,
             );
+          }
+        }
+
+        // ✅ R5 Fix: تحديث أقصى $updatedAt للمعالجات الفعلية فقط
+        final docUpdatedAtSec = _extractUpdatedAtSec(doc);
+        if (docUpdatedAtSec != null) {
+          if (maxProcessedUpdatedAtSec == null ||
+              docUpdatedAtSec > maxProcessedUpdatedAtSec) {
+            maxProcessedUpdatedAtSec = docUpdatedAtSec;
           }
         }
 
@@ -4170,7 +4167,10 @@ class AppwriteSyncManager {
       }
     }
 
-    return processed;
+    return ApplyResult(
+      recordsApplied: processed,
+      maxProcessedUpdatedAtSec: maxProcessedUpdatedAtSec,
+    );
   }
 
   Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
@@ -4231,19 +4231,32 @@ class AppwriteSyncManager {
         // نُعيد false ليبقى في الطابور للمحاولة لاحقاً
         return false;
       }
-    } else if (employee == null) {
-      // الموظف غير موجود محلياً — سجل يتيم
+    }
+
+    // ✅ (2026-10-02) R6: لا يُحذف سحب راتب من الطابور أبداً لغياب موظفه.
+    // سابقاً `return true` → السجل لا يصل للسحابة إطلاقاً (فقدان صامت).
+    // - الموظف موجود محلياً → UUID الموظف.
+    // - غير موجود لكن السحبة تحمل employee_uuid → نرفع به (Appwrite بلا FK،
+    //   والموظف غالباً موجود في السحابة).
+    // - لا هذا ولا ذاك → يبقى في الطابور (false) للمحاولة لاحقاً.
+    final rowEmployeeUuid = withdrawal.employeeUuid;
+    final effectiveEmployeeUuid =
+        employee?.localUuid ??
+        ((rowEmployeeUuid != null && rowEmployeeUuid.isNotEmpty)
+            ? rowEmployeeUuid
+            : null);
+    if (effectiveEmployeeUuid == null) {
       _logger.warning(
-        '⏭️ تخطي salary_withdrawal: الموظف ${withdrawal.employeeId} غير موجود محلياً (سجل يتيم)',
+        '⏸️ تأجيل salary_withdrawal ${withdrawal.localUuid}: الموظف '
+        '${withdrawal.employeeId} غير موجود محلياً ولا employee_uuid — يبقى في الطابور',
         tag: 'SYNC',
       );
-      // لا نستطيع رفع سحب راتب بدون موظف — نحذفه من الطابور
-      return true;
+      return false;
     }
 
     final payload = _payloadMapper.salaryWithdrawalToRemote(
       withdrawal,
-      employeeUuid: employee.localUuid,
+      employeeUuid: effectiveEmployeeUuid,
     );
     final occPayload = await _occPushCheck(
       entity: 'salary_withdrawals',
@@ -5936,7 +5949,25 @@ class AppwriteSyncManager {
       for (final withdrawal in salaryWithdrawals) {
         if (skipDeleted && withdrawal.deletedAt != null) continue;
         try {
-          final payload = _payloadMapper.salaryWithdrawalToRemote(withdrawal);
+          // ✅ R9: تضمين employeeUuid في الرفع الكامل (بعد الاستعادة) لضمان
+          // ربط السحبة بالموظف الصحيح عبر الأجهزة
+          String? effectiveEmployeeUuid;
+          if (withdrawal.employeeUuid != null && withdrawal.employeeUuid!.isNotEmpty) {
+            effectiveEmployeeUuid = withdrawal.employeeUuid;
+          } else {
+            final employee =
+                await (database.select(database.employees)
+                      ..where((e) => e.id.equals(withdrawal.employeeId))
+                      ..limit(1))
+                    .getSingleOrNull();
+            if (employee != null) {
+              effectiveEmployeeUuid = employee.localUuid;
+            }
+          }
+          final payload = _payloadMapper.salaryWithdrawalToRemote(
+            withdrawal,
+            employeeUuid: effectiveEmployeeUuid,
+          );
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
             documentId: withdrawal.localUuid,
@@ -7648,10 +7679,12 @@ class AppwriteSyncManager {
     }
     return processed;
   }
-
-  Future<int> _syncSalaryCycles(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
+Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
+    if (documents.isEmpty) {
+      return const ApplyResult(recordsApplied: 0, maxProcessedUpdatedAtSec: null);
+    }
     var processed = 0;
+    int? maxProcessedUpdatedAtSec;
     final deferred = <Map<String, dynamic>>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
     final orphans = <String>[];
@@ -7682,7 +7715,7 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
+        // ✅ حل FK الموظف: UUID ← serverId فريد (لا id محلي لمصدر بعيد)
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -7691,36 +7724,19 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
-        Employee? employee;
+        // ✅ (2026-10-02) حل الموظف عبر IdResolver فقط: UUID ← serverId فريد.
+        // أُزيلت "الطريقة 2" (مطابقة employeeId البعيد كـ id محلي) التي أعادها
+        // الدمج 07c26a65 بعد إصلاح 1c83e916 — id جهاز آخر لا يعني شيئاً هنا،
+        // وكانت تنسب الرواتب لموظف خاطئ على الأجهزة الجديدة (R2). serverId
+        // المكرر أو UUID غير الموجود → يتيم (لا تخمين).
+        final resolvedEmployeeLocalId = await IdResolver(database)
+            .resolveEmployee(
+              uuid: employeeUuid,
+              serverId: remoteEmployeeId,
+              fromRemote: true,
+            );
 
-        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-        if (employeeUuid != null && employeeUuid.isNotEmpty) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.localUuid.equals(employeeUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 2: البحث بالـ id البعيد كـ id محلي
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        if (employee == null) {
+        if (resolvedEmployeeLocalId == null) {
           // ✅ تقليل السبام: تجميع بدل تحذير لكل سجل
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
@@ -7728,13 +7744,24 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
-        data['employeeId'] = employee.id;
+        // ✅ (2026-10-02) لا نستبدل data['employeeId'] بالـ id المحلي: الـ adapter
+        // يعيد الحل بنفس المدخلات (UUID ← serverId) — استبداله كان يجعل
+        // الـ adapter يطابق serverId == id محلي فيربط بموظف آخر.
 
         await _adapterRegistry.salaryCycles.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+
+        // ✅ R5 Fix: تحديث أقصى $updatedAt للمعالجات الفعلية فقط
+        final docUpdatedAtSec = _extractUpdatedAtSec(doc);
+        if (docUpdatedAtSec != null) {
+          if (maxProcessedUpdatedAtSec == null ||
+              docUpdatedAtSec > maxProcessedUpdatedAtSec) {
+            maxProcessedUpdatedAtSec = docUpdatedAtSec;
+          }
+        }
+
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'salary_cycles',
@@ -7807,7 +7834,10 @@ class AppwriteSyncManager {
       }
     }
 
-    return processed;
+    return ApplyResult(
+      recordsApplied: processed,
+      maxProcessedUpdatedAtSec: maxProcessedUpdatedAtSec,
+    );
   }
 
   Future<int> _syncSalaryPayments(List<models.Document> documents) async {
@@ -8595,26 +8625,19 @@ class AppwriteSyncManager {
             tag: 'SYNC_INTEGRITY',
           );
 
-          // ✅ إصلاح تلقائي: حذف السجلات اليتيمة (التي تشير لآباء غير موجودين)
+          // ✅ (2026-10-02) لا حذف نهائي لبيانات الرواتب أبداً.
+          // سابقاً: `DELETE FROM salary_withdrawals/salary_cycles/salary_payments`
+          // بلا tombstone ولا outbox — يُفقد نهائياً أي سجل لم يُرفع بعد، أو
+          // سجل وصل قبل موظفه/دورته. اليتيم يبقى كما هو ويُسجَّل فقط؛ الربط
+          // يُستكمل عند وصول الأب (انظر docs/EMPLOYEE_EXPENSE_SALARY_LINK_DRAFT.md R1).
           try {
-            if (table == 'salary_withdrawals' || table == 'salary_cycles') {
-              // حذف السجل الذي يشير لموظف غير موجود
-              await database.customStatement(
-                'DELETE FROM $table WHERE rowid = ?',
-                [int.tryParse(rowId)],
-              );
-              _logger.info(
-                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
-                tag: 'SYNC_INTEGRITY',
-              );
-            } else if (table == 'salary_payments') {
-              // حذف السجل الذي يشير لدورة راتب غير موجودة
-              await database.customStatement(
-                'DELETE FROM $table WHERE rowid = ?',
-                [int.tryParse(rowId)],
-              );
-              _logger.info(
-                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+            if (table == 'salary_withdrawals' ||
+                table == 'salary_cycles' ||
+                table == 'salary_payments' ||
+                table == 'salary_carry_over_logs') {
+              _logger.warning(
+                '🛡️ سجل رواتب يتيم في $table (rowid=$rowId, parent=$parent) — '
+                'أُبقي دون حذف (حماية من فقدان البيانات)',
                 tag: 'SYNC_INTEGRITY',
               );
             } else if (table == 'payments' && parent == 'bookings') {

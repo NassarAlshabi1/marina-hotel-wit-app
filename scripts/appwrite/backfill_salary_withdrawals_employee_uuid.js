@@ -32,12 +32,20 @@ const { Client, Databases, Query } = require("node-appwrite");
 const endpoint =
   process.env.APPWRITE_ENDPOINT || "https://fra.cloud.appwrite.io/v1";
 const projectId = process.env.APPWRITE_PROJECT_ID || "6a2b01d0000752ce97e7";
-const apiKey =
-  process.env.APPWRITE_API_KEY ||
-  "standard_721adc4e95401dab9274bc2a7596ce0a61bfcdf7bbe37e7c64d52fb2113414e27c8d3e8f1977ebaafcf8ae63e7f3c873aad38c2a07e3ab93229cd7cd745a3ad2f6b9ec3fc407e8abfae2be3e5be00315f4d4a74cc07bc5ba5b0eda13e4569c8ee8ce2532a7bd43d827c7b83a84495974b9995d12f031e2bead685cebbe31aa3d";
+const apiKey = process.env.APPWRITE_API_KEY; // لا مفاتيح مضمّنة في المستودع
 const databaseId = process.env.APPWRITE_DATABASE_ID || "hotel_db";
 
-const APPLY = process.argv.includes("--apply");
+// ⛔ (2026-10-02) التطبيق الفعلي معطَّل نهائياً.
+// فحص Appwrite الفعلي أثبت أن قاعدة هذا السكربت (employeeUuid = الموظف ذو
+// serverId == employeeId) خاطئة: employeeId = id محلي في جهاز المصدر، و
+// serverId متصادم بين الموظفين. 373 سحبة عُدّلت يوم 2026-09-19 تتبع هذه القاعدة
+// وكثير منها منسوب لموظف خاطئ. انظر
+// mobile/docs/EMPLOYEE_EXPENSE_SALARY_LINK_DRAFT.md §11. dry-run فقط.
+if (process.argv.includes("--apply")) {
+  console.error("⛔ --apply معطَّل: هذا السكربت ينسب الرواتب لموظف خاطئ (انظر §11 في المسودة).");
+  process.exit(1);
+}
+const APPLY = false;
 const PAGE_SIZE = 100;
 
 const TARGET_COLLECTIONS = [

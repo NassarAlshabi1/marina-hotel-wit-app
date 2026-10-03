@@ -112,7 +112,7 @@ void main() {
       },
     );
 
-    test('serverId مكرر (خطأ بيانات): يختار النشط أولاً بشكل حتمي', () async {
+    test('serverId مكرر (خطأ بيانات) من مصدر بعيد: لا تخمين → null', () async {
       final active = await insertEmployee(
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0005',
         name: 'النشط',
@@ -125,11 +125,20 @@ void main() {
         deletedAt: 1783994438,
       );
       final got = await resolver.resolveEmployee(serverId: 1, fromRemote: true);
-      expect(got, active.id, reason: 'النشط (deletedAt NULL) يسبق المحذوف');
-      expect(deleted.id, isNot(got));
+      expect(
+        got,
+        isNull,
+        reason:
+            'فحص Appwrite (2026-10-02): "النشط أولاً" نسب رواتب لموظف خاطئ — '
+            'الازدواج من مصدر بعيد لا يُخمَّن',
+      );
+      // المصدر المحلي يحتفظ بالاختيار الحتمي (النشط أولاً).
+      final local = await resolver.resolveEmployee(serverId: 1);
+      expect(local, active.id);
+      expect(deleted.id, isNot(local));
     });
 
-    test('serverId مكرر وكلاهما نشط: يختار الأصغر id حتماً', () async {
+    test('serverId مكرر وكلاهما نشط: بعيد → null، محلي → الأصغر id', () async {
       final first = await insertEmployee(
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0007',
         name: 'الأول',
@@ -141,8 +150,27 @@ void main() {
         serverId: 2,
       );
       final got = await resolver.resolveEmployee(serverId: 2, fromRemote: true);
-      expect(got, first.id < second.id ? first.id : second.id);
+      expect(got, isNull);
+      final local = await resolver.resolveEmployee(serverId: 2);
+      expect(local, first.id < second.id ? first.id : second.id);
     });
+
+    test(
+      'UUID بعيد غير موجود محلياً: لا سقوط إلى serverId (حتى لو تطابق رقمياً)',
+      () async {
+        await insertEmployee(
+          localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0009',
+          name: 'موظف آخر بنفس الرقم',
+          serverId: 8,
+        );
+        final got = await resolver.resolveEmployee(
+          uuid: 'ffffffff-0000-1111-2222-333333333333',
+          serverId: 8,
+          fromRemote: true,
+        );
+        expect(got, isNull);
+      },
+    );
   });
 
   group('resolveEmployee — من مصدر محلي (fromRemote=false)', () {
