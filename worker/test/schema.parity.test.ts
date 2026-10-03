@@ -36,7 +36,7 @@ async function columnsOf(table: string): Promise<Map<string, ColumnInfo>> {
 const EXPECTED: Record<string, Record<string, string>> = {
   // ✅ (2026-09-19) عقد employee_uuid — المفتاح المستقر عبر الأجهزة
   // لموظف في كل جداول الرواتب (توجيه المستخدم؛ migration 0007).
-  expenses: { employee_uuid: 'TEXT' },
+  expenses: { employee_uuid: 'TEXT', employee_link_cleared: 'INTEGER' },
   salary_withdrawals: { employee_uuid: 'TEXT' },
   salary_cycles: { employee_uuid: 'TEXT' },
   salary_payments: { employee_uuid: 'TEXT' },

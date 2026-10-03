@@ -31,13 +31,12 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.Hotel
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -48,7 +47,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberTooltipState
@@ -72,6 +70,9 @@ import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.domain.util.HotelTimeEngine
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
+import com.marina.marina.components.SidebarMenuButton
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.MarinaToolbarActionButton
 
 /**
  * شاشة «الحجوزات» — نقل 1:1 لـ bookings_list.dart
@@ -114,15 +115,16 @@ fun BookingsListScreen(
         containerColor = AppColors.BackgroundColor,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            MarinaTopAppBar(
                 title = { Text("الحجوزات", style = AppTypography.titleLarge) },
+                navigationIcon = { SidebarMenuButton() },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = AppColors.SurfaceColor,
                     titleContentColor = AppColors.TextPrimary
                 ),
                 actions = {
                     // نظير SyncActionButton من AppScaffold (بنفس الرسائل).
-                    IconButton(onClick = viewModel::runShellSync, enabled = !state.isSyncing) {
+                    MarinaToolbarActionButton(onClick = viewModel::runShellSync, enabled = !state.isSyncing) {
                         if (state.isSyncing) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
@@ -132,10 +134,10 @@ fun BookingsListScreen(
                             Icon(Icons.Filled.Sync, contentDescription = "مزامنة مع Cloudflare")
                         }
                     }
-                    IconButton(onClick = onOpenPayments) {
+                    MarinaToolbarActionButton(onClick = onOpenPayments) {
                         Icon(Icons.Filled.Payments, contentDescription = "إدارة المدفوعات")
                     }
-                    IconButton(onClick = onAddBooking) {
+                    MarinaToolbarActionButton(onClick = onAddBooking) {
                         Icon(Icons.Filled.Add, contentDescription = "حجز جديد")
                     }
                 }
@@ -144,7 +146,7 @@ fun BookingsListScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddBooking,
-                containerColor = AppColors.PrimaryColor,
+                containerColor = AppColors.PrimaryActionColor,
                 contentColor = Color.White
             ) {
                 Icon(Icons.Filled.Add, contentDescription = "حجز جديد")
@@ -428,12 +430,12 @@ private fun WideBookingRow(row: BookingRowUi, tableWidth: Dp, onClick: () -> Uni
                 }
             }
         }
-        // Border(bottom: Color(0xFFE0E0E0)) في Dart — نفس الفاصل البصري.
+        // Subtle theme-aware divider to separate booking rows.
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(Color(0xFFE0E0E0))
+                .background(AppColors.DividerColor)
         )
     }
 }
@@ -453,7 +455,7 @@ private fun CellText(value: String, modifier: Modifier = Modifier) {
 @Composable
 private fun CompactBookingCard(row: BookingRowUi, onClick: () -> Unit) {
     val booking = row.booking
-    Card(
+    OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
@@ -466,7 +468,7 @@ private fun CompactBookingCard(row: BookingRowUi, onClick: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(28.dp)
-                        .background(AppColors.PrimaryColor, CircleShape),
+                        .background(AppColors.PrimaryActionColor, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

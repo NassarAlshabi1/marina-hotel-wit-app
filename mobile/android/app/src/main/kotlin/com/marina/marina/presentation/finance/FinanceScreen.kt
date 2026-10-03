@@ -15,10 +15,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.ui.theme.AppColors
+import com.marina.marina.ui.theme.MarinaPalette
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.SidebarMenuButton
 
 @Composable
 fun FinanceScreen(
@@ -42,7 +44,7 @@ fun FinanceScreen(
             containerColor = AppColors.BackgroundColor,
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("الصندوق والمالية", style = AppTypography.titleLarge) },
                     navigationIcon = { SidebarMenuButton() },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -54,7 +56,7 @@ fun FinanceScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { showQuickPayment = true },
-                    containerColor = AppColors.SuccessColor,
+                    containerColor = AppColors.SuccessActionColor,
                     contentColor = Color.White
                 ) {
                     Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -74,7 +76,7 @@ fun FinanceScreen(
                 ) {
                     // ---- Hotel day card ----------------------------------------
                     item {
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             shape = RoundedCornerShape(12.dp),
@@ -105,7 +107,7 @@ fun FinanceScreen(
 
                     // ---- Cash status card ---------------------------------------
                     item {
-                        Card(
+                        OutlinedCard(
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                             modifier = Modifier.fillMaxWidth()
@@ -114,8 +116,8 @@ fun FinanceScreen(
                                 modifier = Modifier
                                     .background(
                                         Brush.horizontalGradient(
-                                            if (state.isDeficit) listOf(AppColors.DangerColor, Color(0xFFB93338))
-                                            else listOf(AppColors.PrimaryColor, AppColors.PrimaryDark)
+                                            if (state.isDeficit) listOf(AppColors.DangerActionColor, MarinaPalette.DangerDeep)
+                                            else listOf(AppColors.PrimaryActionColor, MarinaPalette.OceanDeep)
                                         ),
                                         RoundedCornerShape(12.dp)
                                     )
@@ -129,12 +131,12 @@ fun FinanceScreen(
                                         color = Color.White
                                     )
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        CashCell("الإيرادات", "${state.todayIncome.toInt()}", Color(0xFF9EE6C0))
-                                        CashCell("المصروفات", "${state.todayExpenses.toInt()}", Color(0xFFFFB4A9))
+                                        CashCell("الإيرادات", "${state.todayIncome.toInt()}", MarinaPalette.SuccessSoft)
+                                        CashCell("المصروفات", "${state.todayExpenses.toInt()}", MarinaPalette.DangerSoft)
                                         CashCell(
                                             if (state.isDeficit) "العجز" else "الرصيد",
                                             "${state.balance.toInt()}",
-                                            if (state.isDeficit) Color(0xFFFFD7D2) else Color.White
+                                            if (state.isDeficit) MarinaPalette.DangerSoft else Color.White
                                         )
                                     }
                                     Text(
@@ -162,7 +164,7 @@ fun FinanceScreen(
                         }
                         if (state.generalPayments.isNotEmpty()) {
                             item {
-                                Card(
+                                OutlinedCard(
                                     colors = CardDefaults.cardColors(containerColor = AppColors.AccentSoft),
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier.fillMaxWidth()
@@ -196,7 +198,7 @@ fun FinanceScreen(
                         }
                         items(state.activeBookings, key = { it.id }) { booking ->
                             val remaining = state.roomRemaining[booking.roomNumber] ?: 0.0
-                            Card(
+                            OutlinedCard(
                                 colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                                 shape = RoundedCornerShape(10.dp),
@@ -210,7 +212,7 @@ fun FinanceScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Box(
                                             modifier = Modifier
-                                                .background(AppColors.PrimaryColor, RoundedCornerShape(8.dp))
+                                                .background(AppColors.PrimaryActionColor, RoundedCornerShape(8.dp))
                                                 .size(40.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -228,7 +230,10 @@ fun FinanceScreen(
                                     }
                                     Button(
                                         onClick = { onBookingClick(booking.id) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.SuccessColor),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = AppColors.SuccessActionColor,
+                                            contentColor = Color.White
+                                        ),
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
                                         Text("دفع", color = Color.White, fontSize = 12.sp)
@@ -255,7 +260,7 @@ fun FinanceScreen(
 
 @Composable
 private fun RoomGroupCard(group: RoomPaymentGroup) {
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(10.dp),

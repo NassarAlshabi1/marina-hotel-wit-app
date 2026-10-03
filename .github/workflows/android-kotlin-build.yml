@@ -9,6 +9,7 @@ on:
       - agent/wave-cloud-bi9f
       - agent/pulse-storm-pdj1
       - agent/android-cloudflare
+      - arena/01a0fdf3-marina-hotel-wit-app
     paths:
       - 'mobile/android/**'
       - 'mobile/Keystore.txt'
@@ -83,7 +84,34 @@ jobs:
           ls "$ANDROID_HOME/build-tools" 2>/dev/null || true
 
       - name: Run unit tests (launch smoke + domain logic)
-        run: ./gradlew testDebugUnitTest --console=plain --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest --console=plain --stacktrace 2>&1 \
+            | tee "$RUNNER_TEMP/android-gradle-tests.log"
+
+      - name: Summarize Android test failure
+        if: failure()
+        run: |
+          if [ -f "$RUNNER_TEMP/android-gradle-tests.log" ]; then
+            diagnostics=$(grep -E 'e: file:|e: .*\.kt:|Compilation error|FAILED|What went wrong|Execution failed|Caused by:|error:' \
+              "$RUNNER_TEMP/android-gradle-tests.log" | tail -n 30 | tr '\r\n' '  ' | sed 's/%/%25/g') || true
+            if [ -n "$diagnostics" ]; then
+              echo "::error file=.github/workflows/android-kotlin-build.yml,line=99,title=Gradle compiler diagnostics::$diagnostics"
+            else
+              diagnostic=$(tail -n 60 "$RUNNER_TEMP/android-gradle-tests.log" | tr '\r\n' '  ' | sed 's/%/%25/g')
+              echo "::error file=.github/workflows/android-kotlin-build.yml,line=99,title=Gradle diagnostic tail::$diagnostic"
+            fi
+            {
+              echo '### Android unit-test failure output'
+              echo '```text'
+              grep -E 'e: file:|e: .*\.kt:|Compilation error|FAILED|What went wrong|Execution failed|Caused by:|error:' \
+                "$RUNNER_TEMP/android-gradle-tests.log" | tail -n 80 || true
+              tail -n 80 "$RUNNER_TEMP/android-gradle-tests.log"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Gradle log was not produced before the failure.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload test results (evidence)
         if: always()

@@ -28,6 +28,10 @@ interface EmployeesDao {
     @Query("SELECT * FROM employees WHERE id = :id AND deleted_at IS NULL")
     suspend fun getById(id: Long): EmployeeEntity?
 
+    /** Include archived employees when resolving immutable financial history. */
+    @Query("SELECT * FROM employees WHERE id = :id")
+    suspend fun getByIdIncludingDeleted(id: Long): EmployeeEntity?
+
     @Query("SELECT * FROM employees WHERE name LIKE :search AND deleted_at IS NULL ORDER BY name")
     fun search(search: String): Flow<List<EmployeeEntity>>
 
@@ -44,6 +48,9 @@ interface EmployeesDao {
     suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
     @Query("SELECT * FROM employees WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): EmployeeEntity?
+
+    @Query("SELECT * FROM employees WHERE LOWER(local_uuid) = LOWER(:localUuid) ORDER BY id ASC")
+    suspend fun getByLocalUuidCandidates(localUuid: String): List<EmployeeEntity>
 
     /**
      * Dart `EmployeesRepository.reactivate` (employees_repository.dart
@@ -65,18 +72,19 @@ interface EmployeesDao {
         """
         SELECT
         (SELECT COUNT(*) FROM salary_withdrawals w WHERE
-           (w.employee_uuid IS NOT NULL AND REPLACE(w.employee_uuid, '-', '') = :dashlessUuid)
+           (w.employee_uuid IS NOT NULL AND LOWER(REPLACE(w.employee_uuid, '-', '')) = LOWER(:dashlessUuid))
          OR (w.employee_uuid IS NULL AND w.employee_id = :id)) AS withdrawals,
         (SELECT COUNT(*) FROM salary_cycles c WHERE
-           (c.employee_uuid IS NOT NULL AND REPLACE(c.employee_uuid, '-', '') = :dashlessUuid)
+           (c.employee_uuid IS NOT NULL AND LOWER(REPLACE(c.employee_uuid, '-', '')) = LOWER(:dashlessUuid))
          OR (c.employee_uuid IS NULL AND c.employee_id = :id)) AS cycles,
         (SELECT COUNT(*) FROM salary_payments p WHERE
            p.employee_uuid IS NOT NULL
-           AND REPLACE(p.employee_uuid, '-', '') = :dashlessUuid) AS payments,
+           AND LOWER(REPLACE(p.employee_uuid, '-', '')) = LOWER(:dashlessUuid)) AS payments,
         (SELECT COUNT(*) FROM salary_carry_over_logs k WHERE
-           k.employee_id = :id) AS carryOvers,
+           (k.employee_uuid IS NOT NULL AND LOWER(REPLACE(k.employee_uuid, '-', '')) = LOWER(:dashlessUuid))
+         OR (k.employee_uuid IS NULL AND k.employee_id = :id)) AS carryOvers,
         (SELECT COUNT(*) FROM expenses x WHERE
-           (x.employee_uuid IS NOT NULL AND REPLACE(x.employee_uuid, '-', '') = :dashlessUuid)
+           (x.employee_uuid IS NOT NULL AND LOWER(REPLACE(x.employee_uuid, '-', '')) = LOWER(:dashlessUuid))
          OR (x.employee_uuid IS NULL AND x.related_id = :id
              AND TRIM(x.expense_type) IN ('سحب راتب','رواتب','سحب من الراتب','سلفة','خصم من الراتب','خصم راتب','خصم','غياب','employee'))) AS expenses
         FROM employees WHERE id = :id
@@ -88,12 +96,10 @@ interface EmployeesDao {
     @Query("SELECT * FROM employees")
     suspend fun listAllIncludingDeleted(): List<EmployeeEntity>
 
-    /**
-     * ✅ (2026-09-25) ظلّ هوية الخادم — ترجمة FK عند السحب (تكافؤ
-     * IdResolver.resolveEmployee رجل serverId في Dart): مؤشرات الأبناء
-     * (employee_id من جهاز المصدر) قد تحمل id خادمياً؛ يشمل المحذوفة
-     * ناعمياً وظبط الحسم عند الازدواج (النشط أولاً ثم الأصغر id).
-     */
+    /** Candidate lookup for legacy server_id references. Callers must reject ambiguity. */
+    @Query("SELECT * FROM employees WHERE server_id = :serverId ORDER BY id ASC")
+    suspend fun getByServerIdCandidates(serverId: Long): List<EmployeeEntity>
+
     @Query(
         """
         SELECT * FROM employees WHERE server_id = :serverId

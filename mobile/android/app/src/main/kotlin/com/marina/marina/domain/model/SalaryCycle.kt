@@ -24,6 +24,7 @@ data class SalaryCycle(
 data class SalaryPayment(
     val id: Long = 0,
     val cycleId: Long = 0,
+    val cycleUuid: String? = null,
     val employeeUuid: String? = null,
     val amount: Long = 0,
     val hotelDayKey: String? = null,
@@ -38,6 +39,7 @@ data class SalaryPayment(
 data class SalaryCarryOverLog(
     val id: Long = 0,
     val employeeId: Long = 0,
+    val employeeUuid: String? = null,
     val amount: Double = 0.0,
     val previousCycleStart: String = "",
     val previousCycleEnd: String = "",

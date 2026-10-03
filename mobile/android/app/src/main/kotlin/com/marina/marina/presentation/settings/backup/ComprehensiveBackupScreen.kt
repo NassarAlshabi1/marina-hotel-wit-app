@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -29,7 +28,6 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +51,9 @@ import com.marina.marina.presentation.common.AppSnackbar
 import com.marina.marina.presentation.common.showAppSnackbar
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
+import com.marina.marina.components.MarinaBackButton
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.MarinaToolbarActionButton
 import kotlinx.coroutines.launch
 
 /**
@@ -62,13 +63,19 @@ import kotlinx.coroutines.launch
  * العامة والإدارة الوهمية (قرار Dart 2026-09-05).
  */
 object BackupUi {
-    /** نظير UIConstants.backupColor = Color(0xFF4CAF50). */
-    val backupColor = Color(0xFF4CAF50)
-    val grey100 = Color(0xFFF5F5F5)
-    val grey400 = Color(0xFFBDBDBD)
-    val grey500 = Color(0xFF9E9E9E)
-    val grey600 = Color(0xFF757575)
-    val grey700 = Color(0xFF616161)
+    /** ألوان متوافقة مع السمة الحالية، مع الإبقاء على ثوابت المسافات القديمة. */
+    val backupColor: Color
+        @Composable get() = AppColors.SuccessColor
+    val grey100: Color
+        @Composable get() = AppColors.LightGray
+    val grey400: Color
+        @Composable get() = AppColors.TextSecondary
+    val grey500: Color
+        @Composable get() = AppColors.TextSecondary
+    val grey600: Color
+        @Composable get() = AppColors.TextSecondary
+    val grey700: Color
+        @Composable get() = AppColors.TextPrimary
     const val spacingSM = 8
     const val spacingMD = 16
     const val spacingLG = 24
@@ -111,13 +118,13 @@ fun ComprehensiveBackupScreen(
         containerColor = AppColors.BackgroundColor,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            MarinaTopAppBar(
                 title = { Text("النسخ الاحتياطي", style = AppTypography.titleLarge) },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("رجوع", color = AppColors.PrimaryColor) }
+                    MarinaBackButton(onClick = onBack)
                 },
                 actions = {
-                    IconButton(onClick = { showHelp = true }) {
+                    MarinaToolbarActionButton(onClick = { showHelp = true }) {
                         Icon(Icons.Filled.HelpOutline, contentDescription = "مساعدة")
                     }
                 },

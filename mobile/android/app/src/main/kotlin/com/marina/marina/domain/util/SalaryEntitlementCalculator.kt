@@ -64,8 +64,9 @@ object SalaryEntitlementCalculator {
         val monthsWorked = calculateMonthsDifference(hireCal, nowCal)
         val totalEntitlement = monthsWorked * employee.basicSalary
 
-        // Only the employee's own live expenses count.
-        val own = expenses.filter { it.relatedId == employee.id && it.deletedAt == null }
+        // UUID is the cross-device identity. Keep numeric relatedId only as a
+        // legacy fallback when no employee_uuid was stored on the expense.
+        val own = expenses.filter { belongsToEmployee(it, employee) && it.deletedAt == null }
 
         var withdrawals = 0.0
         var advances = 0.0
@@ -156,6 +157,18 @@ object SalaryEntitlementCalculator {
         val deductions: Double,
         val carriedOverFromPrevious: Double = 0.0
     )
+
+    private fun belongsToEmployee(expense: Expense, employee: Employee): Boolean {
+        val expenseUuid = expense.employeeUuid?.trim()?.takeIf { it.isNotEmpty() }
+        if (expenseUuid != null) {
+            val employeeUuid = employee.localUuid.trim()
+            return employeeUuid.isNotEmpty() && uuidComparable(expenseUuid) == uuidComparable(employeeUuid)
+        }
+        return expense.relatedId == employee.id
+    }
+
+    private fun uuidComparable(value: String): String =
+        value.replace("-", "").trim().lowercase()
 
     fun calculateCycle(input: CycleInput): CycleResult {
         val basicSalary = money(input.basicSalary)

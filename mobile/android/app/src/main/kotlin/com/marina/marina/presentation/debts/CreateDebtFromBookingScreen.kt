@@ -17,7 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Calculate
@@ -26,7 +25,7 @@ import androidx.compose.material.icons.filled.Note
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -45,7 +44,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
@@ -70,14 +68,17 @@ import com.marina.marina.domain.model.Booking
 import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.util.PdfExporter
+import com.marina.marina.components.MarinaBackButton
+import com.marina.marina.components.MarinaTopAppBar
 import java.util.Calendar
 import kotlinx.coroutines.launch
 
 // ─── Flutter shade constants used by create_debt_from_booking.dart ───
-private val FlutterOrange = Color(0xFFFF9800)
-private val FlutterGreen = Color(0xFF4CAF50)
-private val FlutterRed = Color(0xFFF44336)
-private val FlutterGrey = Color(0xFF9E9E9E)
+private val FlutterOrange = AppColors.WarningActionColor
+private val FlutterGreen = AppColors.SuccessActionColor
+private val FlutterRed = AppColors.DangerActionColor
+private val FlutterGrey: Color
+    @Composable get() = AppColors.TextSecondary
 private val TitleStyle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold)
 private val LabelStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold)
 private val FieldStyle = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -142,14 +143,18 @@ fun CreateDebtFromBookingScreen(
             }
         },
         topBar = {
-            TopAppBar(
+            MarinaTopAppBar(
                 title = { Text("إنشاء دين من حجز") },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        if (state.hasUnsavedChanges && !state.saved) showDiscardDialog = true else onBack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع")
-                    }
+                    MarinaBackButton(
+                        onClick = {
+                            if (state.hasUnsavedChanges && !state.saved) {
+                                showDiscardDialog = true
+                            } else {
+                                onBack()
+                            }
+                        }
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = AppColors.SurfaceColor,
@@ -286,13 +291,13 @@ private fun BookingSelector(
     onSelect: (Long) -> Unit
 ) {
     if (bookings.isEmpty()) {
-        Card(modifier = Modifier.fillMaxWidth()) {
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Text("لا توجد حجوزات نشطة", modifier = Modifier.padding(16.dp))
         }
         return
     }
     var expanded by remember { mutableStateOf(false) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("اختر الحجز", style = TitleStyle)
             Spacer(Modifier.height(8.dp))
@@ -314,7 +319,7 @@ private fun BookingSelector(
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
                         disabledTextColor = AppColors.TextPrimary,
                         disabledContainerColor = Color.Transparent,
-                        disabledBorderColor = Color(0xFF9E9E9E)
+                        disabledBorderColor = AppColors.DividerColor
                     ),
                     singleLine = true
                 )
@@ -346,7 +351,7 @@ private fun BookingSelector(
 
 @Composable
 private fun BookingInfo(booking: Booking) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text("معلومات الحجز", style = TitleStyle)
             Spacer(Modifier.height(8.dp))
@@ -409,7 +414,7 @@ private fun DateRangeSelector(
         }
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text("فترة الدين", style = TitleStyle)
             Spacer(Modifier.height(8.dp))
@@ -441,7 +446,7 @@ private fun DateField(label: String, value: String) {
         colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
             disabledContainerColor = Color.Transparent,
             disabledTextColor = AppColors.TextPrimary,
-            disabledBorderColor = Color(0xFF9E9E9E),
+            disabledBorderColor = AppColors.DividerColor,
             disabledLabelColor = AppColors.TextPrimary,
             disabledSuffixColor = AppColors.TextPrimary
         )
@@ -450,9 +455,9 @@ private fun DateField(label: String, value: String) {
 
 @Composable
 private fun DebtSummary(data: DebtComputation) {
-    Card(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+        colors = CardDefaults.cardColors(containerColor = AppColors.WarningContainerColor)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text("ملخص الدين", style = TitleStyle)

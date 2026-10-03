@@ -1,5 +1,6 @@
 package com.marina.marina.data.repository
 
+import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.marina.marina.data.local.dao.OutboxDao
@@ -32,7 +33,8 @@ import kotlinx.coroutines.flow.first
 class OutboxRepository @Inject constructor(
     private val outboxDao: OutboxDao,
     private val syncService: CloudflareSyncService,
-    private val preferences: SyncPreferences
+    private val preferences: SyncPreferences,
+    private val syncIngestorRegistry: SyncIngestorRegistry
 ) {
     companion object {
         private const val WORKER_NAME = "outbox-processor"
@@ -124,6 +126,25 @@ class OutboxRepository @Inject constructor(
                                 outboxDao.markProcessing(row.id, "pending", System.currentTimeMillis(), WORKER_NAME)
                             }
                             opResult.success == true -> {
+                                if (opResult.status == "deleted") {
+                                    // Server delete-wins is final: stop showing
+                                    // the losing local edit immediately, even
+                                    // when the user chose push-only.
+                                    try {
+                                        syncIngestorRegistry.tombstoneLocalRecord(
+                                            row.entity,
+                                            row.localUuid
+                                        )
+                                    } catch (error: Exception) {
+                                        // The authoritative tombstone will be
+                                        // retried through the regular pull.
+                                        Log.w(
+                                            "OutboxRepository",
+                                            "Could not mirror server tombstone locally",
+                                            error
+                                        )
+                                    }
+                                }
                                 outboxDao.markDeliveredPrimary(row.id)
                                 outboxDao.markProcessing(row.id, "completed", System.currentTimeMillis(), WORKER_NAME)
                                 delivered++

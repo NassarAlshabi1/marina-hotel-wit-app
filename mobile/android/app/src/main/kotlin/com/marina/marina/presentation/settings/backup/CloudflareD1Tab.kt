@@ -28,7 +28,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
+import com.marina.marina.ui.theme.AppColors
 /**
  * تبويب رفع بيانات جداول المزامنة إلى Cloudflare D1 — نقل
  * CloudflareD1Tab (cloudflare_d1_tab.dart) 1:1: بطاقة الاتصال،
@@ -80,7 +81,7 @@ fun CloudflareD1Tab(
     ) {
         // بطاقة الاتصال التلقائي — نظير CloudflareAutoConnectionCard
         item {
-            Card(
+            OutlinedCard(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
@@ -107,7 +108,7 @@ fun CloudflareD1Tab(
             }
         }
         item {
-            Card(
+            OutlinedCard(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ),
@@ -147,7 +148,7 @@ fun CloudflareD1Tab(
                 Text(
                     "تنبيه استشاري: توجد ${state.outboxPending} عملية في Outbox غير مُسلّمة — " +
                         "يمكنك المتابعة لكن يُفضّل تفريغ الرفع الاعتيادي أولاً.",
-                    color = Color(0xFFEF6C00),
+                    color = AppColors.WarningColor,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -156,7 +157,7 @@ fun CloudflareD1Tab(
 
         // ── الإعدادات ──
         item {
-            Card(Modifier.padding(top = 16.dp)) {
+            OutlinedCard(Modifier.padding(top = 16.dp)) {
                 Column(Modifier.padding(16.dp)) {
                     Text("إعدادات الاتصال", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(12.dp))
@@ -245,7 +246,7 @@ fun CloudflareD1Tab(
         // ── نتيجة الفحص ──
         state.probeResult?.let { probe ->
             item {
-                Card(Modifier.padding(top = 12.dp)) {
+                OutlinedCard(Modifier.padding(top = 12.dp)) {
                     Column(Modifier.padding(12.dp)) {
                         ProbeRow(probe.tokenValid, "التوكن صالح وفعّال", "التوكن غير صالح")
                         ProbeRow(
@@ -279,7 +280,7 @@ fun CloudflareD1Tab(
 
         // ── الجداول المحلية ──
         item {
-            Card(Modifier.padding(top = 16.dp)) {
+            OutlinedCard(Modifier.padding(top = 16.dp)) {
                 Column(Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -302,7 +303,7 @@ fun CloudflareD1Tab(
                         Text(
                             "تنبيه: ${missingInD1.size} جدولاً محدداً غير موجود في D1 " +
                                 "(ستفشل): ${missingInD1.take(5).joinToString("، ")}",
-                            color = Color(0xFFEF6C00),
+                            color = AppColors.WarningColor,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
@@ -331,7 +332,7 @@ fun CloudflareD1Tab(
                                         "${t.rowCount} صف" +
                                             if (existsInD1) "" else " — غير موجود في D1",
                                         fontSize = 12.sp,
-                                        color = if (existsInD1) BackupUi.grey600 else Color(0xFFEF6C00)
+                                        color = if (existsInD1) BackupUi.grey600 else AppColors.WarningColor
                                     )
                                 }
                             }
@@ -407,10 +408,10 @@ fun CloudflareD1Tab(
         // ── نتيجة الرفع ──
         state.result?.let { result ->
             item {
-                Card(
+                OutlinedCard(
                     Modifier.padding(top = 16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (result.ok) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                        containerColor = if (result.ok) AppColors.SuccessContainerColor else AppColors.DangerContainerColor
                     )
                 ) {
                     Column(Modifier.padding(12.dp)) {
@@ -430,7 +431,7 @@ fun CloudflareD1Tab(
                             fontSize = 13.sp
                         )
                         result.warnings.take(3).forEach { w ->
-                            Text(w, color = Color(0xFFEF6C00), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                            Text(w, color = AppColors.WarningColor, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
                         }
                         result.errors.take(5).forEach { e ->
                             Text(
@@ -448,7 +449,7 @@ fun CloudflareD1Tab(
         // ── سجل الأخطاء ──
         if (state.logs.isNotEmpty()) {
             item {
-                Card(Modifier.padding(top = 8.dp)) {
+                OutlinedCard(Modifier.padding(top = 8.dp)) {
                     Column(Modifier.padding(12.dp)) {
                         state.logs.forEach { line ->
                             Text(
@@ -502,7 +503,7 @@ private fun ProbeRow(ok: Boolean, okText: String, failText: String, detail: Stri
         Icon(
             if (ok) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
             contentDescription = null,
-            tint = if (ok) Color(0xFF4CAF50) else Color(0xFFF44336),
+            tint = if (ok) AppColors.SuccessColor else AppColors.DangerColor,
             modifier = Modifier.size(18.dp)
         )
         Spacer(Modifier.width(8.dp))

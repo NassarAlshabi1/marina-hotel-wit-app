@@ -1,5 +1,6 @@
 package com.marina.marina.data.repository
 
+import com.marina.marina.data.local.dao.EmployeesDao
 import com.marina.marina.data.local.dao.SalaryCarryOverLogsDao
 import com.marina.marina.data.local.dao.SalaryCyclesDao
 import com.marina.marina.data.local.dao.SalaryPaymentsDao
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.map
 
 @Singleton
 class SalaryRepositoryImpl @Inject constructor(
+    private val employeesDao: EmployeesDao,
     private val cyclesDao: SalaryCyclesDao,
     private val paymentsDao: SalaryPaymentsDao,
     private val carryOverDao: SalaryCarryOverLogsDao,
@@ -30,8 +32,13 @@ class SalaryRepositoryImpl @Inject constructor(
         cyclesDao.getByKey(cycleKey)?.toDomain()
 
     override suspend fun insertCycle(cycle: SalaryCycle): Long {
+        val employee = employeesDao.getByIdIncludingDeleted(cycle.employeeId)
+            ?: throw IllegalArgumentException("لا يمكن إنشاء دورة راتب لموظف غير موجود")
+        val employeeUuid = employee.localUuid.trim()
+        require(employeeUuid.isNotEmpty()) { "لا يمكن مزامنة دورة راتب بلا employee_uuid" }
         val now = System.currentTimeMillis()
         val prepared = cycle.copy(
+            employeeUuid = employeeUuid,
             localUuid = cycle.localUuid.ifBlank { UUID.randomUUID().toString() },
             createdAt = if (cycle.createdAt == 0L) now else cycle.createdAt,
             updatedAt = now,
@@ -43,7 +50,12 @@ class SalaryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateCycle(cycle: SalaryCycle) {
+        val employee = employeesDao.getByIdIncludingDeleted(cycle.employeeId)
+            ?: throw IllegalArgumentException("لا يمكن تحديث دورة راتب لموظف غير موجود")
+        val employeeUuid = employee.localUuid.trim()
+        require(employeeUuid.isNotEmpty()) { "لا يمكن مزامنة دورة راتب بلا employee_uuid" }
         val prepared = cycle.copy(
+            employeeUuid = employeeUuid,
             updatedAt = System.currentTimeMillis(),
             remainingAmount = cycle.expectedAmount - cycle.actualPaid
         )
@@ -55,8 +67,17 @@ class SalaryRepositoryImpl @Inject constructor(
         paymentsDao.getByCycle(cycleId).map { it.toDomain() }
 
     override suspend fun insertPayment(payment: SalaryPayment): Long {
+        val cycle = cyclesDao.getById(payment.cycleId)
+            ?: throw IllegalArgumentException("لا يمكن تسجيل دفعة لدورة راتب غير موجودة")
+        val cycleUuid = cycle.localUuid.trim()
+        require(cycleUuid.isNotEmpty()) { "لا يمكن مزامنة دفعة بلا cycle_uuid" }
+        val employeeUuid = cycle.employeeUuid?.trim()?.takeIf { it.isNotEmpty() }
+            ?: employeesDao.getByIdIncludingDeleted(cycle.employeeId)?.localUuid?.trim()?.takeIf { it.isNotEmpty() }
+            ?: throw IllegalArgumentException("لا يمكن مزامنة دفعة لدورة بلا employee_uuid")
         val now = System.currentTimeMillis()
         val prepared = payment.copy(
+            cycleUuid = cycleUuid,
+            employeeUuid = employeeUuid,
             localUuid = payment.localUuid.ifBlank { UUID.randomUUID().toString() },
             createdAt = if (payment.createdAt == 0L) now else payment.createdAt
         )
@@ -73,9 +94,14 @@ class SalaryRepositoryImpl @Inject constructor(
         reason: String,
         performedBy: String?
     ): Long {
+        val employee = employeesDao.getByIdIncludingDeleted(employeeId)
+            ?: throw IllegalArgumentException("لا يمكن ترحيل رصيد لموظف غير موجود")
+        val employeeUuid = employee.localUuid.trim()
+        require(employeeUuid.isNotEmpty()) { "لا يمكن مزامنة ترحيل رصيد بلا employee_uuid" }
         val now = System.currentTimeMillis()
         val log = SalaryCarryOverLog(
             employeeId = employeeId,
+            employeeUuid = employeeUuid,
             amount = amount,
             previousCycleStart = fromCycle,
             previousCycleEnd = fromCycle,

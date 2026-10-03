@@ -60,6 +60,12 @@ class PushWireContractTest {
         assertEquals("merge", PushWireContract.mapOperation("merge"))
     }
 
+    @Test
+    fun `legacy blacklist table alias maps to Worker entity name`() {
+        assertEquals("blacklist", PushWireContract.canonicalEntity("blacklist_entries"))
+        assertEquals("rooms", PushWireContract.canonicalEntity("rooms"))
+    }
+
     // ─── toSnakeCase: idempotent boundary conversion ─────────────
 
     @Test
@@ -135,8 +141,51 @@ class PushWireContractTest {
         assertEquals("create", op.operation)
         assertEquals("أحمد", op.data["guest_name"])
         assertEquals(1, op.data["is_active"])
-        assertEquals(1_700_000_000_000L, op.updatedAt)
+        assertEquals(1_700_000_000L, op.updatedAt)
         assertEquals("cf_dev_1", op.deviceId)
+    }
+
+    @Test
+    fun `explicit blank expense employee UUID becomes a clear-link marker`() {
+        val op = PushWireContract.buildOperation(
+            outboxRow(
+                entity = "expenses",
+                op = "update",
+                payload = mapOf(
+                    "local_uuid" to "expense-1",
+                    "employee_uuid" to "",
+                    "expense_type" to "تشغيلية"
+                )
+            ),
+            deviceId = "cf_dev_1"
+        )
+
+        assertEquals(1, op.data["clear_employee_link"])
+        assertFalse(op.data.containsKey("employee_uuid"))
+    }
+
+    @Test
+    fun `missing expense employee UUID does not emit a clear-link marker`() {
+        val op = PushWireContract.buildOperation(
+            outboxRow(
+                entity = "expenses",
+                op = "update",
+                payload = mapOf("local_uuid" to "expense-1", "expense_type" to "تشغيلية")
+            ),
+            deviceId = "cf_dev_1"
+        )
+
+        assertFalse(op.data.containsKey("clear_employee_link"))
+    }
+
+    @Test
+    fun `operation preserves already-second-based client timestamps`() {
+        val op = PushWireContract.buildOperation(
+            outboxRow(clientTs = 1_700_000_000L),
+            deviceId = "cf_dev_1"
+        )
+
+        assertEquals(1_700_000_000L, op.updatedAt)
     }
 
     @Test
@@ -263,7 +312,7 @@ class PushWireContractTest {
         val json = """
             {"changes":[{"_entity":"rooms","local_uuid":"r1","room_number":"101","last_modified":1780000000000},
                         {"_entity":"bookings","local_uuid":"b1","guest_name":"أحمد","last_modified":1780000001000}],
-             "cursor":"1780000001000","has_more":false,"remaining":null,"errors":[],
+             "cursor":"1780000001000","epoch":"generation-1","has_more":false,"remaining":null,"errors":[],
              "server_time":1780000001}
         """.trimIndent()
         val resp = gson.fromJson(json, WorkerPullResponse::class.java)
@@ -271,6 +320,7 @@ class PushWireContractTest {
         assertEquals("rooms", resp.changes!![0]["_entity"])
         assertEquals("bookings", resp.changes!![1]["_entity"])
         assertEquals(1780000001000L, resp.cursor?.toLongOrNull())
+        assertEquals("generation-1", resp.epoch)
         assertEquals(false, resp.hasMore)
         assertTrue(resp.errors.isNullOrEmpty())
         assertNull(resp.remaining)

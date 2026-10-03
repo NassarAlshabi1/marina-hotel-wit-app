@@ -67,6 +67,9 @@ interface InventoryDao {
     @Query("SELECT * FROM inventory_items WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getItemByLocalUuid(localUuid: String): InventoryItemEntity?
 
+    @Query("SELECT * FROM inventory_items WHERE local_uuid = :localUuid ORDER BY id ASC")
+    suspend fun getItemByLocalUuidCandidates(localUuid: String): List<InventoryItemEntity>
+
     @Query("SELECT * FROM inventory_transactions WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getTransactionByLocalUuid(localUuid: String): InventoryTransactionEntity?
 
@@ -81,4 +84,7 @@ interface InventoryDao {
      */
     @Query("SELECT * FROM inventory_items WHERE server_id = :serverId LIMIT 1")
     suspend fun getItemByServerIdIncludingDeleted(serverId: Long): InventoryItemEntity?
+
+    @Query("SELECT * FROM inventory_items WHERE server_id = :serverId ORDER BY id ASC")
+    suspend fun getItemByServerIdCandidates(serverId: Long): List<InventoryItemEntity>
 }

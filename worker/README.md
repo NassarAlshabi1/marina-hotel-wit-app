@@ -11,19 +11,22 @@ worker/
     index.ts               ← Router + CORS + rate limit (D1) + Auth middleware
     auth.ts                ← JWT HMAC-SHA256 + PBKDF2 (25k، versioned) + أدوار
     sync.ts                ← pull / push / migrate / log / conflicts + SQL whitelist
-    database.ts            ← 22 كياناً + sync_clock أحادي + LWW/VC + PRAGMA whitelist
+    database.ts            ← كيانات المزامنة + sync_clock/epoch + LWW/VC + PRAGMA whitelist
     sync-lock.ts           ← SyncLockDO: أقفال 30s + WebSocket hub + cursors
-  schema.sql               ← مخطط D1 الكامل (30 جدولاً: 22 كياناً + 8 بنية تحتية)
+  schema.sql               ← مخطط D1 الكامل (يتضمن sync_meta لجيل المزامنة)
   migrations/
     0002_inventory_blacklist.sql ← ترقيع الفجوة: inventory×2 + blacklist
-  test/                    ← vitest + @cloudflare/vitest-pool-workers (82 اختباراً)
+    0010_sync_meta.sql       ← جيل البيانات لإبطال مؤشرات السحب بعد الاستعادة
+    0011_salary_parent_uuids.sql ← مفاتيح UUID لآباء مدفوعات الرواتب والترحيل
+    0012_expense_employee_link_clear_flag.sql ← تثبيت فك ربط الموظف الصريح للمزامنة
+  test/                    ← vitest + @cloudflare/vitest-pool-workers (اختبارات Worker/D1)
   wrangler.toml            ← إعدادات النشر (D1 + DO، بلا KV)
   vitest.config.ts
   tsconfig.json / tsconfig.test.json
 ```
 
 > ملاحظة: **لا يوجد R2 ولا storage.ts ولا مجلد flutter/ داخل هذا المستودع** —
-> عميل المزامنة هو `mobile/lib/services/cloudflare_*` في نفس المستودع.
+> عميل المزامنة هو تطبيق Android/Kotlin داخل `mobile/android/` في نفس المستودع.
 
 ## الإعداد
 
@@ -34,13 +37,25 @@ worker/
 wrangler d1 create marina-hotel-db
 # ← ضع database_id الناتج في wrangler.toml
 
-# قاعدة جديدة: طبّق المخطط الكامل ثم الترقيع
+# قاعدة جديدة: schema.sql يتضمن الحالة الحالية كاملة (بما فيها 0012)
 npm run db:init
-npm run db:migrate
 
-# قاعدة قائمة أُنشئت قبل ترقيع inventory/blacklist: الترقيع فقط
-npm run db:migrate
+# قاعدة قائمة معروفة الحالة: حدّد الترحيل الناقص من سجل موثوق أولاً.
+# لا تشغّل سلسلة عامة ولا تعِد تشغيل ملف سبق تطبيقه.
+# إذا كانت القاعدة مطبّقاً عليها 0010 و0011 غير مطبّق:
+npm run db:migrate:salary-parent-uuids    # 0011 salary parent UUID links
+# بعد التحقق من 0011، أضف علامة فك الربط:
+npm run db:migrate:expense-link-clear-flag # 0012 explicit expense-link unlink marker
 ```
+
+قاعدة جديدة: `schema.sql` يتضمن الأعمدة والفهارس الحالية كاملة، لذلك استخدم
+`db:init` وحده ولا تشغّل 0011/0012 بعدها. قاعدة قائمة معروفة ومطبّق عليها 0011
+تحتاج 0012 فقط. إذا كان سجل الترحيلات أو شكل المخطط غير مؤكد، فتوقّف وافحصه
+يدوياً قبل التنفيذ؛ لا تستخدم أوامر جماعية لتخمين الحالة. لا تشغّل 0006/0007 أو
+أي backfill تاريخي ضمن النشر المعتاد: يتطلب ذلك مصدر حقيقة موثوقاً ومراجعة
+وموافقة منفصلة، ووجود ملف SQL لا يثبت صحة بياناته الحية. احتفظ بنسخة احتياطية
+وتحقق من الاستعادة قبل أي ترحيل معتمد. تدوير epoch إجراء صيانة بعد استعادة/إعادة
+استيراد خادمية، وليس في كل نشر؛ endpoint محمي بدور admin (راجع جدول نقاط النهاية أدناه).
 
 ### 2. سر JWT
 
@@ -72,7 +87,7 @@ curl -X POST https://<worker>.workers.dev/api/auth/register \
 
 ```bash
 npm install
-npm test          # 82 اختباراً عبر vitest-pool-workers + miniflare D1/DO محلي
+npm test          # اختبارات العقود والتكامل عبر vitest-pool-workers وD1/DO محلياً
 npm run typecheck # tsc للـ src وللـ tests
 ```
 
@@ -84,8 +99,9 @@ npm run typecheck # tsc للـ src وللـ tests
 | GET | `/api/ping` | — | قياس سرعة الشبكة (~1KB) |
 | POST | `/api/auth/register` | — (أول مستخدم فقط) ثم admin | bootstrap + إنشاء مستخدمين |
 | POST | `/api/auth/login` | — | دخول → JWT (24h) |
-| GET | `/api/sync/pull?cursor=0&limit=200&exclude_device=X` | ✅ | سحب دلتا + مرشح echo |
+| GET | `/api/sync/pull?cursor=0&limit=200&exclude_device=X` | ✅ | سحب دلتا + epoch + مرشح echo |
 | POST | `/api/sync/push` (gzip اختياري) | ✅ | دفع outbox ≤100 عملية |
+| POST | `/api/admin/sync/rotate-epoch` | ✅ admin | إبطال مؤشرات كل الأجهزة بعد استعادة/إعادة استيراد |
 | POST | `/api/sync/migrate` (gzip) | ✅ | ترحيل SQL دفعي — INSERT whitelist ذرّية |
 | GET | `/api/sync/log?limit=&offset=` | ✅ | سجل تدقيق المزامنة |
 | GET | `/api/sync/conflicts?limit=` | ✅ | سجل التعارضات |
@@ -103,22 +119,27 @@ npm run typecheck # tsc للـ src وللـ tests
 - **الدفع:** كل عملية تحمل `idempotencyKey` — التكرار يُعاد كـ `skipped`
   بنفس الاستجابة المخزنة في `idempotency_log`.
 - **السحب:** مؤشر صحيح `updated_at` مُخصص من `sync_clock` أحادي
-  (غير قابل للتكرار عالمياً) — مؤشر الخادم هو المرجع دائماً.
-- **`exclude_device`:** يستبعد سجلات الجهاز نفسه من السحب (echo filter) —
-  أعمدة الخادم (`device_id=''`) لا تُستبعد أبداً.
-- **الحد الزمني للسحب:** `limit` يُقص فعلياً إلى [1, 200].
+  (غير قابل للتكرار عالمياً) — مؤشر الخادم هو المرجع دائماً؛ الصفحة لا
+  تُقطع داخل مجموعة طوابع متساوية.
+- **الجيل (`epoch`):** كل رد pull يحمل جيل D1. عند استعادة/استيراد يعيد
+  المسؤول تدويره، فتصفّر التطبيقات مؤشرها وتسحب من البداية. التوافق مع
+  Worker أقدم محفوظ: غياب epoch لا يوقف المزامنة.
+- **`exclude_device`:** يستبعد سجلات الجهاز نفسه من الدلتا — السحب الكامل
+  لا يمرره كي يتعلم الجهاز ظلال `server_id` لصفوفه؛ أعمدة الخادم لا تُستبعد.
+- **الحد الزمني للسحب:** `limit` يُقص فعلياً إلى [1, 500]؛ سقف الدفع 100.
 
 ## حل التعارض
 
 - **التصنيف:** مقارنة ساعات المتجهات — equal / local_newer / remote_newer /
   concurrent.
-- **LWW:** الطابع الزمني للعملية (`updatedAt` من الـ outbox = clientTs) هو
-  مرجع القرار؛ عند **تساوي** الزمن يفصل العداد `version` الأعلى — جهاز
-  بساعة متأخرة يفوز برباط الزمن فقط إذا كان تعديله أحدث فعلاً.
-- **التعارض المتزامن:** يُحفظ في `sync_conflicts` (الحل `last_write_wins`)
-  مع كامل الحمولتين، وتُدمج ساعات المتجهات.
-- **الحذف:** tombstone ناعم (`deleted_at`) بطابع `updated_at` فريد — يصل
-  لكل الأجهزة مرة واحدة بالضبط عبر مؤشر الدلتا.
+- **LWW:** مرجع القرار `updatedAt` للعملية؛ يُقصّ المستقبل إلى سماحية 90
+  ثانية، وداخل نافذة انحراف الساعة يفصل `version` الأعلى. تعديل أقدم من
+  النافذة يخسر حتى لو ادّعى العميل نسخة أعلى.
+- **التعارض المتزامن:** يُحفظ في `sync_conflicts` مع كامل الحمولتين، وتُدمج
+  ساعات المتجهات.
+- **الحذف:** tombstone ناعم (`deleted_at`) ينتشر عبر مؤشر الدلتا، والحذف
+  يفوز دائماً على تعديل يصل لاحقاً؛ الرفض يعود `success: true, status: deleted`
+  ويُحفظ idempotently كي لا يعيد العميل دفع التعديل الخاسر.
 
 ## الأمان
 

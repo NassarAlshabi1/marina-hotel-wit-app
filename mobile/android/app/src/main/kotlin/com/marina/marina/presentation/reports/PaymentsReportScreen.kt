@@ -23,6 +23,8 @@ import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 import com.marina.marina.util.PdfExporter
+import com.marina.marina.components.MarinaBackButton
+import com.marina.marina.components.MarinaTopAppBar
 
 /** تقرير دفوعات النزلاء — UI port of `payments_report_screen.dart`. */
 @Composable
@@ -37,10 +39,10 @@ fun PaymentsReportScreen(
         Scaffold(
             containerColor = AppColors.BackgroundColor,
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("تقرير دفوعات النزلاء", style = AppTypography.titleLarge) },
                     navigationIcon = {
-                        TextButton(onClick = onBack) { Text("رجوع", color = AppColors.PrimaryColor) }
+                        MarinaBackButton(onClick = onBack)
                     },
                     actions = {
                         TextButton(
@@ -92,8 +94,8 @@ fun PaymentsReportScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            ReportStat("مدفوعات الغرفة", CurrencyFormatter.formatAmount(state.totalRoomPaid), Color(0xFF2E7D5B), Modifier.weight(1f))
-                            ReportStat("مدفوعات أخرى", CurrencyFormatter.formatAmount(state.totalOtherPaid), Color(0xFF00897B), Modifier.weight(1f))
+                            ReportStat("مدفوعات الغرفة", CurrencyFormatter.formatAmount(state.totalRoomPaid), AppColors.SuccessColor, Modifier.weight(1f))
+                            ReportStat("مدفوعات أخرى", CurrencyFormatter.formatAmount(state.totalOtherPaid), AppColors.PrimaryColor, Modifier.weight(1f))
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             ReportStat("إجمالي المدفوعات", CurrencyFormatter.formatAmount(state.totalAll), AppColors.PrimaryColor, Modifier.weight(1f), large = true)
@@ -123,7 +125,7 @@ fun PaymentsReportScreen(
 @Composable
 private fun PaymentReportCard(row: PaymentReportRow) {
     val payment = row.payment
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         shape = RoundedCornerShape(10.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -215,7 +217,7 @@ internal fun ReportStat(
     modifier: Modifier = Modifier,
     large: Boolean = false
 ) {
-    Card(
+    OutlinedCard(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))
@@ -232,7 +234,7 @@ internal fun ReportStat(
 
 @Composable
 internal fun ReportEmptyCard(title: String, message: String) {
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()

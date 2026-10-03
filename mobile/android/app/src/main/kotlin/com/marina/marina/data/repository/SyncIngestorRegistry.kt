@@ -5,6 +5,7 @@ import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.annotations.SerializedName
 import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.AppUsersDao
 import com.marina.marina.data.local.dao.AuditLogsDao
@@ -30,6 +31,13 @@ import com.marina.marina.data.local.dao.SalaryPaymentsDao
 import com.marina.marina.data.local.dao.SalaryWithdrawalsDao
 import com.marina.marina.data.local.dao.ShiftNotesDao
 import com.marina.marina.data.local.entity.BaseSyncEntity
+import com.marina.marina.data.local.entity.EmployeeEntity
+import com.marina.marina.data.local.entity.ExpenseEntity
+import com.marina.marina.data.local.entity.SalaryCarryOverLogEntity
+import com.marina.marina.data.local.entity.SalaryCycleEntity
+import com.marina.marina.data.local.entity.SalaryPaymentEntity
+import com.marina.marina.data.local.entity.SalaryWithdrawalEntity
+import com.marina.marina.domain.util.HotelTimeEngine
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -47,10 +55,11 @@ import javax.inject.Singleton
  *    مؤشرات الأبناء الرقمية على السلك (booking_local_id/employee_id/
  *    cycle_id/item_id) تحمل فضاء id الجهاز الدافع — كتابتها كما هي
  *    محلياً تربط الابن بأب **خاطئ** (تصادم autoIncrement بين الأجهزة).
- *    سلّم الحل: uuid-cache (3 صيغ) → الرجل الإرثية (server_booking_id)
- *    → ظلّ server_id → ما لم يُحلّ يُؤجَّل لإعادة المحاولة بعد اكتمال
- *    الصفحات (الآب قد يصل في صفحة لاحقة). **لا يُستخدم id الخام من
- *    جهاز بعيد أبداً** («bookingLocalId=5 على جهاز A ≠ جهاز B»).
+ *    UUID هو المرجع الحاسم (بصيغته المعيارية/المضغوطة وبلا حساسية لحالة
+ *    الأحرف)، وتُقبل رجل server_id الإرثية فقط إذا غاب UUID تماماً؛ لا
+ *    fallback عند فشل UUID ولا تخمين عند تعدد النتائج. غير المحلول يُؤجَّل
+ *    أو يبقى NULL للعلاقة الاختيارية. **لا يُستخدم id الخام من جهاز بعيد
+ *    أبداً** («employeeId=5 على جهاز A ≠ جهاز B»).
  *
  * 3. **الدمج بالمفتاح الطبيعي** لليالي الحجز (booking_local_id,
  *    hotel_day_key — عقد _naturalUniqueKeys): صف بـ local_uuid جديد
@@ -87,6 +96,12 @@ data class PullApplyReport(
     val hasFailures: Boolean get() = failed > 0
     val hasDeferred: Boolean get() = deferred.isNotEmpty()
 }
+
+/** Keep the Android Int version contract aligned with the Worker sanitizer. */
+private const val MAX_SANE_SYNC_VERSION = 1_000_000
+private val EMPLOYEE_EXPENSE_TYPES = setOf(
+    "رواتب", "سحب راتب", "سحب من الراتب", "سلفة", "خصم راتب", "خصم من الراتب", "خصم", "غياب", "employee"
+)
 
 @Singleton
 class SyncIngestorRegistry @Inject constructor(
@@ -125,6 +140,7 @@ class SyncIngestorRegistry @Inject constructor(
      * الصنف الفعلي إعلانه (الفرعي هو المصدر المرجعي).
      */
     private val gsonCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Gson>()
+    private val booleanWireFieldsCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Set<String>>()
 
     private fun gsonFor(clazz: Class<*>): Gson = gsonCache.getOrPut(clazz) {
         val ownNames = clazz.declaredFields.map { it.name }.toSet()
@@ -139,6 +155,100 @@ class SyncIngestorRegistry @Inject constructor(
             .addSerializationExclusionStrategy(strategy)
             .create()
     }
+
+    /** D1/SQLite booleans arrive over both sync transports as INTEGER 0/1. */
+    private fun normalizeBooleanWireFields(mapped: MutableMap<String, Any>, clazz: Class<*>) {
+        val fieldNames = booleanWireFieldsCache.getOrPut(clazz) {
+            generateSequence(clazz) { it.superclass }
+                .takeWhile { it != Any::class.java }
+                .flatMap { it.declaredFields.asSequence() }
+                .filter { field ->
+                    field.type == Boolean::class.javaPrimitiveType ||
+                        field.type == Boolean::class.javaObjectType
+                }
+                .map { field ->
+                    field.getAnnotation(SerializedName::class.java)?.value ?: field.name
+                }
+                .toSet()
+        }
+
+        fieldNames.forEach { name ->
+            val wireValue = mapped[name] ?: return@forEach
+            val booleanValue = when (wireValue) {
+                is Boolean -> wireValue
+                is Number -> wireValue.toDouble() != 0.0
+                is String -> when (val normalized = wireValue.trim().lowercase()) {
+                    "true" -> true
+                    "false" -> false
+                    else -> normalized.toDoubleOrNull()?.let { it != 0.0 }
+                }
+                else -> null
+            }
+            if (booleanValue != null) mapped[name] = booleanValue
+        }
+    }
+
+    /**
+     * D1 can contain legacy `version` values polluted by old bulk migrations
+     * (for example 1e12). Gson cannot deserialize those into the app's Int
+     * field. Match the Worker policy: values outside the sane range reset to 1.
+     */
+    private fun normalizeSyncVersionWireField(mapped: MutableMap<String, Any>) {
+        if (!mapped.containsKey("version")) return
+        val rawVersion = mapped["version"]
+        val numericVersion = when (rawVersion) {
+            is Number -> rawVersion.toDouble()
+            is String -> rawVersion.trim().toDoubleOrNull()
+            else -> null
+        }
+        val saneVersion = numericVersion?.takeIf {
+            it.isFinite() &&
+                it >= 0.0 &&
+                it <= MAX_SANE_SYNC_VERSION.toDouble() &&
+                it % 1.0 == 0.0
+        }
+        mapped["version"] = saneVersion?.toInt() ?: 1
+    }
+
+    /**
+     * D1 stores `salary_withdrawals.withdraw_date` as TEXT (usually yyyy-MM-dd),
+     * while the local Room entity stores epoch milliseconds. Normalize at the
+     * wire boundary before Gson attempts to coerce the date string to Long.
+     */
+    private suspend fun normalizeSalaryWithdrawalFields(mapped: MutableMap<String, Any>) {
+        val rawDate = mapped["withdraw_date"]
+            ?: throw IllegalArgumentException("salary_withdrawals.withdraw_date is missing")
+        val withdrawDateMillis = when (rawDate) {
+            is Number -> normalizeEpochMillis(rawDate.toLong())
+            is String -> {
+                val raw = rawDate.trim()
+                val numeric = raw.toLongOrNull()
+                if (numeric != null) {
+                    normalizeEpochMillis(numeric)
+                } else {
+                    HotelTimeEngine.parseDate(raw)
+                }
+            }
+            else -> null
+        } ?: throw IllegalArgumentException(
+            "salary_withdrawals.withdraw_date has an unsupported date format"
+        )
+        mapped["withdraw_date"] = withdrawDateMillis
+
+        // `employee_name` is a local display snapshot and is not present in
+        // every deployed Worker schema. Never let its absence turn an otherwise
+        // valid salary row into a NOT NULL insert failure.
+        val remoteName = (mapped["employee_name"] as? String)?.trim().orEmpty()
+        if (remoteName.isEmpty()) {
+            val employeeUuid = asString(mapped["employee_uuid"])
+            val employee = employeeUuid?.let { employeesDao.getByLocalUuid(it) }
+                ?: asLong(mapped["employee_id"])?.let { employeesDao.getByIdIncludingDeleted(it) }
+            mapped["employee_name"] = employee?.name.orEmpty()
+        }
+    }
+
+    private fun normalizeEpochMillis(value: Long): Long =
+        if (value in -99_999_999_999L..99_999_999_999L) value * 1_000L else value
 
     // ─── واجهات عامة ────────────────────────────────────────────
 
@@ -191,13 +301,23 @@ class SyncIngestorRegistry @Inject constructor(
         mapped.remove("_entity")
         (record["id"] as? Number)?.let { mapped["server_id"] = it.toLong() }
         applyBaseDefaults(mapped)
+        val existingForLink = if (
+            entity in setOf("expenses", "salary_cycles", "salary_payments", "salary_withdrawals", "salary_carry_over_logs")
+        ) {
+            asString(mapped["local_uuid"])?.trim()?.takeIf { it.isNotEmpty() }?.let { fetchExisting(entity, it) }
+        } else {
+            null
+        }
 
-        // ─── ترجمة FK (سلّم Dart: uuid → إرثي → ظلّ → تأجيل) ───
+        // ─── ترجمة FK (UUID أولاً؛ أي fallback عددي فريد فقط) ───
         when (entity) {
             "booking_nights" -> {
-                // NOT NULL + uuid-cache على السلك — لا حلّ = تأجيل.
+                // Prefer the stable parent UUID; legacy server_booking_id is
+                // only a compatibility fallback. Never trust the sender's
+                // device-local booking_local_id as a local Room id.
                 val resolved = resolveBookingId(
-                    uuid = asString(mapped["booking_uuid_cache"])
+                    uuid = asString(mapped["booking_uuid_cache"]),
+                    legacyServerId = asLong(mapped["server_booking_id"])
                 ) ?: return ApplyOutcome.Deferred
                 mapped["booking_local_id"] = resolved
             }
@@ -231,33 +351,111 @@ class SyncIngestorRegistry @Inject constructor(
                 if (resolvedAdj != null) mapped["booking_local_id"] = resolvedAdj
                 else mapped.remove("booking_local_id")
             }
+            "expenses" -> {
+                val existing = existingForLink as? ExpenseEntity
+                val incomingUuid = asString(mapped["employee_uuid"])?.trim()?.takeIf { it.isNotEmpty() }
+                val explicitUnlink =
+                    mapped["employee_link_cleared"] == true ||
+                        asLong(mapped["employee_link_cleared"]) == 1L ||
+                        mapped["clear_employee_link"] == true ||
+                        asLong(mapped["clear_employee_link"]) == 1L
+                mapped.remove("employee_link_cleared")
+                mapped.remove("clear_employee_link")
+                when {
+                    explicitUnlink -> {
+                        mapped.remove("employee_uuid")
+                        mapped.remove("related_id")
+                    }
+                    incomingUuid != null -> {
+                        val employee = resolveEmployee(uuid = incomingUuid, rawId = null)
+                        if (employee != null) {
+                            mapped["employee_uuid"] = employee.localUuid
+                            mapped["related_id"] = employee.id
+                        } else if (existing != null) {
+                            preserveExpenseEmployeeLink(mapped, existing)
+                        } else {
+                            // Nullable relationship: retain its stable UUID for
+                            // diagnostics, but never persist a foreign device id.
+                            mapped["employee_uuid"] = incomingUuid
+                            mapped.remove("related_id")
+                        }
+                    }
+                    existing != null -> preserveExpenseEmployeeLink(mapped, existing)
+                    asString(mapped["expense_type"])?.trim()?.lowercase()?.let { it in EMPLOYEE_EXPENSE_TYPES } == true -> {
+                        mapped.remove("employee_uuid")
+                        mapped.remove("related_id")
+                    }
+                    else -> Unit
+                }
+            }
             "salary_cycles" -> {
-                val resolved = resolveEmployeeId(
-                    uuid = asString(mapped["employee_uuid"]),
-                    rawId = asLong(mapped["employee_id"])
-                ) ?: return ApplyOutcome.Deferred
-                mapped["employee_id"] = resolved
+                val existing = existingForLink as? SalaryCycleEntity
+                if (!mapEmployeeReference(
+                        mapped = mapped,
+                        uuidKey = "employee_uuid",
+                        idKey = "employee_id",
+                        rawId = asLong(mapped["employee_id"]),
+                        existingId = existing?.employeeId,
+                        existingUuid = existing?.employeeUuid
+                    )
+                ) return ApplyOutcome.Deferred
             }
             "salary_payments" -> {
-                val resolved = resolveSalaryCycleId(
-                    uuid = asString(mapped["cycle_uuid"]),
-                    rawId = asLong(mapped["cycle_id"])
-                ) ?: return ApplyOutcome.Deferred
-                mapped["cycle_id"] = resolved
+                val existing = existingForLink as? SalaryPaymentEntity
+                val incomingCycleUuid = asString(mapped["cycle_uuid"])?.trim()?.takeIf { it.isNotEmpty() }
+                if (incomingCycleUuid == null && existing != null) {
+                    mapped["cycle_id"] = existing.cycleId
+                    existing.cycleUuid?.let { mapped["cycle_uuid"] = it } ?: mapped.remove("cycle_uuid")
+                    existing.employeeUuid?.let { mapped["employee_uuid"] = it } ?: mapped.remove("employee_uuid")
+                } else {
+                    val cycle = resolveSalaryCycle(
+                        uuid = incomingCycleUuid,
+                        rawId = if (incomingCycleUuid == null) asLong(mapped["cycle_id"]) else null
+                    ) ?: return ApplyOutcome.Deferred
+                    val suppliedEmployeeUuid = asString(mapped["employee_uuid"])?.trim()?.takeIf { it.isNotEmpty() }
+                    val cycleEmployeeUuid = cycle.employeeUuid?.trim()?.takeIf { it.isNotEmpty() }
+                    if (
+                        suppliedEmployeeUuid != null && cycleEmployeeUuid != null &&
+                        uuidComparable(suppliedEmployeeUuid) != uuidComparable(cycleEmployeeUuid)
+                    ) {
+                        return ApplyOutcome.Failed("salary_payments.employee_uuid does not match cycle_uuid")
+                    }
+                    mapped["cycle_id"] = cycle.id
+                    mapped["cycle_uuid"] = cycle.localUuid
+                    when {
+                        cycleEmployeeUuid != null -> mapped["employee_uuid"] = cycleEmployeeUuid
+                        suppliedEmployeeUuid != null -> {
+                            val employee = resolveEmployee(uuid = suppliedEmployeeUuid, rawId = null)
+                                ?: return ApplyOutcome.Deferred
+                            mapped["employee_uuid"] = employee.localUuid
+                        }
+                        else -> mapped.remove("employee_uuid")
+                    }
+                }
             }
             "salary_withdrawals" -> {
-                val resolved = resolveEmployeeId(
-                    uuid = asString(mapped["employee_uuid"]),
-                    rawId = asLong(mapped["employee_id"])
-                ) ?: return ApplyOutcome.Deferred
-                mapped["employee_id"] = resolved
+                val existing = existingForLink as? SalaryWithdrawalEntity
+                if (!mapEmployeeReference(
+                        mapped = mapped,
+                        uuidKey = "employee_uuid",
+                        idKey = "employee_id",
+                        rawId = asLong(mapped["employee_id"]),
+                        existingId = existing?.employeeId,
+                        existingUuid = existing?.employeeUuid
+                    )
+                ) return ApplyOutcome.Deferred
             }
             "salary_carry_over_logs" -> {
-                val resolved = resolveEmployeeId(
-                    uuid = asString(mapped["employee_uuid"]),
-                    rawId = asLong(mapped["employee_id"])
-                ) ?: return ApplyOutcome.Deferred
-                mapped["employee_id"] = resolved
+                val existing = existingForLink as? SalaryCarryOverLogEntity
+                if (!mapEmployeeReference(
+                        mapped = mapped,
+                        uuidKey = "employee_uuid",
+                        idKey = "employee_id",
+                        rawId = asLong(mapped["employee_id"]),
+                        existingId = existing?.employeeId,
+                        existingUuid = existing?.employeeUuid
+                    )
+                ) return ApplyOutcome.Deferred
             }
             "inventory_transactions" -> {
                 val resolved = resolveItemId(
@@ -271,6 +469,9 @@ class SyncIngestorRegistry @Inject constructor(
         // ─── تسلسل + LWW ───
         return try {
             val clazz = entityClass(entity) ?: return ApplyOutcome.Skipped
+            normalizeBooleanWireFields(mapped, clazz)
+            normalizeSyncVersionWireField(mapped)
+            if (entity == "salary_withdrawals") normalizeSalaryWithdrawalFields(mapped)
             val entityGson = gsonFor(clazz)
             @Suppress("UNCHECKED_CAST")
             val remote = entityGson.fromJson(entityGson.toJson(mapped), clazz) as? BaseSyncEntity
@@ -284,6 +485,18 @@ class SyncIngestorRegistry @Inject constructor(
             when {
                 existing == null -> {
                     store(entity, remote)
+                    ApplyOutcome.Applied
+                }
+                remote.deletedAt != null -> {
+                    // A tombstone is a terminal server decision. Apply only
+                    // its sync fields so a stale remote snapshot cannot also
+                    // overwrite newer local business data.
+                    applyRemoteTombstone(
+                        entity = entity,
+                        localId = existing.id,
+                        deletedAt = requireNotNull(remote.deletedAt),
+                        updatedAt = remote.updatedAt
+                    )
                     ApplyOutcome.Applied
                 }
                 remoteLastModified >= existing.lastModified -> {
@@ -318,6 +531,71 @@ class SyncIngestorRegistry @Inject constructor(
         mapped.putIfAbsent("vector_clock", "{}")
         mapped.putIfAbsent("device_id", "")
         mapped.putIfAbsent("sync_timestamp", 0L)
+    }
+
+    /** Apply only deletion metadata, preserving newer local business fields. */
+    private fun applyRemoteTombstone(
+        entity: String,
+        localId: Long,
+        deletedAt: Long,
+        updatedAt: Long
+    ) {
+        val table = localTableName(entity)
+            ?: throw IllegalArgumentException("No local table for tombstoned entity: $entity")
+        db.openHelper.writableDatabase.execSQL(
+            "UPDATE $table SET deleted_at = ?, updated_at = ?, last_modified = ? WHERE id = ?",
+            arrayOf<Any?>(deletedAt, updatedAt, updatedAt, localId)
+        )
+    }
+
+    /**
+     * Immediately mirror the server's delete-wins push disposition locally.
+     * The following pull remains authoritative and can refresh the exact
+     * server timestamp; this prevents a stale edited row from staying visible
+     * when the user selected push-only.
+     */
+    suspend fun tombstoneLocalRecord(entity: String, localUuid: String): Boolean {
+        val canonicalEntity = if (entity == "blacklist_entries") "blacklist" else entity
+        val existing = fetchExisting(canonicalEntity, localUuid) ?: return false
+        if (existing.deletedAt != null) return true
+        val table = localTableName(canonicalEntity) ?: return false
+        val now = System.currentTimeMillis() / 1_000L
+        db.withTransaction {
+            db.openHelper.writableDatabase.execSQL(
+                "UPDATE $table SET deleted_at = ?, updated_at = ?, last_modified = ? WHERE id = ?",
+                arrayOf<Any?>(now, now, now, existing.id)
+            )
+        }
+        return true
+    }
+
+    /** Local table mapping is explicit so dynamic SQL never uses wire input. */
+    private fun localTableName(entity: String): String? = when (entity) {
+        "rooms" -> "rooms"
+        "bookings" -> "bookings"
+        "payments" -> "payments"
+        "expenses" -> "expenses"
+        "employees" -> "employees"
+        "debts" -> "debts"
+        "booking_notes" -> "booking_notes"
+        "booking_nights" -> "booking_nights"
+        "booking_price_adjustments" -> "booking_price_adjustments"
+        "guest_infos" -> "guest_infos"
+        "shift_notes" -> "shift_notes"
+        "salary_cycles" -> "salary_cycles"
+        "salary_payments" -> "salary_payments"
+        "salary_withdrawals" -> "salary_withdrawals"
+        "salary_carry_over_logs" -> "salary_carry_over_logs"
+        "app_users" -> "app_users"
+        "devices" -> "devices"
+        "cash_transactions" -> "cash_transactions"
+        "audit_logs" -> "audit_logs"
+        "payment_voids" -> "payment_voids"
+        "price_adjustments" -> "price_adjustments"
+        "inventory_items" -> "inventory_items"
+        "inventory_transactions" -> "inventory_transactions"
+        "blacklist", "blacklist_entries" -> "blacklist_entries"
+        else -> null
     }
 
     /** الجلب بـ local_uuid — ثم بالمفتاح الطبيعي لليالي (دمج 398 ليلة). */
@@ -392,95 +670,134 @@ class SyncIngestorRegistry @Inject constructor(
 
     // ─── محلّلات الهوية (تكافؤ IdResolver في Dart) ──────────────
 
-    /**
-     * حلّ مرجع حجز → id محلي. السلّم: uuid (3 صيغ) → الرجل الإرثية
-     * (فضاء Appwrite عبر server_booking_id للحجز). **لا id خام من
-     * جهاز بعيد أبداً** — يربط الابن بحجز خاطئ (تعليق Dart الحرج).
-     */
+    /** UUID is authoritative; a legacy server_booking_id is considered only when UUID is absent. */
     private suspend fun resolveBookingId(
         uuid: String?,
         legacyServerId: Long? = null
     ): Long? {
-        uuid?.takeIf { it.isNotEmpty() }?.let { candidate ->
-            bookingsDao.getByLocalUuid(candidate)?.let { return it.id }
-            normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
-                bookingsDao.getByLocalUuid(dashed)?.let { return it.id }
+        val candidate = uuid?.trim()?.takeIf { it.isNotEmpty() }
+        if (candidate != null) {
+            val forms = linkedSetOf(candidate)
+            val dashless = stripDashes(candidate)
+            if (dashless.length == 32) {
+                forms.add(dashless)
+                normalizeUuid(dashless)?.let(forms::add)
             }
-            stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
-                bookingsDao.getByLocalUuid(stripped)?.let { return it.id }
-            }
+            return forms.flatMap { bookingsDao.getByLocalUuidCandidates(it) }
+                .distinctBy { it.id }
+                .singleOrNull()
+                ?.id
         }
-        legacyServerId?.let { legacy ->
-            bookingsDao.getByServerBookingIdIncludingDeleted(legacy)?.let { return it.id }
-        }
-        return null
+        val legacy = legacyServerId ?: return null
+        return bookingsDao.getByServerBookingIdCandidates(legacy).singleOrNull()?.id
     }
 
-    /** المفتاح الطبيعي للتعديلات: booking_local_uuid → حجز (3 صيغ). */
+    /** Natural-key resolver for booking_local_uuid; ambiguous variants are rejected. */
     private suspend fun resolveBookingByLocalUuid(uuid: String?): Long? {
-        val candidate = uuid?.takeIf { it.isNotEmpty() } ?: return null
-        bookingsDao.getByLocalUuid(candidate)?.let { return it.id }
-        normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
-            bookingsDao.getByLocalUuid(dashed)?.let { return it.id }
+        val candidate = uuid?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val forms = linkedSetOf(candidate)
+        val dashless = stripDashes(candidate)
+        if (dashless.length == 32) {
+            forms.add(dashless)
+            normalizeUuid(dashless)?.let(forms::add)
         }
-        stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
-            bookingsDao.getByLocalUuid(stripped)?.let { return it.id }
-        }
-        return null
+        return forms.flatMap { bookingsDao.getByLocalUuidCandidates(it) }
+            .distinctBy { it.id }
+            .singleOrNull()
+            ?.id
     }
 
-    /**
-     * حلّ مرجع موظف → id محلي: uuid (3 صيغ) → ظلّ server_id (حسم
-     * الازدواج: النشط أولاً ثم الأصغر id — عقد Dart).
-     */
-    private suspend fun resolveEmployeeId(uuid: String?, rawId: Long?): Long? {
-        uuid?.takeIf { it.isNotEmpty() }?.let { candidate ->
-            employeesDao.getByLocalUuid(candidate)?.let { return it.id }
-            normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
-                employeesDao.getByLocalUuid(dashed)?.let { return it.id }
+    /** UUID wins absolutely; only UUID-absent legacy rows may use a unique server_id shadow. */
+    private suspend fun resolveEmployee(uuid: String?, rawId: Long?): EmployeeEntity? {
+        val candidate = uuid?.trim()?.takeIf { it.isNotEmpty() }
+        if (candidate != null) {
+            val forms = linkedSetOf(candidate)
+            val dashless = stripDashes(candidate)
+            if (dashless.length == 32) {
+                forms.add(dashless)
+                normalizeUuid(dashless)?.let(forms::add)
             }
-            stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
-                employeesDao.getByLocalUuid(stripped)?.let { return it.id }
-            }
+            val matches = forms.flatMap { employeesDao.getByLocalUuidCandidates(it) }
+                .distinctBy { it.id }
+            return matches.singleOrNull()
         }
-        rawId?.let { raw ->
-            employeesDao.getByServerIdIncludingDeleted(raw)?.let { return it.id }
-        }
-        return null
+        val legacyId = rawId ?: return null
+        return employeesDao.getByServerIdCandidates(legacyId).singleOrNull()
     }
 
-    /** حلّ مرجع دورة راتب: cycle_uuid (3 صيغ) → ظلّ server_id. */
-    private suspend fun resolveSalaryCycleId(uuid: String?, rawId: Long?): Long? {
-        uuid?.takeIf { it.isNotEmpty() }?.let { candidate ->
-            salaryCyclesDao.getByLocalUuid(candidate)?.let { return it.id }
-            normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
-                salaryCyclesDao.getByLocalUuid(dashed)?.let { return it.id }
+    /** UUID wins absolutely; duplicates or unresolved UUIDs are never guessed. */
+    private suspend fun resolveSalaryCycle(uuid: String?, rawId: Long?): SalaryCycleEntity? {
+        val candidate = uuid?.trim()?.takeIf { it.isNotEmpty() }
+        if (candidate != null) {
+            val forms = linkedSetOf(candidate)
+            val dashless = stripDashes(candidate)
+            if (dashless.length == 32) {
+                forms.add(dashless)
+                normalizeUuid(dashless)?.let(forms::add)
             }
-            stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
-                salaryCyclesDao.getByLocalUuid(stripped)?.let { return it.id }
-            }
+            val matches = forms.flatMap { salaryCyclesDao.getByLocalUuidCandidates(it) }
+                .distinctBy { it.id }
+            return matches.singleOrNull()
         }
-        rawId?.let { raw ->
-            salaryCyclesDao.getByServerIdIncludingDeleted(raw)?.let { return it.id }
-        }
-        return null
+        val legacyId = rawId ?: return null
+        return salaryCyclesDao.getByServerIdCandidates(legacyId).singleOrNull()
     }
 
-    /** حلّ مرجع صنف مخزون: item_local_uuid (3 صيغ) → ظلّ server_id. */
+    /** A link already stored locally survives UUID-absent snapshots unchanged. */
+    private suspend fun mapEmployeeReference(
+        mapped: MutableMap<String, Any>,
+        uuidKey: String,
+        idKey: String,
+        rawId: Long?,
+        existingId: Long?,
+        existingUuid: String?
+    ): Boolean {
+        val incomingUuid = asString(mapped[uuidKey])?.trim()?.takeIf { it.isNotEmpty() }
+        if (incomingUuid != null) {
+            val employee = resolveEmployee(uuid = incomingUuid, rawId = null) ?: return false
+            mapped[uuidKey] = employee.localUuid
+            mapped[idKey] = employee.id
+            return true
+        }
+
+        if (existingId != null) {
+            mapped[idKey] = existingId
+            existingUuid?.takeIf { it.isNotBlank() }?.let { mapped[uuidKey] = it } ?: mapped.remove(uuidKey)
+            return true
+        }
+
+        val employee = resolveEmployee(uuid = null, rawId = rawId) ?: return false
+        mapped[uuidKey] = employee.localUuid
+        mapped[idKey] = employee.id
+        return true
+    }
+
+    private fun preserveExpenseEmployeeLink(mapped: MutableMap<String, Any>, existing: ExpenseEntity) {
+        existing.employeeUuid?.takeIf { it.isNotBlank() }?.let { mapped["employee_uuid"] = it }
+            ?: mapped.remove("employee_uuid")
+        existing.relatedId?.let { mapped["related_id"] = it } ?: mapped.remove("related_id")
+    }
+
+    private fun uuidComparable(value: String): String =
+        value.trim().replace("-", "").lowercase()
+
+    /** UUID is authoritative; a unique server_id shadow is legacy-only. */
     private suspend fun resolveItemId(uuid: String?, rawId: Long?): Long? {
-        uuid?.takeIf { it.isNotEmpty() }?.let { candidate ->
-            inventoryDao.getItemByLocalUuid(candidate)?.let { return it.id }
-            normalizeUuid(candidate)?.takeIf { it != candidate }?.let { dashed ->
-                inventoryDao.getItemByLocalUuid(dashed)?.let { return it.id }
+        val candidate = uuid?.trim()?.takeIf { it.isNotEmpty() }
+        if (candidate != null) {
+            val forms = linkedSetOf(candidate)
+            val dashless = stripDashes(candidate)
+            if (dashless.length == 32) {
+                forms.add(dashless)
+                normalizeUuid(dashless)?.let(forms::add)
             }
-            stripDashes(candidate).takeIf { it != candidate && it.length == 32 }?.let { stripped ->
-                inventoryDao.getItemByLocalUuid(stripped)?.let { return it.id }
-            }
+            return forms.flatMap { inventoryDao.getItemByLocalUuidCandidates(it) }
+                .distinctBy { it.id }
+                .singleOrNull()
+                ?.id
         }
-        rawId?.let { raw ->
-            inventoryDao.getItemByServerIdIncludingDeleted(raw)?.let { return it.id }
-        }
-        return null
+        val legacyId = rawId ?: return null
+        return inventoryDao.getItemByServerIdCandidates(legacyId).singleOrNull()?.id
     }
 
     // ─── أدوات UUID (تكافؤ normalizeUuid/stripDashes في Dart) ───

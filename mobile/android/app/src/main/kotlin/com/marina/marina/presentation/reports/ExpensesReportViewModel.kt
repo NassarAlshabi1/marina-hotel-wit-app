@@ -54,10 +54,22 @@ data class ExpensesReportUiState(
     val operationalCount: Int get() = groups.sumOf { it.rows.size } - salaryCount
 }
 
-private val salaryTypes = setOf("رواتب", "سحب راتب", "سحب من الراتب", "خصم راتب", "خصم من الراتب")
+private val salaryTypes = setOf("رواتب", "سحب راتب", "سحب من الراتب", "سلفة", "خصم راتب", "خصم من الراتب", "خصم", "غياب")
 private val cashSalaryTypes = setOf("رواتب", "سحب راتب", "سحب من الراتب", "سلفة")
 
 private fun isSalaryType(type: String?) = type != null && salaryTypes.any { it.contains(type) || type.contains(it) }
+
+private fun uuidComparable(value: String): String = value.trim().replace("-", "").lowercase()
+
+private fun sameEmployee(expense: Expense, withdrawal: SalaryWithdrawal): Boolean {
+    val expenseUuid = expense.employeeUuid?.trim()?.takeIf { it.isNotEmpty() }
+    val withdrawalUuid = withdrawal.employeeUuid?.trim()?.takeIf { it.isNotEmpty() }
+    if (expenseUuid != null || withdrawalUuid != null) {
+        return expenseUuid != null && withdrawalUuid != null &&
+            uuidComparable(expenseUuid) == uuidComparable(withdrawalUuid)
+    }
+    return expense.relatedId != null && expense.relatedId == withdrawal.employeeId
+}
 
 /** Dart expenses_report_screen.dart l.57-71 — type يحتوي إحدى الكلمات المفتاحية. */
 private fun isSalaryTypeFamily(type: String?): Boolean {
@@ -121,6 +133,14 @@ class ExpensesReportViewModel @Inject constructor(
                     expenseType = selectedType
                 )
                 val employees = employeesRepository.getAll().firstOrNull() ?: emptyList()
+                fun employeeForLink(employeeUuid: String?, employeeId: Long?) =
+                    employeeUuid?.trim()?.takeIf { it.isNotEmpty() }?.let { uuid ->
+                        employees.find { uuidComparable(it.localUuid) == uuidComparable(uuid) }
+                    } ?: if (employeeUuid.isNullOrBlank()) {
+                        employees.find { it.id == employeeId }
+                    } else {
+                        null
+                    }
 
                 // Distinct types for the dropdown — 'سحب راتب' filtered out (Dart l.164-169).
                 val allTypes = expensesRepository.getAllOnce()
@@ -137,6 +157,7 @@ class ExpensesReportViewModel @Inject constructor(
                 val showSalary = selectedType == null || isSalaryType(selectedType)
 
                 expenses.forEach { e ->
+                    val employee = employeeForLink(e.employeeUuid, e.relatedId)
                     addedExpenseIds.add(e.id)
                     rows.add(
                         ExpenseReportRow(
@@ -145,8 +166,8 @@ class ExpensesReportViewModel @Inject constructor(
                             type = e.expenseType,
                             description = e.description,
                             amount = e.amount,
-                            employeeId = e.relatedId,
-                            employeeName = employees.find { emp -> emp.id == e.relatedId }?.name,
+                            employeeId = employee?.id,
+                            employeeName = employee?.name,
                             isSalaryWithdrawal = false
                         )
                     )
@@ -165,24 +186,32 @@ class ExpensesReportViewModel @Inject constructor(
                         // لا تُطابق أبداً — ليس لها مصروف مقابل أصلاً وتُعرض دائماً.
                         val isDirectWithdrawal = w.reason?.startsWith("direct_withdrawal_") == true
 
-                        // Tier 2 (Dart l.445-456): رابط معرفي مباشر عبر exp_<id>.
+                        // Tier 2 (Dart l.445-456): exp_<id> is a legacy local id,
+                        // so also verify employee/day/amount before suppressing a row.
                         val linkedExpenseId = Regex("exp_(\\d+)").find(w.reason ?: "")?.groupValues?.get(1)?.toLongOrNull()
-                        val refMatched = linkedExpenseId != null && linkedExpenseId in addedExpenseIds
+                        val linkedExpense = linkedExpenseId?.takeIf { it in addedExpenseIds }
+                            ?.let { id -> expenses.find { it.id == id } }
+                        val refMatched = linkedExpense != null &&
+                            isSalaryTypeFamily(linkedExpense.expenseType) &&
+                            sameEmployee(linkedExpense, w) &&
+                            hotelDayKeysMatch(linkedExpense.hotelDayKey, w.hotelDayKey, linkedExpense.date, w.withdrawDate) &&
+                            kotlin.math.abs(linkedExpense.amount) == kotlin.math.abs(w.amount)
 
-                        // Tier 3 (Dart l.459-481): شبكة أمان للسجلات القديمة —
-                        // نفس نوع راتب + نفس الموظف + نفس اليوم الفندقي + نفس المبلغ.
-                        val dataMatch = !refMatched && expenses.any { e ->
+                        // Tier 3: only suppress when the legacy amount/employee/day
+                        // signature identifies exactly one expense; ambiguity stays visible.
+                        val dataMatches = expenses.filter { e ->
                             isSalaryTypeFamily(e.expenseType) &&
-                                e.relatedId == w.employeeId &&
+                                sameEmployee(e, w) &&
                                 hotelDayKeysMatch(e.hotelDayKey, w.hotelDayKey, e.date, w.withdrawDate) &&
                                 kotlin.math.abs(e.amount) == kotlin.math.abs(w.amount)
                         }
+                        val dataMatch = !refMatched && dataMatches.size == 1
 
                         val hasMatchingExpense = !isDirectWithdrawal && (refMatched || dataMatch)
                         if (!hasMatchingExpense) {
                             val isDeduction = (w.withdrawalType.contains("خصم") || w.withdrawalType.contains("deduction"))
                             val displayType = if (isDeduction) "خصم من الراتب" else "سحب راتب"
-                            val employee = employees.find { it.id == w.employeeId }
+                            val employee = employeeForLink(w.employeeUuid, w.employeeId)
                             rows.add(
                                 ExpenseReportRow(
                                     date = "",
@@ -190,7 +219,7 @@ class ExpensesReportViewModel @Inject constructor(
                                     type = displayType,
                                     description = (w.reason ?: "") + (w.description?.let { " — $it" } ?: ""),
                                     amount = w.amount,
-                                    employeeId = w.employeeId,
+                                    employeeId = employee?.id,
                                     employeeName = employee?.name ?: w.employeeName.ifBlank { null },
                                     isSalaryWithdrawal = true
                                 )

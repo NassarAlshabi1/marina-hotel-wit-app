@@ -1,5 +1,6 @@
 package com.marina.marina.data.repository
 
+import com.marina.marina.data.local.dao.EmployeesDao
 import com.marina.marina.data.local.dao.ExpensesDao
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.map
 @Singleton
 class ExpensesRepositoryImpl @Inject constructor(
     private val expensesDao: ExpensesDao,
+    private val employeesDao: EmployeesDao,
     private val outboxRepository: OutboxRepository
 ) : ExpensesRepository {
 
@@ -23,11 +25,12 @@ class ExpensesRepositoryImpl @Inject constructor(
 
     override suspend fun insert(expense: Expense): Long {
         val now = System.currentTimeMillis()
-        val prepared = expense.copy(
-            localUuid = expense.localUuid.ifBlank { UUID.randomUUID().toString() },
-            date = expense.date.ifBlank { HotelTimeEngine.formatIso(now) },
-            hotelDayKey = expense.hotelDayKey ?: HotelTimeEngine.currentHotelDayKey(),
-            createdAt = if (expense.createdAt == 0L) now else expense.createdAt,
+        val linkedExpense = attachEmployeeUuid(expense)
+        val prepared = linkedExpense.copy(
+            localUuid = linkedExpense.localUuid.ifBlank { UUID.randomUUID().toString() },
+            date = linkedExpense.date.ifBlank { HotelTimeEngine.formatIso(now) },
+            hotelDayKey = linkedExpense.hotelDayKey ?: HotelTimeEngine.currentHotelDayKey(),
+            createdAt = if (linkedExpense.createdAt == 0L) now else linkedExpense.createdAt,
             updatedAt = now
         )
         val id = expensesDao.insert(prepared.toEntity())
@@ -36,7 +39,8 @@ class ExpensesRepositoryImpl @Inject constructor(
     }
 
     override suspend fun update(expense: Expense) {
-        val prepared = expense.copy(updatedAt = System.currentTimeMillis())
+        val linkedExpense = attachEmployeeUuid(expense)
+        val prepared = linkedExpense.copy(updatedAt = System.currentTimeMillis())
         expensesDao.update(prepared.toEntity())
         outboxRepository.enqueueObject("expenses", "update", prepared.localUuid, prepared)
     }
@@ -56,7 +60,19 @@ class ExpensesRepositoryImpl @Inject constructor(
     override suspend fun getAllOnce(): List<Expense> =
         expensesDao.getAllOnce().map { it.toDomain() }
 
-    private val salaryTypes = setOf("رواتب", "سحب راتب", "سحب من الراتب", "خصم راتب", "خصم من الراتب")
+    private val salaryTypes = setOf(
+        "رواتب", "سحب راتب", "سحب من الراتب", "سلفة", "خصم راتب", "خصم من الراتب", "خصم", "غياب"
+    )
+    private val employeeExpenseTypes = salaryTypes + "employee"
+
+    /** Fill the stable employee key for every newly written employee expense. */
+    private suspend fun attachEmployeeUuid(expense: Expense): Expense {
+        if (expense.expenseType.trim().lowercase() !in employeeExpenseTypes) return expense
+        val employeeId = expense.relatedId ?: return expense
+        val employee = employeesDao.getByIdIncludingDeleted(employeeId) ?: return expense
+        val employeeUuid = employee.localUuid.trim().takeIf { it.isNotEmpty() } ?: return expense
+        return expense.copy(employeeUuid = employeeUuid)
+    }
 
     override suspend fun listFilteredByHotelDay(
         fromHotelDay: String?,

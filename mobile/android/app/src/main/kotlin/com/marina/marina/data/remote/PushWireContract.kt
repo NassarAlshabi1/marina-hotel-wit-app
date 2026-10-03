@@ -11,7 +11,12 @@ import com.marina.marina.data.local.entity.OutboxEntity
  */
 object PushWireContract {
 
+    private const val MILLIS_EPOCH_THRESHOLD = 100_000_000_000L
     private val gson = Gson()
+
+    /** Outbox clientTs is stored in milliseconds; the Worker LWW contract is seconds. */
+    private fun clientTimestampSeconds(value: Long): Long =
+        if (value >= MILLIS_EPOCH_THRESHOLD) value / 1_000L else value
 
     /**
      * يبني عملية دفع واحدة من صف outbox:
@@ -24,20 +29,40 @@ object PushWireContract {
      */
     fun buildOperation(row: OutboxEntity, deviceId: String): WorkerPushOperation {
         val data = normalizeForWire(decodePayload(row.payload)).toMutableMap()
+        val entity = canonicalEntity(row.entity)
+        val operation = mapOperation(row.op)
         val localUuid = data["local_uuid"]?.toString()?.takeIf { it.isNotBlank() } ?: row.localUuid
         data["local_uuid"] = localUuid
+
+        // Empty employee_uuid is emitted only by the explicit UI unlink path
+        // (salary expense converted to a non-employee expense). Make that
+        // intent explicit; ordinary NULL/absent UUIDs must never clear D1 links.
+        if (
+            entity == "expenses" && operation == "update" &&
+            (data["employee_uuid"] as? String)?.isBlank() == true
+        ) {
+            data.remove("employee_uuid")
+            data["clear_employee_link"] = 1
+        }
+
         val vectorClock = (data["vector_clock"] as? String)?.takeIf { it.isNotBlank() } ?: "{}"
         data["vector_clock"] = vectorClock
         return WorkerPushOperation(
             idempotencyKey = row.idempotencyKey
                 ?: "${row.entity}_${row.op}_${row.localUuid}",
-            entity = row.entity,
-            operation = mapOperation(row.op),
+            entity = entity,
+            operation = operation,
             data = data,
             vectorClock = vectorClock,
-            updatedAt = row.clientTs,
+            updatedAt = clientTimestampSeconds(row.clientTs),
             deviceId = deviceId.ifBlank { "unknown-origin" }
         )
+    }
+
+    /** Worker contract uses `blacklist`; normalize old local outbox aliases. */
+    fun canonicalEntity(entity: String): String = when (entity.trim()) {
+        "blacklist_entries" -> "blacklist"
+        else -> entity.trim()
     }
 
     /** "insert" → "create"؛ الخادم يقبل create|update|delete حصراً. */

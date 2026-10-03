@@ -66,7 +66,7 @@ interface ExpensesDao {
                OR hotel_day_key IS NOT NULL AND hotel_day_key <= :toHotelDay
                OR hotel_day_key IS NULL AND date < :toHotelDayExclusive)
           AND (:expenseType IS NULL
-               OR (:isSalaryType = 1 AND expense_type IN ('رواتب','سحب راتب','سحب من الراتب','خصم راتب','خصم من الراتب'))
+               OR (:isSalaryType = 1 AND expense_type IN ('رواتب','سحب راتب','سحب من الراتب','سلفة','خصم راتب','خصم من الراتب','خصم','غياب'))
                OR (:isSalaryType = 0 AND expense_type = :expenseType))
           AND (:excludeAdvance = 0 OR expense_type != 'سلفة')
           AND (:search IS NULL

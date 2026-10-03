@@ -10,12 +10,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,7 +27,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,9 +38,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.BlacklistEntry
 
+import com.marina.marina.ui.theme.AppColors
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.SidebarMenuButton
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlacklistScreen(
@@ -61,7 +61,7 @@ fun BlacklistScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            MarinaTopAppBar(
                 title = { Text("القائمة السوداء") },
                 navigationIcon = { SidebarMenuButton() }
             )
@@ -87,9 +87,9 @@ fun BlacklistScreen(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
                     items(state.entries, key = { it.id }) { entry ->
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(
-                                containerColor = if (entry.active) Color(0xFFFDECEA) else Color(0xFFF1F1F1)
+                                containerColor = if (entry.active) AppColors.DangerContainerColor else AppColors.LightGray
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -100,7 +100,7 @@ fun BlacklistScreen(
                                         listOfNotNull(entry.nationalId, entry.phone).joinToString(" • "),
                                         color = Color.Gray
                                     )
-                                    entry.reason?.let { Text(it, color = Color(0xFFB71C1C)) }
+                                    entry.reason?.let { Text(it, color = AppColors.DangerColor) }
                                 }
                                 Row {
                                     IconButton(onClick = { viewModel.toggleActive(entry) }) {
