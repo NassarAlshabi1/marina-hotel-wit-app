@@ -14,6 +14,7 @@ import 'guest_infos_adapter.dart';
 import 'id_resolver.dart';
 import 'inventory_adapter.dart';
 import 'nights_adapter.dart';
+import 'orphan_quarantine_adapter.dart';
 import 'payment_voids_adapter.dart';
 import 'payments_adapter.dart';
 import 'pending_links_adapter.dart';
@@ -138,6 +139,11 @@ class AdapterRegistry {
         db: db,
         table: db.pendingLinks,
         adapter: PendingLinksAdapter(IdResolver(db)),
+      ),
+      orphanQuarantine = BaseRepository<OrphanQuarantine, OrphanQuarantineCompanion>(
+        db: db,
+        table: db.orphanQuarantine,
+        adapter: OrphanQuarantineAdapter(IdResolver(db)),
       ),
       inventoryItems = BaseRepository<InventoryItem, InventoryItemsCompanion>(
         db: db,

@@ -430,6 +430,9 @@ class GoogleDriveBackupService {
       final pendingLinksData = await _loadTableBatched<dynamic>(
         db.pendingLinks,
       );
+      final orphanQuarantineData = await _loadTableBatched<dynamic>(
+        db.orphanQuarantine,
+      );
 
       // استخراج عناصر القائمة السوداء بشكل منفصل (createdBy = 'blacklist')
       final blacklistQuery = db.select(db.shiftNotes)
@@ -460,6 +463,7 @@ class GoogleDriveBackupService {
         inventoryItemsData: inventoryItemsData,
         inventoryTransactionsData: inventoryTransactionsData,
         pendingLinksData: pendingLinksData,
+        orphanQuarantineData: orphanQuarantineData,
       );
 
       final totalRecords = tableData.totalRecords + blacklistData.length;
@@ -1632,6 +1636,20 @@ class GoogleDriveBackupService {
                 );
               } catch (e) {
                 _log('⚠️ فشل استعادة رابط معلق: $e');
+              }
+            }
+          }
+
+          if (backupData.containsKey('orphan_quarantine')) {
+            final qList = backupData['orphan_quarantine'] as List<dynamic>;
+            for (final qJson in qList) {
+              try {
+                await adapterRegistry.orphanQuarantine.upsertFromJson(
+                  Map<String, dynamic>.from(qJson as Map),
+                  src: Source.drive,
+                );
+              } catch (e) {
+                _log('⚠️ فشل استعادة سجل يتيم في orphan_quarantine: $e');
               }
             }
           }
