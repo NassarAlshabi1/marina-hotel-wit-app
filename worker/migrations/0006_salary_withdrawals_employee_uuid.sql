@@ -18,6 +18,7 @@
 --  الصفوف المحجوبة تلقائياً في أول سحب بعد هذا الترقية.
 --  السحوبات اليتيمة (30) تبقى بلا uuid → serverId → فشل حتمي →
 --  الحجر التدريجي (عتبة 3 دورات) يعزلها ويتقدم المؤشر تلقائياً.
+--  Apply once with: npm run db:migrate:salary-withdrawals
 -- ════════════════════════════════════════════════════════════════
 
 ALTER TABLE salary_withdrawals ADD COLUMN employee_uuid TEXT;

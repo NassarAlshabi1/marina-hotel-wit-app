@@ -14,11 +14,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.Expense
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.SidebarMenuButton
 
 @Composable
 fun ExpensesListScreen(
@@ -43,7 +44,7 @@ fun ExpensesListScreen(
             containerColor = AppColors.BackgroundColor,
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("المصروفات", style = AppTypography.titleLarge) },
                     navigationIcon = { SidebarMenuButton() },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -55,7 +56,7 @@ fun ExpensesListScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { showAddDialog = true },
-                    containerColor = AppColors.PrimaryColor,
+                    containerColor = AppColors.PrimaryActionColor,
                     contentColor = Color.White
                 ) {
                     Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -96,7 +97,7 @@ fun ExpensesListScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Card(
+                OutlinedCard(
                     colors = CardDefaults.cardColors(containerColor = AppColors.AccentSoft),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -187,7 +188,7 @@ private fun ExpenseCard(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(10.dp),

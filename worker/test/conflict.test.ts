@@ -223,22 +223,68 @@ describe('conflict: server-dominates stale-clock edits (P0 regression guard)', (
   });
 });
 
-describe('conflict: update of tombstoned record', () => {
-  it('updating a soft-deleted record with a later edit applies (documented behavior)', async () => {
+describe('conflict: clock-skew-tolerant LWW', () => {
+  it('a slow-clock client with a higher version wins inside the 90-second window', async () => {
     const auth = await adminAuthHeader();
     const p = await createRoom(auth);
-    await pushOperations(auth, [pushOp('rooms', 'delete', { local_uuid: p.local_uuid })]);
-    const tomb = await serverRow(p.local_uuid as string);
+    const server = await serverRow(p.local_uuid as string);
+    const incomingVersion = Number(server.version) + 1;
 
-    const res = await pushOperations(auth, [
-      pushOp('rooms', 'update', { ...p, price: 210 }, {
-        vectorClock: '{"device-B":3}',
-        updatedAt: (tomb.updated_at as number) + 10,
+    const response = await pushOperations(auth, [
+      pushOp('rooms', 'update', { ...p, price: 222, version: incomingVersion }, {
+        vectorClock: '{"device-B":1}',
+        updatedAt: Number(server.updated_at) - 45,
       }),
     ]);
-    const body = (await res.json()) as PushResponseBody;
+    const body = (await response.json()) as PushResponseBody;
     expect(body.summary.success).toBe(1);
+
+    const updated = await serverRow(p.local_uuid as string);
+    expect(updated.price).toBe(222);
+    expect(updated.version).toBe(incomingVersion);
+  });
+});
+
+describe('conflict: delete-vs-update contract', () => {
+  it('delete wins over a later edit and the rejection is idempotently visible', async () => {
+    const auth = await adminAuthHeader();
+    const p = await createRoom(auth);
+    const deleteResponse = await pushOperations(auth, [
+      pushOp('rooms', 'delete', { local_uuid: p.local_uuid }),
+    ]);
+    expect(((await deleteResponse.json()) as PushResponseBody).summary.success).toBe(1);
+    const tomb = await serverRow(p.local_uuid as string);
+
+    // A different device can have an edit queued while the deletion is in
+    // flight. Deletion wins regardless of the incoming timestamp/vector clock.
+    const edit = pushOp('rooms', 'update', { ...p, price: 210 }, {
+      vectorClock: '{"device-B":3}',
+      updatedAt: (tomb.updated_at as number) + 10,
+    });
+    const firstResponse = await pushOperations(auth, [edit]);
+    const firstBody = (await firstResponse.json()) as PushResponseBody;
+    expect(firstBody.summary.success).toBe(1);
+    expect(firstBody.results[0]?.status).toBe('deleted');
+
     const row = await serverRow(p.local_uuid as string);
-    expect(row.price).toBe(210);
+    expect(row.price).toBe(100.5);
+    expect(row.deleted_at).toBe(tomb.deleted_at);
+
+    const conflicts = await env.DB.prepare(
+      'SELECT resolution FROM sync_conflicts WHERE entity_id = ?'
+    ).bind(p.local_uuid).all<{ resolution: string }>();
+    expect(conflicts.results.map((item) => item.resolution)).toContain('edit_on_deleted');
+
+    // The same operation key must replay its disposition instead of hiding
+    // the conflict behind a generic successful-idempotent response.
+    const replayResponse = await pushOperations(auth, [edit]);
+    const replayBody = (await replayResponse.json()) as PushResponseBody;
+    expect(replayBody.results[0]?.success).toBe(true);
+    expect(replayBody.results[0]?.skipped).toBe(true);
+    expect(replayBody.results[0]?.status).toBe('deleted');
+    const conflictsAfterReplay = await env.DB.prepare(
+      'SELECT resolution FROM sync_conflicts WHERE entity_id = ?'
+    ).bind(p.local_uuid).all<{ resolution: string }>();
+    expect(conflictsAfterReplay.results).toHaveLength(1);
   });
 });

@@ -102,6 +102,104 @@ describe('push: create flow', () => {
     expect(pulled.changes.some((c) => c.local_uuid === payload.local_uuid)).toBe(true);
   });
 
+  it('translates booking_nights parent ids through booking_uuid_cache before D1 writes', async () => {
+    const auth = await adminAuthHeader();
+    const bookingUuids = [uniqueUuid('booking-a'), uniqueUuid('booking-b')];
+    const bookings = bookingUuids.map((local_uuid, index) => ({
+      local_uuid,
+      room_number: `N${index + 1}`,
+      guest_name: `Guest ${index + 1}`,
+      guest_phone: '',
+      guest_nationality: 'YE',
+      checkin_date: '2026-10-01',
+      status: 'confirmed',
+      created_at: 1700000000,
+      updated_at: 1700000000,
+    }));
+    const bookingPush = await pushOperations(
+      auth,
+      bookings.map((booking) => pushOp('bookings', 'create', booking)),
+    );
+    const bookingResults = (await bookingPush.json()) as PushResponseBody;
+    expect(bookingResults.summary.success).toBe(2);
+
+    const parents = await env.DB.prepare(
+      'SELECT id, local_uuid FROM bookings WHERE local_uuid IN (?, ?) ORDER BY id ASC',
+    ).bind(...bookingUuids).all<{ id: number; local_uuid: string }>();
+    expect(parents.results).toHaveLength(2);
+
+    // Both devices used booking_local_id=7, and the same hotel day, but the
+    // UUIDs point to different bookings. D1 must store each server-side FK.
+    const nights = bookingUuids.map((booking_uuid_cache, index) => ({
+      local_uuid: uniqueUuid(`night-${index}`),
+      booking_local_id: 7,
+      booking_uuid_cache,
+      hotel_day_key: '2026-10-01',
+      night_start: '2026-10-01 14:00',
+      night_end: '2026-10-02 12:00',
+      nightly_rate: 120 + index,
+      sequence: 0,
+      created_at: 1700000000,
+      updated_at: 1700000000,
+    }));
+    const nightPush = await pushOperations(
+      auth,
+      nights.map((night) => pushOp('booking_nights', 'create', night)),
+    );
+    const nightResults = (await nightPush.json()) as PushResponseBody;
+    expect(nightResults.summary.success).toBe(2);
+
+    for (const night of nights) {
+      const stored = await env.DB.prepare(
+        'SELECT booking_local_id, booking_uuid_cache FROM booking_nights WHERE local_uuid = ?',
+      ).bind(night.local_uuid).first<{ booking_local_id: number; booking_uuid_cache: string }>();
+      const parent = parents.results.find((item) => item.local_uuid === night.booking_uuid_cache);
+      expect(parent).toBeDefined();
+      expect(stored?.booking_local_id).toBe(parent!.id);
+      expect(stored?.booking_uuid_cache).toBe(night.booking_uuid_cache);
+    }
+
+    // Updates from a device may again carry its local numeric id; UUID still
+    // wins and the D1 foreign key remains the canonical server-side id.
+    const updatedNight = { ...nights[0]!, booking_local_id: 999, nightly_rate: 175 };
+    const update = await pushOperations(auth, [
+      pushOp('booking_nights', 'update', updatedNight, {
+        vectorClock: '{"device-A":2}',
+        updatedAt: Math.floor(Date.now() / 1000) + 5,
+      }),
+    ]);
+    const updateResults = (await update.json()) as PushResponseBody;
+    expect(updateResults.summary.success).toBe(1);
+    const storedAfterUpdate = await env.DB.prepare(
+      'SELECT booking_local_id, nightly_rate FROM booking_nights WHERE local_uuid = ?',
+    ).bind(nights[0]!.local_uuid).first<{ booking_local_id: number; nightly_rate: number }>();
+    expect(storedAfterUpdate?.booking_local_id).toBe(parents.results[0]!.id);
+    expect(storedAfterUpdate?.nightly_rate).toBe(175);
+  });
+
+  it('does not persist a night against a raw local id when its parent UUID is missing', async () => {
+    const auth = await adminAuthHeader();
+    const payload = {
+      local_uuid: uniqueUuid('orphan-night'),
+      booking_local_id: 7,
+      booking_uuid_cache: uniqueUuid('missing-booking'),
+      hotel_day_key: '2026-10-01',
+      night_start: '2026-10-01 14:00',
+      night_end: '2026-10-02 12:00',
+      created_at: 1700000000,
+      updated_at: 1700000000,
+    };
+
+    const response = await pushOperations(auth, [pushOp('booking_nights', 'create', payload)]);
+    const body = (await response.json()) as PushResponseBody;
+    expect(body.summary.failed).toBe(1);
+    expect(body.results[0]?.error).toContain('booking_uuid_cache');
+    const row = await env.DB.prepare(
+      'SELECT local_uuid FROM booking_nights WHERE local_uuid = ?',
+    ).bind(payload.local_uuid).first();
+    expect(row).toBeNull();
+  });
+
   it('is idempotent: duplicate idempotencyKey → skipped:true, no duplicate row', async () => {
     const auth = await adminAuthHeader();
     const payload = roomPayload();

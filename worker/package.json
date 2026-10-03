@@ -10,6 +10,11 @@
     "db:migrate:app-users": "wrangler d1 execute marina-hotel-db --file=./migrations/0003_app_users.sql",
     "db:migrate:devices": "wrangler d1 execute marina-hotel-db --file=./migrations/0004_devices_sync.sql",
     "db:migrate:parity": "wrangler d1 execute marina-hotel-db --file=./migrations/0005_schema_parity.sql",
+    "db:migrate:salary-withdrawals": "wrangler d1 execute marina-hotel-db --file=./migrations/0006_salary_withdrawals_employee_uuid.sql",
+    "db:migrate:salary-employee-uuid": "wrangler d1 execute marina-hotel-db --file=./migrations/0007_salary_tables_employee_uuid.sql",
+    "db:migrate:sync-meta": "wrangler d1 execute marina-hotel-db --file=./migrations/0010_sync_meta.sql",
+    "db:migrate:salary-parent-uuids": "wrangler d1 execute marina-hotel-db --file=./migrations/0011_salary_parent_uuids.sql",
+    "db:migrate:expense-link-clear-flag": "wrangler d1 execute marina-hotel-db --file=./migrations/0012_expense_employee_link_clear_flag.sql",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit"
   },

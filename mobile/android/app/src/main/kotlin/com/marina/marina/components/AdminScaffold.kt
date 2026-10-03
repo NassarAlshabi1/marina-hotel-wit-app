@@ -4,13 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
@@ -19,9 +16,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.marina.marina.domain.model.AuthUser
+import com.marina.marina.ui.theme.MarinaPalette
 import kotlinx.coroutines.launch
 
 /**
@@ -40,14 +37,11 @@ val LocalSidebarMenuOpener = compositionLocalOf<(() -> Unit)?> { null }
 @Composable
 fun SidebarMenuButton() {
     val opener = LocalSidebarMenuOpener.current ?: return
-    IconButton(onClick = opener) {
-        Icon(
-            imageVector = Icons.Filled.Menu,
-            contentDescription = "القائمة",
-            // Compact size (user request — smaller, not bigger).
-            modifier = Modifier.size(22.dp)
-        )
-    }
+    MarinaToolbarIconButton(
+        imageVector = Icons.Filled.Menu,
+        contentDescription = "القائمة",
+        onClick = opener
+    )
 }
 
 /**
@@ -103,7 +97,7 @@ fun AdminScaffold(
                     drawerState = drawerState,
                     drawerContent = {
                         ModalDrawerSheet(
-                            drawerContainerColor = Color(0xFF0F172A),
+                            drawerContainerColor = MarinaPalette.OceanNight,
                             modifier = Modifier.width(280.dp)
                         ) {
                             AdminSidebar(

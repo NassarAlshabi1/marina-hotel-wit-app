@@ -2,6 +2,8 @@ package com.marina.marina.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.marina.marina.data.local.AppDatabase
 import dagger.Module
 import dagger.Provides
@@ -14,6 +16,22 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    /** Add stable UUID references for salary-payment cycles and carry-over employees. */
+    private val MIGRATION_70_71 = object : Migration(70, 71) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT")
+            db.execSQL("ALTER TABLE salary_carry_over_logs ADD COLUMN employee_uuid TEXT")
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid " +
+                    "ON salary_payments(cycle_uuid)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee_uuid " +
+                    "ON salary_carry_over_logs(employee_uuid)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -22,6 +40,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
+            .addMigrations(MIGRATION_70_71)
             .fallbackToDestructiveMigration()
             .build()
     }

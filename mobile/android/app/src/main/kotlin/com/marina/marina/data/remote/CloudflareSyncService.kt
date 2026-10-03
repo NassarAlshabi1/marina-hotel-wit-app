@@ -1,10 +1,13 @@
 package com.marina.marina.data.remote
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.marina.marina.data.auth.LocalAdminAuth
 import com.marina.marina.di.EncryptedSharedPreferencesManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +22,8 @@ import javax.inject.Singleton
  *    (local:admin-session من [LocalAdminAuth]) — الدخول المحلي يفتح
  *    التطبيق بلا شبكة، والمزامنة تُكمّل الدخول الشبكي كسولاً عند الحاجة.
  *  • pull: GET /api/sync/pull?cursor&limit&exclude_device — سحب دلتا
- *    عبر كل الجداول دفعة واحدة (كل سجل يحمل _entity).
+ *    عبر كل الجداول دفعة واحدة (كل سجل يحمل _entity) + epoch اختياري
+ *    لإبطال المؤشر بعد استعادة/إعادة استيراد خادمية.
  *  • push: POST /api/sync/push {operations:[…]} — دفعة واحدة ≤100 عملية.
  */
 @Singleton
@@ -228,6 +232,16 @@ class CloudflareSyncService @Inject constructor(
     }
 }
 
+/** تفاصيل آمنة ومحدودة لخطأ مزامنة محفوظ محلياً لعرضه في شاشة التشخيص. */
+data class SyncErrorRecord(
+    val id: String = "",
+    val occurredAtMillis: Long = 0L,
+    val operation: String = "sync",
+    val message: String = "",
+    val pullCursor: Long = 0L,
+    val deviceId: String? = null
+)
+
 /**
  * تخزين حالة المزامنة (توكن/مؤشرات/جهاز) — نفس المفاتيح السابقة مع
  * إضافة مؤشر السحب العام (last pull cursor) الذي يفرضه عقد الخادم.
@@ -244,6 +258,10 @@ class SyncPreferences @Inject constructor(
         private const val KEY_FULL_SYNC_COMPLETE = "full_sync_complete"
         private const val KEY_CURRENT_USER = "current_user_json"
         private const val KEY_LAST_PULL_CURSOR = "last_pull_cursor"
+        private const val KEY_SYNC_EPOCH = "cf_sync_epoch"
+        private const val KEY_SYNC_ERROR_HISTORY = "cf_sync_error_history"
+        private const val MAX_SYNC_ERROR_RECORDS = 40
+        private const val MAX_SYNC_ERROR_MESSAGE_LENGTH = 2_500
 
         // ✅ (2026-09-24) مفاتيح إعدادات المزامنة — نفس سلاسل Dart حرفياً
         // (unified_sync_settings_screen.dart l.59-68) لضمان التوافق.
@@ -261,6 +279,45 @@ class SyncPreferences @Inject constructor(
 
         /** ✅ (2026-09-25) علم تطبيع الطوابع الخادمي (normalize_timestamps مرة واحدة). */
         private const val KEY_TS_NORMALIZATION_DONE = "cf_timestamp_normalization_done"
+    }
+
+    private val syncErrorHistoryGson = Gson()
+    private val syncErrorHistoryType = object : TypeToken<List<SyncErrorRecord>>() {}.type
+
+    /** حفظ آخر الأخطاء محلياً؛ لا تُخزّن حمولة السجلات أو رموز الدخول. */
+    @Synchronized
+    fun recordSyncError(
+        operation: String,
+        message: String,
+        pullCursor: Long,
+        deviceId: String?
+    ) {
+        val safeMessage = message
+            .replace(Regex("(?i)bearer\\s+[^\\s,;]+"), "Bearer [محذوف]")
+            .take(MAX_SYNC_ERROR_MESSAGE_LENGTH)
+        val entry = SyncErrorRecord(
+            id = UUID.randomUUID().toString(),
+            occurredAtMillis = System.currentTimeMillis(),
+            operation = operation.take(40),
+            message = safeMessage,
+            pullCursor = pullCursor,
+            deviceId = deviceId?.take(100)
+        )
+        val updated = (listOf(entry) + getSyncErrorHistory()).take(MAX_SYNC_ERROR_RECORDS)
+        preferencesManager.saveString(KEY_SYNC_ERROR_HISTORY, syncErrorHistoryGson.toJson(updated))
+    }
+
+    fun getSyncErrorHistory(): List<SyncErrorRecord> {
+        val serialized = preferencesManager.getString(KEY_SYNC_ERROR_HISTORY) ?: return emptyList()
+        return runCatching {
+            syncErrorHistoryGson.fromJson<List<SyncErrorRecord>>(serialized, syncErrorHistoryType)
+                .orEmpty()
+        }.getOrDefault(emptyList())
+    }
+
+    @Synchronized
+    fun clearSyncErrorHistory() {
+        preferencesManager.saveString(KEY_SYNC_ERROR_HISTORY, "[]")
     }
 
     /** يثبّت المستخدم الداخل (JSON) كي تحتفظ استعادة الجلسة بالهوية الحقيقية. */
@@ -324,6 +381,14 @@ class SyncPreferences @Inject constructor(
 
     fun getLastPullCursor(): Long {
         return preferencesManager.getLong(KEY_LAST_PULL_CURSOR, 0L)
+    }
+
+    /** آخر جيل خادمي معتمد؛ null قبل أول استجابة Worker تحمل epoch. */
+    fun getSyncEpoch(): String? =
+        preferencesManager.getString(KEY_SYNC_EPOCH)?.trim()?.takeIf { it.isNotEmpty() }
+
+    fun saveSyncEpoch(epoch: String) {
+        preferencesManager.saveString(KEY_SYNC_EPOCH, epoch.trim())
     }
 
     // ─── ✅ (2026-09-25) علم تطبيع الطوابع الخادمي ───────────────

@@ -24,7 +24,7 @@
 --  * All added columns are nullable or defaulted → compatible with
 --    existing rows and with the worker's NOT-NULL filler.
 --
---  Apply with: npm run db:migrate
+--  Apply with: npm run db:migrate:parity
 -- ═══════════════════════════════════════════════════════════════
 
 -- ─── bookings: financial freeze metadata ────────────────────

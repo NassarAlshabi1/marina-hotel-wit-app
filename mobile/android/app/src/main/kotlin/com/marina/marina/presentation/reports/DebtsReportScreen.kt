@@ -19,6 +19,8 @@ import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 import com.marina.marina.util.PdfExporter
+import com.marina.marina.components.MarinaBackButton
+import com.marina.marina.components.MarinaTopAppBar
 
 /** تقرير الديون — UI port of `debts_report_screen.dart`. */
 @Composable
@@ -33,10 +35,10 @@ fun DebtsReportScreen(
         Scaffold(
             containerColor = AppColors.BackgroundColor,
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("تقرير الديون", style = AppTypography.titleLarge) },
                     navigationIcon = {
-                        TextButton(onClick = onBack) { Text("رجوع", color = AppColors.PrimaryColor) }
+                        MarinaBackButton(onClick = onBack)
                     },
                     actions = {
                         TextButton(
@@ -78,7 +80,7 @@ fun DebtsReportScreen(
                 // Guest summary table (Dart l.591-620).
                 if (state.guestSummaries.isNotEmpty()) {
                     item {
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -111,7 +113,7 @@ fun DebtsReportScreen(
                 } else {
                     items(state.rows.size, key = { state.rows[it].id }) { index ->
                         val debt = state.rows[index]
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                             shape = RoundedCornerShape(10.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),

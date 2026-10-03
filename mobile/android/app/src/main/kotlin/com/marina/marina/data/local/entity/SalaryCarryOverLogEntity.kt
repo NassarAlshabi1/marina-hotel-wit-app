@@ -6,12 +6,15 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 
-@Entity(tableName = "salary_carry_over_logs",
+@Entity(
+    tableName = "salary_carry_over_logs",
+    indices = [Index(value = ["employee_uuid"], name = "idx_salary_carryover_employee_uuid")]
 )
 data class SalaryCarryOverLogEntity(
     @PrimaryKey(autoGenerate = true) @SerializedName("id") override val id: Long = 0,
 
     @SerializedName("employee_id") @ColumnInfo(name = "employee_id") val employeeId: Long,
+    @SerializedName("employee_uuid") @ColumnInfo(name = "employee_uuid") val employeeUuid: String? = null,
     @SerializedName("amount") val amount: Double,
     @SerializedName("previous_cycle_start") @ColumnInfo(name = "previous_cycle_start") val previousCycleStart: String,
     @SerializedName("previous_cycle_end") @ColumnInfo(name = "previous_cycle_end") val previousCycleEnd: String,

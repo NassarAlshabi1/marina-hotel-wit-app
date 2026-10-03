@@ -95,7 +95,7 @@ class ExpensesViewModel @Inject constructor(
 
     /** أنواع إجراءات الرواتب — عقد Dart _isSalaryAction (expenses_list.dart l.1441-1451). */
     private val salaryActionTypes = setOf(
-        "رواتب", "سحب راتب", "سحب من الراتب", "خصم راتب", "خصم من الراتب"
+        "رواتب", "سحب راتب", "سحب من الراتب", "سلفة", "خصم راتب", "خصم من الراتب", "خصم", "غياب"
     )
 
     fun saveExpense(expense: Expense) {
@@ -143,7 +143,11 @@ class ExpensesViewModel @Inject constructor(
                             hotelDayKey = expense.hotelDayKey ?: HotelTimeEngine.currentHotelDayKey()
                         )
                     } else {
-                        salaryWithdrawalsRepository.deleteByExpenseId(expense.id)
+                        salaryWithdrawalsRepository.deleteByExpenseId(
+                            expenseId = expense.id,
+                            employeeId = expense.relatedId,
+                            employeeUuid = expense.employeeUuid
+                        )
                     }
                     _state.value = _state.value.copy(message = "تم تحديث المصروف")
                 }
@@ -159,7 +163,11 @@ class ExpensesViewModel @Inject constructor(
                 // Dart expenses_list.dart l.850-856: حذف السحب المقترن أولاً
                 // ثم المصروف — حماية تكامل البيانات (لا سحوبات يتيمة تعود
                 // لتظهر في التقرير بعد الحذف).
-                salaryWithdrawalsRepository.deleteByExpenseId(expense.id)
+                salaryWithdrawalsRepository.deleteByExpenseId(
+                    expenseId = expense.id,
+                    employeeId = expense.relatedId,
+                    employeeUuid = expense.employeeUuid
+                )
                 expensesRepository.softDelete(expense.id)
                 _state.value = _state.value.copy(message = "تم حذف المصروف")
             } catch (e: Exception) {

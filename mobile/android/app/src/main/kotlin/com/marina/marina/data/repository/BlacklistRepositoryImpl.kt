@@ -72,14 +72,14 @@ class BlacklistRepositoryImpl @Inject constructor(
             updatedAt = now
         )
         val id = dao.insert(prepared.toEntity())
-        outboxRepository.enqueueObject("blacklist_entries", "insert", prepared.localUuid, prepared)
+        outboxRepository.enqueueObject("blacklist", "insert", prepared.localUuid, prepared)
         return id
     }
 
     override suspend fun update(entry: BlacklistEntry) {
         val prepared = entry.copy(updatedAt = System.currentTimeMillis())
         dao.update(prepared.toEntity())
-        outboxRepository.enqueueObject("blacklist_entries", "update", prepared.localUuid, prepared)
+        outboxRepository.enqueueObject("blacklist", "update", prepared.localUuid, prepared)
     }
 
     override suspend fun setActive(id: Long, active: Boolean) {

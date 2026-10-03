@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.Info
@@ -39,12 +40,11 @@ import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -52,7 +52,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -78,6 +77,9 @@ import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.MarinaTheme
 import com.marina.marina.ui.theme.ThemePrefs
 import com.marina.marina.util.PdfExporter
+import com.marina.marina.components.SidebarMenuButton
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.MarinaToolbarActionButton
 
 /**
  * الإعدادات — نقل 1:1 لـ `settings_screen.dart` (فرع feat/cloudflare-sync-
@@ -129,7 +131,12 @@ fun SettingsScreen(
         HubItem(
             "النسخ الاحتياطي والاستعادة",
             "نسخ محلية آمنة ومزامنة Cloudflare D1",
-            Icons.Default.Backup, Color(0xFFFF5722), route = "backup"
+            Icons.Default.Backup, AppColors.WarningColor, route = "backup"
+        ),
+        HubItem(
+            "سجل أخطاء المزامنة",
+            "تفاصيل أسباب فشل السحب والرفع المحفوظة على الجهاز",
+            Icons.Default.ErrorOutline, AppColors.DangerColor, route = "sync_diagnostics"
         )
     )
     val whatsappItems = listOf(
@@ -147,8 +154,9 @@ fun SettingsScreen(
             containerColor = AppColors.BackgroundColor,
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("الإعدادات", style = MaterialTheme.typography.titleLarge) },
+                    navigationIcon = { SidebarMenuButton() },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = AppColors.SurfaceColor,
                         titleContentColor = AppColors.TextPrimary
@@ -156,15 +164,22 @@ fun SettingsScreen(
                     actions = {
                         // نظير SyncActionButton في AppScaffold (Dart).
                         if (state.isSyncing) {
-                            Box(modifier = Modifier.size(24.dp).padding(2.dp)) {
-                                CircularProgressIndicator(modifier = Modifier.fillMaxSize(), strokeWidth = 2.dp)
+                            MarinaToolbarActionButton(onClick = {}, enabled = false) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
                             }
                         } else {
-                            IconButton(onClick = viewModel::syncNow) {
+                            MarinaToolbarActionButton(
+                                onClick = viewModel::syncNow,
+                                containerColor = if (state.isError) AppColors.DangerActionColor
+                                else AppColors.PrimaryActionColor
+                            ) {
                                 Icon(
                                     Icons.Default.Sync,
                                     contentDescription = "مزامنة مع Cloudflare",
-                                    tint = if (state.isError) Color(0xFFFF5349) else AppColors.TextPrimary
+                                    tint = Color.White
                                 )
                             }
                         }
@@ -322,17 +337,26 @@ fun SettingsScreen(
 
 // ═══════════════ مكونات مطابقة لعناصر Dart ═══════════════
 
-/** ألوان Dart المستخدمة في الشاشة (Colors.* الفعلية). */
+/** Semantic accents resolved from the active palette on every recomposition. */
 private object DartColors {
-    val blue = Color(0xFF2196F3)
-    val green = Color(0xFF4CAF50)
-    val orange = Color(0xFFFF9800)
-    val purple = Color(0xFF9C27B0)
-    val indigo = Color(0xFF3F51B5)
-    val red = Color(0xFFF44336)
-    val brown = Color(0xFF795548)
-    val grey = Color(0xFF9E9E9E)
-    val amber700 = Color(0xFFFFA000)
+    val blue: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val green: Color
+        @Composable get() = MaterialTheme.colorScheme.tertiary
+    val orange: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
+    val purple: Color
+        @Composable get() = AppColors.InfoColor
+    val indigo: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val red: Color
+        @Composable get() = MaterialTheme.colorScheme.error
+    val brown: Color
+        @Composable get() = AppColors.WarningColor
+    val grey: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+    val amber700: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
 }
 
 /** عنصر شبكة الإعدادات — نظير _SettingsItem في Dart. */
@@ -354,7 +378,7 @@ private fun QuickStatsCard(
     users: Int,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
@@ -450,7 +474,7 @@ private fun SettingsGrid(items: List<HubItem>, onClick: (HubItem) -> Unit) {
 /** بطاقة عنصر — Card elevation 1 + padding 10 + عمود متمركز (Dart). */
 @Composable
 private fun GridCard(item: HubItem, onClick: (HubItem) -> Unit, modifier: Modifier = Modifier) {
-    Card(
+    OutlinedCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),

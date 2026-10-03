@@ -17,9 +17,12 @@ import com.marina.marina.domain.model.Booking
 import com.marina.marina.domain.util.BookingFinancials
 import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.ui.theme.AppColors
+import com.marina.marina.ui.theme.MarinaPalette
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
 import com.marina.marina.util.PdfExporter
+import com.marina.marina.components.MarinaBackButton
+import com.marina.marina.components.MarinaTopAppBar
 
 /** تذكير المتبقي — UI port of `active_bookings_reminder_screen.dart`. */
 @Composable
@@ -46,10 +49,10 @@ fun BookingsReminderScreen(
         Scaffold(
             containerColor = AppColors.BackgroundColor,
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("تذكير المتبقي", style = AppTypography.titleLarge) },
                     navigationIcon = {
-                        TextButton(onClick = onBack) { Text("رجوع", color = AppColors.PrimaryColor) }
+                        MarinaBackButton(onClick = onBack)
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = AppColors.SurfaceColor,
@@ -64,7 +67,7 @@ fun BookingsReminderScreen(
                 }
             } else if (state.withRemaining.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Card(
+                    OutlinedCard(
                         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -86,7 +89,7 @@ fun BookingsReminderScreen(
                 ) {
                     items(state.withRemaining.size, key = { state.withRemaining[it].id }) { index ->
                         val booking = state.withRemaining[index]
-                        Card(
+                        OutlinedCard(
                             colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                             shape = RoundedCornerShape(12.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -119,7 +122,10 @@ fun BookingsReminderScreen(
                                 }
                                 Button(
                                     onClick = { sendReminder(booking) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MarinaPalette.WhatsAppDeep,
+                                        contentColor = Color.White
+                                    ),
                                     shape = RoundedCornerShape(10.dp),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                 ) {

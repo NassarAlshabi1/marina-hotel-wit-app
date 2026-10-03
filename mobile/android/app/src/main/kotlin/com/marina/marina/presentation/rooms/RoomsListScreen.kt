@@ -24,6 +24,8 @@ import com.marina.marina.domain.util.StatusUtils
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
+import com.marina.marina.components.SidebarMenuButton
+import com.marina.marina.components.MarinaTopAppBar
 
 @Composable
 fun RoomsListScreen(
@@ -49,8 +51,9 @@ fun RoomsListScreen(
             containerColor = AppColors.BackgroundColor,
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("إدارة الغرف", style = AppTypography.titleLarge) },
+                    navigationIcon = { SidebarMenuButton() },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = AppColors.SurfaceColor,
                         titleContentColor = AppColors.TextPrimary
@@ -60,7 +63,7 @@ fun RoomsListScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { showAddDialog = true },
-                    containerColor = AppColors.PrimaryColor,
+                    containerColor = AppColors.PrimaryActionColor,
                     contentColor = Color.White
                 ) {
                     Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -225,9 +228,9 @@ private fun RoomTile(room: Room, hasActiveBooking: Boolean, onClick: () -> Unit)
     // FIRST, then active-booking occupancy (red), else available (green). A
     // stale stored 'محجوزة' with no active booking shows GREEN.
     val backgroundColor = when {
-        StatusUtils.isRoomUnderMaintenance(room.status) -> AppColors.WarningColor
-        hasActiveBooking -> AppColors.DangerColor
-        else -> AppColors.SuccessColor
+        StatusUtils.isRoomUnderMaintenance(room.status) -> AppColors.WarningActionColor
+        hasActiveBooking -> AppColors.DangerActionColor
+        else -> AppColors.SuccessActionColor
     }
     val displayStatus = when {
         StatusUtils.isRoomUnderMaintenance(room.status) -> "صيانة"
@@ -266,7 +269,7 @@ private fun RoomTile(room: Room, hasActiveBooking: Boolean, onClick: () -> Unit)
 
 @Composable
 private fun RoomStatChip(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
-    Card(
+    OutlinedCard(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),

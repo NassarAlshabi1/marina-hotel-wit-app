@@ -45,6 +45,9 @@ interface BookingsDao {
     @Query("SELECT * FROM bookings WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): BookingEntity?
 
+    @Query("SELECT * FROM bookings WHERE local_uuid = :localUuid ORDER BY id ASC")
+    suspend fun getByLocalUuidCandidates(localUuid: String): List<BookingEntity>
+
     /**
      * Any active booking for a room — checks every active booking status
      * (ported 1:1 from the Flutter repo: ordered by check-in date desc, limit 1).
@@ -97,4 +100,7 @@ interface BookingsDao {
     /** ✅ الرجل الإرثية (فضاء Appwrite القديم) — booking_id/server_booking_id على السلك. */
     @Query("SELECT * FROM bookings WHERE server_booking_id = :serverBookingId LIMIT 1")
     suspend fun getByServerBookingIdIncludingDeleted(serverBookingId: Long): BookingEntity?
+
+    @Query("SELECT * FROM bookings WHERE server_booking_id = :serverBookingId ORDER BY id ASC")
+    suspend fun getByServerBookingIdCandidates(serverBookingId: Long): List<BookingEntity>
 }

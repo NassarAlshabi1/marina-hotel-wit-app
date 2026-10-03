@@ -36,6 +36,16 @@ CREATE TABLE IF NOT EXISTS sync_clock (
 );
 INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, 0);
 
+-- ─── Sync data generation (migration 0010) ───────────────────
+-- Rotating epoch after a server-side restore resets client pull cursors.
+CREATE TABLE IF NOT EXISTS sync_meta (
+  k TEXT PRIMARY KEY,
+  v TEXT NOT NULL,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+INSERT OR IGNORE INTO sync_meta (k, v)
+VALUES ('epoch', lower(hex(randomblob(16))));
+
 -- ─── Rate limiting (D1-based; no KV daily-write cap) ──────────
 CREATE TABLE IF NOT EXISTS rate_limits (
   client_id TEXT NOT NULL,
@@ -541,6 +551,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   cash_flow_uuid TEXT,
   is_auto_generated INTEGER NOT NULL DEFAULT 0,
   employee_uuid TEXT,
+  employee_link_cleared INTEGER NOT NULL DEFAULT 0,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -624,6 +635,8 @@ CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted_at);
 CREATE TABLE IF NOT EXISTS salary_payments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   cycle_id INTEGER NOT NULL,
+  -- Stable cycle identity; cycle_id is normalized to D1's id on push.
+  cycle_uuid TEXT,
   -- ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — migration 0007
   -- (مُردَّم من دورة الدفع salary_cycles عبر employee_uuid).
   employee_uuid TEXT,
@@ -651,6 +664,7 @@ CREATE TABLE IF NOT EXISTS salary_payments (
 );
 CREATE INDEX IF NOT EXISTS idx_salary_payments_updated ON salary_payments(updated_at);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid ON salary_payments(employee_uuid);
+CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid ON salary_payments(cycle_uuid);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle ON salary_payments(cycle_id, hotel_day_key);
 
 -- ─── Salary Withdrawals ───────────────────────────────────────
@@ -693,6 +707,8 @@ CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_hotel_day ON salary_withdrawal
 CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   employee_id INTEGER NOT NULL,
+  -- Stable employee identity; employee_id remains a D1-local cache.
+  employee_uuid TEXT,
   amount REAL NOT NULL,
   previous_cycle_start TEXT NOT NULL,
   previous_cycle_end TEXT NOT NULL,
@@ -725,6 +741,7 @@ CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_salary_carryover_updated ON salary_carry_over_logs(updated_at);
 CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee ON salary_carry_over_logs(employee_id);
+CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee_uuid ON salary_carry_over_logs(employee_uuid);
 
 -- ─── Shift Notes ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS shift_notes (

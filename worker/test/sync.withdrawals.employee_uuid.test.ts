@@ -73,9 +73,33 @@ async function push(
   return (await res.json()) as PushResponseBody;
 }
 
+async function createEmployeeParent() {
+  const employee = employeePayload();
+  const result = await push([
+    {
+      idempotencyKey: uniqueUuid('idem'),
+      entity: 'employees',
+      operation: 'create',
+      data: employee,
+      vectorClock: '{}',
+      updatedAt: 1700000000,
+      deviceId: 'device-A',
+    },
+  ]);
+  expect(result.summary.failed).toBe(0);
+  const stored = await env.DB.prepare(
+    'SELECT id, local_uuid FROM employees WHERE local_uuid = ?',
+  )
+    .bind(employee.local_uuid)
+    .first<{ id: number; local_uuid: string }>();
+  expect(stored).not.toBeNull();
+  return { employee, stored: stored! };
+}
+
 describe('salary_withdrawals employee_uuid — عقد المرجع المستقر للأب', () => {
-  it('create يحفظ employee_uuid وpull يعيده للأجهزة الأخرى', async () => {
-    const wd = withdrawalPayload();
+  it('create maps employee_uuid to the canonical D1 employee and pull returns it', async () => {
+    const { employee, stored: parent } = await createEmployeeParent();
+    const wd = withdrawalPayload({ employee_uuid: employee.local_uuid });
     const result = await push([
       {
         idempotencyKey: uniqueUuid('idem'),
@@ -97,15 +121,14 @@ describe('salary_withdrawals employee_uuid — عقد المرجع المستق�
       (c) => c.local_uuid === wd.local_uuid
     );
     expect(row).toBeDefined();
-    expect(row!['employee_uuid']).toBe(
-      '218da267-a3b3-4c40-ab96-a25101a8f161'
-    );
-    // الرقمي يبقى كما هو (دلالة جهاز المصدر محفوظة)
-    expect(row!['employee_id']).toBe(5);
+    expect(row!['employee_uuid']).toBe(employee.local_uuid);
+    // The device-local numeric id must be replaced by the canonical D1 id.
+    expect(row!['employee_id']).toBe(parent.id);
   });
 
-  it('update بلا employee_uuid لا يمسح المرجع الموجود', async () => {
-    const wd = withdrawalPayload();
+  it('update without employee_uuid preserves the canonical parent reference', async () => {
+    const { employee, stored: parent } = await createEmployeeParent();
+    const wd = withdrawalPayload({ employee_uuid: employee.local_uuid });
     await push([
       {
         idempotencyKey: uniqueUuid('idem'),
@@ -146,13 +169,12 @@ describe('salary_withdrawals employee_uuid — عقد المرجع المستق�
       (c) => c.local_uuid === wd.local_uuid
     );
     expect(row).toBeDefined();
-    expect(row!['employee_uuid']).toBe(
-      '218da267-a3b3-4c40-ab96-a25101a8f161'
-    );
+    expect(row!['employee_uuid']).toBe(employee.local_uuid);
+    expect(row!['employee_id']).toBe(parent.id);
     expect(row!['deleted_at']).toBe(2000000100);
   });
 
-  it('create بلا employee_uuid (سجل قديم) يُقبل — العمود يبقى null', async () => {
+  it('rejects a new withdrawal without stable employee_uuid instead of storing a raw FK', async () => {
     const wd = withdrawalPayload({ employee_uuid: undefined });
     const result = await push([
       {
@@ -165,13 +187,14 @@ describe('salary_withdrawals employee_uuid — عقد المرجع المستق�
         deviceId: 'device-A',
       },
     ]);
-    expect(result.summary.failed).toBe(0);
+    expect(result.summary.failed).toBe(1);
+    expect(result.results[0]?.error).toContain('requires employee_uuid');
 
     const stored = await env.DB.prepare(
       'SELECT employee_uuid FROM salary_withdrawals WHERE local_uuid = ?'
     )
       .bind(wd.local_uuid)
       .first<{ employee_uuid: string | null }>();
-    expect(stored?.employee_uuid).toBeNull();
+    expect(stored).toBeNull();
   });
 });

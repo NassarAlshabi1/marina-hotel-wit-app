@@ -14,13 +14,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.marina.marina.components.SidebarMenuButton
 import com.marina.marina.domain.model.Employee
 import com.marina.marina.domain.util.HotelTimeEngine
 import com.marina.marina.domain.util.StatusUtils
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
+import com.marina.marina.components.MarinaTopAppBar
+import com.marina.marina.components.SidebarMenuButton
 
 @Composable
 fun EmployeesListScreen(
@@ -48,7 +49,7 @@ fun EmployeesListScreen(
             containerColor = AppColors.BackgroundColor,
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
+                MarinaTopAppBar(
                     title = { Text("الموظفون (${state.activeCount})", style = AppTypography.titleLarge) },
                     navigationIcon = { SidebarMenuButton() },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -60,7 +61,7 @@ fun EmployeesListScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { showAddDialog = true },
-                    containerColor = AppColors.PrimaryColor,
+                    containerColor = AppColors.PrimaryActionColor,
                     contentColor = Color.White
                 ) {
                     Text("+", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -96,7 +97,7 @@ fun EmployeesListScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Card(
+                OutlinedCard(
                     colors = CardDefaults.cardColors(containerColor = AppColors.AccentSoft),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -281,7 +282,7 @@ private fun EmployeeCard(
 ) {
     val employee = item.employee
     val isActive = StatusUtils.isEmployeeActive(employee.status)
-    Card(
+    OutlinedCard(
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp),

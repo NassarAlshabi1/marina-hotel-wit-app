@@ -15,6 +15,11 @@ data class BookingNight(
     val baseRate: Double = 0.0,
     val adjustment: Double = 0.0,
     val finalRate: Double = 0.0,
+    val isProcessedByAutoFix: Boolean = false,
+    val appliedAdjustmentUuid: String? = null,
+    val appliedAdjustmentsJson: String? = null,
+    val bookingUuidCache: String? = null,
+    val serverBookingId: Int? = null,
     val localUuid: String = ""
 ) : Parcelable
 

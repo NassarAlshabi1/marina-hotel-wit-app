@@ -6,13 +6,18 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 
-@Entity(tableName = "salary_payments",
-    indices = [Index(value = ["cycle_id", "hotel_day_key"], name = "idx_salary_payments_cycle")],
+@Entity(
+    tableName = "salary_payments",
+    indices = [
+        Index(value = ["cycle_id", "hotel_day_key"], name = "idx_salary_payments_cycle"),
+        Index(value = ["cycle_uuid"], name = "idx_salary_payments_cycle_uuid")
+    ]
 )
 data class SalaryPaymentEntity(
     @PrimaryKey(autoGenerate = true) @SerializedName("id") override val id: Long = 0,
 
     @SerializedName("cycle_id") @ColumnInfo(name = "cycle_id") val cycleId: Long,
+    @SerializedName("cycle_uuid") @ColumnInfo(name = "cycle_uuid") val cycleUuid: String? = null,
     @SerializedName("employee_uuid") @ColumnInfo(name = "employee_uuid") val employeeUuid: String? = null,
     @SerializedName("amount") val amount: Long = 0,
     @SerializedName("hotel_day_key") @ColumnInfo(name = "hotel_day_key") val hotelDayKey: String? = null,

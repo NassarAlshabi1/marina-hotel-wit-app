@@ -22,6 +22,9 @@ interface SalaryCyclesDao {
     @Query("SELECT * FROM salary_cycles WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): SalaryCycleEntity?
 
+    @Query("SELECT * FROM salary_cycles WHERE LOWER(local_uuid) = LOWER(:localUuid) ORDER BY id ASC")
+    suspend fun getByLocalUuidCandidates(localUuid: String): List<SalaryCycleEntity>
+
     @Query("SELECT * FROM salary_cycles WHERE cycle_key = :cycleKey AND deleted_at IS NULL LIMIT 1")
     suspend fun getByKey(cycleKey: String): SalaryCycleEntity?
 
@@ -42,6 +45,9 @@ interface SalaryCyclesDao {
      * IdResolver.resolveSalaryCycle رجل serverId في Dart): cycle_id
      * على السلك قد يحمل id خادمياً لدورة سُحبت سابقاً.
      */
+    @Query("SELECT * FROM salary_cycles WHERE server_id = :serverId ORDER BY id ASC")
+    suspend fun getByServerIdCandidates(serverId: Long): List<SalaryCycleEntity>
+
     @Query("SELECT * FROM salary_cycles WHERE server_id = :serverId LIMIT 1")
     suspend fun getByServerIdIncludingDeleted(serverId: Long): SalaryCycleEntity?
 }

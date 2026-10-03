@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Dns
@@ -33,18 +32,18 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,6 +64,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.marina.marina.presentation.auth.CloudflareConnectionViewModel.CfSyncStatus
 import com.marina.marina.presentation.auth.CloudflareConnectionViewModel.MessageKind
 import com.marina.marina.ui.theme.AppColors
+import com.marina.marina.components.MarinaBackButton
+import com.marina.marina.components.MarinaTopAppBar
 
 /**
  * ✅ (2026-09-24) شاشة «تسجيل الدخول إلى Cloudflare» — نقل 1:1 لـ
@@ -92,15 +93,13 @@ fun CloudflareLoginScreen(
     Scaffold(
         containerColor = AppColors.BackgroundColor,
         topBar = {
-            TopAppBar(
+            MarinaTopAppBar(
                 title = { Text("تسجيل الدخول إلى Cloudflare") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع")
-                    }
+                    MarinaBackButton(onClick = onBack)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppColors.PrimaryColor,
+                    containerColor = AppColors.PrimaryActionColor,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
@@ -129,7 +128,7 @@ fun CloudflareLoginScreen(
             }
 
             // ─── بطاقة الاعتمادات ───
-            Card(
+            OutlinedCard(
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -187,7 +186,7 @@ fun CloudflareLoginScreen(
                         onClick = viewModel::login,
                         enabled = !state.isLoggingIn,
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = AppColors.PrimaryColor,
+                            containerColor = AppColors.PrimaryActionColor,
                             contentColor = Color.White
                         ),
                         modifier = Modifier.fillMaxWidth()
@@ -288,10 +287,14 @@ fun CloudflareLoginScreen(
 
 /** ألوان حالات SyncStatus في Dart (Colors.blue/green/orange/grey). */
 private object StatusColors {
-    val blue = Color(0xFF2196F3)
-    val green = Color(0xFF4CAF50)
-    val orange = Color(0xFFFF9800)
-    val grey = Color(0xFF9E9E9E)
+    val blue: Color
+        @Composable get() = MaterialTheme.colorScheme.primary
+    val green: Color
+        @Composable get() = MaterialTheme.colorScheme.tertiary
+    val orange: Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
+    val grey: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 /** بطاقة الحالة العلوية — لحظية (نظير _StatusCard في Dart). */
@@ -304,7 +307,7 @@ private fun StatusCard(status: CfSyncStatus, workerUrl: String, account: String)
         CfSyncStatus.IDLE -> Triple(Icons.Outlined.Cloud, StatusColors.grey, "جاهز — لا مزامنة جارية")
     }
 
-    Card(
+    OutlinedCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),

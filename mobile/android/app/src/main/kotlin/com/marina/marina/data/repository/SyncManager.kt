@@ -3,6 +3,7 @@ package com.marina.marina.data.repository
 import com.marina.marina.data.remote.CloudflareConfig
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
+import com.marina.marina.data.sync.SyncEpochPolicy
 import com.marina.marina.domain.model.SyncUiState
 import com.marina.marina.domain.repository.SyncRepository
 import javax.inject.Inject
@@ -25,9 +26,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * 3. **Pull**: `GET /api/sync/pull?cursor&limit&exclude_device` — دلتا
  *    عبر كل الجداول دفعة واحدة؛ كل سجل يُوجَّه عبر `_entity` إلى جدوله
  *    المحلي ([SyncIngestorRegistry]). المؤشر المرجع هو مؤشر الخادم
- *    (updated_at) ويُحفظ عبر الجلسات — **لا يتقدم إلا عند دورة نظيفة**
- *    (errors فارغة — عقد PullResult في worker/src/database.ts).
- * 4. **Echo filter**: exclude_device يستثني سجلات هذا الجهاز (خطة 2.5).
+ *    (updated_at)، ويُتحقق من رتابته ولا يُحفظ إلا بعد دورة نظيفة.
+ * 4. **Epoch**: جيل D1 يكتشف الاستعادة/إعادة الاستيراد؛ الصفحة القديمة
+ *    تُهمَل ويُعاد السحب من الصفر مرة واحدة، مع دعم Worker أقدم بلا epoch.
+ * 5. **Echo filter**: exclude_device يستثني سجلات هذا الجهاز (خطة 2.5).
  *
  * Exposes a [SyncUiState] stream the Settings/Dashboard screens can collect.
  */
@@ -55,7 +57,7 @@ class SyncManager @Inject constructor(
 
         // ---- Phase 0: lazy login (admin/admin default — auto-login) ----
         if (!syncService.ensureLoggedIn()) {
-            finishWithError("فشل تسجيل الدخول إلى الخادم — تحقق من الشبكة")
+            finishWithError("فشل تسجيل الدخول إلى الخادم — تحقق من الشبكة", operation = "login")
             return _syncState.value
         }
 
@@ -64,7 +66,7 @@ class SyncManager @Inject constructor(
         val pushed = try {
             outboxRepository.processPending() + outboxRepository.syncOutbox()
         } catch (e: Exception) {
-            finishWithError("فشل الدفع: ${e.message}")
+            finishWithError("فشل الدفع: ${e.message}", operation = "push")
             return _syncState.value
         }
         preferences.saveLastPushTs(System.currentTimeMillis())
@@ -74,11 +76,11 @@ class SyncManager @Inject constructor(
         val pulled = try {
             pullDelta()
         } catch (e: Exception) {
-            finishWithError("فشل السحب: ${e.message}")
+            finishWithError("فشل السحب: ${e.message}", operation = "pull_delta")
             return _syncState.value
         }
         if (pulled < 0) {
-            finishWithError("فشل السحب: جداول فاشلة على الخادم — لم يتقدم المؤشر")
+            finishWithError("فشل السحب: جداول فاشلة على الخادم — لم يتقدم المؤشر", operation = "pull_delta")
             return _syncState.value
         }
         preferences.saveLastPullTs(System.currentTimeMillis())
@@ -105,17 +107,17 @@ class SyncManager @Inject constructor(
         if (_syncState.value.isSyncing) return -1
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب...")
         if (!syncService.ensureLoggedIn()) {
-            finishWithError("فشل تسجيل الدخول إلى الخادم")
+            finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
             return -1
         }
         val pulled = try {
             pullDelta()
         } catch (e: Exception) {
-            finishWithError("فشل السحب: ${e.message}")
+            finishWithError("فشل السحب: ${e.message}", operation = "pull_delta")
             return -1
         }
         if (pulled < 0) {
-            finishWithError("فشل السحب: جداول فاشلة على الخادم")
+            finishWithError("فشل السحب: جداول فاشلة على الخادم", operation = "pull_delta")
             return -1
         }
         preferences.saveLastPullTs(System.currentTimeMillis())
@@ -139,13 +141,13 @@ class SyncManager @Inject constructor(
         if (_syncState.value.isSyncing) return -1
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ الرفع...")
         if (!syncService.ensureLoggedIn()) {
-            finishWithError("فشل تسجيل الدخول إلى الخادم")
+            finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
             return -1
         }
         val pushed = try {
             outboxRepository.processPending() + outboxRepository.syncOutbox()
         } catch (e: Exception) {
-            finishWithError("فشل الرفع: ${e.message}")
+            finishWithError("فشل الرفع: ${e.message}", operation = "push")
             return -1
         }
         preferences.saveLastPushTs(System.currentTimeMillis())
@@ -177,7 +179,7 @@ class SyncManager @Inject constructor(
         if (_syncState.value.isSyncing) return -1
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب الكامل...")
         if (!syncService.ensureLoggedIn()) {
-            finishWithError("فشل تسجيل الدخول إلى الخادم")
+            finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
             return -1
         }
         // 1) إعادة ضبط مؤشر السحب — الجلب يبدأ من الصفر.
@@ -185,11 +187,11 @@ class SyncManager @Inject constructor(
         val pulled = try {
             pullDelta(batchSize = CloudflareConfig.FULL_PULL_BATCH_SIZE, isFullPull = true)
         } catch (e: Exception) {
-            finishWithError("فشل السحب الكامل: ${e.message}")
+            finishWithError("فشل السحب الكامل: ${e.message}", operation = "pull_full")
             return -1
         }
         if (pulled < 0) {
-            finishWithError("فشل السحب الكامل: جداول فاشلة على الخادم")
+            finishWithError("فشل السحب الكامل: جداول فاشلة على الخادم", operation = "pull_full")
             return -1
         }
         preferences.saveLastPullTs(System.currentTimeMillis())
@@ -242,12 +244,14 @@ class SyncManager @Inject constructor(
      */
     private suspend fun pullDelta(
         batchSize: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
-        isFullPull: Boolean = false
+        isFullPull: Boolean = false,
+        allowEpochRestart: Boolean = true
     ): Int {
         val deviceId = preferences.getDeviceId()
         var cursor = preferences.getLastPullCursor()
         var ingested = 0
         var pagesDone = 0
+        var epochReset = false
         val deferredRecords = mutableListOf<DeferredRecord>()
 
         while (true) {
@@ -274,13 +278,57 @@ class SyncManager @Inject constructor(
                 throw result.exceptionOrNull() ?: Exception("empty pull response")
             }
 
+            // A page from a previous server generation is not safe to apply.
+            // Adopt first observations silently; a changed epoch on a
+            // non-zero checkpoint resets and replays the pull from zero.
+            val epochDecision = SyncEpochPolicy.evaluate(
+                storedEpoch = preferences.getSyncEpoch(),
+                responseEpoch = response.epoch,
+                pageBuiltFromZero = cursor == 0L && pagesDone == 0
+            )
+            epochDecision.epochToPersist?.let(preferences::saveSyncEpoch)
+            if (epochDecision.restartFromZero) {
+                preferences.saveLastPullCursor(0L)
+                preferences.setFullSyncComplete(false)
+                epochReset = true
+                _syncState.value = _syncState.value.copy(
+                    lastMessage = "تغير جيل بيانات الخادم — إعادة السحب من البداية..."
+                )
+                break
+            }
+
             // جداول فاشلة على الخادم (schema drift عادةً) — لا نقدّم المؤشر؛
             // إصلاح D1 وإعادة المحاولة تُكمّل الصفوف (عقد worker).
             if (!response.errors.isNullOrEmpty()) {
-                return -1
+                val errorDetails = response.errors.orEmpty()
+                    .take(10)
+                    .joinToString("; ") { error ->
+                        listOfNotNull(
+                            error.entity?.takeIf { it.isNotBlank() }?.take(80),
+                            error.error?.takeIf { it.isNotBlank() }?.take(300)
+                        ).joinToString(": ")
+                    }
+                    .take(1_500)
+                throw IllegalStateException(
+                    if (errorDetails.isBlank()) "جداول فشلت على الخادم — لم يتقدم المؤشر"
+                    else "جداول فشلت على الخادم — لم يتقدم المؤشر: $errorDetails"
+                )
             }
 
+            val nextCursor = response.cursor?.toLongOrNull()
+                ?: throw Exception("Pull response is missing a valid cursor")
+            val hasMore = response.hasMore
+                ?: throw Exception("Pull response is missing has_more")
+            if (nextCursor < cursor) {
+                throw Exception("Pull cursor regressed from $cursor to $nextCursor")
+            }
             val changes = response.changes.orEmpty()
+            if (changes.isNotEmpty() && nextCursor <= cursor) {
+                throw Exception("Pull returned records without advancing the cursor")
+            }
+            if (hasMore && nextCursor <= cursor) {
+                throw Exception("Pull pagination stalled at cursor $cursor")
+            }
             if (changes.isNotEmpty()) {
                 val report = ingestorRegistry.ingestPage(changes)
                 ingested += report.applied
@@ -302,16 +350,27 @@ class SyncManager @Inject constructor(
                 lastMessage = "جارٍ السحب... $ingested$remainingText (صفحة $pagesDone)"
             )
 
-            val nextCursor = response.cursor?.toLongOrNull()
-            val hasMore = response.hasMore == true && nextCursor != null && nextCursor > cursor
             if (!hasMore) {
-                nextCursor?.let { cursor = it }
+                cursor = nextCursor
                 break
             }
-            cursor = nextCursor!!
+            cursor = nextCursor
         }
 
-        // ✅ إعادة محاولة المؤجلين — الآباء وصلوا الآن (صفحات لاحقة)،
+        if (epochReset) {
+            if (!allowEpochRestart) {
+                // Keep the checkpoint at zero and report the repeated change;
+                // the next scheduled cycle will retry without an unbounded loop.
+                throw Exception("Sync epoch changed repeatedly during one pull cycle")
+            }
+            return ingested + pullDelta(
+                batchSize = batchSize,
+                isFullPull = isFullPull,
+                allowEpochRestart = false
+            )
+        }
+
+        // ✅ إعادة محاولة المؤجلين — الآباء وصلوا الآن (صفحات لاحقة),
         // فتُحلّ السلاسل (غرفة → حجز → ليلة / موظف → دورة → دفعة).
         if (deferredRecords.isNotEmpty()) {
             val retry = ingestorRegistry.ingestPage(deferredRecords.map { it.record })
@@ -330,7 +389,16 @@ class SyncManager @Inject constructor(
         return ingested
     }
 
-    private fun finishWithError(message: String) {
+    private fun finishWithError(message: String, operation: String) {
+        // Diagnostics must never mask the original sync failure if local storage fails.
+        runCatching {
+            preferences.recordSyncError(
+                operation = operation,
+                message = message,
+                pullCursor = preferences.getLastPullCursor(),
+                deviceId = preferences.getDeviceId()
+            )
+        }
         _syncState.value = _syncState.value.copy(
             isSyncing = false,
             isError = true,

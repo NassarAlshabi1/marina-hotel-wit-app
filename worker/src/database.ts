@@ -120,6 +120,18 @@ const ENTITY_TABLES: Record<string, string> = {
 
 const VALID_ENTITIES = new Set(Object.keys(ENTITY_TABLES));
 
+const EMPLOYEE_EXPENSE_TYPES = new Set([
+  'رواتب',
+  'سحب راتب',
+  'سحب من الراتب',
+  'سلفة',
+  'خصم راتب',
+  'خصم من الراتب',
+  'خصم',
+  'غياب',
+  'employee',
+]);
+
 export function isValidEntity(entity: string): boolean {
   return VALID_ENTITIES.has(entity);
 }
@@ -549,6 +561,51 @@ export class Database {
    */
   static readonly FUTURE_TIMESTAMP_THRESHOLD = 2_000_000_000;
 
+  /** Maximum future clock skew accepted from a client, in seconds. */
+  static readonly CLOCK_SKEW_ALLOWANCE_S = 90;
+
+  // ─── Sync epoch (data generation) ─────────────────────────
+
+  /**
+   * Current sync data generation. The lazy insert keeps pull backward
+   * compatible with deployments that have not applied migration 0010 yet.
+   */
+  async getSyncEpoch(): Promise<string | null> {
+    try {
+      const row = await this.db
+        .prepare("SELECT v FROM sync_meta WHERE k = 'epoch'")
+        .first<{ v: string }>();
+      if (row?.v) return row.v;
+
+      await this.db
+        .prepare("INSERT OR IGNORE INTO sync_meta (k, v) VALUES ('epoch', ?)")
+        .bind(crypto.randomUUID().replace(/-/g, ''))
+        .run();
+      const seeded = await this.db
+        .prepare("SELECT v FROM sync_meta WHERE k = 'epoch'")
+        .first<{ v: string }>();
+      return seeded?.v ?? null;
+    } catch (err) {
+      // The epoch is an optional safety contract; a missing/unavailable
+      // migration must never turn an otherwise valid pull into a failure.
+      console.warn('[SYNC] epoch unavailable (pull continues without it):', err);
+      return null;
+    }
+  }
+
+  /** Rotate the generation after a server-side restore or data rewrite. */
+  async rotateSyncEpoch(): Promise<string> {
+    const epoch = crypto.randomUUID().replace(/-/g, '');
+    await this.db
+      .prepare(
+        "INSERT INTO sync_meta (k, v, updated_at) VALUES ('epoch', ?, unixepoch()) " +
+          'ON CONFLICT (k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
+      )
+      .bind(epoch)
+      .run();
+    return epoch;
+  }
+
   /**
    * Progressively repair poisoned timestamps in entity tables.
    *
@@ -716,6 +773,199 @@ export class Database {
     return cols;
   }
 
+  /**
+   * Normalize synced foreign keys before D1 writes. Numeric child ids are
+   * device-local caches; the UUID column is the only cross-device authority.
+   */
+  private async normalizePushReferences(
+    entity: string,
+    data: Record<string, unknown>,
+    mode: 'create' | 'update'
+  ): Promise<Record<string, unknown>> {
+    if (entity === 'booking_nights') {
+      const bookingUuid =
+        typeof data.booking_uuid_cache === 'string' ? data.booking_uuid_cache.trim() : '';
+      if (bookingUuid) {
+        const parent = await this.db
+          .prepare('SELECT id FROM bookings WHERE local_uuid = ? LIMIT 1')
+          .bind(bookingUuid)
+          .first<{ id: number }>();
+        if (!parent) {
+          // Do not let an unresolved child be stored against another device's
+          // numeric booking_local_id. The client can retry after the parent push.
+          throw new Error('booking_nights parent booking_uuid_cache is not present in D1 yet');
+        }
+        return { ...data, booking_local_id: parent.id };
+      }
+
+      // Compatibility for older clients: accept this legacy bridge only when
+      // it uniquely identifies a D1 booking.
+      const legacyBookingId = Number(data.server_booking_id);
+      if (Number.isSafeInteger(legacyBookingId) && legacyBookingId > 0) {
+        const matches = await this.db
+          .prepare('SELECT id FROM bookings WHERE server_booking_id = ? LIMIT 2')
+          .bind(legacyBookingId)
+          .all<{ id: number }>();
+        if (matches.results.length > 1) {
+          throw new Error('booking_nights legacy server_booking_id is ambiguous');
+        }
+        if (matches.results.length === 1) {
+          return { ...data, booking_local_id: matches.results[0].id };
+        }
+      }
+      return data;
+    }
+
+    const normalized = { ...data };
+    const readUuid = (value: unknown): string =>
+      typeof value === 'string' ? value.trim() : '';
+    const employeeUuid = readUuid(normalized.employee_uuid);
+
+    if (entity === 'salary_cycles' || entity === 'salary_withdrawals' || entity === 'salary_carry_over_logs') {
+      if (!employeeUuid) {
+        delete normalized.employee_uuid;
+        if (mode === 'create') {
+          throw new Error(`${entity} requires employee_uuid; numeric employee_id is device-local`);
+        }
+        // A partial/legacy update may edit business fields, but it must not
+        // replace a canonical employee_id with the sender's local id.
+        delete normalized.employee_id;
+        return normalized;
+      }
+
+      const parent = await this.findEmployeeByUuid(employeeUuid);
+      if (!parent) {
+        throw new Error(`${entity} parent employee_uuid is not present in D1 yet`);
+      }
+      normalized.employee_uuid = parent.local_uuid;
+      normalized.employee_id = parent.id;
+      return normalized;
+    }
+
+    if (entity === 'salary_payments') {
+      const cycleUuid = readUuid(normalized.cycle_uuid);
+      if (!cycleUuid) {
+        delete normalized.cycle_uuid;
+        delete normalized.employee_uuid;
+        if (mode === 'create') {
+          throw new Error('salary_payments requires cycle_uuid; numeric cycle_id is device-local');
+        }
+        delete normalized.cycle_id;
+        return normalized;
+      }
+
+      const cycle = await this.findSalaryCycleByUuid(cycleUuid);
+      if (!cycle) {
+        throw new Error('salary_payments parent cycle_uuid is not present in D1 yet');
+      }
+      normalized.cycle_uuid = cycle.local_uuid;
+      normalized.cycle_id = cycle.id;
+
+      const suppliedEmployeeUuid = readUuid(normalized.employee_uuid);
+      if (cycle.employee_uuid) {
+        if (
+          suppliedEmployeeUuid &&
+          this.uuidComparable(suppliedEmployeeUuid) !== this.uuidComparable(cycle.employee_uuid)
+        ) {
+          throw new Error('salary_payments employee_uuid does not match its cycle');
+        }
+        normalized.employee_uuid = cycle.employee_uuid;
+      } else if (suppliedEmployeeUuid) {
+        const employee = await this.findEmployeeByUuid(suppliedEmployeeUuid);
+        if (!employee) {
+          throw new Error('salary_payments employee_uuid is not present in D1 yet');
+        }
+        normalized.employee_uuid = employee.local_uuid;
+      } else {
+        delete normalized.employee_uuid;
+      }
+      return normalized;
+    }
+
+    if (entity !== 'expenses') return normalized;
+
+    const clearEmployeeLink =
+      mode === 'update' && this.isExplicitLinkClear(normalized.clear_employee_link);
+    delete normalized.clear_employee_link;
+    // This column is server-owned metadata, never trust its value from a client.
+    delete normalized.employee_link_cleared;
+    if (clearEmployeeLink) {
+      normalized.employee_uuid = null;
+      normalized.related_id = null;
+      normalized.employee_link_cleared = 1;
+      return normalized;
+    }
+
+    const expenseType = readUuid(normalized.expense_type).toLowerCase();
+    const employeeLinkedType = EMPLOYEE_EXPENSE_TYPES.has(expenseType);
+    if (employeeUuid) {
+      const parent = await this.findEmployeeByUuid(employeeUuid);
+      if (parent) {
+        normalized.employee_uuid = parent.local_uuid;
+        normalized.related_id = parent.id;
+        normalized.employee_link_cleared = 0;
+      } else if (mode === 'create') {
+        // Keep the stable UUID for future repair/pull resolution, but never
+        // persist the sender's raw numeric employee id in D1.
+        normalized.employee_uuid = employeeUuid;
+        normalized.related_id = null;
+        normalized.employee_link_cleared = 0;
+      } else {
+        // An unresolvable link on an update must not overwrite a good link.
+        delete normalized.employee_uuid;
+        delete normalized.related_id;
+      }
+      return normalized;
+    }
+
+    delete normalized.employee_uuid;
+    if (employeeLinkedType) {
+      if (mode === 'create') normalized.related_id = null;
+      else delete normalized.related_id;
+    } else if (mode === 'update' && normalized.related_id === null) {
+      // NULL without the explicit clear marker is not an unlink instruction.
+      delete normalized.related_id;
+    }
+    if (mode === 'create' && !('employee_link_cleared' in normalized)) {
+      normalized.employee_link_cleared = 0;
+    }
+    return normalized;
+  }
+
+  private async findEmployeeByUuid(
+    localUuid: string
+  ): Promise<{ id: number; local_uuid: string } | null> {
+    const matches = await this.db
+      .prepare(
+        "SELECT id, local_uuid FROM employees " +
+          "WHERE LOWER(REPLACE(local_uuid, '-', '')) = LOWER(REPLACE(?, '-', '')) LIMIT 2",
+      )
+      .bind(localUuid)
+      .all<{ id: number; local_uuid: string }>();
+    return matches.results.length === 1 ? matches.results[0]! : null;
+  }
+
+  private async findSalaryCycleByUuid(
+    localUuid: string
+  ): Promise<{ id: number; local_uuid: string; employee_uuid: string | null } | null> {
+    const matches = await this.db
+      .prepare(
+        "SELECT id, local_uuid, employee_uuid FROM salary_cycles " +
+          "WHERE LOWER(REPLACE(local_uuid, '-', '')) = LOWER(REPLACE(?, '-', '')) LIMIT 2",
+      )
+      .bind(localUuid)
+      .all<{ id: number; local_uuid: string; employee_uuid: string | null }>();
+    return matches.results.length === 1 ? matches.results[0]! : null;
+  }
+
+  private isExplicitLinkClear(value: unknown): boolean {
+    return value === true || value === 1 || value === '1' || value === 'true';
+  }
+
+  private uuidComparable(value: string): string {
+    return value.trim().replace(/-/g, '').toLowerCase();
+  }
+
   async createRecord(
     entity: string,
     data: Record<string, unknown>,
@@ -723,10 +973,11 @@ export class Database {
     clientVectorClock?: string
   ): Promise<SyncRecord> {
     const table = getTableName(entity);
+    const normalizedData = await this.normalizePushReferences(entity, data, 'create');
     const now = Math.floor(Date.now() / 1000);
 
     // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
-    const localUuid = (data.local_uuid as string) || crypto.randomUUID();
+    const localUuid = (normalizedData.local_uuid as string) || crypto.randomUUID();
 
     // ✅ Globally-unique updated_at (keeps the pull cursor lossless)
     const serverUpdatedAt = await this.allocateUpdatedAt();
@@ -739,10 +990,10 @@ export class Database {
         ? JSON.stringify(clientVc)
         : JSON.stringify({ [deviceId]: 1 });
 
-    const createdAtNum = Number(data.created_at);
+    const createdAtNum = Number(normalizedData.created_at);
 
     const record: SyncRecord = {
-      ...data,
+      ...normalizedData,
       local_uuid: localUuid,
       server_id: null,
       created_at:
@@ -845,6 +1096,9 @@ export class Database {
     fallbackUpdatedAt?: number
   ): Promise<SyncRecord> {
     const table = getTableName(entity);
+    const clearEmployeeLink =
+      entity === 'expenses' && this.isExplicitLinkClear(data.clear_employee_link);
+    data = await this.normalizePushReferences(entity, data, 'update');
 
     // Fetch existing record by local_uuid (not id — id is autoIncrement)
     const existing = await this.db
@@ -857,6 +1111,22 @@ export class Database {
       return this.createRecord(entity, { ...data, local_uuid: recordId }, deviceId, vectorClock);
     }
 
+    // Delete wins over every later-arriving edit. Returning an explicit
+    // operation status lets the client clear the losing outbox item without
+    // treating the rejection as a transient network failure.
+    if (existing.deleted_at !== null && existing.deleted_at !== undefined) {
+      await this.saveConflict(
+        entity,
+        recordId,
+        existing,
+        data,
+        existing.vector_clock ?? '{}',
+        vectorClock,
+        'edit_on_deleted'
+      );
+      return { ...existing, opStatus: 'deleted' };
+    }
+
     // ─── Conflict Detection: Vector Clock ───────────────────
     const conflict = this.detectConflict(existing.vector_clock || '{}', vectorClock);
     // LWW input precedence (fix proven by test + client code): the op-level
@@ -864,24 +1134,28 @@ export class Database {
     // authoritative edit timestamp of the operation; `data.updated_at` is a
     // row snapshot that can be stale relative to the edit. The protocol
     // field wins; the row field is the legacy fallback.
-    const incomingTimestamp =
+    const incomingTimestampRaw =
       fallbackUpdatedAt !== undefined && Number.isFinite(fallbackUpdatedAt)
         ? Math.floor(fallbackUpdatedAt)
         : Number(data.updated_at) || Math.floor(Date.now() / 1000);
 
-    // LWW resolution (plan 2.4): wall-clock timestamps are not monotonic
-    // across devices (a slow clock must not win) — timestamps decide only
-    // when they DIFFER; on a tie the monotonic `version` counter decides.
-    // The client increments SyncFields.version on every local edit, so a
-    // genuinely newer edit from a slow-clock device still carries a higher
-    // version and wins the tie instead of being silently dropped.
+    // Bound future client clocks. Inside the 90-second skew window, the
+    // monotonic version breaks ties in either direction; an edit older than
+    // that window loses even if its client claims an inflated version.
+    const serverNow = Math.floor(Date.now() / 1000);
+    const incomingTimestamp = Math.min(
+      incomingTimestampRaw,
+      serverNow + Database.CLOCK_SKEW_ALLOWANCE_S
+    );
+    const incomingDelta = incomingTimestamp - existing.updated_at;
+    const existingVersion = this.sanitizeVersion(existing.version);
     const timestampLoss =
-      incomingTimestamp < existing.updated_at ||
-      (incomingTimestamp === existing.updated_at &&
-        !this.incomingVersionWins(
-          this.sanitizeVersion(existing.version),
-          data.version
-        ));
+      incomingDelta > 0
+        ? false
+        : incomingDelta === 0
+          ? !this.incomingVersionWins(existingVersion, data.version)
+          : -incomingDelta > Database.CLOCK_SKEW_ALLOWANCE_S ||
+            !this.incomingVersionWins(existingVersion, data.version);
 
     if (conflict === 'concurrent') {
       // Save conflict for audit
@@ -932,7 +1206,17 @@ export class Database {
     const validColumns = await this.getTableColumns(table);
     const cleanUpdate: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(updateFields)) {
-      if (value !== undefined && validColumns.has(key)) {
+      const nullableLinkField =
+        key === 'employee_uuid' || key === 'expense_uuid' || key === 'cycle_uuid' ||
+        (entity === 'expenses' && key === 'related_id');
+      const explicitExpenseUnlink =
+        clearEmployeeLink && entity === 'expenses' &&
+        (key === 'employee_uuid' || key === 'related_id');
+      if (
+        value !== undefined &&
+        validColumns.has(key) &&
+        !(value === null && nullableLinkField && !explicitExpenseUnlink)
+      ) {
         cleanUpdate[key] = value;
       }
     }
@@ -1083,7 +1367,8 @@ export class Database {
     localRecord: unknown,
     remoteData: unknown,
     localVc: string,
-    remoteVc: string
+    remoteVc: string,
+    resolution = 'last_write_wins'
   ): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     await this.db
@@ -1098,7 +1383,7 @@ export class Database {
         JSON.stringify(remoteData),
         localVc,
         remoteVc,
-        'last_write_wins',
+        resolution,
         now,
         now,
         ''

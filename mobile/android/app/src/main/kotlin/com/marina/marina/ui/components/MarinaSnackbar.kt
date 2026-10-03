@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Snackbar
@@ -20,6 +19,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarVisuals
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,26 +65,25 @@ private data class SnackbarStyle(
     val icon: ImageVector
 )
 
-private fun styleFor(type: MarinaSnackbarType): SnackbarStyle = when (type) {
-    MarinaSnackbarType.SUCCESS -> SnackbarStyle(
-        container = Color(0xFF2E7D32),
-        content = Color.White,
-        icon = Icons.Filled.CloudDone
-    )
-    MarinaSnackbarType.ERROR -> SnackbarStyle(
-        container = Color(0xFFC62828),
-        content = Color.White,
-        icon = Icons.Filled.ErrorOutline
-    )
-    MarinaSnackbarType.WARNING -> SnackbarStyle(
-        container = Color(0xFFEF6C00),
-        content = Color.White,
-        icon = Icons.Filled.WarningAmber
-    )
-    MarinaSnackbarType.INFO -> SnackbarStyle(
-        container = Color(0xFF1E88E5),
-        content = Color.White,
-        icon = Icons.Filled.CloudDownload
+@Composable
+private fun styleFor(type: MarinaSnackbarType): SnackbarStyle {
+    val scheme = MaterialTheme.colorScheme
+    val container = when (type) {
+        MarinaSnackbarType.SUCCESS -> scheme.tertiary
+        MarinaSnackbarType.ERROR -> scheme.error
+        MarinaSnackbarType.WARNING -> scheme.secondary
+        MarinaSnackbarType.INFO -> scheme.primary
+    }
+    val icon = when (type) {
+        MarinaSnackbarType.SUCCESS -> Icons.Filled.CloudDone
+        MarinaSnackbarType.ERROR -> Icons.Filled.ErrorOutline
+        MarinaSnackbarType.WARNING -> Icons.Filled.WarningAmber
+        MarinaSnackbarType.INFO -> Icons.Filled.CloudDownload
+    }
+    return SnackbarStyle(
+        container = container,
+        content = contentColorFor(container),
+        icon = icon
     )
 }
 

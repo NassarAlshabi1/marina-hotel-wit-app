@@ -45,7 +45,11 @@ interface SalaryWithdrawalsRepository {
     )
 
     /** Dart deleteByExpenseId — orphan cleanup when a salary expense is deleted. */
-    suspend fun deleteByExpenseId(expenseId: Long)
+    suspend fun deleteByExpenseId(
+        expenseId: Long,
+        employeeId: Long? = null,
+        employeeUuid: String? = null
+    )
 
     suspend fun softDelete(id: Long)
     suspend fun getTotalForEmployee(employeeId: Long): Double
