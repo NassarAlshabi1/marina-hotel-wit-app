@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -68,14 +71,15 @@ fun AdminScaffold(
     BoxWithConstraints {
         if (maxWidth >= 768.dp) {
             // Tablet / landscape / desktop: permanent sidebar.
-            Row(modifier = Modifier.fillMaxSize()) {
+            Row(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                 AdminSidebar(
                     currentRoute = currentRoute,
                     onRouteSelected = onRouteSelected,
                     onLogout = onLogout,
                     currentUser = currentUser
                 )
-                Box(modifier = Modifier.weight(1f)) { content() }
+                Box(modifier = Modifier.weight(1f).padding(12.dp)
+                    .marinaPanelFrame(MaterialTheme.shapes.large)) { content() }
             }
         } else {
             // Phone: modal drawer.

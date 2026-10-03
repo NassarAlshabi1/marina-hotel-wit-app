@@ -1,6 +1,7 @@
 package com.marina.marina.presentation.dashboard
 
 import androidx.compose.foundation.background
+import com.marina.marina.components.marinaPanelFrame
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -456,8 +457,7 @@ private fun StatCard(
 ) {
     Box(
         modifier = modifier
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
-            .border(1.dp, AppColors.DividerColor, RoundedCornerShape(16.dp))
+            .marinaPanelFrame()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
@@ -505,11 +505,10 @@ private fun RoomsSection(
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = 1.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, AppColors.DividerColor, RoundedCornerShape(20.dp))
+        shape = MaterialTheme.shapes.large,
+        shadowElevation = 2.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

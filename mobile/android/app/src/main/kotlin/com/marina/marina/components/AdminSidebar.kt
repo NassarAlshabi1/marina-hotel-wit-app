@@ -42,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -242,6 +243,7 @@ private fun SidebarEntry(
             .fillMaxWidth()
             .padding(horizontal = 10.dp)
             .height(48.dp)
+            .clip(RoundedCornerShape(14.dp))
             .background(
                 if (selected) SidebarColors.SelectedBackground else Color.Transparent,
                 RoundedCornerShape(14.dp)

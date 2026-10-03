@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
@@ -19,6 +18,8 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -38,7 +39,13 @@ fun MarinaTopAppBar(
     modifier: Modifier = Modifier,
     navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
-    colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
+    colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrolledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        navigationIconContentColor = MaterialTheme.colorScheme.primary,
+        actionIconContentColor = MaterialTheme.colorScheme.primary
+    ),
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     val dividerColor = MaterialTheme.colorScheme.outlineVariant
@@ -73,7 +80,7 @@ fun MarinaToolbarActionButton(
     content: @Composable () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(13.dp)
+    val shape = MaterialTheme.shapes.small
     val actualContainer = if (enabled) containerColor else scheme.surfaceVariant
     val actualContent = if (enabled) contentColor else scheme.onSurface.copy(alpha = 0.38f)
     val borderColor = if (enabled) contentColor.copy(alpha = 0.35f) else scheme.outlineVariant
@@ -81,7 +88,7 @@ fun MarinaToolbarActionButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(shape)
             .background(actualContainer)
             .border(BorderStroke(1.dp, borderColor), shape)
@@ -102,14 +109,14 @@ fun MarinaToolbarIconButton(
     enabled: Boolean = true
 ) {
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(13.dp)
+    val shape = MaterialTheme.shapes.small
     val iconColor = if (enabled) scheme.onPrimaryContainer else scheme.onSurface.copy(alpha = 0.38f)
     val containerColor = if (enabled) scheme.primaryContainer else scheme.surfaceVariant
     IconButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(shape)
             .background(containerColor)
             .border(BorderStroke(1.dp, scheme.outlineVariant), shape)
@@ -138,3 +145,11 @@ fun MarinaBackButton(
         enabled = enabled
     )
 }
+
+/** Shared quiet frame: clipped content, one-dp outline and a soft lifted edge. */
+@Composable
+fun Modifier.marinaPanelFrame(shape: Shape = MaterialTheme.shapes.medium): Modifier =
+    this.shadow(elevation = 2.dp, shape = shape, clip = false)
+        .clip(shape)
+        .background(MaterialTheme.colorScheme.surface)
+        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape)

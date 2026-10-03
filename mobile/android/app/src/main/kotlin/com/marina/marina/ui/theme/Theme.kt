@@ -39,33 +39,33 @@ import kotlinx.coroutines.flow.asStateFlow
 // ─────────────────────────────────────────────────────────────────────────────
 
 object MarinaPalette {
-    // Marina's coastal-luxury identity: deep sea glass, warm limestone, brass.
-    val Ocean = Color(0xFF14545A)
-    val OceanDeep = Color(0xFF0D383D)
-    val OceanNight = Color(0xFF092C31)
-    val OceanMid = Color(0xFF3D787B)
-    val OceanSoft = Color(0xFFDDEBE7)
-    val Brass = Color(0xFFBE965B)
-    val BrassSoft = Color(0xFFF3EBDD)
-    val Canvas = Color(0xFFF5F4EF)
-    val Paper = Color(0xFFFFFEFB)
-    val Ink = Color(0xFF1B2D2F)
-    val Muted = Color(0xFF667779)
-    val Neutral = Color(0xFF8B9692)
-    val NeutralSoft = Color(0xFFF0F2EE)
-    val Line = Color(0xFFD6DEDA)
-    val LineSoft = Color(0xFFE8ECE7)
-    val Success = Color(0xFF2F725C)
-    val SuccessDeep = Color(0xFF285D4C)
-    val SuccessSoft = Color(0xFFE5F0E9)
-    val Warning = Color(0xFF92611E)
-    val WarningDeep = Color(0xFF79501D)
-    val WarningSoft = Color(0xFFFAF0DC)
-    val Danger = Color(0xFFB44D49)
-    val DangerDeep = Color(0xFF873B38)
-    val DangerSoft = Color(0xFFF7E7E5)
-    val Info = Color(0xFF376B78)
-    val InfoSoft = Color(0xFFE5EFF1)
+    // Coastal identity: ocean blue, cool neutral surfaces and restrained brass accents.
+    val Ocean = Color(0xFF155E75)
+    val OceanDeep = Color(0xFF123B50)
+    val OceanNight = Color(0xFF0D2335)
+    val OceanMid = Color(0xFF427E94)
+    val OceanSoft = Color(0xFFE0EFF4)
+    val Brass = Color(0xFFB88A4A)
+    val BrassSoft = Color(0xFFF5ECDD)
+    val Canvas = Color(0xFFF2F5F9)
+    val Paper = Color(0xFFFFFFFF)
+    val Ink = Color(0xFF192D40)
+    val Muted = Color(0xFF526578)
+    val Neutral = Color(0xFF8495A5)
+    val NeutralSoft = Color(0xFFEDF2F7)
+    val Line = Color(0xFFCCD8E3)
+    val LineSoft = Color(0xFFE7EEF5)
+    val Success = Color(0xFF256E55)
+    val SuccessDeep = Color(0xFF1D5844)
+    val SuccessSoft = Color(0xFFE1F1E8)
+    val Warning = Color(0xFF875918)
+    val WarningDeep = Color(0xFF704910)
+    val WarningSoft = Color(0xFFFAEED8)
+    val Danger = Color(0xFFAF3E49)
+    val DangerDeep = Color(0xFF852C36)
+    val DangerSoft = Color(0xFFFBE7E9)
+    val Info = Color(0xFF286B88)
+    val InfoSoft = Color(0xFFE2EFF8)
     val Violet = Color(0xFF71617E)
     val VioletSoft = Color(0xFFEEEAF1)
     val Slate = Color(0xFF52686B)
@@ -134,7 +134,7 @@ object AppColors {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Marina Brand — deep sea-glass teal, brushed brass and warm limestone.
+// Marina Brand — ocean blue, brushed brass and cool neutral surfaces.
 // ─────────────────────────────────────────────────────────────────────────────
 
 val MarinaLightColorScheme = lightColorScheme(
@@ -157,8 +157,8 @@ val MarinaLightColorScheme = lightColorScheme(
     surfaceTint = MarinaPalette.Ocean,
     inverseSurface = MarinaPalette.Ink,
     inverseOnSurface = MarinaPalette.Canvas,
-    inversePrimary = Color(0xFF9FCBC5),
-    outline = MarinaPalette.Line,
+    inversePrimary = Color(0xFF95D4E4),
+    outline = Color(0xFF6C8193),
     outlineVariant = MarinaPalette.Line,
     background = MarinaPalette.Canvas,
     onBackground = MarinaPalette.Ink,
@@ -170,30 +170,30 @@ val MarinaLightColorScheme = lightColorScheme(
 )
 
 val MarinaDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF9FCBC5),
+    primary = Color(0xFF95D4E4),
     onPrimary = MarinaPalette.OceanDeep,
-    primaryContainer = Color(0xFF1B5256),
-    onPrimaryContainer = Color(0xFFDDEBE7),
+    primaryContainer = Color(0xFF1A465B),
+    onPrimaryContainer = Color(0xFFE0EFF4),
     secondary = Color(0xFFE0C18B),
     onSecondary = Color(0xFF32250D),
     secondaryContainer = Color(0xFF5A4727),
-    onSecondaryContainer = Color(0xFFF3EBDD),
+    onSecondaryContainer = Color(0xFFF5ECDD),
     tertiary = Color(0xFF9BD0B1),
     onTertiary = Color(0xFF15392D),
     tertiaryContainer = Color(0xFF204B3B),
-    onTertiaryContainer = Color(0xFFE5F0E9),
-    surface = Color(0xFF142122),
-    onSurface = Color(0xFFE8EFEB),
-    surfaceVariant = Color(0xFF293738),
-    onSurfaceVariant = Color(0xFFBAC8C2),
-    surfaceTint = Color(0xFF9FCBC5),
-    inverseSurface = Color(0xFFE8EFEB),
-    inverseOnSurface = Color(0xFF293738),
+    onTertiaryContainer = Color(0xFFE1F1E8),
+    surface = Color(0xFF142638),
+    onSurface = Color(0xFFE7EFF7),
+    surfaceVariant = Color(0xFF25394B),
+    onSurfaceVariant = Color(0xFFBACAD9),
+    surfaceTint = Color(0xFF95D4E4),
+    inverseSurface = Color(0xFFE7EFF7),
+    inverseOnSurface = Color(0xFF25394B),
     inversePrimary = MarinaPalette.Ocean,
-    outline = Color(0xFF526260),
-    outlineVariant = Color(0xFF384644),
-    background = Color(0xFF0E191A),
-    onBackground = Color(0xFFE8EFEB),
+    outline = Color(0xFF7D93A7),
+    outlineVariant = Color(0xFF3B5165),
+    background = Color(0xFF0D1926),
+    onBackground = Color(0xFFE7EFF7),
     error = Color(0xFFFFB4AA),
     onError = Color(0xFF5C2522),
     errorContainer = Color(0xFF7A3935),
@@ -316,18 +316,18 @@ val AppTypography = Typography(
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shapes — serenity's soft, calming corner radii (12 / 16 / 24 dp).
+// Shapes — shared corners for controls, cards and outer frames (12 / 16 / 20 dp).
 // ─────────────────────────────────────────────────────────────────────────────
 
 val MarinaShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(30.dp)
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
-val AppShapes = RoundedCornerShape(18.dp)
+val AppShapes = MarinaShapes.medium
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme entry point
