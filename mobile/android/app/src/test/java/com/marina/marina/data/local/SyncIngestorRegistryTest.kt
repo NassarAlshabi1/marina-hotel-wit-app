@@ -127,6 +127,35 @@ class SyncIngestorRegistryTest {
     }
 
     @Test
+    fun pollutedScientificVersionValuesAreSanitizedBeforeDeserialization() = runBlocking {
+        fun roomRecord(id: Int, uuid: String, version: Any): Map<String, Any> = mapOf(
+            "_entity" to "rooms",
+            "id" to id,
+            "local_uuid" to uuid,
+            "room_number" to id.toString(),
+            "type" to "single",
+            "price" to 100.0,
+            "status" to "available",
+            "cleaning_status" to "clean",
+            "version" to version,
+            "last_modified" to id.toLong()
+        )
+
+        val report = registry.ingestPage(
+            listOf(
+                roomRecord(57, "room-polluted-double", 1_000_000_000_003.0),
+                roomRecord(58, "room-polluted-exponent-string", "1.000000000003E12"),
+                roomRecord(59, "room-valid-version", 37.0)
+            )
+        )
+
+        assertEquals(3, report.applied)
+        assertEquals(1, db.roomsDao().getByLocalUuid("room-polluted-double")!!.version)
+        assertEquals(1, db.roomsDao().getByLocalUuid("room-polluted-exponent-string")!!.version)
+        assertEquals(37, db.roomsDao().getByLocalUuid("room-valid-version")!!.version)
+    }
+
+    @Test
     fun salaryWithdrawalPullNormalizesIsoDateAndMissingEmployeeSnapshot() = runBlocking {
         val employeeUuid = "employee-withdrawal-date"
         val employeeId = db.employeesDao().insert(

@@ -90,6 +90,9 @@ data class PullApplyReport(
     val hasDeferred: Boolean get() = deferred.isNotEmpty()
 }
 
+/** Keep the Android Int version contract aligned with the Worker sanitizer. */
+private const val MAX_SANE_SYNC_VERSION = 1_000_000
+
 @Singleton
 class SyncIngestorRegistry @Inject constructor(
     private val db: AppDatabase,
@@ -173,6 +176,28 @@ class SyncIngestorRegistry @Inject constructor(
             }
             if (booleanValue != null) mapped[name] = booleanValue
         }
+    }
+
+    /**
+     * D1 can contain legacy `version` values polluted by old bulk migrations
+     * (for example 1e12). Gson cannot deserialize those into the app's Int
+     * field. Match the Worker policy: values outside the sane range reset to 1.
+     */
+    private fun normalizeSyncVersionWireField(mapped: MutableMap<String, Any>) {
+        if (!mapped.containsKey("version")) return
+        val rawVersion = mapped["version"]
+        val numericVersion = when (rawVersion) {
+            is Number -> rawVersion.toDouble()
+            is String -> rawVersion.trim().toDoubleOrNull()
+            else -> null
+        }
+        val saneVersion = numericVersion?.takeIf {
+            it.isFinite() &&
+                it >= 0.0 &&
+                it <= MAX_SANE_SYNC_VERSION.toDouble() &&
+                it % 1.0 == 0.0
+        }
+        mapped["version"] = saneVersion?.toInt() ?: 1
     }
 
     /**
@@ -347,6 +372,7 @@ class SyncIngestorRegistry @Inject constructor(
         return try {
             val clazz = entityClass(entity) ?: return ApplyOutcome.Skipped
             normalizeBooleanWireFields(mapped, clazz)
+            normalizeSyncVersionWireField(mapped)
             if (entity == "salary_withdrawals") normalizeSalaryWithdrawalFields(mapped)
             val entityGson = gsonFor(clazz)
             @Suppress("UNCHECKED_CAST")
