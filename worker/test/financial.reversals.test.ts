@@ -83,6 +83,7 @@ describe('append-only financial corrections', () => {
       expect(result.results[0]?.status).toBe('validation_error');
     }
     expect((await push('expenses', 'create', {local_uuid: 'forged', amount: -100, date: history, reversal_of_uuid: 'expense'})).summary.failed).toBe(1);
+    expect((await push('expenses', 'create', {local_uuid: 'empty-audit', expense_type: 'تشغيلية', amount: 100, date: history, reversal_of_uuid: ''})).results[0]?.status).toBe('validation_error');
     await expect(env.DB.prepare("UPDATE expenses SET amount = 0 WHERE local_uuid = 'expense'").run()).rejects.toThrow('FINANCIAL_IMMUTABLE');
     await expect(env.DB.prepare("DELETE FROM expenses WHERE local_uuid = 'expense'").run()).rejects.toThrow('FINANCIAL_IMMUTABLE');
     const raw = await SELF.fetch('https://example.com/api/sync/migrate', {

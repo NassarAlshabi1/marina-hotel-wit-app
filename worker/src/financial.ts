@@ -26,7 +26,7 @@ export async function financialPolicy(db: D1Database) {
 /** Called before generic sync creates. Client-supplied reversal fields are never trusted. */
 export async function validateFinancialCreate(db: D1Database, entity: string, data: Record<string, unknown>): Promise<void> {
   if (!isPostedFinancialEntity(entity)) return;
-  if (data.reversal_of_uuid || data.reversal_actor || data.reversal_reason || !Number.isFinite(Number(data.amount)) || Number(data.amount) <= 0 || data.deleted_at) {
+  if (data.reversal_of_uuid != null || data.reversal_actor != null || data.reversal_reason != null || !Number.isFinite(Number(data.amount)) || Number(data.amount) <= 0 || data.deleted_at) {
     throw new FinancialPolicyError('استخدم أمر reverse؛ لا يمكن رفع قيد عكسي أو حذف كإنشاء عادي');
   }
   const policy = await financialPolicy(db);
