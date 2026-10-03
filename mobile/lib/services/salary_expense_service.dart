@@ -71,6 +71,8 @@ class SalaryExpenseService {
               localUuid: d.Value(withdrawalUuid),
               employeeId: d.Value(employeeId),
               employeeUuid: d.Value(employeeUuid),
+              // ✅ (migration 68) expenseUuid — الربط الدائم عبر الأجهزة
+              expenseUuid: d.Value(expenseUuid),
               amount: d.Value(signedAmount),
               withdrawDate: d.Value(date),
               reason: d.Value(reasonText),
@@ -244,6 +246,8 @@ class SalaryExpenseService {
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
             employeeUuid: d.Value(employeeUuid),
+            // ✅ (migration 68) expenseUuid — الربط الدائم عبر الأجهزة
+            expenseUuid: d.Value(expenseLocalUuid),
             amount: d.Value(signedAmount),
             withdrawDate: d.Value(date),
             reason: d.Value(reasonText),
@@ -301,6 +305,8 @@ class SalaryExpenseService {
                 localUuid: d.Value(withdrawalUuid),
                 employeeId: d.Value(employeeId),
                 employeeUuid: d.Value(employeeUuid),
+                // ✅ (migration 68) expenseUuid — الربط الدائم عبر الأجهزة
+                expenseUuid: d.Value(expenseLocalUuid),
                 amount: d.Value(signedAmount),
                 withdrawDate: d.Value(date),
                 reason: d.Value(reasonText),

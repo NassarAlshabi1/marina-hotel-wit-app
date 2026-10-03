@@ -160,6 +160,8 @@ class SalaryWithdrawalsAdapter
       // (local_db.dart:669). كان يُستخرج من reason بصيغة "exp_123"
       // لكن لا يُعاد تعبئته في expenseId عند fromJson.
       expenseId: _vInt(json, 'expenseId', src, altKey: 'expense_id'),
+      // ✅ (migration 68) expenseUuid — الربط الدائم عبر الأجهزة
+      expenseUuid: _vStr(json, 'expenseUuid', src, altKey: 'expense_uuid'),
       reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       withdrawalType: wt != null ? d.Value(wt) : const d.Value.absent(),
@@ -228,6 +230,7 @@ class SalaryWithdrawalsAdapter
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
       _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
+      _k(src, 'expenseUuid', 'expense_uuid'): model.expenseUuid,
       _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
       _k(src, 'withdrawDate', 'withdraw_date'): effectiveWithdrawDate,
       _k(src, 'reason', 'reason'): model.reason,

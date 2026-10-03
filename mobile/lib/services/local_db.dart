@@ -758,8 +758,12 @@ class SalaryWithdrawals extends Table with SyncFields {
   // العمود expense_id موجود في DB (أُضيف في migration 40) لكنه لم يكن
   // مُعلناً في Drift class → الكود كان يستخدم customSelect بدلاً من ORM
   // → أخطاء صامتة وعدم استفادة من type safety.
-  // الآن مُعلن ومتاح عبر ORM. (migration 42 يضمن وجوده في DBs القديمة)
+  // الآن مُعلن ومتاح عبر ORM. (migration 42 يضمن وجوده في DBs قديمة)
   IntColumn get expenseId => integer().nullable()();
+  // ✅ (migration 68) UUID المصروف المرتبط — الربط الدائم عبر الأجهزة.
+  // expense_id (autoincrement محلي) لا يعبر الأجهزة؛ expense_uuid هو مصدر
+  // الحقيقة المحمول. مرآة واحدة فقط لكل مصروف نشط.
+  TextColumn get expenseUuid => text().nullable()();
 
   // ✅ (migration 66) اسم المستخدم الذي سجّل السحبة — للإسناد في التقارير.
   // Nullable لأن السجلات القديمة بلا إسناد ولا نجتهي عليها.
@@ -777,6 +781,18 @@ class SalaryWithdrawals extends Table with SyncFields {
     Index(
       'idx_salary_withdrawals_expense',
       'CREATE INDEX idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
+    ),
+    // ✅ (migration 68) فهارس للربط عبر UUID
+    Index(
+      'idx_salary_withdrawals_expense_uuid',
+      'CREATE INDEX idx_salary_withdrawals_expense_uuid ON salary_withdrawals (expense_uuid)',
+    ),
+    // ✅ مرآة واحدة فقط لكل مصروف نشط
+    Index(
+      'ux_salary_withdrawals_expense_uuid_active',
+      'CREATE UNIQUE INDEX ux_salary_withdrawals_expense_uuid_active '
+      'ON salary_withdrawals (expense_uuid) '
+      'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL',
     ),
   ];
 }
@@ -1175,7 +1191,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 67;
+  int get schemaVersion => 68;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1306,6 +1322,46 @@ class AppDatabase extends _$AppDatabase {
 
         developer.log(
           'Migration 67: added employee_uuid to salary tables + backfill',
+          name: 'db.migration',
+        );
+      }
+      // ✅ (2026-10-03) الإصدار 68: ربط السحوبات بالمصروفات عبر UUID.
+      //
+      // المشكلة: expense_id (autoincrement محلي) لا يعبر الأجهزة — عند المزامنة
+      // السحبة من جهاز آخر يحمل expense_id لذلك الجهاز، مما يسبب تصادم مع
+      // expense_id محلي مختلف → ربط خاطئ أو مرايا مكررة.
+      //
+      // الحل: عمود expense_uuid = expenses.local_uuid — مصدر الحقيقة المحمول.
+      // فهارس + unique index لضمان مرآة واحدة لكل مصروف نشط.
+      // Backfill من expense_id المحلي الحالي حيث يمكن حله.
+      if (from < 68) {
+        await m.addColumn(salaryWithdrawals, salaryWithdrawals.expenseUuid);
+
+        // Backfill: للمسحوبات المحلية المنشأ (origin='local') ذات expense_id > 0
+        // نحل expense_uuid من جدول expenses المحلي.
+        await m.database.customStatement(
+          'UPDATE salary_withdrawals SET expense_uuid = '
+          '(SELECT e.local_uuid FROM expenses e WHERE e.id = salary_withdrawals.expense_id) '
+          'WHERE expense_uuid IS NULL '
+          'AND expense_id IS NOT NULL '
+          'AND expense_id > 0 '
+          'AND (origin = \'local\' OR origin IS NULL) '
+          "AND EXISTS (SELECT 1 FROM expenses e2 WHERE e2.id = salary_withdrawals.expense_id)",
+        );
+
+        // فهارس للربط عبر UUID
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid '
+          'ON salary_withdrawals (expense_uuid)',
+        );
+        await m.database.customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS ux_salary_withdrawals_expense_uuid_active '
+          'ON salary_withdrawals (expense_uuid) '
+          'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL',
+        );
+
+        developer.log(
+          'Migration 68: added expense_uuid to salary_withdrawals + backfill + indexes',
           name: 'db.migration',
         );
       }
