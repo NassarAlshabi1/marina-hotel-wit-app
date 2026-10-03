@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -36,7 +38,7 @@ val LocalSidebarMenuOpener = compositionLocalOf<(() -> Unit)?> { null }
 fun SidebarMenuButton() {
     val opener = LocalSidebarMenuOpener.current ?: return
     MarinaToolbarIconButton(
-        imageVector = androidx.compose.material.icons.Icons.Filled.Menu,
+        imageVector = Icons.Filled.Menu,
         contentDescription = "القائمة",
         onClick = opener
     )
