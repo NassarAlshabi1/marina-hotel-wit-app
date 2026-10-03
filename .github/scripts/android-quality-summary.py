@@ -1,5 +1,7 @@
 """Report actual findings, not a fabricated 0..100 code-quality score."""
 from collections import Counter
+import base64
+import gzip
 import json
 import os
 from pathlib import Path
@@ -42,24 +44,22 @@ for tool, (path, query) in reports.items():
                 "rule": issue.get("id", ""), "severity": issue.get("severity", ""),
                 "message": issue.get("message", "")[:400]})
     diagnostics[tool] = records
-    annotation(f"{tool} rules", json.dumps(Counter(r["rule"] for r in records), ensure_ascii=False))
-    # Keep diagnostics accessible via GitHub's annotations API as well as the
-    # artifact. Some review environments cannot reach the artifact blob host.
-    chunk = []
-    size = 0
-    index = 1
-    for record in records:
-        line = json.dumps(record, ensure_ascii=False)
-        if size + len(line) > 24000 and chunk:
-            annotation(f"{tool} details {index}", "\n".join(chunk))
-            index += 1
-            chunk, size = [], 0
-        chunk.append(line)
-        size += len(line) + 1
-    if chunk:
-        annotation(f"{tool} details {index}", "\n".join(chunk))
     results[tool] = {"status": "measured", "findings": len(findings)}
-    print(f"::notice title={tool} findings::{len(findings)} reported findings (see artifact)")
+
+# GitHub truncates annotation messages and caps notices per step. Carry compact
+# file/rule tables plus coordinates rather than truncating actionable locations.
+files = sorted({r["file"] for values in diagnostics.values() for r in values})
+rules = sorted({r["rule"] for values in diagnostics.values() for r in values})
+bundle = {"files": files, "rules": rules,
+          "detekt": [[files.index(r["file"]), r["line"], rules.index(r["rule"])]
+                     for r in diagnostics.get("detekt", [])],
+          "lint": diagnostics.get("android_lint", [])}
+encoded = base64.b64encode(gzip.compress(json.dumps(bundle, ensure_ascii=False).encode())).decode()
+parts = [encoded[i:i + 3000] for i in range(0, len(encoded), 3000)]
+for i, part in enumerate(parts, 1):
+    annotation(f"Diagnostic bundle {i}/{len(parts)} (gzip base64)", part)
+for tool, values in diagnostics.items():
+    annotation(f"{tool} rules", json.dumps(Counter(r["rule"] for r in values)))
 output = Path("quality-evidence")
 output.mkdir(exist_ok=True)
 (output / "diagnostics.json").write_text(json.dumps(diagnostics, ensure_ascii=False, indent=2))
