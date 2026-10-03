@@ -8595,26 +8595,19 @@ class AppwriteSyncManager {
             tag: 'SYNC_INTEGRITY',
           );
 
-          // ✅ إصلاح تلقائي: حذف السجلات اليتيمة (التي تشير لآباء غير موجودين)
+          // ✅ (2026-10-02) لا حذف نهائي لبيانات الرواتب أبداً.
+          // سابقاً: `DELETE FROM salary_withdrawals/salary_cycles/salary_payments`
+          // بلا tombstone ولا outbox — يُفقد نهائياً أي سجل لم يُرفع بعد، أو
+          // سجل وصل قبل موظفه/دورته. اليتيم يبقى كما هو ويُسجَّل فقط؛ الربط
+          // يُستكمل عند وصول الأب (انظر docs/EMPLOYEE_EXPENSE_SALARY_LINK_DRAFT.md R1).
           try {
-            if (table == 'salary_withdrawals' || table == 'salary_cycles') {
-              // حذف السجل الذي يشير لموظف غير موجود
-              await database.customStatement(
-                'DELETE FROM $table WHERE rowid = ?',
-                [int.tryParse(rowId)],
-              );
-              _logger.info(
-                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
-                tag: 'SYNC_INTEGRITY',
-              );
-            } else if (table == 'salary_payments') {
-              // حذف السجل الذي يشير لدورة راتب غير موجودة
-              await database.customStatement(
-                'DELETE FROM $table WHERE rowid = ?',
-                [int.tryParse(rowId)],
-              );
-              _logger.info(
-                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+            if (table == 'salary_withdrawals' ||
+                table == 'salary_cycles' ||
+                table == 'salary_payments' ||
+                table == 'salary_carry_over_logs') {
+              _logger.warning(
+                '🛡️ سجل رواتب يتيم في $table (rowid=$rowId, parent=$parent) — '
+                'أُبقي دون حذف (حماية من فقدان البيانات)',
                 tag: 'SYNC_INTEGRITY',
               );
             } else if (table == 'payments' && parent == 'bookings') {
