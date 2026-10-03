@@ -126,6 +126,21 @@ describe('append-only financial corrections', () => {
     expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM expenses WHERE reversal_of_uuid = 'unlinked'").first()).toEqual({n: 0});
   });
 
+  it('will not close a period containing an incomplete employee expense', async () => {
+    await push('employees', 'create', {local_uuid: 'employee', name: 'A', basic_salary: 1000});
+    await push('expenses', 'create', {local_uuid: 'unlinked', expense_type: 'employee', employee_uuid: 'employee', related_id: 1, amount: 100, date: history});
+    expect((await close()).status).toBe(400);
+    expect(await env.DB.prepare('SELECT closed_through FROM financial_period_lock').first()).toEqual({closed_through: ''});
+    expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM financial_events').first()).toEqual({n: 0});
+    expect((await reverse('expenses', 'unlinked')).summary.failed).toBe(1);
+  });
+
+  it('fails closed for expenses tied to an unsupported historical cash ledger', async () => {
+    await push('expenses', 'create', {local_uuid: 'cash-linked', expense_type: 'تشغيلية', amount: 100, date: history, cash_transaction_id: 8});
+    expect((await reverse('expenses', 'cash-linked')).results[0]?.status).toBe('validation_error');
+    expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM expenses').first()).toEqual({n: 1});
+  });
+
   it('supports genuine standalone withdrawals without creating an expense', async () => {
     await push('employees', 'create', {local_uuid: 'employee', name: 'A', basic_salary: 1000});
     await push('salary_withdrawals', 'create', {local_uuid: 'direct', employee_uuid: 'employee', employee_id: 1, amount: 50, withdraw_date: history, reason: 'direct_withdrawal_cash'});

@@ -90,16 +90,15 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
             }
             val candidates = salaryWithdrawalsDao.getByExpenseUuid(expense.localUuid)
             check(candidates.size <= 1) { "توجد روابط مصروف مكررة؛ يلزم مراجعتها" }
-            val matched = candidates.singleOrNull()
-            check(matched == null) { "السحب معتمد؛ لا يمكن تعديله، استخدم قيداً عكسياً" }
-            check(matched != null || allowCreate) {
+            check(candidates.isEmpty()) { "السحب معتمد؛ لا يمكن تعديله، استخدم قيداً عكسياً" }
+            check(allowCreate) {
                 "المصروف القديم بلا رابط UUID موثوق؛ يلزم مراجعته قبل التعديل، ولم تُحفظ تغييرات"
             }
             val now = System.currentTimeMillis()
-            val prepared = (matched?.toDomain() ?: SalaryWithdrawal(
+            val prepared = SalaryWithdrawal(
                 // Identical source UUID => identical mirror identity on every device/retry.
                 localUuid = UUID.nameUUIDFromBytes(("salary-expense:" + expense.localUuid).toByteArray(Charsets.UTF_8)).toString()
-            )).copy(
+            ).copy(
                 expenseUuid = expense.localUuid,
                 employeeId = employee.id,
                 employeeUuid = employee.localUuid,
@@ -111,14 +110,9 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
                 reason = "expense_uuid:" + expense.localUuid,
                 description = note,
                 updatedAt = now,
-                version = if (matched == null) 1 else matched.version.coerceIn(0, 999_999) + 1
+                version = 1
             )
-            if (matched == null) {
-                insert(prepared)
-            } else {
-                salaryWithdrawalsDao.update(prepared.toEntity())
-                outboxRepository.enqueueObject("salary_withdrawals", "update", prepared.localUuid, prepared)
-            }
+            insert(prepared)
         }
     }
 
