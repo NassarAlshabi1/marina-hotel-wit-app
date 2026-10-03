@@ -20,14 +20,15 @@ import com.marina.marina.domain.util.StatusUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Calendar
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -107,6 +108,10 @@ class DashboardViewModel @Inject constructor(
 
     val currentUser: StateFlow<AuthUser?> = sessionManager.currentUser
 
+    // One Room observer and one entity-to-domain conversion for all Dashboard
+    // consumers. Stop upstream work after navigation/background grace period.
+    private val bookingsFlow = bookingsRepository.getAll().shareDashboardSource(viewModelScope)
+
     /** Today's financial aggregates (hotel-day scoped). */
     val financialStats: StateFlow<FinancialStats?> = hotelDayKeyFlow
         .flatMapLatest { hotelDay ->
@@ -120,16 +125,17 @@ class DashboardViewModel @Inject constructor(
     /** Rooms paired with live-booking + payment-lateness state. */
     val roomsWithStatus: StateFlow<List<RoomWithPaymentStatus>> = combine(
         roomsRepository.getAll(),
-        bookingsRepository.getAll(),
+        bookingsFlow,
         alertWindowTick
     ) { rooms, bookings, _ -> deriveRoomsWithStatus(rooms, bookings) }
+        .flowOn(Dispatchers.Default)
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Whether the rooms section failed to load (parity with the Dart error UI). */
     val roomsError: StateFlow<String?> = combine(
         roomsRepository.getAll(),
-        bookingsRepository.getAll()
+        bookingsFlow
     ) { _, _ -> null as String? }
         .catch { emit(it.message) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -175,18 +181,16 @@ class DashboardViewModel @Inject constructor(
     val events: SharedFlow<DashboardEvent> = _events.asSharedFlow()
 
     /** Booked room lookup for navigation: room number -> active booking. */
-    private val _activeBookingByRoom = MutableStateFlow<Map<String, Booking>>(emptyMap())
-    val activeBookingByRoom: StateFlow<Map<String, Booking>> = _activeBookingByRoom.asStateFlow()
+    val activeBookingByRoom: StateFlow<Map<String, Booking>> = bookingsFlow
+        .map { bookings ->
+            bookings.asSequence()
+                .filter { StatusUtils.isBookingActive(it.status) }
+                .associateBy { it.roomNumber }
+        }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     init {
-        // Keep a room->activeBooking map for tap navigation without re-querying.
-        viewModelScope.launch {
-            bookingsRepository.getAll().collect { bookings ->
-                _activeBookingByRoom.value = bookings
-                    .filter { StatusUtils.isBookingActive(it.status) }
-                    .associateBy { it.roomNumber }
-            }
-        }
         // Silent pull on Dashboard open (Flutter `_autoPullFromAppwrite`).
         autoPullOnOpen()
         // Hourly cloud safety net while the screen is visible — the Kotlin

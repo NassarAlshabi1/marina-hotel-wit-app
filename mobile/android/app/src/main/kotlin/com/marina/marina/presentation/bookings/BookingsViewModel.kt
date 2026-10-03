@@ -11,6 +11,8 @@ import com.marina.marina.domain.util.HotelTimeEngine
 import com.marina.marina.domain.util.StatusUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,6 +93,9 @@ class BookingsViewModel @Inject constructor(
                     .mapValues { (_, list) -> list.sumOf { it.amount } }
                 buildRows(bookings, prices, paidByBooking)
             }
+            // Keep parsing, sorting, payment aggregation and row construction off
+            // Main. State publication below remains on viewModelScope's Main.
+            .flowOn(Dispatchers.Default)
             .onEach { rows ->
                 _state.value = _state.value.copy(isLoading = false, rows = rows, error = null)
             }

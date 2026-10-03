@@ -30,6 +30,8 @@ object HotelTimeEngine {
     /** The minute at which the hotel day boundary occurs (01). The hotel day starts at 14:01, not 14:00. */
     const val BOUNDARY_MINUTE = 1
 
+    // SimpleDateFormat is mutable: shared instances must be protected when
+    // background row preparation and UI formatting run concurrently.
     private val hotelDayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
     // ---------------------------------------------------------------------------
@@ -48,7 +50,7 @@ object HotelTimeEngine {
         if (!isAfterCutoff(cal)) {
             cal.add(Calendar.DAY_OF_YEAR, -1)
         }
-        return hotelDayFormat.format(cal.time)
+        return synchronized(hotelDayFormat) { hotelDayFormat.format(cal.time) }
     }
 
     /** Hotel day key for the current instant. */
@@ -251,13 +253,16 @@ object HotelTimeEngine {
     private val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
 
     /** Formats an epoch instant as `dd/MM/yyyy HH:mm`. */
-    fun formatDisplay(time: Long): String = displayFormat.format(Date(time))
+    fun formatDisplay(time: Long): String =
+        synchronized(displayFormat) { displayFormat.format(Date(time)) }
 
     /** Formats an epoch instant as `dd/MM/yyyy`. */
-    fun formatDisplayDateOnly(time: Long): String = displayDateOnlyFormat.format(Date(time))
+    fun formatDisplayDateOnly(time: Long): String =
+        synchronized(displayDateOnlyFormat) { displayDateOnlyFormat.format(Date(time)) }
 
     /** Formats an epoch instant as ISO `yyyy-MM-ddTHH:mm:ss`. */
-    fun formatIso(time: Long): String = isoFormat.format(Date(time))
+    fun formatIso(time: Long): String =
+        synchronized(isoFormat) { isoFormat.format(Date(time)) }
 
     /** Best-effort parse of the app's stored date strings (ISO or `yyyy-MM-dd HH:mm`). */
     fun parseDate(raw: String?): Long? {

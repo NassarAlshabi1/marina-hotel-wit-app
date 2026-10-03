@@ -50,7 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -108,13 +108,11 @@ fun DashboardScreen(
     onNavigate: (String) -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
-    val financialStats by viewModel.financialStats.collectAsState()
-    val roomsWithStatus by viewModel.roomsWithStatus.collectAsState()
-    val otherUserSummaries by viewModel.otherUserSummaries.collectAsState()
-    val currentUser by viewModel.currentUser.collectAsState()
-    val syncState by viewModel.syncState.collectAsState()
-    val pendingChanges by viewModel.pendingChanges.collectAsState()
-    val activeBookingByRoom by viewModel.activeBookingByRoom.collectAsState()
+    val financialStats by viewModel.financialStats.collectAsStateWithLifecycle()
+    val roomsWithStatus by viewModel.roomsWithStatus.collectAsStateWithLifecycle()
+    val otherUserSummaries by viewModel.otherUserSummaries.collectAsStateWithLifecycle()
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val activeBookingByRoom by viewModel.activeBookingByRoom.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Snackbar events — Arabic messages identical to the Flutter originals,
@@ -182,11 +180,7 @@ fun DashboardScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
-                DashboardHeader(
-                    syncState = syncState,
-                    pendingChanges = pendingChanges,
-                    onSyncClick = { viewModel.triggerSync() }
-                )
+                DashboardLiveHeader(viewModel)
 
                 // المسافات الدقيقة من Dart: header→stats 16 · stats→rooms 20
                 // · rooms→الاستلامات 24 (بطاقة «إجمالي استلاماتي» أُزيلت
@@ -228,7 +222,7 @@ fun DashboardScreen(
                 // نفس الفراغ البصري المرئي 24dp قبل استلامات المستخدمين الآخرين.
                 Spacer(modifier = Modifier.height(24.dp))
 
-                if (viewModel.canViewOtherUsers) {
+                if (currentUser?.let { it.isAdmin || it.userType == "manager" || it.userType == "supervisor" } == true) {
                     OtherUsersReceiptsCard(summaries = otherUserSummaries)
                 }
             }
@@ -261,6 +255,14 @@ fun DashboardScreen(
 // -----------------------------------------------------------------------------
 // Header
 // -----------------------------------------------------------------------------
+
+/** Sync progress invalidates only this small header, not the rooms/receipts. */
+@Composable
+private fun DashboardLiveHeader(viewModel: DashboardViewModel) {
+    val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+    val pendingChanges by viewModel.pendingChanges.collectAsStateWithLifecycle()
+    DashboardHeader(syncState, pendingChanges, onSyncClick = { viewModel.triggerSync() })
+}
 
 @Composable
 private fun DashboardHeader(

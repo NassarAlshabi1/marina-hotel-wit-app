@@ -57,7 +57,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -100,7 +100,7 @@ fun SettingsScreen(
     onNavigate: (String) -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showNightAudit by remember { mutableStateOf(false) }
     var showAppSettings by remember { mutableStateOf(false) }
@@ -292,7 +292,7 @@ fun SettingsScreen(
 
     // ─── حوار إعدادات التطبيق (Dart _showAppSettingsDialog) ───
     if (showAppSettings) {
-        val isDark by ThemePrefs.isDark.collectAsState()
+        val isDark by ThemePrefs.isDark.collectAsStateWithLifecycle()
         AlertDialog(
             onDismissRequest = { showAppSettings = false },
             title = { Text("إعدادات التطبيق") },
