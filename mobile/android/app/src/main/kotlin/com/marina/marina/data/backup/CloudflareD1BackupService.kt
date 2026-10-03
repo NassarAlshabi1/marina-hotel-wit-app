@@ -720,7 +720,7 @@ class CloudflareD1BackupService @Inject constructor(
         is Long -> v.toString()
         is Double -> if (v.isNaN() || v.isInfinite()) "NULL" else v.toString()
         is Boolean -> if (v) "1" else "0"
-        is ByteArray -> "X'${v.joinToString("") { String.format("%02x", it) }}'"
+        is ByteArray -> "X'${v.joinToString("") { String.format(java.util.Locale.ROOT, "%02x", it) }}'"
         else -> "'${v.toString().replace("'", "''")}'"
     }
 

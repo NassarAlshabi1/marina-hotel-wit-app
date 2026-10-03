@@ -59,7 +59,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update {
                 it.copy(
-                    status = BackupStatus.checkingPermissions,
+                    status = BackupStatus.CHECKING_PERMISSIONS,
                     message = "التحقق من أذونات التخزين..."
                 )
             }
@@ -70,7 +70,7 @@ class BackupViewModel @Inject constructor(
                     val localBackups = localBackupService.listLocalBackups()
                     _state.update {
                         it.copy(
-                            status = BackupStatus.success,
+                            status = BackupStatus.SUCCESS,
                             message = "تم الحصول على أذونات التخزين",
                             hasStoragePermission = hasPermission,
                             backupFolderPath = folderInfo.path,
@@ -82,7 +82,7 @@ class BackupViewModel @Inject constructor(
                 } else {
                     _state.update {
                         it.copy(
-                            status = BackupStatus.error,
+                            status = BackupStatus.ERROR,
                             message = "لا توجد أذونات للوصول للتخزين المحلي",
                             hasStoragePermission = false
                         )
@@ -91,7 +91,7 @@ class BackupViewModel @Inject constructor(
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
-                        status = BackupStatus.error,
+                        status = BackupStatus.ERROR,
                         message = "خطأ في التحقق من الأذونات: $e",
                         hasStoragePermission = false
                     )
@@ -106,7 +106,7 @@ class BackupViewModel @Inject constructor(
             if (!_state.value.hasStoragePermission) {
                 _state.update {
                     it.copy(
-                        status = BackupStatus.error,
+                        status = BackupStatus.ERROR,
                         message = "لا توجد أذونات للوصول للتخزين المحلي"
                     )
                 }
@@ -117,19 +117,19 @@ class BackupViewModel @Inject constructor(
             }
             _state.update {
                 it.copy(
-                    status = BackupStatus.uploading,
+                    status = BackupStatus.UPLOADING,
                     message = "إنشاء نسخة احتياطية محلية...",
                     progress = 0.0
                 )
             }
             try {
-                val backupPath = localBackupService.createLocalBackup(BackupFormat.sqlite)
+                val backupPath = localBackupService.createLocalBackup(BackupFormat.SQLITE)
                 _state.update { it.copy(message = "تحديث قائمة النسخ...", progress = 0.8) }
                 refreshList()
 
                 _state.update {
                     it.copy(
-                        status = BackupStatus.success,
+                        status = BackupStatus.SUCCESS,
                         message = "تم إنشاء النسخة الاحتياطية المحلية بنجاح في: $backupPath",
                         progress = 1.0
                     )
@@ -138,7 +138,7 @@ class BackupViewModel @Inject constructor(
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
-                        status = BackupStatus.error,
+                        status = BackupStatus.ERROR,
                         message = "خطأ في إنشاء النسخة الاحتياطية المحلية: $e"
                     )
                 }
@@ -152,7 +152,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update {
                 it.copy(
-                    status = BackupStatus.restoring,
+                    status = BackupStatus.RESTORING,
                     message = "استعادة النسخة الاحتياطية المحلية...",
                     progress = 0.0
                 )
@@ -163,7 +163,7 @@ class BackupViewModel @Inject constructor(
                 // تشغيل الإصلاح التلقائي — نظير RestoreFixService.runAutoFixAfterRestore
                 _state.update {
                     it.copy(
-                        status = BackupStatus.restoring,
+                        status = BackupStatus.RESTORING,
                         message = "تشغيل عملية الإصلاح التلقائي...",
                         progress = 0.5
                     )
@@ -172,7 +172,7 @@ class BackupViewModel @Inject constructor(
 
                 _state.update {
                     it.copy(
-                        status = BackupStatus.success,
+                        status = BackupStatus.SUCCESS,
                         message = "تم استعادة البيانات من النسخة المحلية بنجاح",
                         progress = 1.0
                     )
@@ -186,7 +186,7 @@ class BackupViewModel @Inject constructor(
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
-                        status = BackupStatus.error,
+                        status = BackupStatus.ERROR,
                         message = "خطأ في استعادة البيانات: $e"
                     )
                 }
@@ -202,14 +202,14 @@ class BackupViewModel @Inject constructor(
                 localBackupService.shareBackup(filePath)
                 _state.update {
                     it.copy(
-                        status = BackupStatus.success,
+                        status = BackupStatus.SUCCESS,
                         message = "تم مشاركة النسخة الاحتياطية"
                     )
                 }
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
-                        status = BackupStatus.error,
+                        status = BackupStatus.ERROR,
                         message = "خطأ في مشاركة النسخة الاحتياطية: $e"
                     )
                 }
@@ -223,7 +223,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update {
                 it.copy(
-                    status = BackupStatus.importingFile,
+                    status = BackupStatus.IMPORTING_FILE,
                     message = "استيراد ملف النسخة الاحتياطية...",
                     progress = 0.0
                 )
@@ -234,7 +234,7 @@ class BackupViewModel @Inject constructor(
                 refreshList()
                 _state.update {
                     it.copy(
-                        status = BackupStatus.success,
+                        status = BackupStatus.SUCCESS,
                         message = "تم استيراد النسخة الاحتياطية من: $importedPath",
                         progress = 1.0
                     )
@@ -243,7 +243,7 @@ class BackupViewModel @Inject constructor(
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
-                        status = BackupStatus.error,
+                        status = BackupStatus.ERROR,
                         message = "خطأ في استيراد النسخة: $e"
                     )
                 }

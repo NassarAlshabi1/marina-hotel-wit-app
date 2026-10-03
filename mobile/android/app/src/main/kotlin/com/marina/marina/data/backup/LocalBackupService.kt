@@ -149,7 +149,7 @@ class LocalBackupService @Inject constructor(
      * نظير createLocalBackup — الافتراضي sqlite (نسخة خام كاملة)،
      * و json نسخة مضغوطة بنفس مغلف Dart. يعيد مسار الملف الناتج.
      */
-    suspend fun createLocalBackup(format: BackupFormat = BackupFormat.sqlite): String =
+    suspend fun createLocalBackup(format: BackupFormat = BackupFormat.SQLITE): String =
         withContext(Dispatchers.IO) {
             val backupDir = getBackupDirectory()
             val now = System.currentTimeMillis()
@@ -158,7 +158,7 @@ class LocalBackupService @Inject constructor(
             val deviceLabel = "Android Local"
 
             val path = when (format) {
-                BackupFormat.json -> {
+                BackupFormat.JSON -> {
                     val envelope = buildJsonBackupEnvelope(deviceLabel, now)
                     val jsonBytes = gson.toJson(envelope).toByteArray(Charsets.UTF_8)
                     val file = File(backupDir, "$baseName.json.gz")
@@ -167,7 +167,7 @@ class LocalBackupService @Inject constructor(
                     }
                     file.absolutePath
                 }
-                BackupFormat.sqlite -> {
+                BackupFormat.SQLITE -> {
                     val file = File(backupDir, "$baseName.db")
                     copySqliteDatabase(file)
                     // نظير Dart: ملف ميتاداتا جانبي للنسخة الخام.
@@ -209,7 +209,7 @@ class LocalBackupService @Inject constructor(
             val isJson = name.endsWith(".json.gz") || name.endsWith(".json")
             if (!isSqlite && !isJson) continue
             if (name.endsWith(".metadata.json")) continue
-            val format = if (isSqlite) BackupFormat.sqlite else BackupFormat.json
+            val format = if (isSqlite) BackupFormat.SQLITE else BackupFormat.JSON
             val metadata = readMetadata(f, format)
             result.add(
                 LocalBackupFile(
@@ -228,7 +228,7 @@ class LocalBackupService @Inject constructor(
     private fun readMetadata(file: File, format: BackupFormat): BackupMetadata? {
         return try {
             when (format) {
-                BackupFormat.json -> {
+                BackupFormat.JSON -> {
                     val json = if (file.name.endsWith(".gz")) {
                         GZIPInputStream(FileInputStream(file)).use { inp ->
                             inp.readBytes().toString(Charsets.UTF_8)
@@ -242,7 +242,7 @@ class LocalBackupService @Inject constructor(
                     )
                     gson.fromJson(gson.toJson(map["metadata"]), BackupMetadata::class.java)
                 }
-                BackupFormat.sqlite -> {
+                BackupFormat.SQLITE -> {
                     val sidecar = File(file.parentFile, removeExt(file.name) + ".metadata.json")
                     if (sidecar.exists()) {
                         gson.fromJson(sidecar.readText(), BackupMetadata::class.java)
@@ -284,7 +284,7 @@ class LocalBackupService @Inject constructor(
         val tablesJson = gson.toJson(envelope)
         val digest = java.security.MessageDigest.getInstance("SHA-256")
             .digest(tablesJson.toByteArray(Charsets.UTF_8))
-            .joinToString("") { String.format("%02x", it) }
+            .joinToString("") { String.format(java.util.Locale.ROOT, "%02x", it) }
 
         val metadata = linkedMapOf<String, Any>(
             "app_version" to "1.2.0+3",

@@ -189,6 +189,7 @@ private fun ExpenseCard(
     onDelete: () -> Unit
 ) {
     Card(
+        onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
         shape = MaterialTheme.shapes.small,

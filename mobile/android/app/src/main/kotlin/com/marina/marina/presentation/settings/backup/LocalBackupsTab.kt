@@ -416,7 +416,7 @@ private fun BackupItem(
     onDelete: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    val formatLabel = if (backup.format == BackupFormat.sqlite) "SQLite" else "JSON"
+    val formatLabel = if (backup.format == BackupFormat.SQLITE) "SQLite" else "JSON"
 
     OutlinedCard(
         modifier = Modifier

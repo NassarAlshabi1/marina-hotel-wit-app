@@ -53,13 +53,6 @@ import com.marina.marina.domain.model.AuthUser
 import com.marina.marina.navigation.Screen
 import com.marina.marina.ui.theme.ReferenceLayout
 
-/** One navigation entry in the side navigation. */
-data class SidebarDestination(
-    val label: String,
-    val route: String,
-    val icon: ImageVector
-)
-
 /**
  * The sidebar's navigation entries — one per top-level screen, in the
  * Flutter/PHP order. Exposed for unit tests (uniqueness/completeness).
