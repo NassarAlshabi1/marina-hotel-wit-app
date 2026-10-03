@@ -104,7 +104,7 @@ export function uniqueUuid(prefix = 'uuid'): string {
 export function roomPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     local_uuid: uniqueUuid('room'),
-    room_number: `R${Math.floor(Math.random() * 100000)}`,
+    room_number: `R${uuidCounter}`, // local_uuid just advanced the monotonic fixture counter
     type: 'double',
     price: 100.5,
     status: 'available',
