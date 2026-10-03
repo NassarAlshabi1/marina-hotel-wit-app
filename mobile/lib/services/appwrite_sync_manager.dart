@@ -2674,7 +2674,6 @@ class AppwriteSyncManager {
   Future<int> _syncDebts(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
-    final deferred = <models.Document>[];
 
     // المرحلة الأولى: معالجة الديون
     for (final doc in documents) {
@@ -2730,48 +2729,34 @@ class AppwriteSyncManager {
         if (errStr.contains('FOREIGN KEY constraint failed') ||
             errStr.contains('NOT NULL constraint failed')) {
           _logger.debug(
-            'Deferring debt ${doc.$id}: FK/NOT NULL constraint (missing booking)',
+            'Deferring debt ${doc.$id}: FK/NOT NULL constraint (missing booking) — registering pending link',
             tag: 'SYNC',
           );
-          deferred.add(doc);
+          // ✅ Phase 4: تسجيل الرابط المؤجل في pending_links بدلاً من القائمة المؤقتة
+          final localUuid = (data['localUuid'] as String?) ?? doc.$id;
+          final bookingUuidCache = (data['bookingUuidCache'] as String?) ?? (data['booking_uuid_cache'] as String?);
+          final bookingLocalId = (data['bookingLocalId'] as int?) ?? (data['booking_local_id'] as int?);
+          await _pendingLinksService.registerPendingLink(
+            childEntity: 'debts',
+            childLocalUuid: localUuid,
+            parentEntity: 'bookings',
+            childField: 'bookingLocalId',
+            parentLocalUuid: bookingUuidCache,
+            parentServerId: bookingLocalId?.toString(),
+            linkType: 'fk',
+          );
         } else {
           _logger.warning('Failed to sync debt ${doc.$id}: $e', tag: 'SYNC');
         }
       }
     }
 
-    // المرحلة الثانية: إعادة محاولة الديون المؤجلة
-    if (deferred.isNotEmpty) {
-      _logger.info(
-        'Retrying ${deferred.length} deferred debts after all bookings synced',
-        tag: 'SYNC',
-      );
-
-      for (final doc in deferred) {
-        try {
-          final data = Map<String, dynamic>.from(doc.data);
-          data['localUuid'] ??= doc.$id;
-          await _adapterRegistry.debts.upsertFromJson(
-            data,
-            src: Source.appwrite,
-          );
-          // ✅ Wave 7: notify remote change from another device
-          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-            entity: 'debts',
-            localUuid: (data['localUuid'] as String?) ?? '',
-            remoteDeviceId: (data['deviceId'] as String?) ?? '',
-            currentDeviceId: _currentDeviceId,
-            lastModified: _asIntNullable(data['lastModified']),
-          );
-          processed++;
-        } catch (e) {
-          _logger.warning(
-            'Failed to sync deferred debt ${doc.$id} after retry: $e',
-            tag: 'SYNC',
-          );
-        }
-      }
-    }
+    // ✅ Phase 4: محاولة حل الروابط المؤجلة للحجوزات بعد مزامنة الحجوزات
+    await _pendingLinksService.tryResolveForParent(
+      parentEntity: 'bookings',
+      parentLocalUuid: '',
+      parentServerId: null,
+    );
 
     return processed;
   }
@@ -4083,13 +4068,24 @@ class AppwriteSyncManager {
         processed++;
       } on SqliteException catch (e) {
         if (e.resultCode == 787) {
-          // FK constraint failed - تأجيل السجل لإعادة المحاولة لاحقاً
+          // FK constraint failed - تسجيل الرابط المؤجل في pending_links
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
-          deferred.add(data);
           _logger.warning(
-            '⏳ تأجيل salary_withdrawal ${doc.$id}: FK constraint failed - سيتم إعادة المحاولة',
+            '⏳ تأجيل salary_withdrawal ${doc.$id}: FK constraint failed — registering pending link',
             tag: 'SYNC',
+          );
+          // ✅ Phase 4: تسجيل الرابط المؤجل في pending_links بدلاً من القائمة المؤقتة
+          final localUuid = (data['localUuid'] as String?) ?? doc.$id;
+          final employeeUuid = (data['employeeUuid'] as String?) ?? (data['employee_uuid'] as String?) ?? (data['employeeLocalUuid'] as String?) ?? (data['employee_local_uuid'] as String?);
+          final expenseUuid = (data['expenseUuid'] as String?) ?? (data['expense_uuid'] as String?);
+          await _pendingLinksService.registerPendingLink(
+            childEntity: 'salary_withdrawals',
+            childLocalUuid: localUuid,
+            parentEntity: expenseUuid != null && expenseUuid.isNotEmpty ? 'expenses' : 'employees',
+            childField: expenseUuid != null && expenseUuid.isNotEmpty ? 'expenseUuid' : 'employeeUuid',
+            parentLocalUuid: expenseUuid ?? employeeUuid,
+            linkType: 'uuid',
           );
         } else {
           _logger.warning(
@@ -4115,45 +4111,17 @@ class AppwriteSyncManager {
       );
     }
 
-    // ✅ إعادة محاولة السجلات المؤجلة بعد اكتمال باقي السجلات
-    if (deferred.isNotEmpty) {
-      _logger.info(
-        '🔄 إعادة محاولة ${deferred.length} سجل salary_withdrawals مؤجل...',
-        tag: 'SYNC',
-      );
-      for (final data in deferred) {
-        try {
-          final deferredInsertedId = await _adapterRegistry.salaryWithdrawals
-              .upsertFromJson(data, src: Source.appwrite);
-          // ✅ كتابة expense_id في العمود الخام
-          final deferredExpenseId = _asIntSafe(data, 'expenseId');
-          if (deferredExpenseId != null && deferredExpenseId > 0) {
-            final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
-            if (swAdapter is SalaryWithdrawalsAdapter) {
-              await swAdapter.writeExpenseIdRaw(
-                database,
-                deferredInsertedId,
-                deferredExpenseId,
-              );
-            }
-          }
-          // ✅ Wave 7 tighten: notify remote change from another device
-          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-            entity: 'salary_withdrawals',
-            localUuid: (data['localUuid'] as String?) ?? '',
-            remoteDeviceId: (data['deviceId'] as String?) ?? '',
-            currentDeviceId: _currentDeviceId,
-            lastModified: _asIntNullable(data['lastModified']),
-          );
-          processed++;
-        } catch (e) {
-          _logger.warning(
-            '⏭️ فشل نهائي لـ salary_withdrawal (يتيم): الموظف ${data['employeeId'] ?? data['employee_id']} غير موجود - $e',
-            tag: 'SYNC',
-          );
-        }
-      }
-    }
+    // ✅ Phase 4: محاولة حل الروابط المؤجلة للموظفين والمصروفات
+    await _pendingLinksService.tryResolveForParent(
+      parentEntity: 'employees',
+      parentLocalUuid: '',
+      parentServerId: null,
+    );
+    await _pendingLinksService.tryResolveForParent(
+      parentEntity: 'expenses',
+      parentLocalUuid: '',
+      parentServerId: null,
+    );
 
     return ApplyResult(
       recordsApplied: processed,
@@ -7761,12 +7729,23 @@ Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
         processed++;
       } on SqliteException catch (e) {
         if (e.resultCode == 787) {
+          // FK constraint failed - تسجيل الرابط المؤجل في pending_links
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
-          deferred.add(data);
           _logger.warning(
-            '⏳ تأجيل salary_cycle ${doc.$id}: FK constraint failed',
+            '⏳ تأجيل salary_cycle ${doc.$id}: FK constraint failed — registering pending link',
             tag: 'SYNC',
+          );
+          // ✅ Phase 4: تسجيل الرابط المؤجل في pending_links بدلاً من القائمة المؤقتة
+          final localUuid = (data['localUuid'] as String?) ?? doc.$id;
+          final employeeUuid = (data['employeeUuid'] as String?) ?? (data['employee_uuid'] as String?) ?? (data['employeeLocalUuid'] as String?) ?? (data['employee_local_uuid'] as String?);
+          await _pendingLinksService.registerPendingLink(
+            childEntity: 'salary_cycles',
+            childLocalUuid: localUuid,
+            parentEntity: 'employees',
+            childField: 'employeeUuid',
+            parentLocalUuid: employeeUuid,
+            linkType: 'uuid',
           );
         } else {
           _logger.warning(
@@ -7792,35 +7771,12 @@ Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
       );
     }
 
-    // ✅ إعادة محاولة السجلات المؤجلة
-    if (deferred.isNotEmpty) {
-      _logger.info(
-        '🔄 إعادة محاولة ${deferred.length} سجل salary_cycles مؤجل...',
-        tag: 'SYNC',
-      );
-      for (final data in deferred) {
-        try {
-          await _adapterRegistry.salaryCycles.upsertFromJson(
-            data,
-            src: Source.appwrite,
-          );
-          // ✅ Wave 7: notify remote change from another device
-          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-            entity: 'salary_cycles',
-            localUuid: (data['localUuid'] as String?) ?? '',
-            remoteDeviceId: (data['deviceId'] as String?) ?? '',
-            currentDeviceId: _currentDeviceId,
-            lastModified: _asIntNullable(data['lastModified']),
-          );
-          processed++;
-        } catch (e) {
-          _logger.warning(
-            '⏭️ فشل نهائي لـ salary_cycle (يتيم): $e',
-            tag: 'SYNC',
-          );
-        }
-      }
-    }
+    // ✅ Phase 4: محاولة حل الروابط المؤجلة للموظفين
+    await _pendingLinksService.tryResolveForParent(
+      parentEntity: 'employees',
+      parentLocalUuid: '',
+      parentServerId: null,
+    );
 
     return ApplyResult(
       recordsApplied: processed,
@@ -7881,12 +7837,26 @@ Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
         processed++;
       } on SqliteException catch (e) {
         if (e.resultCode == 787) {
+          // FK constraint failed - تسجيل الرابط المؤجل في pending_links
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
-          deferred.add(data);
           _logger.warning(
-            '⏳ تأجيل salary_payment ${doc.$id}: FK constraint failed',
+            '⏳ تأجيل salary_payment ${doc.$id}: FK constraint failed — registering pending link',
             tag: 'SYNC',
+          );
+          // ✅ Phase 4: تسجيل الرابط المؤجل في pending_links بدلاً من القائمة المؤقتة
+          final localUuid = (data['localUuid'] as String?) ?? doc.$id;
+          // salary_payments يرتبط بـ salary_cycles عبر cycle_id/cycleUuid
+          final cycleUuid = (data['cycleUuid'] as String?) ?? (data['cycle_uuid'] as String?);
+          final cycleId = _asIntSafe(data, 'cycleId');
+          await _pendingLinksService.registerPendingLink(
+            childEntity: 'salary_payments',
+            childLocalUuid: localUuid,
+            parentEntity: 'salary_cycles',
+            childField: cycleUuid != null && cycleUuid.isNotEmpty ? 'cycleUuid' : 'cycleId',
+            parentLocalUuid: cycleUuid,
+            parentServerId: cycleId?.toString(),
+            linkType: cycleUuid != null && cycleUuid.isNotEmpty ? 'uuid' : 'fk',
           );
         } else {
           _logger.warning(
@@ -7902,35 +7872,12 @@ Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
       }
     }
 
-    // ✅ إعادة محاولة السجلات المؤجلة
-    if (deferred.isNotEmpty) {
-      _logger.info(
-        '🔄 إعادة محاولة ${deferred.length} سجل salary_payments مؤجل...',
-        tag: 'SYNC',
-      );
-      for (final data in deferred) {
-        try {
-          await _adapterRegistry.salaryPayments.upsertFromJson(
-            data,
-            src: Source.appwrite,
-          );
-          // ✅ Wave 7: notify remote change from another device
-          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-            entity: 'salary_payments',
-            localUuid: (data['localUuid'] as String?) ?? '',
-            remoteDeviceId: (data['deviceId'] as String?) ?? '',
-            currentDeviceId: _currentDeviceId,
-            lastModified: _asIntNullable(data['lastModified']),
-          );
-          processed++;
-        } catch (e) {
-          _logger.warning(
-            '⏭️ فشل نهائي لـ salary_payment (يتيم): $e',
-            tag: 'SYNC',
-          );
-        }
-      }
-    }
+    // ✅ Phase 4: محاولة حل الروابط المؤجلة لدورات الراتب
+    await _pendingLinksService.tryResolveForParent(
+      parentEntity: 'salary_cycles',
+      parentLocalUuid: '',
+      parentServerId: null,
+    );
 
     return processed;
   }
@@ -8003,10 +7950,22 @@ Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
         if (errStr.contains('FOREIGN KEY constraint failed') ||
             errStr.contains('NOT NULL constraint failed')) {
           _logger.debug(
-            'Deferring booking price adjustment ${doc.$id}: FK/NOT NULL constraint (missing booking)',
+            'Deferring booking price adjustment ${doc.$id}: FK/NOT NULL constraint (missing booking) — registering pending link',
             tag: 'SYNC',
           );
-          deferred.add(doc);
+          // ✅ Phase 4: تسجيل الرابط المؤجل في pending_links بدلاً من القائمة المؤقتة
+          final localUuid = (data['localUuid'] as String?) ?? doc.$id;
+          final bookingUuidCache = (data['bookingUuidCache'] as String?) ?? (data['booking_uuid_cache'] as String?);
+          final bookingLocalId = (data['bookingLocalId'] as int?) ?? (data['booking_local_id'] as int?);
+          await _pendingLinksService.registerPendingLink(
+            childEntity: 'booking_price_adjustments',
+            childLocalUuid: localUuid,
+            parentEntity: 'bookings',
+            childField: 'bookingLocalId',
+            parentLocalUuid: bookingUuidCache,
+            parentServerId: bookingLocalId?.toString(),
+            linkType: 'fk',
+          );
         } else {
           _logger.warning(
             'Failed to sync booking price adjustment ${doc.$id}: $e',
@@ -8016,51 +7975,12 @@ Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
       }
     }
 
-    // المرحلة الثانية: إعادة محاولة التعديلات المؤجلة
-    if (deferred.isNotEmpty) {
-      _logger.info(
-        'Retrying ${deferred.length} deferred booking price adjustments after all bookings synced',
-        tag: 'SYNC',
-      );
-
-      for (final doc in deferred) {
-        try {
-          final data = Map<String, dynamic>.from(doc.data);
-          data['localUuid'] ??= doc.$id;
-          data.remove('id');
-
-          final result = await _adapterRegistry.bookingPriceAdjustments
-              .upsertFromJson(data, src: Source.appwrite);
-
-          if (result > 0) {
-            final adj = await (database.select(
-              database.bookingPriceAdjustments,
-            )..where((t) => t.id.equals(result))).getSingleOrNull();
-
-            if (adj != null && adj.bookingLocalId != null) {
-              await _bookingsRepository.derivedFields.refreshForBookingId(
-                adj.bookingLocalId!,
-              );
-            }
-          }
-
-          // ✅ Wave 7 tighten: notify remote change from another device
-          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-            entity: 'booking_price_adjustments',
-            localUuid: (data['localUuid'] as String?) ?? '',
-            remoteDeviceId: (data['deviceId'] as String?) ?? '',
-            currentDeviceId: _currentDeviceId,
-            lastModified: _asIntNullable(data['lastModified']),
-          );
-          processed++;
-        } catch (e) {
-          _logger.warning(
-            'Failed to sync deferred booking price adjustment ${doc.$id} after retry: $e',
-            tag: 'SYNC',
-          );
-        }
-      }
-    }
+    // ✅ Phase 4: محاولة حل الروابط المؤجلة للحجوزات
+    await _pendingLinksService.tryResolveForParent(
+      parentEntity: 'bookings',
+      parentLocalUuid: '',
+      parentServerId: null,
+    );
 
     return processed;
   }
