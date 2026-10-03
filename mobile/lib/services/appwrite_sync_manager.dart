@@ -3985,9 +3985,14 @@ class AppwriteSyncManager {
 
   // ─── SalaryWithdrawals ──────────────────────────────────────────────────
 
-  Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
+  /// ✅ R5 Fix: تطبيق مع تتبع أقصى $updatedAt للمعالجات الفعلية
+  /// (باستثناء السجلات المتخطاة/اليتيمة) لمنع تقدم المؤشر فوقها.
+  Future<dynamic> _syncSalaryWithdrawals(List<models.Document> documents) async {
+    if (documents.isEmpty) {
+      return const ApplyResult(recordsApplied: 0, maxProcessedUpdatedAtSec: null);
+    }
     var processed = 0;
+    int? maxProcessedUpdatedAtSec;
     final deferred = <Map<String, dynamic>>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
     // (بيانات قديمة بلا employeeUuid — تُشفى عبر
@@ -4067,6 +4072,15 @@ class AppwriteSyncManager {
               insertedId,
               remoteExpenseId,
             );
+          }
+        }
+
+        // ✅ R5 Fix: تحديث أقصى $updatedAt للمعالجات الفعلية فقط
+        final docUpdatedAtSec = _extractUpdatedAtSec(doc);
+        if (docUpdatedAtSec != null) {
+          if (maxProcessedUpdatedAtSec == null ||
+              docUpdatedAtSec > maxProcessedUpdatedAtSec) {
+            maxProcessedUpdatedAtSec = docUpdatedAtSec;
           }
         }
 
@@ -4153,7 +4167,10 @@ class AppwriteSyncManager {
       }
     }
 
-    return processed;
+    return ApplyResult(
+      recordsApplied: processed,
+      maxProcessedUpdatedAtSec: maxProcessedUpdatedAtSec,
+    );
   }
 
   Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
@@ -5932,7 +5949,25 @@ class AppwriteSyncManager {
       for (final withdrawal in salaryWithdrawals) {
         if (skipDeleted && withdrawal.deletedAt != null) continue;
         try {
-          final payload = _payloadMapper.salaryWithdrawalToRemote(withdrawal);
+          // ✅ R9: تضمين employeeUuid في الرفع الكامل (بعد الاستعادة) لضمان
+          // ربط السحبة بالموظف الصحيح عبر الأجهزة
+          String? effectiveEmployeeUuid;
+          if (withdrawal.employeeUuid != null && withdrawal.employeeUuid!.isNotEmpty) {
+            effectiveEmployeeUuid = withdrawal.employeeUuid;
+          } else {
+            final employee =
+                await (database.select(database.employees)
+                      ..where((e) => e.id.equals(withdrawal.employeeId))
+                      ..limit(1))
+                    .getSingleOrNull();
+            if (employee != null) {
+              effectiveEmployeeUuid = employee.localUuid;
+            }
+          }
+          final payload = _payloadMapper.salaryWithdrawalToRemote(
+            withdrawal,
+            employeeUuid: effectiveEmployeeUuid,
+          );
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
             documentId: withdrawal.localUuid,
@@ -7644,10 +7679,12 @@ class AppwriteSyncManager {
     }
     return processed;
   }
-
-  Future<int> _syncSalaryCycles(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
+Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
+    if (documents.isEmpty) {
+      return const ApplyResult(recordsApplied: 0, maxProcessedUpdatedAtSec: null);
+    }
     var processed = 0;
+    int? maxProcessedUpdatedAtSec;
     final deferred = <Map<String, dynamic>>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
     final orphans = <String>[];
@@ -7715,6 +7752,16 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+
+        // ✅ R5 Fix: تحديث أقصى $updatedAt للمعالجات الفعلية فقط
+        final docUpdatedAtSec = _extractUpdatedAtSec(doc);
+        if (docUpdatedAtSec != null) {
+          if (maxProcessedUpdatedAtSec == null ||
+              docUpdatedAtSec > maxProcessedUpdatedAtSec) {
+            maxProcessedUpdatedAtSec = docUpdatedAtSec;
+          }
+        }
+
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'salary_cycles',
@@ -7787,7 +7834,10 @@ class AppwriteSyncManager {
       }
     }
 
-    return processed;
+    return ApplyResult(
+      recordsApplied: processed,
+      maxProcessedUpdatedAtSec: maxProcessedUpdatedAtSec,
+    );
   }
 
   Future<int> _syncSalaryPayments(List<models.Document> documents) async {

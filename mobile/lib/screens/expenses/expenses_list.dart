@@ -853,20 +853,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     if (confirmed != true) return;
 
     try {
-      final repo = ref.read(expensesRepoProvider);
-      final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
+      final salaryExpenseService = ref.read(salaryExpenseServiceProvider);
 
-      // ✅ إصلاح: حذف سحب الراتب أولاً ثم المصروف — لحماية تكامل البيانات
-      // إذا فشل حذف المصروف، سحب الراتب يبقى مرتبطاً (آمن)
-      // إذا فشل حذف سحب الراتب بعد حذف المصروف، نحاول مرة أخرى
-      // ✅ (2026-10-02) تمرير موظف المصروف — لا تُحذف سحبة موظف آخر
-      // يتصادف رقم مصروفها (من جهاز آخر) مع هذا المصروف (R3).
-      await salaryRepo.deleteByExpenseId(
-        expense.id,
+      // ✅ R4: معاملة ذرية لحذف المصروف + السحبة المرآة
+      await salaryExpenseService.deleteSalaryExpenseWithMirror(
+        expenseId: expense.id,
+        expenseLocalUuid: expense.localUuid,
         employeeId: expense.relatedId,
         employeeUuid: expense.employeeUuid,
       );
-      await repo.delete(expense.id);
 
       markDataChanged();
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
@@ -1175,7 +1170,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }
 
       final repo = ref.read(expensesRepoProvider);
-      final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
+      final salaryExpenseService = ref.read(salaryExpenseServiceProvider);
       final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
       final trimmedDescription = description.text.trim();
       final trimmedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
@@ -1205,34 +1200,36 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               ? availableEmployees.firstWhere((e) => e.id == selectedEmployeeId)
               : null;
 
-          final newId = await repo.create(
-            expenseType: savedType,
-            relatedId: isSalaryExpense ? selectedEmployeeId : null,
-            description: trimmedDescription,
-            amount: parsedAmount,
-            date: trimmedDate,
-            hotelDayKey: newHotelDayKey,
-            // ✅ التوصية 1: اكتب employeeUuid وقت الإنشاء — مصدر الحقيقة المحمول.
-            employeeUuid: (isSalaryExpense && resolvedEmployee != null)
-                ? resolvedEmployee.localUuid
-                : null,
-          );
-
           if (isSalaryExpense && resolvedEmployee != null) {
             final signedAmount = savedType == _salaryDeductionAction
                 ? -parsedAmount
                 : parsedAmount;
 
-            await salaryRepo.saveFromExpense(
-              expenseId: newId,
-              employeeId:
-                  resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
-              action: savedType,
-              amount: signedAmount,
+            // ✅ R4: معاملة ذرية للمصروف + السحبة المرآة
+            await salaryExpenseService.createSalaryExpenseWithMirror(
+              expenseType: savedType,
+              employeeId: resolvedEmployee.id,
+              description: trimmedDescription,
+              amount: parsedAmount,
               date: trimmedDate,
-              note: trimmedDescription,
-              // ✅ hotelDayKey مطابق لليوم الفندقي من التاريخ المختار
               hotelDayKey: newHotelDayKey,
+              employeeUuid: resolvedEmployee.localUuid,
+              action: savedType,
+              signedAmount: signedAmount,
+              recorderName: null, // سيتم ملؤه من جلسة الدخول إذا متاح
+            );
+          } else {
+            // مصروف عادي (ليس راتب) — يستخدم repo.create مباشرة
+            await repo.create(
+              expenseType: savedType,
+              relatedId: isSalaryExpense ? selectedEmployeeId : null,
+              description: trimmedDescription,
+              amount: parsedAmount,
+              date: trimmedDate,
+              hotelDayKey: newHotelDayKey,
+              employeeUuid: (isSalaryExpense && resolvedEmployee != null)
+                  ? resolvedEmployee.localUuid
+                  : null,
             );
           }
         } else {
@@ -1246,23 +1243,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               (isSalaryExpense && selectedEmployeeId != null)
               ? availableEmployees.firstWhere((e) => e.id == selectedEmployeeId)
               : null;
-
-          await repo.update(
-            existing.id,
-            expenseType: savedType,
-            relatedId: isSalaryExpense ? selectedEmployeeId : null,
-            description: trimmedDescription,
-            amount: parsedAmount,
-            date: trimmedDate,
-            hotelDayKey: updatedHotelDayKey,
-            // ✅ التوصية 1: اكتب employeeUuid وقت التعديل.
-            // - لمصروف الراتب: localUuid للموظف المختار.
-            // - لغير الراتب: '' لمسح أي رابط قديم (يمنع بقاء رابط يتيم عند
-            //   التحويل من راتب إلى نوع آخر).
-            employeeUuid: (isSalaryExpense && resolvedEmployee != null)
-                ? resolvedEmployee.localUuid
-                : '',
-          );
 
           if (isSalaryExpense && resolvedEmployee != null) {
             final signedAmount = savedType == _salaryDeductionAction
@@ -1278,28 +1258,48 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 ? -existing.amount
                 : existing.amount;
 
-            await salaryRepo.saveFromExpense(
+            // ✅ R4: معاملة ذرية للمصروف + السحبة المرآة
+            await salaryExpenseService.updateSalaryExpenseWithMirror(
               expenseId: existing.id,
-              employeeId:
-                  resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
-              action: savedType,
-              amount: signedAmount,
+              employeeId: resolvedEmployee.id,
+              employeeUuid: resolvedEmployee.localUuid,
+              expenseType: savedType,
+              description: trimmedDescription,
+              amount: parsedAmount,
               date: trimmedDate,
-              note: trimmedDescription,
-              // ✅ hotelDayKey مطابق للمصروف المُحدّث
               hotelDayKey: updatedHotelDayKey,
-              // ✅ المبلغ القديم الموقّع — للتبنّي بدل التكرار
+              action: savedType,
+              signedAmount: signedAmount,
               previousAmount: previousSignedAmount,
-              // ✅ (2026-10-02) الموظف السابق — لإيجاد المرآة القديمة عند
-              // تغيير الموظف دون قبول سحبة موظف ثالث برقم مصروف متصادم.
               previousEmployeeId: existing.relatedId,
+              note: trimmedDescription,
+              recorderName: null,
             );
           } else {
-            await salaryRepo.deleteByExpenseId(
+            // مصروف عادي أو تحويل من راتب إلى غير راتب
+            await repo.update(
               existing.id,
-              employeeId: existing.relatedId,
-              employeeUuid: existing.employeeUuid,
+              expenseType: savedType,
+              relatedId: isSalaryExpense ? selectedEmployeeId : null,
+              description: trimmedDescription,
+              amount: parsedAmount,
+              date: trimmedDate,
+              hotelDayKey: updatedHotelDayKey,
+              employeeUuid: (isSalaryExpense && resolvedEmployee != null)
+                  ? resolvedEmployee.localUuid
+                  : '',
             );
+
+            // إذا كان المصروف السابق راتب وتحول لغير راتب، احذف المرآة
+            if (!isSalaryExpense &&
+                SalaryExpenseClassifier.isSalaryRelated(existing.expenseType)) {
+              await salaryExpenseService.deleteSalaryExpenseWithMirror(
+                expenseId: existing.id,
+                expenseLocalUuid: existing.localUuid,
+                employeeId: existing.relatedId,
+                employeeUuid: existing.employeeUuid,
+              );
+            }
           }
         }
 
