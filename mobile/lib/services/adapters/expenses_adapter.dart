@@ -122,13 +122,17 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       serverId: _vInt(json, 'serverId', src),
       expenseType: _vStr(json, 'expenseType', src, fallback: ''),
       // ✅ إصلاح: لمصروفات الرواتب، استخدم relatedId المحلول عبر UUID
-      // لتوافق الأجهزة المختلفة (relatedId على جهاز آخر قد لا يتطابق)
-      relatedId:
-          (PayloadMapper.isSalaryExpenseType(
-                _asString(json, 'expenseType', src) ?? '',
-              ) &&
-              refs.employeeRelatedId != null)
-          ? d.Value(refs.employeeRelatedId)
+      // لتوافق الأجهزة المختلفة (relatedId على جهاز آخر قد لا يتطابق).
+      // ⚠️ (المرحلة 0 — P0.4 / R8) عند فشل حل الـ UUID نُبقيه null صراحةً
+      // بدل الرجوع لـ relatedId البعيد الخام: الرقم الخام هو autoincrement
+      // جهاز المصدر ولا معنى له هنا — يربط المصروف بموظف آخر يحمل نفس
+      // الرقم (ويُحسب راتبه عليه). null يبقى قابلاً لإعادة الربط لاحقاً
+      // عبر employeeUuid (relink / قاعدة 6.1). أنواع غير الرواتب
+      // (حجز/روابط أخرى) تبقى كما هي: relatedId معاينه محلية فقط.
+      relatedId: PayloadMapper.isSalaryExpenseType(
+            _asString(json, 'expenseType', src) ?? '',
+          )
+          ? d.Value<int?>(refs.employeeRelatedId)
           : _vInt(json, 'relatedId', src),
       description: _vStr(json, 'description', src, fallback: ''),
       amount: _vDouble(json, 'amount', src),

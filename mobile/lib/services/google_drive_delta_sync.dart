@@ -316,6 +316,21 @@ class GoogleDriveDeltaSync {
     }
   }
 
+  /// ✅ (المرحلة 0 — P0.6 / R7) جسر اختبار لمسار تطبيق تغييرات Delta
+  /// دون Google Drive: يحقن القاعدة والمخزن ثم يستدعي _applyDeltaChanges
+  /// الإنتاجي نفسه. يُثبت أن salary_withdrawals/salary_carry_over_logs
+  /// تُطبَّق الآن بدل إسقاطها صامتاً لعدم وجود case لهما في _applyChange.
+  @visibleForTesting
+  Future<int> applyChangesForTesting(
+    AppDatabase db,
+    AdapterRegistry registry,
+    Map<String, dynamic> deltaData,
+  ) async {
+    _database = db;
+    _adapterRegistry = registry;
+    return _applyDeltaChanges(deltaData);
+  }
+
   Future<int> _applyDeltaChanges(Map<String, dynamic> deltaData) async {
     final changes = deltaData['changes'] as List<dynamic>?;
     if (changes == null || changes.isEmpty) {
@@ -427,6 +442,19 @@ class GoogleDriveDeltaSync {
           payload,
           src: Source.drive,
         );
+      // ✅ (المرحلة 0 — P0.6 / R7) الجدولان كانا يصلان من المنتج
+      // (delta_sync_service يصدر تغييراتهما) وتُسقطهما هذه الدالة بصمت
+      // لعدم وجود case لهما — تغييرات رواتب كاملة كانت تختفي دون تطبيق.
+      case 'salary_withdrawals':
+        await registry.salaryWithdrawals.upsertFromJson(
+          payload,
+          src: Source.drive,
+        );
+      case 'salary_carry_over_logs':
+        await registry.salaryCarryOverLogs.upsertFromJson(
+          payload,
+          src: Source.drive,
+        );
       case 'cash_transactions':
         await registry.cashTransactions.upsertFromJson(
           payload,
@@ -501,6 +529,33 @@ class GoogleDriveDeltaSync {
         await (db.delete(
           db.salaryPayments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
+        return;
+      // ✅ (المرحلة 0 — P0.6 / R7) جداول مالية: حذف ناعم فقط — لا DELETE
+      // نهائي لبيانات رواتب مهما كان مصدر العملية (مبدأ 2 في العقد).
+      // مسار دفاعي: المنتج الحالي لا يصدر op='delete' (الحذف يصل كـ
+      // update بـ deleted_at ويُعالَجه upsertFromJson)، لكننا لا نترك
+      // مساراً محلياً قادراً على الحذف الفعلي لسجل مالي.
+      case 'salary_withdrawals':
+        await db.customStatement(
+          'UPDATE salary_withdrawals SET deleted_at = ?, last_modified = ? '
+          'WHERE local_uuid = ? AND deleted_at IS NULL',
+          [
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            localUuid,
+          ],
+        );
+        return;
+      case 'salary_carry_over_logs':
+        await db.customStatement(
+          'UPDATE salary_carry_over_logs SET deleted_at = ?, last_modified = ? '
+          'WHERE local_uuid = ? AND deleted_at IS NULL',
+          [
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            localUuid,
+          ],
+        );
         return;
       case 'cash_transactions':
         await (db.delete(

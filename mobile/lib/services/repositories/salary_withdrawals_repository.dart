@@ -164,6 +164,14 @@ class SalaryWithdrawalsRepository {
   /// جهاز المصدر (autoincrement محلي غير محمول عبر الأجهزة).
   /// مرِّره من شاشة التعديل كي لا تُنشأ مرآة ثانية تكرر المبلغ في
   /// التقارير. null = توافق خلفي (يُستخدم المبلغ الجديد في البحث).
+  ///
+  /// [previousEmployeeId] — موظف المصروف السابق عند إعادة التعيين (تعديل
+  /// مصروف راتب وتغيير موظفه). يُمرَّره من الشاشة كي لا تُنشأ مرآة ثانية
+  /// عند تغيير الموظف (الطريقة 1 تجد المرآة القديمة لموظفه السابق).
+  ///
+  /// ✅ (المرحلة 0 — P0.3 / R3) كل مطابقة بـ expense_id/reason تمرّ عبر
+  /// [_ownedByDeviceOrEmployee]: مرآة جهاز آخر تحمل نفس الرقم لا تُمسَّ
+  /// ولا تُحدَّث (كان يتعديل مسحوب موظف/جهاز آخر وينتشر للسحابة).
   Future<void> saveFromExpense({
     required int expenseId,
     required int employeeId,
@@ -173,6 +181,7 @@ class SalaryWithdrawalsRepository {
     String? note,
     String? hotelDayKey,
     double? previousAmount,
+    int? previousEmployeeId,
     bool originIsServer = false,
   }) async {
     // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
@@ -182,22 +191,31 @@ class SalaryWithdrawalsRepository {
     SalaryWithdrawal? matched;
 
     // الطريقة 1: بحث عبر عمود expense_id (الأكثر موثوقية)
+    // ✅ (المرحلة 0 — P0.3) تُفحص كل المرشحات عبر _ownedByDeviceOrEmployee
+    // بدل LIMIT 1 أعمى — المرآة الأجنبية المتصادمة تُتجاوز لا تُختار.
     try {
       final rows = await _db
           .customSelect(
-            'SELECT * FROM salary_withdrawals WHERE expense_id = ? AND deleted_at IS NULL LIMIT 1',
+            'SELECT id FROM salary_withdrawals WHERE expense_id = ? AND deleted_at IS NULL',
             variables: [d.Variable.withInt(expenseId)],
           )
           .get();
-      if (rows.isNotEmpty) {
+      for (final row in rows) {
         // نقرأ بيانات السجل من جدول salary_withdrawals عبر Drift
         final byId =
             await (_db.select(_db.salaryWithdrawals)
-                  ..where((t) => t.id.equals(rows.first.read<int>('id')))
+                  ..where((t) => t.id.equals(row.read<int>('id')))
                   ..limit(1))
                 .getSingleOrNull();
-        if (byId != null) {
+        if (byId != null &&
+            _ownedByDeviceOrEmployee(
+              byId,
+              employeeId: employeeId,
+              previousEmployeeId: previousEmployeeId,
+              employeeUuid: employeeUuid.value,
+            )) {
           matched = byId;
+          break;
         }
       }
     } catch (_) {
@@ -212,7 +230,16 @@ class SalaryWithdrawalsRepository {
               ))
               .get();
       matched = existing
-          .where((w) => matchesExpenseRef(w.reason, expenseId))
+          .where(
+            (w) =>
+                matchesExpenseRef(w.reason, expenseId) &&
+                _ownedByDeviceOrEmployee(
+                  w,
+                  employeeId: employeeId,
+                  previousEmployeeId: previousEmployeeId,
+                  employeeUuid: employeeUuid.value,
+                ),
+          )
           .firstOrNull;
     }
 
@@ -248,7 +275,15 @@ class SalaryWithdrawalsRepository {
               ))
               .get();
       for (final w in allExisting) {
-        if (matchesExpenseRef(w.reason, expenseId)) {
+        // ✅ (المرحلة 0 — P0.3) حتى تنظيف "السجلات القديمة" لا يلمس
+        // مرآة أجنبية متصادمة الرقماً مع expense/reason المحلي.
+        if (matchesExpenseRef(w.reason, expenseId) &&
+            _ownedByDeviceOrEmployee(
+              w,
+              employeeId: employeeId,
+              previousEmployeeId: previousEmployeeId,
+              employeeUuid: employeeUuid.value,
+            )) {
           staleRecords.add(w);
         }
       }
@@ -300,6 +335,9 @@ class SalaryWithdrawalsRepository {
         )..where((t) => t.id.equals(matchedId))).write(
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
+            // ✅ (R12) تحديث employeeUuid مع employeeId — بدونه يبقى قديم
+            // الموظف السابق ويُرفع للسحابة (ربط خاطئ ينتشر لكل الأجهزة).
+            employeeUuid: employeeUuid,
             amount: d.Value(amount),
             withdrawDate: d.Value(date),
             reason: d.Value(reasonText),
@@ -499,12 +537,66 @@ class SalaryWithdrawalsRepository {
     return row != null;
   }
 
+  /// ✅ (المرحلة 0 — P0.3 / R3) حارس مطابقة المرآة بـ expense_id/reason.
+  ///
+  /// لا يُطابَق سجل برابط محلي إلا إذا اجتاز شرطين:
+  /// 1) **ملكية الجهاز**: `origin != 'server'` (أُنشئ هنا) أو `deviceId`
+  ///    يساوي الجهاز الحالي (أُنشئ أو تُبنّي على هذا الجهاز). المرآة
+  ///    القادمة من جهاز آخر تحمل `expense_id`/`exp_N` ذلك الجهاز، وتصادم
+  ///    autoincrement بين جهازين شائع → حذف/تعديل مسحوب موظف آخر.
+  /// 2) **نطاق الموظف** (إن وُفّر): الموظف الحالي للمصروف أو السابق
+  ///    (إعادة التعيين عبر [previousEmployeeId])، بـ uuid أو id.
+  ///
+  /// بدون نطاق موظف يكتفي بالحارس 1 (المالك المحلي وحده كفيل: الرابط
+  /// المحلي لا يُنتَج إلا من هذا الجهاز).
+  bool _ownedByDeviceOrEmployee(
+    SalaryWithdrawal w, {
+    required int? employeeId,
+    String? employeeUuid,
+    int? previousEmployeeId,
+  }) {
+    final currentDeviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
+
+    // 1) ملكية الجهاز: منشأ محلي ('local') أو مرور فعلي بهذا الجهاز.
+    //    'server'/'mobile' = بيانات مسحوبة تحمل رابط جهاز آخر → تُرفض ما لم
+    //    يُتبنَّها هذا الجهاز فعلياً (device_id يُعاد كتابته عند التبنّي).
+    final createdByThisDevice =
+        (w.origin != 'server' && w.origin != 'mobile') ||
+        (currentDeviceId.isNotEmpty && w.deviceId == currentDeviceId);
+    if (!createdByThisDevice) return false;
+
+    // 2) نطاق الموظف (يُطبَّق دائماً عند توفيره — حتى للسجلات المحلية):
+    //    يحمي من روابط قديمة خاطئة (رقم موظف سابق/مستعادة) ومن مستقبل
+    //    إعادة الترقيم بعد الاستعادة (المرحلة 5).
+    final hasScope =
+        employeeId != null ||
+        previousEmployeeId != null ||
+        (employeeUuid != null && employeeUuid.isNotEmpty);
+    if (!hasScope) return true;
+    if (employeeId != null && w.employeeId == employeeId) return true;
+    if (previousEmployeeId != null && w.employeeId == previousEmployeeId) {
+      return true;
+    }
+    if (employeeUuid != null &&
+        employeeUuid.isNotEmpty &&
+        w.employeeUuid == employeeUuid) {
+      return true;
+    }
+    return false;
+  }
+
   /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي
   /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
   /// ✅ إصلاح خبير: البحث أولاً عبر عمود expense_id ثم عبر reason
+  ///
+  /// [employeeId] / [employeeUuid] — موظف المصروف عند حذفه (تُمرَّر من
+  /// الشاشة). بدونهما يكتفي الحارس بالملكية المحلية؛ معهما يمنع أيضاً
+  /// حذف مرآة موظف آخر تصادم رقم الربط (المرحلة 0 — P0.3 / R3).
   Future<void> deleteByExpenseId(
     int expenseId, {
     bool originIsServer = false,
+    int? employeeId,
+    String? employeeUuid,
   }) async {
     // الطريقة 1: بحث عبر عمود expense_id
     List<SalaryWithdrawal> toDelete = [];
@@ -536,6 +628,19 @@ class SalaryWithdrawalsRepository {
           .where((w) => matchesExpenseRef(w.reason, expenseId))
           .toList();
     }
+
+    // ✅ (المرحلة 0 — P0.3 / R3) تطبيق الحارس على المرشحات من المسارين:
+    // لا يُحذف سجل لا يخص هذا الجهاز/هذا الموظف حتى لو تصادم الرقم.
+    toDelete = toDelete
+        .where(
+          (w) =>
+              _ownedByDeviceOrEmployee(
+                w,
+                employeeId: employeeId,
+                employeeUuid: employeeUuid,
+              ),
+        )
+        .toList();
 
     final now = Time.nowEpoch();
 

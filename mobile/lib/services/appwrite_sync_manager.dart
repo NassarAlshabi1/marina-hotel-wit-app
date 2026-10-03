@@ -3985,6 +3985,17 @@ class AppwriteSyncManager {
 
   // ─── SalaryWithdrawals ──────────────────────────────────────────────────
 
+  /// ✅ (المرحلة 0 — P0.2) جسر اختبار بلا شبكة لمسار سحب مسحوبات الرواتب.
+  ///
+  /// يُستخدم من test/services/phase0_data_integrity_test.dart لإثبات حذف
+  /// "الطريقة 2" (مطابقة employeeId البعيد مع id محلي) — الكود الإنتاجي
+  /// نفسه بلا محاكاة، تماماً كجسر applyBookingNightsForTesting.
+  @visibleForTesting
+  Future<int> syncSalaryWithdrawalsForTesting(
+    List<models.Document> documents,
+  ) =>
+      _syncSalaryWithdrawals(documents);
+
   Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -3993,6 +4004,8 @@ class AppwriteSyncManager {
     // (بيانات قديمة بلا employeeUuid — تُشفى عبر
     // scripts/appwrite/backfill_salary_withdrawals_employee_uuid.js)
     final orphans = <String>[];
+    // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
+    final employeeFkResolver = IdResolver(database);
 
     for (final doc in documents) {
       try {
@@ -4020,7 +4033,15 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
+        // ✅ حل FK الموظف: UUID → serverId (id جهاز المصدر).
+        // ⚠️ (المرحلة 0 — P0.2 / R2) أُزيلت "الطريقة 2" (مطابقة employeeId
+        // البعيد مع e.id المحلي): Employee.id autoIncrement يختلف بين
+        // الأجهزة (base_repository يزيل id للسجلات الجديدة)، والمطابقة
+        // تربط السحوبة بموظف خاطئ بصمت عند التصادم الرقمي — 378 سحوبة
+        // في بيانات الإنتاج على جهاز جديد. إصلاح 1c83e916 أُلغي صامتاً في
+        // دمج 07c26a65 (حلّ الـ merge أخذ جانب الأب الثاني) وأُعيد هنا:
+        // IdResolver يجرّب UUID بكل صيغه ثم serverId، ولا يجرّب id المحلي
+        // للمصدر البعيد (fromRemote: true).
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -4029,31 +4050,20 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        final resolvedEmployeeId =
+            employeeUuid != null || remoteEmployeeId != null
+            ? await employeeFkResolver.resolveEmployee(
+                uuid: employeeUuid,
+                serverId: remoteEmployeeId,
+                fromRemote: true,
+              )
+            : null;
+
         Employee? employee;
-
-        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+        if (resolvedEmployeeId != null) {
           employee =
               await (database.select(database.employees)
-                    ..where((e) => e.localUuid.equals(employeeUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 2: البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
+                    ..where((e) => e.id.equals(resolvedEmployeeId))
                     ..limit(1))
                   .getSingleOrNull();
         }
@@ -4069,6 +4079,10 @@ class AppwriteSyncManager {
         // ✅ استبدال employeeId البعيد بالمعرف المحلي للموظف
         // هذا يضمن أن FK يشير للمعرف المحلي الصحيح
         data['employeeId'] = employee.id;
+        // ✅ (استعادة 1c83e916) ختم employeeUuid القياسي: المحلّل داخل
+        // الـ adapter (أثناء upsertFromJson) يحل المرجع عبر UUID حتماً بدل
+        // قيم خام قد تفشل عبر الأجهزة.
+        data['employeeUuid'] = employee.localUuid;
 
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
@@ -4234,11 +4248,14 @@ class AppwriteSyncManager {
     } else if (employee == null) {
       // الموظف غير موجود محلياً — سجل يتيم
       _logger.warning(
-        '⏭️ تخطي salary_withdrawal: الموظف ${withdrawal.employeeId} غير موجود محلياً (سجل يتيم)',
+        '⏳ تأجيل salary_withdrawal: الموظف ${withdrawal.employeeId} غير موجود محلياً (سجل يتيم) — يبقى في الطابور',
         tag: 'SYNC',
       );
-      // لا نستطيع رفع سحب راتب بدون موظف — نحذفه من الطابور
-      return true;
+      // ✅ (المرحلة 0 — P0.5 / R6) لا نستطيع رفع سحب راتب بلا موظف، لكن
+      // الإرجاع true كان يُسقط العنصر من الطابور فيختفي من السحابة إلى
+      // الأبد. false = لم يُسلَّم → يبقى processing، وتُعيده reclaimForPush
+      // إلى pending في الدورة التالية، فينجح تلقائياً بعد وصول الموظف.
+      return false;
     }
 
     final payload = _payloadMapper.salaryWithdrawalToRemote(
@@ -7655,6 +7672,8 @@ class AppwriteSyncManager {
     final deferred = <Map<String, dynamic>>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
     final orphans = <String>[];
+    // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
+    final employeeFkResolver = IdResolver(database);
 
     for (final doc in documents) {
       try {
@@ -7682,7 +7701,11 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
+        // ✅ حل FK الموظف: UUID → serverId (id جهاز المصدر).
+        // ⚠️ (المرحلة 0 — P0.2 / R2) أُزيلت "الطريقة 2" (مطابقة employeeId
+        // البعيد مع e.id المحلي) — نفس قرار salary_withdrawals أعلاه:
+        // ربط خاطئ صامت عبر الأجهزة عند تصادم id محليين. إصلاح 1c83e916
+        // أُلغي في دمج 07c26a65 وأُعيد عبر IdResolver (UUID → serverId).
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -7691,31 +7714,20 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        final resolvedEmployeeId =
+            employeeUuid != null || remoteEmployeeId != null
+            ? await employeeFkResolver.resolveEmployee(
+                uuid: employeeUuid,
+                serverId: remoteEmployeeId,
+                fromRemote: true,
+              )
+            : null;
+
         Employee? employee;
-
-        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+        if (resolvedEmployeeId != null) {
           employee =
               await (database.select(database.employees)
-                    ..where((e) => e.localUuid.equals(employeeUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 2: البحث بالـ id البعيد كـ id محلي
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
+                    ..where((e) => e.id.equals(resolvedEmployeeId))
                     ..limit(1))
                   .getSingleOrNull();
         }
@@ -7730,6 +7742,8 @@ class AppwriteSyncManager {
 
         // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
         data['employeeId'] = employee.id;
+        // ✅ (استعادة 1c83e916) ختم employeeUuid القياسي للمحلّل داخل الـ adapter.
+        data['employeeUuid'] = employee.localUuid;
 
         await _adapterRegistry.salaryCycles.upsertFromJson(
           data,
@@ -8569,7 +8583,13 @@ class AppwriteSyncManager {
   }
 
   /// إجراء فحص شامل لسلامة البيانات بعد انتهاء المزامنة
-  /// ✅ إصلاح: أصبح يُصلح السجلات اليتيمة تلقائياً بدلاً من مجرد التسجيل
+  /// ✅ (المرحلة 0 — P0.1 / R1) السجلات المالية اليتيمة تُحفَظ وتُسجَّل
+  /// فقط — لا حذف نهائي أبداً (كان DELETE بعد كل مزامنة = فقدان دائم).
+  /// جدول الحجوزات (payments/debts) يبقى بإزالة ربط الحجز القابلة للتصفير.
+  @visibleForTesting
+  Future<void> performPostSyncIntegrityCheckForTesting() =>
+      _performPostSyncIntegrityCheck();
+
   Future<void> _performPostSyncIntegrityCheck() async {
     try {
       // 1. فحص انتهاكات المفاتيح الأجنبية (Foreign Key Violations)
@@ -8595,26 +8615,29 @@ class AppwriteSyncManager {
             tag: 'SYNC_INTEGRITY',
           );
 
-          // ✅ إصلاح تلقائي: حذف السجلات اليتيمة (التي تشير لآباء غير موجودين)
+          // ✅ (المرحلة 0 — P0.1 / R1) لا حذف نهائي لبيانات مالية أبداً.
+          // السجلات اليتيمة في جداول الرواتب كانت تُحذف نهائياً بعد كل
+          // مزامنة (DELETE ... WHERE rowid) — فقدان دائم لسجلات قد لم تُرفع
+          // بعد ولا tombstone ولا أثر. الآن: عزل منطقي — نُبقي الصف كما هو
+          // ونسجّل صفّه كاملاً للمراجعة اليدوية (شاشة الصيانة — المرحلة 6).
+          // جداول الحجوزات غير المالية (payments/debts) تبقى كما هي لأن
+          // ربطها بحجز قابل للتصفير بسلامة دون فقدان بيانات.
           try {
-            if (table == 'salary_withdrawals' || table == 'salary_cycles') {
-              // حذف السجل الذي يشير لموظف غير موجود
-              await database.customStatement(
-                'DELETE FROM $table WHERE rowid = ?',
-                [int.tryParse(rowId)],
-              );
-              _logger.info(
-                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
-                tag: 'SYNC_INTEGRITY',
-              );
-            } else if (table == 'salary_payments') {
-              // حذف السجل الذي يشير لدورة راتب غير موجودة
-              await database.customStatement(
-                'DELETE FROM $table WHERE rowid = ?',
-                [int.tryParse(rowId)],
-              );
-              _logger.info(
-                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+            if (table == 'salary_withdrawals' ||
+                table == 'salary_cycles' ||
+                table == 'salary_payments') {
+              final orphanRowId = int.tryParse(rowId);
+              final orphanRow = orphanRowId == null
+                  ? null
+                  : await database
+                        .customSelect(
+                          'SELECT * FROM $table WHERE rowid = ?',
+                          variables: [drift.Variable.withInt(orphanRowId)],
+                        )
+                        .getSingleOrNull();
+              _logger.warning(
+                '⛔ سجل يتيم محفوظ (لا حذف) في $table rowid=$rowId '
+                'parent=$parent — يتطلب مراجعة. الصف: ${orphanRow?.data}',
                 tag: 'SYNC_INTEGRITY',
               );
             } else if (table == 'payments' && parent == 'bookings') {
@@ -8650,7 +8673,8 @@ class AppwriteSyncManager {
         await CrashlyticsService.instance.recordSyncError(
           operation: 'post_sync_integrity_check',
           error:
-              'Foreign key violations detected and auto-fixed: ${violations.length} rows',
+              'Foreign key violations detected: ${violations.length} rows '
+                  '(financial orphans preserved for review — no hard delete)',
           context: {'violations_count': violations.length.toString()},
         );
 
@@ -8663,6 +8687,15 @@ class AppwriteSyncManager {
             final rowId = row.data['rowid'];
 
             if (table == null || rowId == null) continue;
+
+            // الجداول المالية (salary_*) لا تُعالَج هنا إطلاقاً — حُرِّص
+            // أعلاه على حفظها (P0.1). السطور التالية للحجوزات فقط.
+            if (table != 'payments' &&
+                table != 'debts' &&
+                table != 'booking_nights' &&
+                table != 'booking_price_adjustments') {
+              continue;
+            }
 
             _logger.info(
               '🔧 إصلاح تلقائي: حذف سجل يتيم من $table (rowId=$rowId)',

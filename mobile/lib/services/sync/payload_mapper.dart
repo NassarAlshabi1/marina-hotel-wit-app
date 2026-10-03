@@ -926,12 +926,18 @@ class PayloadMapper {
 
   /// هل نوع المصروف مرتبط بالرواتب
   static bool isSalaryExpenseType(String type) {
+    // ✅ (المرحلة 0 — P0.4 / R8) أُضيفت 'سلفة': بدونها لا يمرّ مصروف
+    // السلفة عبر مسار حل الـ UUID في resolveRefs/رفع employeeUuid، فيصل
+    // relatedId البعيد الخام ويربط السلفة بموظف خاطئ على جهاز آخر.
+    // القائمة تظل أوسع عمداً من المُصنّف النقدي (تشمل الخصوم والسلف)
+    // لأن استخدامها صيد اليتائم والربط أثناء المزامنة — لا تجميع نقدي.
     const salaryKeywords = [
       'رواتب',
       'سحب راتب',
       'سحب من الراتب',
       'خصم راتب',
       'خصم من الراتب',
+      'سلفة',
     ];
     for (final keyword in salaryKeywords) {
       if (type.contains(keyword)) return true;
