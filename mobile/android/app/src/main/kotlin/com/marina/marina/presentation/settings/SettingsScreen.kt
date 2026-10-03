@@ -139,6 +139,10 @@ fun SettingsScreen(
             Icons.Default.Backup, AppColors.WarningColor, route = "backup"
         ),
         HubItem(
+            "حالة المزامنة", "صحة الطابور والتغييرات العالقة وسلامة العلاقات",
+            Icons.Default.CloudSync, DartColors.green, route = "sync_health"
+        ),
+        HubItem(
             "سجل أخطاء المزامنة",
             "تفاصيل أسباب فشل السحب والرفع المحفوظة على الجهاز",
             Icons.Default.ErrorOutline, AppColors.DangerColor, route = "sync_diagnostics"

@@ -44,6 +44,7 @@ import com.marina.marina.presentation.rooms.RoomsListScreen
 import com.marina.marina.presentation.settings.BookingsReminderScreen
 import com.marina.marina.presentation.settings.CloudflareSyncSettingsScreen
 import com.marina.marina.presentation.settings.SettingsScreen
+import com.marina.marina.presentation.settings.SyncHealthScreen
 import com.marina.marina.presentation.settings.SyncDiagnosticsScreen
 import com.marina.marina.presentation.settings.backup.ComprehensiveBackupScreen
 
@@ -88,6 +89,7 @@ sealed class Screen(val route: String) {
 
     /** ✅ (2026-09-24) إعدادات المزامنة الموحدة — نظير UnifiedSyncSettingsScreen. */
     object CloudflareSyncSettings : Screen("cloudflare_sync_settings")
+    object SyncHealth : Screen("sync_health")
     object SyncDiagnostics : Screen("sync_diagnostics")
     object BookingCheckout : Screen("booking_checkout/{bookingId}") {
         const val ARG_BOOKING_ID = "bookingId"
@@ -349,6 +351,14 @@ fun MarinaNavGraph(
                 onOpenDiagnostics = {
                     navController.navigate(Screen.SyncDiagnostics.route)
                 }
+            )
+        }
+
+        composable(Screen.SyncHealth.route) {
+            SyncHealthScreen(
+                onBack = { navController.popBackStack() },
+                onOpenDiagnostics = { navController.navigate(Screen.SyncDiagnostics.route) },
+                onOpenSettings = { navController.navigate(Screen.CloudflareSyncSettings.route) }
             )
         }
 

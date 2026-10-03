@@ -82,6 +82,34 @@ class DaoQueriesRuntimeTest {
         assertEquals(3, db.outboxDao().undeliveredCount().first())
     }
 
+    @Test
+    fun syncHealthSnapshotUsesAcknowledgementsLegacyTimesAndPrimaryFailures() = runBlocking {
+        val now = 1_800_000_000_000L
+        val row = com.marina.marina.data.local.entity.OutboxEntity(
+            entity = "payments", op = "insert", localUuid = "pending", payload = "{}", clientTs = now - 120_000
+        )
+        db.outboxDao().insert(row)
+        db.outboxDao().insert(row.copy(localUuid = "failed", primaryProcessingStatus = "failed"))
+        db.outboxDao().insert(row.copy(localUuid = "processing", processingStatus = "processing",
+            processingStartedAt = (now - 301_000) / 1000, clientTs = (now - 301_000) / 1000))
+        db.outboxDao().insert(row.copy(localUuid = "delivered", deliveredToPrimary = true,
+            primaryProcessingStatus = "failed"))
+        db.outboxDao().insert(row.copy(localUuid = "remote", source = "remote"))
+        val report = com.marina.marina.data.diagnostics.SyncHealthRepository(db).read(now)
+        assertEquals(1L, report.pending)
+        assertEquals(1L, report.failed)
+        assertEquals(1L, report.processing)
+        assertEquals(1L, report.completed)
+        assertEquals(1L, report.stuck)
+        assertEquals(301_000L, report.oldestAgeMs)
+        assertEquals(3L, report.entities["payments"])
+        assertTrue(report.tables.containsKey("bookings"))
+        db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM outbox").use {
+            it.moveToFirst()
+            assertEquals(5, it.getInt(0))
+        }
+    }
+
     /** Schema-level assertions for the two porting bugs fixed on this branch. */
     @Test
     fun schemaExposesFixedColumnsAndSyncLogIndices() {
