@@ -28,6 +28,7 @@ import 'adapters/source.dart';
 import 'appwrite_config.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_logger.dart';
+import 'pending_links_service.dart';
 import 'appwrite_models.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_utils.dart';
@@ -184,6 +185,7 @@ class AppwriteSyncManager {
     _bookingsRepository = BookingsRepository(database);
     _roomsRepository = RoomsRepository(database);
     _ancestorCacheDao = AncestorCacheDao(database);
+    _pendingLinksService = PendingLinksService(database);
     _pullService = SyncPullService(
       appwriteService: appwriteService,
       database: database,
@@ -251,6 +253,7 @@ class AppwriteSyncManager {
   /// الذي يجعل `sync()` و`pullRemoteChanges()` على مسار سحب واحد.
   late final SyncCheckpointStore _checkpointStore;
   late final UnifiedPullEngine _unifiedPull;
+  late final PendingLinksService _pendingLinksService;
 
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
   final PayloadMapper _payloadMapper = const PayloadMapper();
