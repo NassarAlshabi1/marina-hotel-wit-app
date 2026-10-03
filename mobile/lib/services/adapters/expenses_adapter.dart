@@ -25,9 +25,8 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
   String get tableName => 'expenses';
 
   /// ✅ (2026-10-02) هل المصروف مرتبط بموظف؟ (R8)
-  /// أوسع من [PayloadMapper.isSalaryExpenseType] الذي لا يشمل 'سلفة' — كانت
-  /// السلف تأخذ relatedId الخام (id موظف في جهاز آخر). يكفي أيضاً وجود
-  /// employeeUuid في الحمولة.
+  /// يستخدم [PayloadMapper.isSalaryExpenseType] الذي يشمل الآن 'سلفة'.
+  /// يكفي أيضاً وجود employeeUuid في الحمولة.
   static bool isEmployeeLinked(String expenseType, String? employeeUuid) =>
       PayloadMapper.isSalaryExpenseType(expenseType) ||
       SalaryExpenseClassifier.isSalaryRelated(expenseType) ||

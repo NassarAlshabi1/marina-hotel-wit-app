@@ -8635,9 +8635,17 @@ Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
                 table == 'salary_cycles' ||
                 table == 'salary_payments' ||
                 table == 'salary_carry_over_logs') {
+              // ✅ P0.1: عزل السجل في orphan_quarantine بدلاً من تركه أو حذفه
+              final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+              await _quarantineOrphanRecord(
+                table: table,
+                rowId: int.tryParse(rowId) ?? 0,
+                missingParent: parent,
+                quarantinedAt: nowEpoch,
+              );
               _logger.warning(
                 '🛡️ سجل رواتب يتيم في $table (rowid=$rowId, parent=$parent) — '
-                'أُبقي دون حذف (حماية من فقدان البيانات)',
+                'تم عزله في orphan_quarantine (حماية من فقدان البيانات)',
                 tag: 'SYNC_INTEGRITY',
               );
             } else if (table == 'payments' && parent == 'bookings') {
@@ -8754,32 +8762,94 @@ Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
 
       // 3. التحقق من سحوبات الرواتب اليتيمة
       final orphanWithdrawals = await database.customSelect('''
-        SELECT COUNT(*) as count FROM salary_withdrawals sw
+        SELECT sw.rowid, sw.local_uuid FROM salary_withdrawals sw
         LEFT JOIN employees e ON sw.employee_id = e.id
         WHERE e.id IS NULL AND sw.deleted_at IS NULL
-      ''').getSingle();
+      ''').get();
 
-      final orphanWdCount = orphanWithdrawals.read<int>('count');
-      if (orphanWdCount > 0) {
+      if (orphanWithdrawals.isNotEmpty) {
         _logger.warning(
-          '⚠️ يوجد $orphanWdCount سحب راتب يتيم (بدون موظف موجود)',
+          '⚠️ يوجد ${orphanWithdrawals.length} سحب راتب يتيم (بدون موظف موجود) — سيتم عزلها',
           tag: 'SYNC_INTEGRITY',
         );
+        final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        for (final row in orphanWithdrawals) {
+          await _quarantineOrphanRecord(
+            table: 'salary_withdrawals',
+            rowId: row.read<int>('rowid') ?? 0,
+            missingParent: 'employee_id=${row.read<int?>('employee_id')}',
+            quarantinedAt: nowEpoch,
+          );
+        }
       }
 
       // 4. التحقق من دورات الرواتب اليتيمة
       final orphanCycles = await database.customSelect('''
-        SELECT COUNT(*) as count FROM salary_cycles sc
+        SELECT sc.rowid, sc.local_uuid FROM salary_cycles sc
         LEFT JOIN employees e ON sc.employee_id = e.id
         WHERE e.id IS NULL AND sc.deleted_at IS NULL
-      ''').getSingle();
+      ''').get();
 
-      final orphanCycleCount = orphanCycles.read<int>('count');
-      if (orphanCycleCount > 0) {
+      if (orphanCycles.isNotEmpty) {
         _logger.warning(
-          '⚠️ يوجد $orphanCycleCount دورة راتب يتيمة (بدون موظف موجود)',
+          '⚠️ يوجد ${orphanCycles.length} دورة راتب يتيمة (بدون موظف موجود) — سيتم عزلها',
           tag: 'SYNC_INTEGRITY',
         );
+        final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        for (final row in orphanCycles) {
+          await _quarantineOrphanRecord(
+            table: 'salary_cycles',
+            rowId: row.read<int>('rowid') ?? 0,
+            missingParent: 'employee_id=${row.read<int?>('employee_id')}',
+            quarantinedAt: nowEpoch,
+          );
+        }
+      }
+
+      // 5. التحقق من مدفوعات الرواتب اليتيمة
+      final orphanPayments = await database.customSelect('''
+        SELECT sp.rowid, sp.local_uuid FROM salary_payments sp
+        LEFT JOIN salary_cycles sc ON sp.cycle_id = sc.id
+        WHERE sc.id IS NULL AND sp.deleted_at IS NULL
+      ''').get();
+
+      if (orphanPayments.isNotEmpty) {
+        _logger.warning(
+          '⚠️ يوجد ${orphanPayments.length} دفعة راتب يتيمة (بدون دورة راتب موجودة) — سيتم عزلها',
+          tag: 'SYNC_INTEGRITY',
+        );
+        final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        for (final row in orphanPayments) {
+          await _quarantineOrphanRecord(
+            table: 'salary_payments',
+            rowId: row.read<int>('rowid') ?? 0,
+            missingParent: 'cycle_id=${row.read<int?>('cycle_id')}',
+            quarantinedAt: nowEpoch,
+          );
+        }
+      }
+
+      // 6. التحقق من سجلات الترحيل اليتيمة
+      final orphanCarryOver = await database.customSelect('''
+        SELECT scl.rowid, scl.local_uuid FROM salary_carry_over_logs scl
+        LEFT JOIN employees e ON scl.employee_id = e.id
+        WHERE e.id IS NULL AND scl.deleted_at IS NULL
+      ''').get();
+
+      if (orphanCarryOver.isNotEmpty) {
+        _logger.warning(
+          '⚠️ يوجد ${orphanCarryOver.length} سجل ترحيل راتب يتيم (بدون موظف موجود) — سيتم عزلها',
+          tag: 'SYNC_INTEGRITY',
+        );
+        final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        for (final row in orphanCarryOver) {
+          await _quarantineOrphanRecord(
+            table: 'salary_carry_over_logs',
+            rowId: row.read<int>('rowid') ?? 0,
+            missingParent: 'employee_id=${row.read<int?>('employee_id')}',
+            quarantinedAt: nowEpoch,
+          );
+        }
       }
 
       _logger.info(
@@ -8791,6 +8861,67 @@ Future<dynamic> _syncSalaryCycles(List<models.Document> documents) async {
         '❌ فشل إجراء فحص سلامة البيانات',
         error: e,
         stackTrace: st,
+        tag: 'SYNC_INTEGRITY',
+      );
+    }
+  }
+
+  /// ✅ عزل سجل يتيم في جدول orphan_quarantine بدلاً من حذفه نهائياً.
+  ///
+  /// [table] اسم الجدول (مثل 'salary_withdrawals')
+  /// [rowId] المعرف الرقمي المحلي للسجل (rowid)
+  /// [missingParent] معرف الأب المفقود (إن وجد)
+  /// [quarantinedAt] وقت العزل (epoch seconds)
+  Future<void> _quarantineOrphanRecord({
+    required String table,
+    required int rowId,
+    required String missingParent,
+    required int quarantinedAt,
+  }) async {
+    try {
+      // قراءة بيانات السجل قبل العزل
+      final row = await database.customSelect('''
+        SELECT * FROM $table WHERE rowid = ?
+      ''', [rowId]).getSingleOrNull();
+
+      if (row == null) {
+        _logger.warning(
+          '⚠️ لا يمكن عزل سجل غير موجود: $table rowid=$rowId',
+          tag: 'SYNC_INTEGRITY',
+        );
+        return;
+      }
+
+      final dataJson = jsonEncode(row.data);
+      final localUuid = (row.data['local_uuid'] as String?) ??
+          (row.data['localUuid'] as String?) ?? '';
+
+      // إدراج في جدول العزل
+      await database.customStatement('''
+        INSERT INTO orphan_quarantine (entity, local_uuid, data_json, reason, quarantined_at, missing_parent_uuid, local_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      ''', [
+        table,
+        localUuid,
+        dataJson,
+        'FK violation: missing parent $missingParent',
+        quarantinedAt,
+        missingParent.isNotEmpty ? missingParent : null,
+        rowId,
+      ]);
+
+      // Soft delete للسجل الأصلي
+      await database.customStatement('''
+        UPDATE $table SET deleted_at = ? WHERE rowid = ?
+      ''', [quarantinedAt, rowId]);
+
+      _logger.info(
+        '🔒 تم عزل سجل يتيم: $table/$localUuid (rowid=$rowId) → orphan_quarantine',
+        tag: 'SYNC_INTEGRITY',
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل عزل سجل يتيم في $table (rowid=$rowId): $e',
         tag: 'SYNC_INTEGRITY',
       );
     }

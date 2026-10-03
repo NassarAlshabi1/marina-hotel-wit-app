@@ -94,6 +94,10 @@ class SyncIntegrityChecker {
     issues.addAll(await _checkBookingAmounts(db));
     issues.addAll(await _checkPaymentBookingReferences(db));
     issues.addAll(await _checkDebtBookingReferences(db));
+    issues.addAll(await _checkOrphanedSalaryWithdrawals(db));
+    issues.addAll(await _checkOrphanedSalaryCycles(db));
+    issues.addAll(await _checkOrphanedSalaryPayments(db));
+    issues.addAll(await _checkOrphanedPendingLinks(db));
 
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
@@ -412,4 +416,127 @@ class SyncIntegrityChecker {
       ),
     );
   }
+}
+
+/// التحقق من سحوبات الرواتب اليتيمة (تشير لموظف محذوف أو غير موجود)
+Future<List<IntegrityIssue>> _checkOrphanedSalaryWithdrawals(AppDatabase db) async {
+  final issues = <IntegrityIssue>[];
+
+  final orphaned = await db.customSelect('''
+    SELECT sw.local_uuid, sw.employee_id, sw.employee_uuid
+    FROM salary_withdrawals sw
+    LEFT JOIN employees e ON sw.employee_id = e.id
+    WHERE sw.employee_id IS NOT NULL
+      AND sw.deleted_at IS NULL
+      AND (e.id IS NULL OR e.deleted_at IS NOT NULL)
+  ''').get();
+
+  for (final row in orphaned) {
+    issues.add(
+      IntegrityIssue(
+        type: IssueType.orphanedRecord,
+        table: 'salary_withdrawals',
+        uuid: row.read<String>('local_uuid'),
+        description:
+            'Salary withdrawal references non-existent or deleted employee (employee_id: ${row.read<int?>('employee_id')}, employee_uuid: ${row.read<String?>('employee_uuid')})',
+        isCritical: true,
+      ),
+    );
+  }
+
+  return issues;
+}
+
+/// التحقق من دورات الرواتب اليتيمة
+Future<List<IntegrityIssue>> _checkOrphanedSalaryCycles(AppDatabase db) async {
+  final issues = <IntegrityIssue>[];
+
+  final orphaned = await db.customSelect('''
+    SELECT sc.local_uuid, sc.employee_id, sc.employee_uuid
+    FROM salary_cycles sc
+    LEFT JOIN employees e ON sc.employee_id = e.id
+    WHERE sc.employee_id IS NOT NULL
+      AND sc.deleted_at IS NULL
+      AND (e.id IS NULL OR e.deleted_at IS NOT NULL)
+  ''').get();
+
+  for (final row in orphaned) {
+    issues.add(
+      IntegrityIssue(
+        type: IssueType.orphanedRecord,
+        table: 'salary_cycles',
+        uuid: row.read<String>('local_uuid'),
+        description:
+            'Salary cycle references non-existent or deleted employee (employee_id: ${row.read<int?>('employee_id')}, employee_uuid: ${row.read<String?>('employee_uuid')})',
+        isCritical: true,
+      ),
+    );
+  }
+
+  return issues;
+}
+
+/// التحقق من مدفوعات الرواتب اليتيمة
+Future<List<IntegrityIssue>> _checkOrphanedSalaryPayments(AppDatabase db) async {
+  final issues = <IntegrityIssue>[];
+
+  final orphaned = await db.customSelect('''
+    SELECT sp.local_uuid, sp.cycle_id
+    FROM salary_payments sp
+    LEFT JOIN salary_cycles sc ON sp.cycle_id = sc.id
+    WHERE sp.cycle_id IS NOT NULL
+      AND sp.deleted_at IS NULL
+      AND (sc.id IS NULL OR sc.deleted_at IS NOT NULL)
+  ''').get();
+
+  for (final row in orphaned) {
+    issues.add(
+      IntegrityIssue(
+        type: IssueType.orphanedRecord,
+        table: 'salary_payments',
+        uuid: row.read<String>('local_uuid'),
+        description:
+            'Salary payment references non-existent or deleted cycle (cycle_id: ${row.read<int?>('cycle_id')})',
+        isCritical: true,
+      ),
+    );
+  }
+
+  return issues;
+}
+
+/// التحقق من الروابط المعلقة غير المحلولة لفترة طويلة
+Future<List<IntegrityIssue>> _checkOrphanedPendingLinks(AppDatabase db) async {
+  final issues = <IntegrityIssue>[];
+
+  final staleLinks = await db.customSelect('''
+    SELECT id, child_entity, child_local_uuid, parent_entity, parent_local_uuid, status, created_at
+    FROM pending_links
+    WHERE status = 'pending'
+      AND created_at < ?
+  ''', variables: [
+    Variable.withInt(
+      DateTime.now().subtract(const Duration(days: 7)).millisecondsSinceEpoch ~/ 1000,
+    ),
+  ]).get();
+
+  for (final row in staleLinks) {
+    issues.add(
+      IntegrityIssue(
+        type: IssueType.missingReference,
+        table: 'pending_links',
+        uuid: row.read<String>('child_local_uuid'),
+        description:
+            'Pending link unresolved for >7 days: ${row.read<String>('child_entity')} (${row.read<String>('child_local_uuid')}) -> ${row.read<String>('parent_entity')} (${row.read<String?>('parent_local_uuid')})',
+        isCritical: false,
+        metadata: {
+          'link_id': row.read<int>('id'),
+          'status': row.read<String>('status'),
+          'created_at': row.read<int>('created_at'),
+        },
+      ),
+    );
+  }
+
+  return issues;
 }

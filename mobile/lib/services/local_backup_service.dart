@@ -838,6 +838,14 @@ class LocalBackupService {
           );
           await db.into(db.salaryCarryOverLogs).insertOnConflictUpdate(data);
         });
+        await insertList<dynamic>('pending_links', (json) async {
+          final map = Map<String, dynamic>.from(json as Map);
+          final data = PendingLink.fromJson(
+            map,
+            serializer: lenientValueSerializer,
+          );
+          await db.into(db.pendingLinks).insertOnConflictUpdate(data);
+        });
 
         // BUG-3 FIX: Don't restore sync_state - let new device sync from scratch
         // sync_state contains lastPullTs/deviceId from source device

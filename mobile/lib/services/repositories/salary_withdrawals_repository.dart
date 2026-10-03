@@ -62,6 +62,7 @@ class SalaryWithdrawalsRepository {
     String? withdrawalType,
     String? description,
     String? recorderName,
+    String? expenseUuid,
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
@@ -174,6 +175,7 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     double? previousAmount,
     int? previousEmployeeId,
+    String? expenseUuid,
     bool originIsServer = false,
   }) async {
     // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
@@ -190,9 +192,11 @@ class SalaryWithdrawalsRepository {
       if (previousEmployeeId != null) previousEmployeeId,
     };
     final uuid = employeeUuid.present ? employeeUuid.value : null;
+    final hasExpenseUuid = expenseUuid != null && expenseUuid.isNotEmpty;
     bool belongsToExpense(SalaryWithdrawal w) =>
         allowedEmployeeIds.contains(w.employeeId) ||
-        (uuid != null && uuid.isNotEmpty && w.employeeUuid == uuid);
+        (uuid != null && uuid.isNotEmpty && w.employeeUuid == uuid) ||
+        (hasExpenseUuid && w.expenseUuid == expenseUuid);
 
     // ✅ البحث عن سجل موجود — محاولة عبر عمود expense_id أولاً
     SalaryWithdrawal? matched;
@@ -530,6 +534,7 @@ class SalaryWithdrawalsRepository {
     int expenseId, {
     int? employeeId,
     String? employeeUuid,
+    String? expenseUuid,
     bool originIsServer = false,
   }) async {
     // الطريقة 1: بحث عبر عمود expense_id
@@ -564,12 +569,14 @@ class SalaryWithdrawalsRepository {
     }
 
     final hasUuid = employeeUuid != null && employeeUuid.isNotEmpty;
-    if (employeeId != null || hasUuid) {
+    final hasExpenseUuid = expenseUuid != null && expenseUuid.isNotEmpty;
+    if (employeeId != null || hasUuid || hasExpenseUuid) {
       toDelete = toDelete
           .where(
             (w) =>
                 (employeeId != null && w.employeeId == employeeId) ||
-                (hasUuid && w.employeeUuid == employeeUuid),
+                (hasUuid && w.employeeUuid == employeeUuid) ||
+                (hasExpenseUuid && w.expenseUuid == expenseUuid),
           )
           .toList();
     }

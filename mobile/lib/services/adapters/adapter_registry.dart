@@ -16,6 +16,7 @@ import 'inventory_adapter.dart';
 import 'nights_adapter.dart';
 import 'payment_voids_adapter.dart';
 import 'payments_adapter.dart';
+import 'pending_links_adapter.dart';
 import 'price_adjustments_adapter.dart';
 import 'rooms_adapter.dart';
 import 'salary_carry_over_logs_adapter.dart';
@@ -133,6 +134,11 @@ class AdapterRegistry {
             table: db.salaryCarryOverLogs,
             adapter: SalaryCarryOverLogsAdapter(IdResolver(db)),
           ),
+      pendingLinks = BaseRepository<PendingLink, PendingLinksCompanion>(
+        db: db,
+        table: db.pendingLinks,
+        adapter: PendingLinksAdapter(IdResolver(db)),
+      ),
       inventoryItems = BaseRepository<InventoryItem, InventoryItemsCompanion>(
         db: db,
         table: db.inventoryItems,

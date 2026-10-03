@@ -192,6 +192,7 @@ class BackupTableData {
   final List<dynamic> salaryCarryOverLogsData;
   final List<dynamic> inventoryItemsData;
   final List<dynamic> inventoryTransactionsData;
+  final List<dynamic> pendingLinksData;
 
   /// إجمالي عدد السجلات في جميع الجداول
   int get totalRecords =>
@@ -216,7 +217,8 @@ class BackupTableData {
       salaryWithdrawalsData.length +
       salaryCarryOverLogsData.length +
       inventoryItemsData.length +
-      inventoryTransactionsData.length;
+      inventoryTransactionsData.length +
+      pendingLinksData.length;
 
   /// بناء خريطة بيانات النسخ الاحتياطي من هذه الحاوية
   Map<String, dynamic> toBackupDataMap({
@@ -249,6 +251,7 @@ class BackupTableData {
       salaryCarryOverLogsData: salaryCarryOverLogsData,
       inventoryItemsData: inventoryItemsData,
       inventoryTransactionsData: inventoryTransactionsData,
+      pendingLinksData: pendingLinksData,
       blacklistData: blacklistData,
       whatsappSettings: whatsappSettings,
       syncStateData: syncStateData,
@@ -282,6 +285,7 @@ Map<String, dynamic> buildBackupDataMap({
   required List<dynamic> salaryCarryOverLogsData,
   required List<dynamic> inventoryItemsData,
   required List<dynamic> inventoryTransactionsData,
+  required List<dynamic> pendingLinksData,
   List<dynamic>? blacklistData,
   Map<String, dynamic>? whatsappSettings,
   Map<String, dynamic>? syncStateData,
@@ -322,6 +326,7 @@ Map<String, dynamic> buildBackupDataMap({
     'inventory_transactions': inventoryTransactionsData
         .map((transaction) => transaction.toJson())
         .toList(),
+    'pending_links': pendingLinksData.map((l) => l.toJson()).toList(),
   };
 
   // إعدادات الواتساب (اختياري)

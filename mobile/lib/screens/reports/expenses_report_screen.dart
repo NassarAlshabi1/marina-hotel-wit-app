@@ -274,12 +274,20 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           .toList();
     }
 
-    // ─── سحب أسماء الموظفين من جدول expenses ───
-    final employeeMap = <int, Employee>{};
-    final employeeIds = expenses
-        .map((e) => e.relatedId)
-        .whereType<int>()
-        .toSet();
+    // ─── سحب أسماء الموظفين من جدول expenses — استخدام UUID للاتساق عبر الأجهزة ───
+    final employeeMap = <String, Employee>{};
+    final employeeUuids = <String>{};
+
+    // جمع employeeUuid من المصروفات
+    for (final expense in expenses) {
+      final uuid = expense.employeeUuid?.trim();
+      if (uuid != null && uuid.isNotEmpty) {
+        employeeUuids.add(uuid);
+      } else if (expense.relatedId != null) {
+        // Fallback: استخدم relatedId للتوافق مع السجلات القديمة
+        // سنبحث عن الموظف بالـ ID لاحقاً
+      }
+    }
 
     // ─── سحب سحوبات الرواتب من salary_withdrawals ───
     // ✅ إصلاح: جلب salary_withdrawals أيضاً عند اختيار نوع راتب
@@ -288,6 +296,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         showAll ||
         (_isSalaryType(selectedType)); // ignore: unnecessary_null_comparison
     List<SalaryWithdrawal> salaryWithdrawals = [];
+    final fallbackEmployeeIds = <int>{};
     if (shouldFetchSalaryWithdrawals) {
       try {
         var swQuery = db.select(db.salaryWithdrawals)
@@ -314,22 +323,38 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             );
         }
         salaryWithdrawals = await swQuery.get();
-        // إضافة أرقام الموظفين من salary_withdrawals
+        // إضافة employeeUuid من salary_withdrawals
         for (final sw in salaryWithdrawals) {
-          employeeIds.add(sw.employeeId);
+          final uuid = sw.employeeUuid?.trim();
+          if (uuid != null && uuid.isNotEmpty) {
+            employeeUuids.add(uuid);
+          } else {
+            // Fallback للـ ID الرقمي
+            fallbackEmployeeIds.add(sw.employeeId);
+          }
         }
       } catch (_) {
         // في حال عدم وجود الجدول أو خطأ آخر
       }
     }
 
-    // جلب بيانات الموظفين دفعة واحدة
-    if (employeeIds.isNotEmpty) {
+    // جلب بيانات الموظفين دفعة واحدة — أولاً بالـ UUID، ثم بالـ ID كبديل
+    if (employeeUuids.isNotEmpty) {
       final employees = await (db.select(
         db.employees,
-      )..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
+      )..where((tbl) => tbl.localUuid.isIn(employeeUuids.toList()))).get();
       for (final employee in employees) {
-        employeeMap[employee.id] = employee;
+        employeeMap[employee.localUuid] = employee;
+      }
+    }
+    // Fallback: جلب الموظفين بالـ ID الرقمي للسجلات التي لا تملك UUID
+    if (fallbackEmployeeIds.isNotEmpty) {
+      final employees = await (db.select(
+        db.employees,
+      )..where((tbl) => tbl.id.isIn(fallbackEmployeeIds.toList()))).get();
+      for (final employee in employees) {
+        // لا نكتب فوق مفتاح UUID إذا كان موجوداً
+        employeeMap.putIfAbsent(employee.localUuid, () => employee);
       }
     }
 
@@ -391,9 +416,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       if (SalaryExpenseClassifier.isSalaryDeduction(expense.expenseType)) {
         continue;
       }
-      final employee = expense.relatedId != null
-          ? employeeMap[expense.relatedId!]
-          : null;
+      final employee = expense.employeeUuid != null && expense.employeeUuid!.isNotEmpty
+          ? employeeMap[expense.employeeUuid!]
+          : (expense.relatedId != null ? employeeMap.values.firstWhere(
+              (e) => e.id == expense.relatedId, orElse: () => null) : null);
       // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
       // المصروفات القديمة قد يكون date فيها تقويمياً مختلفاً عن hotelDayKey
       final displayDateStr =
@@ -444,7 +470,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
         // إذا لم يتم العثور على مصروف مقابل، فهذا السحب يتيم – أضفه
         if (!isMirror) {
-          final employee = employeeMap[sw.employeeId];
+          final employee = sw.employeeUuid != null && sw.employeeUuid!.isNotEmpty
+              ? employeeMap[sw.employeeUuid!]
+              : employeeMap.values.firstWhere(
+                  (e) => e.id == sw.employeeId, orElse: () => null);
           // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
           final swDisplayDate =
               (sw.hotelDayKey != null && sw.hotelDayKey!.isNotEmpty)
