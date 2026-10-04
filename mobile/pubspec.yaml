@@ -8,7 +8,7 @@ environment:
   flutter: '>=3.35.7'
 dependencies:
   android_alarm_manager_plus: ^4.0.5
-  appwrite: ^21.0.0
+  appwrite: ^27.0.0
   archive: ^3.6.1
   battery_plus: ^6.0.2
   characters: any
