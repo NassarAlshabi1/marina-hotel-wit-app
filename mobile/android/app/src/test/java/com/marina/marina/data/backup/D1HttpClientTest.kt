@@ -20,7 +20,6 @@ import okio.ForwardingSource
 import okio.Timeout
 import okio.buffer
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -65,7 +64,8 @@ class D1HttpClientTest {
             D1HttpClient(factory).call("GET", "/test", null, "test-only")
             throw AssertionError("Expected failure")
         } catch (error: D1BackupException) {
-            assertSame(cause, error.cause)
+            // Coroutine stack-trace recovery may wrap IOException; retain the original in the cause chain.
+            assertTrue(generateSequence(error.cause) { it.cause }.any { it === cause })
         }
         assertEquals(2, factory.created.size)
     }
