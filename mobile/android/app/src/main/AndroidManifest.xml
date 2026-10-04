@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Namespace & applicationId are declared in build.gradle:
-         namespace "com.marina.marina" (code/R classes)
+         namespace "com.a.a" (generated R/BuildConfig; Kotlin packages remain com.marina.marina)
          applicationId "com.a.a" (installed package identity).
          AGP 8.6 requires the package attribute to be absent here. -->
 

@@ -49,6 +49,7 @@ class SyncOperationRunnerTest {
         val owner = CoroutineScope(SupervisorJob() + dispatcher)
         var reject = true
         var failed = false
+        var executed = false
         val runner = SyncOperationRunner(owner, dispatcher) {
             check(!reject) { "Synthetic Android background-start restriction" }
             AutoCloseable {}
@@ -56,10 +57,12 @@ class SyncOperationRunnerTest {
         try {
             assertTrue(runCatching {
                 runner.runIfIdle(onBusy = { -1 }, onFinished = { failed = it != null }) {
-                    error("Must not run without foreground protection")
+                    executed = true
+                    1
                 }
             }.isFailure)
             assertTrue(failed)
+            assertFalse(executed)
             reject = false
             assertEquals(1, runner.runIfIdle(onBusy = { -1 }) { 1 })
         } finally { owner.cancel() }

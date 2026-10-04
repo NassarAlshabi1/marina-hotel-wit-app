@@ -1,5 +1,9 @@
 # Android sync lifetime
 
+**Current implementation:** accepted work now holds a foreground `dataSync` service
+through completion, including settings preflight. See the foreground execution
+section below for platform limits. Earlier evidence is retained as historical.
+
 Accepted `SyncManager` operations (`syncNow`, `pullOnly`, `pushOnly`, `fullPull`)
 run on a singleton process-owned IO scope, not the calling screen or ViewModel.
 Cancelling a screen's await does not cancel its accepted operation. A mutex
@@ -11,9 +15,9 @@ callbacks on Main. A recreated settings screen observes repository busy state
 and disables manual actions while sync is running. Push-only/pull-only semantics,
 financial calculations, outbox processing, and replay cursor rules are unchanged.
 
-## Boundaries
+## Original process-only boundaries (`90ae94c`, superseded below)
 
-This is **not** persistent WorkManager scheduling or a foreground service. Screen
+The original implementation was **not** persistent WorkManager scheduling or a foreground service. Screen
 navigation cannot cancel accepted work, but background execution remains subject
 to Android scheduling, process freezing/termination, connectivity and power
 restrictions. Force-stop and process death are not covered. Existing saved cursor,

@@ -70,5 +70,6 @@ class SyncForegroundServiceTest {
             assertEquals(SyncForegroundService.CHANNEL_ID, notification.channelId)
             assertEquals(Service.START_NOT_STICKY, service.onStartCommand(null, 0, 1))
         } finally { controller.destroy() }
+        assertTrue(shadowOf(service).isForegroundStopped)
     }
 }
