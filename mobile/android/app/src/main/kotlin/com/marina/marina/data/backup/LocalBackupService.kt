@@ -162,7 +162,9 @@ class LocalBackupService @Inject constructor(
 
             val path = when (format) {
                 BackupFormat.JSON -> {
-                    val envelope = buildJsonBackupEnvelope(deviceLabel, now)
+                    val envelope = db.withTransaction {
+                        buildJsonBackupEnvelope(deviceLabel, now)
+                    }
                     val jsonBytes = gson.toJson(envelope).toByteArray(Charsets.UTF_8)
                     val file = File(backupDir, "$baseName.json.gz")
                     GZIPOutputStream(FileOutputStream(file)).use { out ->

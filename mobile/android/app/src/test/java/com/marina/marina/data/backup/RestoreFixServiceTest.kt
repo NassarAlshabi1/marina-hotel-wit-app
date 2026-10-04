@@ -179,6 +179,20 @@ class RestoreFixServiceTest {
     }
 
     @Test
+    fun generatedJsonBackupRoundTripsThroughPublicBackupAndRestoreMethods() = runBlocking {
+        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        val backup = File(service.createLocalBackup(BackupFormat.JSON))
+        try {
+            assertTrue(backup.name.endsWith(".json.gz"))
+            db.roomsDao().update(originalRoom.copy(price = 999.0))
+            service.restoreFromLocalBackup(backup.absolutePath)
+            assertOriginalRows()
+        } finally {
+            backup.delete()
+        }
+    }
+
+    @Test
     fun validJsonAndGzipBackupsRestoreRowsWithoutChangingOtherTables() = runBlocking {
         val service = LocalBackupService(context, db, BackupSettingsStore(context))
         for (extension in listOf("json", "json.gz")) {
