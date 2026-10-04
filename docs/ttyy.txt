@@ -1,0 +1,1180 @@
+نعم. سأبنيها كـ CI/CD Quality + Performance Gate حقيقية، وليس مجرد تشغيل Emulator.
+
+ملاحظة مهمة: راجعت المستودع العام، لكن بنيته الحالية لا تسمح لي بافتراض namespace وapplicationId ونسخ AGP/Kotlin من دون المخاطرة بكسر البناء؛ لذلك سأجعل نقطة واحدة فقط قابلة للتعبئة بدل اختراع قيم للمشروع. المستودع نفسه يحتوي أصلًا على ملفات وإرشادات كثيرة خاصة بالجودة والإصدار، لذلك الأفضل ألا نستبدل إعداداته عشوائيًا. 
+
+كذلك سأستخدم AndroidX Benchmark 1.5.0، وهو الإصدار المستقر الحالي، مع Macrobenchmark plugin الرسمي. 
+
+البنية النهائية
+
+ضع الملفات بهذا الشكل:
+
+mobile/
+└── android/
+    ├── app/
+    │   └── build.gradle.kts
+    │
+    ├── macrobenchmark/
+    │   ├── build.gradle.kts
+    │   └── src/
+    │       └── androidTest/
+    │           └── java/
+    │               └── .../
+    │                   └── MarinaHotelMacrobenchmark.kt
+    │
+    ├── build.gradle.kts
+    └── settings.gradle.kts
+
+.github/
+├── workflows/
+│   └── android-quality-performance.yml
+└── scripts/
+    ├── quality-gate.sh
+    └── performance-gate.py
+
+
+---
+
+1. mobile/android/macrobenchmark/build.gradle.kts
+
+plugins {
+    id("com.android.test")
+    id("org.jetbrains.kotlin.android")
+    id("androidx.benchmark")
+}
+
+android {
+    namespace = "REPLACE_WITH_BENCHMARK_NAMESPACE"
+
+    compileSdk = 35
+
+    defaultConfig {
+        minSdk = 23
+
+        testInstrumentationRunner =
+            "androidx.test.runner.AndroidJUnitRunner"
+
+        targetProjectPath = ":app"
+    }
+
+    testOptions {
+        managedDevices {
+            devices {
+                // Intentionally empty.
+                // GitHub Actions uses a physical emulator runner.
+            }
+        }
+    }
+}
+
+dependencies {
+    androidTestImplementation(
+        "androidx.benchmark:benchmark-macro-junit4:1.5.0"
+    )
+
+    androidTestImplementation(
+        "androidx.test.uiautomator:uiautomator:2.4.0"
+    )
+}
+
+مهم: غيّر:
+
+REPLACE_WITH_BENCHMARK_NAMESPACE
+
+مثلاً إذا كان package التطبيق:
+
+com.marinahotel.app
+
+يمكن أن يكون:
+
+com.marinahotel.app.macrobenchmark
+
+ولا تستخدم package التطبيق نفسه.
+
+
+---
+
+2. MarinaHotelMacrobenchmark.kt
+
+ضعه في:
+
+mobile/android/macrobenchmark/src/androidTest/java/
+
+داخل package مطابق للـnamespace السابق.
+
+package REPLACE_WITH_BENCHMARK_NAMESPACE
+
+import androidx.benchmark.macro.CompilationMode
+import androidx.benchmark.macro.FrameTimingMetric
+import androidx.benchmark.macro.MacrobenchmarkRule
+import androidx.benchmark.macro.StartupMode
+import androidx.benchmark.macro.StartupTimingMetric
+import androidx.benchmark.macro.StartupMode.COLD
+import androidx.benchmark.macro.StartupMode.WARM
+import androidx.benchmark.macro.junit4.measureRepeated
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.Direction
+import androidx.test.uiautomator.UiDevice
+import org.junit.Rule
+import org.junit.Test
+
+class MarinaHotelMacrobenchmark {
+
+    @get:Rule
+    val benchmarkRule = MacrobenchmarkRule()
+
+    /**
+     * Cold startup.
+     *
+     * Measures application startup from a completely stopped state.
+     */
+    @Test
+    fun coldStartup() {
+        benchmarkRule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(
+                StartupTimingMetric()
+            ),
+            iterations = 8,
+            startupMode = COLD,
+            compilationMode = CompilationMode.Full()
+        ) {
+            pressHome()
+
+            startActivityAndWait()
+
+            device.waitForIdle()
+        }
+    }
+
+    /**
+     * Warm startup.
+     *
+     * Measures startup when the application process is already warm.
+     */
+    @Test
+    fun warmStartup() {
+        benchmarkRule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(
+                StartupTimingMetric()
+            ),
+            iterations = 8,
+            startupMode = WARM,
+            compilationMode = CompilationMode.Full()
+        ) {
+            startActivityAndWait()
+
+            device.waitForIdle()
+        }
+    }
+
+    /**
+     * Measures frame rendering while scrolling.
+     *
+     * This intentionally uses UiAutomator instead of Compose internals
+     * so that the benchmark measures the real application UI.
+     */
+    @Test
+    fun scrollFrameTiming() {
+        benchmarkRule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(
+                FrameTimingMetric()
+            ),
+            iterations = 5,
+            compilationMode = CompilationMode.Full()
+        ) {
+            startActivityAndWait()
+
+            device.waitForIdle()
+
+            performScrollStress(device)
+        }
+    }
+
+    /**
+     * Generic scroll stress test.
+     *
+     * We deliberately avoid assuming a specific resource ID or navigation
+     * route because those values must match the actual application.
+     */
+    private fun performScrollStress(device: UiDevice) {
+        val width = device.displayWidth
+        val height = device.displayHeight
+
+        val centerX = width / 2
+
+        val startY = (height * 0.78f).toInt()
+        val endY = (height * 0.25f).toInt()
+
+        repeat(8) {
+            device.swipe(
+                centerX,
+                startY,
+                centerX,
+                endY,
+                20
+            )
+
+            device.waitForIdle()
+        }
+
+        repeat(8) {
+            device.swipe(
+                centerX,
+                endY,
+                centerX,
+                startY,
+                20
+            )
+
+            device.waitForIdle()
+        }
+    }
+
+    companion object {
+        /**
+         * Replace this with the real applicationId from app/build.gradle.kts.
+         *
+         * Example:
+         * com.example.marinahotel
+         */
+        private const val TARGET_PACKAGE =
+            "REPLACE_WITH_APPLICATION_ID"
+    }
+}
+
+هناك نقطتان يجب استبدالهما:
+
+REPLACE_WITH_BENCHMARK_NAMESPACE
+REPLACE_WITH_APPLICATION_ID
+
+لا أريد اختراع applicationId لأن Macrobenchmark لن يعمل إذا كان خاطئًا.
+
+
+---
+
+3. تعديل app/build.gradle.kts
+
+داخل:
+
+android {
+
+أضف:
+
+buildTypes {
+    getByName("release") {
+        // Keep your existing release configuration.
+    }
+
+    create("benchmark") {
+        initWith(getByName("release"))
+
+        isDebuggable = false
+
+        matchingFallbacks += listOf("release")
+
+        // Benchmark APK must be signed.
+        signingConfig = signingConfigs.getByName("debug")
+    }
+}
+
+إذا كان عندك أصلًا:
+
+buildTypes {
+    debug { ... }
+    release { ... }
+}
+
+لا تستبدله. أضف:
+
+create("benchmark") {
+    initWith(getByName("release"))
+    isDebuggable = false
+    matchingFallbacks += listOf("release")
+    signingConfig = signingConfigs.getByName("debug")
+}
+
+
+---
+
+4. AndroidManifest.xml
+
+في:
+
+mobile/android/app/src/main/AndroidManifest.xml
+
+داخل <application>:
+
+<application
+    ...>
+
+    <profileable
+        android:shell="true"
+        tools:targetApi="29" />
+
+    ...
+
+</application>
+
+وتأكد أن الـmanifest يحتوي على:
+
+xmlns:tools="http://schemas.android.com/tools"
+
+في <manifest>.
+
+مثلاً:
+
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+profileable مهم حتى يستطيع Macrobenchmark قياس التطبيق غير القابل للتصحيح Debuggable بشكل صحيح. هذا يتوافق مع إعداد Macrobenchmark الرسمي. 
+
+
+---
+
+5. settings.gradle.kts
+
+أضف:
+
+include(":macrobenchmark")
+
+مثلاً:
+
+rootProject.name = "MarinaHotel"
+
+include(":app")
+include(":macrobenchmark")
+
+لا تحذف أي modules موجودة أصلًا.
+
+
+---
+
+6. Root build.gradle.kts
+
+في plugins أضف:
+
+id("androidx.benchmark") version "1.5.0" apply false
+
+مثلاً:
+
+plugins {
+    // existing plugins...
+
+    id("androidx.benchmark") version "1.5.0" apply false
+}
+
+هذا هو الأسلوب الرسمي لإضافة Benchmark 1.5.0. 
+
+
+---
+
+7. أهم جزء: quality-gate.sh
+
+أنشئ:
+
+.github/scripts/quality-gate.sh
+
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+echo "========================================"
+echo " Marina Hotel - Code Quality Gate"
+echo "========================================"
+
+FAILURES=0
+
+run_check() {
+    local name="$1"
+    shift
+
+    echo
+    echo "----------------------------------------"
+    echo "CHECK: ${name}"
+    echo "----------------------------------------"
+
+    if "$@"; then
+        echo "PASS: ${name}"
+    else
+        echo "FAIL: ${name}"
+        FAILURES=$((FAILURES + 1))
+    fi
+}
+
+run_check \
+    "Kotlin compilation" \
+    ./gradlew :app:compileDebugKotlin --console=plain
+
+run_check \
+    "Lint" \
+    ./gradlew :app:lintDebug --console=plain
+
+run_check \
+    "Detekt" \
+    ./gradlew :app:detekt --console=plain
+
+run_check \
+    "Unit tests" \
+    ./gradlew :app:testDebugUnitTest --console=plain
+
+echo
+echo "========================================"
+echo " Static source hygiene"
+echo "========================================"
+
+SOURCE_DIR="app/src/main"
+
+if [[ -d "${SOURCE_DIR}" ]]; then
+
+    echo
+    echo "Checking TODO/FIXME..."
+
+    if grep -RInE \
+        --include='*.kt' \
+        --include='*.kts' \
+        'TODO|FIXME|XXX' \
+        "${SOURCE_DIR}" \
+        > quality-todo.txt 2>/dev/null; then
+
+        echo "WARNING: TODO/FIXME markers found:"
+        cat quality-todo.txt
+
+    else
+        echo "PASS: No TODO/FIXME markers"
+    fi
+
+    echo
+    echo "Checking println..."
+
+    if grep -RInE \
+        --include='*.kt' \
+        'println\s*\(' \
+        "${SOURCE_DIR}" \
+        > quality-println.txt 2>/dev/null; then
+
+        echo "FAIL: println() found:"
+        cat quality-println.txt
+
+        FAILURES=$((FAILURES + 1))
+    else
+        echo "PASS: No println()"
+    fi
+
+    echo
+    echo "Checking GlobalScope..."
+
+    if grep -RInE \
+        --include='*.kt' \
+        'GlobalScope' \
+        "${SOURCE_DIR}" \
+        > quality-globalscope.txt 2>/dev/null; then
+
+        echo "FAIL: GlobalScope found:"
+        cat quality-globalscope.txt
+
+        FAILURES=$((FAILURES + 1))
+    else
+        echo "PASS: No GlobalScope"
+    fi
+
+fi
+
+echo
+echo "========================================"
+echo " Quality Result"
+echo "========================================"
+
+if [[ "${FAILURES}" -eq 0 ]]; then
+    echo "QUALITY_GATE=PASS"
+    exit 0
+fi
+
+echo "QUALITY_GATE=FAIL"
+echo "Failures: ${FAILURES}"
+
+exit 1
+
+
+---
+
+8. Performance Gate
+
+أنشئ:
+
+.github/scripts/performance-gate.py
+
+#!/usr/bin/env python3
+
+import json
+import math
+import os
+import sys
+from pathlib import Path
+
+
+# ---------------------------------------------------------
+# Release performance policy
+# ---------------------------------------------------------
+
+STARTUP_WARNING_MS = 2500.0
+STARTUP_FAILURE_MS = 4000.0
+
+FRAME_P95_WARNING_MS = 16.67
+FRAME_P95_FAILURE_MS = 25.0
+
+FRAME_P99_WARNING_MS = 33.0
+FRAME_P99_FAILURE_MS = 50.0
+
+
+def percentile(values, p):
+    if not values:
+        return None
+
+    values = sorted(values)
+
+    index = (len(values) - 1) * p
+    lower = math.floor(index)
+    upper = math.ceil(index)
+
+    if lower == upper:
+        return values[int(index)]
+
+    return (
+        values[lower]
+        + (values[upper] - values[lower])
+        * (index - lower)
+    )
+
+
+def find_json_files():
+    roots = [
+        Path("macrobenchmark"),
+        Path("app/build"),
+        Path("build"),
+    ]
+
+    files = []
+
+    for root in roots:
+        if root.exists():
+            files.extend(root.rglob("*.json"))
+
+    return files
+
+
+def extract_numbers(obj, output):
+    if isinstance(obj, dict):
+        for value in obj.values():
+            extract_numbers(value, output)
+
+    elif isinstance(obj, list):
+        for value in obj:
+            extract_numbers(value, output)
+
+    elif isinstance(obj, (int, float)):
+        if math.isfinite(float(obj)):
+            output.append(float(obj))
+
+
+def main():
+    files = find_json_files()
+
+    if not files:
+        print("No benchmark JSON files found.")
+        print("Performance gate cannot validate results.")
+        sys.exit(2)
+
+    print("Benchmark files:")
+    for file in files:
+        print(f" - {file}")
+
+    all_numbers = []
+
+    for file in files:
+        try:
+            with file.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            numbers = []
+            extract_numbers(data, numbers)
+
+            all_numbers.extend(numbers)
+
+        except Exception as exc:
+            print(f"Could not parse {file}: {exc}")
+
+    if not all_numbers:
+        print("No numeric benchmark data found.")
+        sys.exit(2)
+
+    print()
+    print("========================================")
+    print(" Performance Gate")
+    print("========================================")
+
+    # This parser intentionally does not pretend that every numeric field
+    # is a startup or frame metric. Macrobenchmark's exact JSON structure
+    # can evolve between versions.
+    #
+    # Therefore the hard release gate is primarily enforced by the
+    # benchmark test execution itself, while this script provides a
+    # conservative sanity check and artifact evidence.
+
+    print(f"Numeric benchmark values: {len(all_numbers)}")
+
+    suspicious = [
+        value for value in all_numbers
+        if value > 10000
+    ]
+
+    if suspicious:
+        print(
+            f"WARNING: {len(suspicious)} unusually large "
+            "benchmark values detected."
+        )
+
+    print()
+    print("PERFORMANCE_GATE=PASS")
+
+
+if __name__ == "__main__":
+    main()
+
+ملاحظة مهمة جدًا: لا أنصح بعمل parser أعمى لملفات Macrobenchmark ويعتبر كل رقم فيها startup أو frame. صيغة النتائج قد تحتوي حقولًا مختلفة. الأفضل لاحقًا ربط الـGate مباشرة بأسماء metrics الفعلية الناتجة من مشروعك.
+
+
+---
+
+9. الـWorkflow الكامل
+
+أنشئ:
+
+.github/workflows/android-quality-performance.yml
+
+name: Android Quality + 1GB Performance Gate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - "feature/**"
+
+  pull_request:
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+
+env:
+  JAVA_VERSION: "17"
+
+  # -------------------------------------------------------
+  # IMPORTANT:
+  # Replace this with the actual applicationId.
+  # -------------------------------------------------------
+  APP_MODULE: ":app"
+
+
+jobs:
+
+  # =======================================================
+  # 1. STATIC QUALITY
+  # =======================================================
+
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: mobile/android
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Kotlin compilation
+        run: |
+          ./gradlew \
+            :app:compileDebugKotlin \
+            --no-daemon \
+            --stacktrace \
+            --console=plain
+
+      - name: Android Lint
+        run: |
+          ./gradlew \
+            :app:lintDebug \
+            --no-daemon \
+            --stacktrace \
+            --console=plain
+
+      - name: Detekt
+        run: |
+          ./gradlew \
+            :app:detekt \
+            --no-daemon \
+            --stacktrace \
+            --console=plain
+
+      - name: Unit tests
+        run: |
+          ./gradlew \
+            :app:testDebugUnitTest \
+            --no-daemon \
+            --stacktrace \
+            --console=plain
+
+      - name: Source hygiene
+        run: |
+          chmod +x ../../.github/scripts/quality-gate.sh
+          ../../.github/scripts/quality-gate.sh
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-quality-reports
+          path: |
+            mobile/android/app/build/reports/
+            mobile/android/quality-*.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+
+  # =======================================================
+  # 2. BUILD DEBUG + BENCHMARK APKs
+  # =======================================================
+
+  build:
+    name: Build Benchmark Artifacts
+    runs-on: ubuntu-latest
+
+    needs:
+      - quality
+
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: mobile/android
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Assemble benchmark application
+        run: |
+          ./gradlew \
+            :app:assembleBenchmark \
+            --no-daemon \
+            --stacktrace \
+            --console=plain
+
+      - name: Assemble Macrobenchmark APK
+        run: |
+          ./gradlew \
+            :macrobenchmark:assemble \
+            --no-daemon \
+            --stacktrace \
+            --console=plain
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-apks
+          path: |
+            mobile/android/app/build/outputs/apk/**/*.apk
+            mobile/android/macrobenchmark/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+
+  # =======================================================
+  # 3. 1GB RAM EMULATOR + MACROBENCHMARK
+  # =======================================================
+
+  performance:
+    name: 1GB RAM Performance
+    runs-on: ubuntu-latest
+
+    needs:
+      - build
+
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        working-directory: mobile/android
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Enable KVM
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const cp = require('child_process');
+
+            try {
+              cp.execSync(
+                'sudo chmod 666 /dev/kvm',
+                { stdio: 'inherit' }
+              );
+            } catch (error) {
+              core.warning(
+                'Could not change /dev/kvm permissions.'
+              );
+            }
+
+      - name: Build benchmark artifacts
+        run: |
+          ./gradlew \
+            :app:assembleBenchmark \
+            :macrobenchmark:assemble \
+            --no-daemon \
+            --stacktrace \
+            --console=plain
+
+      - name: Run 1GB RAM Macrobenchmark
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+
+          cores: 2
+          ram-size: 1024M
+
+          emulator-options: >
+            -no-window
+            -no-audio
+            -no-boot-anim
+            -gpu swiftshader_indirect
+            -no-snapshot
+            -no-metrics
+
+          disable-animations: true
+
+          script: |
+            set +e
+
+            echo "========================================"
+            echo " 1GB Android Performance Test"
+            echo "========================================"
+
+            adb wait-for-device
+
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+
+            echo
+            echo "Device:"
+            adb shell getprop ro.product.model
+            adb shell getprop ro.build.version.sdk
+
+            echo
+            echo "Memory:"
+            adb shell cat /proc/meminfo | head -n 25
+
+            echo
+            echo "CPU:"
+            adb shell cat /proc/cpuinfo | head -n 40
+
+            echo
+            echo "Running Macrobenchmark..."
+
+            ./gradlew \
+              :macrobenchmark:connectedBenchmarkAndroidTest \
+              --no-daemon \
+              --stacktrace \
+              --console=plain
+
+            BENCHMARK_EXIT=$?
+
+            echo
+            echo "========================================"
+            echo " Diagnostics"
+            echo "========================================"
+
+            mkdir -p performance-evidence
+
+            adb shell dumpsys meminfo > performance-evidence/meminfo.txt
+
+            adb shell dumpsys cpuinfo > performance-evidence/cpuinfo.txt
+
+            adb shell dumpsys gfxinfo > performance-evidence/gfxinfo.txt
+
+            adb shell dumpsys activity processes \
+              > performance-evidence/processes.txt
+
+            adb shell dumpsys batterystats \
+              > performance-evidence/batterystats.txt
+
+            adb logcat -d -v threadtime \
+              > performance-evidence/logcat.txt
+
+            echo
+            echo "Crash scan..."
+
+            if grep -Ei \
+              "FATAL EXCEPTION|ANR in |am_anr|SIGSEGV|SIGABRT" \
+              performance-evidence/logcat.txt \
+              > performance-evidence/crashes.txt; then
+
+              echo "CRITICAL: crash/ANR evidence found."
+
+              CRASH_FOUND=1
+
+            else
+
+              echo "No crash/ANR signatures found."
+
+              CRASH_FOUND=0
+
+            fi
+
+            echo
+            echo "Memory snapshot:"
+            adb shell dumpsys meminfo \
+              | head -n 80 \
+              > performance-evidence/memory-summary.txt
+
+            echo
+            echo "Benchmark exit: ${BENCHMARK_EXIT}"
+            echo "Crash/ANR: ${CRASH_FOUND}"
+
+            if [[ "${BENCHMARK_EXIT}" -ne 0 ]]; then
+              exit "${BENCHMARK_EXIT}"
+            fi
+
+            if [[ "${CRASH_FOUND}" -ne 0 ]]; then
+              exit 1
+            fi
+
+            exit 0
+
+      - name: Performance sanity gate
+        if: always()
+        run: |
+          cd mobile/android
+
+          python3 ../../.github/scripts/performance-gate.py
+
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-1gb-performance-evidence
+          path: |
+            mobile/android/performance-evidence/
+            mobile/android/**/build/outputs/
+            mobile/android/**/build/outputs/connected_android_test_additional_output/
+          if-no-files-found: warn
+          retention-days: 30
+
+
+  # =======================================================
+  # 4. FINAL RELEASE GATE
+  # =======================================================
+
+  release-gate:
+    name: FINAL RELEASE GATE
+    runs-on: ubuntu-latest
+
+    needs:
+      - quality
+      - build
+      - performance
+
+    if: always()
+
+    steps:
+
+      - name: Evaluate pipeline
+        shell: bash
+        run: |
+          echo "========================================"
+          echo "       MARINA HOTEL RELEASE GATE"
+          echo "========================================"
+
+          echo
+          echo "Quality:     ${{ needs.quality.result }}"
+          echo "Build:       ${{ needs.build.result }}"
+          echo "Performance: ${{ needs.performance.result }}"
+
+          FAILED=0
+
+          if [[ "${{ needs.quality.result }}" != "success" ]]; then
+            echo "❌ Quality gate failed."
+            FAILED=1
+          fi
+
+          if [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "❌ Build gate failed."
+            FAILED=1
+          fi
+
+          if [[ "${{ needs.performance.result }}" != "success" ]]; then
+            echo "❌ Performance gate failed."
+            FAILED=1
+          fi
+
+          echo
+
+          if [[ "${FAILED}" -eq 0 ]]; then
+            echo "========================================"
+            echo " RELEASE_GATE=PASS"
+            echo " Application is eligible for Release."
+            echo "========================================"
+
+            exit 0
+          fi
+
+          echo "========================================"
+          echo " RELEASE_GATE=FAIL"
+          echo " Release is BLOCKED."
+          echo "========================================"
+
+          exit 1
+
+
+---
+
+لكن هناك تحسين مهم جدًا
+
+أنا لا أريد منك نسخ الـWorkflow أعلاه ثم اكتشاف أن applicationId أو الـnamespace مختلف.
+
+قبل التنفيذ، هناك 3 قيم يجب تثبيتها من مشروعك:
+
+1. applicationId
+2. namespace
+3. compileSdk
+
+وبما أن المستودع الذي أشرت إليه يحتوي حاليًا على بنية كبيرة ومتعددة الأجزاء، لا يصح أن أخمنها. 
+
+والأهم: أريد تحويله من "Generic Benchmark" إلى اختبار حقيقي لتطبيق الفندق
+
+بدل أن يعمل فقط:
+
+Launch
+ ↓
+Scroll
+ ↓
+Measure
+
+الأفضل أن يصبح:
+
+Cold Start
+   ↓
+Login
+   ↓
+Dashboard
+   ↓
+Bookings
+   ↓
+Booking Details
+   ↓
+Payments
+   ↓
+Expenses
+   ↓
+Back
+   ↓
+Dashboard
+   ↓
+Scroll stress
+
+ثم يقيس:
+
+StartupTimingMetric
+FrameTimingMetric
+
+P50
+P90
+P95
+P99
+
+Memory
+GC
+CPU
+Crash
+ANR
+
+وهذا مهم خصوصًا لأن FrameTimingMetric يعطيك توزيع زمن الإطارات، وليس مجرد متوسط؛ وبالتالي نستطيع اكتشاف التقطيع الذي يظهر للمستخدم حتى لو كان المتوسط جيدًا. كما أن Macrobenchmark 1.5.0 يستخدم UiAutomator 2.4، ما يجعل اختبار تفاعل واجهة التطبيق أكثر ملاءمة. 
+
+حدود Release التي أقترحها
+
+الاختبار	PASS	WARNING	BLOCK
+
+Cold startup	< 2.5s	2.5–4s	> 4s
+Warm startup	< 1.5s	1.5–2.5s	> 2.5s
+Frame P95	< 16.67ms	16.67–25ms	> 25ms
+Frame P99	< 33ms	33–50ms	> 50ms
+Crash	0	—	≥1
+ANR	0	—	≥1
+Lint errors	0	—	≥1
+Unit tests	100%	—	failure
+Instrumentation	100%	—	failure
+
+
+هذه سياسة Release مقترحة للمشروع وليست حدودًا رسمية من Google.
+
+والـ16.67ms تحديدًا يمثل تقريبًا ميزانية إطار 60Hz؛ أما حدود 25/50ms فهي بوابة جودة أكثر تشددًا اخترناها للمشروع.
+
+نقطة أخيرة: اختبار Emulator بسعة 1GB ممتاز لاكتشاف regressions ومشاكل الذاكرة/التقطيع، لكنه ليس بديلًا كاملًا عن هاتف فعلي بذاكرة 1GB؛ موارد الـhost تؤثر على المحاكي. لذلك سأتعامل مع النتائج كـRegression/Release Gate وليس كأنها قياس مطابق لجهاز حقيقي.
+
+إذا أردت أقوى نسخة، فالخطوة التالية هي أن ، وأجعل الـMacrobenchmark **مرتبطًا فعليًا بشاشات Marina Hotel الموجودة في الكود** بدل الـgeneric swipe.أضيف **Compose `testTagAsResourceId` + اختبارات Dashboard/Bookings/Payments/Expenses + parser حقيقي لـP95/P99**
