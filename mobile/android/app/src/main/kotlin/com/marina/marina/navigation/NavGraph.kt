@@ -43,6 +43,7 @@ import com.marina.marina.presentation.search.GlobalSearchScreen
 import com.marina.marina.presentation.rooms.RoomsListScreen
 import com.marina.marina.presentation.settings.BookingsReminderScreen
 import com.marina.marina.presentation.settings.CloudflareSyncSettingsScreen
+import com.marina.marina.presentation.settings.MaintenanceScreen
 import com.marina.marina.presentation.settings.SettingsScreen
 import com.marina.marina.presentation.settings.SyncHealthScreen
 import com.marina.marina.presentation.settings.SyncDiagnosticsScreen
@@ -206,6 +207,25 @@ fun MarinaNavGraph(
             SettingsScreen(
                 onNavigate = { route -> navController.navigate(route) }
             )
+        }
+
+        adminScreen(navController, authViewModel, Screen.Maintenance.route) {
+            val authState by authViewModel.authState.collectAsState()
+            if (authState.currentUser?.isAdmin == true) {
+                MaintenanceScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenSyncHealth = { navController.navigate(Screen.SyncHealth.route) },
+                    onOpenDiagnostics = { navController.navigate(Screen.SyncDiagnostics.route) },
+                    onOpenBackup = { navController.navigate(Screen.Backup.route) }
+                )
+            } else {
+                androidx.compose.foundation.layout.Column {
+                    androidx.compose.material3.Text("قسم الصيانة متاح لمدير النظام فقط")
+                    androidx.compose.material3.TextButton(onClick = { navController.popBackStack() }) {
+                        androidx.compose.material3.Text("رجوع")
+                    }
+                }
+            }
         }
 
         adminScreen(navController, authViewModel, Screen.Reports.route) {

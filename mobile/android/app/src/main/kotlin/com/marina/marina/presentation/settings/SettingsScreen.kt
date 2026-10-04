@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Dashboard
@@ -148,6 +149,10 @@ fun SettingsScreen(
             Icons.Default.ErrorOutline, AppColors.DangerColor, route = "sync_diagnostics"
         )
     )
+    val maintenanceItems = listOf(
+        HubItem("صيانة البيانات", "فحص محلي والحجر الصحي وروابط UUID — للمدير فقط",
+            Icons.Default.Build, DartColors.indigo, route = "maintenance")
+    )
     val whatsappItems = listOf(
         HubItem("إقفال اليوم", "تقرير يومي عبر WhatsApp و Telegram", Icons.Default.NightlightRound, DartColors.indigo, action = { showNightAudit = true }),
         HubItem("تذكير المتبقي", "تذكير واتساب بالمتأخر للحجوزات النشطة", Icons.Default.Payment, DartColors.blue, route = "bookings_reminder")
@@ -228,6 +233,11 @@ fun SettingsScreen(
                     SettingsGrid(syncItems) { item ->
                         item.route?.let(onNavigate) ?: item.action?.invoke()
                     }
+                    Spacer(Modifier.height(20.dp))
+
+                    SectionHeader(title = "الصيانة", icon = Icons.Default.Build,
+                        count = maintenanceItems.size, subtitle = "فحص البيانات دون تعديلها")
+                    SettingsGrid(maintenanceItems) { item -> item.route?.let(onNavigate) }
                     Spacer(Modifier.height(20.dp))
 
                     SectionHeader(

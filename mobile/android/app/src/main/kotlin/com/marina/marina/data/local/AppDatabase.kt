@@ -118,6 +118,7 @@ import com.marina.marina.data.local.entity.SyncStateEntity
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun maintenanceDao(): com.marina.marina.data.local.dao.MaintenanceDao
     abstract fun syncQuarantineDao(): com.marina.marina.data.local.dao.SyncQuarantineDao
     abstract fun pendingSyncLinksDao(): com.marina.marina.data.local.dao.PendingSyncLinksDao
 
