@@ -7,9 +7,17 @@ PKG=com.a.a
 TEST_PKG=com.a.a.macrobenchmark
 DEVICE_OUT=/sdcard/Android/media/com.a.a.macrobenchmark/benchmark-output
 mkdir -p "$OUT"
+ADB_BIN=$(command -v adb)
+adb() { timeout --signal=TERM 90s "$ADB_BIN" "$@"; }
+phase() {
+  printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" | tee -a "$OUT/phases.txt"
+  echo "::notice title=Macrobenchmark phase::$*"
+}
+phase 'Harness started'
 [[ "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" == "1" ]] || {
   echo '::error::A disposable emulator is required; no device was modified.'; exit 1;
 }
+phase 'Disposable emulator guard passed'
 adb root
 adb wait-for-device
 
@@ -23,6 +31,7 @@ collect_evidence() {
 trap collect_evidence EXIT
 adb install -t mobile/build/app/outputs/apk/benchmark/app-benchmark.apk
 adb install -t mobile/build/macrobenchmark/outputs/apk/benchmark/macrobenchmark-benchmark.apk
+phase 'Both benchmark APKs installed'
 adb shell am force-stop "$PKG"
 adb shell pm clear "$PKG" | grep -q 'Success'
 
@@ -38,12 +47,14 @@ for package in "$PKG" "$TEST_PKG"; do
   adb shell ip6tables -C OUTPUT -m owner --uid-owner "$uid_value" -j REJECT
   printf '%s uid=%s IPv4=blocked IPv6=blocked\n' "$package" "$uid_value" >> "$OUT/isolation.txt"
 done
+phase 'Both application UIDs verified offline on IPv4 and IPv6'
 adb shell mkdir -p "$DEVICE_OUT"
 adb shell getprop > "$OUT/device-properties.txt"
 adb shell cat /proc/meminfo > "$OUT/device-memory.txt"
 adb logcat -b all -c
+phase 'Starting instrumentation (10 minute maximum)'
 set +e
-adb shell am instrument -w -r \
+timeout --signal=TERM 10m "$ADB_BIN" shell am instrument -w -r \
   -e class com.marina.marina.macrobenchmark.EntryStartupBenchmark \
   -e marina.offlineVerified true \
   -e androidx.benchmark.suppressErrors EMULATOR \
@@ -52,13 +63,20 @@ adb shell am instrument -w -r \
   "$TEST_PKG/androidx.test.runner.AndroidJUnitRunner" | tr -d '\r' | tee "$OUT/instrumentation.txt"
 runner_status=$?
 set -e
+phase "Instrumentation returned status $runner_status"
+if [[ "$runner_status" -ne 0 ]]; then
+  adb shell am force-stop "$TEST_PKG" || true
+fi
 collect_evidence
 trap - EXIT
 # adb may exit zero even when instrumentation failed or ran no tests.
 if [[ "$runner_status" -ne 0 ]] || ! grep -Eq '^OK \(2 tests\)' "$OUT/instrumentation.txt"; then
   python3 - "$OUT/instrumentation.txt" <<'PY'
 import pathlib, sys
-text = pathlib.Path(sys.argv[1]).read_text()[-2500:]
+lines = pathlib.Path(sys.argv[1]).read_text().splitlines()
+markers = ('Exception', 'Error', 'FAIL', 'INSTRUMENTATION_STATUS: test=', 'INSTRUMENTATION_RESULT:')
+selected = [line for line in lines if any(marker in line for marker in markers)]
+text = '\n'.join(selected[:12] + lines[-12:])[:2500]
 text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
 print(f'::error title=Macrobenchmark instrumentation failed::{text}')
 PY
