@@ -91,7 +91,14 @@ data class RestoreFixReport(
     val roomsUpdated: Int,
     val paymentsRecalculated: Int,
     val error: String? = null
-)
+) {
+    /** Imported data may exist, but a failed repair must never produce a success notification. */
+    fun requireSuccess() {
+        check(success) {
+            "تم تحميل بيانات النسخة، لكن فشل الإصلاح اللاحق: ${error ?: "سبب غير معروف"}"
+        }
+    }
+}
 
 /** معلومات مجلد النسخ المحلي — نظير getBackupFolderInfo في Dart. */
 data class BackupFolderInfo(

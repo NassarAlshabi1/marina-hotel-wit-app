@@ -32,8 +32,8 @@ import javax.inject.Singleton
  *  • نسخة SQLite خام (.db) بنسخ ملف قاعدة البيانات بعد wal_checkpoint —
  *    نظير SqliteBackupRestore.backupDatabase.
  *  • استعادة JSON: مسح الجداول ثم إدراج الصفوف داخل معاملة واحدة.
- *  • استعادة SQLite: استبدال ملف قاعدة البيانات (يُعاد تشغيل التطبيق
- *    بعد ذلك لفتح النسخة المستعادة).
+ *  • استعادة SQLite الخام موقوفة: لا يجوز استبدال ملف قاعدة مفتوحة.
+ *    يلزم مسار استعادة آمن مستقل قبل إعادة تفعيلها.
  *  • سنة آخر نسخة في prefs بنفس مفتاح Dart (last_local_backup_timestamp).
  */
 @Singleton
@@ -339,12 +339,12 @@ class LocalBackupService @Inject constructor(
 
     /**
      * نظير restoreFromLocalBackup — يتفرع حسب امتداد الملف:
-     * .sqlite/.db استعادة خام (استبدال الملف)، .json/.gz استعادة بيانات.
+     * .sqlite/.db مرفوضة قبل لمس البيانات؛ .json/.gz استعادة بيانات.
      */
     suspend fun restoreFromLocalBackup(filePath: String) = withContext(Dispatchers.IO) {
         val name = filePath.substringAfterLast('/')
         if (name.endsWith(".sqlite") || name.endsWith(".db")) {
-            restoreFromSqliteFile(filePath)
+            error("استعادة SQLite موقوفة مؤقتًا لحماية البيانات؛ يلزم مسار استعادة آمن لقاعدة مغلقة")
         } else {
             restoreFromJsonBackup(filePath)
         }
@@ -406,24 +406,6 @@ class LocalBackupService @Inject constructor(
                 values
             )
         }
-    }
-
-    /**
-     * استعادة ملف خام — نظير SqliteBackupRestore.restoreDatabase:
-     * استبدال ملف قاعدة البيانات ثم إعادة تشغيل العملية لفتحها.
-     */
-    private fun restoreFromSqliteFile(sourcePath: String) {
-        val sq = db.openHelper.writableDatabase
-        val dbPath = sq.path ?: throw Exception("لا يمكن تحديد مسار قاعدة البيانات")
-        // نسخة احتياطية قبل الاستبدال (أمان)
-        sq.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-        val current = File(dbPath)
-        val safety = File(dbPath + ".pre_restore")
-        FileInputStream(current).use { inp -> FileOutputStream(safety).use { out -> inp.copyTo(out) } }
-        // استبدال الملف
-        FileInputStream(File(sourcePath)).use { inp -> FileOutputStream(current).use { out -> inp.copyTo(out) } }
-        File(dbPath + "-wal").delete()
-        File(dbPath + "-shm").delete()
     }
 
     // ─── مشاركة / استيراد / حذف ─────────────────────────────────

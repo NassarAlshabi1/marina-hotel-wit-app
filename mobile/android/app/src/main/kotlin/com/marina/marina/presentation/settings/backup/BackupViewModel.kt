@@ -11,6 +11,7 @@ import com.marina.marina.data.backup.FullDatabaseExportService
 import com.marina.marina.data.backup.LocalBackupService
 import com.marina.marina.data.backup.RestoreFixService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -88,6 +89,8 @@ class BackupViewModel @Inject constructor(
                         )
                     }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -135,6 +138,8 @@ class BackupViewModel @Inject constructor(
                     )
                 }
                 _snackbars.emit(BackupSnackbar("تم إنشاء النسخة", GREEN))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -168,7 +173,7 @@ class BackupViewModel @Inject constructor(
                         progress = 0.5
                     )
                 }
-                restoreFixService.runAutoFixAfterRestore()
+                restoreFixService.runAutoFixAfterRestore().requireSuccess()
 
                 _state.update {
                     it.copy(
@@ -183,6 +188,8 @@ class BackupViewModel @Inject constructor(
                         GREEN
                     )
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -206,6 +213,8 @@ class BackupViewModel @Inject constructor(
                         message = "تم مشاركة النسخة الاحتياطية"
                     )
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -240,6 +249,8 @@ class BackupViewModel @Inject constructor(
                     )
                 }
                 _snackbars.emit(BackupSnackbar("تم الاستيراد", GREEN))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -277,6 +288,8 @@ class BackupViewModel @Inject constructor(
                     )
                 )
                 exportService.shareFile(file, subject = "قاعدة بيانات فندق مارينا")
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 _snackbars.emit(BackupSnackbar("فشل التصدير: $e", RED))
             } finally {
