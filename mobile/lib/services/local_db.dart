@@ -708,6 +708,12 @@ class SalaryCycles extends Table with SyncFields {
 class SalaryPayments extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get cycleId => integer().references(SalaryCycles, #id)();
+  // ✅ (2026-10-05) ذاكرة UUID للدورة — cycle_id وحده رقم محلي على
+  // جهاز المصدر ولا يُحل على أي جهاز آخر (صفوف Worker تُنشأ بـ
+  // server_id=NULL فلا ظلّ هوية). cycle_uuid = local_uuid للدورة
+  // (migration 69 محلياً + migration 0011 على D1) — يُستخدم كـ
+  // uuidCacheColumn في fk_rules.dart لحل cycle_id عبر الأجهزة.
+  TextColumn get cycleUuid => text().nullable()();
   // ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — مُستنبط من
   // دورة الدفع (salary_cycles.employee_uuid) ومُردَّم في migration 68.
   TextColumn get employeeUuid => text().nullable()();
@@ -766,6 +772,12 @@ class SalaryWithdrawals extends Table with SyncFields {
 class SalaryCarryOverLogs extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get employeeId => integer().references(Employees, #id)();
+  // ✅ (2026-10-05) مرجع الموظف المستقر عبر الأجهزة — نفس عقد
+  // salary_withdrawals.employee_uuid (migration 0011 على D1 +
+  // migration 69 محلياً). employee_id وحده رقم محلي على جهاز
+  // المصدر — سجلات الترحيل كانت تتيّم بنيوياً على الأجهزة الأخرى
+  // (لا عمود uuid ولا ذاكرة حل في fk_rules).
+  TextColumn get employeeUuid => text().nullable()();
   RealColumn get amount => real()();
   TextColumn get previousCycleStart => text()();
   TextColumn get previousCycleEnd => text()();
@@ -1253,7 +1265,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 68;
+  int get schemaVersion => 69;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1282,6 +1294,55 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-10-05) الإصدار 69: إغلاق فجوتَي الهوية عبر الأجهزة
+      // في جداول الرواتب (نفس توجيه migration 68 — «لا فقدان بيانات»):
+      //  1) salary_carry_over_logs.employee_uuid — سجلات الترحيل كانت
+      //     ترسل employee_id فقط (رقم محلي على جهاز المصدر) بلا أي
+      //     مفتاح عالمي → تتيّم بنيوياً على الأجهزة الأخرى.
+      //  2) salary_payments.cycle_uuid — ذاكرة UUID للدورة: cycle_id
+      //     لا يحل عبر الأجهزة (صفوف Worker بلا server_id ظلّ).
+      // الردم هنا محلي وموثوق: FK المحلي صالح دائماً على جهازه.
+      if (from < 69) {
+        for (final stmt in [
+          'ALTER TABLE salary_carry_over_logs ADD COLUMN employee_uuid TEXT',
+          'ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT',
+        ]) {
+          try {
+            await m.database.customStatement(stmt);
+          } catch (e) {
+            // العمود موجود مسبقاً في بعض قواعد البيانات المتقادمة
+            developer.log(
+              'Migration 69: column already exists: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        // ردم تاريخي محلي — UPDATE فقط، لا حذف ولا تعديل مبالغ/تواريخ.
+        try {
+          await m.database.customStatement(
+            '''
+            UPDATE salary_carry_over_logs SET employee_uuid = (
+              SELECT e.local_uuid FROM employees e
+              WHERE e.id = salary_carry_over_logs.employee_id)
+            WHERE employee_uuid IS NULL AND employee_id IS NOT NULL
+            ''',
+          );
+          // ذاكرة دورة الدفع: عبر دورتها المحلية (FK صالح محلياً).
+          await m.database.customStatement(
+            '''
+            UPDATE salary_payments SET cycle_uuid = (
+              SELECT sc.local_uuid FROM salary_cycles sc
+              WHERE sc.id = salary_payments.cycle_id)
+            WHERE cycle_uuid IS NULL AND cycle_id IS NOT NULL
+            ''',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 69: local backfill skipped: $e',
+            name: 'db.migration',
+          );
+        }
+      }
       // ✅ (2026-09-19) الإصدار 68: employee_uuid في جداول الرواتب الثلاثة
       // (توجيه المستخدم: «اضف الحقل المفقود employee_uuid الى الجداول لا
       // اريد فقدان البيانات نهائياً»). الحقل هو المفتاح المستقر عبر

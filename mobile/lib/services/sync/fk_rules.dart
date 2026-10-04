@@ -146,12 +146,17 @@ const List<FkRule> fkRules = [
   ),
   // دفعات الدورة → الدورة (سلّتان: موظف ثم دورة — ترتيب الأولويات
   // في إعادة المحاولة يضمن اكتمال السلسلة).
+  // ✅ (2026-10-05) ذاكرة cycle_uuid: cycle_id وحده رقم محلي على
+  // جهاز المصدر — صفوف Worker تُنشأ بـ server_id=NULL فلا يوجد
+  // ظلّ هوية يُطابق. cycle_uuid = local_uuid للدورة (migration
+  // 0011 على D1 + migration 69 محلياً) — المفتاح الأول للحل.
   FkRule(
     entity: 'salary_payments',
     column: 'cycle_id',
     kind: FkKind.numericPointer,
     parentTable: 'salary_cycles',
     parentKeyColumn: 'id',
+    uuidCacheColumn: 'cycle_uuid',
   ),
   // السحب من الراتب → الموظف.
   FkRule(
@@ -163,12 +168,17 @@ const List<FkRule> fkRules = [
     uuidCacheColumn: 'employee_uuid',
   ),
   // سجلات ترحيل الراتب → الموظف.
+  // ✅ (2026-10-05) ذاكرة employee_uuid — سجلات الترحيل كانت ترسل
+  // employee_id فقط (رقم محلي على جهاز المصدر) فتتيّم بنيوياً على
+  // الأجهزة الأخرى. نفس عقد salary_withdrawals (migration 0011 على
+  // D1 + migration 69 محلياً + ختم في salary_entitlement_service).
   FkRule(
     entity: 'salary_carry_over_logs',
     column: 'employee_id',
     kind: FkKind.numericPointer,
     parentTable: 'employees',
     parentKeyColumn: 'id',
+    uuidCacheColumn: 'employee_uuid',
   ),
   // حركات المخزون → صنف المخزون (item_local_uuid مفتاح عالمي).
   FkRule(

@@ -402,6 +402,10 @@ class SalaryEntitlementService {
               newCycleEnd: _formatDate(currentCycleEnd),
               reason: reason,
               carriedAt: nowEpoch,
+              // ✅ (2026-10-05) المفتاح المستقر عبر الأجهزة — نفس عقد
+              // salary_withdrawals_repository: الحمولة والصف المحلي
+              // يحملان employee_uuid معاً (migration 69).
+              employeeUuid: d.Value(employee.localUuid),
               localUuid: carryLogUuid,
               createdAt: nowEpoch,
               updatedAt: nowEpoch,
@@ -417,6 +421,12 @@ class SalaryEntitlementService {
         clientTs: nowEpoch,
         payload: {
           'employeeId': employee.id,
+          // ✅ (2026-10-05) جذر «سجلات الترحيل اليتيمة»: الحمولة يجب أن
+          // تحمل employeeUuid (مرجع مستقر عبر الأجهزة) — employee_id
+          // وحده رقم محلي على جهاز المصدر ولا يحل خادمياً (صفوف Worker
+          // تُنشأ بـ server_id=NULL فلا ظلّ هوية). نفس إصلاح السحوبات
+          // (2026-09-10: «107 سجل محجوب»).
+          'employeeUuid': employee.localUuid,
           'amount': carriedOver,
           'previousCycleStart': _formatDate(previousCycleStart),
           'previousCycleEnd': _formatDate(previousCycleEnd),

@@ -85,6 +85,26 @@ class PullQuarantine {
   static String identity(String entity, String? localUuid) =>
       '$entity/$localUuid';
 
+  /// ✅ (2026-10-05) هوية محسوبة من السجل كله — للصفوف التي فقدت
+  /// local_uuid على السلك (كاتب أجنبي/استعادة ناقصة). تسمح بإدخال
+  /// هذه الصفوف سلّم الانتظار/الحجر بدل الهوية المشتركة
+  /// 'entity/null' التي كانت تُسقط كل الصفوف عدا واحد من المحاسبة.
+  /// المفتاح الاحتياطي: id الصف الخادمي (مستقر عبر الدورات ما لم
+  /// يُستبدل الصف كلياً — وعندها يعاد حسابه من جديد).
+  static String identityForRecord(String entity, Map<String, dynamic> record) {
+    final uuid = record['local_uuid']?.toString();
+    if (uuid != null && uuid.isNotEmpty) return '$entity/$uuid';
+    return '$entity#no-uuid/${record['id'] ?? record['server_id'] ?? '?'}';
+  }
+
+  /// ✅ (2026-10-05) هوية موحّدة داخلياً لكل سجل في السجلين — نفس
+  /// دالة [identityForRecord]: الصفوف بلا local_uuid تُميّز بـ id
+  /// الصف الخادمي بدل الانهيار على 'entity/null'. تعتمدها promote /
+  /// stageWaiting / evictWaitingOverflow حتى لا تعيد اشتقاق هوية
+  /// مختلفة عن مفاتيح خريطة المحاسبة (فجوة كان يبتلعها التخطي).
+  static String _identityOf(PullRecord item) =>
+      identityForRecord(item.entity, item.record);
+
   /// ✅ (M2) طابع first_seen للمقارنة أثناء الإخلاء — غياب/تشوه = 0
   /// (الأقدم) فيُخلى أولاً بأمان.
   static int firstSeen(Map<String, dynamic> entry) =>
@@ -270,10 +290,9 @@ class PullQuarantine {
     final fresh = <PullRecord>[];
     var ledgerTouched = false;
     for (final item in items) {
-      final id = identity(
-        item.entity,
-        item.record['local_uuid']?.toString(),
-      );
+      // ✅ (2026-10-05) _identityOf بدل identity — الصفوف بلا
+      // local_uuid تحصل على هويتها المستقرة من id الصف الخادمي.
+      final id = _identityOf(item);
       // ✅ (2026-09-09) إشعار الحجر فقط للهويات المعزولة حديثاً —
       // السجل المعزول سابقاً يعاد عزله صامتاً بلا إزعاج.
       if (!_quarantinedRecords.containsKey(id)) {
@@ -300,10 +319,8 @@ class PullQuarantine {
   Set<String> stageWaiting(List<PullRecord> items) {
     final newEntries = <String>{};
     for (final item in items) {
-      final id = identity(
-        item.entity,
-        item.record['local_uuid']?.toString(),
-      );
+      // ✅ (2026-10-05) _identityOf — تطابق مفاتيح المحاسبة.
+      final id = _identityOf(item);
       if (!_blockedPending.containsKey(id)) {
         newEntries.add(id);
       }

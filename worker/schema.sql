@@ -627,6 +627,11 @@ CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted_at);
 CREATE TABLE IF NOT EXISTS salary_payments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   cycle_id INTEGER NOT NULL,
+  -- ✅ (2026-10-05) ذاكرة UUID للدورة — migration 0011. cycle_id
+  -- وحده رقم محلي على جهاز المصدر، وصفوف Worker تُنشأ بـ
+  -- server_id=NULL فلا ظلّ هوية — cycle_uuid (local_uuid للدورة)
+  -- هو مفتاح الحل الأول في fk_rules على الأجهزة الأخرى.
+  cycle_uuid TEXT,
   -- ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — migration 0007
   -- (مُردَّم من دورة الدفع salary_cycles عبر employee_uuid).
   employee_uuid TEXT,
@@ -654,6 +659,7 @@ CREATE TABLE IF NOT EXISTS salary_payments (
 );
 CREATE INDEX IF NOT EXISTS idx_salary_payments_updated ON salary_payments(updated_at);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid ON salary_payments(employee_uuid);
+CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid ON salary_payments(cycle_uuid);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle ON salary_payments(cycle_id, hotel_day_key);
 
 -- ─── Salary Withdrawals ───────────────────────────────────────
@@ -696,6 +702,10 @@ CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_hotel_day ON salary_withdrawal
 CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   employee_id INTEGER NOT NULL,
+  -- ✅ (2026-10-05) مرجع الموظف المستقر عبر الأجهزة — migration 0011.
+  -- employee_id وحده رقم محلي على جهاز المصدر — سجلات الترحيل كانت
+  -- تتيّم بنيوياً على الأجهزة الأخرى (لا عمود uuid ولا ذاكرة حل).
+  employee_uuid TEXT,
   amount REAL NOT NULL,
   previous_cycle_start TEXT NOT NULL,
   previous_cycle_end TEXT NOT NULL,
@@ -728,6 +738,7 @@ CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_salary_carryover_updated ON salary_carry_over_logs(updated_at);
 CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee ON salary_carry_over_logs(employee_id);
+CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee_uuid ON salary_carry_over_logs(employee_uuid);
 
 -- ─── Shift Notes ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS shift_notes (

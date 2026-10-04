@@ -27,8 +27,9 @@ void main() {
   });
 
   group('devices ككيان متزامن (v67)', () {
-    test('schemaVersion = 68', () {
-      expect(db.schemaVersion, 68);
+    test('schemaVersion = 69', () {
+      // ✅ (2026-10-05) bump 69: employee_uuid لسجلات الترحيل + cycle_uuid للدفعات.
+      expect(db.schemaVersion, 69);
     });
 
     test('جدول devices موجود في قاعدة جديدة', () async {

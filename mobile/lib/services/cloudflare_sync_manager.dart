@@ -2287,26 +2287,19 @@ class CloudflareSyncManager {
           ];
           final failedIds = <String>{
             for (final item in [...ledgerRemaining, ...ledgerErrored])
-              PullQuarantine.identity(
-                item.entity,
-                item.record['local_uuid']?.toString(),
-              ),
+              PullQuarantine.identityForRecord(item.entity, item.record),
           };
           for (final item in ledgerItems) {
-            final id = PullQuarantine.identity(
+            final id = PullQuarantine.identityForRecord(
               item.entity,
-              item.record['local_uuid']?.toString(),
+              item.record,
             );
             if (!failedIds.contains(id)) {
               // شُفي (أب وصل/مفتاح تحرر) — أو أصبح متعارضاً وسيُحاسب
               // أدناه على نفس الهوية (عدّاده يبقى معلقاً حتى العتبة).
               final stillConflicted = conflictedRecords.any(
                 (c) =>
-                    PullQuarantine.identity(
-                      c.entity,
-                      c.record['local_uuid']?.toString(),
-                    ) ==
-                    id,
+                    PullQuarantine.identityForRecord(c.entity, c.record) == id,
               );
               if (_quarantine.noteLedgerHealed(
                 id,
@@ -2328,9 +2321,9 @@ class CloudflareSyncManager {
                 allowQuarantineSkip: false,
               );
               if (ok) {
-                final id = PullQuarantine.identity(
+                final id = PullQuarantine.identityForRecord(
                   item.entity,
-                  item.record['local_uuid']?.toString(),
+                  item.record,
                 );
                 if (_quarantine.noteQuarantineHealed(id)) {
                   ledgerDirty = true;
@@ -2365,10 +2358,12 @@ class CloudflareSyncManager {
               ...unresolvedAfterRetry,
               ...conflictedRecords,
             ])
-              PullQuarantine.identity(
-                item.entity,
-                item.record['local_uuid']?.toString(),
-              ): item,
+              // ✅ (2026-10-05) identityForRecord بدل identity: الصفوف
+              // بلا local_uuid (كاتب أجنبي) كانت تنهار كلها على الهوية
+              // المشتركة 'entity/null' — آخر صف فقط يبقى في الخريطة
+              // والباقي يضيع من المحاسبة (تخطٍ صامت مقنّع). الآن كل
+              // صف له هوية مستقرة من uuid أو id الصف الخادمي.
+              PullQuarantine.identityForRecord(item.entity, item.record): item,
           };
       if (quarantinePoolByIdentity.isNotEmpty) {
         final accounted = _quarantine.accountBlocked(quarantinePoolByIdentity);
@@ -2914,7 +2909,21 @@ class CloudflareSyncManager {
     }
 
     final localUuid = record['local_uuid'] as String?;
-    if (localUuid == null) return true;
+    // ✅ (2026-10-05) حجر صحي بدل التخطي الصامت: صف بلا local_uuid
+    // (كاتب أجنبي/نسخة استشارية بلا هوية) كان يُتخطى صمتاً مع تقدم
+    // المؤشر — يصبح غير مرئي نهائياً على هذا الجهاز بلا سجل ولا
+    // إعادة محاولة. الآن يُؤجَّل (false) فيدخل سلّم الانتظار → الحجر
+    // بحمولته الكاملة (identityForRecord يميزه بـ id الصف الخادمي)،
+    // ويتقدم المؤشر كالسجلات العلاقية — وإذا أصلح كاتبه الصف في D1
+    // (أضاف local_uuid) سُحب سليماً وطُبّق في دورة لاحقة.
+    if (localUuid == null || localUuid.isEmpty) {
+      debugPrint(
+        '🏥 Pull: $entity record without local_uuid '
+        '(server id=${record['id']}) — deferred to wait-ledger/quarantine '
+        'instead of silent skip',
+      );
+      return false;
+    }
 
     final remoteUpdatedAt = record['updated_at'] as int? ?? 0;
 

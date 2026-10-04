@@ -46,6 +46,14 @@ class SalaryCarryOverLogsAdapter
             IdGen.uuid(),
       ),
       employeeId: _vInt(json, 'employeeId', src, altKey: 'employee_id'),
+      // ✅ (2026-10-05) المفتاح المستقر عبر الأجهزة (migration 69 +
+      // D1 0011) — يُقرأ من السلك إن وُجد، وإلا يُستنبط من الموظف
+      // المحلي في resolveRefs مستقبلاً؛ absent يُسقط العمود آمناً.
+      employeeUuid:
+          _asString(json, 'employeeUuid', src) != null ||
+              _asString(json, 'employee_uuid', src) != null
+          ? _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid')
+          : const d.Value.absent(),
       amount: d.Value(_asDouble(json, 'amount', src) ?? 0),
       previousCycleStart: d.Value(
         _asString(json, 'previousCycleStart', src) ??
@@ -109,6 +117,9 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      // ✅ (2026-10-05) المفتاح المستقر عبر الأجهزة — نفس عقد
+      // salary_withdrawals toJson (migration 69 + D1 0011).
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'amount', 'amount'): model.amount,
       _k(src, 'previousCycleStart', 'previous_cycle_start'):
           model.previousCycleStart,

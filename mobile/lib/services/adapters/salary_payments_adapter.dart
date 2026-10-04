@@ -126,6 +126,18 @@ class SalaryPaymentsAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيمة — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
+      // ✅ (2026-10-05) ذاكرة UUID للدورة (migration 69 + D1 0011) —
+      // تُقرأ من السلك (Cloudflare cycle_uuid / Appwrite cycleLocalUuid)
+      // وتُخزَّن محلياً لتكون مفتاح الحل الأول في fk_rules عند إعادة
+      // رفع الصف؛ إن غابت عن السلك فالعمود absent آمناً.
+      cycleUuid:
+          _asString(json, 'cycleUuid', src) != null ||
+              _asString(json, 'cycle_uuid', src) != null
+          ? _vStr(json, 'cycleUuid', src, altKey: 'cycle_uuid')
+          : _asString(json, 'cycleLocalUuid', src) != null ||
+                _asString(json, 'cycle_local_uuid', src) != null
+          ? _vStr(json, 'cycleLocalUuid', src, altKey: 'cycle_local_uuid')
+          : const d.Value.absent(),
       // ✅ (2026-09-19) مرجع الموظف المستقر — مستنبط من الدورة المحلولة
       // في resolveRefs أو من الحمولة (migration 68 + 0007).
       employeeUuid:
@@ -191,6 +203,9 @@ class SalaryPaymentsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
+      // ✅ (2026-10-05) ذاكرة UUID للدورة — المفتاح المستقر عبر
+      // الأجهزة لحل cycle_id (migration 69 + D1 0011).
+      _k(src, 'cycleUuid', 'cycle_uuid'): model.cycleUuid,
       // ✅ (2026-09-19) المفتاح المستقر عبر الأجهزة — مستنبط من دورة
       // الدفع (migration 68 محلياً + migration 0007 على D1).
       _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,

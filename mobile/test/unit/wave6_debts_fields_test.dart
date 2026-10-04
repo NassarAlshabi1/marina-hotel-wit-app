@@ -297,11 +297,13 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 68', () {
+    test('3e. أحدث schemaVersion = 69', () {
       // ✅ (2026-08-30) محاذاة بعد bump إلى 65 (جدول sync_remote_meta —
       // الفجوتان 3+4 metadata-first). القيمة مقصودة صريحة: كل bump جديد
       // يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
-      expect(db.schemaVersion, 68);
+      // القيمة مقصودة صريحة: كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
+      // ✅ (2026-10-05) bump 69: employee_uuid لسجلات الترحيل + cycle_uuid للدفعات.
+      expect(db.schemaVersion, 69);
     });
   });
 
