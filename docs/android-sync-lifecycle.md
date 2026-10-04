@@ -74,3 +74,19 @@ remains; this change protects the lifetime of a cycle, not an unbounded all-page
 Added foreground lease, rejected start, system timeout/retry, reference-counting,
 and real-service notification tests. Their CI result must be checked separately
 from the older successful process-only tests above.
+
+### Foreground follow-up CI (`27dedc0`, 2026-10-04)
+
+- [37227457681](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37227457681):
+  the full `testDebugUnitTest` step passed. Coverage now includes 11 runner tests,
+  4 foreground lifetime/service tests, and manager rejection/cancellation regressions.
+  A denied foreground start returns the repository's error state / `-1`, without
+  network calls or resetting the full-pull cursor. A timed-out service cannot be
+  reused while its old work is still unwinding.
+- Signed APK build and emulator smoke were still running at documentation time.
+- [37227457645](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37227457645):
+  quality failed with 1,431 Detekt findings and 37 Lint warnings. No blanket
+  suppression was added, and an all-green CI result is not claimed.
+- Foreground service/notification tests use Robolectric SDK 34; cancellation and
+  system-stop handling use controlled coroutines. This is not a physical Home /
+  lock-screen / Android 15 time-budget test, nor a new 1 GiB RAM guarantee.
