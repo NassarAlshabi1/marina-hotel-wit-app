@@ -119,7 +119,7 @@ if [[ "$runner_status" -ne 0 ]] || ! grep -Eq '^OK \(2 tests\)' "$OUT/instrument
   adb logcat -d -v brief 'Benchmark:V' 'Macrobenchmark:V' 'PerfettoCapture:V' 'PerfettoHttpServer:V' '*:S' \
     > "$OUT/benchmark-log.txt" 2>&1 || true
   adb logcat -d -b crash > "$OUT/crash-at-failure.txt" 2>&1 || true
-  adb logcat -d -v brief 'lmkd:I' '*:S' > "$OUT/low-memory-at-failure.txt" 2>&1 || true
+  adb logcat -d -v brief 'lmkd:I' 'lowmemorykiller:I' '*:S' > "$OUT/low-memory-at-failure.txt" 2>&1 || true
   python3 - "$OUT" <<'PYDIAG'
 import pathlib, re, sys
 root = pathlib.Path(sys.argv[1])
