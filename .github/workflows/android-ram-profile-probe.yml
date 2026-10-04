@@ -16,11 +16,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - api: 29
+          - api: 34
             target: google_apis
-            arch: x86
-            profile: Nexus One
-          - api: 26
+            arch: x86_64
+            profile: pixel_2
+          - api: 29
             target: google_apis
             arch: x86
             profile: pixel_2
@@ -48,7 +48,7 @@ jobs:
           cores: 2
           ram-size: 1024M
           disable-animations: false
-          emulator-options: -memory 1024 -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          emulator-options: -memory 1024 -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -qemu -m 1024
           script: |
             mkdir -p ram-profile-evidence
             timeout --kill-after=10s 60s adb shell cat /proc/meminfo > ram-profile-evidence/meminfo.txt
