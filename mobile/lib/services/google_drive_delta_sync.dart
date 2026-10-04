@@ -469,52 +469,130 @@ class GoogleDriveDeltaSync {
 
     switch (entity) {
       case 'rooms':
-        return await registry.rooms.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.rooms.upsertFromJson(payload, src: Source.drive) >
+            0;
       case 'bookings':
-        return await registry.bookings.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.bookings.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'payments':
-        return await registry.payments.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.payments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'expenses':
-        return await registry.expenses.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.expenses.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'debts':
-        return await registry.debts.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.debts.upsertFromJson(payload, src: Source.drive) >
+            0;
       case 'employees':
-        return await registry.employees.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.employees.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'booking_notes':
-        return await registry.bookingNotes.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.bookingNotes.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'booking_nights':
-        return await registry.nights.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.nights.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'salary_cycles':
-        return await registry.salaryCycles.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.salaryCycles.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'salary_payments':
-        return await registry.salaryPayments.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.salaryPayments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       // ✅ (المرحلة 0 — P0.6 / R7) الجدولان كانا يصلان من المنتج
       // (delta_sync_service يصدر تغييراتهما) وتُسقطهما هذه الدالة بصمت
       // لعدم وجود case لهما — تغييرات رواتب كاملة كانت تختفي دون تطبيق.
       case 'salary_withdrawals':
-        return await registry.salaryWithdrawals.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.salaryWithdrawals.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'salary_carry_over_logs':
-        return await registry.salaryCarryOverLogs.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.salaryCarryOverLogs.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'cash_transactions':
-        return await registry.cashTransactions.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.cashTransactions.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'shift_notes':
-        return await registry.shiftNotes.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.shiftNotes.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'price_adjustments':
-        return await registry.priceAdjustments.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.priceAdjustments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'audit_logs':
-        return await registry.auditLogs.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.auditLogs.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'payment_voids':
-        return await registry.paymentVoids.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.paymentVoids.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       // ✅ (ت1 المكملة 2026-10-04) الكيانات الأربعة المتبقية — كانت تُسقط
       // بصمت رغم أن المُنتِج يصدّرها (delta_sync_service أسطر 363/372/427/509).
       case 'guest_infos':
-        return await registry.guestInfos.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.guestInfos.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'inventory_items':
-        return await registry.inventoryItems.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.inventoryItems.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'inventory_transactions':
-        return await registry.inventoryTransactions.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.inventoryTransactions.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'booking_price_adjustments':
-        return await registry.bookingPriceAdjustments.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.bookingPriceAdjustments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       default:
         _logger.warning(
           '⛔ Drive delta: كيان غير مدعوم في التطبيق — إسقاط معلن: '

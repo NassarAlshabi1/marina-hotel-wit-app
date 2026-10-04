@@ -622,10 +622,10 @@ class SalaryWithdrawalsRepository {
     // (تصادم expense_id رقمي) فلا ينبغي أن يُلغي ذلك بحث reason — صف
     // قديم مرتبط بالـ reason وحده كان يبقى حياً خطأً.
     bool guard(SalaryWithdrawal w) => _ownedByDeviceOrEmployee(
-          w,
-          employeeId: employeeId,
-          employeeUuid: employeeUuid,
-        );
+      w,
+      employeeId: employeeId,
+      employeeUuid: employeeUuid,
+    );
     toDelete = toDelete.where(guard).toList();
 
     // الطريقة 2: بحث عبر reason (الطريقة القديمة) إذا لم نجد عبر expense_id

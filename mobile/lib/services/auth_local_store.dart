@@ -187,9 +187,7 @@ class AuthLocalStore {
       try {
         final decoded = jsonDecode(rawPerms);
         if (decoded is Map) {
-          decoded.forEach(
-            (k, v) => permissionsByUser[k.toString()] = v,
-          );
+          decoded.forEach((k, v) => permissionsByUser[k.toString()] = v);
         }
       } catch (e, st) {
         AppLogger.warning(
@@ -217,9 +215,7 @@ class AuthLocalStore {
       }
     }
 
-    final nowIso =
-        exportedAtIso ??
-        DateTime.now().toUtc().toIso8601String();
+    final nowIso = exportedAtIso ?? DateTime.now().toUtc().toIso8601String();
     return buildAppUsersBackupRows(
       AppUsersBackupInputs(
         localAccounts: localAccounts,

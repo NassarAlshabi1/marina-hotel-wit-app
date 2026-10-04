@@ -129,7 +129,8 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       // الرقم (ويُحسب راتبه عليه). null يبقى قابلاً لإعادة الربط لاحقاً
       // عبر employeeUuid (relink / قاعدة 6.1). أنواع غير الرواتب
       // (حجز/روابط أخرى) تبقى كما هي: relatedId معاينه محلية فقط.
-      relatedId: PayloadMapper.isSalaryExpenseType(
+      relatedId:
+          PayloadMapper.isSalaryExpenseType(
             _asString(json, 'expenseType', src) ?? '',
           )
           ? d.Value<int?>(refs.employeeRelatedId)

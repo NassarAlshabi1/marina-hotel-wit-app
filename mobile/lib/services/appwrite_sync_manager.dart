@@ -3993,8 +3993,7 @@ class AppwriteSyncManager {
   @visibleForTesting
   Future<int> syncSalaryWithdrawalsForTesting(
     List<models.Document> documents,
-  ) =>
-      _syncSalaryWithdrawals(documents);
+  ) => _syncSalaryWithdrawals(documents);
 
   Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
@@ -8696,7 +8695,7 @@ class AppwriteSyncManager {
           operation: 'post_sync_integrity_check',
           error:
               'Foreign key violations detected: ${violations.length} rows '
-                  '(financial orphans preserved for review — no hard delete)',
+              '(financial orphans preserved for review — no hard delete)',
           context: {'violations_count': violations.length.toString()},
         );
 

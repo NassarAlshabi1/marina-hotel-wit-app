@@ -116,7 +116,9 @@ int _asBoolInt(Object? v, {required int fallback}) {
 ///    `local_<username>` و`is_cloud=0` وصلاحياتها من خريطة user_permissions.
 /// 3. الحسابات السحابية تغلب المحلي عند تشابه اسم المستخدم (السحابة هي
 ///    المصدر الأساسي للهوية عبر `doc_id` الثابت بين الأجهزة).
-List<Map<String, Object?>> buildAppUsersBackupRows(AppUsersBackupInputs inputs) {
+List<Map<String, Object?>> buildAppUsersBackupRows(
+  AppUsersBackupInputs inputs,
+) {
   final rows = <String, Map<String, Object?>>{};
 
   Map<String, Object?> baseRow(String username) => <String, Object?>{
@@ -158,7 +160,8 @@ List<Map<String, Object?>> buildAppUsersBackupRows(AppUsersBackupInputs inputs) 
     if (raw is! Map) return;
     final row = baseRow(username)
       ..['doc_id'] = 'local_$username'
-      ..['password_hash'] = _asString(raw['password']) // تجزئة PBKDF2 فقط
+      ..['password_hash'] =
+          _asString(raw['password']) // تجزئة PBKDF2 فقط
       ..['full_name'] = _asString(raw['full_name']) ?? username
       ..['user_type'] = _asString(raw['user_type'])
       ..['role'] = _asString(raw['user_type'])
@@ -178,7 +181,8 @@ List<Map<String, Object?>> buildAppUsersBackupRows(AppUsersBackupInputs inputs) 
           _asString(raw['doc_id']) ??
           _asString(raw['cloud_user_id']) ??
           'cloud_$username'
-      ..['password_hash'] = _asString(raw['password']) // تجزئة من السحابة
+      ..['password_hash'] =
+          _asString(raw['password']) // تجزئة من السحابة
       ..['full_name'] = _asString(raw['full_name']) ?? username
       ..['user_type'] = _asString(raw['user_type'])
       ..['role'] = _asString(raw['role']) ?? _asString(raw['user_type'])

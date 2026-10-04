@@ -102,7 +102,7 @@ void main() {
     },
     skip: (isCI || !integrationEnabled)
         ? 'اختبارات تكاملية — تحتاج Appwrite حقيقياً '
-            '(شغّلها بـ RUN_APPWRITE_INTEGRATION=1)'
+              '(شغّلها بـ RUN_APPWRITE_INTEGRATION=1)'
         : null,
   );
 

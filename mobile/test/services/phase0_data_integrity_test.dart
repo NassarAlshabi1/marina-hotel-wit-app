@@ -135,9 +135,9 @@ void main() {
   }
 
   Future<SalaryWithdrawal?> activeByUuid(String uuid) {
-    return (db.select(db.salaryWithdrawals)
-          ..where((t) => t.localUuid.equals(uuid)))
-        .getSingleOrNull();
+    return (db.select(
+      db.salaryWithdrawals,
+    )..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -202,16 +202,16 @@ void main() {
           uuid: 'sw-foreign-5',
         );
 
-        await repo.deleteByExpenseId(
-          5,
-          employeeId: x,
-          employeeUuid: 'uuid-x',
-        );
+        await repo.deleteByExpenseId(5, employeeId: x, employeeUuid: 'uuid-x');
 
         final all = await db.select(db.salaryWithdrawals).get();
         final local = all.where((w) => w.localUuid != 'sw-foreign-5');
         final foreign = all.where((w) => w.localUuid == 'sw-foreign-5');
-        expect(local.single.deletedAt, isNotNull, reason: 'المرآة المحلية تحذف');
+        expect(
+          local.single.deletedAt,
+          isNotNull,
+          reason: 'المرآة المحلية تحذف',
+        );
         expect(
           foreign.single.deletedAt,
           isNull,
@@ -233,7 +233,9 @@ void main() {
           uuid: 'sw-foreign-5',
         );
         // صف قديم محلي بلا expense_id — مرتبط بالـ reason وحده، يجب حذفه.
-        await db.into(db.salaryWithdrawals).insert(
+        await db
+            .into(db.salaryWithdrawals)
+            .insert(
               SalaryWithdrawalsCompanion(
                 employeeId: d.Value(x),
                 amount: const d.Value(300),
@@ -292,14 +294,14 @@ void main() {
       expect(foreign.employeeId, x);
 
       // وأُنشئت مرآة محلية جديدة لهذا المصروف.
-      final locals = await (db.select(db.salaryWithdrawals)
-            ..where(
-              (t) =>
-                  t.expenseId.equals(5) &
-                  t.origin.equals('local') &
-                  t.deletedAt.isNull(),
-            ))
-          .get();
+      final locals =
+          await (db.select(db.salaryWithdrawals)..where(
+                (t) =>
+                    t.expenseId.equals(5) &
+                    t.origin.equals('local') &
+                    t.deletedAt.isNull(),
+              ))
+              .get();
       expect(locals, hasLength(1));
       expect(locals.first.amount, 500);
     });
@@ -328,9 +330,9 @@ void main() {
         previousEmployeeId: x,
       );
 
-      final active = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
+      final active = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.deletedAt.isNull())).get();
       expect(active, hasLength(1), reason: 'مرآة واحدة فقط — بلا تكرار');
       expect(active.first.employeeId, y, reason: 'المرآة انتقلت للموظف الجديد');
       expect(
@@ -351,24 +353,30 @@ void main() {
       expect(PayloadMapper.isSalaryExpenseType('سحب راتب'), isTrue);
       expect(PayloadMapper.isSalaryExpenseType('خصم من الراتب'), isTrue);
       expect(PayloadMapper.isSalaryExpenseType('ضيافة'), isFalse);
-      expect(PayloadMapper.isSalaryExpenseType(''),
-          isFalse);
+      expect(PayloadMapper.isSalaryExpenseType(''), isFalse);
     });
 
-    test('سلفة من مصدر بعيد بلا uuid → relatedId null لا الرقم الخام', () async {
-      final adapter = ExpensesAdapter(IdResolver(db));
-      const json = {'expenseType': 'سلفة', 'relatedId': 7};
+    test(
+      'سلفة من مصدر بعيد بلا uuid → relatedId null لا الرقم الخام',
+      () async {
+        final adapter = ExpensesAdapter(IdResolver(db));
+        const json = {'expenseType': 'سلفة', 'relatedId': 7};
 
-      final refs = await adapter.resolveRefs(db, json, src: Source.appwrite);
-      final companion = adapter.fromJson(json, src: Source.appwrite, refs: refs);
+        final refs = await adapter.resolveRefs(db, json, src: Source.appwrite);
+        final companion = adapter.fromJson(
+          json,
+          src: Source.appwrite,
+          refs: refs,
+        );
 
-      expect(refs.employeeRelatedId, isNull);
-      expect(
-        companion.relatedId.value,
-        isNull,
-        reason: 'لا relatedId بعيد خام — يُربط لاحقاً عبر employeeUuid',
-      );
-    });
+        expect(refs.employeeRelatedId, isNull);
+        expect(
+          companion.relatedId.value,
+          isNull,
+          reason: 'لا relatedId بعيد خام — يُربط لاحقاً عبر employeeUuid',
+        );
+      },
+    );
 
     test('سلفة من مصدر بعيد بـ uuid حاضر → relatedId محلول', () async {
       final empId = await addEmployee(uuid: 'emp-1', name: 'أحمد');
@@ -380,7 +388,11 @@ void main() {
       };
 
       final refs = await adapter.resolveRefs(db, json, src: Source.appwrite);
-      final companion = adapter.fromJson(json, src: Source.appwrite, refs: refs);
+      final companion = adapter.fromJson(
+        json,
+        src: Source.appwrite,
+        refs: refs,
+      );
 
       expect(refs.employeeRelatedId, empId);
       expect(companion.relatedId.value, empId);
@@ -391,7 +403,11 @@ void main() {
       const json = {'expenseType': 'ضيافة', 'relatedId': 9};
 
       final refs = await adapter.resolveRefs(db, json, src: Source.appwrite);
-      final companion = adapter.fromJson(json, src: Source.appwrite, refs: refs);
+      final companion = adapter.fromJson(
+        json,
+        src: Source.appwrite,
+        refs: refs,
+      );
 
       expect(companion.relatedId.value, 9, reason: 'سلوك محفوظ لغير الرواتب');
     });
@@ -428,57 +444,57 @@ void main() {
       );
     }
 
-    test(
-      'employeeId بعيد=3 مع موظفين (id=3 بلا serverId و id=7 بـ serverId=3) '
-      '→ يرتبط بالصاحب serverId لا بمصادفة الـ id',
-      () async {
-        final a = await addEmployee(
-          id: 3,
-          uuid: 'uuid-a',
-          name: 'موظف id=3 محلياً',
-        );
-        final b = await addEmployee(
-          id: 7,
-          uuid: 'uuid-b',
-          serverId: 3,
-          name: 'صاحب الـ id الأصلي',
-        );
-
-        final manager = AppwriteSyncManager(
-          appwriteService: AppwriteService(),
-          database: db,
-        );
-        final applied = await manager.syncSalaryWithdrawalsForTesting([
-          withdrawalDoc(uuid: 'sw-r2', remoteEmployeeId: 3),
-        ]);
-
-        expect(applied, 1);
-        final row = await activeByUuid('sw-r2');
-        expect(row, isNotNull);
-        expect(
-          row!.employeeId,
-          b,
-          reason: 'الربط عبر serverId=3 (جهاز المصدر) — لا عبر id المحلي 3',
-        );
-        expect(row.employeeId, isNot(a), reason: 'لا ربط بمصادفة الـ id');
-        expect(row.employeeUuid, 'uuid-b', reason: 'ختم employeeUuid القياسي');
-      },
-    );
-
-    test('موظف بلا uuid وبلا serverId مطابق → يتيم لا يُربط ولا يُدرج', () async {
-      await addEmployee(id: 3, uuid: 'uuid-a', name: 'أحمد');
+    test('employeeId بعيد=3 مع موظفين (id=3 بلا serverId و id=7 بـ serverId=3) '
+        '→ يرتبط بالصاحب serverId لا بمصادفة الـ id', () async {
+      final a = await addEmployee(
+        id: 3,
+        uuid: 'uuid-a',
+        name: 'موظف id=3 محلياً',
+      );
+      final b = await addEmployee(
+        id: 7,
+        uuid: 'uuid-b',
+        serverId: 3,
+        name: 'صاحب الـ id الأصلي',
+      );
 
       final manager = AppwriteSyncManager(
         appwriteService: AppwriteService(),
         database: db,
       );
       final applied = await manager.syncSalaryWithdrawalsForTesting([
-        withdrawalDoc(uuid: 'sw-orphan', remoteEmployeeId: 99),
+        withdrawalDoc(uuid: 'sw-r2', remoteEmployeeId: 3),
       ]);
 
-      expect(applied, 0, reason: 'السجل اليتيم لا يُعالج كنجاح');
-      expect(await activeByUuid('sw-orphan'), isNull);
+      expect(applied, 1);
+      final row = await activeByUuid('sw-r2');
+      expect(row, isNotNull);
+      expect(
+        row!.employeeId,
+        b,
+        reason: 'الربط عبر serverId=3 (جهاز المصدر) — لا عبر id المحلي 3',
+      );
+      expect(row.employeeId, isNot(a), reason: 'لا ربط بمصادفة الـ id');
+      expect(row.employeeUuid, 'uuid-b', reason: 'ختم employeeUuid القياسي');
     });
+
+    test(
+      'موظف بلا uuid وبلا serverId مطابق → يتيم لا يُربط ولا يُدرج',
+      () async {
+        await addEmployee(id: 3, uuid: 'uuid-a', name: 'أحمد');
+
+        final manager = AppwriteSyncManager(
+          appwriteService: AppwriteService(),
+          database: db,
+        );
+        final applied = await manager.syncSalaryWithdrawalsForTesting([
+          withdrawalDoc(uuid: 'sw-orphan', remoteEmployeeId: 99),
+        ]);
+
+        expect(applied, 0, reason: 'السجل اليتيم لا يُعالج كنجاح');
+        expect(await activeByUuid('sw-orphan'), isNull);
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -488,52 +504,48 @@ void main() {
     test('تغيّرَان للجدولين يُطبَّقان ويُنشئان السجلات', () async {
       await addEmployee(uuid: 'uuid-a', name: 'أحمد');
 
-      final applied =
-          await GoogleDriveDeltaSync.instance.applyChangesForTesting(
-        db,
-        AdapterRegistry.instance,
-        {
-          'changes': [
-            {
-              'entity': 'salary_withdrawals',
-              'op': 'update',
-              'data': {
-                'localUuid': 'sw-delta-1',
-                'employeeUuid': 'uuid-a',
-                'amount': 1500.0,
-                'withdrawDate': '2026-10-02',
-                'withdrawalType': 'سحب راتب',
-                'reason': 'exp_9',
-                'createdAt': 1000,
-                'lastModified': 2000,
-                'version': 3,
-                'deviceId': 'device-A',
-                'origin': 'server',
+      final applied = await GoogleDriveDeltaSync.instance
+          .applyChangesForTesting(db, AdapterRegistry.instance, {
+            'changes': [
+              {
+                'entity': 'salary_withdrawals',
+                'op': 'update',
+                'data': {
+                  'localUuid': 'sw-delta-1',
+                  'employeeUuid': 'uuid-a',
+                  'amount': 1500.0,
+                  'withdrawDate': '2026-10-02',
+                  'withdrawalType': 'سحب راتب',
+                  'reason': 'exp_9',
+                  'createdAt': 1000,
+                  'lastModified': 2000,
+                  'version': 3,
+                  'deviceId': 'device-A',
+                  'origin': 'server',
+                },
               },
-            },
-            {
-              'entity': 'salary_carry_over_logs',
-              'op': 'update',
-              'data': {
-                'localUuid': 'col-delta-1',
-                'employeeUuid': 'uuid-a',
-                'amount': 250.0,
-                'previousCycleStart': '2026-09-01',
-                'previousCycleEnd': '2026-09-30',
-                'newCycleStart': '2026-10-01',
-                'newCycleEnd': '2026-10-31',
-                'reason': 'ترحيل تلقائي',
-                'carriedAt': 5000,
-                'createdAt': 1000,
-                'lastModified': 2000,
-                'version': 1,
-                'deviceId': 'device-A',
-                'origin': 'server',
+              {
+                'entity': 'salary_carry_over_logs',
+                'op': 'update',
+                'data': {
+                  'localUuid': 'col-delta-1',
+                  'employeeUuid': 'uuid-a',
+                  'amount': 250.0,
+                  'previousCycleStart': '2026-09-01',
+                  'previousCycleEnd': '2026-09-30',
+                  'newCycleStart': '2026-10-01',
+                  'newCycleEnd': '2026-10-31',
+                  'reason': 'ترحيل تلقائي',
+                  'carriedAt': 5000,
+                  'createdAt': 1000,
+                  'lastModified': 2000,
+                  'version': 1,
+                  'deviceId': 'device-A',
+                  'origin': 'server',
+                },
               },
-            },
-          ],
-        },
-      );
+            ],
+          });
 
       expect(applied, 2, reason: 'الجدولان يُطبَّقان لا يُسقطان صامتاً');
 
@@ -541,9 +553,9 @@ void main() {
       expect(sw, isNotNull, reason: 'salary_withdrawals وصل عبر Delta');
       expect(sw!.amount, 1500.0);
 
-      final col = await (db.select(db.salaryCarryOverLogs)
-            ..where((t) => t.localUuid.equals('col-delta-1')))
-          .getSingleOrNull();
+      final col = await (db.select(
+        db.salaryCarryOverLogs,
+      )..where((t) => t.localUuid.equals('col-delta-1'))).getSingleOrNull();
       expect(col, isNotNull, reason: 'salary_carry_over_logs يصل عبر Delta');
       expect(col!.amount, 250.0);
     });
@@ -553,189 +565,201 @@ void main() {
   // ت1 المكملة — Drive delta يطبّق الكيانات الأربعة المتبقية (كانت تُسقط
   // بصمت رغم أن المُنتِج يصدّرها)، ويعلن أي إسقاط ويستثنيه من العدّ.
   // ═══════════════════════════════════════════════════════════════════════
-  group('ت1: Drive delta يطبّق guest_infos/inventory/booking_price_adjustments', () {
-    test('الكيانات الأربعة تُطبَّق والكيان غير المدعوم لا يُحصى applied', () async {
-      final applied =
-          await GoogleDriveDeltaSync.instance.applyChangesForTesting(
-        db,
-        AdapterRegistry.instance,
-        {
-          'changes': [
-            // غرفة ثم حجز ثم تعديل سعر مرتبط به (الترتيب التبعي في الدفعة).
-            {
-              'entity': 'rooms',
-              'op': 'update',
-              'data': {
-                'localUuid': 'room-delta-1',
-                'roomNumber': '701',
-                'type': 'double',
-                'price': 100.0,
-                'status': 'available',
-                'createdAt': 1000,
-                'lastModified': 2000,
-                'version': 1,
-                'deviceId': 'device-A',
-                'origin': 'server',
-              },
-            },
-            {
-              'entity': 'bookings',
-              'op': 'update',
-              'data': {
-                'localUuid': 'booking-delta-1',
-                'roomNumber': '701',
-                'guestName': 'ضيف دلتا',
-                'guestPhone': '777000',
-                'guestNationality': 'يمني',
-                'checkinDate': day,
-                'status': 'checked_in',
-                'createdAt': 1000,
-                'lastModified': 2000,
-                'version': 1,
-                'deviceId': 'device-A',
-                'origin': 'server',
-              },
-            },
-            {
-              'entity': 'booking_price_adjustments',
-              'op': 'update',
-              'data': {
-                'localUuid': 'bpa-delta-1',
-                'bookingLocalUuid': 'booking-delta-1',
-                'roomNumber': '701',
-                'amount': 25.0,
-                'effectiveHotelDay': day,
-                'reason': 'اختبار دلتا',
-                'createdAt': 1000,
-                'lastModified': 2000,
-                'version': 1,
-                'deviceId': 'device-A',
-                'origin': 'server',
-              },
-            },
-            {
-              'entity': 'guest_infos',
-              'op': 'update',
-              'data': {
-                'localUuid': 'gi-delta-1',
-                'roomNumber': '701',
-                'guestName': 'ضيف دلتا',
-                'nationality': 'يمني',
-                'idNumber': 'ID-1',
-                'createdAt': 1000,
-                'lastModified': 2000,
-                'version': 1,
-                'deviceId': 'device-A',
-                'origin': 'server',
-              },
-            },
-            {
-              'entity': 'inventory_items',
-              'op': 'update',
-              'data': {
-                'localUuid': 'item-delta-1',
-                'name': 'منشفة دلتا',
-                'quantity': 10,
-                'createdAt': 1000,
-                'lastModified': 2000,
-                'version': 1,
-                'deviceId': 'device-A',
-                'origin': 'server',
-              },
-            },
-            {
-              'entity': 'inventory_transactions',
-              'op': 'update',
-              'data': {
-                'localUuid': 'txn-delta-1',
-                'itemLocalUuid': 'item-delta-1',
-                'movementType': 'in',
-                'quantity': 10,
-                'balanceAfter': 10,
-                'createdAt': 1000,
-                'lastModified': 2000,
-                'version': 1,
-                'deviceId': 'device-A',
-                'origin': 'server',
-              },
-            },
-            // كيان غير مدعوم — إسقاط معلن لا يُحصى applied (ت1: العدّ
-            // بعد التطبيق الفعلي لا قبله).
-            {
-              'entity': 'not_a_real_entity',
-              'op': 'update',
-              'data': {'localUuid': 'ghost-1'},
-            },
-          ],
-        },
-      );
+  group(
+    'ت1: Drive delta يطبّق guest_infos/inventory/booking_price_adjustments',
+    () {
+      test(
+        'الكيانات الأربعة تُطبَّق والكيان غير المدعوم لا يُحصى applied',
+        () async {
+          final applied = await GoogleDriveDeltaSync.instance
+              .applyChangesForTesting(db, AdapterRegistry.instance, {
+                'changes': [
+                  // غرفة ثم حجز ثم تعديل سعر مرتبط به (الترتيب التبعي في الدفعة).
+                  {
+                    'entity': 'rooms',
+                    'op': 'update',
+                    'data': {
+                      'localUuid': 'room-delta-1',
+                      'roomNumber': '701',
+                      'type': 'double',
+                      'price': 100.0,
+                      'status': 'available',
+                      'createdAt': 1000,
+                      'lastModified': 2000,
+                      'version': 1,
+                      'deviceId': 'device-A',
+                      'origin': 'server',
+                    },
+                  },
+                  {
+                    'entity': 'bookings',
+                    'op': 'update',
+                    'data': {
+                      'localUuid': 'booking-delta-1',
+                      'roomNumber': '701',
+                      'guestName': 'ضيف دلتا',
+                      'guestPhone': '777000',
+                      'guestNationality': 'يمني',
+                      'checkinDate': day,
+                      'status': 'checked_in',
+                      'createdAt': 1000,
+                      'lastModified': 2000,
+                      'version': 1,
+                      'deviceId': 'device-A',
+                      'origin': 'server',
+                    },
+                  },
+                  {
+                    'entity': 'booking_price_adjustments',
+                    'op': 'update',
+                    'data': {
+                      'localUuid': 'bpa-delta-1',
+                      'bookingLocalUuid': 'booking-delta-1',
+                      'roomNumber': '701',
+                      'amount': 25.0,
+                      'effectiveHotelDay': day,
+                      'reason': 'اختبار دلتا',
+                      'createdAt': 1000,
+                      'lastModified': 2000,
+                      'version': 1,
+                      'deviceId': 'device-A',
+                      'origin': 'server',
+                    },
+                  },
+                  {
+                    'entity': 'guest_infos',
+                    'op': 'update',
+                    'data': {
+                      'localUuid': 'gi-delta-1',
+                      'roomNumber': '701',
+                      'guestName': 'ضيف دلتا',
+                      'nationality': 'يمني',
+                      'idNumber': 'ID-1',
+                      'createdAt': 1000,
+                      'lastModified': 2000,
+                      'version': 1,
+                      'deviceId': 'device-A',
+                      'origin': 'server',
+                    },
+                  },
+                  {
+                    'entity': 'inventory_items',
+                    'op': 'update',
+                    'data': {
+                      'localUuid': 'item-delta-1',
+                      'name': 'منشفة دلتا',
+                      'quantity': 10,
+                      'createdAt': 1000,
+                      'lastModified': 2000,
+                      'version': 1,
+                      'deviceId': 'device-A',
+                      'origin': 'server',
+                    },
+                  },
+                  {
+                    'entity': 'inventory_transactions',
+                    'op': 'update',
+                    'data': {
+                      'localUuid': 'txn-delta-1',
+                      'itemLocalUuid': 'item-delta-1',
+                      'movementType': 'in',
+                      'quantity': 10,
+                      'balanceAfter': 10,
+                      'createdAt': 1000,
+                      'lastModified': 2000,
+                      'version': 1,
+                      'deviceId': 'device-A',
+                      'origin': 'server',
+                    },
+                  },
+                  // كيان غير مدعوم — إسقاط معلن لا يُحصى applied (ت1: العدّ
+                  // بعد التطبيق الفعلي لا قبله).
+                  {
+                    'entity': 'not_a_real_entity',
+                    'op': 'update',
+                    'data': {'localUuid': 'ghost-1'},
+                  },
+                ],
+              });
 
-      expect(applied, 6, reason: 'الكيان غير المدعوم لا يُحصى applied');
+          expect(applied, 6, reason: 'الكيان غير المدعوم لا يُحصى applied');
 
-      final bpa = await (db.select(db.bookingPriceAdjustments)
-            ..where((t) => t.localUuid.equals('bpa-delta-1')))
-          .getSingleOrNull();
-      expect(bpa, isNotNull, reason: 'booking_price_adjustments يصل عبر Delta');
-      expect(bpa!.amount, 25.0);
-
-      final gi = await (db.select(db.guestInfos)
-            ..where((t) => t.localUuid.equals('gi-delta-1')))
-          .getSingleOrNull();
-      expect(gi, isNotNull, reason: 'guest_infos يصل عبر Delta');
-
-      final item = await (db.select(db.inventoryItems)
-            ..where((t) => t.localUuid.equals('item-delta-1')))
-          .getSingleOrNull();
-      expect(item, isNotNull, reason: 'inventory_items يصل عبر Delta');
-      expect(item!.quantity, 10);
-
-      final txn = await (db.select(db.inventoryTransactions)
-            ..where((t) => t.localUuid.equals('txn-delta-1')))
-          .getSingleOrNull();
-      expect(txn, isNotNull, reason: 'inventory_transactions يصل عبر Delta');
-      expect(
-        txn!.itemId,
-        item!.id,
-        reason: 'رابط البند يُحل محلياً عبر itemLocalUuid',
-      );
-    });
-
-    test('delete عبر delta لكيان غير مالي (guest_infos) يُطبَّق ويُحصى', () async {
-      await db.into(db.guestInfos).insert(
-            GuestInfosCompanion(
-              roomNumber: const d.Value('702'),
-              guestName: const d.Value('حذف دلتا'),
-              nationality: const d.Value(''),
-              idNumber: const d.Value('ID-2'),
-              localUuid: const d.Value('gi-del-1'),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
-            ),
+          final bpa = await (db.select(
+            db.bookingPriceAdjustments,
+          )..where((t) => t.localUuid.equals('bpa-delta-1'))).getSingleOrNull();
+          expect(
+            bpa,
+            isNotNull,
+            reason: 'booking_price_adjustments يصل عبر Delta',
           );
+          expect(bpa!.amount, 25.0);
 
-      final applied =
-          await GoogleDriveDeltaSync.instance.applyChangesForTesting(
-        db,
-        AdapterRegistry.instance,
-        {
-          'changes': [
-            {
-              'entity': 'guest_infos',
-              'op': 'delete',
-              'data': {'local_uuid': 'gi-del-1'},
-            },
-          ],
+          final gi = await (db.select(
+            db.guestInfos,
+          )..where((t) => t.localUuid.equals('gi-delta-1'))).getSingleOrNull();
+          expect(gi, isNotNull, reason: 'guest_infos يصل عبر Delta');
+
+          final item =
+              await (db.select(db.inventoryItems)
+                    ..where((t) => t.localUuid.equals('item-delta-1')))
+                  .getSingleOrNull();
+          expect(item, isNotNull, reason: 'inventory_items يصل عبر Delta');
+          expect(item!.quantity, 10);
+
+          final txn = await (db.select(
+            db.inventoryTransactions,
+          )..where((t) => t.localUuid.equals('txn-delta-1'))).getSingleOrNull();
+          expect(
+            txn,
+            isNotNull,
+            reason: 'inventory_transactions يصل عبر Delta',
+          );
+          expect(
+            txn!.itemId,
+            item!.id,
+            reason: 'رابط البند يُحل محلياً عبر itemLocalUuid',
+          );
         },
       );
 
-      expect(applied, 1, reason: 'delete لكيان غير مالي يُنفَّذ ويُحصى');
-      final gi = await (db.select(db.guestInfos)
-            ..where((t) => t.localUuid.equals('gi-del-1')))
-          .getSingleOrNull();
-      expect(gi, isNull, reason: 'الصف غير المالي حُذف نهائياً عبر Delta');
-    });
-  });
+      test(
+        'delete عبر delta لكيان غير مالي (guest_infos) يُطبَّق ويُحصى',
+        () async {
+          await db
+              .into(db.guestInfos)
+              .insert(
+                GuestInfosCompanion(
+                  roomNumber: const d.Value('702'),
+                  guestName: const d.Value('حذف دلتا'),
+                  nationality: const d.Value(''),
+                  idNumber: const d.Value('ID-2'),
+                  localUuid: const d.Value('gi-del-1'),
+                  createdAt: const d.Value(1000),
+                  updatedAt: const d.Value(1000),
+                  lastModified: const d.Value(1000),
+                ),
+              );
+
+          final applied = await GoogleDriveDeltaSync.instance
+              .applyChangesForTesting(db, AdapterRegistry.instance, {
+                'changes': [
+                  {
+                    'entity': 'guest_infos',
+                    'op': 'delete',
+                    'data': {'local_uuid': 'gi-del-1'},
+                  },
+                ],
+              });
+
+          expect(applied, 1, reason: 'delete لكيان غير مالي يُنفَّذ ويُحصى');
+          final gi = await (db.select(
+            db.guestInfos,
+          )..where((t) => t.localUuid.equals('gi-del-1'))).getSingleOrNull();
+          expect(gi, isNull, reason: 'الصف غير المالي حُذف نهائياً عبر Delta');
+        },
+      );
+    },
+  );
 
   // ═══════════════════════════════════════════════════════════════════════
   // R1 — فحص ما بعد المزامنة لا يحذف السجلات المالية اليتيمة

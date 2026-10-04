@@ -270,8 +270,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         // غير متوقع — جدول Drift بنفس الاسم يغني عن التركيبي.
       } else {
         try {
-          final appUsersRows = await AuthLocalStore()
-              .exportAppUsersD1Rows(includeCloud: false);
+          final appUsersRows = await AuthLocalStore().exportAppUsersD1Rows(
+            includeCloud: false,
+          );
           tables.add(
             _LocalTableInfo(
               name: 'app_users',
@@ -372,8 +373,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     // عدد الصفوف الحقيقي مسبقاً (شرط حلقة الترقيم في uploadData).
     if (_selected.contains('app_users')) {
       try {
-        final appUsersRows = await AuthLocalStore()
-            .exportAppUsersD1Rows(includeCloud: true);
+        final appUsersRows = await AuthLocalStore().exportAppUsersD1Rows(
+          includeCloud: true,
+        );
         infoLogs.add('app_users: ${appUsersRows.length} حساب (محلي + سحابي)');
         sources.add(
           CloudflareD1SourceTable(
