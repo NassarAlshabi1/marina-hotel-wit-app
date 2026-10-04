@@ -44,13 +44,22 @@ for package in "$PKG" "$TEST_PKG"; do
   uid_value=$(adb shell pm list packages -U "$package" | tr -d '\r' |
     awk -v package="package:$package" '$1 == package { sub("uid:", "", $2); print $2 }')
   [[ "$uid_value" =~ ^[0-9]+$ ]] || { echo "::error::UID unavailable for $package"; exit 1; }
-  adb shell iptables -I OUTPUT -m owner --uid-owner "$uid_value" -j REJECT
-  adb shell ip6tables -I OUTPUT -m owner --uid-owner "$uid_value" -j REJECT
-  adb shell iptables -C OUTPUT -m owner --uid-owner "$uid_value" -j REJECT
-  adb shell ip6tables -C OUTPUT -m owner --uid-owner "$uid_value" -j REJECT
-  printf '%s uid=%s IPv4=blocked IPv6=blocked\n' "$package" "$uid_value" >> "$OUT/isolation.txt"
+  # AndroidX trace processing uses an on-device localhost HTTP server. Allow
+  # only the test UID's loopback IPC, never its external interfaces. The target
+  # application UID retains the stricter all-interface block.
+  network_scope=()
+  loopback=blocked
+  if [[ "$package" == "$TEST_PKG" ]]; then
+    network_scope=('!' '-o' 'lo')
+    loopback=allowed-for-local-trace-processing
+  fi
+  adb shell iptables -I OUTPUT "${network_scope[@]}" -m owner --uid-owner "$uid_value" -j REJECT
+  adb shell ip6tables -I OUTPUT "${network_scope[@]}" -m owner --uid-owner "$uid_value" -j REJECT
+  adb shell iptables -C OUTPUT "${network_scope[@]}" -m owner --uid-owner "$uid_value" -j REJECT
+  adb shell ip6tables -C OUTPUT "${network_scope[@]}" -m owner --uid-owner "$uid_value" -j REJECT
+  printf '%s uid=%s externalIPv4=blocked externalIPv6=blocked loopback=%s\n' "$package" "$uid_value" "$loopback" >> "$OUT/isolation.txt"
 done
-phase 'Both application UIDs verified offline on IPv4 and IPv6'
+phase 'External IPv4/IPv6 blocked for both UIDs; only test-local loopback allowed'
 adb shell test ! -e "$DEVICE_OUT" || {
   echo '::error::Device output directory is not fresh; use a new disposable emulator.'; exit 1;
 }
@@ -74,7 +83,7 @@ if [[ "$runner_status" -ne 0 ]]; then
   # Capture live compiler/runner state before stopping it. Filter framework tags,
   # not application HTTP logs, so annotations do not expose request credentials.
   adb shell ps -A > "$OUT/processes-at-failure.txt" 2>&1 || true
-  adb logcat -d -v brief 'Benchmark:V' 'Macrobenchmark:V' 'PerfettoCapture:V' '*:S' \
+  adb logcat -d -v brief 'Benchmark:V' 'Macrobenchmark:V' 'PerfettoCapture:V' 'PerfettoHttpServer:V' '*:S' \
     > "$OUT/benchmark-log.txt" 2>&1 || true
   python3 - "$OUT" <<'PYDIAG'
 import pathlib, re, sys
