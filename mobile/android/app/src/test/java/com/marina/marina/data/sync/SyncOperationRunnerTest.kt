@@ -21,6 +21,94 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SyncOperationRunnerTest {
     @Test
+    fun foregroundLeaseSurvivesScreenAndIsReleasedAtCompletion() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val owner = CoroutineScope(SupervisorJob() + dispatcher)
+        var leases = 0
+        val runner = SyncOperationRunner(owner, dispatcher) {
+            leases++
+            AutoCloseable { leases-- }
+        }
+        val finish = CompletableDeferred<Unit>()
+        try {
+            val screen = launch { runner.runIfIdle(onBusy = { -1 }) { finish.await(); 1 } }
+            runCurrent()
+            assertEquals(1, leases)
+            screen.cancel()
+            runCurrent()
+            assertEquals(1, leases)
+            finish.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(0, leases)
+        } finally { owner.cancel() }
+    }
+
+    @Test
+    fun rejectedForegroundStartDoesNotExecuteWorkAndUnlocksAdmission() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val owner = CoroutineScope(SupervisorJob() + dispatcher)
+        var reject = true
+        var failed = false
+        val runner = SyncOperationRunner(owner, dispatcher) {
+            check(!reject) { "Synthetic Android background-start restriction" }
+            AutoCloseable {}
+        }
+        try {
+            assertTrue(runCatching {
+                runner.runIfIdle(onBusy = { -1 }, onFinished = { failed = it != null }) {
+                    error("Must not run without foreground protection")
+                }
+            }.isFailure)
+            assertTrue(failed)
+            reject = false
+            assertEquals(1, runner.runIfIdle(onBusy = { -1 }) { 1 })
+        } finally { owner.cancel() }
+    }
+
+    @Test
+    fun systemTimeoutCancelsWorkReleasesForegroundAndAllowsLaterRetry() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val owner = CoroutineScope(SupervisorJob() + dispatcher)
+        var leases = 0
+        var cancelled = false
+        val runner = SyncOperationRunner(owner, dispatcher) {
+            leases++
+            AutoCloseable { leases-- }
+        }
+        try {
+            val screen = launch {
+                runCatching {
+                    runner.runIfIdle(onBusy = { -1 }, onFinished = { cancelled = it is CancellationException }) {
+                        CompletableDeferred<Unit>().await()
+                        1
+                    }
+                }
+            }
+            runCurrent()
+            runner.cancelForSystemStop()
+            advanceUntilIdle()
+            screen.join()
+            assertTrue(cancelled)
+            assertEquals(0, leases)
+            assertEquals(2, runner.runIfIdle(onBusy = { -1 }) { 2 })
+        } finally { owner.cancel() }
+    }
+
+    @Test
+    fun rejectedSettingsStartReportsFailureWithoutStartingPreflight() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val owner = CoroutineScope(SupervisorJob() + dispatcher)
+        val runner = SyncOperationRunner(owner, dispatcher) { error("Start denied") }
+        var failed = false
+        var executed = false
+        runner.launch(onStartFailure = { failed = true }) { executed = true }.join()
+        advanceUntilIdle()
+        assertTrue(failed)
+        assertFalse(executed)
+        owner.cancel()
+    }
+
+    @Test
     fun cancellingScreenDoesNotCancelAcceptedSyncOrReleaseItsLock() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val owner = CoroutineScope(SupervisorJob() + dispatcher)

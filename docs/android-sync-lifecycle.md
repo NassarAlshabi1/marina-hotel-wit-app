@@ -44,3 +44,29 @@ and its cursor is saved on completion. No production network/data is used.
   is **not green**. Emulator smoke coverage is not a real navigation/background E2E test.
 - Test artifacts could not be downloaded in this sandbox (artifact host EOF);
   the successful test step is confirmed via the GitHub jobs API, not locally opened XML.
+
+## Foreground execution follow-up
+
+The original process-only boundary above describes `90ae94c`, not the new
+implementation. Accepted operations now hold a reference-counted `dataSync`
+foreground service, with an Arabic ongoing notification and a return-to-app
+PendingIntent. Settings acquires protection synchronously at the manual action,
+including preflight; nested manager work keeps its own lease. Completion/failure
+releases the lease, and the last lease stops the service. Navigation and Home do
+not release it. `stopWithTask=false`; this is not an immortal service or a boot job.
+
+Android background-start rejection is surfaced rather than silently running
+without protection. Android 15's data-sync time-limit callback cancels owned work
+and stops the service promptly. The service is non-sticky: stale intents cannot
+replay a finished full pull or push. Notification permission denial does not grant
+any bypass of Android policy; Android may show the foreground task in its task
+manager rather than the notification drawer.
+
+Force-stop, network failures, OS/vendor termination, and the platform's foreground
+service time budget still cannot be overridden. There is no new durable WorkManager
+retry; cursor/outbox recovery is unchanged. The existing 100-page cycle budget also
+remains; this change protects the lifetime of a cycle, not an unbounded all-page loop.
+
+Added foreground lease, rejected start, system timeout/retry, reference-counting,
+and real-service notification tests. Their CI result must be checked separately
+from the older successful process-only tests above.

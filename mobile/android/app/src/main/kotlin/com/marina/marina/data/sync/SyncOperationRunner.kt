@@ -1,5 +1,9 @@
 package com.marina.marina.data.sync
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
@@ -17,17 +21,67 @@ import kotlinx.coroutines.sync.Mutex
 @Singleton
 class SyncOperationRunner internal constructor(
     private val scope: CoroutineScope,
-    private val requestDispatcher: CoroutineDispatcher
+    private val requestDispatcher: CoroutineDispatcher,
+    private val acquireForeground: () -> AutoCloseable = { AutoCloseable {} }
 ) {
-    @Inject constructor() : this(
+    @Inject constructor(foreground: SyncForegroundLifetime) : this(
         CoroutineScope(SupervisorJob() + Dispatchers.IO),
-        Dispatchers.Main.immediate
+        Dispatchers.Main.immediate,
+        foreground::acquire
     )
 
     private val mutex = Mutex()
+    private val systemStopGeneration = AtomicLong()
+    private val activeJobs = ConcurrentHashMap.newKeySet<Job>()
+
+    fun cancelForSystemStop() {
+        systemStopGeneration.incrementAndGet()
+        activeJobs.forEach { it.cancel(CancellationException("Android stopped the sync foreground service")) }
+    }
+
+    private fun <T : Job> track(job: T): T {
+        activeJobs.add(job)
+        job.invokeOnCompletion { activeJobs.remove(job) }
+        return job
+    }
 
     /** Settings preflight and UI-state callbacks also survive their originating ViewModel. */
-    fun launch(block: suspend CoroutineScope.() -> Unit): Job = scope.launch(requestDispatcher, block = block)
+    fun launch(
+        onStartFailure: (Exception) -> Unit = {},
+        block: suspend CoroutineScope.() -> Unit
+    ): Job {
+        val generation = systemStopGeneration.get()
+        // Acquire synchronously from the button callback, before the user can press Home.
+        val lease = try {
+            acquireForeground()
+        } catch (error: Exception) {
+            onStartFailure(error)
+            return Job().apply { complete() }
+        }
+        val job = try {
+            track(scope.launch(requestDispatcher, start = CoroutineStart.LAZY) {
+                ensureGeneration(generation)
+                block()
+            })
+        } catch (error: Throwable) {
+            lease.close()
+            throw error
+        }
+        job.invokeOnCompletion { cause ->
+            lease.close()
+            if (cause != null) scope.launch(requestDispatcher) {
+                onStartFailure(IllegalStateException("Foreground sync stopped", cause))
+            }
+        }
+        job.start()
+        return job
+    }
+
+    private fun ensureGeneration(generation: Long) {
+        if (systemStopGeneration.get() != generation) {
+            throw CancellationException("Foreground service stopped during admission")
+        }
+    }
 
     /**
      * Admission is atomic. Reject overlapping operations rather than queuing duplicate
@@ -45,14 +99,24 @@ class SyncOperationRunner internal constructor(
         scope.coroutineContext.ensureActive()
         val owner = Any()
         if (!mutex.tryLock(owner)) return onBusy()
+        val generation = systemStopGeneration.get()
+        var lease: AutoCloseable? = null
         val task = try {
             onAccepted()
-            scope.async { operation() }
+            lease = acquireForeground()
+            track(scope.async(start = CoroutineStart.LAZY) {
+                ensureGeneration(generation)
+                operation()
+            })
         } catch (error: Throwable) {
             try {
                 onFinished(error)
             } finally {
-                mutex.unlock(owner)
+                try {
+                    lease?.close()
+                } finally {
+                    mutex.unlock(owner)
+                }
             }
             throw error
         }
@@ -60,9 +124,14 @@ class SyncOperationRunner internal constructor(
             try {
                 onFinished(cause)
             } finally {
-                mutex.unlock(owner)
+                try {
+                    lease?.close()
+                } finally {
+                    mutex.unlock(owner)
+                }
             }
         }
+        task.start()
         return task.await()
     }
 }

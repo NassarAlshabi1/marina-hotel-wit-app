@@ -358,7 +358,10 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
     fun runPullNow() {
         if (_state.value.isManualSyncing || syncRepository.syncState.value.isSyncing) return
         _state.value = _state.value.copy(isManualSyncing = true)
-        syncOperationRunner.launch {
+        syncOperationRunner.launch(onStartFailure = {
+            _state.value = _state.value.copy(isManualSyncing = false)
+            showSyncSnack(false, "تعذر بدء المزامنة في الخلفية؛ افتح التطبيق وحاول مجددًا")
+        }) {
             try {
                 if (!_state.value.cloudflareSyncEnabled) {
                     showSyncSnack(false, "❌ مزامنة Cloudflare معطّلة — فعّلها من قسم Cloudflare Sync أعلاه")
@@ -403,7 +406,10 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
     fun runFullPull() {
         if (_state.value.isManualSyncing || syncRepository.syncState.value.isSyncing) return
         _state.value = _state.value.copy(isManualSyncing = true)
-        syncOperationRunner.launch {
+        syncOperationRunner.launch(onStartFailure = {
+            _state.value = _state.value.copy(isManualSyncing = false)
+            showSyncSnack(false, "تعذر بدء المزامنة في الخلفية؛ افتح التطبيق وحاول مجددًا")
+        }) {
             try {
                 if (!_state.value.cloudflareSyncEnabled) {
                     showSyncSnack(false, "❌ مزامنة Cloudflare معطّلة — فعّلها من قسم Cloudflare Sync أعلاه")
@@ -434,7 +440,10 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
     fun runPushNow() {
         if (_state.value.isManualSyncing || syncRepository.syncState.value.isSyncing) return
         _state.value = _state.value.copy(isManualSyncing = true)
-        syncOperationRunner.launch {
+        syncOperationRunner.launch(onStartFailure = {
+            _state.value = _state.value.copy(isManualSyncing = false)
+            showSyncSnack(false, "تعذر بدء المزامنة في الخلفية؛ افتح التطبيق وحاول مجددًا")
+        }) {
             try {
                 if (!_state.value.cloudflareSyncEnabled) {
                     showSyncSnack(false, "❌ مزامنة Cloudflare معطّلة — فعّلها من قسم Cloudflare Sync أعلاه")

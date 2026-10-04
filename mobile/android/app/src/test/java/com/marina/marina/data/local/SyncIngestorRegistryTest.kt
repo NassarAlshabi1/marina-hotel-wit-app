@@ -32,6 +32,9 @@ import com.marina.marina.domain.util.HotelTimeEngine
 import java.lang.reflect.Proxy
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
@@ -936,7 +939,7 @@ class SyncIngestorRegistryTest {
         } as CloudflareWorkerApi
         val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
         val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
-            service, prefs, registry, SyncOperationRunner())
+            service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined))
         val screen = launch(start = CoroutineStart.UNDISPATCHED) { manager.pullOnly() }
         try {
             assertTrue("Pull reached network", started.await(15, TimeUnit.SECONDS))
@@ -984,13 +987,13 @@ class SyncIngestorRegistryTest {
         } as CloudflareWorkerApi
         val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
         val outbox = OutboxRepository(db.outboxDao(), service, prefs, registry)
-        assertEquals(0, SyncManager(outbox, service, prefs, registry, SyncOperationRunner()).pullOnly())
+        assertEquals(0, SyncManager(outbox, service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined)).pullOnly())
         assertTrue(prefs.isFullReplayPending())
         assertEquals(100L, prefs.getLastPullCursor())
         assertEquals(999L to "device-A", requests.first())
         assertTrue(requests.drop(1).all { it.second == null })
         // New manager resumes from the saved non-zero cursor WITHOUT re-enabling echo filtering.
-        assertEquals(0, SyncManager(outbox, service, prefs, newRegistry(), SyncOperationRunner()).pullOnly())
+        assertEquals(0, SyncManager(outbox, service, prefs, newRegistry(), SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined)).pullOnly())
         assertNull(requests.last().second)
         assertTrue(!prefs.isFullReplayPending())
         assertEquals("new", prefs.getSyncEpoch())
