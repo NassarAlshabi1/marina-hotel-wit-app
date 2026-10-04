@@ -51,4 +51,9 @@ fails closed with an explicit error; cancellation is rethrown and no cursor adva
 
 Four added regression cases cover mixed healthy/non-finite pages, deferred-payload
 serialization failure, failed quarantine storage rolling back the page, and the
-schema constant matching the database Room actually creates. Await CI results.
+schema constant matching the database Room actually creates.
+
+The full `testDebugUnitTest` step passed for source `0c2118c` in
+[run 37236737543](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37236737543),
+including these four new cases. Signed release APK build was still running at this
+update; no device-test or all-green CI claim is made.
