@@ -356,6 +356,14 @@ class AppwriteSchemaVerifier {
           'unique': true,
         },
         {'key': 'employeeId', 'type': 'integer', 'required': true},
+        // ✅ D1-path audit fix (2026-10-04) — الفجوة F4: محاذاة المواصفات
+        // مع collectionSchema (appwrite_sync_utils.dart) ومخطط السحابة
+        // الفعلي (unified_appwrite_setup.js 2026-09-19): حقول الربط عبر
+        // UUID مطلوبة لرفع Phase 0 — غيابها هنا يعني أن التحقق لا يكشف
+        // غيابها على السحابة، وسكربت الإنشاء لجهاز جديد ينشئ المجموعة
+        // بدونها فيُرفض الرفع بـ 400 Unknown attribute.
+        {'key': 'employeeUuid', 'type': 'string', 'size': 36},
+        {'key': 'employeeLocalUuid', 'type': 'string', 'size': 36},
         {'key': 'cycleKey', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'hotelDayStart', 'type': 'string', 'size': 50},
         {'key': 'hotelDayEnd', 'type': 'string', 'size': 50},
@@ -377,6 +385,11 @@ class AppwriteSchemaVerifier {
           'unique': true,
         },
         {'key': 'cycleId', 'type': 'integer', 'required': true},
+        // ✅ D1-path audit fix (2026-10-04) — الفجوة F4: نفس محاذاة
+        // collectionSchema — حقول الربط عبر UUID لدفعات الرواتب.
+        {'key': 'cycleLocalUuid', 'type': 'string', 'size': 36},
+        {'key': 'employeeUuid', 'type': 'string', 'size': 36},
+        {'key': 'employeeLocalUuid', 'type': 'string', 'size': 36},
         // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
         // المحلي يستخدم IntColumn لذلك النوع متطابق
         {'key': 'amount', 'type': 'integer', 'default': 0},
@@ -647,6 +660,10 @@ class AppwriteSchemaVerifier {
       'attributes': [
         {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'employeeId', 'type': 'integer', 'required': true},
+        // ✅ D1-path audit fix (2026-10-04) — الفجوة F4: نفس محاذاة
+        // collectionSchema — حقول الربط عبر UUID لسجلات ترحيل الرواتب.
+        {'key': 'employeeUuid', 'type': 'string', 'size': 36},
+        {'key': 'employeeLocalUuid', 'type': 'string', 'size': 36},
         // ⚠️ amount على Appwrite Cloud هو integer (يُحوَّل تلقائياً عبر
         // AppwriteSyncUtils.convertAmountTypesForAppwrite)
         {'key': 'amount', 'type': 'integer', 'required': true},

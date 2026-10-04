@@ -6225,6 +6225,25 @@ class AppwriteSyncManager {
         .getSingleOrNull();
   }
 
+  // ✅ D1-path audit fix (2026-10-04): مُلقٍ مخصص لصفوف القائمة السوداء.
+  //
+  // الإصلاح السابق (2026-08-06) أضاف فلتر createdBy='user' إلى
+  // `_getShiftNoteByLocalUuid` — فصحّح مسار shift_notes لكنه كسر مسار
+  // blacklist الذي كان يعيد استخدام نفس المُلقٍ: صفوف blacklist تُخزَّن
+  // محلياً في shift_notes بـ createdBy='blacklist' (انظر `_syncBlacklist`
+  // و `BlacklistRepository._createdByTag`)، لذا كان المُلقٍ يعيد NULL
+  // دائماً لمدخلات blacklist في الـ outbox → `_handleDeleteOp` يدفع
+  // tombstone ويحذف مستند blacklist من السحابة عند كل رفع!
+  // الفصل الصريح أدناه يعيد المسارين إلى المسار الصحيح لكل منهما.
+  Future<ShiftNote?> _getBlacklistEntryByLocalUuid(String uuid) {
+    return (database.select(database.shiftNotes)
+          ..where(
+            (t) => t.localUuid.equals(uuid) & t.createdBy.equals('blacklist'),
+          )
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   // ─── Blacklist ──────────────────────────────────────────────────────────
 
   /// ✅ رفع سجل ترحيل الراتب إلى Appwrite
@@ -6293,7 +6312,10 @@ class AppwriteSyncManager {
             appwriteService.deleteBlacklist(entry.localUuid),
       );
     }
-    final item = await _getShiftNoteByLocalUuid(entry.localUuid);
+    // ✅ D1-path audit fix (2026-10-04): مُلقٍ مخصص بفلتر
+    // createdBy='blacklist' — سابقاً كان هنا `_getShiftNoteByLocalUuid`
+    // بفلتر 'user' فيعيد NULL لكل صفوف blacklist ويدفع حذف المستند السحابي.
+    final item = await _getBlacklistEntryByLocalUuid(entry.localUuid);
     if (item == null) {
       return _handleDeleteOp(
         entity: 'blacklist',
