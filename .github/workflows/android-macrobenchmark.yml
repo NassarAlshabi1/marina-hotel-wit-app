@@ -42,7 +42,7 @@ jobs:
         working-directory: mobile/android
         run: |
           set -o pipefail
-          ./gradlew -Dorg.gradle.jvmargs="-Xmx4096m -XX:+UseParallelGC -XX:MaxMetaspaceSize=768m" --max-workers=2 -PenableMacrobenchmark :app:assembleBenchmark :macrobenchmark:assembleBenchmark --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/macrobenchmark-build.log"
+          ./gradlew --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m -XX:+UseParallelGC -XX:MaxMetaspaceSize=768m" --max-workers=2 -PenableMacrobenchmark :app:assembleBenchmark :macrobenchmark:assembleBenchmark --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/macrobenchmark-build.log"
       - name: Summarize benchmark build failure
         if: failure()
         run: |
