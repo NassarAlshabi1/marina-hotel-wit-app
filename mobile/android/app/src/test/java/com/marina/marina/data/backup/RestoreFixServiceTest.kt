@@ -4,6 +4,15 @@ import android.app.Application
 import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.lifecycle.ViewModelStore
+import com.marina.marina.presentation.settings.backup.BackupViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withTimeout
 import androidx.test.core.app.ApplicationProvider
 import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.entity.BookingEntity
@@ -162,6 +171,33 @@ class RestoreFixServiceTest {
             assertEquals("not a database", backup.readText())
             assertOriginalRows()
         } finally {
+            backup.delete()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun viewModelDoesNotReportSuccessWhenPostImportRepairFails() = runBlocking {
+        rejectRoomUpdate()
+        val backup = File(context.cacheDir, "repair-failure.json").apply { writeText("{}") }
+        val store = ViewModelStore()
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        try {
+            val viewModel = BackupViewModel(
+                LocalBackupService(context, db, BackupSettingsStore(context)),
+                RestoreFixService(db), FullDatabaseExportService(context, db)
+            )
+            store.put("backup", viewModel)
+            withTimeout(15_000) { viewModel.state.first { !it.isWorking } }
+            val snackbar = async(start = CoroutineStart.UNDISPATCHED) { viewModel.snackbars.first() }
+            viewModel.restoreFromLocalBackup(backup.absolutePath)
+            val state = withTimeout(15_000) { viewModel.state.first { it.status == BackupStatus.ERROR } }
+            assertTrue(state.message.orEmpty().contains("فشل الإصلاح اللاحق"))
+            assertEquals("فشلت الاستعادة", withTimeout(15_000) { snackbar.await() }.text)
+            assertOriginalRows()
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
             backup.delete()
         }
     }
