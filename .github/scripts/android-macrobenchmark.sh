@@ -21,6 +21,10 @@ phase 'Harness started'
   echo '::error::A disposable emulator is required; no device was modified.'; exit 1;
 }
 phase 'Disposable emulator guard passed'
+# Fail before installing or clearing packages if the requested profile was ignored.
+adb shell cat /proc/meminfo > "$OUT/device-memory.txt"
+python3 .github/scripts/benchmark-environment.py --meminfo "$OUT/device-memory.txt" \
+  --output "$OUT/environment-preflight.json"
 adb root
 adb wait-for-device
 
@@ -65,7 +69,6 @@ adb shell test ! -e "$DEVICE_OUT" || {
 }
 adb shell mkdir -p "$DEVICE_OUT"
 adb shell getprop > "$OUT/device-properties.txt"
-adb shell cat /proc/meminfo > "$OUT/device-memory.txt"
 adb logcat -b all -c
 phase 'Starting instrumentation (10 minute maximum)'
 set +e
@@ -120,7 +123,11 @@ mapfile -t reports < <(find "$OUT/raw" -type f -name '*-benchmarkData.json' | so
 [[ "${#reports[@]}" -gt 0 ]] || { echo '::error::Benchmark JSON output is missing'; exit 1; }
 python3 .github/scripts/performance-gate.py \
   --results "${reports[@]}" --policy config/benchmark/entry-startup.json \
-  --mode diagnostic --output "$OUT/summary.json"
+  --mode diagnostic --output "$OUT/metrics.json"
+python3 .github/scripts/benchmark-environment.py --meminfo "$OUT/device-memory.txt" \
+  --summary "$OUT/metrics.json" --output "$OUT/environment.json"
+# Publish the canonical summary only after both metric and RAM checks pass.
+cp "$OUT/metrics.json" "$OUT/summary.json"
 python3 - "$OUT/summary.json" <<'PY'
 import json, os, pathlib, sys
 result = json.loads(pathlib.Path(sys.argv[1]).read_text())

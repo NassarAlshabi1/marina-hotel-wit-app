@@ -12,6 +12,7 @@ on:
       - '.github/workflows/android-macrobenchmark.yml'
       - '.github/scripts/android-macrobenchmark.sh'
       - '.github/scripts/performance-gate.py'
+      - '.github/scripts/benchmark-environment.py'
       - 'config/benchmark/**'
       - 'tests/benchmark/**'
 permissions:
@@ -75,7 +76,7 @@ jobs:
           cores: 2
           ram-size: 1024M
           disable-animations: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          emulator-options: -memory 1024 -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           script: bash .github/scripts/android-macrobenchmark.sh
       - name: Preserve benchmark APKs, traces and evidence even on failure
         if: always()
