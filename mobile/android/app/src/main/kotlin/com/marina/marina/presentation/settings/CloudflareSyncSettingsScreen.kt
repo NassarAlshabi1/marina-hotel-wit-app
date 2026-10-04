@@ -418,8 +418,8 @@ fun CloudflareSyncSettingsScreen(
                     iconTint = AppColors.InfoColor,
                     title = "سحب التغييرات الآن",
                     subtitle = "يجلب التغييرات الجديدة من السيرفر فقط (بدون رفع)",
-                    busy = state.isManualSyncing,
-                    enabled = !state.isManualSyncing,
+                    busy = state.isManualSyncing || state.isSyncing,
+                    enabled = !state.isManualSyncing && !state.isSyncing,
                     onClick = viewModel::runPullNow
                 )
                 CardDivider()
@@ -429,8 +429,8 @@ fun CloudflareSyncSettingsScreen(
                     title = "السحب الكامل من السيرفر",
                     subtitle = "سحب فقط بدون رفع: يعيد ضبط مؤشر السحب ويجلب كل البيانات " +
                         "من السيرفر من الصفر (صفحات أكبر وأسرع)",
-                    busy = state.isManualSyncing,
-                    enabled = !state.isManualSyncing,
+                    busy = state.isManualSyncing || state.isSyncing,
+                    enabled = !state.isManualSyncing && !state.isSyncing,
                     onClick = { showFullPullConfirm = true }
                 )
                 CardDivider()
@@ -440,8 +440,8 @@ fun CloudflareSyncSettingsScreen(
                     title = "رفع التغييرات المحلية",
                     subtitle = "رفع فقط بدون سحب: يرفع كل التغييرات المحلية المعلّقة " +
                         "في outbox إلى السيرفر",
-                    busy = state.isManualSyncing,
-                    enabled = !state.isManualSyncing,
+                    busy = state.isManualSyncing || state.isSyncing,
+                    enabled = !state.isManualSyncing && !state.isSyncing,
                     onClick = viewModel::runPushNow
                 )
             }

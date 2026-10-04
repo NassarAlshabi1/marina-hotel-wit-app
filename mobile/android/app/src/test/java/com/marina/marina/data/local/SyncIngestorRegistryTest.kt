@@ -22,6 +22,7 @@ import com.marina.marina.data.repository.BookingNightsRepositoryImpl
 import com.marina.marina.data.repository.OutboxRepository
 import com.marina.marina.data.remote.WorkerPullResponse
 import com.marina.marina.data.repository.SyncManager
+import com.marina.marina.data.sync.SyncOperationRunner
 import retrofit2.Call
 import retrofit2.Response
 import com.marina.marina.data.repository.SyncIngestorRegistry
@@ -29,6 +30,12 @@ import com.marina.marina.di.EncryptedSharedPreferencesManager
 import com.marina.marina.domain.model.BookingNight
 import com.marina.marina.domain.util.HotelTimeEngine
 import java.lang.reflect.Proxy
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -904,6 +911,50 @@ class SyncIngestorRegistryTest {
     }
 
     @Test
+    fun acceptedPullFinishesAfterScreenCancellationWithoutAllowingOverlap() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))
+        prefs.saveAuthToken("test-worker-token")
+        prefs.saveLastPullCursor(0L)
+        prefs.saveSyncEpoch("stable")
+        prefs.setFullReplayPending(false)
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val api = Proxy.newProxyInstance(
+            CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
+        ) { _, method, _ ->
+            check(method.name == "pull") { "Pull-only must not push: ${method.name}" }
+            Proxy.newProxyInstance(Call::class.java.classLoader, arrayOf(Call::class.java)) { _, callMethod, _ ->
+                check(callMethod.name == "execute")
+                started.countDown()
+                check(release.await(15, TimeUnit.SECONDS)) { "Test did not release pull" }
+                Response.success(WorkerPullResponse(
+                    changes = emptyList(), cursor = "123", epoch = "stable", hasMore = false,
+                    remaining = null, errors = emptyList(), serverTime = null
+                ))
+            } as Call<*>
+        } as CloudflareWorkerApi
+        val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
+        val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
+            service, prefs, registry, SyncOperationRunner())
+        val screen = launch(start = CoroutineStart.UNDISPATCHED) { manager.pullOnly() }
+        try {
+            assertTrue("Pull reached network", started.await(15, TimeUnit.SECONDS))
+            screen.cancelAndJoin()
+            assertTrue(manager.syncState.value.isSyncing)
+            assertEquals(-1, manager.pushOnly())
+            assertEquals(-1, manager.fullPull())
+            assertTrue(manager.syncState.value.isSyncing)
+        } finally {
+            release.countDown()
+            screen.cancelAndJoin()
+            withTimeout(15_000) { manager.syncState.first { !it.isSyncing } }
+        }
+        assertTrue(!manager.syncState.value.isError)
+        assertEquals(123L, prefs.getLastPullCursor())
+    }
+
+    @Test
     fun epochReplayIncludesOwnRowsAcrossPageLimitAndManagerRestart() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))
@@ -933,13 +984,13 @@ class SyncIngestorRegistryTest {
         } as CloudflareWorkerApi
         val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
         val outbox = OutboxRepository(db.outboxDao(), service, prefs, registry)
-        assertEquals(0, SyncManager(outbox, service, prefs, registry).pullOnly())
+        assertEquals(0, SyncManager(outbox, service, prefs, registry, SyncOperationRunner()).pullOnly())
         assertTrue(prefs.isFullReplayPending())
         assertEquals(100L, prefs.getLastPullCursor())
         assertEquals(999L to "device-A", requests.first())
         assertTrue(requests.drop(1).all { it.second == null })
         // New manager resumes from the saved non-zero cursor WITHOUT re-enabling echo filtering.
-        assertEquals(0, SyncManager(outbox, service, prefs, newRegistry()).pullOnly())
+        assertEquals(0, SyncManager(outbox, service, prefs, newRegistry(), SyncOperationRunner()).pullOnly())
         assertNull(requests.last().second)
         assertTrue(!prefs.isFullReplayPending())
         assertEquals("new", prefs.getSyncEpoch())

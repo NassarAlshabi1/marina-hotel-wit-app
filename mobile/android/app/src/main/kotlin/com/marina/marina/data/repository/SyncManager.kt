@@ -4,6 +4,7 @@ import com.marina.marina.data.remote.CloudflareConfig
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.data.sync.SyncEpochPolicy
+import com.marina.marina.data.sync.SyncOperationRunner
 import com.marina.marina.domain.model.SyncUiState
 import com.marina.marina.domain.repository.SyncRepository
 import javax.inject.Inject
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Unified sync orchestrator — the Kotlin counterpart of the Flutter app's
@@ -38,22 +40,55 @@ class SyncManager @Inject constructor(
     private val outboxRepository: OutboxRepository,
     private val syncService: CloudflareSyncService,
     private val preferences: SyncPreferences,
-    private val ingestorRegistry: SyncIngestorRegistry
+    private val ingestorRegistry: SyncIngestorRegistry,
+    private val operationRunner: SyncOperationRunner
 ) : SyncRepository {
 
     private val _syncState = MutableStateFlow(SyncUiState())
     override val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
+
+    override suspend fun syncNow(): SyncUiState = runOwned(
+        onBusy = {
+            _syncState.value.copy(isSyncing = true, isError = true, lastMessage = "توجد مزامنة جارية حالياً")
+        }
+    ) { performSyncNow() }
+
+    override suspend fun pullOnly(): Int = runOwned(onBusy = { -1 }) { performPullOnly() }
+
+    override suspend fun pushOnly(): Int = runOwned(onBusy = { -1 }) { performPushOnly() }
+
+    override suspend fun fullPull(): Int = runOwned(onBusy = { -1 }) { performFullPull() }
+
+    private suspend fun <T> runOwned(onBusy: () -> T, operation: suspend () -> T): T =
+        operationRunner.runIfIdle(
+            onBusy = onBusy,
+            onAccepted = {
+                _syncState.update {
+                    it.copy(isSyncing = true, isError = false, lastMessage = "جارٍ بدء المزامنة...",
+                        pushedCount = 0, pulledCount = 0)
+                }
+            },
+            onFinished = { cause ->
+                _syncState.update {
+                    if (cause != null && !it.isError) {
+                        it.copy(isSyncing = false, isError = true, lastMessage = "توقفت المزامنة قبل اكتمالها")
+                    } else {
+                        it.copy(isSyncing = false)
+                    }
+                }
+            },
+            operation = operation
+        )
 
     override fun pendingCount(): Flow<Int> = outboxRepository.pendingCount()
     override fun undeliveredCount(): Flow<Int> = outboxRepository.undeliveredCount()
 
     /**
      * Runs a full sync cycle: ensure login, push local changes, then pull
-     * remote deltas. Safe to call repeatedly; concurrent calls are serialized
-     * by the isSyncing flag (callers should check it, best-effort).
+     * remote deltas. Safe to call repeatedly; overlapping requests are rejected
+     * atomically by SyncOperationRunner, independent of the caller lifecycle.
      */
-    override suspend fun syncNow(): SyncUiState {
-        if (_syncState.value.isSyncing) return _syncState.value
+    private suspend fun performSyncNow(): SyncUiState {
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ الدخول...")
 
         // ---- Phase 0: lazy login (admin/admin default — auto-login) ----
@@ -103,8 +138,7 @@ class SyncManager @Inject constructor(
      *
      * @return the number of records pulled, or -1 when the cycle failed.
      */
-    override suspend fun pullOnly(): Int {
-        if (_syncState.value.isSyncing) return -1
+    private suspend fun performPullOnly(): Int {
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب...")
         if (!syncService.ensureLoggedIn()) {
             finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
@@ -137,8 +171,7 @@ class SyncManager @Inject constructor(
      *
      * @return عدد الصفوف المرفوعة بنجاح، أو -1 عند الفشل.
      */
-    override suspend fun pushOnly(): Int {
-        if (_syncState.value.isSyncing) return -1
+    private suspend fun performPushOnly(): Int {
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ الرفع...")
         if (!syncService.ensureLoggedIn()) {
             finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
@@ -175,8 +208,7 @@ class SyncManager @Inject constructor(
      *
      * @return عدد السجلات المسحوبة، أو -1 عند الفشل.
      */
-    override suspend fun fullPull(): Int {
-        if (_syncState.value.isSyncing) return -1
+    private suspend fun performFullPull(): Int {
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب الكامل...")
         if (!syncService.ensureLoggedIn()) {
             finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
