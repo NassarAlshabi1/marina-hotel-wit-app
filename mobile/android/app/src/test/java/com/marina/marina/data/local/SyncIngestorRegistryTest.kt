@@ -914,6 +914,30 @@ class SyncIngestorRegistryTest {
     }
 
     @Test
+    fun foregroundStartRejectionReturnsFailureWithoutNetworkOrCursorReset() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))
+        prefs.saveLastPullCursor(321L)
+        var networkCalls = 0
+        val api = Proxy.newProxyInstance(
+            CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
+        ) { _, _, _ -> networkCalls++; error("No network after denied foreground start") } as CloudflareWorkerApi
+        val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
+        val runner = SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined) {
+            throw IllegalStateException("Synthetic Android background restriction")
+        }
+        val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
+            service, prefs, registry, runner)
+        assertEquals(-1, manager.pullOnly())
+        assertEquals(-1, manager.pushOnly())
+        assertEquals(-1, manager.fullPull())
+        assertTrue(manager.syncNow().isError)
+        assertTrue(!manager.syncState.value.isSyncing)
+        assertEquals(321L, prefs.getLastPullCursor())
+        assertEquals(0, networkCalls)
+    }
+
+    @Test
     fun acceptedPullFinishesAfterScreenCancellationWithoutAllowingOverlap() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))

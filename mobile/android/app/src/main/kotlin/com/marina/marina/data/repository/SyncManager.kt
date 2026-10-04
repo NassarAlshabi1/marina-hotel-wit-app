@@ -7,6 +7,7 @@ import com.marina.marina.data.sync.SyncEpochPolicy
 import com.marina.marina.data.sync.SyncOperationRunner
 import com.marina.marina.domain.model.SyncUiState
 import com.marina.marina.domain.repository.SyncRepository
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
@@ -50,7 +51,8 @@ class SyncManager @Inject constructor(
     override suspend fun syncNow(): SyncUiState = runOwned(
         onBusy = {
             _syncState.value.copy(isSyncing = true, isError = true, lastMessage = "توجد مزامنة جارية حالياً")
-        }
+        },
+        onFailure = { _syncState.value }
     ) { performSyncNow() }
 
     override suspend fun pullOnly(): Int = runOwned(onBusy = { -1 }) { performPullOnly() }
@@ -59,7 +61,11 @@ class SyncManager @Inject constructor(
 
     override suspend fun fullPull(): Int = runOwned(onBusy = { -1 }) { performFullPull() }
 
-    private suspend fun <T> runOwned(onBusy: () -> T, operation: suspend () -> T): T =
+    private suspend fun <T> runOwned(
+        onBusy: () -> T,
+        onFailure: () -> T = onBusy,
+        operation: suspend () -> T
+    ): T = try {
         operationRunner.runIfIdle(
             onBusy = onBusy,
             onAccepted = {
@@ -79,6 +85,13 @@ class SyncManager @Inject constructor(
             },
             operation = operation
         )
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        // In particular, an Android foreground-start restriction must not crash
+        // screens that rely on the repository's error-state / -1 contract.
+        onFailure()
+    }
 
     override fun pendingCount(): Flow<Int> = outboxRepository.pendingCount()
     override fun undeliveredCount(): Flow<Int> = outboxRepository.undeliveredCount()
