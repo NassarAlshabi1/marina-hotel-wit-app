@@ -81,7 +81,7 @@ cd mobile/android
 ./gradlew -PenableMacrobenchmark :app:assembleBenchmark :macrobenchmark:assembleBenchmark
 ```
 
-التشغيل المعزول يتم عبر `.github/workflows/android-macrobenchmark.yml`. أوامر ADB لها مهلة 90 ثانية، وinstrumentation له مهلة 10 دقائق، وخطوة المحاكي كلها 20 دقيقة. تُحفظ مراحل التنفيذ في `phases.txt`؛ انتهاء المهلة فشل في جمع الأدلة، وليس رقم أداء أو نجاحًا. لا تنفذ أمر connected-test يدويًا ثم تفترض أن الشبكة معزولة؛ السكربت يثبت ويفحص العزل قبل تشغيل الاختبارات المثبتة مباشرة.
+التشغيل المعزول يتم عبر `.github/workflows/android-macrobenchmark.yml`. يُرفض وجود مجلد نتائج سابق على المضيف أو الجهاز لمنع إعادة استخدام أدلة قديمة. أوامر ADB لها مهلة 90 ثانية، وinstrumentation له مهلة 10 دقائق، وخطوة المحاكي كلها 20 دقيقة. تُحفظ مراحل التنفيذ في `phases.txt`؛ انتهاء المهلة فشل في جمع الأدلة، وليس رقم أداء أو نجاحًا. لا تنفذ أمر connected-test يدويًا ثم تفترض أن الشبكة معزولة؛ السكربت يثبت ويفحص العزل قبل تشغيل الاختبارات المثبتة مباشرة.
 
 قراءة النتائج التشخيصية، من جذر المستودع:
 
@@ -108,8 +108,9 @@ python3 .github/scripts/performance-gate.py \
 التحقق حتى 2026-10-04:
 
 - 12 اختبار Python للقارئ نجحت محليًا وفي CI. بياناتها اصطناعية لا تمثل أداء التطبيق.
-- التشغيل [37168954603](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37168954603) عند `795ad8f` نجح في بناء APK التطبيق المصغر المخصص للقياس وAPK الاختبارات. مرحلة المحاكي تجاوزت 20 دقيقة دون نتيجة نهائية وقت إضافة حدود الانتظار في `71ad519`؛ لا تُسجّل على أنها قياس ناجح.
+- التشغيل [37168954603](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37168954603) عند `795ad8f` نجح في بناء APK التطبيق المصغر المخصص للقياس وAPK الاختبارات. مرحلة المحاكي تجاوزت 20 دقيقة دون نتيجة نهائية، ثم ألغتها آلية concurrency عند دفع إصلاح المهل؛ لا تُسجّل على أنها قياس ناجح.
 - البناء المعتاد [37168954636](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37168954636) نجح، بما في ذلك اختبارات التطبيق.
 - فحص الجودة [37168954594](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37168954594): المحاكي المعتاد نجح؛ الجودة بقيت فاشلة بسبب الدَّين الموجود: Detekt **1422**، Lint **36 تحذيرًا، صفر أخطاء**. زيادة التحذيرات من 35 إلى 36 هي توصية ترقية `androidx.profileinstaller:profileinstaller` من 1.3.1 إلى 1.4.1 في الاعتماد المخصص للقياس، ولم تُضف suppression أو baseline لإخفائها.
-- متابعة التشغيل ذي المهل المحددة: [37170557712](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37170557712). النتيجة لم تُحسم وقت كتابة هذا القسم؛ لا توجد أرقام TTID معتمدة أو أدلة هاتف فعلي بعد.
+- التشغيل [37170557712](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37170557712) فشل أثناء `:app:minifyBenchmarkWithR8` بسبب `OutOfMemoryError: GC overhead limit exceeded`، قبل تشغيل المحاكي. زيد حد JVM للبناء في CI فقط إلى 4096MiB مع عاملين، وأضيف `--no-daemon` لتحرير ذاكرة البناء قبل المحاكي. بقي إعداد البناء المحلي 2048MiB وبقيت RAM المحاكي المطلوبة 1024MiB.
+- متابعة الإصلاح النهائي: [37171382377](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37171382377). النتيجة لم تُحسم وقت كتابة هذا القسم؛ لا توجد أرقام TTID معتمدة أو أدلة هاتف فعلي بعد.
 
