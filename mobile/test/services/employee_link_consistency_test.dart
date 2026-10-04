@@ -220,14 +220,15 @@ void main() {
           db.salaryWithdrawals,
         )..where((w) => w.localUuid.equals(orphanUuid))).getSingle();
         expect(sw.employeeId, ormo);
-        // الإصلاح يجب أن يُدفع — outbox يحتوي السحبة بـ uuid صاحبها
-        final outboxRows = await (db.select(
-          db.outbox,
-        )..where((t) => t.entity.equals('salary_withdrawals'))).get();
+        // ✅ (ت5-ج2 2026-10-04 — قاعدة 10.3-أ) الإصلاح **محلي فقط**:
+        // خدمة الإصلاح لا ترفع شيئاً إلى outbox — السحابة لا تُكتب
+        // رجوعاً بشكل غير منضبط. رفع الإصدار المحلي يحمي الإصلاح من
+        // الطمس بمداد LWW، وينتشر طبيعياً فقط عند تعديل مشروع لاحق.
+        final outboxRows = await db.select(db.outbox).get();
         expect(
-          outboxRows.any((r) => r.localUuid == orphanUuid),
-          isTrue,
-          reason: 'السحبة المُصلَحة تُدفع للسحابة بـ uuid صاحبها',
+          outboxRows,
+          isEmpty,
+          reason: 'خدمة الإصلاح لا تدفع إلى outbox (10.3-أ)',
         );
       },
     );

@@ -26,6 +26,9 @@ class SyncConstants {
     'audit_logs',
     'payment_voids',
     'guest_infos',
+    // ✅ (ت1 المكملة 2026-10-04) inventory_items كيان مستقل (Level 0) —
+    // كان مفقوداً فكان يُرتَّب بـ 999 في فرز دلتا Drive.
+    'inventory_items',
     'ancestor_cache', // ✅ Audit Fix (2026-08-06): كان مفقوداً — لا يُحذف في sync rollback
     'auto_fix_runs',
     'app_sessions',
@@ -49,6 +52,9 @@ class SyncConstants {
     'salary_withdrawals', // FK→ employees.id
     'salary_carry_over_logs', // FK→ employees.id
     'integrity_violations', // FK→ auto_fix_runs.id
+    // ✅ (ت1 المكملة 2026-10-04) inventory_transactions ابن inventory_items —
+    // في الترتيب الأمامي يُدرج بعد الأب، وفي العكسي (الحذف) يُحذف قبله.
+    'inventory_transactions', // FK→ inventory_items.localUuid
   ];
 
   /// للتوافق مع الكود القديم الذي يستخدم extraTables

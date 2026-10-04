@@ -62,6 +62,13 @@ void main() {
     await db.delete(db.expenses).go();
     await db.delete(db.outbox).go();
     await db.delete(db.employees).go();
+    // ✅ (ت1 المكملة) جداول مسار الدلتا الجديدة (أبناء قبل آباء).
+    await db.delete(db.bookingPriceAdjustments).go();
+    await db.delete(db.inventoryTransactions).go();
+    await db.delete(db.inventoryItems).go();
+    await db.delete(db.guestInfos).go();
+    await db.delete(db.bookings).go();
+    await db.delete(db.rooms).go();
     // هوية الجهاز الحالية — حارس الملكية في P0.3 يعتمد عليها.
     AppwriteSyncManager.updateStaticDeviceId(currentDevice);
   });
@@ -495,6 +502,194 @@ void main() {
           .getSingleOrNull();
       expect(col, isNotNull, reason: 'salary_carry_over_logs يصل عبر Delta');
       expect(col!.amount, 250.0);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ت1 المكملة — Drive delta يطبّق الكيانات الأربعة المتبقية (كانت تُسقط
+  // بصمت رغم أن المُنتِج يصدّرها)، ويعلن أي إسقاط ويستثنيه من العدّ.
+  // ═══════════════════════════════════════════════════════════════════════
+  group('ت1: Drive delta يطبّق guest_infos/inventory/booking_price_adjustments', () {
+    test('الكيانات الأربعة تُطبَّق والكيان غير المدعوم لا يُحصى applied', () async {
+      final applied =
+          await GoogleDriveDeltaSync.instance.applyChangesForTesting(
+        db,
+        AdapterRegistry.instance,
+        {
+          'changes': [
+            // غرفة ثم حجز ثم تعديل سعر مرتبط به (الترتيب التبعي في الدفعة).
+            {
+              'entity': 'rooms',
+              'op': 'update',
+              'data': {
+                'localUuid': 'room-delta-1',
+                'roomNumber': '701',
+                'type': 'double',
+                'price': 100.0,
+                'status': 'available',
+                'createdAt': 1000,
+                'lastModified': 2000,
+                'version': 1,
+                'deviceId': 'device-A',
+                'origin': 'server',
+              },
+            },
+            {
+              'entity': 'bookings',
+              'op': 'update',
+              'data': {
+                'localUuid': 'booking-delta-1',
+                'roomNumber': '701',
+                'guestName': 'ضيف دلتا',
+                'guestPhone': '777000',
+                'guestNationality': 'يمني',
+                'checkinDate': day,
+                'status': 'checked_in',
+                'createdAt': 1000,
+                'lastModified': 2000,
+                'version': 1,
+                'deviceId': 'device-A',
+                'origin': 'server',
+              },
+            },
+            {
+              'entity': 'booking_price_adjustments',
+              'op': 'update',
+              'data': {
+                'localUuid': 'bpa-delta-1',
+                'bookingLocalUuid': 'booking-delta-1',
+                'roomNumber': '701',
+                'amount': 25.0,
+                'effectiveHotelDay': day,
+                'reason': 'اختبار دلتا',
+                'createdAt': 1000,
+                'lastModified': 2000,
+                'version': 1,
+                'deviceId': 'device-A',
+                'origin': 'server',
+              },
+            },
+            {
+              'entity': 'guest_infos',
+              'op': 'update',
+              'data': {
+                'localUuid': 'gi-delta-1',
+                'roomNumber': '701',
+                'guestName': 'ضيف دلتا',
+                'nationality': 'يمني',
+                'idNumber': 'ID-1',
+                'createdAt': 1000,
+                'lastModified': 2000,
+                'version': 1,
+                'deviceId': 'device-A',
+                'origin': 'server',
+              },
+            },
+            {
+              'entity': 'inventory_items',
+              'op': 'update',
+              'data': {
+                'localUuid': 'item-delta-1',
+                'name': 'منشفة دلتا',
+                'quantity': 10,
+                'createdAt': 1000,
+                'lastModified': 2000,
+                'version': 1,
+                'deviceId': 'device-A',
+                'origin': 'server',
+              },
+            },
+            {
+              'entity': 'inventory_transactions',
+              'op': 'update',
+              'data': {
+                'localUuid': 'txn-delta-1',
+                'itemLocalUuid': 'item-delta-1',
+                'movementType': 'in',
+                'quantity': 10,
+                'balanceAfter': 10,
+                'createdAt': 1000,
+                'lastModified': 2000,
+                'version': 1,
+                'deviceId': 'device-A',
+                'origin': 'server',
+              },
+            },
+            // كيان غير مدعوم — إسقاط معلن لا يُحصى applied (ت1: العدّ
+            // بعد التطبيق الفعلي لا قبله).
+            {
+              'entity': 'not_a_real_entity',
+              'op': 'update',
+              'data': {'localUuid': 'ghost-1'},
+            },
+          ],
+        },
+      );
+
+      expect(applied, 6, reason: 'الكيان غير المدعوم لا يُحصى applied');
+
+      final bpa = await (db.select(db.bookingPriceAdjustments)
+            ..where((t) => t.localUuid.equals('bpa-delta-1')))
+          .getSingleOrNull();
+      expect(bpa, isNotNull, reason: 'booking_price_adjustments يصل عبر Delta');
+      expect(bpa!.amount, 25.0);
+
+      final gi = await (db.select(db.guestInfos)
+            ..where((t) => t.localUuid.equals('gi-delta-1')))
+          .getSingleOrNull();
+      expect(gi, isNotNull, reason: 'guest_infos يصل عبر Delta');
+
+      final item = await (db.select(db.inventoryItems)
+            ..where((t) => t.localUuid.equals('item-delta-1')))
+          .getSingleOrNull();
+      expect(item, isNotNull, reason: 'inventory_items يصل عبر Delta');
+      expect(item!.quantity, 10);
+
+      final txn = await (db.select(db.inventoryTransactions)
+            ..where((t) => t.localUuid.equals('txn-delta-1')))
+          .getSingleOrNull();
+      expect(txn, isNotNull, reason: 'inventory_transactions يصل عبر Delta');
+      expect(
+        txn!.itemId,
+        item!.id,
+        reason: 'رابط البند يُحل محلياً عبر itemLocalUuid',
+      );
+    });
+
+    test('delete عبر delta لكيان غير مالي (guest_infos) يُطبَّق ويُحصى', () async {
+      await db.into(db.guestInfos).insert(
+            GuestInfosCompanion(
+              roomNumber: const d.Value('702'),
+              guestName: const d.Value('حذف دلتا'),
+              nationality: const d.Value(''),
+              idNumber: const d.Value('ID-2'),
+              localUuid: const d.Value('gi-del-1'),
+              createdAt: const d.Value(1000),
+              updatedAt: const d.Value(1000),
+              lastModified: const d.Value(1000),
+            ),
+          );
+
+      final applied =
+          await GoogleDriveDeltaSync.instance.applyChangesForTesting(
+        db,
+        AdapterRegistry.instance,
+        {
+          'changes': [
+            {
+              'entity': 'guest_infos',
+              'op': 'delete',
+              'data': {'local_uuid': 'gi-del-1'},
+            },
+          ],
+        },
+      );
+
+      expect(applied, 1, reason: 'delete لكيان غير مالي يُنفَّذ ويُحصى');
+      final gi = await (db.select(db.guestInfos)
+            ..where((t) => t.localUuid.equals('gi-del-1')))
+          .getSingleOrNull();
+      expect(gi, isNull, reason: 'الصف غير المالي حُذف نهائياً عبر Delta');
     });
   });
 

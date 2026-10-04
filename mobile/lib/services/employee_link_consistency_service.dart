@@ -1,10 +1,8 @@
 import 'package:drift/drift.dart' as d;
 
 import '../utils/time.dart';
-import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';
-import 'sync/payload_mapper.dart';
 
 /// نتيجة فحص/إصلاح روابط موظف واحد.
 class EmployeeLinkRepairReport {
@@ -52,16 +50,22 @@ class EmployeeLinkRepairReport {
 ///
 /// كل إصلاح يُنفَّذ عبر المسارات المعتمدة (Repository/DAO) ليرتفع
 /// lastModified ويُضاف للـ outbox → يصل الإصلاح إلى السحابة والأجهزة.
+///
+/// ✅ (ت5-ج2 2026-10-04) تحديث سياسة الرفع — قاعدة 10.3-أ «الإصلاح
+/// لا يُكتب رجوعاً إلى السحابة بشكل غير منضبط»: هذه الخدمة لا ترفع
+/// إصلاحاتها بنفسها إلى outbox إطلاقاً:
+/// - إصلاحات المصروفات تمر عبر المسار المعتمد (Repository/DAO) — نفس قناة
+///   أي تعديل مشروع من المستخدم (ترقيم إصدار + vector clock منضبط)؛
+/// - إنقاذ المسحوبات اليتيمة تحديث محلي مباشر (بلا outbox) — يحميه رفع
+///   الإصدار من الطمس بمداد LWW السحابي، ولا يمس حقيقة السحابة إطلاقاً.
+/// الرفع المباشر من خدمة إصلاح (payload مُبنى يدوياً خارج قنوات الإصدار)
+/// كان يفسد السحابة (10.3-أ حذّر من هذا تحديداً) — أُوقف.
 class EmployeeLinkConsistencyService {
   EmployeeLinkConsistencyService(this.db)
-    : _expensesRepo = ExpensesRepository(db),
-      _outbox = OutboxDao(db),
-      _mapper = const PayloadMapper();
+    : _expensesRepo = ExpensesRepository(db);
 
   final AppDatabase db;
   final ExpensesRepository _expensesRepo;
-  final OutboxDao _outbox;
-  final PayloadMapper _mapper;
 
   /// يفحص ويُصلح كل السجلات المرتبطة بالموظف [employeeId].
   /// آمن للاستدعاء المتكرر: الصف السليم لا يُمسّ إطلاقاً (صفر ضوضاء outbox).
@@ -156,6 +160,9 @@ class EmployeeLinkConsistencyService {
           linkedExpenseId > 0 &&
           ownedExpenseIds.contains(linkedExpenseId)) {
         final now = Time.nowEpoch();
+        // ✅ (ت5-ج2 2026-10-04) إصلاح **محلي فقط** — لا دفع إلى outbox
+        // (قاعدة 10.3-أ: الإصلاح لا يُكتب رجوعاً إلى السحابة بشكل غير منضبط).
+        // رفع الإصدار + lastModified يحسمان الطمس بمداد LWW السحابي.
         await (db.update(
           db.salaryWithdrawals,
         )..where((t) => t.id.equals(sw.id))).write(
@@ -164,20 +171,6 @@ class EmployeeLinkConsistencyService {
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
             version: d.Value(sw.version + 1),
-          ),
-        );
-        final updated = await (db.select(
-          db.salaryWithdrawals,
-        )..where((t) => t.id.equals(sw.id))).getSingle();
-        await _outbox.merge(
-          entity: 'salary_withdrawals',
-          op: 'update',
-          localUuid: updated.localUuid,
-          serverId: updated.serverId,
-          clientTs: now,
-          payload: _mapper.salaryWithdrawalToRemote(
-            updated,
-            employeeUuid: emp.localUuid,
           ),
         );
         report.withdrawalsRescued++;
