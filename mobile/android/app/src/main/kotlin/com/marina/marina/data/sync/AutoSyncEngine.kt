@@ -8,6 +8,7 @@ import android.net.NetworkRequest
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.data.repository.OutboxRepository
 import com.marina.marina.data.repository.SyncManager
+import dagger.Lazy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,10 +59,15 @@ import kotlinx.coroutines.launch
 @Singleton
 class AutoSyncEngine @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val syncManager: SyncManager,
-    private val outboxRepository: OutboxRepository,
+    private val syncManagerProvider: Lazy<SyncManager>,
+    private val outboxRepositoryProvider: Lazy<OutboxRepository>,
     private val preferences: SyncPreferences
 ) {
+    // Application injection runs on main. Resolve the database/network graph
+    // only inside the existing IO jobs, not while constructing the application.
+    private val syncManager: SyncManager get() = syncManagerProvider.get()
+    private val outboxRepository: OutboxRepository get() = outboxRepositoryProvider.get()
+
     companion object {
         /** نافذة تجميع الكتابات قبل الدفع — 3 ثوانٍ (outboxDebounceWindow). */
         private const val OUTBOX_DEBOUNCE_MS = 3_000L

@@ -124,7 +124,7 @@ python3 .github/scripts/performance-gate.py \
 python3 - "$OUT/summary.json" <<'PY'
 import json, os, pathlib, sys
 result = json.loads(pathlib.Path(sys.argv[1]).read_text())
-evidence = {k: result[k] for k in ('status', 'scope', 'thresholdVerdict', 'releaseEligible', 'measurements')}
+evidence = {k: result[k] for k in ('status', 'scope', 'thresholdVerdict', 'releaseEligible', 'context', 'measurements')}
 message = json.dumps(evidence).replace('%', '%25')
 print(f'::notice title=Macrobenchmark measured evidence::{message}')
 if summary := os.environ.get('GITHUB_STEP_SUMMARY'):

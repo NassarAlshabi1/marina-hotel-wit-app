@@ -6,7 +6,7 @@ on:
     paths:
       - 'mobile/android/macrobenchmark/**'
       - 'mobile/android/app/src/benchmark/**'
-      - 'mobile/android/app/src/main/kotlin/com/marina/marina/presentation/login/LoginScreen.kt'
+      - 'mobile/android/app/src/main/**'
       - 'mobile/android/app/build.gradle'
       - 'mobile/android/settings.gradle'
       - '.github/workflows/android-macrobenchmark.yml'

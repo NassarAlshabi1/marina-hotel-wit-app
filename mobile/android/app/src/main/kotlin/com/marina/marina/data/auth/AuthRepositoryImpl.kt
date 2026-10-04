@@ -6,16 +6,20 @@ import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.domain.model.AuthUser
 import com.marina.marina.domain.repository.AuthRepository
 import com.marina.marina.domain.session.UserSessionManager
+import dagger.Lazy
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
-    private val syncService: CloudflareSyncService,
+    private val syncServiceProvider: Lazy<CloudflareSyncService>,
     private val preferences: SyncPreferences,
     private val sessionManager: UserSessionManager
 ) : AuthRepository {
 
+    // Restoring/local login/logout need preferences, not Retrofit/OkHttp.
+    // Keep the same singleton service for explicit remote authentication.
+    private val syncService: CloudflareSyncService get() = syncServiceProvider.get()
     private val gson = Gson()
 
     override suspend fun login(username: String, password: String, rememberMe: Boolean): Result<AuthUser> {
