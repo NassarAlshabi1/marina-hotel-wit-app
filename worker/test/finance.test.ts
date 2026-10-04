@@ -8,6 +8,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
+import { defaultForecastStart } from '../src/finance';
 import { adminAuthHeader, resetDb, uniqueUuid } from './helpers';
 
 let admin = '';
@@ -151,9 +152,11 @@ describe('GET /api/finance/forecast', () => {
     await seedExpense({ type: 'كهرباء', amount: 50000, date: '2026-07-02' });
 
     // نزيل حالي: دخل قبل بداية النموذج وبقية مستحقة
-    const today = new Date();
-    const inPast = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 5));
-    const after = new Date(inPast.getTime() + 10 * 86_400_000);
+    // بداية النموذج = أول يوم في الشهر القادم (عقد المحرك) — نثبّتها صراحة
+    // عبر start= حتى لا يتقلّص الاختبار مع قرب المغادرة من بداية الشهر.
+    const start = defaultForecastStart(new Date());
+    const inPast = new Date(start.getTime() - 5 * 86_400_000);
+    const after = new Date(inPast.getTime() + 10 * 86_400_000); // البداية + 5 أيام
     const bk = await seedBooking({
       checkin: dayKey(inPast),
       checkout: dayKey(after),
@@ -162,7 +165,7 @@ describe('GET /api/finance/forecast', () => {
     });
 
     const res = await SELF.fetch(
-      'https://example.com/api/finance/forecast?scenario=base',
+      `https://example.com/api/finance/forecast?scenario=base&start=${dayKey(start)}`,
       { headers: { Authorization: admin } }
     );
     expect(res.status).toBe(200);
@@ -181,14 +184,15 @@ describe('GET /api/finance/forecast', () => {
 
   it('honors custom scenario factors without lowering confirmed tier', async () => {
     await seedRoom(2);
-    const today = new Date();
-    const inPast = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 2));
-    // المغادرة داخل الأسبوع الأول/الثاني من النموذج (لا على حدّه)
+    // بداية النموذج = أول يوم في الشهر القادم (عقد المحرك) — مثبّتة صراحة عبر start=
+    const start = defaultForecastStart(new Date());
+    const inPast = new Date(start.getTime() - 2 * 86_400_000);
+    // المغادرة داخل الأسبوع الأول/الثاني من النموذج (لا على حدّه): البداية + 9 أيام
     const after = new Date(inPast.getTime() + 11 * 86_400_000);
     await seedBooking({ checkin: dayKey(inPast), checkout: dayKey(after), due: 90000, paid: 0 });
 
     const res = await SELF.fetch(
-      'https://example.com/api/finance/forecast?scenario=stress&revenue=0.5&collection=0.5',
+      `https://example.com/api/finance/forecast?scenario=stress&revenue=0.5&collection=0.5&start=${dayKey(start)}`,
       { headers: { Authorization: admin } }
     );
     expect(res.status).toBe(200);
