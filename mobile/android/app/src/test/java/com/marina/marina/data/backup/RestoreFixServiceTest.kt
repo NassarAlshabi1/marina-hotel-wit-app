@@ -81,10 +81,11 @@ class RestoreFixServiceTest {
         assertEquals(1, report.bookingsFixed)
         assertEquals(1, report.paymentsRecalculated)
         val booking = db.bookingsDao().getById(bookingId)!!
-        assertEquals(2, booking.calculatedNights)
-        assertEquals(2, booking.expectedNights)
-        assertEquals(200.0, booking.totalDueCached, 0.001)
-        assertEquals(200.0, booking.remainingBalanceCached, 0.001)
+        // Reaching 14:01 exactly starts the third billed hotel night (existing contract).
+        assertEquals(3, booking.calculatedNights)
+        assertEquals(3, booking.expectedNights)
+        assertEquals(300.0, booking.totalDueCached, 0.001)
+        assertEquals(300.0, booking.remainingBalanceCached, 0.001)
         assertEquals("شاغرة", db.roomsDao().getById(roomId)!!.status)
         val run = db.autoFixRunsDao().getAllOnce().single()
         assertEquals("completed", run.status)
@@ -182,7 +183,21 @@ class RestoreFixServiceTest {
         val service = LocalBackupService(context, db, BackupSettingsStore(context))
         for (extension in listOf("json", "json.gz")) {
             val changed = originalRoom.copy(price = 125.0, cleaningStatus = "dirty")
-            val json = Gson().toJson(mapOf("rooms" to listOf(changed)))
+            // Backup JSON contains database column maps, not Room entities with inherited fields.
+            val row = db.openHelper.writableDatabase.query("SELECT * FROM rooms WHERE id = $roomId").use { cursor ->
+                check(cursor.moveToFirst())
+                cursor.columnNames.mapIndexed { index, name ->
+                    name to when (cursor.getType(index)) {
+                        android.database.Cursor.FIELD_TYPE_NULL -> null
+                        android.database.Cursor.FIELD_TYPE_INTEGER -> cursor.getLong(index)
+                        android.database.Cursor.FIELD_TYPE_FLOAT -> cursor.getDouble(index)
+                        else -> cursor.getString(index)
+                    }
+                }.toMap().toMutableMap()
+            }
+            row["price"] = changed.price
+            row["cleaning_status"] = changed.cleaningStatus
+            val json = Gson().toJson(mapOf("rooms" to listOf(row)))
             val backup = File(context.cacheDir, "valid-restore.$extension")
             try {
                 if (extension.endsWith("gz")) {

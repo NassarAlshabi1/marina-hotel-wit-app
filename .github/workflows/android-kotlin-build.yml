@@ -93,6 +93,7 @@ jobs:
       - name: Summarize Android test failure
         if: failure()
         run: |
+          python3 ../../.github/scripts/android-test-failures.py
           if [ -f "$RUNNER_TEMP/android-gradle-tests.log" ]; then
             diagnostics=$(grep -E 'e: file:|e: .*\.kt:|Compilation error|FAILED|What went wrong|Execution failed|Caused by:|error:' \
               "$RUNNER_TEMP/android-gradle-tests.log" | tail -n 30 | tr '\r\n' '  ' | sed 's/%/%25/g') || true
