@@ -24,21 +24,27 @@ phase 'Disposable emulator guard passed'
 # Record only whitelisted host memory settings (never full process arguments).
 python3 - "$OUT/emulator-memory-config.json" <<'PYCONFIG'
 import json, os, pathlib, re, sys
-configuration = {"requestedRamMiB": 1024, "avdMemorySettings": [], "qemuMemoryArguments": []}
-avd_root = pathlib.Path(os.environ.get("ANDROID_AVD_HOME", str(pathlib.Path.home() / ".android/avd")))
-for path in avd_root.glob("*.avd/config.ini"):
-    for line in path.read_text(errors="replace").splitlines():
-        if line.startswith("hw.ramSize="):
-            value = line.split("=", 1)[1].strip()
-            if re.fullmatch(r"[0-9]+[KMG]?", value):
-                configuration["avdMemorySettings"].append(value)
+configuration = {"requestedRamMiB": 1024, "avdMemorySettings": [], "hardwareMemorySettings": [], "qemuMemoryArguments": []}
+# Recent SDKs also use XDG/ANDROID_USER_HOME rather than ~/.android.
+roots = {pathlib.Path.home() / ".android/avd", pathlib.Path.home() / ".config/.android/avd"}
+if os.environ.get("ANDROID_AVD_HOME"):
+    roots.add(pathlib.Path(os.environ["ANDROID_AVD_HOME"]))
+if os.environ.get("ANDROID_USER_HOME"):
+    roots.add(pathlib.Path(os.environ["ANDROID_USER_HOME"]) / "avd")
+for root in sorted(roots):
+    for filename, key in (("config.ini", "avdMemorySettings"), ("hardware-qemu.ini", "hardwareMemorySettings")):
+        for path in root.glob("*.avd/" + filename):
+            for line in path.read_text(errors="replace").splitlines():
+                name, separator, value = line.partition("=")
+                if separator and name.strip() == "hw.ramSize" and re.fullmatch(r"[0-9]+[KMG]?", value.strip()):
+                    configuration[key].append(value.strip())
 for path in pathlib.Path("/proc").glob("[0-9]*/cmdline"):
     try:
         args = path.read_bytes().decode(errors="replace").split("\0")
-        if not args or not pathlib.Path(args[0]).name.startswith("qemu-system-"):
+        if not args or not (pathlib.Path(args[0]).name.startswith("qemu-system-") or pathlib.Path(args[0]).name == "emulator"):
             continue
         for i, arg in enumerate(args[:-1]):
-            if arg == "-m" and re.fullmatch(r"(?:size=)?[0-9]+[KMG]?", args[i + 1]):
+            if arg in ("-m", "-memory") and re.fullmatch(r"(?:size=)?[0-9]+[KMG]?", args[i + 1]):
                 configuration["qemuMemoryArguments"].append(args[i + 1])
     except (OSError, ValueError):
         continue
