@@ -65,3 +65,13 @@ class BenchmarkEnvironmentTest(unittest.TestCase):
                                         capture_output=True, text=True)
                 self.assertEqual(2, result.returncode)
                 self.assertEqual('INVALID_ENVIRONMENT', json.loads(output.read_text())['status'])
+
+    def test_workflows_keep_direct_qemu_ram_limit_last(self):
+        root = Path(__file__).resolve().parents[2]
+        for name in ('android-macrobenchmark.yml', 'android-ram-profile-probe.yml'):
+            with self.subTest(workflow=name):
+                text = (root / '.github/workflows' / name).read_text()
+                options = [line.strip() for line in text.splitlines() if line.strip().startswith('emulator-options:')]
+                self.assertEqual(1, len(options))
+                self.assertIn('-memory 1024 ', options[0])
+                self.assertTrue(options[0].endswith(' -qemu -m 1024'))
