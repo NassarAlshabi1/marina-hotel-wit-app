@@ -49,6 +49,20 @@ class SyncForegroundServiceTest {
     }
 
     @Test
+    fun timedOutServiceCannotBeReusedWhileOldWorkIsUnwinding() {
+        val context = RecordingContext(ApplicationProvider.getApplicationContext())
+        val lifetime = SyncForegroundLifetime(context)
+        val oldWork = lifetime.acquire()
+        lifetime.invalidate()
+        assertTrue(runCatching { lifetime.acquire() }.isFailure)
+        assertEquals(1, context.starts)
+        oldWork.close()
+        lifetime.acquire().close()
+        assertEquals(2, context.starts)
+        assertEquals(2, context.stops)
+    }
+
+    @Test
     fun rejectedStartDoesNotLeakReferenceCount() {
         val context = RecordingContext(ApplicationProvider.getApplicationContext())
         val lifetime = SyncForegroundLifetime(context)

@@ -12,10 +12,16 @@ import javax.inject.Singleton
 @Singleton
 class SyncForegroundLifetime @Inject constructor(@ApplicationContext private val context: Context) {
     private var users = 0
+    private var stopping = false
+
+    @Synchronized
+    fun invalidate() { stopping = true }
 
     @Synchronized
     fun acquire(): AutoCloseable {
+        check(users == 0 || !stopping) { "The foreground sync service is stopping" }
         if (users == 0) {
+            stopping = false
             // Do not silently run unprotected if Android refuses a background start.
             ContextCompat.startForegroundService(context, Intent(context, SyncForegroundService::class.java))
         }

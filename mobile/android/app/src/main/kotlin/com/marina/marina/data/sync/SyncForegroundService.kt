@@ -59,8 +59,9 @@ class SyncForegroundService : Service() {
     }
 
     private fun cancelOwnedWork() {
-        EntryPointAccessors.fromApplication(applicationContext, SyncServiceEntryPoint::class.java)
-            .runner().cancelForSystemStop()
+        val entry = EntryPointAccessors.fromApplication(applicationContext, SyncServiceEntryPoint::class.java)
+        entry.foregroundLifetime().invalidate()
+        entry.runner().cancelForSystemStop()
     }
 
     override fun onDestroy() {
@@ -72,6 +73,7 @@ class SyncForegroundService : Service() {
     @InstallIn(SingletonComponent::class)
     interface SyncServiceEntryPoint {
         fun runner(): SyncOperationRunner
+        fun foregroundLifetime(): SyncForegroundLifetime
     }
 
     companion object {
