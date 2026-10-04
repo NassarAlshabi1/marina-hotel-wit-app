@@ -6,9 +6,12 @@ OUT="$PWD/performance-evidence/macrobenchmark"
 PKG=com.a.a
 TEST_PKG=com.a.a.macrobenchmark
 DEVICE_OUT=/sdcard/Android/media/com.a.a.macrobenchmark/benchmark-output
+[[ ! -e "$OUT" ]] || {
+  echo '::error::Evidence directory already exists; archive it before a fresh run.'; exit 1;
+}
 mkdir -p "$OUT"
 ADB_BIN=$(command -v adb)
-adb() { timeout --signal=TERM 90s "$ADB_BIN" "$@"; }
+adb() { timeout --signal=TERM --kill-after=10s 90s "$ADB_BIN" "$@"; }
 phase() {
   printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" | tee -a "$OUT/phases.txt"
   echo "::notice title=Macrobenchmark phase::$*"
@@ -48,19 +51,22 @@ for package in "$PKG" "$TEST_PKG"; do
   printf '%s uid=%s IPv4=blocked IPv6=blocked\n' "$package" "$uid_value" >> "$OUT/isolation.txt"
 done
 phase 'Both application UIDs verified offline on IPv4 and IPv6'
+adb shell test ! -e "$DEVICE_OUT" || {
+  echo '::error::Device output directory is not fresh; use a new disposable emulator.'; exit 1;
+}
 adb shell mkdir -p "$DEVICE_OUT"
 adb shell getprop > "$OUT/device-properties.txt"
 adb shell cat /proc/meminfo > "$OUT/device-memory.txt"
 adb logcat -b all -c
 phase 'Starting instrumentation (10 minute maximum)'
 set +e
-timeout --signal=TERM 10m "$ADB_BIN" shell am instrument -w -r \
+timeout --signal=TERM --kill-after=10s 10m "$ADB_BIN" shell am instrument -w -r \
   -e class com.marina.marina.macrobenchmark.EntryStartupBenchmark \
   -e marina.offlineVerified true \
   -e androidx.benchmark.suppressErrors EMULATOR \
   -e androidx.benchmark.output.enable true \
   -e additionalTestOutputDir "$DEVICE_OUT" \
-  "$TEST_PKG/androidx.test.runner.AndroidJUnitRunner" | tr -d '\r' | tee "$OUT/instrumentation.txt"
+  "$TEST_PKG/androidx.test.runner.AndroidJUnitRunner" 2>&1 | tr -d '\r' | tee "$OUT/instrumentation.txt"
 runner_status=$?
 set -e
 phase "Instrumentation returned status $runner_status"
