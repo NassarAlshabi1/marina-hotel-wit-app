@@ -112,21 +112,35 @@ timeout --signal=TERM --kill-after=10s 10m "$ADB_BIN" shell am instrument -w -r 
 runner_status=$?
 set -e
 phase "Instrumentation returned status $runner_status"
-if [[ "$runner_status" -ne 0 ]]; then
+if [[ "$runner_status" -ne 0 ]] || ! grep -Eq '^OK \(2 tests\)' "$OUT/instrumentation.txt"; then
   # Capture live compiler/runner state before stopping it. Filter framework tags,
   # not application HTTP logs, so annotations do not expose request credentials.
   adb shell ps -A > "$OUT/processes-at-failure.txt" 2>&1 || true
   adb logcat -d -v brief 'Benchmark:V' 'Macrobenchmark:V' 'PerfettoCapture:V' 'PerfettoHttpServer:V' '*:S' \
     > "$OUT/benchmark-log.txt" 2>&1 || true
+  adb logcat -d -b crash > "$OUT/crash-at-failure.txt" 2>&1 || true
+  adb logcat -d -v brief 'lmkd:I' '*:S' > "$OUT/low-memory-at-failure.txt" 2>&1 || true
   python3 - "$OUT" <<'PYDIAG'
 import pathlib, re, sys
 root = pathlib.Path(sys.argv[1])
 processes = [line for line in (root / 'processes-at-failure.txt').read_text().splitlines()
              if re.search(r'dex2oat|artd|com[.]a[.]a|perfetto|trace_processor', line)]
 logs = (root / 'benchmark-log.txt').read_text().splitlines()[-20:]
-text = ('Live processes:\n' + '\n'.join(processes) + '\nBenchmark log:\n' + '\n'.join(logs))[:3000]
+# Report only exception class names for our packages, not exception messages.
+crashes = []
+in_target = False
+for line in (root / 'crash-at-failure.txt').read_text().splitlines():
+    if 'Process: ' in line:
+        in_target = bool(re.search(r'Process: com[.]a[.]a(?:[.]macrobenchmark)?[, :]', line))
+    if in_target:
+        crashes.extend(re.findall(r'\b(?:[\w$]+[.])+[\w$]*(?:Error|Exception)\b', line))
+kills = [line for line in (root / 'low-memory-at-failure.txt').read_text().splitlines()
+         if re.search(r"com[.]a[.]a(?:[.]macrobenchmark)?['\" :\s]", line)][-8:]
+text = ('Target exception classes: ' + ', '.join(sorted(set(crashes))) +
+        '\nLow-memory events:\n' + '\n'.join(kills) +
+        '\nLive processes:\n' + '\n'.join(processes) + '\nBenchmark log:\n' + '\n'.join(logs))[:3000]
 text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-print(f'::notice title=Macrobenchmark timeout diagnostics::{text}')
+print(f'::notice title=Macrobenchmark failure diagnostics::{text}')
 PYDIAG
   adb shell am force-stop "$TEST_PKG" || true
 fi

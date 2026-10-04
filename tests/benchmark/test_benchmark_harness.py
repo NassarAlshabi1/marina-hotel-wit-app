@@ -23,6 +23,7 @@ elif a[:4]==['shell','pm','list','packages']:
 elif a[:3]==['shell','ip6tables','-C'] and mode=='firewall_fail':sys.exit(1)
 elif a[:2]==['shell','test'] and mode=='device_stale':sys.exit(1)
 elif a[:3]==['shell','am','instrument'] and mode=='timeout':sys.exit(124)
+elif a[:3]==['shell','am','instrument'] and mode=='process_crashed':print('INSTRUMENTATION_RESULT: shortMsg=Process crashed.')
 elif a[:3]==['shell','am','instrument']:print('OK (0 tests)' if mode=='zero_tests' else 'OK (2 tests)')
 elif a[0]=='pull':
  out=Path(a[-1]);out.mkdir(parents=True,exist_ok=True)
@@ -82,6 +83,9 @@ class BenchmarkHarnessTest(unittest.TestCase):
                 self.assertFalse(summary["releaseEligible"])
                 environment = json.loads((output / "environment.json").read_text())
                 self.assertEqual("RAM_VERIFIED_ONLY", environment["status"])
+            if mode == "process_crashed":
+                self.assertIn("::notice title=Macrobenchmark failure diagnostics::", result.stdout)
+                self.assertFalse((output / "summary.json").exists())
             if mode == "ram_context_mismatch":
                 self.assertNotIn("::notice title=Macrobenchmark measured evidence::", result.stdout)
                 self.assertEqual("INVALID_ENVIRONMENT", json.loads((output / "environment.json").read_text())["status"])
@@ -122,3 +126,6 @@ class BenchmarkHarnessTest(unittest.TestCase):
 
     def test_androidx_ram_mismatch_rejects_final_evidence(self):
         self.scenario("ram_context_mismatch")
+
+    def test_crashed_runner_with_zero_adb_exit_gets_diagnostics(self):
+        self.scenario("process_crashed")
