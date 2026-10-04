@@ -226,7 +226,7 @@ void main() {
           employeeId: empId,
           localUuid: 'sw-uuid-A',
           amount: 6000,
-          withdrawDate: '2026-10-02', // ±1 يوم — يُقبل
+          withdrawDate: '2026-10-01', // نفس اليوم بالضبط (دلالة L3)
           expenseId: expenseId,
           employeeUuid: 'emp-uuid-A',
         );
@@ -244,6 +244,46 @@ void main() {
         expect(exp.withdrawalUuid, 'sw-uuid-A');
       },
     );
+
+    test('3-أ. يوم ±1 مختلف لا يُربط (لا تسامح زمني — L3 حرفياً)', () async {
+      final db = _db();
+      addTearDown(db.close);
+
+      final empId = await _insertEmployee(
+        db,
+        localUuid: 'emp-uuid-A',
+        name: 'أ',
+      );
+      final expenseId = await _insertExpense(
+        db,
+        localUuid: 'exp-uuid-A2',
+        expenseType: 'سحب راتب',
+        amount: 6000,
+        date: '2026-10-01',
+        employeeUuid: 'emp-uuid-A',
+      );
+      final swId = await _insertWithdrawal(
+        db,
+        employeeId: empId,
+        localUuid: 'sw-uuid-A2',
+        amount: 6000,
+        withdrawDate: '2026-10-02', // ±1 يوم فقط — لا يُكتب رابط غير مؤكد
+        expenseId: expenseId,
+        employeeUuid: 'emp-uuid-A',
+      );
+
+      await db.customStatement(_migration68SwBackfillSql);
+      await db.customStatement(_migration68ExpBackfillSql);
+
+      final sw = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.id.equals(swId))).getSingle();
+      expect(sw.expenseUuid, isNull);
+      final exp = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseId))).getSingle();
+      expect(exp.withdrawalUuid, isNull);
+    });
 
     test('3-ب. غير العائلة الراتبية لا يأخذ رابطاً عكسياً', () async {
       final db = _db();
@@ -433,8 +473,7 @@ UPDATE salary_withdrawals SET expense_uuid = (
         AND e.hotel_day_key = salary_withdrawals.hotel_day_key)
       OR (e.date IS NOT NULL AND salary_withdrawals.withdraw_date IS NOT NULL
         AND julianday(e.date) IS NOT NULL
-        AND julianday(salary_withdrawals.withdraw_date) IS NOT NULL
-        AND ABS(julianday(e.date) - julianday(salary_withdrawals.withdraw_date)) <= 1)
+        AND e.date = salary_withdrawals.withdraw_date)
     )
     AND (SELECT COUNT(*) FROM expenses e3
       WHERE e3.id = salary_withdrawals.expense_id
@@ -446,8 +485,7 @@ UPDATE salary_withdrawals SET expense_uuid = (
             AND e3.hotel_day_key = salary_withdrawals.hotel_day_key)
           OR (e3.date IS NOT NULL AND salary_withdrawals.withdraw_date IS NOT NULL
             AND julianday(e3.date) IS NOT NULL
-            AND julianday(salary_withdrawals.withdraw_date) IS NOT NULL
-            AND ABS(julianday(e3.date) - julianday(salary_withdrawals.withdraw_date)) <= 1)
+            AND e3.date = salary_withdrawals.withdraw_date)
         )
     ) = 1
 ) WHERE expense_uuid IS NULL AND expense_id IS NOT NULL
@@ -465,8 +503,7 @@ UPDATE expenses SET withdrawal_uuid = (
         AND w.hotel_day_key = expenses.hotel_day_key)
       OR (w.withdraw_date IS NOT NULL AND expenses.date IS NOT NULL
         AND julianday(w.withdraw_date) IS NOT NULL
-        AND julianday(expenses.date) IS NOT NULL
-        AND ABS(julianday(w.withdraw_date) - julianday(expenses.date)) <= 1)
+        AND w.withdraw_date = expenses.date)
     )
     AND (SELECT COUNT(*) FROM salary_withdrawals w3
       WHERE w3.expense_id = expenses.id
@@ -478,8 +515,7 @@ UPDATE expenses SET withdrawal_uuid = (
             AND w3.hotel_day_key = expenses.hotel_day_key)
           OR (w3.withdraw_date IS NOT NULL AND expenses.date IS NOT NULL
             AND julianday(w3.withdraw_date) IS NOT NULL
-            AND julianday(expenses.date) IS NOT NULL
-            AND ABS(julianday(w3.withdraw_date) - julianday(expenses.date)) <= 1)
+            AND w3.withdraw_date = expenses.date)
         )
     ) = 1
 ) WHERE withdrawal_uuid IS NULL
