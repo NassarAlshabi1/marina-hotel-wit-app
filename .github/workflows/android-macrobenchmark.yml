@@ -42,7 +42,7 @@ jobs:
         working-directory: mobile/android
         run: |
           set -o pipefail
-          ./gradlew -PenableMacrobenchmark :app:assembleBenchmark :macrobenchmark:assembleBenchmark --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/macrobenchmark-build.log"
+          ./gradlew -Dorg.gradle.jvmargs="-Xmx4096m -XX:+UseParallelGC -XX:MaxMetaspaceSize=768m" --max-workers=2 -PenableMacrobenchmark :app:assembleBenchmark :macrobenchmark:assembleBenchmark --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/macrobenchmark-build.log"
       - name: Summarize benchmark build failure
         if: failure()
         run: |
@@ -51,7 +51,7 @@ jobs:
           log = pathlib.Path(os.environ['RUNNER_TEMP']) / 'macrobenchmark-build.log'
           if log.exists():
               lines = log.read_text(errors='replace').splitlines()
-              markers = ('e: ', 'What went wrong', 'Execution failed', 'Could not', 'Caused by:', 'error:', 'requires', 'not found', 'must be', 'Unable to')
+              markers = ('e: ', 'What went wrong', 'Execution failed', 'Could not', 'Caused by:', 'error:', 'OutOfMemoryError', 'requires', 'not found', 'must be')
               selected = [line for line in lines if any(marker in line for marker in markers)]
               text = '\n'.join(selected[:25] if selected else lines[-25:])[:3000]
               text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
