@@ -14,11 +14,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -147,8 +142,11 @@ class D1SourceTable(
 )
 
 /** خطأ D1 مع تفاصيل — نظير CloudflareD1Exception. */
-class D1BackupException(message: String, val details: String? = null) :
-    Exception(if (details != null) "$message — $details" else message)
+class D1BackupException(
+    message: String,
+    val details: String? = null,
+    cause: Throwable? = null
+) : Exception(if (details != null) "$message — $details" else message, cause)
 
 @Singleton
 class CloudflareD1BackupService @Inject constructor(
@@ -174,11 +172,7 @@ class CloudflareD1BackupService @Inject constructor(
     }
 
     private val gson = Gson()
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS)
-        .writeTimeout(120, TimeUnit.SECONDS)
-        .build()
+    private val http = D1HttpClient()
 
     @Volatile
     private var cancelled = false
@@ -194,47 +188,9 @@ class CloudflareD1BackupService @Inject constructor(
         method: String,
         path: String,
         bodyJson: String? = null,
-        token: String,
-        accountId: String
+        token: String
     ): Map<String, Any> = withContext(Dispatchers.IO) {
-        val url = "https://api.cloudflare.com/client/v4$path"
-        var lastError: Exception? = null
-        // إعادة محاولة واحدة عند أعطال الشبكة — كل الكتابات idempotent.
-        for (attempt in 0 until 2) {
-            try {
-                val builder = Request.Builder()
-                    .url(url)
-                    .header("Authorization", "Bearer $token")
-                if (method == "GET") {
-                    builder.get()
-                } else {
-                    builder.post(
-                        (bodyJson ?: "{}").toRequestBody(
-                            "application/json; charset=utf-8".toMediaType()
-                        )
-                    )
-                }
-                client.newCall(builder.build()).execute().use { resp ->
-                    val text = resp.body?.string() ?: ""
-                    val decoded = gson.fromJson<Map<String, Any>>(
-                        text, object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type
-                    ) ?: throw D1BackupException("فشل نداء Cloudflare (HTTP ${resp.code})")
-                    if (decoded["success"] != true) {
-                        throw D1BackupException(
-                            "فشل نداء Cloudflare (HTTP ${resp.code})",
-                            details = decoded["errors"]?.toString()
-                        )
-                    }
-                    return@withContext decoded
-                }
-            } catch (e: D1BackupException) {
-                throw e
-            } catch (e: Exception) {
-                lastError = e
-                if (attempt == 0) continue
-            }
-        }
-        throw D1BackupException("تعذر الاتصال بـ Cloudflare", details = lastError?.toString())
+        http.call(method, path, bodyJson, token)
     }
 
     /** تنفيذ SQL وإرجاع مجموعات النتائج (نظير _query). */
@@ -251,8 +207,7 @@ class CloudflareD1BackupService @Inject constructor(
             "POST",
             "/accounts/$accountId/d1/database/$databaseId/query",
             gson.toJson(body),
-            token = token,
-            accountId = accountId
+            token = token
         )
         val result = decoded["result"]
         return if (result is List<*>) {
@@ -304,7 +259,7 @@ class CloudflareD1BackupService @Inject constructor(
         try {
             val verify = call(
                 "GET", "/accounts/${conn.accountId}/tokens/verify",
-                token = token, accountId = conn.accountId
+                token = token
             )
             val result = verify["result"] as? Map<*, *>
             tokenValid = result?.get("status") == "active"
@@ -313,11 +268,11 @@ class CloudflareD1BackupService @Inject constructor(
             try {
                 val verify = call(
                     "GET", "/user/tokens/verify",
-                    token = token, accountId = conn.accountId
+                    token = token
                 )
                 val result = verify["result"] as? Map<*, *>
                 tokenValid = result?.get("status") == "active"
-            } catch (e2: Exception) {
+            } catch (e2: D1BackupException) {
                 return@withContext D1ProbeBackupResult(
                     tokenValid = false, accountReachable = false, databaseReachable = false,
                     databaseName = null, dmlAllowed = false, ddlAllowed = false,
@@ -330,7 +285,7 @@ class CloudflareD1BackupService @Inject constructor(
         try {
             val list = call(
                 "GET", "/accounts/${conn.accountId}/d1/database?per_page=50",
-                token = token, accountId = conn.accountId
+                token = token
             )
             accountReachable = true
             val result = list["result"]
