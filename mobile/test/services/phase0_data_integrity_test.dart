@@ -220,6 +220,50 @@ void main() {
       },
     );
 
+    test(
+      'مرآة أجنبية متصادمة في الطريقة 1 لا تُلغي بحث reason (مراجعة kilo)',
+      () async {
+        final x = await addEmployee(uuid: 'uuid-x', name: 'أحمد');
+        // مرآة أجنبية تحمل expense_id=5 (تصادم رقمي مع مصروف هذا الجهاز)
+        // — كانت تُفرِّغ toDelete قبل الحارس فيُتخطى بحث reason.
+        await addForeignMirror(
+          employeeId: x,
+          foreignExpenseId: 5,
+          amount: 999,
+          uuid: 'sw-foreign-5',
+        );
+        // صف قديم محلي بلا expense_id — مرتبط بالـ reason وحده، يجب حذفه.
+        await db.into(db.salaryWithdrawals).insert(
+              SalaryWithdrawalsCompanion(
+                employeeId: d.Value(x),
+                amount: const d.Value(300),
+                withdrawDate: d.Value(day),
+                withdrawalType: const d.Value('سحب راتب'),
+                reason: const d.Value('exp_5'),
+                hotelDayKey: d.Value(day),
+                localUuid: const d.Value('sw-legacy-reason'),
+                origin: const d.Value('local'),
+                deviceId: const d.Value(currentDevice),
+                createdAt: const d.Value(1000),
+                updatedAt: const d.Value(1000),
+                lastModified: const d.Value(1000),
+              ),
+            );
+
+        await repo.deleteByExpenseId(5);
+
+        final legacy = await activeByUuid('sw-legacy-reason');
+        expect(
+          legacy!.deletedAt,
+          isNotNull,
+          reason: 'الصف المرتبط بالـ reason وحده يُحذف رغم تصادم الطريقة 1',
+        );
+        final foreign = await activeByUuid('sw-foreign-5');
+        expect(foreign, isNotNull, reason: 'المرآة الأجنبية تبقى');
+        expect(foreign!.deletedAt, isNull);
+      },
+    );
+
     test('saveFromExpense لا يعدّل مسحوب جهاز آخر المتصادق الرقماً', () async {
       final x = await addEmployee(uuid: 'uuid-x', name: 'أحمد');
       await addForeignMirror(

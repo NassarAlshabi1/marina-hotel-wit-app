@@ -617,6 +617,17 @@ class SalaryWithdrawalsRepository {
       // العمود قد لا يكون موجوداً
     }
 
+    // ✅ (مراجعة kilo 2026-10-04) الحارس يُطبَّق على نتائج الطريقة 1 **قبل**
+    // قرار استدعاء الطريقة 2: إن عثرت الطريقة 1 على مرايا أجنبية فقط
+    // (تصادم expense_id رقمي) فلا ينبغي أن يُلغي ذلك بحث reason — صف
+    // قديم مرتبط بالـ reason وحده كان يبقى حياً خطأً.
+    bool guard(SalaryWithdrawal w) => _ownedByDeviceOrEmployee(
+          w,
+          employeeId: employeeId,
+          employeeUuid: employeeUuid,
+        );
+    toDelete = toDelete.where(guard).toList();
+
     // الطريقة 2: بحث عبر reason (الطريقة القديمة) إذا لم نجد عبر expense_id
     if (toDelete.isEmpty) {
       final candidates =
@@ -631,16 +642,8 @@ class SalaryWithdrawalsRepository {
 
     // ✅ (المرحلة 0 — P0.3 / R3) تطبيق الحارس على المرشحات من المسارين:
     // لا يُحذف سجل لا يخص هذا الجهاز/هذا الموظف حتى لو تصادم الرقم.
-    toDelete = toDelete
-        .where(
-          (w) =>
-              _ownedByDeviceOrEmployee(
-                w,
-                employeeId: employeeId,
-                employeeUuid: employeeUuid,
-              ),
-        )
-        .toList();
+    // (إعادة التطبيق على نتائج الطريقة 2 — عملية idempotent).
+    toDelete = toDelete.where(guard).toList();
 
     final now = Time.nowEpoch();
 

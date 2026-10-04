@@ -592,10 +592,14 @@ class GoogleDriveDeltaSync {
       // update بـ deleted_at ويُعالَجه upsertFromJson)، لكننا لا نترك
       // مساراً محلياً قادراً على الحذف الفعلي لسجل مالي.
       case 'salary_withdrawals':
+        // ✅ (مراجعة kilo 2026-10-04) رفع version+1 — اتساق مع
+        // deleteByExpenseId وحماية الإصلاح من طمس LWW السحابي.
         await db.customStatement(
-          'UPDATE salary_withdrawals SET deleted_at = ?, last_modified = ? '
+          'UPDATE salary_withdrawals SET deleted_at = ?, last_modified = ?, '
+          'updated_at = ?, version = version + 1 '
           'WHERE local_uuid = ? AND deleted_at IS NULL',
           [
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
             DateTime.now().millisecondsSinceEpoch ~/ 1000,
             DateTime.now().millisecondsSinceEpoch ~/ 1000,
             localUuid,
@@ -604,9 +608,11 @@ class GoogleDriveDeltaSync {
         return true;
       case 'salary_carry_over_logs':
         await db.customStatement(
-          'UPDATE salary_carry_over_logs SET deleted_at = ?, last_modified = ? '
+          'UPDATE salary_carry_over_logs SET deleted_at = ?, last_modified = ?, '
+          'updated_at = ?, version = version + 1 '
           'WHERE local_uuid = ? AND deleted_at IS NULL',
           [
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
             DateTime.now().millisecondsSinceEpoch ~/ 1000,
             DateTime.now().millisecondsSinceEpoch ~/ 1000,
             localUuid,
