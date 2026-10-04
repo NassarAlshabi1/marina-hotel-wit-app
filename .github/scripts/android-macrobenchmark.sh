@@ -21,6 +21,30 @@ phase 'Harness started'
   echo '::error::A disposable emulator is required; no device was modified.'; exit 1;
 }
 phase 'Disposable emulator guard passed'
+# Record only whitelisted host memory settings (never full process arguments).
+python3 - "$OUT/emulator-memory-config.json" <<'PYCONFIG'
+import json, os, pathlib, re, sys
+configuration = {"requestedRamMiB": 1024, "avdMemorySettings": [], "qemuMemoryArguments": []}
+avd_root = pathlib.Path(os.environ.get("ANDROID_AVD_HOME", str(pathlib.Path.home() / ".android/avd")))
+for path in avd_root.glob("*.avd/config.ini"):
+    for line in path.read_text(errors="replace").splitlines():
+        if line.startswith("hw.ramSize="):
+            value = line.split("=", 1)[1].strip()
+            if re.fullmatch(r"[0-9]+[KMG]?", value):
+                configuration["avdMemorySettings"].append(value)
+for path in pathlib.Path("/proc").glob("[0-9]*/cmdline"):
+    try:
+        args = path.read_bytes().decode(errors="replace").split("\0")
+        if not args or not pathlib.Path(args[0]).name.startswith("qemu-system-"):
+            continue
+        for i, arg in enumerate(args[:-1]):
+            if arg == "-m" and re.fullmatch(r"(?:size=)?[0-9]+[KMG]?", args[i + 1]):
+                configuration["qemuMemoryArguments"].append(args[i + 1])
+    except (OSError, ValueError):
+        continue
+pathlib.Path(sys.argv[1]).write_text(json.dumps(configuration, indent=2) + "\n")
+print("::notice title=Emulator memory configuration::" + json.dumps(configuration))
+PYCONFIG
 # Fail before installing or clearing packages if the requested profile was ignored.
 adb shell cat /proc/meminfo > "$OUT/device-memory.txt"
 python3 .github/scripts/benchmark-environment.py --meminfo "$OUT/device-memory.txt" \
