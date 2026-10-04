@@ -114,5 +114,16 @@ python3 .github/scripts/performance-gate.py \
 - التشغيل [37170557712](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37170557712) فشل أثناء `:app:minifyBenchmarkWithR8` بسبب `OutOfMemoryError: GC overhead limit exceeded`، قبل تشغيل المحاكي. زيد حد JVM للبناء في CI فقط إلى 4096MiB مع عاملين، وأضيف `--no-daemon` لتحرير ذاكرة البناء قبل المحاكي. بقي إعداد البناء المحلي 2048MiB وبقيت RAM المحاكي المطلوبة 1024MiB.
 - التشغيل [37171382377](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37171382377) أثبت نجاح إصلاح بناء R8، وإقلاع المحاكي وتثبيت الحزمتين والتحقق من قواعد الحظر. لكنه انتهى بمهلة 10 دقائق أثناء `coldStartup`، بلا نتيجة قياس مكتملة. أضيف تشخيص المراحل خارج الجزء المقاس ولقطة عمليات وسجلات Benchmark قبل إيقاف عملية الاختبار.
 - اكتُشف أن الحظر السابق شمل loopback اللازم لـPerfetto، فأضيف استثناء ضيق لواجهة `lo` لحزمة الاختبارات فقط مع بقاء الحظر الخارجي. مصدر يوضح اعتماد AndroidX على localhost: https://github.com/androidx/androidx/blob/4e8f44364984ec39622bc5be1029abb16f11a4d0/benchmark/benchmark-macro/src/main/java/androidx/benchmark/macro/perfetto/server/PerfettoHttpServer.kt
-- متابعة الإصلاح: [37172615305](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37172615305). اختبارات القارئ والسكريبت نجحت؛ نتيجة الجهاز لم تُحسم وقت كتابة هذا القسم. لا توجد أرقام TTID معتمدة أو أدلة هاتف فعلي بعد.
+- التشغيل النهائي [37172615305](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37172615305) عند `eaaed79351f267f97948796f333167dbe73c1dea` **نجح في جمع الأدلة وقراءتها** بعد إصلاح loopback: 21 اختبارًا مساعدًا، واختبارا Android فعليان، و8 تكرارات لكل نوع إقلاع. نجح شرط `OK (2 tests)` وفحص crash/ANR الموجّه للحزمة ووجود JSON صالح وفق السياسة. رُفعت الأدلة في artifact `offline-entry-macrobenchmark`.
+
+### النتائج المقاسة — ليست موافقة إصدار
+
+| الاختبار | TTID median المقاس | التكرارات | حكم الحد الأولي |
+|---|---:|---:|---|
+| coldStartup | 4494.4618725ms | 8 | **FAIL** — يتجاوز 4000ms |
+| warmStartup | 687.2116455ms | 8 | PASS — دون 1500ms |
+
+الحالة الكلية **DIAGNOSTIC_ONLY**، وحكم الحدود **FAIL**، و`releaseEligible: false`. اللون الأخضر لمهمة CI يعني أن الاختبار جمع أدلة صحيحة، لا أن الإقلاع البارد اجتاز ميزانية الأداء. لم تُرفع الحدود أو تُحذف عينة لتحويل الفشل إلى نجاح.
+
+المقاس شاشة الدخول فقط، دون شبكة خارجية للحزمتين، على المحاكي وبـFull compilation. RAM المطلوبة 1024MiB؛ الذاكرة الفعلية محفوظة في artifact ولم تُستخرج من إشعار المقاييس، لذا لا تُقدَّم هذه النتائج كإثبات أداء هاتف فعلي بذاكرة 1GB. لا توجد قياسات فعلية للإطارات أو تدفقات مالية أو هاتف فعلي. يلزم تحليل traces وتكرار القياس ومعايرة الحدود قبل تعميم نتيجة الإقلاع البارد أو اتخاذ قرار إصدار.
 
