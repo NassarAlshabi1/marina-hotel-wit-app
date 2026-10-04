@@ -63,7 +63,7 @@ class FullDatabaseExportService @Inject constructor(
         val userTables = tables.filter {
             it !in setOf(
                 "outbox", "sync_remote_meta", "sync_log", "sync_queue",
-                "sync_conflicts", "ancestor_cache", "app_sessions",
+                "sync_conflicts", "ancestor_cache", "app_sessions", "sync_quarantine",
                 "integrity_violations", "auto_fix_runs", "restore_fix_log"
             )
         }.sorted()

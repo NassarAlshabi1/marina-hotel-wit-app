@@ -67,7 +67,7 @@ class LocalBackupService @Inject constructor(
         private val INTERNAL_TABLES = setOf(
             "android_metadata", "room_master_table", "outbox",
             "sync_remote_meta", "sync_state", "sync_log", "sync_queue",
-            "sync_conflicts", "ancestor_cache", "app_sessions",
+            "sync_conflicts", "ancestor_cache", "app_sessions", "sync_quarantine",
             "integrity_violations", "auto_fix_runs", "restore_fix_log"
         )
     }
