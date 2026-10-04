@@ -37,5 +37,6 @@ dependencies {
     // Pinned to the existing Kotlin 1.9 / AGP 8.6 toolchain, not claimed to be latest.
     implementation 'androidx.benchmark:benchmark-macro-junit4:1.2.4'
     implementation 'androidx.test.ext:junit:1.1.5'
+    implementation 'androidx.test:runner:1.5.2'
     implementation 'androidx.test.uiautomator:uiautomator:2.3.0'
 }
