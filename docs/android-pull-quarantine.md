@@ -36,3 +36,19 @@ including the five new ingest regressions and the direct 72→73 migration test.
 The existing 70/71 migration tests now validate the complete schema-73 upgrade.
 Signed APK compilation was still running when this note was written; this is a
 unit-test success statement, not an all-green CI or device-test claim.
+
+
+## Review follow-up: protected serialization and schema constant
+
+Payload serialization and anonymous-row hashing now run only for failed records,
+inside a protected quarantine helper. Healthy rows no longer pay that serialization
+cost. Deferred-inbox serialization also runs inside the per-record exception boundary.
+Parsed NaN/Infinity values are stored as explicit `__sync_non_finite_number` marker
+objects in valid JSON evidence; they are never substituted into financial rows or
+automatically replayed. If serialization or quarantine storage still fails, the page
+fails closed with an explicit error; cancellation is rethrown and no cursor advances.
+`@Database` now references `AppDatabase.SCHEMA_VERSION` (73), without a new migration.
+
+Four added regression cases cover mixed healthy/non-finite pages, deferred-payload
+serialization failure, failed quarantine storage rolling back the page, and the
+schema constant matching the database Room actually creates. Await CI results.

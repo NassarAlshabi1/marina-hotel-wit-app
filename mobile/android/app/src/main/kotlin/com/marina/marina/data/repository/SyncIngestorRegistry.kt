@@ -6,6 +6,9 @@ import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
+import com.google.gson.JsonSerializer
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import com.marina.marina.data.local.entity.PendingSyncLinkEntity
@@ -136,6 +139,19 @@ class SyncIngestorRegistry @Inject constructor(
     private val inventoryDao: InventoryDao,
     private val blacklistEntriesDao: BlacklistEntriesDao
 ) {
+    // Evidence only, never used to apply/replay a financial row. Non-finite
+    // parsed numbers get explicit typed markers instead of invalid JSON literals.
+    private val quarantineGson = GsonBuilder()
+        .serializeNulls()
+        .registerTypeHierarchyAdapter(Number::class.java, JsonSerializer<Number> { value, _, _ ->
+            if ((value is Double || value is Float) && !value.toDouble().isFinite()) {
+                JsonObject().apply { addProperty("__sync_non_finite_number", value.toString()) }
+            } else {
+                JsonPrimitive(value)
+            }
+        })
+        .create()
+
     /**
      * ✅ (2026-09-25) Gson لكل صنف كيان — الإصلاح الجذري لموت الاستيعاب:
      * الكيانات تعيد إعلان حقول BaseSyncEntity (id، وبعضها local_uuid مثل
@@ -276,26 +292,24 @@ class SyncIngestorRegistry @Inject constructor(
             for (record in records) {
                 val entity = record["_entity"] as? String ?: "unknown"
                 val uuid = record["local_uuid"] as? String ?: ""
-                val payload = Gson().toJson(record.toSortedMap())
-                val recordKey = if (uuid.isNotBlank()) "uuid:$uuid" else "sha256:" +
-                    MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(Charsets.UTF_8))
-                        .joinToString("") { "%02x".format(it) }
                 val outcome = try {
-                    applyRecord(record)
+                    applyRecord(record).also { result ->
+                        if (result is ApplyOutcome.Deferred) {
+                            require(uuid.isNotBlank()) { "Deferred row has no local_uuid" }
+                            db.pendingSyncLinksDao().put(PendingSyncLinkEntity(entity, uuid, Gson().toJson(record)))
+                        }
+                    }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
                     ApplyOutcome.Failed("$entity: ${error.javaClass.simpleName}")
                 }
                 if (outcome is ApplyOutcome.Failed) {
-                    db.syncQuarantineDao().put(SyncQuarantineEntity(entity, recordKey, payload, outcome.error))
-                } else {
-                    db.syncQuarantineDao().remove(entity, recordKey)
+                    persistQuarantine(entity, uuid, record, outcome.error)
+                } else if (uuid.isNotBlank()) {
+                    db.syncQuarantineDao().remove(entity, "uuid:$uuid")
                 }
-                if (outcome is ApplyOutcome.Deferred) {
-                    require(uuid.isNotBlank()) { "Deferred row has no local_uuid" }
-                    db.pendingSyncLinksDao().put(PendingSyncLinkEntity(entity, uuid, Gson().toJson(record)))
-                } else if (outcome is ApplyOutcome.Applied || outcome is ApplyOutcome.Skipped) {
+                if (outcome is ApplyOutcome.Applied || outcome is ApplyOutcome.Skipped) {
                     db.pendingSyncLinksDao().remove(entity, uuid)
                 }
                 when (outcome) {
@@ -317,6 +331,25 @@ class SyncIngestorRegistry @Inject constructor(
             Log.w("SyncIngestorRegistry", "Preserved $salaryOrphans unresolved salary records in durable inbox; no rows deleted")
         }
         return PullApplyReport(applied, skipped, failed, firstError, deferred)
+    }
+
+    private suspend fun persistQuarantine(
+        entity: String, uuid: String, record: Map<String, Any>, reason: String
+    ) {
+        try {
+            // Serialize/hash only rejected rows, inside the protected path.
+            val payload = quarantineGson.toJson(record.toSortedMap())
+            val key = if (uuid.isNotBlank()) "uuid:$uuid" else "sha256:" +
+                MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { "%02x".format(it) }
+            db.syncQuarantineDao().put(SyncQuarantineEntity(entity, key, payload, reason))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            // No lossy fallback or successful skip: roll back the page if evidence
+            // cannot be persisted. The caller must keep its previous checkpoint.
+            throw IllegalStateException("Unable to persist pull quarantine", error)
+        }
     }
 
     /** Retry across process restarts; parent/child chains may require more than one pass. */

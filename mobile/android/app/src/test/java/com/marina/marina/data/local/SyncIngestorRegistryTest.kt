@@ -152,6 +152,68 @@ class SyncIngestorRegistryTest {
 
     // ─── 1) تعلم ظلّ server_id من id الخادمي ───
 
+    private fun quarantineTestRoom(uuid: String): Map<String, Any> = mapOf(
+        "_entity" to "rooms", "local_uuid" to uuid, "room_number" to uuid,
+        "type" to "single", "price" to 100.0, "status" to "available", "cleaning_status" to "clean"
+    )
+
+    @Test
+    fun nonFinitePayloadsAreQuarantinedWithoutRollingBackHealthyRows() = runBlocking {
+        val bad = quarantineTestRoom("infinite-price") + ("price" to Double.POSITIVE_INFINITY)
+        val anonymous = (quarantineTestRoom("anonymous") - "local_uuid") +
+            ("evidence" to listOf(Double.NaN, Float.NEGATIVE_INFINITY))
+        val report = registry.ingestPage(listOf(
+            quarantineTestRoom("healthy-before"), bad, anonymous, quarantineTestRoom("healthy-after")
+        ))
+        assertEquals(2, report.applied)
+        assertEquals(2, report.failed)
+        assertEquals(0, report.skipped)
+        assertTrue(db.roomsDao().getByLocalUuid("healthy-before") != null)
+        assertTrue(db.roomsDao().getByLocalUuid("healthy-after") != null)
+        assertNull(db.roomsDao().getByLocalUuid("infinite-price"))
+        val rows = db.syncQuarantineDao().getAll()
+        val withUuid = rows.single { it.recordKey == "uuid:infinite-price" }
+        val json = com.google.gson.JsonParser.parseString(withUuid.payload).asJsonObject
+        assertEquals("Infinity", json.getAsJsonObject("price")["__sync_non_finite_number"].asString)
+        val withoutUuid = rows.single { it.recordKey.startsWith("sha256:") }
+        val evidence = com.google.gson.JsonParser.parseString(withoutUuid.payload).asJsonObject
+            .getAsJsonArray("evidence")
+        assertEquals("NaN", evidence[0].asJsonObject["__sync_non_finite_number"].asString)
+        assertEquals("-Infinity", evidence[1].asJsonObject["__sync_non_finite_number"].asString)
+        newRegistry().ingestPage(listOf(bad, anonymous))
+        assertEquals(rows, db.syncQuarantineDao().getAll())
+    }
+
+    @Test
+    fun deferredPayloadSerializationFailureAlsoReachesQuarantine() = runBlocking {
+        val report = registry.ingestPage(listOf(mapOf(
+            "_entity" to "salary_withdrawals", "local_uuid" to "deferred-infinite",
+            "employee_uuid" to "missing-parent", "amount" to Double.NaN,
+            "withdraw_date" to "2026-10-04"
+        )))
+        assertEquals(1, report.failed)
+        assertTrue(report.deferred.isEmpty())
+        assertTrue(db.pendingSyncLinksDao().getAll().isEmpty())
+        assertEquals("uuid:deferred-infinite", db.syncQuarantineDao().getAll().single().recordKey)
+    }
+
+    @Test
+    fun failedQuarantineStorageFailsClosedInsteadOfSkippingEvidence() = runBlocking {
+        db.openHelper.writableDatabase.execSQL(
+            "CREATE TRIGGER reject_quarantine BEFORE INSERT ON sync_quarantine " +
+                "BEGIN SELECT RAISE(ABORT, 'Synthetic storage failure'); END"
+        )
+        val result = runCatching {
+            registry.ingestPage(listOf(
+                quarantineTestRoom("rolled-back"),
+                quarantineTestRoom("bad-price") + ("price" to Double.POSITIVE_INFINITY)
+            ))
+        }
+        assertEquals("Unable to persist pull quarantine", result.exceptionOrNull()?.message)
+        assertNull(db.roomsDao().getByLocalUuid("rolled-back"))
+        assertTrue(db.syncQuarantineDao().getAll().isEmpty())
+    }
+
     @Test
     fun malformedPullRowsAreQuarantinedInsteadOfSilentlySkipped() = runBlocking {
         val rows = listOf(

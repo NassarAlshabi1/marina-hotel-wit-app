@@ -22,6 +22,16 @@ import org.robolectric.annotation.Config
 class FinancialMigrationTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
+    @Test
+    fun schemaConstantMatchesTheDatabaseRoomActuallyCreates() {
+        val room = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries().build()
+        try {
+            assertEquals(73, AppDatabase.SCHEMA_VERSION)
+            assertEquals(AppDatabase.SCHEMA_VERSION, room.openHelper.writableDatabase.version)
+        } finally { room.close() }
+    }
+
     private fun createV70(name: String) {
         context.deleteDatabase(name)
         val stream = requireNotNull(javaClass.classLoader!!.getResourceAsStream(
