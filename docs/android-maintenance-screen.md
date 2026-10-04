@@ -25,4 +25,9 @@ Opening a linked tool does not automatically execute that tool's actions.
 No entity/schema migration or financial algorithm changes. New Room repository
 regressions cover empty data, correct salary columns, deleted-row exclusions,
 UUID gaps, read-only behavior, bounded quarantine projection and page clamping.
-UI navigation/rendering still requires device verification; CI tests/build pending.
+The complete unit-test step passed for application source `ddd0d0e` in
+[run 37239788276](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37239788276),
+including the three new repository regression cases. This also compiled the new
+Compose route/screen and Hilt wiring. Signed release APK build was still running
+at this update; UI navigation/rendering and role gating still require device
+verification. No all-green CI or actual-1-GiB device result is claimed.
