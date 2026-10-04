@@ -27,3 +27,12 @@ Regression tests cover salary cache recovery despite misleading remote IDs,
 malformed/unknown/missing-UUID records, deduplicated quarantine, correction and LWW,
 real database close/reopen, unchanged pull cursor, and migration from 70/71/72.
 CI verification is required; these tests were not executable locally (no Android/JDK toolchain).
+
+## Verification
+
+Application source `56ef526`: the complete `testDebugUnitTest` step passed in
+[run 37231581216](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37231581216),
+including the five new ingest regressions and the direct 72→73 migration test.
+The existing 70/71 migration tests now validate the complete schema-73 upgrade.
+Signed APK compilation was still running when this note was written; this is a
+unit-test success statement, not an all-green CI or device-test claim.
