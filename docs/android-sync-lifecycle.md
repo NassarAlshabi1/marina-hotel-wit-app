@@ -31,3 +31,16 @@ admission callback failure, and settings preflight lifetime.
 uses the real manager and preferences with a blocked fake HTTP response to verify
 that a cancelled screen leaves the pull alive, push/full-pull cannot overlap it,
 and its cursor is saved on completion. No production network/data is used.
+
+## CI evidence (2026-10-04, application source `90ae94c`)
+
+- Release workflow [37225884889](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37225884889):
+  `testDebugUnitTest` passed (including the seven runner cases and manager regression).
+  Signed APK build was still running when this note was written; no APK success is claimed here.
+- Quality/emulator workflow [37225884933](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37225884933):
+  emulator job passed; quality job failed with 1,424 Detekt findings and 36 Lint
+  warnings. Detekt is two findings above the earlier baseline (the manager function
+  count and the runner's cleanup catch). No rules were suppressed. The full workflow
+  is **not green**. Emulator smoke coverage is not a real navigation/background E2E test.
+- Test artifacts could not be downloaded in this sandbox (artifact host EOF);
+  the successful test step is confirmed via the GitHub jobs API, not locally opened XML.
