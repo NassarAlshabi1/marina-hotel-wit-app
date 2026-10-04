@@ -7,6 +7,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.marina.marina.data.local.AppDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -351,7 +353,7 @@ class LocalBackupService @Inject constructor(
     }
 
     /** استعادة بيانات JSON: مسح ثم إدراج داخل معاملة واحدة. */
-    private fun restoreFromJsonBackup(filePath: String) {
+    private suspend fun restoreFromJsonBackup(filePath: String) {
         val json = if (filePath.endsWith(".gz")) {
             GZIPInputStream(FileInputStream(filePath)).use { inp ->
                 inp.readBytes().toString(Charsets.UTF_8)
@@ -367,31 +369,41 @@ class LocalBackupService @Inject constructor(
         sq.beginTransaction()
         try {
             for (key in BACKUP_TABLE_KEYS) {
-                val rows = data[key] as? List<*> ?: continue
-                clearAndInsertRows(key, rows)
+                if (!data.containsKey(key)) continue
+                clearAndInsertRows(key, requireBackupRows(key, data[key]))
             }
             // القائمة السوداء → جدولها المحلي
-            (data["blacklist"] as? List<*>)?.let { rows ->
-                clearAndInsertRows("blacklist_entries", rows)
+            if (data.containsKey("blacklist")) {
+                clearAndInsertRows("blacklist_entries", requireBackupRows("blacklist", data["blacklist"]))
             }
             // حالة المزامنة
-            (data["sync_state"] as? List<*>)?.let { rows ->
-                clearAndInsertRows("sync_state", rows)
+            if (data.containsKey("sync_state")) {
+                clearAndInsertRows("sync_state", requireBackupRows("sync_state", data["sync_state"]))
             }
+            currentCoroutineContext().ensureActive()
             sq.setTransactionSuccessful()
         } finally {
             sq.endTransaction()
         }
     }
 
-    private fun clearAndInsertRows(table: String, rows: List<*>) {
+    private fun requireBackupRows(table: String, value: Any?): List<*> {
+        require(value is List<*>) { "بيانات الجدول $table ليست قائمة صفوف صالحة" }
+        require(value.all { it is Map<*, *> && it.isNotEmpty() }) {
+            "تحتوي نسخة الجدول $table على صف غير صالح؛ لم تُستكمل الاستعادة"
+        }
+        return value
+    }
+
+    private suspend fun clearAndInsertRows(table: String, rows: List<*>) {
+        currentCoroutineContext().ensureActive()
         val sq = db.openHelper.writableDatabase
         val safe = table.replace("\"", "\"\"")
         sq.execSQL("DELETE FROM \"$safe\"")
         for (raw in rows) {
+            currentCoroutineContext().ensureActive()
             @Suppress("UNCHECKED_CAST")
-            val row = raw as? Map<String, Any?> ?: continue
-            if (row.isEmpty()) continue
+            val row = raw as Map<String, Any?>
             val cols = row.keys.map { it.replace("\"", "\"\"") }
             val placeholders = cols.joinToString(",") { "?" }
             val values = Array(row.size) { idx ->

@@ -175,6 +175,58 @@ class RestoreFixServiceTest {
         }
     }
 
+    @Test
+    fun invalidJsonRowsOrTableTypesNeverSilentlyDeleteExistingData() = runBlocking {
+        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        val backup = File(context.cacheDir, "invalid-rows.json")
+        try {
+            for (json in listOf(
+                """{"rooms":[42]}""", """{"rooms":null}""",
+                """{"rooms":[],"bookings":[{}]}""", """{"rooms":[],"sync_state":"bad"}"""
+            )) {
+                backup.writeText(json)
+                try {
+                    service.restoreFromLocalBackup(backup.absolutePath)
+                    fail("Malformed backup must be rejected: $json")
+                } catch (_: IllegalArgumentException) {
+                    assertOriginalRows()
+                }
+            }
+        } finally {
+            backup.delete()
+        }
+    }
+
+    @Test
+    fun cancellationDuringJsonImportRollsBackEarlierTableDeletion() = runBlocking {
+        val backup = File(context.cacheDir, "cancel-import.json").apply {
+            writeText("""{"rooms":[],"bookings":[]}""")
+        }
+        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        val reachedDelete = AtomicBoolean(false)
+        val restore = async(start = CoroutineStart.LAZY) { service.restoreFromLocalBackup(backup.absolutePath) }
+        onQuery.set { sql ->
+            if (sql.startsWith("DELETE FROM \"rooms\"")) {
+                reachedDelete.set(true)
+                restore.cancel()
+            }
+        }
+        try {
+            restore.start()
+            try {
+                restore.await()
+                fail("Cancellation must propagate")
+            } catch (_: CancellationException) {
+                restore.join()
+            }
+            assertTrue(reachedDelete.get())
+            assertOriginalRows()
+        } finally {
+            onQuery.set(null)
+            backup.delete()
+        }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun viewModelDoesNotReportSuccessWhenPostImportRepairFails() = runBlocking {
