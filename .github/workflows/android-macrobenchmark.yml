@@ -40,7 +40,23 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build isolated benchmark artifacts (not release artifacts)
         working-directory: mobile/android
-        run: ./gradlew -PenableMacrobenchmark :app:assembleBenchmark :macrobenchmark:assembleBenchmark --console=plain --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew -PenableMacrobenchmark :app:assembleBenchmark :macrobenchmark:assembleBenchmark --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/macrobenchmark-build.log"
+      - name: Summarize benchmark build failure
+        if: failure()
+        run: |
+          python3 - <<'PYDIAG'
+          import os, pathlib
+          log = pathlib.Path(os.environ['RUNNER_TEMP']) / 'macrobenchmark-build.log'
+          if log.exists():
+              lines = log.read_text(errors='replace').splitlines()
+              markers = ('e: ', 'What went wrong', 'Execution failed', 'Could not', 'Caused by:', 'error:', 'requires', 'not found', 'must be', 'Unable to')
+              selected = [line for line in lines if any(marker in line for marker in markers)]
+              text = '\n'.join(selected[:25] if selected else lines[-25:])[:3000]
+              text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::error title=Macrobenchmark build diagnostics::{text}')
+          PYDIAG
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -64,6 +80,7 @@ jobs:
         with:
           name: offline-entry-macrobenchmark
           path: |
+            ${{ runner.temp }}/macrobenchmark-build.log
             performance-evidence/macrobenchmark/
             mobile/build/app/outputs/apk/benchmark/
             mobile/build/macrobenchmark/outputs/apk/benchmark/

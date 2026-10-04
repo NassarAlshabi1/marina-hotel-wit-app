@@ -41,7 +41,7 @@ done
 adb shell mkdir -p "$DEVICE_OUT"
 adb shell getprop > "$OUT/device-properties.txt"
 adb shell cat /proc/meminfo > "$OUT/device-memory.txt"
-adb logcat -c
+adb logcat -b all -c
 set +e
 adb shell am instrument -w -r \
   -e class com.marina.marina.macrobenchmark.EntryStartupBenchmark \

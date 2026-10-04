@@ -32,7 +32,8 @@ def percentile(values, p):
     values = sorted(values)
     index = (len(values) - 1) * p
     lower, upper = math.floor(index), math.ceil(index)
-    return values[lower] + (values[upper] - values[lower]) * (index - lower)
+    fraction = index - lower
+    return values[lower] * (1 - fraction) + values[upper] * fraction
 
 
 def read_json(path):
