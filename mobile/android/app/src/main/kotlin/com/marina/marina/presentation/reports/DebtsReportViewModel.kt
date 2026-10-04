@@ -3,7 +3,6 @@ package com.marina.marina.presentation.reports
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marina.marina.domain.model.Debt
-import com.marina.marina.domain.repository.BookingsRepository
 import com.marina.marina.domain.repository.DebtsRepository
 import com.marina.marina.domain.util.HotelTimeEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,8 +42,7 @@ data class DebtGuestSummary(
 
 @HiltViewModel
 class DebtsReportViewModel @Inject constructor(
-    private val debtsRepository: DebtsRepository,
-    private val bookingsRepository: BookingsRepository
+    private val debtsRepository: DebtsRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DebtsReportUiState())

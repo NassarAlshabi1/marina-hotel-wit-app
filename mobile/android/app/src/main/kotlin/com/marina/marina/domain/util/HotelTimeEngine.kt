@@ -1,5 +1,6 @@
 package com.marina.marina.domain.util
 
+import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -278,7 +279,7 @@ object HotelTimeEngine {
                 fmt.isLenient = true
                 val parsed = fmt.parse(trimmed)
                 if (parsed != null) return parsed.time
-            } catch (_: Exception) {
+            } catch (_: ParseException) {
                 // try next pattern
             }
         }

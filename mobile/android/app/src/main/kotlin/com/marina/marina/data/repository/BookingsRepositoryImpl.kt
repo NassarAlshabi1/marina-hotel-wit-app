@@ -98,7 +98,7 @@ class BookingsRepositoryImpl @Inject constructor(
         val active = bookingsDao.getActiveBookingForRoom(roomNumber) ?: return
         if (excludeId != null && active.id == excludeId) return
         val guest = active.guestName.ifBlank { "غير معروف" }
-        throw IllegalStateException("يوجد حجز نشط بالفعل للغرفة $roomNumber (الضيف: $guest)")
+        error("يوجد حجز نشط بالفعل للغرفة $roomNumber (الضيف: $guest)")
     }
 
     /**

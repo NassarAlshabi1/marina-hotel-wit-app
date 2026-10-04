@@ -53,7 +53,6 @@ object BookingFinancials {
     ): Summary {
         val checkinMillis = HotelTimeEngine.parseDate(booking.checkinDate)
         val actualCheckoutMillis = HotelTimeEngine.parseDate(booking.actualCheckout)
-        val plannedCheckoutMillis = HotelTimeEngine.parseDate(booking.checkoutDate)
 
         // actualNights = booking.calculatedNights (Dart l.305 — refreshed by the
         // derived-fields service with nightsWithCutoff).

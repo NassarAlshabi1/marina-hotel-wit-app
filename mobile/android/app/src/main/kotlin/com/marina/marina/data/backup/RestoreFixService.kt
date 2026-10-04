@@ -3,8 +3,6 @@ package com.marina.marina.data.backup
 import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.entity.AutoFixRunEntity
 import com.marina.marina.domain.util.HotelTimeEngine
-import dagger.hilt.android.qualifiers.ApplicationContext
-import android.content.Context
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -25,7 +23,6 @@ import javax.inject.Singleton
  */
 @Singleton
 class RestoreFixService @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val db: AppDatabase
 ) {
     suspend fun runAutoFixAfterRestore(): RestoreFixReport {
