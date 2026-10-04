@@ -60,17 +60,17 @@ class FinancialMigrationTest {
     }
 
     @Test
-    fun migrate70To72PreservesMoneyAndUndeliveredOutboxAndValidatesRoomSchema() {
+    fun migrate70To73PreservesMoneyAndUndeliveredOutboxAndValidatesRoomSchema() {
         val name = "migration-70-72.db"
         createV70(name)
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72)
+                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73)
                 .allowMainThreadQueries().build()
             try {
                     // Opening invokes Room's generated full schema validation, not just column checks.
                     val db = room.openHelper.writableDatabase
-                    assertEquals(72, db.version)
+                    assertEquals(73, db.version)
                     for (table in listOf("expenses", "salary_withdrawals")) {
                         db.query("SELECT amount FROM $table").use { cursor ->
                             assertTrue(cursor.moveToFirst())
@@ -85,6 +85,10 @@ class FinancialMigrationTest {
                         assertTrue(it.moveToFirst())
                         assertTrue(it.isNull(0)) // No guessed historical relationship.
                     }
+                    db.query("SELECT COUNT(*) FROM sync_quarantine").use {
+                        assertTrue(it.moveToFirst())
+                        assertEquals(0, it.getInt(0))
+                    }
                     db.query("SELECT COUNT(*) FROM pending_sync_links").use {
                         assertTrue(it.moveToFirst())
                         assertEquals(0, it.getInt(0))
@@ -94,7 +98,7 @@ class FinancialMigrationTest {
     }
 
     @Test
-    fun migrate71To72PreservesExistingUuidColumns() {
+    fun migrate71To73PreservesExistingUuidColumns() {
         val name = "migration-71-72.db"
         createV70(name)
         // Use the actual 70->71 migration to produce a version-71 file.
@@ -111,9 +115,43 @@ class FinancialMigrationTest {
         helper.close()
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_71_72).allowMainThreadQueries().build()
-            try { assertEquals(72, room.openHelper.writableDatabase.version) }
+                .addMigrations(DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73).allowMainThreadQueries().build()
+            try { assertEquals(73, room.openHelper.writableDatabase.version) }
             finally { room.close() }
+        } finally { context.deleteDatabase(name) }
+    }
+
+    @Test
+    fun migrate72To73PreservesPendingLinksAndAddsQuarantine() {
+        val name = "migration-72-73.db"
+        createV70(name)
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name(name)
+                .callback(object : SupportSQLiteOpenHelper.Callback(72) {
+                    override fun onCreate(db: SupportSQLiteDatabase) = Unit
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
+                        DatabaseModule.MIGRATION_70_71.migrate(db)
+                        DatabaseModule.MIGRATION_71_72.migrate(db)
+                    }
+                }).build()
+        )
+        helper.writableDatabase.execSQL("INSERT INTO pending_sync_links VALUES ('salary_payments', 'kept', '{}')")
+        helper.close()
+        try {
+            val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
+                .addMigrations(DatabaseModule.MIGRATION_72_73).allowMainThreadQueries().build()
+            try {
+                val db = room.openHelper.writableDatabase
+                assertEquals(73, db.version)
+                db.query("SELECT localUuid FROM pending_sync_links").use {
+                    assertTrue(it.moveToFirst())
+                    assertEquals("kept", it.getString(0))
+                }
+                db.query("SELECT COUNT(*) FROM sync_quarantine").use {
+                    assertTrue(it.moveToFirst())
+                    assertEquals(0, it.getInt(0))
+                }
+            } finally { room.close() }
         } finally { context.deleteDatabase(name) }
     }
 
@@ -126,7 +164,7 @@ class FinancialMigrationTest {
         }
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72)
+                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73)
                 .allowMainThreadQueries().build()
             try { assertTrue(runCatching { room.openHelper.writableDatabase }.isFailure) }
             finally { room.close() }

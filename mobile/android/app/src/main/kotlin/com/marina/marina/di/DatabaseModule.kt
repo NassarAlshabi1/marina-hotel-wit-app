@@ -40,6 +40,12 @@ object DatabaseModule {
         }
     }
 
+    val MIGRATION_72_73 = object : Migration(72, 73) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS sync_quarantine (entity TEXT NOT NULL, recordKey TEXT NOT NULL, payload TEXT NOT NULL, reason TEXT NOT NULL, PRIMARY KEY(entity, recordKey))")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -48,7 +54,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71, MIGRATION_71_72)
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73)
             // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }

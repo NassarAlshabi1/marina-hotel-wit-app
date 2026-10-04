@@ -153,6 +153,132 @@ class SyncIngestorRegistryTest {
     // ─── 1) تعلم ظلّ server_id من id الخادمي ───
 
     @Test
+    fun malformedPullRowsAreQuarantinedInsteadOfSilentlySkipped() = runBlocking {
+        val rows = listOf(
+            mapOf("local_uuid" to "no-entity", "amount" to 12),
+            mapOf("_entity" to "future_table", "local_uuid" to "unsupported"),
+            mapOf("_entity" to "rooms", "local_uuid" to "  "),
+            mapOf("_entity" to "rooms", "room_number" to "404")
+        )
+        val report = registry.ingestPage(rows)
+        assertEquals(4, report.failed)
+        assertEquals(0, report.skipped)
+        assertEquals(0, report.applied)
+        assertTrue(report.firstError != null)
+        val quarantine = db.syncQuarantineDao().getAll()
+        assertEquals(4, quarantine.size)
+        assertTrue(quarantine.all { it.reason.isNotBlank() && it.payload.isNotBlank() })
+        // Repeated download must not create an unbounded pile of identical evidence.
+        newRegistry().ingestPage(rows)
+        assertEquals(quarantine, db.syncQuarantineDao().getAll())
+        assertTrue(db.pendingSyncLinksDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun repairedRecordLeavesQuarantineAndOlderLocalWinnerIsNotQuarantined() = runBlocking {
+        val valid = mapOf<String, Any>(
+            "_entity" to "rooms", "local_uuid" to "quarantined-room", "room_number" to "Q1",
+            "type" to "single", "price" to 100.0, "status" to "available", "cleaning_status" to "clean",
+            "last_modified" to 200L
+        )
+        assertEquals(1, registry.ingestPage(listOf(valid + ("price" to "not-a-number"))).failed)
+        assertEquals(1, db.syncQuarantineDao().getAll().size)
+        assertEquals(1, registry.ingestPage(listOf(valid)).applied)
+        assertTrue(db.syncQuarantineDao().getAll().isEmpty())
+        assertEquals(1, registry.ingestPage(listOf(valid + ("last_modified" to 100L))).skipped)
+        assertTrue(db.syncQuarantineDao().getAll().isEmpty())
+        assertEquals(100.0, db.roomsDao().getByLocalUuid("quarantined-room")!!.price, 0.0)
+    }
+
+    @Test
+    fun quarantineSurvivesDatabaseCloseAndReopen() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "pull-quarantine-restart.db"
+        context.deleteDatabase(name)
+        db.close()
+        fun open() = Room.databaseBuilder(context, AppDatabase::class.java, name)
+            .allowMainThreadQueries().build()
+        db = open()
+        try {
+            newRegistry().ingestPage(listOf(mapOf("_entity" to "unknown_table", "local_uuid" to "kept")))
+            val saved = db.syncQuarantineDao().getAll().single()
+            db.close()
+            db = open()
+            assertEquals(saved, db.syncQuarantineDao().getAll().single())
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    @Test
+    fun legacySalaryUuidCachesUseStoredLocalLinksNotIncomingNumericIds() = runBlocking {
+        val employeeId = db.employeesDao().insert(EmployeeEntity(
+            name = "cache-parent", basicSalary = 100.0, status = "active", localUuid = "cache-employee"
+        ))
+        val cycleId = db.salaryCyclesDao().insert(com.marina.marina.data.local.entity.SalaryCycleEntity(
+            employeeId = employeeId, employeeUuid = "cache-employee", cycleKey = "cache-cycle",
+            localUuid = "cache-cycle"
+        ))
+        db.salaryPaymentsDao().insert(com.marina.marina.data.local.entity.SalaryPaymentEntity(
+            cycleId = cycleId, cycleUuid = null, paymentDateIso = "2026-10-04", localUuid = "legacy-payment"
+        ))
+        db.salaryCarryOverLogsDao().insert(com.marina.marina.data.local.entity.SalaryCarryOverLogEntity(
+            employeeId = employeeId, employeeUuid = null, amount = 15.0,
+            previousCycleStart = "old", previousCycleEnd = "old", newCycleStart = "new", newCycleEnd = "new",
+            reason = "carry", carriedAt = 1L, localUuid = "legacy-carry"
+        ))
+        val report = registry.ingestPage(listOf(
+            mapOf("_entity" to "salary_payments", "local_uuid" to "legacy-payment", "cycle_id" to 999999L,
+                "amount" to 25L, "payment_date_iso" to "2026-10-04", "last_modified" to 2L),
+            mapOf("_entity" to "salary_carry_over_logs", "local_uuid" to "legacy-carry", "employee_id" to 999999L,
+                "amount" to 15.0, "previous_cycle_start" to "old", "previous_cycle_end" to "old",
+                "new_cycle_start" to "new", "new_cycle_end" to "new", "reason" to "carry",
+                "carried_at" to 1L, "last_modified" to 2L)
+        ))
+        assertEquals(2, report.applied)
+        val payment = db.salaryPaymentsDao().getByLocalUuid("legacy-payment")!!
+        assertEquals(cycleId, payment.cycleId)
+        assertEquals("cache-cycle", payment.cycleUuid)
+        assertEquals(25L, payment.amount)
+        val carry = db.salaryCarryOverLogsDao().getByLocalUuid("legacy-carry")!!
+        assertEquals(employeeId, carry.employeeId)
+        assertEquals("cache-employee", carry.employeeUuid)
+        assertEquals(15.0, carry.amount, 0.0)
+    }
+
+    @Test
+    fun quarantinedPullDoesNotAdvanceSavedCursor() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))
+        prefs.saveAuthToken("test-worker-token")
+        prefs.saveLastPullCursor(123L)
+        prefs.saveSyncEpoch("stable")
+        prefs.setFullReplayPending(false)
+        val api = Proxy.newProxyInstance(
+            CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
+        ) { _, method, _ ->
+            check(method.name == "pull")
+            Proxy.newProxyInstance(Call::class.java.classLoader, arrayOf(Call::class.java)) { _, callMethod, _ ->
+                check(callMethod.name == "execute")
+                Response.success(WorkerPullResponse(
+                    changes = listOf(mapOf("_entity" to "unsupported", "local_uuid" to "preserved")),
+                    cursor = "456", epoch = "stable", hasMore = false,
+                    remaining = null, errors = emptyList(), serverTime = null
+                ))
+            } as Call<*>
+        } as CloudflareWorkerApi
+        val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
+        val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
+            service, prefs, registry,
+            SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined))
+        assertEquals(-1, manager.pullOnly())
+        assertTrue(manager.syncState.value.isError)
+        assertEquals(123L, prefs.getLastPullCursor())
+        assertEquals(1, db.syncQuarantineDao().getAll().size)
+    }
+
+    @Test
     fun ingestLearnsServerIdShadowFromD1AutoincrementId() = runBlocking {
         val applied = registry.ingest(
             mapOf(

@@ -41,6 +41,9 @@ import com.marina.marina.data.local.entity.SalaryCycleEntity
 import com.marina.marina.data.local.entity.SalaryPaymentEntity
 import com.marina.marina.data.local.entity.SalaryWithdrawalEntity
 import com.marina.marina.domain.util.HotelTimeEngine
+import com.marina.marina.data.local.entity.SyncQuarantineEntity
+import kotlinx.coroutines.CancellationException
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -273,7 +276,22 @@ class SyncIngestorRegistry @Inject constructor(
             for (record in records) {
                 val entity = record["_entity"] as? String ?: "unknown"
                 val uuid = record["local_uuid"] as? String ?: ""
-                val outcome = applyRecord(record)
+                val payload = Gson().toJson(record.toSortedMap())
+                val recordKey = if (uuid.isNotBlank()) "uuid:$uuid" else "sha256:" +
+                    MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(Charsets.UTF_8))
+                        .joinToString("") { "%02x".format(it) }
+                val outcome = try {
+                    applyRecord(record)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    ApplyOutcome.Failed("$entity: ${error.javaClass.simpleName}")
+                }
+                if (outcome is ApplyOutcome.Failed) {
+                    db.syncQuarantineDao().put(SyncQuarantineEntity(entity, recordKey, payload, outcome.error))
+                } else {
+                    db.syncQuarantineDao().remove(entity, recordKey)
+                }
                 if (outcome is ApplyOutcome.Deferred) {
                     require(uuid.isNotBlank()) { "Deferred row has no local_uuid" }
                     db.pendingSyncLinksDao().put(PendingSyncLinkEntity(entity, uuid, Gson().toJson(record)))
@@ -323,7 +341,12 @@ class SyncIngestorRegistry @Inject constructor(
     // ─── تطبيق سجل واحد ─────────────────────────────────────────
 
     private suspend fun applyRecord(record: Map<String, Any>): ApplyOutcome {
-        val entity = record["_entity"] as? String ?: return ApplyOutcome.Skipped
+        val entity = (record["_entity"] as? String)?.takeIf { it.isNotBlank() }
+            ?: return ApplyOutcome.Failed("missing_entity")
+        if (entityClass(entity) == null) return ApplyOutcome.Failed("unsupported_entity: $entity")
+        if ((record["local_uuid"] as? String).isNullOrBlank()) {
+            return ApplyOutcome.Failed("missing_local_uuid: $entity")
+        }
 
         // نسخة قابلة للتعديل: يُزال _entity (ليس عموداً محلياً) ويُتعلم
         // الظل (server_id := id الخادمي AUTOINCREMENT — الرجل الأولى في
@@ -443,7 +466,10 @@ class SyncIngestorRegistry @Inject constructor(
                 val incomingCycleUuid = asString(mapped["cycle_uuid"])?.trim()?.takeIf { it.isNotEmpty() }
                 if (incomingCycleUuid == null && existing != null) {
                     mapped["cycle_id"] = existing.cycleId
-                    existing.cycleUuid?.let { mapped["cycle_uuid"] = it } ?: mapped.remove("cycle_uuid")
+                    // Only the already persisted LOCAL FK may fill an absent UUID cache.
+                    val cachedCycleUuid = existing.cycleUuid?.takeIf { it.isNotBlank() }
+                        ?: salaryCyclesDao.getById(existing.cycleId)?.localUuid?.takeIf { it.isNotBlank() }
+                    cachedCycleUuid?.let { mapped["cycle_uuid"] = it } ?: mapped.remove("cycle_uuid")
                     existing.employeeUuid?.let { mapped["employee_uuid"] = it } ?: mapped.remove("employee_uuid")
                 } else {
                     val cycle = resolveSalaryCycle(
@@ -494,7 +520,8 @@ class SyncIngestorRegistry @Inject constructor(
                         idKey = "employee_id",
                         rawId = asLong(mapped["employee_id"]),
                         existingId = existing?.employeeId,
-                        existingUuid = existing?.employeeUuid
+                        existingUuid = existing?.employeeUuid?.takeIf { it.isNotBlank() }
+                            ?: existing?.employeeId?.let { employeesDao.getByIdIncludingDeleted(it)?.localUuid }
                     )
                 ) return ApplyOutcome.Deferred
             }
@@ -509,15 +536,15 @@ class SyncIngestorRegistry @Inject constructor(
 
         // ─── تسلسل + LWW ───
         return try {
-            val clazz = entityClass(entity) ?: return ApplyOutcome.Skipped
+            val clazz = entityClass(entity) ?: return ApplyOutcome.Failed("unsupported_entity: $entity")
             normalizeBooleanWireFields(mapped, clazz)
             normalizeSyncVersionWireField(mapped)
             if (entity == "salary_withdrawals") normalizeSalaryWithdrawalFields(mapped)
             val entityGson = gsonFor(clazz)
             @Suppress("UNCHECKED_CAST")
             val remote = entityGson.fromJson(entityGson.toJson(mapped), clazz) as? BaseSyncEntity
-                ?: return ApplyOutcome.Skipped
-            if (remote.localUuid.isBlank()) return ApplyOutcome.Skipped
+                ?: return ApplyOutcome.Failed("invalid_record: $entity")
+            if (remote.localUuid.isBlank()) return ApplyOutcome.Failed("missing_local_uuid: $entity")
             val remoteLastModified = (record["last_modified"] as? Number)?.toLong() ?: 0L
 
             val existing = fetchExisting(entity, remote.localUuid)
@@ -548,8 +575,10 @@ class SyncIngestorRegistry @Inject constructor(
                 // المحلي أحدث (تعديل محلي لم يُرفع بعد) — نحتفظ به.
                 else -> ApplyOutcome.Skipped
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
-            ApplyOutcome.Failed("${entity}: ${e.message ?: e.javaClass.simpleName}")
+            ApplyOutcome.Failed("${entity}: ${e.javaClass.simpleName}")
         }
     }
 
