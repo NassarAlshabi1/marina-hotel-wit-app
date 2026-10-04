@@ -140,3 +140,79 @@ sync_timestamp, idempotency_key
 تجريبيًا: يُدرج صفًا بقيمة `vectorClock: '{"dev-b":9}'`، يُشغّل `uploadData`
 الفعلي مع `MockClient` يلتقط جسم الطلب، ثم يتحقق أن عبارة `INSERT OR REPLACE`
 المُرسلة فعليًا تحتوي `vector_clock` ضمن قائمة الأعمدة والقيمة الحرفية.
+
+## تحصين مسار D1 (2026-10-04) — فجوات تدقيق المسار الأربع
+
+**الفرع:** `fix/phase0-salary-link-hardening`
+**نوع الفحص:** تشخيص مصدري مباشر ثم إصلاح — بلا تخمين.
+
+### F1 — صفوف blacklist داخل رفع shift_notes إلى D1 (مؤكدة — أُصلحت)
+
+الخلل المثبت: مزامنة Appwrite تستبعد `createdBy='blacklist'` من رفع
+`shift_notes` وترسلها إلى مجموعة `blacklist` المستقلة (فلتر 2026-08-06 في
+`_getShiftNoteByLocalUuid`)، بينما كان مسار D1 يرفع كل صفوف `shift_notes`
+حرفيًا بـ `SELECT *` — وD1 بلا جدول `blacklist`. النتيجة: صفوف القائمة
+السوداء (ضيوف مرفوضون) تظهر في مرآة D1 داخل `shift_notes` — تفرّع مسار
+وتسريب بيانات.
+
+**وأُثبت أثناء التدقيق خلل جانبي أخطر:** `_processBlacklistEntry` كان يعيد
+استخدام نفس المُلقٍ المُفلتر بـ `'user'`، فيعيد NULL **دائمًا** لمدخلات
+blacklist في الـ outbox، فيدفع `_handleDeleteOp` tombstone يحذف مستند
+blacklist من السحابة عند كل رفع.
+
+الإصلاح:
+1. فصل المُلقيات: `_getBlacklistEntryByLocalUuid` بفلتر `'blacklist'` لمسار
+   الرفع السحابي (يعيد تدفق blacklist إلى عمله الصحيح)، و`'user'` يبقى لمسار
+   shift_notes.
+2. استبعاد الصفوف من رفع D1: الثابت `kShiftNotesD1ExclusionWhere`
+   (`created_by IS NULL OR created_by <> 'blacklist'`) يُطبق على العدّ
+   (COUNT) وعلى القراءة (readChunk) في وضعَي الرفع معًا — الجدول فيزيائيًا
+   واحد. الاستبعاد عرضي فقط: البيانات تبقى محلية، وAppwrite يبقى ناقلها
+   الرسمي إلى مجموعة `blacklist`.
+
+### F2 — app_users متزامنة بلا جدول محلي (مؤكدة — أُغلقت)
+
+`app_users` مجموعة متزامنة (رفع عبر `_processAppUserEntry`، سحب عبر
+`loadCloudAccounts`) لكن الحسابات تُخزن في SharedPreferences
+(`custom_accounts` + `user_permissions`) لا في Drift — لذلك لم يصلها مسار
+D1 أبدًا وفقُدت مرآة D1 دليل المستخدمين كاملًا.
+
+الإصلاح: جدول `app_users` **تركيبي** في مسار D1
+(`cloudflare_d1_app_users_source.dart`):
+- المصدر: الحسابات الثابتة (كودية) + الحسابات المحلية + الحسابات السحابية
+  best-effort بمهلة 10 ثوانٍ (عند انقطاع الشبكة تُرفع المحلية فقط بصمت).
+- الشكل: شكل مستند Appwrite (doc_id/username/full_name/user_type/role/
+  permissions/active/credentials_version/...).
+- الأمان: `password_hash` يحمل تجزئة PBKDF2 فقط (نفس مستوى السرية عند
+  Appwrite)؛ الحسابات الكودية (admin) تُصدَّر بلا تجزئة لأن اعتمادها
+  يُستعاد من الكود. لا نص صريح لكلمة مرور في أي مسار.
+- يظهر افتراضيًا ضمن "جداول مزامنة Appwrite" عبر `kD1SyntheticTables`.
+
+### F3 — حقول Phase 0 تصل D1 بلا إثبات (جزئية — أُثبتت)
+
+بنية المسار (`SELECT *` بلا قائمة بيضاء) تضمن وصول الأعمدة تلقائيًا، لكن
+لم يكن هناك اختبار يثبّت `employee_uuid` بالاسم عبر `uploadData` الحقيقي.
+أُضيف اختبار يدرج دورة/مسحوبة/مصروف رواتب بقيم مميزة ويثبت وصول
+`employee_uuid` وقيمته الحرفية، وأن `related_id` يصل `NULL` صراحةً (P0.4)
+بمطابقة العبارة كاملة حرفيًا.
+
+### F4 — «employeeUuid مفقود من salary_cycles على السحابة» (مرفوضة بتحفظ)
+
+الفحص المباشر أثبت أن `_filterPayload('salary_cycles')` يحتفظ بـ
+`employeeUuid` و`employeeLocalUuid`، و`collectionSchema` و
+`unified_appwrite_setup.js` يعرّفانهما (2026-09-19) — أي أن رفع Phase 0
+سليم. **الخلل الحقيقي:** مواصفات `appwrite_schema_verifier.dart` (زر
+"التحقق من Schema" + مولّد سكربتات إنشاء المجموعات الناقصة) كانت ناقصة
+`employeeUuid/employeeLocalUuid` في `salary_cycles` و`salary_carry_over_logs`،
+و`cycleLocalUuid/employeeUuid/employeeLocalUuid` في `salary_payments` —
+أي أن التحقق لا يكشف غيابها عن السحابة، وسكربت إنشاء جهاز جديد يُنشئ
+المجموعة بدونها فيُرفض رفع Phase 0 بـ 400. أُحاذيت المواصفات مع
+`collectionSchema` دون مساس بأنواع المبالغ التاريخية.
+
+### الاختبارات
+
+`test/unit/cloudflare_d1_upload_fields_test.dart`: 10/10 (5 قديمة + 5 جديدة
+تغطي F1/F2/F3 أعلاه). النتائج الكاملة وقت الإصلاح: analyze نظيف، ومجموعات
+services/unit/integration/auth/utils/screens/widget/performance خضراء
+بالكامل. ملاحظة: `test/delete_404_handling_test.dart` (جذر test/) فاشل
+مسبقًا على الفرع قبل هذه التغييرات — خارج نطاق هذا الإصلاح ويُتبع منفصلًا.

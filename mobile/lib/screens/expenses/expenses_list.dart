@@ -859,7 +859,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       // ✅ إصلاح: حذف سحب الراتب أولاً ثم المصروف — لحماية تكامل البيانات
       // إذا فشل حذف المصروف، سحب الراتب يبقى مرتبطاً (آمن)
       // إذا فشل حذف سحب الراتب بعد حذف المصروف، نحاول مرة أخرى
-      await salaryRepo.deleteByExpenseId(expense.id);
+      // ✅ (المرحلة 0 — P0.3) تمرير موظف المصروف كي لا يُحذف مسحوب جهاز/موظف
+      // آخر تصادم expense_id/reason رقمياً مع هذا المصروف (R3).
+      await salaryRepo.deleteByExpenseId(
+        expense.id,
+        employeeId: expense.relatedId,
+        employeeUuid: expense.employeeUuid,
+      );
       await repo.delete(expense.id);
 
       markDataChanged();
@@ -1284,9 +1290,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               hotelDayKey: updatedHotelDayKey,
               // ✅ المبلغ القديم الموقّع — للتبنّي بدل التكرار
               previousAmount: previousSignedAmount,
+              // ✅ (المرحلة 0 — P0.3) موظف المصروف السابق — كي تجد المرآة
+              // عند إعادة تعيين الموظف ولا تُنشأ مرآة ثانية مكررة.
+              previousEmployeeId: existing.relatedId,
             );
           } else {
-            await salaryRepo.deleteByExpenseId(existing.id);
+            // ✅ (المرحلة 0 — P0.3) تمرير موظف المصروف السابق (قبل التحويل
+            // من راتب لغير راتب — existing يحمل القيم قبل update) كي لا تُمسَّ
+            // مرآة أجنبية تصادم الرقم.
+            await salaryRepo.deleteByExpenseId(
+              existing.id,
+              employeeId: existing.relatedId,
+              employeeUuid: existing.employeeUuid,
+            );
           }
         }
 

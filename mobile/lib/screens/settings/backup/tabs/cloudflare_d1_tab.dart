@@ -3,13 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../providers/repository_providers.dart';
+import '../../../../services/auth_local_store.dart';
+import '../../../../services/cloudflare_d1_app_users_source.dart';
 import '../../../../services/cloudflare_d1_service.dart';
 import '../../../../services/daos/outbox_dao.dart';
 
 /// الجداول المحلية المطابقة لمجموعات Appwrite Cloud (collections) —
 /// مشتقة من خريطة `_entityToCollectionId` في AppwriteSyncManager ومن دورة
-/// السحب الفعلية. بيانات blacklist تُخزّن محلياً داخل shift_notes، و
-/// app_users بلا جدول محلي (AuthLocalStore) — لذا لا جدول مستقل لهما هنا.
+/// السحب الفعلية. بيانات blacklist تُخزّن محلياً داخل shift_notes (بعد
+/// فلترة createdBy='blacklist' — انظر kShiftNotesD1ExclusionWhere)، و
+/// app_users يُرفع كجدول تركيبي (kD1SyntheticTables) لأنه بلا جدول Drift
+/// محلي (AuthLocalStore في SharedPreferences).
 const Set<String> kAppwriteSyncedTables = <String>{
   'rooms',
   'bookings',
@@ -33,6 +37,23 @@ const Set<String> kAppwriteSyncedTables = <String>{
   'inventory_items',
   'inventory_transactions',
 };
+
+/// ✅ D1-path audit fix (2026-10-04) — الفجوة F1:
+/// مرآة D1 لجدول shift_notes يجب أن تطابق محتوى مجموعة shift_notes على
+/// Appwrite: صفوف القائمة السوداء (created_by='blacklist') تُستبعد من
+/// الرفع لأن مزامنة Appwrite توجهها إلى مجموعة `blacklist` المستقلة،
+/// بينما لا يوجد جدول blacklist في D1 — رفعها داخل shift_notes كان يُنشئ
+/// تفرّعاً في المسار (وهو ما يعرض بيانات ضيوف القائمة السوداء في مرآة
+/// مخصصة للملاحظات). الفلتر يُطبق في وضعي الرفع (جداول المزامنة والكل)
+/// لأن الجدول فيزيائياً واحد.
+const String kShiftNotesD1ExclusionWhere =
+    "(created_by IS NULL OR created_by <> 'blacklist')";
+
+/// الجداول التركيبية في مسار D1 — مجموعات Appwrite متزامنة بلا جدول Drift
+/// محلي، تُبنى صفوفها من مصدرها المحلي الخاص بدلاً من SELECT *.
+/// - app_users: من AuthLocalStore (custom_accounts + user_permissions +
+///   best-effort سحابي) — انظر cloudflare_d1_app_users_source.dart.
+const Set<String> kD1SyntheticTables = <String>{'app_users'};
 
 /// تبويب رفع البيانات المحلية (المسحوبة من Appwrite) إلى Cloudflare D1.
 ///
@@ -222,9 +243,14 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
 
       final tables = <_LocalTableInfo>[];
       for (final n in names) {
+        // ✅ F1 (2026-10-04): صفوف blacklist داخل shift_notes لا تُحسب
+        // لأنها مستبعدة من الرفع (نفس فلتر readChunk أدناه).
+        final countWhere = n == 'shift_notes'
+            ? 'WHERE $kShiftNotesD1ExclusionWhere'
+            : '';
         final countRows = await db
             .customSelect(
-              'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}"',
+              'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}" $countWhere',
             )
             .get();
         final count = (countRows.first.data['n'] as int?) ?? 0;
@@ -235,6 +261,29 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
             createSqlList: ddlByTable[n] ?? const <String>[],
           ),
         );
+      }
+
+      // ✅ F2 (2026-10-04): app_users جدول تركيبي — مجموعته متزامنة مع
+      // Appwrite لكنها بلا جدول Drift. يُعرض بعدد الصفوف المحلية (بلا
+      // شبكة)، وعند الرفع يُجمع من جديد شاملاً الحسابات السحابية.
+      if (names.contains('app_users')) {
+        // غير متوقع — جدول Drift بنفس الاسم يغني عن التركيبي.
+      } else {
+        try {
+          final appUsersRows = await AuthLocalStore().exportAppUsersD1Rows(
+            includeCloud: false,
+          );
+          tables.add(
+            _LocalTableInfo(
+              name: 'app_users',
+              rowCount: appUsersRows.length,
+              createSqlList: const [kAppUsersD1CreateSql],
+            ),
+          );
+        } catch (e) {
+          // فشل التصدير لا يعطل بقية الجداول — يُسجل ويُتخطى.
+          debugPrint('D1: تعذر تجهيز صفوف app_users التركيبية: $e');
+        }
       }
       if (!mounted) return;
       setState(() {
@@ -254,10 +303,15 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   }
 
   /// الجداول الظاهرة حسب وضع التصفية (مزامنة Appwrite فقط / الكل).
+  /// تشمل الجداول التركيبية (app_users) في الوضعين — مجموعتها متزامنة.
   List<_LocalTableInfo> get _visibleTables {
     if (!_appwriteOnly) return _localTables;
     return _localTables
-        .where((t) => kAppwriteSyncedTables.contains(t.name))
+        .where(
+          (t) =>
+              kAppwriteSyncedTables.contains(t.name) ||
+              kD1SyntheticTables.contains(t.name),
+        )
         .toList();
   }
 
@@ -311,10 +365,41 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     final service = CloudflareD1Service(_config);
     _activeService = service;
 
+    final infoLogs = <String>[];
     final sources = <CloudflareD1SourceTable>[];
+
+    // ✅ F2 (2026-10-04): الجدول التركيبي app_users — يُجمع قبل الرفع
+    // (شاملاً الحسابات السحابية best-effot بمهلة قصيرة) ليعرف الرفع
+    // عدد الصفوف الحقيقي مسبقاً (شرط حلقة الترقيم في uploadData).
+    if (_selected.contains('app_users')) {
+      try {
+        final appUsersRows = await AuthLocalStore().exportAppUsersD1Rows(
+          includeCloud: true,
+        );
+        infoLogs.add('app_users: ${appUsersRows.length} حساب (محلي + سحابي)');
+        sources.add(
+          CloudflareD1SourceTable(
+            name: 'app_users',
+            rowCount: appUsersRows.length,
+            createSqlList: const [kAppUsersD1CreateSql],
+            readChunk: (limit, offset) async =>
+                sliceRows(appUsersRows, limit, offset),
+          ),
+        );
+      } catch (e) {
+        infoLogs.add('app_users: فشل التجهيز — طُلب من الرفع: $e');
+      }
+    }
+
     for (final t in _localTables) {
       if (!_selected.contains(t.name)) continue;
+      if (t.name == 'app_users') continue; // تركيبي — عولج أعلاه
       final table = t;
+      // ✅ F1 (2026-10-04): استبعاد صفوف blacklist من shift_notes
+      // (تفصيل الفجوة F1 في توثيق kShiftNotesD1ExclusionWhere).
+      final where = table.name == 'shift_notes'
+          ? 'WHERE $kShiftNotesD1ExclusionWhere'
+          : '';
       sources.add(
         CloudflareD1SourceTable(
           name: table.name,
@@ -323,7 +408,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           readChunk: (limit, offset) async {
             final rows = await db
                 .customSelect(
-                  'SELECT * FROM "${table.name.replaceAll('"', '""')}" LIMIT ? OFFSET ?',
+                  'SELECT * FROM "${table.name.replaceAll('"', '""')}" $where '
+                  'LIMIT ? OFFSET ?',
                   variables: [
                     Variable.withInt(limit),
                     Variable.withInt(offset),
@@ -341,7 +427,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       _progress = 0;
       _stage = 'بدء الرفع...';
       _result = null;
-      _logs.clear();
+      _logs
+        ..clear()
+        ..addAll(infoLogs);
     });
 
     try {

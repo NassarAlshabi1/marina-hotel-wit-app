@@ -9,6 +9,7 @@ import '../utils/app_logger.dart';
 import '../utils/id.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart';
+import 'cloudflare_d1_app_users_source.dart';
 import 'password_hasher.dart';
 
 enum AuthType { local }
@@ -158,6 +159,72 @@ class AuthLocalStore {
       );
     }
     return {};
+  }
+
+  /// ✅ D1-path audit fix (2026-10-04) — الفجوة F2:
+  /// تصدير صفوف مرآة `app_users` لرفع Cloudflare D1.
+  ///
+  /// لا يوجد جدول Drift للمستخدمين (يُحفظون في SharedPreferences)، لذا
+  /// يبني مسار D1 جدولاً تركيبياً من:
+  /// 1. الحسابات الثابتة في الكود (بلا تجزئة كلمة مرور).
+  /// 2. الحسابات المحلية المخصصة (تجزئة PBKDF2 كما هي مخزنة).
+  /// 3. الحسابات السحابية عبر `loadCloudAccounts` — best-effort مع مهلة:
+  ///    عند انقطاع الشبكة تُصدَّر النسخة المحلية فقط بصمت.
+  ///
+  /// ترجع صفوفاً جاهزة للرفع بشكل مستند Cloud (انظر
+  /// `buildAppUsersBackupRows`) — لا نصوص كلمات مرور صريحة إطلاقاً.
+  Future<List<Map<String, Object?>>> exportAppUsersD1Rows({
+    bool includeCloud = true,
+    Duration cloudTimeout = const Duration(seconds: 10),
+    String? exportedAtIso,
+  }) async {
+    final localAccounts = await _loadCustomAccounts();
+
+    final prefs = await SharedPreferences.getInstance();
+    final permissionsByUser = <String, dynamic>{};
+    final rawPerms = prefs.getString(_kPermissionsMap);
+    if (rawPerms != null && rawPerms.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawPerms);
+        if (decoded is Map) {
+          decoded.forEach((k, v) => permissionsByUser[k.toString()] = v);
+        }
+      } catch (e, st) {
+        AppLogger.warning(
+          'فشل قراءة خريطة الصلاحيات لتصدير D1',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+
+    Map<String, dynamic> cloudAccounts = <String, dynamic>{};
+    if (includeCloud) {
+      try {
+        final loaded = await loadCloudAccounts(
+          includeInactive: true,
+        ).timeout(cloudTimeout);
+        cloudAccounts = loaded;
+      } catch (e) {
+        // عدم توفر الشبكة ليس فشلاً — تُصدَّر الحسابات المحلية فقط.
+        AppLogger.info(
+          'تعذر جلب حسابات Cloud لتصدير D1 (تُرفع المحلية فقط): $e',
+          tag: 'AUTH',
+        );
+      }
+    }
+
+    final nowIso = exportedAtIso ?? DateTime.now().toUtc().toIso8601String();
+    return buildAppUsersBackupRows(
+      AppUsersBackupInputs(
+        localAccounts: localAccounts,
+        cloudAccounts: cloudAccounts,
+        permissionsByUser: permissionsByUser,
+        fixedAccounts: _fixedAccounts,
+        exportedAtIso: nowIso,
+      ),
+    );
   }
 
   Future<void> _saveCustomAccounts(Map<String, dynamic> accounts) async {

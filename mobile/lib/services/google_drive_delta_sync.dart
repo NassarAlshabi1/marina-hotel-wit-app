@@ -9,6 +9,7 @@ import '../utils/id.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
+import 'appwrite_logger.dart';
 import 'delta_sync_service.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
@@ -24,6 +25,11 @@ enum _DeltaSyncStartResult { ok, notInitialized, alreadySyncing, notSignedIn }
 class GoogleDriveDeltaSync {
   GoogleDriveDeltaSync._();
   static final instance = GoogleDriveDeltaSync._();
+
+  /// ✅ (ت1 المكملة 2026-10-04) مسجّل تحذيرات إسقاط الكيانات — إسقاط
+  /// أي تغيير واصل من ملف الدلتا يجب أن يكون معلَناً لا صامتاً
+  /// (قاعدة R7: نمط case اليدوي كان يُسقط كيانات كاملة دون أثر).
+  final _logger = AppwriteLogger();
 
   GoogleDriveBackupService? _driveService;
   DeltaSyncService? _deltaSyncService;
@@ -316,6 +322,21 @@ class GoogleDriveDeltaSync {
     }
   }
 
+  /// ✅ (المرحلة 0 — P0.6 / R7) جسر اختبار لمسار تطبيق تغييرات Delta
+  /// دون Google Drive: يحقن القاعدة والمخزن ثم يستدعي _applyDeltaChanges
+  /// الإنتاجي نفسه. يُثبت أن salary_withdrawals/salary_carry_over_logs
+  /// تُطبَّق الآن بدل إسقاطها صامتاً لعدم وجود case لهما في _applyChange.
+  @visibleForTesting
+  Future<int> applyChangesForTesting(
+    AppDatabase db,
+    AdapterRegistry registry,
+    Map<String, dynamic> deltaData,
+  ) async {
+    _database = db;
+    _adapterRegistry = registry;
+    return _applyDeltaChanges(deltaData);
+  }
+
   Future<int> _applyDeltaChanges(Map<String, dynamic> deltaData) async {
     final changes = deltaData['changes'] as List<dynamic>?;
     if (changes == null || changes.isEmpty) {
@@ -325,16 +346,44 @@ class GoogleDriveDeltaSync {
     return _database!.transaction(() async {
       final sortedChanges = _sortChangesByDependency(changes);
       int applied = 0;
+      final skipped = <String, int>{}; // entity → عدد المُسقَط
 
       for (final change in sortedChanges) {
         final entity = change['entity'] as String;
         final op = change['op'] as String;
         final data = change['data'] as Map<String, dynamic>;
 
-        await _applyChange(entity, op, data);
-        applied++;
+        // ✅ (ت1 المكملة) العدّ بعد التطبيق الفعلي لا قبله — الكيان غير
+        // المغطى أو الحمولة بلا local_uuid لا تُحصى applied. فشل البند
+        // الواحد (FK/UNIQUE/بيانات) يُسقط **معلَناً** ويُكمل الدفعة بدل
+        // هدم الـ transaction كاملاً عالقاً الملف على بند واحد.
+        try {
+          final ok = await _applyChange(entity, op, data);
+          if (ok) {
+            applied++;
+          } else {
+            skipped[entity] = (skipped[entity] ?? 0) + 1;
+          }
+        } catch (e, st) {
+          skipped[entity] = (skipped[entity] ?? 0) + 1;
+          _logger.error(
+            '⛔ Drive delta: فشل تطبيق $entity (op=$op) — '
+            'أُسقط معلَناً والدُفعة تُكمل: $e',
+            tag: 'DRIVE_DELTA',
+            error: e,
+            stackTrace: st,
+          );
+        }
       }
 
+      if (skipped.isNotEmpty) {
+        final totalSkipped = skipped.values.fold<int>(0, (a, b) => a + b);
+        _logger.warning(
+          '⚠️ Drive delta: طُبِّق $applied وأُسقط $totalSkipped '
+          'تغيير: $skipped — راجع تفاصيل التحذيرات أعلاه',
+          tag: 'DRIVE_DELTA',
+        );
+      }
       dlog(() => '✅ تم تطبيق $applied تغيير بنجاح داخل transaction واحدة');
       return applied;
     });
@@ -377,27 +426,42 @@ class GoogleDriveDeltaSync {
     return index == -1 ? 999 : index;
   }
 
-  Future<void> _applyChange(
+  /// ✅ (ت1 المكملة 2026-10-04) تطبيق تغيير واحد — تعيد true فقط عند
+  /// كتابة فعلية (upsert > 0). الكيانات الأربعة المفقودة سابقاً
+  /// (guest_infos, inventory_items, inventory_transactions,
+  /// booking_price_adjustments) أُضيفت — كانت يصلها من المنتج
+  /// (delta_sync_service يصدّرها جميعاً) وتُسقط هنا بصمت.
+  /// أي كيان غير مغطى يُسقط الآن **معلَناً** (تحذير + إحصاء) لا صامتاً.
+  Future<bool> _applyChange(
     String entity,
     String operation,
     Map<String, dynamic> data,
   ) async {
     if (_database == null || _adapterRegistry == null) {
-      return;
+      _logger.warning(
+        '⚠️ Drive delta: تغيير $entity/$operation مُسقط — '
+        'القاعدة/سجل المحولات غير مهيأة',
+        tag: 'DRIVE_DELTA',
+      );
+      return false;
     }
     final db = _database!;
     final registry = _adapterRegistry!;
     final localUuid =
         _asString(data['local_uuid']) ?? _asString(data['localUuid']) ?? '';
     if (localUuid.isEmpty) {
-      return;
+      _logger.warning(
+        '⚠️ Drive delta: تغيير $entity/$operation مُسقط — '
+        'local_uuid مفقود في الحمولة (بيانات تالفة أو مُنتِج قديم)',
+        tag: 'DRIVE_DELTA',
+      );
+      return false;
     }
 
     dlog(() => '🔄 تطبيق $operation على $entity/$localUuid');
 
     if (operation == 'delete') {
-      await _deleteEntity(db, entity, localUuid);
-      return;
+      return _deleteEntity(db, entity, localUuid);
     }
 
     final payload = Map<String, dynamic>.from(data);
@@ -405,48 +469,146 @@ class GoogleDriveDeltaSync {
 
     switch (entity) {
       case 'rooms':
-        await registry.rooms.upsertFromJson(payload, src: Source.drive);
+        return await registry.rooms.upsertFromJson(payload, src: Source.drive) >
+            0;
       case 'bookings':
-        await registry.bookings.upsertFromJson(payload, src: Source.drive);
+        return await registry.bookings.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'payments':
-        await registry.payments.upsertFromJson(payload, src: Source.drive);
+        return await registry.payments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'expenses':
-        await registry.expenses.upsertFromJson(payload, src: Source.drive);
+        return await registry.expenses.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'debts':
-        await registry.debts.upsertFromJson(payload, src: Source.drive);
+        return await registry.debts.upsertFromJson(payload, src: Source.drive) >
+            0;
       case 'employees':
-        await registry.employees.upsertFromJson(payload, src: Source.drive);
+        return await registry.employees.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'booking_notes':
-        await registry.bookingNotes.upsertFromJson(payload, src: Source.drive);
+        return await registry.bookingNotes.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'booking_nights':
-        await registry.nights.upsertFromJson(payload, src: Source.drive);
+        return await registry.nights.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'salary_cycles':
-        await registry.salaryCycles.upsertFromJson(payload, src: Source.drive);
+        return await registry.salaryCycles.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'salary_payments':
-        await registry.salaryPayments.upsertFromJson(
-          payload,
-          src: Source.drive,
-        );
+        return await registry.salaryPayments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
+      // ✅ (المرحلة 0 — P0.6 / R7) الجدولان كانا يصلان من المنتج
+      // (delta_sync_service يصدر تغييراتهما) وتُسقطهما هذه الدالة بصمت
+      // لعدم وجود case لهما — تغييرات رواتب كاملة كانت تختفي دون تطبيق.
+      case 'salary_withdrawals':
+        return await registry.salaryWithdrawals.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
+      case 'salary_carry_over_logs':
+        return await registry.salaryCarryOverLogs.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'cash_transactions':
-        await registry.cashTransactions.upsertFromJson(
-          payload,
-          src: Source.drive,
-        );
+        return await registry.cashTransactions.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'shift_notes':
-        await registry.shiftNotes.upsertFromJson(payload, src: Source.drive);
+        return await registry.shiftNotes.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'price_adjustments':
-        await registry.priceAdjustments.upsertFromJson(
-          payload,
-          src: Source.drive,
-        );
+        return await registry.priceAdjustments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'audit_logs':
-        await registry.auditLogs.upsertFromJson(payload, src: Source.drive);
+        return await registry.auditLogs.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'payment_voids':
-        await registry.paymentVoids.upsertFromJson(payload, src: Source.drive);
+        return await registry.paymentVoids.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
+      // ✅ (ت1 المكملة 2026-10-04) الكيانات الأربعة المتبقية — كانت تُسقط
+      // بصمت رغم أن المُنتِج يصدّرها (delta_sync_service أسطر 363/372/427/509).
+      case 'guest_infos':
+        return await registry.guestInfos.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
+      case 'inventory_items':
+        return await registry.inventoryItems.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
+      case 'inventory_transactions':
+        return await registry.inventoryTransactions.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
+      case 'booking_price_adjustments':
+        return await registry.bookingPriceAdjustments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
+      default:
+        _logger.warning(
+          '⛔ Drive delta: كيان غير مدعوم في التطبيق — إسقاط معلن: '
+          '$entity (op=$operation, localUuid=$localUuid). '
+          'أضف case له في _applyChange و_deleteEntity',
+          tag: 'DRIVE_DELTA',
+        );
+        return false;
     }
   }
 
-  Future<void> _deleteEntity(
+  /// ✅ (ت1 المكملة 2026-10-04) تعيد true عند تنفيذ حذف فعلي. الكيانات
+  /// غير المالية تُحذف حذفاً نهائياً (مطابقة لسلوكها الحالي)، والجداول
+  /// المالية تبقى حذفاً ناعماً فقط (مبدأ 2 في العقد). الكيان غير المغطى
+  /// يُسقط معلَناً (تحذير) لا صامتاً.
+  Future<bool> _deleteEntity(
     AppDatabase db,
     String entity,
     String localUuid,
@@ -456,72 +618,134 @@ class GoogleDriveDeltaSync {
         await (db.delete(
           db.rooms,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'bookings':
         await (db.delete(
           db.bookings,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'payments':
         await (db.delete(
           db.payments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'expenses':
         await (db.delete(
           db.expenses,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'debts':
         await (db.delete(
           db.debts,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'employees':
         await (db.delete(
           db.employees,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'booking_notes':
         await (db.delete(
           db.bookingNotes,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'booking_nights':
         await (db.delete(
           db.bookingNights,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'salary_cycles':
         await (db.delete(
           db.salaryCycles,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'salary_payments':
         await (db.delete(
           db.salaryPayments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
+      // ✅ (المرحلة 0 — P0.6 / R7) جداول مالية: حذف ناعم فقط — لا DELETE
+      // نهائي لبيانات رواتب مهما كان مصدر العملية (مبدأ 2 في العقد).
+      // مسار دفاعي: المنتج الحالي لا يصدر op='delete' (الحذف يصل كـ
+      // update بـ deleted_at ويُعالَجه upsertFromJson)، لكننا لا نترك
+      // مساراً محلياً قادراً على الحذف الفعلي لسجل مالي.
+      case 'salary_withdrawals':
+        // ✅ (مراجعة kilo 2026-10-04) رفع version+1 — اتساق مع
+        // deleteByExpenseId وحماية الإصلاح من طمس LWW السحابي.
+        await db.customStatement(
+          'UPDATE salary_withdrawals SET deleted_at = ?, last_modified = ?, '
+          'updated_at = ?, version = version + 1 '
+          'WHERE local_uuid = ? AND deleted_at IS NULL',
+          [
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            localUuid,
+          ],
+        );
+        return true;
+      case 'salary_carry_over_logs':
+        await db.customStatement(
+          'UPDATE salary_carry_over_logs SET deleted_at = ?, last_modified = ?, '
+          'updated_at = ?, version = version + 1 '
+          'WHERE local_uuid = ? AND deleted_at IS NULL',
+          [
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            localUuid,
+          ],
+        );
+        return true;
       case 'cash_transactions':
         await (db.delete(
           db.cashTransactions,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'shift_notes':
         await (db.delete(
           db.shiftNotes,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'price_adjustments':
         await (db.delete(
           db.priceAdjustments,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
       case 'payment_voids':
         await (db.delete(
           db.paymentVoids,
         )..where((t) => t.localUuid.equals(localUuid))).go();
-        return;
+        return true;
+      // ✅ (ت1 المكملة 2026-10-04) الكيانات الأربعة المتبقية — حذف نهائي
+      // (غير مالية، مطابقة لسلوك الجداول الشقيقة كالليالي والتعديلات).
+      case 'guest_infos':
+        await (db.delete(
+          db.guestInfos,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
+        return true;
+      case 'inventory_items':
+        await (db.delete(
+          db.inventoryItems,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
+        return true;
+      case 'inventory_transactions':
+        await (db.delete(
+          db.inventoryTransactions,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
+        return true;
+      case 'booking_price_adjustments':
+        await (db.delete(
+          db.bookingPriceAdjustments,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
+        return true;
+      default:
+        _logger.warning(
+          '⛔ Drive delta: حذف لكيان غير مدعوم — إسقاط معلن: '
+          '$entity (localUuid=$localUuid). أضف case له في _deleteEntity',
+          tag: 'DRIVE_DELTA',
+        );
+        return false;
     }
   }
 
