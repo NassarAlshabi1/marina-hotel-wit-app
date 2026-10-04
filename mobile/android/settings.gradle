@@ -8,3 +8,8 @@ pluginManagement {
 
 rootProject.name = "marina_hotel_mobile"
 include ':app'
+
+// Opt-in keeps normal release/unit-test builds independent of benchmark tooling.
+if (providers.gradleProperty('enableMacrobenchmark').isPresent()) {
+    include ':macrobenchmark'
+}
