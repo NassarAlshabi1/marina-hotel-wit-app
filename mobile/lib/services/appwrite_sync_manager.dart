@@ -4086,19 +4086,18 @@ class AppwriteSyncManager {
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
 
-        // ✅ كتابة expense_id في العمود الخام (Migration 40+)
-        // العمود ليس في الـ data class المُولّد لذلك نكتبه يدوياً
-        final remoteExpenseId = _asIntSafe(data, 'expenseId');
-        if (remoteExpenseId != null && remoteExpenseId > 0) {
-          final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
-          if (swAdapter is SalaryWithdrawalsAdapter) {
-            await swAdapter.writeExpenseIdRaw(
-              database,
-              insertedId,
-              remoteExpenseId,
-            );
-          }
-        }
+        // ✅ (migration 68) كتابة expense_id في العمود الخام (Migration 40+)
+        // العمود ليس في الـ data class المُولّد لذلك نكتبه يدوياً.
+        // ✅ الآن بحل uuid المرآة أولاً: expense_id الخام من جهاز المصدر
+        // لا يصلح عبر الأجهزة (autoincrement معاد الترقيم) — إصلاح جذر
+        // انكسار رابط سحبة↔مصروف (643/688 زوجاً خاطئاً على السحابة).
+        await _resolveAndWriteMirrorExpenseId(
+          insertedId,
+          expenseUuid: _asNullableString(
+            data['expenseUuid'] ?? data['expense_uuid'],
+          ),
+          rawExpenseId: _asIntSafe(data, 'expenseId'),
+        );
 
         // ✅ Wave 7 tighten: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
@@ -4153,18 +4152,15 @@ class AppwriteSyncManager {
         try {
           final deferredInsertedId = await _adapterRegistry.salaryWithdrawals
               .upsertFromJson(data, src: Source.appwrite);
-          // ✅ كتابة expense_id في العمود الخام
-          final deferredExpenseId = _asIntSafe(data, 'expenseId');
-          if (deferredExpenseId != null && deferredExpenseId > 0) {
-            final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
-            if (swAdapter is SalaryWithdrawalsAdapter) {
-              await swAdapter.writeExpenseIdRaw(
-                database,
-                deferredInsertedId,
-                deferredExpenseId,
-              );
-            }
-          }
+          // ✅ (migration 68) كتابة expense_id عبر حل uuid المرآة أولاً
+          // (نفس منطق الموقع الرئيسي أعلاه — راجع التوثيق هناك).
+          await _resolveAndWriteMirrorExpenseId(
+            deferredInsertedId,
+            expenseUuid: _asNullableString(
+              data['expenseUuid'] ?? data['expense_uuid'],
+            ),
+            rawExpenseId: _asIntSafe(data, 'expenseId'),
+          );
           // ✅ Wave 7 tighten: notify remote change from another device
           await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
             entity: 'salary_withdrawals',
@@ -4281,6 +4277,126 @@ class AppwriteSyncManager {
     return (database.select(
       database.salaryWithdrawals,
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  }
+
+  /// ✅ (migration 68) تحويل قيمة JSON إلى نص nullable بشكل آمن.
+  static String? _asNullableString(Object? value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  /// ✅ (migration 68) حل رابط المرآة سحبة→مصروف وكتابة expense_id الخام.
+  ///
+  /// المستوى 1 (الموثوق قطعياً): expense_uuid → expenses.local_uuid.
+  /// UUID هو هوية ثابتة عبر الأجهزة، فيُحل دائماً إلى المصروف الصحيح
+  /// (بعد وصول المصروف محلياً — المصروفات تُسحب قبل السحبات).
+  ///
+  /// المستوى 2 (احتياطي للسجلات القديمة قبل ترحيل السحابة): expense_id
+  /// الخام من جهاز المصدر — نفس السلوك التاريخي. تُترك القيمة الخام
+  /// للترحيل 68 + _relinkMirrorExpenseIds لتصحيحها لاحقاً.
+  ///
+  /// ⚠️ إذا وُجد expense_uuid لكن المصروف لم يصل محلياً بعد، لا نكتب
+  /// الرابط الخام (معروف بأنه غير موثوق عبر الأجهزة) — العمود يبقى null
+  /// وexpense_uuid محفوظ في عمود السحبة نفسه، و_relinkMirrorExpenseIds
+  /// يُصلح الرابط في دورة لاحقة بعد وصول المصروف.
+  Future<void> _resolveAndWriteMirrorExpenseId(
+    int salaryWithdrawalRowId, {
+    String? expenseUuid,
+    int? rawExpenseId,
+  }) async {
+    int? resolvedExpenseId;
+    if (expenseUuid != null && expenseUuid.isNotEmpty) {
+      try {
+        final linkedExpense =
+            await (database.select(database.expenses)
+                  ..where((e) => e.localUuid.equals(expenseUuid))
+                  ..limit(1))
+                .getSingleOrNull();
+        resolvedExpenseId = linkedExpense?.id;
+      } catch (e) {
+        _logger.warning(
+          '⚠️ فشل حل expense_uuid=$expenseUuid للسحبة '
+          '#$salaryWithdrawalRowId: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    // المستوى 2: بلا uuid (سجلات قديمة) → القيمة الخام كما في السلوك السابق
+    final effectiveExpenseId = resolvedExpenseId ?? rawExpenseId;
+    if (effectiveExpenseId != null && effectiveExpenseId > 0) {
+      final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
+      if (swAdapter is SalaryWithdrawalsAdapter) {
+        await swAdapter.writeExpenseIdRaw(
+          database,
+          salaryWithdrawalRowId,
+          effectiveExpenseId,
+        );
+      }
+    }
+  }
+
+  /// ✅ (migration 68) إصلاح روابط المرآة salary_withdrawals.expense_id
+  /// عبر expense_uuid المخزّن على السحبة نفسه — يُشغَّل في كل دورة مزامنة
+  /// بعد سحب المصروفات، فيصلح الروابط التي وصل مصروفها متأخراً، وكذلك
+  /// يصحح الروابط الخاطئة المكتوبة تاريخياً (expense_id يشير إلى مصروف
+  /// محلي لا يطابق expense_uuid).
+  /// يعيد عدد الروابط المُصلحة.
+  Future<int> _relinkMirrorExpenseIds() async {
+    var relinked = 0;
+    try {
+      // سحبات لها expense_uuid لكن expense_id مفقود أو يشير إلى مصروف
+      // محلي لا يساوي المصروف صاحب الـ uuid (رابط خاطئ أو يتيم).
+      final rows = await database
+          .customSelect(
+            'SELECT w.id AS wid, w.expense_id AS current_expense_id, '
+            'w.expense_uuid AS expense_uuid, '
+            '(SELECT e.id FROM expenses e WHERE e.local_uuid = w.expense_uuid '
+            '  AND e.deleted_at IS NULL LIMIT 1) AS resolved_expense_id '
+            'FROM salary_withdrawals w '
+            'WHERE w.expense_uuid IS NOT NULL '
+            "AND w.expense_uuid != '' "
+            'AND w.deleted_at IS NULL '
+            'AND (w.expense_id IS NULL OR w.expense_id NOT IN '
+            '  (SELECT e2.id FROM expenses e2 '
+            "   WHERE e2.local_uuid = w.expense_uuid AND e2.deleted_at IS NULL))",
+          )
+          .get();
+      for (final row in rows) {
+        final wid = row.read<int>('wid');
+        final resolved = row.read<int?>('resolved_expense_id');
+        final current = row.read<int?>('current_expense_id');
+        if (resolved == null) {
+          // المصروف لم يصل بعد — يُعاد الفحص في الدورة التالية
+          continue;
+        }
+        if (current == resolved) continue;
+        await database.customStatement(
+          'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+          [resolved, wid],
+        );
+        relinked++;
+        _logger.debug(
+          '🩹 إصلاح رابط المرآة: السحبة #$wid كانت expense_id=$current '
+          '→ أصبحت #$resolved وفق expense_uuid',
+          tag: 'SYNC_RELINK',
+        );
+      }
+      if (relinked > 0) {
+        _logger.info(
+          '✅ إصلاح $relinked رابط مرآة سحبة→مصروف عبر expense_uuid',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إصلاح روابط المرآة عبر expense_uuid',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
+      );
+    }
+    return relinked;
   }
 
   Map<String, dynamic> _roomToRemote(Room room) =>
@@ -5214,7 +5330,24 @@ class AppwriteSyncManager {
           queries: plan.queries,
           useCache: false,
         ),
-        apply: (docs) => _syncExpenses(docs),
+        apply: (docs) async {
+          final synced = await _syncExpenses(docs);
+          // ✅ (migration 68) بعد وصول المصروفات: أصلح روابط المرآة
+          // salary_withdrawals.expense_id عبر expense_uuid — يغطي السحبات
+          // التي سبق مصروفها (أو كُتب رابطها الخام الخاطئ تاريخياً).
+          try {
+            await _relinkMirrorExpenseIds();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkMirrorExpenseIds فشل بعد سحب المصروفات — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
+          }
+          return synced;
+        },
       ),
       CollectionPullTask(
         name: 'booking_nights',

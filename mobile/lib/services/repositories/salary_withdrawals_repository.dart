@@ -46,6 +46,52 @@ class SalaryWithdrawalsRepository {
     return d.Value(employee.localUuid);
   }
 
+  /// ✅ (migration 68) جلب UUID المصروف من قاعدة البيانات المحلية —
+  /// الرابط الدائم سحبة→مصروف الذي ينجو من إعادة ترقيم المعرفات.
+  Future<d.Value<String>> _expenseUuidFor(int expenseId) async {
+    final expense =
+        await (_db.select(_db.expenses)
+              ..where((e) => e.id.equals(expenseId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (expense == null || expense.localUuid.isEmpty) {
+      return const d.Value.absent();
+    }
+    return d.Value(expense.localUuid);
+  }
+
+  /// ✅ (migration 68) ختم الرابط العكسي على المصروف: withdrawal_uuid =
+  /// local_uuid للسحبة المرآة. يُحدّث الصف المحلي + يدمج عنصر outbox
+  /// (op:update) ليت propagate للسحابة — دفع المصروفات يعيد بناء الحزمة
+  /// من الصف الكامل (expenseToRemote) الذي يضمّن withdrawalUuid.
+  Future<void> _stampExpenseMirrorLink(
+    int expenseId,
+    String withdrawalUuid,
+    int now, {
+    String? expenseLocalUuid,
+    int? expenseServerId,
+  }) async {
+    try {
+      await _db.customStatement(
+        'UPDATE expenses SET withdrawal_uuid = ? '
+        'WHERE id = ? AND (withdrawal_uuid IS NULL OR withdrawal_uuid != ?)',
+        [withdrawalUuid, expenseId, withdrawalUuid],
+      );
+      if (expenseLocalUuid != null && expenseLocalUuid.isNotEmpty) {
+        await _outboxDao.merge(
+          entity: 'expenses',
+          op: 'update',
+          localUuid: expenseLocalUuid,
+          serverId: expenseServerId,
+          payload: {'lastModified': now},
+          clientTs: now,
+        );
+      }
+    } catch (_) {
+      // العمود قد لا يكون موجوداً في إصدارات قديمة جداً — لا نعطل الإنشاء
+    }
+  }
+
   /// إنشاء سجل سحب راتب مرتبط بمصروف
   ///
   /// ✅ (2026-09-14) إسناد السحبة لمسجّلها:
@@ -70,6 +116,10 @@ class SalaryWithdrawalsRepository {
     final deviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
     // ✅ (2026-09-19) UUID الموظف عند الإنشاء — الربط الدائم عبر الأجهزة
     final employeeUuid = await _employeeUuidFor(employeeId);
+    // ✅ (migration 68) UUID المصروف عند الإنشاء — الرابط الدائم سحبة→مصروف
+    final expenseUuid = expenseId > 0
+        ? await _expenseUuidFor(expenseId)
+        : const d.Value<String>.absent();
 
     final id = await _db.transaction(() async {
       final companion = SalaryWithdrawalsCompanion(
@@ -78,6 +128,8 @@ class SalaryWithdrawalsRepository {
         employeeId: d.Value(employeeId),
         // ✅ (2026-09-19) توليد employee_uuid عند الإنشاء — الربط الدائم
         employeeUuid: employeeUuid,
+        // ✅ (migration 68) expense_uuid عند الإنشاء — الرابط الدائم
+        expenseUuid: expenseUuid,
         amount: d.Value(amount),
         withdrawDate: d.Value(date),
         reason: d.Value(reason),
@@ -102,6 +154,26 @@ class SalaryWithdrawalsRepository {
 
       if (expenseId > 0) {
         await _setExpenseIdRaw(id, expenseId);
+        // ✅ (migration 68) ختم الرابط العكسي على المصروف (withdrawal_uuid)
+        // + عنصر outbox للمصروف ليُنشر للسحابة والأجهزة الأخرى.
+        try {
+          final expenseRow =
+              await (_db.select(_db.expenses)
+                    ..where((e) => e.id.equals(expenseId))
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (expenseRow != null) {
+            await _stampExpenseMirrorLink(
+              expenseId,
+              uuid,
+              now,
+              expenseLocalUuid: expenseRow.localUuid,
+              expenseServerId: expenseRow.serverId,
+            );
+          }
+        } catch (_) {
+          // لا نعطل الإنشاء إن فشل ختم الرابط العكسي
+        }
       }
 
       if (!originIsServer) {
@@ -119,6 +191,12 @@ class SalaryWithdrawalsRepository {
         };
         if (expenseId > 0) {
           payload['expenseId'] = expenseId;
+          // ✅ (migration 68) uuid المرآة في الحمولة أيضاً (الدفع يعيد
+          // البناء من الصف الكامل — هذا احتياط لمسارات delta/Drive).
+          final eu = await _expenseUuidFor(expenseId);
+          if (eu.present && eu.value.isNotEmpty) {
+            payload['expenseUuid'] = eu.value;
+          }
         }
         await _outboxDao.merge(
           entity: 'salary_withdrawals',
@@ -355,6 +433,15 @@ class SalaryWithdrawalsRepository {
 
         // ✅ تحديث expense_id في العمود الخام
         await _setExpenseIdRaw(matchedId, expenseId);
+        // ✅ (migration 68) تحديث expense_uuid على المرآة + ختم الرابط
+        // العكسي على المصروف — الرابط الدائم عبر الأجهزة.
+        final expenseUuidValue = await _expenseUuidFor(expenseId);
+        await (_db.update(_db.salaryWithdrawals)
+              ..where((t) => t.id.equals(matchedId)))
+            .write(SalaryWithdrawalsCompanion(expenseUuid: expenseUuidValue));
+        if (expenseUuidValue.present) {
+          await _stampExpenseMirrorLink(expenseId, expenseUuidValue.value, now);
+        }
 
         if (!originIsServer) {
           await _outboxDao.merge(
@@ -372,6 +459,9 @@ class SalaryWithdrawalsRepository {
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'lastModified': now,
               'expenseId': expenseId,
+              // ✅ (migration 68) uuid المرآة — احتياط لمسارات delta/Drive
+              if (expenseUuidValue.present && expenseUuidValue.value.isNotEmpty)
+                'expenseUuid': expenseUuidValue.value,
             },
             clientTs: now,
           );
@@ -403,6 +493,8 @@ class SalaryWithdrawalsRepository {
                 employeeId: d.Value(employeeId),
                 // ✅ (2026-09-19) employee_uuid عند الإنشاء
                 employeeUuid: employeeUuid,
+                // ✅ (migration 68) expense_uuid عند الإنشاء — الرابط الدائم
+                expenseUuid: await _expenseUuidFor(expenseId),
                 amount: d.Value(amount),
                 withdrawDate: d.Value(date),
                 reason: d.Value(reasonText),
@@ -424,6 +516,11 @@ class SalaryWithdrawalsRepository {
 
         // ✅ كتابة expense_id في العمود الخام
         await _setExpenseIdRaw(newId, expenseId);
+        // ✅ (migration 68) ختم الرابط العكسي على المصروف + الحمولة
+        final newExpenseUuid = await _expenseUuidFor(expenseId);
+        if (newExpenseUuid.present) {
+          await _stampExpenseMirrorLink(expenseId, newExpenseUuid.value, now);
+        }
         unawaited(
           WhatsAppNotificationService.instance.notifyNewExpense(
             category: 'سحب راتب',
@@ -453,6 +550,9 @@ class SalaryWithdrawalsRepository {
               'description': note,
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'expenseId': expenseId,
+              // ✅ (migration 68) uuid المرآة — احتياط لمسارات delta/Drive
+              if (newExpenseUuid.present && newExpenseUuid.value.isNotEmpty)
+                'expenseUuid': newExpenseUuid.value,
             },
             clientTs: now,
           );
