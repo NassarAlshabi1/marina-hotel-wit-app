@@ -1,5 +1,6 @@
 package com.marina.marina.macrobenchmark
 
+import android.os.Bundle
 import androidx.benchmark.macro.CompilationMode
 import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.StartupTimingMetric
@@ -26,11 +27,13 @@ class EntryStartupBenchmark {
 
     @Before
     fun requireDisposableOfflineHarness() {
+        phase("Checking offline harness and UiAutomator shell")
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         assertEquals("Only the verified offline harness may run this suite", "true",
             InstrumentationRegistry.getArguments().getString("marina.offlineVerified"))
         assertEquals("Personal/physical devices are not supported by this harness", "1",
             UiDevice.getInstance(instrumentation).executeShellCommand("getprop ro.kernel.qemu").trim())
+        phase("Offline and emulator guards passed")
     }
 
     @Test
@@ -39,24 +42,37 @@ class EntryStartupBenchmark {
     @Test
     fun warmStartup() = measure(StartupMode.WARM)
 
-    private fun measure(mode: StartupMode) = benchmark.measureRepeated(
-        packageName = TARGET_PACKAGE,
-        metrics = listOf(StartupTimingMetric()),
-        iterations = ITERATIONS,
-        startupMode = mode,
-        compilationMode = CompilationMode.Full(),
-        setupBlock = {
-            pressHome()
-            if (mode == StartupMode.WARM) {
-                startActivityAndWait()
-                check(device.wait(Until.hasObject(By.res(LOGIN_TAG)), LOGIN_TIMEOUT_MS))
+    private fun phase(message: String) {
+        InstrumentationRegistry.getInstrumentation().sendStatus(0, Bundle().apply {
+            putString("marina.phase", message)
+        })
+    }
+
+    private fun measure(mode: StartupMode) {
+        phase("$mode entering measureRepeated with Full compilation")
+        benchmark.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(StartupTimingMetric()),
+            iterations = ITERATIONS,
+            startupMode = mode,
+            compilationMode = CompilationMode.Full(),
+            setupBlock = {
+                // Outside the measured block: do not add status IPC to captured startup.
+                phase("$mode setup reached after benchmark initialization/compilation")
                 pressHome()
+                if (mode == StartupMode.WARM) {
+                    startActivityAndWait()
+                    check(device.wait(Until.hasObject(By.res(LOGIN_TAG)), LOGIN_TIMEOUT_MS))
+                    pressHome()
+                }
             }
+        ) {
+            startActivityAndWait()
+            assertTrue("Expected actual login screen, not a crash/splash/other activity",
+                device.wait(Until.hasObject(By.res(LOGIN_TAG)), LOGIN_TIMEOUT_MS))
         }
-    ) {
-        startActivityAndWait()
-        assertTrue("Expected actual login screen, not a crash/splash/other activity",
-            device.wait(Until.hasObject(By.res(LOGIN_TAG)), LOGIN_TIMEOUT_MS))
+
+        phase("$mode measurement completed")
     }
 
     private companion object {

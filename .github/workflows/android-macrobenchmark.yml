@@ -38,6 +38,8 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - name: Build isolated benchmark artifacts (not release artifacts)
         working-directory: mobile/android
         run: |

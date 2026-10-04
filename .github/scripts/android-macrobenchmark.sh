@@ -71,6 +71,21 @@ runner_status=$?
 set -e
 phase "Instrumentation returned status $runner_status"
 if [[ "$runner_status" -ne 0 ]]; then
+  # Capture live compiler/runner state before stopping it. Filter framework tags,
+  # not application HTTP logs, so annotations do not expose request credentials.
+  adb shell ps -A > "$OUT/processes-at-failure.txt" 2>&1 || true
+  adb logcat -d -v brief 'Benchmark:V' 'Macrobenchmark:V' 'PerfettoCapture:V' '*:S' \
+    > "$OUT/benchmark-log.txt" 2>&1 || true
+  python3 - "$OUT" <<'PYDIAG'
+import pathlib, re, sys
+root = pathlib.Path(sys.argv[1])
+processes = [line for line in (root / 'processes-at-failure.txt').read_text().splitlines()
+             if re.search(r'dex2oat|artd|com[.]a[.]a|perfetto|trace_processor', line)]
+logs = (root / 'benchmark-log.txt').read_text().splitlines()[-20:]
+text = ('Live processes:\n' + '\n'.join(processes) + '\nBenchmark log:\n' + '\n'.join(logs))[:3000]
+text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+print(f'::notice title=Macrobenchmark timeout diagnostics::{text}')
+PYDIAG
   adb shell am force-stop "$TEST_PKG" || true
 fi
 collect_evidence
@@ -80,7 +95,7 @@ if [[ "$runner_status" -ne 0 ]] || ! grep -Eq '^OK \(2 tests\)' "$OUT/instrument
   python3 - "$OUT/instrumentation.txt" <<'PY'
 import pathlib, sys
 lines = pathlib.Path(sys.argv[1]).read_text().splitlines()
-markers = ('Exception', 'Error', 'FAIL', 'INSTRUMENTATION_STATUS: test=', 'INSTRUMENTATION_RESULT:')
+markers = ('Exception', 'Error', 'FAIL', 'INSTRUMENTATION_STATUS: test=', 'INSTRUMENTATION_RESULT:', 'marina.phase=')
 selected = [line for line in lines if any(marker in line for marker in markers)]
 text = '\n'.join(selected[:12] + lines[-12:])[:2500]
 text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
