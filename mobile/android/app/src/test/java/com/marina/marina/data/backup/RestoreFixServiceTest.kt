@@ -18,6 +18,8 @@ import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.entity.BookingEntity
 import com.marina.marina.data.local.entity.RoomEntity
 import java.io.File
+import java.util.zip.GZIPOutputStream
+import com.google.gson.Gson
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
@@ -172,6 +174,29 @@ class RestoreFixServiceTest {
             assertOriginalRows()
         } finally {
             backup.delete()
+        }
+    }
+
+    @Test
+    fun validJsonAndGzipBackupsRestoreRowsWithoutChangingOtherTables() = runBlocking {
+        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        for (extension in listOf("json", "json.gz")) {
+            val changed = originalRoom.copy(price = 125.0, cleaningStatus = "dirty")
+            val json = Gson().toJson(mapOf("rooms" to listOf(changed)))
+            val backup = File(context.cacheDir, "valid-restore.$extension")
+            try {
+                if (extension.endsWith("gz")) {
+                    GZIPOutputStream(backup.outputStream()).use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                } else {
+                    backup.writeText(json)
+                }
+                service.restoreFromLocalBackup(backup.absolutePath)
+                assertEquals(changed, db.roomsDao().getById(roomId))
+                assertEquals(originalBooking, db.bookingsDao().getById(bookingId))
+                db.roomsDao().update(originalRoom)
+            } finally {
+                backup.delete()
+            }
         }
     }
 

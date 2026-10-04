@@ -3,6 +3,7 @@ package com.marina.marina.data.backup
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import androidx.room.withTransaction
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.marina.marina.data.local.AppDatabase
@@ -365,9 +366,7 @@ class LocalBackupService @Inject constructor(
             json, object : TypeToken<Map<String, Any>>() {}.type
         ) ?: throw Exception("ملف النسخة غير صالح")
 
-        val sq = db.openHelper.writableDatabase
-        sq.beginTransaction()
-        try {
+        db.withTransaction {
             for (key in BACKUP_TABLE_KEYS) {
                 if (!data.containsKey(key)) continue
                 clearAndInsertRows(key, requireBackupRows(key, data[key]))
@@ -381,9 +380,6 @@ class LocalBackupService @Inject constructor(
                 clearAndInsertRows("sync_state", requireBackupRows("sync_state", data["sync_state"]))
             }
             currentCoroutineContext().ensureActive()
-            sq.setTransactionSuccessful()
-        } finally {
-            sq.endTransaction()
         }
     }
 

@@ -126,7 +126,7 @@ class BackupViewModel @Inject constructor(
                 )
             }
             try {
-                val backupPath = localBackupService.createLocalBackup(BackupFormat.SQLITE)
+                val backupPath = localBackupService.createLocalBackup(BackupFormat.JSON)
                 _state.update { it.copy(message = "تحديث قائمة النسخ...", progress = 0.8) }
                 refreshList()
 
