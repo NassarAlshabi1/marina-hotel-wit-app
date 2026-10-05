@@ -376,6 +376,11 @@ class LocalBackupService @Inject constructor(
             "الملف ليس نسخة بيانات مدعومة؛ لا يمكن استعادة التقارير أو نسخ حقول الصيانة"
         }
 
+        // Validate even compatibility fields we intentionally do not restore.
+        // Ignoring sync_state must not make a malformed backup look successful.
+        for (key in BACKUP_TABLE_KEYS + listOf("blacklist", "sync_state")) {
+            if (data.containsKey(key)) requireBackupRows(key, data[key])
+        }
         db.withTransaction {
             check(db.outboxDao().undeliveredCount().first() == 0) {
                 "توجد تغييرات محلية لم تُرفع؛ الاستعادة موقوفة لحمايتها"
