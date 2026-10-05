@@ -985,7 +985,7 @@ class SyncIngestorRegistryTest {
     )
 
     private fun editTestPaymentsRepository() = com.marina.marina.data.repository.PaymentsRepositoryImpl(
-        db.paymentsDao(), db.paymentVoidsDao(), outboxRepository()
+        db.paymentsDao(), db.paymentVoidsDao(), outboxRepository(), db, editTestBookingsRepository()
     )
 
     private suspend fun editTestBooking(room: String = "EDIT-101"): Long {
@@ -1199,6 +1199,70 @@ class SyncIngestorRegistryTest {
         assertEquals(2, updated.calculatedNights)
         assertEquals("Two nights must be reflected on the first edit, not only a later save", 2000.0, updated.totalDueCached, 0.0)
         assertEquals(2000.0, updated.remainingBalanceCached, 0.0)
+    }
+
+    @Test
+    fun paymentEditRollsBackPaymentCacheAndOutboxWhenCacheWriteFails() = runBlocking {
+        val bookingId = editTestBooking()
+        val payments = editTestPaymentsRepository()
+        val id = payments.insert(com.marina.marina.domain.model.Payment(bookingLocalId = bookingId,
+            amount = 100.0, paymentMethod = "cash", revenueType = "room"))
+        val bookings = editTestBookingsRepository()
+        bookings.update(bookings.getById(bookingId)!!)
+        val beforePayment = db.paymentsDao().getById(id)!!
+        val beforeBooking = db.bookingsDao().getById(bookingId)!!
+        val beforeOutbox = db.outboxDao().getPendingPrimary().first()
+        db.openHelper.writableDatabase.execSQL(
+            "CREATE TRIGGER reject_cache BEFORE UPDATE OF total_paid_cached ON bookings " +
+                "BEGIN SELECT RAISE(ABORT, 'cache write failure'); END"
+        )
+        try {
+            val result = runCatching { payments.update(beforePayment.toDomain().copy(amount = 150.0)) }
+            assertTrue(result.isFailure)
+            assertEquals(beforePayment, db.paymentsDao().getById(id))
+            assertEquals(beforeBooking, db.bookingsDao().getById(bookingId))
+            assertEquals(beforeOutbox, db.outboxDao().getPendingPrimary().first())
+        } finally {
+            db.openHelper.writableDatabase.execSQL("DROP TRIGGER reject_cache")
+        }
+    }
+
+    @Test
+    fun movedPaymentRefreshesBothBookingsPreservingIdentityAndSyncMetadata() = runBlocking {
+        val firstBooking = editTestBooking("MOVE-101")
+        val secondBooking = editTestBooking("MOVE-102")
+        val payments = editTestPaymentsRepository()
+        val id = payments.insert(com.marina.marina.domain.model.Payment(bookingLocalId = firstBooking,
+            roomNumber = "MOVE-101", amount = 100.0, paymentMethod = "cash", revenueType = "room"))
+        payments.insert(com.marina.marina.domain.model.Payment(bookingLocalId = secondBooking,
+            roomNumber = "MOVE-102", amount = 200.0, paymentMethod = "cash", revenueType = "room"))
+        val bookings = editTestBookingsRepository()
+        for (bookingId in listOf(firstBooking, secondBooking)) bookings.update(bookings.getById(bookingId)!!)
+        val beforeFirst = db.bookingsDao().getById(firstBooking)!!
+        val beforeSecond = db.bookingsDao().getById(secondBooking)!!
+        val before = db.paymentsDao().getById(id)!!.copy(
+            bookingUuidCache = beforeFirst.localUuid, serverPaymentId = 123,
+            vectorClock = "{\"device-a\":7}", origin = "remote", deviceId = "device-a",
+            linkedDebtUuid = "retained-debt-reference", syncTimestamp = 1234L
+        )
+        db.paymentsDao().update(before)
+        val bookingOutbox = db.outboxDao().getPendingPrimary().first().filter { it.entity == "bookings" }
+        payments.update(before.toDomain().copy(bookingLocalId = secondBooking, roomNumber = "MOVE-102",
+            amount = 150.0, localUuid = "must-not-create-new-identity"))
+        val after = db.paymentsDao().getById(id)!!
+        assertEquals(before.localUuid, after.localUuid)
+        assertEquals(beforeSecond.localUuid, after.bookingUuidCache)
+        assertEquals(before.serverPaymentId, after.serverPaymentId)
+        assertEquals(before.vectorClock, after.vectorClock)
+        assertEquals(before.deviceId, after.deviceId)
+        assertEquals(before.origin, after.origin)
+        assertEquals(before.linkedDebtUuid, after.linkedDebtUuid)
+        assertEquals(before.syncTimestamp, after.syncTimestamp)
+        assertEquals(2, db.paymentsDao().getAllOnce().size)
+        assertEquals(beforeFirst.copy(totalPaidCached = 0.0, remainingBalanceCached = 1000.0), db.bookingsDao().getById(firstBooking))
+        assertEquals(beforeSecond.copy(totalPaidCached = 350.0, remainingBalanceCached = 650.0), db.bookingsDao().getById(secondBooking))
+        assertEquals(bookingOutbox, db.outboxDao().getPendingPrimary().first().filter { it.entity == "bookings" })
+        assertEditOutbox("payments", before.localUuid, 1)
     }
 
     private fun expensesRepository(): ExpensesRepositoryImpl {

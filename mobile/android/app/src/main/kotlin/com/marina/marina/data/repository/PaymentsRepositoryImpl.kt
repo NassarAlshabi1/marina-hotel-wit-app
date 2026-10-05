@@ -1,5 +1,7 @@
 package com.marina.marina.data.repository
 
+import androidx.room.withTransaction
+import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.PaymentUserHotelDaySummaryRow
 import com.marina.marina.data.local.dao.PaymentVoidsDao
 import com.marina.marina.data.local.dao.PaymentsDao
@@ -24,7 +26,9 @@ import kotlinx.coroutines.flow.map
 class PaymentsRepositoryImpl @Inject constructor(
     private val paymentsDao: PaymentsDao,
     private val paymentVoidsDao: PaymentVoidsDao,
-    private val outboxRepository: OutboxRepository
+    private val outboxRepository: OutboxRepository,
+    private val db: AppDatabase,
+    private val bookingsRepository: BookingsRepositoryImpl
 ) : PaymentsRepository {
 
     override fun getAll(): Flow<List<Payment>> =
@@ -64,9 +68,35 @@ class PaymentsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun update(payment: Payment) {
-        val prepared = payment.copy(updatedAt = System.currentTimeMillis())
-        paymentsDao.update(prepared.toEntity())
-        outboxRepository.enqueueObject("payments", "update", prepared.localUuid, prepared)
+        db.withTransaction {
+            val old = requireNotNull(paymentsDao.getById(payment.id)) { "الدفعة غير موجودة" }
+            val moved = old.bookingLocalId != payment.bookingLocalId
+            val newBooking = if (moved && payment.bookingLocalId != null) {
+                requireNotNull(db.bookingsDao().getById(payment.bookingLocalId)) { "الحجز غير موجود" }
+            } else null
+            val prepared = payment.copy(localUuid = old.localUuid, serverId = old.serverId,
+                createdAt = old.createdAt, updatedAt = System.currentTimeMillis())
+            // Keep fields absent from the domain model (UUID caches, audit and sync metadata).
+            paymentsDao.update(old.copy(
+                bookingLocalId = prepared.bookingLocalId, roomNumber = prepared.roomNumber,
+                bookingUuidCache = if (moved) newBooking?.localUuid else old.bookingUuidCache,
+                serverBookingId = if (moved) newBooking?.serverBookingId else old.serverBookingId,
+                amount = prepared.amount, paymentDate = prepared.paymentDate,
+                paymentMethod = prepared.paymentMethod, revenueType = prepared.revenueType,
+                notes = prepared.notes, referenceNumber = prepared.referenceNumber,
+                hotelDayKey = prepared.hotelDayKey, isPendingBalance = prepared.isPendingBalance,
+                isVoided = prepared.isVoided, voidedAt = prepared.voidedAt,
+                voidedBy = prepared.voidedBy, voidReason = prepared.voidReason,
+                receivedByName = prepared.receivedByName, receivedByUserId = prepared.receivedByUserId,
+                receivedSessionUuid = prepared.receivedSessionUuid, receivedByCloudId = prepared.receivedByCloudId,
+                updatedAt = prepared.updatedAt, deletedAt = prepared.deletedAt, version = prepared.version
+            ))
+            outboxRepository.enqueueObject("payments", "update", prepared.localUuid, prepared)
+            // Refresh both sides if the payment was moved; never add a second payment.
+            setOfNotNull(old.bookingLocalId, prepared.bookingLocalId).forEach {
+                bookingsRepository.refreshFinancialCache(it)
+            }
+        }
     }
 
     override suspend fun void(id: Long, voidedBy: String, voidReason: String) {
