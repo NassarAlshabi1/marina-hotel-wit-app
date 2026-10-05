@@ -121,6 +121,8 @@ List<SalaryWithdrawal> dedupeMirrorDuplicates(
 
   for (final sw in withdrawals) {
     final resolvedId = SalaryMirrorMatcher.resolveLinkedExpenseId(
+      // ✅ (هجرة 68) المستوى 0: التمييز بهوية العملية (سحبة → مصروف)
+      expenseUuid: sw.expenseUuid,
       expenseId: sw.expenseId,
       reason: sw.reason,
       expenses: expenses,
@@ -352,6 +354,9 @@ class _SalaryWithdrawalsReportScreenState
             date: e.date,
             hotelDayKey: e.hotelDayKey,
             relatedId: e.relatedId,
+            // ✅ (هجرة 68) حقول الهوية — المستوى 0 في المطابِق
+            localUuid: e.localUuid,
+            withdrawalUuid: e.withdrawalUuid,
           ),
         )
         .toList(growable: false);

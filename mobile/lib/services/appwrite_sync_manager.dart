@@ -4399,6 +4399,98 @@ class AppwriteSyncManager {
     return relinked;
   }
 
+  /// ✅ (هجرة 68) الاتجاه العكسي: إصلاح/تعبئة ختم المصروف
+  /// `expenses.withdrawal_uuid` من `salary_withdrawals.expense_uuid`.
+  ///
+  /// يعالج ثلاث حالات:
+  /// 1. **الختم الذاتي الفاسد**: خطأ تاريخي في مسارات الإنشاء/التعديل كان
+  ///    يختم المصروف بهويته هو (`withdrawal_uuid == local_uuid`) بدل هوية
+  ///    المرآة — فيكسر حلّ الهوية ويُوقع النظام على المطابقات البيانية.
+  /// 2. **ختم يشير لسحبة لم تعد موجودة** (حُذفت أو رُحّلت).
+  /// 3. **ختم مفقود** لمصروف تعلن مرآة قائمة ارتباطها به عبر
+  ///    `expense_uuid`.
+  ///
+  /// المصدر الوحيد للحقيقة هنا هو هوية العملية نفسها: سحبة واحدة نشطة
+  /// تعلن `expense_uuid == مصروف.local_uuid`. لا يُستخدم اسم الموظف ولا
+  /// اليوم ولا المبلغ إطلاقاً. يعيد عدد الصفوف المُصلحة.
+  Future<int> _relinkExpenseWithdrawalUuids() async {
+    var relinked = 0;
+    try {
+      final rows = await database
+          .customSelect(
+            'SELECT e.id AS eid, e.local_uuid AS e_uuid, '
+            'e.withdrawal_uuid AS current_w_uuid, '
+            '(SELECT w.local_uuid FROM salary_withdrawals w '
+            "  WHERE w.expense_uuid = e.local_uuid AND w.deleted_at IS NULL "
+            '  ORDER BY w.updated_at DESC LIMIT 1) AS resolved_w_uuid '
+            'FROM expenses e '
+            "WHERE e.local_uuid IS NOT NULL AND e.local_uuid != '' "
+            'AND e.deleted_at IS NULL '
+            'AND EXISTS (SELECT 1 FROM salary_withdrawals w2 '
+            '  WHERE w2.expense_uuid = e.local_uuid AND w2.deleted_at IS NULL) '
+            'AND (e.withdrawal_uuid IS NULL '
+            "  OR TRIM(e.withdrawal_uuid) = '' "
+            '  OR e.withdrawal_uuid = e.local_uuid '
+            '  OR e.withdrawal_uuid NOT IN '
+            '    (SELECT w3.local_uuid FROM salary_withdrawals w3 '
+            '     WHERE w3.deleted_at IS NULL))',
+          )
+          .get();
+      final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      for (final row in rows) {
+        final eid = row.read<int>('eid');
+        final eUuid = row.read<String?>('e_uuid');
+        final resolved = row.read<String?>('resolved_w_uuid');
+        final current = row.read<String?>('current_w_uuid');
+        if (resolved == null || resolved.isEmpty) continue;
+        if (current == resolved) continue;
+        await database.customStatement(
+          'UPDATE expenses SET withdrawal_uuid = ? WHERE id = ?',
+          [resolved, eid],
+        );
+        relinked++;
+        _logger.debug(
+          '🩹 إصلاح الختم العكسي: المصروف #$eid كان withdrawal_uuid=$current '
+          '→ أصبح $resolved وفق هوية المرآة (سحبة.expense_uuid)',
+          tag: 'SYNC_RELINK',
+        );
+        // ✅ تعميم الإصلاح للسحابة: الدفع يعيد بناء الحمولة من الصف
+        // الكامل فيحمل الختم الصحيح لكل الأجهزة (وليس إضافة جديدة —
+        // عنصر outbox مربوط بهوية المصروف نفسه).
+        if (eUuid != null && eUuid.isNotEmpty) {
+          try {
+            await outboxDao.merge(
+              entity: 'expenses',
+              op: 'update',
+              localUuid: eUuid,
+              payload: {'lastModified': nowEpoch},
+              clientTs: nowEpoch,
+            );
+          } catch (e) {
+            _logger.warning(
+              '⚠️ تعذّر جدولة دفع الختم العكسي للمصروف $eUuid: $e',
+              tag: 'SYNC_RELINK',
+            );
+          }
+        }
+      }
+      if (relinked > 0) {
+        _logger.info(
+          '✅ إصلاح $relinked ختم عكسي مصروف→سحبة عبر هوية المرآة',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إصلاح الأختام العكسية مصروف→سحبة',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
+      );
+    }
+    return relinked;
+  }
+
   Map<String, dynamic> _roomToRemote(Room room) =>
       _payloadMapper.roomToRemote(room);
 
@@ -5346,6 +5438,19 @@ class AppwriteSyncManager {
               tag: 'SYNC_RELINK',
             );
           }
+          // ✅ (هجرة 68) الاتجاه العكسي: أصلح/عبّئ ختم المصروف
+          // (مصروف → سحبة) بالهوية — يشمل إصلاح الختم الذاتي الفاسد.
+          try {
+            await _relinkExpenseWithdrawalUuids();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkExpenseWithdrawalUuids فشل بعد سحب المصروفات — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
+          }
           return synced;
         },
       ),
@@ -5418,7 +5523,24 @@ class AppwriteSyncManager {
           queries: plan.queries,
           useCache: false,
         ),
-        apply: (docs) => _syncSalaryWithdrawals(docs),
+        apply: (docs) async {
+          final synced = await _syncSalaryWithdrawals(docs);
+          // ✅ (هجرة 68) بعد وصول السحبات: أصلح روابط المرآة في الاتجاهين
+          // بالهوية — سحبة→مصروف (expense_id) ومصروف→سحبة (الختم العكسي).
+          try {
+            await _relinkMirrorExpenseIds();
+            await _relinkExpenseWithdrawalUuids();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ إصلاح روابط المرآة فشل بعد سحب السحبات — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
+          }
+          return synced;
+        },
       ),
       CollectionPullTask(
         name: 'guest_infos',

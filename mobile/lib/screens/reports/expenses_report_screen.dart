@@ -379,6 +379,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             date: e.date,
             hotelDayKey: e.hotelDayKey,
             relatedId: e.relatedId,
+            // ✅ (هجرة 68) حقول الهوية — المستوى 0 في المطابِق
+            localUuid: e.localUuid,
+            withdrawalUuid: e.withdrawalUuid,
           ),
         )
         .toList(growable: false);
@@ -433,6 +436,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         // (موظف + نقدي + مبلغ + يوم) — مع حارس direct_withdrawal_ داخلي.
         // يُغلق ثغرة العد المزدوج عبر الأجهزة (حالة «الاورمو محمد» 2026-09-14).
         final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+          // ✅ (هجرة 68) المستوى 0: التمييز بهوية العملية (UUID) —
+          // الإضافة المستقلة تُعَد مرة واحدة والتعديل لا يكرر العملية.
+          expenseUuid: sw.expenseUuid,
+          withdrawalLocalUuid: sw.localUuid,
           expenseId: sw.expenseId,
           reason: sw.reason,
           amount: sw.amount,

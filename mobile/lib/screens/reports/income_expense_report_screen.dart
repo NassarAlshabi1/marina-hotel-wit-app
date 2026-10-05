@@ -383,6 +383,9 @@ class _IncomeExpenseReportScreenState
         if (sw.amount <= 0) continue;
 
         final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+          // ✅ (هجرة 68) المستوى 0: التمييز بهوية العملية (UUID)
+          expenseUuid: sw.expenseUuid,
+          withdrawalLocalUuid: sw.localUuid,
           expenseId: sw.expenseId,
           reason: sw.reason,
           amount: sw.amount,
@@ -398,6 +401,8 @@ class _IncomeExpenseReportScreenState
               date: e.date,
               hotelDayKey: e.hotelDayKey,
               relatedId: e.relatedId,
+              localUuid: e.localUuid,
+              withdrawalUuid: e.withdrawalUuid,
             ),
           ),
         );
