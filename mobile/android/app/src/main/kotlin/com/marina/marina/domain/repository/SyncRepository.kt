@@ -9,6 +9,8 @@ interface SyncRepository {
     fun pendingCount(): Flow<Int>
     fun undeliveredCount(): Flow<Int> = pendingCount()
     suspend fun syncNow(): SyncUiState
+    /** Incremental pull from the saved cursor, without push or a manual cursor reset.
+     * Initial bootstrap / pending replay / epoch recovery remain manager-owned safeguards. */
     suspend fun pullOnly(): Int
 
     /** ✅ رفع فقط بدون سحب — يفرّغ outbox إلى السيرفر (نظير sync(push:true, pull:false) في Dart). */

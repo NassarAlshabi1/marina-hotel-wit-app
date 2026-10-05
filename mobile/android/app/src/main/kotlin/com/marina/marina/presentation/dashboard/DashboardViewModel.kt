@@ -229,7 +229,8 @@ class DashboardViewModel @Inject constructor(
     private var manualSyncJob: Job? = null
 
     fun pushChanges() = runDirectionalSync(push = true)
-    fun pullChanges() = runDirectionalSync(push = false)
+    /** Manual Dashboard pull is incremental; never invoke fullPull or reset its cursor here. */
+    fun pullDeltaChanges() = runDirectionalSync(push = false)
 
     private fun runDirectionalSync(push: Boolean) {
         if (manualSyncJob?.isActive == true || syncState.value.isSyncing) return

@@ -312,6 +312,65 @@ class SyncIngestorRegistryTest {
     }
 
     @Test
+    fun dashboardPullUsesSavedDeltaCursorAcrossPagesAndRepeatedClicksWithoutPush() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))
+        prefs.saveAuthToken("test-worker-token")
+        prefs.saveDeviceId("delta-test-device")
+        prefs.saveLastPullCursor(123L)
+        prefs.saveSyncEpoch("stable-delta")
+        prefs.setFullReplayPending(false)
+        val requests = mutableListOf<List<Any?>>()
+        val api = Proxy.newProxyInstance(
+            CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
+        ) { _, method, args ->
+            check(method.name == "pull") { "Dashboard must not call ${method.name}" }
+            requests.add(args!!.toList())
+            val index = requests.size
+            check(index <= 3) { "Unexpected extra pull" }
+            val response = WorkerPullResponse(
+                changes = if (index <= 2) listOf(mapOf(
+                    "_entity" to "rooms", "local_uuid" to "delta-room", "room_number" to "DELTA-101",
+                    "type" to "single", "price" to if (index == 1) 100.0 else 150.0,
+                    "status" to "available", "cleaning_status" to "clean",
+                    "last_modified" to if (index == 1) 456L else 789L
+                )) else emptyList(),
+                cursor = if (index == 1) "456" else "789", epoch = "stable-delta",
+                hasMore = index == 1, remaining = null, errors = emptyList(), serverTime = null
+            )
+            Proxy.newProxyInstance(Call::class.java.classLoader, arrayOf(Call::class.java)) { _, call, _ ->
+                check(call.name == "execute")
+                Response.success(response)
+            } as Call<*>
+        } as CloudflareWorkerApi
+        val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
+                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined))
+            val first = com.marina.marina.presentation.dashboard.runDashboardDirectionalSync(manager, false)
+            assertEquals(com.marina.marina.presentation.dashboard.DashboardEvent.SyncCompleted(0, 2), first)
+            assertEquals(789L, prefs.getLastPullCursor())
+            val second = com.marina.marina.presentation.dashboard.runDashboardDirectionalSync(manager, false)
+            assertEquals(com.marina.marina.presentation.dashboard.DashboardEvent.SyncCompleted(0, 0), second)
+            assertEquals(listOf(123L, 456L, 789L), requests.map { it[0] })
+            requests.forEach { request ->
+                assertEquals(CloudflareConfig.DELTA_PULL_BATCH_SIZE, request[1])
+                assertEquals("delta-test-device", request[2])
+                assertEquals(false, request[3]) // no full-pull remaining scan
+                assertEquals(false, request[4]) // no timestamp normalization
+            }
+            assertEquals(789L, prefs.getLastPullCursor())
+            assertTrue(!prefs.isFullReplayPending())
+            assertEquals(1, db.roomsDao().getAllOnce().size)
+            assertEquals(150.0, db.roomsDao().getByLocalUuid("delta-room")!!.price, 0.0)
+            assertTrue(db.outboxDao().getPendingPrimary().first().isEmpty())
+        } finally {
+            scope.coroutineContext[kotlinx.coroutines.Job]!!.cancelAndJoin()
+        }
+    }
+
+    @Test
     fun quarantinedPullDoesNotAdvanceSavedCursor() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))

@@ -10,6 +10,7 @@ internal suspend fun runDashboardDirectionalSync(sync: SyncRepository, push: Boo
     if (!push && outstanding > 0) {
         return DashboardEvent.Error("يجب رفع $outstanding تغييراً محلياً قبل السحب")
     }
+    // pullOnly uses the durable delta cursor. Full pull belongs to the explicit settings action.
     val count = if (push) sync.pushOnly() else sync.pullOnly()
     if (count < 0) {
         val message = if (sync.syncState.value.isSyncing) "توجد عملية مزامنة أخرى جارية"

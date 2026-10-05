@@ -273,9 +273,9 @@ private fun DashboardLiveHeader(viewModel: DashboardViewModel) {
         DashboardHeader(syncState, pendingChanges)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DashboardSyncAction(
-                text = "سحب التغييرات", icon = Icons.Filled.CloudDownload,
+                text = "سحب التغييرات (Delta)", icon = Icons.Filled.CloudDownload,
                 color = Color(0xFF2196F3), enabled = !syncState.isSyncing,
-                onClick = viewModel::pullChanges, modifier = Modifier.weight(1f)
+                onClick = viewModel::pullDeltaChanges, modifier = Modifier.weight(1f)
             )
             DashboardSyncAction(
                 text = when {
