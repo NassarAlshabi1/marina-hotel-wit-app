@@ -82,6 +82,7 @@ fun LocalBackupsTab(
     viewModel: BackupViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val busy = state.isWorking || state.isExportingExcel
     var restoreTarget by remember { mutableStateOf<LocalBackupFile?>(null) }
     var deleteTarget by remember { mutableStateOf<LocalBackupFile?>(null) }
 
@@ -100,6 +101,18 @@ fun LocalBackupsTab(
             ),
             verticalArrangement = Arrangement.spacedBy(BackupUi.spacingSM.dp)
         ) {
+            item {
+                OutlinedCard(Modifier.fillMaxWidth()) {
+                    Text(
+                        "نسخ محلية دون الحاجة إلى رفع سحابي\n\n" +
+                            "أنشئ نسخة JSON.gz أو استورد ملف JSON / JSON.gz من نسخ التطبيق، ثم اختر استعادة من قائمة الملف. الاستيراد وحده لا يستعيد البيانات.\n\n" +
+                            "هذه نسخة لجداول البيانات المدعومة وليست صورة SQLite كاملة. استعادة SQLite موقوفة؛ ملفات Excel ونسخ حقول الصيانة ليست بدائل عنها.\n\n" +
+                            "احتفظ بنسخة حديثة خارج الجهاز عبر المشاركة، وأبقِ الشاشة مفتوحة حتى انتهاء العملية.",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
             // معلومات التخزين
             item { StorageInfoCard(state, viewModel) }
             item { Spacer(Modifier.height(BackupUi.spacingLG.dp - 8.dp)) }
@@ -122,7 +135,7 @@ fun LocalBackupsTab(
                     action = {
                         IconButton(
                             onClick = { viewModel.checkStoragePermissions() },
-                            enabled = !state.isWorking
+                            enabled = !busy
                         ) {
                             Icon(Icons.Filled.Refresh, contentDescription = "تحديث")
                         }
@@ -137,6 +150,7 @@ fun LocalBackupsTab(
                     val backup = state.localBackups[index]
                     BackupItem(
                         backup = backup,
+                        enabled = !busy,
                         onRestore = { restoreTarget = backup },
                         onShare = { viewModel.shareLocalBackup(backup.filePath) },
                         onDelete = { deleteTarget = backup }
@@ -187,7 +201,8 @@ fun LocalBackupsTab(
             title = { Text("تأكيد الاستعادة") },
             text = {
                 Text(
-                    "سيتم استبدال جميع البيانات الحالية ببيانات النسخة الاحتياطية.\n\n" +
+                    "سيتم استبدال بيانات الجداول الموجودة في النسخة، وليس دمجها. أنشئ نسخة حديثة أولاً.\n\n" +
+                        "بعد الاستيراد تُشغّل المعالجة الحالية لما بعد الاستعادة؛ فشل هذه المعالجة لا يعني التراجع عن البيانات المستوردة.\n\n" +
                         "الملف: ${backup.fileName}\n" +
                         "التاريخ: ${formatDateTime(backup.createdTime)}\n" +
                         "الحجم: ${viewModel.formatSize(backup.sizeBytes)}"
@@ -198,6 +213,7 @@ fun LocalBackupsTab(
             },
             confirmButton = {
                 Button(
+                    enabled = !busy,
                     onClick = {
                         restoreTarget = null
                         viewModel.restoreFromLocalBackup(backup.filePath)
@@ -227,6 +243,7 @@ fun LocalBackupsTab(
             },
             confirmButton = {
                 Button(
+                    enabled = !busy,
                     onClick = {
                         deleteTarget = null
                         viewModel.deleteLocalBackup(backup.filePath)
@@ -411,6 +428,7 @@ private fun EmptyBackupsCard() {
 @Composable
 private fun BackupItem(
     backup: LocalBackupFile,
+    enabled: Boolean,
     onRestore: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit
@@ -474,15 +492,16 @@ private fun BackupItem(
             }
             // قائمة منبثقة (استعادة/مشاركة/حذف) — نظير PopupMenuButton
             Box {
-                IconButton(onClick = { menuOpen = true }) {
+                IconButton(onClick = { menuOpen = true }, enabled = enabled) {
                     Icon(Icons.Filled.MoreVert, contentDescription = "خيارات")
                 }
                 androidx.compose.material3.DropdownMenu(
-                    expanded = menuOpen,
+                    expanded = menuOpen && enabled,
                     onDismissRequest = { menuOpen = false }
                 ) {
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("استعادة") },
+                        enabled = enabled && backup.format != BackupFormat.SQLITE,
                         leadingIcon = { Icon(Icons.Filled.Restore, null, modifier = Modifier.size(20.dp)) },
                         onClick = { menuOpen = false; onRestore() }
                     )

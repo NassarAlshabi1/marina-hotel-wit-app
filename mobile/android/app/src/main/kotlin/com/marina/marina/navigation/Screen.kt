@@ -57,6 +57,7 @@ sealed class Screen(val route: String) {
 
     /** النسخ الاحتياطي والاستعادة — نظير ComprehensiveBackupScreen. */
     object Backup : Screen("backup")
+    object LocalBackup : Screen("local_backup")
 
     /** البحث الشامل — نظير GlobalSearchScreen (فرع feat/cloudflare-sync-execution). */
     object GlobalSearch : Screen("global_search")

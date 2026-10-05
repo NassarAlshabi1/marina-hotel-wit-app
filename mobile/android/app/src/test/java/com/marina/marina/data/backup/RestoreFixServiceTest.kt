@@ -230,6 +230,27 @@ class RestoreFixServiceTest {
     }
 
     @Test
+    fun reportsAndMaintenancePreimagesAreRejectedWithoutChangingData() = runBlocking {
+        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        val backup = File(context.cacheDir, "not-a-data-backup.json")
+        try {
+            for (json in listOf("{}", "{\"metadata\":{}}", "{\"patches\":[]}", "{\"summary\":{}}")) {
+                backup.writeText(json)
+                try {
+                    service.restoreFromLocalBackup(backup.absolutePath)
+                    fail("Non-backup JSON must be rejected before post-restore processing")
+                } catch (expected: IllegalArgumentException) {
+                    assertTrue(expected.message.orEmpty().contains("نسخة بيانات"))
+                }
+                assertEquals(originalBooking, db.bookingsDao().getById(bookingId))
+                assertEquals(originalRoom, db.roomsDao().getById(roomId))
+            }
+        } finally {
+            backup.delete()
+        }
+    }
+
+    @Test
     fun invalidJsonRowsOrTableTypesNeverSilentlyDeleteExistingData() = runBlocking {
         val service = LocalBackupService(context, db, BackupSettingsStore(context))
         val backup = File(context.cacheDir, "invalid-rows.json")

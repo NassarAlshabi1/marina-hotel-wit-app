@@ -368,6 +368,11 @@ class LocalBackupService @Inject constructor(
             json, object : TypeToken<Map<String, Any>>() {}.type
         ) ?: throw Exception("ملف النسخة غير صالح")
 
+        // Reject reports / maintenance field preimages before mutation or post-restore repair.
+        require(data.keys.any { it in BACKUP_TABLE_KEYS || it == "blacklist" }) {
+            "الملف ليس نسخة بيانات مدعومة؛ لا يمكن استعادة التقارير أو نسخ حقول الصيانة"
+        }
+
         db.withTransaction {
             for (key in BACKUP_TABLE_KEYS) {
                 if (!data.containsKey(key)) continue

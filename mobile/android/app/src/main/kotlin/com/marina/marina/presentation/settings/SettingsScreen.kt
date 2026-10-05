@@ -150,6 +150,8 @@ fun SettingsScreen(
         )
     )
     val maintenanceItems = listOf(
+        HubItem("النسخ الاحتياطي المحلي والاستعادة", "إنشاء واستيراد واستعادة نسخ الجهاز — للمدير فقط",
+            Icons.Default.Backup, AppColors.WarningColor, route = "local_backup"),
         HubItem("صيانة البيانات", "تشخيص وإصلاح آمن وتقارير — للمدير فقط",
             Icons.Default.Build, DartColors.indigo, route = "maintenance")
     )

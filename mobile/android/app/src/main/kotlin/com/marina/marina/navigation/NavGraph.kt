@@ -47,6 +47,7 @@ import com.marina.marina.presentation.settings.MaintenanceScreen
 import com.marina.marina.presentation.settings.SettingsScreen
 import com.marina.marina.presentation.settings.SyncHealthScreen
 import com.marina.marina.presentation.settings.SyncDiagnosticsScreen
+import com.marina.marina.presentation.settings.backup.LocalBackupScreen
 import com.marina.marina.presentation.settings.backup.ComprehensiveBackupScreen
 
 /**
@@ -216,7 +217,7 @@ fun MarinaNavGraph(
                     onBack = { navController.popBackStack() },
                     onOpenSyncHealth = { navController.navigate(Screen.SyncHealth.route) },
                     onOpenDiagnostics = { navController.navigate(Screen.SyncDiagnostics.route) },
-                    onOpenBackup = { navController.navigate(Screen.Backup.route) }
+                    onOpenBackup = { navController.navigate(Screen.LocalBackup.route) }
                 )
             } else {
                 androidx.compose.foundation.layout.Column {
@@ -368,6 +369,19 @@ fun MarinaNavGraph(
         }
         composable(Screen.BookingsReminder.route) {
             BookingsReminderScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.LocalBackup.route) {
+            val authState by authViewModel.authState.collectAsState()
+            if (authState.currentUser?.isAdmin == true) {
+                LocalBackupScreen(onBack = { navController.popBackStack() })
+            } else {
+                androidx.compose.foundation.layout.Column {
+                    androidx.compose.material3.Text("النسخ الاحتياطي والاستعادة متاحان لمدير النظام فقط")
+                    androidx.compose.material3.TextButton(onClick = { navController.popBackStack() }) {
+                        androidx.compose.material3.Text("رجوع")
+                    }
+                }
+            }
         }
         composable(Screen.Backup.route) {
             ComprehensiveBackupScreen(onBack = { navController.popBackStack() })
