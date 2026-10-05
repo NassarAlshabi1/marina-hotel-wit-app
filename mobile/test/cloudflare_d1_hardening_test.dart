@@ -37,10 +37,9 @@ class _RecordingClient extends http.BaseClient {
         },
       ];
     }
-    final bytes = utf8.encode(jsonEncode(<String, Object>{
-      'success': true,
-      'result': result,
-    }));
+    final bytes = utf8.encode(
+      jsonEncode(<String, Object>{'success': true, 'result': result}),
+    );
     return http.StreamedResponse(Stream.value(bytes), 200);
   }
 }

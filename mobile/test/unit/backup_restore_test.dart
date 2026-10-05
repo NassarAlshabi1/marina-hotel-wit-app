@@ -236,10 +236,7 @@ void main() {
       expect(BackupDataService.verifyBackupChecksum(backupData), isTrue);
 
       (backupData['inventory_items'] as List<dynamic>).add({'name': 'تعديل'});
-      expect(
-        BackupDataService.verifyBackupChecksum(backupData),
-        isFalse,
-      );
+      expect(BackupDataService.verifyBackupChecksum(backupData), isFalse);
     });
   });
 
@@ -1579,13 +1576,16 @@ void main() {
   //  /storage/emulated/0/Documents/MarinaHotelBackups
   // ═════════════════════════════════════════════════════════════════════════
   group('Local backup safe default format (.json)', () {
-    test('getPreferredBackupFormat defaults to restorable BackupFormat.json', () async {
-      SharedPreferences.setMockInitialValues({});
-      final service = LocalBackupService();
-      final format = await service.getPreferredBackupFormat();
-      expect(format, BackupFormat.json);
-      expect(format.name, 'json');
-    });
+    test(
+      'getPreferredBackupFormat defaults to restorable BackupFormat.json',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final service = LocalBackupService();
+        final format = await service.getPreferredBackupFormat();
+        expect(format, BackupFormat.json);
+        expect(format.name, 'json');
+      },
+    );
 
     test('setPreferredBackupFormat round-trips the chosen format', () async {
       SharedPreferences.setMockInitialValues({});

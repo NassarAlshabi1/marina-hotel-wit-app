@@ -928,11 +928,13 @@ class LocalBackupService {
     AppDatabase db,
     SharedPreferences prefs,
   ) async {
-    final pending = await db.customSelect(
-      "SELECT COUNT(*) AS n FROM outbox "
-      "WHERE source = 'local' AND delivered_to_primary = 0",
-      readsFrom: {db.outbox},
-    ).getSingle();
+    final pending = await db
+        .customSelect(
+          "SELECT COUNT(*) AS n FROM outbox "
+          "WHERE source = 'local' AND delivered_to_primary = 0",
+          readsFrom: {db.outbox},
+        )
+        .getSingle();
     final pendingCount = pending.read<int>('n');
     if (pendingCount > 0) {
       throw StateError(

@@ -1323,31 +1323,25 @@ class AppDatabase extends _$AppDatabase {
         // ردم تاريخي محلي — UPDATE فقط، لا حذف ولا تعديل مبالغ/تواريخ.
         // السحوبات والدورات: FK الموظف المحلي → employees.local_uuid.
         try {
-          await m.database.customStatement(
-            '''
+          await m.database.customStatement('''
             UPDATE salary_withdrawals SET employee_uuid = (
               SELECT e.local_uuid FROM employees e
               WHERE e.id = salary_withdrawals.employee_id)
             WHERE employee_uuid IS NULL AND employee_id IS NOT NULL
-            ''',
-          );
-          await m.database.customStatement(
-            '''
+            ''');
+          await m.database.customStatement('''
             UPDATE salary_cycles SET employee_uuid = (
               SELECT e.local_uuid FROM employees e
               WHERE e.id = salary_cycles.employee_id)
             WHERE employee_uuid IS NULL AND employee_id IS NOT NULL
-            ''',
-          );
+            ''');
           // الدفعات: عبر دورتها (بعد ردم الدورات أعلاه — الترتيب مقصود)
-          await m.database.customStatement(
-            '''
+          await m.database.customStatement('''
             UPDATE salary_payments SET employee_uuid = (
               SELECT sc.employee_uuid FROM salary_cycles sc
               WHERE sc.id = salary_payments.cycle_id)
             WHERE employee_uuid IS NULL AND cycle_id IS NOT NULL
-            ''',
-          );
+            ''');
         } catch (e) {
           developer.log(
             'Migration 68: local backfill skipped: $e',

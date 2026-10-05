@@ -7,10 +7,12 @@ void main() {
     final db = TestDatabase.create();
     addTearDown(db.close);
 
-    final indexes = await db.customSelect(
-      "SELECT name FROM sqlite_master WHERE type = 'index' "
-      "AND name LIKE 'idx_salary_%_employee_uuid' ORDER BY name",
-    ).get();
+    final indexes = await db
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'index' "
+          "AND name LIKE 'idx_salary_%_employee_uuid' ORDER BY name",
+        )
+        .get();
     expect(
       indexes.map((row) => row.read<String>('name')).toSet(),
       containsAll(<String>{
@@ -25,9 +27,11 @@ void main() {
       'salary_cycles',
       'salary_payments',
     ]) {
-      final plan = await db.customSelect(
-        "EXPLAIN QUERY PLAN SELECT * FROM $table WHERE employee_uuid = 'missing'",
-      ).get();
+      final plan = await db
+          .customSelect(
+            "EXPLAIN QUERY PLAN SELECT * FROM $table WHERE employee_uuid = 'missing'",
+          )
+          .get();
       expect(
         plan.map((row) => row.data.values.join(' ')).join(' '),
         contains('employee_uuid'),

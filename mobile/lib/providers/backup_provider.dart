@@ -146,10 +146,8 @@ class BackupState {
 
 // Notifier للتحكم في حالة النسخ الاحتياطي
 class BackupStatusNotifier extends StateNotifier<BackupState> {
-  BackupStatusNotifier(
-    this._localBackupService,
-    this._fileService,
-  ) : super(BackupState()) {
+  BackupStatusNotifier(this._localBackupService, this._fileService)
+    : super(BackupState()) {
     unawaited(_initialize());
   }
 
@@ -408,7 +406,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       state = state.copyWith(
         status: BackupStatus.success,
-        message: 'تمت استعادة البيانات. المزامنة التلقائية معطّلة '
+        message:
+            'تمت استعادة البيانات. المزامنة التلقائية معطّلة '
             'حتى تراجع البيانات وتعيد تفعيلها صراحةً.',
         progress: 1.0,
       );
@@ -453,7 +452,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     dlog(() => '⛔ تم رفض استعادة SQLite الخام: $sourcePath');
     state = state.copyWith(
       status: BackupStatus.error,
-      message: 'استعادة SQLite الخام معطّلة لحماية البيانات. '
+      message:
+          'استعادة SQLite الخام معطّلة لحماية البيانات. '
           'استخدم نسخة JSON المتحقّق منها.',
       progress: 0,
     );

@@ -2376,10 +2376,7 @@ class CloudflareSyncManager {
       // من الحمولة أوفر وأصح.
       final quarantinePoolByIdentity =
           <String, ({String entity, Map<String, dynamic> record})>{
-            for (final item in [
-              ...unresolvedAfterRetry,
-              ...conflictedRecords,
-            ])
+            for (final item in [...unresolvedAfterRetry, ...conflictedRecords])
               PullQuarantine.identity(
                 item.entity,
                 item.record['local_uuid']?.toString(),
@@ -2390,10 +2387,7 @@ class CloudflareSyncManager {
 
         if (accounted.toQuarantine.isNotEmpty) {
           final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          final promotion = _quarantine.promote(
-            accounted.toQuarantine,
-            nowSec,
-          );
+          final promotion = _quarantine.promote(accounted.toQuarantine, nowSec);
           if (promotion.ledgerTouched) {
             ledgerDirty = true;
           }
