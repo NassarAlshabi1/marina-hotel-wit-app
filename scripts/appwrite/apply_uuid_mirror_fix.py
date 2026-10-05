@@ -147,16 +147,21 @@ def attribute_status(api, collection, key):
 
 def list_all_documents(api, collection):
     import urllib.parse
+    # Appwrite server 2.3.0 (fra.cloud) rejects legacy `queries=["limit(100)"]`
+    # strings AND method-strings; it requires JSON-object queries passed as
+    # repeated `queries[]` params: {"method":"limit","values":[100]}.
     out, cursor = [], None
     while True:
-        q = ['limit(100)']
+        qparams = [('queries[]',
+                    json.dumps({'method': 'limit', 'values': [100]}))]
         if cursor:
-            q.append(f'cursorAfter("{cursor}")')
-        qs = urllib.parse.quote(json.dumps(q), safe='')
+            qparams.append(('queries[]', json.dumps(
+                {'method': 'cursorAfter', 'values': [cursor]})))
+        qs = urllib.parse.urlencode(qparams)
         page = api.request(
             'GET',
             f'/databases/{DATABASE}/collections/{collection}/documents'
-            f'?queries={qs}')
+            f'?{qs}')
         docs = page.get('documents', [])
         out.extend(docs)
         if len(docs) < 100:
