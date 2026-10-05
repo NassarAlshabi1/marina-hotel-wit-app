@@ -1,5 +1,11 @@
 # Settings → Maintenance
 
+**Current mode:** diagnostics plus explicit, confirmed UUID-cache repairs, as
+specified in the maintenance-center section below. The original read-only release
+is retained here as historical context.
+
+## Original read-only release
+
 Entry: **الإعدادات → الصيانة → صيانة البيانات** (`maintenance` route).
 The route checks the current user's existing `isAdmin` policy before composing the
 screen/creating its ViewModel. Non-admin users see a denial and a Back action.
@@ -73,4 +79,17 @@ searchable/filterable quarantine, safe repair preview, and paginated repair hist
 Added service tests for confirmation/field isolation/audit/backup, backup failure,
 stale preview, ambiguity, unsupported rows, authorization/session change, sync
 exclusion, transactional rollback and bounded/expired preview; repository tests
-cover literal search, bounded details, quick check and history paging. CI pending.
+cover literal search, bounded details, quick check and history paging.
+
+### Verification for the maintenance center
+
+The full `testDebugUnitTest` step passed for source `89fd4be` in
+[run 37248379722](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37248379722),
+including 10 repair-service tests and 2 additional repository cases. Compilation
+of the new Compose UI, Hilt graph, and Room queries passed in that step. Source
+identity/cache lengths are bounded in SQL before materializing backup entries.
+
+At this update the signed APK build and emulator smoke were still running; the
+quality job in [37248379740](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37248379740)
+was failed. No all-green CI, device UI/SAF navigation, crash-injection proof,
+production data mutation, or actual-1-GiB performance claim is made.
