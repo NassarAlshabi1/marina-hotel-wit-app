@@ -21,6 +21,7 @@ import 'backup_data_service.dart';
 import 'backup_serializers.dart';
 import 'local_db.dart';
 import 'sqlite_backup_restore.dart';
+import 'sync_locks.dart';
 
 export 'backup_data_service.dart' show BackupFormat;
 
@@ -165,11 +166,10 @@ class LocalBackupService {
 
   /// إنشاء نسخة احتياطية محلية
   ///
-  /// الافتراضي الآن هو SQLite (.db) — نسخة خام كاملة من قاعدة البيانات،
-  /// تُحفظ تلقائياً في /storage/emulated/0/Documents/MarinaHotelBackups
-  /// على أندرويد (انظر getBackupDirectory).
+  /// الافتراضي JSON لأنه التنسيق الوحيد المقبول للاستعادة الآمنة.
+  /// يمكن تصدير SQLite كلقطة محلية، لكن استبدال القاعدة الحية به معطّل.
   Future<String> createLocalBackup({
-    BackupFormat format = BackupFormat.sqlite,
+    BackupFormat format = BackupFormat.json,
   }) async {
     try {
       dlog(() => '🔄 بدء إنشاء نسخة احتياطية محلية (${format.name})...');
@@ -515,27 +515,33 @@ class LocalBackupService {
 
   /// استعادة من نسخة احتياطية محلية
   Future<void> restoreFromLocalBackup(String filePath) async {
-    try {
-      dlog(() => '🔄 بدء استعادة النسخة الاحتياطية من: $filePath');
+    // نفس قفل العملية الذي تستخدمه مزامنة Cloudflare: لا يمكن أن يبدأ
+    // push/pull أثناء الاستعادة، ولا تبدأ الاستعادة فوق مزامنة جارية.
+    await SyncLocks.runMain(() async {
+      try {
+        dlog(() => '🔄 بدء استعادة النسخة الاحتياطية من: $filePath');
 
-      final extension = p.extension(filePath).toLowerCase();
-      if (extension == '.sqlite' || extension == '.db') {
-        await _restoreFromSqliteBackup(filePath);
-        return;
+        final extension = p.extension(filePath).toLowerCase();
+        if (extension == '.sqlite' || extension == '.db') {
+          throw UnsupportedError(
+            'استبدال قاعدة SQLite الحية معطّل لحماية البيانات. '
+            'استخدم نسخة JSON المتحقّق منها.',
+          );
+        }
+
+        if (extension == '.json' || extension == '.gz') {
+          await _restoreFromJsonBackup(filePath);
+          return;
+        }
+
+        throw UnsupportedError(
+          'تنسيق النسخة الاحتياطية غير مدعوم للاستعادة: $extension',
+        );
+      } catch (e) {
+        dlog(() => '❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
+        rethrow;
       }
-
-      if (extension == '.json' || extension == '.gz') {
-        await _restoreFromJsonBackup(filePath);
-        return;
-      }
-
-      throw UnsupportedError(
-        'تنسيق النسخة الاحتياطية غير مدعوم للاستعادة: $extension',
-      );
-    } catch (e) {
-      dlog(() => '❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
-      rethrow;
-    }
+    });
   }
 
   Future<void> _restoreFromJsonBackup(String filePath) async {
@@ -597,8 +603,11 @@ class LocalBackupService {
     }
 
     dlog('🔄 بدء استعادة البيانات من نسخة JSON...');
+    _validateRecognizedBackupTables(backupData);
+
     final db = getDatabase();
     final adapterRegistry = AdapterRegistry.instance;
+    final prefs = await SharedPreferences.getInstance();
 
     // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
     // (يجب أن يكون خارج transaction لأن SQLite يتجاهل PRAGMA داخل transaction)
@@ -609,6 +618,14 @@ class LocalBackupService {
       // لف كل عمليات الحذف والإدراج في transaction واحد لضمان atomicity.
       // إذا فشل أي جزء → rollback تلقائي → لا قاعدة بيانات ناقصة.
       await db.transaction(() async {
+        await _assertSafeRestoreAdmission(db, prefs);
+
+        // SharedPreferences وSQLite لا يشتركان في transaction. نثبّت حالة
+        // محافظة قبل أول حذف: إذا فشل الاستيراد وبقيت SQLite القديمة، تبدأ
+        // المزامنة التالية من الصفر بعد أن يعيد المستخدم تفعيلها صراحةً؛
+        // ولا يمكن أن يبقى مؤشر يتجاوز البيانات المستعادة.
+        await _resetSyncCheckpointsBeforeRestore(prefs);
+
         // ✅ إصلاح حرج (audit agent-7, agent-10):
         // كانت الاستعادة تحذف وتُدرج فقط 8 جداول، مما يُسبب فقدان صامت
         // لـ 12 جدولاً آخر (booking_nights, shift_notes, salary_cycles, ...).
@@ -637,16 +654,14 @@ class LocalBackupService {
         await db.delete(db.hotelDayLedger).go();
         await db.delete(db.shiftNotes).go();
         await db.delete(db.priceAdjustments).go();
-        await db.delete(db.auditLogs).go();
         await db.delete(db.paymentVoids).go();
         await db.delete(db.guestInfos).go();
         await db.delete(db.autoFixRuns).go();
         await db.delete(db.appSessions).go();
-        await db.delete(db.outbox).go();
         await db.delete(db.syncQueue).go();
         await db.delete(db.syncLog).go();
-        await db.delete(db.restoreFixLog).go();
         await db.delete(db.syncState).go();
+        await db.delete(db.syncRemoteMeta).go();
 
         Future<void> insertList<T>(
           String key,
@@ -725,14 +740,7 @@ class LocalBackupService {
           );
           await db.into(db.priceAdjustments).insertOnConflictUpdate(data);
         });
-        await insertList<dynamic>('audit_logs', (json) async {
-          final map = Map<String, dynamic>.from(json as Map);
-          final data = AuditLog.fromJson(
-            map,
-            serializer: lenientValueSerializer,
-          );
-          await db.into(db.auditLogs).insertOnConflictUpdate(data);
-        });
+        // audit_logs دليل محلي؛ لا نمسحه ولا نستورد دليل جهاز آخر.
         await insertList<dynamic>('payment_voids', (json) async {
           final map = Map<String, dynamic>.from(json as Map);
           final data = PaymentVoid.fromJson(
@@ -852,7 +860,7 @@ class LocalBackupService {
             '✅ تم استعادة '
             '${metadata.totalRecords > 0 ? metadata.totalRecords : restoredRows} '
             'سجل بنجاح من نسخة JSON '
-            '(جميع الجداول الـ20) — atomic transaction',
+            '(جداول الأعمال، مع حفظ outbox وسجل التدقيق) — atomic transaction',
       );
     } finally {
       // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل
@@ -877,71 +885,94 @@ class LocalBackupService {
     }
   }
 
-  Future<void> _restoreFromSqliteBackup(String filePath) async {
-    final file = File(filePath);
-    if (!file.existsSync()) {
-      throw Exception('ملف النسخة الاحتياطية غير موجود');
-    }
-
-    BackupMetadata? metadata;
-    final metadataFile = File(_metadataFilePath(filePath));
-    if (metadataFile.existsSync()) {
-      final metaContent = await metadataFile.readAsString();
-      metadata = BackupMetadata.fromJson(
-        jsonDecode(metaContent) as Map<String, dynamic>,
-      );
-      if (metadata.databaseVersion > AppDatabase().schemaVersion) {
-        throw Exception(
-          'إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي',
+  void _validateRecognizedBackupTables(Map<String, dynamic> backupData) {
+    const recognizedTables = <String>{
+      'rooms',
+      'employees',
+      'inventory_items',
+      'inventory_transactions',
+      'cash_transactions',
+      'shift_notes',
+      'hotel_day_ledger',
+      'price_adjustments',
+      'audit_logs',
+      'payment_voids',
+      'guest_infos',
+      'bookings',
+      'expenses',
+      'salary_cycles',
+      'booking_notes',
+      'booking_nights',
+      'booking_price_adjustments',
+      'payments',
+      'debts',
+      'salary_payments',
+      'salary_withdrawals',
+      'salary_carry_over_logs',
+      'outbox',
+      'sync_state',
+      'sync_remote_meta',
+    };
+    for (final key in recognizedTables) {
+      if (!backupData.containsKey(key)) continue;
+      final rows = backupData[key];
+      if (rows is! List || rows.any((row) => row is! Map)) {
+        throw FormatException(
+          'حقل النسخة الاحتياطية "$key" يجب أن يكون قائمة من الصفوف',
         );
       }
-    }
-
-    // ✅ إصلاح (2026-06-28): استخدام SqliteBackupRestore.restoreDatabase
-    // بدلاً من deleteDatabase + copy المباشر.
-    // الأسباب:
-    //   1. restoreDatabase يُغلق اتصال Drift أولاً (يمنع file locks)
-    //   2. يستبدل ذرياً عبر temp file + rename
-    //   3. يحتفظ بنسخة .pre_restore للأمان
-    //   4. يُعيد فتح DB بعد الاستعادة
-    // المنطق القديم كان يُسبب فقدان بيانات إذا فشل copy بعد deleteDatabase.
-    dlog('🗃️ استعادة نسخة SQLite عبر SqliteBackupRestore...');
-
-    // التحقق من سلامة الملف قبل الاستعادة (basic integrity check)
-    try {
-      final bytes = await file.readAsBytes();
-      // SQLite header: "SQLite format 3\0" (16 bytes)
-      if (bytes.length < 16 ||
-          bytes[0] != 0x53 || // 'S'
-          bytes[1] != 0x51 || // 'Q'
-          bytes[2] != 0x4c || // 'L'
-          bytes[3] != 0x69) {
-        // 'i'
-        throw Exception(
-          'الملف ليس قاعدة بيانات SQLite صالحة (header غير مطابق)',
-        );
-      }
-      dlog(() => '✅ تم التحقق من header SQLite (${bytes.length} بايت)');
-    } catch (e) {
-      dlog(() => '❌ فشل التحقق من سلامة ملف SQLite: $e');
-      rethrow;
-    }
-
-    await SqliteBackupRestore.restoreDatabase(filePath);
-
-    if (metadata != null) {
-      final ts = metadata.backupTimestamp;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefsLastLocalBackupKey, ts.toIso8601String());
-      dlog(() => '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ $ts');
-    } else {
-      dlog('✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية');
     }
   }
 
-  // ✅ تمت إزالة _deleteSidecarFiles (2026-06-28) — غير مستخدم بعد
-  // التحويل إلى SqliteBackupRestore.restoreDatabase الذي يتعامل مع
-  // الملفات المساعدة (-wal, -shm) داخلياً.
+  Future<void> _assertSafeRestoreAdmission(
+    AppDatabase db,
+    SharedPreferences prefs,
+  ) async {
+    final pending = await db.customSelect(
+      "SELECT COUNT(*) AS n FROM outbox "
+      "WHERE source = 'local' AND delivered_to_primary = 0",
+      readsFrom: {db.outbox},
+    ).getSingle();
+    final pendingCount = pending.read<int>('n');
+    if (pendingCount > 0) {
+      throw StateError(
+        'تعذرت الاستعادة: توجد $pendingCount تغييرات محلية لم تُسلَّم. '
+        'زامنها أو راجعها أولاً؛ لن تُحذف تلقائياً.',
+      );
+    }
+
+    const guardedPreferenceKeys = <String>[
+      'cf_pull_blocked_pending',
+      'cf_pull_quarantined_records',
+    ];
+    for (final key in guardedPreferenceKeys) {
+      final raw = prefs.getString(key);
+      if (raw == null || raw.trim().isEmpty || raw.trim() == '{}') continue;
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map && decoded.isEmpty) continue;
+      } catch (_) {
+        // حالة حجر تالفة ليست دليلاً على عدم وجود سجلات؛ نفشل بأمان.
+      }
+      throw StateError(
+        'تعذرت الاستعادة: توجد سجلات مزامنة معلّقة أو محجورة للمراجعة. '
+        'لن يحذفها الاستيراد تلقائياً.',
+      );
+    }
+  }
+
+  Future<void> _resetSyncCheckpointsBeforeRestore(
+    SharedPreferences prefs,
+  ) async {
+    await prefs.setInt('cf_last_pull_cursor', 0);
+    await prefs.setBool('cf_full_sync_completed', false);
+    await prefs.setBool('cf_timestamp_normalization_v1_done', false);
+    await prefs.setBool('cf_restore_replay_pending', true);
+    await prefs.setBool('appwrite_sync_enabled', false);
+    await prefs.remove('cf_sync_stats_v1');
+    await prefs.remove('cf_tombstone_sweep_v1_done');
+    await prefs.remove('cf_tombstone_sweep_v1_cursor');
+  }
 
   /// مشاركة نسخة احتياطية
   Future<void> shareBackup(String filePath) async {
@@ -1194,7 +1225,7 @@ class LocalBackupService {
     // ينتج نسخ .db خام بدلاً من JSON المضغوط.
     return BackupFormat.values.firstWhere(
       (format) => format.name == raw,
-      orElse: () => BackupFormat.sqlite,
+      orElse: () => BackupFormat.json,
     );
   }
 

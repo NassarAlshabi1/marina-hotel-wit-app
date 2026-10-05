@@ -698,6 +698,13 @@ class SalaryCycles extends Table with SyncFields {
   IntColumn get remainingAmount => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('draft'))();
 
+  List<Index> get indexes => [
+    Index(
+      'idx_salary_cycles_employee_uuid',
+      'CREATE INDEX idx_salary_cycles_employee_uuid ON salary_cycles (employee_uuid)',
+    ),
+  ];
+
   @override
   List<Set<Column>>? get uniqueKeys => [
     {employeeId, cycleKey},
@@ -722,6 +729,10 @@ class SalaryPayments extends Table with SyncFields {
     Index(
       'idx_salary_payments_cycle',
       'CREATE INDEX idx_salary_payments_cycle ON salary_payments (cycle_id, hotel_day_key)',
+    ),
+    Index(
+      'idx_salary_payments_employee_uuid',
+      'CREATE INDEX idx_salary_payments_employee_uuid ON salary_payments (employee_uuid)',
     ),
   ];
 }
@@ -752,6 +763,10 @@ class SalaryWithdrawals extends Table with SyncFields {
     Index(
       'idx_salary_withdrawals_employee',
       'CREATE INDEX idx_salary_withdrawals_employee ON salary_withdrawals (employee_id)',
+    ),
+    Index(
+      'idx_salary_withdrawals_employee_uuid',
+      'CREATE INDEX idx_salary_withdrawals_employee_uuid ON salary_withdrawals (employee_uuid)',
     ),
     Index(
       'idx_salary_withdrawals_expense',
@@ -1253,7 +1268,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 68;
+  int get schemaVersion => 69;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -3541,6 +3556,23 @@ class AppDatabase extends _$AppDatabase {
         for (final sql in indexes) {
           await m.database.customStatement(sql);
         }
+      }
+
+      // الإصدار 69: فهارس مراجع الموظف المستقرة. ترحيل إضافي فقط؛
+      // لا يغيّر مبالغ أو علاقات ولا يحذف أي بيانات مالية.
+      if (from < 69) {
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee_uuid '
+          'ON salary_withdrawals (employee_uuid)',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_cycles_employee_uuid '
+          'ON salary_cycles (employee_uuid)',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid '
+          'ON salary_payments (employee_uuid)',
+        );
       }
     },
   );

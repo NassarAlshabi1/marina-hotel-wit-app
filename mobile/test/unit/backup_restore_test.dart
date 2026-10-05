@@ -1578,13 +1578,13 @@ void main() {
   //  الحفظ المحلي الافتراضي: نسخة .db خام تُحفظ تلقائياً في
   //  /storage/emulated/0/Documents/MarinaHotelBackups
   // ═════════════════════════════════════════════════════════════════════════
-  group('Local backup default format (.db)', () {
-    test('getPreferredBackupFormat defaults to BackupFormat.sqlite', () async {
+  group('Local backup safe default format (.json)', () {
+    test('getPreferredBackupFormat defaults to restorable BackupFormat.json', () async {
       SharedPreferences.setMockInitialValues({});
       final service = LocalBackupService();
       final format = await service.getPreferredBackupFormat();
-      expect(format, BackupFormat.sqlite);
-      expect(format.name, 'sqlite');
+      expect(format, BackupFormat.json);
+      expect(format.name, 'json');
     });
 
     test('setPreferredBackupFormat round-trips the chosen format', () async {

@@ -34,6 +34,7 @@ import 'sync/pull_apply_rules.dart';
 import 'sync/pull_quarantine.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_enums.dart';
+import 'sync_locks.dart';
 import 'vector_clock_service.dart';
 import 'worker_endpoints.dart';
 
@@ -1026,6 +1027,20 @@ class CloudflareSyncManager {
   /// (cursor=0 implicit since not completed) ولا يضع checkpoint نهائي
   /// إلا بعد اكتمال pagination حتى exhaustion.
   Future<SyncResult> sync({
+    bool push = true,
+    bool pull = true,
+    bool deltaOnly = false,
+    bool forcePull = false,
+  }) => SyncLocks.runMain(
+    () => _syncUnlocked(
+      push: push,
+      pull: pull,
+      deltaOnly: deltaOnly,
+      forcePull: forcePull,
+    ),
+  );
+
+  Future<SyncResult> _syncUnlocked({
     bool push = true,
     bool pull = true,
     // ✅ توافق Drop-in (perf call-sites: dashboard_screen deltaOnly،

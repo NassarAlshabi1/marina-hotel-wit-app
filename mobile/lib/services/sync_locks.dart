@@ -5,6 +5,12 @@ class SyncLocks {
   SyncLocks._();
 
   static final mainSyncLock = Lock();
+
+  /// يشغّل المزامنة أو صيانة قاعدة البيانات تحت قفل العملية المشترك.
+  /// الاستعادة تستخدمه أيضاً كي لا تتداخل مع push/pull.
+  static Future<T> runMain<T>(Future<T> Function() action) =>
+      mainSyncLock.synchronized(action);
+
   static final deltaSyncLock = Lock();
   static final autoEngineLock = Lock();
   static final smartSyncLock = Lock();
