@@ -1156,15 +1156,33 @@ export class Database {
     deviceId: string,
     fallbackUpdatedAt?: number
   ): Promise<SyncRecord> {
+    // Freeze the operation's edit time across retries, rather than making a
+    // contended old edit appear newer each time it is evaluated.
+    const editTime = fallbackUpdatedAt !== undefined && Number.isFinite(fallbackUpdatedAt)
+      ? fallbackUpdatedAt : Number(data.updated_at) || Math.floor(Date.now() / 1000);
+    return this.updateRecordAttempt(entity, recordId, data, vectorClock, deviceId, editTime, 0);
+  }
+
+  private async updateRecordAttempt(
+    entity: string, recordId: string, data: Record<string, unknown>,
+    vectorClock: string, deviceId: string, fallbackUpdatedAt: number, attempt: number
+  ): Promise<SyncRecord> {
+    const originalData = data;
     const table = getTableName(entity);
     const clearEmployeeLink =
       entity === 'expenses' && this.isExplicitLinkClear(data.clear_employee_link);
 
-    // Fetch existing record by local_uuid (not id — id is autoIncrement)
-    const existing = await this.db
-      .prepare(`SELECT * FROM ${table} WHERE local_uuid = ?`)
-      .bind(recordId)
-      .first<SyncRecord>();
+    // One SQL snapshot for the business row AND its conflict edit time.
+    // A second SELECT could pair an old row with a newer writer's edit time.
+    const snapshot = await this.db
+      .prepare(`SELECT r.*, (SELECT edited_at FROM sync_write_times
+        WHERE entity = ? AND local_uuid = r.local_uuid) AS __conflict_edit_time
+        FROM ${table} r WHERE r.local_uuid = ?`)
+      .bind(entity, recordId)
+      .first<SyncRecord & { __conflict_edit_time?: number | null }>();
+    const observedEditTime = snapshot?.__conflict_edit_time ?? null;
+    const existing = snapshot;
+    if (existing) delete existing.__conflict_edit_time;
 
     if (!existing) {
       // Record doesn't exist — create it instead
@@ -1217,12 +1235,8 @@ export class Database {
       incomingTimestampRaw,
       serverNow + Database.CLOCK_SKEW_ALLOWANCE_S
     );
-    const writeTime = await this.db.prepare(
-      'SELECT edited_at FROM sync_write_times WHERE entity = ? AND local_uuid = ?'
-    ).bind(entity, recordId).first<{ edited_at: number }>();
-    // Legacy rows have no trustworthy separate edit time. Bound their old cursor
-    // to wall time once; all subsequent writes store an independent timestamp.
-    const existingEditTime = writeTime?.edited_at ?? Math.min(existing.updated_at, serverNow);
+    // Legacy rows have no independent edit time; retain the existing policy.
+    const existingEditTime = observedEditTime ?? Math.min(existing.updated_at, serverNow);
     const incomingDelta = incomingTimestamp - existingEditTime;
     const existingVersion = this.sanitizeVersion(existing.version);
     const timestampLoss =
@@ -1297,17 +1311,36 @@ export class Database {
       }
     }
 
-    const setClauses = Object.keys(cleanUpdate)
-      .map((col) => `${col} = ?`)
-      .join(', ');
-    const values = Object.keys(cleanUpdate).map((col) => cleanUpdate[col]);
+    const columns = Object.keys(cleanUpdate).filter((col) => col !== 'updated_at');
+    const setClauses = columns.map((col) => `${col} = ?`).join(', ');
+    const values = columns.map((col) => cleanUpdate[col]);
 
-    const committed = await this.commitStamped(table, 'local_uuid', recordId, [
-      this.db.prepare(`UPDATE ${table} SET ${setClauses} WHERE local_uuid = ?`).bind(...values, recordId),
-      this.db.prepare('INSERT INTO sync_write_times (entity, local_uuid, edited_at) VALUES (?, ?, ?) ' +
+    // Compare-and-swap and metadata publication are in the SAME transaction.
+    // changes() belongs to the immediately preceding conditional UPDATE: a
+    // failed CAS must not replace the winning writer's sync_write_times entry.
+    // Clock gaps on a failed attempt are harmless; no row receives that stamp.
+    const results = await this.db.batch([
+      this.db.prepare('INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, 0)'),
+      this.db.prepare('UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1').bind(now),
+      this.db.prepare(`UPDATE ${table} SET ${setClauses},
+        updated_at = (SELECT last_ts FROM sync_clock WHERE id = 1)
+        WHERE local_uuid = ? AND updated_at = ? AND version IS ?
+          AND vector_clock IS ? AND deleted_at IS NULL
+          AND (SELECT edited_at FROM sync_write_times WHERE entity = ? AND local_uuid = ?) IS ?`)
+        .bind(...values, recordId, existing.updated_at, existing.version ?? null,
+          existing.vector_clock ?? null, entity, recordId, observedEditTime),
+      this.db.prepare('INSERT INTO sync_write_times (entity, local_uuid, edited_at) ' +
+        'SELECT ?, ?, ? WHERE changes() > 0 ' +
         'ON CONFLICT(entity, local_uuid) DO UPDATE SET edited_at = excluded.edited_at')
         .bind(entity, recordId, incomingTimestamp),
+      this.db.prepare(`SELECT * FROM ${table} WHERE local_uuid = ?`).bind(recordId),
     ]);
+    if (results[2].meta.changes === 0) {
+      if (attempt >= 4) throw new Error('Concurrent update contention; retry operation');
+      return this.updateRecordAttempt(entity, recordId, originalData, vectorClock,
+        deviceId, fallbackUpdatedAt, attempt + 1);
+    }
+    const committed = { record: results[4].results[0] as unknown as SyncRecord };
 
     // Log to sync_log
     await this.logSync(entity, recordId, 'update', newVersion, deviceId, committed.record);
@@ -1336,15 +1369,19 @@ export class Database {
       return { deleted: false };
     }
 
-    const newVersion = this.sanitizeVersion(existing.version) + 1;
-
-    await this.commitStamped(table, 'local_uuid', recordId, [this.db
+    // A deletion is unconditional (delete-wins), but its version must be
+    // incremented from the CURRENT row in the transaction, not the earlier
+    // snapshot. Attribute the tombstone to the deleting device for echo filters.
+    const committed = await this.commitStamped(table, 'local_uuid', recordId, [this.db
       .prepare(
-        `UPDATE ${table} SET deleted_at = ?, updated_at = ?, version = ? WHERE local_uuid = ?`
+        `UPDATE ${table} SET deleted_at = ?, updated_at = ?, device_id = ?,
+          version = (CASE WHEN typeof(version) IN ('integer', 'real') AND version <= ?
+            THEN version ELSE 1 END) + 1 WHERE local_uuid = ?`
       )
-      .bind(now, now, newVersion, recordId)]);
+      .bind(now, now, deviceId, Database.MAX_SANE_VERSION, recordId)]);
+    if (committed.results[0].meta.changes === 0) return { deleted: false };
 
-    await this.logSync(entity, recordId, 'delete', newVersion, deviceId, null);
+    await this.logSync(entity, recordId, 'delete', committed.record.version, deviceId, null);
 
     return { deleted: true };
   }
