@@ -26,6 +26,7 @@ export interface PullResult {
   changes: SyncRecord[];
   cursor: number;
   has_more: boolean;
+  repair_pending: boolean;
   /**
    * ✅ (2026-09-10) طلب المستخدم: «مؤشر السحب الكامل يجب أن أعرف حجم
    * السحب والمتبقي». عدد الصفوف الباقية بعد cursor (عبر كل الجداول،
@@ -167,10 +168,9 @@ export class Database {
   // ─── Sync Clock (monotonic unique updated_at allocator) ───────
 
   /**
-   * Allocate a globally-unique, strictly-monotonic `updated_at` (seconds).
-   * Single atomic statement against the sync_clock singleton; two concurrent
-   * writes can therefore never share the same updated_at, which is what
-   * makes the integer pull cursor lossless.
+   * Reserve a strictly-monotonic clock boundary for a pull. This alone is
+   * NOT a safe business-row timestamp: row publication must use commitStamped
+   * (or an equivalent atomic batch) so commit order also determines cursors.
    */
   async allocateUpdatedAt(): Promise<number> {
     const now = Math.floor(Date.now() / 1000);
@@ -200,6 +200,24 @@ export class Database {
       return retry.last_ts;
     }
     throw new Error('sync_clock allocation failed');
+  }
+
+  /** Publish the row and its final cursor in ONE D1 transaction. A reserved
+   * timestamp is not a commit watermark: another writer may finish first.
+   * The readback belongs to the batch too, so the response matches this commit.
+   */
+  private async commitStamped(
+    table: string, key: string, id: string, statements: D1PreparedStatement[]
+  ): Promise<{ results: D1Result[]; record: SyncRecord }> {
+    const results = await this.db.batch([
+      ...statements,
+      this.db.prepare('INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, 0)'),
+      this.db.prepare('UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1')
+        .bind(Math.floor(Date.now() / 1000)),
+      this.db.prepare(`UPDATE ${table} SET updated_at = (SELECT last_ts FROM sync_clock WHERE id = 1) WHERE ${key} = ?`).bind(id),
+      this.db.prepare(`SELECT * FROM ${table} WHERE ${key} = ?`).bind(id),
+    ]);
+    return { results, record: results[results.length - 1].results[0] as unknown as SyncRecord };
   }
 
   /** Advance the sync clock past a foreign timestamp (e.g. after bulk migration). */
@@ -264,6 +282,24 @@ export class Database {
     const errors: Array<{ entity: string; error: string }> = [];
     let windowTruncated = false;
 
+    // Indexed MAX probes account for legacy/imported sane timestamps too.
+    // A missing table still prevents checkpoint advancement, as before.
+    let legacyMax = cursor;
+    for (const ent of entities) {
+      try {
+        const row = await this.db.prepare(`SELECT MAX(updated_at) AS m FROM ${ENTITY_TABLES[ent]} WHERE updated_at <= ?`)
+          .bind(Database.FUTURE_TIMESTAMP_THRESHOLD).first<{ m: number | null }>();
+        legacyMax = Math.max(legacyMax, Number(row?.m ?? 0));
+      } catch (err) {
+        errors.push({ entity: ent, error: String(err).slice(0, 300) });
+      }
+    }
+    await this.advanceSyncClock(legacyMax);
+    const ceiling = await this.allocateUpdatedAt();
+    // Every later commitStamped/reStampPoisoned transaction publishes ABOVE
+    // this boundary. Never advance a page across writes between table reads.
+    const boundClause = ` AND (updated_at <= ${ceiling} OR updated_at > ${Database.FUTURE_TIMESTAMP_THRESHOLD})`;
+
     // Safety cap for the group-completion loop below. A legacy dataset
     // whose rows share one updated_at can force large windows; past this
     // point we accept the (logged) truncation rather than grow forever.
@@ -308,13 +344,13 @@ export class Database {
           excludeDevice
             ? this.db
                 .prepare(
-                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ?${devFilter} ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ?${boundClause}${devFilter} ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
                 .bind(afterTs, ...devBind, lim)
                 .all<Record<string, unknown>>()
             : this.db
                 .prepare(
-                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ?${boundClause} ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
                 .bind(afterTs, lim)
                 .all<Record<string, unknown>>();
@@ -533,6 +569,7 @@ export class Database {
       changes: servedPage,
       cursor: nextCursor,
       has_more: hasMore,
+      repair_pending: safeToAdvance && healedPoison > 0,
       remaining,
       errors,
     };
@@ -638,10 +675,12 @@ export class Database {
     normalized: number;
     remaining: number;
     perTable: Record<string, number>;
+    complete: boolean;
   }> {
     const perTable: Record<string, number> = {};
     let normalized = 0;
     let remainingTotal = 0;
+    let failed = false;
 
     for (const table of Object.values(ENTITY_TABLES)) {
       try {
@@ -671,8 +710,7 @@ export class Database {
         if (rows.results.length === 0) continue;
 
         // ✅ (2026-09-17) نفس ميكانيكية إعادة الختم المشتركة مع الإصلاح
-        // الذاتي في pullChanges — التخصيص الذري (‎UPDATE…RETURNING) للنطاق
-        // المتزايد الصارم فوق الساعة يبقى كما هو، وlast_modified يُعاد
+        // الذاتي في pullChanges — تخصيص ونشر الطوابع في دفعة ذرية، وlast_modified يُعاد
         // ختمه فقط إذا كان هو نفسه فوق عتبة التسميم FUTURE (الثواني
         // السليمة ~1.79e9 تبقى محفوظة دائماً).
         const fixed = await this.reStampPoisoned(table, rows.results);
@@ -680,12 +718,13 @@ export class Database {
         perTable[table] = fixed;
         remainingTotal = Math.max(0, remainingTotal - fixed);
       } catch (err) {
+        failed = true;
         // Normalization is best-effort repair — never block the pull.
         console.error(`[SYNC/PULL] normalize ${table} failed:`, String(err).slice(0, 200));
       }
     }
 
-    return { normalized, remaining: remainingTotal, perTable };
+    return { normalized, remaining: remainingTotal, perTable, complete: !failed && remainingTotal === 0 };
   }
 
   /**
@@ -693,12 +732,10 @@ export class Database {
    * المشتركة بين normalizeTimestamps (مسح الصيانة) والإصلاح الذاتي داخل
    * pullChanges (الصفوف التي صادفتها الصفحة فعلاً).
    *
-   * تحجز نطاقاً متزايداً صارماً فوق sync_clock ذرياً (عبارة واحدة
-   * ‎RETURNING واحدة — لا يمكن لطلبي سحب متزامنين أن يتقاسا النطاق نفسه
-   * فتنشأ طوابع مكررة)، ثم تعيد ختم updated_at لكل صف ضمن النطاق و
-   * last_modified فقط إذا كان هو نفسه مسموماً (فوق 2e9). الدفعات
-   * بـ db.batch ذرّية (50 عبارة/دفعة) — إعادة المحاولة آمنة: صف خُتم
-   * فعلاً لم يعد يطابق مرشّح السم فلا يُلمس مجدداً (idempotent).
+   * Each batch allocates AND publishes up to 20 rows (40 statements) in
+   * one transaction. Guarded updates preserve a concurrent legitimate edit.
+   * last_modified is replaced only if it is itself poisoned. No reserved
+   * timestamp can be published later below an already-served pull boundary.
    */
   private async reStampPoisoned(
     table: string,
@@ -709,43 +746,25 @@ export class Database {
       .filter((u) => u.length > 0);
     if (targets.length === 0) return 0;
 
-    // Allocate a contiguous, strictly-increasing second-based range past
-    // the current clock — ATOMICALLY (single UPDATE … RETURNING): two
-    // concurrent healers could otherwise read the same clock base and
-    // assign overlapping timestamps (the duplicate-ts disease).
-    const alloc = await this.db
-      .prepare(
-        'UPDATE sync_clock SET last_ts = MAX(last_ts, ?) + ? WHERE id = 1 RETURNING last_ts'
-      )
-      .bind(Math.floor(Date.now() / 1000), targets.length)
-      .first<{ last_ts: number }>();
-    if (!alloc || typeof alloc.last_ts !== 'number') {
-      throw new Error('sync_clock allocation failed (poison re-stamp)');
+    let repaired = 0;
+    for (let start = 0; start < targets.length; start += 20) {
+      const statements: D1PreparedStatement[] = [];
+      for (const uuid of targets.slice(start, start + 20)) {
+        statements.push(
+          this.db.prepare('UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1')
+            .bind(Math.floor(Date.now() / 1000)),
+          this.db.prepare(`UPDATE ${table}
+            SET updated_at = (SELECT last_ts FROM sync_clock WHERE id = 1),
+                last_modified = CASE WHEN last_modified > ?
+                  THEN (SELECT last_ts FROM sync_clock WHERE id = 1) ELSE last_modified END
+            WHERE local_uuid = ? AND updated_at > ?`)
+            .bind(Database.FUTURE_TIMESTAMP_THRESHOLD, uuid, Database.FUTURE_TIMESTAMP_THRESHOLD)
+        );
+      }
+      const results = await this.db.batch(statements);
+      repaired += results.reduce((sum, result, i) => sum + (i % 2 === 1 ? result.meta.changes : 0), 0);
     }
-    const rangeStart = alloc.last_ts - targets.length + 1;
-
-    const statements: D1PreparedStatement[] = targets.map((uuid, i) => {
-      const newTs = rangeStart + i;
-      // last_modified يُعاد ختمه فقط إذا كان هو نفسه مسموماً — الثواني
-      // السليمة (مخرجات المخصّص الخادمي) تبقى كما هي.
-      return this.db
-        .prepare(
-          `UPDATE ${table}
-           SET updated_at = ?,
-               last_modified = CASE WHEN last_modified > ? THEN ? ELSE last_modified END
-           WHERE local_uuid = ?`
-        )
-        .bind(newTs, Database.FUTURE_TIMESTAMP_THRESHOLD, newTs, uuid);
-    });
-
-    // D1 batch is atomic per call — 50 statements per batch mirrors the
-    // migrate handler's chunking. Re-stamping is idempotent per batch: a
-    // retried batch re-stamps already-repaired rows only if they still
-    // exceed the poison filter, which they no longer do.
-    for (let start = 0; start < statements.length; start += 50) {
-      await this.db.batch(statements.slice(start, start + 50));
-    }
-    return targets.length;
+    return repaired;
   }
 
   // ─── Push: Create ──────────────────────────────────────────
@@ -1010,8 +1029,8 @@ export class Database {
     // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
     const localUuid = (normalizedData.local_uuid as string) || crypto.randomUUID();
 
-    // ✅ Globally-unique updated_at (keeps the pull cursor lossless)
-    const serverUpdatedAt = await this.allocateUpdatedAt();
+    // The final timestamp is assigned inside the write transaction below.
+    const serverUpdatedAt = now; // provisional; commitStamped assigns the final cursor
 
     // ✅ Respect the client's vector clock when it is a valid object;
     // otherwise seed a fresh clock for this device.
@@ -1086,7 +1105,7 @@ export class Database {
 
     // Use INSERT OR IGNORE for idempotency (duplicate local_uuid = skip)
     // but check the actual row count to detect silent failures
-    const [insertResult] = await this.db.batch([
+    const committed = await this.commitStamped(table, 'local_uuid', localUuid, [
       this.db.prepare(`INSERT OR IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`).bind(...values),
       this.db.prepare('INSERT OR IGNORE INTO sync_write_times (entity, local_uuid, edited_at) VALUES (?, ?, ?)')
         .bind(entity, localUuid, now),
@@ -1094,7 +1113,7 @@ export class Database {
 
     // If no rows were written, check if the record already exists
     // (idempotent skip) or if there was a silent constraint violation
-    if (insertResult!.meta.changes === 0) {
+    if (committed.results[0].meta.changes === 0) {
       const existing = await this.db
         .prepare(`SELECT local_uuid FROM ${table} WHERE local_uuid = ?`)
         .bind(localUuid)
@@ -1104,17 +1123,16 @@ export class Database {
         // Not a duplicate — a constraint was silently violated.
         // Retry with a plain INSERT to surface the actual error.
         console.error(`[CREATE] Silent insert failure for ${entity}/${localUuid}. Retrying with plain INSERT to surface error.`);
-        await this.db
+        await this.commitStamped(table, 'local_uuid', localUuid, [this.db
           .prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
-          .bind(...values)
-          .run();
+          .bind(...values)]);
       }
     }
 
     // Log to sync_log — use local_uuid as entity_id
-    await this.logSync(entity, localUuid, 'create', 1, deviceId, record);
+    await this.logSync(entity, localUuid, 'create', 1, deviceId, committed.record);
 
-    return record;
+    return committed.record;
   }
 
   // ─── Push: Update ──────────────────────────────────────────
@@ -1225,7 +1243,7 @@ export class Database {
     // 'equal' | 'remote_newer' → apply
 
     // ─── Apply update ────────────────────────────────────────
-    const now = await this.allocateUpdatedAt();
+    const now = Math.floor(Date.now() / 1000);
     const newVersion = this.sanitizeVersion(existing.version) + 1;
 
     // Merge vector clocks
@@ -1273,7 +1291,7 @@ export class Database {
       .join(', ');
     const values = Object.keys(cleanUpdate).map((col) => cleanUpdate[col]);
 
-    await this.db.batch([
+    const committed = await this.commitStamped(table, 'local_uuid', recordId, [
       this.db.prepare(`UPDATE ${table} SET ${setClauses} WHERE local_uuid = ?`).bind(...values, recordId),
       this.db.prepare('INSERT INTO sync_write_times (entity, local_uuid, edited_at) VALUES (?, ?, ?) ' +
         'ON CONFLICT(entity, local_uuid) DO UPDATE SET edited_at = excluded.edited_at')
@@ -1281,10 +1299,10 @@ export class Database {
     ]);
 
     // Log to sync_log
-    await this.logSync(entity, recordId, 'update', newVersion, deviceId, cleanUpdate);
+    await this.logSync(entity, recordId, 'update', newVersion, deviceId, committed.record);
 
     // Return updated record
-    return { ...existing, ...cleanUpdate } as SyncRecord;
+    return committed.record;
   }
 
   // ─── Push: Delete (soft delete) ────────────────────────────
@@ -1295,9 +1313,8 @@ export class Database {
     deviceId: string
   ): Promise<{ deleted: boolean }> {
     const table = getTableName(entity);
-    // ✅ Tombstones must be pullable too — allocate a unique updated_at so
-    // the deletion surfaces exactly once in every client's delta stream.
-    const now = await this.allocateUpdatedAt();
+    // Tombstones receive their final updated_at in the commit transaction.
+    const now = Math.floor(Date.now() / 1000);
 
     const existing = await this.db
       .prepare(`SELECT version FROM ${table} WHERE local_uuid = ?`)
@@ -1310,12 +1327,11 @@ export class Database {
 
     const newVersion = this.sanitizeVersion(existing.version) + 1;
 
-    await this.db
+    await this.commitStamped(table, 'local_uuid', recordId, [this.db
       .prepare(
         `UPDATE ${table} SET deleted_at = ?, updated_at = ?, version = ? WHERE local_uuid = ?`
       )
-      .bind(now, now, newVersion, recordId)
-      .run();
+      .bind(now, now, newVersion, recordId)]);
 
     await this.logSync(entity, recordId, 'delete', newVersion, deviceId, null);
 
@@ -1577,10 +1593,8 @@ export class Database {
     platform?: string,
     localUuid?: string
   ): Promise<void> {
-    // ✅ Globally-unique monotonic updated_at (sync_clock) — devices is
-    // a synced entity now; raw Date.now() would break the pull cursor's
-    // losslessness guarantee.
-    const now = await this.allocateUpdatedAt();
+    // Device wall-clock metadata is separate from its committed sync cursor.
+    const now = Math.floor(Date.now() / 1000);
     // Ensure devices table exists (shape matches schema.sql / 0004 —
     // sync-entity shape with SyncFields mirror; device_id is BOTH the
     // device identity and the SyncFields writer column, unified).
@@ -1619,7 +1633,7 @@ export class Database {
 
     // Upsert by device_id; local_uuid anchors the sync protocol so REST
     // registration and outbox pushes converge on a single row.
-    await this.db.prepare(
+    await this.commitStamped('devices', 'device_id', deviceId, [this.db.prepare(
       `INSERT INTO devices (local_uuid, device_id, fcm_token, status,
          device_name, platform, last_active, created_at, updated_at,
          last_modified, last_modified_epoch, origin)
@@ -1647,7 +1661,7 @@ export class Database {
       now,
       now,
       now
-    ).run();
+    )]);
   }
 
   async getDeviceTokens(excludeDeviceId?: string): Promise<string[]> {
@@ -1665,10 +1679,10 @@ export class Database {
   }
 
   async setDeviceFcmToken(deviceId: string, fcmToken: string): Promise<void> {
-    // ✅ sync_clock allocation — monotonic pull cursor (see registerDevice)
-    const now = await this.allocateUpdatedAt();
-    await this.db.prepare(
+    // commitStamped assigns the sync cursor; metadata uses wall-clock seconds.
+    const now = Math.floor(Date.now() / 1000);
+    await this.commitStamped('devices', 'device_id', deviceId, [this.db.prepare(
       `UPDATE devices SET fcm_token = ?, updated_at = ?, last_modified = ?, last_modified_epoch = ? WHERE device_id = ?`
-    ).bind(fcmToken, now, now, now, deviceId).run();
+    ).bind(fcmToken, now, now, now, deviceId)]);
   }
 }

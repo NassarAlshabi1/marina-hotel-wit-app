@@ -311,6 +311,92 @@ class SyncIngestorRegistryTest {
         assertEquals(15.0, carry.amount, 0.0)
     }
 
+    private fun auditPage(
+        cursor: String = "123", more: Boolean = false, repair: Boolean? = null,
+        normalization: com.marina.marina.data.remote.WorkerNormalization? = null
+    ) = WorkerPullResponse(
+        changes = emptyList(), cursor = cursor, epoch = "audit", hasMore = more,
+        remaining = null, errors = emptyList(), serverTime = null,
+        repairPending = repair, normalization = normalization
+    )
+
+    private suspend fun assertAuditPull(
+        pages: List<WorkerPullResponse>, expectedCalls: Int, expectedCursor: Long,
+        success: Boolean, fullReplay: Boolean = false, normalized: Boolean = false
+    ) {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))
+        prefs.saveAuthToken("test-worker-token")
+        prefs.saveLastPullCursor(123L)
+        prefs.saveLastPullTs(0L)
+        prefs.saveSyncEpoch("audit")
+        prefs.setFullReplayPending(fullReplay)
+        prefs.setTimestampNormalizationDone(false)
+        var calls = 0
+        val api = Proxy.newProxyInstance(
+            CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
+        ) { _, method, _ ->
+            check(method.name == "pull")
+            val response = pages[minOf(calls++, pages.lastIndex)]
+            check(calls <= 5) { "Unbounded repair retries" }
+            Proxy.newProxyInstance(Call::class.java.classLoader, arrayOf(Call::class.java)) { _, call, _ ->
+                check(call.name == "execute")
+                Response.success(response)
+            } as Call<*>
+        } as CloudflareWorkerApi
+        val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
+                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined))
+            assertEquals(if (success) 0 else -1, manager.pullOnly())
+            assertEquals(expectedCalls, calls)
+            assertEquals(expectedCursor, prefs.getLastPullCursor())
+            assertEquals(normalized, prefs.isTimestampNormalizationDone())
+            assertEquals(success, prefs.getLastPullTs() > 0L)
+        } finally {
+            scope.coroutineContext[kotlinx.coroutines.Job]!!.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun deltaRetriesAcknowledgedRepairWithoutAdvancingCheckpointPrematurely() = runBlocking {
+        assertAuditPull(listOf(auditPage(more = true, repair = true), auditPage(cursor = "456")),
+            expectedCalls = 2, expectedCursor = 456L, success = true)
+    }
+
+    @Test
+    fun deltaStillRejectsUnacknowledgedPaginationStall() = runBlocking {
+        assertAuditPull(listOf(auditPage(more = true)),
+            expectedCalls = 1, expectedCursor = 123L, success = false)
+    }
+
+    @Test
+    fun deltaRepairRetriesAreBoundedAndDoNotStampSuccess() = runBlocking {
+        assertAuditPull(listOf(auditPage(more = true, repair = true)),
+            expectedCalls = 4, expectedCursor = 123L, success = false)
+    }
+
+    @Test
+    fun fullReplayDoesNotMarkUnacknowledgedNormalizationDone() = runBlocking {
+        assertAuditPull(listOf(auditPage()), expectedCalls = 1, expectedCursor = 123L,
+            success = true, fullReplay = true, normalized = false)
+    }
+
+    @Test
+    fun fullReplayMarksExplicitlyCompletedNormalizationDone() = runBlocking {
+        assertAuditPull(listOf(auditPage(normalization =
+            com.marina.marina.data.remote.WorkerNormalization(complete = true, remaining = 0.0))),
+            expectedCalls = 1, expectedCursor = 123L, success = true, fullReplay = true, normalized = true)
+    }
+
+    @Test
+    fun fullReplayDoesNotMarkPartialNormalizationDone() = runBlocking {
+        assertAuditPull(listOf(auditPage(normalization =
+            com.marina.marina.data.remote.WorkerNormalization(complete = false, remaining = 10.0))),
+            expectedCalls = 1, expectedCursor = 123L, success = true, fullReplay = true, normalized = false)
+    }
+
     @Test
     fun dashboardPullUsesSavedDeltaCursorAcrossPagesAndRepeatedClicksWithoutPush() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()

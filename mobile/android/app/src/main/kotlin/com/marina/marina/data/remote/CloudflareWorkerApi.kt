@@ -78,7 +78,14 @@ data class WorkerPullResponse(
     @SerializedName("remaining") val remaining: Double?,
     /** جداول فشلت هذه الجولة — غير فارغة = دورة فاشلة (لا نقدّم المؤشر). */
     @SerializedName("errors") val errors: List<WorkerPullError>?,
-    @SerializedName("server_time") val serverTime: Double?
+    @SerializedName("server_time") val serverTime: Double?,
+    @SerializedName("repair_pending") val repairPending: Boolean? = null,
+    @SerializedName("normalization") val normalization: WorkerNormalization? = null
+)
+
+data class WorkerNormalization(
+    @SerializedName("complete") val complete: Boolean? = null,
+    @SerializedName("remaining") val remaining: Double? = null
 )
 
 data class WorkerPullError(

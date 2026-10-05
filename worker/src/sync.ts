@@ -217,13 +217,13 @@ export async function handlePull(
     // ✅ (2026-09-10) مؤشر تقدم السحب الكامل — العميل الكامل فقط يطلب
     //    remaining (COUNT فهرسي batch واحد)؛ الدلتا بلا كلفة إضافية.
     const includeRemaining =
-      url.searchParams.get('include_remaining') === '1';
+      ['1', 'true'].includes(url.searchParams.get('include_remaining') ?? '');
 
     // ✅ Self-healing data repair is an explicit, one-time maintenance pass.
     // Ordinary delta pulls must not scan every entity table just to discover
     // that no legacy millisecond timestamps remain.
     const normalizeTimestamps =
-      url.searchParams.get('normalize_timestamps') === '1';
+      ['1', 'true'].includes(url.searchParams.get('normalize_timestamps') ?? '');
     let normalization: Awaited<ReturnType<Database['normalizeTimestamps']>> | null = null;
     if (normalizeTimestamps) {
       try {
@@ -250,6 +250,7 @@ export async function handlePull(
       cursor: result.cursor.toString(),
       epoch,
       has_more: result.has_more,
+      repair_pending: result.repair_pending,
       remaining: result.remaining,
       errors: result.errors,
       normalization,

@@ -173,10 +173,12 @@ export interface PullResponseBody {
   /** Stable D1 data generation; null only on a pre-migration deployment. */
   epoch: string | null;
   has_more: boolean;
+  repair_pending: boolean;
   /** ✅ (2026-09-10) مؤشر التقدم — null إلا مع include_remaining=1 */
   remaining: number | null;
   errors: Array<{ entity: string; error: string }>;
   normalization: {
+    complete: boolean;
     normalized: number;
     remaining: number;
     perTable: Record<string, number>;

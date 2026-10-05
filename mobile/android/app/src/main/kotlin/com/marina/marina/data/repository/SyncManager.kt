@@ -310,6 +310,7 @@ class SyncManager @Inject constructor(
         var ingested = 0
         var pagesDone = 0
         var epochReset = false
+        var repairRetries = 0
 
         while (true) {
             // سقف الصفحات (H2) — خروج نظيف والبقية دورة قادمة.
@@ -389,9 +390,19 @@ class SyncManager @Inject constructor(
             if (changes.isNotEmpty() && nextCursor <= cursor) {
                 throw Exception("Pull returned records without advancing the cursor")
             }
-            if (hasMore && nextCursor <= cursor) {
+            if (hasMore && nextCursor == cursor) {
+                // Acknowledged server repair may need another read of this cursor.
+                // Never accept arbitrary stalls or let repair consume the cycle
+                // budget and be reported as successful without any progress.
+                if (changes.isEmpty() && response.repairPending == true && repairRetries < 3 &&
+                    pagesDone + 1 < MAX_PULL_PAGES_PER_CYCLE) {
+                    repairRetries++
+                    pagesDone++
+                    continue
+                }
                 throw Exception("Pull pagination stalled at cursor $cursor")
             }
+            repairRetries = 0
             if (changes.isNotEmpty()) {
                 val report = ingestorRegistry.ingestPage(changes)
                 ingested += report.applied
@@ -403,7 +414,10 @@ class SyncManager @Inject constructor(
                     )
                 }
             }
-            if (normalizeTimestamps) preferences.setTimestampNormalizationDone(true)
+            if (normalizeTimestamps && response.normalization?.complete == true &&
+                response.normalization.remaining == 0.0) {
+                preferences.setTimestampNormalizationDone(true)
+            }
             pagesDone++
 
             // تقدم حي — pulled تراكمي + remaining خادمي عند توفره.
