@@ -337,12 +337,25 @@ class SalaryWithdrawalsRepository {
       if (matched == null) {
         final stampedUuid = (expenseRow?.withdrawalUuid ?? '').trim();
         if (stampedUuid.isNotEmpty && stampedUuid != expenseLocalUuid) {
-          matched =
+          final stamped =
               await (_db.select(_db.salaryWithdrawals)..where(
                     (t) =>
                         t.localUuid.equals(stampedUuid) & t.deletedAt.isNull(),
                   )..limit(1))
                   .getSingleOrNull();
+          if (stamped != null) {
+            // ✅ حارس الاختطاف: إن كانت المرآة المختومة تعلن بهويتها
+            // انتماءها لمصروف آخر قائم فهي تخصّه — الختم الفاسد على
+            // هذا المصروف لا يخوّل اختطافها.
+            final declared = (stamped.expenseUuid ?? '').trim();
+            final belongsToOther =
+                declared.isNotEmpty &&
+                declared != expenseLocalUuid &&
+                await _activeExpenseExistsByUuid(declared);
+            if (!belongsToOther) {
+              matched = stamped;
+            }
+          }
         }
       }
     }
@@ -899,7 +912,15 @@ class SalaryWithdrawalsRepository {
                       t.localUuid.equals(stampedUuid) & t.deletedAt.isNull(),
                 )..limit(1))
                 .getSingleOrNull();
-        if (stamped != null && !containsId(stamped.id)) {
+        // ✅ حارس الاختطاف: مرآة تعلن انتماءها لمصروف آخر قائم لا تُحذف
+        // بسبب ختم فاسد على هذا المصروف.
+        final declared = (stamped?.expenseUuid ?? '').trim();
+        final belongsToOther =
+            stamped != null &&
+            declared.isNotEmpty &&
+            declared != expenseLocalUuid &&
+            await _activeExpenseExistsByUuid(declared);
+        if (stamped != null && !belongsToOther && !containsId(stamped.id)) {
           toDelete.add(stamped);
         }
       }

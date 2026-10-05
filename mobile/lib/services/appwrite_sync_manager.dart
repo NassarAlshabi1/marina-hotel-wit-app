@@ -4491,6 +4491,13 @@ class AppwriteSyncManager {
     return relinked;
   }
 
+  /// جسر اختباري لإصلاح الأختام العكسية (مصروف → سحبة) بالهوية —
+  /// بنفس نمط [syncSalaryWithdrawalsForTesting]: الكود الإنتاجي نفسه
+  /// بلا محاكاة ولا شبكة.
+  @visibleForTesting
+  Future<int> relinkExpenseWithdrawalUuidsForTesting() =>
+      _relinkExpenseWithdrawalUuids();
+
   Map<String, dynamic> _roomToRemote(Room room) =>
       _payloadMapper.roomToRemote(room);
 
