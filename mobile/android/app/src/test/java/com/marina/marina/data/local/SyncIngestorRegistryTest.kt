@@ -1451,7 +1451,7 @@ class SyncIngestorRegistryTest {
         val report = registry.ingestPage(listOf(record + mapOf("local_uuid" to "invalid-kind", "expense_kind" to "arbitrary")))
         assertTrue(report.hasFailures)
         assertNull(db.expensesDao().getByLocalUuid("invalid-kind"))
-        assertTrue(db.syncQuarantineDao().getAll().any { it.recordKey == "invalid-kind" })
+        assertTrue(db.syncQuarantineDao().getAll().any { it.entity == "expenses" && it.recordKey == "uuid:invalid-kind" })
     }
 
     @Test
