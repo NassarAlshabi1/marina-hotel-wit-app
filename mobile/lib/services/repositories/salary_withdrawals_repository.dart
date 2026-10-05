@@ -724,7 +724,6 @@ class SalaryWithdrawalsRepository {
         );
 
         if (!originIsServer) {
-          final newExpenseUuidStr = newExpenseRow?.localUuid ?? '';
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'create',
