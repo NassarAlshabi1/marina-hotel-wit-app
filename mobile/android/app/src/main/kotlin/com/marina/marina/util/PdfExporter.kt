@@ -13,6 +13,7 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
+import android.text.TextUtils
 import androidx.core.content.FileProvider
 import androidx.core.content.res.ResourcesCompat
 import com.a.a.R
@@ -26,7 +27,8 @@ object PdfExporter {
     private const val PAGE_HEIGHT = 842
     private const val MARGIN = 32f
     private const val TOP = 42f
-    private const val BOTTOM = PAGE_HEIGHT - 48f
+    // Footer stays inside the reference 48pt bottom margin, not below it.
+    private const val BOTTOM = PAGE_HEIGHT - 48f - 28f
     internal const val PRIMARY = 0xFFB46B00.toInt()
     private const val TEXT_DARK = 0xFF262626.toInt()
     private const val MUTED = 0xFF6B6B73.toInt()
@@ -95,6 +97,9 @@ object PdfExporter {
         .setAlignment(alignment)
         .setIncludePad(false)
         .setMaxLines(maxLines)
+        // StaticLayout does not stop line generation at maxLines without ellipsizing.
+        // Use an explicit truncation marker rather than silently overflowing a cell.
+        .setEllipsize(if (maxLines == Int.MAX_VALUE) null else TextUtils.TruncateAt.END)
         .build()
 
     private fun drawLayout(canvas: Canvas?, text: StaticLayout, left: Float, top: Float) {
@@ -238,6 +243,10 @@ object PdfExporter {
         cur.ensureSpace(title.height + 8 + headerHeight + firstHeight)
         drawLayout(cur.canvas, title, MARGIN, cur.y)
         cur.y += title.height + 8
+        var segmentTop = cur.y
+        fun finishSegment() {
+            cur.canvas?.drawRect(RectF(MARGIN, segmentTop, PAGE_WIDTH - MARGIN, cur.y), stroke(PRIMARY, 0.75f))
+        }
         row(headers, headerHeight, PRIMARY, 6f)
         val count = table.rows.size + if (table.totalRow != null) 1 else 0
         for (index in 0 until count) {
@@ -246,11 +255,14 @@ object PdfExporter {
             val rowHeight = height(text, 5f)
             require(rowHeight + headerHeight <= BOTTOM - TOP)
             if (cur.y + rowHeight > BOTTOM) {
+                finishSegment()
                 cur.newPage()
+                segmentTop = cur.y
                 row(headers, headerHeight, PRIMARY, 6f)
             }
             row(text, rowHeight, if (index % 2 == 0) STRIPE else CARD, 5f)
         }
+        finishSegment()
         cur.y += 12
     }
 
