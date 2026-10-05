@@ -258,12 +258,16 @@ class SalaryEntitlementService {
     double totalEntitlements = 0,
         totalWithdrawals = 0,
         totalAdvances = 0,
+        totalInstallmentsPaid = 0,
         totalDeductions = 0,
         totalNet = 0;
     for (final e in entitlements) {
       totalEntitlements += e.totalEntitlement;
       totalWithdrawals += e.totalWithdrawals;
       totalAdvances += e.totalAdvances;
+      // ✅ أقساط السلف المسددة تُعرض في الملخص كصف مستقل — هي سداد لرصيد
+      // السلفة وليست خصماً نقدياً، فلا تُخلط مع totalDeductions إطلاقاً.
+      totalInstallmentsPaid += e.installmentsPaid;
       totalDeductions += e.totalDeductions;
       totalNet += e.netEntitlement;
     }
@@ -272,6 +276,7 @@ class SalaryEntitlementService {
       'totalEntitlements': totalEntitlements,
       'totalWithdrawals': totalWithdrawals,
       'totalAdvances': totalAdvances,
+      'totalInstallmentsPaid': totalInstallmentsPaid,
       'totalDeductions': totalDeductions,
       'totalNet': totalNet,
       'entitlements': entitlements,

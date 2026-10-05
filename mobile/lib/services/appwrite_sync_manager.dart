@@ -3995,6 +3995,16 @@ class AppwriteSyncManager {
     List<models.Document> documents,
   ) => _syncSalaryWithdrawals(documents);
 
+  /// ✅ جسر اختبار بلا شبكة لمسار دفع سحب راتب (المرحلة 0 — P0.5 / R6).
+  ///
+  /// يُثبت أن سحبة بموظف غائب محلياً تُعيد false → العنصر يبقى في الطابور
+  /// (processing) بلا علامة تسليم، وreclaimForPush يُعيده إلى pending.
+  /// (السلوك القديم return true كان يُسقط العنصر فيختفي من السحابة للأبد.)
+  /// يستخدمه test/services/p05_orphan_deferral_and_blacklist_push_test.dart
+  @visibleForTesting
+  Future<bool> processSalaryWithdrawalEntryForTesting(OutboxData entry) =>
+      _processSalaryWithdrawalEntry(entry);
+
   Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -6598,6 +6608,27 @@ class AppwriteSyncManager {
     );
     return true;
   }
+
+  /// ✅ جسر اختبار لمسار دفع القائمة السوداء — يُثبت أن رفع إنشاء/تحديث
+  /// لصف blacklist يرفع (upsert) فقط ولا يحذف المستند السحابي أبداً
+  /// (عطل تدقيق D1-path المُصلَح 2026-10-04: الجلب عبر مُلقٍ بفلتر
+  /// 'user' كان يعيد NULL → _handleDeleteOp → تومستون/حذف عند كل رفع).
+  /// يستخدمه test/services/p05_orphan_deferral_and_blacklist_push_test.dart
+  @visibleForTesting
+  Future<bool> processBlacklistEntryForTesting(OutboxData entry) =>
+      _processBlacklistEntry(entry);
+
+  /// ✅ جسر يثبت فلتر المُلقٍ القديم (createdBy='user') — لا يرى صفوف
+  /// blacklist، وهو ما جعله مصدر علة الحذف قبل إصلاح 2026-10-04.
+  @visibleForTesting
+  Future<ShiftNote?> shiftNoteByLocalUuidForTesting(String uuid) =>
+      _getShiftNoteByLocalUuid(uuid);
+
+  /// ✅ جسر يثبت فلتر المُلقٍ المخصص (createdBy='blacklist') — يرى صفوف
+  /// القائمة السوداء فقط، ويمنع سقوط الرفع في مسار الحذف.
+  @visibleForTesting
+  Future<ShiftNote?> blacklistEntryByLocalUuidForTesting(String uuid) =>
+      _getBlacklistEntryByLocalUuid(uuid);
 
   // ─── PriceAdjustments ─────────────────────────────────────────────────
 

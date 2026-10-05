@@ -294,13 +294,15 @@ void main() {
         localUuid: 'emp-uuid-A',
         name: 'أ',
       );
-      // مصروف أغذية عادي
+      // مصروف أغذية عادي — بهوية موظف مؤكدة (السحوبات في الإنتاج تحمل
+      // employee_uuid بعد ترحيلات family-61 قبل وصول ترحيل 68)
       final expenseId = await _insertExpense(
         db,
         localUuid: 'exp-uuid-food',
         expenseType: 'أغذية',
         amount: 6000,
         date: '2026-10-01',
+        employeeUuid: 'emp-uuid-A',
       );
       await _insertWithdrawal(
         db,
@@ -309,6 +311,7 @@ void main() {
         amount: 6000,
         withdrawDate: '2026-10-01',
         expenseId: expenseId,
+        employeeUuid: 'emp-uuid-A',
       );
 
       await db.customStatement(_migration68SwBackfillSql);
@@ -331,6 +334,56 @@ void main() {
       expect(sw.expenseUuid, 'exp-uuid-food');
       expect(exp.id, expenseId); // صحة القراءة
     });
+
+    test(
+      '10. الطرفان بلا هوية موظف (NULL) ⇒ لا رابط — حرس صارم بلا IS',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
+
+        final empId = await _insertEmployee(
+          db,
+          localUuid: 'emp-uuid-orphan',
+          name: 'يتيم',
+        );
+        // زوج مرآة حقيقي (نفس الجهاز — expense_id صحيح) لكن employee_uuid
+        // NULL على الطرفين (الهوية لم تُحل بعد) — نفس المبلغ واليوم.
+        // الصيغة المتسامحة القديمة (NULL IS NULL = صحيح) كانت ستُربطهما
+        // عبر المبلغ واليوم وحدهما = خطر العبور بين الموظفين.
+        final expenseId = await _insertExpense(
+          db,
+          localUuid: 'exp-uuid-orphan',
+          expenseType: 'سحب راتب',
+          amount: 2000,
+          date: '2026-07-06',
+          // employeeUuid: null
+        );
+        final swId = await _insertWithdrawal(
+          db,
+          employeeId: empId, // صف موجود (FK) لكن uuidه غير مكتوب بعد
+          localUuid: 'sw-uuid-orphan',
+          amount: 2000,
+          withdrawDate: '2026-07-06',
+          expenseId: expenseId,
+          // employeeUuid: null
+        );
+
+        await db.customStatement(_migration68SwBackfillSql);
+        await db.customStatement(_migration68ExpBackfillSql);
+
+        final sw = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.id.equals(swId))).getSingle();
+        final exp = await (db.select(
+          db.expenses,
+        )..where((t) => t.id.equals(expenseId))).getSingle();
+        // المنهجية المحافظة: بلا هوية موظف مؤكدة ⇒ بلا رابط (لا نخمّن).
+        // الختم الزمني يعيد كتابة الرابط لاحقاً عند أول تعديل عبر
+        // saveFromExpense/createFromExpense بعد أن تُملأ الهوية.
+        expect(sw.expenseUuid, isNull);
+        expect(exp.withdrawalUuid, isNull);
+      },
+    );
   });
 
   group('migration 68: adapters & payloads', () {
@@ -466,7 +519,9 @@ UPDATE salary_withdrawals SET expense_uuid = (
   SELECT e.local_uuid FROM expenses e
   WHERE e.id = salary_withdrawals.expense_id
     AND e.deleted_at IS NULL
-    AND e.employee_uuid IS salary_withdrawals.employee_uuid
+    AND e.employee_uuid IS NOT NULL
+    AND salary_withdrawals.employee_uuid IS NOT NULL
+    AND e.employee_uuid = salary_withdrawals.employee_uuid
     AND ABS(e.amount - salary_withdrawals.amount) < 0.005
     AND (
       (e.hotel_day_key IS NOT NULL AND e.hotel_day_key != ''
@@ -478,7 +533,9 @@ UPDATE salary_withdrawals SET expense_uuid = (
     AND (SELECT COUNT(*) FROM expenses e3
       WHERE e3.id = salary_withdrawals.expense_id
         AND e3.deleted_at IS NULL
-        AND e3.employee_uuid IS salary_withdrawals.employee_uuid
+        AND e3.employee_uuid IS NOT NULL
+        AND salary_withdrawals.employee_uuid IS NOT NULL
+        AND e3.employee_uuid = salary_withdrawals.employee_uuid
         AND ABS(e3.amount - salary_withdrawals.amount) < 0.005
         AND (
           (e3.hotel_day_key IS NOT NULL AND e3.hotel_day_key != ''
@@ -496,7 +553,9 @@ UPDATE expenses SET withdrawal_uuid = (
   SELECT w.local_uuid FROM salary_withdrawals w
   WHERE w.expense_id = expenses.id
     AND w.deleted_at IS NULL
-    AND w.employee_uuid IS expenses.employee_uuid
+    AND w.employee_uuid IS NOT NULL
+    AND expenses.employee_uuid IS NOT NULL
+    AND w.employee_uuid = expenses.employee_uuid
     AND ABS(w.amount - expenses.amount) < 0.005
     AND (
       (w.hotel_day_key IS NOT NULL AND w.hotel_day_key != ''
@@ -508,7 +567,9 @@ UPDATE expenses SET withdrawal_uuid = (
     AND (SELECT COUNT(*) FROM salary_withdrawals w3
       WHERE w3.expense_id = expenses.id
         AND w3.deleted_at IS NULL
-        AND w3.employee_uuid IS expenses.employee_uuid
+        AND w3.employee_uuid IS NOT NULL
+        AND expenses.employee_uuid IS NOT NULL
+        AND w3.employee_uuid = expenses.employee_uuid
         AND ABS(w3.amount - expenses.amount) < 0.005
         AND (
           (w3.hotel_day_key IS NOT NULL AND w3.hotel_day_key != ''

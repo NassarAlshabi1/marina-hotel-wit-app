@@ -148,6 +148,15 @@ class _SalaryEntitlementsScreenState
               ),
               Colors.indigo,
             ),
+            // ✅ إضافة: إجمالي أقساط السلف المسددة — سداد لرصيد السلفة
+            // وليس خصماً نقدياً (يُعرض موجباً ومنفصلاً عن الخصومات)
+            _row(
+              'إجمالي أقساط مسددة',
+              CurrencyFormatter.formatAmount(
+                (_summary['totalInstallmentsPaid'] as num?)?.toDouble() ?? 0.0,
+              ),
+              Colors.indigo.shade300,
+            ),
             _row(
               'إجمالي الخصومات',
               CurrencyFormatter.formatAmount(

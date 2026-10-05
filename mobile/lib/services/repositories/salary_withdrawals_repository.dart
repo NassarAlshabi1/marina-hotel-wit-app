@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/app_logger.dart';
 import '../../utils/expense_reason_matcher.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
@@ -92,8 +93,15 @@ class SalaryWithdrawalsRepository {
           clientTs: now,
         );
       }
-    } catch (_) {
-      // العمود قد لا يكون موجوداً في إصدارات قديمة جداً — لا نعطل الإنشاء
+    } catch (e) {
+      // العمود قد لا يكون موجوداً في إصدارات قديمة جداً — لا نعطل الإنشاء.
+      // ✅ (مراجعة kilo PR#610) تسجيل الخطأ بدل ابتلاعه صامتاً — أخطاء SQL
+      // الحقيقية (تلف/أعطال قيود) تحتاج تشخيصاً ولا يجوز أن تمر خفية.
+      AppLogger.warning(
+        '⚠️ فشل ختم رابط المرآة على المصروف #$expenseId '
+        '(withdrawalUuid=$withdrawalUuid): $e',
+        tag: 'SALARY_MIRROR',
+      );
     }
   }
 
@@ -418,6 +426,34 @@ class SalaryWithdrawalsRepository {
           .firstOrNull;
     }
 
+    // ✅ (migration 68 + مراجعة kilo PR#610) الطريقة 1.5: البحث عبر uuid
+    // المصروف — الهوية الدائمة عبر الأجهزة (expense_uuid على المرآة).
+    // هذه هي المطابقة العقدية: التمييز بهوية العملية نفسها لا بالموظف
+    // أو اليوم أو المبلغ — سحبتان متساويتان (100+100) بنفس اليوم تحسمها
+    // الهوية فوراً بلا غموض ولا تبنٍّ خاطئ. لا نطبّق حارس الملكية هنا:
+    // تطابق uuid ليس تصادم أرقام محلية — إنه هوية الكيان ذاته حتى لو
+    // أنشأه جهاز آخر (origin=server) — وحارس الموظف لا يُطبّق كي يُعثر
+    // على المرآة حتى عند تغيير موظف المصروف (تُحدّث بياناتها لاحقاً).
+    if (matched == null) {
+      final expenseRowForUuid = await (_db.select(_db.expenses)
+            ..where((e) => e.id.equals(expenseId))
+            ..limit(1))
+          .getSingleOrNull();
+      final expenseUuidStr = expenseRowForUuid?.localUuid ?? '';
+      if (expenseUuidStr.isNotEmpty) {
+        final byUuid = await (_db.select(_db.salaryWithdrawals)
+              ..where(
+                (t) =>
+                    t.expenseUuid.equals(expenseUuidStr) &
+                    t.deletedAt.isNull(),
+              ))
+            .get();
+        // التفرّد مضمون بالتوليد — لو انكسر (بيانات تالفة) لا نخمّن:
+        // نترك البحث للطريقة 3 (التي لها حارس غموض خاص بها الآن).
+        if (byUuid.length == 1) matched = byUuid.single;
+      }
+    }
+
     // الطريقة 3: تبنّي مرآة يتيمة عبر بيانات المطابقة (موظف + مبلغ قديم + يوم)
     // ✅ إصلاح تكرار التقارير عند تعديل المبلغ (2026-09-25):
     // المرآة القديمة رابطها أجنبي (expense_id/reason يحملان معرّف
@@ -688,6 +724,7 @@ class SalaryWithdrawalsRepository {
         );
 
         if (!originIsServer) {
+          final newExpenseUuidStr = newExpenseRow?.localUuid ?? '';
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'create',
@@ -729,6 +766,13 @@ class SalaryWithdrawalsRepository {
   ///   تخصّه هو ولا تُختطف).
   /// - رابطها لا يشير لمصروف محلي قائم غير المصروف الحالي
   ///   (expense_id وreason/exp_N كلاهما) — وإلا فهي مرآة مصروف آخر.
+  ///
+  /// ✅ (مراجعة kilo PR#610 — حارس الغموض) يجتمع أكثر من مرشح بنفس
+  /// (موظف + مبلغ قديم + يوم) حين تساوي مبالغ سحبتين في اليوم نفسه
+  /// (100+100) — اختيار الأول اعتباطياً قد يتبنى مرآة سحبة **أخرى**
+  /// فيتقاطع الهويّتان. العقد: التمييز بهوية العملية لا بسماتها —
+  /// لذا لا نتبنى إلا إذا كان المرشح المطابق **وحيداً**؛ والحسم في
+  /// حالة التساوي ولفية الطريقة 1.5 (مطابقة expense_uuid الهوية).
   Future<SalaryWithdrawal?> _findOrphanMirrorForAdoption({
     required int expenseId,
     required int employeeId,
@@ -747,6 +791,7 @@ class SalaryWithdrawalsRepository {
     final effectiveHotelDayKey = hotelDayKey ?? _computeHotelDayKey(date);
     final currentUuid = (expenseLocalUuid ?? '').trim();
 
+    final adoptable = <SalaryWithdrawal>[];
     for (final w in candidates) {
       // ✅ رابط هوية (سحبة → مصروف) يشير لمصروف آخر قائم → مرآة ذلك
       // المصروف قطعاً ولا تُختطف مهما تشابهت البيانات.
@@ -790,9 +835,10 @@ class SalaryWithdrawalsRepository {
           : w.withdrawDate.trim() == date.trim();
       if (!dayMatch) continue;
 
-      return w;
+      adoptable.add(w);
     }
-    return null;
+    // حارس الغموض: مرشح وحيد فقط — إذا زود مرشحان فلا تخمين إطلاقاً.
+    return adoptable.length == 1 ? adoptable.single : null;
   }
 
   /// هل يوجد مصروف نشط (غير محذوف) بهذا المعرف المحلي؟

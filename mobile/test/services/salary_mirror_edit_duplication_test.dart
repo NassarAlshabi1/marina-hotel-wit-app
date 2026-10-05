@@ -62,6 +62,7 @@ void main() {
     String type = 'سحب راتب',
     String date = day,
     String uuidSuffix = '',
+    String? localUuid,
   }) {
     return db
         .into(db.expenses)
@@ -74,7 +75,9 @@ void main() {
             date: d.Value(date),
             hotelDayKey: d.Value(date),
             description: const d.Value('راتب شهر ٩'),
-            localUuid: d.Value('exp-pulled-$type-$amount-$date$uuidSuffix'),
+            localUuid: d.Value(
+              localUuid ?? 'exp-pulled-$type-$amount-$date$uuidSuffix',
+            ),
             createdAt: const d.Value(1000),
             updatedAt: const d.Value(1000),
             lastModified: const d.Value(1000),
@@ -90,6 +93,8 @@ void main() {
     int foreignExpenseId = 962,
     String date = day,
     String withdrawalType = 'سحب راتب',
+    String? expenseUuid,
+    String? localUuid,
   }) {
     return db
         .into(db.salaryWithdrawals)
@@ -102,7 +107,10 @@ void main() {
             reason: d.Value('exp_$foreignExpenseId'),
             expenseId: d.Value(foreignExpenseId),
             hotelDayKey: d.Value(date),
-            localUuid: d.Value('sw-foreign-$foreignExpenseId-$amount-$date'),
+            localUuid: d.Value(
+              localUuid ?? 'sw-foreign-$foreignExpenseId-$amount-$date',
+            ),
+            expenseUuid: d.Value(expenseUuid),
             createdAt: const d.Value(1000),
             updatedAt: const d.Value(1000),
             lastModified: d.Value(1000),
@@ -499,6 +507,284 @@ void main() {
 
         // المستوى 4 يخفي المرآة القديمة → 150 مرة واحدة.
         expect(await reportCashTotal(db, empId), 150);
+      },
+    );
+  });
+
+  group('ختم الرابط العكسي migration 68 (مراجعة kilo PR#610)', () {
+    late AppDatabase db;
+    late SalaryWithdrawalsRepository withdrawalsRepo;
+    late ExpensesRepository expensesRepo;
+
+    setUp(() {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      withdrawalsRepo = SalaryWithdrawalsRepository(db);
+      expensesRepo = ExpensesRepository(db);
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    Future<Expense> expenseById(int id) =>
+        (db.select(db.expenses)..where((e) => e.id.equals(id))).getSingle();
+
+    Future<SalaryWithdrawal> mirrorByLocalUuid(String uuid) =>
+        (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.localUuid.equals(uuid))).getSingle();
+
+    Future<List<OutboxData>> expensesOutboxEntries() {
+      return (db.select(
+        db.outbox,
+      )..where((t) => t.entity.equals('expenses'))).get();
+    }
+
+    test(
+      'مسار الإنشاء: المصروف يختم بـ uuid السحبة الجديدة (لا رابط ذاتي) + outbox',
+      () async {
+        final empId = await createEmployee(db);
+        final expenseId = await createPulledSalaryExpense(
+          db,
+          empId,
+          300,
+          localUuid: 'exp-create-stamp',
+        );
+
+        await withdrawalsRepo.saveFromExpense(
+          expenseId: expenseId,
+          employeeId: empId,
+          action: 'سحب راتب',
+          amount: 300,
+          date: day,
+          hotelDayKey: day,
+        );
+
+        final mirror = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.deletedAt.isNull())).getSingle();
+        final exp = await expenseById(expenseId);
+
+        // الختم العكسي = uuid السحبة — وليس uuid المصروف ذاته (رابط ذاتي).
+        expect(
+          exp.withdrawalUuid,
+          mirror.localUuid,
+          reason: 'المصروف يشير إلى مرآته بالهوية الدائمة',
+        );
+        expect(
+          exp.withdrawalUuid,
+          isNot('exp-create-stamp'),
+          reason: 'رابط ذاتي مرجعي = عطل kilo السابق',
+        );
+        expect(mirror.expenseUuid, 'exp-create-stamp');
+
+        // الختم ينتشر للسحابة: عنصر outbox للمصروف exists.
+        final entries = await expensesOutboxEntries();
+        expect(
+          entries.where((e) => e.localUuid == 'exp-create-stamp'),
+          isNotEmpty,
+          reason: 'بلا outbox لا يصل الختم للسحابة أبداً',
+        );
+      },
+    );
+
+    test(
+      'مسار التحديث (تبنّي أجنبي): المصروف يختم بـ uuid المرآة المتبنّاة + outbox',
+      () async {
+        final empId = await createEmployee(db);
+        final expenseId = await createPulledSalaryExpense(
+          db,
+          empId,
+          100,
+          localUuid: 'exp-update-stamp',
+        );
+        await createForeignMirrorWithdrawal(
+          db,
+          empId,
+          100,
+          localUuid: 'sw-stamp-target',
+        );
+
+        await expensesRepo.update(expenseId, amount: 150);
+        await withdrawalsRepo.saveFromExpense(
+          expenseId: expenseId,
+          employeeId: empId,
+          action: 'سحب راتب',
+          amount: 150,
+          date: day,
+          hotelDayKey: day,
+          previousAmount: 100,
+        );
+
+        final mirror = await mirrorByLocalUuid('sw-stamp-target');
+        final exp = await expenseById(expenseId);
+        expect(mirror.amount, 150, reason: 'التبنّي يحدث المرآة في مكانها');
+        expect(
+          exp.withdrawalUuid,
+          'sw-stamp-target',
+          reason: 'uuid السحبة المتبنّاة — لا رابط ذاتي',
+        );
+        final entries = await expensesOutboxEntries();
+        expect(
+          entries.where((e) => e.localUuid == 'exp-update-stamp'),
+          isNotEmpty,
+        );
+      },
+    );
+
+    test(
+      'عقد المستخدم 100+100+200: الهوية تحسم المتساويات — لا تقاطع هويات',
+      () async {
+        final empId = await createEmployee(db);
+
+        // ثلاث عمليات: سحبتان متساوتان (100+100) وثالثة (200) — نفس اليوم.
+        final exp1 = await createPulledSalaryExpense(
+          db,
+          empId,
+          100,
+          localUuid: 'exp-eq-1',
+        );
+        final exp2 = await createPulledSalaryExpense(
+          db,
+          empId,
+          100,
+          localUuid: 'exp-eq-2',
+        );
+        final exp3 = await createPulledSalaryExpense(
+          db,
+          empId,
+          200,
+          localUuid: 'exp-eq-3',
+        );
+
+        // المرايا بروابط أجنبية + هوية expense_uuid صحيحة لكل منها.
+        // mirror2 تُدرج أولاً — الترتيب القديم (أول مرشح) كان سيختارها
+        // اعتباطياً فيتقاطع الهويّتان.
+        await createForeignMirrorWithdrawal(
+          db,
+          empId,
+          100,
+          foreignExpenseId: 962,
+          expenseUuid: 'exp-eq-2',
+          localUuid: 'sw-eq-2',
+        );
+        await createForeignMirrorWithdrawal(
+          db,
+          empId,
+          100,
+          foreignExpenseId: 961,
+          expenseUuid: 'exp-eq-1',
+          localUuid: 'sw-eq-1',
+        );
+        await createForeignMirrorWithdrawal(
+          db,
+          empId,
+          200,
+          foreignExpenseId: 963,
+          expenseUuid: 'exp-eq-3',
+          localUuid: 'sw-eq-3',
+        );
+
+        // تعديل السحبة الأولى 100 → 150 (مثال المستخدم حرفياً).
+        await expensesRepo.update(exp1, amount: 150);
+        await withdrawalsRepo.saveFromExpense(
+          expenseId: exp1,
+          employeeId: empId,
+          action: 'سحب راتب',
+          amount: 150,
+          date: day,
+          hotelDayKey: day,
+          previousAmount: 100,
+        );
+
+        // ثلاث عمليات فقط — كل برابطها الصحيح.
+        final active =
+            await (db.select(
+              db.salaryWithdrawals,
+            )..where((t) => t.deletedAt.isNull())).get();
+        expect(active, hasLength(3), reason: 'التعديل ليس مصروفاً جديداً');
+
+        final m1 = await mirrorByLocalUuid('sw-eq-1');
+        final m2 = await mirrorByLocalUuid('sw-eq-2');
+        final m3 = await mirrorByLocalUuid('sw-eq-3');
+
+        // الهوية أولوية: كل مرآة لصاحبتها — حتى تساوي المبالغ.
+        expect(m1.amount, 150, reason: 'مرآة المصروف الأول تحدّثت في مكانها');
+        expect(m1.expenseUuid, 'exp-eq-1');
+        expect(m1.expenseId, exp1);
+        expect(m2.amount, 100, reason: 'مرآة الثانية لم تُلمس');
+        expect(m2.expenseUuid, 'exp-eq-2');
+        expect(m2.expenseId, 962);
+        expect(m3.amount, 200);
+        expect(m3.expenseUuid, 'exp-eq-3');
+
+        // الروابط العكسية سليمة وغير متقاطعة.
+        expect((await expenseById(exp1)).withdrawalUuid, 'sw-eq-1');
+        expect((await expenseById(exp2)).withdrawalUuid, isNull);
+        expect((await expenseById(exp3)).withdrawalUuid, isNull);
+        expect(exp2, isNot(exp1));
+
+        // التقرير: 150 + 100 + 200 = 450 — ثلاث عمليات لا أربع.
+        expect(await reportCashTotal(db, empId), 450);
+      },
+    );
+
+    test(
+      'حارس غموض التبنّي: مرشحان بلا هوية (توارث قديم) — لا اختطاف ولا تخمين',
+      () async {
+        final empId = await createEmployee(db);
+
+        final exp1 = await createPulledSalaryExpense(
+          db,
+          empId,
+          100,
+          localUuid: 'exp-amb-1',
+        );
+        // مرآتان قديمتان بلا expense_uuid (ما قبل migration 68) — متساويتان.
+        await createForeignMirrorWithdrawal(
+          db,
+          empId,
+          100,
+          foreignExpenseId: 961,
+          localUuid: 'sw-amb-1',
+        );
+        await createForeignMirrorWithdrawal(
+          db,
+          empId,
+          100,
+          foreignExpenseId: 962,
+          localUuid: 'sw-amb-2',
+        );
+
+        await expensesRepo.update(exp1, amount: 150);
+        await withdrawalsRepo.saveFromExpense(
+          expenseId: exp1,
+          employeeId: empId,
+          action: 'سحب راتب',
+          amount: 150,
+          date: day,
+          hotelDayKey: day,
+          previousAmount: 100,
+        );
+
+        // المرآتان القديمتان بلا هوية لم تُختطف أي منهما.
+        final legacy1 = await mirrorByLocalUuid('sw-amb-1');
+        final legacy2 = await mirrorByLocalUuid('sw-amb-2');
+        expect(legacy1.expenseId, 961);
+        expect(legacy1.amount, 100);
+        expect(legacy2.expenseId, 962);
+        expect(legacy2.amount, 100);
+
+        // والتعديل أنشأ مرآة جديدة خاصة بالمصروف المعدّل.
+        final active =
+            await (db.select(
+              db.salaryWithdrawals,
+            )..where((t) => t.deletedAt.isNull())).get();
+        expect(active, hasLength(3));
+        final created = active.where((w) => w.amount == 150).single;
+        expect(created.expenseId, exp1);
+        expect(created.expenseUuid, 'exp-amb-1');
+        expect((await expenseById(exp1)).withdrawalUuid, created.localUuid);
       },
     );
   });

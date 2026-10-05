@@ -1262,7 +1262,9 @@ class AppDatabase extends _$AppDatabase {
           '  SELECT e.local_uuid FROM expenses e'
           '  WHERE e.id = salary_withdrawals.expense_id'
           '    AND e.deleted_at IS NULL'
-          '    AND e.employee_uuid IS salary_withdrawals.employee_uuid'
+          '    AND e.employee_uuid IS NOT NULL'
+          '    AND salary_withdrawals.employee_uuid IS NOT NULL'
+          '    AND e.employee_uuid = salary_withdrawals.employee_uuid'
           '    AND ABS(e.amount - salary_withdrawals.amount) < 0.005'
           '    AND ('
           '      (e.hotel_day_key IS NOT NULL AND e.hotel_day_key != ""'
@@ -1274,7 +1276,9 @@ class AppDatabase extends _$AppDatabase {
           '    AND (SELECT COUNT(*) FROM expenses e3'
           '      WHERE e3.id = salary_withdrawals.expense_id'
           '        AND e3.deleted_at IS NULL'
-          '        AND e3.employee_uuid IS salary_withdrawals.employee_uuid'
+          '        AND e3.employee_uuid IS NOT NULL'
+          '        AND salary_withdrawals.employee_uuid IS NOT NULL'
+          '        AND e3.employee_uuid = salary_withdrawals.employee_uuid'
           '        AND ABS(e3.amount - salary_withdrawals.amount) < 0.005'
           '        AND ('
           '          (e3.hotel_day_key IS NOT NULL AND e3.hotel_day_key != ""'
@@ -1296,7 +1300,9 @@ class AppDatabase extends _$AppDatabase {
           "  SELECT w.local_uuid FROM salary_withdrawals w"
           "  WHERE w.expense_id = expenses.id"
           "    AND w.deleted_at IS NULL"
-          "    AND w.employee_uuid IS expenses.employee_uuid"
+          "    AND w.employee_uuid IS NOT NULL"
+          "    AND expenses.employee_uuid IS NOT NULL"
+          "    AND w.employee_uuid = expenses.employee_uuid"
           "    AND ABS(w.amount - expenses.amount) < 0.005"
           "    AND ("
           "      (w.hotel_day_key IS NOT NULL AND w.hotel_day_key != \"\""
@@ -1308,7 +1314,9 @@ class AppDatabase extends _$AppDatabase {
           "    AND (SELECT COUNT(*) FROM salary_withdrawals w3"
           "      WHERE w3.expense_id = expenses.id"
           "        AND w3.deleted_at IS NULL"
-          "        AND w3.employee_uuid IS expenses.employee_uuid"
+          "        AND w3.employee_uuid IS NOT NULL"
+          "        AND expenses.employee_uuid IS NOT NULL"
+          "        AND w3.employee_uuid = expenses.employee_uuid"
           "        AND ABS(w3.amount - expenses.amount) < 0.005"
           "        AND ("
           "          (w3.hotel_day_key IS NOT NULL AND w3.hotel_day_key != \"\""
