@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 
 @Entity(tableName = "salary_cycles",
+    indices = [Index(value = ["employee_uuid"], name = "idx_salary_cycles_employee_uuid")],
 )
 data class SalaryCycleEntity(
     @PrimaryKey(autoGenerate = true) @SerializedName("id") override val id: Long = 0,

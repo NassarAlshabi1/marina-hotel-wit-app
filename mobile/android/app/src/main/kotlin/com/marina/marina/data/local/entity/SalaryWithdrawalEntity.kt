@@ -10,6 +10,7 @@ import com.google.gson.annotations.SerializedName
 @Entity(
     tableName = "salary_withdrawals",
     indices = [
+        Index(value = ["employee_uuid"], name = "idx_salary_wd_employee_uuid"),
         Index(value = ["expense_uuid"], name = "idx_salary_wd_expense_uuid"),
         Index(value = ["employee_id"], name = "idx_salary_wd_employee"),
         Index(value = ["hotel_day_key"], name = "idx_salary_wd_hotel_day"),

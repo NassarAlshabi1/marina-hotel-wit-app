@@ -46,6 +46,15 @@ object DatabaseModule {
         }
     }
 
+    /** Additive indexes only: no backfill, no financial-row rewrite. */
+    val MIGRATION_73_74 = object : Migration(73, 74) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_salary_wd_employee_uuid ON salary_withdrawals(employee_uuid)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_salary_cycles_employee_uuid ON salary_cycles(employee_uuid)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid ON salary_payments(employee_uuid)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -54,7 +63,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73)
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74)
             // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }

@@ -159,6 +159,6 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "marina_hotel.db"
-        const val SCHEMA_VERSION = 73
+        const val SCHEMA_VERSION = 74
     }
 }
