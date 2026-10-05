@@ -479,11 +479,12 @@ class SalaryWithdrawalsRepository {
               ..where((e) => e.id.equals(expenseId))
               ..limit(1))
             .getSingleOrNull();
-        final expenseUuidValue =
-            expenseRowForStamp == null ||
-                expenseRowForStamp.localUuid.isEmpty
+        // متغير محلي غير فارغ — يتجنب unchecked_use_of_nullable_value
+        // ويُبقي الختم محصوراً بوجود المصروف وuuid صالح.
+        final stampExpenseUuid = expenseRowForStamp?.localUuid ?? '';
+        final expenseUuidValue = stampExpenseUuid.isEmpty
             ? const d.Value<String>.absent()
-            : d.Value(expenseRowForStamp.localUuid);
+            : d.Value(stampExpenseUuid);
         await (_db.update(_db.salaryWithdrawals)
               ..where((t) => t.id.equals(matchedId)))
             .write(SalaryWithdrawalsCompanion(expenseUuid: expenseUuidValue));
@@ -492,8 +493,8 @@ class SalaryWithdrawalsRepository {
             expenseId,
             matchedLocalUuid,
             now,
-            expenseLocalUuid: expenseRowForStamp.localUuid,
-            expenseServerId: expenseRowForStamp.serverId,
+            expenseLocalUuid: stampExpenseUuid,
+            expenseServerId: expenseRowForStamp?.serverId,
           );
         }
 
@@ -603,6 +604,7 @@ class SalaryWithdrawalsRepository {
         );
 
         if (!originIsServer) {
+          final newExpenseUuidStr = newExpenseRow?.localUuid ?? '';
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'create',
@@ -617,8 +619,7 @@ class SalaryWithdrawalsRepository {
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'expenseId': expenseId,
               // ✅ (migration 68) uuid المرآة — احتياط لمسارات delta/Drive
-              if (newExpenseUuid.present && newExpenseUuid.value.isNotEmpty)
-                'expenseUuid': newExpenseUuid.value,
+              if (newExpenseUuidStr.isNotEmpty) 'expenseUuid': newExpenseUuidStr,
             },
             clientTs: now,
           );
