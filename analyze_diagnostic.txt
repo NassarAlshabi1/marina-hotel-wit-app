@@ -1,4 +1,4 @@
-ANALYZE_EXIT_CODE=1
+ANALYZE_EXIT_CODE=0
 ════════════════════════════════════════
 Resolving dependencies...
 Downloading packages...
@@ -180,7 +180,5 @@ Try `flutter pub outdated` for more information.
 Analyzing mobile...                                             
 
    info • 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead. Try replacing the use of the deprecated member with the replacement • lib/services/appwrite_service.dart:1184:10 • deprecated_member_use
-warning • The value of the local variable 'newExpenseUuidStr' isn't used. Try removing the variable or using it • lib/services/repositories/salary_withdrawals_repository.dart:727:17 • unused_local_variable
-  error • Undefined name 'newExpenseRow'. Try correcting the name to one that is defined, or defining the name • lib/services/repositories/salary_withdrawals_repository.dart:727:37 • undefined_identifier
 
-3 issues found. (ran in 25.5s)
+1 issue found. (ran in 26.9s)
