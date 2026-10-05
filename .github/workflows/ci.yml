@@ -185,37 +185,3 @@ jobs:
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
 
-
-
-  # ─── مؤقت (Arena): تنسيق آلي ثم دفع — يُزال بعد اكتمال التنسيق ───
-  auto-format-arena:
-    if: github.ref == 'refs/heads/arena/01a109fa-marina-hotel-wit-app'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    defaults:
-      run:
-        working-directory: mobile
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.44.6'
-          channel: stable
-          cache: true
-
-      - name: Auto-format
-        run: |
-          dart format .
-          cd ..
-          git config user.name "arena-bot"
-          git config user.email "arena-bot@users.noreply.github.com"
-          git add mobile/
-          if ! git diff --cached --quiet; then
-            git commit -m "style: dart format — تنسيق آلي عبر بوابة الجودة"
-            git push origin arena/01a109fa-marina-hotel-wit-app
-          fi
