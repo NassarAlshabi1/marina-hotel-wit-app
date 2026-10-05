@@ -178,7 +178,7 @@ class BackupViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         status = BackupStatus.SUCCESS,
-                        message = "تم استعادة البيانات من النسخة المحلية بنجاح",
+                        message = "تمت الاستعادة؛ المزامنة التلقائية موقوفة. راجع البيانات قبل إعادة تفعيلها من الإعدادات.",
                         progress = 1.0
                     )
                 }

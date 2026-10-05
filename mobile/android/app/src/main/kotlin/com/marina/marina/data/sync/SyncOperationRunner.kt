@@ -45,6 +45,15 @@ class SyncOperationRunner internal constructor(
         return job
     }
 
+    /** Caller-owned local restore: shares sync admission, but cancellation
+     * must roll back Room rather than continue after the restore screen closes. */
+    suspend fun <T> withExclusiveLocalRestore(operation: suspend () -> T): T {
+        currentCoroutineContext().ensureActive()
+        val owner = Any()
+        check(mutex.tryLock(owner)) { "توجد مزامنة جارية؛ انتظر اكتمالها قبل الاستعادة" }
+        return try { operation() } finally { mutex.unlock(owner) }
+    }
+
     /** Settings preflight and UI-state callbacks also survive their originating ViewModel. */
     fun launch(
         onStartFailure: (Exception) -> Unit = {},

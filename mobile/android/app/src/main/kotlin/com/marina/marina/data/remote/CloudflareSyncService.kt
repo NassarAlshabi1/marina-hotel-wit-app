@@ -402,6 +402,17 @@ class SyncPreferences @Inject constructor(
 
     // ─── مؤشر السحب العام (عقد worker: cursor updated_at) ───────
 
+    fun prepareForLocalRestore() {
+        preferencesManager.commitValues(mapOf(
+            KEY_CLOUDFLARE_SYNC to false,
+            KEY_LAST_PULL_CURSOR to 0L,
+            KEY_LAST_PULL to 0L,
+            KEY_FULL_REPLAY_PENDING to true,
+            KEY_FULL_SYNC_COMPLETE to false,
+            KEY_TS_NORMALIZATION_DONE to false
+        ))
+    }
+
     fun saveLastPullCursor(cursor: Long) {
         preferencesManager.saveLong(KEY_LAST_PULL_CURSOR, cursor)
     }

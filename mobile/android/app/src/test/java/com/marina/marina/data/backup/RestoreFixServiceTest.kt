@@ -45,6 +45,12 @@ class RestoreFixServiceTest {
     private lateinit var originalRoom: RoomEntity
     private val onQuery = AtomicReference<((String) -> Unit)?>(null)
 
+    private val syncScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+    private val runner = com.marina.marina.data.sync.SyncOperationRunner(syncScope, Dispatchers.Unconfined)
+    private fun syncPrefs() = com.marina.marina.data.remote.SyncPreferences(
+        com.marina.marina.di.EncryptedSharedPreferencesManager(context))
+    private fun localBackupService() = LocalBackupService(context, db, BackupSettingsStore(context), syncPrefs(), runner)
+
     @Before
     fun setUp() = runBlocking {
         context = ApplicationProvider.getApplicationContext()
@@ -71,7 +77,83 @@ class RestoreFixServiceTest {
     @After
     fun tearDown() {
         onQuery.set(null)
+        syncScope.coroutineContext[kotlinx.coroutines.Job]!!.cancel()
         db.close()
+    }
+
+    @Test
+    fun restoreResetsCursorDurablyAndKeepsAuthenticationAndDeviceIdentity() = runBlocking {
+        val prefs = syncPrefs()
+        prefs.saveLastPullCursor(999L)
+        prefs.saveLastPullTs(123L)
+        prefs.setCloudflareSyncEnabled(true)
+        prefs.setFullSyncComplete(true)
+        prefs.saveAuthToken("preserved-token")
+        prefs.saveDeviceId("preserved-device")
+        val backup = File(localBackupService().createLocalBackup(BackupFormat.JSON))
+        try {
+            localBackupService().restoreFromLocalBackup(backup.absolutePath)
+            val reloaded = syncPrefs()
+            assertEquals(0L, reloaded.getLastPullCursor())
+            assertEquals(0L, reloaded.getLastPullTs())
+            assertTrue(reloaded.isFullReplayPending())
+            assertFalse(reloaded.isFullSyncComplete())
+            assertFalse(reloaded.getCloudflareSyncEnabled())
+            assertEquals("preserved-token", reloaded.getAuthToken())
+            assertEquals("preserved-device", reloaded.getDeviceId())
+        } finally { backup.delete() }
+    }
+
+    @Test
+    fun restoreRejectsUndeliveredLocalChangesWithoutResettingCheckpoint() = runBlocking {
+        syncPrefs().saveLastPullCursor(999L)
+        db.outboxDao().insert(com.marina.marina.data.local.entity.OutboxEntity(
+            entity = "expenses", op = "update", localUuid = "pending-money", payload = "{}", clientTs = 1L))
+        val backup = File(context.cacheDir, "pending-restore.json").apply { writeText("""{"rooms":[]}""") }
+        try {
+            try { localBackupService().restoreFromLocalBackup(backup.absolutePath); fail("Must preserve pending edits") }
+            catch (_: IllegalStateException) { }
+            assertOriginalRows()
+            assertEquals(999L, syncPrefs().getLastPullCursor())
+            assertEquals(1, db.outboxDao().undeliveredCount().first())
+        } finally { backup.delete() }
+    }
+
+    @Test
+    fun restoreRejectsQuarantinedFinancialPayloadInsteadOfDeletingIt() = runBlocking {
+        db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO sync_quarantine(entity, recordKey, payload, reason) VALUES ('salary_withdrawals','orphan','{}','missing parent')")
+        val backup = File(context.cacheDir, "quarantine-restore.json").apply { writeText("""{"rooms":[]}""") }
+        try {
+            try { localBackupService().restoreFromLocalBackup(backup.absolutePath); fail("Must preserve quarantine") }
+            catch (_: IllegalStateException) { }
+            assertOriginalRows()
+            assertEquals(1, db.syncQuarantineDao().getAll().size)
+        } finally { backup.delete() }
+    }
+
+    @Test
+    fun restoreAndSyncShareAdmissionAndReleaseItAfterFailure() = runBlocking {
+        val backup = File(context.cacheDir, "locked-restore.json").apply { writeText("""{"rooms":[]}""") }
+        try {
+            runner.runIfIdle(onBusy = { error("unexpected busy") }) {
+                try { localBackupService().restoreFromLocalBackup(backup.absolutePath); fail("Restore must not overlap sync") }
+                catch (_: IllegalStateException) { }
+            }
+            assertOriginalRows()
+            try { runner.withExclusiveLocalRestore { error("restore failed") } }
+            catch (_: IllegalStateException) { }
+            assertEquals(7, runner.runIfIdle(onBusy = { -1 }) { 7 })
+        } finally { backup.delete() }
+    }
+
+    @Test
+    fun directD1UploadFailsBeforeCredentialsOrNetworkEvenForEmptySelection() = runBlocking {
+        val config = com.marina.marina.data.remote.CloudflareConfig(context)
+        val service = CloudflareD1BackupService(context, db, D1BackupSettingsStore(context, config), config)
+        try { service.uploadData(emptyList(), "test"); fail("Direct D1 writes must be disabled") }
+        catch (error: IllegalStateException) { assertTrue(error.message.orEmpty().contains("Worker")) }
+        assertOriginalRows()
     }
 
     @Test
@@ -164,7 +246,7 @@ class RestoreFixServiceTest {
         val backup = File(context.cacheDir, "unsafe-restore.sqlite")
         backup.writeText("not a database")
         try {
-            val service = LocalBackupService(context, db, BackupSettingsStore(context))
+            val service = localBackupService()
             try {
                 service.restoreFromLocalBackup(backup.absolutePath)
                 fail("Raw replacement of an open database must be blocked")
@@ -180,7 +262,7 @@ class RestoreFixServiceTest {
 
     @Test
     fun generatedJsonBackupRoundTripsThroughPublicBackupAndRestoreMethods() = runBlocking {
-        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        val service = localBackupService()
         val backup = File(service.createLocalBackup(BackupFormat.JSON))
         try {
             assertTrue(backup.name.endsWith(".json.gz"))
@@ -194,7 +276,7 @@ class RestoreFixServiceTest {
 
     @Test
     fun validJsonAndGzipBackupsRestoreRowsWithoutChangingOtherTables() = runBlocking {
-        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        val service = localBackupService()
         for (extension in listOf("json", "json.gz")) {
             val changed = originalRoom.copy(price = 125.0, cleaningStatus = "dirty")
             // Backup JSON contains database column maps, not Room entities with inherited fields.
@@ -231,7 +313,7 @@ class RestoreFixServiceTest {
 
     @Test
     fun reportsAndMaintenancePreimagesAreRejectedWithoutChangingData() = runBlocking {
-        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        val service = localBackupService()
         val backup = File(context.cacheDir, "not-a-data-backup.json")
         try {
             for (json in listOf("{}", "{\"metadata\":{}}", "{\"patches\":[]}", "{\"summary\":{}}")) {
@@ -252,7 +334,7 @@ class RestoreFixServiceTest {
 
     @Test
     fun invalidJsonRowsOrTableTypesNeverSilentlyDeleteExistingData() = runBlocking {
-        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        val service = localBackupService()
         val backup = File(context.cacheDir, "invalid-rows.json")
         try {
             for (json in listOf(
@@ -277,7 +359,7 @@ class RestoreFixServiceTest {
         val backup = File(context.cacheDir, "cancel-import.json").apply {
             writeText("""{"rooms":[],"bookings":[]}""")
         }
-        val service = LocalBackupService(context, db, BackupSettingsStore(context))
+        val service = localBackupService()
         val reachedDelete = AtomicBoolean(false)
         val restore = async(start = CoroutineStart.LAZY) { service.restoreFromLocalBackup(backup.absolutePath) }
         onQuery.set { sql ->
@@ -311,7 +393,7 @@ class RestoreFixServiceTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         try {
             val viewModel = BackupViewModel(
-                LocalBackupService(context, db, BackupSettingsStore(context)),
+                localBackupService(),
                 RestoreFixService(db), FullDatabaseExportService(context, db)
             )
             store.put("backup", viewModel)

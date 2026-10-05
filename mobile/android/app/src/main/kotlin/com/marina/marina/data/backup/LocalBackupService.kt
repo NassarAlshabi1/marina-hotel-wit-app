@@ -10,6 +10,7 @@ import com.marina.marina.data.local.AppDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -43,7 +44,9 @@ import javax.inject.Singleton
 class LocalBackupService @Inject constructor(
     @ApplicationContext private val context: Context,
     private val db: AppDatabase,
-    private val settings: BackupSettingsStore
+    private val settings: BackupSettingsStore,
+    private val syncPreferences: com.marina.marina.data.remote.SyncPreferences,
+    private val syncRunner: com.marina.marina.data.sync.SyncOperationRunner
 ) {
     companion object {
         const val BACKUP_FOLDER_NAME = "MarinaHotelBackups"
@@ -351,7 +354,7 @@ class LocalBackupService @Inject constructor(
         if (name.endsWith(".sqlite") || name.endsWith(".db")) {
             error("استعادة SQLite موقوفة مؤقتًا لحماية البيانات؛ يلزم مسار استعادة آمن لقاعدة مغلقة")
         } else {
-            restoreFromJsonBackup(filePath)
+            syncRunner.withExclusiveLocalRestore { restoreFromJsonBackup(filePath) }
         }
     }
 
@@ -374,6 +377,18 @@ class LocalBackupService @Inject constructor(
         }
 
         db.withTransaction {
+            check(db.outboxDao().undeliveredCount().first() == 0) {
+                "توجد تغييرات محلية لم تُرفع؛ الاستعادة موقوفة لحمايتها"
+            }
+            for (table in listOf("pending_sync_links", "sync_quarantine")) {
+                val count = db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM $table").use {
+                    it.moveToFirst(); it.getLong(0)
+                }
+                check(count == 0L) { "توجد سجلات مؤجلة أو معزولة؛ راجعها قبل الاستعادة لحمايتها" }
+            }
+            // Preferences cannot join SQLite: commit a conservative reset first.
+            // Rollback/crash can cause a replay, never advancement past restored data.
+            syncPreferences.prepareForLocalRestore()
             for (key in BACKUP_TABLE_KEYS) {
                 if (!data.containsKey(key)) continue
                 clearAndInsertRows(key, requireBackupRows(key, data[key]))
@@ -382,9 +397,9 @@ class LocalBackupService @Inject constructor(
             if (data.containsKey("blacklist")) {
                 clearAndInsertRows("blacklist_entries", requireBackupRows("blacklist", data["blacklist"]))
             }
-            // حالة المزامنة
-            if (data.containsKey("sync_state")) {
-                clearAndInsertRows("sync_state", requireBackupRows("sync_state", data["sync_state"]))
+            // Never import another device's sync checkpoints or stale retry payloads.
+            for (table in listOf("sync_state", "sync_remote_meta")) {
+                db.openHelper.writableDatabase.execSQL("DELETE FROM $table")
             }
             currentCoroutineContext().ensureActive()
         }
