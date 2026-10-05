@@ -101,7 +101,6 @@ class ExpensesRepositoryImpl @Inject constructor(
     private val salaryTypes = setOf(
         "رواتب", "سحب راتب", "سحب من الراتب", "سلفة", "خصم راتب", "خصم من الراتب", "خصم", "غياب"
     )
-    private val employeeExpenseTypes = EmployeeExpenseTypes.values
 
     /** Fill the stable employee key for every newly written employee expense. */
     private suspend fun attachEmployeeUuid(expense: Expense): Expense {
