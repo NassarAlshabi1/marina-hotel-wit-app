@@ -20,7 +20,10 @@ enum class AutomaticDeltaStatus(val message: String) {
     CURRENT("الاتصال بقاعدة D1 متاح — لم تمضِ ساعة على آخر سحب ناجح"),
     PULLING("جارٍ سحب Delta من آخر مؤشر محفوظ…"),
     UPDATED("اكتمل فحص السحب التلقائي — البيانات المحلية متاحة"),
-    RETRY("السحب مؤجل أو لم يكتمل بنجاح؛ البيانات المحلية متاحة")
+    RETRY("السحب مؤجل أو لم يكتمل بنجاح؛ البيانات المحلية متاحة");
+
+    internal val needsRetry: Boolean
+        get() = this == OFFLINE || this == UNREACHABLE || this == RETRY
 }
 
 /** One process-owned admission gate for app-open, network recovery and timer signals.
@@ -46,7 +49,7 @@ internal class AutomaticDeltaGate(
         try {
             if (!enabled()) { _status.value = AutomaticDeltaStatus.DISABLED; return }
             if (!networkAllowed()) { _status.value = AutomaticDeltaStatus.OFFLINE; return }
-            if (!probeWhenFresh && !automaticPullDue(now(), lastSuccess())) return
+            if (!probeWhenFresh && !_status.value.needsRetry && !automaticPullDue(now(), lastSuccess())) return
             val tick = monotonicNow()
             // Prevent capability callback storms and rapid retries after auth/D1 failure.
             if (lastAttempt?.let { tick >= it && tick - it < 30_000L } == true) return

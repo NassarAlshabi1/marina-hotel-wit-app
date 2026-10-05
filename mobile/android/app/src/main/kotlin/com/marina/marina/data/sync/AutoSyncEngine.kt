@@ -54,6 +54,7 @@ class AutoSyncEngine @Inject constructor(
     val automaticStatus get() = pullGate.status
     private var scope: CoroutineScope? = null
     private var pushJob: Job? = null
+    private var pullCheckJob: Job? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     @Volatile private var started = false
     @Volatile private var foreground = false
@@ -91,6 +92,8 @@ class AutoSyncEngine @Inject constructor(
         foreground = false
         pushJob?.cancel()
         pushJob = null
+        pullCheckJob?.cancel()
+        pullCheckJob = null
         networkCallback?.let { runCatching { connectivityManager?.unregisterNetworkCallback(it) } }
         networkCallback = null
         scope?.cancel()
@@ -98,11 +101,17 @@ class AutoSyncEngine @Inject constructor(
         started = false
     }
 
+    @Synchronized
     private fun requestPullCheck(probeWhenFresh: Boolean) {
         val appScope = scope ?: return
-        if (!foreground) return
-        appScope.launch {
-            if (foreground) pullGate.check(probeWhenFresh)
+        if (!foreground || pullCheckJob?.isActive == true) return
+        pullCheckJob = appScope.launch {
+            do {
+                if (!foreground) break
+                pullGate.check(probeWhenFresh)
+                if (!pullGate.status.value.needsRetry || !masterSyncEnabled()) break
+                delay(30_000L)
+            } while (foreground)
         }
     }
 
@@ -134,7 +143,7 @@ class AutoSyncEngine @Inject constructor(
             delay(minOf(configured, untilDue))
             // Do not initiate an Android foreground service from an invisible app.
             // An already accepted operation still survives Home through SyncOperationRunner.
-            if (foreground) pullGate.check(probeWhenFresh = false)
+            if (foreground) requestPullCheck(probeWhenFresh = false)
         }
     }
 

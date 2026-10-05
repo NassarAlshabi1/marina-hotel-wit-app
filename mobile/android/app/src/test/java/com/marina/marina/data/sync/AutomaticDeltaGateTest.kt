@@ -117,6 +117,15 @@ class AutomaticDeltaGateTest {
         assertEquals(0, background.pulls)
     }
 
+    @Test fun reconnectWithinASuccessfulHourRefreshesConnectivityWithoutPullingAgain() = runTest {
+        val f = Fixture().apply { last = now; online = false }
+        f.gate.check(true)
+        f.online = true; f.tick = 30_000
+        f.gate.check(false)
+        assertEquals(AutomaticDeltaStatus.CURRENT, f.gate.status.value)
+        assertEquals(1, f.probes); assertEquals(0, f.pulls)
+    }
+
     @Test fun firstUseAndClockRollbackAreDueButRecentSuccessIsNot() {
         assertTrue(automaticPullDue(100, 0))
         assertTrue(automaticPullDue(100, 101))

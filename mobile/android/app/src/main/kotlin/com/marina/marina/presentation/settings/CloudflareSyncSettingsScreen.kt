@@ -249,9 +249,9 @@ fun CloudflareSyncSettingsScreen(
                 ) {
                     Icon(Icons.Default.Timer, contentDescription = null, tint = AppColors.PrimaryColor, modifier = Modifier.size(22.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("فترة المزامنة", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("فاصل فحص المزامنة", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         Text(
-                            "فحص كل ${state.syncIntervalMinutes} دقيقة — السحب التلقائي بعد ساعة من آخر نجاح",
+                            "حتى ${state.syncIntervalMinutes} دقيقة بين الفحوص — السحب بعد ساعة؛ إعادة محاولة الفشل بعد 30 ثانية",
                             fontSize = 11.sp,
                             color = AppColors.TextSecondary
                         )

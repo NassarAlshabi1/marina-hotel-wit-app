@@ -74,6 +74,40 @@ class D1StartupProbeTest {
         assertEquals("renewed-fixture-token", prefs.getAuthToken())
     }
 
+    @Test fun unavailableD1AndRepeatedUnauthorizedNeverAdvanceCheckpoint() = runBlocking {
+        var logins = 0
+        val service = service { method ->
+            if (method == "login") {
+                logins++
+                call(Response.success(WorkerLoginResponse("new-but-rejected", null)))
+            } else {
+                assertEquals("d1Health", method)
+                call(Response.error<WorkerD1HealthResponse>(401, "{}".toResponseBody()))
+            }
+        }
+        assertFalse(service.checkD1Connection())
+        assertEquals(1, logins)
+        val unavailable = service { call(Response.error<WorkerD1HealthResponse>(503, "{}".toResponseBody())) }
+        assertFalse(unavailable.checkD1Connection())
+        assertEquals(123L, prefs.getLastPullCursor()); assertEquals(456L, prefs.getLastPullTs())
+    }
+
+    @Test fun unresponsiveD1HitsTheEightSecondDeadlineAndCancelsItsCall() = runBlocking {
+        var cancelled = false
+        val service = service {
+            Proxy.newProxyInstance(Call::class.java.classLoader, arrayOf(Call::class.java)) { _, method, _ ->
+                when (method.name) {
+                    "enqueue" -> null // Never completes: timeout must cancel the request.
+                    "cancel" -> { cancelled = true; null }
+                    else -> error(method.name)
+                }
+            } as Call<*>
+        }
+        assertFalse(kotlinx.coroutines.withTimeout(15_000L) { service.checkD1Connection() })
+        assertTrue(cancelled)
+        assertEquals(123L, prefs.getLastPullCursor()); assertEquals(456L, prefs.getLastPullTs())
+    }
+
     @Test fun cancellationCancelsRealCallAndDoesNotStampSuccess() = runBlocking {
         val enqueued = CompletableDeferred<Unit>()
         var cancelled = false
