@@ -123,38 +123,23 @@ class SmartSyncManager {
     }
   }
 
-  /// بدء مراقبة المزامنة التلقائية مع تحسين الأداء
+  /// بدء مراقبة النسخ الاحتياطي الدوري مع تحسين الأداء
   Future<void> _startSyncMonitoring() async {
-    if (_syncCheckTimer?.isActive ?? false) {
+    if (_periodicSyncTimer?.isActive ?? false) {
       return;
     }
 
-    final baseInterval = await getSyncInterval();
-    final optimizer = SyncPerformanceOptimizer.instance;
+    // 🚫 قرار منتج (2026-10-06): لا مزامنة عبر Google Drive — نسخ احتياطي
+    // كامل واستعادة فقط. أُلغي مؤقت فحص المزامنة الدوري والتحقق الفوري،
+    // وبقي مؤقت النسخة الكاملة الدورية (كل 24 ساعة).
 
-    // حساب الفترة المُحسَّنة
-    final optimizedInterval = await optimizer.isAdaptiveIntervalEnabled()
-        ? await optimizer.calculateOptimizedInterval(baseInterval)
-        : baseInterval;
-
-    // مراقبة دورية للتحقق من النسخ الجديدة مع تحسين الأداء
-    _syncCheckTimer = Timer.periodic(
-      Duration(minutes: optimizedInterval),
-      (timer) => _performOptimizedSyncCheck(),
-    );
-
-    // مزامنة كاملة دورية
+    // نسخة احتياطية كاملة دورية
     _periodicSyncTimer = Timer.periodic(
       const Duration(hours: _periodicFullSyncHours),
       (timer) => _performFullSync(),
     );
 
-    // تحقق فوري عند البدء (إذا لم تكن هناك قيود)
-    if (!await optimizer.shouldSkipSync()) {
-      unawaited(_performOptimizedSyncCheck());
-    }
-
-    _log('⏰ بدء مراقبة المزامنة المُحسَّنة كل $optimizedInterval دقائق');
+    _log('⏰ جدولة نسخة احتياطية كاملة كل $_periodicFullSyncHours ساعة (بلا مزامنة)');
   }
 
   /// فحص مزامنة محسن للأداء
@@ -246,8 +231,19 @@ class SmartSyncManager {
     }
   }
 
-  /// التحقق من وجود نسخ احتياطية جديدة
+  /// 🚫 قرار منتج (2026-10-06): لا استيراد تلقائياً لنسخ الأجهزة الأخرى من
+  /// Drive — النسخ الاحتياطي الكامل (رفع) والاستعادة اليدوية فقط.
   Future<void> _performSyncCheck() async {
+    _log(
+      '⛔ فحص/استيراد النسخ التلقائي معطّل بقرار منتج — '
+      'نسخ احتياطي كامل واستعادة يدوية فقط',
+    );
+    return;
+  }
+
+  /// المسار الأصلي لفحص واستيراد النسخ — مجمّد بقرار منتج، للمراجعة فقط.
+  // ignore: unused_element
+  Future<void> _performSyncCheckLegacy() async {
     final canStart = await SyncLocks.smartSyncLock.synchronized(() async {
       if (_isSyncing || _backupService == null || !_backupService!.isSignedIn) {
         return false;
@@ -589,15 +585,31 @@ class SmartSyncManager {
     }
   }
 
-  /// تنفيذ مزامنة كاملة
+  /// نسخة احتياطية كاملة دورية (رفع إلى Drive).
+  /// 🚫 قرار منتج (2026-10-06): كانت تستورد نسخ الأجهزة الأخرى؛ أصبحت الآن
+  /// تُنشئ نسخة كاملة فقط — بلا أي استيراد أو دمج.
   Future<void> _performFullSync() async {
-    _log('🔄 بدء المزامنة الكاملة الدورية...');
-    // ✅ إصلاح جذري: حماية كاملة ضد أي استثناء — Timer callback
-    // في line 148-151 لا يلتقط الاستثناءات، فأي خطأ هنا يصبح fatal.
+    _log('💾 بدء النسخة الاحتياطية الكاملة الدورية...');
+    // حماية كاملة ضد أي استثناء — Timer callback لا يلتقط الاستثناءات.
     try {
-      await _performSyncCheck();
+      if (_backupService == null || !(_backupService!.isSignedIn)) {
+        _log('⏸️ تخطي النسخة الدورية — غير مسجل الدخول في Google Drive');
+        return;
+      }
+      final backupData = await _backupService!.exportDatabaseToJson();
+      final metadata = backupData['metadata'];
+      final baseMetadata = metadata is Map
+          ? Map<String, dynamic>.from(metadata)
+          : <String, dynamic>{};
+      backupData['metadata'] = {
+        ...baseMetadata,
+        'backup_type': 'full',
+        'sync_type': 'scheduled',
+      };
+      await _backupService!.uploadBackup(backupData);
+      _log('✅ تمت النسخة الاحتياطية الكاملة الدورية بنجاح');
     } catch (e) {
-      _log('⚠️ فشل المزامنة الكاملة الدورية: $e');
+      _log('⚠️ فشل النسخ الاحتياطي الكامل الدوري: $e');
       // لا rethrow — نمنع fatal crash
     }
   }
@@ -823,7 +835,22 @@ class SmartSyncManager {
   }
 
   /// رفع التغييرات المحلية إلى Google Drive فوراً
+  /// 🚫 قرار منتج (2026-10-06): لا مزامنة عبر Google Drive — نسخ احتياطي
+  /// كامل واستعادة فقط. الدفع التفاضلي معطّل نهائياً.
   Future<bool> pushLocalChanges() async {
+    _log('⛔ Drive push معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط');
+    return false;
+  }
+
+  /// 🚫 قرار منتج (2026-10-06): لا مزامنة عبر Google Drive — نسخ احتياطي
+  /// كامل واستعادة فقط. السحب التفاضلي معطّل نهائياً.
+  Future<bool> pullRemoteChanges() async {
+    _log('⛔ Drive pull معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط');
+    return false;
+  }
+
+  /// المسار الأصلي للدفع — مجمّد بقرار منتج، يُحتفظ به للمراجعة فقط.
+  Future<bool> pushLocalChangesLegacy() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
     final pushPrefs = await SharedPreferences.getInstance();
     final pushSyncEnabled =
@@ -900,7 +927,8 @@ class SmartSyncManager {
 
   /// سحب التغييرات من Google Drive
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
-  Future<bool> pullRemoteChanges() async {
+  /// المسار الأصلي للسحب — مجمّد بقرار منتج، يُحتفظ به للمراجعة فقط.
+  Future<bool> pullRemoteChangesLegacy() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
     final pullPrefs = await SharedPreferences.getInstance();
     final pullSyncEnabled =
