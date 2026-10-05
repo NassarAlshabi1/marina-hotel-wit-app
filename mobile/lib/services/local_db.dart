@@ -1295,6 +1295,21 @@ class AppDatabase extends _$AppDatabase {
       // page_size يجب تعيينه فقط عند إنشاء قاعدة بيانات جديدة، وبما أن
       // قاعدة البيانات موجودة مسبقاً بقيمة مختلفة (غالباً 1024) فهذا إهدار I/O
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
+
+      // Drift لا ينشئ فهارس Table.indexes المخصصة في مسار الإنشاء الحالي؛
+      // نضمن وجودها أيضاً للقواعد الجديدة، بينما onUpgrade يغطي 68→69.
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee_uuid '
+        'ON salary_withdrawals (employee_uuid)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_salary_cycles_employee_uuid '
+        'ON salary_cycles (employee_uuid)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid '
+        'ON salary_payments (employee_uuid)',
+      );
     },
     onUpgrade: (m, from, to) async {
       // ✅ (2026-09-19) الإصدار 68: employee_uuid في جداول الرواتب الثلاثة
