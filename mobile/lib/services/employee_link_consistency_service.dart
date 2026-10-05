@@ -13,7 +13,8 @@ class EmployeeLinkRepairReport {
   int expensesRepointedAway = 0; // كانت تحمل id هذا الموظف و uuid لموظف آخر
   int withdrawalsRescued = 0; // سحوبات يتيمة أعيد إسنادها عبر مصروفها
   int orphanWithdrawalsUnrescuable = 0; // سحوبات يتيمة لا يمكن إسقاطها بأمان
-  int orphanCycles = 0; // دورات/ترحيلات تشير لموظف ميت (لا uuid — تقرير فقط)
+  int orphanCycles = 0; // دورات تشير لموظف ميت
+  int orphanCarryOverLogs = 0; // سجلات ترحيل تشير لموظف ميت
   final List<String> notes = [];
 
   bool get hasRepairs =>
@@ -26,7 +27,8 @@ class EmployeeLinkRepairReport {
   String toString() =>
       'expensesRelinked=$expensesRelinked, uuidBackfilled=$expensesUuidBackfilled, '
       'repointedAway=$expensesRepointedAway, withdrawalsRescued=$withdrawalsRescued, '
-      'orphanWithdrawals=$orphanWithdrawalsUnrescuable, orphanCycles=$orphanCycles';
+      'orphanWithdrawals=$orphanWithdrawalsUnrescuable, orphanCycles=$orphanCycles, '
+      'orphanCarryOverLogs=$orphanCarryOverLogs';
 }
 
 /// ✅ خدمة اتساق روابط الموظف — تُستدعى بعد أي تعديل ناجح على موظف.
@@ -190,11 +192,63 @@ class EmployeeLinkConsistencyService {
       }
     }
 
-    // ═══ 3) الدورات والترحيلات اليتيمة — تقرير فقط (لا uuid للإنقاذ) ═══
+// ═══ 3) الدورات اليتيمة — إصلاح employeeUuid إن أمكن ═══
     final orphanCycles = await (db.select(
       db.salaryCycles,
     )..where((t) => t.employeeId.isNotIn(aliveEmployeeIds))).get();
     report.orphanCycles = orphanCycles.length;
+    for (final cycle in orphanCycles) {
+      final uuid = cycle.employeeUuid?.trim() ?? '';
+      if (uuid.isNotEmpty) {
+        final owner = employeeByUuid[uuid];
+        if (owner != null) {
+          await (db.update(
+                db.salaryCycles,
+              )..where((t) => t.id.equals(cycle.id)))
+              .write(
+            SalaryCyclesCompanion(
+              employeeUuid: d.Value(uuid),
+              employeeId: d.Value(owner.id),
+              updatedAt: d.Value(Time.nowEpoch()),
+              lastModified: d.Value(Time.nowEpoch()),
+              version: d.Value(cycle.version + 1),
+            ),
+          );
+          report.notes.add(
+            'salary_cycle#${cycle.id}: employeeId ${cycle.employeeId} → ${owner.id} (via uuid)',
+          );
+        }
+      }
+    }
+
+    // ═══ 4) سجلات الترحيل اليتيمة — إصلاح employeeUuid إن أمكن ═══
+    final orphanCarryOverLogs = await (db.select(
+      db.salaryCarryOverLogs,
+    )...where((t) => t.employeeId.isNotIn(aliveEmployeeIds))).get();
+    report.orphanCarryOverLogs = orphanCarryOverLogs.length;
+    for (final log in orphanCarryOverLogs) {
+      final uuid = log.employeeUuid?.trim() ?? '';
+      if (uuid.isNotEmpty) {
+        final owner = employeeByUuid[uuid];
+        if (owner != null) {
+          await (db.update(
+                db.salaryCarryOverLogs,
+              )...where((t) => t.id.equals(log.id)))
+              .write(
+            SalaryCarryOverLogsCompanion(
+              employeeUuid: d.Value(uuid),
+              employeeId: d.Value(owner.id),
+              updatedAt: d.Value(Time.nowEpoch()),
+              lastModified: d.Value(Time.nowEpoch()),
+              version: d.Value(log.version + 1),
+            ),
+          );
+          report.notes.add(
+            'salary_carry_over_log#${log.id}: employeeId ${log.employeeId} → ${owner.id} (via uuid)',
+          );
+        }
+      }
+    }
 
     return report;
   }

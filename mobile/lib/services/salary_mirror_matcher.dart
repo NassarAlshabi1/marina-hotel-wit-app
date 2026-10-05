@@ -33,6 +33,7 @@ class SalaryMirrorMatcher {
   /// [expenses] المصروفات المقروءة (بنطاق التقرير/الدورة المطلوب).
   static bool isMirrorOfReadExpense({
     required int? expenseId,
+    required String? expenseUuid,
     required String? reason,
     required double amount,
     required String? hotelDayKey,
@@ -45,6 +46,13 @@ class SalaryMirrorMatcher {
     // فعلاً ويجب أن يُعَد مرة واحدة في التقارير والاستحقاق معاً.
     final rawReason0 = (reason ?? '').trim();
     if (rawReason0.startsWith('direct_withdrawal_')) return false;
+
+    // ── المستوى 0: expense_uuid → الربط الدائم عبر الأجهزة (الأولوية الأعلى) ──
+    if (expenseUuid != null && expenseUuid.isNotEmpty) {
+      for (final e in expenses) {
+        if (e.expenseUuid != null && e.expenseUuid == expenseUuid) return true;
+      }
+    }
 
     // ── المستوى 1: عمود expense_id → مصروف محلي مقروء ──
     if (expenseId != null && expenseId > 0) {
@@ -123,11 +131,19 @@ class SalaryMirrorMatcher {
   /// تُعرض من جدول expenses مباشرة).
   static int? resolveLinkedExpenseId({
     required int? expenseId,
+    required String? expenseUuid,
     required String? reason,
     required Iterable<MirrorExpenseCandidate> expenses,
   }) {
     final rawReason = (reason ?? '').trim();
     if (rawReason.startsWith('direct_withdrawal_')) return null;
+
+    // ── المستوى 0: expense_uuid → الربط الدائم عبر الأجهزة ──
+    if (expenseUuid != null && expenseUuid.isNotEmpty) {
+      for (final e in expenses) {
+        if (e.expenseUuid != null && e.expenseUuid == expenseUuid) return e.id;
+      }
+    }
 
     if (expenseId != null && expenseId > 0) {
       for (final e in expenses) {
@@ -157,11 +173,13 @@ class SalaryMirrorMatcher {
   /// (direct_withdrawal_) تُستثنى دائماً — نقد خرج بلا مصروف مقابل.
   static bool hasMirrorMarker({
     required int? expenseId,
+    required String? expenseUuid,
     required String? reason,
   }) {
     final rawReason = (reason ?? '').trim();
     if (rawReason.startsWith('direct_withdrawal_')) return false;
     if (expenseId != null && expenseId > 0) return true;
+    if (expenseUuid != null && expenseUuid.isNotEmpty) return true;
     return RegExp(r'exp_\d+').hasMatch(rawReason);
   }
 
@@ -188,6 +206,7 @@ class MirrorExpenseCandidate {
   final String? date;
   final String? hotelDayKey;
   final int? relatedId;
+  final String? expenseUuid;
 
   const MirrorExpenseCandidate({
     required this.id,
@@ -197,5 +216,6 @@ class MirrorExpenseCandidate {
     required this.date,
     required this.hotelDayKey,
     required this.relatedId,
+    this.expenseUuid,
   });
 }

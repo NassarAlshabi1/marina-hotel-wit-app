@@ -216,6 +216,11 @@ class Expenses extends Table with SyncFields {
       'idx_expenses_active_date',
       'CREATE INDEX idx_expenses_active_date ON expenses (date DESC) WHERE deleted_at IS NULL',
     ),
+    // ✅ Index on employeeUuid for salary expense queries and reports
+    Index(
+      'idx_expenses_employee_uuid',
+      'CREATE INDEX idx_expenses_employee_uuid ON expenses (employee_uuid)',
+    ),
   ];
 }
 
@@ -320,6 +325,11 @@ class Payments extends Table with SyncFields {
       'idx_payments_active_receiver_session',
       'CREATE INDEX idx_payments_active_receiver_session ON payments (received_by_user_id, received_session_uuid, hotel_day_key) WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0',
     ),
+    // ✅ Index on bookingUuidCache for sync lookups
+    Index(
+      'idx_payments_booking_uuid_cache',
+      'CREATE INDEX idx_payments_booking_uuid_cache ON payments (booking_uuid_cache)',
+    ),
   ];
 }
 
@@ -379,6 +389,11 @@ class Debts extends Table with SyncFields {
     Index(
       'idx_debts_payment_date',
       'CREATE INDEX idx_debts_payment_date ON debts (payment_date)',
+    ),
+    // ✅ Index on bookingUuidCache for sync lookups
+    Index(
+      'idx_debts_booking_uuid_cache',
+      'CREATE INDEX idx_debts_booking_uuid_cache ON debts (booking_uuid_cache)',
     ),
   ];
 }
@@ -1147,6 +1162,149 @@ class SyncRemoteMeta extends Table {
   Set<Column> get primaryKey => {collection, docId};
 }
 
+/// ✅ جدول PendingLinks — لتتبع العلاقات المؤجلة أثناء المزامنة.
+///
+/// عندما يتم مزامنة كيان فرعي (مثل payment، debt، salary_withdrawal) قبل
+/// كيانه الأب (booking، expense)، نحتاج لتتبع هذه العلاقة لحلها لاحقاً
+/// عندما يصل الكيان الأب. هذا يحل محل المنطق "deferred" المؤقت في
+/// appwrite_sync_manager بنظام دائم وقابل للاستعلام.
+///
+/// حالات الاستخدام:
+/// - payment → booking (يحتاج booking_id)
+/// - debt → booking (يحتاج booking_id)
+/// - salary_withdrawal → expense (يحتاج expense_id / expense_uuid)
+/// - booking_nights → booking (يحتاج booking_id)
+/// - salary_cycles → employee (يحتاج employee_id / employee_uuid)
+/// - salary_payments → salary_cycle (يحتاج cycle_id)
+/// - booking_price_adjustments → booking (يحتاج booking_id)
+class PendingLinks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// نوع الكيان الفرعي المنتظر (مثل 'payments', 'debts', 'salary_withdrawals')
+  TextColumn get childEntity => text()();
+
+  /// UUID الكيان الفرعي المحلي
+  TextColumn get childLocalUuid => text()();
+
+  /// نوع الكيان الأب المتوقع (مثل 'bookings', 'expenses', 'employees')
+  TextColumn get parentEntity => text()();
+
+  /// UUID الكيان الأب المحلي (إذا معروف)
+  TextColumn get parentLocalUuid => text().nullable()();
+
+  /// معرف الكيان الأب على الخادم (إذا معروف من payload)
+  TextColumn get parentServerId => text().nullable()();
+
+  /// نوع العلاقة: 'fk' (مفتاح خارجي)، 'uuid' (ربط بـ UUID)، 'composite' (مجمع)
+  TextColumn get linkType => text().withDefault(const Constant('fk'))();
+
+  /// حقل الكيان الفرعي الذي يشير للأب (مثل 'bookingId', 'expenseId', 'employeeId')
+  TextColumn get childField => text()();
+
+  /// حقل الكيان الأب الذي يُشار إليه (مثل 'id', 'serverId', 'localUuid')
+  TextColumn get parentField => text().withDefault(const Constant('id'))();
+
+  /// حالة الرابط: 'pending' (في الانتظار)، 'resolved' (تم حله)، 'failed' (فشل)
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+
+  /// عدد محاولات الحل
+  IntColumn get resolveAttempts => integer().withDefault(const Constant(0))();
+
+  /// آخر خطأ في الحل
+  TextColumn get lastError => text().nullable()();
+
+  /// وقت الإنشاء
+  IntColumn get createdAt => integer()();
+
+  /// وقت آخر محاولة
+  IntColumn get lastAttemptAt => integer().nullable()();
+
+  /// وقت الحل (null إذا لم يُحل بعد)
+  IntColumn get resolvedAt => integer().nullable()();
+
+  /// بيانات إضافية كـ JSON للسياق (مثل: الحقول المطلوبة من الأب)
+  TextColumn get metadataJson => text().nullable()();
+
+  @override
+  List<Index> get indexes => [
+    Index(
+      'idx_pending_links_child',
+      'CREATE INDEX idx_pending_links_child ON pending_links (child_entity, child_local_uuid)',
+    ),
+    Index(
+      'idx_pending_links_parent',
+      'CREATE INDEX idx_pending_links_parent ON pending_links (parent_entity, parent_local_uuid)',
+    ),
+    Index(
+      'idx_pending_links_status',
+      'CREATE INDEX idx_pending_links_status ON pending_links (status)',
+    ),
+    Index(
+      'idx_pending_links_composite',
+      'CREATE INDEX idx_pending_links_composite ON pending_links (child_entity, parent_entity, status)',
+    ),
+  ];
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// ✅ جدول OrphanQuarantine — لعزل السجلات اليتيمة التي لا يمكن ربطها بآبائها.
+///
+/// بدلاً من حذف السجلات اليتيمة نهائياً (مما يؤدي لفقدان البيانات)،
+/// ننقلها إلى هذا الجدول مع البيانات الكاملة + سبب العزل + تاريخ العزل.
+/// هذا يحل محل سلوك DELETE في _performPostSyncIntegrityCheck.
+///
+/// الحالات التي تؤدي للعزل:
+/// - salary_withdrawals بدون موظف موجود
+/// - salary_cycles بدون موظف موجود
+/// - salary_payments بدون دورة راتب موجودة
+/// - salary_carry_over_logs بدون موظف موجود
+/// - أي سجل آخر يتم اكتشافه عبر PRAGMA foreign_key_check
+class OrphanQuarantine extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// نوع الكيان المعزول (مثل 'salary_withdrawals', 'salary_cycles')
+  TextColumn get entity => text()();
+
+  /// UUID السجل المعزول
+  TextColumn get localUuid => text()();
+
+  /// بيانات السجل الكاملة كـ JSON
+  TextColumn get dataJson => text()();
+
+  /// سبب العزل
+  TextColumn get reason => text()();
+
+  /// وقت العزل
+  IntColumn get quarantinedAt => integer()();
+
+  /// معرف الموظف/الكيان الأب المفقود (إن وجد)
+  TextColumn get missingParentUuid => text().nullable()();
+
+  /// معرف السجل الرقمي المحلي (للتشخيص)
+  IntColumn get localId => integer().nullable()();
+
+  @override
+  List<Index> get indexes => [
+    Index(
+      'idx_orphan_quarantine_entity',
+      'CREATE INDEX idx_orphan_quarantine_entity ON orphan_quarantine (entity)',
+    ),
+    Index(
+      'idx_orphan_quarantine_local_uuid',
+      'CREATE INDEX idx_orphan_quarantine_local_uuid ON orphan_quarantine (local_uuid)',
+    ),
+    Index(
+      'idx_orphan_quarantine_quarantined_at',
+      'CREATE INDEX idx_orphan_quarantine_quarantined_at ON orphan_quarantine (quarantined_at)',
+    ),
+  ];
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Rooms,
@@ -1182,6 +1340,8 @@ class SyncRemoteMeta extends Table {
     InventoryTransactions,
     AncestorCache,
     SyncRemoteMeta,
+    PendingLinks,
+    OrphanQuarantine,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1191,7 +1351,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 68;
+  int get schemaVersion => 70;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1362,6 +1522,31 @@ class AppDatabase extends _$AppDatabase {
 
         developer.log(
           'Migration 68: added expense_uuid to salary_withdrawals + backfill + indexes',
+          name: 'db.migration',
+        );
+      }
+      // ✅ (2026-10-03) الإصدار 69: جدول pending_links لتتبع العلاقات المؤجلة.
+      //
+      // يحل محل منطق "deferred" المؤقت في appwrite_sync_manager بنظام دائم
+      // وقابل للاستعلام لتتبع علاقات الكيانات الفرعية التي تنتظر آباءها.
+      if (from < 69) {
+        await m.createTable(pendingLinks);
+
+        developer.log(
+          'Migration 69: created pending_links table',
+          name: 'db.migration',
+        );
+      }
+      // ✅ (2026-10-03) الإصدار 70: جدول orphan_quarantine لعزل السجلات اليتيمة.
+      //
+      // بدلاً من حذف السجلات اليتيمة نهائياً (مما يؤدي لفقدان البيانات)،
+      // ننقلها إلى هذا الجدول مع البيانات الكاملة + سبب العزل + تاريخ العزل.
+      // هذا يحل محل سلوك DELETE في _performPostSyncIntegrityCheck (R1).
+      if (from < 70) {
+        await m.createTable(orphanQuarantine);
+
+        developer.log(
+          'Migration 70: created orphan_quarantine table',
           name: 'db.migration',
         );
       }

@@ -617,6 +617,8 @@ class AppwriteSchemaVerifier {
         {'key': 'description', 'type': 'string', 'size': 500},
         // ✅ حقول employeeUuid لحل FK عبر الأجهزة
         {'key': 'employeeUuid', 'type': 'string', 'size': 36},
+        // ✅ (migration 68) expenseUuid — الربط الدائم عبر الأجهزة
+        {'key': 'expenseUuid', 'type': 'string', 'size': 36},
         // الحقول القديمة على Cloud (للتوافق العكسي) - nullable
         {'key': 'action', 'type': 'string', 'size': 50},
         {'key': 'date', 'type': 'string', 'size': 50},

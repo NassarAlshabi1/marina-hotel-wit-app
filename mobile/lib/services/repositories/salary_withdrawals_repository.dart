@@ -62,6 +62,7 @@ class SalaryWithdrawalsRepository {
     String? withdrawalType,
     String? description,
     String? recorderName,
+    String? expenseUuid,
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
@@ -174,6 +175,7 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     double? previousAmount,
     int? previousEmployeeId,
+    String? expenseUuid,
     bool originIsServer = false,
   }) async {
     // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
@@ -190,9 +192,11 @@ class SalaryWithdrawalsRepository {
       if (previousEmployeeId != null) previousEmployeeId,
     };
     final uuid = employeeUuid.present ? employeeUuid.value : null;
+    final hasExpenseUuid = expenseUuid != null && expenseUuid.isNotEmpty;
     bool belongsToExpense(SalaryWithdrawal w) =>
         allowedEmployeeIds.contains(w.employeeId) ||
-        (uuid != null && uuid.isNotEmpty && w.employeeUuid == uuid);
+        (uuid != null && uuid.isNotEmpty && w.employeeUuid == uuid) ||
+        (hasExpenseUuid && w.expenseUuid == expenseUuid);
 
     // ✅ البحث عن سجل موجود — محاولة عبر عمود expense_id أولاً
     SalaryWithdrawal? matched;
@@ -488,6 +492,12 @@ class SalaryWithdrawalsRepository {
         if (await _activeExpenseExists(wExpId)) continue;
       }
 
+      // ✅ (migration 68) رابط expense_uuid يشير لمصروف محلي قائم آخر → مرآة ذلك المصروف.
+      final wExpUuid = w.expenseUuid;
+      if (wExpUuid != null && wExpUuid.isNotEmpty && wExpUuid != expenseUuid) {
+        if (await _activeExpenseExistsByUuid(wExpUuid)) continue;
+      }
+
       // reason=exp_M يشير لمصروف محلي قائم آخر → مرآة ذلك المصروف.
       final m = RegExp(r'exp_(\d+)').firstMatch(r);
       if (m != null) {
@@ -519,6 +529,16 @@ class SalaryWithdrawalsRepository {
     return row != null;
   }
 
+  /// هل يوجد مصروف نشط (غير محذوف) بهذا UUID؟
+  Future<bool> _activeExpenseExistsByUuid(String uuid) async {
+    final row =
+        await (_db.select(_db.expenses)
+              ..where((t) => t.localUuid.equals(uuid) & t.deletedAt.isNull())
+              ..limit(1))
+            .getSingleOrNull();
+    return row != null;
+  }
+
   /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي
   /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
   /// ✅ إصلاح خبير: البحث أولاً عبر عمود expense_id ثم عبر reason
@@ -530,6 +550,7 @@ class SalaryWithdrawalsRepository {
     int expenseId, {
     int? employeeId,
     String? employeeUuid,
+    String? expenseUuid,
     bool originIsServer = false,
   }) async {
     // الطريقة 1: بحث عبر عمود expense_id
@@ -564,12 +585,14 @@ class SalaryWithdrawalsRepository {
     }
 
     final hasUuid = employeeUuid != null && employeeUuid.isNotEmpty;
-    if (employeeId != null || hasUuid) {
+    final hasExpenseUuid = expenseUuid != null && expenseUuid.isNotEmpty;
+    if (employeeId != null || hasUuid || hasExpenseUuid) {
       toDelete = toDelete
           .where(
             (w) =>
                 (employeeId != null && w.employeeId == employeeId) ||
-                (hasUuid && w.employeeUuid == employeeUuid),
+                (hasUuid && w.employeeUuid == employeeUuid) ||
+                (hasExpenseUuid && w.expenseUuid == expenseUuid),
           )
           .toList();
     }

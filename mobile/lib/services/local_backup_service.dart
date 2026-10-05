@@ -838,6 +838,22 @@ class LocalBackupService {
           );
           await db.into(db.salaryCarryOverLogs).insertOnConflictUpdate(data);
         });
+        await insertList<dynamic>('pending_links', (json) async {
+          final map = Map<String, dynamic>.from(json as Map);
+          final data = PendingLink.fromJson(
+            map,
+            serializer: lenientValueSerializer,
+          );
+          await db.into(db.pendingLinks).insertOnConflictUpdate(data);
+        });
+        await insertList<dynamic>('orphan_quarantine', (json) async {
+          final map = Map<String, dynamic>.from(json as Map);
+          final data = OrphanQuarantine.fromJson(
+            map,
+            serializer: lenientValueSerializer,
+          );
+          await db.into(db.orphanQuarantine).insertOnConflictUpdate(data);
+        });
 
         // BUG-3 FIX: Don't restore sync_state - let new device sync from scratch
         // sync_state contains lastPullTs/deviceId from source device
@@ -852,7 +868,7 @@ class LocalBackupService {
             '✅ تم استعادة '
             '${metadata.totalRecords > 0 ? metadata.totalRecords : restoredRows} '
             'سجل بنجاح من نسخة JSON '
-            '(جميع الجداول الـ20) — atomic transaction',
+            '(جميع الجداول) — atomic transaction',
       );
     } finally {
       // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل

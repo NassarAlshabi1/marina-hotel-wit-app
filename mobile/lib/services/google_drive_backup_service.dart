@@ -427,6 +427,12 @@ class GoogleDriveBackupService {
       final inventoryTransactionsData = await _loadTableBatched<dynamic>(
         db.inventoryTransactions,
       );
+      final pendingLinksData = await _loadTableBatched<dynamic>(
+        db.pendingLinks,
+      );
+      final orphanQuarantineData = await _loadTableBatched<dynamic>(
+        db.orphanQuarantine,
+      );
 
       // استخراج عناصر القائمة السوداء بشكل منفصل (createdBy = 'blacklist')
       final blacklistQuery = db.select(db.shiftNotes)
@@ -456,6 +462,8 @@ class GoogleDriveBackupService {
         salaryCarryOverLogsData: salaryCarryOverLogsData,
         inventoryItemsData: inventoryItemsData,
         inventoryTransactionsData: inventoryTransactionsData,
+        pendingLinksData: pendingLinksData,
+        orphanQuarantineData: orphanQuarantineData,
       );
 
       final totalRecords = tableData.totalRecords + blacklistData.length;
@@ -529,6 +537,7 @@ class GoogleDriveBackupService {
           salaryCarryOverLogsData: salaryCarryOverLogsData,
           inventoryItemsData: inventoryItemsData,
           inventoryTransactionsData: inventoryTransactionsData,
+          pendingLinksData: pendingLinksData,
           blacklistData: blacklistData,
           whatsappSettings: whatsappSettings,
         );
@@ -1613,6 +1622,34 @@ class GoogleDriveBackupService {
                 );
               } catch (e) {
                 _log('⚠️ فشل استعادة سجل ترحيل راتب: $e');
+              }
+            }
+          }
+
+          if (backupData.containsKey('pending_links')) {
+            final linksList = backupData['pending_links'] as List<dynamic>;
+            for (final lJson in linksList) {
+              try {
+                await adapterRegistry.pendingLinks.upsertFromJson(
+                  Map<String, dynamic>.from(lJson as Map),
+                  src: Source.drive,
+                );
+              } catch (e) {
+                _log('⚠️ فشل استعادة رابط معلق: $e');
+              }
+            }
+          }
+
+          if (backupData.containsKey('orphan_quarantine')) {
+            final qList = backupData['orphan_quarantine'] as List<dynamic>;
+            for (final qJson in qList) {
+              try {
+                await adapterRegistry.orphanQuarantine.upsertFromJson(
+                  Map<String, dynamic>.from(qJson as Map),
+                  src: Source.drive,
+                );
+              } catch (e) {
+                _log('⚠️ فشل استعادة سجل يتيم في orphan_quarantine: $e');
               }
             }
           }

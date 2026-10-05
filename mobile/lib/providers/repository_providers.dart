@@ -18,6 +18,7 @@ import '../utils/weak_device_optimizer.dart';
 import '../services/daos/payments_dao.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
 import '../services/local_db.dart';
+import '../services/pending_links_service.dart';
 import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/bookings_repository.dart';
 import '../services/repositories/cash_repository.dart';
@@ -28,7 +29,6 @@ import '../services/repositories/guest_infos_repository.dart';
 import '../services/repositories/inventory_repository.dart';
 import '../services/repositories/notes_repository.dart';
 import '../services/repositories/payments_repository.dart';
-import '../services/payment_session_context.dart';
 import '../services/repositories/rooms_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
@@ -148,6 +148,9 @@ final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
 );
 final salaryExpenseServiceProvider = Provider<SalaryExpenseService>(
   (ref) => SalaryExpenseService(ref.read(databaseProvider)),
+);
+final pendingLinksServiceProvider = Provider<PendingLinksService>(
+  (ref) => PendingLinksService(ref.read(databaseProvider)),
 );
 final salaryAdvanceInstallmentsServiceProvider =
     Provider<SalaryAdvanceInstallmentsService>(

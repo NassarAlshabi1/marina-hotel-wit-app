@@ -384,6 +384,7 @@ class _IncomeExpenseReportScreenState
 
         final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
           expenseId: sw.expenseId,
+          expenseUuid: sw.expenseUuid,
           reason: sw.reason,
           amount: sw.amount,
           hotelDayKey: sw.hotelDayKey,
@@ -398,6 +399,7 @@ class _IncomeExpenseReportScreenState
               date: e.date,
               hotelDayKey: e.hotelDayKey,
               relatedId: e.relatedId,
+              expenseUuid: e.localUuid,
             ),
           ),
         );

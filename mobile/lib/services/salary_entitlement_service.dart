@@ -680,6 +680,7 @@ class SalaryEntitlementService {
             date: e.date,
             hotelDayKey: e.hotelDayKey,
             relatedId: e.relatedId,
+            expenseUuid: e.localUuid,
           ),
         )
         .toList(growable: false);
@@ -691,6 +692,7 @@ class SalaryEntitlementService {
 
       final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
         expenseId: sw.expenseId,
+        expenseUuid: sw.expenseUuid,
         reason: sw.reason,
         amount: sw.amount,
         hotelDayKey: sw.hotelDayKey,
