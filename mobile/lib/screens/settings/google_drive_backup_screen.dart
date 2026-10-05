@@ -693,11 +693,11 @@ class _GoogleDriveBackupContentState
           children: [
             Row(
               children: [
-                Icon(Icons.sync, color: activeColor, size: 24),
+                Icon(Icons.backup, color: activeColor, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'المزامنة التلقائية',
+                    'النسخ الاحتياطي التلقائي',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -727,7 +727,7 @@ class _GoogleDriveBackupContentState
             ),
             const SizedBox(height: 8),
             Text(
-              'مزامنة تلقائية للتغييرات بين التطبيق و Google Drive. عند التفعيل، يتم رفع التغييرات وسحب التحديثات تلقائياً.',
+              'نسخة احتياطية كاملة تُرفع إلى Google Drive تلقائياً مرة يومياً، مع إمكانية الاستعادة اليدوية في أي وقت. لا توجد مزامنة تفاضلية بين الأجهزة.',
               style: TextStyle(
                 color: Theme.of(context).textTheme.bodySmall?.color,
                 fontSize: 13,
@@ -737,13 +737,13 @@ class _GoogleDriveBackupContentState
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text(
-                'تفعيل المزامنة التلقائية',
+                'تفعيل النسخ الاحتياطي التلقائي',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Text(
                 syncEnabled
-                    ? 'يتم مزامنة البيانات تلقائياً مع Google Drive'
-                    : 'المزامنة التلقائية معطّلة - لن يتم رفع أو سحب التغييرات تلقائياً',
+                    ? 'تُنشأ نسخة احتياطية كاملة تلقائياً على Google Drive'
+                    : 'النسخ الاحتياطي التلقائي معطّل - يمكنك إنشاء نسخة يدوياً',
               ),
               value: syncEnabled,
               onChanged: (value) => ref

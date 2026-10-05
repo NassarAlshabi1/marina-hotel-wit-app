@@ -186,11 +186,12 @@ jobs:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
 
 
-  # ─── مؤقت (Arena): التقاط مخرجات المحلل ودفعها كملف للتشخيص ───
-  analyze-diagnostic-arena:
+
+  # ─── مؤقت (Arena): تنسيق آلي ثم دفع — يُزال بعد اكتمال التنسيق ───
+  auto-format-arena:
     if: github.ref == 'refs/heads/arena/01a109fa-marina-hotel-wit-app'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
       contents: write
     defaults:
@@ -207,30 +208,14 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Generate code
-        run: dart run build_runner build
-
-      - name: Capture analyzer output
+      - name: Auto-format
         run: |
-          set +e
-          flutter analyze --no-fatal-infos --no-fatal-warnings > /tmp/analyze_out.txt 2>&1
-          EXIT=$?
-          {
-            echo "ANALYZE_EXIT_CODE=$EXIT"
-            echo "════════════════════════════════════════"
-            cat /tmp/analyze_out.txt
-          } | head -c 300000 > ../analyze_diagnostic.txt
-
-      - name: Push diagnostic file
-        run: |
+          dart format .
           cd ..
           git config user.name "arena-bot"
           git config user.email "arena-bot@users.noreply.github.com"
-          git add analyze_diagnostic.txt
+          git add mobile/
           if ! git diff --cached --quiet; then
-            git commit -m "diag: capture flutter analyze output (temporary)"
+            git commit -m "style: dart format — تنسيق آلي عبر بوابة الجودة"
             git push origin arena/01a109fa-marina-hotel-wit-app
           fi
