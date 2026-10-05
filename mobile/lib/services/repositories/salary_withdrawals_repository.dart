@@ -435,19 +435,20 @@ class SalaryWithdrawalsRepository {
     // أنشأه جهاز آخر (origin=server) — وحارس الموظف لا يُطبّق كي يُعثر
     // على المرآة حتى عند تغيير موظف المصروف (تُحدّث بياناتها لاحقاً).
     if (matched == null) {
-      final expenseRowForUuid = await (_db.select(_db.expenses)
-            ..where((e) => e.id.equals(expenseId))
-            ..limit(1))
-          .getSingleOrNull();
+      final expenseRowForUuid =
+          await (_db.select(_db.expenses)
+                ..where((e) => e.id.equals(expenseId))
+                ..limit(1))
+              .getSingleOrNull();
       final expenseUuidStr = expenseRowForUuid?.localUuid ?? '';
       if (expenseUuidStr.isNotEmpty) {
-        final byUuid = await (_db.select(_db.salaryWithdrawals)
-              ..where(
-                (t) =>
-                    t.expenseUuid.equals(expenseUuidStr) &
-                    t.deletedAt.isNull(),
-              ))
-            .get();
+        final byUuid =
+            await (_db.select(_db.salaryWithdrawals)..where(
+                  (t) =>
+                      t.expenseUuid.equals(expenseUuidStr) &
+                      t.deletedAt.isNull(),
+                ))
+                .get();
         // التفرّد مضمون بالتوليد — لو انكسر (بيانات تالفة) لا نخمّن:
         // نترك البحث للطريقة 3 (التي لها حارس غموض خاص بها الآن).
         if (byUuid.length == 1) matched = byUuid.single;
