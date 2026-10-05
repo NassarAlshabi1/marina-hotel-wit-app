@@ -32,7 +32,6 @@ class D1StartupProbeTest {
     ) { proxy, method, args ->
         when (method.name) {
             "enqueue" -> { (args!![0] as Callback<Any>).onResponse(proxy as Call<Any>, response as Response<Any>); null }
-            "execute" -> response
             "cancel" -> null
             else -> error("Unexpected call: ${method.name}")
         }
@@ -45,40 +44,6 @@ class D1StartupProbeTest {
         val api = Proxy.newProxyInstance(CloudflareWorkerApi::class.java.classLoader,
             arrayOf(CloudflareWorkerApi::class.java)) { _, method, _ -> handler(method.name) } as CloudflareWorkerApi
         return CloudflareSyncService(api, CloudflareConfig(context), prefs)
-    }
-
-    private fun typedExpense() = WorkerPushOperation(
-        idempotencyKey = "kind-test", entity = "expenses", operation = "update",
-        data = mapOf("local_uuid" to "kind-row", "expense_kind" to "salary_installment"),
-        vectorClock = "{}", updatedAt = 1L, deviceId = "A"
-    )
-
-    @Test fun typedExpenseIsNotSentToOldOrUnmigratedWorker() = runBlocking {
-        for (supported in listOf<Boolean?>(null, false)) {
-            val requests = mutableListOf<String>()
-            val subject = service { method ->
-                requests.add(method)
-                check(method == "d1Health") { "Must not send a lossy push" }
-                call(Response.success(WorkerD1HealthResponse("ok", "ok", supported)))
-            }
-            assertTrue(subject.push(listOf(typedExpense())).isFailure)
-            assertEquals(listOf("d1Health"), requests)
-            assertEquals(123L, prefs.getLastPullCursor())
-        }
-    }
-
-    @Test fun typedExpensePushRequiresExplicitHealthyCapability() = runBlocking {
-        val requests = mutableListOf<String>()
-        val subject = service { method ->
-            requests.add(method)
-            when (method) {
-                "d1Health" -> call(Response.success(WorkerD1HealthResponse("ok", "ok", true)))
-                "push" -> call(Response.success(WorkerPushResponse(emptyList(), WorkerPushSummary(0, 0, 0, 0))))
-                else -> error("Unexpected $method")
-            }
-        }
-        assertTrue(subject.push(listOf(typedExpense())).isSuccess)
-        assertEquals(listOf("d1Health", "push"), requests)
     }
 
     @Test fun onlyAuthenticatedD1OkCountsAsConnectionWithoutChangingCursor() = runBlocking {

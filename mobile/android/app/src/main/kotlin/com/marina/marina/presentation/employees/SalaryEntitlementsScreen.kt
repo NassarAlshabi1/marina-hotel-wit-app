@@ -198,10 +198,6 @@ private fun EntitlementCard(
                 )
             }
 
-            if (ent.unclassifiedExpenseCount > 0) {
-                Text("تنبيه: ${ent.unclassifiedExpenseCount} مصروف قديم يحتاج مراجعة النوع؛ لم تُغيّر حساباته تلقائياً",
-                    color = AppColors.DangerColor, style = AppTypography.bodySmall)
-            }
             // Dart breakdown rows (l.230-257).
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 StatCell("الاستحقاق", CurrencyFormatter.formatAmount(ent.totalEntitlement), AppColors.SuccessColor)

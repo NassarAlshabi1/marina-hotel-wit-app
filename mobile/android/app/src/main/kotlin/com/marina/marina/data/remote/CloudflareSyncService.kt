@@ -236,16 +236,6 @@ class CloudflareSyncService @Inject constructor(
                 )
             }
             try {
-                if (operations.any { it.entity == "expenses" && it.operation != "delete" && it.data["expense_kind"] != null }) {
-                    // An older Worker silently filters unknown columns. Never
-                    // send a typed financial edit until server AND schema opt in.
-                    val health = withTimeout(8_000L) { api.d1Health().awaitProbeResponse() }
-                    val capability = health.body()
-                    check(health.isSuccessful && capability?.status == "ok" && capability.d1 == "ok" &&
-                        capability.expenseKindSupported == true) {
-                        "يلزم تحديث Worker وترحيل D1 رقم 0015 قبل رفع أنواع المصروفات؛ بقيت التغييرات محلياً"
-                    }
-                }
                 val response = api.push(WorkerPushRequest(operations)).execute()
                 val body = response.body()
                 when {

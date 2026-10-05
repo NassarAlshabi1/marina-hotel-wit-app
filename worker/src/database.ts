@@ -3,7 +3,6 @@
 //  Handles all SQL queries with parameterized statements (SQL injection safe)
 // ═══════════════════════════════════════════════════════════════
 
-import { expenseKind } from './expense-kind';
 import type { D1Database } from '@cloudflare/workers-types';
 
 // ─── Types ────────────────────────────────────────────────────
@@ -430,9 +429,6 @@ export class Database {
         }
         for (const row of tableRows) {
           const record = row as unknown as SyncRecord;
-          if (ent === 'expenses' && record.expense_kind == null) {
-            record.expense_kind = expenseKind(null, record);
-          }
           // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
           // بدون الحاجة لتخمين نوعه من الحقول
           (record as Record<string, unknown>)._entity = ent;
@@ -1039,10 +1035,6 @@ export class Database {
   ): Promise<SyncRecord> {
     const table = getTableName(entity);
     const normalizedData = await this.normalizePushReferences(entity, data, 'create');
-    if (entity === 'expenses') {
-      normalizedData.expense_kind = expenseKind(data.expense_kind, data);
-      if (!(await this.getTableColumns(table)).has('expense_kind')) throw new Error('D1 migration 0015 is required');
-    }
     const now = Math.floor(Date.now() / 1000);
 
     // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
@@ -1222,11 +1214,6 @@ export class Database {
         employee_uuid: data.employee_uuid || existing.employee_uuid };
     }
     data = await this.normalizePushReferences(entity, { ...data, local_uuid: recordId }, 'update');
-    if (entity === 'expenses') {
-      // Missing/null on an old client must never erase or re-infer an existing kind.
-      data = { ...data, expense_kind: expenseKind(data.expense_kind ?? existing.expense_kind, existing) };
-      if (!(await this.getTableColumns(table)).has('expense_kind')) throw new Error('D1 migration 0015 is required');
-    }
 
     // ─── Conflict Detection: Vector Clock ───────────────────
     const conflict = this.detectConflict(existing.vector_clock || '{}', vectorClock);

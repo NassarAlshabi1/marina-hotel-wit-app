@@ -129,8 +129,7 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
             val expense = expensesDao.getById(expenseId) ?: return@withTransaction
             val matches = salaryWithdrawalsDao.getByExpenseUuid(expense.localUuid)
             check(matches.size <= 1) { "توجد روابط مصروف مكررة؛ لم يُرسل أي حذف" }
-            check(matches.isNotEmpty() || (expense.expenseKind?.let { it == com.marina.marina.domain.model.ExpenseKind.NORMAL }
-                    ?: (expense.expenseType.trim() !in EmployeeExpenseTypes.values)) ||
+            check(matches.isNotEmpty() || expense.expenseType.trim() !in EmployeeExpenseTypes.values ||
                 (expense.relatedId == null && expense.employeeUuid.isNullOrBlank())) {
                 "المصروف القديم بلا رابط UUID موثوق؛ يلزم مراجعته قبل الحذف"
             }

@@ -186,6 +186,5 @@ interface CloudflareWorkerApi {
 /** Authenticated SELECT 1 probe; worker liveness alone is not D1 reachability. */
 data class WorkerD1HealthResponse(
     @SerializedName("status") val status: String? = null,
-    @SerializedName("d1") val d1: String? = null,
-    @SerializedName("expense_kind") val expenseKindSupported: Boolean? = null
+    @SerializedName("d1") val d1: String? = null
 )

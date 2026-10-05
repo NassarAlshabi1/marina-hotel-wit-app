@@ -8,7 +8,6 @@ import kotlinx.parcelize.Parcelize
 data class Expense(
     val id: Long = 0,
     val expenseType: String = "",
-    val expenseKind: String? = null,
     val relatedId: Long? = null,
     val description: String = "",
     val amount: Double = 0.0,
