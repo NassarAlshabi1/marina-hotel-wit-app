@@ -1,3 +1,4 @@
+import { legacyExpenseKind } from './expense-kind';
 // Natural-language hotel operations for Workers AI + D1.
 // The model may classify a request, but never supplies executable SQL.
 
@@ -271,9 +272,9 @@ export async function handleAiRequest(
     ...dates.flatMap((date) => [
       env.DB.prepare('UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1').bind(now),
       env.DB.prepare(
-        `INSERT INTO expenses (expense_type,description,amount,date,hotel_day_key,is_auto_generated,local_uuid,created_at,updated_at,last_modified,origin,device_id)
-         VALUES (?,?,?,?,?,0,?,?,(SELECT last_ts FROM sync_clock WHERE id = 1),?,?,?)`,
-      ).bind(plan.expenseType, plan.description, plan.amountPerDay, date, date, crypto.randomUUID(), now, now, 'ai', 'worker'),
+        `INSERT INTO expenses (expense_kind,expense_type,description,amount,date,hotel_day_key,is_auto_generated,local_uuid,created_at,updated_at,last_modified,origin,device_id)
+         VALUES (?,?,?,?,?,?,0,?,?,(SELECT last_ts FROM sync_clock WHERE id = 1),?,?,?)`,
+      ).bind(legacyExpenseKind({ expense_type: plan.expenseType, description: plan.description, is_auto_generated: false }), plan.expenseType, plan.description, plan.amountPerDay, date, date, crypto.randomUUID(), now, now, 'ai', 'worker'),
     ]),
   ];
   await env.DB.batch(statements);
