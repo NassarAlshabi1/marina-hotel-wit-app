@@ -12,7 +12,8 @@ The authorized repair is implemented in source, not deployed to production:
 - Each pull establishes a fixed clock ceiling before reading entity pages.
   Later commits remain above that ceiling and are delivered on a later request.
   Indexed sane-MAX probes include legacy timestamps when establishing the ceiling;
-  this adds per-table index queries, not a full payload scan or client RAM load.
+  the probes are batched into one D1 round trip on the healthy path, not a full
+  payload scan or client RAM load.
 - Confirmed AI expense inserts also use transaction-scoped clock allocation;
   independent same-day events and whole-range transaction semantics are retained.
 - Worker accepts both `1` and `true` for the two full-replay flags.
@@ -24,12 +25,17 @@ The authorized repair is implemented in source, not deployed to production:
 - Dashboard remains `pullDeltaChanges → pullOnly`, using the saved server cursor;
   no automatic full pull, hour-gating of manual actions, or checkpoint reset added.
 
-Verification: Worker typecheck passed; **208 tests / 19 files passed** (65.68s).
+Verification: Worker typecheck passed; **208 tests / 19 files passed** (final run: 64.41s).
 The 10 audit regression cases include both original interleavings, delayed update
 and delete, rollback, Boolean flags, repair acknowledgement, failed normalization
 and AI writes. Six new Android integration cases cover repair bounds and
-normalization acknowledgements; Android CI verification is recorded separately
-when available. The existing Dashboard saved-cursor regression remains in place.
+normalization acknowledgements, plus two wire-contract tests cover actual Retrofit
+Boolean encoding and Gson decoding; Android unit tests passed in run
+[37371030962](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37371030962),
+job 111967921620, on Android source commit `ad87cbe`. This includes all eight new
+Android cases and the existing Dashboard saved-cursor regression. The release APK
+build was still running at verification time; unit success is not a device test
+or a claim that every workflow passed.
 
 Deployment: ship Worker and Android together (Worker first). No schema migration
 is added. Existing schema prerequisites including `sync_write_times` remain.
@@ -122,6 +128,6 @@ A page containing only poisoned timestamps can be successfully restamped by Work
 
 Boundary-group extension makes the nominal 250-row Android batch a **soft** response limit. The existing per-table tie cap is 20,000. This audit does not establish suitability of worst-case response sizes on a 1 GB RAM device.
 
-## Next step
+## Original recommended next step
 
 Repair the two independent ordering/snapshot failures first, align the flag and recovery contracts, then require all audit tests and the existing suite to pass. Deployment and any recovery of potentially missed historical changes need separate validation; no production replay or mutation was attempted during verification.

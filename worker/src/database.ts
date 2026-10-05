@@ -285,13 +285,24 @@ export class Database {
     // Indexed MAX probes account for legacy/imported sane timestamps too.
     // A missing table still prevents checkpoint advancement, as before.
     let legacyMax = cursor;
-    for (const ent of entities) {
-      try {
-        const row = await this.db.prepare(`SELECT MAX(updated_at) AS m FROM ${ENTITY_TABLES[ent]} WHERE updated_at <= ?`)
-          .bind(Database.FUTURE_TIMESTAMP_THRESHOLD).first<{ m: number | null }>();
-        legacyMax = Math.max(legacyMax, Number(row?.m ?? 0));
-      } catch (err) {
-        errors.push({ entity: ent, error: String(err).slice(0, 300) });
+    const maxProbe = (ent: string) => this.db.prepare(
+      `SELECT MAX(updated_at) AS m FROM ${ENTITY_TABLES[ent]} WHERE updated_at <= ?`
+    ).bind(Database.FUTURE_TIMESTAMP_THRESHOLD);
+    try {
+      // One D1 round trip on the healthy path, with only scalar results.
+      const maxima = await this.db.batch<{ m: number | null }>(entities.map(maxProbe));
+      for (const result of maxima) {
+        legacyMax = Math.max(legacyMax, Number(result.results[0]?.m ?? 0));
+      }
+    } catch {
+      // Preserve table-specific diagnostics when one table breaks the batch.
+      for (const ent of entities) {
+        try {
+          const row = await maxProbe(ent).first<{ m: number | null }>();
+          legacyMax = Math.max(legacyMax, Number(row?.m ?? 0));
+        } catch (err) {
+          errors.push({ entity: ent, error: String(err).slice(0, 300) });
+        }
       }
     }
     await this.advanceSyncClock(legacyMax);
