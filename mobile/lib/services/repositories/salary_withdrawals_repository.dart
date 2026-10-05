@@ -338,10 +338,13 @@ class SalaryWithdrawalsRepository {
         final stampedUuid = (expenseRow?.withdrawalUuid ?? '').trim();
         if (stampedUuid.isNotEmpty && stampedUuid != expenseLocalUuid) {
           final stamped =
-              await (_db.select(_db.salaryWithdrawals)..where(
-                    (t) =>
-                        t.localUuid.equals(stampedUuid) & t.deletedAt.isNull(),
-                  )..limit(1))
+              await (_db.select(_db.salaryWithdrawals)
+                    ..where(
+                      (t) =>
+                          t.localUuid.equals(stampedUuid) &
+                          t.deletedAt.isNull(),
+                    )
+                    ..limit(1))
                   .getSingleOrNull();
           if (stamped != null) {
             // ✅ حارس الاختطاف: إن كانت المرآة المختومة تعلن بهويتها
@@ -563,13 +566,11 @@ class SalaryWithdrawalsRepository {
         // ✅ (هجرة 68) ختم الهوية على المرآة: expense_uuid = هوية هذا
         // المصروف — الرابط الدائم الذي ينجو من إعادة ترقيم المعرفات.
         if (expenseLocalUuid.isNotEmpty) {
-          await (_db.update(_db.salaryWithdrawals)
-                ..where((t) => t.id.equals(matchedId)))
-              .write(
-                SalaryWithdrawalsCompanion(
-                  expenseUuid: d.Value(expenseLocalUuid),
-                ),
-              );
+          await (_db.update(
+            _db.salaryWithdrawals,
+          )..where((t) => t.id.equals(matchedId))).write(
+            SalaryWithdrawalsCompanion(expenseUuid: d.Value(expenseLocalUuid)),
+          );
         }
         // ✅ الختم العكسي على المصروف: withdrawal_uuid = هوية المرآة
         // نفسها (matchedLocalUuid) — وليس هوية المصروف. (الخطأ التاريخي
@@ -602,8 +603,7 @@ class SalaryWithdrawalsRepository {
               'lastModified': now,
               'expenseId': expenseId,
               // ✅ (هجرة 68) هوية المصروف على المرآة — الرابط الدائم
-              if (expenseLocalUuid.isNotEmpty)
-                'expenseUuid': expenseLocalUuid,
+              if (expenseLocalUuid.isNotEmpty) 'expenseUuid': expenseLocalUuid,
             },
             clientTs: now,
           );
@@ -702,8 +702,7 @@ class SalaryWithdrawalsRepository {
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'expenseId': expenseId,
               // ✅ (هجرة 68) هوية المصروف على المرآة — الرابط الدائم
-              if (expenseLocalUuid.isNotEmpty)
-                'expenseUuid': expenseLocalUuid,
+              if (expenseLocalUuid.isNotEmpty) 'expenseUuid': expenseLocalUuid,
             },
             clientTs: now,
           );
@@ -810,7 +809,9 @@ class SalaryWithdrawalsRepository {
   Future<bool> _activeExpenseExistsByUuid(String localUuid) async {
     final row =
         await (_db.select(_db.expenses)
-              ..where((t) => t.localUuid.equals(localUuid) & t.deletedAt.isNull())
+              ..where(
+                (t) => t.localUuid.equals(localUuid) & t.deletedAt.isNull(),
+              )
               ..limit(1))
             .getSingleOrNull();
     return row != null;
@@ -907,10 +908,12 @@ class SalaryWithdrawalsRepository {
       final stampedUuid = (expenseRow?.withdrawalUuid ?? '').trim();
       if (stampedUuid.isNotEmpty && stampedUuid != expenseLocalUuid) {
         final stamped =
-            await (_db.select(_db.salaryWithdrawals)..where(
-                  (t) =>
-                      t.localUuid.equals(stampedUuid) & t.deletedAt.isNull(),
-                )..limit(1))
+            await (_db.select(_db.salaryWithdrawals)
+                  ..where(
+                    (t) =>
+                        t.localUuid.equals(stampedUuid) & t.deletedAt.isNull(),
+                  )
+                  ..limit(1))
                 .getSingleOrNull();
         // ✅ حارس الاختطاف: مرآة تعلن انتماءها لمصروف آخر قائم لا تُحذف
         // بسبب ختم فاسد على هذا المصروف.
