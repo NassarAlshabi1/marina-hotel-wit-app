@@ -1,0 +1,39 @@
+name: Arena Focused Flutter Tests
+on:
+  push:
+    branches: [arena/287ede54-marina-hotel-wit-app]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+      - run: flutter pub get
+      - name: Run focused tests
+        id: tests
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter test --reporter expanded \
+            test/cloudflare_d1_hardening_test.dart \
+            test/services/salary_employee_uuid_indexes_test.dart \
+            test/unit/backup_restore_test.dart \
+            test/unit/cloudflare_devices_sync_test.dart \
+            test/unit/wave6_debts_fields_test.dart 2>&1 | tee /tmp/focused-tests.log
+      - name: Report result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tail -n 120 /tmp/focused-tests.log > /tmp/tail.log
+          { echo '## Arena focused Flutter tests'; echo '```'; cat /tmp/tail.log; echo '```'; } > /tmp/comment.md
+          gh pr comment 613 --body-file /tmp/comment.md
+          test '${{ steps.tests.outcome }}' = success
