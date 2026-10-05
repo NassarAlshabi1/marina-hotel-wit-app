@@ -426,7 +426,18 @@ class LocalBackupService @Inject constructor(
         for (raw in rows) {
             currentCoroutineContext().ensureActive()
             @Suppress("UNCHECKED_CAST")
-            val row = raw as Map<String, Any?>
+            val row = (raw as Map<String, Any?>).toMutableMap()
+            if (table == "expenses") {
+                val kind = row["expense_kind"]
+                row["expense_kind"] = if (kind != null) {
+                    require(kind is String) { "Invalid expense_kind" }
+                    com.marina.marina.domain.model.ExpenseKind.requireValid(kind)
+                } else com.marina.marina.domain.model.ExpenseKind.fromLegacy(
+                    row["expense_type"]?.toString().orEmpty(),
+                    row["is_auto_generated"] == true || (row["is_auto_generated"] as? Number)?.toInt() == 1,
+                    row["description"]?.toString().orEmpty()
+                )
+            }
             val cols = row.keys.map { it.replace("\"", "\"\"") }
             val placeholders = cols.joinToString(",") { "?" }
             val values = Array(row.size) { idx ->

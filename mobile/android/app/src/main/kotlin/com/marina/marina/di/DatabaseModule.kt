@@ -55,6 +55,19 @@ object DatabaseModule {
         }
     }
 
+    val MIGRATION_74_75 = object : Migration(74, 75) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE expenses ADD COLUMN expense_kind TEXT")
+            db.execSQL("""UPDATE expenses SET expense_kind = CASE
+ WHEN TRIM(expense_type) IN ('رواتب','سحب راتب','سحب من الراتب') THEN 'salary_withdrawal'
+ WHEN TRIM(expense_type) = 'سلفة' THEN 'salary_advance'
+ WHEN TRIM(expense_type) = 'خصم من الراتب' AND is_auto_generated = 1 AND instr(description, 'قسط سلفة') > 0 THEN 'salary_installment'
+ WHEN TRIM(expense_type) = 'خصم من الراتب' AND is_auto_generated = 1 THEN 'unclassified'
+ WHEN TRIM(expense_type) IN ('خصم من الراتب','خصم راتب','خصم','غياب') THEN 'salary_deduction'
+ ELSE 'normal' END WHERE expense_kind IS NULL""")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -63,7 +76,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74)
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75)
             // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }

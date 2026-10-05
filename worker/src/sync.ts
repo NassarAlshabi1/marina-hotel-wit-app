@@ -3,6 +3,7 @@
 //  Delta sync + idempotent push + conflict resolution (LWW + VC)
 // ═══════════════════════════════════════════════════════════════
 
+import { EXPENSE_KINDS } from './expense-kind';
 import type { Database, PushOperation, SyncRecord } from './database';
 import { isValidEntity, SYNC_ENTITY_TABLES } from './database';
 import type { AuthContext } from './auth';
@@ -60,6 +61,10 @@ function validatePushOperation(op: PushOperation): string | null {
   }
   if (!op.data || typeof op.data !== 'object') {
     return 'data must be an object';
+  }
+  if (op.entity === 'expenses' && op.operation !== 'delete' && op.data.expense_kind != null &&
+      (typeof op.data.expense_kind !== 'string' || !EXPENSE_KINDS.has(op.data.expense_kind))) {
+    return 'Invalid expense_kind';
   }
   if (!op.vectorClock || typeof op.vectorClock !== 'string') {
     return 'vectorClock is required';
