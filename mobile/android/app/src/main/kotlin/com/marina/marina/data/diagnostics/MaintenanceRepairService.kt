@@ -201,9 +201,9 @@ class MaintenanceRepairService internal constructor(
                 SELECT c.id, c.local_uuid, c.$fk, c.$field, p.local_uuid, c.version, c.updated_at, c.last_modified
                 FROM $table c JOIN $parent p ON p.id = c.$fk
                 WHERE c.deleted_at IS NULL AND p.deleted_at IS NULL
-                    AND (c.$field IS NULL OR TRIM(c.$field) = '')
-                    AND LENGTH(TRIM(c.local_uuid)) BETWEEN 1 AND 128
-                    AND LENGTH(TRIM(p.local_uuid)) BETWEEN 1 AND 128
+                    AND (c.$field IS NULL OR (LENGTH(c.$field) <= 128 AND TRIM(c.$field) = ''))
+                    AND LENGTH(c.local_uuid) BETWEEN 1 AND 128 AND TRIM(c.local_uuid) != ''
+                    AND LENGTH(p.local_uuid) BETWEEN 1 AND 128 AND TRIM(p.local_uuid) != ''
                     AND NOT EXISTS (SELECT 1 FROM $parent d WHERE d.id != p.id AND
                         LOWER(REPLACE(TRIM(d.local_uuid),'-','')) = LOWER(REPLACE(TRIM(p.local_uuid),'-','')))
                     AND NOT EXISTS (SELECT 1 FROM $table d WHERE d.id != c.id AND

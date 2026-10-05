@@ -175,6 +175,15 @@ class MaintenanceRepairServiceTest {
         assertEquals(0L, db.autoFixRunsDao().getAllOnce().single().fixesApplied)
     }
 
+    @Test fun oversizedIdentitiesAndBlankCachesRemainForManualReview() = runBlocking {
+        carry(" ".repeat(129) + "child")
+        carry("oversized-cache", cache = " ".repeat(129))
+        val oversizedParent = db.employeesDao().insert(EmployeeEntity(name = "Long identity", basicSalary = 1.0,
+            status = "active", localUuid = " ".repeat(129) + "parent"))
+        carry("oversized-parent", parent = oversizedParent)
+        assertTrue(service.preview().entries.isEmpty())
+    }
+
     @Test fun previewIsBoundedAndExpires() = runBlocking {
         repeat(102) { carry("bounded-$it") }
         val plan = service.preview()
