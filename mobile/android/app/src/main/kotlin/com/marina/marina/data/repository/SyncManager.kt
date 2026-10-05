@@ -57,6 +57,15 @@ class SyncManager @Inject constructor(
 
     override suspend fun pullOnly(): Int = runOwned(onBusy = { -1 }) { performPullOnly() }
 
+    /** Recheck under the shared operation lock, including after a concurrent manual pull. */
+    suspend fun pullAutomaticallyIfDue(): Int = runOwned(onBusy = { -1 }) {
+        if (!preferences.getCloudflareSyncEnabled() || !preferences.getAutoSyncEnabled() ||
+            !com.marina.marina.data.sync.automaticPullDue(System.currentTimeMillis(), preferences.getLastPullTs())) {
+            _syncState.update { it.copy(lastMessage = "لا حاجة إلى سحب تلقائي الآن") }
+            0
+        } else performPullOnly()
+    }
+
     override suspend fun pushOnly(): Int = runOwned(onBusy = { -1 }) { performPushOnly() }
 
     override suspend fun fullPull(): Int = runOwned(onBusy = { -1 }) { performFullPull() }

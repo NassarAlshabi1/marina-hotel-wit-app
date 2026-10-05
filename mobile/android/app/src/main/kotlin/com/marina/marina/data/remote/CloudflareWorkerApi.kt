@@ -162,6 +162,9 @@ interface CloudflareWorkerApi {
     @POST("/api/sync/push")
     fun push(@Body request: WorkerPushRequest): Call<WorkerPushResponse>
 
+    @GET("/api/health/d1")
+    fun d1Health(): Call<WorkerD1HealthResponse>
+
     @GET("/health")
     fun health(): Call<WorkerHealthResponse>
 
@@ -172,3 +175,9 @@ interface CloudflareWorkerApi {
     @GET("/api/stats")
     fun stats(): Call<WorkerStatsResponse>
 }
+
+/** Authenticated SELECT 1 probe; worker liveness alone is not D1 reachability. */
+data class WorkerD1HealthResponse(
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("d1") val d1: String? = null
+)

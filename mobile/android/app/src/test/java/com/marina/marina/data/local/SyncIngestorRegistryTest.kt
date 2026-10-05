@@ -360,6 +360,8 @@ class SyncIngestorRegistryTest {
                 assertEquals(false, request[3]) // no full-pull remaining scan
                 assertEquals(false, request[4]) // no timestamp normalization
             }
+            assertEquals(0, manager.pullAutomaticallyIfDue())
+            assertEquals(3, requests.size) // Shared manual success also suppresses an automatic pull.
             assertEquals(789L, prefs.getLastPullCursor())
             assertTrue(!prefs.isFullReplayPending())
             assertEquals(1, db.roomsDao().getAllOnce().size)

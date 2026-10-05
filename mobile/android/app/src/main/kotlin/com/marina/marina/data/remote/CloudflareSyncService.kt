@@ -142,6 +142,34 @@ class CloudflareSyncService @Inject constructor(
         }
     }
 
+    /** Bounded authenticated D1 probe. Never reads business tables or changes a cursor. */
+    suspend fun checkD1Connection(): Boolean = withContext(Dispatchers.IO) {
+        kotlinx.coroutines.withTimeoutOrNull(PING_TIMEOUT_MS) {
+            suspend fun authenticate(): Boolean {
+                val response = api.login(WorkerLoginRequest(config.username, config.password, ensureDeviceId())).awaitProbeResponse()
+                val body = response.body()
+                if (!response.isSuccessful || body?.token.isNullOrBlank()) return false
+                preferences.saveAuthToken(body!!.token!!)
+                lastLoginUser = body.user
+                return true
+            }
+            try {
+                if (!hasWorkerToken() && !authenticate()) return@withTimeoutOrNull false
+                var response = api.d1Health().awaitProbeResponse()
+                // Expired JWT: refresh once, not an infinite retry or a bootstrap operation.
+                if (response.code() == 401) {
+                    if (!authenticate()) return@withTimeoutOrNull false
+                    response = api.d1Health().awaitProbeResponse()
+                }
+                response.isSuccessful && response.body()?.status == "ok" && response.body()?.d1 == "ok"
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+        } ?: false
+    }
+
     /** عدّادات كل الجداول في D1 — تشخيص حالة القاعدة السحابية. */
     suspend fun stats(): Result<Map<String, Int>> = withContext(Dispatchers.IO) {
         try {

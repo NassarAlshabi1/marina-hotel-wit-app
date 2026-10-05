@@ -269,8 +269,10 @@ fun DashboardScreen(
 private fun DashboardLiveHeader(viewModel: DashboardViewModel) {
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val pendingChanges by viewModel.pendingChanges.collectAsStateWithLifecycle()
+    val automaticStatus by viewModel.automaticSyncStatus.collectAsStateWithLifecycle()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         DashboardHeader(syncState, pendingChanges)
+        Text(automaticStatus.message, style = MaterialTheme.typography.bodySmall)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DashboardSyncAction(
                 text = "سحب التغييرات (Delta)", icon = Icons.Filled.CloudDownload,

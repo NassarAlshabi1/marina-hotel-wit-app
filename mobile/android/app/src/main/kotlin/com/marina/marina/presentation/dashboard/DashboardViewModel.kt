@@ -61,6 +61,7 @@ import kotlinx.coroutines.launch
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
+    private val autoSyncEngine: com.marina.marina.data.sync.AutoSyncEngine,
     private val roomsRepository: RoomsRepository,
     private val bookingsRepository: BookingsRepository,
     private val paymentsRepository: PaymentsRepository,
@@ -174,6 +175,8 @@ class DashboardViewModel @Inject constructor(
             ?.let { it.isAdmin || it.userType == "manager" || it.userType == "supervisor" } == true
 
     /** Live sync engine state + pending outbox count (header indicators). */
+    val automaticSyncStatus = autoSyncEngine.automaticStatus
+
     val syncState: StateFlow<SyncUiState> = syncManager.syncState
     val pendingChanges: StateFlow<Int> = syncManager.undeliveredCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), -1)
@@ -192,40 +195,8 @@ class DashboardViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
-    init {
-        // Silent pull on Dashboard open (Flutter `_autoPullFromAppwrite`).
-        autoPullOnOpen()
-        // Hourly cloud safety net while the screen is visible — the Kotlin
-        // counterpart of the Flutter `_dashboardCloudRefreshTimer`
-        // (1-hour periodic silent pull; immediacy is covered by the outbox
-        // watcher + this pull keeps the receipts card fresh).
-        viewModelScope.launch {
-            while (true) {
-                delay(HOURLY_CLOUD_REFRESH_MS)
-                if (syncState.value.isSyncing) continue
-                syncManager.pullOnly()
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Actions
-    // -------------------------------------------------------------------------
-
-    /**
-     * Silent pull on Dashboard open — the Kotlin counterpart of the Flutter
-     * `_autoPullFromAppwrite` (robust pull, success-gated hour check). The
-     * outbox watcher covers the push side, so only deltas are pulled.
-     */
-    fun autoPullOnOpen() {
-        viewModelScope.launch {
-            val pulled = syncManager.pullOnly()
-            if (pulled > 0) {
-                _events.emit(DashboardEvent.AutoPullSucceeded(pulled))
-            }
-        }
-    }
-
+    // Automatic app-open / hourly / network recovery pulls are owned by AutoSyncEngine.
+    // A Dashboard instance must not bypass its shared successful-pull/hour gate.
     private var manualSyncJob: Job? = null
 
     fun pushChanges() = runDirectionalSync(push = true)
@@ -277,7 +248,6 @@ class DashboardViewModel @Inject constructor(
     companion object {
         private const val MINUTE_MS = 60_000L
         private const val HOTEL_DAY_TICK_MS = 30_000L
-        private const val HOURLY_CLOUD_REFRESH_MS = 60L * 60 * 1000
         private const val ALERT_WINDOW_START_HOUR = 22
         private const val ALERT_WINDOW_END_HOUR = 5
     }

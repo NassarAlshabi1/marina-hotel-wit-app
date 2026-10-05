@@ -251,7 +251,7 @@ fun CloudflareSyncSettingsScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("فترة المزامنة", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         Text(
-                            "كل ${state.syncIntervalMinutes} دقيقة",
+                            "فحص كل ${state.syncIntervalMinutes} دقيقة — السحب التلقائي بعد ساعة من آخر نجاح",
                             fontSize = 11.sp,
                             color = AppColors.TextSecondary
                         )

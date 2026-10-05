@@ -142,7 +142,8 @@ class AuthStartupLazyTest {
             context,
             Lazy { resolutions++; error("SyncManager resolved during construction") },
             Lazy { resolutions++; error("Outbox resolved during construction") },
-            preferences
+            preferences,
+            Lazy { resolutions++; error("Probe service resolved during construction") }
         )
         assertEquals(0, resolutions)
     }
