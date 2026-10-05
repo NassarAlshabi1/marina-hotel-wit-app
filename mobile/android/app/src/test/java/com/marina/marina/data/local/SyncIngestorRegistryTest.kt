@@ -980,6 +980,227 @@ class SyncIngestorRegistryTest {
         assertEquals(180.0, saved.price, 0.001)
     }
 
+    private fun editTestBookingsRepository() = com.marina.marina.data.repository.BookingsRepositoryImpl(
+        db.bookingsDao(), db.roomsDao(), db.paymentsDao(), db.bookingNightsDao(), outboxRepository()
+    )
+
+    private fun editTestPaymentsRepository() = com.marina.marina.data.repository.PaymentsRepositoryImpl(
+        db.paymentsDao(), db.paymentVoidsDao(), outboxRepository()
+    )
+
+    private suspend fun editTestBooking(room: String = "EDIT-101"): Long {
+        db.roomsDao().insert(RoomEntity(roomNumber = room, type = "single", price = 1000.0,
+            status = "شاغرة", localUuid = "room-$room"))
+        return editTestBookingsRepository().insert(com.marina.marina.domain.model.Booking(
+            roomNumber = room, guestName = "نفس النزيل", guestPhone = "", guestNationality = "يمني",
+            checkinDate = "2026-10-02T14:01:00", actualCheckout = "2026-10-03T14:00:00",
+            status = "مكتمل", calculatedNights = 1, expectedNights = 1
+        ))
+    }
+
+    private suspend fun assertEditOutbox(entity: String, uuid: String, updates: Int) {
+        val operations = db.outboxDao().getPendingPrimary().first().filter { it.entity == entity && it.localUuid == uuid }
+        assertEquals(1, operations.count { it.op == "insert" })
+        assertEquals(updates, operations.count { it.op == "update" })
+        assertEquals(operations.size, operations.map { it.idempotencyKey }.toSet().size)
+    }
+
+    @Test
+    fun threeIndependentEmployeeExpensesSurviveRepeatedEditsInReports() = runBlocking {
+        val employeeId = db.employeesDao().insert(EmployeeEntity(name = "موظف", basicSalary = 1000.0,
+            status = "active", localUuid = "three-expenses-employee"))
+        assertThreeExpenseEdits("سلفة", employeeId)
+    }
+
+    @Test
+    fun threeIndependentOperationalExpensesSurviveRepeatedEditsInReports() = runBlocking {
+        assertThreeExpenseEdits("تشغيلية", null)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private suspend fun assertThreeExpenseEdits(type: String, employeeId: Long?) {
+        Dispatchers.setMain(kotlinx.coroutines.test.UnconfinedTestDispatcher())
+        val store = androidx.lifecycle.ViewModelStore()
+        try {
+            val repository = expensesRepository()
+            val ids = listOf(100.0, 100.0, 200.0).map { amount ->
+                repository.insert(Expense(expenseType = type, relatedId = employeeId, amount = amount,
+                    description = "نفس البيان", date = HotelTimeEngine.formatIso(System.currentTimeMillis()),
+                    hotelDayKey = HotelTimeEngine.currentHotelDayKey()))
+            }
+            val originals = ids.map { db.expensesDao().getById(it)!! }
+            assertEquals(3, originals.map { it.localUuid }.toSet().size)
+            val outbox = outboxRepository()
+            val report = com.marina.marina.presentation.reports.ExpensesReportViewModel(
+                repository, SalaryWithdrawalsRepositoryImpl(db, db.expensesDao(), db.salaryWithdrawalsDao(), db.employeesDao(), outbox),
+                com.marina.marina.data.repository.EmployeesRepositoryImpl(db.employeesDao(), outbox)
+            )
+            store.put("expenses", report)
+            suspend fun check(amount: Double) {
+                val state = withTimeout(10_000) { report.state.first { !it.isLoading } }
+                val expected = listOf(amount, 100.0, 200.0).sorted()
+                assertEquals(expected, state.groups.flatMap { it.rows }.map { it.amount }.sorted())
+                assertEquals(amount + 300.0, state.totalAmount, 0.0)
+                assertEquals(0, state.unresolvedMirrorCount)
+                val pdf = com.marina.marina.presentation.reports.expensesPdfTable(state)
+                assertEquals(3, pdf.rows.size)
+                assertEquals(com.marina.marina.domain.util.CurrencyFormatter.formatAmount(amount + 300.0), pdf.totalRow!![1])
+                assertEquals(originals[1], db.expensesDao().getById(ids[1]))
+                assertEquals(originals[2], db.expensesDao().getById(ids[2]))
+                assertEquals(originals[0].localUuid, db.expensesDao().getById(ids[0])!!.localUuid)
+                val mirrors = db.salaryWithdrawalsDao().getAll().first()
+                assertEquals(if (employeeId == null) 0 else 3, mirrors.size)
+                if (employeeId != null) assertEquals(expected, mirrors.map { it.amount }.sorted())
+            }
+            check(100.0)
+            for (amount in listOf(175.0, 150.0, 150.0)) {
+                repository.update(db.expensesDao().getById(ids[0])!!.toDomain().copy(amount = amount))
+                report.fetch()
+                check(amount)
+            }
+            assertEditOutbox("expenses", originals[0].localUuid, 3)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun threeIndependentPaymentsSurviveRepeatedEditsInPaymentAndIncomeReports() = runBlocking {
+        Dispatchers.setMain(kotlinx.coroutines.test.UnconfinedTestDispatcher())
+        val store = androidx.lifecycle.ViewModelStore()
+        try {
+            val bookingId = editTestBooking()
+            val repository = editTestPaymentsRepository()
+            val ids = listOf(100.0, 100.0, 200.0).map { amount ->
+                repository.insert(com.marina.marina.domain.model.Payment(bookingLocalId = bookingId,
+                    roomNumber = "EDIT-101", amount = amount, paymentMethod = "cash", revenueType = "room"))
+            }
+            val originals = ids.map { db.paymentsDao().getById(it)!! }
+            assertEquals(3, originals.map { it.localUuid }.toSet().size)
+            val bookings = editTestBookingsRepository()
+            val report = com.marina.marina.presentation.reports.PaymentsReportViewModel(repository, bookings)
+            store.put("payments", report)
+            val outbox = outboxRepository()
+            val income = com.marina.marina.presentation.reports.IncomeExpenseReportViewModel(
+                repository, expensesRepository(), bookings,
+                com.marina.marina.data.repository.DebtsRepositoryImpl(db.debtsDao(), outbox),
+                com.marina.marina.data.repository.EmployeesRepositoryImpl(db.employeesDao(), outbox)
+            )
+            store.put("income", income)
+            suspend fun check(amount: Double) {
+                val state = withTimeout(10_000) { report.state.first { !it.isLoading } }
+                assertEquals(listOf(amount, 100.0, 200.0).sorted(), state.rows.map { it.payment.amount }.sorted())
+                assertEquals(amount + 300.0, state.totalAll, 0.0)
+                assertEquals(originals.map { it.localUuid }.toSet(), state.rows.map { it.payment.localUuid }.toSet())
+                val incomeState = withTimeout(10_000) { income.state.first { !it.isLoading } }
+                assertEquals(3, incomeState.entries.size)
+                assertEquals(amount + 300.0, incomeState.incomeTotal, 0.0)
+                assertEquals(amount + 300.0, incomeState.net, 0.0)
+                assertEquals(originals[1], db.paymentsDao().getById(ids[1]))
+                assertEquals(originals[2], db.paymentsDao().getById(ids[2]))
+            }
+            check(100.0)
+            for (amount in listOf(175.0, 150.0, 150.0)) {
+                repository.update(db.paymentsDao().getById(ids[0])!!.toDomain().copy(amount = amount))
+                report.fetch()
+                income.fetch()
+                check(amount)
+            }
+            assertEditOutbox("payments", originals[0].localUuid, 3)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun paymentEditRefreshesRemainingInReportWithoutReopeningBooking() = runBlocking {
+        Dispatchers.setMain(kotlinx.coroutines.test.UnconfinedTestDispatcher())
+        val store = androidx.lifecycle.ViewModelStore()
+        try {
+            val bookingId = editTestBooking()
+            val bookings = editTestBookingsRepository()
+            val payments = editTestPaymentsRepository()
+            val first = payments.insert(com.marina.marina.domain.model.Payment(bookingLocalId = bookingId,
+                roomNumber = "EDIT-101", amount = 100.0, paymentMethod = "cash", revenueType = "room"))
+            payments.insert(com.marina.marina.domain.model.Payment(bookingLocalId = bookingId,
+                roomNumber = "EDIT-101", amount = 200.0, paymentMethod = "cash", revenueType = "room"))
+            // Establish a correct initial cache, then edit only the payment.
+            bookings.update(bookings.getById(bookingId)!!)
+            val report = com.marina.marina.presentation.reports.PaymentsReportViewModel(payments, bookings)
+            store.put("payments", report)
+            val before = withTimeout(10_000) { report.state.first { !it.isLoading } }
+            assertEquals(1000.0, before.totalDue, 0.0)
+            assertEquals(300.0, before.totalAll, 0.0)
+            assertEquals(700.0, before.totalRemaining, 0.0)
+            payments.update(db.paymentsDao().getById(first)!!.toDomain().copy(amount = 150.0))
+            report.fetch()
+            val after = withTimeout(10_000) { report.state.first { !it.isLoading } }
+            assertEquals(2, after.rows.size)
+            assertEquals(350.0, after.totalAll, 0.0)
+            assertEquals("Remaining must reflect the edited payment, not stale booking cache", 650.0, after.totalRemaining, 0.0)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun bookingEditsKeepIndependentBookingsAndLatestTotalsInGuestReport() = runBlocking {
+        Dispatchers.setMain(kotlinx.coroutines.test.UnconfinedTestDispatcher())
+        val store = androidx.lifecycle.ViewModelStore()
+        try {
+            val first = editTestBooking("EDIT-101")
+            val second = editTestBooking("EDIT-102")
+            val bookings = editTestBookingsRepository()
+            val original = bookings.getById(first)!!
+            val independent = bookings.getById(second)!!
+            val report = com.marina.marina.presentation.reports.GuestDetailReportViewModel(
+                bookings, editTestPaymentsRepository(), com.marina.marina.data.repository.RoomsRepositoryImpl(
+                    db.roomsDao(), db.bookingsDao(), outboxRepository())
+            )
+            store.put("guests", report)
+            report.setShowOnlyActive(false)
+            withTimeout(10_000) { report.state.first { !it.isLoading && it.rows.size == 2 } }
+            for (discount in listOf(100.0, 150.0, 150.0)) {
+                bookings.update(bookings.getById(first)!!.copy(guestName = "اسم معدل", notes = "تعديل",
+                    discount = discount, discountType = "total"))
+                val state = withTimeout(10_000) { report.state.first {
+                    !it.isLoading && it.rows.any { row -> row.booking.id == first && row.booking.discount == discount }
+                } }
+                assertEquals(2, state.rows.size)
+                assertEquals(original.localUuid, state.rows.single { it.booking.id == first }.booking.localUuid)
+                assertEquals(independent, state.rows.single { it.booking.id == second }.booking)
+                report.recalcTotals(state.rows)
+                assertEquals(2000.0 - discount, report.state.value.totalDue, 0.0)
+                assertEquals(2000.0 - discount, report.state.value.totalRemaining, 0.0)
+            }
+            assertEditOutbox("bookings", original.localUuid, 3)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun bookingDateEditRecomputesDueOnFirstSaveWithoutDuplicateBooking() = runBlocking {
+        val id = editTestBooking()
+        val bookings = editTestBookingsRepository()
+        val original = bookings.getById(id)!!
+        assertEquals(1000.0, original.totalDueCached, 0.0)
+        bookings.update(original.copy(actualCheckout = "2026-10-04T14:00:00", expectedNights = 2))
+        val updated = bookings.getById(id)!!
+        assertEquals(1, bookings.getAll().first().size)
+        assertEquals(original.localUuid, updated.localUuid)
+        assertEquals(2, updated.calculatedNights)
+        assertEquals("Two nights must be reflected on the first edit, not only a later save", 2000.0, updated.totalDueCached, 0.0)
+        assertEquals(2000.0, updated.remainingBalanceCached, 0.0)
+    }
+
     private fun expensesRepository(): ExpensesRepositoryImpl {
         val outbox = outboxRepository()
         val withdrawals = SalaryWithdrawalsRepositoryImpl(
