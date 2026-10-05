@@ -41,6 +41,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.resetMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -984,6 +986,65 @@ class SyncIngestorRegistryTest {
             db, db.expensesDao(), db.salaryWithdrawalsDao(), db.employeesDao(), outbox
         )
         return ExpensesRepositoryImpl(db, withdrawals, db.expensesDao(), db.employeesDao(), outbox)
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun editingEmployeeExpenseRepeatedlyCountsUpdatedAmountOnceInReportAndPdf() = runBlocking {
+        kotlinx.coroutines.Dispatchers.setMain(kotlinx.coroutines.test.UnconfinedTestDispatcher())
+        val store = androidx.lifecycle.ViewModelStore()
+        try {
+            val employeeId = db.employeesDao().insert(EmployeeEntity(
+                name = "موظف الاختبار", basicSalary = 1000.0, status = "active", localUuid = "report-employee"
+            ))
+            val repository = expensesRepository()
+            val id = repository.insert(Expense(expenseType = "سلفة", relatedId = employeeId, amount = 100.0))
+            val original = db.expensesDao().getById(id)!!.toDomain()
+            val mirrorUuid = db.salaryWithdrawalsDao().getByExpenseUuid(original.localUuid).single().localUuid
+            val outbox = outboxRepository()
+            val withdrawals = SalaryWithdrawalsRepositoryImpl(
+                db, db.expensesDao(), db.salaryWithdrawalsDao(), db.employeesDao(), outbox
+            )
+            val report = com.marina.marina.presentation.reports.ExpensesReportViewModel(
+                repository, withdrawals,
+                com.marina.marina.data.repository.EmployeesRepositoryImpl(db.employeesDao(), outbox)
+            )
+            store.put("report", report)
+            suspend fun assertReport(amount: Double, independent: Double = 0.0) {
+                val state = withTimeout(10_000) { report.state.first { !it.isLoading } }
+                val rows = state.groups.flatMap { it.rows }
+                assertEquals(if (independent == 0.0) 1 else 2, rows.size)
+                assertEquals(amount, rows.single { !it.isSalaryWithdrawal }.amount, 0.0)
+                assertEquals(amount + independent, state.totalAmount, 0.0)
+                assertEquals(amount + independent, state.salaryTotal, 0.0)
+                assertEquals(0, state.unresolvedMirrorCount)
+                val pdf = com.marina.marina.presentation.reports.expensesPdfTable(state)
+                assertEquals(rows.size, pdf.rows.size)
+                assertEquals(com.marina.marina.domain.util.CurrencyFormatter.formatAmount(amount), pdf.rows.first { it[2] == "سلفة" }[1])
+                assertEquals(com.marina.marina.domain.util.CurrencyFormatter.formatAmount(amount + independent), pdf.totalRow!![1])
+            }
+            assertReport(100.0)
+            for (amount in listOf(175.0, 250.0, 250.0)) {
+                repository.update(db.expensesDao().getById(id)!!.toDomain().copy(amount = amount, description = "تعديل $amount"))
+                val mirrors = db.salaryWithdrawalsDao().getByExpenseUuid(original.localUuid)
+                assertEquals(1, mirrors.size)
+                assertEquals(mirrorUuid, mirrors.single().localUuid)
+                assertEquals(amount, mirrors.single().amount, 0.0)
+                report.fetch()
+                assertReport(amount)
+            }
+            // Equal amount/day/employee is not proof of a duplicate: keep a real independent withdrawal.
+            db.salaryWithdrawalsDao().insert(SalaryWithdrawalEntity(
+                employeeId = employeeId, employeeUuid = "report-employee", amount = 250.0,
+                withdrawDate = System.currentTimeMillis(), hotelDayKey = original.hotelDayKey,
+                localUuid = "independent-report-withdrawal", reason = "direct_withdrawal_test"
+            ))
+            report.fetch()
+            assertReport(250.0, 250.0)
+        } finally {
+            store.clear()
+            kotlinx.coroutines.Dispatchers.resetMain()
+        }
     }
 
     @Test

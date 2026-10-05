@@ -205,7 +205,8 @@ internal fun exportPaymentsPdf(context: android.content.Context, state: Payments
                 columnWeights = listOf(0.5f, 1.2f, 1.6f, 0.9f, 1.1f, 1.6f, 1.1f)
             )
         ),
-        fileName = PdfExporter.generateFileName("مدفوعات-النزلاء")
+        fileName = PdfExporter.generateFileName("مدفوعات-النزلاء"),
+        compactHeader = true
     )
     PdfExporter.sharePdf(context, file, "تقرير مدفوعات النزلاء")
 }

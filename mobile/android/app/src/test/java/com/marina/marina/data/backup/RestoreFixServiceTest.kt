@@ -306,7 +306,7 @@ class RestoreFixServiceTest {
     @Test
     fun viewModelDoesNotReportSuccessWhenPostImportRepairFails() = runBlocking {
         rejectRoomUpdate()
-        val backup = File(context.cacheDir, "repair-failure.json").apply { writeText("{}") }
+        val backup = File(context.cacheDir, "repair-failure.json").apply { writeText("{\"expenses\":[]}") }
         val store = ViewModelStore()
         Dispatchers.setMain(UnconfinedTestDispatcher())
         try {

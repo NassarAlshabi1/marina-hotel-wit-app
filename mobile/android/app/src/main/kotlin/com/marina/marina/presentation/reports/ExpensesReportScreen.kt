@@ -248,23 +248,29 @@ internal fun exportExpensesPdf(context: android.content.Context, state: Expenses
             Triple("مصروفات تشغيلية", CurrencyFormatter.formatAmount(state.operationalTotal), 0xFF00897B.toInt())
         ),
         tables = listOf(
-            PdfExporter.PdfTable(
-                title = "تفاصيل المصروفات",
-                headers = listOf("التاريخ", "المبلغ", "النوع", "الوصف", "الموظف"),
-                rows = allRows.map { row ->
-                    listOf(
-                        row.displayDate.take(10),
-                        CurrencyFormatter.formatAmount(row.amount),
-                        row.type,
-                        row.description.ifBlank { "-" },
-                        row.employeeName ?: if (row.isSalaryWithdrawal) "غير محدد" else "-"
-                    )
-                },
-                totalRow = listOf("الإجمالي", CurrencyFormatter.formatAmount(state.totalAmount), "", "", ""),
-                columnWeights = listOf(1.1f, 1.0f, 1.2f, 2.0f, 1.2f)
-            )
+            expensesPdfTable(state)
         ),
-        fileName = PdfExporter.generateFileName("تقرير-المصروفات")
+        fileName = PdfExporter.generateFileName("تقرير-المصروفات"),
+        statsAfterTables = true
     )
     PdfExporter.sharePdf(context, file, "تقرير المصروفات")
+}
+
+/** Screen and PDF consume the same finalized rows, never merge withdrawals again. */
+internal fun expensesPdfTable(state: ExpensesReportUiState): PdfExporter.PdfTable {
+    val allRows = state.groups.flatMap { it.rows }
+    val showEmployee = allRows.any { it.employeeId != null || it.employeeName != null || it.isSalaryWithdrawal }
+    val headers = listOf("التاريخ", "المبلغ", "النوع", "الوصف") + if (showEmployee) listOf("الموظف") else emptyList()
+    return PdfExporter.PdfTable(
+        title = "تفاصيل المصروفات",
+        headers = headers,
+        rows = allRows.map { row ->
+            listOf(row.displayDate.take(10).replace('-', '/'), CurrencyFormatter.formatAmount(row.amount),
+                row.type, row.description.ifBlank { "-" }) +
+                if (showEmployee) listOf(row.employeeName ?: if (row.isSalaryWithdrawal) "غير محدد" else "-") else emptyList()
+        },
+        totalRow = listOf("الإجمالي", CurrencyFormatter.formatAmount(state.totalAmount), "", "") +
+            if (showEmployee) listOf("") else emptyList(),
+        columnWeights = listOf(1.1f, 1.0f, 1.2f, 2.0f) + if (showEmployee) listOf(1.2f) else emptyList()
+    )
 }

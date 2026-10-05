@@ -9,79 +9,106 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextDirectionHeuristics
+import android.text.TextPaint
 import androidx.core.content.FileProvider
+import androidx.core.content.res.ResourcesCompat
+import com.a.a.R
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-/**
- * Lightweight RTL Arabic PDF table exporter — the Kotlin counterpart of the
- * Flutter `ReportPdfBuilder` + `EnhancedPdfUtils` (hotel header banner,
- * period line, professional tables, stat boxes).
- *
- * Android's `Canvas.drawText` shapes Arabic correctly with the default
- * typeface; columns are laid out right-to-left.
- */
+/** Native, vector A4/RTL counterpart of the reference ReportPdfBuilder. */
 object PdfExporter {
-
-    private const val PAGE_WIDTH = 595 // A4 @ 72dpi
+    private const val PAGE_WIDTH = 595
     private const val PAGE_HEIGHT = 842
-    private const val MARGIN = 28f
-    private const val BOTTOM = PAGE_HEIGHT - MARGIN - 22f
-    private const val HEADER_BLUE = 0xFF242476.toInt()
-    private const val GOLD = 0xFFFABA3E.toInt()
-    private const val LIGHT_BG = 0xFFF2F2F8.toInt()
-    private const val TEXT_DARK = 0xFF0A0E2F.toInt()
-    private const val BORDER = 0xFFD3D3E4.toInt()
+    private const val MARGIN = 32f
+    private const val TOP = 42f
+    private const val BOTTOM = PAGE_HEIGHT - 48f
+    internal const val PRIMARY = 0xFFB46B00.toInt()
+    private const val TEXT_DARK = 0xFF262626.toInt()
+    private const val MUTED = 0xFF6B6B73.toInt()
+    private const val STRIPE = 0xFFF4F4F6.toInt()
+    private const val CARD = 0xFFFAFAFB.toInt()
+    private const val BORDER = 0xFFD1D1D9.toInt()
+    private const val WIDTH = PAGE_WIDTH - 2 * MARGIN
 
     data class PdfTable(
         val title: String,
+        /** Logical order: first column is on the right. */
         val headers: List<String>,
         val rows: List<List<String>>,
         val totalRow: List<String>? = null,
-        /** Relative weights, left-to-right in [headers] order. */
         val columnWeights: List<Float>? = null
     )
 
-    /** Mutable page cursor shared by all drawing helpers. */
-    private class PageCursor(val doc: PdfDocument) {
-        var canvas: Canvas? = null
-        var page: PdfDocument.Page? = null
-        var y = 0f
-        var pageNo = 0
+    private class Fonts(context: Context) {
+        val regular: Typeface = requireNotNull(ResourcesCompat.getFont(context, R.font.noto_naskh_arabic_regular))
+        val bold: Typeface = requireNotNull(ResourcesCompat.getFont(context, R.font.noto_naskh_arabic_bold))
+        fun paint(size: Float, bold: Boolean = false, color: Int = TEXT_DARK) = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = size
+            this.color = color
+            typeface = if (bold) this@Fonts.bold else regular
+        }
+    }
 
+    // Measurement and drawing use the same layout. No bitmap or retained per-page
+    // layouts; the first pass only counts pages for the reference "X of Y" footer.
+    private class PageCursor(
+        val doc: PdfDocument?, val fonts: Fonts, val stamp: String, val totalPages: Int = 0
+    ) {
+        var page: PdfDocument.Page? = null
+        var y = TOP
+        var pageNo = 0
+        val canvas: Canvas? get() = page?.canvas
         fun newPage() {
             finishPage()
             pageNo++
-            page = doc.startPage(
-                PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNo).create()
-            )
-            canvas = page!!.canvas
-            y = MARGIN
+            page = doc?.startPage(PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pageNo).create())
+            y = TOP
         }
-
         fun finishPage() {
-            page?.let {
-                val label = "صفحة $pageNo"
-                val p = paint(9f, false, Color.GRAY)
-                canvas?.drawText(label, (PAGE_WIDTH - p.measureText(label)) / 2f, PAGE_HEIGHT - 12f, p)
-                doc.finishPage(it)
+            page?.let { current ->
+                canvas?.drawLine(MARGIN, BOTTOM + 8, PAGE_WIDTH - MARGIN, BOTTOM + 8, stroke())
+                val labels = listOf("تاريخ الإنشاء: $stamp", "وثيقة داخلية", "صفحة $pageNo من $totalPages")
+                labels.forEachIndexed { index, text ->
+                    drawLayout(canvas, layout(text, fonts.paint(8f, color = MUTED), WIDTH / 3,
+                        Layout.Alignment.ALIGN_CENTER), MARGIN + index * WIDTH / 3, BOTTOM + 12)
+                }
+                doc!!.finishPage(current)
             }
             page = null
-            canvas = null
+        }
+        fun ensureSpace(height: Float) {
+            require(height <= BOTTOM - TOP) { "محتوى PDF أكبر من مساحة الصفحة" }
+            if (y + height > BOTTOM) newPage()
         }
     }
 
-    private fun paint(size: Float, bold: Boolean, color: Int): Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = size
-        this.color = color
-        typeface = if (bold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+    internal fun layout(
+        text: String, paint: TextPaint, width: Float,
+        alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL, maxLines: Int = Int.MAX_VALUE
+    ): StaticLayout = StaticLayout.Builder.obtain(text, 0, text.length, paint, width.toInt().coerceAtLeast(1))
+        .setTextDirection(TextDirectionHeuristics.RTL)
+        .setAlignment(alignment)
+        .setIncludePad(false)
+        .setMaxLines(maxLines)
+        .build()
+
+    private fun drawLayout(canvas: Canvas?, text: StaticLayout, left: Float, top: Float) {
+        if (canvas == null) return
+        val saved = canvas.save()
+        try {
+            canvas.translate(left, top)
+            canvas.clipRect(0, 0, text.width, text.height)
+            text.draw(canvas)
+        } finally {
+            canvas.restoreToCount(saved)
+        }
     }
 
-    /**
-     * Builds a paginated RTL PDF with the hotel banner, a period line, info
-     * rows, stat boxes and auto-paginating tables. Returns the cache file.
-     */
     fun buildReport(
         context: Context,
         reportTitle: String,
@@ -89,138 +116,148 @@ object PdfExporter {
         infoRows: List<Pair<String, String>>,
         stats: List<Triple<String, String, Int>>,
         tables: List<PdfTable>,
-        fileName: String
+        fileName: String,
+        compactHeader: Boolean = false,
+        statsAfterTables: Boolean = false
     ): File {
-        val doc = PdfDocument()
-        val cur = PageCursor(doc)
-        cur.newPage()
-
-        // Banner ----------------------------------------------------------------
-        val c = cur.canvas!!
-        c.drawRect(RectF(MARGIN, cur.y, PAGE_WIDTH - MARGIN, cur.y + 34f), fill(HEADER_BLUE))
-        c.drawRect(RectF(MARGIN, cur.y + 30f, PAGE_WIDTH - MARGIN, cur.y + 34f), fill(GOLD))
-        drawRight(cur, "فندق مارينا بلازا", cur.y + 16f, paint(13f, true, Color.WHITE))
-        cur.y += 46f
-        drawRight(cur, reportTitle, cur.y, paint(16f, true, TEXT_DARK))
-        cur.y += 18f
-        periodText?.let {
-            drawRight(cur, it, cur.y, paint(10f, false, TEXT_DARK))
-            cur.y += 15f
-        }
-        val stamp = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.US).format(System.currentTimeMillis())
-        drawRight(cur, "تاريخ الإنشاء: $stamp", cur.y, paint(10f, false, Color.GRAY))
-        cur.y += 22f
-
-        // Info rows --------------------------------------------------------------
-        infoRows.forEach { (label, value) ->
-            ensureSpace(cur, 16f)
-            drawRight(cur, "$label: $value", cur.y, paint(10f, false, TEXT_DARK))
-            cur.y += 15f
-        }
-        if (infoRows.isNotEmpty()) cur.y += 6f
-
-        // Stat boxes ---------------------------------------------------------------
-        if (stats.isNotEmpty()) {
-            ensureSpace(cur, 60f)
-            val boxW = (PAGE_WIDTH - 2 * MARGIN - (stats.size - 1) * 8f) / stats.size
-            stats.forEachIndexed { i, (label, value, color) ->
-                val left = MARGIN + i * (boxW + 8f)
-                cur.canvas!!.drawRect(RectF(left, cur.y, left + boxW, cur.y + 52f), fill(LIGHT_BG))
-                cur.canvas!!.drawRect(RectF(left, cur.y, left + boxW, cur.y + 3f), fill(color))
-                val valuePaint = paint(13f, true, color)
-                cur.canvas!!.drawText(value, left + boxW - 8f - valuePaint.measureText(value), cur.y + 26f, valuePaint)
-                cur.canvas!!.drawText(label, left + boxW - 8f - paint(10f, false, TEXT_DARK).measureText(label), cur.y + 42f, paint(10f, false, TEXT_DARK))
+        val fonts = Fonts(context)
+        val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(System.currentTimeMillis())
+        fun render(cur: PageCursor) {
+            cur.newPage()
+            drawHeader(cur, reportTitle, periodText, compactHeader)
+            infoRows.forEach { (label, value) ->
+                val text = layout("$label: $value", fonts.paint(11f), WIDTH - 20)
+                cur.ensureSpace(text.height + 12f)
+                cur.canvas?.drawRect(RectF(MARGIN, cur.y, PAGE_WIDTH - MARGIN, cur.y + text.height + 12), fill(CARD))
+                drawLayout(cur.canvas, text, MARGIN + 10, cur.y + 6)
+                cur.y += text.height + 12
             }
-            cur.y += 64f
+            cur.y += 12
+            if (!statsAfterTables) drawStats(cur, stats)
+            tables.forEach { drawTable(cur, it) }
+            if (statsAfterTables) drawStats(cur, stats)
+            cur.finishPage()
         }
-
-        // Tables --------------------------------------------------------------------
-        tables.forEach { table -> drawTable(cur, table) }
-
-        cur.finishPage()
+        val measurement = PageCursor(null, fonts, stamp)
+        render(measurement)
         val file = File(context.cacheDir, fileName)
-        file.outputStream().use { doc.writeTo(it) }
-        doc.close()
+        val doc = PdfDocument()
+        val cursor = PageCursor(doc, fonts, stamp, measurement.pageNo)
+        try {
+            render(cursor)
+            file.outputStream().use { doc.writeTo(it) }
+        } finally {
+            cursor.finishPage()
+            doc.close()
+        }
         return file
     }
 
-    // -------------------------------------------------------------------------
-
-    private fun fill(color: Int): Paint = Paint().apply { style = Paint.Style.FILL; this.color = color }
-
-    private fun ensureSpace(cur: PageCursor, needed: Float) {
-        if (cur.y + needed > BOTTOM) cur.newPage()
+    private fun drawHeader(cur: PageCursor, title: String, period: String?, compact: Boolean) {
+        val fonts = cur.fonts
+        if (compact) {
+            val half = (WIDTH - 36) / 2
+            val rightTitle = layout(title, fonts.paint(11f, true, Color.WHITE), half)
+            val rightPeriod = layout(period.orEmpty(), fonts.paint(7.5f, color = Color.WHITE), half)
+            val leftTitle = layout("فندق مارينا بلازا", fonts.paint(11f, true, Color.WHITE), half)
+            val leftStamp = layout("تاريخ الإنشاء: ${cur.stamp}", fonts.paint(7.5f, color = Color.WHITE), half)
+            val height = maxOf(rightTitle.height + rightPeriod.height, leftTitle.height + leftStamp.height) + 14f
+            cur.canvas?.drawRect(RectF(MARGIN, cur.y, PAGE_WIDTH - MARGIN, cur.y + height), fill(PRIMARY))
+            drawLayout(cur.canvas, rightTitle, PAGE_WIDTH - MARGIN - 12 - half, cur.y + 6)
+            drawLayout(cur.canvas, rightPeriod, PAGE_WIDTH - MARGIN - 12 - half, cur.y + 8 + rightTitle.height)
+            drawLayout(cur.canvas, leftTitle, MARGIN + 12, cur.y + 6)
+            drawLayout(cur.canvas, leftStamp, MARGIN + 12, cur.y + 8 + leftTitle.height)
+            cur.y += height + 16
+        } else {
+            val lines = listOf(
+                layout("فندق مارينا بلازا", fonts.paint(22f, true, Color.WHITE), WIDTH - 48, Layout.Alignment.ALIGN_CENTER),
+                layout(title, fonts.paint(20f, true, Color.WHITE), WIDTH - 48, Layout.Alignment.ALIGN_CENTER),
+                layout(period.orEmpty(), fonts.paint(12f, color = Color.WHITE), WIDTH - 48, Layout.Alignment.ALIGN_CENTER)
+            )
+            val height = lines.sumOf { it.height } + 64f
+            cur.ensureSpace(height)
+            cur.canvas?.drawRect(RectF(MARGIN, cur.y, PAGE_WIDTH - MARGIN, cur.y + height), fill(PRIMARY))
+            var y = cur.y + 24
+            lines.forEach { drawLayout(cur.canvas, it, MARGIN + 24, y); y += it.height + 8 }
+            cur.y += height + 16
+        }
     }
 
-    private fun drawRight(cur: PageCursor, text: String, top: Float, p: Paint, right: Float = PAGE_WIDTH - MARGIN) {
-        cur.canvas?.drawText(text, right - p.measureText(text), top, p)
+    private fun drawStats(cur: PageCursor, stats: List<Triple<String, String, Int>>) {
+        // Up to four cards per row; do not shrink every card to unreadable widths.
+        stats.chunked(4).forEach { group ->
+            val width = (WIDTH - (group.size - 1) * 8) / group.size
+            val layouts = group.map { (label, value, color) ->
+                layout(label, cur.fonts.paint(11f), width - 20, Layout.Alignment.ALIGN_CENTER) to
+                    layout(value, cur.fonts.paint(16f, true, color), width - 20, Layout.Alignment.ALIGN_CENTER)
+            }
+            val height = layouts.maxOf { it.first.height + it.second.height } + 24f
+            cur.ensureSpace(height)
+            group.forEachIndexed { i, stat ->
+                val left = PAGE_WIDTH - MARGIN - width - i * (width + 8)
+                val bounds = RectF(left, cur.y, left + width, cur.y + height)
+                cur.canvas?.drawRoundRect(bounds, 4f, 4f, fill(CARD))
+                cur.canvas?.drawRoundRect(bounds, 4f, 4f, stroke(stat.third, 0.7f))
+                val (label, value) = layouts[i]
+                drawLayout(cur.canvas, label, left + 10, cur.y + 10)
+                drawLayout(cur.canvas, value, left + 10, cur.y + 14 + label.height)
+            }
+            cur.y += height + 12
+        }
     }
 
     private fun drawTable(cur: PageCursor, table: PdfTable) {
-        ensureSpace(cur, 60f)
-        drawRight(cur, table.title, cur.y, paint(12f, true, TEXT_DARK))
-        cur.y += 16f
-
+        require(table.headers.isNotEmpty())
         val weights = table.columnWeights ?: List(table.headers.size) { 1f }
-        val total = weights.sum()
-        val tableW = PAGE_WIDTH - 2 * MARGIN
-        // Column widths in header order (left→right); RTL x-positions start at right.
-        val colW = weights.map { it / total * tableW }
-        val colRight = FloatArray(colW.size)
-        var x = PAGE_WIDTH - MARGIN
-        for (i in colW.indices) {
-            colRight[i] = x
-            x -= colW[i]
+        require(weights.size == table.headers.size && weights.all { it.isFinite() && it > 0 })
+        require(weights.sum().isFinite())
+        require(table.rows.all { it.size == table.headers.size } &&
+            (table.totalRow == null || table.totalRow.size == table.headers.size))
+        val widths = weights.map { it / weights.sum() * WIDTH }
+        fun cells(values: List<String>, header: Boolean) = values.mapIndexed { i, value ->
+            // Reference buildProfessionalTable: 11pt header, 12pt bold cells, two lines.
+            layout(value, cur.fonts.paint(if (header) 11f else 12f, true,
+                if (header) Color.WHITE else TEXT_DARK), widths[i] - 8, maxLines = 2)
         }
-
-        val allRows = table.rows + listOfNotNull(table.totalRow)
-
-        var rowIndex = 0
-        while (rowIndex <= allRows.size) {
-            ensureSpace(cur, 46f)
-            val c = cur.canvas!!
-
-            // Header row (repeated on every page).
-            c.drawRect(RectF(MARGIN, cur.y, PAGE_WIDTH - MARGIN, cur.y + 22f), fill(HEADER_BLUE))
-            val hp = paint(9.5f, true, Color.WHITE)
-            table.headers.forEachIndexed { i, h ->
-                c.drawText(h, colRight[i] - colW[i] / 2f - hp.measureText(h) / 2f, cur.y + 15f, hp)
+        val headers = cells(table.headers, true)
+        fun height(cells: List<StaticLayout>, padding: Float) = cells.maxOf { it.height } + padding * 2
+        val headerHeight = height(headers, 6f)
+        fun row(cells: List<StaticLayout>, rowHeight: Float, color: Int, padding: Float) {
+            cur.canvas?.drawRect(RectF(MARGIN, cur.y, PAGE_WIDTH - MARGIN, cur.y + rowHeight), fill(color))
+            var right = PAGE_WIDTH - MARGIN
+            cells.forEachIndexed { i, cell ->
+                drawLayout(cur.canvas, cell, right - widths[i] + 4, cur.y + padding)
+                cur.canvas?.drawRect(RectF(right - widths[i], cur.y, right, cur.y + rowHeight), stroke())
+                right -= widths[i]
             }
-            cur.y += 22f
-
-            var drawn = 0
-            while (rowIndex < allRows.size && cur.y + 22f <= BOTTOM) {
-                val row = allRows[rowIndex]
-                val isTotal = table.totalRow != null && rowIndex == allRows.size - 1
-                if (rowIndex % 2 == 1 && !isTotal) {
-                    c.drawRect(RectF(MARGIN, cur.y, PAGE_WIDTH - MARGIN, cur.y + 20f), fill(LIGHT_BG))
-                }
-                row.forEachIndexed { i, cell ->
-                    val p = if (isTotal) paint(10f, true, HEADER_BLUE) else paint(9.5f, false, TEXT_DARK)
-                    c.drawText(cell, colRight[i] - colW[i] / 2f - p.measureText(cell) / 2f, cur.y + 14f, p)
-                }
-                c.drawLine(MARGIN, cur.y, PAGE_WIDTH - MARGIN, cur.y, stroke())
-                cur.y += 20f
-                rowIndex++
-                drawn++
-            }
-            // Table border around what we drew on this page.
-            c.drawRect(
-                RectF(MARGIN, cur.y - 22f - drawn * 20f, PAGE_WIDTH - MARGIN, cur.y),
-                stroke()
-            )
-            if (rowIndex >= allRows.size) break
-            // Continue on a fresh page.
-            cur.newPage()
+            cur.y += rowHeight
         }
-        cur.y += 12f
+        val title = layout(table.title, cur.fonts.paint(13f, true, PRIMARY), WIDTH)
+        val first = table.rows.firstOrNull() ?: table.totalRow
+        val firstHeight = first?.let { height(cells(it, false), 5f) } ?: 0f
+        cur.ensureSpace(title.height + 8 + headerHeight + firstHeight)
+        drawLayout(cur.canvas, title, MARGIN, cur.y)
+        cur.y += title.height + 8
+        row(headers, headerHeight, PRIMARY, 6f)
+        val count = table.rows.size + if (table.totalRow != null) 1 else 0
+        for (index in 0 until count) {
+            val values = if (index < table.rows.size) table.rows[index] else table.totalRow!!
+            val text = cells(values, false)
+            val rowHeight = height(text, 5f)
+            require(rowHeight + headerHeight <= BOTTOM - TOP)
+            if (cur.y + rowHeight > BOTTOM) {
+                cur.newPage()
+                row(headers, headerHeight, PRIMARY, 6f)
+            }
+            row(text, rowHeight, if (index % 2 == 0) STRIPE else CARD, 5f)
+        }
+        cur.y += 12
     }
 
-    private fun stroke(): Paint = Paint().apply {
-        style = Paint.Style.STROKE; color = BORDER; strokeWidth = 0.8f
+    private fun fill(color: Int) = Paint().apply { this.color = color; style = Paint.Style.FILL }
+    private fun stroke(color: Int = BORDER, width: Float = 0.55f) = Paint().apply {
+        this.color = color; style = Paint.Style.STROKE; strokeWidth = width
     }
-
-    // -------------------------------------------------------------------------
 
     /** Shares a PDF file through the OS share sheet (Dart `Printing.sharePdf`). */
     fun sharePdf(context: Context, file: File, title: String) {
