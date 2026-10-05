@@ -139,7 +139,9 @@ class SmartSyncManager {
       (timer) => _performFullSync(),
     );
 
-    _log('⏰ جدولة نسخة احتياطية كاملة كل $_periodicFullSyncHours ساعة (بلا مزامنة)');
+    _log(
+      '⏰ جدولة نسخة احتياطية كاملة كل $_periodicFullSyncHours ساعة (بلا مزامنة)',
+    );
   }
 
   /// فحص مزامنة محسن للأداء

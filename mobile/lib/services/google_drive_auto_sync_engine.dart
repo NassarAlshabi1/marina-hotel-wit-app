@@ -218,9 +218,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   Future<void> start() async {
     // 🚫 قرار منتج (2026-10-06): لا مزامنة عبر Google Drive — نسخ احتياطي
     // كامل واستعادة فقط. محرك المزامنة التلقائية لا يبدأ أبداً.
-    _log(
-      '⛔ Auto Sync Engine معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط',
-    );
+    _log('⛔ Auto Sync Engine معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط');
     return;
   }
 
