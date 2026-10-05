@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/app_logger.dart';
 import '../../utils/expense_reason_matcher.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
@@ -87,8 +88,15 @@ class SalaryWithdrawalsRepository {
           clientTs: now,
         );
       }
-    } catch (_) {
-      // العمود قد لا يكون موجوداً في إصدارات قديمة جداً — لا نعطل الإنشاء
+    } catch (e) {
+      // العمود قد لا يكون موجوداً في إصدارات قديمة جداً — لا نعطل الإنشاء.
+      // ✅ (مراجعة kilo PR#610) تسجيل الخطأ بدل ابتلاعه صامتاً — أخطاء SQL
+      // الحقيقية (تلف/أعطال قيود) تحتاج تشخيصاً ولا يجوز أن تمر خفية.
+      AppLogger.warning(
+        '⚠️ فشل ختم رابط المرآة على المصروف #$expenseId '
+        '(withdrawalUuid=$withdrawalUuid): $e',
+        tag: 'SALARY_MIRROR',
+      );
     }
   }
 
@@ -321,6 +329,34 @@ class SalaryWithdrawalsRepository {
           .firstOrNull;
     }
 
+    // ✅ (migration 68 + مراجعة kilo PR#610) الطريقة 1.5: البحث عبر uuid
+    // المصروف — الهوية الدائمة عبر الأجهزة (expense_uuid على المرآة).
+    // هذه هي المطابقة العقدية: التمييز بهوية العملية نفسها لا بالموظف
+    // أو اليوم أو المبلغ — سحبتان متساويتان (100+100) بنفس اليوم تحسمها
+    // الهوية فوراً بلا غموض ولا تبنٍّ خاطئ. لا نطبّق حارس الملكية هنا:
+    // تطابق uuid ليس تصادم أرقام محلية — إنه هوية الكيان ذاته حتى لو
+    // أنشأه جهاز آخر (origin=server) — وحارس الموظف لا يُطبّق كي يُعثر
+    // على المرآة حتى عند تغيير موظف المصروف (تُحدّث بياناتها لاحقاً).
+    if (matched == null) {
+      final expenseRowForUuid = await (_db.select(_db.expenses)
+            ..where((e) => e.id.equals(expenseId))
+            ..limit(1))
+          .getSingleOrNull();
+      final expenseUuidStr = expenseRowForUuid?.localUuid ?? '';
+      if (expenseUuidStr.isNotEmpty) {
+        final byUuid = await (_db.select(_db.salaryWithdrawals)
+              ..where(
+                (t) =>
+                    t.expenseUuid.equals(expenseUuidStr) &
+                    t.deletedAt.isNull(),
+              ))
+            .get();
+        // التفرّد مضمون بالتوليد — لو انكسر (بيانات تالفة) لا نخمّن:
+        // نترك البحث للطريقة 3 (التي لها حارس غموض خاص بها الآن).
+        if (byUuid.length == 1) matched = byUuid.single;
+      }
+    }
+
     // الطريقة 3: تبنّي مرآة يتيمة عبر بيانات المطابقة (موظف + مبلغ قديم + يوم)
     // ✅ إصلاح تكرار التقارير عند تعديل المبلغ (2026-09-25):
     // المرآة القديمة رابطها أجنبي (expense_id/reason يحملان معرّف
@@ -435,12 +471,30 @@ class SalaryWithdrawalsRepository {
         await _setExpenseIdRaw(matchedId, expenseId);
         // ✅ (migration 68) تحديث expense_uuid على المرآة + ختم الرابط
         // العكسي على المصروف — الرابط الدائم عبر الأجهزة.
-        final expenseUuidValue = await _expenseUuidFor(expenseId);
+        // ✅ (مراجعة kilo PR#610 — CRITICAL) الختم العكسي يحمل uuid
+        // **السحبة** (matchedLocalUuid) لا uuid المصروف — تمرير uuid
+        // المصروف كان يكتب رابطاً ذاتياً مرجعياً (المصروف يشير إلى نفسه)
+        // — مع وسيطي outbox لينتشر الختم للسحابة والأجهزة الأخرى.
+        final expenseRowForStamp = await (_db.select(_db.expenses)
+              ..where((e) => e.id.equals(expenseId))
+              ..limit(1))
+            .getSingleOrNull();
+        final expenseUuidValue =
+            expenseRowForStamp == null ||
+                expenseRowForStamp.localUuid.isEmpty
+            ? const d.Value<String>.absent()
+            : d.Value(expenseRowForStamp.localUuid);
         await (_db.update(_db.salaryWithdrawals)
               ..where((t) => t.id.equals(matchedId)))
             .write(SalaryWithdrawalsCompanion(expenseUuid: expenseUuidValue));
-        if (expenseUuidValue.present) {
-          await _stampExpenseMirrorLink(expenseId, expenseUuidValue.value, now);
+        if (expenseUuidValue.present && matchedLocalUuid.isNotEmpty) {
+          await _stampExpenseMirrorLink(
+            expenseId,
+            matchedLocalUuid,
+            now,
+            expenseLocalUuid: expenseRowForStamp.localUuid,
+            expenseServerId: expenseRowForStamp.serverId,
+          );
         }
 
         if (!originIsServer) {
@@ -517,9 +571,21 @@ class SalaryWithdrawalsRepository {
         // ✅ كتابة expense_id في العمود الخام
         await _setExpenseIdRaw(newId, expenseId);
         // ✅ (migration 68) ختم الرابط العكسي على المصروف + الحمولة
-        final newExpenseUuid = await _expenseUuidFor(expenseId);
-        if (newExpenseUuid.present) {
-          await _stampExpenseMirrorLink(expenseId, newExpenseUuid.value, now);
+        // ✅ (مراجعة kilo PR#610 — CRITICAL) uuid السحبة الجديدة (`uuid`)
+        // هو ما يُختم على المصروف — لا uuid المصروف نفسه (رابط ذاتي) —
+        // + وسيطا outbox لينتشر الختم للسحابة والأجهزة الأخرى.
+        final newExpenseRow = await (_db.select(_db.expenses)
+              ..where((e) => e.id.equals(expenseId))
+              ..limit(1))
+            .getSingleOrNull();
+        if (newExpenseRow != null && newExpenseRow.localUuid.isNotEmpty) {
+          await _stampExpenseMirrorLink(
+            expenseId,
+            uuid,
+            now,
+            expenseLocalUuid: newExpenseRow.localUuid,
+            expenseServerId: newExpenseRow.serverId,
+          );
         }
         unawaited(
           WhatsAppNotificationService.instance.notifyNewExpense(
@@ -570,6 +636,13 @@ class SalaryWithdrawalsRepository {
   /// - ليست سحبة مباشرة (reason لا يبدأ بـ direct_withdrawal_).
   /// - رابطها لا يشير لمصروف محلي قائم غير المصروف الحالي
   ///   (expense_id وreason/exp_N كلاهما) — وإلا فهي مرآة مصروف آخر.
+  ///
+  /// ✅ (مراجعة kilo PR#610 — حارس الغموض) يجتمع أكثر من مرشح بنفس
+  /// (موظف + مبلغ قديم + يوم) حين تساوي مبالغ سحبتين في اليوم نفسه
+  /// (100+100) — اختيار الأول اعتباطياً قد يتبنى مرآة سحبة **أخرى**
+  /// فيتقاطع الهويّتان. العقد: التمييز بهوية العملية لا بسماتها —
+  /// لذا لا نتبنى إلا إذا كان المرشح المطابق **وحيداً**؛ والحسم في
+  /// حالة التساوي ولفية الطريقة 1.5 (مطابقة expense_uuid الهوية).
   Future<SalaryWithdrawal?> _findOrphanMirrorForAdoption({
     required int expenseId,
     required int employeeId,
@@ -586,6 +659,7 @@ class SalaryWithdrawalsRepository {
 
     final effectiveHotelDayKey = hotelDayKey ?? _computeHotelDayKey(date);
 
+    final adoptable = <SalaryWithdrawal>[];
     for (final w in candidates) {
       // المبلغ الموقّع القديم — بتسامح فروق التقريب العائمة.
       if ((w.amount - expectedAmount).abs() >= 0.005) continue;
@@ -622,9 +696,10 @@ class SalaryWithdrawalsRepository {
           : w.withdrawDate.trim() == date.trim();
       if (!dayMatch) continue;
 
-      return w;
+      adoptable.add(w);
     }
-    return null;
+    // حارس الغموض: مرشح وحيد فقط — إذا زود مرشحان فلا تخمين إطلاقاً.
+    return adoptable.length == 1 ? adoptable.single : null;
   }
 
   /// هل يوجد مصروف نشط (غير محذوف) بهذا المعرف المحلي؟
