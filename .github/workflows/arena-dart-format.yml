@@ -1,0 +1,43 @@
+name: Arena Dart Format
+
+on:
+  push:
+    branches: [arena/287ede54-marina-hotel-wit-app]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: "!contains(github.event.head_commit.message, 'chore: apply dart format')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: arena/287ede54-marina-hotel-wit-app
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+      - name: Format changed Flutter files
+        run: |
+          dart format \
+            mobile/lib/providers/backup_provider.dart \
+            mobile/lib/services/cloudflare_d1_service.dart \
+            mobile/lib/services/cloudflare_sync_manager.dart \
+            mobile/lib/services/local_backup_service.dart \
+            mobile/lib/services/local_db.dart \
+            mobile/lib/services/sync_locks.dart \
+            mobile/test/cloudflare_d1_hardening_test.dart \
+            mobile/test/services/salary_employee_uuid_indexes_test.dart \
+            mobile/test/unit/backup_restore_test.dart \
+            mobile/test/unit/cloudflare_devices_sync_test.dart \
+            mobile/test/unit/wave6_debts_fields_test.dart
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name arena-agent
+          git config user.email arena-agent@users.noreply.github.com
+          git add mobile
+          git commit -m "chore: apply dart format"
+          git push origin HEAD:arena/287ede54-marina-hotel-wit-app
