@@ -150,7 +150,7 @@ fun SettingsScreen(
         )
     )
     val maintenanceItems = listOf(
-        HubItem("صيانة البيانات", "فحص محلي والحجر الصحي وروابط UUID — للمدير فقط",
+        HubItem("صيانة البيانات", "تشخيص وإصلاح آمن وتقارير — للمدير فقط",
             Icons.Default.Build, DartColors.indigo, route = "maintenance")
     )
     val whatsappItems = listOf(
@@ -236,7 +236,7 @@ fun SettingsScreen(
                     Spacer(Modifier.height(20.dp))
 
                     SectionHeader(title = "الصيانة", icon = Icons.Default.Build,
-                        count = maintenanceItems.size, subtitle = "فحص البيانات دون تعديلها")
+                        count = maintenanceItems.size, subtitle = "تشخيص · معاينة · نسخة أمان · سجل نتائج")
                     SettingsGrid(maintenanceItems) { item -> item.route?.let(onNavigate) }
                     Spacer(Modifier.height(20.dp))
 

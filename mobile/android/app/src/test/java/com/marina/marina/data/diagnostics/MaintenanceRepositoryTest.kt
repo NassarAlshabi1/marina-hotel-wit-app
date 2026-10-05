@@ -37,6 +37,38 @@ class MaintenanceRepositoryTest {
     @After fun close() { db.close() }
 
     @Test
+    fun literalSearchEntityFilterAndDetailsDoNotLoadPayload() = runBlocking {
+        db.syncQuarantineDao().put(SyncQuarantineEntity("rooms", "uuid:a", "secret-payload", "Missing 100% value"))
+        db.syncQuarantineDao().put(SyncQuarantineEntity("employees", "uuid:b", "other-secret", "Missing UUID"))
+        assertEquals(1L, repository.read(search = "%").filteredCount)
+        assertEquals(2L, repository.read(search = "missing").filteredCount)
+        assertEquals(1L, repository.read(entity = "rooms").filteredCount)
+        assertEquals(0L, repository.read(search = "' OR 1=1 --").filteredCount)
+        val detail = repository.detail("rooms", "uuid:a")!!
+        assertEquals("secret-payload".length.toLong(), detail.payloadCharacters)
+        assertFalse(detail.toString().contains("secret-payload"))
+        assertTrue(repository.quickCheck())
+    }
+
+    @Test
+    fun historyIsBoundedPagedAndExcludesOtherRepairSources() = runBlocking {
+        repeat(23) { i -> db.autoFixRunsDao().insert(com.marina.marina.data.local.entity.AutoFixRunEntity(
+            runUuid = "run-$i", source = MaintenanceRepairService.SOURCE, status = "completed",
+            startedAtEpoch = i.toLong(), startedAtIso = "test"
+        )) }
+        db.autoFixRunsDao().insert(com.marina.marina.data.local.entity.AutoFixRunEntity(
+            runUuid = "not-maintenance", source = "restore", startedAtEpoch = 1L, startedAtIso = "test"
+        ))
+        val first = repository.read()
+        val second = repository.read(requestedHistoryPage = 99)
+        assertEquals(23L, first.historyCount)
+        assertEquals(20, first.history.size)
+        assertEquals(1L, second.historyPage)
+        assertEquals(3, second.history.size)
+        assertTrue(first.history.none { row -> second.history.any { it.id == row.id } })
+    }
+
+    @Test
     fun emptyDatabaseHasZeroCountsAndClampsPage() = runBlocking {
         val report = repository.read(Long.MAX_VALUE)
         assertEquals(AppDatabase.SCHEMA_VERSION, report.schemaVersion)
