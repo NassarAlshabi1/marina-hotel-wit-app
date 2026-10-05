@@ -43,7 +43,7 @@ New migration tests use Room's real schema validation and `EXPLAIN QUERY PLAN`, 
 | R11 | Fixed above for actual Kotlin cursor storage (preferences), not the absent Flutter raw checkpoint store. |
 | R14 | Full elimination of `serverId` is **not done**. A unique D1 server-ID shadow is still accepted only for UUID-absent legacy parents. Removing it requires a separately validated historical-data migration; never substitute a raw local-ID fallback. |
 | R15 | Fixed above, with additive Room 74 migration. |
-| R16 | **Follow-up implemented; Android verification pending:** stable `expense_kind` now spans Room 75, writers, outbox, pull, JSON restore and Worker migration 0015. Description edits preserve the kind. Ambiguous historical rows retain previous arithmetic and are flagged, not guessed. See [contract and rollout](expense-kind-contract.md). No production migration/deployment was executed. |
+| R16 | **Stable-kind follow-up implemented and regression-tested:** stable `expense_kind` now spans Room 75, writers, outbox, pull, JSON restore and Worker migration 0015. Description edits preserve the kind. Ambiguous historical rows retain previous arithmetic and are flagged, not guessed. Worker 227 tests and the full Android unit-test step (run 37383529944) passed. See [contract and rollout](expense-kind-contract.md). No production migration/deployment was executed. |
 | R17 | Dangerous direct D1 writer disabled; read-only diagnostics retained. |
 | R18 | Current JSON backup import copies available database columns, unlike the lossy Flutter DAO mapper. Kotlin Expense entity/domain mapping already carries employee UUID and auto-generated flag. Full heterogeneous legacy-import validation is not newly established by this pass. |
 
