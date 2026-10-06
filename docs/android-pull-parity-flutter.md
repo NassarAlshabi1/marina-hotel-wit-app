@@ -107,11 +107,51 @@ Realtime) وشريط حالة اللوحة الرئيسية عند وصول تغ
 يعمل في عملية الخلفية. هذا بديل صريح لا ادعاء مطابقة حرفية، وقيد الحصول
 على رسالة أصلًا يبقى على عاتق مرسل FCM (worker/`functions/fcm-notifier`).
 
+## زر «سحب التغييرات» في اللوحة = دلتا دائماً (لا Bootstrap صامت)
+
+الفرق المكتشف في جولة 2026-10-06: تعليق `performPullOnly` كان **يدّعي**
+مطابقة `sync(push: false, deltaOnly: true, forcePull: true)` في Dart، لكن
+التنفيذ كان `pullDelta()` الذي يقلب السحب إلى full replay كامل أي أن جهازاً
+جديداً (مؤشر 0) يضغط الزر فيُشغّل bootstrap صامتاً — وهو ما يمنعه Dart
+صراحةً:
+
+```dart
+// cloudflare_sync_manager.dart l.1850-1851
+// Full Sync is explicit (fullSync()). Normal foreground/manual pulls are
+// bounded delta pulls even before the first Bootstrap.
+final wasFullSync = !deltaOnly && !_fullSyncCompleted;
+```
+
+الإصلاح (مطابق حرفياً):
+
+- `SyncManager.pullDelta(..., deltaOnly: Boolean = false)`:
+  `fullReplay = isFullPull || pendingReplay || (!deltaOnly && cursor == 0L)`.
+  أي أن `deltaOnly` يمنع **بدء** bootstrap جديد، بينما يبقى **الاستئناف
+  المُعلَّم** (تدوير epoch أو استعادة نسخة: علم `full_replay_pending`)
+  سارياً — العلم يعني «بدأناه ويجب إنهاؤه».
+- `performPullOnly()` صار `pullDelta(deltaOnly = true)`: زر اللوحة،
+  والسحب التلقائي، وRealtime/FCM كلهم دلتا (Dart: السحب التلقائي
+  l.3936 وrealtime l.4313 بـ`deltaOnly: true`).
+- `fullPull()` (زر السحب الكامل في الإعدادات) هو الـbootstrap الصريح
+  الوحيد: لا يتغير.
+
+اختبار حاكم جديد: `freshDeviceDashboardPullStaysDeltaAndNeverBootstraps`
+— جهاز بمؤشر 0 وبلا `full sync` مكتمل يضغط الزر ⇒ الطلب يحمل
+`exclude_device=own` وبلا `include_remaining`/`normalize_timestamps`،
+و`isFullSyncComplete()` و`isFullReplayPending()` يبقيان `false` بينما
+المؤشر يتقدم فعلاً.
+
+**ملاحظة سابقة هذه الجولة**: أعلام `include_remaining`/`normalize_timestamps`/
+`tombstones_only` صارت تُرسل نصاً `"1"` (كانت `Boolean` → `"true"`)، لأن
+الـ Worker يفحص `=== '1'` حرفياً — وبذلك كان `tombstones_only` يُهمل صامتة
+حتى في worker هذا الفرع. التفاصيل في
+[`cloudflare-migrations-parity.md`](./cloudflare-migrations-parity.md) §4.
+
 ## الاختبارات
 
 | الملف | ما يثبته |
 | --- | --- |
-| `SyncPullParityTest` | مسح الحذفيات يُطبَّق مرة واحدة ولا يلمس مؤشر الدلتا؛ فشله يبقي البوابة مفتوحة؛ الاستئناف من المؤشر المحفوظ؛ التثبيت الجديد لا يمسح؛ تصفير المؤشر المسموم قبل السحب؛ رفض مؤشر خادم متقدم على `server_time` بلا تطبيق الصفحة؛ منع تثبيت مؤشر فوق الحد الثابت؛ مُشغّل Realtime دلتا فقط ويتخطى بصمت أثناء مزامنة جارية. |
+| `SyncPullParityTest` | زر اللوحة على جهاز جديد يبقى دلتا ولا يبدأ bootstrap؛ مسح الحذفيات يُطبَّق مرة واحدة ولا يلمس مؤشر الدلتا؛ فشله يبقي البوابة مفتوحة؛ الاستئناف من المؤشر المحفوظ؛ التثبيت الجديد لا يمسح؛ تصفير المؤشر المسموم قبل السحب؛ رفض مؤشر خادم متقدم على `server_time` بلا تطبيق الصفحة؛ منع تثبيت مؤشر فوق الحد الثابت؛ مُشغّل Realtime دلتا فقط ويتخطى بصمت أثناء مزامنة جارية. |
 | `PullSanityPolicyTest` | عتبات 2e9 وهامش السنة وحدود صرامة المقارنة وبوابة المسح (كل تركيبات المدخلات). |
 | `RealtimeMessageTest` | تحليل متسامح: الشكل الصحيح، حقول اختيارية، إطارات مشوّهة/ناقصة/أنواع خاطئة، حقول زائدة. |
 | `RealtimePolicyTest` | سلّم backoff، تحويل https→wss (جذر فشل Dart)، بناء الرابط `entity=*` وترميز `deviceId`، تقصير رسائل الخطأ. |
@@ -140,6 +180,8 @@ Realtime) وشريط حالة اللوحة الرئيسية عند وصول تغ
   نفس الحساب، وشبكات اليمن المحجوبة (تدوير النطاق المخصّص) تحتاج جهازًا.
 - بوابة الجودة (Detekt/Lint) كانت حمراء قبل هذه الدفعة ولم تُخفَّ
   نتائجها؛ هذه الدفعة لا تدّعي جعلها خضراء.
+- ترحيلات D1 ومطابقتها مع فرع Flutter مُدقَّقة في
+  [`cloudflare-migrations-parity.md`](./cloudflare-migrations-parity.md).
 - **لا** ادعاء مطابقة 100% مع Flutter خارج مسار السحب: هذا العمل محصور في
   سحب التغييرات وصولًا إليه (Realtime/FCM/مسح الحذفيات/الحراس)، ولا يمس
   الرفع أو المعادلات المالية أو مخطط Room.

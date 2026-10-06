@@ -181,7 +181,9 @@ class SyncManager @Inject constructor(
         // ---- Phase 2: pull -------------------------------------------------
         _syncState.value = _syncState.value.copy(lastMessage = "جارٍ السحب...", pushedCount = pushed)
         val pulled = try {
-            pullDelta()
+            // deltaOnly = true مطابقةً للتعليق أعلاه ولعقد Dart: زر اللوحة
+            // والسحب التلقائي وRealtime لا يبدؤون full sync أبداً.
+            pullDelta(deltaOnly = true)
         } catch (e: Exception) {
             finishWithError("فشل السحب: ${e.message}", operation = "pull_delta")
             return _syncState.value
@@ -349,6 +351,9 @@ class SyncManager @Inject constructor(
      * @param batchSize حجم الصفحة — دلتا [CloudflareConfig.DELTA_PULL_BATCH_SIZE]
      *   أو سحب كامل [CloudflareConfig.FULL_PULL_BATCH_SIZE].
      * @param isFullPull true للسحب الكامل: بلا فلتر صدى + remaining + تطبيع.
+     * @param deltaOnly يمنع بدء bootstrap صامت على مؤشر صفر (نظير
+     *   `deltaOnly` في Dart): سحب تفاضلي بفلتر الصدى دائماً، ولا يمس علم
+     *   الـ bootstrap — إكماله من الإجراء الصريح [fullPull].
      * @return عدد السجلات المستوعبة، أو -1 عند الفشل الخادمي.
      * @throws Exception فشل شبكة أو فشل تطبيق — المؤشر لا يتقدم (المستدعي
      *   يلتقط ويعرض الخطأ؛ نقطة التفتيش المحفوظة تبقى كما هي).
@@ -356,7 +361,8 @@ class SyncManager @Inject constructor(
     private suspend fun pullDelta(
         batchSize: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
         isFullPull: Boolean = false,
-        allowEpochRestart: Boolean = true
+        allowEpochRestart: Boolean = true,
+        deltaOnly: Boolean = false
     ): Int {
         // حارس الإقلاع (Dart l.553) ثم مسح التقارب لمرة واحدة (Dart l.1794)
         // قبل أي صفحة — كلاهما لا يمسّ تدفق المؤشر الرئيسي عند الفشل.
@@ -365,7 +371,14 @@ class SyncManager @Inject constructor(
 
         val deviceId = preferences.getDeviceId()
         var cursor = preferences.getLastPullCursor()
-        val fullReplay = isFullPull || cursor == 0L || preferences.isFullReplayPending()
+        // ✅ نظير Dart (cloudflare_sync_manager.dart l.1850-1851):
+        // «Full Sync عملية صريحة» — سحب الدلتا لا يبدأ bootstrap صامتاً حتى
+        // لو كان مؤشر هذا الجهاز صفراً؛ يبقى سحباً تفاضلياً بفلتر الصدى
+        // (البيانات كلها تُسحب لأن المؤشر 0)، وإكمال الـ bootstrap مسؤولية
+        // الإجراء الصريح fullPull(). الاستئناف المُعلَّم (تدوير epoch/
+        // استعادة نسخة) لا يُلغى — العلم يعني «بدأناه ويجب إنهاؤه».
+        val pendingReplay = preferences.isFullReplayPending()
+        val fullReplay = isFullPull || pendingReplay || (!deltaOnly && cursor == 0L)
         if (fullReplay) preferences.setFullReplayPending(true)
         var reachedEnd = false
         var ingested = 0

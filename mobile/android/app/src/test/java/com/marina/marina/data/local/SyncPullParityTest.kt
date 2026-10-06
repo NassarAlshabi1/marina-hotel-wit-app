@@ -547,4 +547,52 @@ class SyncPullParityTest {
             scope.coroutineContext[Job]!!.cancelAndJoin()
         }
     }
+
+    // ─── 5) زر اللوحة دلتا دائماً — لا bootstrap صامت ────────────────
+
+    /**
+     * نظير Dart l.1850-1851 حرفياً: «Full Sync عملية صريحة... السحوبات
+     * العادية (نافذة/يدوية) دلتا محدودة حتى قبل أول Bootstrap».
+     * جهاز جديد تماماً (مؤشر 0، بلا full sync مكتمل، بلا استئناف معلَّم)
+     * يضغط «سحب التغييرات» ⇒ سحب تفاضلي بفلتر الصدى، بلا remaining وبلا
+     * تطبيع، ولا يُعلَّم الـ bootstrap كمكتمل — إكماله من زر السحب الكامل.
+     */
+    @Test
+    fun freshDeviceDashboardPullStaysDeltaAndNeverBootstraps() = runBlocking {
+        val prefs = preferences()
+        prefs.saveAuthToken("test-worker-token")
+        prefs.saveDeviceId("fresh-device")
+        prefs.saveLastPullCursor(0L)
+        prefs.saveSyncEpoch("parity")
+        prefs.setFullReplayPending(false)
+        assertFalse(prefs.isFullSyncComplete())
+
+        val requests = mutableListOf<PullRequest>()
+        val api = Proxy.newProxyInstance(
+            CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
+        ) { _, method, args ->
+            check(method.name == "pull") { "زر اللوحة لا يدفع: ${method.name}" }
+            requests.add(PullRequest(args!![0] as Long, args[2] as String?, args[5] as String?))
+            callOf(Response.success(WorkerPullResponse(
+                changes = emptyList(), cursor = "42", epoch = "parity", hasMore = false,
+                remaining = null, errors = emptyList(), serverTime = null
+            )))
+        } as CloudflareWorkerApi
+
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val subject = manager(prefs, api, scope)
+            assertEquals(0, subject.pullOnly())
+            // دلتا تفاضلية: فلتر الصدى مفعّل، وبلا include_remaining/
+            // normalize_timestamps — أي لا مؤشرات سحب كامل إطلاقاً.
+            assertEquals(listOf(PullRequest(0L, "fresh-device", null)), requests)
+            // الـ bootstrap لم يُبدأ ولم يُعلَّم كمكتمل.
+            assertFalse(prefs.isFullSyncComplete())
+            assertFalse(prefs.isFullReplayPending())
+            // لكن الدلتا تسحب كل الصفوف من الصفر وتقدم المؤشر فعلاً.
+            assertEquals(42L, prefs.getLastPullCursor())
+        } finally {
+            scope.coroutineContext[Job]!!.cancelAndJoin()
+        }
+    }
 }

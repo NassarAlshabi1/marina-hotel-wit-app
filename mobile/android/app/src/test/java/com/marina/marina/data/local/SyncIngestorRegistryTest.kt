@@ -445,8 +445,8 @@ class SyncIngestorRegistryTest {
             requests.forEach { request ->
                 assertEquals(CloudflareConfig.DELTA_PULL_BATCH_SIZE, request[1])
                 assertEquals("delta-test-device", request[2])
-                assertEquals(false, request[3]) // no full-pull remaining scan
-                assertEquals(false, request[4]) // no timestamp normalization
+                assertNull(request[3]) // no full-pull remaining scan
+                assertNull(request[4]) // no timestamp normalization
             }
             assertEquals(0, manager.pullAutomaticallyIfDue())
             assertEquals(3, requests.size) // Shared manual success also suppresses an automatic pull.

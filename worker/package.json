@@ -18,7 +18,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "db:migrate:salary-expense-uuid": "wrangler d1 execute marina-hotel-db --file=./migrations/0013_salary_withdrawal_expense_uuid.sql",
-    "db:migrate:write-times": "wrangler d1 execute marina-hotel-db --file=./migrations/0014_sync_write_times.sql"
+    "db:migrate:write-times": "wrangler d1 execute marina-hotel-db --file=./migrations/0014_sync_write_times.sql",
+    "db:migrate:expense-kind": "wrangler d1 execute marina-hotel-db --file=./migrations/0015_expense_kind.sql"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.21",
