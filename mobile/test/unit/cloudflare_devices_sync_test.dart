@@ -27,8 +27,8 @@ void main() {
   });
 
   group('devices ككيان متزامن (v67)', () {
-    test('schemaVersion = 68', () {
-      expect(db.schemaVersion, 68);
+    test('schemaVersion = 70', () {
+      expect(db.schemaVersion, 70);
     });
 
     test('جدول devices موجود في قاعدة جديدة', () async {

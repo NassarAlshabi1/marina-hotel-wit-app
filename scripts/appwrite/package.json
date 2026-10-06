@@ -8,6 +8,7 @@
     "create:collections": "node create_appwrite_collections.js",
     "create:indexes": "node create_mobile_indexes.js",
     "list:collections": "node list_appwrite_collections.js",
+    "add:portable-financial-links": "node add_portable_financial_links.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

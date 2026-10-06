@@ -87,7 +87,8 @@ Map<String, Map<String, _Col>> _loadSchema() {
       r'^CREATE TABLE (IF NOT EXISTS )?(\w+) \($',
     ).firstMatch(line);
     if (create != null) {
-      current = create.group(2)!;
+      current = create.group(2);
+      if (current == null) continue;
       tables.putIfAbsent(current, () => <String, _Col>{});
       continue;
     }
@@ -276,7 +277,7 @@ String? _declaredDefault(String table, String column) {
       r'^CREATE TABLE (IF NOT EXISTS )?(\w+) \($',
     ).firstMatch(line);
     if (create != null) {
-      current = create.group(2)!;
+      current = create.group(2);
       continue;
     }
     if (current == null) continue;

@@ -32,6 +32,8 @@ class SalaryPaymentsAdapter
     final remoteCycleId =
         _asInt(json, 'cycleId', src) ?? _asInt(json, 'cycle_id', src);
     final cycleUuid =
+        _asString(json, 'cycleUuid', src) ??
+        _asString(json, 'cycle_uuid', src) ??
         _asString(json, 'cycleLocalUuid', src) ??
         _asString(json, 'cycle_local_uuid', src);
 
@@ -110,6 +112,11 @@ class SalaryPaymentsAdapter
         createdAt;
     // ✅ (2026-09-19) مرجع الموظف المستقر — متغير محلي لتفعيل الترقية
     final refsEmployeeUuid = refs.employeeUuid;
+    final cycleUuid =
+        _asString(json, 'cycleUuid', src) ??
+        _asString(json, 'cycle_uuid', src) ??
+        _asString(json, 'cycleLocalUuid', src) ??
+        _asString(json, 'cycle_local_uuid', src);
     return SalaryPaymentsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
@@ -128,6 +135,9 @@ class SalaryPaymentsAdapter
           : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
       // ✅ (2026-09-19) مرجع الموظف المستقر — مستنبط من الدورة المحلولة
       // في resolveRefs أو من الحمولة (migration 68 + 0007).
+      cycleUuid: cycleUuid != null
+          ? d.Value(cycleUuid)
+          : const d.Value.absent(),
       employeeUuid:
           _asString(json, 'employeeUuid', src) != null ||
               _asString(json, 'employee_uuid', src) != null
@@ -191,6 +201,7 @@ class SalaryPaymentsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
+      _k(src, 'cycleUuid', 'cycle_uuid'): model.cycleUuid,
       // ✅ (2026-09-19) المفتاح المستقر عبر الأجهزة — مستنبط من دورة
       // الدفع (migration 68 محلياً + migration 0007 على D1).
       _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,

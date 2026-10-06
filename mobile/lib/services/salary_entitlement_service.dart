@@ -395,6 +395,7 @@ class SalaryEntitlementService {
           .insert(
             SalaryCarryOverLogsCompanion.insert(
               employeeId: employee.id,
+              employeeUuid: d.Value(employee.localUuid),
               amount: carriedOver,
               previousCycleStart: _formatDate(previousCycleStart),
               previousCycleEnd: _formatDate(previousCycleEnd),
@@ -417,6 +418,7 @@ class SalaryEntitlementService {
         clientTs: nowEpoch,
         payload: {
           'employeeId': employee.id,
+          'employeeUuid': employee.localUuid,
           'amount': carriedOver,
           'previousCycleStart': _formatDate(previousCycleStart),
           'previousCycleEnd': _formatDate(previousCycleEnd),

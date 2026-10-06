@@ -74,12 +74,22 @@ const EXPECTED: Record<string, Record<string, string>> = {
   },
 };
 
+const PORTABLE_RELATIONSHIPS: Record<string, Record<string, string>> = {
+  expenses: { withdrawal_uuid: 'TEXT' },
+  salary_withdrawals: { expense_uuid: 'TEXT' },
+  salary_payments: { cycle_uuid: 'TEXT' },
+  salary_carry_over_logs: { employee_uuid: 'TEXT' },
+};
+
 describe('schema parity: fresh install (schema.sql)', () => {
   beforeAll(async () => {
     await resetDb();
   });
 
-  for (const [table, cols] of Object.entries(EXPECTED)) {
+  for (const [table, cols] of Object.entries({
+    ...EXPECTED,
+    ...PORTABLE_RELATIONSHIPS,
+  })) {
     it(`${table} carries all contract columns with declared types`, async () => {
       const actual = await columnsOf(table);
       for (const [col, type] of Object.entries(cols)) {
@@ -405,5 +415,40 @@ describe('migration 0007: employee_uuid closure + guarded backfill', () => {
       `SELECT local_uuid, amount FROM salary_withdrawals WHERE local_uuid = 'wd-5'`
     ).first<{ amount: number }>();
     expect(amounts!.amount).toBe(500);
+  });
+});
+
+
+// Migration 0011 deliberately adds nullable identity links without guessing
+// historical relationships from amounts, dates, descriptions, or numeric ids.
+import migrationSql0011 from '../migrations/0011_portable_financial_relationships.sql?raw';
+
+describe('migration 0011: portable financial relationship identities', () => {
+  it('adds nullable UUID columns without modifying existing row values', async () => {
+    await resetDb();
+    for (const table of Object.keys(PORTABLE_RELATIONSHIPS)) {
+      await env.DB.prepare(`DROP TABLE IF EXISTS ${table}`).run();
+      await env.DB.prepare(
+        `CREATE TABLE ${table} (id INTEGER PRIMARY KEY, local_uuid TEXT)`,
+      ).run();
+      await env.DB.prepare(
+        `INSERT INTO ${table} (id, local_uuid) VALUES (1, 'legacy-${table}')`,
+      ).run();
+    }
+
+    for (const stmt of schemaStatements(migrationSql0011)) {
+      await env.DB.prepare(stmt).run();
+    }
+
+    for (const [table, columns] of Object.entries(PORTABLE_RELATIONSHIPS)) {
+      const actual = await columnsOf(table);
+      for (const [column, type] of Object.entries(columns)) {
+        expect(actual.get(column)?.type).toBe(type);
+        const row = await env.DB.prepare(
+          `SELECT ${column} AS value FROM ${table} WHERE id = 1`,
+        ).first<{ value: string | null }>();
+        expect(row?.value).toBeNull();
+      }
+    }
   });
 });

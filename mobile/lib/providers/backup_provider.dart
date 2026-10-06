@@ -10,8 +10,6 @@
 // - النسخ الاحتياطي المحلي (JSON / SQLite) واستعادته والتحقق من تجزئته
 // - النسخة الاحتياطية الشاملة (محلية) + الإصلاح التلقائي بعد الاستعادة
 // - تصدير CSV / التقارير / المشاركة / الدمج / التنظيف
-// - الرفع الصريح إلى Cloudflare بعد الاستعادة (syncToCloud) — عبر
-//   AppwriteSyncManager (الاسم التاريخي لـ CloudflareSyncManager)
 // - إعدادات النسخ المحلي التلقائي + جدولة إنذار Android اليومي
 
 import 'dart:async';
@@ -21,7 +19,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/alarm_backup.dart';
-import '../services/appwrite_sync_manager.dart';
 import '../services/backup_data_service.dart';
 import '../services/file_management_service.dart';
 import '../services/local_backup_service.dart'
@@ -30,7 +27,6 @@ import '../services/local_db.dart';
 import '../services/restore_fix_service.dart';
 import '../services/sqlite_backup_restore.dart';
 import '../utils/debug_log.dart';
-import 'appwrite_providers.dart';
 
 // حالة النسخ الاحتياطي
 enum BackupStatus {
@@ -53,9 +49,8 @@ class AutoBackupSettings {
     this.weekday,
     this.day,
     this.enableLocalBackup = true,
-    // ✅ إصلاح (2026-06-28): افتراضي SQLite .db بدلاً من JSON —
-    // المستخدم يفضّل النسخة السريعة الخام (.db) على JSON.
-    this.backupFormat = BackupFormat.sqlite,
+    // JSON هو الافتراضي لأنه مسار الاستعادة المتحقق منه والذري.
+    this.backupFormat = BackupFormat.json,
   });
   final bool isEnabled;
   final String frequency; // daily, weekly, monthly
@@ -151,17 +146,13 @@ class BackupState {
 
 // Notifier للتحكم في حالة النسخ الاحتياطي
 class BackupStatusNotifier extends StateNotifier<BackupState> {
-  BackupStatusNotifier(
-    this._localBackupService,
-    this._fileService,
-    this._appwriteSyncManager,
-  ) : super(BackupState()) {
+  BackupStatusNotifier(this._localBackupService, this._fileService)
+    : super(BackupState()) {
     unawaited(_initialize());
   }
 
   final LocalBackupService _localBackupService;
   final FileManagementService _fileService;
-  final AppwriteSyncManager _appwriteSyncManager;
   bool _mounted = true;
 
   /// تحديث حالة النسخ الاحتياطي
@@ -403,43 +394,21 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         );
       }
 
-      // مزامنة البيانات إلى السحابة إذا طُلب ذلك صراحةً فقط.
-      // الاستعادة المحلية لا تكتب إلى Cloud افتراضياً لحماية بيانات Cloud الحالية.
-      // ✅ فصل هندسي: عند طلبها صراحةً، ندفع مباشرة إلى Cloudflare D1
-      // دون إضافة بيانات إلى outbox — هذا يفصل عملية الاستعادة عن تتبع التغييرات المحلية
+      // تبقى المزامنة التلقائية معطّلة بعد الاستعادة. لا ننفّذ رفعاً
+      // ضمنياً حتى لو جاء syncToCloud من واجهة قديمة؛ على المستخدم مراجعة
+      // البيانات ثم إعادة التفعيل وتنفيذ مزامنة يدوية صريحة.
       if (syncToCloud) {
-        state = state.copyWith(
-          message: 'رفع البيانات إلى السحابة...',
-          progress: 0.7,
+        dlog(
+          '⚠️ تم تجاهل syncToCloud بعد الاستعادة الآمنة؛ '
+          'المزامنة معطلة حتى المراجعة',
         );
-
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          final cloudflareEnabled =
-              prefs.getBool('appwrite_sync_enabled') ?? true;
-          if (cloudflareEnabled) {
-            state = state.copyWith(
-              message: 'رفع البيانات إلى Cloudflare...',
-              progress: 0.8,
-            );
-            try {
-              await _appwriteSyncManager.pushAllLocalData();
-              dlog('✅ تم رفع البيانات إلى Cloudflare');
-            } catch (e) {
-              dlog(() => '⚠️ فشل رفع البيانات إلى Cloudflare: $e');
-            }
-          }
-        } catch (e) {
-          dlog(() => '⚠️ خطأ في مزامنة البيانات إلى السحابة: $e');
-          // نستمر بالعملية حتى لو فشلت المزامنة
-        }
       }
 
       state = state.copyWith(
         status: BackupStatus.success,
-        message: syncToCloud
-            ? 'تم استعادة البيانات ورفعها إلى السحابة بنجاح'
-            : 'تم استعادة البيانات من النسخة المحلية بنجاح',
+        message:
+            'تمت استعادة البيانات. المزامنة التلقائية معطّلة '
+            'حتى تراجع البيانات وتعيد تفعيلها صراحةً.',
         progress: 1.0,
       );
     } catch (e) {
@@ -477,48 +446,17 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
   }
 
-  /// استعادة قاعدة البيانات من ملف .db محدد
+  /// استبدال ملف قاعدة البيانات الحية معطّل؛ JSON هو مسار الاستعادة
+  /// الوحيد الذي يوفّر تحققاً ومعاملة وتصفير checkpoint محافظاً.
   Future<void> restoreFromSqliteFile(String sourcePath) async {
-    try {
-      state = state.copyWith(
-        status: BackupStatus.restoring,
-        message: 'جاري استعادة ملف قاعدة البيانات...',
-        progress: 0.0,
-      );
-
-      await SqliteBackupRestore.restoreDatabase(sourcePath);
-
-      // تشغيل الإصلاح التلقائي
-      state = state.copyWith(
-        status: BackupStatus.restoring,
-        message: 'تشغيل عملية الإصلاح التلقائي...',
-        progress: 0.8,
-      );
-
-      final fixService = RestoreFixService(DatabaseManager.instance);
-      final fixReport = await fixService.runAutoFixAfterRestore();
-
-      if (!fixReport.success) {
-        dlog(() => '⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
-      } else {
-        dlog(
-          () =>
-              '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
-        );
-      }
-
-      state = state.copyWith(
-        status: BackupStatus.success,
-        message: 'تمت استعادة قاعدة البيانات بنجاح',
-        progress: 1.0,
-      );
-    } catch (e) {
-      dlog(() => '❌ خطأ في استعادة ملف SQLite: $e');
-      state = state.copyWith(
-        status: BackupStatus.error,
-        message: 'فشل استعادة قاعدة البيانات: $e',
-      );
-    }
+    dlog(() => '⛔ تم رفض استعادة SQLite الخام: $sourcePath');
+    state = state.copyWith(
+      status: BackupStatus.error,
+      message:
+          'استعادة SQLite الخام معطّلة لحماية البيانات. '
+          'استخدم نسخة JSON المتحقّق منها.',
+      progress: 0,
+    );
   }
 
   /// مشاركة نسخة احتياطية محلية
@@ -916,8 +854,7 @@ final backupStatusProvider =
     StateNotifierProvider<BackupStatusNotifier, BackupState>((ref) {
       final localService = ref.watch(localBackupServiceProvider);
       final fileService = ref.watch(fileManagementServiceProvider);
-      final appwriteSync = ref.watch(appwriteSyncManagerProvider);
-      return BackupStatusNotifier(localService, fileService, appwriteSync);
+      return BackupStatusNotifier(localService, fileService);
     });
 
 // Provider للنسخ المحلية
