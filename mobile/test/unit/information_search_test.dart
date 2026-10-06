@@ -8,8 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:marina_hotel_mobile/components/app_scaffold.dart';
+import 'package:marina_hotel_mobile/components/widgets/guest_search_field.dart';
 import 'package:marina_hotel_mobile/providers/repository_providers.dart';
-import 'package:marina_hotel_mobile/screens/information/information_screen.dart';
 import 'package:marina_hotel_mobile/utils/guest_info_search.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 
@@ -83,8 +83,58 @@ void main() {
     });
   });
 
-  group('شريط البحث في الهيد (AppScaffold.header)', () {
-    testWidgets('يظهر في الرأس ولا يحجب العنوان', (tester) async {
+  group('مكوّن حقل البحث في الهيد (GuestSearchField)', () {
+    testWidgets('يرسم حقل بحث ويُطلق onChanged عند الكتابة', (tester) async {
+      final controller = TextEditingController();
+      String? lastValue;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GuestSearchField(
+              controller: controller,
+              onChanged: (v) => lastValue = v,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.textContaining('ابحث في سجل المعلومية'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'خالد');
+      await tester.pump();
+      expect(lastValue, 'خالد');
+      controller.dispose();
+    });
+
+    testWidgets('زر ✕ يمسح النص ويُبلغ الشاشة (onCleared)', (tester) async {
+      final controller = TextEditingController(text: 'أحمد');
+      var cleared = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GuestSearchField(
+              controller: controller,
+              onChanged: (_) {},
+              onCleared: () => cleared = true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byTooltip('مسح البحث'), findsOneWidget);
+      await tester.tap(find.byTooltip('مسح البحث'));
+      await tester.pump();
+
+      expect(controller.text, isEmpty);
+      expect(cleared, isTrue);
+      controller.dispose();
+    });
+
+    testWidgets('يظهر داخل رأس AppScaffold بلا حجب العنوان', (tester) async {
+      final controller = TextEditingController();
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -95,8 +145,9 @@ void main() {
           child: MaterialApp(
             home: AppScaffold(
               title: 'سجل المعلومية',
-              header: const TextField(
-                decoration: InputDecoration(hintText: 'بحث بالاسم…'),
+              header: GuestSearchField(
+                controller: controller,
+                onChanged: (_) {},
               ),
               body: const SizedBox.shrink(),
             ),
@@ -106,24 +157,8 @@ void main() {
       await tester.pump();
 
       expect(find.text('سجل المعلومية'), findsOneWidget);
-      expect(find.text('بحث بالاسم…'), findsOneWidget);
-    });
-
-    testWidgets('بلا header: لا يتغير شيء في بقية الشاشات', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            simpleNotesUnreadCountProvider.overrideWith(
-              (ref) => Stream.value(0),
-            ),
-          ],
-          child: const MaterialApp(
-            home: AppScaffold(title: 'شاشة أخرى', body: SizedBox.shrink()),
-          ),
-        ),
-      );
-      await tester.pump();
-      expect(find.text('شاشة أخرى'), findsOneWidget);
+      expect(find.byType(GuestSearchField), findsOneWidget);
+      controller.dispose();
     });
   });
 }

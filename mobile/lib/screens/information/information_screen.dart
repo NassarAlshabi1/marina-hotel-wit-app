@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
+import '../../components/widgets/guest_search_field.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
@@ -176,37 +177,12 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   /// حقل البحث المضمَّن في الهيد — يظهر بالضغط على أيقونة البحث،
-  /// بلا حجب للعنوان أو الأزرار.
+  /// بلا حجب للعنوان أو الأزرار. المكوّن نفسه قابل للاختبار مستقلاً.
   Widget _buildSearchHeader() {
-    return TextField(
+    return GuestSearchField(
       controller: _searchController,
       focusNode: _searchFocusNode,
-      autofocus: true,
-      textInputAction: TextInputAction.search,
       onChanged: (value) => setState(() => _searchQuery = value),
-      decoration: InputDecoration(
-        isDense: true,
-        hintText: 'ابحث في سجل المعلومية بالاسم أو الغرفة أو الهوية…',
-        prefixIcon: const Icon(Icons.search, size: 20),
-        suffixIcon: _searchQuery.isEmpty
-            ? null
-            : IconButton(
-                tooltip: 'مسح البحث',
-                icon: const Icon(Icons.close, size: 18),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() => _searchQuery = '');
-                },
-              ),
-        filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.15),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-      style: const TextStyle(fontSize: 14),
     );
   }
 
