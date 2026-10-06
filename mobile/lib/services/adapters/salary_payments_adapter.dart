@@ -43,12 +43,16 @@ class SalaryPaymentsAdapter
     // يختلف بين الأجهزة) تربط الدفعة بدورة خاطئة بصمت عند التصادم الرقمي.
     // نفس قرار resolveBooking و expenses_adapter. كما وُحّد المسار في
     // IdResolver.resolveSalaryCycle بدل ثلاث طرق مبعثرة هنا.
+    // ✅ (G-3) جهاز كاتب السجل — دليل فضاء المعرّفات الرقمية.
+    final sourceDeviceId =
+        _asString(json, 'deviceId', src) ?? _asString(json, 'device_id', src);
     final fromRemote = src == Source.appwrite || src == Source.drive;
     final resolvedCycleId = await resolver.resolveSalaryCycle(
       uuid: cycleUuid,
       serverId: fromRemote ? remoteCycleId : null,
       localId: fromRemote ? null : remoteCycleId,
       fromRemote: fromRemote,
+      sourceDeviceId: sourceDeviceId,
     );
 
     final createdAt = _epoch(json, 'createdAt', src);

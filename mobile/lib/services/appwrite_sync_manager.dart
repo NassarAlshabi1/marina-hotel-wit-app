@@ -48,6 +48,8 @@ import 'sync_performance_optimizer.dart';
 import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
 import 'sync/outbox_pull_policy.dart';
+import 'sync_core/deferred_relation_relinker.dart';
+import 'sync_core/deferred_relation_store.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_checkpoint_store.dart';
 import 'sync_core/sync_error_service.dart';
@@ -205,6 +207,17 @@ class AppwriteSyncManager {
       checkpoints: _checkpointStore,
       pullService: _pullService!,
     );
+    // ✅ (G-3 / 2026-10-06): مخزن السجلات «ناقصة الربط» + مُعيد الربط.
+    // قبل هذا: أي سجل يصل قبل أبيه (سحب راتب قبل الموظف، دفعة قبل الدورة)
+    // كان يُتخطّى صامتاً ويُهمَل ⇒ فقدان حركة مالية. الآن تُخزَّن الحمولة
+    // وتُعاد محاولة ربطها عبر UUID بعد كل دورة سحب، وما لا يمكن إثباته
+    // يذهب إلى تقرير المراجعة (لا ربط تخميني، لا حذف).
+    _deferredStore = DeferredRelationStore(database);
+    _deferredRelinker = DeferredRelationRelinker(
+      db: database,
+      registry: _adapterRegistry,
+      store: _deferredStore,
+    )..install();
   }
   static AppwriteSyncManager? _instance;
 
@@ -251,6 +264,19 @@ class AppwriteSyncManager {
   /// (جدول SQLite مخصص `sync_checkpoints` عبر SQL خام) + المحرك الموحد
   /// الذي يجعل `sync()` و`pullRemoteChanges()` على مسار سحب واحد.
   late final SyncCheckpointStore _checkpointStore;
+
+  /// ✅ (G-3): مخزن السجلات ناقصة الربط (ناقص الأب) — لا تخطٍّ صامت.
+  late final DeferredRelationStore _deferredStore;
+
+  /// ✅ (G-3): مُعيد ربط السجلات المعلّقة عبر UUID (طبقة المجال).
+  late final DeferredRelationRelinker _deferredRelinker;
+
+  /// للتقارير/الاختبارات (G-3/G-8): ملخص السجلات المعلّقة.
+  Future<Map<String, int>> deferredRelationsSummary() =>
+      _deferredStore.summary();
+
+  /// ✅ (G-3): إتاحة تقرير المراجعة لطبقة العرض/التصدير (G-8).
+  DeferredRelationStore get deferredRelationStore => _deferredStore;
   late final UnifiedPullEngine _unifiedPull;
 
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
@@ -1170,6 +1196,27 @@ class AppwriteSyncManager {
               } catch (e) {
                 _logger.warning(
                   '⚠️ فشل تنظيف outbox للكيانات المحذوفة: $e',
+                  tag: 'SYNC',
+                );
+              }
+
+              // ✅ (G-3 / 2026-10-06): إعادة ربط السجلات التي وصلت قبل
+              // آبائها (سحب/دورة/دفعة/ليلة ناقصة المرجع). الوصول من مسار
+              // عادي هنا يعني ربطاً بـ UUID فقط بعد وجود الأب — وبلا أي
+              // ربط تخميني. ما لا يمكن إثباته يبقى للمراجعة (G-8).
+              try {
+                final relinkResult = await _deferredRelinker.relinkAll();
+                if (relinkResult.resolved > 0 ||
+                    relinkResult.movedToReview > 0 ||
+                    relinkResult.stillPending > 0) {
+                  _logger.info(
+                    '🔗 إعادة ربط العلاقات: $relinkResult',
+                    tag: 'SYNC',
+                  );
+                }
+              } catch (e) {
+                _logger.warning(
+                  '⚠️ فشل إعادة ربط العلاقات المعلّقة (غير حرج): $e',
                   tag: 'SYNC',
                 );
               }
@@ -4271,28 +4318,54 @@ class AppwriteSyncManager {
               ..where((e) => e.id.equals(withdrawal.employeeId))
               ..limit(1))
             .getSingleOrNull();
-    if (employee != null && employee.serverId == null) {
-      // الموظف لم يُرفع بعد — نرفعه أولاً
+    // ✅ (G-3): «لم يُرفع بعد» = لا معرّف بعيد > 0 ولا طابع مزامنة، ولم
+    // يأتِ من السيرفر (origin='server' يعني أنه موجود هناك بالبناء).
+    // ملاحظة: serverId قد يكون **null بشكل دائم** للموظفين الجدد (لأن
+    // documentId هو الـ UUID وليس رقماً) — لذلك لا يصلح وحده كعلامة رفع.
+    final employeeKnownOnServer =
+        employee != null &&
+        (employee.serverId != null ||
+            employee.syncTimestamp > 0 ||
+            employee.origin == 'server');
+    if (employee != null && !employeeKnownOnServer) {
+      // الموظف لم يُرفع بعد — نرفعه أولاً حتى لا يبقى الابن (السحبة)
+      // بلا أب على الأجهزة الأخرى (وقتها يُعلَّق السجل ويُربط عبر UUID
+      // عند وصول الموظف — البند 6).
       _logger.info(
-        '🔄 رفع الموظف ${employee.id} أولاً لضمان FK constraint',
+        '🔄 رفع الموظف ${employee.id} أولاً (الأب قبل الابن)',
         tag: 'SYNC',
       );
       try {
         final empPayload = _payloadMapper.employeeToRemote(employee);
-        await appwriteService.upsertEmployee(
+        final employeeRemoteDoc = await appwriteService.upsertEmployee(
           employee.localUuid,
           _filterPayload('employees', _addIdempotencyKey(empPayload, entry)),
         );
-        // ✅ Forensic audit fix (2026-07-22):
-        // كان الكود السابق يستدعي getDocument منفصل للتحقق من وجود المستند
-        // — لكن النتيجة (remoteDoc) لم تكن تُستخدم إطلاقاً! serverId يُضبط
-        // إلى employee.id (محلي) وليس أي قيمة من remoteDoc. وبما أن
-        // upsertEmployee نجح (لم يرمِ استثناء)، المستند موجود بالتأكيد.
-        // إزالة getDocument تُوفر API call واحد لكل push موظف.
-        // للتراجع: أعد استدعاء getDocument قبل database.update.
+        // ✅ (G-3 / 2026-10-06) إصلاح جذري لهوية الموظف عبر الأجهزة:
+        // كان هذا السطر يكتب `serverId = employee.id` — وهو **المعرّف
+        // المحلي autoincrement على هذا الجهاز**. و`serverId` يُرفع ضمن
+        // حمولة الموظف ويُسحب على الأجهزة الأخرى، فصار «رقم محلي» أساساً
+        // للربط عبر الأجهزة: جهاز A عنده موظف #7 وجهاز B عنده موظف مختلف
+        // #7 ⇒ ربط صامت لسجل مالي (سحبة/دورة/دفعة) بموظف خاطئ.
+        //
+        // القاعدة الجديدة (البند 1): لا يُكتب في `serverId` إلا معرّف
+        // **بعيد حقيقي** كما أعاده الخادم. وبما أن documentId هنا هو
+        // `employee.localUuid` (UUID) فإن serverId يبقى null عمداً —
+        // الهوية عبر الأجهزة هي localUuid وحده.
+        // علامة «الموظف موجود على السيرفر» تُحفظ في syncTimestamp (طابع
+        // زمني — ليس هوية) حتى لا يُعاد رفع الموظف في كل سحبة.
+        final remoteDocId = employeeRemoteDoc.$id;
+        final remoteNumericId = int.tryParse(remoteDocId);
         await (database.update(database.employees)
               ..where((e) => e.id.equals(employee.id)))
-            .write(EmployeesCompanion(serverId: drift.Value(employee.id)));
+            .write(
+              EmployeesCompanion(
+                serverId: remoteNumericId == null
+                    ? const drift.Value.absent()
+                    : drift.Value(remoteNumericId),
+                syncTimestamp: drift.Value(Time.nowEpoch()),
+              ),
+            );
       } catch (e) {
         _logger.warning(
           '⚠️ فشل رفع الموظف ${employee.id} — سيتم تأجيل سحب الراتب: $e',

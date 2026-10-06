@@ -31,6 +31,18 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     _batchUuidCache = null;
   }
 
+  // ✅ (G-3): نقطة التقاط السجلات المتخطّاة (FK غير محلول).
+  // تُثبّتها طبقة المجال (DeferredRelationRelinker) فتحفظ الحمولة بدل
+  // إهمالها، وتُعيد ربطها عبر UUID عند وصول الأب. الافتراضي: null
+  // (سلوك قديم: تخطٍّ مع تسجيل — بلا أي تغيير في بقية التطبيقات).
+  SkippedRecordSink? _skippedRecordSink;
+
+  void setSkippedRecordSink(SkippedRecordSink? sink) {
+    _skippedRecordSink = sink;
+  }
+
+  SkippedRecordSink? get skippedRecordSink => _skippedRecordSink;
+
   Future<int> upsertFromJson(
     Map<String, dynamic> json, {
     required Source src,
@@ -74,6 +86,31 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         'Skipping upsert for ${table.actualTableName}: ${refs.skipReason ?? "unresolved FK reference"}',
         name: 'BaseRepository',
       );
+      // ✅ (G-3): لا تخطٍّ صامت. إن ثبّتت طبقة المجال نقطة التقاط ⇒
+      // تُخزَّن الحمولة (كحمولة مزوّد محايدة) وتُعاد محاولة ربطها لاحقاً
+      // عبر UUID. فشل الالتقاط لا يجوز أن يُسقط التخطي نفسه.
+      final sink = _skippedRecordSink;
+      final skippedUuid =
+          json['localUuid'] as String? ?? json['local_uuid'] as String?;
+      if (sink != null &&
+          skippedUuid != null &&
+          skippedUuid.isNotEmpty &&
+          (src == Source.appwrite || src == Source.drive)) {
+        try {
+          await sink(
+            json,
+            tableName: table.actualTableName,
+            collectionId: adapter.collectionId,
+            src: src,
+            skipReason: refs.skipReason,
+          );
+        } catch (e) {
+          developer.log(
+            'Deferred sink failed for ${table.actualTableName}: $e',
+            name: 'BaseRepository',
+          );
+        }
+      }
       return -1; // إشارة إلى أن السجل تم تخطيه
     }
 
