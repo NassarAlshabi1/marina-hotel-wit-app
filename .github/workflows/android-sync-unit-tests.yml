@@ -36,6 +36,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # تاريخ كامل: خطوة Detekt تحسب ملفات الدفعة بـ git diff،
+          # والاستنساخ الافتراضي (depth=1) لا يملك commit سابقاً.
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -71,7 +75,12 @@ jobs:
 
       - name: Collect changed files (for scoped static analysis)
         run: |
-          git diff --name-only "${{ github.event.before || 'HEAD~1' }}" HEAD > "$RUNNER_TEMP/changed.txt" || true
+          BASE="${{ github.event.before }}"
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE="HEAD~1"
+          fi
+          git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/changed.txt" 2>/dev/null || true
+          echo "--- changed files ---"
           cat "$RUNNER_TEMP/changed.txt"
 
       - name: Run unit tests (sync pull parity batch)
@@ -162,6 +171,9 @@ jobs:
 
           changed = os.environ.get("CHANGED_FILES", "")
           names = {n.strip() for n in changed.splitlines() if n.strip()}
+          if not names:
+              # لا نُغرق القائمة بدين المستودع القديم إذا فشل حساب التغييرات.
+              names = {"__no_changes_detected__"}
           candidates = [
               "mobile/build/app/reports/detekt/detekt.xml",
               "mobile/android/app/build/reports/detekt/detekt.xml",
@@ -170,15 +182,20 @@ jobs:
           ]
           report = next((pathlib.Path(c) for c in candidates if pathlib.Path(c).exists()), None)
           findings = []
+          total = 0
           if report is not None:
-              for err in ET.parse(report).getroot().iter("error"):
-                  src = err.get("source") or ""
-                  # نُبلغ فقط عن ملفات هذه الدفعة (بقية المستودع دين قديم مُعلَن).
-                  if names and not any(src.endswith(n) for n in names):
-                      continue
-                  findings.append(
-                      f"{src}:{err.get('line')} [{err.get('rule')}] {err.get('message')}"
-                  )
+              # مسار الملف على عنصر <file name> الأب، والخاصية source هي اسم
+              # القاعدة (detekt.Rule) — الخطأ السابق قرأها كمسار فطبع الكل.
+              for file_node in ET.parse(report).getroot().iter("file"):
+                  src = file_node.get("name") or ""
+                  for err in file_node.iter("error"):
+                      total += 1
+                      # نُبلغ فقط عن ملفات هذه الدفعة (بقية المستودع دين قديم مُعلَن).
+                      if names and not any(src.endswith(n) for n in names):
+                          continue
+                      findings.append(
+                          f"{src}:{err.get('line')} [{err.get('source')}] {err.get('message')}"
+                      )
           body = "\n".join(findings[:200]) if findings else (
               "لا ملاحظات Detekt على ملفات هذه الدفعة." if report is not None
               else "لم يُنتج Detekt تقريراً (المهمة فشلت قبل الكتابة أو المسار مختلف)."
@@ -189,7 +206,7 @@ jobs:
               "status": "completed",
               "conclusion": "success",
               "output": {
-                  "title": f"Detekt على ملفات الدفعة: {len(findings)} ملاحظة",
+                  "title": f"Detekt على ملفات الدفعة: {len(findings)} ملاحظة (المستودع: {total})",
                   "summary": "إعلامي غير حاجب — لا يُغيّر نتيجة الفحص",
                   "text": body[-60000:],
               },
