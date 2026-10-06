@@ -59,11 +59,9 @@ void main() {
     });
 
     test('employees.basic_salary يُخزَّن عدداً صحيحاً', () async {
-      final id = await EmployeesRepository(db).create(
-        name: 'موظف G-10',
-        status: 'active',
-        basicSalary: 45000.99,
-      );
+      final id = await EmployeesRepository(
+        db,
+      ).create(name: 'موظف G-10', status: 'active', basicSalary: 45000.99);
 
       final employee = await (db.select(
         db.employees,
@@ -143,12 +141,12 @@ void main() {
           installments: 3,
         );
 
-        final advanceExpenses = await (db.select(db.expenses)
-              ..where((e) => e.expenseType.equals('سلفة')))
-            .get();
-        final installmentExpenses = await (db.select(db.expenses)
-              ..where((e) => e.expenseType.equals('خصم من الراتب')))
-            .get();
+        final advanceExpenses = await (db.select(
+          db.expenses,
+        )..where((e) => e.expenseType.equals('سلفة'))).get();
+        final installmentExpenses = await (db.select(
+          db.expenses,
+        )..where((e) => e.expenseType.equals('خصم من الراتب'))).get();
         final withdrawals = await db.select(db.salaryWithdrawals).get();
 
         // 1) مصروف السلفة عدد صحيح

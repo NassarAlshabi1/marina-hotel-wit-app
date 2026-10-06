@@ -196,8 +196,7 @@ class MoneyIntegrityService {
     );
     await scanTable(
       table: 'payments.amount',
-      sql:
-          'SELECT local_uuid, amount FROM payments WHERE deleted_at IS NULL',
+      sql: 'SELECT local_uuid, amount FROM payments WHERE deleted_at IS NULL',
     );
     await scanTable(
       table: 'payments.discount_amount',
@@ -211,8 +210,7 @@ class MoneyIntegrityService {
     );
     await scanTable(
       table: 'booking_nights.nightly_rate',
-      sql:
-          'SELECT local_uuid, nightly_rate AS amount FROM booking_nights',
+      sql: 'SELECT local_uuid, nightly_rate AS amount FROM booking_nights',
     );
     await scanTable(
       table: 'hotel_day_ledger.total_income',
@@ -228,8 +226,7 @@ class MoneyIntegrityService {
     );
     await scanTable(
       table: 'payment_voids.voided_amount',
-      sql:
-          'SELECT local_uuid, voided_amount AS amount FROM payment_voids',
+      sql: 'SELECT local_uuid, voided_amount AS amount FROM payment_voids',
     );
     await scanTable(
       table: 'audit_logs.amount_impact',

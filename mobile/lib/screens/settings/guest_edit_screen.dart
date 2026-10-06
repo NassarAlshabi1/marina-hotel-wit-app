@@ -1338,9 +1338,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     }
 
     // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
-    final amount = CurrencyFormatter.truncateAmount(
-      _parseAmount(amountText),
-    );
+    final amount = CurrencyFormatter.truncateAmount(_parseAmount(amountText));
     if (amount <= 0) {
       ScaffoldMessenger.of(
         context,

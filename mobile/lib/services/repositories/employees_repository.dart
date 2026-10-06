@@ -112,9 +112,7 @@ class EmployeesRepository {
         EmployeesCompanion(
           name: name != null ? d.Value(name) : const d.Value.absent(),
           basicSalary: (salary ?? basicSalary) != null
-              ? d.Value(
-                  CurrencyFormatter.wholeAmount((salary ?? basicSalary)!),
-                )
+              ? d.Value(CurrencyFormatter.wholeAmount((salary ?? basicSalary)!))
               : const d.Value.absent(),
           position: position != null
               ? d.Value(position)
@@ -175,9 +173,7 @@ class EmployeesRepository {
       EmployeesCompanion(
         name: name != null ? d.Value(name) : const d.Value.absent(),
         basicSalary: (salary ?? basicSalary) != null
-            ? d.Value(
-                CurrencyFormatter.wholeAmount((salary ?? basicSalary)!),
-              )
+            ? d.Value(CurrencyFormatter.wholeAmount((salary ?? basicSalary)!))
             : const d.Value.absent(),
         position: position != null ? d.Value(position) : const d.Value.absent(),
         phone: phone != null ? d.Value(phone) : const d.Value.absent(),

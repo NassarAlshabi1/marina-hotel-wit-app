@@ -1479,11 +1479,9 @@ void main() {
         expect(fullReport.countByTable['rooms.price'], 1);
 
         // ⚠️ ولا تعديل: القيم التاريخية ما زالت كما هي في القاعدة.
-        final legacyRoom =
-            (await (db.select(db.rooms)
-                      ..where((r) => r.roomNumber.equals('G10-1')))
-                    .getSingle())
-                .price;
+        final legacyRoom = (await (db.select(
+          db.rooms,
+        )..where((r) => r.roomNumber.equals('G10-1'))).getSingle()).price;
         expect(legacyRoom, 12000.5);
         final legacyDiscount =
             (await (db.select(db.bookings)

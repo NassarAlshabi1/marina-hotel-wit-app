@@ -1,4 +1,5 @@
 import 'currency_formatter.dart';
+
 String formatYemeniAmount(double amount) {
   // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر (150.5 → 150)
   final intAmount = CurrencyFormatter.truncateAmount(amount);
