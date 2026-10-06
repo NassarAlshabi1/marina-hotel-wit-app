@@ -16,6 +16,7 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/guest_info_search.dart';
 import '../../utils/pdf_utils.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -44,45 +45,13 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     super.dispose();
   }
 
-  /// تطبيع نص عربي للبحث: إزالة التشكيل والتطويل، وتوحيد الألف/الهمزة
-  /// و التاء المربوطة/الهاء والياء/الألف المقصورة، وتوحيد الأرقام العربية.
-  static String normalizeForSearch(String input) {
-    var text = input.trim().toLowerCase();
-    // تشكيل وتطويل
-    text = text.replaceAll(
-      RegExp('[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]'),
-      '',
-    );
-    const unified = {
-      'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ٱ': 'ا',
-      'ى': 'ي', 'ئ': 'ي', 'ؤ': 'و', 'ة': 'ه',
-      '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
-      '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
-    };
-    final buffer = StringBuffer();
-    for (final rune in text.runes) {
-      final ch = String.fromCharCode(rune);
-      buffer.write(unified[ch] ?? ch);
-    }
-    return buffer.toString();
-  }
+  /// ✅ (2026-10-06): المنطق انتقل إلى `utils/guest_info_search.dart`
+  /// ليكون عاماً قابلاً للاختبار؛ هذه واجهات رقيقة للنداء الداخلي.
+  static String normalizeForSearch(String input) =>
+      GuestInfoSearch.normalize(input);
 
-  /// هل يطابق السجل عبارت البحث؟ (الاسم أولاً ثم الغرفة/الهوية/المحافظة)
-  static bool matchesQuery(GuestInfo info, String query) {
-    if (query.isEmpty) return true;
-    final q = normalizeForSearch(query);
-    if (q.isEmpty) return true;
-    final haystack = [
-      info.guestName,
-      info.roomNumber,
-      info.idNumber,
-      info.governorate ?? '',
-      info.issuePlace ?? '',
-      info.nationality,
-      info.notes ?? '',
-    ].map(normalizeForSearch).join('\u0001');
-    return haystack.contains(q);
-  }
+  static bool matchesQuery(GuestInfo info, String query) =>
+      GuestInfoSearch.matches(info, query);
 
   static final List<String> _idTypes = [
     'بطاقة شخصية',

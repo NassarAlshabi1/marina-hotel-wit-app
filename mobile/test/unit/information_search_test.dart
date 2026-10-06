@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:marina_hotel_mobile/components/app_scaffold.dart';
 import 'package:marina_hotel_mobile/screens/information/information_screen.dart';
+import 'package:marina_hotel_mobile/utils/guest_info_search.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 
 void main() {
@@ -41,11 +42,11 @@ void main() {
 
   group('مطابقة البحث في سجل المعلومية', () {
     test('تطبيع الهمزات والتاء المربوطة والياء والتشكيل', () {
-      final normalized = InformationScreen.normalizeForSearch('أَحْمَدُ');
+      final normalized = GuestInfoSearch.normalize('أَحْمَدُ');
       expect(normalized, 'احمد');
-      expect(InformationScreen.normalizeForSearch('فاطمة'), 'فاطمه');
-      expect(InformationScreen.normalizeForSearch('مصطفى'), 'مصطفي');
-      expect(InformationScreen.normalizeForSearch('٤١٢'), '412');
+      expect(GuestInfoSearch.normalize('فاطمة'), 'فاطمه');
+      expect(GuestInfoSearch.normalize('مصطفى'), 'مصطفي');
+      expect(GuestInfoSearch.normalize('٤١٢'), '412');
     });
 
     test('البحث بالاسم يعمل بأشكال كتابة مختلفة', () {
@@ -53,12 +54,12 @@ void main() {
 
       for (final query in ['أحمد', 'احمد', 'أحمـد', 'أحمد علي']) {
         expect(
-          InformationScreen.matchesQuery(row, query),
+          GuestInfoSearch.matches(row, query),
           isTrue,
           reason: 'العبارة «$query» يجب أن تطابق الاسم',
         );
       }
-      expect(InformationScreen.matchesQuery(row, 'خالد'), isFalse);
+      expect(GuestInfoSearch.matches(row, 'خالد'), isFalse);
     });
 
     test('البحث يشمل الغرفة ورقم الهوية والمحافظة', () {
@@ -68,15 +69,15 @@ void main() {
         idNumber: '998877',
         governorate: 'عدن',
       );
-      expect(InformationScreen.matchesQuery(row, '12'), isTrue);
-      expect(InformationScreen.matchesQuery(row, '998877'), isTrue);
-      expect(InformationScreen.matchesQuery(row, 'عدن'), isTrue);
+      expect(GuestInfoSearch.matches(row, '12'), isTrue);
+      expect(GuestInfoSearch.matches(row, '998877'), isTrue);
+      expect(GuestInfoSearch.matches(row, 'عدن'), isTrue);
     });
 
     test('عبارة فارغة تعني «لا فلترة»', () {
       final row = guest(name: 'مروان', room: '9');
-      expect(InformationScreen.matchesQuery(row, ''), isTrue);
-      expect(InformationScreen.matchesQuery(row, '   '), isTrue);
+      expect(GuestInfoSearch.matches(row, ''), isTrue);
+      expect(GuestInfoSearch.matches(row, '   '), isTrue);
     });
   });
 

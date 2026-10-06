@@ -86,7 +86,7 @@ void main() {
             updatedAt: now,
             lastModified: now,
             cycleId: cycleId,
-            amount: 500,
+            amount: const d.Value(500),
             paymentDateIso: '2026-10-01',
           ),
         );

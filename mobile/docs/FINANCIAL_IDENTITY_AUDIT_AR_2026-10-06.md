@@ -32,7 +32,7 @@
 |---|---|---|
 | 1. الهوية الثابتة UUID | ✅ مُنفَّذ (الموظف = `employees.local_uuid`) | §1 |
 | 2. Appwrite ليس مصدر الهوية | ✅ مُنفَّذ (`documentId = local_uuid`) | §2 |
-| 3. العلاقات بين الجداول | ✅ أُغلقت **G-3** (لا ربط رقمي عبر الأجهزة + لا تخطٍّ صامت)؛ تبقى G-1, G-2 | §3, §8.4 |
+| 3. العلاقات بين الجداول | ✅ أُغلقت **G-3** (لا ربط رقمي عبر الأجهزة + لا تخطٍّ صامت)، **G-1** (رابط الدفعة↔الدورة الدائم)، **G-2** (رابطتا دورتَي الترحيل)، **P1-3** (ازدواج الرقم البعيد ⇒ مراجعة) | §3, §8.4, §10 |
 | 4. إنشاء السجل + المزامنة في معاملة | ✅ مُنفَّذ | §4 |
 | 5. منع التكرار | ✅ مُنفَّذ | §5 |
 | 5م. سياسة التعارض | ✅ **أُغلقت G-4** (سياسة صريحة + مراجعة بشرية) | §7 |
@@ -71,8 +71,8 @@ TextColumn get idempotencyKey
 | سحب الراتب | `salary_withdrawals.local_uuid` | `employee_uuid` (764)، `expense_uuid` (784) | `local_db.dart:757–800` |
 | منحنى/سحب راتب مباشر | نفس الجدول | `reason='direct_withdrawal_*'` (حارس معرَّف في `salary_mirror_matcher`) | `salary_mirror_matcher.dart:59–62` |
 | دورة الراتب | `salary_cycles.local_uuid` | `employee_uuid` (707) | `local_db.dart:703–722` |
-| دفعة الراتب | `salary_payments.local_uuid` | `employee_uuid` (737) — **بلا `cycle_uuid` محلي** | `local_db.dart:731–747` ← فجوة G-1 |
-| ترحيل الرصيد | `salary_carry_over_logs.local_uuid` | `employee_uuid` (818)؛ `from_cycle_id`/`to_cycle_id` نصّيان (823–825) لكنهما **لا يُكتبان** | `local_db.dart:812–830` ← فجوة G-2 |
+| دفعة الراتب | `salary_payments.local_uuid` | `employee_uuid` (737) + **`cycle_uuid` (عمود إضافي يُضمن في `beforeOpen`، أُضيف 2026-10-06)** | `local_db.dart:731–747` + `beforeOpen` ← ✅ أُغلقت G-1 |
+| ترحيل الرصيد | `salary_carry_over_logs.local_uuid` | `employee_uuid` (818) + `from_cycle_id`/`to_cycle_id` نصّيان (823–825) — **يُكتبان الآن كهويات دورات** عند الترحيل | `local_db.dart:812–830` ← ✅ أُغلقت G-2 |
 | التحقق من عدم التكرار | `outbox.idempotency_key` | فهرس فريد جزئي (migration 51) | `local_db.dart:843–880` |
 
 **ملاحظة مهمة:** عمود `employees.employeeID` (`local_db.dart:166`) هو *الرقم الإداري/الوظيفي* الذي يُدخله المستخدم — **ليس** هوية المزامنة. الخلط بينه وبين `employee_uuid` ممنوع.
@@ -117,8 +117,8 @@ TextColumn get idempotencyKey
 ### 3.3 الفجوات في العلاقات
 | # | الفجوة | الأثر |
 |---|---|---|
-| G-1 | `salary_payments` بلا `cycle_uuid` محلي؛ الربط يُبنى **لحظة الرفع** فقط | إذا غابت الدورة محليًا وقت الرفع (أو أُعيد بناء مسار الرفع عند تغيير المزوّد) تفقد الدفعة رابطها الثابت على السحابة → عند السحب يبقى `serverId` الرقمي احتمالًا خاطئًا |
-| G-2 | `salary_carry_over_logs.from_cycle_id/to_cycle_id` لا يُكتبان | سجل الترحيل بلا علاقة دورات ثابتة (البند 1 يطلب `record_uuid` + علاقات الدورات) |
+| ~~G-1~~ ✅ | `salary_payments` بلا `cycle_uuid` محلي؛ الربط يُبنى **لحظة الرفع** فقط | ~~فقدان الرابط~~ — ✅ أُصلح: عمود `cycle_uuid` + `FinancialLinkStore` + بثّه في الرفع وختمه عند السحب ومشي محدود |
+| ~~G-2~~ ✅ | `salary_carry_over_logs.from_cycle_id/to_cycle_id` لا يُكتبان | ~~بلا علاقة دورات~~ — ✅ أُصلح: مطابقة فريدة فقط + نقل في المحوّل والحمولة |
 | G-3 | ~~`serverId` عند الازدواج~~ **أُغلقت 2026-10-06** | كان الربط الرقمي عبر الأجهزة ممكنًا بلا إثبات ⇒ ربط خاطئ صامت. الآن: لا مطابقة رقمية إلا بإثبات وحدة فضاء المعرّفات (نفس `deviceId` الكاتب)، والسجل الذي لا يُثبت يُعلَّق ثم يُربط بـ UUID |
 
 **الدليل على G-1:**
@@ -541,12 +541,12 @@ WHERE p.amount > 0 AND (c.local_uuid IS NULL OR c.local_uuid = '');
 |---|---|---|---|
 | ~~P0-1~~ ✅ **منفَّذ** | سياسة تعارض صريحة للحقول المالية الحرجة (G-4) + إصلاح فقدان التعارضات (G-11) | `sync_core/smart_conflict_resolver.dart`, `sync_core/sync_pull_service.dart`, `appwrite_sync_manager.dart`, `conflict_manager.dart` | ✅ 21 اختبار هوية + 75 حارس على CI |
 | ~~P0-0~~ ✅ **منفَّذ** | **G-10**: سياسة «لا كسور عشرية» — اقتطاع نحو الصفر في الكتابة والنقل + كاشف تاريخي للقراءة فقط | `utils/currency_formatter.dart`, المحوّلات, `sync/payload_mapper.dart`, المستودعات, `services/money_integrity_service.dart` | ✅ `money_integer_policy_test.dart` + 3 اختبارات G-10 |
-| P0-2 | حفظ `cycle_uuid` محليًا + في حمولة الـ outbox + إدراجه في الرفع من الصف (G-1) | migration + `local_db.dart`, `salary_payments_adapter.dart`, `payload_mapper.dart`, `appwrite_sync_manager.dart` | `G-1` في `financial_identity_audit_test.dart` (يصبح `expect(stats.deferred, isEmpty)`) |
-| P1-3 | تصعيد ازدواج `serverId` إلى تقرير المراجعة بدل الاختيار (G-3) | `adapters/id_resolver.dart` | `ambiguous_server_id_goes_to_review` |
-| P1-4 | كتابة `from_cycle_id/to_cycle_id` كهويات دورات عند الترحيل (G-2) | `salary_entitlement_service.dart` + المحوّل | `carry_over_links_cycles_by_uuid` |
+| ~~P0-2~~ ✅ **منفَّذ 2026-10-06** | حفظ `cycle_uuid` محليًا (عمود إضافي في `beforeOpen`) + `FinancialLinkStore` للختم من الدليل (حمولة/PK) + بثّه في الرفع الجزئي والكامل + ختمه عند السحب + مشي محدود للروابط المُثبتة (G-1) | `local_db.dart`, `services/sync_core/financial_link_store.dart`, `appwrite_sync_manager.dart` | ✅ `financial_links_g1_g2_test.dart` (4 اختبارات) |
+| ~~P1-3~~ ✅ **منفَّذ 2026-10-06** | ازدواج مرشّحي الرقم البعيد (نفس `serverId` + نفس الجهاز الكاتب) ⇒ **لا ربط** (`null` ⇒ معلّق/مراجعة) بدل اختيار «الأول» | `adapters/id_resolver.dart` | ✅ `financial_links_g1_g2_test.dart` → `P1-3 — ازدواج الرقم البعيد ⇒ مراجعة لا اختيار` |
+| ~~P1-4~~ ✅ **منفَّذ 2026-10-06** | كتابة `from_cycle_id/to_cycle_id` كهويات دورات (مطابقة فريدة ببداية اليوم الفندقي، وإلا مفتاح الشهر حين تكون بداية اليوم غائبة) + نقلها في المحوّل والحمولة (G-2) | `salary_entitlement_service.dart`, `adapters/salary_carry_over_logs_adapter.dart`, `sync/payload_mapper.dart` | ✅ `financial_links_g1_g2_test.dart` → `G-2` |
 | P1-5 | تنطيق المؤشرات بالمزوّد + تأسيس إجباري عند التحويل (G-7) | `sync_core/sync_checkpoint_store.dart`, `delta_sync_service.dart`, `sync_pull_service.dart` | `provider_switch_does_not_reuse_appwrite_cursor` |
 | P2-6 | تقرير المراجعة القابل للتصدير (G-8) | خدمة قراءة فقط جديدة | `review_report_lists_uncertain_records_without_writing` |
-| P2-7 | تمييز «مرايا بالهوية» عن «مرايا بالمطابقة البياناتية» في التقارير (G-5) | `salary_mirror_matcher.dart` + التقارير | `heuristic_mirror_is_flagged_not_silent` |
+| ~~P2-7~~ ✅ **منفَّذ 2026-10-06** | تصنيف المرايا بمستوى الإثبات (`identity`/`provenNumeric`/`dataMatch`/`unprovenMarker`) ومنع الربط الرقمي بلا إثبات نفس الجهاز الكاتب + ورقة «مرايا حُكمية» في تقرير المراجعة (G-5) | `salary_mirror_matcher.dart`, `review_report_service.dart`, التقارير الثلاثة | ✅ `financial_links_g1_g2_test.dart` → `P2-7` + الاختبار السلبي في `salary_mirror_cross_device_test.dart` |
 | P2-8 | توثيق `serverId = رقم جهاز المصدر` كحقل غير هوية + استبعاده من مخططات النقل بين المزوّدين (G-6/G-9) | وثائق + خريطة نقل | مراجعة يدوية |
 
 ---

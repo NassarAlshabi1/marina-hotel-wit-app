@@ -120,18 +120,18 @@ class SalaryCarryOverLogsAdapter
       // ✅ (G-2 / 2026-10-06): رابطتا الدورتين (UUID — لا معرّف رقمي).
       // كانتا لا تُقرآن إطلاقاً ⇒ سجل الترحيل يصل بلا علاقة دورات ثابتة.
       // تُقبل الأسماء المعلنة أولاً ثم الأسماء البديلة القديمة.
-      fromCycleId: _vStr(
-        json,
+      fromCycleId: _vStrAny(json, const [
         'fromCycleUuid',
-        src,
-        altKey: 'from_cycle_uuid',
-      ) ?? _vStr(json, 'fromCycleId', src, altKey: 'from_cycle_id'),
-      toCycleId: _vStr(
-        json,
+        'from_cycle_uuid',
+        'fromCycleId',
+        'from_cycle_id',
+      ], src),
+      toCycleId: _vStrAny(json, const [
         'toCycleUuid',
-        src,
-        altKey: 'to_cycle_uuid',
-      ) ?? _vStr(json, 'toCycleId', src, altKey: 'to_cycle_id'),
+        'to_cycle_uuid',
+        'toCycleId',
+        'to_cycle_id',
+      ], src),
       reason: d.Value(_asString(json, 'reason', src) ?? ''),
       carriedAt: d.Value(_asInt(json, 'carriedAt', src) ?? now),
       createdAt: d.Value(_asInt(json, 'createdAt', src) ?? now),
@@ -239,6 +239,21 @@ d.Value<String> _vStr(
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+/// ✅ (G-2): أول مفتاح **موجود وغير فارغ** من قائمة مرشّحة (أسماء معلنة
+/// أولاً ثم الأسماء البديلة القديمة). `_vStr` يقبل مفتاحاً بديلاً واحداً
+/// فقط، وقيمته ليست null ⇒ لا يصلح لسلسلة `??`.
+d.Value<String> _vStrAny(
+  Map<String, dynamic> json,
+  List<String> keys,
+  Source src,
+) {
+  for (final key in keys) {
+    final v = _asString(json, key, src);
+    if (v != null && v.isNotEmpty) return d.Value(v);
+  }
+  return const d.Value.absent();
 }
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {
