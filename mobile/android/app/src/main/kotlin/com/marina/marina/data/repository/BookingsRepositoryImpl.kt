@@ -29,6 +29,9 @@ class BookingsRepositoryImpl @Inject constructor(
     override fun getAll(): Flow<List<Booking>> =
         bookingsDao.getAll().map { entities -> entities.map { it.toDomain() } }
 
+    override fun watchById(id: Long): Flow<Booking?> =
+        bookingsDao.watchById(id).map { it?.toDomain() }
+
     override suspend fun getById(id: Long): Booking? =
         bookingsDao.getById(id)?.toDomain()
 
@@ -95,7 +98,7 @@ class BookingsRepositoryImpl @Inject constructor(
         val active = bookingsDao.getActiveBookingForRoom(roomNumber) ?: return
         if (excludeId != null && active.id == excludeId) return
         val guest = active.guestName.ifBlank { "غير معروف" }
-        throw IllegalStateException("يوجد حجز نشط بالفعل للغرفة $roomNumber (الضيف: $guest)")
+        error("يوجد حجز نشط بالفعل للغرفة $roomNumber (الضيف: $guest)")
     }
 
     /**
@@ -109,19 +112,27 @@ class BookingsRepositoryImpl @Inject constructor(
         val roomRate = room?.price ?: 0.0
         val payments = paymentsDao.getByBooking(booking.id).first().map { it.toDomain() }
         val nights = nightsDao.getByBooking(booking.id).map { it.toDomain() }
-        val summary = BookingFinancials.calculate(booking, roomRate, payments, nights)
         val checkin = HotelTimeEngine.parseDate(booking.checkinDate)
         val liveNights = if (checkin != null) {
             val checkout = HotelTimeEngine.parseDate(booking.actualCheckout)
             HotelTimeEngine.nightsWithCutoff(checkin, checkout)
         } else booking.calculatedNights
-        return booking.copy(
-            calculatedNights = liveNights,
+        val current = booking.copy(calculatedNights = liveNights)
+        val summary = BookingFinancials.calculate(current, roomRate, payments, nights)
+        return current.copy(
             totalDueCached = summary.totalAmount,
             totalPaidCached = summary.paidAmount,
             remainingBalanceCached = summary.remainingAmount,
             isFullyPaid = summary.isFullyPaid
         )
+    }
+
+    /** Caller owns the write transaction; refresh caches without a second business mutation. */
+    internal suspend fun refreshFinancialCache(id: Long) {
+        val booking = bookingsDao.getById(id)?.toDomain() ?: return
+        val refreshed = refreshDerivedFields(booking)
+        bookingsDao.updateFinancialCache(id, refreshed.calculatedNights, refreshed.totalDueCached,
+            refreshed.totalPaidCached, refreshed.remainingBalanceCached, refreshed.isFullyPaid)
     }
 
     /**

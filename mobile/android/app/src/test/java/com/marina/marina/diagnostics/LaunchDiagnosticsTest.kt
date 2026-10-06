@@ -2,6 +2,9 @@ package com.marina.marina.diagnostics
 
 import android.content.Context
 import android.os.Looper
+import com.a.a.R
+import java.time.Duration
+import org.junit.Assert.assertEquals
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertFalse
@@ -60,6 +63,19 @@ class LaunchDiagnosticsTest {
             val log = stagesText()
             assertTrue("bare markers missing from stages.log:\n$log", log.contains("STAGE  Bare.onResume"))
         }
+    }
+
+    @Test
+    fun diagnosticTextPreservesSnapshotAndCallbacksStopAfterDestroy() {
+        assertEquals(
+            "BARE LAUNCH ALIVE\n\n100% diagnostic",
+            context.getString(R.string.bare_launch_alive, "100% diagnostic")
+        )
+        ActivityScenario.launch(BareLaunchActivity::class.java).use { scenario ->
+            scenario.onActivity { assertFalse(it.isFinishing) }
+        }
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(4))
+        assertFalse(stagesText().contains("STAGE  Bare.aliveAfter3s"))
     }
 
     @Test

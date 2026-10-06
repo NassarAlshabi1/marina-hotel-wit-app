@@ -6,7 +6,7 @@
 //  استعلام SELECT 1 حقيقي يمر عبر D1 فعلاً.
 // ═══════════════════════════════════════════════════════════════
 
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { adminAuthHeader, resetDb } from './helpers';
 
@@ -50,4 +50,12 @@ describe('GET /api/health/d1', () => {
     // ثواني/ميلي ثانية متسقة (نفس اللحظة).
     expect(body.timestamp).toBeGreaterThanOrEqual(body.server_time * 1000);
   });
+  it('advertises expense kind only after the additive schema migration', async () => {
+    const auth = await adminAuthHeader();
+    const request = () => SELF.fetch('https://example.com/api/health/d1', { headers: { Authorization: auth } });
+    expect(await (await request()).json()).toMatchObject({ expense_kind: true });
+    await env.DB.prepare('ALTER TABLE expenses DROP COLUMN expense_kind').run();
+    expect(await (await request()).json()).toMatchObject({ status: 'ok', d1: 'ok', expense_kind: false });
+  });
+
 });

@@ -45,6 +45,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +62,7 @@ import com.marina.marina.ui.theme.MarinaPalette
 import com.marina.marina.ui.theme.MarinaTheme
 
 /** Premium coastal login with the same authentication and validation contract. */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
@@ -83,6 +88,8 @@ fun LoginScreen(
         Scaffold(containerColor = AppColors.BackgroundColor) { padding ->
             Box(
                 modifier = Modifier
+                    .semantics { testTagsAsResourceId = true }
+                    .testTag("marina_login_screen")
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(

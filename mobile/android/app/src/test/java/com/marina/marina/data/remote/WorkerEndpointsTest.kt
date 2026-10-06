@@ -79,6 +79,31 @@ class WorkerEndpointsTest {
     }
 
     @Test
+    fun `invalid url does not overwrite existing endpoint`() {
+        endpoints.setCustomUrl("safe.example.com")
+        for (invalid in listOf(
+            "https://x.com#fragment", "https://x.com?query=yes", "https://user:password@x.com",
+            "https://x.com:0", "https://x.com:65536", "https://x.com/path", "https://x.com/%ZZ"
+        )) {
+            assertThrows<IllegalArgumentException> { endpoints.setCustomUrl(invalid) }
+            assertEquals("https://safe.example.com", endpoints.custom)
+            assertEquals("https://safe.example.com", endpoints.active)
+        }
+    }
+
+    @Test
+    fun `https and dns names normalize independently of device locale`() {
+        val previous = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("tr-TR"))
+            assertEquals("https://api.example.com", endpoints.normalizeCustomUrl("HTTPS://API.EXAMPLE.COM:443/"))
+            assertEquals("https://api.example.com:65535", endpoints.normalizeCustomUrl("API.EXAMPLE.COM:65535"))
+        } finally {
+            java.util.Locale.setDefault(previous)
+        }
+    }
+
+    @Test
     fun `clearing custom url returns to builtin`() {
         endpoints.setCustomUrl("sync.natak.com")
         assertEquals("https://sync.natak.com", endpoints.active)

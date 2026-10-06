@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "scope": "offline-entry-startup-only-full-compilation",
+  "requirements": [
+    {
+      "className": "com.marina.marina.macrobenchmark.EntryStartupBenchmark",
+      "test": "coldStartup",
+      "metric": "timeToInitialDisplayMs",
+      "statistic": "median",
+      "minIterations": 8,
+      "warningMs": 2500,
+      "failureMs": 4000
+    },
+    {
+      "className": "com.marina.marina.macrobenchmark.EntryStartupBenchmark",
+      "test": "warmStartup",
+      "metric": "timeToInitialDisplayMs",
+      "statistic": "median",
+      "minIterations": 8,
+      "warningMs": 1500,
+      "failureMs": 2500
+    }
+  ]
+}

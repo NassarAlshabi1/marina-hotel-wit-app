@@ -20,14 +20,17 @@ import com.marina.marina.domain.util.StatusUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.Calendar
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -58,6 +61,7 @@ import kotlinx.coroutines.launch
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
+    private val autoSyncEngine: com.marina.marina.data.sync.AutoSyncEngine,
     private val roomsRepository: RoomsRepository,
     private val bookingsRepository: BookingsRepository,
     private val paymentsRepository: PaymentsRepository,
@@ -107,6 +111,10 @@ class DashboardViewModel @Inject constructor(
 
     val currentUser: StateFlow<AuthUser?> = sessionManager.currentUser
 
+    // One Room observer and one entity-to-domain conversion for all Dashboard
+    // consumers. Stop upstream work after navigation/background grace period.
+    private val bookingsFlow = bookingsRepository.getAll().shareDashboardSource(viewModelScope)
+
     /** Today's financial aggregates (hotel-day scoped). */
     val financialStats: StateFlow<FinancialStats?> = hotelDayKeyFlow
         .flatMapLatest { hotelDay ->
@@ -120,16 +128,17 @@ class DashboardViewModel @Inject constructor(
     /** Rooms paired with live-booking + payment-lateness state. */
     val roomsWithStatus: StateFlow<List<RoomWithPaymentStatus>> = combine(
         roomsRepository.getAll(),
-        bookingsRepository.getAll(),
+        bookingsFlow,
         alertWindowTick
     ) { rooms, bookings, _ -> deriveRoomsWithStatus(rooms, bookings) }
+        .flowOn(Dispatchers.Default)
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Whether the rooms section failed to load (parity with the Dart error UI). */
     val roomsError: StateFlow<String?> = combine(
         roomsRepository.getAll(),
-        bookingsRepository.getAll()
+        bookingsFlow
     ) { _, _ -> null as String? }
         .catch { emit(it.message) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -166,71 +175,44 @@ class DashboardViewModel @Inject constructor(
             ?.let { it.isAdmin || it.userType == "manager" || it.userType == "supervisor" } == true
 
     /** Live sync engine state + pending outbox count (header indicators). */
+    val automaticSyncStatus = autoSyncEngine.automaticStatus
+
     val syncState: StateFlow<SyncUiState> = syncManager.syncState
-    val pendingChanges: StateFlow<Int> = syncManager.pendingCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    val pendingChanges: StateFlow<Int> = syncManager.undeliveredCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), -1)
 
     /** One-shot UI events (snackbars). */
     private val _events = MutableSharedFlow<DashboardEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<DashboardEvent> = _events.asSharedFlow()
 
     /** Booked room lookup for navigation: room number -> active booking. */
-    private val _activeBookingByRoom = MutableStateFlow<Map<String, Booking>>(emptyMap())
-    val activeBookingByRoom: StateFlow<Map<String, Booking>> = _activeBookingByRoom.asStateFlow()
-
-    init {
-        // Keep a room->activeBooking map for tap navigation without re-querying.
-        viewModelScope.launch {
-            bookingsRepository.getAll().collect { bookings ->
-                _activeBookingByRoom.value = bookings
-                    .filter { StatusUtils.isBookingActive(it.status) }
-                    .associateBy { it.roomNumber }
-            }
+    val activeBookingByRoom: StateFlow<Map<String, Booking>> = bookingsFlow
+        .map { bookings ->
+            bookings.asSequence()
+                .filter { StatusUtils.isBookingActive(it.status) }
+                .associateBy { it.roomNumber }
         }
-        // Silent pull on Dashboard open (Flutter `_autoPullFromAppwrite`).
-        autoPullOnOpen()
-        // Hourly cloud safety net while the screen is visible — the Kotlin
-        // counterpart of the Flutter `_dashboardCloudRefreshTimer`
-        // (1-hour periodic silent pull; immediacy is covered by the outbox
-        // watcher + this pull keeps the receipts card fresh).
-        viewModelScope.launch {
-            while (true) {
-                delay(HOURLY_CLOUD_REFRESH_MS)
-                if (syncState.value.isSyncing) continue
-                syncManager.pullOnly()
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    // Automatic app-open / hourly / network recovery pulls are owned by AutoSyncEngine.
+    // A Dashboard instance must not bypass its shared successful-pull/hour gate.
+    private var manualSyncJob: Job? = null
+
+    fun pushChanges() = runDirectionalSync(push = true)
+    /** Manual Dashboard pull is incremental; never invoke fullPull or reset its cursor here. */
+    fun pullDeltaChanges() = runDirectionalSync(push = false)
+
+    private fun runDirectionalSync(push: Boolean) {
+        if (manualSyncJob?.isActive == true || syncState.value.isSyncing) return
+        manualSyncJob = viewModelScope.launch {
+            try {
+                _events.emit(runDashboardDirectionalSync(syncManager, push))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _events.emit(DashboardEvent.SyncFailed(error.message ?: "تعذرت المزامنة"))
             }
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Actions
-    // -------------------------------------------------------------------------
-
-    /**
-     * Silent pull on Dashboard open — the Kotlin counterpart of the Flutter
-     * `_autoPullFromAppwrite` (robust pull, success-gated hour check). The
-     * outbox watcher covers the push side, so only deltas are pulled.
-     */
-    fun autoPullOnOpen() {
-        viewModelScope.launch {
-            val pulled = syncManager.pullOnly()
-            if (pulled > 0) {
-                _events.emit(DashboardEvent.AutoPullSucceeded(pulled))
-            }
-        }
-    }
-
-    /** Manual full sync (header sync button). */
-    fun triggerSync() {
-        viewModelScope.launch {
-            val state = syncManager.syncNow()
-            _events.emit(
-                if (state.isError) {
-                    DashboardEvent.SyncFailed(state.lastMessage)
-                } else {
-                    DashboardEvent.SyncCompleted(state.pushedCount, state.pulledCount)
-                }
-            )
         }
     }
 
@@ -266,7 +248,6 @@ class DashboardViewModel @Inject constructor(
     companion object {
         private const val MINUTE_MS = 60_000L
         private const val HOTEL_DAY_TICK_MS = 30_000L
-        private const val HOURLY_CLOUD_REFRESH_MS = 60L * 60 * 1000
         private const val ALERT_WINDOW_START_HOUR = 22
         private const val ALERT_WINDOW_END_HOUR = 5
     }

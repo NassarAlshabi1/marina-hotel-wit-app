@@ -66,7 +66,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -112,38 +114,38 @@ import java.util.Locale
 // ─────────────────────── خرائط عرض الكيانات ───────────────────────
 
 fun kindLabel(kind: SearchEntityKind): String = when (kind) {
-    SearchEntityKind.booking -> "الحجوزات"
-    SearchEntityKind.guestInfo -> "بطاقات الضيوف"
-    SearchEntityKind.payment -> "المدفوعات"
-    SearchEntityKind.expense -> "المصروفات"
-    SearchEntityKind.withdrawal -> "سحبيات الرواتب"
-    SearchEntityKind.debt -> "الديون"
-    SearchEntityKind.employee -> "الموظفون"
-    SearchEntityKind.room -> "الغرف"
-    SearchEntityKind.inventoryItem -> "المخزون"
-    SearchEntityKind.blacklist -> "القائمة السوداء"
+    SearchEntityKind.BOOKING -> "الحجوزات"
+    SearchEntityKind.GUEST_INFO -> "بطاقات الضيوف"
+    SearchEntityKind.PAYMENT -> "المدفوعات"
+    SearchEntityKind.EXPENSE -> "المصروفات"
+    SearchEntityKind.WITHDRAWAL -> "سحبيات الرواتب"
+    SearchEntityKind.DEBT -> "الديون"
+    SearchEntityKind.EMPLOYEE -> "الموظفون"
+    SearchEntityKind.ROOM -> "الغرف"
+    SearchEntityKind.INVENTORY_ITEM -> "المخزون"
+    SearchEntityKind.BLACKLIST -> "القائمة السوداء"
 }
 
 fun kindIcon(kind: SearchEntityKind): ImageVector = when (kind) {
-    SearchEntityKind.booking -> Icons.Outlined.Assignment
-    SearchEntityKind.guestInfo -> Icons.Outlined.Badge
-    SearchEntityKind.payment -> Icons.Outlined.Payments
-    SearchEntityKind.expense -> Icons.Outlined.AccountBalanceWallet
-    SearchEntityKind.withdrawal -> Icons.Outlined.Payments
-    SearchEntityKind.debt -> Icons.Outlined.PieChart
-    SearchEntityKind.employee -> Icons.Outlined.Person
-    SearchEntityKind.room -> Icons.Outlined.ManageSearch
-    SearchEntityKind.inventoryItem -> Icons.Outlined.Inventory2
-    SearchEntityKind.blacklist -> Icons.Outlined.Block
+    SearchEntityKind.BOOKING -> Icons.Outlined.Assignment
+    SearchEntityKind.GUEST_INFO -> Icons.Outlined.Badge
+    SearchEntityKind.PAYMENT -> Icons.Outlined.Payments
+    SearchEntityKind.EXPENSE -> Icons.Outlined.AccountBalanceWallet
+    SearchEntityKind.WITHDRAWAL -> Icons.Outlined.Payments
+    SearchEntityKind.DEBT -> Icons.Outlined.PieChart
+    SearchEntityKind.EMPLOYEE -> Icons.Outlined.Person
+    SearchEntityKind.ROOM -> Icons.Outlined.ManageSearch
+    SearchEntityKind.INVENTORY_ITEM -> Icons.Outlined.Inventory2
+    SearchEntityKind.BLACKLIST -> Icons.Outlined.Block
 }
 
 @Composable
 fun kindColor(kind: SearchEntityKind): Color = when (kind) {
-    SearchEntityKind.booking, SearchEntityKind.guestInfo, SearchEntityKind.employee -> AppColors.PrimaryColor
-    SearchEntityKind.payment -> AppColors.SuccessColor
-    SearchEntityKind.expense, SearchEntityKind.debt, SearchEntityKind.inventoryItem -> AppColors.WarningColor
-    SearchEntityKind.withdrawal, SearchEntityKind.room -> AppColors.InfoColor
-    SearchEntityKind.blacklist -> AppColors.DangerColor
+    SearchEntityKind.BOOKING, SearchEntityKind.GUEST_INFO, SearchEntityKind.EMPLOYEE -> AppColors.PrimaryColor
+    SearchEntityKind.PAYMENT -> AppColors.SuccessColor
+    SearchEntityKind.EXPENSE, SearchEntityKind.DEBT, SearchEntityKind.INVENTORY_ITEM -> AppColors.WarningColor
+    SearchEntityKind.WITHDRAWAL, SearchEntityKind.ROOM -> AppColors.InfoColor
+    SearchEntityKind.BLACKLIST -> AppColors.DangerColor
 }
 
 private val currencyFmt = DecimalFormat("#,##0")
@@ -288,6 +290,8 @@ private fun SearchField(
             }
         },
         singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
         shape = RoundedCornerShape(12.dp)
     )
 }
@@ -380,7 +384,7 @@ private fun ResultsList(state: GlobalSearchUiState) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         results.hits.forEach { (kind, hits) ->
             val total = results.totals[kind] ?: hits.size
-            item(key = "kind_${kind.name}") {
+            item(key = "kind_${kind.wireName}") {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -404,7 +408,7 @@ private fun ResultsList(state: GlobalSearchUiState) {
                     )
                 }
             }
-            items(count = hits.size, key = { i -> "${kind.name}_${hits[i].kind.name}_${hits[i].id}_$i" }) { i ->
+            items(count = hits.size, key = { i -> "${kind.wireName}_${hits[i].kind.wireName}_${hits[i].id}_$i" }) { i ->
                 Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)) {
                     HitCard(hit = hits[i])
                 }
@@ -426,7 +430,6 @@ private fun ResultsList(state: GlobalSearchUiState) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HitCard(hit: GlobalSearchHit) {
-    val context = LocalContext.current
     val color = kindColor(hit.kind)
     var showDetails by remember { mutableStateOf(false) }
 

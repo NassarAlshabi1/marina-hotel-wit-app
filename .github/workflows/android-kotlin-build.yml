@@ -10,6 +10,7 @@ on:
       - agent/pulse-storm-pdj1
       - agent/android-cloudflare
       - arena/01a0fdf3-marina-hotel-wit-app
+      - arena/01a0ffdb-marina-hotel-wit-app
     paths:
       - 'mobile/android/**'
       - 'mobile/Keystore.txt'
@@ -92,6 +93,7 @@ jobs:
       - name: Summarize Android test failure
         if: failure()
         run: |
+          python3 ../../.github/scripts/android-test-failures.py
           if [ -f "$RUNNER_TEMP/android-gradle-tests.log" ]; then
             diagnostics=$(grep -E 'e: file:|e: .*\.kt:|Compilation error|FAILED|What went wrong|Execution failed|Caused by:|error:' \
               "$RUNNER_TEMP/android-gradle-tests.log" | tail -n 30 | tr '\r\n' '  ' | sed 's/%/%25/g') || true
@@ -122,6 +124,7 @@ jobs:
           # <rootProject.buildDir>/<projectName>, i.e. mobile/build/app — not
           # the AGP default mobile/android/app/build.
           path: |
+            mobile/android/app/schemas
             mobile/build/app/test-results
             mobile/build/app/reports/tests
             mobile/android/app/build/test-results

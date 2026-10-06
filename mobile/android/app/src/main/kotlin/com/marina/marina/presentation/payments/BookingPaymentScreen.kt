@@ -78,7 +78,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.marina.marina.ui.components.SyncProgressBanner
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -147,8 +148,6 @@ private val Orange400: Color
     @Composable get() = AppColors.WarningColor
 private val Orange700: Color
     @Composable get() = AppColors.WarningColor
-private val Orange800: Color
-    @Composable get() = AppColors.WarningColor
 private val RedPrimary: Color
     @Composable get() = AppColors.DangerColor
 private val Red50: Color
@@ -213,7 +212,7 @@ fun BookingPaymentScreen(
     isAdmin: Boolean = true,
     viewModel: BookingPaymentViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -295,7 +294,12 @@ fun BookingPaymentScreen(
     MarinaTheme {
         Scaffold(
             containerColor = AppColors.BackgroundColor,
-            snackbarHost = { PaymentSnackbarHost(snackbarHostState, snackbarTone) },
+            snackbarHost = {
+                Column {
+                    PaymentSnackbarHost(snackbarHostState, snackbarTone)
+                    SyncProgressBanner(viewModel.syncState)
+                }
+            },
             topBar = {
                 MarinaTopAppBar(
                     title = { Text("معالجة المدفوعات", style = AppTypography.titleLarge) },

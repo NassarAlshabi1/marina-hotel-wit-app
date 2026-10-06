@@ -1,0 +1,15 @@
+# Run ONLY on a disposable offline emulator, after signing into a synthetic
+# local test account. No real credentials or production data belong here.
+appId: com.a.a
+---
+- assertVisible: "فندق مارينا"
+- assertVisible: "سحب التغييرات"
+- takeScreenshot: performance-evidence/dashboard
+- tapOn: "القائمة"
+- tapOn: "الإعدادات"
+- scrollUntilVisible:
+    element: "حالة المزامنة"
+    direction: DOWN
+- tapOn: "حالة المزامنة"
+- assertVisible: "المحرك الآن"
+- takeScreenshot: performance-evidence/sync-health

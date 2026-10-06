@@ -336,11 +336,13 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         const d1Start = Date.now();
         try {
           await db.raw.prepare('SELECT 1 AS ok').first<{ ok: number }>();
+          const expenseColumns = await db.raw.prepare('PRAGMA table_info(expenses)').all<{ name: string }>();
           logRequest(method, path, 200, Date.now() - startTime, clientIp);
           return json(
             {
               status: 'ok',
               d1: 'ok',
+              expense_kind: expenseColumns.results.some((column) => column.name === 'expense_kind'),
               latency_ms: Date.now() - d1Start,
               server_time: Math.floor(Date.now() / 1000),
               timestamp: Date.now(),

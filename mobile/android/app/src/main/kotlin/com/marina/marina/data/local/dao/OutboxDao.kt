@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface OutboxDao {
-    @Query("SELECT * FROM outbox WHERE processing_status = 'pending' AND delivered_to_primary = 0 ORDER BY client_ts ASC")
+    @Query("SELECT * FROM outbox WHERE processing_status = 'pending' AND delivered_to_primary = 0 ORDER BY client_ts ASC, id ASC")
     fun getPendingPrimary(): Flow<List<OutboxEntity>>
 
-    @Query("SELECT * FROM outbox WHERE processing_status = 'pending' AND delivered_to_secondary = 0 ORDER BY client_ts ASC")
+    @Query("SELECT * FROM outbox WHERE processing_status = 'pending' AND delivered_to_secondary = 0 ORDER BY client_ts ASC, id ASC")
     fun getPendingSecondary(): Flow<List<OutboxEntity>>
 
     @Query("SELECT * FROM outbox WHERE id = :id")
@@ -42,6 +42,10 @@ interface OutboxDao {
 
     @Query("SELECT COUNT(*) FROM outbox WHERE processing_status = 'pending' AND delivered_to_primary = 0")
     fun pendingCount(): Flow<Int>
+
+    /** Include pending, processing and failed rows until primary acknowledgement. */
+    @Query("SELECT COUNT(*) FROM outbox WHERE source = 'local' AND delivered_to_primary = 0")
+    fun undeliveredCount(): Flow<Int>
 
     /**
      * ✅ (2026-09-25) استرداد الانهيار — عقد P0-H في Flutter: صفوف حُجزت

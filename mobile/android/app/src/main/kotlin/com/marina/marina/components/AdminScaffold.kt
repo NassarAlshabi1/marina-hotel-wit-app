@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -17,8 +19,10 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.marina.marina.ui.theme.ReferenceLayout
 import com.marina.marina.domain.model.AuthUser
-import com.marina.marina.ui.theme.MarinaPalette
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import kotlinx.coroutines.launch
 
 /**
@@ -66,15 +70,16 @@ fun AdminScaffold(
     content: @Composable () -> Unit
 ) {
     BoxWithConstraints {
-        if (maxWidth >= 768.dp) {
+        if (maxWidth >= ReferenceLayout.SidebarBreakpoint) {
             // Tablet / landscape / desktop: permanent sidebar.
-            Row(modifier = Modifier.fillMaxSize()) {
+            Row(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                 AdminSidebar(
                     currentRoute = currentRoute,
                     onRouteSelected = onRouteSelected,
                     onLogout = onLogout,
                     currentUser = currentUser
                 )
+                // Flutter AdminLayout uses an edge-to-edge content area, not a framed inset.
                 Box(modifier = Modifier.weight(1f)) { content() }
             }
         } else {
@@ -97,8 +102,9 @@ fun AdminScaffold(
                     drawerState = drawerState,
                     drawerContent = {
                         ModalDrawerSheet(
-                            drawerContainerColor = MarinaPalette.OceanNight,
-                            modifier = Modifier.width(280.dp)
+                            drawerContainerColor = Color(0xFF0F172A),
+                            drawerShape = RectangleShape,
+                            modifier = Modifier.width(ReferenceLayout.SidebarWidth)
                         ) {
                             AdminSidebar(
                                 currentRoute = currentRoute,

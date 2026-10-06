@@ -46,8 +46,17 @@ import kotlinx.coroutines.withContext
  */
 
 /** أنواع الكيانات القابلة للبحث. */
-enum class SearchEntityKind {
-    booking, guestInfo, payment, expense, withdrawal, debt, employee, room, inventoryItem, blacklist
+enum class SearchEntityKind(val wireName: String) {
+    @com.google.gson.annotations.SerializedName("booking") BOOKING("booking"),
+    @com.google.gson.annotations.SerializedName("guestInfo") GUEST_INFO("guestInfo"),
+    @com.google.gson.annotations.SerializedName("payment") PAYMENT("payment"),
+    @com.google.gson.annotations.SerializedName("expense") EXPENSE("expense"),
+    @com.google.gson.annotations.SerializedName("withdrawal") WITHDRAWAL("withdrawal"),
+    @com.google.gson.annotations.SerializedName("debt") DEBT("debt"),
+    @com.google.gson.annotations.SerializedName("employee") EMPLOYEE("employee"),
+    @com.google.gson.annotations.SerializedName("room") ROOM("room"),
+    @com.google.gson.annotations.SerializedName("inventoryItem") INVENTORY_ITEM("inventoryItem"),
+    @com.google.gson.annotations.SerializedName("blacklist") BLACKLIST("blacklist")
 }
 
 /** نتيجة واحدة موحّدة من أي كيان. */
@@ -103,16 +112,16 @@ private data class KindResult(val hits: List<GlobalSearchHit>, val total: Int)
 
 /** مفتاح صلاحية الشاشة الذي يحرس بيانات كل كيان (عقد مسارات Dart). */
 val searchPermissionKeyByKind: Map<SearchEntityKind, String> = mapOf(
-    SearchEntityKind.booking to "bookings",
-    SearchEntityKind.guestInfo to "bookings",
-    SearchEntityKind.payment to "payments",
-    SearchEntityKind.expense to "expenses",
-    SearchEntityKind.withdrawal to "employees",
-    SearchEntityKind.debt to "debts",
-    SearchEntityKind.employee to "employees",
-    SearchEntityKind.room to "rooms",
-    SearchEntityKind.inventoryItem to "settings",
-    SearchEntityKind.blacklist to "blacklist"
+    SearchEntityKind.BOOKING to "bookings",
+    SearchEntityKind.GUEST_INFO to "bookings",
+    SearchEntityKind.PAYMENT to "payments",
+    SearchEntityKind.EXPENSE to "expenses",
+    SearchEntityKind.WITHDRAWAL to "employees",
+    SearchEntityKind.DEBT to "debts",
+    SearchEntityKind.EMPLOYEE to "employees",
+    SearchEntityKind.ROOM to "rooms",
+    SearchEntityKind.INVENTORY_ITEM to "settings",
+    SearchEntityKind.BLACKLIST to "blacklist"
 )
 
 /** قيم مشتقة من الاستعلام يشترك فيها كل الباحثين. */
@@ -184,16 +193,16 @@ class GlobalSearchService @Inject constructor(
 
         val requestedKinds = query.kinds ?: SearchEntityKind.entries.toSet()
         val searchers: Map<SearchEntityKind, suspend () -> KindResult> = mapOf(
-            SearchEntityKind.booking to { searchBookings(query, matchers) },
-            SearchEntityKind.guestInfo to { searchGuestInfos(query, matchers) },
-            SearchEntityKind.payment to { searchPayments(query, matchers) },
-            SearchEntityKind.expense to { searchExpenses(query, matchers) },
-            SearchEntityKind.withdrawal to { searchWithdrawals(query, matchers) },
-            SearchEntityKind.debt to { searchDebts(query, matchers) },
-            SearchEntityKind.employee to { searchEmployees(query, matchers) },
-            SearchEntityKind.room to { searchRooms(query, matchers) },
-            SearchEntityKind.inventoryItem to { searchInventoryItems(query, matchers) },
-            SearchEntityKind.blacklist to { searchBlacklist(query, matchers) }
+            SearchEntityKind.BOOKING to { searchBookings(query, matchers) },
+            SearchEntityKind.GUEST_INFO to { searchGuestInfos(query, matchers) },
+            SearchEntityKind.PAYMENT to { searchPayments(query, matchers) },
+            SearchEntityKind.EXPENSE to { searchExpenses(query, matchers) },
+            SearchEntityKind.WITHDRAWAL to { searchWithdrawals(query, matchers) },
+            SearchEntityKind.DEBT to { searchDebts(query, matchers) },
+            SearchEntityKind.EMPLOYEE to { searchEmployees(query, matchers) },
+            SearchEntityKind.ROOM to { searchRooms(query, matchers) },
+            SearchEntityKind.INVENTORY_ITEM to { searchInventoryItems(query, matchers) },
+            SearchEntityKind.BLACKLIST to { searchBlacklist(query, matchers) }
         )
 
         coroutineScope {
@@ -234,7 +243,7 @@ class GlobalSearchService @Inject constructor(
             .sortedWith(compareByDescending<com.marina.marina.data.local.entity.BookingEntity> { it.checkinDate }.thenByDescending { it.id })
         val hits = rows.take(MAX_HITS_PER_KIND).map { b ->
             GlobalSearchHit(
-                kind = SearchEntityKind.booking,
+                kind = SearchEntityKind.BOOKING,
                 id = b.id,
                 localUuid = b.localUuid,
                 title = b.guestName,
@@ -271,7 +280,7 @@ class GlobalSearchService @Inject constructor(
             .sortedByDescending { it.id }
         val hits = rows.take(MAX_HITS_PER_KIND).map { g ->
             GlobalSearchHit(
-                kind = SearchEntityKind.guestInfo,
+                kind = SearchEntityKind.GUEST_INFO,
                 id = g.id,
                 localUuid = g.localUuid,
                 title = g.guestName,
@@ -309,7 +318,7 @@ class GlobalSearchService @Inject constructor(
             .sortedWith(compareByDescending<com.marina.marina.data.local.entity.PaymentEntity> { it.paymentDate }.thenByDescending { it.id })
         val hits = rows.take(MAX_HITS_PER_KIND).map { p ->
             GlobalSearchHit(
-                kind = SearchEntityKind.payment,
+                kind = SearchEntityKind.PAYMENT,
                 id = p.id,
                 localUuid = p.localUuid,
                 title = if (!p.roomNumber.isNullOrBlank()) "دفعة — غرفة ${p.roomNumber}" else "دفعة — ${p.revenueType}",
@@ -348,7 +357,7 @@ class GlobalSearchService @Inject constructor(
             .sortedWith(compareByDescending<com.marina.marina.data.local.entity.ExpenseEntity> { it.date }.thenByDescending { it.id })
         val hits = rows.take(MAX_HITS_PER_KIND).map { e ->
             GlobalSearchHit(
-                kind = SearchEntityKind.expense,
+                kind = SearchEntityKind.EXPENSE,
                 id = e.id,
                 localUuid = e.localUuid,
                 title = e.description,
@@ -388,7 +397,7 @@ class GlobalSearchService @Inject constructor(
         val hits = rows.take(MAX_HITS_PER_KIND).map { w ->
             val empName = w.employeeName.ifBlank { nameById[w.employeeId] }
             GlobalSearchHit(
-                kind = SearchEntityKind.withdrawal,
+                kind = SearchEntityKind.WITHDRAWAL,
                 id = w.id,
                 localUuid = w.localUuid,
                 title = empName ?: "موظف محذوف",
@@ -432,7 +441,7 @@ class GlobalSearchService @Inject constructor(
             val amountHit = m.amount != null &&
                 (d.totalAmount == m.amount || d.paidAmount == m.amount || d.remainingAmount == m.amount)
             GlobalSearchHit(
-                kind = SearchEntityKind.debt,
+                kind = SearchEntityKind.DEBT,
                 id = d.id,
                 localUuid = d.localUuid,
                 title = d.guestName,
@@ -467,7 +476,7 @@ class GlobalSearchService @Inject constructor(
             .sortedBy { it.name }
         val hits = rows.take(MAX_HITS_PER_KIND).map { e ->
             GlobalSearchHit(
-                kind = SearchEntityKind.employee,
+                kind = SearchEntityKind.EMPLOYEE,
                 id = e.id,
                 localUuid = e.localUuid,
                 title = e.name,
@@ -494,7 +503,7 @@ class GlobalSearchService @Inject constructor(
             .sortedBy { it.roomNumber }
         val hits = rows.take(MAX_HITS_PER_KIND).map { r ->
             GlobalSearchHit(
-                kind = SearchEntityKind.room,
+                kind = SearchEntityKind.ROOM,
                 id = r.id,
                 localUuid = r.localUuid,
                 title = "غرفة ${r.roomNumber}",
@@ -520,7 +529,7 @@ class GlobalSearchService @Inject constructor(
             .sortedBy { it.name }
         val hits = rows.take(MAX_HITS_PER_KIND).map { i ->
             GlobalSearchHit(
-                kind = SearchEntityKind.inventoryItem,
+                kind = SearchEntityKind.INVENTORY_ITEM,
                 id = i.id,
                 localUuid = i.localUuid,
                 title = i.name,
@@ -557,7 +566,7 @@ class GlobalSearchService @Inject constructor(
         }
         val hits = matched.take(MAX_HITS_PER_KIND).map { entry ->
             GlobalSearchHit(
-                kind = SearchEntityKind.blacklist,
+                kind = SearchEntityKind.BLACKLIST,
                 id = entry.id,
                 localUuid = entry.localUuid,
                 title = entry.name,

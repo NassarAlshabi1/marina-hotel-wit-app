@@ -42,9 +42,7 @@ class BackupSettingsStore @Inject constructor(
 
     val backupFormat: Flow<BackupFormat> =
         context.backupDataStore.data.map {
-            runCatching {
-                BackupFormat.valueOf(it[BACKUP_FORMAT] ?: BackupFormat.sqlite.name)
-            }.getOrDefault(BackupFormat.sqlite)
+            BackupFormat.fromWireName(it[BACKUP_FORMAT])
         }
 
     suspend fun setLastBackup(timeMillis: Long, path: String) {
@@ -55,7 +53,7 @@ class BackupSettingsStore @Inject constructor(
     }
 
     suspend fun setFormat(format: BackupFormat) {
-        context.backupDataStore.edit { it[BACKUP_FORMAT] = format.name }
+        context.backupDataStore.edit { it[BACKUP_FORMAT] = format.wireName }
     }
 
     suspend fun lastBackupTimeOnce(): Long? = lastBackupTime.first()

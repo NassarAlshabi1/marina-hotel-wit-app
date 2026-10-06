@@ -173,7 +173,7 @@ class EmployeesViewModel @Inject constructor(
                     "خصم" -> "خصم من الراتب"
                     else -> "سحب راتب"
                 }
-                val expenseId = expensesRepository.insert(
+                expensesRepository.insert(
                     Expense(
                         expenseType = expenseType,
                         relatedId = employee.id,
@@ -183,17 +183,6 @@ class EmployeesViewModel @Inject constructor(
                         hotelDayKey = hotelDayKey,
                         employeeUuid = employee.localUuid
                     )
-                )
-                salaryWithdrawalsRepository.insertFromExpense(
-                    expenseId = expenseId,
-                    employeeId = employee.id,
-                    employeeUuid = employee.localUuid,
-                    employeeName = employee.name,
-                    amount = amount,
-                    dateIso = dateIso,
-                    hotelDayKey = hotelDayKey,
-                    withdrawalType = type,
-                    description = reason
                 )
                 _state.value = _state.value.copy(
                     message = "تم تسجيل $type بمبلغ ${CurrencyFormatter.formatAmount(amount)}"

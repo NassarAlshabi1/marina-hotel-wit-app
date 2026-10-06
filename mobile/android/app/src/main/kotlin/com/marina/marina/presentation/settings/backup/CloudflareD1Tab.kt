@@ -368,8 +368,7 @@ fun CloudflareD1Tab(
             Row {
                 Button(
                     onClick = { showConfirmUpload = true },
-                    enabled = !(state.uploading || state.localTables.isEmpty() ||
-                        !(state.probeResult?.dmlAllowed ?: false)),
+                    enabled = false,
                     modifier = Modifier.weight(1f)
                 ) {
                     if (state.uploading) {
@@ -382,7 +381,7 @@ fun CloudflareD1Tab(
                         Icon(Icons.Filled.CloudUpload, contentDescription = null)
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text(if (state.uploading) "جاري الرفع..." else "رفع البيانات المحددة الآن")
+                    Text(if (state.uploading) "جاري الرفع..." else "الرفع المباشر موقوف للحماية")
                 }
                 if (state.uploading) {
                     Spacer(Modifier.width(10.dp))
@@ -397,7 +396,7 @@ fun CloudflareD1Tab(
         if (state.probeResult != null && !(state.probeResult?.dmlAllowed ?: false)) {
             item {
                 Text(
-                    "لا يمكن الرفع: صلاحية الكتابة غير متاحة بالتوكن الحالي.",
+                    "الرفع المباشر موقوف لحماية البيانات؛ استخدم رفع التغييرات عبر Worker. فحص الاتصال للقراءة فقط.",
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(top = 8.dp)
@@ -476,7 +475,7 @@ fun CloudflareD1Tab(
                     "سيتم رفع ${state.selected.size} جدولاً (${state.selectedRows} صفاً) إلى قاعدة " +
                         "D1 المحددة باستخدام INSERT OR REPLACE.\n\n" +
                         "• لا يُحذف أي سجل موجود في D1 غير موجود محلياً.\n" +
-                        "• إعادة الرفع آمنة (نفس البيانات تستبدل نفسها).\n" +
+                        "• الرفع المباشر موقوف؛ استخدم Worker.\n" +
                         "• يُنصح بعدد صفوف كبير بألا تكون هناك عمليات كتابة كثيرة أثناء الرفع."
                 )
             },

@@ -3,6 +3,8 @@ package com.marina.marina.data.remote
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.net.URI
+import java.net.URISyntaxException
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,6 +30,9 @@ class WorkerEndpoints @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
+        private const val MIN_CUSTOM_PORT = 1
+        private const val MAX_CUSTOM_PORT = 65535
+
         /** مفتاح النطاق المخصّص في SharedPreferences (نفس مفتاح Flutter). */
         const val CUSTOM_URL_KEY = "cf_custom_worker_url"
 
@@ -101,19 +106,25 @@ class WorkerEndpoints @Inject constructor(
         if (!text.contains("://")) text = "https://$text"
         val uri = try {
             URI(text)
-        } catch (e: Exception) {
-            throw IllegalArgumentException("رابط غير صالح: $trimmed")
+        } catch (error: URISyntaxException) {
+            throw IllegalArgumentException("رابط غير صالح: $trimmed", error)
         }
-        val host = (uri.host ?: "").lowercase()
-        if (host.isEmpty() || host.contains(' ') || !host.contains('.')) {
-            throw IllegalArgumentException("اسم نطاق غير صالح: $trimmed")
+        val host = (uri.host ?: "").lowercase(Locale.ROOT)
+        require(host.isNotEmpty() && !host.contains(' ') && host.contains('.')) {
+            "اسم نطاق غير صالح: $trimmed"
         }
-        if (uri.scheme != "https") {
-            throw IllegalArgumentException("يجب أن يكون الرابط https: $trimmed")
+        require(uri.scheme.equals("https", ignoreCase = true)) {
+            "يجب أن يكون الرابط https: $trimmed"
         }
-        val path = uri.path ?: ""
-        if (uri.userInfo != null || (path.isNotEmpty() && path != "/") || uri.rawQuery != null) {
-            throw IllegalArgumentException("أدخل النطاق الجذر فقط بدون مسار: $trimmed")
+        val path = uri.path.orEmpty()
+        require(uri.userInfo == null && (path.isEmpty() || path == "/")) {
+            "أدخل النطاق الجذر فقط بدون مسار: $trimmed"
+        }
+        require(uri.rawQuery == null && uri.rawFragment == null) {
+            "أدخل النطاق الجذر فقط بدون استعلام أو جزء: $trimmed"
+        }
+        require(uri.port == -1 || uri.port in MIN_CUSTOM_PORT..MAX_CUSTOM_PORT) {
+            "منفذ غير صالح: $trimmed"
         }
         return if (uri.port == 443 || uri.port == -1) "https://$host" else "https://$host:${uri.port}"
     }

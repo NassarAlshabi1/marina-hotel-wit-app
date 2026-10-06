@@ -17,7 +17,7 @@ import javax.inject.Singleton
 object DatabaseModule {
 
     /** Add stable UUID references for salary-payment cycles and carry-over employees. */
-    private val MIGRATION_70_71 = object : Migration(70, 71) {
+    val MIGRATION_70_71 = object : Migration(70, 71) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT")
             db.execSQL("ALTER TABLE salary_carry_over_logs ADD COLUMN employee_uuid TEXT")
@@ -32,6 +32,42 @@ object DatabaseModule {
         }
     }
 
+    val MIGRATION_71_72 = object : Migration(71, 72) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE salary_withdrawals ADD COLUMN expense_uuid TEXT")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_salary_wd_expense_uuid ON salary_withdrawals(expense_uuid)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS pending_sync_links (entity TEXT NOT NULL, localUuid TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(entity, localUuid))")
+        }
+    }
+
+    val MIGRATION_72_73 = object : Migration(72, 73) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS sync_quarantine (entity TEXT NOT NULL, recordKey TEXT NOT NULL, payload TEXT NOT NULL, reason TEXT NOT NULL, PRIMARY KEY(entity, recordKey))")
+        }
+    }
+
+    /** Additive indexes only: no backfill, no financial-row rewrite. */
+    val MIGRATION_73_74 = object : Migration(73, 74) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_salary_wd_employee_uuid ON salary_withdrawals(employee_uuid)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_salary_cycles_employee_uuid ON salary_cycles(employee_uuid)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid ON salary_payments(employee_uuid)")
+        }
+    }
+
+    val MIGRATION_74_75 = object : Migration(74, 75) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE expenses ADD COLUMN expense_kind TEXT")
+            db.execSQL("""UPDATE expenses SET expense_kind = CASE
+ WHEN TRIM(expense_type) IN ('رواتب','سحب راتب','سحب من الراتب') THEN 'salary_withdrawal'
+ WHEN TRIM(expense_type) = 'سلفة' THEN 'salary_advance'
+ WHEN TRIM(expense_type) = 'خصم من الراتب' AND is_auto_generated = 1 AND instr(description, 'قسط سلفة') > 0 THEN 'salary_installment'
+ WHEN TRIM(expense_type) = 'خصم من الراتب' AND is_auto_generated = 1 THEN 'unclassified'
+ WHEN TRIM(expense_type) IN ('خصم من الراتب','خصم راتب','خصم','غياب') THEN 'salary_deduction'
+ ELSE 'normal' END WHERE expense_kind IS NULL""")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -40,8 +76,8 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71)
-            .fallbackToDestructiveMigration()
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75)
+            // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }
 

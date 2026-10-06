@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.domain.util.HotelTimeEngine
+import com.marina.marina.ui.theme.ReferenceLayout
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
@@ -59,8 +60,8 @@ fun PaymentsReportScreen(
         ) { padding ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = ReferenceLayout.ReportPadding,
+                verticalArrangement = Arrangement.spacedBy(ReferenceLayout.ReportSectionGap)
             ) {
                 item {
                     ReportDateFilter(range = state.range, onChange = { viewModel.setRange(it) })
@@ -204,7 +205,8 @@ internal fun exportPaymentsPdf(context: android.content.Context, state: Payments
                 columnWeights = listOf(0.5f, 1.2f, 1.6f, 0.9f, 1.1f, 1.6f, 1.1f)
             )
         ),
-        fileName = PdfExporter.generateFileName("مدفوعات-النزلاء")
+        fileName = PdfExporter.generateFileName("مدفوعات-النزلاء"),
+        compactHeader = true
     )
     PdfExporter.sharePdf(context, file, "تقرير مدفوعات النزلاء")
 }

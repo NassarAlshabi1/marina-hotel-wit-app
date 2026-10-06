@@ -22,3 +22,8 @@ scripts/appwrite/backup_splits/
 # Python cache
 __pycache__/
 *.pyc
+
+# Local/CI performance captures can contain screen data; never commit them.
+performance-evidence/
+quality-evidence/
+.maestro/tests/

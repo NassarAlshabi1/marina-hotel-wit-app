@@ -29,6 +29,18 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @javax.inject.Inject lateinit var autoSyncEngine: com.marina.marina.data.sync.AutoSyncEngine
+
+    override fun onStart() {
+        super.onStart()
+        autoSyncEngine.onForeground()
+    }
+
+    override fun onStop() {
+        if (!isChangingConfigurations) autoSyncEngine.onBackground()
+        super.onStop()
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

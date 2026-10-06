@@ -9,6 +9,7 @@ import com.google.gson.annotations.SerializedName
 @Entity(
     tableName = "salary_payments",
     indices = [
+        Index(value = ["employee_uuid"], name = "idx_salary_payments_employee_uuid"),
         Index(value = ["cycle_id", "hotel_day_key"], name = "idx_salary_payments_cycle"),
         Index(value = ["cycle_uuid"], name = "idx_salary_payments_cycle_uuid")
     ]

@@ -7,6 +7,7 @@ import android.os.Looper
 import android.util.TypedValue
 import android.widget.ScrollView
 import android.widget.TextView
+import com.a.a.R
 
 /**
  * Bare launch probe: framework [Activity] + [TextView] only.
@@ -36,7 +37,7 @@ class BareLaunchActivity : Activity() {
         val view = TextView(this).apply {
             setPadding(48, 140, 48, 48)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-            text = "BARE LAUNCH ALIVE\n\n" + LaunchDiag.snapshot(this@BareLaunchActivity)
+            text = getString(R.string.bare_launch_alive, LaunchDiag.snapshot(this@BareLaunchActivity))
         }
         setContentView(ScrollView(this).apply { addView(view) })
         LaunchDiag.stage(this, "Bare.setContentView")
@@ -45,7 +46,7 @@ class BareLaunchActivity : Activity() {
         // killed the process during the window the real app dies in (<1s).
         handler.postDelayed({
             LaunchDiag.stage(this, "Bare.aliveAfter3s")
-            view.text = "BARE LAUNCH ALIVE (3s)\n\n" + LaunchDiag.snapshot(this)
+            view.text = getString(R.string.bare_launch_alive_after_delay, LaunchDiag.snapshot(this))
         }, 3_000)
     }
 
@@ -71,6 +72,7 @@ class BareLaunchActivity : Activity() {
 
     override fun onDestroy() {
         LaunchDiag.stage(this, "Bare.onDestroy")
+        handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 }

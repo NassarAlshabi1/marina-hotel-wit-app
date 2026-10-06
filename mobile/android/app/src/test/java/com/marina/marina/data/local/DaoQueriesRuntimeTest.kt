@@ -47,6 +47,69 @@ class DaoQueriesRuntimeTest {
         db.close()
     }
 
+    @Test
+    fun paymentScreenQueriesAreScopedToTheBookingAndExcludeDeletedRows() = runBlocking {
+        val booking = com.marina.marina.data.local.entity.BookingEntity(
+            roomNumber = "101", guestName = "ضيف", guestPhone = "", guestNationality = "يمني",
+            checkinDate = "2026-10-01", status = "نشط", localUuid = "booking-one"
+        )
+        val firstId = db.bookingsDao().insert(booking)
+        db.bookingsDao().insert(booking.copy(roomNumber = "102", localUuid = "booking-two"))
+        assertEquals("101", db.bookingsDao().watchById(firstId).first()!!.roomNumber)
+        val debt = com.marina.marina.data.local.entity.DebtEntity(
+            bookingLocalId = firstId, guestName = "ضيف", checkinDate = "2026-10-01",
+            checkoutDate = "2026-10-02", totalAmount = 50.0, paidAmount = 0.0,
+            remainingAmount = 50.0, paymentDate = "", localUuid = "debt-one"
+        )
+        db.debtsDao().insert(debt)
+        db.debtsDao().insert(debt.copy(bookingLocalId = firstId + 1, localUuid = "debt-other"))
+        db.debtsDao().insert(debt.copy(deletedAt = 1L, localUuid = "debt-deleted"))
+        assertEquals(listOf("debt-one"), db.debtsDao().getByBooking(firstId).first().map { it.localUuid })
+        db.bookingsDao().softDelete(firstId, 1L, 1L, 1L)
+        assertNull(db.bookingsDao().watchById(firstId).first())
+    }
+
+    @Test
+    fun undeliveredBadgeIncludesProcessingAndFailedLocalRowsOnly() = runBlocking {
+        val row = com.marina.marina.data.local.entity.OutboxEntity(
+            entity = "payments", op = "insert", localUuid = "payment", payload = "{}", clientTs = 1L
+        )
+        listOf("pending", "processing", "failed").forEachIndexed { index, status ->
+            db.outboxDao().insert(row.copy(localUuid = "local-$index", processingStatus = status))
+        }
+        db.outboxDao().insert(row.copy(localUuid = "delivered", deliveredToPrimary = true))
+        db.outboxDao().insert(row.copy(localUuid = "remote", source = "remote"))
+        assertEquals(3, db.outboxDao().undeliveredCount().first())
+    }
+
+    @Test
+    fun syncHealthSnapshotUsesAcknowledgementsLegacyTimesAndPrimaryFailures() = runBlocking {
+        val now = 1_800_000_000_000L
+        val row = com.marina.marina.data.local.entity.OutboxEntity(
+            entity = "payments", op = "insert", localUuid = "pending", payload = "{}", clientTs = now - 120_000
+        )
+        db.outboxDao().insert(row)
+        db.outboxDao().insert(row.copy(localUuid = "failed", primaryProcessingStatus = "failed"))
+        db.outboxDao().insert(row.copy(localUuid = "processing", processingStatus = "processing",
+            processingStartedAt = (now - 301_000) / 1000, clientTs = (now - 301_000) / 1000))
+        db.outboxDao().insert(row.copy(localUuid = "delivered", deliveredToPrimary = true,
+            primaryProcessingStatus = "failed"))
+        db.outboxDao().insert(row.copy(localUuid = "remote", source = "remote"))
+        val report = com.marina.marina.data.diagnostics.SyncHealthRepository(db).read(now)
+        assertEquals(1L, report.pending)
+        assertEquals(1L, report.failed)
+        assertEquals(1L, report.processing)
+        assertEquals(1L, report.completed)
+        assertEquals(1L, report.stuck)
+        assertEquals(301_000L, report.oldestAgeMs)
+        assertEquals(3L, report.entities["payments"])
+        assertTrue(report.tables.containsKey("bookings"))
+        db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM outbox").use {
+            it.moveToFirst()
+            assertEquals(5, it.getInt(0))
+        }
+    }
+
     /** Schema-level assertions for the two porting bugs fixed on this branch. */
     @Test
     fun schemaExposesFixedColumnsAndSyncLogIndices() {

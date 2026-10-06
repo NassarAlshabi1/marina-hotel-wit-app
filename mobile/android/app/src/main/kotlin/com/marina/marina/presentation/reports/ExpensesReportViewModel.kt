@@ -17,12 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
-/**
- * تقرير المصروفات — 1:1 port of `expenses_report_screen.dart`:
- * hotel-day range query with type filter + the salary-withdrawal merge with
- * the 3-tier dedup contract (expenseId map / `exp_<id>` reason / amount+
- * employee+day match), grouped by type with subtotals sorted descending.
- */
+/** Salary mirrors are suppressed only through an explicit, unique source UUID. */
 data class ExpenseReportRow(
     val date: String,
     val displayDate: String,
@@ -48,6 +43,7 @@ data class ExpensesReportUiState(
     val groups: List<ExpenseTypeGroup> = emptyList(),
     val totalAmount: Double = 0.0,
     val salaryTotal: Double = 0.0,
+    val unresolvedMirrorCount: Int = 0,
     val salaryCount: Int = 0
 ) {
     val operationalTotal: Double get() = totalAmount - salaryTotal
@@ -57,7 +53,7 @@ data class ExpensesReportUiState(
 private val salaryTypes = setOf("رواتب", "سحب راتب", "سحب من الراتب", "سلفة", "خصم راتب", "خصم من الراتب", "خصم", "غياب")
 private val cashSalaryTypes = setOf("رواتب", "سحب راتب", "سحب من الراتب", "سلفة")
 
-private fun isSalaryType(type: String?) = type != null && salaryTypes.any { it.contains(type) || type.contains(it) }
+private fun isSalaryType(type: String?) = type != null && type.trim() in salaryTypes
 
 private fun uuidComparable(value: String): String = value.trim().replace("-", "").lowercase()
 
@@ -69,12 +65,6 @@ private fun sameEmployee(expense: Expense, withdrawal: SalaryWithdrawal): Boolea
             uuidComparable(expenseUuid) == uuidComparable(withdrawalUuid)
     }
     return expense.relatedId != null && expense.relatedId == withdrawal.employeeId
-}
-
-/** Dart expenses_report_screen.dart l.57-71 — type يحتوي إحدى الكلمات المفتاحية. */
-private fun isSalaryTypeFamily(type: String?): Boolean {
-    if (type == null) return false
-    return salaryTypes.any { type.contains(it) }
 }
 
 /**
@@ -97,6 +87,18 @@ private fun hotelDayKeysMatch(
 /** Dart _extractDatePart (l.1416-1419). */
 private fun extractDatePart(dateStr: String): String =
     if (dateStr.length >= 10) dateStr.substring(0, 10) else dateStr.trim()
+
+internal fun hasExplicitSalaryMirror(
+    withdrawal: SalaryWithdrawal,
+    expenses: List<Expense>,
+    withdrawals: List<SalaryWithdrawal>
+): Boolean {
+    val source = withdrawal.expenseUuid?.takeIf { it.isNotBlank() } ?: return false
+    val expense = expenses.filter { it.localUuid == source && it.deletedAt == null }.singleOrNull() ?: return false
+    if (withdrawals.count { it.expenseUuid == source && it.deletedAt == null } != 1) return false
+    return sameEmployee(expense, withdrawal) && expense.amount == withdrawal.amount &&
+        hotelDayKeysMatch(expense.hotelDayKey, withdrawal.hotelDayKey, expense.date, withdrawal.withdrawDate)
+}
 
 @HiltViewModel
 class ExpensesReportViewModel @Inject constructor(
@@ -150,15 +152,14 @@ class ExpensesReportViewModel @Inject constructor(
                     .sorted()
 
                 // ------------------------------------------------------------------
-                // Salary-withdrawal merge with the Dart 3-tier dedup (l.284-510).
+                // Explicit source links only; unverified rows remain visible.
                 // ------------------------------------------------------------------
                 val rows = mutableListOf<ExpenseReportRow>()
-                val addedExpenseIds = mutableSetOf<Long>()
+                var unresolvedMirrorCount = 0
                 val showSalary = selectedType == null || isSalaryType(selectedType)
 
                 expenses.forEach { e ->
                     val employee = employeeForLink(e.employeeUuid, e.relatedId)
-                    addedExpenseIds.add(e.id)
                     rows.add(
                         ExpenseReportRow(
                             date = e.date,
@@ -186,29 +187,9 @@ class ExpensesReportViewModel @Inject constructor(
                         // لا تُطابق أبداً — ليس لها مصروف مقابل أصلاً وتُعرض دائماً.
                         val isDirectWithdrawal = w.reason?.startsWith("direct_withdrawal_") == true
 
-                        // Tier 2 (Dart l.445-456): exp_<id> is a legacy local id,
-                        // so also verify employee/day/amount before suppressing a row.
-                        val linkedExpenseId = Regex("exp_(\\d+)").find(w.reason ?: "")?.groupValues?.get(1)?.toLongOrNull()
-                        val linkedExpense = linkedExpenseId?.takeIf { it in addedExpenseIds }
-                            ?.let { id -> expenses.find { it.id == id } }
-                        val refMatched = linkedExpense != null &&
-                            isSalaryTypeFamily(linkedExpense.expenseType) &&
-                            sameEmployee(linkedExpense, w) &&
-                            hotelDayKeysMatch(linkedExpense.hotelDayKey, w.hotelDayKey, linkedExpense.date, w.withdrawDate) &&
-                            kotlin.math.abs(linkedExpense.amount) == kotlin.math.abs(w.amount)
-
-                        // Tier 3: only suppress when the legacy amount/employee/day
-                        // signature identifies exactly one expense; ambiguity stays visible.
-                        val dataMatches = expenses.filter { e ->
-                            isSalaryTypeFamily(e.expenseType) &&
-                                sameEmployee(e, w) &&
-                                hotelDayKeysMatch(e.hotelDayKey, w.hotelDayKey, e.date, w.withdrawDate) &&
-                                kotlin.math.abs(e.amount) == kotlin.math.abs(w.amount)
-                        }
-                        val dataMatch = !refMatched && dataMatches.size == 1
-
-                        val hasMatchingExpense = !isDirectWithdrawal && (refMatched || dataMatch)
+                        val hasMatchingExpense = !isDirectWithdrawal && hasExplicitSalaryMirror(w, expenses, withdrawals)
                         if (!hasMatchingExpense) {
+                            if (!isDirectWithdrawal) unresolvedMirrorCount++
                             val isDeduction = (w.withdrawalType.contains("خصم") || w.withdrawalType.contains("deduction"))
                             val displayType = if (isDeduction) "خصم من الراتب" else "سحب راتب"
                             val employee = employeeForLink(w.employeeUuid, w.employeeId)
@@ -245,7 +226,8 @@ class ExpensesReportViewModel @Inject constructor(
                     groups = grouped,
                     totalAmount = total,
                     salaryTotal = salaryRows.sumOf { it.amount },
-                    salaryCount = salaryRows.size
+                    salaryCount = salaryRows.size,
+                    unresolvedMirrorCount = unresolvedMirrorCount
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false)

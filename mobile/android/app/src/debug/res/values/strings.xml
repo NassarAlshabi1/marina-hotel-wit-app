@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bare_launch_alive" translatable="false">BARE LAUNCH ALIVE\n\n%1$s</string>
+    <string name="bare_launch_alive_after_delay" translatable="false">BARE LAUNCH ALIVE (3s)\n\n%1$s</string>
+</resources>

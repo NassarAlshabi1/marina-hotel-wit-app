@@ -2,9 +2,11 @@ package com.marina.marina.domain.repository
 
 import com.marina.marina.domain.model.Booking
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 interface BookingsRepository {
     fun getAll(): Flow<List<Booking>>
+    fun watchById(id: Long): Flow<Booking?> = getAll().map { rows -> rows.firstOrNull { it.id == id } }
     suspend fun getById(id: Long): Booking?
     suspend fun insert(booking: Booking): Long
     suspend fun update(booking: Booking)

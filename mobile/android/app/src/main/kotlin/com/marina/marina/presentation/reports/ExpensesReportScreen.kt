@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.marina.marina.domain.util.CurrencyFormatter
+import com.marina.marina.ui.theme.ReferenceLayout
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
@@ -57,8 +58,8 @@ fun ExpensesReportScreen(
         ) { padding ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = ReferenceLayout.ReportPadding,
+                verticalArrangement = Arrangement.spacedBy(ReferenceLayout.ReportSectionGap)
             ) {
                 item {
                     ReportDateFilter(range = state.range, onChange = { viewModel.setRange(it) })
@@ -85,6 +86,17 @@ fun ExpensesReportScreen(
                         }
                         Spacer(modifier = Modifier.weight(1f))
                         ReportSearchButton(onClick = { viewModel.fetch() }, loading = state.isLoading)
+                    }
+                }
+
+                if (state.unresolvedMirrorCount > 0) {
+                    item {
+                        Text(
+                            "تنبيه: ${state.unresolvedMirrorCount} سحباً بلا مرآة مؤكدة ضمن النتائج. " +
+                                "لم تُخفَ السجلات بالتخمين؛ قد تتضمن المجاميع ازدواجاً تاريخياً يحتاج مراجعة.",
+                            color = AppColors.WarningColor,
+                            modifier = Modifier.padding(12.dp)
+                        )
                     }
                 }
 
@@ -236,23 +248,29 @@ internal fun exportExpensesPdf(context: android.content.Context, state: Expenses
             Triple("مصروفات تشغيلية", CurrencyFormatter.formatAmount(state.operationalTotal), 0xFF00897B.toInt())
         ),
         tables = listOf(
-            PdfExporter.PdfTable(
-                title = "تفاصيل المصروفات",
-                headers = listOf("التاريخ", "المبلغ", "النوع", "الوصف", "الموظف"),
-                rows = allRows.map { row ->
-                    listOf(
-                        row.displayDate.take(10),
-                        CurrencyFormatter.formatAmount(row.amount),
-                        row.type,
-                        row.description.ifBlank { "-" },
-                        row.employeeName ?: if (row.isSalaryWithdrawal) "غير محدد" else "-"
-                    )
-                },
-                totalRow = listOf("الإجمالي", CurrencyFormatter.formatAmount(state.totalAmount), "", "", ""),
-                columnWeights = listOf(1.1f, 1.0f, 1.2f, 2.0f, 1.2f)
-            )
+            expensesPdfTable(state)
         ),
-        fileName = PdfExporter.generateFileName("تقرير-المصروفات")
+        fileName = PdfExporter.generateFileName("تقرير-المصروفات"),
+        statsAfterTables = true
     )
     PdfExporter.sharePdf(context, file, "تقرير المصروفات")
+}
+
+/** Screen and PDF consume the same finalized rows, never merge withdrawals again. */
+internal fun expensesPdfTable(state: ExpensesReportUiState): PdfExporter.PdfTable {
+    val allRows = state.groups.flatMap { it.rows }
+    val showEmployee = allRows.any { it.employeeId != null || it.employeeName != null || it.isSalaryWithdrawal }
+    val headers = listOf("التاريخ", "المبلغ", "النوع", "الوصف") + if (showEmployee) listOf("الموظف") else emptyList()
+    return PdfExporter.PdfTable(
+        title = "تفاصيل المصروفات",
+        headers = headers,
+        rows = allRows.map { row ->
+            listOf(row.displayDate.take(10).replace('-', '/'), CurrencyFormatter.formatAmount(row.amount),
+                row.type, row.description.ifBlank { "-" }) +
+                if (showEmployee) listOf(row.employeeName ?: if (row.isSalaryWithdrawal) "غير محدد" else "-") else emptyList()
+        },
+        totalRow = listOf("الإجمالي", CurrencyFormatter.formatAmount(state.totalAmount), "", "") +
+            if (showEmployee) listOf("") else emptyList(),
+        columnWeights = listOf(1.1f, 1.0f, 1.2f, 2.0f) + if (showEmployee) listOf(1.2f) else emptyList()
+    )
 }

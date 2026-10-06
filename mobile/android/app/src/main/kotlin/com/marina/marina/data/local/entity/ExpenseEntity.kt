@@ -26,6 +26,10 @@ data class ExpenseEntity(
     @ColumnInfo(name = "expense_type")
     val expenseType: String,
 
+    @SerializedName("expense_kind")
+    @ColumnInfo(name = "expense_kind")
+    val expenseKind: String? = null,
+
     @SerializedName("related_id")
     @ColumnInfo(name = "related_id")
     val relatedId: Long? = null,

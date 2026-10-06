@@ -17,6 +17,9 @@ interface BookingsDao {
     suspend fun getAllOnce(): List<BookingEntity>
 
     @Query("SELECT * FROM bookings WHERE id = :id AND deleted_at IS NULL")
+    fun watchById(id: Long): Flow<BookingEntity?>
+
+    @Query("SELECT * FROM bookings WHERE id = :id AND deleted_at IS NULL")
     suspend fun getById(id: Long): BookingEntity?
 
     @Query("SELECT * FROM bookings WHERE room_number = :roomNumber AND deleted_at IS NULL ORDER BY checkin_date DESC")
@@ -33,6 +36,16 @@ interface BookingsDao {
 
     @Update
     suspend fun update(booking: BookingEntity)
+
+    /** Local derived values only: do not rewrite sync metadata or enqueue a booking mutation. */
+    @Query("""
+        UPDATE bookings SET calculated_nights = :nights, total_due_cached = :due,
+            total_paid_cached = :paid, remaining_balance_cached = :remaining,
+            is_fully_paid = :fullyPaid
+        WHERE id = :id AND deleted_at IS NULL
+    """)
+    suspend fun updateFinancialCache(id: Long, nights: Int, due: Double, paid: Double,
+                                    remaining: Double, fullyPaid: Boolean)
 
     @Query("UPDATE bookings SET status = :status, actual_checkout = :actualCheckout, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
     suspend fun checkout(id: Long, status: String, actualCheckout: String?, updatedAt: Long, lastModified: Long): Int

@@ -50,7 +50,7 @@ class RoomsRepositoryImpl @Inject constructor(
         val activeBooking = bookingsDao.getActiveBookingForRoom(room.roomNumber)
         if (activeBooking != null) {
             val guest = activeBooking.guestName.ifBlank { "غير معروف" }
-            throw IllegalStateException("لا يمكن حذف الغرفة ${room.roomNumber}: يوجد حجز نشط (الضيف: $guest)")
+            error("لا يمكن حذف الغرفة ${room.roomNumber}: يوجد حجز نشط (الضيف: $guest)")
         }
         val now = System.currentTimeMillis()
         roomsDao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)

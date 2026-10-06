@@ -43,79 +43,12 @@ import com.marina.marina.presentation.search.GlobalSearchScreen
 import com.marina.marina.presentation.rooms.RoomsListScreen
 import com.marina.marina.presentation.settings.BookingsReminderScreen
 import com.marina.marina.presentation.settings.CloudflareSyncSettingsScreen
+import com.marina.marina.presentation.settings.MaintenanceScreen
 import com.marina.marina.presentation.settings.SettingsScreen
+import com.marina.marina.presentation.settings.SyncHealthScreen
 import com.marina.marina.presentation.settings.SyncDiagnosticsScreen
+import com.marina.marina.presentation.settings.backup.LocalBackupScreen
 import com.marina.marina.presentation.settings.backup.ComprehensiveBackupScreen
-
-sealed class Screen(val route: String) {
-    object Login : Screen("login")
-    object Dashboard : Screen("dashboard")
-    object Rooms : Screen("rooms")
-    object Bookings : Screen("bookings")
-    object BookingEdit : Screen("booking_edit?bookingId={bookingId}&roomNumber={roomNumber}") {
-        const val ARG_BOOKING_ID = "bookingId"
-        const val ARG_ROOM_NUMBER = "roomNumber"
-        fun createRoute(bookingId: Long = 0L, roomNumber: String = "") =
-            "booking_edit?bookingId=$bookingId&roomNumber=$roomNumber"
-    }
-    object BookingPayment : Screen("booking_payment/{bookingId}") {
-        const val ARG_BOOKING_ID = "bookingId"
-        fun createRoute(bookingId: Long) = "booking_payment/$bookingId"
-    }
-    object Payments : Screen("payments")
-    object Debts : Screen("debts")
-    object Employees : Screen("employees")
-    object Expenses : Screen("expenses")
-    object Notes : Screen("notes")
-    object Settings : Screen("settings")
-    object Reports : Screen("reports")
-    object Finance : Screen("finance")
-    object Information : Screen("information")
-    object Blacklist : Screen("blacklist")
-    object PaymentHistory : Screen("payment_history?bookingId={bookingId}") {
-        const val ARG_BOOKING_ID = "bookingId"
-        fun createRoute(bookingId: Long? = null) =
-            if (bookingId != null && bookingId > 0) "payment_history?bookingId=$bookingId" else "payment_history"
-    }
-    object SalaryEntitlements : Screen("salary_entitlements")
-
-    /**
-     * شاشة الاتصال بـ Cloudflare — نظير cloudflare_login_screen.dart:
-     * تُفتح من إعدادات المزامنة (أو مؤشر المزامنة) ولا تنتقل بعيداً
-     * بعد الدخول — الحالة تتحدث حياً على الشاشة نفسها.
-     */
-    object CloudflareLogin : Screen("cloudflare_login")
-
-    /** ✅ (2026-09-24) إعدادات المزامنة الموحدة — نظير UnifiedSyncSettingsScreen. */
-    object CloudflareSyncSettings : Screen("cloudflare_sync_settings")
-    object SyncDiagnostics : Screen("sync_diagnostics")
-    object BookingCheckout : Screen("booking_checkout/{bookingId}") {
-        const val ARG_BOOKING_ID = "bookingId"
-        fun createRoute(bookingId: Long) = "booking_checkout/$bookingId"
-    }
-    object CreateDebt : Screen("create_debt/{bookingId}") {
-        const val ARG_BOOKING_ID = "bookingId"
-        fun createRoute(bookingId: Long) = "create_debt/$bookingId"
-    }
-    object Inventory : Screen("inventory")
-    object AIChat : Screen("ai_chat")
-
-    /** النسخ الاحتياطي والاستعادة — نظير ComprehensiveBackupScreen. */
-    object Backup : Screen("backup")
-
-    /** البحث الشامل — نظير GlobalSearchScreen (فرع feat/cloudflare-sync-execution). */
-    object GlobalSearch : Screen("global_search")
-
-    // Report sub-screens (Dart reports module).
-    object PaymentsReport : Screen("payments_report")
-    object ExpensesReport : Screen("expenses_report")
-    object IncomeExpenseReport : Screen("income_expense_report")
-    object DebtsReport : Screen("debts_report")
-    object InventoryReport : Screen("inventory_report")
-    object SalaryReport : Screen("salary_report")
-    object GuestDetailReport : Screen("guest_detail_report")
-    object BookingsReminder : Screen("bookings_reminder")
-}
 
 /**
  * Registers a top-level destination wrapped in [AdminScaffold] so it gets
@@ -277,6 +210,25 @@ fun MarinaNavGraph(
             )
         }
 
+        adminScreen(navController, authViewModel, Screen.Maintenance.route) {
+            val authState by authViewModel.authState.collectAsState()
+            if (authState.currentUser?.isAdmin == true) {
+                MaintenanceScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenSyncHealth = { navController.navigate(Screen.SyncHealth.route) },
+                    onOpenDiagnostics = { navController.navigate(Screen.SyncDiagnostics.route) },
+                    onOpenBackup = { navController.navigate(Screen.LocalBackup.route) }
+                )
+            } else {
+                androidx.compose.foundation.layout.Column {
+                    androidx.compose.material3.Text("قسم الصيانة متاح لمدير النظام فقط")
+                    androidx.compose.material3.TextButton(onClick = { navController.popBackStack() }) {
+                        androidx.compose.material3.Text("رجوع")
+                    }
+                }
+            }
+        }
+
         adminScreen(navController, authViewModel, Screen.Reports.route) {
             ReportsScreen(
                 onOpenReport = { route -> navController.navigate(route) },
@@ -352,6 +304,14 @@ fun MarinaNavGraph(
             )
         }
 
+        composable(Screen.SyncHealth.route) {
+            SyncHealthScreen(
+                onBack = { navController.popBackStack() },
+                onOpenDiagnostics = { navController.navigate(Screen.SyncDiagnostics.route) },
+                onOpenSettings = { navController.navigate(Screen.CloudflareSyncSettings.route) }
+            )
+        }
+
         composable(Screen.SyncDiagnostics.route) {
             SyncDiagnosticsScreen(onBack = { navController.popBackStack() })
         }
@@ -409,6 +369,19 @@ fun MarinaNavGraph(
         }
         composable(Screen.BookingsReminder.route) {
             BookingsReminderScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.LocalBackup.route) {
+            val authState by authViewModel.authState.collectAsState()
+            if (authState.currentUser?.isAdmin == true) {
+                LocalBackupScreen(onBack = { navController.popBackStack() })
+            } else {
+                androidx.compose.foundation.layout.Column {
+                    androidx.compose.material3.Text("النسخ الاحتياطي والاستعادة متاحان لمدير النظام فقط")
+                    androidx.compose.material3.TextButton(onClick = { navController.popBackStack() }) {
+                        androidx.compose.material3.Text("رجوع")
+                    }
+                }
+            }
         }
         composable(Screen.Backup.route) {
             ComprehensiveBackupScreen(onBack = { navController.popBackStack() })

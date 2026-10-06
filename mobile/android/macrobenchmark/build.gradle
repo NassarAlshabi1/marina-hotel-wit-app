@@ -1,0 +1,42 @@
+plugins {
+    id 'com.android.test'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.a.a.macrobenchmark'
+    compileSdk 35
+    defaultConfig {
+        minSdk 26
+        targetSdk 35
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+    targetProjectPath = ':app'
+    experimentalProperties['android.experimental.self-instrumenting'] = true
+    buildTypes {
+        benchmark {
+            debuggable true
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['release']
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+}
+
+androidComponents {
+    beforeVariants(selector().all()) { variant ->
+        variant.enable = variant.buildType == 'benchmark'
+    }
+}
+
+dependencies {
+    // Pinned to the existing Kotlin 1.9 / AGP 8.6 toolchain, not claimed to be latest.
+    implementation 'androidx.benchmark:benchmark-macro-junit4:1.2.4'
+    implementation 'androidx.test.ext:junit:1.1.5'
+    implementation 'androidx.test:runner:1.5.2'
+    implementation 'androidx.test.uiautomator:uiautomator:2.3.0'
+}

@@ -99,6 +99,19 @@ class EncryptedSharedPreferencesManager @Inject constructor(
 
     private fun prefs() = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    /** Durably commit restore barriers before any destructive SQLite change. */
+    fun commitValues(values: Map<String, Any>) {
+        val editor = prefs().edit()
+        values.forEach { (key, value) ->
+            when (value) {
+                is Long -> editor.putLong(key, value)
+                is Boolean -> editor.putBoolean(key, value)
+                else -> error("Unsupported durable preference type")
+            }
+        }
+        check(editor.commit()) { "تعذر حفظ حالة المزامنة بأمان؛ لم تبدأ الاستعادة" }
+    }
+
     fun saveString(key: String, value: String) {
         prefs().edit().putString(key, value).apply()
     }

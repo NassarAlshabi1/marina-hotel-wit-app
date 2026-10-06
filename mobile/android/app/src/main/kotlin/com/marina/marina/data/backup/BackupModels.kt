@@ -9,10 +9,27 @@ import com.google.gson.annotations.SerializedName
  */
 
 /** نظير `enum BackupFormat` في local_backup_service.dart. */
-enum class BackupFormat { json, sqlite }
+enum class BackupFormat(val wireName: String) {
+    @SerializedName("json") JSON("json"),
+    @SerializedName("sqlite") SQLITE("sqlite");
+
+    companion object {
+        fun fromWireName(value: String?): BackupFormat =
+            entries.firstOrNull { it.wireName == value || it.name == value } ?: SQLITE
+    }
+}
 
 /** نظير `enum BackupStatus` في backup_provider.dart — نفس الأسماء. */
-enum class BackupStatus { idle, uploading, downloading, restoring, success, error, checkingPermissions, importingFile }
+enum class BackupStatus {
+    @SerializedName("idle") IDLE,
+    @SerializedName("uploading") UPLOADING,
+    @SerializedName("downloading") DOWNLOADING,
+    @SerializedName("restoring") RESTORING,
+    @SerializedName("success") SUCCESS,
+    @SerializedName("error") ERROR,
+    @SerializedName("checkingPermissions") CHECKING_PERMISSIONS,
+    @SerializedName("importingFile") IMPORTING_FILE
+}
 
 /**
  * نظير `BackupMetadata` في local_backup_service.dart — نفس مفاتيح JSON
@@ -46,7 +63,7 @@ data class LocalBackupFile(
  * الاحتياطي التي تراقبها الواجهة.
  */
 data class BackupState(
-    val status: BackupStatus = BackupStatus.idle,
+    val status: BackupStatus = BackupStatus.IDLE,
     val message: String? = null,
     val progress: Double? = null,
     val localBackups: List<LocalBackupFile> = emptyList(),
@@ -60,11 +77,11 @@ data class BackupState(
 ) {
     /** نظير `isWorking` في Dart — يجمّد الأزرار أثناء العملية. */
     val isWorking: Boolean
-        get() = status == BackupStatus.uploading ||
-            status == BackupStatus.downloading ||
-            status == BackupStatus.restoring ||
-            status == BackupStatus.checkingPermissions ||
-            status == BackupStatus.importingFile
+        get() = status == BackupStatus.UPLOADING ||
+            status == BackupStatus.DOWNLOADING ||
+            status == BackupStatus.RESTORING ||
+            status == BackupStatus.CHECKING_PERMISSIONS ||
+            status == BackupStatus.IMPORTING_FILE
 }
 
 /** نظير `RestoreFixReport` في restore_fix_service.dart. */
@@ -74,7 +91,14 @@ data class RestoreFixReport(
     val roomsUpdated: Int,
     val paymentsRecalculated: Int,
     val error: String? = null
-)
+) {
+    /** Imported data may exist, but a failed repair must never produce a success notification. */
+    fun requireSuccess() {
+        check(success) {
+            "تم تحميل بيانات النسخة، لكن فشل الإصلاح اللاحق: ${error ?: "سبب غير معروف"}"
+        }
+    }
+}
 
 /** معلومات مجلد النسخ المحلي — نظير getBackupFolderInfo في Dart. */
 data class BackupFolderInfo(
@@ -82,19 +106,3 @@ data class BackupFolderInfo(
     val backupsCount: Int,
     val totalSizeMb: String
 )
-
-/** تنسيق أحجام الملفات بالعربية — نظير FileSizeFormatter.formatBytes. */
-object FileSizeFormatter {
-    fun formatBytes(bytes: Long, decimals: Int = 2): String {
-        if (bytes <= 0) return "0 بايت"
-        val suffixes = arrayOf("بايت", "كيلوبايت", "ميجابايت", "جيجابايت", "تيرابايت")
-        val i = (63 - java.lang.Long.numberOfLeadingZeros(bytes)) / 10
-        if (i >= suffixes.size) {
-            return String.format(
-                "%.${decimals}f ${suffixes.last()}",
-                bytes / Math.pow(1024.0, (suffixes.size - 1).toDouble())
-            )
-        }
-        return String.format("%.${decimals}f ${suffixes[i]}", bytes / Math.pow(1024.0, i.toDouble()))
-    }
-}

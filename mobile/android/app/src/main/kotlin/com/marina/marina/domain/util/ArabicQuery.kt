@@ -21,7 +21,7 @@ object ArabicQuery {
 
     /** التشكيل وعلامات القرآن + التطويل — تُحذف في التطبيع. */
     private val diacriticsRegex = Regex("[\u0617-\u061A\u064B-\u0652\u0670\u0653-\u065F\u06D6-\u06ED]")
-    private val tatweel = '\u0640'
+    private const val tatweel = '\u0640'
     private val alefFamilyRegex = Regex("[إأٱآ]")
     private val whitespaceRegex = Regex("\\s+")
 

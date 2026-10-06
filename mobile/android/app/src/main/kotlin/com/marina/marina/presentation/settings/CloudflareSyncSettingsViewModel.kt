@@ -7,6 +7,7 @@ import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.data.remote.WorkerEndpoints
 import com.marina.marina.domain.repository.SyncRepository
+import com.marina.marina.data.sync.SyncOperationRunner
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.TimeoutCancellationException
@@ -40,7 +41,8 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
     private val syncRepository: SyncRepository,
     private val syncService: CloudflareSyncService,
     private val cloudflareConfig: CloudflareConfig,
-    private val workerEndpoints: WorkerEndpoints
+    private val workerEndpoints: WorkerEndpoints,
+    private val syncOperationRunner: SyncOperationRunner
 ) : ViewModel() {
 
     /** رسالة سناك-بار مع لون النتيجة (نظير _showSyncResultSnack في Dart). */
@@ -354,9 +356,12 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
      * غير مُسلّمة في outbox (يجب رفعها أولاً) — نفس عقد Dart.
      */
     fun runPullNow() {
-        if (_state.value.isManualSyncing) return
+        if (_state.value.isManualSyncing || syncRepository.syncState.value.isSyncing) return
         _state.value = _state.value.copy(isManualSyncing = true)
-        viewModelScope.launch {
+        syncOperationRunner.launch(onStartFailure = {
+            _state.value = _state.value.copy(isManualSyncing = false)
+            showSyncSnack(false, "تعذر بدء المزامنة في الخلفية؛ افتح التطبيق وحاول مجددًا")
+        }) {
             try {
                 if (!_state.value.cloudflareSyncEnabled) {
                     showSyncSnack(false, "❌ مزامنة Cloudflare معطّلة — فعّلها من قسم Cloudflare Sync أعلاه")
@@ -399,9 +404,12 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
      * (التأكيد يتم في الشاشة قبل الاستدعاء — نفس _confirmFullSync.)
      */
     fun runFullPull() {
-        if (_state.value.isManualSyncing) return
+        if (_state.value.isManualSyncing || syncRepository.syncState.value.isSyncing) return
         _state.value = _state.value.copy(isManualSyncing = true)
-        viewModelScope.launch {
+        syncOperationRunner.launch(onStartFailure = {
+            _state.value = _state.value.copy(isManualSyncing = false)
+            showSyncSnack(false, "تعذر بدء المزامنة في الخلفية؛ افتح التطبيق وحاول مجددًا")
+        }) {
             try {
                 if (!_state.value.cloudflareSyncEnabled) {
                     showSyncSnack(false, "❌ مزامنة Cloudflare معطّلة — فعّلها من قسم Cloudflare Sync أعلاه")
@@ -417,7 +425,7 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
                     )
                     else -> showSyncSnack(
                         true,
-                        "✅ اكتمل السحب الكامل — سُحب $pulled سجل من السيرفر (بدون رفع)"
+                        syncRepository.syncState.value.lastMessage.ifBlank { "سُحب $pulled سجل من السيرفر (بدون رفع)" }
                     )
                 }
             } catch (e: Exception) {
@@ -430,9 +438,12 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
 
     /** «رفع التغييرات المحلية» — رفع فقط بدون سحب (نفس _runPushNow). */
     fun runPushNow() {
-        if (_state.value.isManualSyncing) return
+        if (_state.value.isManualSyncing || syncRepository.syncState.value.isSyncing) return
         _state.value = _state.value.copy(isManualSyncing = true)
-        viewModelScope.launch {
+        syncOperationRunner.launch(onStartFailure = {
+            _state.value = _state.value.copy(isManualSyncing = false)
+            showSyncSnack(false, "تعذر بدء المزامنة في الخلفية؛ افتح التطبيق وحاول مجددًا")
+        }) {
             try {
                 if (!_state.value.cloudflareSyncEnabled) {
                     showSyncSnack(false, "❌ مزامنة Cloudflare معطّلة — فعّلها من قسم Cloudflare Sync أعلاه")

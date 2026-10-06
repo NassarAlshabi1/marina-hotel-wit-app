@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="marina_ocean">#14545A</color>
-    <color name="marina_ocean_deep">#0D383D</color>
-    <color name="marina_ocean_night">#092C31</color>
-    <color name="marina_brass">#BE965B</color>
     <color name="marina_canvas">#F5F4EF</color>
-    <color name="marina_surface">#FFFEFB</color>
+    <!-- API 26 has white navigation icons and cannot request dark ones. -->
+    <color name="marina_navigation_legacy">#242476</color>
 </resources>

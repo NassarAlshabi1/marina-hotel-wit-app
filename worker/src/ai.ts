@@ -1,3 +1,4 @@
+import { legacyExpenseKind } from './expense-kind';
 // Natural-language hotel operations for Workers AI + D1.
 // The model may classify a request, but never supplies executable SQL.
 
@@ -263,11 +264,19 @@ export async function handleAiRequest(
   if (!body.confirm) return jsonResponse({ plan, requires_confirmation: true, answer: `سأضيف ${plan.amountPerDay} يومياً من ${plan.dateFrom} إلى ${plan.dateTo}. راجع التفاصيل ثم أكد التنفيذ.` });
 
   const dates = daysBetween(plan.dateFrom!, plan.dateTo!);
-  const now = Date.now();
-  const statements = dates.map((date) => env.DB.prepare(
-    `INSERT INTO expenses (expense_type,description,amount,date,hotel_day_key,is_auto_generated,local_uuid,created_at,updated_at,last_modified,origin,device_id)
-     VALUES (?,?,?,?,?,0,?,?,?,?,?,?)`,
-  ).bind(plan.expenseType, plan.description, plan.amountPerDay, date, date, crypto.randomUUID(), now, now, now, 'ai', 'worker'));
+  const now = Math.floor(Date.now() / 1000);
+  // AI writes participate in the same committed-cursor protocol as sync pushes.
+  // Keep the entire confirmed date range atomic; no partially added expenses.
+  const statements = [
+    env.DB.prepare('INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, 0)'),
+    ...dates.flatMap((date) => [
+      env.DB.prepare('UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1').bind(now),
+      env.DB.prepare(
+        `INSERT INTO expenses (expense_kind,expense_type,description,amount,date,hotel_day_key,is_auto_generated,local_uuid,created_at,updated_at,last_modified,origin,device_id)
+         VALUES (?,?,?,?,?,?,0,?,?,(SELECT last_ts FROM sync_clock WHERE id = 1),?,?,?)`,
+      ).bind(legacyExpenseKind({ expense_type: plan.expenseType, description: plan.description, is_auto_generated: false }), plan.expenseType, plan.description, plan.amountPerDay, date, date, crypto.randomUUID(), now, now, 'ai', 'worker'),
+    ]),
+  ];
   await env.DB.batch(statements);
   return jsonResponse({ plan, requires_confirmation: false, answer: `تمت إضافة ${dates.length} مصروفاً بمجموع ${(dates.length * plan.amountPerDay!).toFixed(0)} ريال.` });
 }

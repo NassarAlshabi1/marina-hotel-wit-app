@@ -1,11 +1,17 @@
 package com.marina.marina.data.repository
 
+import android.util.Log
 import androidx.room.withTransaction
 import com.google.gson.ExclusionStrategy
 import com.google.gson.FieldAttributes
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
+import com.google.gson.JsonSerializer
 import com.google.gson.annotations.SerializedName
+import com.google.gson.reflect.TypeToken
+import com.marina.marina.data.local.entity.PendingSyncLinkEntity
 import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.AppUsersDao
 import com.marina.marina.data.local.dao.AuditLogsDao
@@ -38,6 +44,9 @@ import com.marina.marina.data.local.entity.SalaryCycleEntity
 import com.marina.marina.data.local.entity.SalaryPaymentEntity
 import com.marina.marina.data.local.entity.SalaryWithdrawalEntity
 import com.marina.marina.domain.util.HotelTimeEngine
+import com.marina.marina.data.local.entity.SyncQuarantineEntity
+import kotlinx.coroutines.CancellationException
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -130,6 +139,19 @@ class SyncIngestorRegistry @Inject constructor(
     private val inventoryDao: InventoryDao,
     private val blacklistEntriesDao: BlacklistEntriesDao
 ) {
+    // Evidence only, never used to apply/replay a financial row. Non-finite
+    // parsed numbers get explicit typed markers instead of invalid JSON literals.
+    private val quarantineGson = GsonBuilder()
+        .serializeNulls()
+        .registerTypeHierarchyAdapter(Number::class.java, JsonSerializer<Number> { value, _, _ ->
+            if ((value is Double || value is Float) && !value.toDouble().isFinite()) {
+                JsonObject().apply { addProperty("__sync_non_finite_number", value.toString()) }
+            } else {
+                JsonPrimitive(value)
+            }
+        })
+        .create()
+
     /**
      * ✅ (2026-09-25) Gson لكل صنف كيان — الإصلاح الجذري لموت الاستيعاب:
      * الكيانات تعيد إعلان حقول BaseSyncEntity (id، وبعضها local_uuid مثل
@@ -268,7 +290,29 @@ class SyncIngestorRegistry @Inject constructor(
 
         db.withTransaction {
             for (record in records) {
-                when (val outcome = applyRecord(record)) {
+                val entity = record["_entity"] as? String ?: "unknown"
+                val uuid = record["local_uuid"] as? String ?: ""
+                val outcome = try {
+                    applyRecord(record).also { result ->
+                        if (result is ApplyOutcome.Deferred) {
+                            require(uuid.isNotBlank()) { "Deferred row has no local_uuid" }
+                            db.pendingSyncLinksDao().put(PendingSyncLinkEntity(entity, uuid, Gson().toJson(record)))
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    ApplyOutcome.Failed("$entity: ${error.javaClass.simpleName}")
+                }
+                if (outcome is ApplyOutcome.Failed) {
+                    persistQuarantine(entity, uuid, record, outcome.error)
+                } else if (uuid.isNotBlank()) {
+                    db.syncQuarantineDao().remove(entity, "uuid:$uuid")
+                }
+                if (outcome is ApplyOutcome.Applied || outcome is ApplyOutcome.Skipped) {
+                    db.pendingSyncLinksDao().remove(entity, uuid)
+                }
+                when (outcome) {
                     is ApplyOutcome.Applied -> applied++
                     is ApplyOutcome.Skipped -> skipped++
                     is ApplyOutcome.Deferred -> deferred += DeferredRecord(
@@ -282,17 +326,60 @@ class SyncIngestorRegistry @Inject constructor(
                 }
             }
         }
+        val salaryOrphans = deferred.count { it.entity in setOf("salary_withdrawals", "salary_cycles", "salary_carry_over_logs") }
+        if (salaryOrphans > 0) {
+            Log.w("SyncIngestorRegistry", "Preserved $salaryOrphans unresolved salary records in durable inbox; no rows deleted")
+        }
         return PullApplyReport(applied, skipped, failed, firstError, deferred)
     }
 
+    private suspend fun persistQuarantine(
+        entity: String, uuid: String, record: Map<String, Any>, reason: String
+    ) {
+        try {
+            // Serialize/hash only rejected rows, inside the protected path.
+            val payload = quarantineGson.toJson(record.toSortedMap())
+            val key = if (uuid.isNotBlank()) "uuid:$uuid" else "sha256:" +
+                MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(Charsets.UTF_8))
+                    .joinToString("") { "%02x".format(it) }
+            db.syncQuarantineDao().put(SyncQuarantineEntity(entity, key, payload, reason))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            // No lossy fallback or successful skip: roll back the page if evidence
+            // cannot be persisted. The caller must keep its previous checkpoint.
+            throw IllegalStateException("Unable to persist pull quarantine", error)
+        }
+    }
+
+    /** Retry across process restarts; parent/child chains may require more than one pass. */
+    suspend fun retryPendingLinks(): PullApplyReport {
+        var total = 0
+        while (true) {
+            val pending = db.pendingSyncLinksDao().getAll()
+            if (pending.isEmpty()) return PullApplyReport(total, 0, 0, null, emptyList())
+            val type = object : TypeToken<Map<String, Any>>() {}.type
+            val report = ingestPage(pending.map { Gson().fromJson<Map<String, Any>>(it.payload, type) })
+            total += report.applied
+            if (report.hasFailures || report.applied == 0) return report.copy(applied = total)
+        }
+    }
+
+    suspend fun clearPendingLinksForEpochReset() = db.pendingSyncLinksDao().clear()
+
     /** سجل استيعاب واحد (توافق الاستدعاءات القديمة) — بلا معاملة صفحة. */
     suspend fun ingest(record: Map<String, Any>): Boolean =
-        applyRecord(record) is ApplyOutcome.Applied
+        ingestPage(listOf(record)).applied == 1
 
     // ─── تطبيق سجل واحد ─────────────────────────────────────────
 
     private suspend fun applyRecord(record: Map<String, Any>): ApplyOutcome {
-        val entity = record["_entity"] as? String ?: return ApplyOutcome.Skipped
+        val entity = (record["_entity"] as? String)?.takeIf { it.isNotBlank() }
+            ?: return ApplyOutcome.Failed("missing_entity")
+        if (entityClass(entity) == null) return ApplyOutcome.Failed("unsupported_entity: $entity")
+        if ((record["local_uuid"] as? String).isNullOrBlank()) {
+            return ApplyOutcome.Failed("missing_local_uuid: $entity")
+        }
 
         // نسخة قابلة للتعديل: يُزال _entity (ليس عموداً محلياً) ويُتعلم
         // الظل (server_id := id الخادمي AUTOINCREMENT — الرجل الأولى في
@@ -301,6 +388,17 @@ class SyncIngestorRegistry @Inject constructor(
         mapped.remove("_entity")
         (record["id"] as? Number)?.let { mapped["server_id"] = it.toLong() }
         applyBaseDefaults(mapped)
+        // A server tombstone does not need its parent to exist locally. Apply it
+        // before resolving required references so delete-wins cannot get stuck.
+        val deletionStamp = asLong(mapped["deleted_at"])
+        val deletionUuid = asString(mapped["local_uuid"])
+        if (deletionStamp != null && deletionUuid != null) {
+            fetchExisting(entity, deletionUuid)?.let { existing ->
+                applyRemoteTombstone(entity, existing.id, deletionStamp,
+                    asLong(mapped["updated_at"]) ?: deletionStamp)
+                return ApplyOutcome.Applied
+            }
+        }
         val existingForLink = if (
             entity in setOf("expenses", "salary_cycles", "salary_payments", "salary_withdrawals", "salary_carry_over_logs")
         ) {
@@ -353,6 +451,19 @@ class SyncIngestorRegistry @Inject constructor(
             }
             "expenses" -> {
                 val existing = existingForLink as? ExpenseEntity
+                val suppliedKind = mapped["expense_kind"]
+                val kind = if (suppliedKind != null) {
+                    if (suppliedKind !is String || suppliedKind !in com.marina.marina.domain.model.ExpenseKind.values) {
+                        return ApplyOutcome.Failed("invalid expense_kind")
+                    }
+                    suppliedKind
+                } else existing?.expenseKind ?: com.marina.marina.domain.model.ExpenseKind.fromLegacy(
+                    existing?.expenseType ?: asString(mapped["expense_type"]).orEmpty(),
+                    existing?.isAutoGenerated ?: (mapped["is_auto_generated"] == true || asLong(mapped["is_auto_generated"]) == 1L),
+                    existing?.description ?: asString(mapped["description"]).orEmpty()
+                )
+                mapped["expense_kind"] = kind
+
                 val incomingUuid = asString(mapped["employee_uuid"])?.trim()?.takeIf { it.isNotEmpty() }
                 val explicitUnlink =
                     mapped["employee_link_cleared"] == true ||
@@ -371,13 +482,9 @@ class SyncIngestorRegistry @Inject constructor(
                         if (employee != null) {
                             mapped["employee_uuid"] = employee.localUuid
                             mapped["related_id"] = employee.id
-                        } else if (existing != null) {
-                            preserveExpenseEmployeeLink(mapped, existing)
                         } else {
-                            // Nullable relationship: retain its stable UUID for
-                            // diagnostics, but never persist a foreign device id.
-                            mapped["employee_uuid"] = incomingUuid
-                            mapped.remove("related_id")
+                            // Preserve the incoming identity in the durable inbox, not the old employee.
+                            return ApplyOutcome.Deferred
                         }
                     }
                     existing != null -> preserveExpenseEmployeeLink(mapped, existing)
@@ -405,7 +512,10 @@ class SyncIngestorRegistry @Inject constructor(
                 val incomingCycleUuid = asString(mapped["cycle_uuid"])?.trim()?.takeIf { it.isNotEmpty() }
                 if (incomingCycleUuid == null && existing != null) {
                     mapped["cycle_id"] = existing.cycleId
-                    existing.cycleUuid?.let { mapped["cycle_uuid"] = it } ?: mapped.remove("cycle_uuid")
+                    // Only the already persisted LOCAL FK may fill an absent UUID cache.
+                    val cachedCycleUuid = existing.cycleUuid?.takeIf { it.isNotBlank() }
+                        ?: salaryCyclesDao.getById(existing.cycleId)?.localUuid?.takeIf { it.isNotBlank() }
+                    cachedCycleUuid?.let { mapped["cycle_uuid"] = it } ?: mapped.remove("cycle_uuid")
                     existing.employeeUuid?.let { mapped["employee_uuid"] = it } ?: mapped.remove("employee_uuid")
                 } else {
                     val cycle = resolveSalaryCycle(
@@ -435,6 +545,9 @@ class SyncIngestorRegistry @Inject constructor(
             }
             "salary_withdrawals" -> {
                 val existing = existingForLink as? SalaryWithdrawalEntity
+                if (asString(mapped["expense_uuid"]).isNullOrBlank()) {
+                    existing?.expenseUuid?.let { mapped["expense_uuid"] = it }
+                }
                 if (!mapEmployeeReference(
                         mapped = mapped,
                         uuidKey = "employee_uuid",
@@ -453,7 +566,8 @@ class SyncIngestorRegistry @Inject constructor(
                         idKey = "employee_id",
                         rawId = asLong(mapped["employee_id"]),
                         existingId = existing?.employeeId,
-                        existingUuid = existing?.employeeUuid
+                        existingUuid = existing?.employeeUuid?.takeIf { it.isNotBlank() }
+                            ?: existing?.employeeId?.let { employeesDao.getByIdIncludingDeleted(it)?.localUuid }
                     )
                 ) return ApplyOutcome.Deferred
             }
@@ -468,15 +582,15 @@ class SyncIngestorRegistry @Inject constructor(
 
         // ─── تسلسل + LWW ───
         return try {
-            val clazz = entityClass(entity) ?: return ApplyOutcome.Skipped
+            val clazz = entityClass(entity) ?: return ApplyOutcome.Failed("unsupported_entity: $entity")
             normalizeBooleanWireFields(mapped, clazz)
             normalizeSyncVersionWireField(mapped)
             if (entity == "salary_withdrawals") normalizeSalaryWithdrawalFields(mapped)
             val entityGson = gsonFor(clazz)
             @Suppress("UNCHECKED_CAST")
             val remote = entityGson.fromJson(entityGson.toJson(mapped), clazz) as? BaseSyncEntity
-                ?: return ApplyOutcome.Skipped
-            if (remote.localUuid.isBlank()) return ApplyOutcome.Skipped
+                ?: return ApplyOutcome.Failed("invalid_record: $entity")
+            if (remote.localUuid.isBlank()) return ApplyOutcome.Failed("missing_local_uuid: $entity")
             val remoteLastModified = (record["last_modified"] as? Number)?.toLong() ?: 0L
 
             val existing = fetchExisting(entity, remote.localUuid)
@@ -507,8 +621,10 @@ class SyncIngestorRegistry @Inject constructor(
                 // المحلي أحدث (تعديل محلي لم يُرفع بعد) — نحتفظ به.
                 else -> ApplyOutcome.Skipped
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
-            ApplyOutcome.Failed("${entity}: ${e.message ?: e.javaClass.simpleName}")
+            ApplyOutcome.Failed("${entity}: ${e.javaClass.simpleName}")
         }
     }
 

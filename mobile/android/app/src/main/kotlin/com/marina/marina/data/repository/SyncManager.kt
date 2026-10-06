@@ -4,14 +4,17 @@ import com.marina.marina.data.remote.CloudflareConfig
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.data.sync.SyncEpochPolicy
+import com.marina.marina.data.sync.SyncOperationRunner
 import com.marina.marina.domain.model.SyncUiState
 import com.marina.marina.domain.repository.SyncRepository
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Unified sync orchestrator — the Kotlin counterpart of the Flutter app's
@@ -38,21 +41,76 @@ class SyncManager @Inject constructor(
     private val outboxRepository: OutboxRepository,
     private val syncService: CloudflareSyncService,
     private val preferences: SyncPreferences,
-    private val ingestorRegistry: SyncIngestorRegistry
+    private val ingestorRegistry: SyncIngestorRegistry,
+    private val operationRunner: SyncOperationRunner
 ) : SyncRepository {
 
     private val _syncState = MutableStateFlow(SyncUiState())
     override val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
 
+    override suspend fun syncNow(): SyncUiState = runOwned(
+        onBusy = {
+            _syncState.value.copy(isSyncing = true, isError = true, lastMessage = "توجد مزامنة جارية حالياً")
+        },
+        onFailure = { _syncState.value }
+    ) { performSyncNow() }
+
+    override suspend fun pullOnly(): Int = runOwned(onBusy = { -1 }) { performPullOnly() }
+
+    /** Recheck under the shared operation lock, including after a concurrent manual pull. */
+    suspend fun pullAutomaticallyIfDue(): Int = runOwned(onBusy = { -1 }) {
+        if (!preferences.getCloudflareSyncEnabled() || !preferences.getAutoSyncEnabled() ||
+            !com.marina.marina.data.sync.automaticPullDue(System.currentTimeMillis(), preferences.getLastPullTs())) {
+            _syncState.update { it.copy(lastMessage = "لا حاجة إلى سحب تلقائي الآن") }
+            0
+        } else performPullOnly()
+    }
+
+    override suspend fun pushOnly(): Int = runOwned(onBusy = { -1 }) { performPushOnly() }
+
+    override suspend fun fullPull(): Int = runOwned(onBusy = { -1 }) { performFullPull() }
+
+    private suspend fun <T> runOwned(
+        onBusy: () -> T,
+        onFailure: () -> T = onBusy,
+        operation: suspend () -> T
+    ): T = try {
+        operationRunner.runIfIdle(
+            onBusy = onBusy,
+            onAccepted = {
+                _syncState.update {
+                    it.copy(isSyncing = true, isError = false, lastMessage = "جارٍ بدء المزامنة...",
+                        pushedCount = 0, pulledCount = 0)
+                }
+            },
+            onFinished = { cause ->
+                _syncState.update {
+                    if (cause != null && !it.isError) {
+                        it.copy(isSyncing = false, isError = true, lastMessage = "توقفت المزامنة قبل اكتمالها")
+                    } else {
+                        it.copy(isSyncing = false)
+                    }
+                }
+            },
+            operation = operation
+        )
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        // In particular, an Android foreground-start restriction must not crash
+        // screens that rely on the repository's error-state / -1 contract.
+        onFailure()
+    }
+
     override fun pendingCount(): Flow<Int> = outboxRepository.pendingCount()
+    override fun undeliveredCount(): Flow<Int> = outboxRepository.undeliveredCount()
 
     /**
      * Runs a full sync cycle: ensure login, push local changes, then pull
-     * remote deltas. Safe to call repeatedly; concurrent calls are serialized
-     * by the isSyncing flag (callers should check it, best-effort).
+     * remote deltas. Safe to call repeatedly; overlapping requests are rejected
+     * atomically by SyncOperationRunner, independent of the caller lifecycle.
      */
-    override suspend fun syncNow(): SyncUiState {
-        if (_syncState.value.isSyncing) return _syncState.value
+    private suspend fun performSyncNow(): SyncUiState {
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ الدخول...")
 
         // ---- Phase 0: lazy login (admin/admin default — auto-login) ----
@@ -84,7 +142,6 @@ class SyncManager @Inject constructor(
             return _syncState.value
         }
         preferences.saveLastPullTs(System.currentTimeMillis())
-        preferences.setFullSyncComplete(true)
 
         _syncState.value = _syncState.value.copy(
             isSyncing = false,
@@ -103,8 +160,7 @@ class SyncManager @Inject constructor(
      *
      * @return the number of records pulled, or -1 when the cycle failed.
      */
-    override suspend fun pullOnly(): Int {
-        if (_syncState.value.isSyncing) return -1
+    private suspend fun performPullOnly(): Int {
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب...")
         if (!syncService.ensureLoggedIn()) {
             finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
@@ -137,8 +193,7 @@ class SyncManager @Inject constructor(
      *
      * @return عدد الصفوف المرفوعة بنجاح، أو -1 عند الفشل.
      */
-    override suspend fun pushOnly(): Int {
-        if (_syncState.value.isSyncing) return -1
+    private suspend fun performPushOnly(): Int {
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ الرفع...")
         if (!syncService.ensureLoggedIn()) {
             finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
@@ -175,14 +230,14 @@ class SyncManager @Inject constructor(
      *
      * @return عدد السجلات المسحوبة، أو -1 عند الفشل.
      */
-    override suspend fun fullPull(): Int {
-        if (_syncState.value.isSyncing) return -1
+    private suspend fun performFullPull(): Int {
         _syncState.value = _syncState.value.copy(isSyncing = true, isError = false, lastMessage = "جارٍ السحب الكامل...")
         if (!syncService.ensureLoggedIn()) {
             finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
             return -1
         }
         // 1) إعادة ضبط مؤشر السحب — الجلب يبدأ من الصفر.
+        preferences.setFullReplayPending(true)
         preferences.saveLastPullCursor(0L)
         val pulled = try {
             pullDelta(batchSize = CloudflareConfig.FULL_PULL_BATCH_SIZE, isFullPull = true)
@@ -195,11 +250,11 @@ class SyncManager @Inject constructor(
             return -1
         }
         preferences.saveLastPullTs(System.currentTimeMillis())
-        preferences.setFullSyncComplete(true)
         _syncState.value = _syncState.value.copy(
             isSyncing = false,
             lastSyncAt = System.currentTimeMillis(),
-            lastMessage = "اكتمل السحب الكامل: $pulled سجل (بدون رفع)",
+            lastMessage = if (preferences.isFullReplayPending()) "سُحب $pulled سجل؛ ستُستكمل بقية الصفحات في الدورة القادمة"
+                else "اكتمل السحب الكامل: $pulled سجل (بدون رفع)",
             pulledCount = pulled
         )
         return pulled
@@ -249,23 +304,26 @@ class SyncManager @Inject constructor(
     ): Int {
         val deviceId = preferences.getDeviceId()
         var cursor = preferences.getLastPullCursor()
+        val fullReplay = isFullPull || cursor == 0L || preferences.isFullReplayPending()
+        if (fullReplay) preferences.setFullReplayPending(true)
+        var reachedEnd = false
         var ingested = 0
         var pagesDone = 0
         var epochReset = false
-        val deferredRecords = mutableListOf<DeferredRecord>()
+        var repairRetries = 0
 
         while (true) {
             // سقف الصفحات (H2) — خروج نظيف والبقية دورة قادمة.
             if (pagesDone >= MAX_PULL_PAGES_PER_CYCLE) break
 
-            val includeRemaining = isFullPull &&
+            val includeRemaining = fullReplay &&
                 pagesDone % REMAINING_SAMPLE_EVERY_PAGES == 0
-            val normalizeTimestamps = pagesDone == 0 && isFullPull &&
+            val normalizeTimestamps = pagesDone == 0 && fullReplay &&
                 !preferences.isTimestampNormalizationDone()
             // ⚠️ العقد الدارتي: السحب الكامل وحده يستثني فلتر الصدى —
             // excludeOwnDevice: !wasFullSync (Dart l.2063).
             val excludeDevice = deviceId
-                ?.takeIf { it.isNotBlank() && !isFullPull }
+                ?.takeIf { it.isNotBlank() && !fullReplay }
 
             val result = syncService.pull(
                 cursor = cursor,
@@ -286,15 +344,21 @@ class SyncManager @Inject constructor(
                 responseEpoch = response.epoch,
                 pageBuiltFromZero = cursor == 0L && pagesDone == 0
             )
-            epochDecision.epochToPersist?.let(preferences::saveSyncEpoch)
             if (epochDecision.restartFromZero) {
+                preferences.setFullReplayPending(true)
                 preferences.saveLastPullCursor(0L)
                 preferences.setFullSyncComplete(false)
+                ingestorRegistry.clearPendingLinksForEpochReset()
                 epochReset = true
                 _syncState.value = _syncState.value.copy(
                     lastMessage = "تغير جيل بيانات الخادم — إعادة السحب من البداية..."
                 )
                 break
+            }
+
+            epochDecision.epochToPersist?.let { epoch ->
+                if (preferences.getSyncEpoch() != null) ingestorRegistry.clearPendingLinksForEpochReset()
+                preferences.saveSyncEpoch(epoch)
             }
 
             // جداول فاشلة على الخادم (schema drift عادةً) — لا نقدّم المؤشر؛
@@ -326,13 +390,22 @@ class SyncManager @Inject constructor(
             if (changes.isNotEmpty() && nextCursor <= cursor) {
                 throw Exception("Pull returned records without advancing the cursor")
             }
-            if (hasMore && nextCursor <= cursor) {
+            if (hasMore && nextCursor == cursor) {
+                // Acknowledged server repair may need another read of this cursor.
+                // Never accept arbitrary stalls or let repair consume the cycle
+                // budget and be reported as successful without any progress.
+                if (changes.isEmpty() && response.repairPending == true && repairRetries < 3 &&
+                    pagesDone + 1 < MAX_PULL_PAGES_PER_CYCLE) {
+                    repairRetries++
+                    pagesDone++
+                    continue
+                }
                 throw Exception("Pull pagination stalled at cursor $cursor")
             }
+            repairRetries = 0
             if (changes.isNotEmpty()) {
                 val report = ingestorRegistry.ingestPage(changes)
                 ingested += report.applied
-                deferredRecords.addAll(report.deferred)
                 if (report.hasFailures) {
                     // فشل تطبيق فعلي — دورة فاشلة: المؤشر لا يتقدم
                     // (التراجع الكامل يضمن إعادة سحب ما بين الحدين).
@@ -341,7 +414,10 @@ class SyncManager @Inject constructor(
                     )
                 }
             }
-            if (normalizeTimestamps) preferences.setTimestampNormalizationDone(true)
+            if (normalizeTimestamps && response.normalization?.complete == true &&
+                response.normalization.remaining == 0.0) {
+                preferences.setTimestampNormalizationDone(true)
+            }
             pagesDone++
 
             // تقدم حي — pulled تراكمي + remaining خادمي عند توفره.
@@ -351,6 +427,7 @@ class SyncManager @Inject constructor(
             )
 
             if (!hasMore) {
+                reachedEnd = true
                 cursor = nextCursor
                 break
             }
@@ -365,27 +442,25 @@ class SyncManager @Inject constructor(
             }
             return ingested + pullDelta(
                 batchSize = batchSize,
-                isFullPull = isFullPull,
+                isFullPull = true,
                 allowEpochRestart = false
             )
         }
 
-        // ✅ إعادة محاولة المؤجلين — الآباء وصلوا الآن (صفحات لاحقة),
-        // فتُحلّ السلاسل (غرفة → حجز → ليلة / موظف → دورة → دفعة).
-        if (deferredRecords.isNotEmpty()) {
-            val retry = ingestorRegistry.ingestPage(deferredRecords.map { it.record })
-            ingested += retry.applied
-            if (retry.hasFailures) {
-                throw Exception(
-                    "فشل تطبيق ${retry.failed} سجلاً مؤجلاً: ${retry.firstError ?: "غير معروف"}"
-                )
-            }
-            // ما بقي غير محلول: لا يُفشل الدورة — المؤشر يتقدم (عقد
-            // 2026-09-15) ويُستكمل في السحب الكامل القادم تلقائياً.
+        // Every unresolved payload is already durable before advancing the checkpoint.
+        // Retry on every cycle, including an empty delta after the parent arrived earlier.
+        val retry = ingestorRegistry.retryPendingLinks()
+        ingested += retry.applied
+        if (retry.hasFailures) {
+            throw Exception("فشل تطبيق سجل مؤجل: ${retry.firstError ?: "غير معروف"}")
         }
 
         // دورة نظيفة كاملة — الآن فقط نقدّم نقطة التفتيش المحفوظة.
         preferences.saveLastPullCursor(cursor)
+        if (fullReplay && reachedEnd) {
+            preferences.setFullReplayPending(false)
+            preferences.setFullSyncComplete(true)
+        }
         return ingested
     }
 

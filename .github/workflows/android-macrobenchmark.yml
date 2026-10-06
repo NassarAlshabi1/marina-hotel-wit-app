@@ -1,0 +1,102 @@
+name: Android Macrobenchmark — offline diagnostics
+on:
+  workflow_dispatch:
+  push:
+    branches: [arena/01a0ffdb-marina-hotel-wit-app]
+    paths:
+      - 'mobile/android/macrobenchmark/**'
+      - 'mobile/android/app/src/benchmark/**'
+      - 'mobile/android/app/src/main/**'
+      - 'mobile/android/app/build.gradle'
+      - 'mobile/android/settings.gradle'
+      - '.github/workflows/android-macrobenchmark.yml'
+      - '.github/scripts/android-macrobenchmark.sh'
+      - '.github/scripts/performance-gate.py'
+      - '.github/scripts/benchmark-environment.py'
+      - 'config/benchmark/**'
+      - 'tests/benchmark/**'
+permissions:
+  contents: read
+concurrency:
+  group: android-macrobenchmark-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  parser-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate strict metric parsing and failure modes
+        run: python3 -m unittest discover -s tests/benchmark -v
+  entry-startup:
+    needs: parser-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 34
+            arch: x86_64
+          - api: 29
+            arch: x86_64
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      - name: Build isolated benchmark artifacts (not release artifacts)
+        working-directory: mobile/android
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon -Dorg.gradle.jvmargs="-Xmx4096m -XX:+UseParallelGC -XX:MaxMetaspaceSize=768m" --max-workers=2 -PenableMacrobenchmark :app:assembleBenchmark :macrobenchmark:assembleBenchmark --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/macrobenchmark-build.log"
+      - name: Summarize benchmark build failure
+        if: failure()
+        run: |
+          python3 - <<'PYDIAG'
+          import os, pathlib
+          log = pathlib.Path(os.environ['RUNNER_TEMP']) / 'macrobenchmark-build.log'
+          if log.exists():
+              lines = log.read_text(errors='replace').splitlines()
+              markers = ('e: ', 'What went wrong', 'Execution failed', 'Could not', 'Caused by:', 'error:', 'OutOfMemoryError', 'requires', 'not found', 'must be')
+              selected = [line for line in lines if any(marker in line for marker in markers)]
+              text = '\n'.join(selected[:25] if selected else lines[-25:])[:3000]
+              text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::error title=Macrobenchmark build diagnostics::{text}')
+          PYDIAG
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Measure fresh offline login startup on constrained emulator
+        timeout-minutes: 20
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: ${{ matrix.arch }}
+          profile: pixel_2
+          cores: 2
+          ram-size: 1024M
+          disable-animations: false
+          # Keep -qemu last: constrain actual guest RAM, not only the AVD request.
+          emulator-options: -memory 1024 -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -qemu -m 1024
+          script: bash .github/scripts/android-macrobenchmark.sh
+      - name: Preserve benchmark APKs, traces and evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-entry-macrobenchmark-api${{ matrix.api }}-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/macrobenchmark-build.log
+            performance-evidence/macrobenchmark/
+            mobile/build/app/outputs/apk/benchmark/
+            mobile/build/macrobenchmark/outputs/apk/benchmark/
+            mobile/build/app/outputs/mapping/benchmark/
+          if-no-files-found: warn
+          retention-days: 14

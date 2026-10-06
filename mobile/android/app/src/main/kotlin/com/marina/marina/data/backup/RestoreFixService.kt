@@ -1,10 +1,12 @@
 package com.marina.marina.data.backup
 
+import android.database.sqlite.SQLiteException
+import androidx.room.withTransaction
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.entity.AutoFixRunEntity
 import com.marina.marina.domain.util.HotelTimeEngine
-import dagger.hilt.android.qualifiers.ApplicationContext
-import android.content.Context
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -25,166 +27,178 @@ import javax.inject.Singleton
  */
 @Singleton
 class RestoreFixService @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val db: AppDatabase
 ) {
     suspend fun runAutoFixAfterRestore(): RestoreFixReport {
         val startTime = System.currentTimeMillis()
-        var bookingsFixed = 0
-        var roomsUpdated = 0
-        var paymentsChecked = 0
         val fixId = UUID.randomUUID().toString()
-        val logDao = db.restoreFixLogDao()
-
-        try {
-            val sq = db.openHelper.writableDatabase
-
-            // ── 1) الحجوزات النشطة (نظير _getBookingsNeedingFix) ──
-            data class BookingRow(
-                val id: Long,
-                val localUuid: String,
-                val roomNumber: String,
-                val status: String,
-                val checkinDate: String,
-                val checkoutDate: String?,
-                val actualCheckout: String?,
-                val calculatedNights: Int,
-                val expectedNights: Int,
-                val discount: Double,
-                val discountType: String
-            )
-            val bookings = mutableListOf<BookingRow>()
-            sq.query(
-                "SELECT id, local_uuid, room_number, status, checkin_date, checkout_date, " +
-                    "actual_checkout, calculated_nights, expected_nights, discount, discount_type " +
-                    "FROM bookings WHERE deleted_at IS NULL AND actual_checkout IS NULL " +
-                    "AND checkin_date IS NOT NULL AND checkin_date != ''"
-            ).use { c ->
-                while (c.moveToNext()) {
-                    val status = c.getString(3) ?: ""
-                    if (!isActiveBooking(status)) continue
-                    bookings.add(
-                        BookingRow(
-                            id = c.getLong(0),
-                            localUuid = c.getString(1) ?: "",
-                            roomNumber = c.getString(2) ?: "",
-                            status = status,
-                            checkinDate = c.getString(4),
-                            checkoutDate = c.getString(5),
-                            actualCheckout = c.getString(6),
-                            calculatedNights = c.getInt(7),
-                            expectedNights = c.getInt(8),
-                            discount = c.getDouble(9),
-                            discountType = c.getString(10) ?: "per_night"
-                        )
-                    )
-                }
-            }
-
-            val nowMillis = System.currentTimeMillis()
-            for (b in bookings) {
-                // ── إعادة حساب الليالي بقاعدة 14:00 ──
-                val checkin = HotelTimeEngine.parseDate(b.checkinDate) ?: continue
-                val checkout = when {
-                    !b.actualCheckout.isNullOrEmpty() ->
-                        HotelTimeEngine.parseDate(b.actualCheckout)
-                    !b.checkoutDate.isNullOrEmpty() ->
-                        HotelTimeEngine.parseDate(b.checkoutDate)
-                    else -> nowMillis
-                } ?: nowMillis
-                val nights = HotelTimeEngine.nightsWithCutoff(checkin, checkout)
-                if (nights != b.calculatedNights || nights != b.expectedNights) {
-                    logChange(
-                        logDao, fixId, startTime, "bookings", b.id,
-                        "calculated_nights", b.calculatedNights.toString(), nights.toString(),
-                        "إعادة حساب الليالي بناءً على تاريخ الدخول والخروج مع قاعدة 14:00",
-                        "nights_recalc"
-                    )
-                    sq.execSQL(
-                        "UPDATE bookings SET calculated_nights = ?, expected_nights = ?, " +
-                            "updated_at = ?, last_modified = ? WHERE id = ?",
-                        arrayOf(nights, nights, nowMillis, nowMillis, b.id)
-                    )
-                    bookingsFixed++
-                }
-
-                // ── إعادة حساب الماليات (نظير _recalculateBookingFinancials) ──
-                var totalPaid = 0.0
-                sq.query(
-                    "SELECT COALESCE(SUM(amount), 0) FROM payments WHERE deleted_at IS NULL " +
-                        "AND (booking_local_id = ? OR booking_uuid_cache = ?)",
-                    arrayOf(b.id, b.localUuid)
-                ).use { c -> if (c.moveToFirst()) totalPaid = c.getDouble(0) }
-
-                val nightsTotal = queryNightsTotal(b.id)
-                val expectedTotal: Double? = if (nightsTotal != null) {
-                    nightsTotal
-                } else {
-                    val roomPrice = queryRoomPrice(b.roomNumber)
-                    if (roomPrice == null) {
-                        null
-                    } else if (b.discountType == "total") {
-                        val raw = roomPrice * nights - b.discount
-                        raw.coerceIn(0.0, roomPrice * nights)
-                    } else if (b.discount > 0) {
-                        val discountedRate = (roomPrice - b.discount).coerceIn(0.0, roomPrice)
-                        discountedRate * nights
-                    } else {
-                        roomPrice * nights
-                    }
-                }
-                if (expectedTotal != null) {
-                    val remaining = (expectedTotal - totalPaid).coerceAtLeast(0.0)
-                    sq.execSQL(
-                        "UPDATE bookings SET total_due_cached = ?, total_paid_cached = ?, " +
-                            "remaining_balance_cached = ? WHERE id = ? AND (" +
-                            "ABS(total_due_cached - ?) > 0.01 OR ABS(total_paid_cached - ?) > 0.01 " +
-                            "OR ABS(remaining_balance_cached - ?) > 0.01)",
-                        arrayOf(expectedTotal, totalPaid, remaining, b.id, expectedTotal, totalPaid, remaining)
-                    )
-                    paymentsChecked++
-                }
-            }
-
-            // ── تحديث حالات الغرف من الحجوزات النشطة (نظير _updateRoomStatusesFromBookings) ──
-            val todayIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(nowMillis))
-            val activeCondition = "SELECT room_number FROM bookings WHERE deleted_at IS NULL " +
-                "AND actual_checkout IS NULL AND checkin_date <= ? " +
-                "AND (checkout_date IS NULL OR checkout_date > ?) " +
-                "AND status IN ('محجوزة','محجوز','نشط','active','confirmed','قيد الحجز','in_progress','مؤقت','provisional')"
-            val updated = updateCount(
-                "UPDATE rooms SET status = 'محجوزة' WHERE status NOT IN ('صيانة','maintenance','under_maintenance','under maintenance') " +
-                    "AND room_number IN (" + activeCondition + ")",
-                listOf(todayIso, todayIso)
-            )
-            val freed = updateCount(
-                "UPDATE rooms SET status = 'شاغرة' WHERE status NOT IN ('صيانة','maintenance','under_maintenance','under maintenance') " +
-                    "AND room_number NOT IN (" + activeCondition + ")",
-                listOf(todayIso, todayIso)
-            )
-            roomsUpdated = updated + freed
-
-            val duration = System.currentTimeMillis() - startTime
-            insertAutoFixRun(fixId, startTime, duration, success = true,
-                fixes = bookingsFixed + roomsUpdated, error = null)
-            return RestoreFixReport(
-                success = true,
-                bookingsFixed = bookingsFixed,
-                roomsUpdated = roomsUpdated,
-                paymentsRecalculated = paymentsChecked
-            )
-        } catch (e: Exception) {
-            val duration = System.currentTimeMillis() - startTime
-            insertAutoFixRun(fixId, startTime, duration, success = false,
-                fixes = bookingsFixed + roomsUpdated, error = e.toString())
-            return RestoreFixReport(
-                success = false,
-                bookingsFixed = bookingsFixed,
-                roomsUpdated = roomsUpdated,
-                paymentsRecalculated = paymentsChecked,
-                error = e.toString()
+        return try {
+            db.withTransaction { repairWithinTransaction(fixId, startTime) }
+        } catch (failure: SQLiteException) {
+            // withTransaction has already rolled back all repairs and their detail logs.
+            currentCoroutineContext().ensureActive()
+            recordFailure(fixId, startTime, failure)
+            RestoreFixReport(
+                success = false, bookingsFixed = 0, roomsUpdated = 0, paymentsRecalculated = 0,
+                error = (listOf(failure.toString()) + failure.suppressed.map { it.toString() }).joinToString("\n")
             )
         }
+    }
+
+    private suspend fun recordFailure(fixId: String, startTime: Long, failure: SQLiteException) {
+        try {
+            insertAutoFixRun(
+                fixId, startTime, System.currentTimeMillis() - startTime,
+                success = false, fixes = 0, error = failure.toString()
+            )
+        } catch (logFailure: SQLiteException) {
+            // A broken audit table must not hide the original repair failure.
+            failure.addSuppressed(logFailure)
+        }
+    }
+
+    private suspend fun repairWithinTransaction(fixId: String, startTime: Long): RestoreFixReport {
+        var bookingsFixed = 0
+        var paymentsChecked = 0
+        val logDao = db.restoreFixLogDao()
+        val sq = db.openHelper.writableDatabase
+
+        // ── 1) الحجوزات النشطة (نظير _getBookingsNeedingFix) ──
+        data class BookingRow(
+            val id: Long,
+            val localUuid: String,
+            val roomNumber: String,
+            val status: String,
+            val checkinDate: String,
+            val checkoutDate: String?,
+            val actualCheckout: String?,
+            val calculatedNights: Int,
+            val expectedNights: Int,
+            val discount: Double,
+            val discountType: String
+        )
+        val bookings = mutableListOf<BookingRow>()
+        sq.query(
+            "SELECT id, local_uuid, room_number, status, checkin_date, checkout_date, " +
+                "actual_checkout, calculated_nights, expected_nights, discount, discount_type " +
+                "FROM bookings WHERE deleted_at IS NULL AND actual_checkout IS NULL " +
+                "AND checkin_date IS NOT NULL AND checkin_date != ''"
+        ).use { c ->
+            while (c.moveToNext()) {
+                val status = c.getString(3) ?: ""
+                if (!isActiveBooking(status)) continue
+                bookings.add(
+                    BookingRow(
+                        id = c.getLong(0),
+                        localUuid = c.getString(1) ?: "",
+                        roomNumber = c.getString(2) ?: "",
+                        status = status,
+                        checkinDate = c.getString(4),
+                        checkoutDate = c.getString(5),
+                        actualCheckout = c.getString(6),
+                        calculatedNights = c.getInt(7),
+                        expectedNights = c.getInt(8),
+                        discount = c.getDouble(9),
+                        discountType = c.getString(10) ?: "per_night"
+                    )
+                )
+            }
+        }
+
+        val nowMillis = System.currentTimeMillis()
+        for (b in bookings) {
+            currentCoroutineContext().ensureActive()
+            // ── إعادة حساب الليالي بقاعدة 14:00 ──
+            val checkin = HotelTimeEngine.parseDate(b.checkinDate) ?: continue
+            val checkout = when {
+                !b.actualCheckout.isNullOrEmpty() ->
+                    HotelTimeEngine.parseDate(b.actualCheckout)
+                !b.checkoutDate.isNullOrEmpty() ->
+                    HotelTimeEngine.parseDate(b.checkoutDate)
+                else -> nowMillis
+            } ?: nowMillis
+            val nights = HotelTimeEngine.nightsWithCutoff(checkin, checkout)
+            if (nights != b.calculatedNights || nights != b.expectedNights) {
+                logChange(
+                    logDao, fixId, startTime, "bookings", b.id,
+                    "calculated_nights", b.calculatedNights.toString(), nights.toString(),
+                    "إعادة حساب الليالي بناءً على تاريخ الدخول والخروج مع قاعدة 14:00",
+                    "nights_recalc"
+                )
+                sq.execSQL(
+                    "UPDATE bookings SET calculated_nights = ?, expected_nights = ?, " +
+                        "updated_at = ?, last_modified = ? WHERE id = ?",
+                    arrayOf(nights, nights, nowMillis, nowMillis, b.id)
+                )
+                bookingsFixed++
+            }
+
+            // ── إعادة حساب الماليات (نظير _recalculateBookingFinancials) ──
+            var totalPaid = 0.0
+            sq.query(
+                "SELECT COALESCE(SUM(amount), 0) FROM payments WHERE deleted_at IS NULL " +
+                    "AND (booking_local_id = ? OR booking_uuid_cache = ?)",
+                arrayOf(b.id, b.localUuid)
+            ).use { c -> if (c.moveToFirst()) totalPaid = c.getDouble(0) }
+
+            val nightsTotal = queryNightsTotal(b.id)
+            val expectedTotal: Double? = if (nightsTotal != null) {
+                nightsTotal
+            } else {
+                val roomPrice = queryRoomPrice(b.roomNumber)
+                if (roomPrice == null) {
+                    null
+                } else if (b.discountType == "total") {
+                    val raw = roomPrice * nights - b.discount
+                    raw.coerceIn(0.0, roomPrice * nights)
+                } else if (b.discount > 0) {
+                    val discountedRate = (roomPrice - b.discount).coerceIn(0.0, roomPrice)
+                    discountedRate * nights
+                } else {
+                    roomPrice * nights
+                }
+            }
+            if (expectedTotal != null) {
+                val remaining = (expectedTotal - totalPaid).coerceAtLeast(0.0)
+                sq.execSQL(
+                    "UPDATE bookings SET total_due_cached = ?, total_paid_cached = ?, " +
+                        "remaining_balance_cached = ? WHERE id = ? AND (" +
+                        "ABS(total_due_cached - ?) > 0.01 OR ABS(total_paid_cached - ?) > 0.01 " +
+                        "OR ABS(remaining_balance_cached - ?) > 0.01)",
+                    arrayOf(expectedTotal, totalPaid, remaining, b.id, expectedTotal, totalPaid, remaining)
+                )
+                paymentsChecked++
+            }
+        }
+
+        // ── تحديث حالات الغرف من الحجوزات النشطة (نظير _updateRoomStatusesFromBookings) ──
+        val todayIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(nowMillis))
+        val activeCondition = "SELECT room_number FROM bookings WHERE deleted_at IS NULL " +
+            "AND actual_checkout IS NULL AND checkin_date <= ? " +
+            "AND (checkout_date IS NULL OR checkout_date > ?) " +
+            "AND status IN ('محجوزة','محجوز','نشط','active','confirmed','قيد الحجز','in_progress','مؤقت','provisional')"
+        val updated = updateCount(
+            "UPDATE rooms SET status = 'محجوزة' WHERE status NOT IN ('صيانة','maintenance','under_maintenance','under maintenance') " +
+                "AND room_number IN (" + activeCondition + ")",
+            listOf(todayIso, todayIso)
+        )
+        val freed = updateCount(
+            "UPDATE rooms SET status = 'شاغرة' WHERE status NOT IN ('صيانة','maintenance','under_maintenance','under maintenance') " +
+                "AND room_number NOT IN (" + activeCondition + ")",
+            listOf(todayIso, todayIso)
+        )
+        val roomsUpdated = updated + freed
+
+        currentCoroutineContext().ensureActive()
+        val duration = System.currentTimeMillis() - startTime
+        insertAutoFixRun(fixId, startTime, duration, success = true,
+            fixes = bookingsFixed + roomsUpdated, error = null)
+        return RestoreFixReport(
+            success = true,
+            bookingsFixed = bookingsFixed,
+            roomsUpdated = roomsUpdated,
+            paymentsRecalculated = paymentsChecked
+        )
     }
 
     /** تسجيل تشغيل الإصلاح في auto_fix_runs (نظير سجل Dart). */

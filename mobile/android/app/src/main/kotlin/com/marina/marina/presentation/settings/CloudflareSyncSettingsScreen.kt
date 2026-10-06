@@ -249,9 +249,9 @@ fun CloudflareSyncSettingsScreen(
                 ) {
                     Icon(Icons.Default.Timer, contentDescription = null, tint = AppColors.PrimaryColor, modifier = Modifier.size(22.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("فترة المزامنة", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("فاصل فحص المزامنة", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         Text(
-                            "كل ${state.syncIntervalMinutes} دقيقة",
+                            "حتى ${state.syncIntervalMinutes} دقيقة بين الفحوص — السحب بعد ساعة؛ إعادة محاولة الفشل بعد 30 ثانية",
                             fontSize = 11.sp,
                             color = AppColors.TextSecondary
                         )
@@ -418,8 +418,8 @@ fun CloudflareSyncSettingsScreen(
                     iconTint = AppColors.InfoColor,
                     title = "سحب التغييرات الآن",
                     subtitle = "يجلب التغييرات الجديدة من السيرفر فقط (بدون رفع)",
-                    busy = state.isManualSyncing,
-                    enabled = !state.isManualSyncing,
+                    busy = state.isManualSyncing || state.isSyncing,
+                    enabled = !state.isManualSyncing && !state.isSyncing,
                     onClick = viewModel::runPullNow
                 )
                 CardDivider()
@@ -429,8 +429,8 @@ fun CloudflareSyncSettingsScreen(
                     title = "السحب الكامل من السيرفر",
                     subtitle = "سحب فقط بدون رفع: يعيد ضبط مؤشر السحب ويجلب كل البيانات " +
                         "من السيرفر من الصفر (صفحات أكبر وأسرع)",
-                    busy = state.isManualSyncing,
-                    enabled = !state.isManualSyncing,
+                    busy = state.isManualSyncing || state.isSyncing,
+                    enabled = !state.isManualSyncing && !state.isSyncing,
                     onClick = { showFullPullConfirm = true }
                 )
                 CardDivider()
@@ -440,8 +440,8 @@ fun CloudflareSyncSettingsScreen(
                     title = "رفع التغييرات المحلية",
                     subtitle = "رفع فقط بدون سحب: يرفع كل التغييرات المحلية المعلّقة " +
                         "في outbox إلى السيرفر",
-                    busy = state.isManualSyncing,
-                    enabled = !state.isManualSyncing,
+                    busy = state.isManualSyncing || state.isSyncing,
+                    enabled = !state.isManualSyncing && !state.isSyncing,
                     onClick = viewModel::runPushNow
                 )
             }

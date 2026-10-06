@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.marina.marina.domain.util.CurrencyFormatter
+import com.marina.marina.ui.theme.ReferenceLayout
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.ui.theme.AppTypography
 import com.marina.marina.ui.theme.MarinaTheme
@@ -60,8 +61,8 @@ fun IncomeExpenseReportScreen(
         ) { padding ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = ReferenceLayout.ReportPadding,
+                verticalArrangement = Arrangement.spacedBy(ReferenceLayout.ReportSectionGap)
             ) {
                 item {
                     ReportDateFilter(range = state.range, onChange = { viewModel.setRange(it) })
@@ -147,15 +148,15 @@ fun IncomeExpenseReportScreen(
                             Text("المؤشرات المالية الرئيسية", fontWeight = FontWeight.Bold, color = AppColors.PrimaryColor, fontSize = 13.sp)
                             IndicatorsRow(
                                 "هامش الربح", "${"%.1f".format(state.profitMargin)}% ${rating(state.profitMargin, 20.0, 10.0, true)}",
-                                ratingColor(state.profitMargin, 20.0, 10.0, true)
+                                ratingColor(state.profitMargin, 20.0, 10.0)
                             )
                             IndicatorsRow(
                                 "نسبة المصروفات من الدخل", "${"%.1f".format(state.expenseRatio)}% ${rating(100 - state.expenseRatio, 40.0, 20.0, true)}",
-                                ratingColor(100 - state.expenseRatio, 40.0, 20.0, true)
+                                ratingColor(100 - state.expenseRatio, 40.0, 20.0)
                             )
                             IndicatorsRow(
                                 "نسبة الرواتب من الدخل", "${"%.1f".format(state.salaryExpenseRatio)}% ${rating(100 - state.salaryExpenseRatio, 70.0, 50.0, true)}",
-                                ratingColor(100 - state.salaryExpenseRatio, 70.0, 50.0, true)
+                                ratingColor(100 - state.salaryExpenseRatio, 70.0, 50.0)
                             )
                             IndicatorsRow(
                                 "قدرة تغطية الديون",
@@ -191,7 +192,7 @@ private fun rating(value: Double, excellent: Double, good: Double, greaterIsBett
 }
 
 @Composable
-private fun ratingColor(value: Double, excellent: Double, good: Double, greaterIsBetter: Boolean): Color = when {
+private fun ratingColor(value: Double, excellent: Double, good: Double): Color = when {
     value >= excellent -> AppColors.SuccessColor
     value >= good -> AppColors.WarningColor
     value > 0 -> AppColors.TextSecondary

@@ -1,6 +1,8 @@
 package com.marina.marina.presentation.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,25 +36,27 @@ import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Groups2
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.marina.marina.ui.components.MarinaElevatedButton as Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -60,6 +65,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,18 +75,21 @@ import com.a.a.BuildConfig
 import com.marina.marina.domain.model.Room
 import com.marina.marina.domain.model.RoomWithPaymentStatus
 import com.marina.marina.domain.util.StatusUtils
+import com.marina.marina.ui.components.SyncProgressBanner
 import com.marina.marina.ui.components.MarinaSnackbarHost
 import com.marina.marina.ui.components.MarinaSnackbarType
 import com.marina.marina.ui.components.MarinaSnackbarVisuals
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 import com.marina.marina.ui.theme.AppColors
-import com.marina.marina.ui.theme.MarinaPalette
 import com.marina.marina.components.SidebarMenuButton
 /**
- * Dashboard — a 1:1 Compose port of the Flutter `DashboardScreen`
+ * Dashboard — a reference-aligned Compose adaptation of the Flutter `DashboardScreen`
  * (`lib/screens/dashboard_screen.dart`):
  *
  * 1. Header: gradient hotel badge, "فندق مارينا" + "لوحة التحكم",
@@ -95,30 +106,30 @@ import com.marina.marina.components.SidebarMenuButton
  *    (admin / manager / supervisor only, top 12 rows).
  */
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun DashboardScreen(
     onNavigate: (String) -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
-    val financialStats by viewModel.financialStats.collectAsState()
-    val roomsWithStatus by viewModel.roomsWithStatus.collectAsState()
-    val otherUserSummaries by viewModel.otherUserSummaries.collectAsState()
-    val currentUser by viewModel.currentUser.collectAsState()
-    val syncState by viewModel.syncState.collectAsState()
-    val pendingChanges by viewModel.pendingChanges.collectAsState()
-    val activeBookingByRoom by viewModel.activeBookingByRoom.collectAsState()
+    val financialStats by viewModel.financialStats.collectAsStateWithLifecycle()
+    val roomsWithStatus by viewModel.roomsWithStatus.collectAsStateWithLifecycle()
+    val otherUserSummaries by viewModel.otherUserSummaries.collectAsStateWithLifecycle()
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val activeBookingByRoom by viewModel.activeBookingByRoom.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Snackbar events — Arabic messages identical to the Flutter originals,
     // rendered through the typed Marina snackbar system (color-coded + icon).
     LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
+        viewModel.events.collectLatest { event ->
             when (event) {
                 is DashboardEvent.AutoPullSucceeded ->
                     snackbarHostState.showSnackbar(
                         MarinaSnackbarVisuals(
                             message = "تم سحب ${event.pulledCount} سجل جديد من Cloudflare تلقائياً",
                             type = MarinaSnackbarType.SUCCESS,
-                            duration = SnackbarDuration.Short
+                            icon = Icons.Filled.CloudDownload,
+                            requestedDuration = SnackbarDuration.Short
                         )
                     )
                 is DashboardEvent.SyncCompleted ->
@@ -126,7 +137,7 @@ fun DashboardScreen(
                         MarinaSnackbarVisuals(
                             message = "تمت المزامنة: دُفع ${event.pushedCount}، سُحب ${event.pulledCount}",
                             type = MarinaSnackbarType.SUCCESS,
-                            duration = SnackbarDuration.Short
+                            requestedDuration = SnackbarDuration.Short
                         )
                     )
                 is DashboardEvent.SyncFailed ->
@@ -134,7 +145,7 @@ fun DashboardScreen(
                         MarinaSnackbarVisuals(
                             message = event.message,
                             type = MarinaSnackbarType.ERROR,
-                            duration = SnackbarDuration.Long
+                            requestedDuration = SnackbarDuration.Long
                         )
                     )
                 is DashboardEvent.RoomStatusUpdated ->
@@ -142,7 +153,7 @@ fun DashboardScreen(
                         MarinaSnackbarVisuals(
                             message = "تم تحديث حالة الغرفة ${event.roomNumber} إلى ${event.newStatus}",
                             type = MarinaSnackbarType.INFO,
-                            duration = SnackbarDuration.Short
+                            requestedDuration = SnackbarDuration.Short
                         )
                     )
                 is DashboardEvent.Error ->
@@ -150,7 +161,7 @@ fun DashboardScreen(
                         MarinaSnackbarVisuals(
                             message = event.message,
                             type = MarinaSnackbarType.ERROR,
-                            duration = SnackbarDuration.Long
+                            requestedDuration = SnackbarDuration.Long
                         )
                     )
             }
@@ -161,19 +172,23 @@ fun DashboardScreen(
     var roomOptionsDialog by remember { mutableStateOf<Room?>(null) }
     var roomDetailsDialog by remember { mutableStateOf<Room?>(null) }
 
-    Surface(color = DashboardColors.Background, modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    Scaffold(
+        containerColor = DashboardColors.Background,
+        snackbarHost = {
+            Column {
+                MarinaSnackbarHost(snackbarHostState)
+                SyncProgressBanner(viewModel.syncState)
+            }
+        }
+    ) { insets ->
+        Column(modifier = Modifier.fillMaxSize().padding(insets)) {
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
-                DashboardHeader(
-                    syncState = syncState,
-                    pendingChanges = pendingChanges,
-                    onSyncClick = { viewModel.triggerSync() }
-                )
+                DashboardLiveHeader(viewModel)
 
                 // المسافات الدقيقة من Dart: header→stats 16 · stats→rooms 20
                 // · rooms→الاستلامات 24 (بطاقة «إجمالي استلاماتي» أُزيلت
@@ -215,11 +230,10 @@ fun DashboardScreen(
                 // نفس الفراغ البصري المرئي 24dp قبل استلامات المستخدمين الآخرين.
                 Spacer(modifier = Modifier.height(24.dp))
 
-                if (viewModel.canViewOtherUsers) {
+                if (currentUser?.let { it.isAdmin || it.userType == "manager" || it.userType == "supervisor" } == true) {
                     OtherUsersReceiptsCard(summaries = otherUserSummaries)
                 }
             }
-            MarinaSnackbarHost(hostState = snackbarHostState)
         }
     }
 
@@ -250,11 +264,39 @@ fun DashboardScreen(
 // Header
 // -----------------------------------------------------------------------------
 
+/** Sync progress invalidates only this small header, not the rooms/receipts. */
+@Composable
+private fun DashboardLiveHeader(viewModel: DashboardViewModel) {
+    val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+    val pendingChanges by viewModel.pendingChanges.collectAsStateWithLifecycle()
+    val automaticStatus by viewModel.automaticSyncStatus.collectAsStateWithLifecycle()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        DashboardHeader(syncState, pendingChanges)
+        Text(automaticStatus.message, style = MaterialTheme.typography.bodySmall)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DashboardSyncAction(
+                text = "سحب التغييرات (Delta)", icon = Icons.Filled.CloudDownload,
+                color = Color(0xFF2196F3), enabled = !syncState.isSyncing,
+                onClick = viewModel::pullDeltaChanges, modifier = Modifier.weight(1f)
+            )
+            DashboardSyncAction(
+                text = when {
+                    pendingChanges < 0 -> "جارٍ الفحص…"
+                    pendingChanges == 0 -> "محدّث"
+                    else -> "رفع التغييرات ($pendingChanges)"
+                },
+                icon = Icons.Filled.CloudUpload, color = Color(0xFF9C27B0),
+                enabled = !syncState.isSyncing && pendingChanges > 0,
+                onClick = viewModel::pushChanges, modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
 @Composable
 private fun DashboardHeader(
     syncState: com.marina.marina.domain.model.SyncUiState,
-    pendingChanges: Int,
-    onSyncClick: () -> Unit
+    pendingChanges: Int
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         // Phone layout: hamburger that opens the side-navigation drawer
@@ -264,12 +306,12 @@ private fun DashboardHeader(
         // Gradient hotel badge (Flutter: blue.shade600 → blue.shade400).
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(24.dp)
                 .background(
                     brush = Brush.linearGradient(
-                        listOf(MarinaPalette.Ocean, MarinaPalette.OceanMid)
+                        listOf(Color(0xFF1E88E5), Color(0xFF42A5F5))
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(9.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -277,21 +319,23 @@ private fun DashboardHeader(
                 imageVector = Icons.Filled.Hotel,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(14.dp)
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "فندق مارينا",
-                fontSize = 18.sp,
+                fontSize = 9.sp,
+                lineHeight = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = DashboardColors.TextPrimary
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "لوحة التحكم",
-                    fontSize = 12.sp,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp,
                     color = DashboardColors.TextSecondary
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -307,16 +351,32 @@ private fun DashboardHeader(
             isError = syncState.isError,
             pendingChanges = pendingChanges
         )
-        Spacer(modifier = Modifier.width(4.dp))
 
-        // Manual sync button (cloud download).
-        IconButton(onClick = onSyncClick) {
-            Icon(
-                imageVector = Icons.Filled.CloudDownload,
-                contentDescription = "مزامنة",
-                tint = if (syncState.isSyncing) DashboardColors.InfoBlue else DashboardColors.PrimaryBlue
-            )
-        }
+    }
+}
+
+@Composable
+private fun DashboardSyncAction(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier
+) {
+    val fill = if (enabled) color else Color(0xFF757575)
+    Row(
+        modifier = modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(10.dp))
+            .background(Brush.linearGradient(listOf(fill.copy(alpha = 0.85f), fill)))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(text, color = Color.White, fontSize = 11.sp, lineHeight = 16.sp,
+            fontWeight = FontWeight.Bold, maxLines = 2)
     }
 }
 
@@ -325,6 +385,7 @@ private fun VersionChip(version: String) {
     Text(
         text = "v$version",
         fontSize = 9.sp,
+        lineHeight = 12.sp,
         fontWeight = FontWeight.W600,
         fontFamily = FontFamily.Monospace,
         color = DashboardColors.PrimaryBlueDark,
@@ -456,17 +517,18 @@ private fun StatCard(
 ) {
     Box(
         modifier = modifier
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
-            .border(1.dp, AppColors.DividerColor, RoundedCornerShape(16.dp))
+            .shadow(2.dp, MaterialTheme.shapes.medium)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surface)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .padding(horizontal = 10.dp, vertical = 10.dp)
     ) {
         Column(horizontalAlignment = androidx.compose.ui.Alignment.Start) {
             Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = value,
-                fontSize = 11.sp,
+                fontSize = 11.sp, lineHeight = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = color,
                 maxLines = 1,
@@ -475,7 +537,7 @@ private fun StatCard(
             Spacer(modifier = Modifier.height(1.dp))
             Text(
                 text = title,
-                fontSize = 9.sp,
+                fontSize = 9.sp, lineHeight = 12.sp,
                 color = DashboardColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -498,6 +560,7 @@ private val DashboardRoomNumbers: List<String> = listOf(
 )
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun RoomsSection(
     roomsWithStatus: List<RoomWithPaymentStatus>,
     onRoomTap: (String, Room?) -> Unit,
@@ -505,31 +568,26 @@ private fun RoomsSection(
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = 1.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, AppColors.DividerColor, RoundedCornerShape(20.dp))
+        shape = MaterialTheme.shapes.large,
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = "حالة الغرف",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = DashboardColors.TextPrimary
                 )
-                Spacer(modifier = Modifier.weight(1f))
                 LegendItem(label = "محجوزة", color = RoomWithPaymentStatus.OccupiedColor)
-                Spacer(modifier = Modifier.width(8.dp))
                 LegendSplitItem(
                     label = "تنبيه 22:00",
-                    leftColor = RoomWithPaymentStatus.OccupiedColor,
-                    rightColor = RoomWithPaymentStatus.LatePaymentColor
+                    leftColor = RoomWithPaymentStatus.LatePaymentColor,
+                    rightColor = RoomWithPaymentStatus.OccupiedColor
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 LegendItem(label = "متأخر 23:00", color = RoomWithPaymentStatus.OverdueColor)
-                Spacer(modifier = Modifier.width(8.dp))
                 LegendItem(label = "شاغرة", color = RoomWithPaymentStatus.VacantColor)
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -567,7 +625,7 @@ private fun LegendItem(label: String, color: Color) {
                 .background(color, RoundedCornerShape(3.dp))
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Text(text = label, fontSize = 10.sp, color = DashboardColors.TextSecondary)
+        Text(text = label, fontSize = 10.sp, lineHeight = 13.sp, color = DashboardColors.TextSecondary)
     }
 }
 
@@ -581,15 +639,15 @@ private fun LegendSplitItem(label: String, leftColor: Color, rightColor: Color) 
                 .background(
                     brush = Brush.horizontalGradient(
                         colorStops = arrayOf(
-                            0.55f to leftColor,
-                            0.55f to rightColor
+                            0.45f to leftColor,
+                            0.45f to rightColor
                         )
                     ),
                     shape = RoundedCornerShape(3.dp)
                 )
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Text(text = label, fontSize = 10.sp, color = DashboardColors.TextSecondary)
+        Text(text = label, fontSize = 10.sp, lineHeight = 13.sp, color = DashboardColors.TextSecondary)
     }
 }
 
@@ -610,11 +668,8 @@ private fun RoomTile(
             m.border(width = 2.dp, color = RoomWithPaymentStatus.OverdueDark, shape = RoundedCornerShape(10.dp))
                 .background(
                     brush = Brush.horizontalGradient(
-                        listOf(
-                            RoomWithPaymentStatus.OverdueColor,
-                            RoomWithPaymentStatus.OccupiedColor,
-                            RoomWithPaymentStatus.LatePaymentColor
-                        )
+                        listOf(Color(0xFFEF5350), RoomWithPaymentStatus.OccupiedColor,
+                            RoomWithPaymentStatus.OverdueColor)
                     ),
                     shape = RoundedCornerShape(10.dp)
                 )
@@ -625,8 +680,10 @@ private fun RoomTile(
                     // RTL split: 55% red on the right, 45% orange on the left.
                     brush = Brush.horizontalGradient(
                         colorStops = arrayOf(
-                            0.55f to RoomWithPaymentStatus.OccupiedColor,
-                            0.55f to RoomWithPaymentStatus.LatePaymentColor
+                            0f to RoomWithPaymentStatus.LatePaymentColor,
+                            0.45f to RoomWithPaymentStatus.LatePaymentColor,
+                            0.45f to RoomWithPaymentStatus.OccupiedColor,
+                            1f to RoomWithPaymentStatus.OccupiedColor
                         )
                     ),
                     shape = RoundedCornerShape(10.dp)
@@ -639,7 +696,15 @@ private fun RoomTile(
         modifier = modifier
             .aspectRatio(1.2f)
             .let(decoration)
-            .combinedClickable(onClick = onTap, onLongClick = onLongPress),
+            .clip(RoundedCornerShape(10.dp))
+            .semantics {
+                stateDescription = when {
+                    isOverdue -> "متأخر في السداد"
+                    isLatePayment -> "تنبيه مبكر للسداد"
+                    else -> rws?.displayStatus ?: "غير مسجلة"
+                }
+            }
+            .combinedClickable(onClick = onTap, onLongClick = if (rws != null) onLongPress else null),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -655,7 +720,7 @@ private fun RoomTile(
                 contentDescription = null,
                 tint = Color.White.copy(alpha = 0.9f),
                 modifier = Modifier
-                    .align(Alignment.TopStart)
+                    .align(AbsoluteAlignment.TopLeft)
                     .padding(2.dp)
                     .size(10.dp)
             )
@@ -667,7 +732,7 @@ private fun RoomTile(
                 contentDescription = null,
                 tint = Color.White.copy(alpha = 0.95f),
                 modifier = Modifier
-                    .align(Alignment.TopStart)
+                    .align(AbsoluteAlignment.TopLeft)
                     .padding(2.dp)
                     .size(11.dp)
             )
@@ -684,9 +749,9 @@ private fun OtherUsersReceiptsCard(
     summaries: List<com.marina.marina.domain.model.PaymentUserHotelDaySummary>
 ) {
     Surface(
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, DashboardColors.PrimaryBlueLight),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBBDEFB)),
         shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -700,15 +765,15 @@ private fun OtherUsersReceiptsCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "استلامات المستخدمين الآخرين بحسب اليوم الفندقي",
-                    fontSize = 11.sp,
+                    text = "استلامات المستخدمين",
+                    fontSize = 9.sp, lineHeight = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = DashboardColors.TextPrimary,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = "إجمالي اليوم الفندقي الحالي مهما كان عدد الجلسات",
-                    fontSize = 9.sp,
+                    fontSize = 9.sp, lineHeight = 12.sp,
                     color = DashboardColors.TextSecondary
                 )
             }
@@ -716,7 +781,7 @@ private fun OtherUsersReceiptsCard(
             when {
                 summaries.isEmpty() -> Text(
                     text = "لا توجد استلامات في اليوم الفندقي الحالي بعد",
-                    fontSize = 11.sp,
+                    fontSize = 11.sp, lineHeight = 14.sp,
                     color = DashboardColors.TextSecondary
                 )
                 else -> summaries.take(12).forEach { summary ->
@@ -726,7 +791,7 @@ private fun OtherUsersReceiptsCard(
                     ) {
                         Text(
                             text = summary.userName,
-                            fontSize = 11.sp,
+                            fontSize = 11.sp, lineHeight = 14.sp,
                             fontWeight = FontWeight.W600,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -735,7 +800,7 @@ private fun OtherUsersReceiptsCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "${summary.paymentCount} دفعة",
-                            fontSize = 9.sp,
+                            fontSize = 9.sp, lineHeight = 12.sp,
                             color = DashboardColors.TextSecondary
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -877,30 +942,21 @@ internal fun formatHourMinute(epochMillis: Long): String = DashboardFormatters.h
 /** Dashboard aliases follow the active Material color scheme. */
 internal object DashboardColors {
     val Background: Color
-        @Composable get() = AppColors.BackgroundColor
+        @Composable get() = if (AppColors.BackgroundColor == Color(0xFFF8F8FC)) Color(0xFFF5F5F5) else AppColors.BackgroundColor
     val TextPrimary: Color
         @Composable get() = AppColors.TextPrimary
     val TextSecondary: Color
         @Composable get() = AppColors.TextSecondary
-    val Indigo: Color
-        @Composable get() = AppColors.PrimaryColor
-    val SuccessGreen: Color
-        @Composable get() = AppColors.SuccessColor
-    val DangerRed: Color
-        @Composable get() = AppColors.DangerColor
-    val WarningOrange: Color
-        @Composable get() = AppColors.WarningColor
-    val WarningOrangeDark: Color = AppColors.WarningActionColor
-    val PrimaryBlue: Color
-        @Composable get() = AppColors.PrimaryColor
-    val PrimaryBlueDark: Color
-        @Composable get() = AppColors.PrimaryColor
-    val PrimaryBlueLight: Color
-        @Composable get() = MaterialTheme.colorScheme.primaryContainer
-    val PrimaryBlueBorder: Color
-        @Composable get() = MaterialTheme.colorScheme.outline
-    val InfoBlue: Color
-        @Composable get() = AppColors.InfoColor
+    val Indigo = Color(0xFF3F51B5)
+    val SuccessGreen = Color(0xFF43A047)
+    val DangerRed = Color(0xFFE53935)
+    val WarningOrange = Color(0xFFFF9800)
+    val WarningOrangeDark = Color(0xFFF57C00)
+    val PrimaryBlue = Color(0xFF2196F3)
+    val PrimaryBlueDark = Color(0xFF1976D2)
+    val PrimaryBlueLight = Color(0xFFE3F2FD)
+    val PrimaryBlueBorder = Color(0xFF90CAF9)
+    val InfoBlue = Color(0xFF2196F3)
 }
 
 /** App version label — BuildConfig-driven, parity with package_info_plus. */

@@ -1,0 +1,5 @@
+# Compose functions deliberately use UpperCamelCase. All other default rules
+# remain enabled; no baseline and no blanket ignoreFailures.
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']

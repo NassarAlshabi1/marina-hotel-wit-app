@@ -202,6 +202,7 @@ fun PaymentHistoryScreen(
 private fun HistoryPaymentRow(payment: Payment, onTap: () -> Unit) {
     val (color, icon) = methodVisual(payment.paymentMethod)
     OutlinedCard(
+        onClick = onTap,
         colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceColor),
         shape = RoundedCornerShape(10.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),

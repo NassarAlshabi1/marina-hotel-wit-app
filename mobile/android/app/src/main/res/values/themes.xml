@@ -4,9 +4,8 @@
          theme is only the window container before the Compose tree mounts. -->
     <style name="Theme.MarinaHotel" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@color/marina_canvas</item>
-        <item name="android:navigationBarColor">@color/marina_canvas</item>
+        <item name="android:navigationBarColor">@color/marina_navigation_legacy</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 

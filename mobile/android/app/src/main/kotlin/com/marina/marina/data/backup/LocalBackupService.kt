@@ -3,10 +3,14 @@ package com.marina.marina.data.backup
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import androidx.room.withTransaction
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.marina.marina.data.local.AppDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -32,15 +36,17 @@ import javax.inject.Singleton
  *  • نسخة SQLite خام (.db) بنسخ ملف قاعدة البيانات بعد wal_checkpoint —
  *    نظير SqliteBackupRestore.backupDatabase.
  *  • استعادة JSON: مسح الجداول ثم إدراج الصفوف داخل معاملة واحدة.
- *  • استعادة SQLite: استبدال ملف قاعدة البيانات (يُعاد تشغيل التطبيق
- *    بعد ذلك لفتح النسخة المستعادة).
+ *  • استعادة SQLite الخام موقوفة: لا يجوز استبدال ملف قاعدة مفتوحة.
+ *    يلزم مسار استعادة آمن مستقل قبل إعادة تفعيلها.
  *  • سنة آخر نسخة في prefs بنفس مفتاح Dart (last_local_backup_timestamp).
  */
 @Singleton
 class LocalBackupService @Inject constructor(
     @ApplicationContext private val context: Context,
     private val db: AppDatabase,
-    private val settings: BackupSettingsStore
+    private val settings: BackupSettingsStore,
+    private val syncPreferences: com.marina.marina.data.remote.SyncPreferences,
+    private val syncRunner: com.marina.marina.data.sync.SyncOperationRunner
 ) {
     companion object {
         const val BACKUP_FOLDER_NAME = "MarinaHotelBackups"
@@ -64,7 +70,7 @@ class LocalBackupService @Inject constructor(
         private val INTERNAL_TABLES = setOf(
             "android_metadata", "room_master_table", "outbox",
             "sync_remote_meta", "sync_state", "sync_log", "sync_queue",
-            "sync_conflicts", "ancestor_cache", "app_sessions",
+            "sync_conflicts", "ancestor_cache", "app_sessions", "sync_quarantine",
             "integrity_violations", "auto_fix_runs", "restore_fix_log"
         )
     }
@@ -149,7 +155,7 @@ class LocalBackupService @Inject constructor(
      * نظير createLocalBackup — الافتراضي sqlite (نسخة خام كاملة)،
      * و json نسخة مضغوطة بنفس مغلف Dart. يعيد مسار الملف الناتج.
      */
-    suspend fun createLocalBackup(format: BackupFormat = BackupFormat.sqlite): String =
+    suspend fun createLocalBackup(format: BackupFormat = BackupFormat.SQLITE): String =
         withContext(Dispatchers.IO) {
             val backupDir = getBackupDirectory()
             val now = System.currentTimeMillis()
@@ -158,8 +164,10 @@ class LocalBackupService @Inject constructor(
             val deviceLabel = "Android Local"
 
             val path = when (format) {
-                BackupFormat.json -> {
-                    val envelope = buildJsonBackupEnvelope(deviceLabel, now)
+                BackupFormat.JSON -> {
+                    val envelope = db.withTransaction {
+                        buildJsonBackupEnvelope(deviceLabel, now)
+                    }
                     val jsonBytes = gson.toJson(envelope).toByteArray(Charsets.UTF_8)
                     val file = File(backupDir, "$baseName.json.gz")
                     GZIPOutputStream(FileOutputStream(file)).use { out ->
@@ -167,7 +175,7 @@ class LocalBackupService @Inject constructor(
                     }
                     file.absolutePath
                 }
-                BackupFormat.sqlite -> {
+                BackupFormat.SQLITE -> {
                     val file = File(backupDir, "$baseName.db")
                     copySqliteDatabase(file)
                     // نظير Dart: ملف ميتاداتا جانبي للنسخة الخام.
@@ -209,7 +217,7 @@ class LocalBackupService @Inject constructor(
             val isJson = name.endsWith(".json.gz") || name.endsWith(".json")
             if (!isSqlite && !isJson) continue
             if (name.endsWith(".metadata.json")) continue
-            val format = if (isSqlite) BackupFormat.sqlite else BackupFormat.json
+            val format = if (isSqlite) BackupFormat.SQLITE else BackupFormat.JSON
             val metadata = readMetadata(f, format)
             result.add(
                 LocalBackupFile(
@@ -228,7 +236,7 @@ class LocalBackupService @Inject constructor(
     private fun readMetadata(file: File, format: BackupFormat): BackupMetadata? {
         return try {
             when (format) {
-                BackupFormat.json -> {
+                BackupFormat.JSON -> {
                     val json = if (file.name.endsWith(".gz")) {
                         GZIPInputStream(FileInputStream(file)).use { inp ->
                             inp.readBytes().toString(Charsets.UTF_8)
@@ -242,7 +250,7 @@ class LocalBackupService @Inject constructor(
                     )
                     gson.fromJson(gson.toJson(map["metadata"]), BackupMetadata::class.java)
                 }
-                BackupFormat.sqlite -> {
+                BackupFormat.SQLITE -> {
                     val sidecar = File(file.parentFile, removeExt(file.name) + ".metadata.json")
                     if (sidecar.exists()) {
                         gson.fromJson(sidecar.readText(), BackupMetadata::class.java)
@@ -284,7 +292,7 @@ class LocalBackupService @Inject constructor(
         val tablesJson = gson.toJson(envelope)
         val digest = java.security.MessageDigest.getInstance("SHA-256")
             .digest(tablesJson.toByteArray(Charsets.UTF_8))
-            .joinToString("") { String.format("%02x", it) }
+            .joinToString("") { String.format(java.util.Locale.ROOT, "%02x", it) }
 
         val metadata = linkedMapOf<String, Any>(
             "app_version" to "1.2.0+3",
@@ -339,19 +347,19 @@ class LocalBackupService @Inject constructor(
 
     /**
      * نظير restoreFromLocalBackup — يتفرع حسب امتداد الملف:
-     * .sqlite/.db استعادة خام (استبدال الملف)، .json/.gz استعادة بيانات.
+     * .sqlite/.db مرفوضة قبل لمس البيانات؛ .json/.gz استعادة بيانات.
      */
     suspend fun restoreFromLocalBackup(filePath: String) = withContext(Dispatchers.IO) {
         val name = filePath.substringAfterLast('/')
         if (name.endsWith(".sqlite") || name.endsWith(".db")) {
-            restoreFromSqliteFile(filePath)
+            error("استعادة SQLite موقوفة مؤقتًا لحماية البيانات؛ يلزم مسار استعادة آمن لقاعدة مغلقة")
         } else {
-            restoreFromJsonBackup(filePath)
+            syncRunner.withExclusiveLocalRestore { restoreFromJsonBackup(filePath) }
         }
     }
 
     /** استعادة بيانات JSON: مسح ثم إدراج داخل معاملة واحدة. */
-    private fun restoreFromJsonBackup(filePath: String) {
+    private suspend fun restoreFromJsonBackup(filePath: String) {
         val json = if (filePath.endsWith(".gz")) {
             GZIPInputStream(FileInputStream(filePath)).use { inp ->
                 inp.readBytes().toString(Charsets.UTF_8)
@@ -363,35 +371,73 @@ class LocalBackupService @Inject constructor(
             json, object : TypeToken<Map<String, Any>>() {}.type
         ) ?: throw Exception("ملف النسخة غير صالح")
 
-        val sq = db.openHelper.writableDatabase
-        sq.beginTransaction()
-        try {
+        // Reject reports / maintenance field preimages before mutation or post-restore repair.
+        require(data.keys.any { it in BACKUP_TABLE_KEYS || it == "blacklist" }) {
+            "الملف ليس نسخة بيانات مدعومة؛ لا يمكن استعادة التقارير أو نسخ حقول الصيانة"
+        }
+
+        // Validate even compatibility fields we intentionally do not restore.
+        // Ignoring sync_state must not make a malformed backup look successful.
+        for (key in BACKUP_TABLE_KEYS + listOf("blacklist", "sync_state")) {
+            if (data.containsKey(key)) requireBackupRows(key, data[key])
+        }
+        db.withTransaction {
+            check(db.outboxDao().undeliveredCount().first() == 0) {
+                "توجد تغييرات محلية لم تُرفع؛ الاستعادة موقوفة لحمايتها"
+            }
+            for (table in listOf("pending_sync_links", "sync_quarantine")) {
+                val count = db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM $table").use {
+                    it.moveToFirst(); it.getLong(0)
+                }
+                check(count == 0L) { "توجد سجلات مؤجلة أو معزولة؛ راجعها قبل الاستعادة لحمايتها" }
+            }
+            // Preferences cannot join SQLite: commit a conservative reset first.
+            // Rollback/crash can cause a replay, never advancement past restored data.
+            syncPreferences.prepareForLocalRestore()
             for (key in BACKUP_TABLE_KEYS) {
-                val rows = data[key] as? List<*> ?: continue
-                clearAndInsertRows(key, rows)
+                if (!data.containsKey(key)) continue
+                clearAndInsertRows(key, requireBackupRows(key, data[key]))
             }
             // القائمة السوداء → جدولها المحلي
-            (data["blacklist"] as? List<*>)?.let { rows ->
-                clearAndInsertRows("blacklist_entries", rows)
+            if (data.containsKey("blacklist")) {
+                clearAndInsertRows("blacklist_entries", requireBackupRows("blacklist", data["blacklist"]))
             }
-            // حالة المزامنة
-            (data["sync_state"] as? List<*>)?.let { rows ->
-                clearAndInsertRows("sync_state", rows)
+            // Never import another device's sync checkpoints or stale retry payloads.
+            for (table in listOf("sync_state", "sync_remote_meta")) {
+                db.openHelper.writableDatabase.execSQL("DELETE FROM $table")
             }
-            sq.setTransactionSuccessful()
-        } finally {
-            sq.endTransaction()
+            currentCoroutineContext().ensureActive()
         }
     }
 
-    private fun clearAndInsertRows(table: String, rows: List<*>) {
+    private fun requireBackupRows(table: String, value: Any?): List<*> {
+        require(value is List<*>) { "بيانات الجدول $table ليست قائمة صفوف صالحة" }
+        require(value.all { it is Map<*, *> && it.isNotEmpty() }) {
+            "تحتوي نسخة الجدول $table على صف غير صالح؛ لم تُستكمل الاستعادة"
+        }
+        return value
+    }
+
+    private suspend fun clearAndInsertRows(table: String, rows: List<*>) {
+        currentCoroutineContext().ensureActive()
         val sq = db.openHelper.writableDatabase
         val safe = table.replace("\"", "\"\"")
         sq.execSQL("DELETE FROM \"$safe\"")
         for (raw in rows) {
+            currentCoroutineContext().ensureActive()
             @Suppress("UNCHECKED_CAST")
-            val row = raw as? Map<String, Any?> ?: continue
-            if (row.isEmpty()) continue
+            val row = (raw as Map<String, Any?>).toMutableMap()
+            if (table == "expenses") {
+                val kind = row["expense_kind"]
+                row["expense_kind"] = if (kind != null) {
+                    require(kind is String) { "Invalid expense_kind" }
+                    com.marina.marina.domain.model.ExpenseKind.requireValid(kind)
+                } else com.marina.marina.domain.model.ExpenseKind.fromLegacy(
+                    row["expense_type"]?.toString().orEmpty(),
+                    row["is_auto_generated"] == true || (row["is_auto_generated"] as? Number)?.toInt() == 1,
+                    row["description"]?.toString().orEmpty()
+                )
+            }
             val cols = row.keys.map { it.replace("\"", "\"\"") }
             val placeholders = cols.joinToString(",") { "?" }
             val values = Array(row.size) { idx ->
@@ -406,24 +452,6 @@ class LocalBackupService @Inject constructor(
                 values
             )
         }
-    }
-
-    /**
-     * استعادة ملف خام — نظير SqliteBackupRestore.restoreDatabase:
-     * استبدال ملف قاعدة البيانات ثم إعادة تشغيل العملية لفتحها.
-     */
-    private fun restoreFromSqliteFile(sourcePath: String) {
-        val sq = db.openHelper.writableDatabase
-        val dbPath = sq.path ?: throw Exception("لا يمكن تحديد مسار قاعدة البيانات")
-        // نسخة احتياطية قبل الاستبدال (أمان)
-        sq.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-        val current = File(dbPath)
-        val safety = File(dbPath + ".pre_restore")
-        FileInputStream(current).use { inp -> FileOutputStream(safety).use { out -> inp.copyTo(out) } }
-        // استبدال الملف
-        FileInputStream(File(sourcePath)).use { inp -> FileOutputStream(current).use { out -> inp.copyTo(out) } }
-        File(dbPath + "-wal").delete()
-        File(dbPath + "-shm").delete()
     }
 
     // ─── مشاركة / استيراد / حذف ─────────────────────────────────

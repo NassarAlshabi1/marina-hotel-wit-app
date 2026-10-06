@@ -48,3 +48,18 @@ presentation  ->  domain  <-  data
 - Contract logic has JVM tests under `app/src/test`; Worker protocol tests live
   in `worker/test`. Run `./gradlew :app:testDebugUnitTest` and `npm test` from
   their respective project directories when JDK/Node dependencies are present.
+
+## Financial integrity / Room 72
+
+- Expense mutations own the transaction: expense + UUID-linked withdrawal +
+  all Outbox rows commit or roll back together. ViewModels do not write mirrors.
+- Each Outbox mutation gets a distinct persisted idempotency key; retries reuse it.
+- `pending_sync_links` is a local-only durable inbox, written in the page
+  transaction before the cursor may advance. Replay occurs after every pull,
+  including empty deltas. A new epoch discards the old generation's inbox and
+  replays from zero without echo filtering, even across page limits/restarts.
+- Legacy financial links are not inferred from device-local IDs. Unverified
+  legacy mirror edits/deletes fail closed for manual review. Reports keep
+  unresolved rows visible with a warning rather than deduplicating by amount/day.
+- Supported database upgrades are 70→71→72 and 71→72. Unknown versions fail
+  closed; there is no destructive fallback. See `docs/financial-integrity-fixes.md`.

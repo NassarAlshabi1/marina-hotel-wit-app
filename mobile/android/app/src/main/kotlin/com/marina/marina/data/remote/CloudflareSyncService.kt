@@ -33,8 +33,6 @@ class CloudflareSyncService @Inject constructor(
     private val preferences: SyncPreferences
 ) {
     companion object {
-        private const val TAG = "CloudflareSync"
-
         /** محاولات الدخول لأعطال الشبكة العابرة (DNS/socket) — نفس Flutter. */
         private const val LOGIN_ATTEMPTS = 2
 
@@ -144,6 +142,34 @@ class CloudflareSyncService @Inject constructor(
         }
     }
 
+    /** Bounded authenticated D1 probe. Never reads business tables or changes a cursor. */
+    suspend fun checkD1Connection(): Boolean = withContext(Dispatchers.IO) {
+        kotlinx.coroutines.withTimeoutOrNull(PING_TIMEOUT_MS) {
+            suspend fun authenticate(): Boolean {
+                val response = api.login(WorkerLoginRequest(config.username, config.password, ensureDeviceId())).awaitProbeResponse()
+                val body = response.body()
+                if (!response.isSuccessful || body?.token.isNullOrBlank()) return false
+                preferences.saveAuthToken(body!!.token!!)
+                lastLoginUser = body.user
+                return true
+            }
+            try {
+                if (!hasWorkerToken() && !authenticate()) return@withTimeoutOrNull false
+                var response = api.d1Health().awaitProbeResponse()
+                // Expired JWT: refresh once, not an infinite retry or a bootstrap operation.
+                if (response.code() == 401) {
+                    if (!authenticate()) return@withTimeoutOrNull false
+                    response = api.d1Health().awaitProbeResponse()
+                }
+                response.isSuccessful && response.body()?.status == "ok" && response.body()?.d1 == "ok"
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+        } ?: false
+    }
+
     /** عدّادات كل الجداول في D1 — تشخيص حالة القاعدة السحابية. */
     suspend fun stats(): Result<Map<String, Int>> = withContext(Dispatchers.IO) {
         try {
@@ -210,6 +236,16 @@ class CloudflareSyncService @Inject constructor(
                 )
             }
             try {
+                if (operations.any { it.entity == "expenses" && it.operation != "delete" && it.data["expense_kind"] != null }) {
+                    // An older Worker silently filters unknown columns. Never
+                    // send a typed financial edit until server AND schema opt in.
+                    val health = withTimeout(8_000L) { api.d1Health().awaitProbeResponse() }
+                    val capability = health.body()
+                    check(health.isSuccessful && capability?.status == "ok" && capability.d1 == "ok" &&
+                        capability.expenseKindSupported == true) {
+                        "يلزم تحديث Worker وترحيل D1 رقم 0015 قبل رفع أنواع المصروفات؛ بقيت التغييرات محلياً"
+                    }
+                }
                 val response = api.push(WorkerPushRequest(operations)).execute()
                 val body = response.body()
                 when {
@@ -258,6 +294,7 @@ class SyncPreferences @Inject constructor(
         private const val KEY_FULL_SYNC_COMPLETE = "full_sync_complete"
         private const val KEY_CURRENT_USER = "current_user_json"
         private const val KEY_LAST_PULL_CURSOR = "last_pull_cursor"
+        private const val KEY_FULL_REPLAY_PENDING = "cf_full_replay_pending"
         private const val KEY_SYNC_EPOCH = "cf_sync_epoch"
         private const val KEY_SYNC_ERROR_HISTORY = "cf_sync_error_history"
         private const val MAX_SYNC_ERROR_RECORDS = 40
@@ -375,12 +412,29 @@ class SyncPreferences @Inject constructor(
 
     // ─── مؤشر السحب العام (عقد worker: cursor updated_at) ───────
 
+    fun prepareForLocalRestore() {
+        preferencesManager.commitValues(mapOf(
+            KEY_CLOUDFLARE_SYNC to false,
+            KEY_LAST_PULL_CURSOR to 0L,
+            KEY_LAST_PULL to 0L,
+            KEY_FULL_REPLAY_PENDING to true,
+            KEY_FULL_SYNC_COMPLETE to false,
+            KEY_TS_NORMALIZATION_DONE to false
+        ))
+    }
+
     fun saveLastPullCursor(cursor: Long) {
         preferencesManager.saveLong(KEY_LAST_PULL_CURSOR, cursor)
     }
 
     fun getLastPullCursor(): Long {
         return preferencesManager.getLong(KEY_LAST_PULL_CURSOR, 0L)
+    }
+
+    fun isFullReplayPending(): Boolean = preferencesManager.getBoolean(KEY_FULL_REPLAY_PENDING, false)
+
+    fun setFullReplayPending(pending: Boolean) {
+        preferencesManager.putBoolean(KEY_FULL_REPLAY_PENDING, pending)
     }
 
     /** آخر جيل خادمي معتمد؛ null قبل أول استجابة Worker تحمل epoch. */
