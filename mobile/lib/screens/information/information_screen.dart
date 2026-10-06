@@ -36,11 +36,34 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   /// الاسم ورقم الغرفة ورقم الهوية والمحافظة، مع تسامح مع الهمزات
   /// والألف والتاء المربوطة والياء لتقليل حالات «لا نتائج» الكاذبة.
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   String _searchQuery = '';
+
+  /// ✅ (2026-10-06): البحث يُفتح **بالضغط** على أيقونة البحث في الهيد
+  /// (AppBar) ويُغلق بزر ✕ — فلا يزحم الرأس في الاستخدام العادي.
+  bool _searchVisible = false;
+
+  void _toggleSearch() {
+    setState(() {
+      _searchVisible = !_searchVisible;
+      if (!_searchVisible) {
+        _searchController.clear();
+        _searchQuery = '';
+        _searchFocusNode.unfocus();
+      }
+    });
+    if (_searchVisible) {
+      // تركيز تلقائي ليكتب المستخدم فوراً بلا نقرة ثانية.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _searchFocusNode.requestFocus();
+      });
+    }
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _verticalScrollController.dispose();
     super.dispose();
   }
@@ -115,8 +138,14 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       },
       child: AppScaffold(
         title: 'سجل المعلومية',
-        header: _buildSearchHeader(),
+        // الحقل يظهر فقط بعد الضغط على أيقونة البحث في الهيد.
+        header: _searchVisible ? _buildSearchHeader() : null,
         actions: [
+          IconButton(
+            tooltip: _searchVisible ? 'إغلاق البحث' : 'بحث في السجل بالاسم',
+            onPressed: _toggleSearch,
+            icon: Icon(_searchVisible ? Icons.close : Icons.search),
+          ),
           IconButton(
             tooltip: 'تصدير إلى PDF',
             onPressed: _exportingPdf || filteredEntries.isEmpty
@@ -146,15 +175,18 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     );
   }
 
-  /// حقل البحث المضمَّن في الهيد — بلا حجب للعنوان أو الأزرار.
+  /// حقل البحث المضمَّن في الهيد — يظهر بالضغط على أيقونة البحث،
+  /// بلا حجب للعنوان أو الأزرار.
   Widget _buildSearchHeader() {
     return TextField(
       controller: _searchController,
+      focusNode: _searchFocusNode,
+      autofocus: true,
       textInputAction: TextInputAction.search,
       onChanged: (value) => setState(() => _searchQuery = value),
       decoration: InputDecoration(
         isDense: true,
-        hintText: 'بحث بالاسم أو رقم الغرفة أو الهوية…',
+        hintText: 'ابحث في سجل المعلومية بالاسم أو الغرفة أو الهوية…',
         prefixIcon: const Icon(Icons.search, size: 20),
         suffixIcon: _searchQuery.isEmpty
             ? null

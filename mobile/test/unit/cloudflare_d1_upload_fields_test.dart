@@ -786,4 +786,183 @@ void main() {
     expect(sliceRows(rows, 2, 5), isEmpty, reason: 'OFFSET بعد النهاية');
     expect(sliceRows(rows, 0, 0), isEmpty, reason: 'LIMIT=0 آمن');
   });
+  // ═════════════════════════════════════════════════════════════════════════
+  // ✅ (2026-10-06) التحقق من حقول الهوية المالية في مسار الرفع إلى D1
+  //
+  // مسار D1 يقرأ `SELECT *` من القاعدة المحلية ويرفع أسماء الأعمدة حرفياً،
+  // ويبني CREATE/ALTER من DDL المحلي نفسه (sqlite_master) — لذا يجب أن تكون
+  // حقول الهوية الدائمة (UUID) موجودة **فعلاً** في المخطط المحلي وفي الـ DDL
+  // الذي يُنقل إلى D1، وإلا رُفعت نسخة بلا هوية (نفس الخطر الذي حاربناه في
+  // G-1/G-2 على مستوى المزامنة).
+  // ═════════════════════════════════════════════════════════════════════════
+  group('حقول الهوية المالية في رفع D1', () {
+    /// أعمدة جدول كما تصل إلى D1 (نفس SELECT * الذي يقرأه التبويب).
+    Future<Set<String>> uploadColumns(String table) async {
+      final rows = await db.customSelect('SELECT * FROM "$table" LIMIT 0').get();
+      // Drift يعيد الأعمدة حتى مع صفر صفوف عبر pragma.
+      if (rows.isEmpty) return tableColumns(table);
+      return rows.first.data.keys.toSet();
+    }
+
+    /// نص CREATE TABLE كما هو في sqlite_master (يُنقل إلى D1 كـ IF NOT EXISTS
+    /// ويُستخرج منه تعريف الأعمدة لمصالحة المخطط).
+    Future<String> localDdl(String table) async {
+      final rows = await db
+          .customSelect(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name = ?",
+            variables: [Variable.withString(table)],
+          )
+          .get();
+      return rows.isEmpty ? '' : (rows.first.data['sql']?.toString() ?? '');
+    }
+
+    const identityFields = <String, List<String>>{
+      'employees': ['local_uuid'],
+      'expenses': ['local_uuid', 'employee_uuid', 'withdrawal_uuid'],
+      'salary_withdrawals': ['local_uuid', 'employee_uuid', 'expense_uuid'],
+      'salary_cycles': ['local_uuid', 'employee_uuid'],
+      'salary_payments': ['local_uuid', 'employee_uuid', 'cycle_uuid'],
+      'salary_carry_over_logs': [
+        'local_uuid',
+        'employee_uuid',
+        'from_cycle_id',
+        'to_cycle_id',
+      ],
+    };
+
+    test('كل جدول مالي يحمل حقول الهوية في المخطط المحلي (SELECT *)', () async {
+      final failures = <String>[];
+      for (final entry in identityFields.entries) {
+        final columns = await uploadColumns(entry.key);
+        for (final field in entry.value) {
+          if (!columns.contains(field)) {
+            failures.add('${entry.key}.$field');
+          }
+        }
+      }
+      expect(
+        failures,
+        isEmpty,
+        reason:
+            'حقول هوية ناقصة من مسار الرفع إلى D1 (ستُرفع بلا رابط دائم): '
+            '${failures.join('، ')}',
+      );
+    });
+
+    test('نص DDL المحلي (المصدر لـ CREATE/ALTER على D1) يحمل نفس الحقول',
+        () async {
+      final failures = <String>[];
+      for (final entry in identityFields.entries) {
+        final ddl = await localDdl(entry.key);
+        if (ddl.isEmpty) {
+          failures.add('${entry.key}: لا DDL في sqlite_master');
+          continue;
+        }
+        for (final field in entry.value) {
+          if (!ddl.contains('"$field"')) {
+            failures.add('${entry.key}.$field');
+          }
+        }
+      }
+      expect(
+        failures,
+        isEmpty,
+        reason:
+            'DDL المنقول إلى D1 لا يتضمن حقول الهوية ⇒ _reconcileSchema لن '
+            'يستطيع إضافتها هناك: ${failures.join('، ')}',
+      );
+    });
+
+    test('رفع صفوف فعلية: القيم تُرسل بأسماء الأعمدة snake_case نفسها',
+        () async {
+      final empId = await db
+          .into(db.employees)
+          .insert(
+            EmployeesCompanion.insert(
+              localUuid: 'emp-uuid-d1',
+              createdAt: 1,
+              updatedAt: 1,
+              lastModified: 1,
+              name: 'موظف D1',
+              basicSalary: 1000,
+              status: 'active',
+            ),
+          );
+      final cycleId = await db
+          .into(db.salaryCycles)
+          .insert(
+            SalaryCyclesCompanion.insert(
+              localUuid: 'cycle-uuid-d1',
+              createdAt: 1,
+              updatedAt: 1,
+              lastModified: 1,
+              employeeId: empId,
+              cycleKey: '2026-10',
+              employeeUuid: const Value('emp-uuid-d1'),
+            ),
+          );
+      await db
+          .into(db.salaryPayments)
+          .insert(
+            SalaryPaymentsCompanion.insert(
+              localUuid: 'pay-uuid-d1',
+              createdAt: 1,
+              updatedAt: 1,
+              lastModified: 1,
+              cycleId: cycleId,
+              amount: const Value(500),
+              employeeUuid: const Value('emp-uuid-d1'),
+              paymentDateIso: '2026-10-01',
+            ),
+          );
+      // العمود يضمنه beforeOpen (لا يظهر في Companion المولَّد).
+      await db.customStatement(
+        "UPDATE salary_payments SET cycle_uuid = 'cycle-uuid-d1' "
+        "WHERE local_uuid = 'pay-uuid-d1'",
+      );
+
+      final rows = await db
+          .customSelect('SELECT * FROM "salary_payments"')
+          .get();
+      final row = rows.first.data;
+      expect(row['local_uuid'], 'pay-uuid-d1');
+      expect(row['employee_uuid'], 'emp-uuid-d1');
+      expect(row['cycle_uuid'], 'cycle-uuid-d1');
+      expect(row['cycle_id'], cycleId);
+
+      // سجل الترحيل: رابطتا الدورتين (G-2) تصلان إلى D1 كنصّين.
+      final logId = await db
+          .into(db.salaryCarryOverLogs)
+          .insert(
+            SalaryCarryOverLogsCompanion.insert(
+              localUuid: 'carry-uuid-d1',
+              createdAt: 1,
+              updatedAt: 1,
+              lastModified: 1,
+              employeeId: empId,
+              amount: 0,
+              previousCycleStart: '2026-09-05',
+              previousCycleEnd: '2026-10-04',
+              newCycleStart: '2026-10-05',
+              newCycleEnd: '2026-11-04',
+              reason: 'اختبار D1',
+              carriedAt: 1,
+            ),
+          );
+      await db.customStatement(
+        "UPDATE salary_carry_over_logs SET employee_uuid = 'emp-uuid-d1', "
+        "from_cycle_id = 'cycle-uuid-prev', to_cycle_id = 'cycle-uuid-d1' "
+        'WHERE id = ?',
+        [logId],
+      );
+      final logRows = await db
+          .customSelect('SELECT * FROM "salary_carry_over_logs"')
+          .get();
+      final log = logRows.first.data;
+      expect(log['employee_uuid'], 'emp-uuid-d1');
+      expect(log['from_cycle_id'], 'cycle-uuid-prev');
+      expect(log['to_cycle_id'], 'cycle-uuid-d1');
+    });
+  });
+
 }
