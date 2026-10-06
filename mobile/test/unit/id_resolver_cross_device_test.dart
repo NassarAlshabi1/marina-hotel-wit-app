@@ -148,14 +148,18 @@ void main() {
       },
     );
 
-    test('serverId مكرر (خطأ بيانات): يختار النشط أولاً بشكل حتمي', () async {
-      final active = await insertEmployee(
+    // ✅ (P1-3 / 2026-10-06): كان هذان الاختباران يوثّقان سلوك **التخمين**
+    // (اختيار النشط/الأصغر عند ازدواج الرقم البعيد). القرار الهندسي الجديد:
+    // ازدواج مرشّحي الرقم البعيد = عدم يقين ⇒ **لا ربط** ويُترك السجل
+    // للربط المؤجّل/المراجعة، لأن أي اختيار قد يربط حركة مالية بموظف خاطئ.
+    test('serverId مكرر (خطأ بيانات): لا اختيار — يُترك للمراجعة', () async {
+      await insertEmployee(
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0005',
         name: 'النشط',
         serverId: 1,
         deviceId: 'device-A',
       );
-      final deleted = await insertEmployee(
+      await insertEmployee(
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0006',
         name: 'المحذوف',
         serverId: 1,
@@ -167,18 +171,21 @@ void main() {
         fromRemote: true,
         sourceDeviceId: 'device-A',
       );
-      expect(got, active.id, reason: 'النشط (deletedAt NULL) يسبق المحذوف');
-      expect(deleted.id, isNot(got));
+      expect(
+        got,
+        isNull,
+        reason: 'ازدواج المرشّحين ⇒ لا ربط (مراجعة بشرية) بدل اختيار «الأول»',
+      );
     });
 
-    test('serverId مكرر وكلاهما نشط: يختار الأصغر id حتماً', () async {
-      final first = await insertEmployee(
+    test('serverId مكرر وكلاهما نشط: لا اختيار — يُترك للمراجعة', () async {
+      await insertEmployee(
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0007',
         name: 'الأول',
         serverId: 2,
         deviceId: 'device-A',
       );
-      final second = await insertEmployee(
+      await insertEmployee(
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0008',
         name: 'الثاني',
         serverId: 2,
@@ -189,7 +196,32 @@ void main() {
         fromRemote: true,
         sourceDeviceId: 'device-A',
       );
-      expect(got, first.id < second.id ? first.id : second.id);
+      expect(got, isNull);
+    });
+
+    test('المصدر المحلي: ازدواج serverId يبقى حتمياً (النشط ثم الأصغر)', () async {
+      final active = await insertEmployee(
+        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000a',
+        name: 'النشط محلياً',
+        serverId: 31,
+        deviceId: 'device-A',
+      );
+      await insertEmployee(
+        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000b',
+        name: 'المحذوف محلياً',
+        serverId: 31,
+        deletedAt: 1783994438,
+        deviceId: 'device-A',
+      );
+      final got = await resolver.resolveEmployee(
+        serverId: 31,
+        fromRemote: false,
+      );
+      expect(
+        got,
+        active.id,
+        reason: 'المصدر المحلي على نفس الجهاز: النشط (deletedAt NULL) أولاً',
+      );
     });
   });
 

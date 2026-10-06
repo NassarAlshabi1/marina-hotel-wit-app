@@ -4,9 +4,11 @@
 // إثبات دالة المطابقة (تطبيع عربي + تسامح مع الهمزات/التاء المربوطة/الأرقام)
 // وواجهة شريط البحث داخل AppScaffold.header.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:marina_hotel_mobile/components/app_scaffold.dart';
+import 'package:marina_hotel_mobile/providers/repository_providers.dart';
 import 'package:marina_hotel_mobile/screens/information/information_screen.dart';
 import 'package:marina_hotel_mobile/utils/guest_info_search.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
@@ -84,13 +86,20 @@ void main() {
   group('شريط البحث في الهيد (AppScaffold.header)', () {
     testWidgets('يظهر في الرأس ولا يحجب العنوان', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: AppScaffold(
-            title: 'سجل المعلومية',
-            header: const TextField(
-              decoration: InputDecoration(hintText: 'بحث بالاسم…'),
+        ProviderScope(
+          overrides: [
+            simpleNotesUnreadCountProvider.overrideWith(
+              (ref) => Stream.value(0),
             ),
-            body: const SizedBox.shrink(),
+          ],
+          child: MaterialApp(
+            home: AppScaffold(
+              title: 'سجل المعلومية',
+              header: const TextField(
+                decoration: InputDecoration(hintText: 'بحث بالاسم…'),
+              ),
+              body: const SizedBox.shrink(),
+            ),
           ),
         ),
       );
@@ -102,8 +111,15 @@ void main() {
 
     testWidgets('بلا header: لا يتغير شيء في بقية الشاشات', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: AppScaffold(title: 'شاشة أخرى', body: SizedBox.shrink()),
+        ProviderScope(
+          overrides: [
+            simpleNotesUnreadCountProvider.overrideWith(
+              (ref) => Stream.value(0),
+            ),
+          ],
+          child: const MaterialApp(
+            home: AppScaffold(title: 'شاشة أخرى', body: SizedBox.shrink()),
+          ),
         ),
       );
       await tester.pump();

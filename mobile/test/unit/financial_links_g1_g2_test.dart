@@ -27,11 +27,10 @@ void main() {
   const now = 1700000000;
 
   setUp(() async {
+    // ⚠️ لا `ALTER` يدوي هنا: `beforeOpen` في AppDatabase هو من يضمن
+    // عمود `cycle_uuid` (وهو ما يثبته هذا الاختبار ضمنياً — لو غاب لفشل
+    // كل استدعاء في الملف، ولو أُضيف مرتين لفشل بـ duplicate column).
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    // نفس ما يفعله beforeOpen في القاعدة الحقيقية (عمود إضافي بترحيل خام).
-    await db.customStatement(
-      'ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT',
-    );
   });
 
   tearDown(() async {
