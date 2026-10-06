@@ -88,19 +88,28 @@ jobs:
       - name: Build signed release APK (v1+v2+v3)
         run: ./gradlew assembleRelease --console=plain --stacktrace
 
+      # معيار إخراج التطبيق: mobile/android/build.gradle يعيد توجيه buildDir
+      # إلى <rootProject.buildDir>/<projectName> = mobile/build/app — ومسار
+      # app-release.apk تحته ثبت فعلاً في التشغيل الأول (5.67 MiB).
+      - name: Build debug APK (diagnostic)
+        run: ./gradlew assembleDebug --console=plain --stacktrace
+
       - name: Locate built APKs
         id: locate
         working-directory: .
         run: |
           set -e
-          for f in "$RELEASE_APK" "$DEBUG_APK"; do
-            if [ ! -f "$f" ]; then
-              echo "::error::APK not found at $f"
-              find mobile/build mobile/android/app/build -name '*.apk' 2>/dev/null | head -20 || true
-              exit 1
-            fi
-            ls -la "$f"
-          done
+          if [ ! -f "$RELEASE_APK" ]; then
+            echo "::error::release APK not found at $RELEASE_APK"
+            find mobile/build mobile/android/app/build -name '*.apk' 2>/dev/null | head -20 || true
+            exit 1
+          fi
+          ls -la "$RELEASE_APK"
+          if [ -f "$DEBUG_APK" ]; then
+            ls -la "$DEBUG_APK"
+          else
+            echo "::warning::debug APK not found at $DEBUG_APK (يُبنى تشخيصياً — لا يُفشل المهمة)"
+          fi
           {
             echo "release_sha256=$(sha256sum "$RELEASE_APK" | cut -d' ' -f1)"
             echo "release_bytes=$(stat -c%s "$RELEASE_APK")"
@@ -119,7 +128,9 @@ jobs:
             || { echo '::error::v3 signature MISSING'; exit 1; }
           "$BT/zipalign" -c 4 "$RELEASE_APK" && echo "zipalign OK"
           # Debug APK كائن تشخيصي: يُتحقق من توقيعه أيضاً لكن دون بوابة v1/v2/v3.
-          "$BT/apksigner" verify --verbose "$DEBUG_APK" | head -5 || true
+          if [ -f "$DEBUG_APK" ]; then
+            "$BT/apksigner" verify --verbose "$DEBUG_APK" | head -5 || true
+          fi
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v5
@@ -135,7 +146,7 @@ jobs:
         with:
           name: marina-session-debug-apk
           path: mobile/build/app/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
           compression-level: 0
 
