@@ -177,209 +177,795 @@ Got dependencies!
 173 packages have newer versions incompatible with dependency constraints.
 Try `flutter pub outdated` for more information.
 
-test/unit/financial_links_g1_g2_test.dart:89:21: Error: The argument type 'int' can't be assigned to the parameter type 'Value<int>'.
- - 'Value' is from 'package:drift/src/runtime/data_class.dart' ('../../../../.pub-cache/hosted/pub.dev/drift-2.34.3/lib/src/runtime/data_class.dart').
-            amount: 500,
-                    ^
-::group::❌ loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart (failed)
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: test/unit/financial_links_g1_g2_test.dart:89:21: Error: The argument type 'int' can't be assigned to the parameter type 'Value<int>'.
- - 'Value' is from 'package:drift/src/runtime/data_class.dart' ('../../../../.pub-cache/hosted/pub.dev/drift-2.34.3/lib/src/runtime/data_class.dart').
-            amount: 500,
-                    ^
-.
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم يُثبّت من المفتاح الأجنبي المحلي ويكتب مرة واحدة (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم UUID الوارد في الحمولة (هوية معلنة) يتقدّم على المفتاح الرقمي (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم لا دليل ⇒ لا كتابة (يبقى فارغاً ويظهر في المراجعة) (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم المشي المحدود يثبّت كل رابط مُثبت بـ FK ويعدّ الملخص (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل مطابقة واحدة ببداية اليوم الفندقي ⇒ UUID الدورة (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل غياب بداية اليوم ⇒ مطابقة مفتاح الشهر (حين تكون فريدة) (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل أكثر من مرشّح ⇒ لا ربط (لا تخمين — البند 12) (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل صفر مرشّح ⇒ لا ربط (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P1-3 — ازدواج الرقم البعيد ⇒ مراجعة لا اختيار موظفان بنفس serverId ونفس الجهاز ⇒ لا ربط من السحابة (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل رابط الهوية ⇒ identity (حاسم) (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل الرقم البعيد بلا إثبات الجهاز ⇒ لا ربط رقمي (يسقط للمطابقة) (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل الرقم البعيد مع نفس الجهاز الكاتب ⇒ provenNumeric (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل جهاز مختلف ⇒ لا ربط رقمي (ولا يُربط بمصروف جهاز آخر) (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل السحب المباشر ليس مرآة أبداً (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل resolveLinkedExpenseId يحترم إثبات الجهاز (failed)
+SqliteException(1): while executing, duplicate column name: cycle_uuid, SQL logic error (code 1)
+  Causing statement: ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT, parameters: 
+package:sqlite3/src/implementation/exception.dart 101:3         throwException
+package:sqlite3/src/implementation/database.dart 295:9          DatabaseImplementation.execute
+package:drift/src/sqlite3/database.dart 151:16                  Sqlite3Delegate.runWithArgsSync
+package:drift/native.dart 434:30                                _NativeDelegate.runCustom.<fn>
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      new Future.sync
+package:drift/native.dart 434:19                                _NativeDelegate.runCustom
+package:drift/src/runtime/executor/helpers/engines.dart 120:19  _BaseExecutor.runCustom.<fn>
+package:drift/src/runtime/executor/helpers/engines.dart 64:20   _BaseExecutor._synchronized
+package:drift/src/runtime/executor/helpers/engines.dart 116:12  _BaseExecutor.runCustom
+package:drift/src/runtime/api/connection_user.dart 437:23       DatabaseConnectionUser.customStatement.<fn>
+package:drift/src/runtime/api/connection_user.dart 172:16       DatabaseConnectionUser.doWhenOpened.<fn>
+===== asynchronous gap ===========================
+dart:async                                                      Future.then
+package:drift/src/runtime/api/connection_user.dart 170:50       DatabaseConnectionUser.doWhenOpened
+package:drift/src/runtime/api/connection_user.dart 436:19       DatabaseConnectionUser.customStatement
+test/unit/financial_links_g1_g2_test.dart 32:14                 main.<fn>
+::endgroup::
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية تطبيع الهمزات والتاء المربوطة والياء والتشكيل
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية البحث بالاسم يعمل بأشكال كتابة مختلفة
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية البحث يشمل الغرفة ورقم الهوية والمحافظة
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية عبارة فارغة تعني «لا فلترة»
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: شريط البحث في الهيد (AppScaffold.header) يظهر في الرأس ولا يحجب العنوان (failed)
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following StateError was thrown building AppScaffold(dirty, state: _ConsumerState#55fdb):
+Bad state: No ProviderScope found
+
+The relevant error-causing widget was:
+  AppScaffold
+  AppScaffold:file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart:88:17
+
+When the exception was thrown, this was the stack:
+#0      ProviderScope.containerOf (package:flutter_riverpod/src/framework.dart:110:7)
+#1      ConsumerStatefulElement._container (package:flutter_riverpod/src/consumer.dart:508:53)
+#2      ConsumerStatefulElement._container (package:flutter_riverpod/src/consumer.dart)
+#3      ConsumerStatefulElement.watch.<anonymous closure> (package:flutter_riverpod/src/consumer.dart:564:14)
+#4      _LinkedHashMapMixin.putIfAbsent (dart:_compact_hash:682:23)
+#5      ConsumerStatefulElement.watch (package:flutter_riverpod/src/consumer.dart:557:26)
+#6      AppScaffold.build (package:marina_hotel_mobile/components/app_scaffold.dart:56:34)
+#7      _ConsumerState.build (package:flutter_riverpod/src/consumer.dart:476:19)
+#8      StatefulElement.build (package:flutter/src/widgets/framework.dart:5931:27)
+#9      ConsumerStatefulElement.build (package:flutter_riverpod/src/consumer.dart:539:20)
+#10     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5817:15)
+#11     StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#12     Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#13     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:5799:5)
+#14     StatefulElement._firstBuild (package:flutter/src/widgets/framework.dart:5973:11)
+#15     ComponentElement.mount (package:flutter/src/widgets/framework.dart:5793:5)
+...     Normal element mounting (260 frames)
+#275    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#276    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#277    MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (467 frames)
+#744    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#745    Element.updateChild (package:flutter/src/widgets/framework.dart:4053:20)
+#746    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#747    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#748    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#749    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#750    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#751    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#752    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#753    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#754    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#755    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#756    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#757    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#758    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#759    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#760    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#761    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#762    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#763    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#764    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#765    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#766    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#767    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#768    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#769    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#770    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#771    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#772    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#773    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#774    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#775    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#776    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#777    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#778    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#779    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#780    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#781    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#782    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#783    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#784    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#785    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#786    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#787    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#788    _RawViewElement._updateChild (package:flutter/src/widgets/view.dart:481:16)
+#789    _RawViewElement.update (package:flutter/src/widgets/view.dart:568:5)
+#790    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#791    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#792    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#793    StatelessElement.update (package:flutter/src/widgets/framework.dart:5895:5)
+#794    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#795    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#796    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#797    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#798    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#799    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#800    RootElement._rebuild (package:flutter/src/widgets/binding.dart:2091:16)
+#801    RootElement.update (package:flutter/src/widgets/binding.dart:2069:5)
+#802    RootElement.performRebuild (package:flutter/src/widgets/binding.dart:2083:7)
+#803    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#804    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2750:15)
+#805    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2807:11)
+#806    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3111:18)
+#807    AutomatedTestWidgetsFlutterBinding.drawFrame (package:flutter_test/src/binding.dart:2431:19)
+#808    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:509:5)
+#809    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#810    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#811    AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:2260:9)
+#814    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#815    AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:2249:27)
+#816    WidgetTester.pumpWidget.<anonymous closure> (package:flutter_test/src/widget_tester.dart:598:22)
+#819    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#820    WidgetTester.pumpWidget (package:flutter_test/src/widget_tester.dart:595:27)
+#821    main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart:86:20)
+#822    testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#823    TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1952:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 5 frames from dart:async and package:stack_trace)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "سجل المعلومية": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart:99:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1952:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart line 99
+The test description was:
+  يظهر في الرأس ولا يحجب العنوان
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (2) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Test failed. See exception logs above.
+The test description was: يظهر في الرأس ولا يحجب العنوان
 
 ::endgroup::
-::group::❌ loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart (failed after test completion)
-Error: The Dart compiler exited unexpectedly.
-package:flutter_tools/src/base/common.dart 34:3  throwToolExit
-package:flutter_tools/src/compile.dart 1009:11   DefaultResidentCompiler._compile.<fn>
-dart:async/zone_root.dart 48:47                  _rootRunUnary
-dart:async/zone.dart 733:19                      _CustomZone.runUnary
-dart:async/future_impl.dart 948:45               Future._propagateToListeners.handleValueCallback
-dart:async/future_impl.dart 977:13               Future._propagateToListeners
-dart:async/future_impl.dart 862:9                Future._propagateToListeners
-dart:async/future_impl.dart 720:5                Future._completeWithValue
-dart:async/future_impl.dart 804:7                Future._asyncCompleteWithValue.<fn>
-dart:async/zone_root.dart 35:13                  _rootRun
-dart:async/zone.dart 726:19                      _CustomZone.run
-dart:async/zone.dart 625:7                       _CustomZone.runGuarded
-dart:async/zone.dart 666:23                      _CustomZone.bindCallbackGuarded.<fn>
-dart:async/schedule_microtask.dart 40:35         _microtaskLoop
-dart:async/schedule_microtask.dart 49:5          _startMicrotaskLoop
-dart:isolate-patch/isolate_patch.dart 127:13     _runPendingImmediateCallback
-dart:isolate-patch/isolate_patch.dart 193:5      _RawReceivePort._handleMessage
-::endgroup::
-test/unit/information_search_test.dart:44:44: Error: Member not found: 'InformationScreen.normalizeForSearch'.
-      final normalized = InformationScreen.normalizeForSearch('أَحْمَدُ');
-                                           ^^^^^^^^^^^^^^^^^^
-test/unit/information_search_test.dart:46:32: Error: Member not found: 'InformationScreen.normalizeForSearch'.
-      expect(InformationScreen.normalizeForSearch('فاطمة'), 'فاطمه');
-                               ^^^^^^^^^^^^^^^^^^
-test/unit/information_search_test.dart:47:32: Error: Member not found: 'InformationScreen.normalizeForSearch'.
-      expect(InformationScreen.normalizeForSearch('مصطفى'), 'مصطفي');
-                               ^^^^^^^^^^^^^^^^^^
-test/unit/information_search_test.dart:48:32: Error: Member not found: 'InformationScreen.normalizeForSearch'.
-      expect(InformationScreen.normalizeForSearch('٤١٢'), '412');
-                               ^^^^^^^^^^^^^^^^^^
-test/unit/information_search_test.dart:56:29: Error: Member not found: 'InformationScreen.matchesQuery'.
-          InformationScreen.matchesQuery(row, query),
-                            ^^^^^^^^^^^^
-test/unit/information_search_test.dart:61:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, 'خالد'), isFalse);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:71:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, '12'), isTrue);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:72:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, '998877'), isTrue);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:73:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, 'عدن'), isTrue);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:78:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, ''), isTrue);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:79:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, '   '), isTrue);
-                               ^^^^^^^^^^^^
-::group::❌ loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart (failed)
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: test/unit/information_search_test.dart:44:44: Error: Member not found: 'InformationScreen.normalizeForSearch'.
-      final normalized = InformationScreen.normalizeForSearch('أَحْمَدُ');
-                                           ^^^^^^^^^^^^^^^^^^
-test/unit/information_search_test.dart:46:32: Error: Member not found: 'InformationScreen.normalizeForSearch'.
-      expect(InformationScreen.normalizeForSearch('فاطمة'), 'فاطمه');
-                               ^^^^^^^^^^^^^^^^^^
-test/unit/information_search_test.dart:47:32: Error: Member not found: 'InformationScreen.normalizeForSearch'.
-      expect(InformationScreen.normalizeForSearch('مصطفى'), 'مصطفي');
-                               ^^^^^^^^^^^^^^^^^^
-test/unit/information_search_test.dart:48:32: Error: Member not found: 'InformationScreen.normalizeForSearch'.
-      expect(InformationScreen.normalizeForSearch('٤١٢'), '412');
-                               ^^^^^^^^^^^^^^^^^^
-test/unit/information_search_test.dart:56:29: Error: Member not found: 'InformationScreen.matchesQuery'.
-          InformationScreen.matchesQuery(row, query),
-                            ^^^^^^^^^^^^
-test/unit/information_search_test.dart:61:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, 'خالد'), isFalse);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:71:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, '12'), isTrue);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:72:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, '998877'), isTrue);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:73:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, 'عدن'), isTrue);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:78:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, ''), isTrue);
-                               ^^^^^^^^^^^^
-test/unit/information_search_test.dart:79:32: Error: Member not found: 'InformationScreen.matchesQuery'.
-      expect(InformationScreen.matchesQuery(row, '   '), isTrue);
-                               ^^^^^^^^^^^^
-.
+::group::❌ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: شريط البحث في الهيد (AppScaffold.header) بلا header: لا يتغير شيء في بقية الشاشات (failed)
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following StateError was thrown building AppScaffold(dirty, state: _ConsumerState#d3813):
+Bad state: No ProviderScope found
 
-::endgroup::
-::group::❌ loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart (failed after test completion)
-Error: The Dart compiler exited unexpectedly.
-package:flutter_tools/src/base/common.dart 34:3  throwToolExit
-package:flutter_tools/src/compile.dart 1009:11   DefaultResidentCompiler._compile.<fn>
-dart:async/zone_root.dart 48:47                  _rootRunUnary
-dart:async/zone.dart 733:19                      _CustomZone.runUnary
-dart:async/future_impl.dart 948:45               Future._propagateToListeners.handleValueCallback
-dart:async/future_impl.dart 977:13               Future._propagateToListeners
-dart:async/future_impl.dart 862:9                Future._propagateToListeners
-dart:async/future_impl.dart 720:5                Future._completeWithValue
-dart:async/future_impl.dart 804:7                Future._asyncCompleteWithValue.<fn>
-dart:async/zone_root.dart 35:13                  _rootRun
-dart:async/zone.dart 726:19                      _CustomZone.run
-dart:async/zone.dart 625:7                       _CustomZone.runGuarded
-dart:async/zone.dart 666:23                      _CustomZone.bindCallbackGuarded.<fn>
-dart:async/schedule_microtask.dart 40:35         _microtaskLoop
-dart:async/schedule_microtask.dart 49:5          _startMicrotaskLoop
-dart:isolate-patch/isolate_patch.dart 127:13     _runPendingImmediateCallback
-dart:isolate-patch/isolate_patch.dart 193:5      _RawReceivePort._handleMessage
+The relevant error-causing widget was:
+  AppScaffold
+  AppScaffold:file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart:106:17
+
+When the exception was thrown, this was the stack:
+#0      ProviderScope.containerOf (package:flutter_riverpod/src/framework.dart:110:7)
+#1      ConsumerStatefulElement._container (package:flutter_riverpod/src/consumer.dart:508:53)
+#2      ConsumerStatefulElement._container (package:flutter_riverpod/src/consumer.dart)
+#3      ConsumerStatefulElement.watch.<anonymous closure> (package:flutter_riverpod/src/consumer.dart:564:14)
+#4      _LinkedHashMapMixin.putIfAbsent (dart:_compact_hash:682:23)
+#5      ConsumerStatefulElement.watch (package:flutter_riverpod/src/consumer.dart:557:26)
+#6      AppScaffold.build (package:marina_hotel_mobile/components/app_scaffold.dart:56:34)
+#7      _ConsumerState.build (package:flutter_riverpod/src/consumer.dart:476:19)
+#8      StatefulElement.build (package:flutter/src/widgets/framework.dart:5931:27)
+#9      ConsumerStatefulElement.build (package:flutter_riverpod/src/consumer.dart:539:20)
+#10     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5817:15)
+#11     StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#12     Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#13     ComponentElement._firstBuild (package:flutter/src/widgets/framework.dart:5799:5)
+#14     StatefulElement._firstBuild (package:flutter/src/widgets/framework.dart:5973:11)
+#15     ComponentElement.mount (package:flutter/src/widgets/framework.dart:5793:5)
+...     Normal element mounting (260 frames)
+#275    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#276    MultiChildRenderObjectElement.inflateWidget (package:flutter/src/widgets/framework.dart:7264:36)
+#277    MultiChildRenderObjectElement.mount (package:flutter/src/widgets/framework.dart:7279:32)
+...     Normal element mounting (467 frames)
+#744    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4587:20)
+#745    Element.updateChild (package:flutter/src/widgets/framework.dart:4053:20)
+#746    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#747    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#748    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#749    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#750    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#751    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#752    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#753    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#754    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#755    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#756    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#757    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#758    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#759    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#760    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#761    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#762    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#763    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#764    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#765    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#766    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#767    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#768    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#769    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#770    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#771    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#772    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#773    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#774    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#775    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#776    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#777    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#778    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#779    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#780    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#781    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#782    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#783    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#784    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#785    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#786    ProxyElement.update (package:flutter/src/widgets/framework.dart:6149:5)
+#787    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#788    _RawViewElement._updateChild (package:flutter/src/widgets/view.dart:481:16)
+#789    _RawViewElement.update (package:flutter/src/widgets/view.dart:568:5)
+#790    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#791    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#792    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#793    StatelessElement.update (package:flutter/src/widgets/framework.dart:5895:5)
+#794    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#795    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5841:16)
+#796    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#797    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#798    StatefulElement.update (package:flutter/src/widgets/framework.dart:6007:5)
+#799    Element.updateChild (package:flutter/src/widgets/framework.dart:4037:15)
+#800    RootElement._rebuild (package:flutter/src/widgets/binding.dart:2091:16)
+#801    RootElement.update (package:flutter/src/widgets/binding.dart:2069:5)
+#802    RootElement.performRebuild (package:flutter/src/widgets/binding.dart:2083:7)
+#803    Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#804    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2750:15)
+#805    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2807:11)
+#806    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3111:18)
+#807    AutomatedTestWidgetsFlutterBinding.drawFrame (package:flutter_test/src/binding.dart:2431:19)
+#808    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:509:5)
+#809    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#810    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#811    AutomatedTestWidgetsFlutterBinding.pump.<anonymous closure> (package:flutter_test/src/binding.dart:2260:9)
+#814    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#815    AutomatedTestWidgetsFlutterBinding.pump (package:flutter_test/src/binding.dart:2249:27)
+#816    WidgetTester.pumpWidget.<anonymous closure> (package:flutter_test/src/widget_tester.dart:598:22)
+#819    TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+#820    WidgetTester.pumpWidget (package:flutter_test/src/widget_tester.dart:595:27)
+#821    main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart:104:20)
+#822    testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:29)
+<asynchronous suspension>
+#823    TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1952:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided 5 frames from dart:async and package:stack_trace)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "شاشة أخرى": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart:110:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1952:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart line 110
+The test description was:
+  بلا header: لا يتغير شيء في بقية الشاشات
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (2) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Test failed. See exception logs above.
+The test description was: بلا header: لا يتغير شيء في بقية الشاشات
+
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة يجمع كل المصادر ويصنّفها بأعداد صحيحة
-2026-10-06T20:43:17.296128 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:43:17.307266 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
+2026-10-06T20:47:23.671281 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:23.686266 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة قراءة فقط: لا يتغيّر أي جدول بعد البناء والتصدير
-2026-10-06T20:43:17.332332 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:43:17.338502 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
+2026-10-06T20:47:23.716966 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:23.725756 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة يُنتج XLSX صالحاً (توقيع PK) بلا استثناء
-2026-10-06T20:43:17.483275 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:43:17.486046 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
+2026-10-06T20:47:23.929161 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:23.934232 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة قاعدة بيانات نظيفة: كل الأقسام صفر وحالة الفحص ناجحة
-2026-10-06T20:43:17.518969 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
+2026-10-06T20:47:23.988553 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة نطاق المزوّد يظهر في التقرير (G-7 داخل G-8)
-2026-10-06T20:43:17.529111 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
+2026-10-06T20:47:24.007415 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة clamps: لا انفجار عند غياب جداول (تثبيت أقدم)
-2026-10-06T20:43:17.547742 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
+2026-10-06T20:47:24.024660 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — العقد (لا كتابة) build لا يُنشئ صفوفاً في sync_conflicts أو integrity_violations
-2026-10-06T20:43:17.562237 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:43:17.566085 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
+2026-10-06T20:47:24.043130 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:24.049639 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — العقد (لا كتابة) نوع Variable/تحويل التواريخ لا يُسقط التقرير بأخطاء SQL
-2026-10-06T20:43:17.577207 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:43:17.579450 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
+2026-10-06T20:47:24.067326 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:24.070938 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/1 — الفضاء الرقمي: لا ربط عبر الأجهزة بلا إثبات تصادم serverId بين جهازين: UUID يحسم، والرقم يُرفض
-2026-10-06T20:43:18.036407 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: employeeId=7 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات ⇒ يُترك السجل للربط المؤجّل عبر UUID (G-3).
+2026-10-06T20:47:24.414247 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: employeeId=7 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات ⇒ يُترك السجل للربط المؤجّل عبر UUID (G-3).
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/2 — الابن قبل الأب: تعليق ثم ربط عبر UUID بلا تكرار سحبة تصل قبل موظفها: تُخزَّن، ثم تُربط، ولا تتكرر
-2026-10-06T20:43:18.047581 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
-2026-10-06T20:43:18.063907 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-1 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:43:18.076907 INFO [DEFERRED_RELATIONS] ✅ رُبط salary_withdrawals/wd-uuid-1 عبر UUID (employee=emp-remote-uuid).
-2026-10-06T20:43:18.078068 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=1, pending=0, review=0, total=1
+2026-10-06T20:47:24.431218 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
+2026-10-06T20:47:24.450572 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-1 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:24.465095 INFO [DEFERRED_RELATIONS] ✅ رُبط salary_withdrawals/wd-uuid-1 عبر UUID (employee=emp-remote-uuid).
+2026-10-06T20:47:24.466419 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=1, pending=0, review=0, total=1
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/2 — الابن قبل الأب: تعليق ثم ربط عبر UUID بلا تكرار تعليق متكرر لنفس السجل لا يُنشئ صفوفاً مكررة في المخزن
-2026-10-06T20:43:18.092 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-2 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:24.484707 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-2 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة رقم فقط + جهاز مجهول ⇒ لا ربط، ثم مراجعة بشرية بعد استنفاد المحاولات
-2026-10-06T20:43:18.095221 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
-2026-10-06T20:43:18.103631 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-3 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:43:18.107384 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.109615 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.111898 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.113806 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.115926 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.118031 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.119577 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.121026 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.122341 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.123703 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.125070 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.126575 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.128109 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.129532 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.130795 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.132205 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.133518 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.134860 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.136353 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.137777 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.139030 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.140863 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.142337 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.143986 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.145614 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.488688 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
+2026-10-06T20:47:24.500104 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-3 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:24.504821 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.508239 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.512163 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.515836 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.518697 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.521666 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.524513 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.526994 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.529453 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.532108 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.534582 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.537199 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.539977 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.542435 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.544412 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.546869 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.548844 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.551441 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.553647 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.556224 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.558759 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.561331 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.564140 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.566831 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.569498 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة رقم + نفس الجهاز الكاتب ⇒ يُربط (إثبات فضاء المعرّفات)
-2026-10-06T20:43:18.154042 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
-2026-10-06T20:43:18.163064 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-prov — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:43:18.165631 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:43:18.168332 INFO [DEFERRED_RELATIONS] ✅ رُبط salary_withdrawals/wd-uuid-prov عبر UUID (employee=).
-2026-10-06T20:43:18.168723 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=1, pending=0, review=0, total=1
+2026-10-06T20:47:24.577527 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
+2026-10-06T20:47:24.586627 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-prov — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:24.589816 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:47:24.592466 INFO [DEFERRED_RELATIONS] ✅ رُبط salary_withdrawals/wd-uuid-prov عبر UUID (employee=).
+2026-10-06T20:47:24.592934 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=1, pending=0, review=0, total=1
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة معرّف الجلسة المعلّقة يُحفظ كحمولة كاملة (لا فقدان حقول)
-2026-10-06T20:43:18.178220 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-4 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:47:24.606 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-4 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
 ::endgroup::
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart: حالة «الاورمو محمد»: سحوبات مرآة عبر الأجهزة المرآة exp_962 بلا مصروف محلي 962 لا تُعَد مرتين (مطابقة بيانات)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart: حالة «الاورمو محمد»: سحوبات مرآة عبر الأجهزة مرايا متعددة بمبالغ مختلفة وأيام مختلفة تُطابَق كلها
@@ -390,4 +976,4 @@ dart:isolate-patch/isolate_patch.dart 193:5      _RawReceivePort._handleMessage
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart: المرحلة 2-ب: exp_N يطابق serverId المصروف مطابقة بيانات: موظف مختلف لا يُخدَّد به (حماية من الربط العابر)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart: المرحلة 2-ب: exp_N يطابق serverId المصروف يوم مختلف = ليس مرآة (نفس المبلغ عبر يومين)
 
-::error::22 tests passed, 2 failed.
+::error::26 tests passed, 17 failed.

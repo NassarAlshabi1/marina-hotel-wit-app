@@ -178,11 +178,10 @@ Got dependencies!
 Try `flutter pub outdated` for more information.
 Analyzing 2 items...                                            
 
-warning • The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand • lib/services/adapters/salary_carry_over_logs_adapter.dart:125:11 • dead_null_aware_expression
-warning • The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand • lib/services/adapters/salary_carry_over_logs_adapter.dart:128:11 • dead_null_aware_expression
+warning • The declaration 'normalizeForSearch' isn't referenced. Try removing the declaration of 'normalizeForSearch' • lib/screens/information/information_screen.dart:50:17 • unused_element
    info • 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead. Try replacing the use of the deprecated member with the replacement • lib/services/appwrite_service.dart:1184:10 • deprecated_member_use
 warning • The declaration '_handlePeriodicPull' isn't referenced. Try removing the declaration of '_handlePeriodicPull' • lib/services/google_drive_unified_sync_coordinator.dart:434:16 • unused_element
 warning • The declaration '_startPeriodicSync' isn't referenced. Try removing the declaration of '_startPeriodicSync' • lib/services/smart_google_drive_sync.dart:290:8 • unused_element
 warning • The declaration '_performOptimizedSyncCheck' isn't referenced. Try removing the declaration of '_performOptimizedSyncCheck' • lib/services/smart_sync_manager.dart:148:16 • unused_element
 
-6 issues found. (ran in 18.0s)
+5 issues found. (ran in 20.7s)
