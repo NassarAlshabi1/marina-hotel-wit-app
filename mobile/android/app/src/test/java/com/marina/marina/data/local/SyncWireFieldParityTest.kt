@@ -197,6 +197,39 @@ class SyncWireFieldParityTest {
         assertEquals(1_700_000_500L, tx.transactionTime)
     }
 
+    /**
+     * نظير `movementType: ... ?? 'adjustment'` في `inventory_adapter.dart`
+     * (الفرع المرجعي): صف حركة بلا `movement_type` على السلك يأخذ الافتراضي
+     * بدل أن يُعزل — لأن العمود المحلي `transaction_type` NOT NULL.
+     */
+    @Test
+    fun inventoryTransactionWithoutMovementTypeFallsBackToAdjustmentLikeDart() = runBlocking {
+        registry.ingestPage(
+            listOf(
+                wire(
+                    "inventory_items", "local_uuid" to "item-9", "name" to "شامبو",
+                    "quantity" to 3, "created_at" to 1_700_000_000L, "updated_at" to 1_700_000_000L
+                )
+            )
+        )
+        val report = registry.ingestPage(
+            listOf(
+                wire(
+                    "inventory_transactions",
+                    "local_uuid" to "tx-9", "item_local_uuid" to "item-9",
+                    "quantity" to 2, "balance_after" to 5,
+                    "created_at" to 1_700_000_600L, "updated_at" to 1_700_000_600L,
+                    "last_modified" to 1_700_000_600L
+                )
+            )
+        )
+        assertEquals(1, report.applied)
+        assertEquals(0, report.failed)
+        val tx = db.inventoryDao().getRecentTransactions(10).first().single()
+        assertEquals("adjustment", tx.transactionType)
+        assertEquals(2.0, tx.quantity, 0.0)
+    }
+
     // ─── 3) blacklist: حقول الضيف ────────────────────────────────
 
     @Test

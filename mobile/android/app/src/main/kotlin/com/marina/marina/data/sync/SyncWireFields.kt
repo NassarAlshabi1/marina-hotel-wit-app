@@ -85,6 +85,14 @@ object SyncWireFields {
         "booking_notes" to mapOf("is_active" to 1),
         "booking_price_adjustments" to mapOf("is_active" to true),
         "price_adjustments" to mapOf("adjustment_mode" to "per_night"),
+        // نظير `movementType: ... ?? 'adjustment'` في `inventory_adapter.dart`
+        // (الفرع المرجعي). يُملأ المفتاحان معاً: مفتاح السلك `movement_type`
+        // (كما في Dart) ومفتاحه المحلي `transaction_type` — لأن
+        // `applyLocalAliases` ينسخ من السلك إلى المحلي **فقط إن وُجد** مفتاح
+        // السلك، فغيابه الكامل يترك العمود المحلي NOT NULL بلا قيمة.
+        "inventory_transactions" to mapOf(
+            "movement_type" to "adjustment", "transaction_type" to "adjustment"
+        ),
         "shift_notes" to mapOf("priority" to "medium", "shift_type" to "all", "created_by" to "user", "is_read" to 0),
         // كيانات بلا محوّل Dart (تُسحب عندنا فقط) — القيمة من مُنشئ Room
         // نفسه (وهي القيمة التي تحملها قاعدة Flutter محلياً في جدولها):

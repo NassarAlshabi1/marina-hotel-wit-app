@@ -686,3 +686,26 @@ expenses, debts, employees, salary_withdrawals, inventory_items`) بينما ا�
   أُعيد كتابته (`quarantinedPullAdvancesSavedCursorAndStaysRecoverable`) على
   العقد المصحَّح: المؤشر يتقدم إلى 456، ولا `isError`، والصف يبقى في الحجر
   بحمولته قابلاً للشفاء.
+
+---
+
+## ملحق تشغيل ثانٍ (2026-10-06): تدقيق فرع Flutter المرجعي رأساً برأس
+
+مراجعة **مقارنة** لفرع `feat/cloudflare-sync-execution`@`ac283c6c` مقابل ما في
+فرع الجلسة — التقرير الكامل في
+[`flutter-branch-review-cloudflare-sync-execution.md`](./flutter-branch-review-cloudflare-sync-execution.md).
+أهم ما أنتجته:
+
+1. **حرجة**: زر «سحب التغييرات الآن» كان **يُحجب** عند وجود سجلات outbox غير
+   مُسلَّمة، بينما سياسة `OutboxPullPolicy` في الفرع المرجعي **كود ميت** (لا
+   مستدعي لها في `mobile/lib`) فالسحب هناك لا يُحجب أبداً. صار الزر يُعلِم
+   ويُكمل السحب (الإصلاح في `CloudflareSyncSettingsViewModel.runPullNow`).
+2. **نقص تكافؤ**: الفرع يوجّه كل سجل بـ`record['_entity'] ?? _detectEntity(record)`
+   (استنتاج الكيان من بصمة الأعمدة، 24 بصمة)، وكنا نعزل أي سجل بلا وسم
+   `missing_entity` بلا أمل نجاح. **أُضيف** `SyncIngestorRegistry.resolveEntity`
+   + `inferEntityFromRecord` بجدول بصمات منقول حرفياً، مع 4 اختبارات تكافؤ.
+3. **افتراضي ناقص**: `inventory_transactions.movement_type → 'adjustment'`
+   (نظير `?? 'adjustment'` في `inventory_adapter.dart`) — أُضيف للمفتاحين
+   `movement_type` و`transaction_type` مع اختبار سحب فعلي.
+4. فروق مقصودة موثّقة: طبقة حجر واحدة بدل طبقتين، وعزل السجل مجهول الهوية
+   بحمولته بدل إسقاطه صامتاً، وعدم تلفيق قيم رقمية (`quantity`).

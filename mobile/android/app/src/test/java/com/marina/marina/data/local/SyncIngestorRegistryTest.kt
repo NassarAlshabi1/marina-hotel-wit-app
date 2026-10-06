@@ -253,6 +253,107 @@ class SyncIngestorRegistryTest {
         assertTrue(db.pendingSyncLinksDao().getAll().isEmpty())
     }
 
+    // ─── استنتاج الكيان بلا وسم `_entity` (نظير `_detectEntity` في Dart) ───
+
+    /**
+     * جدول بصمات الأعمدة منقول حرفياً من `_detectEntity`
+     * (`cloudflare_sync_manager.dart:3798`@`ac283c6c`) — كل كيان مزامَن
+     * (24) له بصمة، والترتيب داخل الدالة يمنع التعارض بين البصمات.
+     */
+    @Test
+    fun everySyncEntityHasAnInferenceSignatureIdenticalToDart() {
+        val signatures: Map<String, Map<String, Any>> = mapOf(
+            "rooms" to mapOf("room_number" to "1", "price" to 1.0),
+            "bookings" to mapOf("guest_name" to "g", "checkin_date" to 1L),
+            "payments" to mapOf("amount" to 1.0, "payment_method" to "cash"),
+            "expenses" to mapOf("expense_type" to "x", "description" to "d"),
+            "employees" to mapOf("basic_salary" to 1.0, "position" to "موظف"),
+            "debts" to mapOf("debt_reason" to "r", "remaining_amount" to 1.0),
+            "booking_nights" to mapOf("final_rate" to 1.0, "hotel_day_key" to "k"),
+            "booking_price_adjustments" to mapOf("adjustment_type" to "t", "effective_hotel_day" to "k"),
+            "booking_notes" to mapOf("note_text" to "n", "alert_type" to "a"),
+            "guest_infos" to mapOf("guest_name" to "g", "id_number" to "1"),
+            "shift_notes" to mapOf("shift_date" to "d", "is_read" to 0),
+            "cash_transactions" to mapOf("transaction_type" to "t", "transaction_time" to 1L),
+            "salary_cycles" to mapOf("cycle_key" to "k", "expected_amount" to 1.0),
+            "salary_payments" to mapOf("payment_date_iso" to "d", "cycle_id" to 1L),
+            "salary_withdrawals" to mapOf("withdrawal_type" to "w", "amount" to 1.0),
+            "salary_carry_over_logs" to mapOf("previous_cycle_start" to "a", "new_cycle_start" to "b"),
+            "price_adjustments" to mapOf("target_type" to "t", "target_uuid" to "u"),
+            "audit_logs" to mapOf("operation_type" to "o", "entity_type" to "e"),
+            "payment_voids" to mapOf("void_reason" to "r", "voided_by" to "u"),
+            "inventory_items" to mapOf("minimum_quantity" to 1.0),
+            "inventory_transactions" to mapOf("movement_type" to "adjustment", "balance_after" to 1.0),
+            "devices" to mapOf("device_name" to "d"),
+            "blacklist" to mapOf("reported_by" to "police"),
+            "app_users" to mapOf("username" to "u", "credentials_version" to 1)
+        )
+        // تغطية كاملة: لا كيان مزامَن بلا بصمة (وإلا سقط سجله القديم في العزل).
+        assertEquals(SyncIngestorRegistry.SYNC_ENTITY_TABLES.keys, signatures.keys)
+        for ((expected, marker) in signatures) {
+            assertEquals(
+                "استنتاج خاطئ لبصمة $expected",
+                expected, SyncIngestorRegistry.inferEntityFromRecord(marker)
+            )
+        }
+        // سجل بلا وسم وبلا بصمة معروفة يُرجع null (لا تخمين).
+        assertNull(SyncIngestorRegistry.inferEntityFromRecord(mapOf<String, Any>("future_column" to 1)))
+    }
+
+    /** الوسم الصريح يسبق البصمة دائماً — حتى لو تعارضا (نفس ترتيب Dart). */
+    @Test
+    fun explicitEntityTagWinsOverColumnSignature() {
+        val conflicting: Map<String, Any> = mapOf(
+            "_entity" to "rooms", "amount" to 5.0, "payment_method" to "cash"
+        )
+        assertEquals("rooms", SyncIngestorRegistry.resolveEntity(conflicting))
+        assertEquals("payments", SyncIngestorRegistry.inferEntityFromRecord(conflicting))
+
+        // وسم فارغ/مسافات = غياب → البصمة.
+        val blankTag: Map<String, Any> = mapOf(
+            "_entity" to "   ", "amount" to 5.0, "payment_method" to "cash"
+        )
+        assertEquals("payments", SyncIngestorRegistry.resolveEntity(blankTag))
+    }
+
+    /**
+     * سجل بلا `_entity` (نشر Worker أقدم) لكن ببصمة سليمة يُطبَّق فعلاً —
+     * قبل هذا كان يُعزل `missing_entity` فيبقى صفٌّ سليم خارج القاعدة.
+     */
+    @Test
+    fun recordWithoutEntityTagIsRoutedByItsColumnSignature() = runBlocking {
+        val untagged = mapOf<String, Any>(
+            "local_uuid" to "untagged-room",
+            "room_number" to "UT-1",
+            "type" to "single",
+            "price" to 175.0,
+            "status" to "available",
+            "cleaning_status" to "clean",
+            "last_modified" to 400L
+        )
+        val report = registry.ingestPage(listOf(untagged))
+        assertEquals(1, report.applied)
+        assertEquals(0, report.failed)
+        assertTrue(db.syncQuarantineDao().getAll().isEmpty())
+        assertEquals("UT-1", db.roomsDao().getByLocalUuid("untagged-room")!!.roomNumber)
+    }
+
+    /**
+     * فرق مقصود عن Dart: هو يُسقط السجل مجهول الهوية صامتاً، ونحن نُعزله
+     * بحمولته (`missing_entity`) فيبقى قابلاً للاسترجاع بعد تحديث التطبيق.
+     */
+    @Test
+    fun untaggedRecordWithUnknownSignatureStaysQuarantinedAsMissingEntity() = runBlocking {
+        val orphan = mapOf<String, Any>("local_uuid" to "orphan-row", "future_column" to 1)
+        val report = registry.ingestPage(listOf(orphan))
+        assertEquals(1, report.failed)
+        val row = db.syncQuarantineDao().getAll().single()
+        assertEquals("unknown", row.entity)
+        assertEquals("uuid:orphan-row", row.recordKey)
+        assertEquals("missing_entity", row.reason)
+        assertTrue(row.payload.contains("orphan-row"))
+    }
+
     @Test
     fun repairedRecordLeavesQuarantineAndOlderLocalWinnerIsNotQuarantined() = runBlocking {
         val valid = mapOf<String, Any>(

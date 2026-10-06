@@ -365,8 +365,20 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
     // ─── أدوات المزامنة اليدوية (نفس _buildManualActionsSection) ─
 
     /**
-     * «سحب التغييرات الآن» — سحب دلتا فقط: يُحجب إن وُجدت سجلات محلية
-     * غير مُسلّمة في outbox (يجب رفعها أولاً) — نفس عقد Dart.
+     * «سحب التغييرات الآن» — سحب دلتا فقط، **بلا حجب** بسبب سجلات outbox
+     * غير المُسلَّمة (تشخيص 2026-10-06 عند مراجعة فرع Flutter المرجعي).
+     *
+     * كان الزر يُحجب ويطلب «ارفع أولاً». وبالمراجعة: فرع
+     * `feat/cloudflare-sync-execution` يعرّف سياسة `OutboxPullPolicy.canPull`
+     * (منع السحب ما دام هناك غير مُسلَّم) لكنها **كود ميت** — لا مستدعي لها
+     * في `mobile/lib` إطلاقاً (`git grep OutboxPullPolicy` = ملف التعريف وحده)،
+     * فالسحب في التطبيق المرجعي يعمل دائماً. والحجب هنا يعني: جهاز فشل رفعه
+     * (شبكة/صلاحية) **لا يستطيع السحب أبداً** — وهو عرض «السحب لا يعمل».
+     *
+     * السلامة محفوظة بلا الحجب: التعديل المحلي غير المرفوع محفوظ كحمولة في
+     * صفّ outbox نفسه ويُرفع لاحقاً، وسحب الخادم يمرّ بقاعدة الأحدث-يفوز
+     * (`remoteLastModified >= existing.lastModified`) فلا يطمس تعديلاً أحدث.
+     * الرسالة تبقى **إعلامية** لا حاجبة.
      */
     fun runPullNow() {
         if (_state.value.isManualSyncing || syncRepository.syncState.value.isSyncing) return
@@ -380,14 +392,15 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
                     showSyncSnack(false, "❌ مزامنة Cloudflare معطّلة — فعّلها من قسم Cloudflare Sync أعلاه")
                     return@launch
                 }
-                // 1) فحص outbox المحلي (عدّ حقيقي من قاعدة البيانات).
+                // 1) إعلام بعدد التغييرات المحلية غير المُسلَّمة — **بلا حجب**
+                // (سياسة `OutboxPullPolicy` في الفرع المرجعي كود ميت: السحب
+                // يعمل دائماً هناك؛ وتعديلاتنا محفوظة في حمولة outbox).
                 val pending = syncRepository.pendingCount().first()
                 if (pending > 0) {
                     showSyncSnack(
-                        false,
-                        "⬆️ يوجد $pending تغييراً محلياً غير مرفوع — استخدم «رفع التغييرات المحلية» أدناه أولاً"
+                        true,
+                        "⬆️ يوجد $pending تغييراً محلياً غير مرفوع — سيُرفع تلقائياً، ويجري الآن سحب تغييرات الخادم"
                     )
-                    return@launch
                 }
 
                 // 2) فحص الاتصال بالـ Worker.

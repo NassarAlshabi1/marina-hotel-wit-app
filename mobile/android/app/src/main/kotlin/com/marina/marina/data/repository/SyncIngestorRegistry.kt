@@ -353,7 +353,7 @@ class SyncIngestorRegistry @Inject constructor(
 
         db.withTransaction {
             for (record in records) {
-                val entity = record["_entity"] as? String ?: "unknown"
+                val entity = resolveEntity(record) ?: "unknown"
                 val uuid = record["local_uuid"] as? String ?: ""
                 val outcome = try {
                     applyRecord(record).also { result ->
@@ -383,7 +383,7 @@ class SyncIngestorRegistry @Inject constructor(
                     }
                     is ApplyOutcome.Skipped -> skipped++
                     is ApplyOutcome.Deferred -> deferred += DeferredRecord(
-                        entity = record["_entity"] as? String ?: "unknown",
+                        entity = resolveEntity(record) ?: "unknown",
                         record = record
                     )
                     is ApplyOutcome.Failed -> {
@@ -516,8 +516,10 @@ class SyncIngestorRegistry @Inject constructor(
     // ─── تطبيق سجل واحد ─────────────────────────────────────────
 
     private suspend fun applyRecord(record: Map<String, Any>): ApplyOutcome {
-        val entity = (record["_entity"] as? String)?.takeIf { it.isNotBlank() }
-            ?: return ApplyOutcome.Failed("missing_entity")
+        // وسم `_entity` من الخادم، وإن غاب فبصمة الأعمدة (نظير
+        // `record['_entity'] ?? _detectEntity(record)` في Dart) — قديم
+        // الـWorker لا يوسم السجلات، وكان غياب الوسم هنا يُعزل صفاً سليماً.
+        val entity = resolveEntity(record) ?: return ApplyOutcome.Failed("missing_entity")
         if (entityClass(entity) == null) return ApplyOutcome.Failed("unsupported_entity: $entity")
         if ((record["local_uuid"] as? String).isNullOrBlank()) {
             return ApplyOutcome.Failed("missing_local_uuid: $entity")
@@ -871,6 +873,70 @@ class SyncIngestorRegistry @Inject constructor(
     }
 
     companion object {
+        /**
+         * الكيان الفعلي للسجل: وسم `_entity` من الخادم إن وُجد (وهو مسار كل
+         * سجل يرسله Worker حديث)، وإلا بصمة الأعمدة عبر [inferEntityFromRecord].
+         */
+        fun resolveEntity(record: Map<String, Any>): String? =
+            (record["_entity"] as? String)?.takeIf { it.isNotBlank() }
+                ?: inferEntityFromRecord(record)
+
+        /**
+         * استنتاج الكيان من بصمة أعمدة السجل — نظير `_detectEntity`
+         * (`cloudflare_sync_manager.dart:3798`@`ac283c6c`، الفرع المرجعي
+         * `feat/cloudflare-sync-execution`) ويُستعمل **فقط** عند غياب وسم
+         * `_entity` عن السجل (نشر Worker أقدم من إضافة الوسم، أو سجل مقطوع).
+         *
+         * ⚠️ منقول بأمانة عن Dart: نفس الترتيب ونفس الأزواج ونفس أسماء
+         * `snake_case` — ولأن الخادم يرسل snake_case دائماً لا تُفحص أسماء
+         * camelCase المقابلة (فحصها هنا كان سيخالف المرجع بدل أن يطابقه).
+         * السجل الذي لا يطابق أي بصمة يُرجع `null` — والفرق الوحيد المقصود
+         * عن Dart أن مستدعينا يُعزله بأنه `missing_entity` بدل إسقاطه صامتاً
+         * (لا نفقد حمولة؛ انظر `android-pull-quarantine.md`).
+         */
+        fun inferEntityFromRecord(record: Map<String, Any>): String? {
+            fun has(vararg keys: String) = keys.all { record.containsKey(it) }
+            return when {
+                // Core hotel entities
+                has("room_number", "price") -> "rooms"
+                has("guest_name", "checkin_date") -> "bookings"
+                has("amount", "payment_method") -> "payments"
+                has("expense_type", "description") -> "expenses"
+                has("basic_salary", "position") -> "employees"
+                has("debt_reason", "remaining_amount") -> "debts"
+
+                // Booking-related
+                has("final_rate", "hotel_day_key") -> "booking_nights"
+                has("adjustment_type", "effective_hotel_day") -> "booking_price_adjustments"
+                has("note_text", "alert_type") -> "booking_notes"
+                has("guest_name", "id_number") -> "guest_infos"
+
+                // Shift & cash
+                has("shift_date", "is_read") -> "shift_notes"
+                has("transaction_type", "transaction_time") -> "cash_transactions"
+
+                // Salary
+                has("cycle_key", "expected_amount") -> "salary_cycles"
+                has("payment_date_iso", "cycle_id") -> "salary_payments"
+                has("withdrawal_type", "amount") -> "salary_withdrawals"
+                has("previous_cycle_start", "new_cycle_start") -> "salary_carry_over_logs"
+
+                // Adjustments & audit
+                has("target_type", "target_uuid") -> "price_adjustments"
+                has("operation_type", "entity_type") -> "audit_logs"
+                has("void_reason", "voided_by") -> "payment_voids"
+
+                // Inventory / devices / blacklist / app_users
+                has("minimum_quantity") -> "inventory_items"
+                has("movement_type", "balance_after") -> "inventory_transactions"
+                has("device_name") -> "devices"
+                has("reported_by") -> "blacklist"
+                has("username", "credentials_version") -> "app_users"
+
+                else -> null
+            }
+        }
+
         /**
          * خريطة الكيانات المزامَنة كلها → جدول Room المحلي — **مصدر حقيقة
          * واحد** يستعمله اكتشاف «الجداول المسحوبة» في شاشة حالة المزامنة
