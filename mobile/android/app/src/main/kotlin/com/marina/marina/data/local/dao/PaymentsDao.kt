@@ -69,6 +69,10 @@ interface PaymentsDao {
     @Query("SELECT * FROM payments WHERE booking_local_id = :bookingId AND deleted_at IS NULL ORDER BY payment_date DESC")
     fun getByBooking(bookingId: Long): Flow<List<PaymentEntity>>
 
+    /** نفس [getByBooking] بلا تدفق: تُقرأ داخل معاملة إعادة بناء الحقول المشتقة. */
+    @Query("SELECT * FROM payments WHERE booking_local_id = :bookingId AND deleted_at IS NULL ORDER BY payment_date DESC")
+    suspend fun getByBookingOnce(bookingId: Long): List<PaymentEntity>
+
     @Query("SELECT * FROM payments WHERE room_number = :roomNumber AND deleted_at IS NULL ORDER BY payment_date DESC")
     fun getByRoom(roomNumber: String): Flow<List<PaymentEntity>>
 

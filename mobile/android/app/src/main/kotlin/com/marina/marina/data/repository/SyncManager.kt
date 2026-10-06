@@ -47,7 +47,8 @@ class SyncManager @Inject constructor(
     private val syncService: CloudflareSyncService,
     private val preferences: SyncPreferences,
     private val ingestorRegistry: SyncIngestorRegistry,
-    private val operationRunner: SyncOperationRunner
+    private val operationRunner: SyncOperationRunner,
+    private val derivedRefresh: BookingDerivedRefreshService
 ) : SyncRepository {
 
     private val _syncState = MutableStateFlow(SyncUiState())
@@ -386,6 +387,9 @@ class SyncManager @Inject constructor(
         var pagesDone = 0
         var epochReset = false
         var repairRetries = 0
+        // كيانات الصفوف المطبَّقة في هذه الدورة — تُقرأ منها الحقول المشتقة
+        // للحجوزات بعد اكتمال الدورة (نظير pulledDerivedEntities في Dart).
+        val pulledEntities = mutableSetOf<String>()
 
         while (true) {
             // سقف الصفحات (H2) — خروج نظيف والبقية دورة قادمة.
@@ -492,6 +496,7 @@ class SyncManager @Inject constructor(
             if (changes.isNotEmpty()) {
                 val report = ingestorRegistry.ingestPage(changes)
                 ingested += report.applied
+                pulledEntities += report.touched
                 if (report.hasFailures) {
                     // فشل تطبيق فعلي — دورة فاشلة: المؤشر لا يتقدم
                     // (التراجع الكامل يضمن إعادة سحب ما بين الحدين).
@@ -543,6 +548,7 @@ class SyncManager @Inject constructor(
         // Retry on every cycle, including an empty delta after the parent arrived earlier.
         val retry = ingestorRegistry.retryPendingLinks()
         ingested += retry.applied
+        pulledEntities += retry.touched
         if (retry.hasFailures) {
             throw Exception("فشل تطبيق سجل مؤجل: ${retry.firstError ?: "غير معروف"}")
         }
@@ -565,6 +571,7 @@ class SyncManager @Inject constructor(
             _syncState.update {
                 it.copy(lastMessage = "رُفض تثبيت مؤشر مسموم — ستُعاد المزامنة الكاملة نظيفة")
             }
+            refreshDerivedAfterCycle(pulledEntities, ingested)
             return ingested
         }
         preferences.saveLastPullCursor(cursor)
@@ -572,7 +579,37 @@ class SyncManager @Inject constructor(
             preferences.setFullReplayPending(false)
             preferences.setFullSyncComplete(true)
         }
+        refreshDerivedAfterCycle(pulledEntities, ingested)
         return ingested
+    }
+
+    /**
+     * إعادة بناء الحقول المشتقة للحجوزات بعد دورة سحب ناجحة — نظير
+     * `_refreshDerivedAfterPull` في Dart (cloudflare_sync_manager.dart l.3780)
+     * يُستدعى من `_pullChanges` l.2591.
+     *
+     * الشرط حرفي كالدارتي: `pulledDerivedEntities.isNotEmpty && totalPulled > 0`
+     * — دورة طبّقت صفاً من `bookings`/`booking_nights`/`payments`/
+     * `price_adjustments`/`booking_price_adjustments`/`payment_voids` فقط.
+     * (في Dart أيضاً لا تُنفَّذ في الدورة الفاشلة: مسار الخطأ يرمي قبل هذا
+     * السطر — وأندرويد كذلك لأن الفشل الواقعي يرمي في تقرير التطبيق.)
+     *
+     * بلا رفع وبلا رسالة إضافية: Dart يطبع سطر تشخيص فقط، والقيم تُحدَّث
+     * عبر `BookingsDao.updateFinancialCache` التي لا تمس بيانات المزامنة.
+     *
+     * فشل إعادة البناء لا يُفشل دورة السحب (نظير `try/catch` الدارتي في
+     * `_refreshDerivedAfterPull`) — لكنه لا يبتلع الإلغاء: كوريوتين الدورة
+     * الملغاة تتوقف هنا كما في أي نقطة أخرى.
+     */
+    private suspend fun refreshDerivedAfterCycle(pulledEntities: Set<String>, ingested: Int) {
+        if (ingested <= 0 || !BookingDerivedRefreshService.affectsDerived(pulledEntities)) return
+        try {
+            derivedRefresh.refreshAllActiveBookings()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            android.util.Log.w("SyncManager", "تعذّر إعادة بناء الحقول المشتقة بعد السحب", error)
+        }
     }
 
     // ─── مسح تقارب الحذفيات التاريخي (نظير _sweepHistoricalTombstones) ───

@@ -349,7 +349,7 @@ class SyncIngestorRegistryTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
-                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined))
+                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined), derivedRefresh())
             assertEquals(if (success) 0 else -1, manager.pullOnly())
             assertEquals(expectedCalls, calls)
             assertEquals(expectedCursor, prefs.getLastPullCursor())
@@ -435,7 +435,7 @@ class SyncIngestorRegistryTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
-                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined))
+                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined), derivedRefresh())
             val first = com.marina.marina.presentation.dashboard.runDashboardDirectionalSync(manager, false)
             assertEquals(com.marina.marina.presentation.dashboard.DashboardEvent.SyncCompleted(0, 2), first)
             assertEquals(789L, prefs.getLastPullCursor())
@@ -485,7 +485,7 @@ class SyncIngestorRegistryTest {
         val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
         val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
             service, prefs, registry,
-            SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined))
+            SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined), derivedRefresh())
         assertEquals(-1, manager.pullOnly())
         assertTrue(manager.syncState.value.isError)
         assertEquals(123L, prefs.getLastPullCursor())
@@ -1130,8 +1130,12 @@ class SyncIngestorRegistryTest {
         assertEquals(180.0, saved.price, 0.001)
     }
 
+    private fun derivedRefresh() = com.marina.marina.data.repository.BookingDerivedRefreshService(
+        db, db.bookingsDao(), db.roomsDao(), db.paymentsDao(), db.bookingNightsDao()
+    )
+
     private fun editTestBookingsRepository() = com.marina.marina.data.repository.BookingsRepositoryImpl(
-        db.bookingsDao(), db.roomsDao(), db.paymentsDao(), db.bookingNightsDao(), outboxRepository()
+        db.bookingsDao(), outboxRepository(), derivedRefresh()
     )
 
     private fun editTestPaymentsRepository() = com.marina.marina.data.repository.PaymentsRepositoryImpl(
@@ -1678,7 +1682,7 @@ class SyncIngestorRegistryTest {
             throw IllegalStateException("Synthetic Android background restriction")
         }
         val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
-            service, prefs, registry, runner)
+            service, prefs, registry, runner, derivedRefresh())
         assertEquals(-1, manager.pullOnly())
         assertEquals(-1, manager.pushOnly())
         assertEquals(-1, manager.fullPull())
@@ -1714,7 +1718,7 @@ class SyncIngestorRegistryTest {
         } as CloudflareWorkerApi
         val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
         val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
-            service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined))
+            service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined), derivedRefresh())
         val screen = launch(start = CoroutineStart.UNDISPATCHED) { manager.pullOnly() }
         try {
             assertTrue("Pull reached network", started.await(15, TimeUnit.SECONDS))
@@ -1763,13 +1767,13 @@ class SyncIngestorRegistryTest {
         } as CloudflareWorkerApi
         val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
         val outbox = OutboxRepository(db.outboxDao(), service, prefs, registry)
-        assertEquals(0, SyncManager(outbox, service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined)).pullOnly())
+        assertEquals(0, SyncManager(outbox, service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined), derivedRefresh()).pullOnly())
         assertTrue(prefs.isFullReplayPending())
         assertEquals(100L, prefs.getLastPullCursor())
         assertEquals(999L to "device-A", requests.first())
         assertTrue(requests.drop(1).all { it.second == null })
         // New manager resumes from the saved non-zero cursor WITHOUT re-enabling echo filtering.
-        assertEquals(0, SyncManager(outbox, service, prefs, newRegistry(), SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined)).pullOnly())
+        assertEquals(0, SyncManager(outbox, service, prefs, newRegistry(), SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined), derivedRefresh()).pullOnly())
         assertNull(requests.last().second)
         assertTrue(!prefs.isFullReplayPending())
         assertEquals("new", prefs.getSyncEpoch())

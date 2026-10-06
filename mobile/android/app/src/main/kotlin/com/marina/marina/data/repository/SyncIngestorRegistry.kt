@@ -100,7 +100,15 @@ data class PullApplyReport(
     val skipped: Int,
     val failed: Int,
     val firstError: String?,
-    val deferred: List<DeferredRecord>
+    val deferred: List<DeferredRecord>,
+    /**
+     * كيانات الصفوف التي طُبّقت فعلاً في هذه الدفعة — نظير `touchedEntities`
+     * في `PullApplyReport` الدارتي (cloudflare_sync_manager.dart l.135):
+     * يُبنى عليها قرار إعادة بناء الحقول المشتقة بعد السحب
+     * (`_derivedRefreshEntities`). لا يدخل فيها المؤجَّل ولا المتخطّى ولا
+     * الفاشل.
+     */
+    val touched: Set<String> = emptySet()
 ) {
     val hasFailures: Boolean get() = failed > 0
     val hasDeferred: Boolean get() = deferred.isNotEmpty()
@@ -287,6 +295,7 @@ class SyncIngestorRegistry @Inject constructor(
         var failed = 0
         var firstError: String? = null
         val deferred = mutableListOf<DeferredRecord>()
+        val touched = mutableSetOf<String>()
 
         db.withTransaction {
             for (record in records) {
@@ -313,7 +322,10 @@ class SyncIngestorRegistry @Inject constructor(
                     db.pendingSyncLinksDao().remove(entity, uuid)
                 }
                 when (outcome) {
-                    is ApplyOutcome.Applied -> applied++
+                    is ApplyOutcome.Applied -> {
+                        applied++
+                        touched += entity
+                    }
                     is ApplyOutcome.Skipped -> skipped++
                     is ApplyOutcome.Deferred -> deferred += DeferredRecord(
                         entity = record["_entity"] as? String ?: "unknown",
@@ -330,7 +342,7 @@ class SyncIngestorRegistry @Inject constructor(
         if (salaryOrphans > 0) {
             Log.w("SyncIngestorRegistry", "Preserved $salaryOrphans unresolved salary records in durable inbox; no rows deleted")
         }
-        return PullApplyReport(applied, skipped, failed, firstError, deferred)
+        return PullApplyReport(applied, skipped, failed, firstError, deferred, touched)
     }
 
     private suspend fun persistQuarantine(
@@ -355,13 +367,21 @@ class SyncIngestorRegistry @Inject constructor(
     /** Retry across process restarts; parent/child chains may require more than one pass. */
     suspend fun retryPendingLinks(): PullApplyReport {
         var total = 0
+        val touched = mutableSetOf<String>()
         while (true) {
             val pending = db.pendingSyncLinksDao().getAll()
-            if (pending.isEmpty()) return PullApplyReport(total, 0, 0, null, emptyList())
+            if (pending.isEmpty()) {
+                return PullApplyReport(total, 0, 0, null, emptyList(), touched)
+            }
             val type = object : TypeToken<Map<String, Any>>() {}.type
             val report = ingestPage(pending.map { Gson().fromJson<Map<String, Any>>(it.payload, type) })
             total += report.applied
-            if (report.hasFailures || report.applied == 0) return report.copy(applied = total)
+            // كيانات المؤجَّل التي حُلّت في هذه المرورات تُحسب كتطبيق فعلي
+            // (نظير onApplied في _retryDeferredRecords الدارتي).
+            touched += report.touched
+            if (report.hasFailures || report.applied == 0) {
+                return report.copy(applied = total, touched = touched)
+            }
         }
     }
 

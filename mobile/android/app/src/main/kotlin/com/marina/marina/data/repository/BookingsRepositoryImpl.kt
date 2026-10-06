@@ -1,29 +1,21 @@
 package com.marina.marina.data.repository
 
-import com.marina.marina.data.local.dao.BookingNightsDao
 import com.marina.marina.data.local.dao.BookingsDao
-import com.marina.marina.data.local.dao.PaymentsDao
-import com.marina.marina.data.local.dao.RoomsDao
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.Booking
 import com.marina.marina.domain.repository.BookingsRepository
-import com.marina.marina.domain.util.BookingFinancials
-import com.marina.marina.domain.util.HotelTimeEngine
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 @Singleton
 class BookingsRepositoryImpl @Inject constructor(
     private val bookingsDao: BookingsDao,
-    private val roomsDao: RoomsDao,
-    private val paymentsDao: PaymentsDao,
-    private val nightsDao: BookingNightsDao,
-    private val outboxRepository: OutboxRepository
+    private val outboxRepository: OutboxRepository,
+    private val derivedRefresh: BookingDerivedRefreshService
 ) : BookingsRepository {
 
     override fun getAll(): Flow<List<Booking>> =
@@ -45,9 +37,11 @@ class BookingsRepositoryImpl @Inject constructor(
             createdAt = if (booking.createdAt == 0L) now else booking.createdAt,
             updatedAt = now
         )
-        val withDerived = refreshDerivedFields(prepared)
-        val id = bookingsDao.insert(withDerived.toEntity())
-        outboxRepository.enqueueObject("bookings", "insert", withDerived.localUuid, stripComputed(withDerived))
+        val id = bookingsDao.insert(prepared.toEntity())
+        outboxRepository.enqueueObject("bookings", "insert", prepared.localUuid, stripComputed(prepared))
+        // نفس خدمة إعادة البناء التي يستدعيها السحب بعد الدورة — مصدر وحيد
+        // للحقيقة في الحساب (لا نسخة ثانية قابلة للانحراف).
+        derivedRefresh.refreshForBookingId(id)
         return id
     }
 
@@ -57,9 +51,9 @@ class BookingsRepositoryImpl @Inject constructor(
         assertNoConflictingActiveBooking(booking.roomNumber, excludeId = booking.id)
         val now = System.currentTimeMillis()
         val prepared = booking.copy(updatedAt = now)
-        val withDerived = refreshDerivedFields(prepared)
-        bookingsDao.update(withDerived.toEntity())
-        outboxRepository.enqueueObject("bookings", "update", withDerived.localUuid, stripComputed(withDerived))
+        bookingsDao.update(prepared.toEntity())
+        outboxRepository.enqueueObject("bookings", "update", prepared.localUuid, stripComputed(prepared))
+        derivedRefresh.refreshForBookingId(prepared.id)
     }
 
     /**
@@ -102,37 +96,15 @@ class BookingsRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Dart derived-fields service (refreshForBookingId) — totalDueCached /
-     * totalPaidCached / remainingBalanceCached / isFullyPaid / calculatedNights
-     * are recomputed on every create/update so the bookings list shows live
-     * financials without opening the payment screen.
+     * إعادة بناء الحقول المشتقة لحجز واحد — مُفوَّض إلى
+     * [BookingDerivedRefreshService] (نفس ما ينفّذه السحب بعد الدورة،
+     * ونفس ما ينفّذه `BookingDerivedFieldsService.refreshForBookingId` في Dart).
+     *
+     * كان حساباً داخلياً هنا؛ نُقل ليكون مصدراً وحيداً يمنع انحراف نسختين
+     * (فخ يعرفه المشروع: نفس المنطق في مكانين).
      */
-    private suspend fun refreshDerivedFields(booking: Booking): Booking {
-        val room = roomsDao.getByNumber(booking.roomNumber)
-        val roomRate = room?.price ?: 0.0
-        val payments = paymentsDao.getByBooking(booking.id).first().map { it.toDomain() }
-        val nights = nightsDao.getByBooking(booking.id).map { it.toDomain() }
-        val checkin = HotelTimeEngine.parseDate(booking.checkinDate)
-        val liveNights = if (checkin != null) {
-            val checkout = HotelTimeEngine.parseDate(booking.actualCheckout)
-            HotelTimeEngine.nightsWithCutoff(checkin, checkout)
-        } else booking.calculatedNights
-        val current = booking.copy(calculatedNights = liveNights)
-        val summary = BookingFinancials.calculate(current, roomRate, payments, nights)
-        return current.copy(
-            totalDueCached = summary.totalAmount,
-            totalPaidCached = summary.paidAmount,
-            remainingBalanceCached = summary.remainingAmount,
-            isFullyPaid = summary.isFullyPaid
-        )
-    }
-
-    /** Caller owns the write transaction; refresh caches without a second business mutation. */
     internal suspend fun refreshFinancialCache(id: Long) {
-        val booking = bookingsDao.getById(id)?.toDomain() ?: return
-        val refreshed = refreshDerivedFields(booking)
-        bookingsDao.updateFinancialCache(id, refreshed.calculatedNights, refreshed.totalDueCached,
-            refreshed.totalPaidCached, refreshed.remainingBalanceCached, refreshed.isFullyPaid)
+        derivedRefresh.refreshForBookingId(id)
     }
 
     /**

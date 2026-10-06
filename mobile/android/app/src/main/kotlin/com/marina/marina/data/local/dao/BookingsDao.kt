@@ -47,6 +47,15 @@ interface BookingsDao {
     suspend fun updateFinancialCache(id: Long, nights: Int, due: Double, paid: Double,
                                     remaining: Double, fullyPaid: Boolean)
 
+    /**
+     * مرشّحو إعادة بناء الحقول المشتقة — نفس استعلام Dart في
+     * `BookingDerivedFieldsService.refreshAllActiveBookings` (غير محذوف
+     * ناعمياً وبلا `actual_checkout`)، وتُطبَّق عليه [StatusUtils.isBookingActive]
+     * في Kotlin ليطابق تطبيع الحالة الدارتي (trim + lowercase) حرفياً.
+     */
+    @Query("SELECT * FROM bookings WHERE deleted_at IS NULL AND (actual_checkout IS NULL OR actual_checkout = '')")
+    suspend fun listDerivedRefreshCandidates(): List<BookingEntity>
+
     @Query("UPDATE bookings SET status = :status, actual_checkout = :actualCheckout, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
     suspend fun checkout(id: Long, status: String, actualCheckout: String?, updatedAt: Long, lastModified: Long): Int
 

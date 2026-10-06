@@ -8,6 +8,7 @@ import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.CloudflareWorkerApi
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.data.remote.WorkerPullResponse
+import com.marina.marina.data.repository.BookingDerivedRefreshService
 import com.marina.marina.data.repository.OutboxRepository
 import com.marina.marina.data.repository.SyncIngestorRegistry
 import com.marina.marina.data.repository.SyncManager
@@ -135,7 +136,8 @@ class SyncPullParityTest {
         val service = CloudflareSyncService(api, CloudflareConfig(ApplicationProvider.getApplicationContext()), prefs)
         return SyncManager(
             OutboxRepository(db.outboxDao(), service, prefs, registry),
-            service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined)
+            service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined),
+            BookingDerivedRefreshService(db, db.bookingsDao(), db.roomsDao(), db.paymentsDao(), db.bookingNightsDao())
         )
     }
 
