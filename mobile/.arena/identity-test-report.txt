@@ -1,10 +1,9 @@
-### format gate report (2026-10-06T01:45:16Z)
+### format gate report (2026-10-06T01:49:12Z)
 --- files that would change (dart format --output=none --set-exit-if-changed .) ---
-Changed test/unit/financial_identity_audit_test.dart
-Formatted 571 files (1 changed) in 6.20 seconds.
+Formatted 571 files (0 changed) in 6.02 seconds.
 --- end ---
 
-### identity audit tests (2026-10-06T01:45:22Z)
+### identity audit tests (2026-10-06T01:49:18Z)
 Resolving dependencies...
 Downloading packages...
   _discoveryapis_commons 1.0.7 (1.0.8 available)
@@ -318,7 +317,7 @@ Here is the stacktrace from when the database was opened a second time:
 #10     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-2026-10-06T01:45:41.810429 WARN [EXPENSES_ADAPTER] Salary expense (remoteRelatedId=1) arrived from Source.appwrite with empty employeeUuid — left unlinked to avoid wrong cross-device binding. Will be re-linked when the employee arrives (see _relinkOrphanSalaryExpenses).
+2026-10-06T01:49:36.837777 WARN [EXPENSES_ADAPTER] Salary expense (remoteRelatedId=1) arrived from Source.appwrite with empty employeeUuid — left unlinked to avoid wrong cross-device binding. Will be re-linked when the employee arrives (see _relinkOrphanSalaryExpenses).
 00:00 +7: 4) وصول الابن قبل الأب payment arriving before its cycle is deferred, not mis-bound
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
@@ -535,12 +534,12 @@ Here is the stacktrace from when the database was opened a second time:
 <asynchronous suspension>
 This warning will only appear on debug builds.
 00:00 +17 -1: 7+8) الاستعادة وتغيير المزوّد provider swap keeps counts, uuids, relations and money totals [E]
-  Expected: <2>
-    Actual: <3>
+  Expected: <210.5>
+    Actual: <211.0>
   
   package:matcher                                      expect
   package:flutter_test/src/widget_tester.dart 473:18   expect
-  test/unit/financial_identity_audit_test.dart 1245:9  main.<fn>.<fn>
+  test/unit/financial_identity_audit_test.dart 1290:9  main.<fn>.<fn>
   
 00:00 +17 -1: 7+8) الاستعادة وتغيير المزوّد two devices with the same identity produce one employee per uuid (no duplication)
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
@@ -553,7 +552,7 @@ Here is the stacktrace from when the database was opened a second time:
 #4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
 #5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
 #6      _newDb (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:50:37)
-#7      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:1356:25)
+#7      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:1360:25)
 #8      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:25)
 <asynchronous suspension>
 #9      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
@@ -571,7 +570,7 @@ Here is the stacktrace from when the database was opened a second time:
 #4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
 #5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
 #6      _newDb (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:50:37)
-#7      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:1357:25)
+#7      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:1361:25)
 #8      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:25)
 <asynchronous suspension>
 #9      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
@@ -763,11 +762,11 @@ Downloading packages...
 Got dependencies!
 173 packages have newer versions incompatible with dependency constraints.
 Try `flutter pub outdated` for more information.
-00:00 +0: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart                                                                      00:01 +0: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart                                                                      00:02 +0: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart                                                                      00:02 +0: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... بعيد (fromRemote=true) يحل عبر employeeUuid (الطريقة 1) بالصيغة القياسية00:02 +1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... بعيد (fromRemote=true) يحل عبر employeeUuid (الطريقة 1) بالصيغة القياسية00:02 +1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... بعيد (fromRemote=true) يحل عبر employeeUuid بصيغة 32 حرفاً بدون شرطات   00:02 +2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... بعيد (fromRemote=true) يحل عبر employeeUuid بصيغة 32 حرفاً بدون شرطات   00:02 +2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... (fromRemote=true) يحل عبر serverId عندما لا يوجد uuid (payload قديم)    00:02 +3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... (fromRemote=true) يحل عبر serverId عندما لا يوجد uuid (payload قديم)    00:02 +3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... لا يطابق employeeId البعيد مع e.id المحلي (منع الربط الخاطئ عبر الأجهزة)00:02 +4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... لا يطابق employeeId البعيد مع e.id المحلي (منع الربط الخاطئ عبر الأجهزة)00:02 +4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... serverId مكرر (خطأ بيانات): يختار النشط أولاً بشكل حتمي                 00:02 +4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) serverId مكرر (خطأ بيانات): يختار النشط أولاً بشكل حتمي
-2026-10-06T01:45:46.802624 WARN [IdResolver] ازدواج serverId=1 في employees: id=1(deletedAt=null), id=2(deletedAt=1783994438) — اختيار id=1 (النشط ثم الأصغر)
-00:02 +5: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... serverId مكرر (خطأ بيانات): يختار النشط أولاً بشكل حتمي                 00:02 +5: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... بعيد (fromRemote=true) serverId مكرر وكلاهما نشط: يختار الأصغر id حتماً 00:02 +5: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) serverId مكرر وكلاهما نشط: يختار الأصغر id حتماً
-2026-10-06T01:45:46.829280 WARN [IdResolver] ازدواج serverId=2 في employees: id=1(deletedAt=null), id=2(deletedAt=null) — اختيار id=1 (النشط ثم الأصغر)
-00:02 +6: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +7: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +8: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +9: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +10: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:02 +11: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:02 +12: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:03 +12: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:03 +13: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:03 +13: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 2. حراس الـ backfill يمنعون الربط العابر للموظف (تصادم أجهزة)      00:03 +14: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 2. حراس الـ backfill يمنعون الربط العابر للموظف (تصادم أجهزة)      00:03 +14: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 3. الـ backfill يربط المرآة الصحيحة (نفس الموظف/المبلغ/±1 يوم)     00:03 +15: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 3. الـ backfill يربط المرآة الصحيحة (نفس الموظف/المبلغ/±1 يوم)     00:03 +15: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 3-أ. يوم ±1 مختلف لا يُربط (لا تسامح زمني — L3 حرفياً)  00:03 +16: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 3-أ. يوم ±1 مختلف لا يُربط (لا تسامح زمني — L3 حرفياً)  00:03 +16: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 3-ب. غير العائلة الراتبية لا يأخذ رابطاً عكسياً  00:03 +17: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 3-ب. غير العائلة الراتبية لا يأخذ رابطاً عكسياً  00:03 +17: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 10. الطرفان بلا هوية موظف (NULL) ⇒ لا رابط — حرس صارم بلا IS       00:03 +18: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 10. الطرفان بلا هوية موظف (NULL) ⇒ لا رابط — حرس صارم بلا IS       00:03 +18: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 4. mapper السحبات يختم expenseUuid والـ adapter يقرؤه   00:03 +19: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 4. mapper السحبات يختم expenseUuid والـ adapter يقرؤه   00:03 +19: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... payloads 5. mapper المصروفات يختم withdrawalUuid والـ adapter يقرؤه00:03 +20: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... payloads 5. mapper المصروفات يختم withdrawalUuid والـ adapter يقرؤه00:03 +20: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 68: adapters & payloads 6. القوائم المسموحة لا تُسقط الحقول الجديدة00:03 +21: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 68: adapters & payloads 6. القوائم المسموحة لا تُسقط الحقول الجديدة00:03 +21: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 7. مواصفات مدقق المخطط تضم الخصائص السحابية الجديدة     00:03 +22: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 7. مواصفات مدقق المخطط تضم الخصائص السحابية الجديدة     00:03 +22: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart                                                                     00:03 +22: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — merge / idempotency merge يُنشئ سجلاً جديداً ويُعيد id         00:03 +22: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — merge / idempotency merge يُنشئ سجلاً جديداً ويُعيد id         
+00:00 +0: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart                                                                      00:01 +0: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart                                                                      00:02 +0: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart                                                                      00:02 +0: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... بعيد (fromRemote=true) يحل عبر employeeUuid (الطريقة 1) بالصيغة القياسية00:02 +1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... بعيد (fromRemote=true) يحل عبر employeeUuid (الطريقة 1) بالصيغة القياسية00:02 +1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... بعيد (fromRemote=true) يحل عبر employeeUuid بصيغة 32 حرفاً بدون شرطات   00:02 +2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... بعيد (fromRemote=true) يحل عبر employeeUuid بصيغة 32 حرفاً بدون شرطات   00:02 +2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... (fromRemote=true) يحل عبر serverId عندما لا يوجد uuid (payload قديم)    00:02 +3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... (fromRemote=true) يحل عبر serverId عندما لا يوجد uuid (payload قديم)    00:02 +3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: ... لا يطابق employeeId البعيد مع e.id المحلي (منع الربط الخاطئ عبر الأجهزة)00:02 +4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) serverId مكرر (خطأ بيانات): يختار النشط أولاً بشكل حتمي
+2026-10-06T01:49:41.785458 WARN [IdResolver] ازدواج serverId=1 في employees: id=1(deletedAt=null), id=2(deletedAt=1783994438) — اختيار id=1 (النشط ثم الأصغر)
+00:02 +5: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +5: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) serverId مكرر وكلاهما نشط: يختار الأصغر id حتماً
+2026-10-06T01:49:41.809686 WARN [IdResolver] ازدواج serverId=2 في employees: id=1(deletedAt=null), id=2(deletedAt=null) — اختيار id=1 (النشط ثم الأصغر)
+00:02 +6: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +7: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +8: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +9: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد00:02 +10: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:02 +11: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:02 +12: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:02 +13: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:02 +13: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 2. حراس الـ backfill يمنعون الربط العابر للموظف (تصادم أجهزة)      00:02 +14: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 2. حراس الـ backfill يمنعون الربط العابر للموظف (تصادم أجهزة)      00:02 +14: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 3. الـ backfill يربط المرآة الصحيحة (نفس الموظف/المبلغ/±1 يوم)     00:03 +15: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 3. الـ backfill يربط المرآة الصحيحة (نفس الموظف/المبلغ/±1 يوم)     00:03 +15: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 3-أ. يوم ±1 مختلف لا يُربط (لا تسامح زمني — L3 حرفياً)  00:03 +16: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 3-أ. يوم ±1 مختلف لا يُربط (لا تسامح زمني — L3 حرفياً)  00:03 +16: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 3-ب. غير العائلة الراتبية لا يأخذ رابطاً عكسياً  00:03 +17: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 3-ب. غير العائلة الراتبية لا يأخذ رابطاً عكسياً  00:03 +17: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 10. الطرفان بلا هوية موظف (NULL) ⇒ لا رابط — حرس صارم بلا IS       00:03 +18: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 10. الطرفان بلا هوية موظف (NULL) ⇒ لا رابط — حرس صارم بلا IS       00:03 +18: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 4. mapper السحبات يختم expenseUuid والـ adapter يقرؤه   00:03 +19: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 4. mapper السحبات يختم expenseUuid والـ adapter يقرؤه   00:03 +19: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... payloads 5. mapper المصروفات يختم withdrawalUuid والـ adapter يقرؤه00:03 +20: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... payloads 5. mapper المصروفات يختم withdrawalUuid والـ adapter يقرؤه00:03 +20: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 68: adapters & payloads 6. القوائم المسموحة لا تُسقط الحقول الجديدة00:03 +21: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 68: adapters & payloads 6. القوائم المسموحة لا تُسقط الحقول الجديدة00:03 +21: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 7. مواصفات مدقق المخطط تضم الخصائص السحابية الجديدة     00:03 +22: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 7. مواصفات مدقق المخطط تضم الخصائص السحابية الجديدة     00:03 +22: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart                                                                     00:03 +22: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — merge / idempotency merge يُنشئ سجلاً جديداً ويُعيد id         00:03 +22: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — merge / idempotency merge يُنشئ سجلاً جديداً ويُعيد id         
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
 Here is the stacktrace from when the database was opened a second time:
@@ -929,7 +928,7 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-00:04 +26: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... merge يحافظ على op=delete عندما يكون السجل موجوداً كـ delete           00:04 +26: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يعيد السجلات المنتظرة بالترتيب الصحيح      00:04 +26: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يعيد السجلات المنتظرة بالترتيب الصحيح      
+00:03 +26: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... merge يحافظ على op=delete عندما يكون السجل موجوداً كـ delete           00:03 +26: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يعيد السجلات المنتظرة بالترتيب الصحيح      00:03 +26: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يعيد السجلات المنتظرة بالترتيب الصحيح      
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
 Here is the stacktrace from when the database was opened a second time:
@@ -969,7 +968,7 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-00:04 +27: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يعيد السجلات المنتظرة بالترتيب الصحيح      00:04 +27: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يحدّد حالة السجلات إلى processing          00:04 +27: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يحدّد حالة السجلات إلى processing          
+00:03 +27: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يعيد السجلات المنتظرة بالترتيب الصحيح      00:03 +27: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يحدّد حالة السجلات إلى processing          00:03 +27: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يحدّد حالة السجلات إلى processing          
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
 Here is the stacktrace from when the database was opened a second time:
@@ -1009,7 +1008,7 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-00:04 +28: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يحدّد حالة السجلات إلى processing          00:04 +28: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... takeBatch لا يلتقط السجلات المُسلّمة للرئيسي (delivered_to_primary=1)  00:04 +28: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch لا يلتقط السجلات المُسلّمة للرئيسي (delivered_to_primary=1)
+00:03 +28: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch يحدّد حالة السجلات إلى processing          00:03 +28: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... takeBatch لا يلتقط السجلات المُسلّمة للرئيسي (delivered_to_primary=1)  00:03 +28: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — takeBatch takeBatch لا يلتقط السجلات المُسلّمة للرئيسي (delivered_to_primary=1)
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
 Here is the stacktrace from when the database was opened a second time:
@@ -1329,11 +1328,11 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
 Error: Transient error
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    العملية: create
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 3
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    العملية: create
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 3
 00:04 +36: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... reclaimForPush يُعيد السجلات الفاشلة ذات المحاولات القليلة إلى pending 00:04 +36: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — reclaimForPush لا يُعيد السجلات الفاشلة فوق maxFailedAttempts  00:04 +36: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — reclaimForPush لا يُعيد السجلات الفاشلة فوق maxFailedAttempts  
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
@@ -1374,11 +1373,11 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
 Error: Many failures
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    العملية: create
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 10
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    العملية: create
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 10
 00:04 +37: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — reclaimForPush لا يُعيد السجلات الفاشلة فوق maxFailedAttempts  00:04 +37: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — reclaimForPush لا يُعيد السجلات الـ dead                       00:04 +37: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — reclaimForPush لا يُعيد السجلات الـ dead                       
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
@@ -1419,7 +1418,7 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_DEAD] ☠️ [Outbox] سجل #1 وُضع في الحالة النهائية dead بعد 10 محاولة
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_DEAD] ☠️ [Outbox] سجل #1 وُضع في الحالة النهائية dead بعد 10 محاولة
 Error: Permanent
 00:04 +38: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — reclaimForPush لا يُعيد السجلات الـ dead                       00:04 +38: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... يُعيد السجلات الفاشلة ذات المحاولات القليلة فوراً                      00:04 +38: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — retryFailedWithBackoff يُعيد السجلات الفاشلة ذات المحاولات القليلة فوراً
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
@@ -1461,11 +1460,11 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
 Error: Error
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    العملية: create
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 3
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    العملية: create
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 3
 00:04 +39: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... يُعيد السجلات الفاشلة ذات المحاولات القليلة فوراً                      00:04 +39: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... يُعيد السجلات عالية المحاولات بعد انقضاء backoffMinutes                00:04 +39: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — retryFailedWithBackoff يُعيد السجلات عالية المحاولات بعد انقضاء backoffMinutes
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
@@ -1506,11 +1505,11 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
 Error: Error
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    العملية: create
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 10
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    العملية: create
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 10
 00:04 +40: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... يُعيد السجلات عالية المحاولات بعد انقضاء backoffMinutes                00:04 +40: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — retryFailedWithBackoff لا يُعيد السجلات الـ dead               00:04 +40: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — retryFailedWithBackoff لا يُعيد السجلات الـ dead               
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
@@ -1551,7 +1550,7 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_DEAD] ☠️ [Outbox] سجل #1 وُضع في الحالة النهائية dead بعد 10 محاولة
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_DEAD] ☠️ [Outbox] سجل #1 وُضع في الحالة النهائية dead بعد 10 محاولة
 Error: Permanent
 00:04 +41: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — retryFailedWithBackoff لا يُعيد السجلات الـ dead               00:04 +41: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... methods countPendingPushable يحسب فقط pending + delivered_to_primary=0 00:04 +41: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — counting methods countPendingPushable يحسب فقط pending + delivered_to_primary=0
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
@@ -1633,11 +1632,11 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
 Error: Error
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    العملية: create
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 1
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    العملية: create
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 1
 00:04 +43: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... methods countUndeliveredToPrimary يشمل pending + processing + failed   00:04 +43: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — mergeBatch mergeBatch يُدرج دفعة كاملة في معاملة واحدة         00:04 +43: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — mergeBatch mergeBatch يُدرج دفعة كاملة في معاملة واحدة         
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
@@ -1878,11 +1877,11 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
 Error: Unknown entity
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    العملية: create
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 10
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    العملية: create
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 10
 00:04 +49: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... methods cleanupOrphanedEntries يحذف السجلات الفاشلة كثيرة المحاولات    00:04 +49: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... يحذف سجلات outbox المُكتملة للكيانات المحذوفة                          00:04 +49: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — cleanup methods cleanupForSoftDeletedEntities يحذف سجلات outbox المُكتملة للكيانات المحذوفة
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
@@ -2083,11 +2082,11 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
 Error: Conflict detected
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    العملية: create
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 1
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    العملية: create
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 1
 00:04 +54: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... — getConflicts / resolveConflict getConflicts يُعيد السجلات الفاشلة    00:04 +54: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... resolveConflict يُعيد السجل إلى pending مع بيانات محلولة               00:04 +54: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — getConflicts / resolveConflict resolveConflict يُعيد السجل إلى pending مع بيانات محلولة
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
@@ -2128,11 +2127,11 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR] ❌ فشل في Outbox
 Error: Conflict
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    العملية: create
-❌ [2026-10-06 01:45:48] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 1
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    الجدول: rooms
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    العملية: create
+❌ [2026-10-06 01:49:43] [ERROR   ] [OUTBOX_ERROR]    عدد المحاولات: 1
 00:04 +55: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... resolveConflict يُعيد السجل إلى pending مع بيانات محلولة               00:04 +55: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... ✅ Wave3: markAllLocalAsUndeliveredToSecondary no-op (secondary معطّل)  00:04 +55: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — bulk delivery flags ✅ Wave3: markAllLocalAsUndeliveredToSecondary no-op (secondary معطّل)
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
