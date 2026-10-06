@@ -256,59 +256,66 @@ void main() {
   });
 
   group('G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة', () {
-    test('رقم فقط + جهاز مجهول ⇒ لا ربط، ثم مراجعة بشرية بعد استنفاد المحاولات', () async {
-      final registry = AdapterRegistry.testing(db);
-      final store = DeferredRelationStore(db);
-      final relinker =
-          DeferredRelationRelinker(db: db, registry: registry, store: store)
-            ..install();
+    test(
+      'رقم فقط + جهاز مجهول ⇒ لا ربط، ثم مراجعة بشرية بعد استنفاد المحاولات',
+      () async {
+        final registry = AdapterRegistry.testing(db);
+        final store = DeferredRelationStore(db);
+        final relinker = DeferredRelationRelinker(
+          db: db,
+          registry: registry,
+          store: store,
+        )..install();
 
-      // موظف موجود برقم 7 لكنه من جهاز آخر (devZ) — لا يجوز الربط به.
-      await insertEmployee(uuid: 'emp-other', deviceId: 'devZ', serverId: 7);
+        // موظف موجود برقم 7 لكنه من جهاز آخر (devZ) — لا يجوز الربط به.
+        await insertEmployee(uuid: 'emp-other', deviceId: 'devZ', serverId: 7);
 
-      final skipped = await registry.salaryWithdrawals.upsertFromJson(
-        withdrawalPayload(
-          uuid: 'wd-uuid-3',
-          employeeId: 7,
-          deviceId: 'devUnknown',
-        ),
-        src: Source.appwrite,
-      );
-      expect(skipped, -1);
+        final skipped = await registry.salaryWithdrawals.upsertFromJson(
+          withdrawalPayload(
+            uuid: 'wd-uuid-3',
+            employeeId: 7,
+            deviceId: 'devUnknown',
+          ),
+          src: Source.appwrite,
+        );
+        expect(skipped, -1);
 
-      // (أ) يبقى معلّقاً (لا ربط بغير المُثبت، ولا إسقاط).
-      final firstAttempt = await relinker.relinkAll();
-      expect(firstAttempt.stillPending, 1);
-      expect(firstAttempt.movedToReview, 0);
-      expect(
-        await db.select(db.salaryWithdrawals).get(),
-        isEmpty,
-        reason: 'لا يُربط بموظف لم تُثبت هويته',
-      );
+        // (أ) يبقى معلّقاً (لا ربط بغير المُثبت، ولا إسقاط).
+        final firstAttempt = await relinker.relinkAll();
+        expect(firstAttempt.stillPending, 1);
+        expect(firstAttempt.movedToReview, 0);
+        expect(
+          await db.select(db.salaryWithdrawals).get(),
+          isEmpty,
+          reason: 'لا يُربط بموظف لم تُثبت هويته',
+        );
 
-      // (ب) بعد استنفاد ميزانية المحاولات ⇒ مراجعة بشرية مع حفظ الدليل.
-      for (var i = 0; i <= DeferredRelationStore.maxAttempts; i++) {
-        await relinker.relinkAll();
-      }
-      final review = await store.all(
-        states: {DeferredRelationState.needsReview},
-      );
-      expect(review.length, 1);
-      expect(review.first.remoteParentId, 7);
-      expect(review.first.sourceDeviceId, 'devUnknown');
-      expect(
-        await db.select(db.salaryWithdrawals).get(),
-        isEmpty,
-        reason: 'المجهول لا يُربط ولا يُحذف — ينتظر مراجعة بشرية',
-      );
-    });
+        // (ب) بعد استنفاد ميزانية المحاولات ⇒ مراجعة بشرية مع حفظ الدليل.
+        for (var i = 0; i <= DeferredRelationStore.maxAttempts; i++) {
+          await relinker.relinkAll();
+        }
+        final review = await store.all(
+          states: {DeferredRelationState.needsReview},
+        );
+        expect(review.length, 1);
+        expect(review.first.remoteParentId, 7);
+        expect(review.first.sourceDeviceId, 'devUnknown');
+        expect(
+          await db.select(db.salaryWithdrawals).get(),
+          isEmpty,
+          reason: 'المجهول لا يُربط ولا يُحذف — ينتظر مراجعة بشرية',
+        );
+      },
+    );
 
     test('رقم + نفس الجهاز الكاتب ⇒ يُربط (إثبات فضاء المعرّفات)', () async {
       final registry = AdapterRegistry.testing(db);
       final store = DeferredRelationStore(db);
-      final relinker =
-          DeferredRelationRelinker(db: db, registry: registry, store: store)
-            ..install();
+      final relinker = DeferredRelationRelinker(
+        db: db,
+        registry: registry,
+        store: store,
+      )..install();
 
       // السجل يصل قبل الموظف (لا uuid، لكن الرقم وكاتب السجل معروفان).
       final skipped = await registry.salaryWithdrawals.upsertFromJson(

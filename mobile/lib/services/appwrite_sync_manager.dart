@@ -293,12 +293,10 @@ class AppwriteSyncManager {
         reason: reason,
       );
     } catch (e) {
-      _logger.warning(
-        '⚠️ تعذّر تعليق $collection (غير حرج): $e',
-        tag: 'SYNC',
-      );
+      _logger.warning('⚠️ تعذّر تعليق $collection (غير حرج): $e', tag: 'SYNC');
     }
   }
+
   late final UnifiedPullEngine _unifiedPull;
 
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
