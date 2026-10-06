@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' as d;
 
 import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
+import '../../utils/currency_formatter.dart';
 import '../daos/debts_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
@@ -55,9 +56,10 @@ class DebtsRepository {
           checkoutDate: d.Value(checkoutDate),
           dateRecorded: d.Value(dateRecorded ?? checkinDate),
           debtReason: d.Value(debtReason ?? ''),
-          totalAmount: d.Value(totalAmount),
-          paidAmount: d.Value(paidAmount),
-          remainingAmount: d.Value(remaining),
+          // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
+          totalAmount: d.Value(CurrencyFormatter.wholeAmount(totalAmount)),
+          paidAmount: d.Value(CurrencyFormatter.wholeAmount(paidAmount)),
+          remainingAmount: d.Value(CurrencyFormatter.wholeAmount(remaining)),
           paymentDate: d.Value(paymentDate),
           isSettled: d.Value(settled ? 1 : 0),
           pledge: d.Value(pledge),
@@ -137,12 +139,12 @@ class DebtsRepository {
               ? d.Value(debtReason)
               : const d.Value.absent(),
           totalAmount: totalAmount != null
-              ? d.Value(totalAmount)
+              ? d.Value(CurrencyFormatter.wholeAmount(totalAmount))
               : const d.Value.absent(),
           paidAmount: paidAmount != null
-              ? d.Value(paidAmount)
+              ? d.Value(CurrencyFormatter.wholeAmount(paidAmount))
               : const d.Value.absent(),
-          remainingAmount: d.Value(remaining),
+          remainingAmount: d.Value(CurrencyFormatter.wholeAmount(remaining)),
           paymentDate: paymentDate != null
               ? d.Value(paymentDate)
               : const d.Value.absent(),

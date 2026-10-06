@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
+import '../utils/currency_formatter.dart';
 
 import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
@@ -48,10 +49,9 @@ class PriceAdjustmentService {
       targetType: const Value('room'),
       targetUuid: Value(room.localUuid),
       adjustmentType: const Value('price_change'),
-      previousValue: Value(
-        oldPrice,
-      ), // ✅ Wave 6b: double (no .round() truncation)
-      newValue: Value(newPrice), // ✅ Wave 6b: double (no .round() truncation)
+      // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر قبل التخزين وعبر الـ outbox
+      previousValue: Value(CurrencyFormatter.wholeAmount(oldPrice)),
+      newValue: Value(CurrencyFormatter.wholeAmount(newPrice)),
       reason: Value(reason),
       effectiveDate: Value(effectiveDate.toIso8601String()),
       appliedBy: Value(appliedBy),
@@ -72,8 +72,8 @@ class PriceAdjustmentService {
         'targetType': 'room',
         'targetUuid': room.localUuid,
         'adjustmentType': 'price_change',
-        'previousValue': oldPrice, // ✅ Wave 6b: double (no .round() truncation)
-        'newValue': newPrice, // ✅ Wave 6b: double (no .round() truncation)
+        'previousValue': CurrencyFormatter.wholeAmount(oldPrice),
+        'newValue': CurrencyFormatter.wholeAmount(newPrice),
         'reason': reason,
         'effectiveDate': effectiveDate.toIso8601String(),
         'appliedBy': appliedBy,
@@ -96,7 +96,7 @@ class PriceAdjustmentService {
       db.rooms,
     )..where((r) => r.roomNumber.equals(roomNumber))).write(
       RoomsCompanion(
-        price: Value(newPrice),
+        price: Value(CurrencyFormatter.wholeAmount(newPrice)),
         updatedAt: Value(Time.nowEpoch()),
         lastModified: Value(Time.nowEpoch()),
         version: Value(room.version + 1),

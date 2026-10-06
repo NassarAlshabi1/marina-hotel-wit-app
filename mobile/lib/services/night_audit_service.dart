@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/local_db.dart';
+import '../utils/currency_formatter.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../services/telegram/telegram_service.dart' as tg;
@@ -315,9 +316,12 @@ class NightAuditService {
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final companion = HotelDayLedgerCompanion(
       hotelDayKey: d.Value(hotelDayKey),
-      totalIncome: d.Value(data.totalIncome),
-      totalExpenses: d.Value(data.totalExpenses),
-      pendingBalances: d.Value(data.pendingBalances),
+      // G-10: «لا كسور عشرية» في مجاميع دفتر اليوم
+      totalIncome: d.Value(CurrencyFormatter.wholeAmount(data.totalIncome)),
+      totalExpenses: d.Value(CurrencyFormatter.wholeAmount(data.totalExpenses)),
+      pendingBalances: d.Value(
+        CurrencyFormatter.wholeAmount(data.pendingBalances),
+      ),
       occupancyRate: d.Value(data.occupancyRate),
       bookingsProcessed: d.Value(data.activeBookings),
       paymentsProcessed: d.Value(data.paymentsProcessed),

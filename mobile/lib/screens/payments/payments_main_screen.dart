@@ -453,7 +453,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             // ✅ حالة تأخر السداد الخاصة بهذا الحجز (لا تظهر إلا إذا كان
             // هناك رصيد متبقي + نحن داخل نافذة التنبيه الليلية).
             final hasRemainingBalance =
-                booking.remainingBalanceCached.round() > 0;
+                CurrencyFormatter.truncateAmount(
+                  booking.remainingBalanceCached,
+                ) >
+                0;
             final isLate = hasRemainingBalance && isLateWindow;
             final isOverdue = hasRemainingBalance && isOverdueWindow;
 

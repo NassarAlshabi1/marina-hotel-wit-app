@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/status_utils.dart';
+import '../../utils/currency_formatter.dart';
 import '../../utils/time.dart';
 import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
@@ -88,7 +89,8 @@ class BookingsRepository {
             calculatedNights: calculatedNights != null
                 ? d.Value(calculatedNights)
                 : const d.Value.absent(),
-            discount: d.Value(discount),
+            // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر قبل التخزين
+            discount: d.Value(CurrencyFormatter.wholeAmount(discount)),
             discountType: d.Value(discountType),
             discountStartDate: d.Value(discountStartDate),
           ),
@@ -231,7 +233,7 @@ class BookingsRepository {
                 ? d.Value(calculatedNights)
                 : const d.Value.absent(),
             discount: discount != null
-                ? d.Value(discount)
+                ? d.Value(CurrencyFormatter.wholeAmount(discount))
                 : const d.Value.absent(),
             discountType: discountType != null
                 ? d.Value(discountType)

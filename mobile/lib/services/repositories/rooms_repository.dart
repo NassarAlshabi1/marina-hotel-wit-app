@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/status_utils.dart';
+import '../../utils/currency_formatter.dart';
 import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
@@ -36,7 +37,8 @@ class RoomsRepository {
         RoomsCompanion(
           roomNumber: d.Value(roomNumber),
           type: d.Value(type),
-          price: d.Value(price),
+          // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
+          price: d.Value(CurrencyFormatter.wholeAmount(price)),
           status: d.Value(status),
           imageUrl: d.Value(imageUrl),
         ),
@@ -74,7 +76,9 @@ class RoomsRepository {
         id,
         RoomsCompanion(
           type: type != null ? d.Value(type) : const d.Value.absent(),
-          price: price != null ? d.Value(price) : const d.Value.absent(),
+          price: price != null
+              ? d.Value(CurrencyFormatter.wholeAmount(price))
+              : const d.Value.absent(),
           status: status != null ? d.Value(status) : const d.Value.absent(),
           imageUrl: imageUrl != null
               ? d.Value(imageUrl)
@@ -116,7 +120,9 @@ class RoomsRepository {
         roomNumber,
         RoomsCompanion(
           type: type != null ? d.Value(type) : const d.Value.absent(),
-          price: price != null ? d.Value(price) : const d.Value.absent(),
+          price: price != null
+              ? d.Value(CurrencyFormatter.wholeAmount(price))
+              : const d.Value.absent(),
           status: status != null ? d.Value(status) : const d.Value.absent(),
           imageUrl: imageUrl != null
               ? d.Value(imageUrl)

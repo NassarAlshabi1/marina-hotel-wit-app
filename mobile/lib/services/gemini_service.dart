@@ -6,6 +6,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:uuid/uuid.dart';
 
 import '../utils/hotel_time_engine.dart';
+import '../utils/currency_formatter.dart';
 import '../utils/status_utils.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
@@ -1871,7 +1872,8 @@ class GeminiService {
             db.bookings,
           )..where((b) => b.id.equals(booking.id))).write(
             BookingsCompanion(
-              discount: Value(discountAmount),
+              // G-10: «لا كسور عشرية»
+              discount: Value(CurrencyFormatter.wholeAmount(discountAmount)),
               discountType: Value(discountType),
               updatedAt: Value(now.millisecondsSinceEpoch),
               lastModified: Value(now.millisecondsSinceEpoch),
@@ -1933,7 +1935,7 @@ class GeminiService {
                 ExpensesCompanion(
                   expenseType: Value(expenseType),
                   description: Value(desc),
-                  amount: Value(amount),
+                  amount: Value(CurrencyFormatter.wholeAmount(amount)),
                   date: Value(expenseDate),
                   // ✅ إصلاح: حساب hotelDayKey من الوقت الفعلي بدلاً من التاريخ التقويمي
                   hotelDayKey: Value(HotelTimeEngine.getHotelDayKey()),
@@ -2133,9 +2135,14 @@ class GeminiService {
             db.debts,
           )..where((d) => d.id.equals(targetDebt!.id))).write(
             DebtsCompanion(
-              paidAmount: Value(newPaid),
+              // G-10: «لا كسور عشرية» — الدفع والمتبقي بأعداد صحيحة
+              paidAmount: Value(CurrencyFormatter.wholeAmount(newPaid)),
               remainingAmount: Value(
-                (targetDebt.totalAmount - newPaid).clamp(0.0, double.infinity),
+                CurrencyFormatter.wholeAmount(
+                  (CurrencyFormatter.wholeAmount(targetDebt.totalAmount) -
+                          CurrencyFormatter.wholeAmount(newPaid))
+                      .clamp(0.0, double.infinity),
+                ),
               ),
               isSettled: Value(isFullySettled ? 1 : 0),
               paymentDate: Value(now.toIso8601String().split('T')[0]),
@@ -2204,7 +2211,7 @@ class GeminiService {
           )..where((r) => r.roomNumber.equals(roomNumber))).write(
             RoomsCompanion(
               status: const Value('occupied'),
-              price: Value(roomPrice),
+              price: Value(CurrencyFormatter.wholeAmount(roomPrice)),
               updatedAt: Value(now.millisecondsSinceEpoch),
               lastModified: Value(now.millisecondsSinceEpoch),
               updatedAtIso: Value(now.toIso8601String()),
@@ -2847,7 +2854,9 @@ class GeminiService {
             .get();
     final totalPayroll =
         payrollPayments.fold<int>(0, (s, p) => s + p.amount) +
-        payrollWithdrawals.fold<double>(0, (s, w) => s + w.amount).round();
+        CurrencyFormatter.truncateAmount(
+          payrollWithdrawals.fold<double>(0, (s, w) => s + w.amount),
+        );
 
     // الغرف
     final allRooms = await db.select(db.rooms).get();
@@ -3021,9 +3030,9 @@ class GeminiService {
       0,
       (s, p) => s + p.amount,
     );
-    final totalWithdrawals = withdrawals
-        .fold<double>(0, (s, w) => s + w.amount)
-        .round();
+    final totalWithdrawals = CurrencyFormatter.truncateAmount(
+      withdrawals.fold<double>(0, (s, w) => s + w.amount),
+    );
 
     lines.add(
       '💸 مدفوعات رواتب خلال الفترة: ${totalSalaryPayments.toStringAsFixed(0)} ريال (${salaryPayments.length})',
@@ -3159,7 +3168,9 @@ class GeminiService {
     final totalExpenses = expenses.fold<double>(0, (s, e) => s + e.amount);
     final totalPayroll =
         salaryPayments.fold<int>(0, (s, p) => s + p.amount) +
-        withdrawals.fold<double>(0, (s, w) => s + w.amount).round();
+        CurrencyFormatter.truncateAmount(
+          withdrawals.fold<double>(0, (s, w) => s + w.amount),
+        );
 
     final netBeforePayroll = totalIncome - totalExpenses;
     final netAfterPayroll = netBeforePayroll - totalPayroll;

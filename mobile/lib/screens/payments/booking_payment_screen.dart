@@ -777,7 +777,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     double remainingAmount = 0,
     double roomRate = 0,
   }) {
-    final remaining = summary.remainingAmount.round().abs();
+    // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
+    final remaining = CurrencyFormatter.truncateAmount(
+      summary.remainingAmount,
+    ).abs();
     return Column(
       children: [
         // حقل رقم الهاتف مخفي - للاستخدام الداخلي فقط
@@ -831,7 +834,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             Expanded(
               child: _buildQuickPaymentButton(
                 '25%',
-                (remaining * 25 / 100).round(),
+                CurrencyFormatter.truncateAmount(remaining * 25 / 100),
                 summary,
               ),
             ),
@@ -839,7 +842,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             Expanded(
               child: _buildQuickPaymentButton(
                 '50%',
-                (remaining * 50 / 100).round(),
+                CurrencyFormatter.truncateAmount(remaining * 50 / 100),
                 summary,
               ),
             ),
@@ -847,7 +850,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             Expanded(
               child: _buildQuickPaymentButton(
                 '75%',
-                (remaining * 75 / 100).round(),
+                CurrencyFormatter.truncateAmount(remaining * 75 / 100),
                 summary,
               ),
             ),
@@ -1325,7 +1328,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final notesController = TextEditingController(
       text: nights == 1 ? 'دفع ليلة إضافية واحدة' : 'دفع $nights ليالي إضافية',
     );
-    final perNight = nights > 0 ? (amount / nights).round() : 0;
+    // G-10: «لا كسور عشرية» — نصيب الليلة يُقتطع نحو الصفر
+    final perNight = nights > 0
+        ? CurrencyFormatter.truncateAmount(amount / nights)
+        : 0;
 
     showDialog<void>(
       context: context,
@@ -2224,7 +2230,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                         const Icon(Icons.money_off, color: Colors.green),
                         const SizedBox(width: 8),
                         Text(
-                          'المبلغ المردود: ${_currencyFmt.format(refundAmount.round())}',
+                          'المبلغ المردود: ${_currencyFmt.format(CurrencyFormatter.truncateAmount(refundAmount))}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
@@ -2265,7 +2271,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 onPressed: () {
                   Navigator.pop(context);
                   _processEarlyCheckout(
-                    refundAmount.round(),
+                    CurrencyFormatter.truncateAmount(refundAmount),
                     unusedNights,
                     actualNights,
                   );

@@ -175,6 +175,68 @@ class MoneyIntegrityService {
       table: 'salary_carry_over_logs',
       sql: 'SELECT local_uuid, amount FROM salary_carry_over_logs',
     );
+    // ── أموال الضيوف والحجوزات: تُفحص للقراءة فقط أيضاً (سياسة موحّدة) ──
+    await scanTable(
+      table: 'bookings.discount',
+      sql:
+          'SELECT local_uuid, discount AS amount FROM bookings '
+          'WHERE deleted_at IS NULL AND discount IS NOT NULL',
+    );
+    await scanTable(
+      table: 'bookings.total_due_cached',
+      sql:
+          'SELECT local_uuid, total_due_cached AS amount FROM bookings '
+          'WHERE deleted_at IS NULL AND total_due_cached IS NOT NULL',
+    );
+    await scanTable(
+      table: 'bookings.remaining_balance_cached',
+      sql:
+          'SELECT local_uuid, remaining_balance_cached AS amount FROM bookings '
+          'WHERE deleted_at IS NULL AND remaining_balance_cached IS NOT NULL',
+    );
+    await scanTable(
+      table: 'payments.amount',
+      sql:
+          'SELECT local_uuid, amount FROM payments WHERE deleted_at IS NULL',
+    );
+    await scanTable(
+      table: 'payments.discount_amount',
+      sql:
+          'SELECT local_uuid, discount_amount AS amount FROM payments '
+          'WHERE deleted_at IS NULL AND discount_amount IS NOT NULL',
+    );
+    await scanTable(
+      table: 'rooms.price',
+      sql: 'SELECT local_uuid, price AS amount FROM rooms',
+    );
+    await scanTable(
+      table: 'booking_nights.nightly_rate',
+      sql:
+          'SELECT local_uuid, nightly_rate AS amount FROM booking_nights',
+    );
+    await scanTable(
+      table: 'hotel_day_ledger.total_income',
+      sql:
+          'SELECT hotel_day_key AS local_uuid, total_income AS amount '
+          'FROM hotel_day_ledger',
+    );
+    await scanTable(
+      table: 'hotel_day_ledger.total_expenses',
+      sql:
+          'SELECT hotel_day_key AS local_uuid, total_expenses AS amount '
+          'FROM hotel_day_ledger',
+    );
+    await scanTable(
+      table: 'payment_voids.voided_amount',
+      sql:
+          'SELECT local_uuid, voided_amount AS amount FROM payment_voids',
+    );
+    await scanTable(
+      table: 'audit_logs.amount_impact',
+      sql:
+          'SELECT local_uuid, amount_impact AS amount FROM audit_logs '
+          'WHERE amount_impact IS NOT NULL',
+    );
 
     AppLogger.info(
       rows.isEmpty

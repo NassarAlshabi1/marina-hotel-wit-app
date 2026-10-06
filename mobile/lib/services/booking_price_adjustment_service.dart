@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import '../utils/debug_log.dart';
+import '../utils/currency_formatter.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
@@ -265,7 +266,8 @@ class BookingPriceAdjustmentService {
       roomNumber: Value(booking.roomNumber),
       adjustmentType: Value(type.value),
       adjustmentMode: Value(mode.value),
-      amount: Value(amount.toDouble()),
+      // G-10: «لا كسور عشرية»
+      amount: Value(CurrencyFormatter.wholeAmount(amount)),
       effectiveHotelDay: Value(effectiveHotelDay),
       endHotelDay: Value(endHotelDay),
       isActive: const Value(true),

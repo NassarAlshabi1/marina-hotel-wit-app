@@ -1436,6 +1436,61 @@ void main() {
                     .getSingle())
                 .amount;
         expect(expenseStillFractional, 12.5);
+
+        // ── أموال الضيوف/الحجوزات: نفس السياسة — تُبلَّغ للقراءة فقط ──
+        await db
+            .into(db.rooms)
+            .insert(
+              RoomsCompanion.insert(
+                localUuid: 'room-legacy-fraction',
+                createdAt: _now,
+                updatedAt: _now,
+                lastModified: _now,
+                roomNumber: 'G10-1',
+                type: 'single',
+                price: 12000.5,
+                status: 'available',
+              ),
+            );
+        await db
+            .into(db.bookings)
+            .insert(
+              BookingsCompanion.insert(
+                localUuid: 'bk-legacy-fraction',
+                createdAt: _now,
+                updatedAt: _now,
+                lastModified: _now,
+                roomNumber: 'G10-1',
+                guestName: 'ضيف',
+                guestPhone: '777000000',
+                guestNationality: 'يمني',
+                checkinDate: '2026-10-01',
+                status: 'active',
+                discount: d.Value(500.75),
+              ),
+            );
+
+        final fullReport = await MoneyIntegrityService(db).scan();
+        expect(
+          fullReport.countByTable['bookings.discount'],
+          1,
+          reason: 'خصم حجز تاريخي بكسر — يُبلَّغ للمراجعة',
+        );
+        expect(fullReport.countByTable['rooms.price'], 1);
+
+        // ⚠️ ولا تعديل: القيم التاريخية ما زالت كما هي في القاعدة.
+        final legacyRoom =
+            (await (db.select(db.rooms)
+                      ..where((r) => r.roomNumber.equals('G10-1')))
+                    .getSingle())
+                .price;
+        expect(legacyRoom, 12000.5);
+        final legacyDiscount =
+            (await (db.select(db.bookings)
+                      ..where((b) => b.localUuid.equals('bk-legacy-fraction')))
+                    .getSingle())
+                .discount;
+        expect(legacyDiscount, 500.75);
       },
     );
 

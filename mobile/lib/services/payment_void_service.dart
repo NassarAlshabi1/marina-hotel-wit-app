@@ -3,6 +3,7 @@
 import 'package:drift/drift.dart' as drift;
 
 import '../utils/id.dart';
+import '../utils/currency_formatter.dart';
 import '../utils/time.dart';
 import 'appwrite_sync_manager.dart';
 import 'booking_derived_fields_service.dart';
@@ -133,7 +134,7 @@ class PaymentVoidService {
                 originalPaymentUuid: paymentUuid,
                 originalPaymentId: payment.id,
                 bookingUuid: bookingUuid,
-                voidedAmount: payment.amount.round(),
+                voidedAmount: CurrencyFormatter.truncateAmount(payment.amount),
                 voidReason: voidReason,
                 voidedBy: voidedBy,
                 voidedAt: nowEpoch,
@@ -179,7 +180,7 @@ class PaymentVoidService {
             'originalPaymentUuid': paymentUuid,
             'originalPaymentId': payment.id,
             'bookingUuid': bookingUuid,
-            'voidedAmount': payment.amount.round(),
+            'voidedAmount': CurrencyFormatter.truncateAmount(payment.amount),
             'voidReason': voidReason,
             'voidedBy': voidedBy,
             'voidedAt': nowEpoch,

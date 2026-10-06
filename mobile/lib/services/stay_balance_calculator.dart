@@ -1,4 +1,5 @@
 import '../utils/hotel_time_engine.dart';
+import '../utils/currency_formatter.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -257,7 +258,8 @@ class StayBalanceCalculator {
 
     // ─── محاكاة يوم بيوم لحساب الليالي المغطاة ───
     final coveredDates = <DateTime>[];
-    int toMinor(double amount) => amount.round();
+    // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
+    int toMinor(double amount) => CurrencyFormatter.truncateAmount(amount);
     double fromMinor(int amount) => amount.toDouble();
 
     final totalPaidMinor = toMinor(booking.totalPaidCached);

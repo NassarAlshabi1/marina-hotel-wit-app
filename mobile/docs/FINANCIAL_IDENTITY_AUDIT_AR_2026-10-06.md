@@ -21,7 +21,7 @@
 | 8. فصل منطق البيانات عن Appwrite | ⚠️ جزئي | طبقة المحوّلات (`EntityAdapter`) جيدة، لكن مدير المزامنة 9000+ سطر يخلط النقل بالمنطق |
 | 9. جاهزية تغيير المزوّد | ⚠️ جزئي | المؤشرات (`sync_checkpoints` / `sync_mirror`) **غير مُنَطَّقة بالمزوّد** → خطر إعادة استخدام مؤشر Appwrite |
 | 5م. منع التكرار في التعارض | ✅ أُغلقت (G-4) | الحقول المالية الحرجة لا تُدمج صامتة: تُحفظ القيمتان وتُسجَّل للمراجعة |
-| المبالغ العشرية | ✅ أُغلقت (G-10) | سياسة «لا كسور عشرية» + اقتطاع نحو الصفر في العرض والإدخال والنقل |
+| المبالغ العشرية | ✅ أُغلقت (G-10) | سياسة «لا كسور عشرية» + اقتطاع نحو الصفر في العرض والإدخال والكتابة والنقل وكل الحسابات المشتقة (بقي الإبلاغ عن الصفوف التاريخية) |
 | 12. تقرير مراجعة للسجلات غير المؤكدة | ⚠️ جزئي | التعارضات تُحفظ الآن في `sync_conflicts` (G-4/G-11) وتظهر في شاشة التعارضات؛ تقرير السجلات التاريخية (G-8) لم يُبنَ بعد |
 
 **التوصية:** لا تبدأ إصلاحات المخطط قبل اعتماد هذا التدقيق، ثم تنفيذ الإصلاحات بترتيب الأولوية في القسم 10، مع تشغيل الاختبارات المضافة في القسم 11 على أجهزة حقيقية (A/B) قبل أي كتابة إنتاجية.
@@ -294,20 +294,46 @@ TextColumn get idempotencyKey
    (اقتطاع نحو الصفر في SQLite) حتى لا يُقرَّب مبلغ جهاز يُرقّي نسخته القديمة
    للأعلى (`occupancy_rate` مستثنى — نسبة وليست مبلغاً). الأجهزة التي رُقّيت
    **سابقاً** تحتفظ بقيمها كما هي — تُبلَّغ للقراءة فقط ولا تُعاد كتابتها.
-5. **حدود النطاق (للشفافية)**: أموال الضيوف خارج نطاق هذه الجولة
-   (`bookings.discount/totalDueCached/totalPaidCached/remainingBalanceCached`,
-   `payments.amount/discountAmount`, `rooms.price`, `booking_nights.nightlyRate`,
-   `hotel_day_ledger.*`, `audit_logs.amountImpact`) — أعمدة محلية أُجبرت على الأعداد
-   الصحيحة في هجرات سابقة، وحقول Cloud من نوع integer منها تُقتطع الآن في آخر ميل.
-   تعميم الاقتطاع على هذه الحقول قرار مالك منفصل (مؤجَّل صراحةً، بلا تعديل تاريخي).
+5. **تعميم على كل مسارات الكتابة والعرض (جولة ثالثة)**: كان الاقتطاع في مسارات
+   الرواتب/المصروفات والالتزامات فقط؛ فأُكمل على:
+   * **عمليات الكتابة**: `bookings.discount` و`payments.amount` و`rooms.price`
+     و`cash_transactions.amount` و`debts.total/paid/remaining` و
+     `employees.basic_salary` (المستودعات) + تعديلات الأسعار
+     (`price_adjustment_service`, `booking_price_adjustment_service`) +
+     إنشاء/تعديل الديون والغرف/الخزينة عبر Gemini + دفتر اليوم
+     (`hotel_day_ledger`) + إلغاء الدفع (`payment_voids.voidedAmount`).
+   * **تقسيم أقساط السلفة** (`SalaryAdvanceInstallmentsService`): كان يحسب
+     `totalAmount / installments` بكسور عشرية (`toStringAsFixed(2)`) ثم تُقتطع
+     الأقساط ⇒ مجموع الأقساط ≠ السلفة (فقدان ريال). الآن التقسيم **بأعداد صحيحة**
+     والقسط الأخير يستوعب الباقي: `1000.5 → 1000 = 333 + 333 + 334`.
+   * **العرض/الحسابات المشتقة**: `CurrencyFormatter.truncateAmount` في
+     `booking_computed_stream_service`, `enhanced_booking_calculation_service._asInt`,
+     `stay_balance_calculator`, `salary_cycle_calculator._money`,
+     `arabic_amount_formatter` (التفقيط), ونسب الدفع السريع/المردود في شاشة الدفع،
+     وحالة «متبقي» في `room_payment_status_provider` و`payments_main_screen`.
+   * **الحصيلة**: لا يوجد أي `round()` على مبلغ مالي في `lib/` (يُتحقَّق آلياً)،
+     وكل قيمة مالية جديدة تُكتب عدداً صحيحاً — فالفرق بين الأجهزة = 0 لأي بيانات
+     جديدة، ولا يتغيّر مجموع مالي عند عبور المزوّد.
+   * **ما تبقّى لم يُمسّ**: الصفوف التاريخية الكسرية (أي جدول) — تُبلَّغ فقط،
+     وحقول Cloud من نوع integer تُقتطع في آخر ميل قبل الإرسال.
 6. **البيانات التاريخية (البند 12)**: `MoneyIntegrityService.scan()` —
    **قراءة فقط**: يُبلّغ عن كل صف فيه كسر (جدول + `local_uuid` + المبلغ المخزَّن +
    القيمة وفق السياسة + مجموع الكسور لكل جدول) **دون أي تعديل**. لا backfill،
    ولا إعادة توليد UUID، ولا تغيير مبلغ تاريخي بلا قرارك.
+   الفحص يغطّي الآن **كل** الأعمدة المالية: `expenses`, `salary_withdrawals`,
+   `salary_payments`, `salary_carry_over_logs`, `cash_transactions`, `debts`,
+   `price_adjustments`, `booking_price_adjustments`, وأُضيفت أعمدة أموال الضيوف:
+   `bookings.discount/total_due_cached/remaining_balance_cached`,
+   `payments.amount/discount_amount`, `rooms.price`,
+   `booking_nights.nightly_rate`, `hotel_day_ledger.total_income/total_expenses`,
+   `payment_voids.voided_amount`, `audit_logs.amount_impact` (مع تجاهل الأعمدة
+   غير الموجودة في نسخة الجهاز — السجل يُسمّى باسم الجدول والعمود).
 
 **اختبارات الإثبات:** `test/unit/money_integer_policy_test.dart` (حتمية الاقتطاع وتطابق
-العرض/الإدخال/النقل) + `G-10` و`mirror pair` و`legacy rows reported` في
-`test/unit/financial_identity_audit_test.dart`.
+العرض/الإدخال/النقل) + `test/unit/money_whole_amount_writes_test.dart` (كل عمليات
+الكتابة: غرف/موظفون/خزينة/ديون + تقسيم أقساط السلفة `1000.5 → 1000 = 333+333+334`)
++ `G-10` و`mirror pair` و`legacy rows reported` (وتشمل الآن كسور أموال الضيوف)
+في `test/unit/financial_identity_audit_test.dart`.
 
 ### جولة الإثبات الثانية على الشجرة الكاملة (CI 2026-10-06)
 
