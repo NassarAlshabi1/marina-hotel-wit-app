@@ -124,6 +124,11 @@ class CloudflareRealtimeClient @Inject constructor(
      * يصفّر عدّاد المحاولات ويجرّب فوراً (Dart `ensureStarted`).
      */
     fun ensureStarted() {
+        // المفتاح يُحترم في كل مسار استئناف — لا مقبس حين يكون Realtime معطّلاً.
+        if (!isEnabled()) {
+            if (listening) stop()
+            return
+        }
         reconnectAttempt = 0
         reconnectJob?.cancel()
         reconnectJob = null
@@ -197,6 +202,11 @@ class CloudflareRealtimeClient @Inject constructor(
 
     private fun connect() {
         if (!listening || intentionallyStopped || connectInFlight) return
+        // دفاع مزدوج: أي نداء اتصال (rearm/backoff) يتوقف فور تعطيل المفتاح.
+        if (!isEnabled()) {
+            stop()
+            return
+        }
         val token = preferences.getAuthToken()
         // التوكن المحلي يفتح التطبيق فقط — ليس Bearer صالحاً للـ Worker.
         if (token.isNullOrBlank() || LocalAdminAuth.isLocalAdminToken(token)) {
@@ -334,7 +344,9 @@ class CloudflareRealtimeClient @Inject constructor(
     }
 
     private suspend fun executeTriggeredPull(): Boolean {
-        val trigger = pullTrigger ?: return false
+        // بلا مسار سحب موصول لا معنى لإعادة الجدولة: نستهلك الحدث بدل حلقة
+        // تهدئة لا نهائية كل 15 ثانية (يُوصَل المسار من AutoSyncEngine.start()).
+        val trigger = pullTrigger ?: return true
         val succeeded = trigger()
         if (succeeded) clearRemoteChanges()
         return succeeded

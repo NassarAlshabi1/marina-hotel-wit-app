@@ -43,6 +43,16 @@ class CloudflareRealtimeClientTest {
             assertFalse(subject.isListeningForTest)
             assertFalse(subject.realtimeState.value.enabled)
             assertEquals(0, subject.realtimeState.value.connectAttempts)
+            // مسار العودة للواجهة يحترم المفتاح أيضاً (لا مقبس ولا محاولة).
+            subject.ensureStarted()
+            assertFalse(subject.isListeningForTest)
+            assertEquals(0, subject.realtimeState.value.connectAttempts)
+
+            // عند التفعيل يعمل الاستئناف عادياً ثم يتوقف بأمان.
+            preferences.setRealtimeSyncEnabled(true)
+            subject.ensureStarted()
+            assertTrue(subject.isListeningForTest)
+            assertTrue(subject.realtimeState.value.enabled)
         } finally {
             subject.stop()
         }
