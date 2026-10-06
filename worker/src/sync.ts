@@ -95,6 +95,19 @@ function validatePushOperation(op: PushOperation): string | null {
   if (op.deviceId !== undefined && (typeof op.deviceId !== 'string' || op.deviceId.length > PUSH_FIELD_LIMITS.deviceId)) {
     return `deviceId must be a string of at most ${PUSH_FIELD_LIMITS.deviceId} chars`;
   }
+  if (op.entity === 'expenses' && op.operation !== 'delete' && op.data.expense_kind != null) {
+    const allowed = new Set([
+      'normal',
+      'salary_advance',
+      'salary_installment',
+      'salary_withdrawal',
+      'salary_deduction',
+      'unclassified',
+    ]);
+    if (typeof op.data.expense_kind !== 'string' || !allowed.has(op.data.expense_kind)) {
+      return 'expense_kind is invalid';
+    }
+  }
   return null;
 }
 
@@ -421,6 +434,27 @@ export async function handlePush(
 
     if (body.operations.length > MAX_BATCH_SIZE) {
       return jsonResponse({ error: `Max ${MAX_BATCH_SIZE} operations per batch` }, 400);
+    }
+
+    // Capability gate: never acknowledge an expense classification that the
+    // target D1 schema cannot persist. This is intentionally checked before
+    // processing any operation, so a mixed batch remains all-or-nothing from
+    // the client's point of view and the outbox can retry after migration.
+    const needsExpenseKind = body.operations.some(
+      (op) => op.entity === 'expenses' && op.operation !== 'delete' && op.data.expense_kind != null,
+    );
+    if (needsExpenseKind) {
+      const expenseColumns = await db.getTableColumns('expenses');
+      if (!expenseColumns.has('expense_kind')) {
+        return jsonResponse(
+          {
+            error: 'expense_kind capability unavailable',
+            code: 'expense_kind_capability_unavailable',
+            retryable: true,
+          },
+          409,
+        );
+      }
     }
 
     const results: Array<{

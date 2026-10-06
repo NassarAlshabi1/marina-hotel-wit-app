@@ -422,11 +422,19 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         const d1Start = Date.now();
         try {
           await db.raw.prepare('SELECT 1 AS ok').first<{ ok: number }>();
+          const expenseColumns = await db.getTableColumns('expenses');
+          const writeTimeTable = await db.raw
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sync_write_times'")
+            .first<{ name: string }>();
           logRequest(method, path, 200, Date.now() - startTime, clientIp);
           return json(
             {
               status: 'ok',
               d1: 'ok',
+              capabilities: {
+                expense_kind: expenseColumns.has('expense_kind'),
+                sync_write_times: writeTimeTable?.name === 'sync_write_times',
+              },
               latency_ms: Date.now() - d1Start,
               server_time: Math.floor(Date.now() / 1000),
               timestamp: Date.now(),

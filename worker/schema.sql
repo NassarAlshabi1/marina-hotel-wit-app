@@ -534,6 +534,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_deleted ON payments(deleted_at);
 CREATE TABLE IF NOT EXISTS expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   expense_type TEXT NOT NULL,
+  expense_kind TEXT CHECK (expense_kind IS NULL OR expense_kind IN ('normal', 'salary_advance', 'salary_installment', 'salary_withdrawal', 'salary_deduction', 'unclassified')),
   related_id INTEGER,
   description TEXT NOT NULL,
   amount REAL NOT NULL,
@@ -566,6 +567,7 @@ CREATE INDEX IF NOT EXISTS idx_expenses_hotel_day ON expenses(hotel_day_key);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_uuid);
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
 CREATE INDEX IF NOT EXISTS idx_expenses_deleted ON expenses(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_expenses_kind ON expenses(expense_kind);
 
 -- ─── Debts ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS debts (
@@ -1115,5 +1117,19 @@ CREATE TABLE IF NOT EXISTS sync_meta (
   v TEXT NOT NULL,
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
+
+CREATE TABLE IF NOT EXISTS sync_write_times (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  entity TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  operation TEXT NOT NULL,
+  device_id TEXT NOT NULL DEFAULT '',
+  client_timestamp INTEGER,
+  server_timestamp INTEGER NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS idx_sync_write_times_entity
+  ON sync_write_times(entity, entity_id, server_timestamp);
 
 INSERT OR IGNORE INTO sync_meta (k, v) VALUES ('epoch', lower(hex(randomblob(16))));

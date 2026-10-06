@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -29,10 +28,9 @@ class CloudflareD1Service {
   CloudflareD1Config config;
 
   final http.Client _client;
-  bool _cancelled = false;
 
   /// طلب إيقاف الرفع (يُفحص بين الدفعات).
-  void cancel() => _cancelled = true;
+  void cancel() {}
 
   // ════════════════════════════════════════════════════════════════
   //  طبقة HTTP
@@ -194,29 +192,17 @@ class CloudflareD1Service {
     }
 
     if (databaseReachable) {
-      // DML: محاولة INSERT على جدول غير موجود — إن كان الخطأ "no such table"
-      // فهذا يعني أن العبارة اجتازت طبقة التصريح (لا شيء يُكتب فعلياً).
+      // Probe is deliberately read-only. Capability is reported by the
+      // Worker health endpoint; the administrative D1 token must never be
+      // tested with INSERT/CREATE/DROP side effects from the mobile client.
       try {
-        await _query('INSERT INTO _cf_probe_missing_table (a) VALUES (1)');
-        dmlAllowed = true; // نظرياً لا يحدث — الجدول غير موجود
+        await _query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' LIMIT 1",
+        );
+        dmlAllowed = false;
+        ddlAllowed = false;
       } on CloudflareD1Exception catch (e) {
-        final blob = '${e.message} ${e.details ?? ''}'.toLowerCase();
-        if (blob.contains('no such table') || blob.contains('sqlite_error')) {
-          dmlAllowed = true;
-        } else {
-          dmlError =
-              '${e.message}${e.details != null ? ' — ${e.details}' : ''}';
-        }
-      }
-      // DDL: إنشاء/حذف جدول اختبار حقيقي.
-      try {
-        await executeStatements(const [
-          'CREATE TABLE IF NOT EXISTS _cf_write_probe (id INTEGER)',
-          'DROP TABLE IF EXISTS _cf_write_probe',
-        ]);
-        ddlAllowed = true;
-      } on CloudflareD1Exception catch (_) {
-        ddlAllowed = false; // ليس قاتلاً — المخطط موجود مسبقاً في D1
+        dmlError = '${e.message}${e.details != null ? ' — ${e.details}' : ''}';
       }
     }
 
@@ -254,214 +240,22 @@ class CloudflareD1Service {
     String? deviceLabel,
     void Function(CloudflareD1Progress progress)? onProgress,
   }) async {
-    _cancelled = false;
-    final sw = Stopwatch()..start();
-    var rowsUploaded = 0;
-    final errors = <String>[];
-    final warnings = <String>[];
-    final doneTables = <String>[];
-    var callCount = 0;
-
-    // 1) نقل المخطط (CREATE ... IF NOT EXISTS) — قد يُرفض DDL بصلاحية
-    //    قراءة فقط؛ هذا ليس قاتلاً لأن مخطط D1 موجود مسبقاً، والجداول
-    //    الغائبة ستُرصد كأخطاء لكل جدول في مرحلة البيانات.
-    final ddl = <String>[];
-    for (final t in tables) {
-      for (final s in t.createSqlList) {
-        final rewritten = _toIfNotExists(s);
-        if (rewritten != null) ddl.add(rewritten);
-      }
-    }
-    for (var i = 0; i < ddl.length; i += 40) {
-      if (_cancelled) break;
-      final chunk = ddl.sublist(i, (i + 40).clamp(0, ddl.length));
-      try {
-        await executeStatements(chunk);
-        callCount++;
-      } on CloudflareD1Exception catch (e) {
-        warnings.add('تخطي نقل المخطط (DDL): ${e.message}');
-        break; // DDL محجوب — لا داعي لمحاولة الدفعات الباقية
-      }
-    }
-
-    // 2) بيانات الجداول.
-    final totalTables = tables.length;
-    for (var ti = 0; ti < totalTables; ti++) {
-      if (_cancelled) break;
-      final t = tables[ti];
-      onProgress?.call(
-        CloudflareD1Progress(
-          stage: 'نقل المخطط والبيانات',
-          currentTable: t.name,
-          tableIndex: ti,
-          tableCount: totalTables,
-          rowsDone: 0,
-          rowsTotal: t.rowCount,
-        ),
-      );
-
-      if (t.rowCount == 0) {
-        doneTables.add(t.name);
-        continue;
-      }
-
-      try {
-        var offset = 0;
-        List<Map<String, Object?>>? firstChunk;
-        List<String> columns = const [];
-        var rowsForTable = 0;
-        // عدد الأعمدة يُستنتج من أول دفعة (أسماء الأعمدة من SELECT *).
-        while (offset < t.rowCount) {
-          if (_cancelled) break;
-          final chunk = await t.readChunk(_chunkSize, offset);
-          if (chunk.isEmpty) break;
-          firstChunk ??= chunk;
-          if (columns.isEmpty) {
-            columns = firstChunk.first.keys.toList();
-          }
-          final colCount = columns.length;
-          if (colCount <= paramsBudget) {
-            // نمط المعاملات الآمن: INSERT متعدد الصفوف ≤ 96 معاملاً.
-            final rowsPerCall = (paramsBudget ~/ colCount).clamp(1, _chunkSize);
-            for (var i = 0; i < chunk.length; i += rowsPerCall) {
-              if (_cancelled) break;
-              final part = chunk.sublist(
-                i,
-                (i + rowsPerCall).clamp(0, chunk.length),
-              );
-              final placeholders = List.generate(
-                part.length,
-                (_) => '(${List.filled(colCount, '?').join(',')})',
-              ).join(',');
-              final sql =
-                  'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
-                  '(${columns.map(_quoteIdent).join(',')}) VALUES $placeholders';
-              final params = <Object?>[];
-              for (final row in part) {
-                for (final c in columns) {
-                  params.add(row[c]);
-                }
-              }
-              await _query(sql, params: params);
-              callCount++;
-              rowsForTable += part.length;
-              onProgress?.call(
-                CloudflareD1Progress(
-                  stage: 'رفع البيانات',
-                  currentTable: t.name,
-                  tableIndex: ti,
-                  tableCount: totalTables,
-                  rowsDone: rowsForTable,
-                  rowsTotal: t.rowCount,
-                ),
-              );
-            }
-          } else {
-            // جداول عريضة (>96 عموداً): حرفية مُهربة بعناية، صف لكل عبارة.
-            final statements = <String>[];
-            for (final row in chunk) {
-              final values = columns.map((c) => _sqlLiteral(row[c])).join(',');
-              statements.add(
-                'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
-                '(${columns.map(_quoteIdent).join(',')}) VALUES ($values)',
-              );
-            }
-            for (var i = 0; i < statements.length; i += 40) {
-              if (_cancelled) break;
-              await executeStatements(
-                statements.sublist(i, (i + 40).clamp(0, statements.length)),
-              );
-              callCount++;
-            }
-            rowsForTable += chunk.length;
-            onProgress?.call(
-              CloudflareD1Progress(
-                stage: 'رفع البيانات (نمط حرفي)',
-                currentTable: t.name,
-                tableIndex: ti,
-                tableCount: totalTables,
-                rowsDone: rowsForTable,
-                rowsTotal: t.rowCount,
-              ),
-            );
-          }
-          offset += chunk.length;
-        }
-        rowsUploaded += rowsForTable;
-        doneTables.add(t.name);
-      } on CloudflareD1Exception catch (e) {
-        errors.add(
-          '${t.name}: ${e.message}${e.details != null ? ' — ${e.details}' : ''}',
-        );
-      }
-    }
-
-    // 3) كتابة سجل metadata آخر عملية رفع.
-    if (!_cancelled && errors.isEmpty && doneTables.isNotEmpty) {
-      try {
-        await executeStatements(const [
-          'CREATE TABLE IF NOT EXISTS _cf_backup_meta (id INTEGER PRIMARY KEY CHECK (id = 1), uploaded_at TEXT NOT NULL, tables_count INTEGER NOT NULL, rows_count INTEGER NOT NULL, device_label TEXT)',
-        ]);
-        final nowIso = DateTime.now().toUtc().toIso8601String();
-        final label = _sqlLiteral(deviceLabel ?? '');
-        await executeStatements([
-          'INSERT OR REPLACE INTO _cf_backup_meta (id, uploaded_at, tables_count, rows_count, device_label) VALUES (1, $nowIso, ${doneTables.length}, $rowsUploaded, $label)',
-        ]);
-        callCount++;
-      } on CloudflareD1Exception catch (e) {
-        errors.add('_cf_backup_meta: ${e.message}');
-      }
-    }
-
-    sw.stop();
-    return CloudflareD1UploadResult(
-      ok: errors.isEmpty && !_cancelled,
-      cancelled: _cancelled,
-      tablesDone: doneTables.length,
-      rowsUploaded: rowsUploaded,
-      apiCalls: callCount,
-      errors: errors,
-      warnings: warnings,
-      elapsed: sw.elapsed,
+    // RU3 safety boundary: this legacy method used Cloudflare's administrative
+    // D1 API with INSERT OR REPLACE and could overwrite newer remote rows.
+    // Keep the API for source compatibility, but make the unsafe path inert;
+    // callers must use CloudflareD1PushMirror (/api/sync/push).
+    return const CloudflareD1UploadResult(
+      ok: false,
+      cancelled: false,
+      tablesDone: 0,
+      rowsUploaded: 0,
+      apiCalls: 0,
+      errors: [
+        'Raw D1 writes are disabled. Use CloudflareD1PushMirror via /api/sync/push.',
+      ],
+      warnings: [],
+      elapsed: Duration.zero,
     );
-  }
-
-  static const int _chunkSize = 400;
-
-  // ════════════════════════════════════════════════════════════════
-  //  أدوات مساعدة
-  // ════════════════════════════════════════════════════════════════
-
-  static String _quoteIdent(String name) => name.replaceAll('"', '""');
-
-  /// تحويل قيمة SQLite خام إلى literal آمن (للجداول العريضة فقط).
-  static String _sqlLiteral(Object? v) {
-    if (v == null) return 'NULL';
-    if (v is int) return v.toString();
-    if (v is double) {
-      if (v.isNaN || v.isInfinite) return 'NULL'; // SQLite لا يدعم NaN/Inf
-      return v.toString();
-    }
-    if (v is bool) return v ? '1' : '0';
-    if (v is Uint8List) {
-      return "X'${v.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}'";
-    }
-    if (v is List<int>) {
-      return "X'${v.map((b) => b.toRadixString(16).padLeft(2, '0')).join()}'";
-    }
-    final s = v.toString().replaceAll("'", "''");
-    return "'$s'";
-  }
-
-  /// إعادة صياغة CREATE → CREATE ... IF NOT EXISTS (للجداول والفهارس).
-  static String? _toIfNotExists(String ddl) {
-    final m = RegExp(
-      r'^\s*CREATE\s+(TABLE|UNIQUE\s+INDEX|INDEX|VIEW|TRIGGER)\s+(IF\s+NOT\s+EXISTS\s+)?',
-      caseSensitive: false,
-    ).firstMatch(ddl);
-    if (m == null) return null; // DDL غير مدعوم — تجاهل بأمان
-    if (m.group(2) != null) return ddl.trim();
-    return 'CREATE ${m.group(1)!} IF NOT EXISTS ${ddl.substring(m.end)}'.trim();
   }
 
   // ════════════════════════════════════════════════════════════════

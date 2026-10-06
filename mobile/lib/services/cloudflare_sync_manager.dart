@@ -1484,6 +1484,29 @@ class CloudflareSyncManager {
         debugPrint('⏳ Push: 429 — تهدئة $cooldownSecث قبل المحاولة القادمة');
       }
 
+      // The Worker deliberately rejects expense_kind writes with 409 until
+      // migration 0011 is applied. Keep these rows pending and retry later;
+      // this is a deployment capability mismatch, not bad user data.
+      if (response.statusCode == 409 &&
+          response.body.contains('expense_kind_capability_unavailable')) {
+        for (final item in pending) {
+          try {
+            await (outboxDao.update(
+              outboxDao.outbox,
+            )..where((t) => t.id.equals(item.id))).write(
+              const OutboxCompanion(
+                processingStatus: Value('pending'),
+                processingStartedAt: Value(null),
+                processingWorker: Value(null),
+              ),
+            );
+          } catch (_) {}
+        }
+        throw Exception(
+          'Worker capability unavailable: expense_kind migration required',
+        );
+      }
+
       // ✅ P0-G: 401/403 → لا نلمس السجلات (ستُعاد المحاولة بعد re-auth)
       // 5xx → نعيد السجلات لـ pending
       if (response.statusCode == 401 || response.statusCode == 403) {
