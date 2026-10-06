@@ -59,7 +59,9 @@ void main() {
     test('1c. payload يحتوي على amount', () async {
       final debt = await _insertDebt(db, amount: 1500.50);
       final payload = payloadMapper.debtToRemote(debt);
-      expect(payload['amount'], 1500.50);
+      // G-10: «لا كسور عشرية» — الاقتطاع نحو الصفر عبر المزوّد
+      // (1500.50 → 1500)، والصورة التاريخية تُبلَّغ للقراءة فقط.
+      expect(payload['amount'], 1500);
     });
 
     test('1d. payload يحتوي على date', () async {
@@ -99,7 +101,8 @@ void main() {
       final payload = payloadMapper.debtToRemote(debt);
       expect(payload['bookingUuidCache'], 'booking-uuid-all');
       expect(payload['debtorName'], 'Salem');
-      expect(payload['amount'], 750.25);
+      // G-10: الاقتطاع نحو الصفر في حمولة الرفع (750.25 → 750)
+      expect(payload['amount'], 750);
       expect(payload['date'], '2026-08-12T10:30');
     });
   });
@@ -376,7 +379,8 @@ void main() {
     test('5c. toJson (drive) يحتوي على amount', () async {
       final debt = await _insertDebt(db, amount: 999.99);
       final json = debtsAdapter.toJson(debt, src: Source.drive);
-      expect(json['amount'], 999.99);
+      // G-10: الاقتطاع نحو الصفر في تصدير المحوّل (999.99 → 999)
+      expect(json['amount'], 999);
     });
 
     test('5d. toJson (drive) يحتوي على date', () async {

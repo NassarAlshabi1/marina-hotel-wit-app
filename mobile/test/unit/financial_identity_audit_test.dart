@@ -1169,11 +1169,13 @@ void main() {
         serverId: 12,
       );
 
+      // ✅ G-10: عينية الاختبار وفق السياسة (أعداد صحيحة بلا كسور) —
+      // فروق الصفوف التاريخية الكسرية يغطيها اختبارا G-10 المخصّصان أدناه.
       final exp1 = await _expense(
         db,
         uuid: 'exp-uuid-0001',
         type: _salaryType,
-        amount: 150.5,
+        amount: 150,
         employeeUuid: 'emp-uuid-0001',
         relatedId: emp1,
       );
@@ -1189,7 +1191,7 @@ void main() {
         db,
         uuid: 'exp-uuid-0003',
         type: _salaryType,
-        amount: 90.25,
+        amount: 90,
         employeeUuid: 'emp-uuid-0002',
         relatedId: emp2,
       );
