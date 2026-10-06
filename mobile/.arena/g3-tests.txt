@@ -177,21 +177,20 @@ Got dependencies!
 173 packages have newer versions incompatible with dependency constraints.
 Try `flutter pub outdated` for more information.
 00:00 +0: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart
-lib/services/sync_core/deferred_relation_relinker.dart:244:12: Error: The getter 'Time' isn't defined for the type 'DeferredRelationRelinker'.
- - 'DeferredRelationRelinker' is from 'package:marina_hotel_mobile/services/sync_core/deferred_relation_relinker.dart' ('lib/services/sync_core/deferred_relation_relinker.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'Time'.
-          [Time.nowEpoch(), parent],
-           ^^^^
-00:00 +0 -1: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart [E]
-  Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart":
-  Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: lib/services/sync_core/deferred_relation_relinker.dart:244:12: Error: The getter 'Time' isn't defined for the type 'DeferredRelationRelinker'.
-   - 'DeferredRelationRelinker' is from 'package:marina_hotel_mobile/services/sync_core/deferred_relation_relinker.dart' ('lib/services/sync_core/deferred_relation_relinker.dart').
-  Try correcting the name to the name of an existing getter, or defining a getter or field named 'Time'.
-            [Time.nowEpoch(), parent],
-             ^^^^
-  .
-00:00 +0 -1: Some tests failed.
-
-Failing tests:
-  /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart
-g3_exit=1
+00:00 +0: G-3/1 — الفضاء الرقمي: لا ربط عبر الأجهزة بلا إثبات تصادم serverId بين جهازين: UUID يحسم، والرقم يُرفض
+2026-10-06T17:37:57.174174 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: employeeId=7 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات ⇒ يُترك السجل للربط المؤجّل عبر UUID (G-3).
+00:00 +1: G-3/2 — الابن قبل الأب: تعليق ثم ربط عبر UUID بلا تكرار سحبة تصل قبل موظفها: تُخزَّن، ثم تُربط، ولا تتكرر
+2026-10-06T17:37:57.183648 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
+2026-10-06T17:37:57.193731 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-1 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T17:37:57.203160 INFO [DEFERRED_RELATIONS] ✅ رُبط salary_withdrawals/wd-uuid-1 عبر UUID (employee=emp-remote-uuid).
+2026-10-06T17:37:57.203981 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=1, pending=0, review=0, total=1
+00:00 +2: G-3/2 — الابن قبل الأب: تعليق ثم ربط عبر UUID بلا تكرار تعليق متكرر لنفس السجل لا يُنشئ صفوفاً مكررة في المخزن
+2026-10-06T17:37:57.213764 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-2 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+00:00 +3: G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة رقم فقط + جهاز مجهول ⇒ مراجعة بشرية مع حفظ الدليل
+2026-10-06T17:37:57.215786 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
+2026-10-06T17:37:57.220866 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-3 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T17:37:57.222452 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=0, review=1, total=1
+00:00 +4: G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة معرّف الجلسة المعلّقة يُحفظ كحمولة كاملة (لا فقدان حقول)
+2026-10-06T17:37:57.230037 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-4 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+00:00 +5: All tests passed!
+g3_exit=0

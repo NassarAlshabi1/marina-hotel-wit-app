@@ -182,8 +182,6 @@ Analyzing mobile...
 warning • The declaration '_handlePeriodicPull' isn't referenced. Try removing the declaration of '_handlePeriodicPull' • lib/services/google_drive_unified_sync_coordinator.dart:434:16 • unused_element
 warning • The declaration '_startPeriodicSync' isn't referenced. Try removing the declaration of '_startPeriodicSync' • lib/services/smart_google_drive_sync.dart:290:8 • unused_element
 warning • The declaration '_performOptimizedSyncCheck' isn't referenced. Try removing the declaration of '_performOptimizedSyncCheck' • lib/services/smart_sync_manager.dart:148:16 • unused_element
-  error • Undefined name 'Time'. Try correcting the name to one that is defined, or defining the name • lib/services/sync_core/deferred_relation_relinker.dart:244:12 • undefined_identifier
-   info • Uses 'await' on an instance of 'Selectable<QueryRow>', which is not a subtype of 'Future'. Try removing the 'await' or changing the expression • lib/services/sync_core/deferred_relation_store.dart:386:21 • await_only_futures
 
-6 issues found. (ran in 16.9s)
-analyze_exit=1
+4 issues found. (ran in 15.3s)
+analyze_exit=0

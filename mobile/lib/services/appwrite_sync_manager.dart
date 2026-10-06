@@ -4356,16 +4356,16 @@ class AppwriteSyncManager {
         // زمني — ليس هوية) حتى لا يُعاد رفع الموظف في كل سحبة.
         final remoteDocId = employeeRemoteDoc.$id;
         final remoteNumericId = int.tryParse(remoteDocId);
-        await (database.update(database.employees)
-              ..where((e) => e.id.equals(employee.id)))
-            .write(
-              EmployeesCompanion(
-                serverId: remoteNumericId == null
-                    ? const drift.Value.absent()
-                    : drift.Value(remoteNumericId),
-                syncTimestamp: drift.Value(Time.nowEpoch()),
-              ),
-            );
+        await (database.update(
+          database.employees,
+        )..where((e) => e.id.equals(employee.id))).write(
+          EmployeesCompanion(
+            serverId: remoteNumericId == null
+                ? const drift.Value.absent()
+                : drift.Value(remoteNumericId),
+            syncTimestamp: drift.Value(Time.nowEpoch()),
+          ),
+        );
       } catch (e) {
         _logger.warning(
           '⚠️ فشل رفع الموظف ${employee.id} — سيتم تأجيل سحب الراتب: $e',

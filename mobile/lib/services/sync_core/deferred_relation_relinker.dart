@@ -284,7 +284,8 @@ class DeferredRelationRelinker {
           case _RowOutcome.pending:
             await store.markAttemptFailed(
               row.id,
-              reason: 'لم يصل الأب بعد (${row.missingParent ?? '?'}: '
+              reason:
+                  'لم يصل الأب بعد (${row.missingParent ?? '?'}: '
                   '${row.parentUuid ?? row.remoteParentId ?? '—'})',
               forceState: DeferredRelationStore.nextStateAfterFailure(
                 attempts: row.attempts,
@@ -294,7 +295,8 @@ class DeferredRelationRelinker {
           case _RowOutcome.needsReview:
             await store.markAttemptFailed(
               row.id,
-              reason: 'لا رابط هوية يمكن إثباته (${row.missingParent ?? '?'}) '
+              reason:
+                  'لا رابط هوية يمكن إثباته (${row.missingParent ?? '?'}) '
                   '— يحتاج مراجعة بشرية، لا ربط تخميني',
               forceState: DeferredRelationState.needsReview,
             );
@@ -302,7 +304,8 @@ class DeferredRelationRelinker {
           case _RowOutcome.unsupported:
             await store.markAttemptFailed(
               row.id,
-              reason: 'مجموعة غير مدعومة في إعادة الربط الآلي: '
+              reason:
+                  'مجموعة غير مدعومة في إعادة الربط الآلي: '
                   '${row.collection}',
               forceState: DeferredRelationState.unsupported,
             );

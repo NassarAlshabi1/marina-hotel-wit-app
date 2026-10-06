@@ -289,8 +289,8 @@ class IdResolver {
     //    في DeferredRelationStore ويُعاد ربطه عند وصول الموظف، ويظهر في
     //    تقرير المراجعة).
     if (serverId != null) {
-      final provenSameIdSpace = !fromRemote ||
-          (sourceDeviceId != null && sourceDeviceId.isNotEmpty);
+      final provenSameIdSpace =
+          !fromRemote || (sourceDeviceId != null && sourceDeviceId.isNotEmpty);
       if (provenSameIdSpace) {
         var query = db.select(db.employees)
           ..where((e) => e.serverId.equals(serverId));
@@ -300,15 +300,15 @@ class IdResolver {
         }
         // حتمية الاختيار عند تعدد المطابقة: النشط أولاً (NULL أولاً ASC)
         // ثم الأصغر id محلياً.
-        final rows = await (query
-              ..orderBy([
-                (e) => d.OrderingTerm(
-                  expression: e.deletedAt,
-                  mode: d.OrderingMode.asc,
-                ),
-                (e) => d.OrderingTerm(expression: e.id),
-              ]))
-            .get();
+        final rows =
+            await (query..orderBy([
+                  (e) => d.OrderingTerm(
+                    expression: e.deletedAt,
+                    mode: d.OrderingMode.asc,
+                  ),
+                  (e) => d.OrderingTerm(expression: e.id),
+                ]))
+                .get();
         if (rows.isNotEmpty) {
           if (rows.length > 1) {
             AppLogger.warning(
@@ -415,23 +415,23 @@ class IdResolver {
     //    بإثبات وحدة فضاء المعرّفات (نفس `deviceId` الكاتب). بلا إثبات
     //    ⇒ لا ربط (السجل يُعلَّق ويُربط لاحقاً عبر UUID — G-3).
     if (serverId != null) {
-      final provenSameIdSpace = !fromRemote ||
-          (sourceDeviceId != null && sourceDeviceId.isNotEmpty);
+      final provenSameIdSpace =
+          !fromRemote || (sourceDeviceId != null && sourceDeviceId.isNotEmpty);
       if (provenSameIdSpace) {
         var query = db.select(db.salaryCycles)
           ..where((c) => c.serverId.equals(serverId));
         if (fromRemote) {
           query = query..where((c) => c.deviceId.equals(sourceDeviceId!));
         }
-        final rows = await (query
-              ..orderBy([
-                (c) => d.OrderingTerm(
-                  expression: c.deletedAt,
-                  mode: d.OrderingMode.asc,
-                ),
-                (c) => d.OrderingTerm(expression: c.id),
-              ]))
-            .get();
+        final rows =
+            await (query..orderBy([
+                  (c) => d.OrderingTerm(
+                    expression: c.deletedAt,
+                    mode: d.OrderingMode.asc,
+                  ),
+                  (c) => d.OrderingTerm(expression: c.id),
+                ]))
+                .get();
         if (rows.isNotEmpty) {
           if (rows.length > 1) {
             AppLogger.warning(

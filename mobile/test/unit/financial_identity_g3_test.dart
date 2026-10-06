@@ -114,17 +114,11 @@ void main() {
 
       // (أ) UUID يحسم دائماً — بغضّ النظر عن الأرقام.
       expect(
-        await resolver.resolveEmployee(
-          uuid: 'uuid-devA-emp',
-          fromRemote: true,
-        ),
+        await resolver.resolveEmployee(uuid: 'uuid-devA-emp', fromRemote: true),
         pulledId,
       );
       expect(
-        await resolver.resolveEmployee(
-          uuid: 'uuid-devB-emp',
-          fromRemote: true,
-        ),
+        await resolver.resolveEmployee(uuid: 'uuid-devB-emp', fromRemote: true),
         localSevenId,
       );
 
@@ -171,9 +165,11 @@ void main() {
     test('سحبة تصل قبل موظفها: تُخزَّن، ثم تُربط، ولا تتكرر', () async {
       final registry = AdapterRegistry.testing(db);
       final store = DeferredRelationStore(db);
-      final relinker =
-          DeferredRelationRelinker(db: db, registry: registry, store: store)
-            ..install();
+      final relinker = DeferredRelationRelinker(
+        db: db,
+        registry: registry,
+        store: store,
+      )..install();
 
       // 1) الحمولة تصل والموظف غير موجود محلياً ⇒ تخطٍّ **غير صامت**.
       final skipped = await registry.salaryWithdrawals.upsertFromJson(
@@ -192,8 +188,7 @@ void main() {
         reason: 'لا سجل مالي بموظف غير صحيح',
       );
 
-      final pending =
-          await store.all(states: {DeferredRelationState.pending});
+      final pending = await store.all(states: {DeferredRelationState.pending});
       expect(pending.length, 1, reason: 'الحمولة محفوظة لا مفقودة');
       expect(pending.first.parentUuid, 'emp-remote-uuid');
       expect(pending.first.missingParent, 'employee');
@@ -264,9 +259,11 @@ void main() {
     test('رقم فقط + جهاز مجهول ⇒ مراجعة بشرية مع حفظ الدليل', () async {
       final registry = AdapterRegistry.testing(db);
       final store = DeferredRelationStore(db);
-      final relinker =
-          DeferredRelationRelinker(db: db, registry: registry, store: store)
-            ..install();
+      final relinker = DeferredRelationRelinker(
+        db: db,
+        registry: registry,
+        store: store,
+      )..install();
 
       // موظف موجود برقم 7 لكنه من جهاز آخر — لا يجوز الربط به.
       await insertEmployee(uuid: 'emp-other', deviceId: 'devZ', serverId: 7);
