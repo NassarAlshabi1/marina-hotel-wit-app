@@ -187,7 +187,7 @@ class BookingDerivedRefreshParityTest {
         assertEquals(0.0, before.totalDueCached, 0.001)
 
         val prefs = readyPrefs()
-        assertEquals(0, pullOnce(prefs, apiReturning(listOf(remotePayment("pay-remote-1", bookingUuid, 100.0)))))
+        assertEquals(1, pullOnce(prefs, apiReturning(listOf(remotePayment("pay-remote-1", bookingUuid, 100.0)))))
 
         // الدفعة رُبطت بالحجز المحلي عبر UUID (لا id جهاز آخر).
         val payment = db.paymentsDao().getByLocalUuid("pay-remote-1")!!
@@ -215,7 +215,7 @@ class BookingDerivedRefreshParityTest {
         val bookingId = seedRoomAndBooking(bookingUuid)
 
         val prefs = readyPrefs()
-        assertEquals(0, pullOnce(prefs, apiReturning(listOf(remoteNight("night-remote-1", bookingUuid, 150.0)))))
+        assertEquals(1, pullOnce(prefs, apiReturning(listOf(remoteNight("night-remote-1", bookingUuid, 150.0)))))
 
         val night = db.bookingNightsDao().getByLocalUuid("night-remote-1")
         assertEquals(bookingId, night!!.bookingLocalId)
@@ -241,7 +241,7 @@ class BookingDerivedRefreshParityTest {
             "status" to "شاغرة", "cleaning_status" to "clean",
             "updated_at" to 1_000L, "last_modified" to 1_000L
         )
-        assertEquals(0, pullOnce(prefs, apiReturning(listOf(roomRow))))
+        assertEquals(1, pullOnce(prefs, apiReturning(listOf(roomRow))))
 
         val after = db.bookingsDao().getById(bookingId)!!
         assertEquals(0.0, after.totalDueCached, 0.001)

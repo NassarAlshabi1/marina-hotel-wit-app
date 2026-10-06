@@ -1135,7 +1135,7 @@ class SyncIngestorRegistryTest {
     )
 
     private fun editTestBookingsRepository() = com.marina.marina.data.repository.BookingsRepositoryImpl(
-        db.bookingsDao(), outboxRepository(), derivedRefresh()
+        db, db.bookingsDao(), outboxRepository(), derivedRefresh()
     )
 
     private fun editTestPaymentsRepository() = com.marina.marina.data.repository.PaymentsRepositoryImpl(

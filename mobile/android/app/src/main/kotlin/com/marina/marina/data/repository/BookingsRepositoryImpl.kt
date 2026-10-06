@@ -1,5 +1,7 @@
 package com.marina.marina.data.repository
 
+import androidx.room.withTransaction
+import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.BookingsDao
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.map
 
 @Singleton
 class BookingsRepositoryImpl @Inject constructor(
+    private val db: AppDatabase,
     private val bookingsDao: BookingsDao,
     private val outboxRepository: OutboxRepository,
     private val derivedRefresh: BookingDerivedRefreshService
@@ -37,12 +40,18 @@ class BookingsRepositoryImpl @Inject constructor(
             createdAt = if (booking.createdAt == 0L) now else booking.createdAt,
             updatedAt = now
         )
-        val id = bookingsDao.insert(prepared.toEntity())
-        outboxRepository.enqueueObject("bookings", "insert", prepared.localUuid, stripComputed(prepared))
-        // نفس خدمة إعادة البناء التي يستدعيها السحب بعد الدورة — مصدر وحيد
-        // للحقيقة في الحساب (لا نسخة ثانية قابلة للانحراف).
-        derivedRefresh.refreshForBookingId(id)
-        return id
+        // معاملة واحدة: الصف + outbox + الحقول المشتقة. Dart يفعل الثلاثة داخل
+        // `db.transaction` (bookings_repository.dart create l.78-99) — والتجزئة
+        // إلى كتابتين منفصلتين تُظهر للمراقبين (Flow) لحظةً تكون فيها الحقول
+        // المشتقة قديمة قبل تحديثها.
+        return db.withTransaction {
+            val id = bookingsDao.insert(prepared.toEntity())
+            outboxRepository.enqueueObject("bookings", "insert", prepared.localUuid, stripComputed(prepared))
+            // نفس خدمة إعادة البناء التي يستدعيها السحب بعد الدورة — مصدر وحيد
+            // للحقيقة في الحساب (لا نسخة ثانية قابلة للانحراف).
+            derivedRefresh.refreshForBookingId(id)
+            id
+        }
     }
 
     override suspend fun update(booking: Booking) {
@@ -51,9 +60,13 @@ class BookingsRepositoryImpl @Inject constructor(
         assertNoConflictingActiveBooking(booking.roomNumber, excludeId = booking.id)
         val now = System.currentTimeMillis()
         val prepared = booking.copy(updatedAt = now)
-        bookingsDao.update(prepared.toEntity())
-        outboxRepository.enqueueObject("bookings", "update", prepared.localUuid, stripComputed(prepared))
-        derivedRefresh.refreshForBookingId(prepared.id)
+        // نفس عقد create: كتابة + outbox + إعادة بناء المشتقات في معاملة واحدة
+        // (bookings_repository.dart update l.205-227).
+        db.withTransaction {
+            bookingsDao.update(prepared.toEntity())
+            outboxRepository.enqueueObject("bookings", "update", prepared.localUuid, stripComputed(prepared))
+            derivedRefresh.refreshForBookingId(prepared.id)
+        }
     }
 
     /**
