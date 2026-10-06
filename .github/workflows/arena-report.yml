@@ -1,0 +1,58 @@
+# ⚠️ مؤقت: تشغيل نفس أمر اختبارات CI الكامل ودفع التقرير (بيئة الوكيل لا تصل لسجلات Actions)
+name: Arena Test Report (temporary)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - arena/a2609d75-marina-hotel-wit-app
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Run full test suite (same command as CI)
+        continue-on-error: true
+        run: |
+          mkdir -p .arena
+          flutter test --concurrency=2 --timeout=180s \
+            --exclude-tags integration,performance,slow --reporter compact 2>&1 \
+            | grep -vE "drift\\\\):|GeneratedDatabase|_whenConstructed|_handleInstantiated|Invoker\.|Declarer\.|asynchronous suspension|This warning|Try to follow|package:drift|package:sqflite" \
+            > .arena/full-tests-raw.txt || true
+          {
+            echo "### full suite tail ($(date -u +%FT%TZ))"
+            tr '\r' '\n' < .arena/full-tests-raw.txt | tail -40
+            echo ""
+            echo "### failures only"
+            tr '\r' '\n' < .arena/full-tests-raw.txt | grep -E "\[E\]|Failing tests|^  /home|Expected:|Actual:|Which:|Exception|Error" | tail -120
+          } > .arena/full-tests-report.txt
+          cat .arena/full-tests-report.txt | tail -60
+
+      - name: Push report
+        run: |
+          git config user.name "arena-verify-bot"
+          git config user.email "arena-verify-bot@users.noreply.github.com"
+          git add -A .arena
+          git diff --cached --quiet || git commit -m "chore(arena): full test report [skip ci]"
+          git push
