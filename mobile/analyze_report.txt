@@ -1,0 +1,12 @@
+Analyzing mobile...                                             
+
+warning • The value of the field '_cancelled' isn't used. Try removing the field, or using it • lib/services/cloudflare_d1_service.dart:31:8 • unused_field
+   info • Use an 'if' element to conditionally add elements. Try using an 'if' element rather than a conditional expression • lib/services/hotel_day_key_fix_service.dart:324:16 • prefer_if_elements_to_conditional_expressions
+   info • Use an 'if' element to conditionally add elements. Try using an 'if' element rather than a conditional expression • lib/services/hotel_day_key_fix_service.dart:324:44 • prefer_if_elements_to_conditional_expressions
+   info • Unnecessary use of double quotes. Try using single quotes unless the string contains single quotes • lib/services/local_backup_service.dart:933:11 • prefer_single_quotes
+   info • Missing a newline at the end of the file. Try adding a newline at the end of the file • lib/services/sync/pull_apply_rules.dart:38:3 • eol_at_end_of_file
+   info • Unnecessary use of a null check ('!'). Try removing the null check • test/unit/cloudflare_full_chain_contract_test.dart:90:32 • unnecessary_null_checks
+   info • Unnecessary use of a null check ('!'). Try removing the null check • test/unit/cloudflare_full_chain_contract_test.dart:279:32 • unnecessary_null_checks
+   info • Unnecessary use of a null check ('!'). Try removing the null check • test/unit/cloudflare_push_contract_test.dart:75:32 • unnecessary_null_checks
+
+8 issues found. (ran in 30.1s)
