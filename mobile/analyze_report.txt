@@ -1,6 +1,2 @@
 Analyzing mobile...                                             
-
-  error • The argument type 'String?' can't be assigned to the parameter type 'String'.  • test/unit/cloudflare_full_chain_contract_test.dart:91:26 • argument_type_not_assignable
-  error • The argument type 'String?' can't be assigned to the parameter type 'String'.  • test/unit/cloudflare_push_contract_test.dart:76:26 • argument_type_not_assignable
-
-2 issues found. (ran in 29.3s)
+No issues found! (ran in 28.7s)
