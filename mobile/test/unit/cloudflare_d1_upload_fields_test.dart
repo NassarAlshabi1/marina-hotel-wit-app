@@ -859,7 +859,11 @@ void main() {
           continue;
         }
         for (final field in entry.value) {
-          if (!ddl.contains('"$field"')) {
+          // العمود قد يكون مقتبساً (نمط Drift) أو غير مقتبس (عمود أُضيف
+          // بـ ALTER TABLE ADD COLUMN بلا اقتباس) — كلاهما صالح على D1،
+          // والمهم أن يحلّله _columnFragments (انظر اختباره المستقل).
+          if (!ddl.contains('"$field"') &&
+              !RegExp('\\b$field\\b').hasMatch(ddl)) {
             failures.add('${entry.key}.$field');
           }
         }
@@ -870,6 +874,100 @@ void main() {
         reason:
             'DDL المنقول إلى D1 لا يتضمن حقول الهوية ⇒ _reconcileSchema لن '
             'يستطيع إضافتها هناك: ${failures.join('، ')}',
+      );
+    });
+
+
+    test('محلل DDL يقبل الاسم غير المقتبس (شكل العمود المُضاف بـ ALTER)',
+        () {
+      // الشكل الحقيقي المُثبت في الإنتاج: ALTER بلا اقتباس يُلحق النص
+      // `cycle_uuid TEXT` بنص CREATE في sqlite_master.
+      const ddl =
+          'CREATE TABLE "salary_payments" ("id" INTEGER NOT NULL, '
+          '"local_uuid" TEXT NOT NULL, "cycle_id" INTEGER NOT NULL, '
+          '"amount" INTEGER NOT NULL DEFAULT 0, cycle_uuid TEXT, '
+          'PRIMARY KEY ("id"), UNIQUE ("local_uuid"))';
+      final frags = CloudflareD1Service.columnFragmentsForTest(ddl);
+      expect(frags['cycle_uuid'], 'TEXT', reason: 'عمود ALTER غير المقتبس');
+      expect(frags['local_uuid'], 'TEXT NOT NULL');
+      expect(frags['amount'], 'INTEGER NOT NULL DEFAULT 0');
+      expect(
+        frags.containsKey('PRIMARY'),
+        isFalse,
+        reason: 'قيود الجدول ليست أعمدة',
+      );
+      expect(frags.containsKey('UNIQUE'), isFalse);
+    });
+
+    test('D1 ينقصه cycle_uuid ⇒ يُضاف بـ ALTER قبل INSERT (إصلاح الرفع)',
+        () async {
+      final captured = <String>[];
+      final client = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final sql = body['sql'] as String;
+        captured.add(sql);
+        if (sql.contains('pragma_table_info')) {
+          // D1 الحقيقي: الجدول موجود لكن بلا العمود الجديد (مخطط أقدم).
+          return http.Response(
+            jsonEncode({
+              'success': true,
+              'result': [
+                {
+                  'results': [
+                    {'name': 'id'},
+                    {'name': 'local_uuid'},
+                  ],
+                },
+              ],
+            }),
+            200,
+          );
+        }
+        return http.Response('{"success": true, "result": []}', 200);
+      });
+      final service = CloudflareD1Service(
+        const CloudflareD1Config(
+          accountId: 'a',
+          databaseId: 'b',
+          apiToken: 't',
+        ),
+        client: client,
+      );
+
+      final result = await service.uploadData(
+        tables: [
+          CloudflareD1SourceTable(
+            name: 'salary_payments',
+            rowCount: 1,
+            createSqlList: const [
+              'CREATE TABLE "salary_payments" ("id" INTEGER NOT NULL, '
+                  '"local_uuid" TEXT NOT NULL, cycle_uuid TEXT)',
+            ],
+            readChunk: (limit, offset) async => offset > 0
+                ? const <Map<String, Object?>>[]
+                : [
+                    <String, Object?>{
+                      'id': 1,
+                      'local_uuid': 'pay-uuid-1',
+                      'cycle_uuid': 'cycle-uuid-1',
+                    },
+                  ],
+          ),
+        ],
+      );
+
+      final blob = captured.join('\n');
+      expect(
+        blob,
+        contains('ADD COLUMN "cycle_uuid" TEXT'),
+        reason: 'بدون هذا ALTER يفشل INSERT كامل للجدول على D1',
+      );
+      expect(blob, contains('INSERT OR REPLACE INTO "salary_payments"'));
+      expect(blob, contains("'cycle-uuid-1'"));
+      expect(
+        result.ok,
+        isTrue,
+        reason: result.errors.join('؛ '),
       );
     });
 

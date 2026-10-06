@@ -1247,7 +1247,7 @@ class AppDatabase extends _$AppDatabase {
       // local_db.g.dart، والجدول يبقى مقروءاً لكل مسارات Drift القائمة.
       try {
         await customStatement(
-          'ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT',
+          'ALTER TABLE salary_payments ADD COLUMN "cycle_uuid" TEXT',
         );
       } catch (_) {
         // العمود موجود سلفاً (ترقية متكررة أو تثبيت أنشأه onCreate) — آمن.

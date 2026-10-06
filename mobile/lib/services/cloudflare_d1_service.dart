@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -479,12 +480,27 @@ class CloudflareD1Service {
       if (createSql == null) return;
       final frags = _columnFragments(createSql);
       final alters = <String>[];
+      final unmapped = <String>[];
       for (final c in missing) {
         final raw = frags[c];
-        if (raw == null) continue;
+        if (raw == null) {
+          unmapped.add(c);
+          continue;
+        }
         final add = _toAddColumnFragment(raw);
-        if (add == null) continue;
+        if (add == null) {
+          unmapped.add(c);
+          continue;
+        }
         alters.add('ALTER TABLE "${_quoteIdent(t.name)}" ADD COLUMN "$c" $add');
+      }
+      if (unmapped.isNotEmpty) {
+        // صراحة بدل الصمت: عمود مطلوب (يُرسله الرفع) لا يمكن تعريفه في D1 ⇒
+        // سيفشل INSERT لهذا الجدول بخطأ واضح — نُبلّغ فوراً باسم العمود.
+        warnings.add(
+          'تعذر تعريف أعمدة في DDL المحلي لـ ${t.name}: ${unmapped.join(', ')} '
+          '— سيفشل رفع هذا الجدول حتى تُصحَّح.',
+        );
       }
       if (alters.isEmpty) return;
       var ai = 0;
@@ -503,8 +519,28 @@ class CloudflareD1Service {
   }
 
   /// استخراج تعريفات الأعمدة من CREATE TABLE محلي (اسم → نص التعريف).
-  /// قيود الجدول (PRIMARY KEY/UNIQUE/CHECK/FOREIGN KEY) تُتجاهل لأنها
-  /// لا تبدأ باسم عمود مقتبس.
+  ///
+  /// يقبل الاسم **المقتبس** `"col"` (نمط Drift المولَّد) و**غير المقتبس**
+  /// `col` — وهذا جوهري هنا: العمود الذي أُضيف بـ ALTER TABLE ADD COLUMN
+  /// يُلحَق بنص الجدول في sqlite_master **كما كُتب في العبارة**، فعمود
+  /// أُضيف بلا اقتباس (`ADD COLUMN cycle_uuid TEXT`) كان لا يُحلَّل فيمنعه
+  /// هذا من الوصول إلى D1 عبر `_reconcileSchema` ثم يفشل INSERT الجدول
+  /// كاملاً هناك (فجوة مُثبتة باختبار 2026-10-06).
+  ///
+  /// قيود الجدول (PRIMARY KEY/UNIQUE/CHECK/FOREIGN KEY/CONSTRAINT) تُتجاهل
+  /// صراحةً لأنها تبدأ بكلمات مفتاحية لا بأسماء أعمدة.
+  static const Set<String> _constraintKeywords = {
+    'PRIMARY',
+    'UNIQUE',
+    'CHECK',
+    'FOREIGN',
+    'CONSTRAINT',
+  };
+
+  @visibleForTesting
+  static Map<String, String> columnFragmentsForTest(String createSql) =>
+      _columnFragments(createSql);
+
   static Map<String, String> _columnFragments(String createSql) {
     final open = createSql.indexOf('(');
     final close = createSql.lastIndexOf(')');
@@ -518,8 +554,13 @@ class CloudflareD1Service {
       final f = buffer.toString().trim();
       buffer.clear();
       if (f.isEmpty) return;
-      final m = RegExp(r'^"([^"]+)"\s+(.*)$', dotAll: true).firstMatch(f);
-      if (m != null) frags[m.group(1)!] = m.group(2)!.trim();
+      final m =
+          RegExp(r'^"([^"]+)"\s+(.*)$', dotAll: true).firstMatch(f) ??
+          RegExp(r'^([A-Za-z_][A-Za-z0-9_]*)\s+(.*)$', dotAll: true).firstMatch(f);
+      if (m == null) return;
+      final name = m.group(1)!;
+      if (_constraintKeywords.contains(name.toUpperCase())) return;
+      frags[name] = m.group(2)!.trim();
     }
 
     for (var i = 0; i < body.length; i++) {

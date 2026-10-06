@@ -7,6 +7,7 @@
 //   1. قبل الضغط: لا يوجد حقل بحث (الرأس نظيف).
 //   2. الضغط على أيقونة البحث ⇒ يظهر الحقل في الهيد فوراً ومعه إمكانية الكتابة.
 //   3. الكتابة تُصفّي السجل، وزر ✕ في الرأس يُغلق البحث ويُفرّغ العبارة.
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,7 +41,7 @@ void main() {
               guestName: row.name,
               nationality: 'يمني',
               idNumber: row.id,
-              idType: 'بطاقة شخصية',
+              idType: const Value('بطاقة شخصية'),
             ),
           );
     }
