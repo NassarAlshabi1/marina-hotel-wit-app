@@ -1,2 +1,0 @@
-Formatted 21 files (0 changed) in 0.49 seconds.
-822 .arena/format.diff
