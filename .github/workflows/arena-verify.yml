@@ -5,6 +5,11 @@ name: Arena Verify (temporary)
 
 on:
   workflow_dispatch:
+  # بديل الـ dispatch: تشغيل عند الدفع لهذا الفرع (workflow_dispatch لا يعمل
+  # إلا إذا كان الملف موجودًا على الفرع الافتراضي — وهذا الفرع ليس الافتراضي).
+  push:
+    branches:
+      - arena/a2609d75-marina-hotel-wit-app
 
 permissions:
   contents: write
