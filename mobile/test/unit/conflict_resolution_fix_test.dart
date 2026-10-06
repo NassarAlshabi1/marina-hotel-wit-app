@@ -146,31 +146,34 @@ void main() {
       expect(result.mergedData['amount'], equals(100));
     });
 
-    test('remote أحدث صراحةً على حقل مالي → يبقى المحلي + مراجعة (لا طمس صامت)', () {
-      final localData = {
-        'amount': 100,
-        'lastModified': 4000,
-        'deviceId': 'device-A',
-        'vectorClock': '{"device-A":1}',
-      };
-      final remoteData = {
-        'amount': 200,
-        'lastModified': 5000,
-        'deviceId': 'device-B',
-        'vectorClock': '{"device-B":1}',
-      };
-      final result = SmartConflictResolver.resolve(
-        entity: 'payments',
-        localData: localData,
-        remoteData: remoteData,
-        commonAncestor: null,
-      );
-      // ✅ (G-4) لا يُطمس المبلغ المحلي بقيمة بعيدة قبل قرار بشري؛ القيمتان
-      // محفوظتان (المحلية محلياً، والبعيدة على السحابة) ويُسجَّل التعارض.
-      expect(result.mergedData['amount'], equals(100));
-      expect(result.requiresReview, isTrue);
-      expect(result.pushedToRemote, isFalse);
-    });
+    test(
+      'remote أحدث صراحةً على حقل مالي → يبقى المحلي + مراجعة (لا طمس صامت)',
+      () {
+        final localData = {
+          'amount': 100,
+          'lastModified': 4000,
+          'deviceId': 'device-A',
+          'vectorClock': '{"device-A":1}',
+        };
+        final remoteData = {
+          'amount': 200,
+          'lastModified': 5000,
+          'deviceId': 'device-B',
+          'vectorClock': '{"device-B":1}',
+        };
+        final result = SmartConflictResolver.resolve(
+          entity: 'payments',
+          localData: localData,
+          remoteData: remoteData,
+          commonAncestor: null,
+        );
+        // ✅ (G-4) لا يُطمس المبلغ المحلي بقيمة بعيدة قبل قرار بشري؛ القيمتان
+        // محفوظتان (المحلية محلياً، والبعيدة على السحابة) ويُسجَّل التعارض.
+        expect(result.mergedData['amount'], equals(100));
+        expect(result.requiresReview, isTrue);
+        expect(result.pushedToRemote, isFalse);
+      },
+    );
   });
 
   group('3-way merge يحافظ على الحقول غير المتعارضة محلياً (ancestor=null)', () {
