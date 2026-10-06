@@ -1,6 +1,11 @@
 name: Arena Generate Drift
 
 on:
+  push:
+    branches:
+      - arena/287ede54-marina-hotel-wit-app
+    paths:
+      - '.github/workflows/arena-generate-drift.yml'
   workflow_dispatch:
 
 permissions:
