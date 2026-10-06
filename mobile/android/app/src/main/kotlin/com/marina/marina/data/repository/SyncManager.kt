@@ -181,9 +181,7 @@ class SyncManager @Inject constructor(
         // ---- Phase 2: pull -------------------------------------------------
         _syncState.value = _syncState.value.copy(lastMessage = "جارٍ السحب...", pushedCount = pushed)
         val pulled = try {
-            // deltaOnly = true مطابقةً للتعليق أعلاه ولعقد Dart: زر اللوحة
-            // والسحب التلقائي وRealtime لا يبدؤون full sync أبداً.
-            pullDelta(deltaOnly = true)
+            pullDelta()
         } catch (e: Exception) {
             finishWithError("فشل السحب: ${e.message}", operation = "pull_delta")
             return _syncState.value
@@ -218,7 +216,10 @@ class SyncManager @Inject constructor(
             return -1
         }
         val pulled = try {
-            pullDelta()
+            // deltaOnly: زر اللوحة والسحب التلقائي وRealtime دلتا دائماً —
+            // لا bootstrap صامت على مؤشر صفر (نظير Dart l.1850-1851:
+            // «Full Sync عملية صريحة»).
+            pullDelta(deltaOnly = true)
         } catch (e: Exception) {
             finishWithError("فشل السحب: ${e.message}", operation = "pull_delta")
             return -1
@@ -525,10 +526,16 @@ class SyncManager @Inject constructor(
                 // the next scheduled cycle will retry without an unbounded loop.
                 throw Exception("Sync epoch changed repeatedly during one pull cycle")
             }
+            // isFullPull=true هنا إعادة لعب كاملة *بعد* تدوير epoch (حماية
+            // سلامة بيانات، وليس bootstrap اختياري) — تُنفَّذ بنفس
+            // deltaOnly للاستدعاء الأصلي (نظير Dart l.2520:
+            // `_pullChanges(deltaOnly: deltaOnly)`)، وعلم الاستئناف
+            // full_replay_pending مضبوط قبلها فيبقى fullReplay=true.
             return ingested + pullDelta(
                 batchSize = batchSize,
                 isFullPull = true,
-                allowEpochRestart = false
+                allowEpochRestart = false,
+                deltaOnly = deltaOnly
             )
         }
 
