@@ -211,7 +211,7 @@ jobs:
           retention-days: 30
 
   worker-tests:
-    name: worker: vitest + typecheck (sweep contract)
+    name: "worker: vitest + typecheck (sweep contract)"
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
