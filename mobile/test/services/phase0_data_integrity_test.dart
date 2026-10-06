@@ -531,12 +531,15 @@ void main() {
           reason: 'لم يُكتب سجل بموظف غير مُثبت',
         );
         // والحفظ لا فقدان: الحمولة في مخزن العلاقات المعلّقة.
+        // (المخزن مشترك في هذا الملف، لذا نُصفّي بسجلنا تحديداً.)
         final deferred = await manager.deferredRelationStore.all();
-        expect(deferred, hasLength(1));
-        expect(deferred.single.localUuid, 'sw-g3-noproof');
-        expect(deferred.single.remoteParentId, 3);
-        expect(deferred.single.sourceDeviceId, 'device-A');
-        expect(deferred.single.missingParent, 'employee');
+        final mine = deferred
+            .where((r) => r.localUuid == 'sw-g3-noproof')
+            .toList();
+        expect(mine, hasLength(1));
+        expect(mine.single.remoteParentId, 3);
+        expect(mine.single.sourceDeviceId, 'device-A');
+        expect(mine.single.missingParent, 'employee');
         expect(wrongOwner, isNotNull, reason: 'الموظف موجود لكن لا يُربط');
       },
     );
