@@ -321,7 +321,10 @@ class HotelDayKeyFixService {
           .getSingle();
       final c = row.data['c'];
       final m = row.data['m'];
-      fp[t] = [(c is num) ? c.toInt() : 0, (m is num) ? m.toInt() : 0];
+      fp[t] = [
+        if (c is num) c.toInt() else 0,
+        if (m is num) m.toInt() else 0,
+      ];
     }
     return fp;
   }
