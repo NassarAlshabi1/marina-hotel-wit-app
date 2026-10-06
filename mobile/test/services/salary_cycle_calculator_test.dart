@@ -129,7 +129,9 @@ void main() {
       expect(result.advanceBalance, 0);
     });
 
-    test('يقرب البيانات القديمة ذات الكسور مرة واحدة إلى أعداد صحيحة', () {
+    test('تقتطع البيانات القديمة ذات الكسور نحو الصفر (G-10)', () {
+      // ✅ سياسة «لا كسور عشرية»: اقتطاع نحو الصفر — 50000.7 → 50000
+      // (لا 50001)، و5000.5 → 5000 (لا 5001) فلا يُضاف مبلغ للموظف.
       final result = SalaryCycleCalculator.calculate(
         const SalaryCycleInput(
           basicSalary: 50000.7,
@@ -138,9 +140,9 @@ void main() {
         ),
       );
 
-      expect(result.basicSalary, 50001);
+      expect(result.basicSalary, 50000);
       expect(result.withdrawals, 10000);
-      expect(result.advances, 5001);
+      expect(result.advances, 5000);
       expect(result.remainingBalance, 35000);
     });
 

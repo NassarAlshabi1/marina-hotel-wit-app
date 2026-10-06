@@ -122,6 +122,8 @@ void main() {
                 hireDate: d.Value('2026-01-01'),
                 localUuid: d.Value('emp-g10-split'),
                 createdAt: d.Value(1),
+                updatedAt: d.Value(1),
+                lastModified: d.Value(1),
               ),
             );
 
