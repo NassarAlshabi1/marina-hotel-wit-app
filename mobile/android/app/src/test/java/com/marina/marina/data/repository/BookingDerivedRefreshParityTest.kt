@@ -275,11 +275,11 @@ class BookingDerivedRefreshParityTest {
             checkinDate = todayIso(), status = "محجوزة",
             localUuid = "derived-deleted"
         ))
-        db.bookingsDao().softDelete(deletedId, deletedAt = 5L, updatedAt = 5L, lastModified = 5L)
-
-        // قيم حرس لا يجوز أن تُلمس.
+        // قيم حرس تُضبط **قبل** الحذف الناعم: updateFinancialCache تحمل شرط
+        // `deleted_at IS NULL` فلا تلمس صفاً محذوفاً (سلوك مقصود في الاستعلام).
         db.bookingsDao().updateFinancialCache(checkedOutId, 9, 42.0, 42.0, 42.0, true)
         db.bookingsDao().updateFinancialCache(deletedId, 9, 43.0, 43.0, 43.0, true)
+        db.bookingsDao().softDelete(deletedId, deletedAt = 5L, updatedAt = 5L, lastModified = 5L)
         db.paymentsDao().insert(PaymentEntity(
             bookingLocalId = activeId, amount = 40.0, paymentDate = todayIso(),
             paymentMethod = "نقدي", revenueType = "room", localUuid = "pay-derived-local"
