@@ -94,12 +94,16 @@ jobs:
           python3 - <<'PY' > "$RUNNER_TEMP/diagnostics.json"
           import json, os, pathlib, re, xml.etree.ElementTree as ET
 
-          root = pathlib.Path("mobile/build/app/test-results/testDebugUnitTest")
-          if not root.exists():
-              root = pathlib.Path("mobile/android/app/build/test-results/testDebugUnitTest")
+          candidates = [
+              "mobile/build/app/test-results/testDebugUnitTest",
+              "mobile/android/app/build/test-results/testDebugUnitTest",
+              "../build/app/test-results/testDebugUnitTest",
+              "app/build/test-results/testDebugUnitTest",
+          ]
+          root = next((pathlib.Path(c) for c in candidates if pathlib.Path(c).exists()), None)
 
           failures = []
-          for xml in sorted(root.glob("*.xml")) if root.exists() else []:
+          for xml in sorted(root.glob("*.xml")) if root is not None else []:
               try:
                   tree = ET.parse(xml)
               except Exception as exc:  # noqa: BLE001

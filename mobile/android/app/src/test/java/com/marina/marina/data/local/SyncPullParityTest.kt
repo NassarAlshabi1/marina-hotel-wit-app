@@ -69,6 +69,12 @@ class SyncPullParityTest {
     @Before
     fun openInMemoryDatabase() {
         val context = ApplicationProvider.getApplicationContext<Context>()
+        // تنظيف حالة التخزين بين الحالات: EncryptedSharedPreferencesManager
+        // يقرأ ملف SharedPreferences حقيقياً يبقى في نفس الـJVM، فعلم
+        // full_sync_complete أو tombstone_sweep_done من حالة سابقة كان
+        // يتسرب إلى حالة لاحقة ويغيّر مسار السحب/المسح.
+        context.getSharedPreferences("marina_secure_prefs", Context.MODE_PRIVATE)
+            .edit().clear().commit()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
