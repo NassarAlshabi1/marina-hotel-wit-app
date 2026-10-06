@@ -712,9 +712,11 @@ class AutoBackupManager {
     dlog(() => '🔧 المزامنة التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
   }
 
+  /// 🚫 قرار منتج (2026-10-06): لا مزامنة تفاضلية عبر Google Drive —
+  /// Drive للنسخ الاحتياطي الكامل والاستعادة فقط. تُعيد دائماً false كي
+  /// تسلك جدولة النسخ مسار النسخة الكاملة حصراً.
   Future<bool> isGoogleDriveDeltaSyncEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_googleDriveDeltaSyncEnabledKey) ?? false;
+    return false;
   }
 
   Future<void> setGoogleDriveDeltaSyncEnabled(bool enabled) async {

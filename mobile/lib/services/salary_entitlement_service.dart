@@ -674,7 +674,7 @@ class SalaryEntitlementService {
             .get();
     if (rows.isEmpty) return const [];
 
-    // مرشحو المستوى 3: مصروفات الموظف النقدي فقط (بنطاق القراءة المطلوب)
+    // مرشحو المطابقة: مصروفات الموظف النقدي فقط (بنطاق القراءة المطلوب)
     final candidates = (employeeExpenses ?? const <Expense>[])
         .map(
           (e) => MirrorExpenseCandidate(
@@ -685,6 +685,9 @@ class SalaryEntitlementService {
             date: e.date,
             hotelDayKey: e.hotelDayKey,
             relatedId: e.relatedId,
+            // ✅ (هجرة 68) حقول الهوية — المستوى 0 في المطابِق
+            localUuid: e.localUuid,
+            withdrawalUuid: e.withdrawalUuid,
           ),
         )
         .toList(growable: false);
@@ -695,6 +698,9 @@ class SalaryEntitlementService {
       if (sw.amount <= 0) continue;
 
       final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+        // ✅ (هجرة 68) المستوى 0: التمييز بهوية العملية (UUID)
+        expenseUuid: sw.expenseUuid,
+        withdrawalLocalUuid: sw.localUuid,
         expenseId: sw.expenseId,
         reason: sw.reason,
         amount: sw.amount,

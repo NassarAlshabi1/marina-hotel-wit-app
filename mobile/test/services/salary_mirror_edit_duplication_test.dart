@@ -529,10 +529,9 @@ void main() {
     Future<Expense> expenseById(int id) =>
         (db.select(db.expenses)..where((e) => e.id.equals(id))).getSingle();
 
-    Future<SalaryWithdrawal> mirrorByLocalUuid(String uuid) =>
-        (db.select(
-          db.salaryWithdrawals,
-        )..where((t) => t.localUuid.equals(uuid))).getSingle();
+    Future<SalaryWithdrawal> mirrorByLocalUuid(String uuid) => (db.select(
+      db.salaryWithdrawals,
+    )..where((t) => t.localUuid.equals(uuid))).getSingle();
 
     Future<List<OutboxData>> expensesOutboxEntries() {
       return (db.select(
@@ -698,10 +697,9 @@ void main() {
         );
 
         // ثلاث عمليات فقط — كل برابطها الصحيح.
-        final active =
-            await (db.select(
-              db.salaryWithdrawals,
-            )..where((t) => t.deletedAt.isNull())).get();
+        final active = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.deletedAt.isNull())).get();
         expect(active, hasLength(3), reason: 'التعديل ليس مصروفاً جديداً');
 
         final m1 = await mirrorByLocalUuid('sw-eq-1');
@@ -776,10 +774,9 @@ void main() {
         expect(legacy2.amount, 100);
 
         // والتعديل أنشأ مرآة جديدة خاصة بالمصروف المعدّل.
-        final active =
-            await (db.select(
-              db.salaryWithdrawals,
-            )..where((t) => t.deletedAt.isNull())).get();
+        final active = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.deletedAt.isNull())).get();
         expect(active, hasLength(3));
         final created = active.where((w) => w.amount == 150).single;
         expect(created.expenseId, exp1);

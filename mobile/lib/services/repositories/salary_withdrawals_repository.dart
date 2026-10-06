@@ -71,6 +71,7 @@ class SalaryWithdrawalsRepository {
     int now, {
     String? expenseLocalUuid,
     int? expenseServerId,
+    bool originIsServer = false,
   }) async {
     try {
       await _db.customStatement(
@@ -78,7 +79,11 @@ class SalaryWithdrawalsRepository {
         'WHERE id = ? AND (withdrawal_uuid IS NULL OR withdrawal_uuid != ?)',
         [withdrawalUuid, expenseId, withdrawalUuid],
       );
-      if (expenseLocalUuid != null && expenseLocalUuid.isNotEmpty) {
+      // ✅ بيانات واردة من الخادم: الختم المحلي مطلوب (تصحيح الروابط)
+      // لكن بلا إعادة دفع للسحابة (منع حلقات الرفع).
+      if (!originIsServer &&
+          expenseLocalUuid != null &&
+          expenseLocalUuid.isNotEmpty) {
         await _outboxDao.merge(
           entity: 'expenses',
           op: 'update',
@@ -240,9 +245,23 @@ class SalaryWithdrawalsRepository {
     return id;
   }
 
-  /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
-  /// ✅ إصلاح خبير: البحث أولاً عبر عمود expense_id ثم عبر reason
-  /// تغليف العملية في معاملة لضمان اتساق البيانات
+  /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف.
+  ///
+  /// ✅ القاعدة الحاكمة (هجرة 68): **التمييز بهوية العملية نفسها**
+  /// (سحبة.expenseUuid ↔ مصروف.localUuid)، وليس باسم الموظف أو اليوم أو
+  /// المبلغ:
+  /// - الإضافة الجديدة عملية مستقلة بهوية جديدة حتى لو تشابهت بياناتها
+  ///   تماماً مع عمليات أخرى (سحبتان بنفس الموظف/اليوم/المبلغ = عمليتان).
+  /// - التعديل يحدّث المرآة نفسها ويحافظ على هويتها — يظهر المبلغ الأخير
+  ///   مرة واحدة فقط، دون إبقاء القديم ودون إنشاء نسخة إضافية.
+  /// - إن وُجدت أكثر من مرآة تعلن نفس الهوية (تصادم إنشاء مزدوج) تُعتمد
+  ///   الأحدث وتُحذف البقية حذفًا ناعماً.
+  ///
+  /// ترتيب المطابقة: الطريقة 0 (هوية UUID، اتجاهان) ← الطريقة 1
+  /// (عمود expense_id الرقمي) ← الطريقة 2 (نمط reason=exp_N) ← الطريقة 3
+  /// (تبنّي مرآة يتيمة تراثية بلا رابط هوية). أي طريقة نجحت تُختم بعدها
+  /// روابط الهوية الدائمة في الاتجاهين لتُحسم التعديلات اللاحقة بالطريقة 0.
+  /// تغليف العملية في معاملة لضمان اتساق البيانات.
   ///
   /// [previousAmount] — المبلغ الموقّع القديم للمرآة قبل التعديل
   /// (سالب للخصوم، موجب للنقدي). يُستخدم في الطريقة 3 (تبنّي المرآة
@@ -273,39 +292,117 @@ class SalaryWithdrawalsRepository {
     // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
     final employeeUuid = await _employeeUuidFor(employeeId);
 
-    // ✅ البحث عن سجل موجود — محاولة عبر عمود expense_id أولاً
+    // ✅ (هجرة 68) صف المصروف نفسه — مصدر حقول الهوية للمطابقة والختم.
+    // التمييز هنا بهوية العملية نفسها (UUID)، وليس باسم الموظف أو اليوم
+    // أو المبلغ: سحبتان متطابقتا البيانات تبقى كل منهما عملية مستقلة.
+    final expenseRow =
+        await (_db.select(_db.expenses)
+              ..where((e) => e.id.equals(expenseId))
+              ..limit(1))
+            .getSingleOrNull();
+    final expenseLocalUuid = (expenseRow?.localUuid ?? '').trim();
+
+    // البحث عن سجل موجود
     SalaryWithdrawal? matched;
 
-    // الطريقة 1: بحث عبر عمود expense_id (الأكثر موثوقية)
-    // ✅ (المرحلة 0 — P0.3) تُفحص كل المرشحات عبر _ownedByDeviceOrEmployee
-    // بدل LIMIT 1 أعمى — المرآة الأجنبية المتصادمة تُتجاوز لا تُختار.
-    try {
-      final rows = await _db
-          .customSelect(
-            'SELECT id FROM salary_withdrawals WHERE expense_id = ? AND deleted_at IS NULL',
-            variables: [d.Variable.withInt(expenseId)],
-          )
-          .get();
-      for (final row in rows) {
-        // نقرأ بيانات السجل من جدول salary_withdrawals عبر Drift
-        final byId =
-            await (_db.select(_db.salaryWithdrawals)
-                  ..where((t) => t.id.equals(row.read<int>('id')))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (byId != null &&
-            _ownedByDeviceOrEmployee(
-              byId,
-              employeeId: employeeId,
-              previousEmployeeId: previousEmployeeId,
-              employeeUuid: employeeUuid.value,
-            )) {
-          matched = byId;
-          break;
+    // ✅ نسخ مكررة لنفس الهوية: أكثر من مرآة تعلن ارتباطها بنفس المصروف
+    // (تصادم إنشاء مزدوج عبر الأجهزة لنفس العملية). تُعالج في المعاملة:
+    // تُعتمد الأحدث كممثل وحيد للعملية وتُحذف البقية حذفًا ناعماً —
+    // العملية الواحدة تُحتسب مرة واحدة فقط في التقارير والمزامنة.
+    final identityDuplicates = <SalaryWithdrawal>[];
+
+    // الطريقة 0 (هوية العملية): الرابط الدائم سحبة↔مصروف بالـ UUID —
+    // حتمي وعابر للأجهزة، يُرجّح على كل الطرق الرقمية/البيانية الأقدم.
+    if (expenseLocalUuid.isNotEmpty) {
+      // 0-أ: المرآة التي تعلن ارتباطها بهذا المصروف بهويته (سحبة → مصروف)
+      final byExpenseUuid =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) =>
+                    t.expenseUuid.equals(expenseLocalUuid) &
+                    t.deletedAt.isNull(),
+              ))
+              .get();
+      if (byExpenseUuid.isNotEmpty) {
+        if (byExpenseUuid.length == 1) {
+          matched = byExpenseUuid.first;
+        } else {
+          // أكثر من نسخة لنفس العملية — اعتمد الأحدث تحديثاً (وبالتعادل
+          // الأعلى معرفاً) وأزل البقية كيلا يُحتسب المبلغ مرتين.
+          final sorted = [...byExpenseUuid]
+            ..sort((a, b) {
+              if (a.updatedAt != b.updatedAt) {
+                return b.updatedAt.compareTo(a.updatedAt);
+              }
+              return b.id.compareTo(a.id);
+            });
+          matched = sorted.first;
+          identityDuplicates.addAll(sorted.skip(1));
         }
       }
-    } catch (_) {
-      // العمود قد لا يكون موجوداً
+
+      // 0-ب: الختم العكسي على المصروف (مصروف → سحبة). يُتجاهل الختم
+      // الذاتي الفاسد (خطأ تاريخي كان يختم المصروف بهويته هو).
+      if (matched == null) {
+        final stampedUuid = (expenseRow?.withdrawalUuid ?? '').trim();
+        if (stampedUuid.isNotEmpty && stampedUuid != expenseLocalUuid) {
+          final stamped =
+              await (_db.select(_db.salaryWithdrawals)
+                    ..where(
+                      (t) =>
+                          t.localUuid.equals(stampedUuid) &
+                          t.deletedAt.isNull(),
+                    )
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (stamped != null) {
+            // ✅ حارس الاختطاف: إن كانت المرآة المختومة تعلن بهويتها
+            // انتماءها لمصروف آخر قائم فهي تخصّه — الختم الفاسد على
+            // هذا المصروف لا يخوّل اختطافها.
+            final declared = (stamped.expenseUuid ?? '').trim();
+            final belongsToOther =
+                declared.isNotEmpty &&
+                declared != expenseLocalUuid &&
+                await _activeExpenseExistsByUuid(declared);
+            if (!belongsToOther) {
+              matched = stamped;
+            }
+          }
+        }
+      }
+    }
+
+    // الطريقة 1: بحث عبر عمود expense_id (روابط رقمية محلية — تراثية)
+    // ✅ (المرحلة 0 — P0.3) تُفحص كل المرشحات عبر _ownedByDeviceOrEmployee
+    // بدل LIMIT 1 أعمى — المرآة الأجنبية المتصادمة تُتجاوز لا تُختار.
+    if (matched == null) {
+      try {
+        final rows = await _db
+            .customSelect(
+              'SELECT id FROM salary_withdrawals WHERE expense_id = ? AND deleted_at IS NULL',
+              variables: [d.Variable.withInt(expenseId)],
+            )
+            .get();
+        for (final row in rows) {
+          // نقرأ بيانات السجل من جدول salary_withdrawals عبر Drift
+          final byId =
+              await (_db.select(_db.salaryWithdrawals)
+                    ..where((t) => t.id.equals(row.read<int>('id')))
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (byId != null &&
+              _ownedByDeviceOrEmployee(
+                byId,
+                employeeId: employeeId,
+                previousEmployeeId: previousEmployeeId,
+                employeeUuid: employeeUuid.value,
+              )) {
+            matched = byId;
+            break;
+          }
+        }
+      } catch (_) {
+        // العمود قد لا يكون موجوداً
+      }
     }
 
     // الطريقة 2: بحث عبر reason (الطريقة القديمة)
@@ -338,19 +435,20 @@ class SalaryWithdrawalsRepository {
     // أنشأه جهاز آخر (origin=server) — وحارس الموظف لا يُطبّق كي يُعثر
     // على المرآة حتى عند تغيير موظف المصروف (تُحدّث بياناتها لاحقاً).
     if (matched == null) {
-      final expenseRowForUuid = await (_db.select(_db.expenses)
-            ..where((e) => e.id.equals(expenseId))
-            ..limit(1))
-          .getSingleOrNull();
+      final expenseRowForUuid =
+          await (_db.select(_db.expenses)
+                ..where((e) => e.id.equals(expenseId))
+                ..limit(1))
+              .getSingleOrNull();
       final expenseUuidStr = expenseRowForUuid?.localUuid ?? '';
       if (expenseUuidStr.isNotEmpty) {
-        final byUuid = await (_db.select(_db.salaryWithdrawals)
-              ..where(
-                (t) =>
-                    t.expenseUuid.equals(expenseUuidStr) &
-                    t.deletedAt.isNull(),
-              ))
-            .get();
+        final byUuid =
+            await (_db.select(_db.salaryWithdrawals)..where(
+                  (t) =>
+                      t.expenseUuid.equals(expenseUuidStr) &
+                      t.deletedAt.isNull(),
+                ))
+                .get();
         // التفرّد مضمون بالتوليد — لو انكسر (بيانات تالفة) لا نخمّن:
         // نترك البحث للطريقة 3 (التي لها حارس غموض خاص بها الآن).
         if (byUuid.length == 1) matched = byUuid.single;
@@ -370,6 +468,7 @@ class SalaryWithdrawalsRepository {
       expectedAmount: previousAmount ?? amount,
       date: date,
       hotelDayKey: hotelDayKey,
+      expenseLocalUuid: expenseLocalUuid,
     );
 
     final now = Time.nowEpoch();
@@ -389,6 +488,9 @@ class SalaryWithdrawalsRepository {
               ))
               .get();
       for (final w in allExisting) {
+        // ✅ النسخ المكررة بالهوية (identityDuplicates) تُعالج في بداية
+        // المعاملة — لا نعيد معالجتها هنا منعاً للازدواج.
+        if (identityDuplicates.any((dup) => dup.id == w.id)) continue;
         // ✅ (المرحلة 0 — P0.3) حتى تنظيف "السجلات القديمة" لا يلمس
         // مرآة أجنبية متصادمة الرقماً مع expense/reason المحلي.
         if (matchesExpenseRef(w.reason, expenseId) &&
@@ -404,6 +506,35 @@ class SalaryWithdrawalsRepository {
     }
 
     await _db.transaction(() async {
+      // ─── حذف النسخ المكررة لنفس الهوية (الطريقة 0) داخل المعاملة ───
+      // نفس معاملة السجلات القديمة: حذف ناعم + مزامنة كتحديث للعملية نفسها.
+      for (final duplicate in identityDuplicates) {
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.equals(duplicate.id))).write(
+          SalaryWithdrawalsCompanion(
+            deletedAt: d.Value(now),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+            version: d.Value(duplicate.version + 1),
+          ),
+        );
+        if (!originIsServer) {
+          await _outboxDao.merge(
+            entity: 'salary_withdrawals',
+            op: 'update',
+            localUuid: duplicate.localUuid,
+            serverId: duplicate.serverId,
+            payload: {
+              'employeeId': duplicate.employeeId,
+              'deletedAt': now,
+              'lastModified': now,
+            },
+            clientTs: now,
+          );
+        }
+      }
+
       // ─── حذف السجلات القديمة داخل المعاملة لضمان اتساق المزامنة ───
       for (final stale in staleRecords) {
         await (_db.update(
@@ -469,34 +600,28 @@ class SalaryWithdrawalsRepository {
 
         // ✅ تحديث expense_id في العمود الخام
         await _setExpenseIdRaw(matchedId, expenseId);
-        // ✅ (migration 68) تحديث expense_uuid على المرآة + ختم الرابط
-        // العكسي على المصروف — الرابط الدائم عبر الأجهزة.
-        // ✅ (مراجعة kilo PR#610 — CRITICAL) الختم العكسي يحمل uuid
-        // **السحبة** (matchedLocalUuid) لا uuid المصروف — تمرير uuid
-        // المصروف كان يكتب رابطاً ذاتياً مرجعياً (المصروف يشير إلى نفسه)
-        // — مع وسيطي outbox لينتشر الختم للسحابة والأجهزة الأخرى.
-        final expenseRowForStamp = await (_db.select(_db.expenses)
-              ..where((e) => e.id.equals(expenseId))
-              ..limit(1))
-            .getSingleOrNull();
-        // متغير محلي غير فارغ — يتجنب unchecked_use_of_nullable_value
-        // ويُبقي الختم محصوراً بوجود المصروف وuuid صالح.
-        final stampExpenseUuid = expenseRowForStamp?.localUuid ?? '';
-        final expenseUuidValue = stampExpenseUuid.isEmpty
-            ? const d.Value<String>.absent()
-            : d.Value(stampExpenseUuid);
-        await (_db.update(_db.salaryWithdrawals)
-              ..where((t) => t.id.equals(matchedId)))
-            .write(SalaryWithdrawalsCompanion(expenseUuid: expenseUuidValue));
-        if (expenseUuidValue.present && matchedLocalUuid.isNotEmpty) {
-          await _stampExpenseMirrorLink(
-            expenseId,
-            matchedLocalUuid,
-            now,
-            expenseLocalUuid: stampExpenseUuid,
-            expenseServerId: expenseRowForStamp?.serverId,
+        // ✅ (هجرة 68) ختم الهوية على المرآة: expense_uuid = هوية هذا
+        // المصروف — الرابط الدائم الذي ينجو من إعادة ترقيم المعرفات.
+        if (expenseLocalUuid.isNotEmpty) {
+          await (_db.update(
+            _db.salaryWithdrawals,
+          )..where((t) => t.id.equals(matchedId))).write(
+            SalaryWithdrawalsCompanion(expenseUuid: d.Value(expenseLocalUuid)),
           );
         }
+        // ✅ الختم العكسي على المصروف: withdrawal_uuid = هوية المرآة
+        // نفسها (matchedLocalUuid) — وليس هوية المصروف. (الخطأ التاريخي
+        // كان يختم المصروف بهويته هو فيكسر حلّ الهوية ويُسقط النظام
+        // على المطابقات البيانية/الرقمية.) التعديل يحدّث العملية نفسها
+        // ويحافظ على هويتها، ويُعمَّم الختم الجديد للسحابة عبر outbox.
+        await _stampExpenseMirrorLink(
+          expenseId,
+          matchedLocalUuid,
+          now,
+          expenseLocalUuid: expenseRow?.localUuid,
+          expenseServerId: expenseRow?.serverId,
+          originIsServer: originIsServer,
+        );
 
         if (!originIsServer) {
           await _outboxDao.merge(
@@ -514,9 +639,8 @@ class SalaryWithdrawalsRepository {
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'lastModified': now,
               'expenseId': expenseId,
-              // ✅ (migration 68) uuid المرآة — احتياط لمسارات delta/Drive
-              if (expenseUuidValue.present && expenseUuidValue.value.isNotEmpty)
-                'expenseUuid': expenseUuidValue.value,
+              // ✅ (هجرة 68) هوية المصروف على المرآة — الرابط الدائم
+              if (expenseLocalUuid.isNotEmpty) 'expenseUuid': expenseLocalUuid,
             },
             clientTs: now,
           );
@@ -537,7 +661,8 @@ class SalaryWithdrawalsRepository {
           ),
         );
       } else {
-        // إنشاء سجل جديد
+        // إنشاء سجل جديد — إضافة جديدة = عملية مستقلة بهوية جديدة، حتى لو
+        // تشابهت بياناتها (موظف/يوم/مبلغ) مع عملية أخرى قائمة.
         final uuid = IdGen.uuid();
         final newId = await _db
             .into(_db.salaryWithdrawals)
@@ -548,8 +673,10 @@ class SalaryWithdrawalsRepository {
                 employeeId: d.Value(employeeId),
                 // ✅ (2026-09-19) employee_uuid عند الإنشاء
                 employeeUuid: employeeUuid,
-                // ✅ (migration 68) expense_uuid عند الإنشاء — الرابط الدائم
-                expenseUuid: await _expenseUuidFor(expenseId),
+                // ✅ (هجرة 68) هوية المصروف عند الإنشاء — الرابط الدائم
+                expenseUuid: expenseLocalUuid.isNotEmpty
+                    ? d.Value(expenseLocalUuid)
+                    : const d.Value.absent(),
                 amount: d.Value(amount),
                 withdrawDate: d.Value(date),
                 reason: d.Value(reasonText),
@@ -571,23 +698,17 @@ class SalaryWithdrawalsRepository {
 
         // ✅ كتابة expense_id في العمود الخام
         await _setExpenseIdRaw(newId, expenseId);
-        // ✅ (migration 68) ختم الرابط العكسي على المصروف + الحمولة
-        // ✅ (مراجعة kilo PR#610 — CRITICAL) uuid السحبة الجديدة (`uuid`)
-        // هو ما يُختم على المصروف — لا uuid المصروف نفسه (رابط ذاتي) —
-        // + وسيطا outbox لينتشر الختم للسحابة والأجهزة الأخرى.
-        final newExpenseRow = await (_db.select(_db.expenses)
-              ..where((e) => e.id.equals(expenseId))
-              ..limit(1))
-            .getSingleOrNull();
-        if (newExpenseRow != null && newExpenseRow.localUuid.isNotEmpty) {
-          await _stampExpenseMirrorLink(
-            expenseId,
-            uuid,
-            now,
-            expenseLocalUuid: newExpenseRow.localUuid,
-            expenseServerId: newExpenseRow.serverId,
-          );
-        }
+        // ✅ (هجرة 68) الختم العكسي على المصروف: withdrawal_uuid = هوية
+        // المرآة الجديدة نفسها (uuid) — وليس هوية المصروف — مع تعميمه
+        // للسحابة عبر outbox.
+        await _stampExpenseMirrorLink(
+          expenseId,
+          uuid,
+          now,
+          expenseLocalUuid: expenseRow?.localUuid,
+          expenseServerId: expenseRow?.serverId,
+          originIsServer: originIsServer,
+        );
         unawaited(
           WhatsAppNotificationService.instance.notifyNewExpense(
             category: 'سحب راتب',
@@ -604,7 +725,6 @@ class SalaryWithdrawalsRepository {
         );
 
         if (!originIsServer) {
-          final newExpenseUuidStr = newExpenseRow?.localUuid ?? '';
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'create',
@@ -618,8 +738,8 @@ class SalaryWithdrawalsRepository {
               'description': note,
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'expenseId': expenseId,
-              // ✅ (migration 68) uuid المرآة — احتياط لمسارات delta/Drive
-              if (newExpenseUuidStr.isNotEmpty) 'expenseUuid': newExpenseUuidStr,
+              // ✅ (هجرة 68) هوية المصروف على المرآة — الرابط الدائم
+              if (expenseLocalUuid.isNotEmpty) 'expenseUuid': expenseLocalUuid,
             },
             clientTs: now,
           );
@@ -630,11 +750,20 @@ class SalaryWithdrawalsRepository {
 
   /// البحث عن مرآة يتيمة قابلة للتبنّي (الطريقة 3 في [saveFromExpense]).
   ///
+  /// ⚠️ مسار تراثي للسجلات القديمة التي لا تحمل رابط هوية (هجرة 68) فقط:
+  /// البيانات الجديدة تُحسم دائماً بالطريقة 0 (سحبة.expenseUuid ==
+  /// مصروف.localUuid). عند التبنّي هنا يُختم الرابط الدائم فوراً في مسار
+  /// التحديث (expense_uuid + withdrawal_uuid) فتُحسم التعديلات اللاحقة
+  /// بالهوية مباشرة. التبنّي يحافظ على عدد العمليات والمجموع: مرآة واحدة
+  /// تُحدَّث بدل إنشاء نسخة إضافية.
+  ///
   /// شروط التبنّي (كلها معاً):
   /// - سحبة نشطة (غير محذوفة) لنفس الموظف.
   /// - المبلغ يطابق المبلغ الموقّع القديم للمرآة (تسامح فروق التقريب).
   /// - نفس اليوم الفندقي (أو التاريخ التقويمي عند غياب المفتاح).
   /// - ليست سحبة مباشرة (reason لا يبدأ بـ direct_withdrawal_).
+  /// - لا تحمل رابط هوية لمصروف آخر (سحبة مرتبطة بهوية مصروف آخر
+  ///   تخصّه هو ولا تُختطف).
   /// - رابطها لا يشير لمصروف محلي قائم غير المصروف الحالي
   ///   (expense_id وreason/exp_N كلاهما) — وإلا فهي مرآة مصروف آخر.
   ///
@@ -650,6 +779,7 @@ class SalaryWithdrawalsRepository {
     required double expectedAmount,
     required String date,
     String? hotelDayKey,
+    String? expenseLocalUuid,
   }) async {
     final candidates =
         await (_db.select(_db.salaryWithdrawals)..where(
@@ -659,9 +789,17 @@ class SalaryWithdrawalsRepository {
     if (candidates.isEmpty) return null;
 
     final effectiveHotelDayKey = hotelDayKey ?? _computeHotelDayKey(date);
+    final currentUuid = (expenseLocalUuid ?? '').trim();
 
     final adoptable = <SalaryWithdrawal>[];
     for (final w in candidates) {
+      // ✅ رابط هوية (سحبة → مصروف) يشير لمصروف آخر قائم → مرآة ذلك
+      // المصروف قطعاً ولا تُختطف مهما تشابهت البيانات.
+      final wEu = (w.expenseUuid ?? '').trim();
+      if (wEu.isNotEmpty && wEu != currentUuid) {
+        if (await _activeExpenseExistsByUuid(wEu)) continue;
+      }
+
       // المبلغ الموقّع القديم — بتسامح فروق التقريب العائمة.
       if ((w.amount - expectedAmount).abs() >= 0.005) continue;
 
@@ -708,6 +846,18 @@ class SalaryWithdrawalsRepository {
     final row =
         await (_db.select(_db.expenses)
               ..where((t) => t.id.equals(id) & t.deletedAt.isNull())
+              ..limit(1))
+            .getSingleOrNull();
+    return row != null;
+  }
+
+  /// هل يوجد مصروف نشط (غير محذوف) بهذه الهوية (local_uuid)؟
+  Future<bool> _activeExpenseExistsByUuid(String localUuid) async {
+    final row =
+        await (_db.select(_db.expenses)
+              ..where(
+                (t) => t.localUuid.equals(localUuid) & t.deletedAt.isNull(),
+              )
               ..limit(1))
             .getSingleOrNull();
     return row != null;
@@ -774,8 +924,59 @@ class SalaryWithdrawalsRepository {
     int? employeeId,
     String? employeeUuid,
   }) async {
-    // الطريقة 1: بحث عبر عمود expense_id
     List<SalaryWithdrawal> toDelete = [];
+    bool containsId(int id) => toDelete.any((x) => x.id == id);
+
+    // الطريقة 0 (هوية العملية): الرابط الدائم سحبة↔مصروف (هجرة 68).
+    // الهوية حاسمة ولا تصطدم — لا تحتاج حارس الجهاز/الموظف: مرآة مرتبطة
+    // بهوية هذا المصروف تخصّه حصراً، وحذف المصروف يحذف مرآته أينما كانت
+    // حقول الموظف فيها (إعادة تعيين/استعادة لا تغيّر انتماء العملية).
+    final expenseRow =
+        await (_db.select(_db.expenses)
+              ..where((e) => e.id.equals(expenseId))
+              ..limit(1))
+            .getSingleOrNull();
+    final expenseLocalUuid = (expenseRow?.localUuid ?? '').trim();
+    if (expenseLocalUuid.isNotEmpty) {
+      // 0-أ: سحبات تعلن ارتباطها بهذا المصروف بهويته (سحبة → مصروف)
+      final byUuid =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) =>
+                    t.expenseUuid.equals(expenseLocalUuid) &
+                    t.deletedAt.isNull(),
+              ))
+              .get();
+      for (final w in byUuid) {
+        if (!containsId(w.id)) toDelete.add(w);
+      }
+      // 0-ب: المرآة المختومة على المصروف (مصروف → سحبة). يُتجاهل الختم
+      // الذاتي الفاسد (خطأ تاريخي كان يختم المصروف بهويته هو).
+      final stampedUuid = (expenseRow?.withdrawalUuid ?? '').trim();
+      if (stampedUuid.isNotEmpty && stampedUuid != expenseLocalUuid) {
+        final stamped =
+            await (_db.select(_db.salaryWithdrawals)
+                  ..where(
+                    (t) =>
+                        t.localUuid.equals(stampedUuid) & t.deletedAt.isNull(),
+                  )
+                  ..limit(1))
+                .getSingleOrNull();
+        // ✅ حارس الاختطاف: مرآة تعلن انتماءها لمصروف آخر قائم لا تُحذف
+        // بسبب ختم فاسد على هذا المصروف.
+        final declared = (stamped?.expenseUuid ?? '').trim();
+        final belongsToOther =
+            stamped != null &&
+            declared.isNotEmpty &&
+            declared != expenseLocalUuid &&
+            await _activeExpenseExistsByUuid(declared);
+        if (stamped != null && !belongsToOther && !containsId(stamped.id)) {
+          toDelete.add(stamped);
+        }
+      }
+    }
+
+    // الطريقة 1: بحث عبر عمود expense_id (روابط رقمية تراثية)
+    List<SalaryWithdrawal> legacyMatches = [];
     try {
       final rows = await _db
           .customSelect(
@@ -785,7 +986,7 @@ class SalaryWithdrawalsRepository {
           .get();
       if (rows.isNotEmpty) {
         final ids = rows.map((r) => r.read<int>('id')).toList();
-        toDelete = await (_db.select(
+        legacyMatches = await (_db.select(
           _db.salaryWithdrawals,
         )..where((t) => t.id.isIn(ids))).get();
       }
@@ -797,21 +998,23 @@ class SalaryWithdrawalsRepository {
     // قرار استدعاء الطريقة 2: إن عثرت الطريقة 1 على مرايا أجنبية فقط
     // (تصادم expense_id رقمي) فلا ينبغي أن يُلغي ذلك بحث reason — صف
     // قديم مرتبط بالـ reason وحده كان يبقى حياً خطأً.
+    // ✅ الحارس يخص الروابط الرقمية/البيانية فقط — نتائج الطريقة 0
+    // محسومة بالهوية ولا تخضع له.
     bool guard(SalaryWithdrawal w) => _ownedByDeviceOrEmployee(
       w,
       employeeId: employeeId,
       employeeUuid: employeeUuid,
     );
-    toDelete = toDelete.where(guard).toList();
+    legacyMatches = legacyMatches.where(guard).toList();
 
     // الطريقة 2: بحث عبر reason (الطريقة القديمة) إذا لم نجد عبر expense_id
-    if (toDelete.isEmpty) {
+    if (legacyMatches.isEmpty) {
       final candidates =
           await (_db.select(_db.salaryWithdrawals)..where(
                 (t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull(),
               ))
               .get();
-      toDelete = candidates
+      legacyMatches = candidates
           .where((w) => matchesExpenseRef(w.reason, expenseId))
           .toList();
     }
@@ -819,7 +1022,12 @@ class SalaryWithdrawalsRepository {
     // ✅ (المرحلة 0 — P0.3 / R3) تطبيق الحارس على المرشحات من المسارين:
     // لا يُحذف سجل لا يخص هذا الجهاز/هذا الموظف حتى لو تصادم الرقم.
     // (إعادة التطبيق على نتائج الطريقة 2 — عملية idempotent).
-    toDelete = toDelete.where(guard).toList();
+    legacyMatches = legacyMatches.where(guard).toList();
+
+    // دمج نتائج الهوية مع النتائج التراثية (بلا تكرار)
+    for (final w in legacyMatches) {
+      if (!containsId(w.id)) toDelete.add(w);
+    }
 
     final now = Time.nowEpoch();
 

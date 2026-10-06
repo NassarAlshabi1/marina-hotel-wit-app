@@ -71,7 +71,40 @@ class GoogleDriveDeltaSync {
   bool get isSyncing => _isSyncing;
   String? get deviceId => _deviceId;
 
+  /// 🚫 قرار منتج (2026-10-06): لا مزامنة تفاضلية عبر Google Drive —
+  /// Drive للنسخ الاحتياطي الكامل والاستعادة فقط. كل مسارات الدفع هنا
+  /// تُصبح no-ops ناجحة كي يبقى أي مُستدعٍ قديم يعمل دون أخطاء.
   Future<DeltaSyncResult> pushDeltaChanges() async {
+    dlog(
+      () =>
+          '⛔ Drive delta push معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط',
+    );
+    return DeltaSyncResult(
+      success: true,
+      message:
+          'مزامنة Google Drive التفاضلية معطّلة — النسخ الاحتياطي الكامل فقط',
+      changesCount: 0,
+    );
+  }
+
+  /// 🚫 قرار منتج (2026-10-06): لا مزامنة تفاضلية عبر Google Drive —
+  /// Drive للنسخ الاحتياطي الكامل والاستعادة فقط. كل مسارات السحب هنا
+  /// تُصبح no-ops ناجحة كي يبقى أي مُستدعٍ قديم يعمل دون أخطاء.
+  Future<DeltaSyncResult> pullDeltaChanges() async {
+    dlog(
+      () =>
+          '⛔ Drive delta pull معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط',
+    );
+    return DeltaSyncResult(
+      success: true,
+      message:
+          'مزامنة Google Drive التفاضلية معطّلة — النسخ الاحتياطي الكامل فقط',
+      changesCount: 0,
+    );
+  }
+
+  /// المسار الأصلي للدفع التفاضلي — مجمّد بقرار منتج، يُحتفظ به للمراجعة فقط.
+  Future<DeltaSyncResult> pushDeltaChangesLegacy() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
     final pushPrefs = await SharedPreferences.getInstance();
     final pushSyncEnabled =
@@ -152,7 +185,8 @@ class GoogleDriveDeltaSync {
     }
   }
 
-  Future<DeltaSyncResult> pullDeltaChanges() async {
+  /// المسار الأصلي للسحب التفاضلي — مجمّد بقرار منتج، يُحتفظ به للمراجعة فقط.
+  Future<DeltaSyncResult> pullDeltaChangesLegacy() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
     final pullPrefs = await SharedPreferences.getInstance();
     final pullSyncEnabled =
