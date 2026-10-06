@@ -58,10 +58,9 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
           duration: const Duration(seconds: 6),
         ),
       );
-      await Share.shareXFiles(
-        [XFile(result.file.path)],
-        subject: 'تقرير مراجعة الهوية المالية — Marina',
-      );
+      await Share.shareXFiles([
+        XFile(result.file.path),
+      ], subject: 'تقرير مراجعة الهوية المالية — Marina');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -32,3 +32,23 @@ full_exit=1
 ⚠️  Warning: Some collections are missing required sync fields. This may be intentional for non-synced tables (e.g., audit_logs).
 04:59 +804 ~1 -68: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           04:59 +804 ~1 -68: Some tests failed.                                                                                                                                                                  
 1
+Changed lib/screens/settings/sync_conflicts_screen.dart
+Changed lib/services/money_integrity_service.dart
+Changed test/unit/money_scan_coverage_test.dart
+Formatted 574 files (3 changed) in 6.29 seconds.
+analyze_exit=2
+Analyzing mobile...
+
+warning - lib/services/google_drive_unified_sync_coordinator.dart:434:16 - The declaration '_handlePeriodicPull' isn't referenced. Try removing the declaration of '_handlePeriodicPull'. - unused_element
+warning - lib/services/smart_google_drive_sync.dart:290:8 - The declaration '_startPeriodicSync' isn't referenced. Try removing the declaration of '_startPeriodicSync'. - unused_element
+warning - lib/services/smart_sync_manager.dart:148:16 - The declaration '_performOptimizedSyncCheck' isn't referenced. Try removing the declaration of '_performOptimizedSyncCheck'. - unused_element
+   info - lib/services/appwrite_service.dart:1184:10 - 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+4 issues found.
+0
+g7_g8_exit=0
+full_exit=0
+⚠️  Warning: Some collections are missing required sync fields. This may be intentional for non-synced tables (e.g., audit_logs).
+01:39 +1350 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields              01:39 +1350 ~1: 1 skipped test.                                                                                                                                                                        
+01:39 +1350 ~1: All other tests passed!                                                                                                                                                                
+0

@@ -173,10 +173,9 @@ void main() {
     }
 
     // ولا صفّ يُعدَّل: القيم التاريخية باقية كما زُرعت.
-    final employee =
-        (await (db.select(
-          db.employees,
-        )..where((t) => t.localUuid.equals('emp-cov'))).getSingle()).basicSalary;
+    final employee = (await (db.select(
+      db.employees,
+    )..where((t) => t.localUuid.equals('emp-cov'))).getSingle()).basicSalary;
     expect(employee, 1000.75);
     final debt = await db
         .customSelect(

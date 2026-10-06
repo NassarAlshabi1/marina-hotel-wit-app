@@ -170,8 +170,7 @@ class MoneyIntegrityService {
     // الحقيقيان (Real) كما هي ممارسة الجدول.
     await scanTable(
       table: 'price_adjustments.previous_value',
-      sql:
-          'SELECT local_uuid, previous_value AS amount FROM price_adjustments',
+      sql: 'SELECT local_uuid, previous_value AS amount FROM price_adjustments',
     );
     await scanTable(
       table: 'price_adjustments.new_value',

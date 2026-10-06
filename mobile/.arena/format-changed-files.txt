@@ -1,0 +1,2 @@
+mobile/.arena/format.txt
+mobile/.arena/summary.txt
