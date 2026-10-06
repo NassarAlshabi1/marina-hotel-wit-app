@@ -193,13 +193,18 @@ class BookingDerivedRefreshParityTest {
         val payment = db.paymentsDao().getByLocalUuid("pay-remote-1")!!
         assertEquals(bookingId, payment.bookingLocalId)
 
-        // الإجماليات المخزَّنة أُعيد بناؤها: ليلة واحدة بسعر 100 ودفعة 100.
+        // الإجماليات المخزَّنة أُعيد بناؤها فعلاً — لا صفراً ولا نسخة قديمة.
+        // عدد الليالي يتبع ساعة التنفيذ (حدّ 14:01 في محرّك أيام الفندق)، لذلك
+        // تُتحقَّق العلاقة الحتمية: المستحق = الليالي المحسوبة × سعر الغرفة (100)
+        // والمدفوع = الدفعة المسحوبة (100) والمتبقي = الفرق.
         val after = db.bookingsDao().getById(bookingId)!!
-        assertEquals(1, after.calculatedNights)
-        assertEquals(100.0, after.totalDueCached, 0.001)
+        assertTrue(after.calculatedNights >= 1)
+        val expectedDue = after.calculatedNights * 100.0
+        assertEquals(expectedDue, after.totalDueCached, 0.001)
+        assertTrue(after.totalDueCached > 0.0)
         assertEquals(100.0, after.totalPaidCached, 0.001)
-        assertEquals(0.0, after.remainingBalanceCached, 0.001)
-        assertTrue(after.isFullyPaid)
+        assertEquals(expectedDue - 100.0, after.remainingBalanceCached, 0.001)
+        assertEquals(after.remainingBalanceCached <= 0.0, after.isFullyPaid)
 
         // المشتق محلي بحت: لا يمس بيانات المزامنة ولا يُدرج في outbox.
         assertEquals(before.updatedAt, after.updatedAt)
@@ -220,6 +225,7 @@ class BookingDerivedRefreshParityTest {
         val night = db.bookingNightsDao().getByLocalUuid("night-remote-1")
         assertEquals(bookingId, night!!.bookingLocalId)
         val after = db.bookingsDao().getById(bookingId)!!
+        assertTrue(after.calculatedNights >= 1)
         // السجل الليلي الموجود يسبق الصيغة: 150 لا 100 (سعر الغرفة).
         assertEquals(150.0, after.totalDueCached, 0.001)
         assertEquals(0.0, after.totalPaidCached, 0.001)
@@ -241,12 +247,17 @@ class BookingDerivedRefreshParityTest {
             "status" to "شاغرة", "cleaning_status" to "clean",
             "updated_at" to 1_000L, "last_modified" to 1_000L
         )
+        val before = db.bookingsDao().getById(bookingId)!!
         assertEquals(1, pullOnce(prefs, apiReturning(listOf(roomRow))))
 
+        // لا إعادة بناء إطلاقاً: كل الحقول المخزَّنة كما كانت قبل الدورة
+        // (كتلة الغرف ليست في _derivedRefreshEntities الدارتي).
         val after = db.bookingsDao().getById(bookingId)!!
-        assertEquals(0.0, after.totalDueCached, 0.001)
-        assertEquals(0.0, after.totalPaidCached, 0.001)
-        assertEquals(0, after.calculatedNights)
+        assertEquals(before.calculatedNights, after.calculatedNights)
+        assertEquals(before.totalDueCached, after.totalDueCached, 0.001)
+        assertEquals(before.totalPaidCached, after.totalPaidCached, 0.001)
+        assertEquals(before.remainingBalanceCached, after.remainingBalanceCached, 0.001)
+        assertEquals(before.isFullyPaid, after.isFullyPaid)
     }
 
     // ─── 4) الخدمة نفسها: النطاق (النشط فقط) وحارس إعادة الدخول ───
@@ -278,7 +289,8 @@ class BookingDerivedRefreshParityTest {
         assertEquals(1, refreshed)
         val active = db.bookingsDao().getById(activeId)!!
         assertEquals(40.0, active.totalPaidCached, 0.001)
-        assertEquals(1, active.calculatedNights)
+        assertTrue(active.calculatedNights >= 1)
+        assertEquals(active.calculatedNights * 100.0, active.totalDueCached, 0.001)
 
         val checkedOut = db.bookingsDao().getById(checkedOutId)!!
         assertEquals(42.0, checkedOut.totalDueCached, 0.001)
