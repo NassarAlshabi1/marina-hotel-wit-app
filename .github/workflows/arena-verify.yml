@@ -1,0 +1,47 @@
+name: arena-verify
+# ⚠️ مؤقت — يُنشئه الوكيل لقراءة مخرجات التحليل/التنسيق/الاختبارات (تنزيل
+# سجلات Actions محجوب في هذه البيئة). يُحذف بعد التحقق.
+on:
+  push:
+    branches:
+      - arena/a2609d75-marina-hotel-wit-app
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.6'
+      - name: pub get
+        run: flutter pub get
+      - name: checks
+        run: |
+          set +e
+          mkdir -p .arena
+          flutter analyze --no-fatal-infos --no-fatal-warnings > .arena/analyze.txt 2>&1
+          echo "analyze_exit=$?" >> .arena/analyze.txt
+          dart format --output=none --set-exit-if-changed lib test > .arena/format.txt 2>&1
+          echo "format_exit=$?" >> .arena/format.txt
+          flutter test test/unit/financial_identity_g3_test.dart --reporter expanded > .arena/g3-tests.txt 2>&1
+          echo "g3_exit=$?" >> .arena/g3-tests.txt
+          tail -c 3000 .arena/analyze.txt
+      - name: commit reports
+        run: |
+          set +e
+          git config user.name "arena-bot"
+          git config user.email "arena-bot@users.noreply.github.com"
+          git add -f .arena
+          git commit -m "chore(arena): analyze/format/g3 reports" || true
+          git pull --rebase --autostash origin arena/a2609d75-marina-hotel-wit-app || true
+          git push || true
