@@ -930,8 +930,8 @@ class LocalBackupService {
   ) async {
     final pending = await db
         .customSelect(
-          "SELECT COUNT(*) AS n FROM outbox "
-          "WHERE source = 'local' AND delivered_to_primary = 0",
+          "SELECT COUNT(*) AS n FROM outbox WHERE source = 'local' "
+          'AND delivered_to_primary = 0',
           readsFrom: {db.outbox},
         )
         .getSingle();

@@ -28,10 +28,6 @@ class CloudflareD1Service {
   CloudflareD1Config config;
 
   final http.Client _client;
-  bool _cancelled = false;
-
-  /// طلب إيقاف الرفع (يُفحص بين الدفعات).
-  void cancel() => _cancelled = true;
 
   // ════════════════════════════════════════════════════════════════
   //  طبقة HTTP
