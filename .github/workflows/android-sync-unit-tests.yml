@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  checks: write
 
 concurrency:
   group: android-sync-unit-tests-${{ github.ref }}
@@ -74,7 +75,10 @@ jobs:
 
       - name: Diagnostics on failure
         if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -o pipefail
           {
             echo '### Android sync unit-test failure output'
             echo '```text'
@@ -83,6 +87,30 @@ jobs:
             tail -n 80 "$RUNNER_TEMP/android-sync-tests.log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+          # سبب إضافي: blob storage غير قابل للوصول من جلسة الوكيل، فنُخرج
+          # التشخيص عبر check run يمكن قراءته مباشرةً من GitHub API.
+          python3 - <<'PY' > "$RUNNER_TEMP/diagnostics.json"
+          import json, os, pathlib, re
+
+          log = pathlib.Path(os.environ["RUNNER_TEMP"]) / "android-sync-tests.log"
+          text = log.read_text(errors="replace") if log.exists() else "(no gradle log)"
+          lines = text.splitlines()
+          hits = [l for l in lines if re.search(r"e: file:|e: .*\.kt|error:|FAILED|What went wrong|Execution failed|Caused by:", l)]
+          body = "\n".join(hits[-120:] or lines[-120:])
+          print(json.dumps({
+              "name": "android-sync-diagnostics",
+              "head_sha": os.environ["GITHUB_SHA"],
+              "status": "completed",
+              "conclusion": "failure",
+              "output": {
+                  "title": "Android sync unit tests failed",
+                  "summary": f"{len(hits)} diagnostic lines (tail)",
+                  "text": body[-60000:],
+              },
+          }))
+          PY
+          gh api -X POST "repos/${{ github.repository }}/check-runs" --input "$RUNNER_TEMP/diagnostics.json" >/dev/null
 
       - name: Upload test results (evidence)
         if: always()
