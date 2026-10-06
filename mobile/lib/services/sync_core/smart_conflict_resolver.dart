@@ -2,10 +2,16 @@
 //
 // محلّل التعارضات الذكي — حل تلقائي على مستوى السجل بالكامل
 //
-// جميع التعارضات تُحل تلقائياً باستخدام 3-way merge على مستوى الحقل:
+// السياسة (بعد تدقيق الهوية المالية 2026-10-06 — إغلاق G-4):
 // - تعديل حقول مختلفة → دمج تلقائي (خذ من كل جهة ما تغيّر)
-// - تعديل نفس الحقول → طبّق سياسة الحقل (newerWins, concat, maxValue, إلخ)
-// - لا يوجد تصعيد يدوي — كل تعارض يُحل ويسجّل للتدقيق فقط
+// - تعارض على حقول عادية → سياسة الحقل (newerWins, concat, ...)
+// - تعارض على **حقول مالية/حرجة** (amount, basicSalary, ...) → لا دمج صامت:
+//     * القيمة المحلية تُحفظ كما هي (لا يُمسح مال محلي بلا قرار بشري)،
+//     * القيمة البعيدة تُحفظ في سجل المراجعة (sync_conflicts) مع الوسم
+//       'needs_review' — تُعرض في شاشة تعارضات المزامنة،
+//     * لا يُعاد رفع الحقل المتنازع عليه للسحابة تلقائياً
+//       (pushedToRemote=false) حتى لا يُطمس تعديل الجهاز الآخر.
+//   الحقول غير الحرجة من نفس السجل تُدمج وتُطبَّق كالمعتاد.
 
 import '../vector_clock_service.dart';
 import 'conflict_detector.dart';
@@ -70,6 +76,8 @@ class ResolutionResult {
     required this.strategy,
     this.warnings = const [],
     this.pushedToRemote = false,
+    this.requiresReview = false,
+    this.reviewFields = const <String>{},
   });
 
   final Map<String, dynamic> mergedData;
@@ -78,6 +86,13 @@ class ResolutionResult {
 
   /// هل يجب رفع النتيجة المدمجة للسحابة؟
   final bool pushedToRemote;
+
+  /// ✅ (G-4) هل يحتاج التعارض قراراً بشرياً؟ يُضبط عند تعارض متزامن على
+  /// حقل مالي/حرج — لا يُدمج صامتاً ولا يُطمس أي من القيمتين.
+  final bool requiresReview;
+
+  /// الحقول المالية الحرجة المتنازع عليها (للتسجيل في تقرير المراجعة).
+  final Set<String> reviewFields;
 }
 
 /// محلّل التعارضات الذكي — يحل جميع التعارضات تلقائياً على مستوى السجل
@@ -417,7 +432,26 @@ class SmartConflictResolver {
 
     final warnings = <String>[];
 
+    // ✅ (G-4 — تدقيق الهوية المالية 2026-10-06): الحقول المالية/الحرجة
+    // المتعارضة لا تُدمج صامتاً ولا يفوز فيها طرف تلقائياً:
+    // - القيمة المحلية تبقى في الصف المحلي (لا يُمسح مال محلي بلا قرار بشري).
+    // - القيمة البعيدة تبقى على السحابة (لا نرفع قيمة محلية لتطمسها).
+    // - يُسجَّل التعارض للمراجعة عبر requiresReview/reviewFields.
+    // الحقول الأخرى في نفس السجل تُدمج كالمعتاد.
+    final reviewFields = <String>{
+      for (final field in detection.conflictingFields)
+        if (ConflictDetector.isCriticalField(field)) field,
+    };
+
     for (final field in detection.conflictingFields) {
+      if (reviewFields.contains(field)) {
+        merged[field] = localData[field];
+        warnings.add(
+          'critical financial field conflict on \'$field\': kept local value '
+          'and queued for review (no silent merge)',
+        );
+        continue;
+      }
       final rule = policy.rules[field] ?? policy.defaultRule;
       final result = _resolveField(
         field: field,
@@ -447,11 +481,16 @@ class SmartConflictResolver {
     merged['lastModified'] = localTs > remoteTs ? localTs : remoteTs;
     merged['version'] = ((merged['version'] as int?) ?? 0) + 1;
 
+    final requiresReview = reviewFields.isNotEmpty;
     return ResolutionResult(
       mergedData: merged,
       strategy: ResolutionStrategy.fieldLevelMerge,
       warnings: warnings,
-      pushedToRemote: true,
+      // ✅ (G-4) لا نرفع النتيجة إذا كان فيها حقل مالي متنازع عليه —
+      // الرفع سيُطمس تعديل الجهاز الآخر بلا قرار بشري.
+      pushedToRemote: !requiresReview,
+      requiresReview: requiresReview,
+      reviewFields: reviewFields,
     );
   }
 

@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../appwrite_config.dart';
 import '../appwrite_logger.dart';
 import '../appwrite_service.dart';
+import '../conflict_manager.dart';
 import '../daos/ancestor_cache_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
@@ -246,9 +247,23 @@ class SyncPullService {
             if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
               _logger.info(
                 '✅ 3-way merge resolved: entity=$entityName, uuid=$localUuid, '
-                'warnings=${resolution.warnings.length}',
+                'warnings=${resolution.warnings.length}, '
+                'requiresReview=${resolution.requiresReview} '
+                'fields=${resolution.reviewFields.join(",")}',
                 tag: 'CONFLICT',
               );
+              // ✅ (G-4): تعارض مالي حرج → يُسجَّل للمراجعة البشرية (append to
+              // sync_conflicts برسالة تحتاج قراراً). لا يُدمج الحقل المالي
+              // صامتاً ولا يُرفع للسحابة — القيمتان محفوظتان.
+              if (resolution.requiresReview) {
+                await _recordCriticalConflictForReview(
+                  entityName: entityName,
+                  localUuid: localUuid,
+                  localData: localData,
+                  remoteData: remoteDataOriginal,
+                  reviewFields: resolution.reviewFields,
+                );
+              }
               // كتابة البيانات المدمجة في remoteData in-place.
               // ✅ Sync Safety Fix (2026-08-10): استخدم iterative put بدل
               // addAll لتفادي type mismatch عند runtime. مشكلة addAll: إذا
@@ -271,6 +286,7 @@ class SyncPullService {
                 shouldApplyRemote: true,
                 mergedData: resolution.mergedData,
                 pushedToRemote: resolution.pushedToRemote,
+                requiresReview: resolution.requiresReview,
               );
             }
           } catch (e) {
@@ -292,6 +308,43 @@ class SyncPullService {
             (normalizedRemoteTs == localLastModified &&
                 remoteDeviceId.compareTo(localDeviceId) < 0);
         return RemoteCheckResult(shouldApplyRemote: shouldApply);
+    }
+  }
+
+  /// ✅ (G-4 — تدقيق الهوية المالية 2026-10-06): تسجيل تعارض مالي حرج
+  /// للمراجعة البشرية. القيمتان (المحلية والبعيدة) تُحفظان كاملتين في
+  /// `sync_conflicts` مع resolution فارغ = «بانتظار قرار» (تظهر في شاشة
+  /// تعارضات المزامنة). لا يُعدَّل أي مبلغ تلقائياً.
+  Future<void> _recordCriticalConflictForReview({
+    required String? entityName,
+    required String? localUuid,
+    required Map<String, dynamic>? localData,
+    required Map<String, dynamic>? remoteData,
+    required Set<String> reviewFields,
+  }) async {
+    if (localData == null) return;
+    try {
+      final manager = ConflictManager(database);
+      await manager.recordConflict(
+        table: entityName ?? 'unknown',
+        uuid: localUuid ?? '',
+        localData: <String, dynamic>{
+          ...localData,
+          '_review': {
+            'reason': 'critical_financial_field_conflict',
+            'fields': reviewFields.toList()..sort(),
+            'policy': 'keep local value locally; keep remote value on cloud; '
+                'requires human decision',
+          },
+        },
+        remoteData: remoteData ?? const <String, dynamic>{},
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ Failed to record critical financial conflict for review: '
+        'entity=$entityName, uuid=$localUuid, error=$e',
+        tag: 'CONFLICT',
+      );
     }
   }
 
@@ -864,6 +917,7 @@ class RemoteCheckResult {
     required this.shouldApplyRemote,
     this.mergedData,
     this.pushedToRemote = false,
+    this.requiresReview = false,
   });
 
   /// هل يجب تطبيق البيانات البعيدة؟
@@ -874,4 +928,7 @@ class RemoteCheckResult {
 
   /// هل يجب رفع النتيجة للسحابة؟ (فقط عند 3-way merge مع pushedToRemote=true).
   final bool pushedToRemote;
+
+  /// ✅ (G-4) تعارض على حقل مالي حرج — سُجِّل للمراجعة ولم يُدمج صامتاً.
+  final bool requiresReview;
 }

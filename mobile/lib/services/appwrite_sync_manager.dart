@@ -35,6 +35,7 @@ import 'booking_derived_fields_service.dart';
 import 'crashlytics_service.dart';
 import 'daos/ancestor_cache_dao.dart';
 import 'daos/outbox_dao.dart';
+import 'conflict_manager.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
@@ -2014,6 +2015,45 @@ class AppwriteSyncManager {
     }
   }
 
+  /// ✅ (G-4 — تدقيق الهوية المالية 2026-10-06): تسجيل تعارض على حقل مالي
+  /// حرج للمراجعة البشرية (resolution فارغ = بانتظار قرار) مع حفظ القيمتين
+  /// كاملتين. لا يُعدَّل أي مبلغ تلقائياً ولا يُطمس أي من النسختين.
+  Future<void> _recordCriticalConflictForReview({
+    required String entity,
+    required String localUuid,
+    required Map<String, dynamic> localData,
+    required Map<String, dynamic> remoteData,
+    required Set<String> reviewFields,
+  }) async {
+    try {
+      await ConflictManager(database).recordConflict(
+        table: entity,
+        uuid: localUuid,
+        localData: <String, dynamic>{
+          ...localData,
+          '_review': {
+            'reason': 'critical_financial_field_conflict',
+            'fields': reviewFields.toList()..sort(),
+            'policy':
+                'keep local value locally; keep remote value on cloud; '
+                'requires human decision',
+          },
+        },
+        remoteData: remoteData,
+      );
+      _logger.warning(
+        '📝 Critical financial conflict queued for review: '
+        'entity=$entity, uuid=$localUuid, fields=${reviewFields.join(",")}',
+        tag: 'OCC',
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ Failed to record critical financial conflict for review: $e',
+        tag: 'OCC',
+      );
+    }
+  }
+
   /// تسجيل تعارض متزامن (concurrent conflict) في جدول sync_conflicts
   /// للمراجعة والتدقيق اللاحق.
   ///
@@ -3252,9 +3292,21 @@ class AppwriteSyncManager {
 
       if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
         _logger.info(
-          '✅ OCC conflict resolved via 3-way merge: entity=$entity, uuid=$documentId',
+          '✅ OCC conflict resolved via 3-way merge: entity=$entity, '
+          'uuid=$documentId, requiresReview=${resolution.requiresReview} '
+          'fields=${resolution.reviewFields.join(",")}',
           tag: 'OCC',
         );
+        // ✅ (G-4) تعارض مالي حرج: يُسجَّل للمراجعة البشرية ولا يُرفع تلقائياً.
+        if (resolution.requiresReview) {
+          await _recordCriticalConflictForReview(
+            entity: entity,
+            localUuid: documentId,
+            localData: localPayload,
+            remoteData: remoteData,
+            reviewFields: resolution.reviewFields,
+          );
+        }
         try {
           await _ancestorCacheDao.saveAncestor(
             entity: entity,

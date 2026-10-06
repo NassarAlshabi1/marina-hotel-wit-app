@@ -7,7 +7,8 @@
 //   2. إعادة إرسال نفس العملية لا تُكرِّر الحركة المالية.
 //   3. انقطاع الإنترنت ثم إعادة الاتصال لا يُفقد الحركة.
 //   4. وصول الابن (مصروف/دفعة) قبل الأب (موظف/دورة) — لا فقدان ولا ربط خاطئ.
-//   5. التعارض: كشف الحقول المالية الحرجة (وثيقة سلوك + فجوة G-4).
+//   5. التعارض: الحقول المالية الحرجة لا تُدمج صامتة — تُحفظ القيمتان
+//      وتُسجَّل للمراجعة البشرية (سياسة G-4 المُغلقة).
 //   6. الحذف: لا إحياء للسجل المحذوف (outbox + tombstone بعيد).
 //   7. الاستعادة: لا تغيير للـ UUIDs.
 //   8. تغيير مزوّد المزامنة: نقل الهويات والعلاقات والمجاميع.
@@ -729,24 +730,27 @@ void main() {
     );
 
     test(
-      'G-4 (documented current behavior): the critical field is auto-merged by newerWins',
+      'G-4 (fixed): a critical financial field is never silently merged — it is queued for review',
       () {
         const localUuid = 'expense-conflict-2';
         final local = <String, dynamic>{
           'localUuid': localUuid,
           'amount': 120.0,
+          'description': 'نسخة الجهاز A',
           'lastModified': 5000,
           'vectorClock': '{"device-A": 2, "device-B": 1}',
         };
         final remote = <String, dynamic>{
           'localUuid': localUuid,
           'amount': 150.0,
+          'description': 'نسخة الجهاز A',
           'lastModified': 6000,
           'vectorClock': '{"device-A": 1, "device-B": 2}',
         };
         final ancestor = <String, dynamic>{
           'localUuid': localUuid,
           'amount': 100.0,
+          'description': 'نسخة الجهاز A',
         };
 
         final resolution = SmartConflictResolver.resolve(
@@ -756,46 +760,123 @@ void main() {
           commonAncestor: ancestor,
         );
 
-        // السلوك الحالي: دمج تلقائي على مستوى الحقل (newerWins) ثم رفع النتيجة.
-        // ⚠️ G-4 (P0): المطلوب بعد الإصلاح = عدم الدمج الصامت للحقول المالية
-        // الحرجة + كتابة صف في sync_conflicts + إدراجه في تقرير المراجعة.
-        // عند تنفيذ الإصلاح يجب تحديث هذا الاختبار ليؤكد: strategy != fieldLevelMerge
-        // أو وجود قرار «مراجعة» صريح في النتيجة.
-        expect(resolution.strategy, ResolutionStrategy.fieldLevelMerge);
-        expect(resolution.mergedData['amount'], 150.0);
-        expect(resolution.pushedToRemote, isTrue);
+        // ✅ السياسة الصريحة (إغلاق G-4): لا دمج صامت للمبلغ ولا طمس لأي نسخة.
+        expect(resolution.requiresReview, isTrue);
+        expect(resolution.reviewFields, contains('amount'));
+        expect(
+          resolution.mergedData['amount'],
+          120.0,
+          reason: 'القيمة المحلية تُحفظ — لا يُمسح مال محلي بلا قرار بشري',
+        );
+        expect(
+          resolution.pushedToRemote,
+          isFalse,
+          reason: 'لا نرفع قيمة لتطمس تعديل الجهاز الآخر قبل المراجعة',
+        );
+        expect(
+          resolution.warnings.join(' '),
+          contains('critical financial field conflict'),
+        );
       },
     );
 
-    test('non-conflicting remote change is applied cleanly', () {
-      const localUuid = 'expense-conflict-3';
-      final local = <String, dynamic>{
-        'localUuid': localUuid,
-        'amount': 100.0,
-        'lastModified': 5000,
-        'vectorClock': '{"device-A": 2, "device-B": 1}',
-      };
-      final remote = <String, dynamic>{
-        'localUuid': localUuid,
-        'amount': 100.0,
-        'hotelDayKey': '2026-10-01',
-        'lastModified': 6000,
-        'vectorClock': '{"device-A": 1, "device-B": 2}',
-      };
-
-      final resolution = SmartConflictResolver.resolve(
-        entity: 'expenses',
-        localData: local,
-        remoteData: remote,
-        commonAncestor: <String, dynamic>{
+    test(
+      'G-4: non-critical fields of the same record are still merged',
+      () {
+        const localUuid = 'expense-conflict-2b';
+        final local = <String, dynamic>{
+          'localUuid': localUuid,
+          'amount': 120.0,
+          'hotelDayKey': '2026-10-01',
+          'lastModified': 5000,
+          'vectorClock': '{"device-A": 2, "device-B": 1}',
+        };
+        final remote = <String, dynamic>{
+          'localUuid': localUuid,
+          'amount': 150.0,
+          'hotelDayKey': '2026-10-02',
+          'lastModified': 6000,
+          'vectorClock': '{"device-A": 1, "device-B": 2}',
+        };
+        final ancestor = <String, dynamic>{
           'localUuid': localUuid,
           'amount': 100.0,
-        },
-      );
+          'hotelDayKey': '2026-10-01',
+        };
 
-      expect(resolution.mergedData['hotelDayKey'], '2026-10-01');
-      expect(resolution.mergedData['amount'], 100.0);
-    });
+        final resolution = SmartConflictResolver.resolve(
+          entity: 'expenses',
+          localData: local,
+          remoteData: remote,
+          commonAncestor: ancestor,
+        );
+
+        expect(resolution.requiresReview, isTrue);
+        expect(resolution.mergedData['amount'], 120.0);
+        expect(
+          resolution.mergedData['hotelDayKey'],
+          '2026-10-02',
+          reason: 'الحقل غير المالي يُدمج من الجهاز الذي عدّله',
+        );
+      },
+    );
+
+    test(
+      'a critical-field conflict is persisted for human review in sync_conflicts',
+      () async {
+        final db = _newDb();
+        addTearDown(() => db.close());
+        final outbox = OutboxDao(db);
+        final pull = SyncPullService(
+          appwriteService: AppwriteService(),
+          database: db,
+          outboxDao: outbox,
+        );
+        pull.setAncestorCacheDao(AncestorCacheDao(db), deviceId: 'device-B');
+
+        const localUuid = 'expense-conflict-review-1';
+        final remote = <String, dynamic>{
+          'localUuid': localUuid,
+          'amount': 150.0,
+          'lastModified': 6000,
+          'vectorClock': '{"device-A": 1, "device-B": 2}',
+        };
+
+        final result = await pull.checkAndResolveConflict(
+          remote,
+          _now - 60,
+          remoteUpdatedAtSec: _now,
+          localVectorClock: '{"device-A": 2, "device-B": 1}',
+          entityName: 'expenses',
+          localUuid: localUuid,
+          localData: <String, dynamic>{
+            'localUuid': localUuid,
+            'amount': 120.0,
+            'lastModified': _now - 120,
+            'vectorClock': '{"device-A": 2, "device-B": 1}',
+          },
+        );
+
+        // الحقل المالي لم يُدمج صامتاً، والسجل دخل قائمة المراجعة البشرية
+        expect(result.requiresReview, isTrue);
+        expect(result.mergedData?['amount'], 120.0);
+        expect(result.pushedToRemote, isFalse);
+
+        final conflicts = await db.select(db.syncConflicts).get();
+        expect(conflicts, hasLength(1));
+        expect(conflicts.single.targetTable, 'expenses');
+        expect(conflicts.single.uuid, localUuid);
+        expect(
+          conflicts.single.resolution,
+          '',
+          reason: 'resolution فارغ = بانتظار قرار بشري (يظهر في شاشة التعارضات)',
+        );
+        expect(
+          conflicts.single.localPayload,
+          contains('critical_financial_field_conflict'),
+        );
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
