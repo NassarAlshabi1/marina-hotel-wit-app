@@ -41,8 +41,10 @@ import 'package:marina_hotel_mobile/services/sync_core/conflict_detector.dart';
 import 'package:marina_hotel_mobile/services/sync_core/smart_conflict_resolver.dart';
 import 'package:marina_hotel_mobile/services/sync_core/sync_pull_service.dart';
 
-const int _now = 1760000000; // epoch ثابت (2025-10-09 تقريبًا) — لا يعتمد على ساعة الجهاز
-const String _salaryType = 'سحب راتب'; // نوع نقدي معروف في SalaryExpenseClassifier
+const int _now =
+    1760000000; // epoch ثابت (2025-10-09 تقريبًا) — لا يعتمد على ساعة الجهاز
+const String _salaryType =
+    'سحب راتب'; // نوع نقدي معروف في SalaryExpenseClassifier
 const String _advanceType = 'سلفة'; // نوع رواتب يدخل في مسار حل employee_uuid
 
 AppDatabase _newDb() => AppDatabase.forTesting(NativeDatabase.memory());
@@ -317,15 +319,43 @@ void main() {
   // 2) إعادة الإرسال — لا تكرار للحركة المالية
   // ═══════════════════════════════════════════════════════════════════════
   group('2) إعادة الإرسال (idempotency)', () {
-    test('re-sending the same operation never duplicates the movement', () async {
-      final db = _newDb();
-      addTearDown(() => db.close());
-      final outbox = OutboxDao(db);
+    test(
+      're-sending the same operation never duplicates the movement',
+      () async {
+        final db = _newDb();
+        addTearDown(() => db.close());
+        final outbox = OutboxDao(db);
 
-      const uuid = 'withdrawal-retry-1';
-      const expectedKey = 'salary_withdrawals:create:$uuid:$_now';
+        const uuid = 'withdrawal-retry-1';
+        const expectedKey = 'salary_withdrawals:create:$uuid:$_now';
 
-      for (var i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
+          await outbox.merge(
+            entity: 'salary_withdrawals',
+            op: 'create',
+            localUuid: uuid,
+            payload: {'amount': 100, 'employeeId': 1},
+            clientTs: _now,
+          );
+        }
+
+        final rows = await db.select(db.outbox).get();
+        expect(
+          rows,
+          hasLength(1),
+          reason: 'خمس محاولات = عملية واحدة في outbox',
+        );
+        expect(rows.single.idempotencyKey, expectedKey);
+
+        final batch = await outbox.takeBatch(10, sources: const ['local']);
+        expect(batch, hasLength(1));
+        expect(batch.single.localUuid, uuid);
+
+        // بعد نجاح التسليم يُزال السجل (لا تراكم). إعادة نفس العملية تحمل
+        // نفس idempotencyKey → الـ upsert على السحابة لا يُنشئ مستندًا جديدًا.
+        await outbox.markDeliveredToPrimary(batch.single.id);
+        expect(await outbox.count(), 0);
+
         await outbox.merge(
           entity: 'salary_withdrawals',
           op: 'create',
@@ -333,56 +363,45 @@ void main() {
           payload: {'amount': 100, 'employeeId': 1},
           clientTs: _now,
         );
-      }
+        final again = await db.select(db.outbox).get();
+        expect(again.single.idempotencyKey, expectedKey);
+      },
+    );
 
-      final rows = await db.select(db.outbox).get();
-      expect(rows, hasLength(1), reason: 'خمس محاولات = عملية واحدة في outbox');
-      expect(rows.single.idempotencyKey, expectedKey);
+    test(
+      're-merging the same uuid with a new clientTs keeps one operation only',
+      () async {
+        final db = _newDb();
+        addTearDown(() => db.close());
+        final outbox = OutboxDao(db);
 
-      final batch = await outbox.takeBatch(10, sources: const ['local']);
-      expect(batch, hasLength(1));
-      expect(batch.single.localUuid, uuid);
+        await outbox.merge(
+          entity: 'expenses',
+          op: 'create',
+          localUuid: 'exp-merge-1',
+          payload: {'amount': 10},
+          clientTs: _now,
+        );
+        await outbox.merge(
+          entity: 'expenses',
+          op: 'create',
+          localUuid: 'exp-merge-1',
+          payload: {'amount': 20},
+          clientTs: _now + 60,
+        );
 
-      // بعد نجاح التسليم يُزال السجل (لا تراكم). إعادة نفس العملية تحمل
-      // نفس idempotencyKey → الـ upsert على السحابة لا يُنشئ مستندًا جديدًا.
-      await outbox.markDeliveredToPrimary(batch.single.id);
-      expect(await outbox.count(), 0);
-
-      await outbox.merge(
-        entity: 'salary_withdrawals',
-        op: 'create',
-        localUuid: uuid,
-        payload: {'amount': 100, 'employeeId': 1},
-        clientTs: _now,
-      );
-      final again = await db.select(db.outbox).get();
-      expect(again.single.idempotencyKey, expectedKey);
-    });
-
-    test('re-merging the same uuid with a new clientTs keeps one operation only', () async {
-      final db = _newDb();
-      addTearDown(() => db.close());
-      final outbox = OutboxDao(db);
-
-      await outbox.merge(
-        entity: 'expenses',
-        op: 'create',
-        localUuid: 'exp-merge-1',
-        payload: {'amount': 10},
-        clientTs: _now,
-      );
-      await outbox.merge(
-        entity: 'expenses',
-        op: 'create',
-        localUuid: 'exp-merge-1',
-        payload: {'amount': 20},
-        clientTs: _now + 60,
-      );
-
-      final rows = await db.select(db.outbox).get();
-      expect(rows, hasLength(1), reason: 'نفس uuid = نفس العملية (تحديث لا إدراج)');
-      expect(rows.single.idempotencyKey, 'expenses:create:exp-merge-1:${_now + 60}');
-    });
+        final rows = await db.select(db.outbox).get();
+        expect(
+          rows,
+          hasLength(1),
+          reason: 'نفس uuid = نفس العملية (تحديث لا إدراج)',
+        );
+        expect(
+          rows.single.idempotencyKey,
+          'expenses:create:exp-merge-1:${_now + 60}',
+        );
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -418,11 +437,15 @@ void main() {
       expect(batch, hasLength(1));
       await outbox.markFailed(batch.map((e) => e.id).toList());
 
-      final saved = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.id.equals(wdId)))
-          .getSingle();
+      final saved = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.id.equals(wdId))).getSingle();
       expect(saved.localUuid, 'withdrawal-offline-1');
-      expect(await outbox.count(), 1, reason: 'العملية تبقى في outbox بعد الفشل');
+      expect(
+        await outbox.count(),
+        1,
+        reason: 'العملية تبقى في outbox بعد الفشل',
+      );
 
       // 3) إعادة الاتصال → إعادة إرسال نفس العملية بنفس UUID
       await outbox.retryFailed();
@@ -436,35 +459,41 @@ void main() {
 
       // 4) لا تكرار: حركة واحدة فقط في الجدول المالي
       final all = await db.select(db.salaryWithdrawals).get();
-      expect(all.where((r) => r.localUuid == 'withdrawal-offline-1'), hasLength(1));
+      expect(
+        all.where((r) => r.localUuid == 'withdrawal-offline-1'),
+        hasLength(1),
+      );
     });
 
-    test('a stuck processing entry is reclaimed before the next push', () async {
-      final db = _newDb();
-      addTearDown(() => db.close());
-      final outbox = OutboxDao(db);
+    test(
+      'a stuck processing entry is reclaimed before the next push',
+      () async {
+        final db = _newDb();
+        addTearDown(() => db.close());
+        final outbox = OutboxDao(db);
 
-      await db
-          .into(db.outbox)
-          .insert(
-            OutboxCompanion.insert(
-              entity: 'expenses',
-              op: 'create',
-              localUuid: 'exp-stuck-1',
-              payload: '{"amount":1}',
-              clientTs: _now,
-              processingStatus: const d.Value('processing'),
-              // أقدم من عتبة reclaimForPush (30 ثانية)
-              processingStartedAt: const d.Value(_now - 3600),
-              processingWorker: const d.Value('dead-worker'),
-            ),
-          );
+        await db
+            .into(db.outbox)
+            .insert(
+              OutboxCompanion.insert(
+                entity: 'expenses',
+                op: 'create',
+                localUuid: 'exp-stuck-1',
+                payload: '{"amount":1}',
+                clientTs: _now,
+                processingStatus: const d.Value('processing'),
+                // أقدم من عتبة reclaimForPush (30 ثانية)
+                processingStartedAt: const d.Value(_now - 3600),
+                processingWorker: const d.Value('dead-worker'),
+              ),
+            );
 
-      final reclaimed = await outbox.reclaimForPush();
-      expect(reclaimed, greaterThanOrEqualTo(1));
-      final batch = await outbox.takeBatch(10, sources: const ['local']);
-      expect(batch.map((e) => e.localUuid), contains('exp-stuck-1'));
-    });
+        final reclaimed = await outbox.reclaimForPush();
+        expect(reclaimed, greaterThanOrEqualTo(1));
+        final batch = await outbox.takeBatch(10, sources: const ['local']);
+        expect(batch.map((e) => e.localUuid), contains('exp-stuck-1'));
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -529,136 +558,148 @@ void main() {
       },
     );
 
-    test('payment arriving before its cycle is deferred, not mis-bound', () async {
-      final db = _newDb();
-      addTearDown(() => db.close());
+    test(
+      'payment arriving before its cycle is deferred, not mis-bound',
+      () async {
+        final db = _newDb();
+        addTearDown(() => db.close());
 
-      final emp = await _employee(db, uuid: 'emp-pay', name: 'موظف');
-      // دورة محلية أخرى تأخذ id=… (تصادم رقمي مقصود مع cycleId القادم)
-      final wrongCycle = await _cycle(
-        db,
-        uuid: 'cycle-local-other',
-        employeeId: emp,
-        cycleKey: '2026-08',
-        employeeUuid: 'emp-pay',
-      );
+        final emp = await _employee(db, uuid: 'emp-pay', name: 'موظف');
+        // دورة محلية أخرى تأخذ id=… (تصادم رقمي مقصود مع cycleId القادم)
+        final wrongCycle = await _cycle(
+          db,
+          uuid: 'cycle-local-other',
+          employeeId: emp,
+          cycleKey: '2026-08',
+          employeeUuid: 'emp-pay',
+        );
 
-      final adapter = SalaryPaymentsAdapter(IdResolver(db));
-      final remote = <String, dynamic>{
-        'localUuid': 'payment-child-first',
-        'cycleId': wrongCycle, // رقم جهاز المصدر
-        'cycleLocalUuid': 'cycle-arrives-later', // الهوية الحقيقية للدورة
-        'employeeUuid': 'emp-pay',
-        'amount': 500,
-        'paymentDateIso': '2026-10-03',
-        'createdAt': _now,
-        'updatedAt': _now,
-        'lastModified': _now,
-      };
+        final adapter = SalaryPaymentsAdapter(IdResolver(db));
+        final remote = <String, dynamic>{
+          'localUuid': 'payment-child-first',
+          'cycleId': wrongCycle, // رقم جهاز المصدر
+          'cycleLocalUuid': 'cycle-arrives-later', // الهوية الحقيقية للدورة
+          'employeeUuid': 'emp-pay',
+          'amount': 500,
+          'paymentDateIso': '2026-10-03',
+          'createdAt': _now,
+          'updatedAt': _now,
+          'lastModified': _now,
+        };
 
-      final refs = await adapter.resolveRefs(
-        db,
-        Map<String, dynamic>.from(remote),
-        src: Source.appwrite,
-      );
-      expect(refs.salaryCycleLocalId, isNull);
-      expect(
-        refs.shouldSkip,
-        isTrue,
-        reason: 'الدفعة تُؤجَّل حتى وصول دورتها — لا تُربط بدورة أخرى',
-      );
+        final refs = await adapter.resolveRefs(
+          db,
+          Map<String, dynamic>.from(remote),
+          src: Source.appwrite,
+        );
+        expect(refs.salaryCycleLocalId, isNull);
+        expect(
+          refs.shouldSkip,
+          isTrue,
+          reason: 'الدفعة تُؤجَّل حتى وصول دورتها — لا تُربط بدورة أخرى',
+        );
 
-      // وصول الدورة الصحيحة (نفس local_uuid)
-      final realCycle = await _cycle(
-        db,
-        uuid: 'cycle-arrives-later',
-        employeeId: emp,
-        cycleKey: '2026-09',
-        employeeUuid: 'emp-pay',
-      );
-      final refsAfter = await adapter.resolveRefs(
-        db,
-        Map<String, dynamic>.from(remote),
-        src: Source.appwrite,
-      );
-      expect(refsAfter.shouldSkip, isFalse);
-      expect(refsAfter.salaryCycleLocalId, realCycle);
-      expect(refsAfter.salaryCycleLocalId, isNot(wrongCycle));
-    });
+        // وصول الدورة الصحيحة (نفس local_uuid)
+        final realCycle = await _cycle(
+          db,
+          uuid: 'cycle-arrives-later',
+          employeeId: emp,
+          cycleKey: '2026-09',
+          employeeUuid: 'emp-pay',
+        );
+        final refsAfter = await adapter.resolveRefs(
+          db,
+          Map<String, dynamic>.from(remote),
+          src: Source.appwrite,
+        );
+        expect(refsAfter.shouldSkip, isFalse);
+        expect(refsAfter.salaryCycleLocalId, realCycle);
+        expect(refsAfter.salaryCycleLocalId, isNot(wrongCycle));
+      },
+    );
 
-    test('mirror withdrawal keeps the expense uuid when the expense is not here yet', () async {
-      final db = _newDb();
-      addTearDown(() => db.close());
+    test(
+      'mirror withdrawal keeps the expense uuid when the expense is not here yet',
+      () async {
+        final db = _newDb();
+        addTearDown(() => db.close());
 
-      final emp = await _employee(db, uuid: 'emp-mirror', name: 'موظف');
-      final adapter = SalaryWithdrawalsAdapter(IdResolver(db));
+        final emp = await _employee(db, uuid: 'emp-mirror', name: 'موظف');
+        final adapter = SalaryWithdrawalsAdapter(IdResolver(db));
 
-      final remote = <String, dynamic>{
-        'localUuid': 'withdrawal-child-first',
-        'employeeId': 999, // رقم جهاز المصدر — لا معنى له هنا
-        'employeeUuid': 'emp-mirror',
-        'amount': 120,
-        'withdrawDate': '2026-10-01',
-        'reason': 'exp_962',
-        'expenseUuid': 'expense-not-here-yet',
-        'createdAt': _now,
-        'updatedAt': _now,
-        'lastModified': _now,
-      };
+        final remote = <String, dynamic>{
+          'localUuid': 'withdrawal-child-first',
+          'employeeId': 999, // رقم جهاز المصدر — لا معنى له هنا
+          'employeeUuid': 'emp-mirror',
+          'amount': 120,
+          'withdrawDate': '2026-10-01',
+          'reason': 'exp_962',
+          'expenseUuid': 'expense-not-here-yet',
+          'createdAt': _now,
+          'updatedAt': _now,
+          'lastModified': _now,
+        };
 
-      final refs = await adapter.resolveRefs(
-        db,
-        Map<String, dynamic>.from(remote),
-        src: Source.appwrite,
-      );
-      expect(refs.employeeLocalId, emp);
+        final refs = await adapter.resolveRefs(
+          db,
+          Map<String, dynamic>.from(remote),
+          src: Source.appwrite,
+        );
+        expect(refs.employeeLocalId, emp);
 
-      final companion = adapter.fromJson(
-        remote,
-        src: Source.appwrite,
-        refs: refs,
-      );
-      expect(companion.employeeId.value, emp);
-      // رابط الهوية يُحفظ كما هو ليُحسم لاحقًا (relink) ولا يُخمَّن برقم
-      expect(companion.expenseUuid.value, 'expense-not-here-yet');
-      expect(companion.employeeUuid.value, 'emp-mirror');
-    });
+        final companion = adapter.fromJson(
+          remote,
+          src: Source.appwrite,
+          refs: refs,
+        );
+        expect(companion.employeeId.value, emp);
+        // رابط الهوية يُحفظ كما هو ليُحسم لاحقًا (relink) ولا يُخمَّن برقم
+        expect(companion.expenseUuid.value, 'expense-not-here-yet');
+        expect(companion.employeeUuid.value, 'emp-mirror');
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
   // 5) التعارض — سياسة الحقول المالية الحرجة
   // ═══════════════════════════════════════════════════════════════════════
   group('5) التعارض', () {
-    test('concurrent edit of a critical financial field is flagged as needing review', () {
-      const localUuid = 'expense-conflict-1';
-      final local = <String, dynamic>{
-        'localUuid': localUuid,
-        'amount': 120.0,
-        'lastModified': 5000,
-        'vectorClock': '{"device-A": 2, "device-B": 1}',
-      };
-      final remote = <String, dynamic>{
-        'localUuid': localUuid,
-        'amount': 150.0,
-        'lastModified': 6000,
-        'vectorClock': '{"device-A": 1, "device-B": 2}',
-      };
-      final ancestor = <String, dynamic>{'localUuid': localUuid, 'amount': 100.0};
+    test(
+      'concurrent edit of a critical financial field is flagged as needing review',
+      () {
+        const localUuid = 'expense-conflict-1';
+        final local = <String, dynamic>{
+          'localUuid': localUuid,
+          'amount': 120.0,
+          'lastModified': 5000,
+          'vectorClock': '{"device-A": 2, "device-B": 1}',
+        };
+        final remote = <String, dynamic>{
+          'localUuid': localUuid,
+          'amount': 150.0,
+          'lastModified': 6000,
+          'vectorClock': '{"device-A": 1, "device-B": 2}',
+        };
+        final ancestor = <String, dynamic>{
+          'localUuid': localUuid,
+          'amount': 100.0,
+        };
 
-      final detection = ConflictDetector.detect(
-        localData: local,
-        remoteData: remote,
-        commonAncestor: ancestor,
-      );
+        final detection = ConflictDetector.detect(
+          localData: local,
+          remoteData: remote,
+          commonAncestor: ancestor,
+        );
 
-      expect(detection.type, ConflictType.concurrentSameFields);
-      expect(detection.conflictingFields, contains('amount'));
-      expect(
-        detection.needsManualResolution,
-        isTrue,
-        reason: 'amount حقل مالي حرج — الكاشف نفسه يطلبه للمراجعة',
-      );
-    });
+        expect(detection.type, ConflictType.concurrentSameFields);
+        expect(detection.conflictingFields, contains('amount'));
+        expect(
+          detection.needsManualResolution,
+          isTrue,
+          reason: 'amount حقل مالي حرج — الكاشف نفسه يطلبه للمراجعة',
+        );
+      },
+    );
 
     test(
       'G-4 (documented current behavior): the critical field is auto-merged by newerWins',
@@ -676,7 +717,10 @@ void main() {
           'lastModified': 6000,
           'vectorClock': '{"device-A": 1, "device-B": 2}',
         };
-        final ancestor = <String, dynamic>{'localUuid': localUuid, 'amount': 100.0};
+        final ancestor = <String, dynamic>{
+          'localUuid': localUuid,
+          'amount': 100.0,
+        };
 
         final resolution = SmartConflictResolver.resolve(
           entity: 'expenses',
@@ -716,7 +760,10 @@ void main() {
         entity: 'expenses',
         localData: local,
         remoteData: remote,
-        commonAncestor: <String, dynamic>{'localUuid': localUuid, 'amount': 100.0},
+        commonAncestor: <String, dynamic>{
+          'localUuid': localUuid,
+          'amount': 100.0,
+        },
       );
 
       expect(resolution.mergedData['hotelDayKey'], '2026-10-01');
@@ -796,38 +843,42 @@ void main() {
       expect(
         result.shouldApplyRemote,
         isTrue,
-        reason: 'الـ tombstone البعيد يُطبَّق دائمًا — جهاز قديم لا يُحيي السجل',
+        reason:
+            'الـ tombstone البعيد يُطبَّق دائمًا — جهاز قديم لا يُحيي السجل',
       );
     });
 
-    test('local delete is preserved against a concurrent remote update', () async {
-      final db = _newDb();
-      addTearDown(() => db.close());
-      final outbox = OutboxDao(db);
-      final pull = SyncPullService(
-        appwriteService: AppwriteService(),
-        database: db,
-        outboxDao: outbox,
-      );
-      pull.setAncestorCacheDao(AncestorCacheDao(db), deviceId: 'device-B');
+    test(
+      'local delete is preserved against a concurrent remote update',
+      () async {
+        final db = _newDb();
+        addTearDown(() => db.close());
+        final outbox = OutboxDao(db);
+        final pull = SyncPullService(
+          appwriteService: AppwriteService(),
+          database: db,
+          outboxDao: outbox,
+        );
+        pull.setAncestorCacheDao(AncestorCacheDao(db), deviceId: 'device-B');
 
-      final result = await pull.checkAndResolveConflict(
-        <String, dynamic>{
-          'localUuid': 'expense-deleted-3',
-          'amount': 200.0,
-          'deletedAt': null,
-          'lastModified': _now,
-          'vectorClock': '{"device-A": 3}',
-        },
-        _now - 10,
-        localDeletedAt: _now - 20,
-        remoteUpdatedAtSec: _now,
-        entityName: 'expenses',
-        localUuid: 'expense-deleted-3',
-      );
+        final result = await pull.checkAndResolveConflict(
+          <String, dynamic>{
+            'localUuid': 'expense-deleted-3',
+            'amount': 200.0,
+            'deletedAt': null,
+            'lastModified': _now,
+            'vectorClock': '{"device-A": 3}',
+          },
+          _now - 10,
+          localDeletedAt: _now - 20,
+          remoteUpdatedAtSec: _now,
+          entityName: 'expenses',
+          localUuid: 'expense-deleted-3',
+        );
 
-      expect(result.shouldApplyRemote, isFalse);
-    });
+        expect(result.shouldApplyRemote, isFalse);
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -896,11 +947,17 @@ void main() {
         );
         await db
             .into(db.employees)
-            .insert(employeeAdapter.fromJson(json, src: Source.drive, refs: refs));
+            .insert(
+              employeeAdapter.fromJson(json, src: Source.drive, refs: refs),
+            );
       }
       for (final row in data['salary_cycles']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
-        final refs = await cycleAdapter.resolveRefs(db, json, src: Source.drive);
+        final refs = await cycleAdapter.resolveRefs(
+          db,
+          json,
+          src: Source.drive,
+        );
         await db
             .into(db.salaryCycles)
             .insert(cycleAdapter.fromJson(json, src: Source.drive, refs: refs));
@@ -914,7 +971,9 @@ void main() {
         );
         await db
             .into(db.expenses)
-            .insert(expenseAdapter.fromJson(json, src: Source.drive, refs: refs));
+            .insert(
+              expenseAdapter.fromJson(json, src: Source.drive, refs: refs),
+            );
       }
       for (final row in data['salary_withdrawals']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
@@ -1089,14 +1148,11 @@ void main() {
 
         // 2) الهويات
         final targetExpenses = await target.select(target.expenses).get();
-        expect(
-          targetExpenses.map((e) => e.localUuid).toSet(),
-          {
-            'exp-uuid-0001',
-            'exp-uuid-0002',
-            'exp-uuid-0003',
-          },
-        );
+        expect(targetExpenses.map((e) => e.localUuid).toSet(), {
+          'exp-uuid-0001',
+          'exp-uuid-0002',
+          'exp-uuid-0003',
+        });
 
         // 3) المجاميع المالية
         double sum(Iterable<num> values) =>
@@ -1119,11 +1175,15 @@ void main() {
           sourceWithdrawalTotal,
         );
         final sourcePaymentTotal = sum(
-          (await source.select(source.salaryPayments).get()).map((p) => p.amount),
+          (await source.select(source.salaryPayments).get()).map(
+            (p) => p.amount,
+          ),
         );
         expect(
           sum(
-            (await target.select(target.salaryPayments).get()).map((p) => p.amount),
+            (await target.select(target.salaryPayments).get()).map(
+              (p) => p.amount,
+            ),
           ),
           sourcePaymentTotal,
         );
@@ -1162,10 +1222,7 @@ void main() {
         final linkedCycle = cycles.firstWhere(
           (c) => c.id == payments.single.cycleId,
         );
-        expect(
-          linkedCycle.employeeUuid,
-          'emp-uuid-0001',
-        );
+        expect(linkedCycle.employeeUuid, 'emp-uuid-0001');
       },
     );
 
@@ -1205,10 +1262,9 @@ void main() {
             src: Source.appwrite,
             refs: refs,
           );
-          final existing =
-              await (deviceB.select(deviceB.employees)
-                    ..where((e) => e.localUuid.equals(uuid)))
-                  .getSingleOrNull();
+          final existing = await (deviceB.select(
+            deviceB.employees,
+          )..where((e) => e.localUuid.equals(uuid))).getSingleOrNull();
           if (existing == null) {
             await deviceB.into(deviceB.employees).insert(companion);
           }
