@@ -184,4 +184,4 @@ warning • The declaration '_handlePeriodicPull' isn't referenced. Try removing
 warning • The declaration '_startPeriodicSync' isn't referenced. Try removing the declaration of '_startPeriodicSync' • lib/services/smart_google_drive_sync.dart:290:8 • unused_element
 warning • The declaration '_performOptimizedSyncCheck' isn't referenced. Try removing the declaration of '_performOptimizedSyncCheck' • lib/services/smart_sync_manager.dart:148:16 • unused_element
 
-5 issues found. (ran in 20.4s)
+5 issues found. (ran in 26.5s)

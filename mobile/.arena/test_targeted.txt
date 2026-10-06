@@ -178,7 +178,14 @@ Got dependencies!
 Try `flutter pub outdated` for more information.
 
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم يُثبّت من المفتاح الأجنبي المحلي ويكتب مرة واحدة
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-9 — عدّاد السحب لا يعلن المؤجَّل كمطبَّق يخصم المؤجَّل من المُعلَن
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-9 — عدّاد السحب لا يعلن المؤجَّل كمطبَّق لا نتيجة سالبة ولا انقلاب عند تجاوز العدّاد
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم UUID الوارد في الحمولة (هوية معلنة) يتقدّم على المفتاح الرقمي
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع هوية مُعادة مطابقة (بأي شكل شرطات) ⇒ يُطبَّق
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع هوية مُعادة لسجل آخر ⇒ لا يُطبَّق (لا رقم أجنبي على صف بريء)
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع بلا هوية مُعادة ⇒ توافق خلفي (يُطبَّق) لكن المستدعي يحذّر
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع استخراج الهوية من الرد: camel ثم snake
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع sameIdentity لا يقبل فراغاً ولا يخلط سجلين
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم لا دليل ⇒ لا كتابة (يبقى فارغاً ويظهر في المراجعة)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم المشي المحدود يثبّت كل رابط مُثبت بـ FK ويعدّ الملخص
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل مطابقة واحدة ببداية اليوم الفندقي ⇒ UUID الدورة
@@ -186,8 +193,8 @@ Try `flutter pub outdated` for more information.
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل أكثر من مرشّح ⇒ لا ربط (لا تخمين — البند 12)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل صفر مرشّح ⇒ لا ربط
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P1-3 — ازدواج الرقم البعيد ⇒ مراجعة لا اختيار موظفان بنفس serverId ونفس الجهاز ⇒ لا ربط من السحابة
-2026-10-06T20:50:43.581080 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=7 (جهاز=devA) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
-2026-10-06T20:50:43.583956 WARN [IdResolver] تعدد مطابقة serverId=7 في employees: id=1(deletedAt=null), id=2(deletedAt=null) — اختيار id=1 (النشط ثم الأصغر)
+2026-10-06T20:54:42.622339 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=7 (جهاز=devA) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
+2026-10-06T20:54:42.626009 WARN [IdResolver] تعدد مطابقة serverId=7 في employees: id=1(deletedAt=null), id=2(deletedAt=null) — اختيار id=1 (النشط ثم الأصغر)
 ::endgroup::
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل رابط الهوية ⇒ identity (حاسم)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل الرقم البعيد بلا إثبات الجهاز ⇒ لا ربط رقمي (يسقط للمطابقة)
@@ -199,87 +206,110 @@ Try `flutter pub outdated` for more information.
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية البحث بالاسم يعمل بأشكال كتابة مختلفة
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية البحث يشمل الغرفة ورقم الهوية والمحافظة
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية عبارة فارغة تعني «لا فلترة»
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) يحل عبر employeeUuid (الطريقة 1) بالصيغة القياسية
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) يحل عبر employeeUuid بصيغة 32 حرفاً بدون شرطات
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) يحل عبر serverId فقط بإثبات جهاز الكاتب (payload قديم بلا uuid)
+2026-10-06T20:54:51.642575 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: employeeId=12 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات ⇒ يُترك السجل للربط المؤجّل عبر UUID (G-3).
+::endgroup::
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) لا يطابق employeeId البعيد مع e.id المحلي (منع الربط الخاطئ عبر الأجهزة)
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) serverId مكرر (خطأ بيانات): لا اختيار — يُترك للمراجعة
+2026-10-06T20:54:51.692313 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=1 (جهاز=device-A) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
+::endgroup::
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) serverId مكرر وكلاهما نشط: لا اختيار — يُترك للمراجعة
+2026-10-06T20:54:51.710877 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=2 (جهاز=device-A) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
+::endgroup::
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) المصدر المحلي: ازدواج serverId يبقى حتمياً (النشط ثم الأصغر)
+2026-10-06T20:54:51.726808 WARN [IdResolver] تعدد مطابقة serverId=31 في employees: id=1(deletedAt=null), id=2(deletedAt=1783994438) — اختيار id=1 (النشط ثم الأصغر)
+::endgroup::
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر محلي (fromRemote=false) يحل عبر localId (id المحلي صحيح الدلالة على نفس الجهاز)
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveSalaryCycle fromRemote=true: يحل عبر serverId ولا يحل عبر localId البعيد
+2026-10-06T20:54:51.771025 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: cycleId=42 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات (G-3).
+::endgroup::
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveSalaryCycle fromRemote=false: يحل عبر localId
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: buildFullSyncQueries + entityNeedsTombstoneParents includeTombstones=true يلغي فلتر tombstones (سحب الآباء المرجعية)
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: buildFullSyncQueries + entityNeedsTombstoneParents employees كيان أب مرجعي — tombstones تُسحب
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: buildFullSyncQueries + entityNeedsTombstoneParents بقية الكيانات تبقى مع فلتر استبعاد tombstones
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: شريط البحث في الهيد (AppScaffold.header) يظهر في الرأس ولا يحجب العنوان
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: شريط البحث في الهيد (AppScaffold.header) بلا header: لا يتغير شيء في بقية الشاشات
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة يجمع كل المصادر ويصنّفها بأعداد صحيحة
-2026-10-06T20:50:52.271169 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:50:52.285804 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
-::endgroup::
-::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة قراءة فقط: لا يتغيّر أي جدول بعد البناء والتصدير
-2026-10-06T20:50:52.321687 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:50:52.330975 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
-::endgroup::
-::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة يُنتج XLSX صالحاً (توقيع PK) بلا استثناء
-2026-10-06T20:50:52.556498 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:50:52.564255 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
-::endgroup::
-::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة قاعدة بيانات نظيفة: كل الأقسام صفر وحالة الفحص ناجحة
-2026-10-06T20:50:52.624227 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
-::endgroup::
-::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة نطاق المزوّد يظهر في التقرير (G-7 داخل G-8)
-2026-10-06T20:50:52.641893 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
-::endgroup::
-::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة clamps: لا انفجار عند غياب جداول (تثبيت أقدم)
-2026-10-06T20:50:52.659622 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
-::endgroup::
-::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — العقد (لا كتابة) build لا يُنشئ صفوفاً في sync_conflicts أو integrity_violations
-2026-10-06T20:50:52.678207 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:50:52.684558 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
-::endgroup::
-::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — العقد (لا كتابة) نوع Variable/تحويل التواريخ لا يُسقط التقرير بأخطاء SQL
-2026-10-06T20:50:52.702410 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:50:52.706053 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
+2026-10-06T20:54:53.250174 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.269726 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/1 — الفضاء الرقمي: لا ربط عبر الأجهزة بلا إثبات تصادم serverId بين جهازين: UUID يحسم، والرقم يُرفض
-2026-10-06T20:50:52.879531 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: employeeId=7 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات ⇒ يُترك السجل للربط المؤجّل عبر UUID (G-3).
+2026-10-06T20:54:53.480195 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: employeeId=7 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات ⇒ يُترك السجل للربط المؤجّل عبر UUID (G-3).
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/2 — الابن قبل الأب: تعليق ثم ربط عبر UUID بلا تكرار سحبة تصل قبل موظفها: تُخزَّن، ثم تُربط، ولا تتكرر
-2026-10-06T20:50:52.893374 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
-2026-10-06T20:50:52.910087 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-1 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:50:52.925830 INFO [DEFERRED_RELATIONS] ✅ رُبط salary_withdrawals/wd-uuid-1 عبر UUID (employee=emp-remote-uuid).
-2026-10-06T20:50:52.927358 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=1, pending=0, review=0, total=1
+2026-10-06T20:54:53.499865 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
+2026-10-06T20:54:53.524248 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-1 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.552899 INFO [DEFERRED_RELATIONS] ✅ رُبط salary_withdrawals/wd-uuid-1 عبر UUID (employee=emp-remote-uuid).
+2026-10-06T20:54:53.555341 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=1, pending=0, review=0, total=1
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/2 — الابن قبل الأب: تعليق ثم ربط عبر UUID بلا تكرار تعليق متكرر لنفس السجل لا يُنشئ صفوفاً مكررة في المخزن
-2026-10-06T20:50:52.949701 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-2 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.586233 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-2 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+::endgroup::
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة قراءة فقط: لا يتغيّر أي جدول بعد البناء والتصدير
+2026-10-06T20:54:53.314794 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.326830 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
+::endgroup::
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة يُنتج XLSX صالحاً (توقيع PK) بلا استثناء
+2026-10-06T20:54:53.614118 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.621715 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
+::endgroup::
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة قاعدة بيانات نظيفة: كل الأقسام صفر وحالة الفحص ناجحة
+2026-10-06T20:54:53.698409 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة رقم فقط + جهاز مجهول ⇒ لا ربط، ثم مراجعة بشرية بعد استنفاد المحاولات
-2026-10-06T20:50:52.954299 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
-2026-10-06T20:50:52.967214 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-3 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:50:52.972461 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:52.976385 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:52.980052 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:52.984349 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:52.987490 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:52.990752 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:52.993914 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:52.996963 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:52.999769 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.003171 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.005990 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.011010 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.015062 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.018437 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.020880 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.023458 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.025494 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.029978 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.033929 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.039592 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.043174 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.049216 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.051744 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.057319 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.062591 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.593412 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
+2026-10-06T20:54:53.614929 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-3 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.623071 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.629161 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.635711 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.641073 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.646564 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.652724 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.658106 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.662598 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.667069 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.671770 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.676202 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.680991 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.685953 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.690169 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.694166 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.697043 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.699484 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.702009 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.706833 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.710296 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.713618 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.716222 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.718523 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.721079 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.723480 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+::endgroup::
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة نطاق المزوّد يظهر في التقرير (G-7 داخل G-8)
+2026-10-06T20:54:53.729968 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
+::endgroup::
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — تقرير المراجعة clamps: لا انفجار عند غياب جداول (تثبيت أقدم)
+2026-10-06T20:54:53.752889 INFO [MONEY_INTEGRITY] ✅ فحص الكسور: كل المبالغ أعداد صحيحة في 29 جدول
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة رقم + نفس الجهاز الكاتب ⇒ يُربط (إثبات فضاء المعرّفات)
-2026-10-06T20:50:53.075213 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
-2026-10-06T20:50:53.087464 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-prov — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
-2026-10-06T20:50:53.091847 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
-2026-10-06T20:50:53.095577 INFO [DEFERRED_RELATIONS] ✅ رُبط salary_withdrawals/wd-uuid-prov عبر UUID (employee=).
-2026-10-06T20:50:53.096416 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=1, pending=0, review=0, total=1
+2026-10-06T20:54:53.735796 INFO [DEFERRED_RELATIONS] ✅ مُثبَّت مخزن العلاقات المعلّقة على salary_withdrawals, salary_cycles, salary_carry_over_logs, salary_payments, booking_nights, inventory_transactions (لا تخطّي صامت بعد الآن — G-3).
+2026-10-06T20:54:53.749263 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-prov — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.754189 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=0, pending=1, review=0, total=1
+2026-10-06T20:54:53.758419 INFO [DEFERRED_RELATIONS] ✅ رُبط salary_withdrawals/wd-uuid-prov عبر UUID (employee=).
+2026-10-06T20:54:53.759085 INFO [DEFERRED_RELATIONS] 🔗 دورة إعادة الربط: attempted=1, resolved=1, pending=0, review=0, total=1
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_g3_test.dart: G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة معرّف الجلسة المعلّقة يُحفظ كحمولة كاملة (لا فقدان حقول)
-2026-10-06T20:50:53.116405 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-4 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.782178 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/wd-uuid-4 — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+::endgroup::
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — العقد (لا كتابة) build لا يُنشئ صفوفاً في sync_conflicts أو integrity_violations
+2026-10-06T20:54:53.774311 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.781570 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
+::endgroup::
+::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/review_report_g8_test.dart: G-8 — العقد (لا كتابة) نوع Variable/تحويل التواريخ لا يُسقط التقرير بأخطاء SQL
+2026-10-06T20:54:53.804582 INFO [DEFERRED_RELATIONS] ⏳ تعليق salary_withdrawals/sw-deferred — علاقة غير محلولة (employee) بلا ربط تخميني؛ سيُعاد الربط عبر UUID.
+2026-10-06T20:54:53.811241 INFO [MONEY_INTEGRITY] ⚠️ فحص الكسور: 1 صف فيه كسور عشرية — للمراجعة البشرية (بلا تعديل تلقائي)
 ::endgroup::
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart: حالة «الاورمو محمد»: سحوبات مرآة عبر الأجهزة المرآة exp_962 بلا مصروف محلي 962 لا تُعَد مرتين (مطابقة بيانات)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart: حالة «الاورمو محمد»: سحوبات مرآة عبر الأجهزة مرايا متعددة بمبالغ مختلفة وأيام مختلفة تُطابَق كلها
@@ -290,4 +320,4 @@ Try `flutter pub outdated` for more information.
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart: المرحلة 2-ب: exp_N يطابق serverId المصروف مطابقة بيانات: موظف مختلف لا يُخدَّد به (حماية من الربط العابر)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart: المرحلة 2-ب: exp_N يطابق serverId المصروف يوم مختلف = ليس مرآة (نفس المبلغ عبر يومين)
 
-🎉 43 tests passed.
+🎉 63 tests passed.
