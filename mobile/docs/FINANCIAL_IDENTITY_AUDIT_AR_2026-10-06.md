@@ -38,9 +38,9 @@
 | 6. وصول الابن قبل الأب | ✅ مُنفَّذ (طوابير مؤجلة + إعادة ربط) | §6.1 |
 | 7. الحذف (منع الإحياء) | ✅ مُنفَّذ (tombstone يفوز دائمًا) | §6.2 |
 | 8. فصل منطق البيانات عن Appwrite | ⚠️ جزئي (G-6) | §8.1 |
-| 9. الانتقال لمزوّد آخر | ⚠️ يحتاج تنطيق المؤشرات (G-7) + قائمة §12 | §8.2, §12 |
-| 10. الاختبارات المطلوبة | ✅ مُضاف ملف اختبارات التدقيق | §11 |
-| 11. معيار النجاح النهائي | ⚠️ مشروط بإغلاق G-1/G-4/G-7 | §11, §12 |
+| 9. الانتقال لمزوّد آخر | ⚠️ يحتاج تنطيق المؤشرات (G-7) + حفظ الكسور (G-10) + قائمة §12 | §8.2, §12 |
+| 10. الاختبارات المطلوبة | ✅ مُضاف ملف اختبارات التدقيق (19 اختبارًا — 18 ناجح) | §11 |
+| 11. معيار النجاح النهائي | ❌ مكسور حاليًا: G-10 يغيّر المجاميع + G-1/G-4 | §11, §12 |
 | 12. عدم التخمين في السجلات التاريخية | ❌ لا تقرير مراجعة مُصدَّر (G-8) + تخمين `serverId` المزدوج (G-3) | §9 |
 | 13. التدقيق قبل الإصلاح | ✅ هذا المستند + استعلامات المراجعة (§9.2) | §1–§9 |
 
@@ -227,6 +227,27 @@ TextColumn get idempotencyKey
 
 ---
 
+## 8.3) G-10 (P0 — كشفه تشغيل الاختبارات على CI): الكسور المالية تُقرَّب عبر المزوّد
+
+**الدليل التنفيذي (تشغيل فعلي على GitHub Actions، 2026-10-06):**
+* اختبار «provider swap» سقط بالفرق: `Expected: <210.5> Actual: <211.0>` — سحب قيمته 150.5 عاد من الاستيراد 151.
+* السبب في الكود: `salary_withdrawals_adapter.dart:235` → `_k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer`
+  والعمود المحلي `salary_withdrawals.amount` نوعه `REAL` (`local_db.dart:765`).
+* النمط نفسه في مسارات مالية أخرى:
+  * `cash_transactions_adapter.dart:137` (`amount.round()` — العمود REAL في `local_db.dart:240`)
+  * `sync/payload_mapper.dart:499` (cash_transactions)، `:302` (debts.remainingAmount)، `:860` (price_adjustments)
+  * `debts_adapter.dart:232`
+* ملاحظة مهمة: **المصروفات تحفظ الكسور** (`expenses.amount` يُرسل كما هو) — لذا قد يختلف مبلغ السحبة المرآة عن مصروفها بعد عبور المزوّد (150.5 مقابل 151)، فتنكسر معادلة «مصروفات الرواتب = استحقاقات الموظف» بالبند الواحد.
+
+**الأثر:** أي مبلغ كسري في السحوبات/الخزينة/الديون/تعديلات السعر يتغيّر عند عبور الأجهزة أو المزوّد ⇒ يخالف معيار النجاح «نفس المجاميع المالية» (البند 11).
+
+**الإصلاح المطلوب (أحد الخيارين، بقرار منك):**
+1. **وحدات صغرى**: إضافة عمود/سمة `amount_minor` (عدد صحيح = المبلغ × 100) ونقل الكسر بلا فقد، مع إبقاء `amount` للتوافق؛ أو
+2. **سمة كسرية**: تغيير سمة `amount` على السحابة إلى `double` (يتطلب تعديل مخطط Appwrite) — تبدو أسرع لكنها مرتبطة بالمزوّد الحالي (تفشل عند مزوّد لا يدعم double).
+3. حارس إضافي في كل الحالات: **لا يُرفع مبلغ كسري مقرَّب بصمت** — إما يُنقل بدقة، أو يُسجَّل تحذير/مراجعة.
+
+---
+
 ## 9) السجلات التاريخية غير المؤكدة (البند 12) — إجراء دون تخمين
 
 **ممنوع** ربط أي سجل تاريخي اعتمادًا على `id` أو الاسم أو المبلغ أو التاريخ أو التشابه.
@@ -287,7 +308,8 @@ WHERE p.amount > 0 AND (c.local_uuid IS NULL OR c.local_uuid = '');
 | الأولوية | الإصلاح | الملفات | اختبار الإثبات |
 |---|---|---|---|
 | P0-1 | سياسة تعارض صريحة للحقول المالية الحرجة (G-4): منع الدمج الصامت + كتابة `sync_conflicts` + تقرير | `sync_core/conflict_detector.dart`, `sync_core/smart_conflict_resolver.dart`, مستدعيا الدمج | `concurrent_critical_field_conflict` |
-| P0-2 | حفظ `cycle_uuid` محليًا + في حمولة الـ outbox + إدراجه في الرفع من الصف (G-1) | migration + `local_db.dart`, `salary_payments_adapter.dart`, `payload_mapper.dart`, `appwrite_sync_manager.dart` | `payment_keeps_cycle_identity_without_live_join` |
+| P0-0 | **G-10**: منع تقريب المبالغ الكسرية عبر المزوّد (وحدات صغرى ×100 أو سمة كسرية) + حارس «لا تقريب صامت» | `salary_withdrawals_adapter.dart:235`, `cash_transactions_adapter.dart:137`, `debts_adapter.dart:232`, `sync/payload_mapper.dart:302,499,860` | `G-10` في `financial_identity_audit_test.dart` (يصبح `expect(targetAmount, 150.5)`) |
+| P0-2 | حفظ `cycle_uuid` محليًا + في حمولة الـ outbox + إدراجه في الرفع من الصف (G-1) | migration + `local_db.dart`, `salary_payments_adapter.dart`, `payload_mapper.dart`, `appwrite_sync_manager.dart` | `G-1` في `financial_identity_audit_test.dart` (يصبح `expect(stats.deferred, isEmpty)`) |
 | P1-3 | تصعيد ازدواج `serverId` إلى تقرير المراجعة بدل الاختيار (G-3) | `adapters/id_resolver.dart` | `ambiguous_server_id_goes_to_review` |
 | P1-4 | كتابة `from_cycle_id/to_cycle_id` كهويات دورات عند الترحيل (G-2) | `salary_entitlement_service.dart` + المحوّل | `carry_over_links_cycles_by_uuid` |
 | P1-5 | تنطيق المؤشرات بالمزوّد + تأسيس إجباري عند التحويل (G-7) | `sync_core/sync_checkpoint_store.dart`, `delta_sync_service.dart`, `sync_pull_service.dart` | `provider_switch_does_not_reuse_appwrite_cursor` |

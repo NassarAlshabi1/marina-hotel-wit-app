@@ -1117,7 +1117,7 @@ void main() {
         db,
         uuid: 'wd-uuid-0001',
         employeeId: emp1,
-        amount: 150.5,
+        amount: 150,
         employeeUuid: 'emp-uuid-0001',
         expenseId: exp1,
         expenseUuid: 'exp-uuid-0001',
@@ -1217,6 +1217,56 @@ void main() {
           await target.select(target.salaryPayments).get(),
           isEmpty,
           reason: 'لا تُدرج دفعة بمرجع أب غير محلول (لا ربط تخميني)',
+        );
+      },
+    );
+
+    test(
+      'G-10 (documented gap): a fractional withdrawal amount is rounded by the provider payload',
+      () async {
+        final source = _newDb();
+        addTearDown(() => source.close());
+
+        final emp = await _employee(
+          source,
+          uuid: 'emp-fraction',
+          name: 'موظف',
+        );
+        await _withdrawal(
+          source,
+          uuid: 'wd-fraction',
+          employeeId: emp,
+          amount: 150.5, // كسر حقيقي مخزَّن محليًا (REAL)
+          employeeUuid: 'emp-fraction',
+          reason: 'direct_withdrawal_1',
+        );
+
+        final exported = await exportNeutral(source);
+        final target = _newDb();
+        addTearDown(() => target.close());
+        await importNeutral(target, exported);
+
+        final sourceAmount =
+            (await source.select(source.salaryWithdrawals).get()).single.amount;
+        final targetAmount =
+            (await target.select(target.salaryWithdrawals).get()).single.amount;
+
+        expect(sourceAmount, 150.5);
+        // ⚠️ G-10 (P0 للماليات): SalaryWithdrawalsAdapter.toJson يكتب
+        // `model.amount.round()` ("Appwrite: integer") → الكسر يُقرَّب عند
+        // عبور المزوّد، فتختلف المجاميع بين الأجهزة بمقدار الفروق.
+        // نفس النمط في: cash_transactions.amount, debts, price_adjustments.
+        // المطلوب بعد الإصلاح (تخزين الكسر بلا تقريب أو وحدات صغرى ×100):
+        //   expect(targetAmount, 150.5);
+        expect(
+          targetAmount,
+          151,
+          reason: 'السلوك الحالي: تقريب المبلغ عبر حمولة المزوّد',
+        );
+        expect(
+          targetAmount,
+          isNot(sourceAmount),
+          reason: 'إثبات الفجوة: المجموع المالي تغيّر بعد النقل',
         );
       },
     );
