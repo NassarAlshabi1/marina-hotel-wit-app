@@ -157,6 +157,7 @@ final wasFullSync = !deltaOnly && !_fullSyncCompleted;
 | `RealtimePolicyTest` | سلّم backoff، تحويل https→wss (جذر فشل Dart)، بناء الرابط `entity=*` وترميز `deviceId`، تقصير رسائل الخطأ. |
 | `RealtimePullSchedulerTest` | دمج الدفعة (debounce)، تأجيل ما يقع داخل التهدئة ثم تنفيذ واحد، إعادة جدولة الفشل، الإلغاء، حساب المتبقي من التهدئة. |
 | `CloudflareRealtimeClientTest` | بوابة المفتاح، echo filter، الشارة، دليل حياة المقبس بإطار مشوّه، التشخيصات، وعدم فتح أي مقبس بلا توكن. |
+| `CloudflareDeltaContractTest` | عقد أعلام الاستعلام النصية `"1"` وغيابها عند عدم الطلب. |
 
 تُعديلات على `SyncIngestorRegistryTest`: حالات السحب القائمة صارت تضبط
 `setTombstoneSweepDone(true)` صراحةً كي يبقى تركيزها على المؤشر/الحجر
@@ -164,15 +165,33 @@ final wasFullSync = !deltaOnly && !_fullSyncCompleted;
 
 ## التحقق والحدود
 
-- لا JDK/Gradle/Flutter في بيئة التنفيذ المحلية لهذه الدفعة (وشبكة الحزمة
-  والشبكة الخارجية محجوبتان: لا تنزيل JDK ولا Maven)؛ التحقق
-  الحقيقي = `./gradlew :app:testDebugUnitTest` في CI (workflow
-  `android-kotlin-build.yml`). أي رقم تشغيل يُذكر هنا يجب أن يُقرأ من CI
-  لا من ادعاء محلي.
-- `android-kotlin-build.yml` مُقيَّد بقائمة فروع (`agent/android-cloudflare`
-  وغيرها) وبمدخل `workflow_dispatch` غير قابل للاستدعاء من جلسة الوكيل
-  (HTTP 403 `actions: write`)، ولهذا **لا** يمكن تشغيل الاختبارات على فرع
-  الجلسة مباشرةً: تشغيل CI يقع عند دمج هذا العمل في `agent/android-cloudflare`.
+### دليل تشغيل فعلي (2026-10-06)
+
+| العنصر | القيمة |
+| --- | --- |
+| الفرع | `arena/be8302d7-marina-hotel-wit-app` |
+| الالتزام | `745112fb` |
+| التشغيل | `37513552713` — <https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37513552713> |
+| الأمر | `./gradlew :app:testDebugUnitTest` على ubuntu-latest + JDK 17 |
+| النتيجة | **success** — المهمة `:app:testDebugUnitTest` نجحت (18:44→18:49 UTC) |
+
+قبل هذا التشغيل رصد CI الحقيقي — لا المراجعة النصية — ثلاث علل أُصلحت:
+خطأان في التصريف (`AutoSyncEngine` صار يأخذ `Lazy<CloudflareRealtimeClient>`
+و`Response.error<Unit>`)، وساعة اختبار الجدولة (كانت مربوطة يدوياً فلا
+تنقضي التهدئة)، وتوقّع `null` لا `false` لغياب علم `tombstones_only`.
+كما كشف اختبار «زر اللوحة على جهاز جديد» أن `deltaOnly` وُضع في
+`performSyncNow` بدل `performPullOnly` — فصُحّح ونُقل.
+
+### ما لم يُتحقق بعد
+
+- **workflow الإنتاج `android-kotlin-build.yml` لم يُشغَّل بعد على هذا
+  العمل**: مُقيَّد بقائمة فروع (`agent/android-cloudflare` وغيرها) ولا يقبل
+  `workflow_dispatch` من جلسة الوكيل (HTTP 403 `actions: write`). تشغيله
+  (بناء APK موقّع + اختبار الإطلاق) يقع عند دمج هذا العمل في
+  `agent/android-cloudflare`. الـworkflow المستقل أعلاه يثبت الوحدة فقط،
+  لا التوقيع ولا الإطلاق على محاكٍ.
+- شبكة الحزمة محجوبة في بيئة الجلسة (لا JDK/Gradle محلياً)؛ كل أرقام هذا
+  القسم مقروءة من CI.
 - فحص هذا الفرع الوحيد الذي رُصد آلياً هو «Code scanning AI findings» وقد
   فشل في خطوة `Processing Request` (بنية تحتية للوكيل)، والفشل نفسه مسجَّل
   على PRs أخرى لا علاقة لها بهذه الدفعة — لا يُنسب إلى الكود هنا ولا يُخفى.
