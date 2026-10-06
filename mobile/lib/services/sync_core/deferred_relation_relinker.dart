@@ -29,6 +29,19 @@ import '../local_db.dart';
 import '../repositories/base_repository.dart';
 import 'deferred_relation_store.dart';
 
+/// قاعدة إحياء واحدة (SQL + معاملاتها) — إثبات لا تخمين.
+class _RearmRule {
+  const _RearmRule({
+    required this.label,
+    required this.where,
+    required this.variables,
+  });
+
+  final String label;
+  final String where;
+  final List<Variable> variables;
+}
+
 /// نتيجة دورة إعادة الربط (تُستخدم في السجلات والتقرير).
 class DeferredRelinkResult {
   const DeferredRelinkResult({
@@ -147,20 +160,26 @@ class DeferredRelationRelinker {
       required String collectionId,
       required Source src,
       required String? skipReason,
-    }) => _capture(
+    }) => deferPayload(
       collection: collection,
-      json: json,
+      data: json,
       src: src,
-      skipReason: skipReason,
+      reason: skipReason,
     );
   }
 
-  Future<void> _capture({
+  /// ✅ نقطة التعليق العامة (G-3): تُستدعى من نقطة التقاط المستودع **أو**
+  /// مباشرة من طبقة المزامنة عند مسارات تخطٍّ لا تمر بـ upsertFromJson
+  /// (مثل مسارات يتيم الموظف في سحب السحوبات/الدورات).
+  ///
+  /// [data] بصيغة المزوّد الأصلية (تُحفظ كما هي بلا أي تحويل أو إسقاط).
+  Future<void> deferPayload({
     required String collection,
-    required Map<String, dynamic> json,
+    required Map<String, dynamic> data,
     required Source src,
-    String? skipReason,
+    String? reason,
   }) async {
+    final json = data;
     final localUuid =
         (json['localUuid'] as String?) ?? (json['local_uuid'] as String?);
     if (localUuid == null || localUuid.isEmpty) return;
@@ -197,7 +216,7 @@ class DeferredRelationRelinker {
       localUuid: localUuid,
       payload: payload,
       source: src == Source.drive ? 'drive' : 'appwrite',
-      reason: skipReason ?? 'unresolved FK reference',
+      reason: reason ?? 'unresolved FK reference',
       missingParent: parent,
       parentUuid: parentUuid,
       remoteParentId: remoteParentId,
@@ -210,30 +229,13 @@ class DeferredRelationRelinker {
   /// محلياً — بمطابقة **UUID فقط** (مع تجاهل الشرطات). لا حذف ولا تخمين.
   Future<int> rearmAvailableParents() async {
     var total = 0;
-    for (final entry in parentByCollection.entries) {
-      final parent = entry.value;
-      final (String table, String column) = switch (parent) {
-        'employee' => ('employees', 'local_uuid'),
-        'salary_cycle' => ('salary_cycles', 'local_uuid'),
-        'booking' => ('bookings', 'local_uuid'),
-        'inventory_item' => ('inventory_items', 'local_uuid'),
-        _ => ('', ''),
-      };
-      if (table.isEmpty) continue;
-      final predicate =
-          "state IN ('needs_review', 'unsupported') "
-          'AND missing_parent = ? '
-          "AND parent_uuid IS NOT NULL AND TRIM(parent_uuid) <> '' "
-          'AND EXISTS (SELECT 1 FROM $table p WHERE '
-          "  LOWER(REPLACE(p.$column, '-', '')) = "
-          "  LOWER(REPLACE(parent_uuid, '-', '')) "
-          '  AND p.deleted_at IS NULL)';
+    for (final rule in _rearmRules) {
       try {
         final row = await db
             .customSelect(
               'SELECT COUNT(*) AS c FROM ${DeferredRelationStore.tableName} '
-              'WHERE $predicate',
-              variables: [Variable.withString(parent)],
+              'WHERE ${rule.where}',
+              variables: rule.variables,
             )
             .getSingle();
         final candidates = row.read<int>('c');
@@ -241,24 +243,73 @@ class DeferredRelationRelinker {
         await db.customStatement(
           'UPDATE ${DeferredRelationStore.tableName} '
           "SET state = 'pending', attempts = 0, last_attempt_at = ? "
-          'WHERE $predicate',
-          [Time.nowEpoch(), parent],
+          'WHERE ${rule.where}',
+          [Time.nowEpoch(), ...rule.variables],
         );
         total += candidates;
       } catch (e) {
         AppLogger.warning(
-          'تعذّرت إعادة تفعيل معلّقات «$parent»: $e',
+          'تعذّرت إعادة تفعيل معلّقات «${rule.label}»: $e',
           tag: 'DEFERRED_RELATIONS',
         );
       }
     }
     if (total > 0) {
       AppLogger.info(
-        '🔁 أعيد تفعيل $total سجلاً معلّقاً بعد وصول آبائها (UUID).',
+        '🔁 أعيد تفعيل $total سجلاً معلّقاً بعد وصول آبائها (UUID/إثبات).',
         tag: 'DEFERRED_RELATIONS',
       );
     }
     return total;
+  }
+
+  /// قواعد الإحياء: **إثبات فقط** — لا تخمين.
+  /// (أ) الأب موجود بنفس UUID، أو
+  /// (ب) الأب موجود بنفس الرقم **ومن نفس الجهاز الكاتب** (فضاء معرّفات واحد).
+  List<_RearmRule> get _rearmRules {
+    final rules = <_RearmRule>[];
+    const parents = {
+      'employees': 'employee',
+      'salary_cycles': 'salary_cycle',
+      'bookings': 'booking',
+      'inventory_items': 'inventory_item',
+    };
+    for (final entry in parents.entries) {
+      final table = entry.key;
+      final parent = entry.value;
+      rules.add(
+        _RearmRule(
+          label: '$parent/uuid',
+          where:
+              "state IN ('needs_review', 'unsupported') "
+              'AND missing_parent = ? '
+              "AND parent_uuid IS NOT NULL AND TRIM(parent_uuid) <> '' "
+              'AND EXISTS (SELECT 1 FROM $table p WHERE '
+              "  LOWER(REPLACE(p.local_uuid, '-', '')) = "
+              "  LOWER(REPLACE(parent_uuid, '-', '')) "
+              '  AND p.deleted_at IS NULL)',
+          variables: [Variable.withString(parent)],
+        ),
+      );
+      rules.add(
+        _RearmRule(
+          label: '$parent/رقم+جهاز',
+          where:
+              "state IN ('needs_review', 'unsupported') "
+              'AND missing_parent = ? '
+              "AND (parent_uuid IS NULL OR TRIM(parent_uuid) = '') "
+              'AND remote_parent_id IS NOT NULL '
+              "AND source_device_id IS NOT NULL "
+              "AND TRIM(source_device_id) <> '' "
+              'AND EXISTS (SELECT 1 FROM $table n WHERE '
+              '  n.server_id = remote_parent_id '
+              '  AND n.device_id = source_device_id '
+              '  AND n.deleted_at IS NULL)',
+          variables: [Variable.withString(parent)],
+        ),
+      );
+    }
+    return rules;
   }
 
   /// دورة إعادة ربط كاملة — تُستدعى بعد اكتمال السحب (أو بعده مباشرة).
@@ -346,9 +397,12 @@ class DeferredRelationRelinker {
 
     final parent = parentByCollection[row.collection];
     final parentUuid = (row.parentUuid ?? '').trim();
-    if (parent != null && parentUuid.isEmpty) {
-      // لا رابط هوية إطلاقاً — لا يمكن إثبات الربط (وكان الرفض الرقمي هو
-      // سبب التعليق أصلاً) ⇒ مراجعة بشرية، لا تخمين.
+    final hasNumericProofLink =
+        row.remoteParentId != null &&
+        (row.sourceDeviceId ?? '').trim().isNotEmpty;
+    if (parent != null && parentUuid.isEmpty && !hasNumericProofLink) {
+      // لا رابط هوية إطلاقاً: لا UUID ولا (رقم + جهاز كاتب) — لا يمكن
+      // إثبات الربط أبداً ⇒ مراجعة بشرية، بلا تخمين (البند 12).
       return _RowOutcome.needsReview;
     }
 

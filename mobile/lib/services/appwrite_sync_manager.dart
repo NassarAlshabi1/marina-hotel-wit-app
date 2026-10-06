@@ -277,6 +277,28 @@ class AppwriteSyncManager {
 
   /// ✅ (G-3): إتاحة تقرير المراجعة لطبقة العرض/التصدير (G-8).
   DeferredRelationStore get deferredRelationStore => _deferredStore;
+
+  /// ✅ (G-3): حفظ حمولة سجل بعيد لم يُحل مرجعه في مسارات لا تمر بالمحوّل.
+  /// لا ترمي أبداً — فشل الحفظ لا يجوز أن يُسقط دورة السحب.
+  Future<void> _deferRemoteRecord({
+    required String collection,
+    required Map<String, dynamic> data,
+    required String reason,
+  }) async {
+    try {
+      await _deferredRelinker.deferPayload(
+        collection: collection,
+        data: data,
+        src: Source.appwrite,
+        reason: reason,
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ تعذّر تعليق $collection (غير حرج): $e',
+        tag: 'SYNC',
+      );
+    }
+  }
   late final UnifiedPullEngine _unifiedPull;
 
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
@@ -4184,6 +4206,16 @@ class AppwriteSyncManager {
           // ✅ تقليل السبام: تجميع بدل تحذير لكل سجل (قد تصل 70+ سجل/دورة)
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
+          );
+          // ✅ (G-3 / 2026-10-06): لا إهمال. هذا المسار لا يمر بـ
+          // upsertFromJson (يتخطى قبل المحوّل) ⇒ تُحفظ الحمولة هنا مباشرة
+          // لإعادة الربط لاحقاً عبر UUID عند وصول الموظف.
+          await _deferRemoteRecord(
+            collection: 'salary_withdrawals',
+            data: data,
+            reason:
+                'salary_withdrawal: لم يُحل الموظف (uuid=$employeeUuid, '
+                'originEmployeeId=$remoteEmployeeId) — معلّق للربط بـ UUID',
           );
           continue;
         }
@@ -8183,6 +8215,14 @@ class AppwriteSyncManager {
           // ✅ تقليل السبام: تجميع بدل تحذير لكل سجل
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
+          );
+          // ✅ (G-3): لا إهمال — حفظ الحمولة للربط عبر UUID لاحقاً.
+          await _deferRemoteRecord(
+            collection: 'salary_cycles',
+            data: data,
+            reason:
+                'salary_cycle: لم يُحل الموظف (uuid=$employeeUuid, '
+                'originEmployeeId=$remoteEmployeeId) — معلّق للربط بـ UUID',
           );
           continue;
         }

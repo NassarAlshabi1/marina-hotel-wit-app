@@ -256,16 +256,14 @@ void main() {
   });
 
   group('G-3/3 — لا ربط تخميني: المجهول يذهب للمراجعة', () {
-    test('رقم فقط + جهاز مجهول ⇒ مراجعة بشرية مع حفظ الدليل', () async {
+    test('رقم فقط + جهاز مجهول ⇒ لا ربط، ثم مراجعة بشرية بعد استنفاد المحاولات', () async {
       final registry = AdapterRegistry.testing(db);
       final store = DeferredRelationStore(db);
-      final relinker = DeferredRelationRelinker(
-        db: db,
-        registry: registry,
-        store: store,
-      )..install();
+      final relinker =
+          DeferredRelationRelinker(db: db, registry: registry, store: store)
+            ..install();
 
-      // موظف موجود برقم 7 لكنه من جهاز آخر — لا يجوز الربط به.
+      // موظف موجود برقم 7 لكنه من جهاز آخر (devZ) — لا يجوز الربط به.
       await insertEmployee(uuid: 'emp-other', deviceId: 'devZ', serverId: 7);
 
       final skipped = await registry.salaryWithdrawals.upsertFromJson(
@@ -278,21 +276,77 @@ void main() {
       );
       expect(skipped, -1);
 
-      final result = await relinker.relinkAll();
-      expect(result.movedToReview, 1);
+      // (أ) يبقى معلّقاً (لا ربط بغير المُثبت، ولا إسقاط).
+      final firstAttempt = await relinker.relinkAll();
+      expect(firstAttempt.stillPending, 1);
+      expect(firstAttempt.movedToReview, 0);
       expect(
         await db.select(db.salaryWithdrawals).get(),
         isEmpty,
         reason: 'لا يُربط بموظف لم تُثبت هويته',
       );
 
+      // (ب) بعد استنفاد ميزانية المحاولات ⇒ مراجعة بشرية مع حفظ الدليل.
+      for (var i = 0; i <= DeferredRelationStore.maxAttempts; i++) {
+        await relinker.relinkAll();
+      }
       final review = await store.all(
         states: {DeferredRelationState.needsReview},
       );
       expect(review.length, 1);
       expect(review.first.remoteParentId, 7);
       expect(review.first.sourceDeviceId, 'devUnknown');
-      expect(review.first.reason, contains('مراجعة'));
+      expect(
+        await db.select(db.salaryWithdrawals).get(),
+        isEmpty,
+        reason: 'المجهول لا يُربط ولا يُحذف — ينتظر مراجعة بشرية',
+      );
+    });
+
+    test('رقم + نفس الجهاز الكاتب ⇒ يُربط (إثبات فضاء المعرّفات)', () async {
+      final registry = AdapterRegistry.testing(db);
+      final store = DeferredRelationStore(db);
+      final relinker =
+          DeferredRelationRelinker(db: db, registry: registry, store: store)
+            ..install();
+
+      // السجل يصل قبل الموظف (لا uuid، لكن الرقم وكاتب السجل معروفان).
+      final skipped = await registry.salaryWithdrawals.upsertFromJson(
+        withdrawalPayload(
+          uuid: 'wd-uuid-prov',
+          employeeId: 7,
+          deviceId: 'devA',
+        ),
+        src: Source.appwrite,
+      );
+      expect(skipped, -1);
+      expect(
+        (await store.all(states: {DeferredRelationState.pending})).length,
+        1,
+      );
+
+      // (أ) الأب لم يصل بعد ⇒ يبقى معلّقاً.
+      final beforeParent = await relinker.relinkAll();
+      expect(beforeParent.stillPending, 1);
+      expect(beforeParent.resolved, 0);
+
+      // (ب) وصل الموظف من **نفس الجهاز الكاتب** وبنفس الرقم ⇒ ربط.
+      final employeeId = await insertEmployee(
+        uuid: 'emp-devA-7',
+        deviceId: 'devA',
+        serverId: 7,
+      );
+      final afterParent = await relinker.relinkAll();
+      expect(afterParent.resolved, 1);
+
+      final rows = await db.select(db.salaryWithdrawals).get();
+      expect(rows.length, 1);
+      expect(rows.first.employeeId, employeeId);
+      expect(rows.first.localUuid, 'wd-uuid-prov');
+
+      // (ج) لا تكرار عند إعادة الدورة.
+      await relinker.relinkAll();
+      expect((await db.select(db.salaryWithdrawals).get()).length, 1);
     });
 
     test('معرّف الجلسة المعلّقة يُحفظ كحمولة كاملة (لا فقدان حقول)', () async {
