@@ -187,5 +187,8 @@ interface CloudflareWorkerApi {
 data class WorkerD1HealthResponse(
     @SerializedName("status") val status: String? = null,
     @SerializedName("d1") val d1: String? = null,
-    @SerializedName("expense_kind") val expenseKindSupported: Boolean? = null
+    @SerializedName("expense_kind") val expenseKindSupported: Boolean? = null,
+    @SerializedName("sync_provider") val syncProvider: String? = null,
+    @SerializedName("sync_source_id") val syncSourceId: String? = null,
+    @SerializedName("sync_protocol_version") val syncProtocolVersion: Int? = null
 )

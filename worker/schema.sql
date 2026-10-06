@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS sync_meta (
 );
 INSERT OR IGNORE INTO sync_meta (k, v)
 VALUES ('epoch', lower(hex(randomblob(16))));
+-- A newly initialized D1 gets its own stable source identity.
+-- The existing marina-hotel-db uses the fixed, reviewed seed in migration 0016.
+INSERT OR IGNORE INTO sync_meta (k, v)
+VALUES ('source_id', lower(hex(randomblob(16))));
 
 -- ─── Rate limiting (D1-based; no KV daily-write cap) ──────────
 CREATE TABLE IF NOT EXISTS rate_limits (

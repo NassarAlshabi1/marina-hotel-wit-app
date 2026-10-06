@@ -29,11 +29,12 @@ import java.net.URI
 /**
  * يضيف توكن Bearer لطلبات الـ worker. لا يعترض الدخول (توكن غير موجود
  * أصلاً عندها) ولا يرسل توكن الجلسة المحلية أبداً. يرفق X-Device-Id
- * للتشخيص الخادمي (العمليات تحمل deviceId الخاص بها — العقد الرسمي).
+ * للتشخيص وX-Sync-Source-Id للربط الصريح بطبقة بيانات سبق التحقق منها.
  */
 class WorkerAuthInterceptor(
     private val tokenProvider: () -> String?,
-    private val deviceIdProvider: () -> String? = { null }
+    private val deviceIdProvider: () -> String? = { null },
+    private val sourceIdProvider: () -> String? = { null }
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -55,6 +56,9 @@ class WorkerAuthInterceptor(
             .header("Authorization", "Bearer $token")
         deviceIdProvider()?.takeIf { it.isNotBlank() }?.let { deviceId ->
             builder.header("X-Device-Id", deviceId)
+        }
+        sourceIdProvider()?.takeIf { it.isNotBlank() }?.let { sourceId ->
+            builder.header("X-Sync-Source-Id", sourceId.trim().lowercase())
         }
         return chain.proceed(builder.build())
     }

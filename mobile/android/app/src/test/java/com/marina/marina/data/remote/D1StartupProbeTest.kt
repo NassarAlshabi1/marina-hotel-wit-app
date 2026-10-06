@@ -93,6 +93,26 @@ class D1StartupProbeTest {
         }
     }
 
+    @Test fun sourceHealthReturnsProtocolIdentityWithoutMovingTheCursor() = runBlocking {
+        val health = WorkerD1HealthResponse(
+            status = "ok",
+            d1 = "ok",
+            expenseKindSupported = true,
+            syncProvider = "cloudflare-d1",
+            syncSourceId = "0123456789abcdef0123456789abcdef",
+            syncProtocolVersion = 1
+        )
+        val subject = service { method ->
+            assertEquals("d1Health", method)
+            call(Response.success(health))
+        }
+
+        val result = subject.syncSourceHealth()
+        assertEquals(health, result.getOrNull())
+        assertEquals(123L, prefs.getLastPullCursor())
+        assertEquals(456L, prefs.getLastPullTs())
+    }
+
     @Test fun expiredTokenReauthenticatesOnceThenRequiresD1Success() = runBlocking {
         var health = 0
         var login = 0

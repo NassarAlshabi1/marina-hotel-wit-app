@@ -142,33 +142,52 @@ class CloudflareSyncService @Inject constructor(
         }
     }
 
-    /** Bounded authenticated D1 probe. Never reads business tables or changes a cursor. */
-    suspend fun checkD1Connection(): Boolean = withContext(Dispatchers.IO) {
+    /**
+     * Bounded authenticated D1 + source-identity probe. It reads health and
+     * protocol metadata only; no business rows, cursor, epoch, or outbox state
+     * are modified. Expired JWTs are refreshed once.
+     */
+    suspend fun syncSourceHealth(): Result<WorkerD1HealthResponse> = withContext(Dispatchers.IO) {
         kotlinx.coroutines.withTimeoutOrNull(PING_TIMEOUT_MS) {
             suspend fun authenticate(): Boolean {
-                val response = api.login(WorkerLoginRequest(config.username, config.password, ensureDeviceId())).awaitProbeResponse()
+                val response = api.login(
+                    WorkerLoginRequest(config.username, config.password, ensureDeviceId())
+                ).awaitProbeResponse()
                 val body = response.body()
                 if (!response.isSuccessful || body?.token.isNullOrBlank()) return false
                 preferences.saveAuthToken(body!!.token!!)
                 lastLoginUser = body.user
                 return true
             }
+
             try {
-                if (!hasWorkerToken() && !authenticate()) return@withTimeoutOrNull false
+                if (!hasWorkerToken() && !authenticate()) {
+                    return@withTimeoutOrNull Result.failure(Exception("Worker authentication failed"))
+                }
                 var response = api.d1Health().awaitProbeResponse()
                 // Expired JWT: refresh once, not an infinite retry or a bootstrap operation.
                 if (response.code() == 401) {
-                    if (!authenticate()) return@withTimeoutOrNull false
+                    if (!authenticate()) {
+                        return@withTimeoutOrNull Result.failure(Exception("Worker authentication failed"))
+                    }
                     response = api.d1Health().awaitProbeResponse()
                 }
-                response.isSuccessful && response.body()?.status == "ok" && response.body()?.d1 == "ok"
+                val body = response.body()
+                if (response.isSuccessful && body?.status == "ok" && body.d1 == "ok") {
+                    Result.success(body)
+                } else {
+                    Result.failure(Exception("Authenticated D1 health failed: HTTP ${response.code()}"))
+                }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
-                false
+            } catch (error: Exception) {
+                Result.failure(error)
             }
-        } ?: false
+        } ?: Result.failure(Exception("D1/source identity probe timed out after ${PING_TIMEOUT_MS}ms"))
     }
+
+    /** Connection-only check retained for diagnostics; sync additionally requires a source identity. */
+    suspend fun checkD1Connection(): Boolean = syncSourceHealth().isSuccess
 
     /** عدّادات كل الجداول في D1 — تشخيص حالة القاعدة السحابية. */
     suspend fun stats(): Result<Map<String, Int>> = withContext(Dispatchers.IO) {
@@ -296,6 +315,7 @@ class SyncPreferences @Inject constructor(
         private const val KEY_LAST_PULL_CURSOR = "last_pull_cursor"
         private const val KEY_FULL_REPLAY_PENDING = "cf_full_replay_pending"
         private const val KEY_SYNC_EPOCH = "cf_sync_epoch"
+        private const val KEY_SYNC_SOURCE_ID = "sync_source_id"
         private const val KEY_SYNC_ERROR_HISTORY = "cf_sync_error_history"
         private const val MAX_SYNC_ERROR_RECORDS = 40
         private const val MAX_SYNC_ERROR_MESSAGE_LENGTH = 2_500
@@ -412,15 +432,19 @@ class SyncPreferences @Inject constructor(
 
     // ─── مؤشر السحب العام (عقد worker: cursor updated_at) ───────
 
-    fun prepareForLocalRestore() {
-        preferencesManager.commitValues(mapOf(
+    fun prepareForLocalRestore(sourceIdFromBackup: String? = null) {
+        val values = mutableMapOf<String, Any>(
             KEY_CLOUDFLARE_SYNC to false,
             KEY_LAST_PULL_CURSOR to 0L,
             KEY_LAST_PULL to 0L,
             KEY_FULL_REPLAY_PENDING to true,
             KEY_FULL_SYNC_COMPLETE to false,
             KEY_TS_NORMALIZATION_DONE to false
-        ))
+        )
+        sourceIdFromBackup?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            values[KEY_SYNC_SOURCE_ID] = it.lowercase()
+        }
+        preferencesManager.commitValues(values)
     }
 
     fun saveLastPullCursor(cursor: Long) {
@@ -443,6 +467,14 @@ class SyncPreferences @Inject constructor(
 
     fun saveSyncEpoch(epoch: String) {
         preferencesManager.saveString(KEY_SYNC_EPOCH, epoch.trim())
+    }
+
+    /** Stable per-installation source binding, independent of cursor/epoch. */
+    fun getSyncSourceId(): String? =
+        preferencesManager.getString(KEY_SYNC_SOURCE_ID)?.trim()?.takeIf { it.isNotEmpty() }
+
+    fun saveSyncSourceId(sourceId: String) {
+        preferencesManager.saveString(KEY_SYNC_SOURCE_ID, sourceId.trim().lowercase())
     }
 
     // ─── ✅ (2026-09-25) علم تطبيع الطوابع الخادمي ───────────────

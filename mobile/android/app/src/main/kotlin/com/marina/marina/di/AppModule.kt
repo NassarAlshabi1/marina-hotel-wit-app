@@ -33,7 +33,7 @@ object AppModule {
      * ✅ (2026-09-24) عميل HTTP بطبقتين فوق Retrofit:
      *  • [WorkerAuthInterceptor] — Authorization: Bearer <JWT> لكل مسارات
      *    المزامنة (التوكن من SyncPreferences؛ التوكن المحلي لا يُرسل) +
-     *    X-Device-Id للتشخيص الخادمي.
+     *    X-Device-Id للتشخيص وX-Sync-Source-Id لمنع تبديل قاعدة المصدر.
      *  • [WorkerFailoverInterceptor] — تبديل تلقائي بين النطاق المخصّص
      *    وworkers.dev عند فشل الشبكة (حجب SNI اليمني) مع تثبيت الناجح.
      *
@@ -54,7 +54,8 @@ object AppModule {
             .addInterceptor(
                 WorkerAuthInterceptor(
                     tokenProvider = { preferences.getAuthToken() },
-                    deviceIdProvider = { preferences.getDeviceId() }
+                    deviceIdProvider = { preferences.getDeviceId() },
+                    sourceIdProvider = { preferences.getSyncSourceId() }
                 )
             )
             .addInterceptor(WorkerFailoverInterceptor(endpoints))
@@ -106,6 +107,7 @@ class EncryptedSharedPreferencesManager @Inject constructor(
             when (value) {
                 is Long -> editor.putLong(key, value)
                 is Boolean -> editor.putBoolean(key, value)
+                is String -> editor.putString(key, value)
                 else -> error("Unsupported durable preference type")
             }
         }

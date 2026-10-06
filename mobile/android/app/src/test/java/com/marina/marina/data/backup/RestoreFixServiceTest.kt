@@ -114,8 +114,17 @@ class RestoreFixServiceTest {
         prefs.setFullSyncComplete(true)
         prefs.saveAuthToken("preserved-token")
         prefs.saveDeviceId("preserved-device")
+        val backupSourceId = "0123456789abcdef0123456789abcdef"
+        prefs.saveSyncSourceId(backupSourceId)
         val backup = File(localBackupService().createLocalBackup(BackupFormat.JSON))
         try {
+            val json = java.util.zip.GZIPInputStream(backup.inputStream()).use { it.bufferedReader().readText() }
+            val envelope = Gson().fromJson<Map<String, Any>>(
+                json, object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type
+            )
+            val metadata = envelope["metadata"] as Map<*, *>
+            assertEquals(backupSourceId, metadata["sync_source_id"])
+            prefs.saveSyncSourceId("fedcba9876543210fedcba9876543210")
             localBackupService().restoreFromLocalBackup(backup.absolutePath)
             val reloaded = syncPrefs()
             assertEquals(0L, reloaded.getLastPullCursor())
@@ -125,6 +134,7 @@ class RestoreFixServiceTest {
             assertFalse(reloaded.getCloudflareSyncEnabled())
             assertEquals("preserved-token", reloaded.getAuthToken())
             assertEquals("preserved-device", reloaded.getDeviceId())
+            assertEquals(backupSourceId, reloaded.getSyncSourceId())
         } finally { backup.delete() }
     }
 

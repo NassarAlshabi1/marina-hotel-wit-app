@@ -41,9 +41,15 @@ describe('GET /api/health/d1', () => {
       latency_ms: number;
       server_time: number;
       timestamp: number;
+      sync_provider: string;
+      sync_source_id: string | null;
+      sync_protocol_version: number;
     };
     expect(body.status).toBe('ok');
     expect(body.d1).toBe('ok');
+    expect(body.sync_provider).toBe('cloudflare-d1');
+    expect(body.sync_source_id).toMatch(/^[a-f0-9]{32}$/);
+    expect(body.sync_protocol_version).toBe(1);
     // SELECT 1 عبر miniflare/D1 الحقيقي — زمن غير سالب وصغير.
     expect(body.latency_ms).toBeGreaterThanOrEqual(0);
     expect(body.latency_ms).toBeLessThan(5000);

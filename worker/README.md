@@ -11,14 +11,15 @@ worker/
     index.ts               ← Router + CORS + rate limit (D1) + Auth middleware
     auth.ts                ← JWT HMAC-SHA256 + PBKDF2 (25k، versioned) + أدوار
     sync.ts                ← pull / push / migrate / log / conflicts + SQL whitelist
-    database.ts            ← كيانات المزامنة + sync_clock/epoch + LWW/VC + PRAGMA whitelist
+    database.ts            ← كيانات المزامنة + sync_clock/epoch/source identity + LWW/VC + PRAGMA whitelist
     sync-lock.ts           ← SyncLockDO: أقفال 30s + WebSocket hub + cursors
-  schema.sql               ← مخطط D1 الكامل (يتضمن sync_meta لجيل المزامنة)
+  schema.sql               ← مخطط D1 الكامل (يتضمن epoch وهوية مصدر المزامنة)
   migrations/
     0002_inventory_blacklist.sql ← ترقيع الفجوة: inventory×2 + blacklist
     0010_sync_meta.sql       ← جيل البيانات لإبطال مؤشرات السحب بعد الاستعادة
     0011_salary_parent_uuids.sql ← مفاتيح UUID لآباء مدفوعات الرواتب والترحيل
     0012_expense_employee_link_clear_flag.sql ← تثبيت فك ربط الموظف الصريح للمزامنة
+    0016_sync_source_identity.sql ← هوية ثابتة لكل مصدر وإصدار بروتوكول
   test/                    ← vitest + @cloudflare/vitest-pool-workers (اختبارات Worker/D1)
   wrangler.toml            ← إعدادات النشر (D1 + DO، بلا KV)
   vitest.config.ts
@@ -37,7 +38,7 @@ worker/
 wrangler d1 create marina-hotel-db
 # ← ضع database_id الناتج في wrangler.toml
 
-# قاعدة جديدة: schema.sql يتضمن الحالة الحالية كاملة (بما فيها 0014)
+# قاعدة جديدة: schema.sql يتضمن الحالة الحالية كاملة (بما فيها 0014 و0015 و0016)
 npm run db:init
 
 # قاعدة قائمة معروفة الحالة: حدّد الترحيل الناقص من سجل موثوق أولاً.
@@ -56,6 +57,30 @@ npm run db:migrate:expense-link-clear-flag # 0012 explicit expense-link unlink m
 وموافقة منفصلة، ووجود ملف SQL لا يثبت صحة بياناته الحية. احتفظ بنسخة احتياطية
 وتحقق من الاستعادة قبل أي ترحيل معتمد. تدوير epoch إجراء صيانة بعد استعادة/إعادة
 استيراد خادمية، وليس في كل نشر؛ endpoint محمي بدور admin (راجع جدول نقاط النهاية أدناه).
+
+#### عقد هوية مصدر المزامنة (0016)
+
+`sync_meta.source_id` معرّف ثابت لقاعدة المصدر، وليس اسم نطاق أو معرّف مزوّد.
+قاعدة مستقلة جديدة من `schema.sql` تحصل على هوية عشوائية مستقلة؛ أما migration
+0016 فمقيدة بالمصدر الحالي وتستخدم seed المعتمد الموافق لـD1 ID الحالي.
+تعرضه `/api/health/d1` مع `sync_provider=cloudflare-d1` و`sync_protocol_version=1`.
+العميل Android يثبّت أول هوية متوافقة، ويرفض أي اختلاف قبل لمس Outbox أو المؤشر؛
+كما يرسل `X-Sync-Source-Id` مع push/pull ليرفض Worker الطلب إذا تغيّرت القاعدة
+بين الفحص والتنفيذ. أسماء النطاقات البديلة للمصدر نفسه يجب أن تصل إلى قاعدة D1
+نفسها وتحمل الهوية نفسها.
+
+ترتيب إصدار العميل الجديد **بعد مراجعة الحالة الحية والنسخة الاحتياطية فقط**:
+
+1. تحقّق من سجل الترحيلات والمخطط؛ على قاعدة معروفة تحتوي جدول `sync_meta`
+   (الذي أنشأه `0010_sync_meta.sql`)، أضف `0016` مرة واحدة عبر
+   `npm run db:migrate:sync-source-identity`.
+2. انشر Worker الذي يعلن الهوية ويفرض ترويسة المصدر.
+3. تحقق من `/api/health/d1` على كل نطاق مستخدم، ثم أصدر Android.
+
+هذه الخطوات توثيقية فقط؛ لا تشغّل migration/deploy من هذا التغيير. لا تُعد تطبيق
+`0016` على قاعدة قائمة لتوليد هوية جديدة، ولا تنسخ `source_id` إلى قاعدة مستقلة؛
+إعداد هوية مصدر مستورد جديد أو النقل الفعلي بين مزوّدين يحتاج إجراء نقل/اعتماد
+صريحاً غير منفذ هنا. التغيير آمن fail-closed لكنه لا ينسخ السجلات ولا ينقل cursor/epoch.
 
 ### 2. سر JWT
 

@@ -57,6 +57,9 @@ class CloudflareConfig @Inject constructor(
         /** معرف قاعدة D1 (marina-hotel-db — نفس database_id في wrangler.toml). */
         const val D1_DATABASE_ID = "607f1090-83b1-4281-975f-d81b8f6154e7"
 
+        /** Opaque source id seeded by Worker migration 0016 for this D1 database. */
+        const val EXPECTED_SYNC_SOURCE_ID = "607f109083b14281975fd81b8f6154e7"
+
         /** مفتاح توكن D1 API في prefs المشفّرة (نفس مفتاح Flutter cf_d1_api_token). */
         const val D1_TOKEN_SECURE_KEY = "cf_d1_api_token"
 

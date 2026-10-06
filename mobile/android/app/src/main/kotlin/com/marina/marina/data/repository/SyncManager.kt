@@ -5,6 +5,8 @@ import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.data.sync.SyncEpochPolicy
 import com.marina.marina.data.sync.SyncOperationRunner
+import com.marina.marina.data.sync.SyncSourceDecision
+import com.marina.marina.data.sync.SyncSourcePolicy
 import com.marina.marina.domain.model.SyncUiState
 import com.marina.marina.domain.repository.SyncRepository
 import kotlinx.coroutines.CancellationException
@@ -118,6 +120,8 @@ class SyncManager @Inject constructor(
             finishWithError("فشل تسجيل الدخول إلى الخادم — تحقق من الشبكة", operation = "login")
             return _syncState.value
         }
+        _syncState.value = _syncState.value.copy(lastMessage = "جارٍ التحقق من مصدر المزامنة...")
+        if (!requireSyncSourceIdentity(operation = "sync_source")) return _syncState.value
 
         // ---- Phase 1: push -------------------------------------------------
         _syncState.value = _syncState.value.copy(lastMessage = "جارٍ الدفع...")
@@ -166,6 +170,7 @@ class SyncManager @Inject constructor(
             finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
             return -1
         }
+        if (!requireSyncSourceIdentity(operation = "pull_source")) return -1
         val pulled = try {
             pullDelta()
         } catch (e: Exception) {
@@ -199,6 +204,7 @@ class SyncManager @Inject constructor(
             finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
             return -1
         }
+        if (!requireSyncSourceIdentity(operation = "push_source")) return -1
         val pushed = try {
             outboxRepository.processPending() + outboxRepository.syncOutbox()
         } catch (e: Exception) {
@@ -236,6 +242,8 @@ class SyncManager @Inject constructor(
             finishWithError("فشل تسجيل الدخول إلى الخادم", operation = "login")
             return -1
         }
+        // This check must precede the cursor reset: a source mismatch is not a full-sync request.
+        if (!requireSyncSourceIdentity(operation = "full_pull_source")) return -1
         // 1) إعادة ضبط مؤشر السحب — الجلب يبدأ من الصفر.
         preferences.setFullReplayPending(true)
         preferences.saveLastPullCursor(0L)
@@ -258,6 +266,38 @@ class SyncManager @Inject constructor(
             pulledCount = pulled
         )
         return pulled
+    }
+
+    /** Bind before any push/pull; a mismatch never resets cursors or drains outbox. */
+    private suspend fun requireSyncSourceIdentity(operation: String): Boolean {
+        val result = syncService.syncSourceHealth()
+        val health = result.getOrNull()
+        if (health == null) {
+            val detail = result.exceptionOrNull()?.message?.take(180)
+            finishWithError(
+                "تعذر التحقق من هوية مصدر المزامنة؛ لم يتغير Outbox أو مؤشر السحب" +
+                    (detail?.let { " ($it)" } ?: ""),
+                operation = operation
+            )
+            return false
+        }
+
+        return when (val decision = SyncSourcePolicy.evaluate(
+            storedSourceId = preferences.getSyncSourceId(),
+            providerId = health.syncProvider,
+            responseSourceId = health.syncSourceId,
+            protocolVersion = health.syncProtocolVersion,
+            expectedSourceId = CloudflareConfig.EXPECTED_SYNC_SOURCE_ID
+        )) {
+            is SyncSourceDecision.Accepted -> {
+                if (decision.shouldPin) preferences.saveSyncSourceId(decision.normalizedSourceId)
+                true
+            }
+            is SyncSourceDecision.Rejected -> {
+                finishWithError(decision.userMessage, operation = operation)
+                false
+            }
+        }
     }
 
     companion object {

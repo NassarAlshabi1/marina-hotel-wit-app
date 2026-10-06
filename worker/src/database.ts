@@ -616,6 +616,26 @@ export class Database {
   /** Maximum future clock skew accepted from a client, in seconds. */
   static readonly CLOCK_SKEW_ALLOWANCE_S = 90;
 
+  // ─── Sync source identity and protocol ────────────────────
+
+  /**
+   * Stable identity for this database instance. Unlike the epoch, it must
+   * not rotate during ordinary restores or alias changes. A missing row is
+   * reported as unavailable: health must not silently invent an identity.
+   */
+  async getSyncSourceId(): Promise<string | null> {
+    try {
+      const row = await this.db
+        .prepare("SELECT v FROM sync_meta WHERE k = 'source_id'")
+        .first<{ v: string }>();
+      const sourceId = row?.v?.trim().toLowerCase();
+      return sourceId && /^[a-f0-9]{32}$/.test(sourceId) ? sourceId : null;
+    } catch (err) {
+      console.warn('[SYNC] source identity unavailable (migration 0016 required):', err);
+      return null;
+    }
+  }
+
   // ─── Sync epoch (data generation) ─────────────────────────
 
   /**

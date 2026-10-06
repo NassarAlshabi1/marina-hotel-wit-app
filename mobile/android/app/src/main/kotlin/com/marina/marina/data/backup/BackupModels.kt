@@ -34,7 +34,8 @@ enum class BackupStatus {
 /**
  * نظير `BackupMetadata` في local_backup_service.dart — نفس مفاتيح JSON
  * (app_version / database_version / backup_timestamp / total_records /
- * device_info / data_hash) حتى تُقرأ نسخ Flutter من Kotlin والعكس.
+ * device_info / data_hash / sync_source_id). نسخ Flutter/النسخ القديمة قد لا تحمل
+ * sync_source_id؛ عند غيابه لا نستنتج هوية مصدر من بيانات أخرى.
  */
 data class BackupMetadata(
     @SerializedName("app_version") val appVersion: String = "1.2.0+3",
@@ -42,7 +43,8 @@ data class BackupMetadata(
     @SerializedName("backup_timestamp") val backupTimestamp: String = "",
     @SerializedName("total_records") val totalRecords: Int = 0,
     @SerializedName("device_info") val deviceInfo: String = "",
-    @SerializedName("data_hash") val dataHash: String? = null
+    @SerializedName("data_hash") val dataHash: String? = null,
+    @SerializedName("sync_source_id") val syncSourceId: String? = null
 )
 
 /**

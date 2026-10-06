@@ -14,6 +14,9 @@ import { handleAiRequest } from './ai';
 
 export { SyncLockDO, RealtimeHubDO };
 
+const SYNC_PROVIDER_ID = 'cloudflare-d1';
+const SYNC_PROTOCOL_VERSION = 1;
+
 export interface Env {
   DB: D1Database;
   AI: Ai;
@@ -114,7 +117,7 @@ function corsHeaders(origin: string): Headers {
   headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   headers.set(
     'Access-Control-Allow-Headers',
-    'Authorization, Content-Type, X-Device-Id'
+    'Authorization, Content-Type, X-Device-Id, X-Sync-Source-Id'
   );
   headers.set('Access-Control-Max-Age', '86400');
   return headers;
@@ -316,6 +319,27 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       const ctx = authResult.context!;
       const db = new Database(env.DB);
 
+      // A source-bound Android client sends the identity it pinned during
+      // the authenticated health handshake. Check it on every data-bearing
+      // sync request, immediately before any pull/push handler can run.
+      // Older clients without this header remain wire-compatible; new clients
+      // fail closed if the source changes between probe and operation.
+      const isDataSyncRoute =
+        (path === '/api/sync/pull' && method === 'GET') ||
+        (path === '/api/sync/push' && method === 'POST');
+      const expectedSourceId = request.headers.get('X-Sync-Source-Id');
+      if (isDataSyncRoute && expectedSourceId !== null) {
+        const actualSourceId = await db.getSyncSourceId();
+        if (!actualSourceId || expectedSourceId.trim().toLowerCase() !== actualSourceId) {
+          logRequest(method, path, 409, Date.now() - startTime, clientIp);
+          return json(
+            { error: 'Sync source identity mismatch or unavailable', code: 'sync_source_mismatch' },
+            409,
+            env
+          );
+        }
+      }
+
       // ─── Natural-language hotel assistant ───────────────────
       // Workers AI classifies intent; this Worker owns the allow-listed SQL.
       // Writes always require a second request with confirm=true.
@@ -342,6 +366,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             {
               status: 'ok',
               d1: 'ok',
+              sync_provider: SYNC_PROVIDER_ID,
+              sync_source_id: await db.getSyncSourceId(),
+              sync_protocol_version: SYNC_PROTOCOL_VERSION,
               expense_kind: expenseColumns.results.some((column) => column.name === 'expense_kind'),
               latency_ms: Date.now() - d1Start,
               server_time: Math.floor(Date.now() / 1000),

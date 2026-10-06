@@ -739,7 +739,7 @@ function jsonResponse(data: unknown, status: number = 200): Response {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Sync-Source-Id',
     },
   });
 }

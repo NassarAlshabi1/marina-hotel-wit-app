@@ -181,13 +181,14 @@ class LocalBackupService @Inject constructor(
                     // نظير Dart: ملف ميتاداتا جانبي للنسخة الخام.
                     val counts = collectRecordCounts()
                     val total = counts.values.sum()
-                    val metadata = mapOf(
+                    val metadata = linkedMapOf<String, Any>(
                         "app_version" to "1.2.0+3",
                         "database_version" to db.openHelper.writableDatabase.version,
                         "backup_timestamp" to isoTimestamp(now),
                         "total_records" to total,
                         "device_info" to deviceLabel
                     )
+                    syncPreferences.getSyncSourceId()?.let { metadata["sync_source_id"] = it }
                     File(backupDir, "$baseName.metadata.json")
                         .writeText(gson.toJson(metadata))
                     file.absolutePath
@@ -302,6 +303,7 @@ class LocalBackupService @Inject constructor(
             "device_info" to deviceLabel,
             "data_hash" to digest
         )
+        syncPreferences.getSyncSourceId()?.let { metadata["sync_source_id"] = it }
         val result = linkedMapOf<String, Any>()
         result["metadata"] = metadata
         for (e in envelope) result[e.key] = e.value
@@ -381,6 +383,7 @@ class LocalBackupService @Inject constructor(
         for (key in BACKUP_TABLE_KEYS + listOf("blacklist", "sync_state")) {
             if (data.containsKey(key)) requireBackupRows(key, data[key])
         }
+        val backupSourceId = readBackupSyncSourceId(data)
         db.withTransaction {
             check(db.outboxDao().undeliveredCount().first() == 0) {
                 "توجد تغييرات محلية لم تُرفع؛ الاستعادة موقوفة لحمايتها"
@@ -393,7 +396,7 @@ class LocalBackupService @Inject constructor(
             }
             // Preferences cannot join SQLite: commit a conservative reset first.
             // Rollback/crash can cause a replay, never advancement past restored data.
-            syncPreferences.prepareForLocalRestore()
+            syncPreferences.prepareForLocalRestore(sourceIdFromBackup = backupSourceId)
             for (key in BACKUP_TABLE_KEYS) {
                 if (!data.containsKey(key)) continue
                 clearAndInsertRows(key, requireBackupRows(key, data[key]))
@@ -408,6 +411,16 @@ class LocalBackupService @Inject constructor(
             }
             currentCoroutineContext().ensureActive()
         }
+    }
+
+    private fun readBackupSyncSourceId(data: Map<String, Any>): String? {
+        val metadata = data["metadata"] as? Map<*, *> ?: return null
+        if (!metadata.containsKey("sync_source_id")) return null
+        val sourceId = (metadata["sync_source_id"] as? String)?.trim()?.lowercase()
+        require(sourceId != null && Regex("^[a-f0-9]{32}$").matches(sourceId)) {
+            "هوية مصدر المزامنة في النسخة غير صالحة؛ لم تُستكمل الاستعادة"
+        }
+        return sourceId
     }
 
     private fun requireBackupRows(table: String, value: Any?): List<*> {
