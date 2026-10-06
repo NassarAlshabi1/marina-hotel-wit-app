@@ -164,7 +164,7 @@ class PayloadMapper {
     final data = <String, dynamic>{
       'expenseType': expense.expenseType,
       'description': expense.description,
-      'amount': expense.amount,
+      'amount': CurrencyFormatter.wholeAmountOrNull(expense.amount),
       'date': expense.date,
       'localUuid': expense.localUuid,
       'createdAt': expense.createdAt,
@@ -298,10 +298,12 @@ class PayloadMapper {
       'localUuid': debt.localUuid,
       'guestName': debt.guestName,
       'checkinDate': debt.checkinDate,
-      'totalAmount': debt.totalAmount,
-      'paidAmount': debt.paidAmount,
+      'totalAmount': CurrencyFormatter.wholeAmountOrNull(debt.totalAmount),
+      'paidAmount': CurrencyFormatter.wholeAmountOrNull(debt.paidAmount),
       // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
-      'remainingAmount': CurrencyFormatter.truncateAmount(debt.remainingAmount),
+      'remainingAmount': CurrencyFormatter.wholeAmount(
+        debt.remainingAmount,
+      ),
       // ✅ إصلاح: لا نرسل bookingLocalId للسيرفر (id محلي يختلف بين الأجهزة)
       // الربط يتم عبر resolveBooking في debts_adapter باستخدام bookingUuidCache
       'checkoutDate': debt.checkoutDate,
@@ -346,7 +348,7 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'debtorName', debt.debtorName);
     // amount: مبلغ الدين (قد يختلف عن totalAmount في حالات الديون الجزئية)
     if (debt.amount != null) {
-      data['amount'] = debt.amount;
+      data['amount'] = CurrencyFormatter.wholeAmountOrNull(debt.amount);
     }
     // date: تاريخ الدين (مستقل عن checkinDate/checkoutDate/paymentDate)
     putIfStringNotEmpty(data, 'date', debt.date);
@@ -371,8 +373,8 @@ class PayloadMapper {
     final basicSalary = employee.basicSalary;
     final data = <String, dynamic>{
       'name': employee.name,
-      'basicSalary': basicSalary,
-      'salary': basicSalary,
+      'basicSalary': CurrencyFormatter.wholeAmount(basicSalary),
+      'salary': CurrencyFormatter.wholeAmount(basicSalary),
       'position': employee.position,
       'phone': employee.phone,
       'hireDate': employee.hireDate,
@@ -499,7 +501,7 @@ class PayloadMapper {
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
       // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
-      'amount': CurrencyFormatter.truncateAmount(transaction.amount),
+      'amount': CurrencyFormatter.wholeAmount(transaction.amount),
       'transactionTime': transaction.transactionTime,
       'localUuid': transaction.localUuid,
       'createdAt': transaction.createdAt,
@@ -648,8 +650,8 @@ class PayloadMapper {
       'targetType': row.targetType,
       'targetUuid': row.targetUuid,
       'adjustmentType': row.adjustmentType,
-      'previousValue': row.previousValue,
-      'newValue': row.newValue,
+      'previousValue': CurrencyFormatter.wholeAmount(row.previousValue),
+      'newValue': CurrencyFormatter.wholeAmount(row.newValue),
       'reason': row.reason,
       'effectiveDate': row.effectiveDate,
       'appliedBy': row.appliedBy,
@@ -804,7 +806,7 @@ class PayloadMapper {
       'deviceId': withdrawal.deviceId,
       // تمت إزالة 'id'
       'employeeId': withdrawal.employeeId,
-      'amount': withdrawal.amount,
+      'amount': CurrencyFormatter.wholeAmountOrNull(withdrawal.amount),
       'withdrawDate': effectiveWithdrawDate,
       'withdrawalDate': effectiveWithdrawDate,
     };
@@ -861,7 +863,7 @@ class PayloadMapper {
       'adjustmentType': adj.adjustmentType,
       'adjustmentMode': adj.adjustmentMode,
       // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
-      'amount': CurrencyFormatter.truncateAmount(adj.amount),
+      'amount': CurrencyFormatter.wholeAmount(adj.amount),
       'effectiveHotelDay': adj.effectiveHotelDay,
       // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud (required attribute,
       // created 2026-07-03). محلياً BookingPriceAdjustments لا يملك عمود hotelDayKey
@@ -912,7 +914,7 @@ class PayloadMapper {
       'deviceId': log.deviceId,
       // تمت إزالة 'id'
       'employeeId': log.employeeId,
-      'amount': log.amount,
+      'amount': CurrencyFormatter.wholeAmountOrNull(log.amount),
       'reason': log.reason,
       // دمج كلا الفرعين: إرسال كل الحقول المتاحة في النموذج.
       'previousCycleStart': log.previousCycleStart,
@@ -1004,7 +1006,11 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'idempotencyKey', voidRecord.idempotencyKey);
     // ✅ v2: حقول إضافية موجودة على Appwrite Cloud
     putIfStringNotEmpty(data, 'note', voidRecord.note);
-    putIfNotNull(data, 'originalAmount', voidRecord.originalAmount);
+    putIfNotNull(
+      data,
+      'originalAmount',
+      CurrencyFormatter.wholeAmountOrNull(voidRecord.originalAmount),
+    );
     putIfStringNotEmpty(data, 'paymentUuid', voidRecord.paymentUuid);
     return data;
   }

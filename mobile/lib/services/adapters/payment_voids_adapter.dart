@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 import '../local_db.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
@@ -198,7 +199,9 @@ class PaymentVoidsAdapter
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       'idempotencyKey': model.idempotencyKey,
       'note': model.note,
-      'originalAmount': model.originalAmount,
+      'originalAmount': CurrencyFormatter.wholeAmountOrNull(
+        model.originalAmount,
+      ),
       'paymentUuid': model.paymentUuid,
       'deviceId': model.deviceId,
     };

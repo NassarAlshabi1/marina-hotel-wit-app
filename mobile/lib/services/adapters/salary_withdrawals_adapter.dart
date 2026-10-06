@@ -234,9 +234,8 @@ class SalaryWithdrawalsAdapter
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
       _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
-      _k(src, 'amount', 'amount'): CurrencyFormatter.truncateAmount(
-        model.amount,
-      ), // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      _k(src, 'amount', 'amount'): CurrencyFormatter.wholeAmount(model.amount),
       _k(src, 'withdrawDate', 'withdraw_date'): effectiveWithdrawDate,
       _k(src, 'reason', 'reason'): model.reason,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,

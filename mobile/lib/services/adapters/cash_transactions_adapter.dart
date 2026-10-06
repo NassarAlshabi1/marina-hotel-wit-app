@@ -136,9 +136,8 @@ class CashTransactionsAdapter
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'registerId', 'register_id'): model.registerId,
       _k(src, 'transactionType', 'transaction_type'): model.transactionType,
-      _k(src, 'amount', 'amount'): CurrencyFormatter.truncateAmount(
-        model.amount,
-      ), // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      _k(src, 'amount', 'amount'): CurrencyFormatter.wholeAmount(model.amount),
       _k(src, 'referenceType', 'reference_type'): model.referenceType,
       _k(src, 'referenceId', 'reference_id'): model.referenceId,
       _k(src, 'description', 'description'): model.description,

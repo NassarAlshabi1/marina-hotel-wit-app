@@ -1,5 +1,7 @@
-import '../utils/hotel_date_helper.dart';
 import 'dart:convert';
+
+import '../utils/currency_formatter.dart';
+import '../utils/hotel_date_helper.dart';
 
 /// فئة أدوات موحدة لمعالجة البيانات قبل إرسالها أو بعد سحبها من Appwrite
 class AppwriteSyncUtils {
@@ -1935,7 +1937,11 @@ class AppwriteSyncUtils {
     final result = Map<String, dynamic>.from(payload);
     for (final field in intFields) {
       if (result.containsKey(field) && result[field] is num) {
-        result[field] = (result[field] as num).round();
+        // G-10: سياسة «لا كسور عشرية» — اقتطاع نحو الصفر قبل الإرسال إلى
+        // حقل integer على Appwrite (بدل round الذي كان يزيد المبلغ).
+        result[field] = CurrencyFormatter.truncateAmount(
+          result[field] as num,
+        );
       }
     }
     return result;

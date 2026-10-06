@@ -13,6 +13,7 @@
 // `round()` — وإلا اختلفت المبالغ بين الأجهزة (150.5 → 151 على جهاز و150 على
 // آخر) وانكسرت مطابقة مصروف الرواتب بسحبه المرآة.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
 import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
 
 void main() {
@@ -40,7 +41,10 @@ void main() {
     test('wholeAmount يُرجع double بعدد صحيح (لتخزينه في أعمدة REAL)', () {
       expect(CurrencyFormatter.wholeAmount(150.5), 150.0);
       expect(CurrencyFormatter.wholeAmount(-150.5), -150.0);
-      expect(CurrencyFormatter.wholeAmount(150.0).isInteger, isTrue);
+      expect(
+        CurrencyFormatter.isWholeAmount(CurrencyFormatter.wholeAmount(150.0)),
+        isTrue,
+      );
     });
 
     test('isWholeAmount يميّز الصحيح عن الكسر', () {
@@ -71,6 +75,35 @@ void main() {
       expect(CurrencyFormatter.truncateAmount(-1000000.75), -1000000);
       expect(CurrencyFormatter.truncateAmount(0.5), 0);
       expect(CurrencyFormatter.truncateAmount(-0.5), 0);
+    });
+
+    test('حواف الأعداد الصحيحة تُقتطع ولا تتحول إلى كسر أو خطأ', () {
+      expect(CurrencyFormatter.wholeAmount(150.0000001), 150.0);
+      expect(CurrencyFormatter.wholeAmount(-150.0000001), -150.0);
+      expect(CurrencyFormatter.wholeAmountOrNull(null), isNull);
+      expect(CurrencyFormatter.wholeAmountOrNull(99.9), 99.0);
+    });
+  });
+
+  group('سياسة المال على حدود المزوّد (G-10)', () {
+    test('تحويل حقول integer قبل الإرسال يقتطع ولا يقرّب لأعلى', () {
+      // payment_voids.voidedAmount حقل integer على Appwrite Cloud.
+      final payload = AppwriteSyncUtils.convertAmountTypesForAppwrite(
+        'payment_voids',
+        {'voidedAmount': 150.5, 'originalAmount': 150.5},
+      );
+      expect(payload['voidedAmount'], 150, reason: '150.5 → 150 وليس 151');
+      // الحقول غير المذكورة في _intAmountFields لا تُمسّ هنا (تُقتطع في المحوّل)
+      expect(payload['originalAmount'], 150.5);
+    });
+
+    test('لا يمسّ الحقول غير المالية ولا مجموعات بلا حقول integer', () {
+      final payload = AppwriteSyncUtils.convertAmountTypesForAppwrite(
+        'expenses',
+        {'amount': 150.5, 'note': 'ملاحظة'},
+      );
+      expect(payload['amount'], 150.5);
+      expect(payload['note'], 'ملاحظة');
     });
   });
 }

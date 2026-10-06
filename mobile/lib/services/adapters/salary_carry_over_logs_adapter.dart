@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 import '../local_db.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
@@ -155,7 +156,7 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
       _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
-      _k(src, 'amount', 'amount'): model.amount,
+      _k(src, 'amount', 'amount'): CurrencyFormatter.wholeAmount(model.amount),
       _k(src, 'previousCycleStart', 'previous_cycle_start'):
           model.previousCycleStart,
       _k(src, 'previousCycleEnd', 'previous_cycle_end'): model.previousCycleEnd,

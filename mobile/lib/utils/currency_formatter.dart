@@ -35,6 +35,10 @@ class CurrencyFormatter {
   /// هل المبلغ صحيح بلا كسور؟
   static bool isWholeAmount(num amount) => amount == truncateAmount(amount);
 
+  /// المبلغ وفق «لا كسور عشرية» بصيغة double، مع تمرير القيم الفارغة كما هي.
+  static double? wholeAmountOrNull(num? amount) =>
+      amount == null ? null : wholeAmount(amount);
+
   /// توافق خلفي مع الاستدعاءات الداخلية القديمة.
   static int _roundAmount(double amount) => truncateAmount(amount);
 

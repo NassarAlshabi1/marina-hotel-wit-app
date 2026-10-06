@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/app_logger.dart';
+import '../../utils/currency_formatter.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
@@ -199,7 +200,10 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'expenseType', 'expense_type'): model.expenseType,
       _k(src, 'relatedId', 'related_id'): model.relatedId,
       _k(src, 'description', 'description'): model.description,
-      _k(src, 'amount', 'amount'): model.amount,
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      _k(src, 'amount', 'amount'): CurrencyFormatter.wholeAmountOrNull(
+        model.amount,
+      ),
       _k(src, 'date', 'date'): model.date,
       _k(src, 'cashTransactionId', 'cash_transaction_id'):
           model.cashTransactionId,

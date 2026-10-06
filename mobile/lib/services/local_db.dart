@@ -1919,12 +1919,15 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(bookingPriceAdjustments);
 
         // 2. تحويل المبالغ في الجداول الموجودة من REAL إلى INTEGER
-        // نستخدم CAST للتحويل مع تقريب القيم
+        // ✅ G-10 (2026-10-06): الاقتطاع نحو الصفر (CAST) بدل ROUND —
+        //    سياسة الفندق «لا كسور عشرية»: 150.5 → 150، لا نزيد مبلغاً
+        //    على أي موظف أو حساب بسبب التقريب. الأجهزة التي رُقّيت سابقاً
+        //    تحتفظ بقيمها التاريخية (تُبلَّغ للقراءة فقط عبر كاشف الكسور).
 
         // rooms.price
         try {
           await m.database.customStatement(
-            'UPDATE rooms SET price = CAST(ROUND(price) AS INTEGER) WHERE price IS NOT NULL',
+            'UPDATE rooms SET price = CAST(price AS INTEGER) WHERE price IS NOT NULL',
           );
         } catch (e) {
           developer.log(
@@ -1937,10 +1940,10 @@ class AppDatabase extends _$AppDatabase {
         try {
           await m.database.customStatement(
             'UPDATE bookings SET '
-            'discount = CAST(ROUND(discount) AS INTEGER), '
-            'total_due_cached = CAST(ROUND(total_due_cached) AS INTEGER), '
-            'total_paid_cached = CAST(ROUND(total_paid_cached) AS INTEGER), '
-            'remaining_balance_cached = CAST(ROUND(remaining_balance_cached) AS INTEGER) '
+            'discount = CAST(discount AS INTEGER), '
+            'total_due_cached = CAST(total_due_cached AS INTEGER), '
+            'total_paid_cached = CAST(total_paid_cached AS INTEGER), '
+            'remaining_balance_cached = CAST(remaining_balance_cached AS INTEGER) '
             'WHERE 1=1',
           );
         } catch (e) {
@@ -1953,7 +1956,7 @@ class AppDatabase extends _$AppDatabase {
         // employees.basic_salary
         try {
           await m.database.customStatement(
-            'UPDATE employees SET basic_salary = CAST(ROUND(basic_salary) AS INTEGER) WHERE basic_salary IS NOT NULL',
+            'UPDATE employees SET basic_salary = CAST(basic_salary AS INTEGER) WHERE basic_salary IS NOT NULL',
           );
         } catch (e) {
           developer.log(
@@ -1965,7 +1968,7 @@ class AppDatabase extends _$AppDatabase {
         // expenses.amount
         try {
           await m.database.customStatement(
-            'UPDATE expenses SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+            'UPDATE expenses SET amount = CAST(amount AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
           developer.log(
@@ -1977,7 +1980,7 @@ class AppDatabase extends _$AppDatabase {
         // cash_transactions.amount
         try {
           await m.database.customStatement(
-            'UPDATE cash_transactions SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+            'UPDATE cash_transactions SET amount = CAST(amount AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
           developer.log(
@@ -1989,7 +1992,7 @@ class AppDatabase extends _$AppDatabase {
         // payments.amount
         try {
           await m.database.customStatement(
-            'UPDATE payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+            'UPDATE payments SET amount = CAST(amount AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
           developer.log(
@@ -2002,9 +2005,9 @@ class AppDatabase extends _$AppDatabase {
         try {
           await m.database.customStatement(
             'UPDATE debts SET '
-            'total_amount = CAST(ROUND(total_amount) AS INTEGER), '
-            'paid_amount = CAST(ROUND(paid_amount) AS INTEGER), '
-            'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
+            'total_amount = CAST(total_amount AS INTEGER), '
+            'paid_amount = CAST(paid_amount AS INTEGER), '
+            'remaining_amount = CAST(remaining_amount AS INTEGER) '
             'WHERE 1=1',
           );
         } catch (e) {
@@ -2017,7 +2020,7 @@ class AppDatabase extends _$AppDatabase {
         // booking_nights.nightly_rate + إضافة الأعمدة الجديدة
         try {
           await m.database.customStatement(
-            'UPDATE booking_nights SET nightly_rate = CAST(ROUND(nightly_rate) AS INTEGER) WHERE nightly_rate IS NOT NULL',
+            'UPDATE booking_nights SET nightly_rate = CAST(nightly_rate AS INTEGER) WHERE nightly_rate IS NOT NULL',
           );
         } catch (e) {
           developer.log(
@@ -2080,9 +2083,9 @@ class AppDatabase extends _$AppDatabase {
         try {
           await m.database.customStatement(
             'UPDATE hotel_day_ledger SET '
-            'total_income = CAST(ROUND(total_income) AS INTEGER), '
-            'total_expenses = CAST(ROUND(total_expenses) AS INTEGER), '
-            'pending_balances = CAST(ROUND(pending_balances) AS INTEGER), '
+            'total_income = CAST(total_income AS INTEGER), '
+            'total_expenses = CAST(total_expenses AS INTEGER), '
+            'pending_balances = CAST(pending_balances AS INTEGER), '
             'occupancy_rate = CAST(ROUND(occupancy_rate) AS INTEGER) '
             'WHERE 1=1',
           );
@@ -2097,8 +2100,8 @@ class AppDatabase extends _$AppDatabase {
         try {
           await m.database.customStatement(
             'UPDATE price_adjustments SET '
-            'previous_value = CAST(ROUND(previous_value) AS INTEGER), '
-            'new_value = CAST(ROUND(new_value) AS INTEGER) '
+            'previous_value = CAST(previous_value AS INTEGER), '
+            'new_value = CAST(new_value AS INTEGER) '
             'WHERE 1=1',
           );
         } catch (e) {
@@ -2111,7 +2114,7 @@ class AppDatabase extends _$AppDatabase {
         // payment_voids.voided_amount
         try {
           await m.database.customStatement(
-            'UPDATE payment_voids SET voided_amount = CAST(ROUND(voided_amount) AS INTEGER) WHERE voided_amount IS NOT NULL',
+            'UPDATE payment_voids SET voided_amount = CAST(voided_amount AS INTEGER) WHERE voided_amount IS NOT NULL',
           );
         } catch (e) {
           developer.log(
@@ -2124,9 +2127,9 @@ class AppDatabase extends _$AppDatabase {
         try {
           await m.database.customStatement(
             'UPDATE salary_cycles SET '
-            'expected_amount = CAST(ROUND(expected_amount) AS INTEGER), '
-            'actual_paid = CAST(ROUND(actual_paid) AS INTEGER), '
-            'remaining_amount = CAST(ROUND(remaining_amount) AS INTEGER) '
+            'expected_amount = CAST(expected_amount AS INTEGER), '
+            'actual_paid = CAST(actual_paid AS INTEGER), '
+            'remaining_amount = CAST(remaining_amount AS INTEGER) '
             'WHERE 1=1',
           );
         } catch (e) {
@@ -2139,7 +2142,7 @@ class AppDatabase extends _$AppDatabase {
         // salary_payments.amount
         try {
           await m.database.customStatement(
-            'UPDATE salary_payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
+            'UPDATE salary_payments SET amount = CAST(amount AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
           developer.log(
@@ -2151,7 +2154,7 @@ class AppDatabase extends _$AppDatabase {
         // audit_logs.amount_impact
         try {
           await m.database.customStatement(
-            'UPDATE audit_logs SET amount_impact = CAST(ROUND(amount_impact) AS INTEGER) WHERE amount_impact IS NOT NULL',
+            'UPDATE audit_logs SET amount_impact = CAST(amount_impact AS INTEGER) WHERE amount_impact IS NOT NULL',
           );
         } catch (e) {
           developer.log(
