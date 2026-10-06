@@ -29,11 +29,8 @@ jobs:
         shell: bash
         run: |
           set +e
-          flutter test --reporter expanded \
-            test/services/provider_independent_financial_links_test.dart \
-            test/services/salary_withdrawals_payload_uuid_test.dart \
-            test/unit/adapters_and_repos_test.dart \
-            test/services/employee_salary_crud_test.dart \
+          flutter test --concurrency=2 --timeout=180s \
+            --exclude-tags integration,performance,slow --reporter expanded \
             > targeted_test_report.txt 2>&1
           code=$?
           echo "EXIT_CODE=$code" >> targeted_test_report.txt
