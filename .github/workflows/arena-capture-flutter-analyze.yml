@@ -1,0 +1,42 @@
+name: Arena Capture Flutter Analyze
+
+on:
+  push:
+    branches: [arena/287ede54-marina-hotel-wit-app]
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    if: "!contains(github.event.head_commit.message, 'diag: capture flutter analyze output')"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: arena/287ede54-marina-hotel-wit-app
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+      - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
+      - name: Capture analyzer output
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze_report.txt
+          code=${PIPESTATUS[0]}
+          echo "$code" > analyze_exit_code.txt
+          exit 0
+      - name: Commit report
+        working-directory: .
+        run: |
+          git config user.name arena-agent
+          git config user.email arena-agent@users.noreply.github.com
+          git add mobile/analyze_report.txt mobile/analyze_exit_code.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "diag: capture flutter analyze output"
+          git push origin HEAD:arena/287ede54-marina-hotel-wit-app
