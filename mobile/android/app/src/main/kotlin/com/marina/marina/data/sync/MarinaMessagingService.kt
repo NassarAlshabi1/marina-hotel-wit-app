@@ -29,12 +29,11 @@ class MarinaMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
-        val source = data["type"] ?: data["source"]
-        if (source != MARINA_SYNC_SOURCE) return
-        val senderDeviceId = data["senderDeviceId"]
-        val ownDeviceId = preferences.getDeviceId()
-        if (!senderDeviceId.isNullOrEmpty() && senderDeviceId == ownDeviceId) return
-        autoSyncEngine.onRemoteSignal(source = "fcm")
+        // التصفية كلها في [RemoteSignalPolicy] الخالصة (مصدر + صدى) — تُختبر
+        // بدقة بلا Hilt ولا محاكٍ، ويبقى هنا التوصيل فقط.
+        if (!RemoteSignalPolicy.isSyncMessage(data)) return
+        if (RemoteSignalPolicy.isOwnEcho(data, preferences.getDeviceId())) return
+        autoSyncEngine.onRemoteSignal(source = FCM_SOURCE)
     }
 
     override fun onNewToken(token: String) {
@@ -42,7 +41,10 @@ class MarinaMessagingService : FirebaseMessagingService() {
     }
 
     companion object {
+        /** وسم المصدر في تشخيصات العميل (شارة Realtime). */
+        const val FCM_SOURCE = "fcm"
+
         /** نفس مصدر رسائل Flutter (`data['type'] == 'marina_sync'`). */
-        const val MARINA_SYNC_SOURCE = "marina_sync"
+        const val MARINA_SYNC_SOURCE = RemoteSignalPolicy.MARINA_SYNC_SOURCE
     }
 }

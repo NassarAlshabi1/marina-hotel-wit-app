@@ -1,16 +1,18 @@
-name: Android Sync Unit Tests (session branch)
+name: Sync Unit Tests (Android + Worker, session branch)
 
 # تحقق حقيقي لدفعة «مطابقة سحب التغييرات مع Flutter» على فرع الجلسة.
 # السبب: android-kotlin-build.yml مقيَّد بقائمة فروع ثابتة ولا يقبل
 # workflow_dispatch، فتعذّر تشغيله من جلسة الوكيل. هذا الـworkflow يقتصر
-# على تصريف وحدات JVM (`testDebugUnitTest`) بلا توقيع APK ولا keystore،
-# ويعمل على فرع الجلسة فقط — لا يغيّر سلوك أي workflow قائم.
+# على تصريف وحدات JVM (`testDebugUnitTest`) وعقد الخادم (`vitest` في
+# worker/) بلا توقيع APK ولا keystore، ويعمل على فرع الجلسة فقط — لا
+# يغيّر سلوك أي workflow قائم.
 on:
   push:
     branches:
       - arena/be8302d7-marina-hotel-wit-app
     paths:
       - 'mobile/android/**'
+      - 'worker/**'
       - '.github/workflows/android-sync-unit-tests.yml'
   workflow_dispatch:
 
@@ -19,7 +21,7 @@ permissions:
   checks: write
 
 concurrency:
-  group: android-sync-unit-tests-${{ github.ref }}
+  group: sync-unit-tests-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -66,6 +68,11 @@ jobs:
             echo "sdkmanager not found — relying on AGP auto-install"
           fi
           ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+
+      - name: Collect changed files (for scoped static analysis)
+        run: |
+          git diff --name-only "${{ github.event.before || 'HEAD~1' }}" HEAD > "$RUNNER_TEMP/changed.txt" || true
+          cat "$RUNNER_TEMP/changed.txt"
 
       - name: Run unit tests (sync pull parity batch)
         run: |
@@ -139,6 +146,57 @@ jobs:
           PY
           gh api -X POST "repos/${{ github.repository }}/check-runs" --input "$RUNNER_TEMP/diagnostics.json" >/dev/null
 
+      # فحص ثابت إعلامي (غير حاجب): بوابة الجودة الكاملة في هذا المستودع
+      # كانت حمراء قبل هذه الدفعة، فلا ندّعي جعلها خضراء — لكن نُظهر أي
+      # ملاحظة Detekt تخصّ ملفات هذه الدفعة تحديداً حتى لا تمرّ صامتة.
+      - name: Detekt (informational, changed files only)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./gradlew :app:detekt --console=plain 2>&1 | tail -40 || true
+          export CHANGED_FILES="$(git diff --name-only "${{ github.event.before || 'HEAD~1' }}" HEAD 2>/dev/null || true)"
+          python3 - <<'PY' > "$RUNNER_TEMP/detekt.json"
+          import json, os, pathlib, re, xml.etree.ElementTree as ET
+
+          changed = os.environ.get("CHANGED_FILES", "")
+          names = {n.strip() for n in changed.splitlines() if n.strip()}
+          candidates = [
+              "mobile/build/app/reports/detekt/detekt.xml",
+              "mobile/android/app/build/reports/detekt/detekt.xml",
+              "../build/app/reports/detekt/detekt.xml",
+              "app/build/reports/detekt/detekt.xml",
+          ]
+          report = next((pathlib.Path(c) for c in candidates if pathlib.Path(c).exists()), None)
+          findings = []
+          if report is not None:
+              for err in ET.parse(report).getroot().iter("error"):
+                  src = err.get("source") or ""
+                  # نُبلغ فقط عن ملفات هذه الدفعة (بقية المستودع دين قديم مُعلَن).
+                  if names and not any(src.endswith(n) for n in names):
+                      continue
+                  findings.append(
+                      f"{src}:{err.get('line')} [{err.get('rule')}] {err.get('message')}"
+                  )
+          body = "\n".join(findings[:200]) if findings else (
+              "لا ملاحظات Detekt على ملفات هذه الدفعة." if report is not None
+              else "لم يُنتج Detekt تقريراً (المهمة فشلت قبل الكتابة أو المسار مختلف)."
+          )
+          print(json.dumps({
+              "name": "android-sync-detekt",
+              "head_sha": os.environ["GITHUB_SHA"],
+              "status": "completed",
+              "conclusion": "success",
+              "output": {
+                  "title": f"Detekt على ملفات الدفعة: {len(findings)} ملاحظة",
+                  "summary": "إعلامي غير حاجب — لا يُغيّر نتيجة الفحص",
+                  "text": body[-60000:],
+              },
+          }))
+          PY
+          gh api -X POST "repos/${{ github.repository }}/check-runs" --input "$RUNNER_TEMP/detekt.json" >/dev/null || true
+
       - name: Upload test results (evidence)
         if: always()
         uses: actions/upload-artifact@v5
@@ -151,3 +209,31 @@ jobs:
             mobile/android/app/build/reports/tests
           if-no-files-found: warn
           retention-days: 30
+
+  worker-tests:
+    name: worker: vitest + typecheck (sweep contract)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: worker
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck (tsc, both configs)
+        run: npm run typecheck
+
+      - name: Vitest (full worker suite incl. tombstones_only sweep contract)
+        run: npx vitest run

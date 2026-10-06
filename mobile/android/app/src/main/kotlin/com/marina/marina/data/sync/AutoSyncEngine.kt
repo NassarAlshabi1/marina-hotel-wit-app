@@ -100,7 +100,9 @@ class AutoSyncEngine @Inject constructor(
         // Realtime في الواجهة فقط (نفس مرحلة Flutter 3.3): استئناف المقبس
         // عند العودة، ثم إن كان قد وصل حدث أثناء الغياب نسحبه فوراً.
         if (masterSyncEnabled()) realtime.ensureStarted()
-        if (remoteSignalWhileBackgrounded && masterSyncEnabled() && networkAllowed()) {
+        if (remoteSignalWhileBackgrounded &&
+            RemoteSignalPolicy.shouldConsumeDeferred(masterSyncEnabled(), networkAllowed())
+        ) {
             remoteSignalWhileBackgrounded = false
             realtime.noteRemoteChange("foreground")
         }
@@ -123,11 +125,10 @@ class AutoSyncEngine @Inject constructor(
      *    بديل صريح لا ادعاء مطابقة).
      */
     fun onRemoteSignal(source: String) {
-        if (!masterSyncEnabled()) return
-        if (foreground) {
-            realtime.noteRemoteChange(source)
-        } else {
-            remoteSignalWhileBackgrounded = true
+        when (RemoteSignalPolicy.decide(masterSyncEnabled(), foreground)) {
+            RemoteSignalPolicy.Decision.IGNORE -> Unit
+            RemoteSignalPolicy.Decision.DELIVER -> realtime.noteRemoteChange(source)
+            RemoteSignalPolicy.Decision.DEFER -> remoteSignalWhileBackgrounded = true
         }
     }
 

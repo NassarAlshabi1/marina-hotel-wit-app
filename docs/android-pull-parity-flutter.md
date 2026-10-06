@@ -107,6 +107,42 @@ Realtime) وشريط حالة اللوحة الرئيسية عند وصول تغ
 يعمل في عملية الخلفية. هذا بديل صريح لا ادعاء مطابقة حرفية، وقيد الحصول
 على رسالة أصلًا يبقى على عاتق مرسل FCM (worker/`functions/fcm-notifier`).
 
+**فرق ثالث مُعلَن (مقصود)**: مسار FCM في Flutter يستدعي `sync(push: false)`
+بلا `deltaOnly` — أي أنه قد يبدأ bootstrap على جهاز لم يُكمل full sync،
+بينما أندرويد يمرّره عبر `pullOnRealtimeEvent()` (دلتا دائماً). عملياً لا
+فرق في البيانات: الدلتا من مؤشر صفر تجلب كل الصفوف؛ الفرق في أعلام
+full-sync/remaining/normalization التي تبقى مسؤولية الإجراء الصريح
+`fullPull()` — وهو الاتساق الذي يفرضه `deltaOnly` في Dart نفسه لباقي
+المشغّلات (اللوحة، التلقائي، Realtime).
+
+## تفاصيل مطابقة عميل Realtime (تدقيق 2026-10-06)
+
+قورن `cloudflare_realtime_sync.dart` (كل الملف) بـ`CloudflareRealtimeClient.kt`:
+
+| البند | Dart | Kotlin |
+| --- | --- | --- |
+| heartbeat | `pingInterval: 30s` | `pingInterval(30s)` |
+| مهلة الاتصال | `connectTimeout: 15s` | `connectTimeout(15s)` + مؤقت حراسة (watchdog) |
+| مهلة القراءة | لا شيء (مقبس مفتوح) | `readTimeout(0)` |
+| تدوير النقاط | `WorkerEndpoints.active` + `candidatesFor` + `reportSuccess/reportFailure` | نفسه حرفياً عبر `WorkerEndpoints` |
+| echo filter | `msg.deviceId == _currentDeviceId` | نفسه (`preferences.getDeviceId()`) |
+| الأنواع المُطلِقة | `change` فقط (`presence/lock/unlock` لا) | نفسه |
+| استرداد بعد الانقطاع | `_recoveryPullPending` ⇒ حدث عند أول اتصال | نفسه |
+| الاستسلام/إعادة التسليح | 6 محاولات ثم كل دقيقتين | نفسه |
+| الرابط | `/api/realtime?deviceId=…&entity=*` على `wss` | نفسه |
+
+**فرق مقصود واحد (أكثر تحفّظاً)**: `ensureStarted()` في Dart لا يفحص مفتاح
+التشغيل — فبعد تعطيل المستخدم للمزامنة الفورية يستطيع استئناف المقبس عند
+العودة للواجهة. في أندرويد يفحص `ensureStarted()`/`connect()` المفتاح
+(`getRealtimeSyncEnabled() && getCloudflareSyncEnabled()`) فلا يُفتح مقبس
+أصلاً — نفس دلالة الإعداد «معطّل» (وإلا فالمفتاح وعدٌ كاذب).
+
+**فرق مقصود ثانٍ (قيود Android)**: رسالة FCM في الخلفية لا تبدأ شبكة من
+عملية غير ظاهرة — تُحفظ الإشارة وتُستهلك عند العودة للواجهة بشرط
+`masterSyncEnabled && networkAllowed` (نظير Dart يبدأ `sync(push:false)`
+مباشرة في معالج الخلفية). كل من التصفية والقرار في
+`RemoteSignalPolicy` الخالصة المُختبرة.
+
 ## زر «سحب التغييرات» في اللوحة = دلتا دائماً (لا Bootstrap صامت)
 
 الفرق المكتشف في جولة 2026-10-06: تعليق `performPullOnly` كان **يدّعي**
@@ -158,6 +194,8 @@ final wasFullSync = !deltaOnly && !_fullSyncCompleted;
 | `RealtimePullSchedulerTest` | دمج الدفعة (debounce)، تأجيل ما يقع داخل التهدئة ثم تنفيذ واحد، إعادة جدولة الفشل، الإلغاء، حساب المتبقي من التهدئة. |
 | `CloudflareRealtimeClientTest` | بوابة المفتاح، echo filter، الشارة، دليل حياة المقبس بإطار مشوّه، التشخيصات، وعدم فتح أي مقبس بلا توكن. |
 | `CloudflareDeltaContractTest` | عقد أعلام الاستعلام النصية `"1"` وغيابها عند عدم الطلب. |
+| `RemoteSignalPolicyTest` | تصفية مصدر FCM (`type` ثم `source`)، echo filter بالحرف (`senderDeviceId`)، قرار التسليم/التأجيل/التجاهل، وبوابة استهلاك الإشارة المؤجَّلة. |
+| `worker/test/sync.tombstone.sweep.test.ts` | عقد الخادم الذي يعتمد عليه المسح: المؤشر = آخر صف حذف مُعاد (لا أكبر طابع)، صف حي أحدث لا يقدّم المؤشر، `exclude_device` داخل نافذة الحذفيات، واستئناف idempotent بعد الانهيار. |
 
 تُعديلات على `SyncIngestorRegistryTest`: حالات السحب القائمة صارت تضبط
 `setTombstoneSweepDone(true)` صراحةً كي يبقى تركيزها على المؤشر/الحجر
@@ -181,6 +219,27 @@ final wasFullSync = !deltaOnly && !_fullSyncCompleted;
 تنقضي التهدئة)، وتوقّع `null` لا `false` لغياب علم `tombstones_only`.
 كما كشف اختبار «زر اللوحة على جهاز جديد» أن `deltaOnly` وُضع في
 `performSyncNow` بدل `performPullOnly` — فصُحّح ونُقل.
+
+### تحقق الخادم (worker) — تشغيل فعلي في بيئة الجلسة
+
+بيئة الجلسة تحتوي Node 22 / npm 10 (خلاف JDK الذي لا يوجد):
+
+| العنصر | القيمة |
+| --- | --- |
+| الأمر | `npm ci && npm run typecheck && npx vitest run` داخل `worker/` |
+| النتيجة | **227 اختباراً في 21 ملفاً نجحت** + العقد الجديد 3 اختبارات ⇒ **230/230** |
+| `tsc` | نظيف (كلا الإعدادين: `tsconfig.json` و`tsconfig.test.json`) |
+
+هذا يثبت طرف الخادم من مسار السحب: `tombstones_only=1` (مع `exclude_device`
+والمؤشر)، و`epoch`، وحدود الدلتا — لكنه **لا** يستبدل اختبار جهاز حقيقي
+ضد قاعدة D1 المنشورة.
+
+### فحص ثابت إعلامي
+
+أُضيفت خطوة Detekt إلى الـworkflow أعلاه **غير حاجبة** (`continue-on-error`)
+تُظهر ملاحظات Detekt على ملفات هذه الدفعة فقط عبر check run مستقل
+(`android-sync-detekt`)، لأن بوابة الجودة الكاملة في هذا المستودع كانت
+حمراء قبل الدفعة — لا ندّعي جعلها خضراء ولا نُخفي نتائجها.
 
 ### ما لم يُتحقق بعد
 
