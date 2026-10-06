@@ -3,5 +3,5 @@ Changed lib/services/salary_mirror_matcher.dart
 Changed lib/services/review_report_service.dart
 Changed test/unit/financial_links_g1_g2_test.dart
 Changed test/services/salary_mirror_cross_device_test.dart
-Formatted 17 files (5 changed) in 0.36 seconds.
-480 .arena/format.diff
+Formatted 17 files (5 changed) in 0.37 seconds.
+695 .arena/format.diff
