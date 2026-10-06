@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:drift/drift.dart';
 import 'local_db.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -105,6 +106,31 @@ class ConflictManager {
     _conflictsController.add(_pendingConflicts);
   }
 
+  /// ✅ (G-11) يُنشئ سجل مزامنة (sync_log) ليُربط به التعارض عند غياب أي سجل —
+  /// بدون هذا يخفق الإدراج بـ FK constraint ويُفقد التعارض بصمت.
+  Future<SyncLogData> _createConflictAnchorLog(PendingConflict conflict) {
+    return db
+        .into(db.syncLog)
+        .insertReturning(
+          SyncLogCompanion.insert(
+            syncId:
+                'conflict_${conflict.table}_${conflict.uuid}_'
+                '${DateTime.now().millisecondsSinceEpoch}',
+            direction: 'pull',
+            deviceId: 'local',
+            metadata: jsonEncode({
+              'kind': 'conflict_review',
+              'table': conflict.table,
+              'uuid': conflict.uuid,
+              'detectedAt': conflict.detectedAt.toIso8601String(),
+            }),
+            operations: const Value('[]'),
+            status: const Value('conflict'),
+            createdAt: DateTime.now().toUtc().toIso8601String(),
+          ),
+        );
+  }
+
   Future<void> _persistConflict(PendingConflict conflict) async {
     try {
       final existingQuery = db.select(db.syncConflicts)
@@ -131,18 +157,25 @@ class ConflictManager {
           ),
         );
       } else {
-        // Get latest sync log ID or use 0
-        final latestLog =
+        // ✅ (G-11 — تدقيق الهوية المالية 2026-10-06): كان الكود يمرّر
+        // `latestLog?.id ?? 0` — وعند عدم وجود أي سجل في `sync_log` يفشل
+        // الإدراج بـ FOREIGN KEY constraint failed (constraint 787) ويُبتلع
+        // الخطأ في catch → **يضيع التعارض ولا يصل لشاشة المراجعة أبداً**.
+        // الإصلاح: إن لم يوجد سجل مزامنة، نُنشئ واحداً لهذا التعارض تحديداً
+        // (نفس نمط _logConcurrentConflict) ثم نربط التعارض به.
+        var latestLog =
             await (db.select(db.syncLog)
                   ..orderBy([(t) => OrderingTerm.desc(t.id)])
                   ..limit(1))
                 .getSingleOrNull();
 
+        latestLog ??= await _createConflictAnchorLog(conflict);
+
         await db
             .into(db.syncConflicts)
             .insert(
               SyncConflictsCompanion.insert(
-                logId: latestLog?.id ?? 0,
+                logId: latestLog.id,
                 targetTable: conflict.table,
                 uuid: conflict.uuid,
                 localPayload: jsonEncode(conflict.localData),
@@ -154,8 +187,17 @@ class ConflictManager {
               ),
             );
       }
-    } catch (e) {
+    } catch (e, st) {
+      // ✅ (G-11) كان الفشل يُبتلع في dlog فقط — ولهذا بقي تعارض مالي لا يصل
+      // لشاشة المراجعة بلا أي أثر مرئي. الآن يُسجَّل بمستوى خطأ مرئي أيضاً.
       dlog(() => '❌ فشل حفظ التعارض: $e');
+      developer.log(
+        'conflict persist failed: table=${conflict.table}, '
+        'uuid=${conflict.uuid}',
+        name: 'CONFLICT',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
