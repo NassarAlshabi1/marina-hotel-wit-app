@@ -39,6 +39,25 @@ data class InventoryTransactionEntity(
     @SerializedName("note")
     val note: String? = null,
 
+    /**
+     * ✅ (2026-10-06) حقول الخادم الثلاثة التي كانت تُسقَط عند السحب، بينما
+     * Flutter (Drift) يحفظها كلها:
+     *  • `item_local_uuid` — مرجع الأب المستقر عبر الأجهزة (يُستعمل في
+     *    حلّ FK أثناء السحب ويُحفظ الآن ليبقى الوصل قابلاً للتصحيح).
+     *  • `user_id` / `user_name` — من نفّذ الحركة (عرض تاريخي في الشاشات).
+     */
+    @SerializedName("item_local_uuid")
+    @ColumnInfo(name = "item_local_uuid")
+    val itemLocalUuid: String? = null,
+
+    @SerializedName("user_id")
+    @ColumnInfo(name = "user_id")
+    val userId: Long? = null,
+
+    @SerializedName("user_name")
+    @ColumnInfo(name = "user_name")
+    val userName: String? = null,
+
     @SerializedName("transaction_time")
     @ColumnInfo(name = "transaction_time")
     val transactionTime: Long,

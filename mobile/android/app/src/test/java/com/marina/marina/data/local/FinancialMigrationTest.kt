@@ -11,6 +11,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.google.gson.JsonParser
 import com.marina.marina.di.DatabaseModule
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,7 +28,7 @@ class FinancialMigrationTest {
         val room = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries().build()
         try {
-            assertEquals(75, AppDatabase.SCHEMA_VERSION)
+            assertEquals(76, AppDatabase.SCHEMA_VERSION)
             assertEquals(AppDatabase.SCHEMA_VERSION, room.openHelper.writableDatabase.version)
         } finally { room.close() }
     }
@@ -72,7 +73,7 @@ class FinancialMigrationTest {
         helper.close()
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75).allowMainThreadQueries().build()
+                .addMigrations(DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
             try {
                 val db = room.openHelper.writableDatabase
                 assertSalaryUuidIndexes(db)
@@ -104,7 +105,7 @@ class FinancialMigrationTest {
             helper.close()
             try {
                 val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                    .addMigrations(DatabaseModule.MIGRATION_74_75).allowMainThreadQueries().build()
+                    .addMigrations(DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
                 try {
                     val db = room.openHelper.writableDatabase
                     db.query("SELECT expense_kind, amount, updated_at FROM expenses").use {
@@ -115,6 +116,107 @@ class FinancialMigrationTest {
                 } finally { room.close() }
             } finally { context.deleteDatabase(name) }
         }
+    }
+
+    /**
+     * ✅ (2026-10-06) 75→76: أعمدة خادمية كانت تُسقَط صامتة عند السحب.
+     *
+     * المخطط الكامل يُتحقق تلقائياً عند فتح Room (Room يقارن كل عمود: الاسم
+     * والنوع والـNOT NULL) — فالاختبار يفشل لو اختلف أي `ALTER TABLE` عن
+     * تعريف الكيان. ويُضاف فوقه: القيم الافتراضية للصفوف القائمة، وبقاء
+     * صف الحجر القديم، وسلامة المال.
+     */
+    @Test
+    fun migrate75To76AddsDroppedServerColumnsWithoutTouchingExistingRows() {
+        val name = "migration-75-76.db"
+        createV70(name)
+        // ترقية الملف إلى 75 بالترحيلات الحقيقية ثم إدخال صف حجر قديم.
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name(name)
+                .callback(object : SupportSQLiteOpenHelper.Callback(75) {
+                    override fun onCreate(db: SupportSQLiteDatabase) = Unit
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
+                        DatabaseModule.MIGRATION_70_71.migrate(db)
+                        DatabaseModule.MIGRATION_71_72.migrate(db)
+                        DatabaseModule.MIGRATION_72_73.migrate(db)
+                        DatabaseModule.MIGRATION_73_74.migrate(db)
+                        DatabaseModule.MIGRATION_74_75.migrate(db)
+                    }
+                }).build()
+        )
+        helper.writableDatabase.execSQL(
+            "INSERT INTO sync_quarantine (entity, recordKey, payload, reason) VALUES ('rooms', 'uuid:legacy', '{\"a\":1}', 'legacy')"
+        )
+        helper.close()
+
+        try {
+            val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
+                .addMigrations(DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
+            try {
+                val db = room.openHelper.writableDatabase
+                assertEquals(76, db.version)
+
+                // الأعمدة الثمانية الجديدة موجودة، وبقيم افتراضية سليمة.
+                fun columnInfo(table: String, column: String): Triple<Boolean, String?, String>? =
+                    db.query("PRAGMA table_info($table)").use { cursor ->
+                        while (cursor.moveToNext()) {
+                            if (cursor.getString(1) == column) {
+                                return@use Triple(cursor.getInt(3) == 1, cursor.getString(4), cursor.getString(2))
+                            }
+                        }
+                        null
+                    }
+
+                val expectedNotNull = mapOf(
+                    "expenses" to setOf("employee_link_cleared"),
+                    "inventory_items" to setOf("is_active"),
+                    "sync_quarantine" to setOf("attempts", "firstSeen")
+                )
+                val expectedNullable = mapOf(
+                    "salary_withdrawals" to listOf("expense_id"),
+                    "inventory_transactions" to listOf("item_local_uuid", "user_id", "user_name"),
+                    "blacklist_entries" to listOf("added_by", "added_date")
+                )
+                for ((table, columns) in expectedNotNull) {
+                    for (column in columns) {
+                        val info = columnInfo(table, column)
+                        assertTrue("عمود مفقود: $table.$column", info != null)
+                        assertTrue("يجب NOT NULL: $table.$column", info!!.first)
+                    }
+                }
+                for ((table, columns) in expectedNullable) {
+                    for (column in columns) {
+                        val info = columnInfo(table, column)
+                        assertTrue("عمود مفقود: $table.$column", info != null)
+                        assertTrue("يجب nullable: $table.$column", !info!!.first)
+                    }
+                }
+                // صفوف قائمة فعلية: الافتراضي يُملأ بلا إعادة كتابة بيانات.
+                db.query("SELECT employee_link_cleared FROM expenses").use {
+                    assertTrue(it.moveToFirst()); assertEquals(0L, it.getLong(0))
+                }
+                db.query("SELECT expense_id FROM salary_withdrawals").use {
+                    assertTrue(it.moveToFirst()); assertTrue(it.isNull(0))
+                }
+
+                // صف الحجر القديم: الحمولة والسبب كما هما، والعدّادان الجديدان بقيمهما الافتراضية.
+                db.query("SELECT payload, reason, attempts, firstSeen FROM sync_quarantine").use { cursor ->
+                    assertTrue(cursor.moveToFirst())
+                    assertEquals("{\"a\":1}", cursor.getString(0))
+                    assertEquals("legacy", cursor.getString(1))
+                    assertEquals(1L, cursor.getLong(2))
+                    assertEquals(0L, cursor.getLong(3))
+                }
+
+                // المال وسجل الصادر لم يُمسّا.
+                db.query("SELECT amount FROM expenses").use {
+                    assertTrue(it.moveToFirst()); assertEquals(12345.0, it.getDouble(0), 0.0)
+                }
+                db.query("SELECT payload FROM outbox").use {
+                    assertTrue(it.moveToFirst()); assertTrue(it.getString(0).contains("not_delivered"))
+                }
+            } finally { room.close() }
+        } finally { context.deleteDatabase(name) }
     }
 
     private fun createV70(name: String) {
@@ -160,12 +262,12 @@ class FinancialMigrationTest {
         createV70(name)
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75)
+                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76)
                 .allowMainThreadQueries().build()
             try {
                     // Opening invokes Room's generated full schema validation, not just column checks.
                     val db = room.openHelper.writableDatabase
-                    assertEquals(75, db.version)
+                    assertEquals(76, db.version)
                     for (table in listOf("expenses", "salary_withdrawals")) {
                         db.query("SELECT amount FROM $table").use { cursor ->
                             assertTrue(cursor.moveToFirst())
@@ -210,8 +312,8 @@ class FinancialMigrationTest {
         helper.close()
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75).allowMainThreadQueries().build()
-            try { assertEquals(75, room.openHelper.writableDatabase.version) }
+                .addMigrations(DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
+            try { assertEquals(76, room.openHelper.writableDatabase.version) }
             finally { room.close() }
         } finally { context.deleteDatabase(name) }
     }
@@ -234,10 +336,10 @@ class FinancialMigrationTest {
         helper.close()
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75).allowMainThreadQueries().build()
+                .addMigrations(DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
             try {
                 val db = room.openHelper.writableDatabase
-                assertEquals(75, db.version)
+                assertEquals(76, db.version)
                 db.query("SELECT localUuid FROM pending_sync_links").use {
                     assertTrue(it.moveToFirst())
                     assertEquals("kept", it.getString(0))
@@ -259,7 +361,7 @@ class FinancialMigrationTest {
         }
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75)
+                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76)
                 .allowMainThreadQueries().build()
             try { assertTrue(runCatching { room.openHelper.writableDatabase }.isFailure) }
             finally { room.close() }

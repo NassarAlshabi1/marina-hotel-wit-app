@@ -357,8 +357,10 @@ class SyncManager @Inject constructor(
      *   `deltaOnly` في Dart): سحب تفاضلي بفلتر الصدى دائماً، ولا يمس علم
      *   الـ bootstrap — إكماله من الإجراء الصريح [fullPull].
      * @return عدد السجلات المستوعبة، أو -1 عند الفشل الخادمي.
-     * @throws Exception فشل شبكة أو فشل تطبيق — المؤشر لا يتقدم (المستدعي
-     *   يلتقط ويعرض الخطأ؛ نقطة التفتيش المحفوظة تبقى كما هي).
+     * @throws Exception فشل شبكة، أو خطأ في عقد الصفحة (JSON/جداول خادمية)،
+     *   أو تدوير epoch متكرر — المؤشر لا يتقدم (المستدعي يلتقط ويعرض الخطأ؛
+     *   نقطة التفتيش المحفوظة تبقى كما هي). أما **فشل تطبيق صفٍّ بعينه**
+     *   فلا يرمي: الصف يُعزل بحمولته والمؤشر يتقدم (نظير Dart).
      */
     private suspend fun pullDelta(
         batchSize: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
@@ -390,6 +392,19 @@ class SyncManager @Inject constructor(
         // كيانات الصفوف المطبَّقة في هذه الدورة — تُقرأ منها الحقول المشتقة
         // للحجوزات بعد اكتمال الدورة (نظير pulledDerivedEntities في Dart).
         val pulledEntities = mutableSetOf<String>()
+        // صفوف فشل التطبيق في هذه الدورة (تُحاسب مرة واحدة بعد الصفحات).
+        val pageFailures = mutableListOf<com.marina.marina.data.repository.DeferredRecord>()
+
+        // ✅ (2026-10-06) شفاء دوري من الحمولة المحفوظة — نظير
+        // `collectHealCandidates()` في Dart (`pull_quarantine.dart`): كل دورة
+        // تُعيد تطبيق ما عُزل سابقاً من حمولته الكاملة بلا إعادة سحب أي صفحة.
+        // سبب العزل قد يزول: وصول الأب، أو إصلاح قيمة على الخادم، أو ترقية
+        // التطبيق نفسها (أعمدة/تحويلات كانت ناقصة) — فينجو الصف بلا انتظار
+        // إعادة بثّه من الخادم.
+        val healed = runCatching { ingestorRegistry.healQuarantinedBatch() }.getOrNull()
+        pulledEntities += healed?.touched.orEmpty()
+        // المُشفى يدخل عدّاد الاستيعاب (نظير Dart: onApplied يُحسب تطبيقاً فعلياً).
+        ingested += healed?.applied ?: 0
 
         while (true) {
             // سقف الصفحات (H2) — خروج نظيف والبقية دورة قادمة.
@@ -498,11 +513,18 @@ class SyncManager @Inject constructor(
                 ingested += report.applied
                 pulledEntities += report.touched
                 if (report.hasFailures) {
-                    // فشل تطبيق فعلي — دورة فاشلة: المؤشر لا يتقدم
-                    // (التراجع الكامل يضمن إعادة سحب ما بين الحدين).
-                    throw Exception(
-                        "فشل تطبيق ${report.failed} سجلاً: ${report.firstError ?: "غير معروف"}"
-                    )
+                    // ✅ (2026-10-06) **لا تجميد للمؤشر** — مطابقة `pull_quarantine.dart`:
+                    //  • الصفحة نفسها سليمة (شبكة/HTTP/JSON/جداول خادمية)، وقد
+                    //    طُبّق منها ما طُبّق.
+                    //  • الصفوف الفاشلة تُحاسب (عدّاد + أول عزل) وتُعاد محاولتها
+                    //    من حمولتها في كل دورة ([healQuarantinedBatch]).
+                    //  • تجميد المؤشر لصف واحد كان يعني «جهاز متوقف نهائياً»
+                    //    (عطل مُبلَّغ: الدلتا لا تسحب جدولاً ولا حقلاً) لأن
+                    //    إعادة التطبيق تعطي النتيجة نفسها دائماً — إعادة السحب
+                    //    لا تُشفي ما لا يُشفيه غيره.
+                    // تبقى «جداول فاشلة على الخادم» (`response.errors`) دورة
+                    // فاشلة كما هي: تلك تُشفى بإصلاح D1 وإعادة المحاولة.
+                    pageFailures += report.failedRecords
                 }
             }
             if (normalizeTimestamps && response.normalization?.complete == true &&
@@ -531,6 +553,7 @@ class SyncManager @Inject constructor(
                 // the next scheduled cycle will retry without an unbounded loop.
                 throw Exception("Sync epoch changed repeatedly during one pull cycle")
             }
+            if (pageFailures.isNotEmpty()) ingestorRegistry.enforceQuarantineCap()
             // isFullPull=true هنا إعادة لعب كاملة *بعد* تدوير epoch (حماية
             // سلامة بيانات، وليس bootstrap اختياري) — تُنفَّذ بنفس
             // deltaOnly للاستدعاء الأصلي (نظير Dart l.2520:
@@ -549,8 +572,19 @@ class SyncManager @Inject constructor(
         val retry = ingestorRegistry.retryPendingLinks()
         ingested += retry.applied
         pulledEntities += retry.touched
-        if (retry.hasFailures) {
-            throw Exception("فشل تطبيق سجل مؤجل: ${retry.firstError ?: "غير معروف"}")
+        // المؤجَّل الفاشل محفوظ بحمولته في pending_sync_links ويُعاد كل دورة
+        // (نظير سجل الانتظار الدارتي) — يُحاسب ولا يجمّد المؤشر.
+        pageFailures += retry.failedRecords
+        if (pageFailures.isNotEmpty()) {
+            // المحاسبة تُبقي الحجر داخل السقف؛ العائد = عدد المُخلَّى بالسقف
+            // ولا يدخل في عدّاد المُطبَّق (لا صلة له بعدد الصفوف المطبَّقة).
+            ingestorRegistry.enforceQuarantineCap()
+            _syncState.update {
+                it.copy(
+                    lastMessage = it.lastMessage +
+                        " • عُزل ${pageFailures.size} سجلاً غير قابل للتطبيق ويُعاد حلّها من حمولتها"
+                )
+            }
         }
 
         // دورة نظيفة كاملة — الآن فقط نقدّم نقطة التفتيش المحفوظة.

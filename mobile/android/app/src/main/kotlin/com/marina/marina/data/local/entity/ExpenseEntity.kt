@@ -67,6 +67,18 @@ data class ExpenseEntity(
     @ColumnInfo(name = "employee_uuid")
     val employeeUuid: String? = null,
 
+    /**
+     * ✅ (2026-10-06) علم «فُصل الربط بالموظف صراحةً» — موجود خادمياً
+     * (`schema.sql → expenses.employee_link_cleared`) وكان يُستهلك في
+     * السجل ثم يُزال بلا حفظ: فإعادة سحب الصف نفسه تربط الموظف القديم
+     * مجدداً. الآن يُحفظ كما في Flutter.
+     */
+    @SerializedName("employee_link_cleared")
+    // defaultValue مطابق لـ MIGRATION_75_76: بلا تطابقه يختلف مخطط النسخة
+    // الجديدة (CREATE TABLE) عن مخطط الملف المُرقّى (ALTER TABLE).
+    @ColumnInfo(name = "employee_link_cleared", defaultValue = "0")
+    val employeeLinkCleared: Boolean = false,
+
     @SerializedName("local_uuid")
     @ColumnInfo(name = "local_uuid")
     override val localUuid: String = "",

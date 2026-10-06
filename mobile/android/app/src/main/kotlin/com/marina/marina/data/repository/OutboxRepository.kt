@@ -56,11 +56,16 @@ class OutboxRepository @Inject constructor(
     fun undeliveredCount(): Flow<Int> = outboxDao.undeliveredCount()
 
     suspend fun enqueue(entity: String, op: String, localUuid: String, payload: Map<String, Any>): Long {
+        // ✅ (2026-10-06) أسماء السلك: بعض الأعمدة الخادمية تختلف تسميتها عن
+        // المحلية (مثال: `inventory_items.quantity` ↔ `current_quantity`)،
+        // والخادم يفلتر الأعمدة غير المعروفة — فكان الرفع يفقد قيمة الكمية
+        // ونوع حركة المخزون صامتاً. النقطة هنا واحدة لكل المستودعات.
+        val wirePayload = com.marina.marina.data.sync.SyncWireFields.toWire(entity, payload)
         val outbox = OutboxEntity(
             entity = entity,
             op = op,
             localUuid = localUuid,
-            payload = gson.toJson(payload),
+            payload = gson.toJson(wirePayload),
             clientTs = System.currentTimeMillis(),
             // Each mutation has its own key; retries reuse this persisted row/key.
             idempotencyKey = "${entity}_${op}_${localUuid}_${UUID.randomUUID()}"

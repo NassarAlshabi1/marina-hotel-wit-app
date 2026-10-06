@@ -13,7 +13,21 @@ enum class SyncHealthLevel(val label: String) {
 data class SyncHealthReport(
     val pending: Long, val processing: Long, val failed: Long, val completed: Long,
     val stuck: Long, val oldestAgeMs: Long?, val entities: Map<String, Long>,
-    val tables: Map<String, Long>, val fkViolations: Long, val timestamp: Long
+    /**
+     * عدد سجلات كل جدول مزامَن محلي — **كل** الجداول الـ24 التي يسحبها
+     * المحرك (`SyncIngestorRegistry.SYNC_ENTITY_TABLES`)، لا قائمة ثابتة
+     * من 8 جداول كما كان (عطل مُبلَّغ: «حالة المزامنة لا تُظهر جميع الجداول»).
+     * المفاتيح = أسماء الكيانات المزامَنة (نظير `_entity` على السلك).
+     */
+    val tables: Map<String, Long>,
+    val fkViolations: Long,
+    /**
+     * ✅ سجلات معزولة (فشل تطبيقها عند السحب وتُعاد محاولتها من حمولتها كل
+     * دورة). كان هذا الرقم غائباً عن الشاشة تماماً — فلا يرى المستخدم الصفوف
+     * التي كانت توقف الدلتا قبل إصلاح «لا تجميد المؤشر».
+     */
+    val quarantined: Long,
+    val timestamp: Long
 ) {
     val level: SyncHealthLevel get() = when {
         fkViolations > 0 || stuck > 10 -> SyncHealthLevel.CRITICAL
@@ -51,10 +65,20 @@ class SyncHealthRepository @Inject constructor(private val db: AppDatabase) {
             sql.query("SELECT entity, COUNT(*) FROM outbox WHERE source='local' AND delivered_to_primary=0 GROUP BY entity ORDER BY COUNT(*) DESC").use {
                 while (it.moveToNext()) entities[it.getString(0)] = it.getLong(1)
             }
-            val tables = listOf("rooms", "bookings", "payments", "expenses", "debts", "employees", "salary_withdrawals", "inventory_items").associateWith { table ->
+            // كل الجداول المزامَنة من مصدر حقيقة واحد (كيان → جدول Room)،
+            // وكل استعلام داخل try/catch: جدول غائب (نسخة أقدم/ترحيل ناقص)
+            // يُعرض بقيمة غير معروفة بدل إسقاط بقية القائمة.
+            val tables = linkedMapOf<String, Long>()
+            for ((entity, table) in com.marina.marina.data.repository.SyncIngestorRegistry.SYNC_ENTITY_TABLES) {
                 // Identifiers are from this fixed whitelist, never user input.
-                sql.query("SELECT COUNT(*) FROM `$table`").use { it.moveToFirst(); it.getLong(0) }
+                val count = runCatching {
+                    sql.query("SELECT COUNT(*) FROM `$table`").use { it.moveToFirst(); it.getLong(0) }
+                }.getOrDefault(-1L)
+                tables[entity] = count
             }
+            val quarantined = runCatching {
+                sql.query("SELECT COUNT(*) FROM sync_quarantine").use { it.moveToFirst(); it.getLong(0) }
+            }.getOrDefault(0L)
             val fkCount = sql.query("PRAGMA foreign_key_check").use { cursor ->
                 var count = 0L
                 while (cursor.moveToNext()) count++
@@ -62,7 +86,8 @@ class SyncHealthRepository @Inject constructor(private val db: AppDatabase) {
             }
             SyncHealthReport(counts["pending"] ?: 0, counts["processing"] ?: 0,
                 counts["failed"] ?: 0, counts["completed"] ?: 0, stuck,
-                oldest?.let { (now - it).coerceAtLeast(0) }, entities, tables, fkCount, now)
+                oldest?.let { (now - it).coerceAtLeast(0) }, entities, tables, fkCount,
+                quarantined, now)
         }
     }
 }

@@ -68,6 +68,38 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * ✅ (2026-10-06) إغلاق فجوة «حقول خادمية تُسقَط صامتة عند السحب».
+     *
+     * اكتُشفت بمقارنة أعمدة `worker/schema.sql` بأعمدة كيانات Room لكل
+     * الكيانات الـ24: 14 عموداً خادمياً بلا عمود محلي، منها ما كان يُخزَّن
+     * بصفر/فراغ (كمية المخزون) ومنها ما كان يُفشل التطبيق كلياً (قيد
+     * NOT NULL في `inventory_transactions.transaction_type` بلا واجهة
+     * خادمية) فيتجمّد مؤشر الدلتا. كلها إضافية بحتة بلا إعادة كتابة صف:
+     *  • `expenses.employee_link_cleared` — يُحفظ العلم بدل إزالته.
+     *  • `salary_withdrawals.expense_id` — الرقم التسلسلي للمصروف المرتبط.
+     *  • `inventory_items.is_active` — نظير `quantity` (الاسم المحلي
+     *    `current_quantity` يُغذّى بالاسم الخادمي عند الاستيعاب).
+     *  • `inventory_transactions.item_local_uuid` / `user_id` / `user_name`.
+     *  • `blacklist_entries.added_by` / `added_date`.
+     */
+    val MIGRATION_75_76 = object : Migration(75, 76) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE expenses ADD COLUMN employee_link_cleared INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE salary_withdrawals ADD COLUMN expense_id INTEGER")
+            db.execSQL("ALTER TABLE inventory_items ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE inventory_transactions ADD COLUMN item_local_uuid TEXT")
+            db.execSQL("ALTER TABLE inventory_transactions ADD COLUMN user_id INTEGER")
+            db.execSQL("ALTER TABLE inventory_transactions ADD COLUMN user_name TEXT")
+            db.execSQL("ALTER TABLE blacklist_entries ADD COLUMN added_by TEXT")
+            db.execSQL("ALTER TABLE blacklist_entries ADD COLUMN added_date TEXT")
+            // حجر السحب: عدّاد المحاولات وعمر أول عزل — يقودان الشفاء الدوري
+            // وإخلاء السقف الأقدم-أولاً (نظير Dart pull_quarantine).
+            db.execSQL("ALTER TABLE sync_quarantine ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE sync_quarantine ADD COLUMN firstSeen INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -76,7 +108,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75)
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75, MIGRATION_75_76)
             // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }
