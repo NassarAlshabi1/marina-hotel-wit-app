@@ -49,6 +49,7 @@ import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
 import 'sync/outbox_pull_policy.dart';
 import 'sync_core/deferred_relation_relinker.dart';
+import 'sync_core/provider_scope.dart';
 import 'sync_core/deferred_relation_store.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_checkpoint_store.dart';
@@ -235,6 +236,27 @@ class AppwriteSyncManager {
     try {
       // إعادة تحميل الإعدادات
       await _loadSettings();
+      // ✅ (G-7): نفس الحارس الذي يعمل عند التهيئة — لو استُدعي هذا بعد
+      // تغيير الإعدادات داخل نفس الجلسة تُصفَّر المؤشرات فوراً بدل انتظار
+      // إعادة التشغيل.
+      try {
+        final scope = await ProviderScopeGuard.ensureCurrent(
+          endpoint: AppwriteConfigManager.endpoint,
+          projectId: AppwriteConfigManager.projectId,
+          databaseId: AppwriteConfigManager.databaseId,
+          db: database,
+          checkpoints: _checkpointStore,
+        );
+        if (scope.changed) {
+          _logger.warning(
+            '🔀 تبدّل نطاق المزوّد بعد تغيير الإعدادات — أُعيد ضبط: '
+            '${scope.invalidated.join(', ')}',
+            tag: 'PROVIDER_SCOPE',
+          );
+        }
+      } catch (e) {
+        _logger.warning('⚠️ فحص نطاق المزوّد بعد تغيير الإعدادات فشل: $e', tag: 'SYNC');
+      }
       // إعادة تهيئة Secondary Appwrite
       await SecondaryAppwriteConfig.ensureInitialized();
       _logger.info('🔄 Reinitialized after config change', tag: 'SYNC');
@@ -348,6 +370,35 @@ class AppwriteSyncManager {
       // ✅ نطاق السحب: تحميل الجداول المعطّلة من الإعدادات قبل أي دورة سحب
       // (الفلترة نفسها داخل _buildPullTasks — يغطي كل مسارات السحب).
       await SyncPullScope.load();
+
+      // ✅ (G-7 / 2026-10-06): حارس نطاق المزوّد — قبل أي دورة سحب أو رفع
+      // أولي. إن تبدّلت الوجهة (endpoint/projectId/databaseId) فإن كل
+      // مؤشرات السحب المحلية تُصفَّر مرة واحدة، ويُعاد تفعيل الرفع الأولي
+      // لنقل البيانات المحلية إلى الوجهة الجديدة (upsert بـ UUID نفسه).
+      // لا يجوز تشغيل delta بمؤشر مزوّد آخر: تخطٍّ صامت لسجلات (البند 9).
+      try {
+        final scope = await ProviderScopeGuard.ensureCurrent(
+          endpoint: AppwriteConfigManager.endpoint,
+          projectId: AppwriteConfigManager.projectId,
+          databaseId: AppwriteConfigManager.databaseId,
+          db: database,
+          checkpoints: _checkpointStore,
+        );
+        if (scope.changed) {
+          _logger.warning(
+            '🔀 نطاق المزوّد تبدّل — أُعيد ضبط: ${scope.invalidated.join(', ')} '
+            '(سيُعاد الرفع الأولي الكامل، والدورة القادمة سحب كامل).',
+            tag: 'PROVIDER_SCOPE',
+          );
+        }
+      } catch (e) {
+        // لا يُفشل التهيئة: البصمة لا تُحفظ إلا بعد نجاح إعادة الضبط كاملة،
+        // فالمحاولة تُعاد في التشغيل التالي بأمان.
+        _logger.warning(
+          '⚠️ فحص نطاق المزوّد فشل — سيُعاد في التشغيل التالي: $e',
+          tag: 'SYNC',
+        );
+      }
 
       // ✅ إصلاح تسليم الآباء المحذوفين (2026-09-13): إعادة ضبط checkpoint
       // الموظفين مرة واحدة بعد الترقية — الدورة التالية تسحبهم شاملين
@@ -6014,6 +6065,17 @@ class AppwriteSyncManager {
       'guest_infos': 0,
       'salary_withdrawals': 0,
       'salary_carry_over_logs': 0,
+      // ✅ (G-7 / 2026-10-06): كيانات تُدفع عبر الـ outbox ولا تمر
+      // بالرفع الأولي — بلا إضافتها هنا لا ينقل «الانتقال إلى مزوّد جديد»
+      // السجلات التي سُلّمت للمزوّد القديم ثم خرجت من الـ outbox
+      // (لا طابور يذكرها) ⇒ فقدان صامت عند تبديل الوجهة.
+      'price_adjustments': 0,
+      'payment_voids': 0,
+      'audit_logs': 0,
+      'inventory_items': 0,
+      'inventory_transactions': 0,
+      '_blacklist': 0,
+      '_app_users': 0,
       'errors': 0,
     };
 
@@ -6429,6 +6491,175 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
 
+      // ✅ (G-7 / 2026-10-06) تسويات الأسعار — كيان مالي يُدفع عبر الـ outbox
+      // ولم يكن ضمن الرفع الأولي إطلاقاً.
+      final priceAdjustments = await database
+          .select(database.priceAdjustments)
+          .get();
+      for (final row in priceAdjustments) {
+        if (skipDeleted && row.deletedAt != null) continue;
+        try {
+          final payload = _payloadMapper.priceAdjustmentToRemote(row);
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+            documentId: row.localUuid,
+            data: _filterPayload('price_adjustments', payload),
+          );
+          stats['price_adjustments'] = (stats['price_adjustments'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع تسوية سعر: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['price_adjustments']} تسوية سعر',
+        tag: 'SYNC',
+      );
+
+      // ✅ (G-7) إلغاءات الدفع — سجل مالي يُدفع عبر الـ outbox فقط.
+      final paymentVoids = await database.select(database.paymentVoids).get();
+      for (final voidRecord in paymentVoids) {
+        if (skipDeleted && voidRecord.deletedAt != null) continue;
+        try {
+          final payload = _payloadMapper.paymentVoidToRemote(voidRecord);
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.paymentVoidsCollectionId,
+            documentId: voidRecord.localUuid,
+            data: _filterPayload('payment_voids', payload),
+          );
+          stats['payment_voids'] = (stats['payment_voids'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع إلغاء دفع: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['payment_voids']} إلغاء دفع', tag: 'SYNC');
+
+      // ✅ (G-7) سجل التدقيق — عبر الـ outbox فقط سابقاً.
+      final auditLogs = await database.select(database.auditLogs).get();
+      for (final log in auditLogs) {
+        if (skipDeleted && log.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.auditLogs.toJsonForSource(
+            log,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.auditLogsCollectionId,
+            documentId: log.localUuid,
+            data: _filterPayload('audit_logs', payload),
+          );
+          stats['audit_logs'] = (stats['audit_logs'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع سجل تدقيق: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['audit_logs']} سجل تدقيق', tag: 'SYNC');
+
+      // ✅ (G-7) المخزون: الأصناف ثم الحركات (ترتيب الأب قبل الابن).
+      final inventoryItems = await database
+          .select(database.inventoryItems)
+          .get();
+      for (final item in inventoryItems) {
+        if (skipDeleted && item.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.inventoryItems.toJsonForSource(
+            item,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.inventoryItemsCollectionId,
+            documentId: item.localUuid,
+            data: _filterPayload('inventory_items', payload),
+          );
+          stats['inventory_items'] = (stats['inventory_items'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع صنف مخزون: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      final inventoryTransactions = await database
+          .select(database.inventoryTransactions)
+          .get();
+      for (final movement in inventoryTransactions) {
+        if (skipDeleted && movement.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.inventoryTransactions
+              .toJsonForSource(movement, src: Source.appwrite);
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
+            documentId: movement.localUuid,
+            data: _filterPayload('inventory_transactions', payload),
+          );
+          stats['inventory_transactions'] =
+              (stats['inventory_transactions'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع حركة مخزون: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['inventory_items']} صنف و'
+        '${stats['inventory_transactions']} حركة مخزون',
+        tag: 'SYNC',
+      );
+
+      // ✅ (G-7) القائمة السوداء: صفوف بعلامة created_by='blacklist' داخل
+      // جدول الملاحظات (نفس المُلقٍ المستخدم في مسار الدفع — انظر
+      // _processBlacklistEntry و _getBlacklistEntryByLocalUuid).
+      final blacklistRows = await (database.select(database.shiftNotes)
+            ..where((t) => t.createdBy.equals('blacklist')))
+          .get();
+      for (final item in blacklistRows) {
+        if (skipDeleted && item.deletedAt != null) continue;
+        try {
+          final payload = _blacklistToRemote(item);
+          await appwriteService.upsertBlacklist(
+            item.localUuid,
+            _filterPayload('blacklist', payload),
+          );
+          stats['_blacklist'] = (stats['_blacklist'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع عنصر قائمة سوداء: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['_blacklist']} عنصر قائمة سوداء',
+        tag: 'SYNC',
+      );
+
+      // ✅ (G-7) مستخدمو التطبيق: لا جدول محلي لهم — الحمولة تُرفع من
+      // صفوف الـ outbox غير المُسلَّمة (نفس مسار _processAppUserEntry:
+      // upsert للحمولة نفسها بلا أي حل مراجع ⇒ آمن في الرفع الأولي).
+      final appUserEntries =
+          await (database.select(database.outbox)..where(
+                (t) =>
+                    t.entity.equals('app_users') &
+                    t.deliveredToPrimary.equals(false),
+              ))
+              .get();
+      for (final entry in appUserEntries) {
+        try {
+          final raw = jsonDecode(entry.payload);
+          if (raw is! Map) continue;
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.appUsersCollectionId,
+            documentId: entry.localUuid,
+            data: Map<String, dynamic>.from(raw),
+          );
+          stats['_app_users'] = (stats['_app_users'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع مستخدم تطبيق: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['_app_users']} مستخدم تطبيق',
+        tag: 'SYNC',
+      );
+
       final totalRecords =
           stats['rooms']! +
           stats['bookings']! +
@@ -6445,7 +6676,14 @@ class AppwriteSyncManager {
           (stats['booking_price_adjustments'] ?? 0) +
           (stats['guest_infos'] ?? 0) +
           (stats['salary_withdrawals'] ?? 0) +
-          (stats['salary_carry_over_logs'] ?? 0);
+          (stats['salary_carry_over_logs'] ?? 0) +
+          (stats['price_adjustments'] ?? 0) +
+          (stats['payment_voids'] ?? 0) +
+          (stats['audit_logs'] ?? 0) +
+          (stats['inventory_items'] ?? 0) +
+          (stats['inventory_transactions'] ?? 0) +
+          (stats['_blacklist'] ?? 0) +
+          (stats['_app_users'] ?? 0);
 
       _logger.info(
         '✅ اكتمل رفع البيانات: $totalRecords سجل، ${stats['errors']} خطأ',
@@ -7547,12 +7785,25 @@ class AppwriteSyncManager {
     return pullRemoteChanges();
   }
 
-  /// إعادة تعيين حالة المزامنة
+  /// إعادة تعيين حالة المزامنة.
+  ///
+  /// ✅ (G-7 / 2026-10-06): لم يكن هذا المسار يُصفّر **أي** مؤشر حقيقي —
+  /// فقط يحذف مفتاح وقت العرض. والنتيجة: زر «إعادة ضبط المزامنة» يترك
+  /// `sync_checkpoints` و`sync_state` وخريطة مؤشرات الكيانات كما هي ⇒
+  /// الدورة التالية delta بمؤشر قديم (نفس علّة G-7). الآن يستخدم نفس
+  /// الأساس المشترك مع حارس المزوّد.
   Future<void> resetSyncState() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('appwrite_last_sync_time');
+    final reset = await ProviderScopeGuard.resetProviderScopedState(
+      db: database,
+      checkpoints: _checkpointStore,
+      prefs: prefs,
+    );
     _lastSyncTime = null;
-    _logger.info('Sync state reset', tag: 'SYNC');
+    _logger.info(
+      '♻️ إعادة ضبط حالة المزامنة: ${reset.join(', ')}',
+      tag: 'SYNC',
+    );
   }
 
   // Getters
