@@ -176,7 +176,33 @@ jobs:
           ./gradlew :app:detekt --console=plain 2>&1 | tail -40 || true
           export CHANGED_FILES="$(cat "$RUNNER_TEMP/changed.txt" 2>/dev/null || true)"
           python3 - <<'PY' > "$RUNNER_TEMP/detekt.json"
-          import json, os, pathlib, re, xml.etree.ElementTree as ET
+          import json, os, pathlib, re, subprocess, xml.etree.ElementTree as ET
+
+          BASE = "origin/agent/android-cloudflare"
+          root = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip()
+
+          def added_lines(src):
+              """أسطر الملف التي أضافتها الدفعة (git diff -U0 مقابل القاعدة).
+
+              تُستخدم لنسبة كل ملاحظة إلى «سطر جديد من الدفعة» أو «سطر قائم
+              قبلاً» — بلا هذا التصنيف يبقى الرقم الإجمالي غير قابل للتفسير.
+              """
+              try:
+                  rel = os.path.relpath(src, root)
+              except ValueError:
+                  return None
+              proc = subprocess.run(
+                  ["git", "-C", root, "diff", "-U0", f"{BASE}...HEAD", "--", rel],
+                  capture_output=True, text=True,
+              )
+              if proc.returncode != 0:
+                  return None
+              ranges = []
+              for hunk in re.findall(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", proc.stdout, re.M):
+                  start, count = int(hunk[0]), int(hunk[1] or "1")
+                  if count > 0:
+                      ranges.append((start, start + count - 1))
+              return ranges
 
           changed = os.environ.get("CHANGED_FILES", "")
           names = {n.strip() for n in changed.splitlines() if n.strip()}
@@ -202,28 +228,69 @@ jobs:
                       # نُبلغ فقط عن ملفات هذه الدفعة (بقية المستودع دين قديم مُعلَن).
                       if names and not any(src.endswith(n) for n in names):
                           continue
-                      findings.append((src, err.get("line"), err.get("source"), err.get("message")))
+                      try:
+                          line_no = int(err.get("line") or 0)
+                      except ValueError:
+                          line_no = 0
+                      findings.append((src, line_no, err.get("source"), err.get("message")))
           # ملخّص قابل للتدقيق أولاً (حتى لا يُقتطع عند 200 سطر): توزيع لكل ملف
-          # ولأعلى القواعد — يسمح بقراءة الرقم بدقة بدل رقم إجمالي معتم.
+          # ولأعلى القواعد، مع نسبة كل ملاحظة إلى «سطر أضافته الدفعة» أو «سطر
+          # قائم قبلاً» — يسمح بقراءة الرقم بدقة بدل رقم إجمالي معتم.
           from collections import Counter
-          by_file = Counter(src.rsplit("/", 1)[-1] for src, _, _, _ in findings)
-          by_rule = Counter(source for _, _, source, _ in findings)
+          attribution = {}
+          classified = []
+          for src, line_no, source, message in findings:
+              if src not in attribution:
+                  attribution[src] = added_lines(src)
+              ranges = attribution[src]
+              is_new = None if ranges is None else any(lo <= line_no <= hi for lo, hi in ranges)
+              classified.append((src, line_no, source, message, is_new))
+          new_count = sum(1 for *_, is_new in classified if is_new is True)
+          old_count = sum(1 for *_, is_new in classified if is_new is False)
+          unknown = sum(1 for *_, is_new in classified if is_new is None)
+          by_file = Counter()
+          for src, _, _, _, is_new in classified:
+              label = "جديد" if is_new is True else ("قائم" if is_new is False else "غير مُصنّف")
+              by_file[(src.rsplit("/", 1)[-1], label)] += 1
+          by_rule = Counter()
+          for _, _, source, _, is_new in classified:
+              by_rule[(source, "جديد" if is_new is True else ("قائم" if is_new is False else "غير مُصنّف"))] += 1
           lines = []
           if findings:
               lines.append(f"إجمالي ملاحظات ملفات الدفعة: {len(findings)}")
+              lines.append(f"على أسطر أضافتها الدفعة: {new_count} • على أسطر قائمة قبلها: {old_count}"
+                           + (f" • غير مُصنّف: {unknown}" if unknown else ""))
               lines.append("")
-              lines.append("| الملف | الملاحظات |")
-              lines.append("| --- | --- |")
-              lines += [f"| {name} | {count} |" for name, count in by_file.most_common()]
+              lines.append("| الملف | جديد | قائم |")
+              lines.append("| --- | --- | --- |")
+              files_order = []
+              for (name, label), _ in by_file.items():
+                  if name not in files_order:
+                      files_order.append(name)
+              files_order.sort(key=lambda n: -(sum(c for (m, _), c in by_file.items() if m == n)))
+              for name in files_order:
+                  new_n = sum(c for (m, l), c in by_file.items() if m == name and l == "جديد")
+                  old_n = sum(c for (m, l), c in by_file.items() if m == name and l == "قائم")
+                  extra = sum(c for (m, l), c in by_file.items() if m == name and l == "غير مُصنّف")
+                  tail = f" | {extra} غير مُصنّف" if extra else ""
+                  lines.append(f"| {name} | {new_n} | {old_n}{tail} |")
               lines.append("")
-              lines.append("| القاعدة | العدد |")
-              lines.append("| --- | --- |")
-              lines += [f"| {rule} | {count} |" for rule, count in by_rule.most_common(12)]
+              lines.append("| القاعدة | جديد | قائم |")
+              lines.append("| --- | --- | --- |")
+              rules_order = []
+              for (rule, label), _ in by_rule.items():
+                  if rule not in rules_order:
+                      rules_order.append(rule)
+              rules_order.sort(key=lambda r: -(sum(c for (m, _), c in by_rule.items() if m == r)))
+              for rule in rules_order[:14]:
+                  new_n = sum(c for (m, l), c in by_rule.items() if m == rule and l == "جديد")
+                  old_n = sum(c for (m, l), c in by_rule.items() if m == rule and l == "قائم")
+                  lines.append(f"| {rule} | {new_n} | {old_n} |")
               lines.append("")
               lines.append("--- أول 200 سطر تفصيلي ---")
               lines += [
-                  f"{src}:{line} [{source}] {message}"
-                  for src, line, source, message in findings[:200]
+                  f"{src}:{line_no} [{source}] {message}"
+                  for src, line_no, source, message, _ in classified[:200]
               ]
           elif report is not None:
               lines.append("لا ملاحظات Detekt على ملفات هذه الدفعة.")
