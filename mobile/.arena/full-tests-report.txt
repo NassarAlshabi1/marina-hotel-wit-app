@@ -1,0 +1,158 @@
+### full suite tail (2026-10-06T02:39:43Z)
+01:54 +1306 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/message_templates_test.dart: whatsappPaymentTemplate يمكن استبدال placeholders بقيم فعلية                   
+01:54 +1307 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/message_templates_test.dart: whatsappPaymentTemplate يمكن استبدال placeholders بقيم فعلية                   
+01:54 +1307 ~1 -3: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart                                                                         
+01:54 +1307 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: ... audit — every adapter.collectionId must exist in validFieldsPerCollection  
+01:54 +1307 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every adapter.collectionId must exist in validFieldsPerCollection
+
+======================================================================
+  Sync Fields Audit Report
+======================================================================
+
+Registered adapters: 19
+Schema collections: 27
+
+✅ All adapter.collectionId values are present in validFieldsPerCollection.
+
+Total adapters checked: 19
+Total collections in schema: 27
+Missing: 0
+
+
+01:54 +1308 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: ... audit — every adapter.collectionId must exist in validFieldsPerCollection  
+01:54 +1308 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           
+01:54 +1308 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           
+
+======================================================================
+  Required Sync Fields Audit
+======================================================================
+
+❌ Collections missing required sync fields:
+  ⚠️  app_settings missing: vectorClock
+  ⚠️  app_users missing: origin, deletedAt
+  ⚠️  sync_state missing: vectorClock, deviceId
+
+Total collections checked: 27
+Collections with missing fields: 3
+
+⚠️  Warning: Some collections are missing required sync fields. This may be intentional for non-synced tables (e.g., audit_logs).
+
+01:54 +1309 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           
+01:54 +1309 ~1 -3: Some tests failed.                                                                                                                                                                  
+
+### failures only
+00:15 +43: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_notification_manager_test.dart: showSyncError builds overlay and retry button works                            
+00:15 +44: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_notification_manager_test.dart: showSyncError builds overlay and retry button works                            
+2026-10-06T02:38:17.271177 DEBUG [TEST] test with details — Exception: test error
+2026-10-06T02:38:17.290100 ERROR [TEST] test error with details — Exception: boom
+00:38 +246 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError code 404 → true                               
+00:38 +247 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError code 404 → true                               
+00:38 +247 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError type document_not_found → true                
+00:38 +248 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError type document_not_found → true                
+00:38 +248 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError رسالة تحتوي document_not_found → true         
+00:38 +249 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError رسالة تحتوي document_not_found → true         
+00:38 +249 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError 409 ليس not-found → false                     
+00:38 +250 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError 409 ليس not-found → false                     
+00:38 +250 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError 429 ليس not-found → false                     
+00:38 +251 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isNotFoundError 429 ليس not-found → false                     
+00:38 +251 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isAlreadyExistsError code 409 → true                          
+00:38 +252 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isAlreadyExistsError code 409 → true                          
+00:38 +252 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isAlreadyExistsError type document_already_exists → true      
+00:38 +253 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isAlreadyExistsError type document_already_exists → true      
+00:38 +253 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isAlreadyExistsError type conflict → true                     
+00:38 +254 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isAlreadyExistsError type conflict → true                     
+00:38 +254 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isAlreadyExistsError 404 ليس already-exists → false           
+00:38 +255 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isAlreadyExistsError 404 ليس already-exists → false           
+00:38 +255 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isRateLimitError code 429 → true                              
+00:38 +256 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isRateLimitError code 429 → true                              
+00:38 +256 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isRateLimitError type rate_limit → true                       
+00:38 +257 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isRateLimitError type rate_limit → true                       
+00:38 +257 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isRateLimitError type general_rate_limit_exceeded → true      
+00:38 +258 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isRateLimitError type general_rate_limit_exceeded → true      
+00:38 +258 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isRateLimitError 404 ليس rate-limit → false                   
+00:38 +259 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/secondary_appwrite_predicates_test.dart: isRateLimitError 404 ليس rate-limit → false                   
+Error: Permanent (400): Bad Request
+Error: Test dead
+Error: Transient error
+Error: Permanent
+00:41 +300 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException
+00:41 +301 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: ... تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException     
+00:41 +301 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException
+00:41 +301 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException
+00:41 +301 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException
+Error: Max attempts reached
+00:41 +302 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: ... تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException     
+00:41 +302 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException
+00:41 +303 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: ... تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException     
+00:41 +303 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-2: تحديث بـ Companion شبه فارغ (فقط actualCheckout) يعمل
+00:41 +304 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-3: تحديث بـ Companion فارغ تماماً لا يكسر البيانات
+00:41 +305 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-4: updateById على ID غير موجود يرجع 0 بدون استثناء
+00:41 +306 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-5: تحديث guestPhone فقط (سيناريو شائع في booking_payment_screen)
+00:41 +307 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: ... إصلاح InvalidDataException EC-6: تحديث discount و discountType معاً 
+00:41 +307 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-6: تحديث discount و discountType معاً
+00:41 +308 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: ... إصلاح InvalidDataException EC-6: تحديث discount و discountType معاً 
+00:42 +308 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: ... إصلاح InvalidDataException EC-6: تحديث discount و discountType معاً 
+00:44 +320 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) code == 429 → true                     
+00:44 +321 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) code == 429 → true                     
+00:44 +321 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) type general_rate_limit_exceeded → true
+00:44 +322 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) type general_rate_limit_exceeded → true
+00:44 +322 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) type rate_limit → true                 
+00:44 +323 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) type rate_limit → true                 
+00:44 +323 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) نص عادي يحتوي 429 → true               
+00:44 +324 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) نص عادي يحتوي 429 → true               
+00:44 +324 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) نص يحتوي "rate limit" → true           
+00:44 +325 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) نص يحتوي "rate limit" → true           
+00:44 +325 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) 404 ليس rate limit → false             
+00:44 +326 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) 404 ليس rate limit → false             
+00:44 +326 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) 500 ليس rate limit → false             
+00:44 +327 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: تصنيف 429 (isRateLimitError) 500 ليس rate limit → false             
+00:44 +327 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... (isRetriableError) 429 قابل لإعادة المحاولة (يُحلّ بالانتظار)   
+00:44 +328 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... (isRetriableError) 429 قابل لإعادة المحاولة (يُحلّ بالانتظار)   
+00:44 +328 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 500 قابل لإعادة المحاولة      
+00:44 +329 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 500 قابل لإعادة المحاولة      
+00:44 +329 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 503 قابل لإعادة المحاولة      
+00:44 +330 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 503 قابل لإعادة المحاولة      
+00:44 +330 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 400 غير قابل لإعادة المحاولة  
+00:44 +331 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 400 غير قابل لإعادة المحاولة  
+00:44 +331 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 401 غير قابل لإعادة المحاولة  
+00:44 +332 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 401 غير قابل لإعادة المحاولة  
+00:44 +332 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 403 غير قابل لإعادة المحاولة  
+00:44 +333 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) 403 غير قابل لإعادة المحاولة  
+00:44 +335 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... (isRetriableError) 402 (حد القراءة) غير قابل لإعادة المحاولة    
+00:44 +336 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... (isRetriableError) 402 (حد القراءة) غير قابل لإعادة المحاولة    
+00:44 +337 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) timeout قابل لإعادة المحاولة  
+00:44 +338 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... إعادة المحاولة (isRetriableError) timeout قابل لإعادة المحاولة  
+00:44 +338 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... (isRetriableError) connection refused قابل لإعادة المحاولة      
+00:44 +339 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/appwrite_network_helper_test.dart: ... (isRetriableError) connection refused قابل لإعادة المحاولة      
+Error: AppwriteException: , too many (429)
+Error: AppwriteException: , server error 500 (500)
+00:46 +365 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/checkout_deep_verification_test.dart: ... مغادرة ثانية بوقت أحدث تُرفض بStateError والحالة لا تتغير    
+00:46 +365 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/checkout_deep_verification_test.dart: C3 — حرس المغادرة المزدوجة (تحقق الإصلاح P1) محاولة مغادرة ثانية بوقت أحدث تُرفض بStateError والحالة لا تتغير
+00:46 +366 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/checkout_deep_verification_test.dart: ... مغادرة ثانية بوقت أحدث تُرفض بStateError والحالة لا تتغير    
+❌ فشل الإصلاح التلقائي: Exception: fail
+Stack trace: dart:async/future_impl.dart 21:26                                     _interceptError
+dart:async/future_impl.dart 52:23                                     _interceptUserError
+Sync notifications unavailable: MissingPluginException(No implementation found for method initialize on channel dexterous.com/flutter/local_notifications)\n#0      MethodChannel._invokeMethod (package:flutter/src/services/platform_channel.dart:364:7)
+01:16 +709 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/smart_conflict_resolver_test.dart: SmartConflictResolver resolve() — concurrent conflict auto-merge concurrentSameFields with critical field resolves via LWW (not manual) [E]
+  Expected: <200.0>
+    Actual: <100.0>
+01:16 +716 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/smart_conflict_resolver_test.dart: SmartConflictResolver entity policies rooms: price resolves via LWW (not manual) [E]
+  Expected: <200.0>
+    Actual: <100.0>
+01:16 +716 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/smart_conflict_resolver_test.dart: SmartConflictResolver entity policies payments: amount resolves via LWW (not manual) [E]
+  Expected: <200.0>
+    Actual: <100.0>
+Error: Transient error
+Error: Many failures
+Error: Permanent
+Error: Error
+Error: Error
+Error: Permanent
+Error: Error
+Error: Unknown entity
+Error: Conflict detected
+Error: Conflict
+⚠️ 🛨️ DatabaseStartupGuard: قاعدة البيانات تالفة! فشل فتح القاعدة للفحص (يُعامَل كتلف): SqliteException(26): while preparing statement, file is not a database, file is not a database (code 26)
+⚠️ 🛨️ DatabaseStartupGuard: قاعدة البيانات تالفة! فشل فتح القاعدة للفحص (يُعامَل كتلف): SqliteException(26): while preparing statement, file is not a database, file is not a database (code 26)
+⚠️ 🛨️ DatabaseStartupGuard: قاعدة البيانات تالفة! فشل فتح القاعدة للفحص (يُعامَل كتلف): SqliteException(26): while preparing statement, file is not a database, file is not a database (code 26)
+Sync notifications unavailable: MissingPluginException(No implementation found for method initialize on channel dexterous.com/flutter/local_notifications)\n#0      MethodChannel._invokeMethod (package:flutter/src/services/platform_channel.dart:364:7)
