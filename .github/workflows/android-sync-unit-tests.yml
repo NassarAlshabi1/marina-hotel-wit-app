@@ -164,6 +164,78 @@ jobs:
           PY
           gh api -X POST "repos/${{ github.repository }}/check-runs" --input "$RUNNER_TEMP/diagnostics.json" >/dev/null
 
+      # ملخّص نتائج التشغيل الناجح (غير حاجب): «الأخضر» وحده لا يُثبت أن
+      # اختبارات التكافؤ جرت فعلاً — فسجلات المهام وartifacts غير قابلة
+      # للوصول من بيئة الجلسة (blob storage)، وcheck-run الفشل لا يُنشأ إلا
+      # عند الفشل. هذه الخطوة تنشر العدّادات الفعلية من XML ليبقى الدليل
+      # مقروءاً من GitHub API: عدد الحالات، وأسماء حالات التكافؤ الجديدة.
+      - name: Test summary (informational)
+        if: success()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY' > "$RUNNER_TEMP/summary.json"
+          import json, os, pathlib, xml.etree.ElementTree as ET
+
+          candidates = [
+              "app/build/test-results/testDebugUnitTest",
+              "../build/app/test-results/testDebugUnitTest",
+              "mobile/android/app/build/test-results/testDebugUnitTest",
+          ]
+          root = next((pathlib.Path(c) for c in candidates if pathlib.Path(c).exists()), None)
+
+          total = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          suites = []
+          parity = []
+          for xml in sorted(root.glob("*.xml")) if root is not None else []:
+              try:
+                  tree = ET.parse(xml)
+              except Exception:
+                  continue
+              node = tree.getroot()
+              counts = {k: int(node.get(k) or 0) for k in total}
+              for k in total:
+                  total[k] += counts[k]
+              name = node.get("name") or xml.stem
+              suites.append((name, counts))
+              if any(tag in name for tag in ("SyncPullParityTest", "BookingDerivedRefreshParityTest", "SyncIngestorRegistryTest")):
+                  cases = sorted(case.get("name", "") for case in tree.iter("testcase"))
+                  parity.append((name, counts, cases))
+
+          lines = [
+              f"إجمالي حالات `:app:testDebugUnitTest`: **{total['tests']}** — "
+              f"فشل: {total['failures']} • أخطاء: {total['errors']} • متخطّاة: {total['skipped']}",
+              "",
+              "| صنف اختبار المزامنة | حالات | فشل | أخطاء | متخطّاة |",
+              "| --- | --- | --- | --- | --- |",
+          ]
+          for name, counts, _ in sorted(parity):
+              lines.append(
+                  f"| {name} | {counts['tests']} | {counts['failures']} | {counts['errors']} | {counts['skipped']} |"
+              )
+          lines.append("")
+          for name, _, cases in sorted(parity):
+              lines.append(f"**{name}** ({len(cases)} حالة):")
+              lines.extend(f"- `{case}`" for case in cases)
+              lines.append("")
+          if not parity:
+              lines.append("لم يُعثر على أصناف التكافؤ في تقارير XML (تحقق من مسار النتائج).")
+
+          print(json.dumps({
+              "name": "android-sync-test-summary",
+              "head_sha": os.environ["GITHUB_SHA"],
+              "status": "completed",
+              "conclusion": "success" if total["failures"] + total["errors"] == 0 else "neutral",
+              "output": {
+                  "title": f"Android unit tests: {total['tests']} حالة، فشل {total['failures']}",
+                  "summary": f"{total['tests']} حالة • فشل {total['failures']} • أخطاء {total['errors']} • متخطّاة {total['skipped']}",
+                  "text": "\n".join(lines)[-60000:],
+              },
+          }))
+          PY
+          gh api -X POST "repos/${{ github.repository }}/check-runs" --input "$RUNNER_TEMP/summary.json" >/dev/null
+
       # فحص ثابت إعلامي (غير حاجب): بوابة الجودة الكاملة في هذا المستودع
       # كانت حمراء قبل هذه الدفعة، فلا ندّعي جعلها خضراء — لكن نُظهر أي
       # ملاحظة Detekt تخصّ ملفات هذه الدفعة تحديداً حتى لا تمرّ صامتة.
