@@ -31,10 +31,57 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   bool _exportingPdf = false;
   final _verticalScrollController = ScrollController();
 
+  /// ✅ (2026-10-06): بحث فوري بالاسم من الهيد (AppBar) — يبحث في
+  /// الاسم ورقم الغرفة ورقم الهوية والمحافظة، مع تسامح مع الهمزات
+  /// والألف والتاء المربوطة والياء لتقليل حالات «لا نتائج» الكاذبة.
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void dispose() {
+    _searchController.dispose();
     _verticalScrollController.dispose();
     super.dispose();
+  }
+
+  /// تطبيع نص عربي للبحث: إزالة التشكيل والتطويل، وتوحيد الألف/الهمزة
+  /// و التاء المربوطة/الهاء والياء/الألف المقصورة، وتوحيد الأرقام العربية.
+  static String normalizeForSearch(String input) {
+    var text = input.trim().toLowerCase();
+    // تشكيل وتطويل
+    text = text.replaceAll(
+      RegExp('[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]'),
+      '',
+    );
+    const unified = {
+      'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ٱ': 'ا',
+      'ى': 'ي', 'ئ': 'ي', 'ؤ': 'و', 'ة': 'ه',
+      '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+      '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+    };
+    final buffer = StringBuffer();
+    for (final rune in text.runes) {
+      final ch = String.fromCharCode(rune);
+      buffer.write(unified[ch] ?? ch);
+    }
+    return buffer.toString();
+  }
+
+  /// هل يطابق السجل عبارت البحث؟ (الاسم أولاً ثم الغرفة/الهوية/المحافظة)
+  static bool matchesQuery(GuestInfo info, String query) {
+    if (query.isEmpty) return true;
+    final q = normalizeForSearch(query);
+    if (q.isEmpty) return true;
+    final haystack = [
+      info.guestName,
+      info.roomNumber,
+      info.idNumber,
+      info.governorate ?? '',
+      info.issuePlace ?? '',
+      info.nationality,
+      info.notes ?? '',
+    ].map(normalizeForSearch).join('\u0001');
+    return haystack.contains(q);
   }
 
   static final List<String> _idTypes = [
@@ -85,6 +132,12 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       orElse: () => const <GuestInfo>[],
     );
 
+    // ✅ البحث في الرأس: يُطبَّق على نفس القائمة المستخدمة في العرض وفي
+    // تصدير PDF (إن بحثت ثم صدّرت ⇒ الملف يعكس نتائج البحث).
+    final filteredEntries = currentEntries
+        .where((info) => matchesQuery(info, _searchQuery))
+        .toList(growable: false);
+
     return PopScope(
       canPop: !hasUnsyncedChanges,
       onPopInvokedWithResult: (didPop, result) {
@@ -95,12 +148,13 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       },
       child: AppScaffold(
         title: 'سجل المعلومية',
+        header: _buildSearchHeader(),
         actions: [
           IconButton(
             tooltip: 'تصدير إلى PDF',
-            onPressed: _exportingPdf || currentEntries.isEmpty
+            onPressed: _exportingPdf || filteredEntries.isEmpty
                 ? null
-                : () => _handleExport(currentEntries),
+                : () => _handleExport(filteredEntries),
             icon: _exportingPdf
                 ? const SizedBox(
                     width: 20,
@@ -116,12 +170,44 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           label: const Text('إضافة سجل'),
         ),
         body: guestInfosAsync.when(
-          data: _buildContent,
+          data: (_) => _buildContent(filteredEntries),
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) =>
               Center(child: Text('حدث خطأ أثناء تحميل البيانات: $error')),
         ),
       ),
+    );
+  }
+
+  /// حقل البحث المضمَّن في الهيد — بلا حجب للعنوان أو الأزرار.
+  Widget _buildSearchHeader() {
+    return TextField(
+      controller: _searchController,
+      textInputAction: TextInputAction.search,
+      onChanged: (value) => setState(() => _searchQuery = value),
+      decoration: InputDecoration(
+        isDense: true,
+        hintText: 'بحث بالاسم أو رقم الغرفة أو الهوية…',
+        prefixIcon: const Icon(Icons.search, size: 20),
+        suffixIcon: _searchQuery.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'مسح البحث',
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                },
+              ),
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.15),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      style: const TextStyle(fontSize: 14),
     );
   }
 
@@ -150,6 +236,15 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
   Widget _buildContent(List<GuestInfo> entries) {
     if (entries.isEmpty) {
+      if (_searchQuery.trim().isNotEmpty) {
+        return Center(
+          child: EmptyState(
+            title: 'لا نتائج للبحث «${_searchQuery.trim()}»',
+            subtitle: 'جرّب جزءاً من الاسم أو رقم الغرفة أو رقم الهوية.',
+            icon: Icons.search_off,
+          ),
+        );
+      }
       return const Center(
         child: EmptyState(
           title: 'لا توجد سجلات للمعلومية',

@@ -51,12 +51,44 @@ class SalaryMirrorMatcher {
     required String withdrawDate,
     required int employeeId,
     required Iterable<MirrorExpenseCandidate> expenses,
+    String? sourceDeviceId,
+  }) {
+    return classify(
+          expenseUuid: expenseUuid,
+          withdrawalLocalUuid: withdrawalLocalUuid,
+          expenseId: expenseId,
+          reason: reason,
+          amount: amount,
+          hotelDayKey: hotelDayKey,
+          withdrawDate: withdrawDate,
+          employeeId: employeeId,
+          expenses: expenses,
+          sourceDeviceId: sourceDeviceId,
+        ) !=
+        MirrorMatchLevel.none;
+  }
+
+  /// يصنّف «المرآة» بحسب **مستوى الإثبات** — يُستخدم في التقارير لتمييز
+  /// الحُكمي (بياناتي) عن الحاسم (هوية/رقم مُثبت) بدل إخفائه (G-5/P2-7).
+  static MirrorMatchLevel classify({
+    String? expenseUuid,
+    String? withdrawalLocalUuid,
+    required int? expenseId,
+    required String? reason,
+    required double amount,
+    required String? hotelDayKey,
+    required String withdrawDate,
+    required int employeeId,
+    required Iterable<MirrorExpenseCandidate> expenses,
+    String? sourceDeviceId,
   }) {
     // ── الحارس: السحوبات المباشرة الحقيقية ليست مرايا أبداً ──
     // يُنشئها زر «سحب راتب» في شاشة الموظفين بلا مصروف مقابل — نقد خرج
     // فعلاً ويجب أن يُعَد مرة واحدة في التقارير والاستحقاق معاً.
     final rawReason0 = (reason ?? '').trim();
-    if (rawReason0.startsWith('direct_withdrawal_')) return false;
+    if (rawReason0.startsWith('direct_withdrawal_')) {
+      return MirrorMatchLevel.none;
+    }
 
     // ── المستوى 0: هوية العملية (UUID) — حتمي وعابر للأجهزة ──
     // رابط الهوية محسوم من مصدر البيانات نفسه (إنشاء/تعديل العملية)، فلا
@@ -66,7 +98,9 @@ class SalaryMirrorMatcher {
     if (eu.isNotEmpty) {
       for (final e in expenses) {
         final candUuid = (e.localUuid ?? '').trim();
-        if (candUuid.isNotEmpty && candUuid == eu) return true;
+        if (candUuid.isNotEmpty && candUuid == eu) {
+          return MirrorMatchLevel.identity;
+        }
       }
     }
     final wlu = (withdrawalLocalUuid ?? '').trim();
@@ -75,14 +109,14 @@ class SalaryMirrorMatcher {
         final stamped = (e.withdrawalUuid ?? '').trim();
         // حارس الختم الذاتي الفاسد (خطأ تاريخي كان يختم المصروف بهويته هو)
         if (stamped.isEmpty || stamped == (e.localUuid ?? '').trim()) continue;
-        if (stamped == wlu) return true;
+        if (stamped == wlu) return MirrorMatchLevel.identity;
       }
     }
 
     // ── المستوى 1: عمود expense_id → مصروف محلي مقروء ──
     if (expenseId != null && expenseId > 0) {
       for (final e in expenses) {
-        if (e.id == expenseId) return true;
+        if (e.id == expenseId) return MirrorMatchLevel.provenNumeric;
       }
     }
 
@@ -94,11 +128,23 @@ class SalaryMirrorMatcher {
         final n = int.tryParse(match.group(1)!);
         if (n != null) {
           for (final e in expenses) {
-            if (e.id == n) return true;
+            if (e.id == n) return MirrorMatchLevel.provenNumeric;
           }
-          // 2-ب: معرف جهاز المصدر محفوظ في serverId للمصروف
-          for (final e in expenses) {
-            if (e.serverId != null && e.serverId == n) return true;
+          // 2-ب: معرّف جهاز المصدر محفوظ في serverId للمصروف.
+          // ✅ (P2-7 / 2026-10-06): لا يُقبل إلا **بإثبات فضاء المعرّفات**
+          // — نفس الجهاز الكاتب للسحبة والمصروف (نفس قاعدة G-3 في
+          // IdResolver). بلا إثبات ⇒ لا ربط رقمي: يبقى الاحتياط
+          // البياناتي (المستوى 3/4) ولا يُخمَّن الربط.
+          final deviceProof =
+              (sourceDeviceId ?? '').trim().isNotEmpty;
+          if (deviceProof) {
+            for (final e in expenses) {
+              if (e.serverId != null &&
+                  e.serverId == n &&
+                  (e.deviceId ?? '').trim() == sourceDeviceId!.trim()) {
+                return MirrorMatchLevel.provenNumeric;
+              }
+            }
           }
         }
       }
@@ -110,7 +156,7 @@ class SalaryMirrorMatcher {
       if (e.relatedId != employeeId) continue;
       if (e.amount.abs() != amount.abs()) continue;
       if (!_sameDay(e, hotelDayKey, withdrawDate)) continue;
-      return true;
+      return MirrorMatchLevel.dataMatch;
     }
 
     // ── المستوى 4: علامة مرآة برابط أجنبي + مصروف وحيد لنفس الموظف/اليوم ──
@@ -139,9 +185,9 @@ class SalaryMirrorMatcher {
         familyMatches++;
         if (familyMatches > 1) break;
       }
-      if (familyMatches == 1) return true;
+      if (familyMatches == 1) return MirrorMatchLevel.unprovenMarker;
     }
-    return false;
+    return MirrorMatchLevel.none;
   }
 
   /// المستويات 0/1/2: يحاول حلّ رابط المرآة إلى id مصروف محلي **حقيقي**
@@ -163,6 +209,7 @@ class SalaryMirrorMatcher {
     required int? expenseId,
     required String? reason,
     required Iterable<MirrorExpenseCandidate> expenses,
+    String? sourceDeviceId,
   }) {
     final rawReason = (reason ?? '').trim();
     if (rawReason.startsWith('direct_withdrawal_')) return null;
@@ -190,8 +237,16 @@ class SalaryMirrorMatcher {
           for (final e in expenses) {
             if (e.id == n) return e.id;
           }
-          for (final e in expenses) {
-            if (e.serverId != null && e.serverId == n) return e.id;
+          // ✅ (P2-7): لا ربط برقم جهاز المصدر بلا إثبات نفس الجهاز الكاتب
+          // (نفس قاعدة G-3) — وإلا رجع رقم مصروف لا يخصّ هذه السحبة.
+          if ((sourceDeviceId ?? '').trim().isNotEmpty) {
+            for (final e in expenses) {
+              if (e.serverId != null &&
+                  e.serverId == n &&
+                  (e.deviceId ?? '').trim() == sourceDeviceId!.trim()) {
+                return e.id;
+              }
+            }
           }
         }
       }
@@ -226,6 +281,37 @@ class SalaryMirrorMatcher {
   }
 }
 
+/// مستوى إثبات «المرآة» — يفصل **الهوية** عن **المطابقة البياناتية**.
+///
+/// ✅ (G-5 / P2-7 — 2026-10-06): كان المطابِق يعيد `bool` فقط، فتظهر
+/// المرايا المحسومة بالمطابقة البياناتية (نفس الموظف + المبلغ + اليوم)
+/// بنفس ثقة المرايا المحسومة بالـ UUID. الآن كل نداء يستطيع معرفة
+/// **بأي دليل** حُسمت المرآة، والتقارير تُعلّم الحُكْمي منها بدل إخفائه.
+enum MirrorMatchLevel {
+  /// ليست مرآة.
+  none,
+
+  /// رابط هوية صريح: `expenseUuid` ↔ `localUuid` أو `withdrawalUuid` ↔ هوية السحبة.
+  identity,
+
+  /// رابط رقمي محلي مُثبت: `expense_id` المحلي أو `reason=exp_N` مع تطابق
+  /// (معرّف جهاز المصدر) — يحتاج دليل فضاء المعرّفات.
+  provenNumeric,
+
+  /// مطابقة بيانات حتمية: نفس الموظف + نقدي + نفس المبلغ + نفس اليوم.
+  dataMatch,
+
+  /// علامة مرآة برقم أجنبي غير قابل للإثبات + مصروف وحيد لنفس الموظف/اليوم.
+  unprovenMarker;
+
+  bool get isMirror => this != MirrorMatchLevel.none;
+
+  /// هل الحُكم مبني على مطابقة/علامة غير محسومة بالهوية؟ (للتقارير)
+  bool get isHeuristic =>
+      this == MirrorMatchLevel.dataMatch ||
+      this == MirrorMatchLevel.unprovenMarker;
+}
+
 /// أبسط تمثيل لمصروف لغرض المطابقة — يعزل المطابِق عن أنواع Drift.
 class MirrorExpenseCandidate {
   final int id;
@@ -244,6 +330,11 @@ class MirrorExpenseCandidate {
   /// (مصروف → سحبة). يُطابق ضد هوية السحبة في المستوى 0.
   final String? withdrawalUuid;
 
+  /// ✅ (P2-7 / 2026-10-06): جهاز كاتب المصروف — دليل فضاء المعرّفات
+  /// للأرقام المحلية. الربط الرقمي `exp_962` لا يُقبل إلا إذا كان هذا
+  /// الجهاز هو نفسه جهاز السحبة (نفس قاعدة G-3 في IdResolver).
+  final String? deviceId;
+
   const MirrorExpenseCandidate({
     required this.id,
     required this.serverId,
@@ -254,5 +345,6 @@ class MirrorExpenseCandidate {
     required this.relatedId,
     this.localUuid,
     this.withdrawalUuid,
+    this.deviceId,
   });
 }

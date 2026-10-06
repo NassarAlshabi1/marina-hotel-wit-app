@@ -923,6 +923,14 @@ class PayloadMapper {
       'carryDate': log.carryDate,
     };
 
+    // ✅ (G-2 / 2026-10-06): رابطتا الدورتين تُنقلان كهويتين ثابتتين (UUID)
+    // — كانتا تُهملان هنا تماماً فيصل سجل الترحيل بلا علاقة دورات.
+    putIfStringNotEmpty(data, 'employeeUuid', log.employeeUuid);
+    putIfStringNotEmpty(data, 'fromCycleUuid', log.fromCycleId);
+    putIfStringNotEmpty(data, 'fromCycleId', log.fromCycleId);
+    putIfStringNotEmpty(data, 'toCycleUuid', log.toCycleId);
+    putIfStringNotEmpty(data, 'toCycleId', log.toCycleId);
+
     putIfStringNotEmpty(data, 'idempotencyKey', log.idempotencyKey);
 
     putIfNotNull(data, 'serverId', log.serverId);

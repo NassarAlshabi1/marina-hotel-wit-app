@@ -249,6 +249,8 @@ void main() {
 
   group('المرحلة 2-ب: exp_N يطابق serverId المصروف', () {
     test('reason=exp_962 يُخدَّد بمصروف serverId=962 بلا id محلي مطابق', () {
+      // ✅ (P2-7 / 2026-10-06): الربط الرقمي عبر الأجهزة صار مشروطاً
+      // بإثبات فضاء المعرّفات (نفس الجهاز الكاتب) — نفس قاعدة G-3.
       const candidate = MirrorExpenseCandidate(
         id: 51,
         serverId: 962,
@@ -257,6 +259,7 @@ void main() {
         date: '2026-08-02',
         hotelDayKey: '2026-08-02',
         relatedId: 9,
+        deviceId: 'dev-source',
       );
       final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
         expenseId: null,
@@ -266,8 +269,39 @@ void main() {
         withdrawDate: '2026-08-02',
         employeeId: 9,
         expenses: [candidate],
+        sourceDeviceId: 'dev-source',
       );
       expect(isMirror, isTrue);
+    });
+
+    test('بدون إثبات الجهاز: رقم جهاز المصدر لا يُربط (يُخدَّد بياناتياً فقط)',
+        () {
+      const candidate = MirrorExpenseCandidate(
+        id: 51,
+        serverId: 962,
+        expenseType: 'سحب راتب',
+        amount: 5000,
+        date: '2026-08-02',
+        hotelDayKey: '2026-08-02',
+        relatedId: 9,
+        deviceId: 'dev-other',
+      );
+      final level = SalaryMirrorMatcher.classify(
+        expenseId: null,
+        reason: 'exp_962',
+        amount: 5000,
+        hotelDayKey: '2026-08-02',
+        withdrawDate: '2026-08-02',
+        employeeId: 9,
+        expenses: [candidate],
+        // بلا مصدر جهاز ⇒ لا إثبات
+      );
+      expect(level, MirrorMatchLevel.dataMatch);
+      expect(
+        level.isHeuristic,
+        isTrue,
+        reason: 'الحُكم بياناتي ويجب أن يظهر موسوماً لا صامتاً',
+      );
     });
 
     test('مطابقة بيانات: موظف مختلف لا يُخدَّد به (حماية من الربط العابر)', () {

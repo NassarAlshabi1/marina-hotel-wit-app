@@ -1227,6 +1227,39 @@ class AppDatabase extends _$AppDatabase {
       // page_size يجب تعيينه فقط عند إنشاء قاعدة بيانات جديدة، وبما أن
       // قاعدة البيانات موجودة مسبقاً بقيمة مختلفة (غالباً 1024) فهذا إهدار I/O
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
+
+      // ✅ (G-1 / 2026-10-06): عمود الهوية الدائمة لرابط الدفعة↔الدورة.
+      //
+      // المشكلة المُثبتة: `salary_payments` يحمل `employee_uuid` ولا يحمل
+      // `cycle_uuid`، فرابط الدورة يُبنى **لحظة الرفع** بالبحث عن صف الدورة
+      // محلياً (appwrite_sync_manager: `paymentCycle.localUuid`). فإن غاب
+      // صف الدورة وقت الرفع (يتيمة/محذوفة/أُعيد بناء مسار الرفع عند تبديل
+      // المزوّد) تُرفع الدفعة بالمعرّف الرقمي فقط ⇒ رابط غير ثابت عبر
+      // الأجهزة عند السحب.
+      //
+      // الحل: عمود إضافي (additive) يُكتب من العلاقة **المُثبتة** فقط:
+      // UUID الدورة إن ورد في الحمولة، أو `local_uuid` للدورة المحلولة عبر
+      // مفتاح أجنبي سليم محلياً (ربط حتمي لا تخمين). لا backfill عشوائي،
+      // ولا تعديل لأي مبلغ أو تاريخ.
+      //
+      // ملاحظة: التنفيذ خام (لا عبر Drift codegen) بنفس نمط `_tryAlter`
+      // في SyncCheckpointStore و`deferred_relations` — لا يتطلب إعادة توليد
+      // local_db.g.dart، والجدول يبقى مقروءاً لكل مسارات Drift القائمة.
+      try {
+        await customStatement(
+          'ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT',
+        );
+      } catch (_) {
+        // العمود موجود سلفاً (ترقية متكررة أو تثبيت أنشأه onCreate) — آمن.
+      }
+      try {
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid '
+          'ON salary_payments (cycle_uuid)',
+        );
+      } catch (_) {
+        // فشل الفهرس غير حرج (يُعاد في الفتح التالي).
+      }
     },
     onUpgrade: (m, from, to) async {
       // ✅ (2026-10-05) الإصدار 68: uuid رابط المرآة سحبة↔مصروف.

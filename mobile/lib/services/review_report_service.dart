@@ -34,7 +34,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_xlsx_export_service.dart' show AppwriteXlsxExportService;
 import 'local_db.dart';
 import 'money_integrity_service.dart';
+import 'salary_mirror_matcher.dart';
 import 'sync_core/deferred_relation_store.dart';
+import 'sync_core/financial_link_store.dart';
 import 'sync_core/provider_scope.dart';
 
 /// وسم حالة وجود جدول/عمود في التقرير.
@@ -61,6 +63,8 @@ class ReviewReport {
     required this.identityGaps,
     required this.providerScope,
     required this.summary,
+    this.durableLinks = const {},
+    this.heuristicMirrors = const [],
   });
 
   final String generatedAtIso;
@@ -79,6 +83,16 @@ class ReviewReport {
   /// salary_expenses_missing_employee_uuid.
   final Map<String, List<Map<String, Object?>>> identityGaps;
   final Map<String, Object?> providerScope;
+
+  /// ✅ (G-5 / P2-7 / 2026-10-06): مرايا السحوبات التي حُسمت **بمطابقة
+  /// بياناتية** (أو بعلامة رقم غير قابلة للإثبات) لا بهوية/رقم مُثبت —
+  /// تُعرض صريحةً بدل أن تُخفى بنفس ثقة الحاسم. قراءة فقط، وبحدود أعلى.
+  final List<Map<String, Object?>> heuristicMirrors;
+
+  /// ✅ (G-1/G-2 / 2026-10-06): ملخص الروابط المالية الدائمة —
+  /// دفعات الرواتب (المرتبطة/غير المرتبطة بدورة) وسجلات الترحيل
+  /// (المرتبطة/غير المرتبطة بالدورتين). أعداده للتوثيق والمراجعة.
+  final Map<String, int> durableLinks;
 
   /// ملخص عددي للعرض السريع (وللاستخدام في الاختبارات).
   final Map<String, int> summary;
@@ -120,16 +134,23 @@ class ReviewReport {
     'conflicts': conflicts,
     'integrityViolations': integrityViolations,
     'identityGaps': identityGaps,
+    'durableLinks': durableLinks,
+    'heuristicMirrors': heuristicMirrors,
   };
 }
 
 /// خدمة بناء وتصدير تقرير المراجعة — قراءة فقط.
 class ReviewReportService {
-  ReviewReportService({required this.db, DeferredRelationStore? deferredStore})
-    : _deferredStore = deferredStore ?? DeferredRelationStore(db);
+  ReviewReportService({
+    required this.db,
+    DeferredRelationStore? deferredStore,
+    FinancialLinkStore? financialLinks,
+  }) : _deferredStore = deferredStore ?? DeferredRelationStore(db),
+       _financialLinks = financialLinks ?? FinancialLinkStore(db);
 
   final AppDatabase db;
   final DeferredRelationStore _deferredStore;
+  final FinancialLinkStore _financialLinks;
 
   /// أقصى عدد صفوف لكل قسم في العرض (والملف). القيمة مقصودة آمنة للذاكرة
   /// على أجهزة ضعيفة؛ التقرير يذكر العدد الكلي حتى لو اقتُطع العرض.
@@ -229,6 +250,27 @@ class ReviewReportService {
     // 5) فجوات الهوية التاريخية (تدقيق §9.1) — كلها «قراءة فقط».
     final identityGaps = await _collectIdentityGaps(status);
 
+    // 5-ب) الروابط المالية الدائمة (G-1: دورة الدفعة · G-2: دورتا الترحيل).
+    // تُقرأ من مخزن مشترك مع المزامنة — لا كتابة من التقرير.
+    Map<String, int> durableLinks = const {};
+    try {
+      durableLinks = await _financialLinks.summary();
+      status['durable_links'] = ReviewSectionStatus(rows: durableLinks.length);
+    } catch (e) {
+      status['durable_links'] = ReviewSectionStatus(error: '$e');
+    }
+
+    // 5-ج) مرايا حُكمية (G-5): تُعرض بالدليل ولا تُخفى.
+    List<Map<String, Object?>> heuristicMirrors = const [];
+    try {
+      heuristicMirrors = await _collectHeuristicMirrors();
+      status['heuristic_mirrors'] = ReviewSectionStatus(
+        rows: heuristicMirrors.length,
+      );
+    } catch (e) {
+      status['heuristic_mirrors'] = ReviewSectionStatus(error: '$e');
+    }
+
     // 6) نطاق المزوّد (G-7) — للتحقق من قائمة الانتقال (البند 9).
     Map<String, Object?> providerScope = const {};
     try {
@@ -246,6 +288,11 @@ class ReviewReportService {
 
     final summary = <String, int>{
       'fractional_money': fractions.rows.length,
+      'payments_without_cycle_link':
+          durableLinks['payments_cycle_unlinked'] ?? 0,
+      'carry_over_without_cycle_links':
+          durableLinks['carry_over_cycle_unlinked'] ?? 0,
+      'heuristic_mirrors': heuristicMirrors.length,
       'deferred_pending': status['deferred_pending']?.rows ?? 0,
       'deferred_needs_review': status['deferred_needs_review']?.rows ?? 0,
       'conflicts': conflicts.length,
@@ -263,7 +310,85 @@ class ReviewReportService {
       identityGaps: identityGaps,
       providerScope: providerScope,
       summary: summary,
+      durableLinks: durableLinks,
+      heuristicMirrors: heuristicMirrors,
     );
+  }
+
+  /// ✅ (G-5): يجمع السحوبات التي تحمل **علامة مرآة** (رقم أجنبي) ثم
+  /// يصنّفها بالمطابِق الموحّد، ويُعيد فقط ما حُسم بمطابقة بياناتية أو
+  /// بعلامة غير مُثبتة — أي ما يحتاج عيناً بشرية.
+  ///
+  /// حدود مقصودة: أحدث [maxRowsPerSection] سحبة تحمل علامة، ومصروفات
+  /// الرواتب (نفس الشرط) فقط — لا سحب كامل الجداول في الذاكرة.
+  Future<List<Map<String, Object?>>> _collectHeuristicMirrors() async {
+    final withdrawals = await db
+        .customSelect(
+          'SELECT w.local_uuid, w.employee_id, w.employee_uuid, w.amount, '
+          'w.withdraw_date, w.hotel_day_key, w.reason, w.expense_id, '
+          'w.expense_uuid, w.device_id '
+          'FROM salary_withdrawals w '
+          'WHERE w.deleted_at IS NULL AND w.amount > 0 '
+          "AND w.reason NOT LIKE 'direct_withdrawal_%' "
+          "AND (w.expense_id IS NOT NULL OR w.reason LIKE 'exp_%') "
+          'ORDER BY w.withdraw_date DESC LIMIT ?',
+          variables: [Variable.withInt(maxRowsPerSection)],
+        )
+        .get();
+    if (withdrawals.isEmpty) return const [];
+
+    final expenses = await db
+        .customSelect(
+          'SELECT id, local_uuid, server_id, expense_type, amount, date, '
+          'hotel_day_key, related_id, withdrawal_uuid, device_id '
+          'FROM expenses WHERE deleted_at IS NULL '
+          'AND related_id IN (SELECT DISTINCT employee_id FROM '
+          'salary_withdrawals WHERE deleted_at IS NULL) LIMIT ?',
+          variables: [Variable.withInt(maxRowsPerSection * 4)],
+        )
+        .get();
+
+    final candidates = [
+      for (final row in expenses)
+        MirrorExpenseCandidate(
+          id: (row.data['id'] as int?) ?? 0,
+          serverId: row.data['server_id'] as int?,
+          expenseType: (row.data['expense_type'] as String?) ?? '',
+          amount: ((row.data['amount'] as num?) ?? 0).toDouble(),
+          date: row.data['date'] as String?,
+          hotelDayKey: row.data['hotel_day_key'] as String?,
+          relatedId: row.data['related_id'] as int?,
+          localUuid: row.data['local_uuid'] as String?,
+          withdrawalUuid: row.data['withdrawal_uuid'] as String?,
+          deviceId: row.data['device_id'] as String?,
+        ),
+    ];
+
+    final result = <Map<String, Object?>>[];
+    for (final row in withdrawals) {
+      final level = SalaryMirrorMatcher.classify(
+        expenseUuid: row.data['expense_uuid'] as String?,
+        withdrawalLocalUuid: row.data['local_uuid'] as String?,
+        expenseId: row.data['expense_id'] as int?,
+        reason: row.data['reason'] as String?,
+        amount: ((row.data['amount'] as num?) ?? 0).toDouble(),
+        hotelDayKey: row.data['hotel_day_key'] as String?,
+        withdrawDate: (row.data['withdraw_date'] as String?) ?? '',
+        employeeId: (row.data['employee_id'] as int?) ?? 0,
+        expenses: candidates,
+        sourceDeviceId: row.data['device_id'] as String?,
+      );
+      if (!level.isHeuristic) continue;
+      result.add({
+        'withdrawalUuid': row.data['local_uuid'],
+        'employeeUuid': row.data['employee_uuid'],
+        'amount': row.data['amount'],
+        'day': row.data['hotel_day_key'] ?? row.data['withdraw_date'],
+        'reason': row.data['reason'],
+        'level': level.name,
+      });
+    }
+    return result;
   }
 
   Future<Map<String, List<Map<String, Object?>>>> _collectIdentityGaps(
@@ -469,6 +594,33 @@ class ReviewReportService {
 
     _identityGapsSheet(excel, report);
 
+    _durableLinksSheet(excel, report);
+
+    _tableSheet(
+      excel,
+      'مرايا حُكمية',
+      const [
+        'سحبة',
+        'الموظف',
+        'المبلغ',
+        'اليوم',
+        'السبب',
+        'مستوى الإثبات',
+      ],
+      [
+        for (final row in report.heuristicMirrors)
+          [
+            row['withdrawalUuid'],
+            row['employeeUuid'],
+            row['amount'],
+            row['day'],
+            row['reason'],
+            row['level'],
+          ],
+      ],
+      emptyNote: 'لا مرايا حُكمية — كل المرايا محسومة بهوية أو رقم مُثبت',
+    );
+
     _providerScopeSheet(excel, report);
 
     final bytes = excel.save();
@@ -528,6 +680,9 @@ class ReviewReportService {
       'cycles_missing_employee_uuid': 'دورات بلا هوية موظف',
       'carryover_missing_employee_uuid': 'ترحيلات بلا هوية موظف',
       'salary_expenses_missing_employee_uuid': 'مصروفات رواتب بلا هوية موظف',
+      'payments_without_cycle_link': 'دفعات رواتب بلا رابط دورة دائم (G-1)',
+      'carry_over_without_cycle_links': 'سجلات ترحيل بلا رابط دورتين (G-2)',
+      'heuristic_mirrors': 'مرايا رواتب حُكمية (مطابقة بياناتية — G-5)',
     };
 
     var row = 5;
@@ -652,6 +807,41 @@ class ReviewReportService {
         }
         row++;
       }
+      row++;
+    }
+  }
+
+  /// ✅ (G-1/G-2): ورقة الروابط الدائمة — تُقرأ أعدادها فقط (لا إصلاح).
+  void _durableLinksSheet(Excel excel, ReviewReport report) {
+    final sheet = excel['الروابط الدائمة'];
+    sheet.isRTL = true;
+    sheet
+        .cell(CellIndex.indexByString('A1'))
+        .value = TextCellValue(
+      'الروابط المالية الدائمة (G-1/G-2) — أي رقم «غير مرتبط» يحتاج '
+      'قراراً بشرياً، ولا يُربط تخميناً.',
+    );
+    sheet
+        .cell(CellIndex.indexByString('A1'))
+        .cellStyle = CellStyle(bold: true, fontSize: 11);
+    sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('C1'));
+
+    const labels = {
+      'payments_total': 'إجمالي دفعات الرواتب (غير محذوفة)',
+      'payments_cycle_linked': 'دفعات مرتبطة بدورة (هوية دائمة)',
+      'payments_cycle_unlinked': 'دفعات بلا رابط دورة دائم',
+      'carry_over_total': 'إجمالي سجلات الترحيل',
+      'carry_over_cycle_linked': 'سجلات ترحيل مرتبطة بالدورتين',
+      'carry_over_cycle_unlinked': 'سجلات ترحيل بلا رابط دورتين',
+    };
+    var row = 3;
+    for (final entry in labels.entries) {
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+          .value = TextCellValue(entry.value);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+          .value = IntCellValue(report.durableLinks[entry.key] ?? 0);
       row++;
     }
   }

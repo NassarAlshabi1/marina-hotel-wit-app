@@ -117,6 +117,21 @@ class SalaryCarryOverLogsAdapter
             _asString(json, 'new_cycle_end', src) ??
             '',
       ),
+      // ✅ (G-2 / 2026-10-06): رابطتا الدورتين (UUID — لا معرّف رقمي).
+      // كانتا لا تُقرآن إطلاقاً ⇒ سجل الترحيل يصل بلا علاقة دورات ثابتة.
+      // تُقبل الأسماء المعلنة أولاً ثم الأسماء البديلة القديمة.
+      fromCycleId: _vStr(
+        json,
+        'fromCycleUuid',
+        src,
+        altKey: 'from_cycle_uuid',
+      ) ?? _vStr(json, 'fromCycleId', src, altKey: 'from_cycle_id'),
+      toCycleId: _vStr(
+        json,
+        'toCycleUuid',
+        src,
+        altKey: 'to_cycle_uuid',
+      ) ?? _vStr(json, 'toCycleId', src, altKey: 'to_cycle_id'),
       reason: d.Value(_asString(json, 'reason', src) ?? ''),
       carriedAt: d.Value(_asInt(json, 'carriedAt', src) ?? now),
       createdAt: d.Value(_asInt(json, 'createdAt', src) ?? now),
@@ -166,6 +181,15 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'previousCycleEnd', 'previous_cycle_end'): model.previousCycleEnd,
       _k(src, 'newCycleStart', 'new_cycle_start'): model.newCycleStart,
       _k(src, 'newCycleEnd', 'new_cycle_end'): model.newCycleEnd,
+      // ✅ (G-2): رابطتا الدورتين تُنقلان كهويتين ثابتتين.
+      if (model.fromCycleId != null && model.fromCycleId!.isNotEmpty) ...{
+        _k(src, 'fromCycleUuid', 'from_cycle_uuid'): model.fromCycleId,
+        _k(src, 'fromCycleId', 'from_cycle_id'): model.fromCycleId,
+      },
+      if (model.toCycleId != null && model.toCycleId!.isNotEmpty) ...{
+        _k(src, 'toCycleUuid', 'to_cycle_uuid'): model.toCycleId,
+        _k(src, 'toCycleId', 'to_cycle_id'): model.toCycleId,
+      },
       _k(src, 'reason', 'reason'): model.reason,
       _k(src, 'carriedAt', 'carried_at'): model.carriedAt,
       _k(src, 'createdAt', 'created_at'): model.createdAt,

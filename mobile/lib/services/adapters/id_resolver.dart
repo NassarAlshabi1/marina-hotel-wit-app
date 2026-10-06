@@ -311,6 +311,22 @@ class IdResolver {
                 .get();
         if (rows.isNotEmpty) {
           if (rows.length > 1) {
+            // ✅ (P1-3 / 2026-10-06): ازدواج مطابقة **الرقم البعيد** ليس
+            // حالة «اختيار أفضل» بل حالة عدم يقين: الرقم نفسه مع نفس الجهاز
+            // الكاتب يشير لأكثر من موظف محلي ⇒ أي اختيار قد يربط سجلاً
+            // مالياً بموظف خاطئ بصمت. القرار: **لا ربط** — يعود null
+            // فيُخزَّن السجل في DeferredRelationStore ويظهر في تقرير
+            // المراجعة (G-8) بحالته ودليله، بلا أي تخمين (البند 12).
+            if (fromRemote) {
+              AppLogger.warning(
+                '⛔ ازدواج مرشّحين لـ serverId=$serverId (جهاز=$sourceDeviceId) '
+                'في employees: '
+                '${rows.map((r) => 'id=${r.id}').join(', ')} '
+                '— لا ربط (مراجعة بشرية)، لا يُختار «الأول».',
+                tag: 'IdResolver',
+              );
+              return null;
+            }
             AppLogger.warning(
               'تعدد مطابقة serverId=$serverId في employees: '
               '${rows.map((r) => 'id=${r.id}(deletedAt=${r.deletedAt})').join(', ')} '
@@ -434,6 +450,19 @@ class IdResolver {
                 .get();
         if (rows.isNotEmpty) {
           if (rows.length > 1) {
+            // ✅ (P1-3 / 2026-10-06): نفس قاعدة الموظفين — ازدواج مرشّحي
+            // الرقم البعيد مع نفس الجهاز الكاتب ⇒ لا ربط (مراجعة بشرية)،
+            // وإلا وُربطت دفعة راتب بدورة خاطئة بصمت.
+            if (fromRemote) {
+              AppLogger.warning(
+                '⛔ ازدواج مرشّحين لـ serverId=$serverId (جهاز=$sourceDeviceId) '
+                'في salary_cycles: '
+                '${rows.map((r) => 'id=${r.id}').join(', ')} '
+                '— لا ربط (مراجعة بشرية).',
+                tag: 'IdResolver',
+              );
+              return null;
+            }
             AppLogger.warning(
               'تعدد مطابقة serverId=$serverId في salary_cycles: '
               '${rows.map((r) => 'id=${r.id}(deletedAt=${r.deletedAt})').join(', ')} '

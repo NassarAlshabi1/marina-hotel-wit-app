@@ -50,6 +50,7 @@ import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
 import 'sync/outbox_pull_policy.dart';
 import 'sync_core/deferred_relation_relinker.dart';
+import 'sync_core/financial_link_store.dart';
 import 'sync_core/provider_scope.dart';
 import 'sync_core/deferred_relation_store.dart';
 import 'sync_core/smart_conflict_resolver.dart';
@@ -214,6 +215,7 @@ class AppwriteSyncManager {
     // كان يُتخطّى صامتاً ويُهمَل ⇒ فقدان حركة مالية. الآن تُخزَّن الحمولة
     // وتُعاد محاولة ربطها عبر UUID بعد كل دورة سحب، وما لا يمكن إثباته
     // يذهب إلى تقرير المراجعة (لا ربط تخميني، لا حذف).
+    _financialLinks = FinancialLinkStore(database);
     _deferredStore = DeferredRelationStore(database);
     _deferredRelinker = DeferredRelationRelinker(
       db: database,
@@ -296,6 +298,10 @@ class AppwriteSyncManager {
 
   /// ✅ (G-3): مُعيد ربط السجلات المعلّقة عبر UUID (طبقة المجال).
   late final DeferredRelationRelinker _deferredRelinker;
+
+  /// ✅ (G-1/G-2): مخزن الروابط المالية الدائمة (دورة الدفعة، دورتا الترحيل).
+  /// كان الرابط يُبنى لحظة الرفع فقط فينكسر عند غياب صف الدورة محلياً.
+  late final FinancialLinkStore _financialLinks;
 
   /// للتقارير/الاختبارات (G-3/G-8): ملخص السجلات المعلّقة.
   Future<Map<String, int>> deferredRelationsSummary() =>
@@ -1292,6 +1298,27 @@ class AppwriteSyncManager {
               } catch (e) {
                 _logger.warning(
                   '⚠️ فشل إعادة ربط العلاقات المعلّقة (غير حرج): $e',
+                  tag: 'SYNC',
+                );
+              }
+
+              // ✅ (G-1 / 2026-10-06): تثبيت روابط «الدفعة ↔ الدورة» المثبتة
+              // من المفتاح الأجنبي المحلي (حتمي، بلا تخمين) — بحدٍّ أعلى
+              // حتى لا يثقل الأجهزة الضعيفة. الهدف: ألا يبقى رابط مالي
+              // دائم معتمداً على وجود صف الدورة **لحظة الرفع** فقط.
+              try {
+                final stamped = await _financialLinks
+                    .stampProvablePaymentCycles(limit: 300);
+                if (stamped > 0) {
+                  _logger.info(
+                    '🔗 ثُبِّت رابط الدورة على $stamped دفعة راتب '
+                    '(هوية دائمة بلا تخمين)',
+                    tag: 'SYNC',
+                  );
+                }
+              } catch (e) {
+                _logger.warning(
+                  '⚠️ فشل تثبيت روابط دورات الدفعات (غير حرج): $e',
                   tag: 'SYNC',
                 );
               }
@@ -6340,6 +6367,18 @@ class AppwriteSyncManager {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
           final payload = _salaryPaymentToRemote(payment);
+          // ✅ (G-1 / 2026-10-06): نفس قاعدة مسار الـ outbox — الهوية
+          // المخزَّنة أولاً، ثم التثبيت من المفتاح الأجنبي المحلي.
+          final fullPushDurableCycleUuid = await _financialLinks
+              .stampPaymentCycleIfMissing(
+                paymentLocalUuid: payment.localUuid,
+                fallbackCycleLocalId: payment.cycleId,
+              );
+          if (fullPushDurableCycleUuid != null &&
+              fullPushDurableCycleUuid.isNotEmpty) {
+            payload['cycleLocalUuid'] = fullPushDurableCycleUuid;
+            payload['cycleUuid'] = fullPushDurableCycleUuid;
+          }
           // ✅ (2026-09-19) إغلاق فجوة employee_uuid في الرفع الكامل أيضاً:
           // cycleLocalUuid + employeeUuid (نفس منطق _processSalaryPaymentEntry).
           final fullPushCycle =
@@ -6758,9 +6797,20 @@ class AppwriteSyncManager {
       );
     }
     final payload = _payloadMapper.salaryPaymentToRemote(item);
-    // ✅ (2026-09-19) إغلاق فجوة employee_uuid لدفعات الرواتب:
-    // الربط عبر دورة الراتب (cycleLocalUuid) ثم الموظف (employeeUuid) —
-    // المعرفات الرقمية (cycleId/employeeId) تختلف بين الأجهزة.
+    // ✅ (G-1 / 2026-10-06): رابط الدورة يُقرأ من **الهوية المخزَّنة** أولاً.
+    // سابقاً كان يُبنى هنا لحظة الرفع فقط: لو غاب صف الدورة محلياً (يتيمة/
+    // محذوفة/أُعيد بناء مسار الرفع عند تبديل المزوّد) تُرفع الدفعة بالمعرّف
+    // الرقمي وحده ⇒ رابط غير ثابت عبر الأجهزة. الآن:
+    //   1) cycle_uuid المخزَّن (دليل دائم) ← يُستخدم ويُرسل.
+    //   2) إن كان مفقوداً: يُثبَّت من المفتاح الأجنبي المحلي ثم يُرسل.
+    final durableCycleUuid = await _financialLinks.stampPaymentCycleIfMissing(
+      paymentLocalUuid: item.localUuid,
+      fallbackCycleLocalId: item.cycleId,
+    );
+    if (durableCycleUuid != null && durableCycleUuid.isNotEmpty) {
+      payload['cycleLocalUuid'] = durableCycleUuid;
+      payload['cycleUuid'] = durableCycleUuid;
+    }
     final paymentCycle =
         await (database.select(database.salaryCycles)
               ..where((c) => c.id.equals(item.cycleId))
@@ -8602,6 +8652,18 @@ class AppwriteSyncManager {
         await _adapterRegistry.salaryPayments.upsertFromJson(
           data,
           src: Source.appwrite,
+        );
+        // ✅ (G-1 / 2026-10-06): تثبيت رابط الدورة على الدفعة **وقت السحب**.
+        // الدليل: UUID ورد في الحمولة (هوية معلنة)؛ وإن غاب فالمفتاح
+        // الأجنبي المحلي بعد الحل (`cycle_id` صار صالحاً بعد upsert).
+        // بعد التثبيت لا يعود الرفع يحتاج صف الدورة موجوداً وقت الرفع.
+        await _financialLinks.stampPaymentCycleIfMissing(
+          paymentLocalUuid: (data['localUuid'] as String?) ?? '',
+          preferredCycleUuid:
+              (data['cycleUuid'] as String?) ??
+              (data['cycleLocalUuid'] as String?) ??
+              (data['cycle_uuid'] as String?) ??
+              (data['cycle_local_uuid'] as String?),
         );
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(

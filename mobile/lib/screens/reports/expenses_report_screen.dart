@@ -382,6 +382,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             // ✅ (هجرة 68) حقول الهوية — المستوى 0 في المطابِق
             localUuid: e.localUuid,
             withdrawalUuid: e.withdrawalUuid,
+            // ✅ (P2-7): دليل فضاء المعرّفات للأرقام المحلية
+            deviceId: e.deviceId,
           ),
         )
         .toList(growable: false);
@@ -447,6 +449,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           withdrawDate: sw.withdrawDate,
           employeeId: sw.employeeId,
           expenses: expenseCandidates,
+          // ✅ (P2-7): جهاز كاتب السحبة — إثبات للربط الرقمي
+          sourceDeviceId: sw.deviceId,
         );
 
         // إذا لم يتم العثور على مصروف مقابل، فهذا السحب يتيم – أضفه

@@ -392,6 +392,8 @@ class _IncomeExpenseReportScreenState
           hotelDayKey: sw.hotelDayKey,
           withdrawDate: sw.withdrawDate,
           employeeId: sw.employeeId,
+          // ✅ (P2-7): جهاز كاتب السحبة — إثبات للربط الرقمي
+          sourceDeviceId: sw.deviceId,
           expenses: readExpenses.map(
             (e) => MirrorExpenseCandidate(
               id: e.id,
@@ -403,6 +405,8 @@ class _IncomeExpenseReportScreenState
               relatedId: e.relatedId,
               localUuid: e.localUuid,
               withdrawalUuid: e.withdrawalUuid,
+              // ✅ (P2-7): دليل فضاء المعرّفات للأرقام المحلية
+              deviceId: e.deviceId,
             ),
           ),
         );

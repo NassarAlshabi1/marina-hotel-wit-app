@@ -9,6 +9,7 @@ import 'local_db.dart';
 import 'salary_cycle_calculator.dart';
 import 'salary_expense_classifier.dart';
 import 'salary_mirror_matcher.dart';
+import 'sync_core/financial_link_store.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SalaryEntitlement {
@@ -432,6 +433,24 @@ class SalaryEntitlementService {
     final nowEpoch = Time.nowEpoch();
     final carryLogUuid = IdGen.uuid();
 
+    // ✅ (G-2 / 2026-10-06 — تدقيق §3.3): رابطتا الدورتين تُكتبان كهويتين
+    // ثابتتين (UUID) بدل تركهما فارغتين. المطابقة **حتمية ومعلنة**: صف
+    // الدورة الذي يطابق بداية الفترة بدقة (`hotel_day_start`) أو مفتاح
+    // الشهر (`cycle_key = yyyy-MM` عند غياب بداية اليوم) — ولمطابقة واحدة
+    // فقط. صفر مطابقة أو أكثر من واحدة ⇒ يبقى الحقل null (لا تخمين —
+    // والبند 12 يمنع الربط بالاسم/المبلغ/التشابه).
+    final financialLinks = FinancialLinkStore(_db);
+    final previousCycleUuid = await financialLinks.cycleUuidForPeriod(
+      employeeId: employee.id,
+      cycleStartIsoDate: _formatDate(previousCycleStart),
+      monthKey: _monthKey(previousCycleStart),
+    );
+    final currentCycleUuid = await financialLinks.cycleUuidForPeriod(
+      employeeId: employee.id,
+      cycleStartIsoDate: _formatDate(currentCycleStart),
+      monthKey: _monthKey(currentCycleStart),
+    );
+
     // SQLite transaction serializes competing calls from repeated screen opens
     // or two local triggers. The duplicate check and insert must be atomic.
     await _db.transaction(() async {
@@ -447,6 +466,9 @@ class SalaryEntitlementService {
           .insert(
             SalaryCarryOverLogsCompanion.insert(
               employeeId: employee.id,
+              // ✅ (G-2): روابط الدورات الثابتة عبر الأجهزة
+              fromCycleId: d.Value(previousCycleUuid),
+              toCycleId: d.Value(currentCycleUuid),
               // ✅ (2026-09-19) UUID الموظف — الربط الدائم عبر الأجهزة
               employeeUuid: d.Value(
                 employee.localUuid.isEmpty ? null : employee.localUuid,
@@ -476,6 +498,10 @@ class SalaryEntitlementService {
           'employeeUuid': employee.localUuid.isEmpty
               ? null
               : employee.localUuid,
+          // ✅ (G-2): الهويتان الدائمتان للدورتين — تُنقل في الحمولة نفسها
+          // فلا يعتمد الرابط على حل رقمي محلي على أي جهاز لاحقاً.
+          'fromCycleUuid': previousCycleUuid,
+          'toCycleUuid': currentCycleUuid,
           'amount': carriedOver,
           'previousCycleStart': _formatDate(previousCycleStart),
           'previousCycleEnd': _formatDate(previousCycleEnd),
@@ -688,6 +714,8 @@ class SalaryEntitlementService {
             // ✅ (هجرة 68) حقول الهوية — المستوى 0 في المطابِق
             localUuid: e.localUuid,
             withdrawalUuid: e.withdrawalUuid,
+            // ✅ (P2-7): دليل فضاء المعرّفات للأرقام المحلية
+            deviceId: e.deviceId,
           ),
         )
         .toList(growable: false);
@@ -708,6 +736,8 @@ class SalaryEntitlementService {
         withdrawDate: sw.withdrawDate,
         employeeId: employeeId,
         expenses: candidates,
+        // ✅ (P2-7): جهاز كاتب السحبة — proof للربط الرقمي
+        sourceDeviceId: sw.deviceId,
       );
       if (isMirror) continue;
 
@@ -789,6 +819,11 @@ class SalaryEntitlementService {
     );
     return nextStart.subtract(const Duration(days: 1));
   }
+
+  /// مفتاح الشهر (yyyy-MM) لسياسة `cycle_key` في جدول الدورات.
+  String _monthKey(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}';
 
   DateTime? _parseDate(String dateStr) {
     if (dateStr.isEmpty) return null;

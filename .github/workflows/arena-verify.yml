@@ -1,0 +1,94 @@
+# ⚠️ مؤقّت (Arena) — يُحذف بعد التحقق. يكتب تقاريره في mobile/.arena/ ويرفعها.
+name: Arena Verify (temporary)
+
+on:
+  push:
+    branches:
+      - arena/a2609d75-marina-hotel-wit-app
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: arena-verify
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Format (diffs only for touched files)
+        run: |
+          mkdir -p .arena
+          FILES="lib/services/sync_core/financial_link_store.dart \
+          lib/services/local_db.dart \
+          lib/services/appwrite_sync_manager.dart \
+          lib/services/salary_entitlement_service.dart \
+          lib/services/salary_mirror_matcher.dart \
+          lib/services/review_report_service.dart \
+          lib/services/adapters/id_resolver.dart \
+          lib/services/adapters/salary_carry_over_logs_adapter.dart \
+          lib/services/sync/payload_mapper.dart \
+          lib/components/app_scaffold.dart \
+          lib/screens/information/information_screen.dart \
+          lib/screens/reports/expenses_report_screen.dart \
+          lib/screens/reports/income_expense_report_screen.dart \
+          lib/screens/reports/salary_withdrawals_report_screen.dart \
+          test/unit/financial_links_g1_g2_test.dart \
+          test/unit/information_search_test.dart \
+          test/services/salary_mirror_cross_device_test.dart"
+          dart format --output=none --set-exit-if-changed $FILES > .arena/format_check.txt 2>&1 || true
+          dart format $FILES > /dev/null 2>&1 || true
+          git diff > .arena/format.diff
+          wc -l .arena/format.diff >> .arena/format_check.txt
+
+      - name: Analyze
+        run: |
+          flutter analyze lib test --no-fatal-infos --no-fatal-warnings > .arena/analyze.txt 2>&1 || true
+          tail -40 .arena/analyze.txt
+
+      - name: Targeted tests
+        run: |
+          flutter test \
+            test/unit/financial_links_g1_g2_test.dart \
+            test/unit/information_search_test.dart \
+            test/unit/review_report_g8_test.dart \
+            test/unit/financial_identity_g3_test.dart \
+            test/services/salary_mirror_cross_device_test.dart \
+            > .arena/test_targeted.txt 2>&1 || true
+          tail -40 .arena/test_targeted.txt
+
+      - name: Full unit+services suites
+        run: |
+          flutter test test/unit test/services \
+            > .arena/test_full.txt 2>&1 || true
+          tail -25 .arena/test_full.txt
+
+      - name: Commit reports
+        if: always()
+        run: |
+          git config user.name "arena-verify-bot"
+          git config user.email "arena-verify@users.noreply.github.com"
+          git add -f .arena
+          git commit -m "arena-verify: reports [skip ci]" || echo "no report changes"
+          git push || echo "push skipped"
