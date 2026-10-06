@@ -54,8 +54,12 @@ jobs:
           lib/screens/reports/expenses_report_screen.dart \
           lib/screens/reports/income_expense_report_screen.dart \
           lib/screens/reports/salary_withdrawals_report_screen.dart \
+          lib/utils/identity_gate.dart \
+          lib/utils/guest_info_search.dart \
           test/unit/financial_links_g1_g2_test.dart \
+          test/unit/identity_gate_p2_test.dart \
           test/unit/information_search_test.dart \
+          test/unit/id_resolver_cross_device_test.dart \
           test/services/salary_mirror_cross_device_test.dart"
           dart format --output=none --set-exit-if-changed $FILES > .arena/format_check.txt 2>&1 || true
           dart format $FILES > /dev/null 2>&1 || true
@@ -71,7 +75,9 @@ jobs:
         run: |
           flutter test \
             test/unit/financial_links_g1_g2_test.dart \
+            test/unit/identity_gate_p2_test.dart \
             test/unit/information_search_test.dart \
+            test/unit/id_resolver_cross_device_test.dart \
             test/unit/review_report_g8_test.dart \
             test/unit/financial_identity_g3_test.dart \
             test/services/salary_mirror_cross_device_test.dart \

@@ -132,20 +132,22 @@ void main() {
       expect(await storedCycleUuid('pay-A'), 'cyc-A');
     });
 
-    test('UUID الوارد في الحمولة (هوية معلنة) يتقدّم على المفتاح الرقمي',
-        () async {
-      final emp = await employee('emp-1');
-      final c = await cycle(empId: emp, uuid: 'cyc-local', key: '2026-10');
-      await payment(cycleId: c, uuid: 'pay-B');
+    test(
+      'UUID الوارد في الحمولة (هوية معلنة) يتقدّم على المفتاح الرقمي',
+      () async {
+        final emp = await employee('emp-1');
+        final c = await cycle(empId: emp, uuid: 'cyc-local', key: '2026-10');
+        await payment(cycleId: c, uuid: 'pay-B');
 
-      final links = FinancialLinkStore(db);
-      final resolved = await links.stampPaymentCycleIfMissing(
-        paymentLocalUuid: 'pay-B',
-        preferredCycleUuid: 'cyc-from-payload',
-        fallbackCycleLocalId: c,
-      );
-      expect(resolved, 'cyc-from-payload');
-    });
+        final links = FinancialLinkStore(db);
+        final resolved = await links.stampPaymentCycleIfMissing(
+          paymentLocalUuid: 'pay-B',
+          preferredCycleUuid: 'cyc-from-payload',
+          fallbackCycleLocalId: c,
+        );
+        expect(resolved, 'cyc-from-payload');
+      },
+    );
 
     test('لا دليل ⇒ لا كتابة (يبقى فارغاً ويظهر في المراجعة)', () async {
       final emp = await employee('emp-1');

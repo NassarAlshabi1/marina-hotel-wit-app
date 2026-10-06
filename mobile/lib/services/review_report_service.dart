@@ -599,14 +599,7 @@ class ReviewReportService {
     _tableSheet(
       excel,
       'مرايا حُكمية',
-      const [
-        'سحبة',
-        'الموظف',
-        'المبلغ',
-        'اليوم',
-        'السبب',
-        'مستوى الإثبات',
-      ],
+      const ['سحبة', 'الموظف', 'المبلغ', 'اليوم', 'السبب', 'مستوى الإثبات'],
       [
         for (final row in report.heuristicMirrors)
           [
@@ -815,15 +808,14 @@ class ReviewReportService {
   void _durableLinksSheet(Excel excel, ReviewReport report) {
     final sheet = excel['الروابط الدائمة'];
     sheet.isRTL = true;
-    sheet
-        .cell(CellIndex.indexByString('A1'))
-        .value = TextCellValue(
+    sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue(
       'الروابط المالية الدائمة (G-1/G-2) — أي رقم «غير مرتبط» يحتاج '
       'قراراً بشرياً، ولا يُربط تخميناً.',
     );
-    sheet
-        .cell(CellIndex.indexByString('A1'))
-        .cellStyle = CellStyle(bold: true, fontSize: 11);
+    sheet.cell(CellIndex.indexByString('A1')).cellStyle = CellStyle(
+      bold: true,
+      fontSize: 11,
+    );
     sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('C1'));
 
     const labels = {
@@ -838,10 +830,14 @@ class ReviewReportService {
     for (final entry in labels.entries) {
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-          .value = TextCellValue(entry.value);
+          .value = TextCellValue(
+        entry.value,
+      );
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
-          .value = IntCellValue(report.durableLinks[entry.key] ?? 0);
+          .value = IntCellValue(
+        report.durableLinks[entry.key] ?? 0,
+      );
       row++;
     }
   }

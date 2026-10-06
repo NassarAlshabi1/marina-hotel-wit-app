@@ -17,6 +17,7 @@ import 'package:sqlite3/sqlite3.dart' show SqliteException;
 import '../utils/app_logger.dart';
 import '../utils/debug_log.dart';
 import '../utils/id.dart';
+import '../utils/identity_gate.dart';
 import '../utils/secure_storage.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -5942,6 +5943,20 @@ class AppwriteSyncManager {
         // (الخلل القديم: القائمة كانت تُعلن ولا تُملأ → المؤشر يتقدّم رغم الفشل)
         final failedCollections = <String>[];
 
+        // ✅ (P2-9 / 2026-10-06): قياس «المؤجَّل» — السجل الذي يصل قبل أبيه
+        // يُخزَّن في DeferredRelationStore ولا يُطبَّق فعلياً، لكن مهمة السحب
+        // تحسبه من ضمن `recordsPulled`. النتيجة قبل هذا الإصلاح: الواجهة
+        // تقول «تم سحب N سجلاً» بينما بعضها لم يُطبَّق بعد ⇒ رقم مضلِّل.
+        // القياس هنا **قراءة فقط** (فرق حالات المخزن قبل/بعد الدورة).
+        var deferredBefore = 0;
+        try {
+          final snapshot = await _deferredStore.summary();
+          deferredBefore =
+              (snapshot['pending'] ?? 0) + (snapshot['needs_review'] ?? 0);
+        } catch (_) {
+          // القياس لا يجوز أن يُسقط السحب.
+        }
+
         // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
         _maxUpdatedAtInPull = null;
 
@@ -5972,10 +5987,34 @@ class AppwriteSyncManager {
         recordsPulled = result.recordsPulled;
         failedCollections.addAll(result.failedCollections);
 
+        // ✅ (P2-9): كم سجلاً أُجّل في هذه الدورة؟ يُخصم من العدّاد المعلن.
+        var deferredDelta = 0;
+        try {
+          final snapshotAfter = await _deferredStore.summary();
+          final deferredAfter =
+              (snapshotAfter['pending'] ?? 0) +
+              (snapshotAfter['needs_review'] ?? 0);
+          deferredDelta = deferredAfter - deferredBefore;
+          if (deferredDelta < 0) deferredDelta = 0;
+        } catch (_) {}
+
         // ✅ تسجيل نتيجة الدورة للعرض في شاشة الإعدادات (زر «سحب الآن»).
         // يُسجَّل حتى مع فشل جزئي (failedCollections) لأن السجلات المطبَّقة
         // حقيقية — الفشل الكامل (استثناء) لا يصل هنا أصلاً.
-        _lastPullRecords = recordsPulled;
+        // ⚠️ السجلات المؤجَّلة (ناقصة الربط) لا تُحتسب «مطبَّقة» (P2-9).
+        final appliedNow = UuidIdentity.appliedRecordsInPull(
+          reported: recordsPulled,
+          deferredDelta: deferredDelta,
+        );
+        _lastPullRecords = appliedNow;
+        if (deferredDelta > 0) {
+          _logger.warning(
+            '⏳ P2-9: $deferredDelta سجل من أصل $recordsPulled لم يُطبَّق '
+            'في هذه الدورة (ناقص الربط — ينتظر الأب عبر UUID، وليس فقداناً). '
+            'المُعلَن للتطبيق الفعلي: $appliedNow.',
+            tag: 'SYNC',
+          );
+        }
         _lastPullAt = DateTime.now();
 
         // ✅ P1-5 fix: تحديث المؤشر العام فقط إذا نجحت كل الكولكشنات

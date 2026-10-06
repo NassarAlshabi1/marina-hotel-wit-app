@@ -21,6 +21,7 @@ import 'sync_config.dart';
 import 'sync_mutex.dart';
 import 'sync_performance_optimizer.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import 'package:marina_hotel_mobile/utils/identity_gate.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -139,6 +140,34 @@ class SyncService {
           final result = results[index];
           final change = computation.changes[index];
           if (result['success'] == true) {
+            // ✅ (P2-10 / 2026-10-06): ربط نتيجة الرفع بسجلها **بالهوية**
+            // لا بالموضع. كانت النتائج تُطابق بالترتيب (results[index]) —
+            // أي إعادة ترتيب/رد جزئي من الخادم تعني كتابة `server_id` على
+            // صف محلي آخر (رقم أجنبي على سجل بريء ⇒ لاحقاً مطابقة رقمية
+            // خاطئة). الآن: إن أرجع الخادم هوية (`localUuid`/`local_uuid`/
+            // `uuid`) وجب تطابقها؛ وإلا يبقى المطابقة بالترتيب مع تسجيل
+            // تحذير صريح بدل الصمت.
+            final echoed = UuidIdentity.echoedFrom(result);
+            if (!UuidIdentity.mayApplyServerId(
+              changeLocalUuid: change.localUuid,
+              echoedLocalUuid: echoed,
+            )) {
+              allSucceeded = false;
+              dlog(
+                () =>
+                    '⛔ P2-10: نتيجة رفع لا تخصّ السجل — المتوقَّع '
+                    '${change.localUuid} والمُعاد $echoed '
+                    '(${change.entity}) — لم يُكتب server_id.',
+              );
+              continue;
+            }
+            if (echoed == null) {
+              dlog(
+                () =>
+                    '⚠️ P2-10: رد الرفع بلا هوية مُعادة — المطابقة بالترتيب '
+                    'لـ ${change.entity}/${change.localUuid}.',
+              );
+            }
             await _applyServerId(
               change.entity,
               change.localUuid,

@@ -135,8 +135,7 @@ class SalaryMirrorMatcher {
           // — نفس الجهاز الكاتب للسحبة والمصروف (نفس قاعدة G-3 في
           // IdResolver). بلا إثبات ⇒ لا ربط رقمي: يبقى الاحتياط
           // البياناتي (المستوى 3/4) ولا يُخمَّن الربط.
-          final deviceProof =
-              (sourceDeviceId ?? '').trim().isNotEmpty;
+          final deviceProof = (sourceDeviceId ?? '').trim().isNotEmpty;
           if (deviceProof) {
             for (final e in expenses) {
               if (e.serverId != null &&

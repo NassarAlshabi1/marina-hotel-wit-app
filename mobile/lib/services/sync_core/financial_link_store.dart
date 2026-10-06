@@ -208,7 +208,9 @@ class FinancialLinkStore {
             variables: [
               Variable.withInt(employeeId),
               Variable.withString(cycleStartIsoDate),
-              Variable.withString(monthKey ?? cycleStartIsoDate.substring(0, 7)),
+              Variable.withString(
+                monthKey ?? cycleStartIsoDate.substring(0, 7),
+              ),
             ],
           )
           .get();
