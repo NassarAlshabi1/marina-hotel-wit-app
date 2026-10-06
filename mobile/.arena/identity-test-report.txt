@@ -1,141 +1,0 @@
-### identity + money policy tests (2026-10-06T16:33:18Z)
-#18     Future.forEach (dart:async/future.dart:672:12)
-#22     _rootRun (dart:async/zone_root.dart:35:13)
-#23     _CustomZone.run (dart:async/zone.dart:726:19)
-#24     _runZoned (dart:async/zone_api.dart:166:6)
-#25     runZoned (dart:async/zone_api.dart:92:10)
-#28     _rootRun (dart:async/zone_root.dart:35:13)
-#29     _CustomZone.run (dart:async/zone.dart:726:19)
-#30     _runZoned (dart:async/zone_api.dart:166:6)
-#31     runZoned (dart:async/zone_api.dart:92:10)
-00:15 +67: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... 27. remote newer (no conflict) → pushedToRemote=false        00:15 +67: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... 28. local newer (no conflict) → shouldApplyRemote=false      00:15 +67: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: SyncPullService — pushedToRemote behavior 28. local newer (no conflict) → shouldApplyRemote=false
-WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
-Here is the stacktrace from when the database was opened a second time:
-#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:43835:36)
-#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
-#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
-#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart:37:22)
-#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
-#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
-#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
-#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
-#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
-#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
-#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
-#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
-#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
-#17     Future.doWhile (dart:async/future.dart:749:18)
-#18     Future.forEach (dart:async/future.dart:672:12)
-#22     _rootRun (dart:async/zone_root.dart:35:13)
-#23     _CustomZone.run (dart:async/zone.dart:726:19)
-#24     _runZoned (dart:async/zone_api.dart:166:6)
-#25     runZoned (dart:async/zone_api.dart:92:10)
-#28     _rootRun (dart:async/zone_root.dart:35:13)
-#29     _CustomZone.run (dart:async/zone.dart:726:19)
-#30     _runZoned (dart:async/zone_api.dart:166:6)
-#31     runZoned (dart:async/zone_api.dart:92:10)
-00:15 +68: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... 28. local newer (no conflict) → shouldApplyRemote=false      00:15 +68: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... behavior 29. soft delete محلي محمي — shouldApplyRemote=false 00:15 +68: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: SyncPullService — pushedToRemote behavior 29. soft delete محلي محمي — shouldApplyRemote=false
-WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
-Here is the stacktrace from when the database was opened a second time:
-#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:43835:36)
-#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
-#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
-#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart:37:22)
-#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
-#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
-#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
-#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
-#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
-#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
-#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
-#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
-#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
-#17     Future.doWhile (dart:async/future.dart:749:18)
-#18     Future.forEach (dart:async/future.dart:672:12)
-#22     _rootRun (dart:async/zone_root.dart:35:13)
-#23     _CustomZone.run (dart:async/zone.dart:726:19)
-#24     _runZoned (dart:async/zone_api.dart:166:6)
-#25     runZoned (dart:async/zone_api.dart:92:10)
-#28     _rootRun (dart:async/zone_root.dart:35:13)
-#29     _CustomZone.run (dart:async/zone.dart:726:19)
-#30     _runZoned (dart:async/zone_api.dart:166:6)
-#31     runZoned (dart:async/zone_api.dart:92:10)
-00:15 +69: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... behavior 29. soft delete محلي محمي — shouldApplyRemote=false 00:15 +69: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... 30. سجل جديد محلياً (آخر تعديل null) → shouldApplyRemote=true00:15 +69: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: SyncPullService — pushedToRemote behavior 30. سجل جديد محلياً (آخر تعديل null) → shouldApplyRemote=true
-WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
-Here is the stacktrace from when the database was opened a second time:
-#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:43835:36)
-#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
-#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
-#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart:37:22)
-#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
-#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
-#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
-#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
-#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
-#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
-#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
-#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
-#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
-#17     Future.doWhile (dart:async/future.dart:749:18)
-#18     Future.forEach (dart:async/future.dart:672:12)
-#22     _rootRun (dart:async/zone_root.dart:35:13)
-#23     _CustomZone.run (dart:async/zone.dart:726:19)
-#24     _runZoned (dart:async/zone_api.dart:166:6)
-#25     runZoned (dart:async/zone_api.dart:92:10)
-#28     _rootRun (dart:async/zone_root.dart:35:13)
-#29     _CustomZone.run (dart:async/zone.dart:726:19)
-#30     _runZoned (dart:async/zone_api.dart:166:6)
-#31     runZoned (dart:async/zone_api.dart:92:10)
-00:15 +70: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... 30. سجل جديد محلياً (آخر تعديل null) → shouldApplyRemote=true00:15 +70: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... مع محتوى مختلف → shouldApplyRemote=true (apply remote)       00:15 +70: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: VectorClockComparator — حالات التعارض 31. VCs متساوية مع محتوى مختلف → shouldApplyRemote=true (apply remote)
-WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
-Here is the stacktrace from when the database was opened a second time:
-#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:43835:36)
-#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
-#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
-#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart:37:22)
-#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
-#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
-#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
-#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
-#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
-#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
-#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
-#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
-#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
-#17     Future.doWhile (dart:async/future.dart:749:18)
-#18     Future.forEach (dart:async/future.dart:672:12)
-#22     _rootRun (dart:async/zone_root.dart:35:13)
-#23     _CustomZone.run (dart:async/zone.dart:726:19)
-#24     _runZoned (dart:async/zone_api.dart:166:6)
-#25     runZoned (dart:async/zone_api.dart:92:10)
-#28     _rootRun (dart:async/zone_root.dart:35:13)
-#29     _CustomZone.run (dart:async/zone.dart:726:19)
-#30     _runZoned (dart:async/zone_api.dart:166:6)
-#31     runZoned (dart:async/zone_api.dart:92:10)
-00:15 +71: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... مع محتوى مختلف → shouldApplyRemote=true (apply remote)       00:15 +71: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... 32. VCs متساوية مع محتوى متطابق → shouldApplyRemote=false    00:15 +71: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: VectorClockComparator — حالات التعارض 32. VCs متساوية مع محتوى متطابق → shouldApplyRemote=false
-WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
-Here is the stacktrace from when the database was opened a second time:
-#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:43835:36)
-#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
-#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
-#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart:37:22)
-#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
-#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
-#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
-#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
-#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
-#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
-#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
-#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
-#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
-#17     Future.doWhile (dart:async/future.dart:749:18)
-#18     Future.forEach (dart:async/future.dart:672:12)
-#22     _rootRun (dart:async/zone_root.dart:35:13)
-#23     _CustomZone.run (dart:async/zone.dart:726:19)
-#24     _runZoned (dart:async/zone_api.dart:166:6)
-#25     runZoned (dart:async/zone_api.dart:92:10)
-#28     _rootRun (dart:async/zone_root.dart:35:13)
-#29     _CustomZone.run (dart:async/zone.dart:726:19)
-#30     _runZoned (dart:async/zone_api.dart:166:6)
-#31     runZoned (dart:async/zone_api.dart:92:10)
-00:15 +72: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... 32. VCs متساوية مع محتوى متطابق → shouldApplyRemote=false    00:16 +72: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_pull_service_pushed_to_remote_test.dart: ... 32. VCs متساوية مع محتوى متطابق → shouldApplyRemote=false    00:16 +72: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart                                                                 00:16 +72: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:16 +73: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 1. عمودا الرابط الدائم يعملان عبر ORM في مخطط جديد      00:16 +73: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 2. حراس الـ backfill يمنعون الربط العابر للموظف (تصادم أجهزة)      00:16 +74: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 2. حراس الـ backfill يمنعون الربط العابر للموظف (تصادم أجهزة)      00:16 +74: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 3. الـ backfill يربط المرآة الصحيحة (نفس الموظف/المبلغ/±1 يوم)     00:16 +75: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 3. الـ backfill يربط المرآة الصحيحة (نفس الموظف/المبلغ/±1 يوم)     00:16 +75: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 3-أ. يوم ±1 مختلف لا يُربط (لا تسامح زمني — L3 حرفياً)  00:16 +76: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & backfill 3-أ. يوم ±1 مختلف لا يُربط (لا تسامح زمني — L3 حرفياً)  00:16 +76: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 3-ب. غير العائلة الراتبية لا يأخذ رابطاً عكسياً  00:16 +77: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... schema & backfill 3-ب. غير العائلة الراتبية لا يأخذ رابطاً عكسياً  00:16 +77: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 10. الطرفان بلا هوية موظف (NULL) ⇒ لا رابط — حرس صارم بلا IS       00:16 +78: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 10. الطرفان بلا هوية موظف (NULL) ⇒ لا رابط — حرس صارم بلا IS       00:16 +78: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 4. mapper السحبات يختم expenseUuid والـ adapter يقرؤه   00:16 +79: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 4. mapper السحبات يختم expenseUuid والـ adapter يقرؤه   00:16 +79: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... payloads 5. mapper المصروفات يختم withdrawalUuid والـ adapter يقرؤه00:16 +80: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... payloads 5. mapper المصروفات يختم withdrawalUuid والـ adapter يقرؤه00:16 +80: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 68: adapters & payloads 6. القوائم المسموحة لا تُسقط الحقول الجديدة00:16 +81: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... 68: adapters & payloads 6. القوائم المسموحة لا تُسقط الحقول الجديدة00:16 +81: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 7. مواصفات مدقق المخطط تضم الخصائص السحابية الجديدة     00:16 +82: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: ... & payloads 7. مواصفات مدقق المخطط تضم الخصائص السحابية الجديدة     00:16 +82: All tests passed!                                                                                                                                                                           
