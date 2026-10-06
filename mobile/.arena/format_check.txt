@@ -1,8 +1,3 @@
-Changed lib/components/widgets/guest_search_field.dart
-Changed lib/services/cloudflare_d1_service.dart
-Changed lib/services/salary_entitlement_service.dart
-Changed test/unit/cloudflare_d1_upload_fields_test.dart
-Changed test/unit/entitlement_identity_attribution_test.dart
-Formatted 590 files (5 changed) in 6.36 seconds.
+Formatted 590 files (0 changed) in 6.11 seconds.
 changed files:
-7
+2

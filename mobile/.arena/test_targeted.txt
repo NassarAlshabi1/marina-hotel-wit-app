@@ -177,46 +177,15 @@ Got dependencies!
 173 packages have newer versions incompatible with dependency constraints.
 Try `flutter pub outdated` for more information.
 
-::group::❌ loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_header_search_widget_test.dart (failed)
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_header_search_widget_test.dart": Does not exist.
-package:test_core/src/runner/load_suite.dart 139:26                  new LoadSuite.forLoadException
-package:test_core/src/runner.dart 286:23                             Runner._loadSuites.<fn>
-dart:_internal/iterable.dart 420:20                                  MappedIterator.moveNext
-dart:core/iterable.dart 366:23                                       Iterable.forEach
-package:async/src/stream_group.dart 93:13                            StreamGroup.merge
-package:test_core/src/runner.dart 275:24                             Runner._loadSuites
-package:test_core/src/runner.dart 118:18                             Runner.run.<fn>
-dart:async/zone_root.dart 35:13                                      _rootRun
-dart:async/zone.dart 726:19                                          _CustomZone.run
-dart:async/zone_api.dart 166:6                                       _runZoned
-dart:async/zone_api.dart 92:10                                       runZoned
-package:test_core/src/runner/configuration.dart 941:7                Configuration.asCurrent
-package:test_core/src/runner.dart 111:33                             Runner.run
-package:test_core/src/executable.dart 161:30                         _execute
-package:test_core/src/executable.dart 38:9                           main
-package:flutter_tools/src/test/test_wrapper.dart 31:16               _DefaultTestWrapper.main
-package:flutter_tools/src/test/runner.dart 188:25                    FlutterTestRunner.runTests
-package:flutter_tools/src/commands/test.dart 685:33                  TestCommand.runCommand
-package:flutter_tools/src/runner/flutter_command.dart 1630:27        FlutterCommand.run.<fn>
-package:flutter_tools/src/base/context.dart 154:19                   AppContext.run.<fn>
-package:args/command_runner.dart 212:13                              CommandRunner.runCommand
-package:flutter_tools/src/runner/flutter_command_runner.dart 496:9   FlutterCommandRunner.runCommand.<fn>
-package:flutter_tools/src/base/context.dart 154:19                   AppContext.run.<fn>
-package:flutter_tools/src/runner/flutter_command_runner.dart 431:5   FlutterCommandRunner.runCommand
-package:flutter_tools/src/runner/flutter_command_runner.dart 307:33  FlutterCommandRunner.run.<fn>
-package:flutter_tools/runner.dart 104:11                             run.<fn>.<fn>
-package:flutter_tools/src/base/context.dart 154:19                   AppContext.run.<fn>
-package:flutter_tools/executable.dart 103:3                          main
-::endgroup::
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/entitlement_identity_attribution_test.dart: قاعدة النسب النقية shouldAttributeRow بلا هوية معلنة ⇒ يُنسب (سجل قديم)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/entitlement_identity_attribution_test.dart: قاعدة النسب النقية shouldAttributeRow الهوية تطابق الموظف ⇒ يُنسب
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/entitlement_identity_attribution_test.dart: قاعدة النسب النقية shouldAttributeRow هوية موظف آخر موجود محلياً ⇒ يُستبعد (لا احتساب مزدوج)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/entitlement_identity_attribution_test.dart: قاعدة النسب النقية shouldAttributeRow هوية موظف غير موجود محلياً ⇒ يُنسب احتياطاً (لا فقدان مال)
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/entitlement_identity_attribution_test.dart: الاستحقاق يربط بالهوية لا بالرقم المحلي مصروف يعلن موظفاً آخر موجوداً ⇒ لا يُحتسب لصاحب الرقم
-2026-10-06T22:18:27.728322 WARN [ENTITLEMENT] ⛔ استُبعد مصروف #1 من استحقاق الموظف #1: يعلن الانتماء لهوية أخرى (emp-B) وهي موجودة محلياً — يُحتسب عند صاحبه (لا احتساب مزدوج).
+2026-10-06T22:25:04.883220 WARN [ENTITLEMENT] ⛔ استُبعد مصروف #1 من استحقاق الموظف #1: يعلن الانتماء لهوية أخرى (emp-B) وهي موجودة محلياً — يُحتسب عند صاحبه (لا احتساب مزدوج).
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/entitlement_identity_attribution_test.dart: الاستحقاق يربط بالهوية لا بالرقم المحلي سحبة وصلت برقم محلي مختلف لكن بهوية هذا الموظف ⇒ تُنسب له
-2026-10-06T22:18:27.769092 WARN [ENTITLEMENT] ⛔ استُبعدت سحبة #1 من استحقاق الموظف #2: تعلن الانتماء لهوية أخرى (emp-A) وهي موجودة محلياً.
+2026-10-06T22:25:04.923741 WARN [ENTITLEMENT] ⛔ استُبعدت سحبة #1 من استحقاق الموظف #2: تعلن الانتماء لهوية أخرى (emp-A) وهي موجودة محلياً.
 ::endgroup::
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/entitlement_identity_attribution_test.dart: الاستحقاق يربط بالهوية لا بالرقم المحلي سحبة بهوية موظف غير موجود محلياً ⇒ تُنسب احتياطاً بلا فقدان
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/entitlement_identity_attribution_test.dart: الاستحقاق يربط بالهوية لا بالرقم المحلي سجل قديم بلا هوية (employee_uuid = NULL) ⇒ النسب بالرقم كما كان
@@ -225,11 +194,10 @@ package:flutter_tools/executable.dart 103:3                          main
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية البحث بالاسم يعمل بأشكال كتابة مختلفة
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية البحث يشمل الغرفة ورقم الهوية والمحافظة
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مطابقة البحث في سجل المعلومية عبارة فارغة تعني «لا فلترة»
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مكوّن حقل البحث في الهيد (GuestSearchField) يرسم حقل بحث ويُطلق onChanged عند الكتابة
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: خريطة الحقول الـ 17 مكتملة وصحيحة كمرجع للاختبار
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: كل جدول مزامنة يحمل الأعمدة الـ 17 بصيغة snake_case (مسار رفع D1)
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مكوّن حقل البحث في الهيد (GuestSearchField) زر ✕ يمسح النص ويُبلغ الشاشة (onCleared)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: لا يوجد عمود camelCase في جداول المزامنة (منع ازدواج الأعمدة في D1)
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مكوّن حقل البحث في الهيد (GuestSearchField) يرسم حقل بحث ويُطلق onChanged عند الكتابة
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: الرفع الفعلي يرسل أسماء snake_case (إدراج ثم قراءة بنمط SELECT *)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: uploadData الفعلي: SQL بأسامي snake_case وقيم محفوظة حرفياً + إعادة رفع مطابقة
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: الفجوة F3: حقول Phase 0 تصل D1 بالاسم — employee_uuid على salary_cycles/salary_withdrawals/expenses عبر مسار uploadData الحقيقي
@@ -237,30 +205,24 @@ package:flutter_tools/executable.dart 103:3                          main
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: ثوابت الفجوات F1/F2: الفلتر الصحيح والجدول التركيبي مُعرّفان
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: الفجوة F2: بناء صفوف app_users التركيبية — الدمج والأمان والثبات
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: sliceRows يطابق دلالات LIMIT/OFFSET المستخدمة في readChunk
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مكوّن حقل البحث في الهيد (GuestSearchField) يظهر داخل رأس AppScaffold بلا حجب العنوان
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: حقول الهوية المالية في رفع D1 كل جدول مالي يحمل حقول الهوية في المخطط المحلي (SELECT *)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: حقول الهوية المالية في رفع D1 نص DDL المحلي (المصدر لـ CREATE/ALTER على D1) يحمل نفس الحقول
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: حقول الهوية المالية في رفع D1 محلل DDL يقبل الاسم غير المقتبس (شكل العمود المُضاف بـ ALTER)
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مكوّن حقل البحث في الهيد (GuestSearchField) زر ✕ يمسح النص ويُبلغ الشاشة (onCleared)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: حقول الهوية المالية في رفع D1 D1 ينقصه cycle_uuid ⇒ يُضاف بـ ALTER قبل INSERT (إصلاح الرفع)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: حقول الهوية المالية في رفع D1 رفع صفوف فعلية: القيم تُرسل بأسماء الأعمدة snake_case نفسها
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/information_search_test.dart: مكوّن حقل البحث في الهيد (GuestSearchField) يظهر داخل رأس AppScaffold بلا حجب العنوان
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم يُثبّت من المفتاح الأجنبي المحلي ويكتب مرة واحدة
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم UUID الوارد في الحمولة (هوية معلنة) يتقدّم على المفتاح الرقمي
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-9 — عدّاد السحب لا يعلن المؤجَّل كمطبَّق يخصم المؤجَّل من المُعلَن
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-9 — عدّاد السحب لا يعلن المؤجَّل كمطبَّق لا نتيجة سالبة ولا انقلاب عند تجاوز العدّاد
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم لا دليل ⇒ لا كتابة (يبقى فارغاً ويظهر في المراجعة)
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع هوية مُعادة مطابقة (بأي شكل شرطات) ⇒ يُطبَّق
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع هوية مُعادة لسجل آخر ⇒ لا يُطبَّق (لا رقم أجنبي على صف بريء)
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع بلا هوية مُعادة ⇒ توافق خلفي (يُطبَّق) لكن المستدعي يحذّر
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع استخراج الهوية من الرد: camel ثم snake
-✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع sameIdentity لا يقبل فراغاً ولا يخلط سجلين
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-1 — رابط الدفعة ↔ الدورة دائم المشي المحدود يثبّت كل رابط مُثبت بـ FK ويعدّ الملخص
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل مطابقة واحدة ببداية اليوم الفندقي ⇒ UUID الدورة
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل غياب بداية اليوم ⇒ مطابقة مفتاح الشهر (حين تكون فريدة)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل أكثر من مرشّح ⇒ لا ربط (لا تخمين — البند 12)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: G-2 — رابطتا دورتَي سجل الترحيل صفر مرشّح ⇒ لا ربط
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P1-3 — ازدواج الرقم البعيد ⇒ مراجعة لا اختيار موظفان بنفس serverId ونفس الجهاز ⇒ لا ربط من السحابة
-2026-10-06T22:18:30.707091 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=7 (جهاز=devA) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
-2026-10-06T22:18:30.710941 WARN [IdResolver] تعدد مطابقة serverId=7 في employees: id=1(deletedAt=null), id=2(deletedAt=null) — اختيار id=1 (النشط ثم الأصغر)
+2026-10-06T22:25:07.809015 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=7 (جهاز=devA) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
+2026-10-06T22:25:07.813186 WARN [IdResolver] تعدد مطابقة serverId=7 في employees: id=1(deletedAt=null), id=2(deletedAt=null) — اختيار id=1 (النشط ثم الأصغر)
 ::endgroup::
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل رابط الهوية ⇒ identity (حاسم)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل الرقم البعيد بلا إثبات الجهاز ⇒ لا ربط رقمي (يسقط للمطابقة)
@@ -268,24 +230,31 @@ package:flutter_tools/executable.dart 103:3                          main
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل جهاز مختلف ⇒ لا ربط رقمي (ولا يُربط بمصروف جهاز آخر)
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل السحب المباشر ليس مرآة أبداً
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_links_g1_g2_test.dart: P2-7 — تصنيف المرايا بالدليل resolveLinkedExpenseId يحترم إثبات الجهاز
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-9 — عدّاد السحب لا يعلن المؤجَّل كمطبَّق يخصم المؤجَّل من المُعلَن
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-9 — عدّاد السحب لا يعلن المؤجَّل كمطبَّق لا نتيجة سالبة ولا انقلاب عند تجاوز العدّاد
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع هوية مُعادة مطابقة (بأي شكل شرطات) ⇒ يُطبَّق
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع هوية مُعادة لسجل آخر ⇒ لا يُطبَّق (لا رقم أجنبي على صف بريء)
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع بلا هوية مُعادة ⇒ توافق خلفي (يُطبَّق) لكن المستدعي يحذّر
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع استخراج الهوية من الرد: camel ثم snake
+✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/identity_gate_p2_test.dart: P2-10 — بوابة هوية رد الرفع sameIdentity لا يقبل فراغاً ولا يخلط سجلين
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) يحل عبر employeeUuid (الطريقة 1) بالصيغة القياسية
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) يحل عبر employeeUuid بصيغة 32 حرفاً بدون شرطات
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) يحل عبر serverId فقط بإثبات جهاز الكاتب (payload قديم بلا uuid)
-2026-10-06T22:18:31.875039 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: employeeId=12 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات ⇒ يُترك السجل للربط المؤجّل عبر UUID (G-3).
+2026-10-06T22:25:08.980230 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: employeeId=12 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات ⇒ يُترك السجل للربط المؤجّل عبر UUID (G-3).
 ::endgroup::
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) لا يطابق employeeId البعيد مع e.id المحلي (منع الربط الخاطئ عبر الأجهزة)
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) serverId مكرر (خطأ بيانات): لا اختيار — يُترك للمراجعة
-2026-10-06T22:18:31.919954 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=1 (جهاز=device-A) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
+2026-10-06T22:25:09.021352 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=1 (جهاز=device-A) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) serverId مكرر وكلاهما نشط: لا اختيار — يُترك للمراجعة
-2026-10-06T22:18:31.941061 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=2 (جهاز=device-A) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
+2026-10-06T22:25:09.040358 WARN [IdResolver] ⛔ ازدواج مرشّحين لـ serverId=2 (جهاز=device-A) في employees: id=1, id=2 — لا ربط (مراجعة بشرية)، لا يُختار «الأول».
 ::endgroup::
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر بعيد (fromRemote=true) المصدر المحلي: ازدواج serverId يبقى حتمياً (النشط ثم الأصغر)
-2026-10-06T22:18:31.958484 WARN [IdResolver] تعدد مطابقة serverId=31 في employees: id=1(deletedAt=null), id=2(deletedAt=1783994438) — اختيار id=1 (النشط ثم الأصغر)
+2026-10-06T22:25:09.064539 WARN [IdResolver] تعدد مطابقة serverId=31 في employees: id=1(deletedAt=null), id=2(deletedAt=1783994438) — اختيار id=1 (النشط ثم الأصغر)
 ::endgroup::
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveEmployee — من مصدر محلي (fromRemote=false) يحل عبر localId (id المحلي صحيح الدلالة على نفس الجهاز)
 ::group::✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveSalaryCycle fromRemote=true: يحل عبر serverId ولا يحل عبر localId البعيد
-2026-10-06T22:18:32.000896 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: cycleId=42 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات (G-3).
+2026-10-06T22:25:09.120576 INFO [IdResolver] ⏳ رفض ربط رقمي عبر الأجهزة: cycleId=42 من جهاز غير معروف (deviceId فارغ) — لا إثبات لفضاء المعرّفات (G-3).
 ::endgroup::
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: resolveSalaryCycle fromRemote=false: يحل عبر localId
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/id_resolver_cross_device_test.dart: buildFullSyncQueries + entityNeedsTombstoneParents includeTombstones=true يلغي فلتر tombstones (سحب الآباء المرجعية)
@@ -303,4 +272,4 @@ package:flutter_tools/executable.dart 103:3                          main
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_entitlement_equality_test.dart: المُصنِّف الموحّد SalaryExpenseClassifier الخصوم تُصنف تسويات استحقاق
 ✅ /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_entitlement_equality_test.dart: المُصنِّف الموحّد SalaryExpenseClassifier سحب من نوع سلفة يُميَّز عبر isAdvanceWithdrawal
 
-::error::77 tests passed, 1 failed.
+🎉 77 tests passed.
