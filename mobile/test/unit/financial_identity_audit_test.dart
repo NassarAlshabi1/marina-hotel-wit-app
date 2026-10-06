@@ -1227,11 +1227,7 @@ void main() {
         final source = _newDb();
         addTearDown(() => source.close());
 
-        final emp = await _employee(
-          source,
-          uuid: 'emp-fraction',
-          name: 'موظف',
-        );
+        final emp = await _employee(source, uuid: 'emp-fraction', name: 'موظف');
         await _withdrawal(
           source,
           uuid: 'wd-fraction',
