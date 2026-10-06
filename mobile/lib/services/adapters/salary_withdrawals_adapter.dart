@@ -188,12 +188,7 @@ class SalaryWithdrawalsAdapter
       // (local_db.dart:669). كان يُستخرج من reason بصيغة "exp_123"
       // لكن لا يُعاد تعبئته في expenseId عند fromJson.
       expenseId: _vInt(json, 'expenseId', src, altKey: 'expense_id'),
-      expenseUuid: _vStr(
-        json,
-        'expenseUuid',
-        src,
-        altKey: 'expense_uuid',
-      ),
+      expenseUuid: _vStr(json, 'expenseUuid', src, altKey: 'expense_uuid'),
       reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       withdrawalType: wt != null ? d.Value(wt) : const d.Value.absent(),

@@ -67,59 +67,72 @@ void main() {
       );
     });
   });
-  test('expense and withdrawal persist reciprocal UUIDs and Outbox links', () async {
-    final db = TestDatabase.create();
-    addTearDown(db.close);
-    const now = 1700000000;
+  test(
+    'expense and withdrawal persist reciprocal UUIDs and Outbox links',
+    () async {
+      final db = TestDatabase.create();
+      addTearDown(db.close);
+      const now = 1700000000;
 
-    final employeeId = await db.into(db.employees).insert(
-      EmployeesCompanion.insert(
-        name: 'موظف اختبار',
-        localUuid: 'employee-stable-uuid',
-        basicSalary: 1000,
-        status: 'active',
-        createdAt: now,
-        updatedAt: now,
-        lastModified: now,
-      ),
-    );
-    final expenseId = await db.into(db.expenses).insert(
-      ExpensesCompanion.insert(
-        localUuid: 'expense-stable-uuid',
-        createdAt: now,
-        updatedAt: now,
-        lastModified: now,
-        expenseType: 'سحب راتب',
-        relatedId: d.Value(employeeId),
-        employeeUuid: const d.Value('employee-stable-uuid'),
-        description: 'سحب مستقل',
+      final employeeId = await db
+          .into(db.employees)
+          .insert(
+            EmployeesCompanion.insert(
+              name: 'موظف اختبار',
+              localUuid: 'employee-stable-uuid',
+              basicSalary: 1000,
+              status: 'active',
+              createdAt: now,
+              updatedAt: now,
+              lastModified: now,
+            ),
+          );
+      final expenseId = await db
+          .into(db.expenses)
+          .insert(
+            ExpensesCompanion.insert(
+              localUuid: 'expense-stable-uuid',
+              createdAt: now,
+              updatedAt: now,
+              lastModified: now,
+              expenseType: 'سحب راتب',
+              relatedId: d.Value(employeeId),
+              employeeUuid: const d.Value('employee-stable-uuid'),
+              description: 'سحب مستقل',
+              amount: 125,
+              date: '2026-10-06',
+            ),
+          );
+
+      await SalaryWithdrawalsRepository(db).createFromExpense(
+        expenseId: expenseId,
+        employeeId: employeeId,
+        reason: 'exp_$expenseId',
         amount: 125,
         date: '2026-10-06',
-      ),
-    );
+        notify: false,
+      );
 
-    await SalaryWithdrawalsRepository(db).createFromExpense(
-      expenseId: expenseId,
-      employeeId: employeeId,
-      reason: 'exp_$expenseId',
-      amount: 125,
-      date: '2026-10-06',
-      notify: false,
-    );
+      final withdrawal = await db.select(db.salaryWithdrawals).getSingle();
+      final expense = await db.select(db.expenses).getSingle();
+      expect(withdrawal.expenseUuid, expense.localUuid);
+      expect(expense.withdrawalUuid, withdrawal.localUuid);
 
-    final withdrawal = await db.select(db.salaryWithdrawals).getSingle();
-    final expense = await db.select(db.expenses).getSingle();
-    expect(withdrawal.expenseUuid, expense.localUuid);
-    expect(expense.withdrawalUuid, withdrawal.localUuid);
-
-    final outbox = await db.select(db.outbox).get();
-    final withdrawalPayload = jsonDecode(
-      outbox.singleWhere((row) => row.entity == 'salary_withdrawals').payload,
-    ) as Map<String, dynamic>;
-    final expensePayload = jsonDecode(
-      outbox.singleWhere((row) => row.entity == 'expenses').payload,
-    ) as Map<String, dynamic>;
-    expect(withdrawalPayload['expenseUuid'], expense.localUuid);
-    expect(expensePayload['withdrawalUuid'], withdrawal.localUuid);
-  });
+      final outbox = await db.select(db.outbox).get();
+      final withdrawalPayload =
+          jsonDecode(
+                outbox
+                    .singleWhere((row) => row.entity == 'salary_withdrawals')
+                    .payload,
+              )
+              as Map<String, dynamic>;
+      final expensePayload =
+          jsonDecode(
+                outbox.singleWhere((row) => row.entity == 'expenses').payload,
+              )
+              as Map<String, dynamic>;
+      expect(withdrawalPayload['expenseUuid'], expense.localUuid);
+      expect(expensePayload['withdrawalUuid'], withdrawal.localUuid);
+    },
+  );
 }
