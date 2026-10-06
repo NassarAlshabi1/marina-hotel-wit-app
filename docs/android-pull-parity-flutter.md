@@ -175,11 +175,22 @@ final wasFullSync = !deltaOnly && !_fullSyncCompleted;
 - `fullPull()` (زر السحب الكامل في الإعدادات) هو الـbootstrap الصريح
   الوحيد: لا يتغير.
 
-اختبار حاكم جديد: `freshDeviceDashboardPullStaysDeltaAndNeverBootstraps`
+اختبار حاكم: `freshDeviceDashboardPullStaysDeltaAndNeverBootstraps`
 — جهاز بمؤشر 0 وبلا `full sync` مكتمل يضغط الزر ⇒ الطلب يحمل
 `exclude_device=own` وبلا `include_remaining`/`normalize_timestamps`،
 و`isFullSyncComplete()` و`isFullReplayPending()` يبقيان `false` بينما
 المؤشر يتقدم فعلاً.
+
+**تدقيق 2026-10-06 (لاحق):** كان هذا التأكيد **قابلاً للنقض شكلاً فقط**:
+سجل `PullRequest` في الاختبار كان يقرأ ثلاث حجج (المؤشر/`exclude_device`/
+`tombstones_only`) ولا يقرأ `include_remaining`/`normalize_timestamps` —
+وهما العلمان الوحيدان المميزان لمسار السحب الكامل. فيصحّ الاختبار حتى لو
+تسرّب bootstrap صامت على شكل `include_remaining=1`. الآن يُسجَّل كل ما
+يُرسل فعلاً إلى `CloudflareWorkerApi.pull` (ست حجج)، وأُضيف الطرف المقابل
+`explicitFullSyncIsTheOnlyPathRequestingRemainingAndNormalization`: الإجراء
+الصريح `fullPull()` هو الذي يمرّر `"1"` للعلمين وبلا `exclude_device`
+ويُعلن اكتمال الـ bootstrap — أي أن الرصد غير فارغ، وأن الفرق بين الزرين
+مُثبت في الاتجاهين.
 
 **ملاحظة سابقة هذه الجولة**: أعلام `include_remaining`/`normalize_timestamps`/
 `tombstones_only` صارت تُرسل نصاً `"1"` (كانت `Boolean` → `"true"`)، لأن
@@ -372,6 +383,8 @@ WorkManager الذي يرفع من الخلفية في Flutter.
 | التشغيل | `37526150400` — الالتزام `c7527567` — **success** (المهام الثلاث، بعد إضافة إعادة بناء الحقول المشتقة) |
 | التشغيل | `37527146727` — الالتزام `3a53ccf4` — **success** (مع ملخّص Detekt لكل ملف وقاعدة) |
 | التشغيل | `37527612571` — الالتزام `2573d2a8` — **success** (مع نسبة كل ملاحظة إلى سطر جديد/قائم) |
+| التشغيل | `37528515035` — الالتزام `c565b341` — **success** (جعل تأكيد دلتا اللوحة قابلاً للتكذيب؛ وCI كشف قبلها خطأ تصريف `remaining = 3` في التشغيل `37528204941` وأُصلح) |
+| التشغيل | `37528998667` — الالتزام `c7e393b1` — **success** (مع check-run `android-sync-test-summary`: **360 حالة، 0 فشل، 0 متخطّاة**) |
 | Detekt (ملفات الدفعة) | **248 ملاحظة** (المستودع: 1592) — التفصيل الكامل والقابل للتدقيق في «فحص ثابت إعلامي» أدناه. |
 | اختبار هشّ رُصد وأُصلح | `SyncIngestorRegistryTest.threeIndependentPaymentsSurviveRepeatedEditsInPaymentAndIncomeReports`: `expected:<475.0> but was:<400.0>` — كان يقرأ حالة **دورة سابقة** (`state.first { !it.isLoading }`) قبل تطبيق تعديل الدفعة الجديدة. الإصلاح: `awaitSettledReport` ينتظر **تقارب القيمة المتوقعة** نفسها (لا زوال التحميل فقط) ⇒ لا يتحول إلى تخفيف للفحص: التعديل الذي لا يُعكس يبقى فاشلاً بمهلة. |
 
@@ -381,6 +394,35 @@ WorkManager الذي يرفع من الخلفية في Flutter.
 تنقضي التهدئة)، وتوقّع `null` لا `false` لغياب علم `tombstones_only`.
 كما كشف اختبار «زر اللوحة على جهاز جديد» أن `deltaOnly` وُضع في
 `performSyncNow` بدل `performPullOnly` — فصُحّح ونُقل.
+
+### دليل «الاختبارات جرت فعلاً» — check-run ملخّص (2026-10-06)
+
+«المهمة خضراء» لا تُثبت أن حالات التكافؤ **جُرت**: سجلات المهام وartifacts
+(`marina-sync-test-results`) موجودة لكن تنزيلها من بيئة الجلسة يفشل
+(`EOF` من blob storage)، وcheck-run التشخيص يُنشأ عند الفشل فقط — فلم يكن
+أمام المراجع أي دليل رقمي على تشغيل ناجح. أُضيفت خطوة غير حاجبة
+(`continue-on-error`) تنشر check-run باسم `android-sync-test-summary` يقرأ
+XML النتائج ويطبع العدّادات وأسماء حالات أصناف التكافؤ.
+
+نتيجة التشغيل `37528998667` @ `c7e393b1`:
+
+| الصنف | حالات | فشل |
+| --- | --- | --- |
+| `SyncIngestorRegistryTest` | 56 | 0 |
+| `SyncPullParityTest` | 12 | 0 |
+| `BookingDerivedRefreshParityTest` | 6 | 0 |
+| **إجمالي `:app:testDebugUnitTest`** | **360** | **0** (0 متخطّاة، 0 أخطاء) |
+
+والحالتان المعنيتان بمطلب «زر اللوحة = دلتا» مذكورتان بالاسم في نص
+check-run نفسه: `freshDeviceDashboardPullStaysDeltaAndNeverBootstraps`
+و`explicitFullSyncIsTheOnlyPathRequestingRemainingAndNormalization`.
+
+**ملاحظة صدق خارجية:** على كل التزام — قبل هذه الدفعة وبعدها — يظهر
+check-run `github-advanced-security` (workflow «Code scanning AI findings
+on PR #617»، حدث `dynamic`) بحالة **failure** بلا مخرجات، و`Corgea: Security
+Scan` بحالة **skipped** («You've exceeded your plan limit»). هما ليسا من
+بواباتنا ولا يقيسان هذا الكود؛ نذكرهما حتى لا يُظن أن «كل شيء أخضر» حيث
+توجد إشارات حمراء خارج نطاق الدفعة.
 
 ### تحقق الخادم (worker) — تشغيل فعلي في بيئة الجلسة
 
@@ -438,6 +480,21 @@ run مستقل (`android-sync-detekt`)، لأن بوابة الجودة الكا
 (خدمة الحقول المشتقة، سياسات الإشارة، مسارات السحب) بلا ملاحظات وظيفية**،
 وأن ما تبقّى أسلوبي (أرقام سحرية/طول أسطر/التقاط عام للاستثناءات — نمط
 المستودع نفسه، حيث 26 من 28 ملاحظة `TooGenericExceptionCaught` قائمة قبلنا).
+
+### تحقق «حالة عالقة» (`isSyncing` / `isManualSyncing` / سجل الأخطاء) — مُغلق بالأدلة
+
+بند تحقق كان مفتوحاً في مراجعة سابقة: هل يمكن أن يبقى زر المزامنة معلَّقاً
+(`isSyncing=true`) أو أن يبقى خطأ قديم معروضاً؟ النتيجة بعد تتبّع كل مسار
+خروج — **لا مسار عالق**، والدليل بالمرجع:
+
+| المسار | الدليل |
+| --- | --- |
+| كل عمليات المزامنة تمرّ بـ`SyncManager.runOwned` ← `SyncOperationRunner.runIfIdle` | `onFinished(cause)` مسجَّل في `task.invokeOnCompletion` — يُنفَّذ مع النجاح والفشل **والإلغاء** — و`SyncManager.kt` l.123-152 يصفّر `isSyncing` هناك |
+| فشل مبكر (فشل دخول / جداول فاشلة / استثناء شبكة) | `finishWithError(...)` يضبط `isSyncing=false, isError=true` ويسجّل الخطأ (`SyncManager.kt` l.700-716) |
+| رفض البدء بسبب مزامنة جارية | `onBusy` يعيد `-1` بلا لمس الحالة؛ والرفض من `SyncOperationRunner` لا ينشئ مهمة أصلاً |
+| إلغاء الشاشة أثناء سحب مقبول | العملية مملوكة لعملية التطبيق (`SupervisorJob`) لا للشاشة، فتُكمل وتُفرِّغ العلم؛ يغطيه اختبار قائم `acceptedPullFinishesAfterScreenCancellationWithoutAllowingOverlap` (ضمن 56 حالة `SyncIngestorRegistryTest` في ملخّص التشغيل أعلاه) |
+| «سحب/رفع/سحب كامل الآن» في شاشة الإعدادات | `try/catch/finally` + `onStartFailure` في المسارات الثلاثة (`CloudflareSyncSettingsViewModel.kt` l.372-500) ⇒ `isManualSyncing=false` في كل خروج، والحالة لكل نسخة ViewModel فلا تتسرب بعد إعادة الإنشاء |
+| سجل الأخطاء `cf_sync_error_history` | تشخيصي لا حاجب: حلقة بسقف 40 سجلاً (`MAX_SYNC_ERROR_RECORDS`) مع حجب `Bearer`، وله مسح صريح من `SyncDiagnosticsViewModel`. **فرق مقصود عن Dart**: مرجع Flutter يحتفظ بالسجل في الذاكرة فقط (`sync_error_handler.dart`)، وأندرويد يستمرئه ليبقى بعد إعادة التشغيل — إضافة تشخيصية لا تغيّر سلوك المزامنة |
 
 ### ما لم يُتحقق بعد
 
