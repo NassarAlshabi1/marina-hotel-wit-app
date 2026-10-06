@@ -37,20 +37,24 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: Format (touched files)
+      - name: Format (whole repo — same command as CI)
         run: |
           mkdir -p .arena
-          FILES="lib/services/salary_entitlement_service.dart \
-          lib/services/cloudflare_d1_service.dart \
-          lib/screens/information/information_screen.dart \
-          lib/components/app_scaffold.dart \
-          test/unit/entitlement_identity_attribution_test.dart \
-          test/unit/information_header_search_widget_test.dart \
-          test/unit/information_search_test.dart \
-          test/unit/cloudflare_d1_upload_fields_test.dart"
-          dart format --output=none --set-exit-if-changed $FILES > .arena/format_check.txt 2>&1 || true
-          dart format $FILES > /dev/null 2>&1 || true
+          dart format --output=none --set-exit-if-changed . > .arena/format_check.txt 2>&1 || true
+          tail -5 .arena/format_check.txt
+          dart format . > /dev/null 2>&1 || true
           git diff > .arena/format.diff
+          echo "changed files:" >> .arena/format_check.txt
+          grep -c '^diff --git' .arena/format.diff >> .arena/format_check.txt || true
+
+      - name: Generate code (same as CI)
+        run: dart run build_runner build > .arena/codegen.txt 2>&1 || true
+          ; tail -5 .arena/codegen.txt
+
+      - name: CI analyze (no path filter)
+        run: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings > .arena/analyze_ci.txt 2>&1 || true
+          tail -25 .arena/analyze_ci.txt
 
       - name: Analyze
         run: |
