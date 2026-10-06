@@ -1,0 +1,98 @@
+name: Android Sync Unit Tests (session branch)
+
+# تحقق حقيقي لدفعة «مطابقة سحب التغييرات مع Flutter» على فرع الجلسة.
+# السبب: android-kotlin-build.yml مقيَّد بقائمة فروع ثابتة ولا يقبل
+# workflow_dispatch، فتعذّر تشغيله من جلسة الوكيل. هذا الـworkflow يقتصر
+# على تصريف وحدات JVM (`testDebugUnitTest`) بلا توقيع APK ولا keystore،
+# ويعمل على فرع الجلسة فقط — لا يغيّر سلوك أي workflow قائم.
+on:
+  push:
+    branches:
+      - arena/be8302d7-marina-hotel-wit-app
+    paths:
+      - 'mobile/android/**'
+      - '.github/workflows/android-sync-unit-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-sync-unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: :app:testDebugUnitTest
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile/android
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository/org/robolectric
+          key: ${{ runner.os }}-gradle-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Ensure Android SDK components
+        run: |
+          set -x
+          SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1 || true)"
+          if [ -z "$SDKMANAGER" ] && command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          fi
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null || true
+            "$SDKMANAGER" --install "platforms;android-35" "build-tools;34.0.0" > /dev/null || true
+          else
+            echo "sdkmanager not found — relying on AGP auto-install"
+          fi
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+
+      - name: Run unit tests (sync pull parity batch)
+        run: |
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest --console=plain --stacktrace 2>&1 \
+            | tee "$RUNNER_TEMP/android-sync-tests.log"
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          {
+            echo '### Android sync unit-test failure output'
+            echo '```text'
+            grep -E 'e: file:|e: .*\.kt:|Compilation error|FAILED|What went wrong|Execution failed|Caused by:|error:' \
+              "$RUNNER_TEMP/android-sync-tests.log" | tail -n 80 || true
+            tail -n 80 "$RUNNER_TEMP/android-sync-tests.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test results (evidence)
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: marina-sync-test-results
+          path: |
+            mobile/build/app/test-results
+            mobile/build/app/reports/tests
+            mobile/android/app/build/test-results
+            mobile/android/app/build/reports/tests
+          if-no-files-found: warn
+          retention-days: 30
