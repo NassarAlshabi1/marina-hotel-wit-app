@@ -1,13 +1,13 @@
 
-### full suite (2026-10-06T02:51:43Z)
+### full suite (2026-10-06T03:01:42Z)
 Total adapters checked: 19
 Total collections in schema: 27
 Missing: 0
 
 
-01:19 +1312 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: ... audit — every adapter.collectionId must exist in validFieldsPerCollection  
-01:19 +1312 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           
-01:19 +1312 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           
+01:29 +1318 ~1 -4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: ... audit — every adapter.collectionId must exist in validFieldsPerCollection  
+01:29 +1318 ~1 -4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           
+01:29 +1318 ~1 -4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           
 
 ======================================================================
   Required Sync Fields Audit
@@ -23,11 +23,19 @@ Collections with missing fields: 3
 
 ⚠️  Warning: Some collections are missing required sync fields. This may be intentional for non-synced tables (e.g., audit_logs).
 
-01:19 +1313 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           
-01:19 +1313 ~1 -2: Some tests failed.                                                                                                                                                                  
+01:29 +1319 ~1 -4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields           
+01:29 +1319 ~1 -4: Some tests failed.                                                                                                                                                                  
 
 ### failures only
-01:02 +1125 ~1 -1: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/money_integer_policy_test.dart [E]                                                             
-01:05 +1144 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart: 7+8) الاستعادة وتغيير المزوّد G-10: the mirror pair (expense ↔ withdrawal) truncates identically [E]
-  Expected: <150>
-    Actual: <150.5>
+01:01 +864 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/wave6_debts_fields_test.dart: Push: debtToRemote يحتوي على الحقول الأربعة 1c. payload يحتوي على amount [E]
+  Expected: <1500.5>
+    Actual: <1500.0>
+01:01 +867 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/wave6_debts_fields_test.dart: Push: debtToRemote يحتوي على الحقول الأربعة 1g. payload يحتوي على كل الحقول الأربعة معاً [E]
+  Expected: <750.25>
+    Actual: <750.0>
+01:01 +884 ~1 -3: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/wave6_debts_fields_test.dart: Drive sync: DebtsAdapter.toJson يرسل الحقول الأربعة 5c. toJson (drive) يحتوي على amount [E]
+  Expected: <999.99>
+    Actual: <999.0>
+01:11 +1152 ~1 -4: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart: 7+8) الاستعادة وتغيير المزوّد provider swap keeps counts, uuids, relations and money totals [E]
+  Expected: <300.75>
+    Actual: <300.0>

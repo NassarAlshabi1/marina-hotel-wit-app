@@ -1939,9 +1939,7 @@ class AppwriteSyncUtils {
       if (result.containsKey(field) && result[field] is num) {
         // G-10: سياسة «لا كسور عشرية» — اقتطاع نحو الصفر قبل الإرسال إلى
         // حقل integer على Appwrite (بدل round الذي كان يزيد المبلغ).
-        result[field] = CurrencyFormatter.truncateAmount(
-          result[field] as num,
-        );
+        result[field] = CurrencyFormatter.truncateAmount(result[field] as num);
       }
     }
     return result;

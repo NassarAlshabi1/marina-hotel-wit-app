@@ -301,9 +301,7 @@ class PayloadMapper {
       'totalAmount': CurrencyFormatter.wholeAmountOrNull(debt.totalAmount),
       'paidAmount': CurrencyFormatter.wholeAmountOrNull(debt.paidAmount),
       // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
-      'remainingAmount': CurrencyFormatter.wholeAmount(
-        debt.remainingAmount,
-      ),
+      'remainingAmount': CurrencyFormatter.wholeAmount(debt.remainingAmount),
       // ✅ إصلاح: لا نرسل bookingLocalId للسيرفر (id محلي يختلف بين الأجهزة)
       // الربط يتم عبر resolveBooking في debts_adapter باستخدام bookingUuidCache
       'checkoutDate': debt.checkoutDate,
