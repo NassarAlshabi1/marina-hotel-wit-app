@@ -199,30 +199,33 @@ void main() {
       expect(got, isNull);
     });
 
-    test('المصدر المحلي: ازدواج serverId يبقى حتمياً (النشط ثم الأصغر)', () async {
-      final active = await insertEmployee(
-        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000a',
-        name: 'النشط محلياً',
-        serverId: 31,
-        deviceId: 'device-A',
-      );
-      await insertEmployee(
-        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000b',
-        name: 'المحذوف محلياً',
-        serverId: 31,
-        deletedAt: 1783994438,
-        deviceId: 'device-A',
-      );
-      final got = await resolver.resolveEmployee(
-        serverId: 31,
-        fromRemote: false,
-      );
-      expect(
-        got,
-        active.id,
-        reason: 'المصدر المحلي على نفس الجهاز: النشط (deletedAt NULL) أولاً',
-      );
-    });
+    test(
+      'المصدر المحلي: ازدواج serverId يبقى حتمياً (النشط ثم الأصغر)',
+      () async {
+        final active = await insertEmployee(
+          localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000a',
+          name: 'النشط محلياً',
+          serverId: 31,
+          deviceId: 'device-A',
+        );
+        await insertEmployee(
+          localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000b',
+          name: 'المحذوف محلياً',
+          serverId: 31,
+          deletedAt: 1783994438,
+          deviceId: 'device-A',
+        );
+        final got = await resolver.resolveEmployee(
+          serverId: 31,
+          fromRemote: false,
+        );
+        expect(
+          got,
+          active.id,
+          reason: 'المصدر المحلي على نفس الجهاز: النشط (deletedAt NULL) أولاً',
+        );
+      },
+    );
   });
 
   group('resolveEmployee — من مصدر محلي (fromRemote=false)', () {

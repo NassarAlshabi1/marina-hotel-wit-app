@@ -46,10 +46,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   /// ✅ (2026-10-06): المنطق انتقل إلى `utils/guest_info_search.dart`
-  /// ليكون عاماً قابلاً للاختبار؛ هذه واجهات رقيقة للنداء الداخلي.
-  static String normalizeForSearch(String input) =>
-      GuestInfoSearch.normalize(input);
-
+  /// ليكون عاماً قابلاً للاختبار؛ هذه واجهة رقيقة للنداء الداخلي
+  /// (التطبيع يُستدعى داخلياً من الأداة نفسها — لا حاجة لواجهة منفصلة).
   static bool matchesQuery(GuestInfo info, String query) =>
       GuestInfoSearch.matches(info, query);
 

@@ -547,7 +547,9 @@ WHERE p.amount > 0 AND (c.local_uuid IS NULL OR c.local_uuid = '');
 | P1-5 | تنطيق المؤشرات بالمزوّد + تأسيس إجباري عند التحويل (G-7) | `sync_core/sync_checkpoint_store.dart`, `delta_sync_service.dart`, `sync_pull_service.dart` | `provider_switch_does_not_reuse_appwrite_cursor` |
 | P2-6 | تقرير المراجعة القابل للتصدير (G-8) | خدمة قراءة فقط جديدة | `review_report_lists_uncertain_records_without_writing` |
 | ~~P2-7~~ ✅ **منفَّذ 2026-10-06** | تصنيف المرايا بمستوى الإثبات (`identity`/`provenNumeric`/`dataMatch`/`unprovenMarker`) ومنع الربط الرقمي بلا إثبات نفس الجهاز الكاتب + ورقة «مرايا حُكمية» في تقرير المراجعة (G-5) | `salary_mirror_matcher.dart`, `review_report_service.dart`, التقارير الثلاثة | ✅ `financial_links_g1_g2_test.dart` → `P2-7` + الاختبار السلبي في `salary_mirror_cross_device_test.dart` |
-| P2-8 | توثيق `serverId = رقم جهاز المصدر` كحقل غير هوية + استبعاده من مخططات النقل بين المزوّدين (G-6/G-9) | وثائق + خريطة نقل | مراجعة يدوية |
+| ~~P2-8~~ ✅ **مُوثَّق 2026-10-06** | توثيق `serverId = رقم جهاز المصدر` كحقل غير هوية + خريطة نقل الهويات بين المزوّدين (G-6/G-9) | هذا المستند §12-أ + §8.4 | مراجعة يدوية |
+| ~~P2-9~~ ✅ **منفَّذ 2026-10-06** | عدّاد «سحب الآن» كان يعلن السجلات المؤجَّلة (ناقصة الربط) كمطبَّقة ⇒ فرق المخزن (pending+needs_review) يُخصم ويُسجَّل | `utils/identity_gate.dart`, `appwrite_sync_manager.dart` | ✅ `identity_gate_p2_test.dart` (P2-9) |
+| ~~P2-10~~ ✅ **منفَّذ 2026-10-06** | نتائج الرفع كانت تُطابق بالسجل **بالترتيب** ⇒ كتابة `server_id` على صف آخر عند إعادة الترتيب/رد جزئي. الآن بوابة هوية: تُقارن الهوية المُعادة أو يُرفض الكتابة | `utils/identity_gate.dart`, `sync_service.dart` | ✅ `identity_gate_p2_test.dart` (P2-10) |
 
 ---
 
@@ -624,7 +626,22 @@ flutter test test/unit/id_resolver_cross_device_test.dart \
     ✅ منفَّذة داخل ورقة «فجوات الهوية» في تقرير G-8.
 15. اختبار جهازين حقيقيين (A/B) قبل السماح بالكتابة الإنتاجية الكاملة.
 
-**ما لم يُنفَّذ في هذا التدقيق (ينتظر موافقتك):** أي تعديل على المخطط، أي backfill، أي إعادة ربط، أي إصلاح للتعارضات. لم تُمَس أي بيانات.
+### 12-أ) خريطة مفاتيح الهوية في النقل (P2-8) — ما يجب أن يعبر بين المزوّدين
+
+| الكيان | مفتاح الهوية الأساسي (إجباري) | مفاتيح العلاقات | مفاتيح لا تُنقل كهوية |
+|---|---|---|---|
+| employees | `local_uuid` | — | `server_id` (رقم جهاز المصدر ⇒ يُولَّد جديد عند الوجهة) |
+| expenses | `local_uuid` | `employee_uuid` | `related_id` الرقمي، `withdrawal_uuid` (ختم عكسي اختياري) |
+| salary_withdrawals | `local_uuid` | `employee_uuid`, `expense_uuid` | `expense_id` الرقمي (محلي فقط) |
+| salary_cycles | `local_uuid` | `employee_uuid` | `id` الرقمي |
+| salary_payments | `local_uuid` | `employee_uuid`, **`cycle_uuid`** (G-1) | `cycle_id` الرقمي (محلي) |
+| salary_carry_over_logs | `local_uuid` | `employee_uuid`, **`from_cycle_id`/`to_cycle_id` كهويات UUID** (G-2) | — |
+| كل الجداول | — | — | `deleted_at`/`version`/`last_modified`/`vector_clock` **تُنقل** (حالة سجل، لا هوية جغرافية) |
+
+⚠️ قاعدة عامة: أي عمود اسمه `*_id` (رقمي) هو **معرّف محلي مقيّد بالجهاز** لا يعبر المزوّدين كهوية —
+يُعاد بناؤه عند الوجهة من `*_uuid` عبر `IdResolver` (وهو الآن يرفض الربط الرقمي بلا إثبات نفس الجهاز).
+
+**ما لم يُنفَّذ في هذا التدقيق (ينتظر موافقتك):** أي backfill للبيانات التاريخية، أي إعادة ربط تاريخي، أي حذف، أي إعادة تقريب لكسور قديمة. لم تُمَس أي بيانات قائمة — كل الإصلاحات إلى الآن إضافية أو مسارات قراءة/كتابة جديدة.
 
 ---
 

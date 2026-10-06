@@ -51,16 +51,15 @@ class GuestInfoSearch {
   static bool matches(GuestInfo info, String query) {
     final q = normalize(query);
     if (q.isEmpty) return true;
-    final haystack =
-        [
-          info.guestName,
-          info.roomNumber,
-          info.idNumber,
-          info.governorate ?? '',
-          info.issuePlace ?? '',
-          info.nationality,
-          info.notes ?? '',
-        ].map(normalize).join('\u0001');
+    final haystack = [
+      info.guestName,
+      info.roomNumber,
+      info.idNumber,
+      info.governorate ?? '',
+      info.issuePlace ?? '',
+      info.nationality,
+      info.notes ?? '',
+    ].map(normalize).join('\u0001');
     return haystack.contains(q);
   }
 }
