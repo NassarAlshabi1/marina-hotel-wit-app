@@ -29,19 +29,26 @@ jobs:
         run: |
           set +e
           mkdir -p .arena
-          flutter analyze --no-fatal-infos --no-fatal-warnings > .arena/analyze.txt 2>&1
-          echo "analyze_exit=$?" >> .arena/analyze.txt
+          # 1) التنسيق القانوني داخلياً (كتابة) — نُعيده إلى الفرع فيُصبح
+          #    المستودع متوافقاً مع بوابة dart format.
+          dart format lib test > .arena/format-write.txt 2>&1
+          echo "format_write_exit=$?" >> .arena/format-write.txt
           dart format --output=none --set-exit-if-changed lib test > .arena/format.txt 2>&1
           echo "format_exit=$?" >> .arena/format.txt
+          flutter analyze --no-fatal-infos --no-fatal-warnings > .arena/analyze.txt 2>&1
+          echo "analyze_exit=$?" >> .arena/analyze.txt
           flutter test test/unit/financial_identity_g3_test.dart --reporter expanded > .arena/g3-tests.txt 2>&1
           echo "g3_exit=$?" >> .arena/g3-tests.txt
-          tail -c 3000 .arena/analyze.txt
+          flutter test test/unit/financial_identity_audit_test.dart test/unit/money_whole_amount_writes_test.dart test/unit/money_integer_policy_test.dart --reporter compact > .arena/money-tests.txt 2>&1
+          echo "money_exit=$?" >> .arena/money-tests.txt
+          tail -c 2000 .arena/format.txt
+          tail -c 2000 .arena/g3-tests.txt
       - name: commit reports
         run: |
           set +e
           git config user.name "arena-bot"
           git config user.email "arena-bot@users.noreply.github.com"
-          git add -f .arena
-          git commit -m "chore(arena): analyze/format/g3 reports" || true
+          git add -f .arena lib test
+          git commit -m "chore(arena): تنسيق dart format + تقارير analyze/g3-tests" || true
           git pull --rebase --autostash origin arena/a2609d75-marina-hotel-wit-app || true
           git push || true

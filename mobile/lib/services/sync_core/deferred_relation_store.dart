@@ -383,7 +383,7 @@ class DeferredRelationStore {
   Future<int> purgeResolved({int olderThanEpoch = 0}) async {
     await _ensureTable();
     try {
-      final count = await db.customSelect(
+      final count = db.customSelect(
         'SELECT COUNT(*) AS c FROM $tableName WHERE state = ? '
         'AND COALESCE(resolved_at, 0) >= ?',
         variables: [
