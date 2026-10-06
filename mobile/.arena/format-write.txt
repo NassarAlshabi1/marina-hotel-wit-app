@@ -1,4 +1,0 @@
-Formatted lib/services/appwrite_sync_manager.dart
-Formatted test/unit/financial_identity_g3_test.dart
-Formatted 569 files (2 changed) in 6.57 seconds.
-format_write_exit=0
