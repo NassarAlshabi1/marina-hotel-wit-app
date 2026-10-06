@@ -75,8 +75,11 @@ request #613»، وهو نفس الرأس الذي بُنيت عليه كل مق
 | حراس المؤشر المسموم | 3 طبقات | 3 طبقات | `SyncPullParityTest` + `PullSanityPolicyTest` |
 | Realtime/الحراس الزمنية | الثوابت أعلاه | مطابقة حرفياً | `RealtimePolicyTest`, `RemoteSignalPolicyTest` |
 
-**نتيجة CI المرجعية لنا:** `:app:testDebugUnitTest` = **372 حالة، 0 فشل، 0 خطأ**،
-و`worker` (vitest + typecheck) أخضر — التشغيل `37539770608` على `899753cc`.
+**نتيجة CI بعد إصلاحات هذا التقرير:** `:app:testDebugUnitTest` = **377 حالة،
+0 فشل، 0 خطأ، 0 متخطّاة** (`SyncIngestorRegistryTest` 60 حالة — أُضيفت 4)،
+و`android-sync-detekt` و`worker` (vitest + typecheck) أخضران، وبناء الـAPK
+الموقّع (v1+v2+v3 + mapping) ناجح — التشغيلان `37542031096` و`37542031016`
+على الالتزام `90b5ff7f`.
 
 ## 3) النتائج (Findings)
 
@@ -236,7 +239,23 @@ request #613»، وهو نفس الرأس الذي بُنيت عليه كل مق
 5. **لا يعوّض هذا التقرير** عن: تشغيل Flutter نفسه، أو جهاز حقيقي، أو مقارنة
    screenshots.
 
-## 6) المراجع
+## 6) أدلة التشغيل بعد الإصلاحات
+
+| الدليل | القيمة |
+| --- | --- |
+| الالتزام | `90b5ff7f` على `arena/be8302d7-marina-hotel-wit-app` (مدفوع) |
+| اختبارات الوحدة | `android-sync-test-summary`: **377 حالة • فشل 0 • أخطاء 0 • متخطّاة 0**، والتشغيل `37542031096` success |
+| الأصناف المتأثرة | `SyncIngestorRegistryTest` 60 حالة (كان 56)، `SyncWireFieldParityTest` 9 حالات (كان 8) |
+| Detekt | success (ملاحظات إعلامية غير حاجبة) |
+| الـWorker | vitest + typecheck success (نفس التشغيل) |
+| الـAPK | التشغيل `37542031016` success — توقيع release/debug + التحقق من schemes v1+v2+v3 + رفع mapping |
+
+**حدود الشهادة:** تقرير XML/HTML للاختبارات داخل artifact
+`marina-sync-test-results` (143 KB) **تعذّر تنزيله من بيئة الجلسة** (حجب شبكي على
+`productionresultssa4.blob.core.windows.net`)، فالإثبات هنا من ملخص الـcheck-run
+الرسمي (بأسماء الحالات) + عدد الحالات الإجمالي، لا من ملف JUnit مباشرةً.
+
+## 7) المراجع
 
 - الفرع: `origin/feat/cloudflare-sync-execution@ac283c6c` (PR #613).
 - مرفقات لم تصل بيئة الجلسة (أُبلغ عنها في المحادثة): «ملحق دعم التطبيقين Flutter
