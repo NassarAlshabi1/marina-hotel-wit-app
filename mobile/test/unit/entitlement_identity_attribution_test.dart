@@ -56,9 +56,8 @@ void main() {
         );
   }
 
-  Future<Employee> employeeById(int id) => (db.select(
-    db.employees,
-  )..where((e) => e.id.equals(id))).getSingle();
+  Future<Employee> employeeById(int id) =>
+      (db.select(db.employees)..where((e) => e.id.equals(id))).getSingle();
 
   Future<int> createExpense({
     required int relatedId,
@@ -160,11 +159,7 @@ void main() {
       final empB = await createEmployee(uuid: 'emp-B', name: 'ب');
 
       // ربط خاطئ: related_id يشير إلى A والهوية تعلن B.
-      await createExpense(
-        relatedId: empA,
-        employeeUuid: 'emp-B',
-        amount: 700,
-      );
+      await createExpense(relatedId: empA, employeeUuid: 'emp-B', amount: 700);
 
       final a = await employeeById(empA);
       final b = await employeeById(empB);
@@ -183,8 +178,7 @@ void main() {
       );
     });
 
-    test('سحبة وصلت برقم محلي مختلف لكن بهوية هذا الموظف ⇒ تُنسب له',
-        () async {
+    test('سحبة وصلت برقم محلي مختلف لكن بهوية هذا الموظف ⇒ تُنسب له', () async {
       final empA = await createEmployee(uuid: 'emp-A', name: 'أ');
       final empB = await createEmployee(uuid: 'emp-B', name: 'ب');
 
@@ -208,33 +202,37 @@ void main() {
       );
     });
 
-    test('سحبة بهوية موظف غير موجود محلياً ⇒ تُنسب احتياطاً بلا فقدان',
-        () async {
-      final empA = await createEmployee(uuid: 'emp-A');
-      await createWithdrawal(
-        employeeId: empA,
-        employeeUuid: 'emp-DELETED-ELSEWHERE',
-        amount: 250,
-      );
+    test(
+      'سحبة بهوية موظف غير موجود محلياً ⇒ تُنسب احتياطاً بلا فقدان',
+      () async {
+        final empA = await createEmployee(uuid: 'emp-A');
+        await createWithdrawal(
+          employeeId: empA,
+          employeeUuid: 'emp-DELETED-ELSEWHERE',
+          amount: 250,
+        );
 
-      final a = await employeeById(empA);
-      final entA = await service.calculateEmployeeEntitlement(a);
-      expect(
-        entA.totalWithdrawals,
-        250,
-        reason: 'صاحب الهوية غير موجود محلياً ⇒ لا نُسقط المال من التقارير',
-      );
-    });
+        final a = await employeeById(empA);
+        final entA = await service.calculateEmployeeEntitlement(a);
+        expect(
+          entA.totalWithdrawals,
+          250,
+          reason: 'صاحب الهوية غير موجود محلياً ⇒ لا نُسقط المال من التقارير',
+        );
+      },
+    );
 
-    test('سجل قديم بلا هوية (employee_uuid = NULL) ⇒ النسب بالرقم كما كان',
-        () async {
-      final empA = await createEmployee(uuid: 'emp-A');
-      await createWithdrawal(employeeId: empA, amount: 400);
+    test(
+      'سجل قديم بلا هوية (employee_uuid = NULL) ⇒ النسب بالرقم كما كان',
+      () async {
+        final empA = await createEmployee(uuid: 'emp-A');
+        await createWithdrawal(employeeId: empA, amount: 400);
 
-      final a = await employeeById(empA);
-      final entA = await service.calculateEmployeeEntitlement(a);
-      expect(entA.totalWithdrawals, 400);
-    });
+        final a = await employeeById(empA);
+        final entA = await service.calculateEmployeeEntitlement(a);
+        expect(entA.totalWithdrawals, 400);
+      },
+    );
 
     test('السحب المباشر الصحيح يبقى 4000 ويُخصم من الاستحقاق', () async {
       final empA = await createEmployee(uuid: 'emp-A');

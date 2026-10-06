@@ -556,7 +556,10 @@ class CloudflareD1Service {
       if (f.isEmpty) return;
       final m =
           RegExp(r'^"([^"]+)"\s+(.*)$', dotAll: true).firstMatch(f) ??
-          RegExp(r'^([A-Za-z_][A-Za-z0-9_]*)\s+(.*)$', dotAll: true).firstMatch(f);
+          RegExp(
+            r'^([A-Za-z_][A-Za-z0-9_]*)\s+(.*)$',
+            dotAll: true,
+          ).firstMatch(f);
       if (m == null) return;
       final name = m.group(1)!;
       if (_constraintKeywords.contains(name.toUpperCase())) return;

@@ -62,8 +62,8 @@ jobs:
         run: |
           flutter test \
             test/unit/entitlement_identity_attribution_test.dart \
-            test/unit/information_header_search_widget_test.dart \
             test/unit/information_search_test.dart \
+            test/unit/cloudflare_d1_upload_fields_test.dart \
             test/unit/cloudflare_d1_upload_fields_test.dart \
             test/unit/financial_links_g1_g2_test.dart \
             test/unit/identity_gate_p2_test.dart \

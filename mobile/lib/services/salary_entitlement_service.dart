@@ -727,8 +727,7 @@ class SalaryEntitlementService {
   /// مصروفات الموظف: الرقم المحلي **أو** الهوية الدائمة، مع حارس النسب.
   Future<List<Expense>> _getEmployeeExpenses(Employee employee) async {
     final uuid = employee.localUuid.trim();
-    final query = _db.select(_db.expenses)
-      ..where((e) => e.deletedAt.isNull());
+    final query = _db.select(_db.expenses)..where((e) => e.deletedAt.isNull());
     if (uuid.isEmpty) {
       query.where((e) => e.relatedId.equals(employee.id));
     } else {

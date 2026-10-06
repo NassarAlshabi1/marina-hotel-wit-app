@@ -52,10 +52,7 @@ class GuestSearchField extends StatelessWidget {
               ),
         filled: true,
         fillColor: Colors.white.withValues(alpha: 0.15),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
