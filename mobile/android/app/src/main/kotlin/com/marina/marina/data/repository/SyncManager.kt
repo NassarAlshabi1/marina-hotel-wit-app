@@ -579,10 +579,16 @@ class SyncManager @Inject constructor(
             // المحاسبة تُبقي الحجر داخل السقف؛ العائد = عدد المُخلَّى بالسقف
             // ولا يدخل في عدّاد المُطبَّق (لا صلة له بعدد الصفوف المطبَّقة).
             ingestorRegistry.enforceQuarantineCap()
+            // العدّ للرسالة مُوحَّد بالهوية (كيان + local_uuid): الصف نفسه قد
+            // يفشل أكثر من مرة في الدورة (شفاء ثم صفحة، أو صفحة ثم مؤجَّل)
+            // — فلا يُعرض رقم مُنفَّخ.
+            val quarantinedNow = pageFailures
+                .distinctBy { it.entity to (it.record["local_uuid"] as? String ?: "") }
+                .size
             _syncState.update {
                 it.copy(
                     lastMessage = it.lastMessage +
-                        " • عُزل ${pageFailures.size} سجلاً غير قابل للتطبيق ويُعاد حلّها من حمولتها"
+                        " • عُزل $quarantinedNow سجلاً غير قابل للتطبيق ويُعاد حلّها من حمولتها"
                 )
             }
         }

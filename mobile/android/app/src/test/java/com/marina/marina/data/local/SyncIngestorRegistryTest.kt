@@ -45,6 +45,7 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.resetMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -183,7 +184,11 @@ class SyncIngestorRegistryTest {
         assertEquals("NaN", evidence[0].asJsonObject["__sync_non_finite_number"].asString)
         assertEquals("-Infinity", evidence[1].asJsonObject["__sync_non_finite_number"].asString)
         newRegistry().ingestPage(listOf(bad, anonymous))
-        assertEquals(rows, db.syncQuarantineDao().getAll())
+        val after = db.syncQuarantineDao().getAll()
+        assertEquals(rows.size, after.size)
+        assertEquals(rows.map { it.recordKey }.toSet(), after.map { it.recordKey }.toSet())
+        assertEquals(rows.map { it.reason }.toSet(), after.map { it.reason }.toSet())
+        assertTrue(after.all { it.attempts == 2 })
     }
 
     @Test
@@ -233,8 +238,18 @@ class SyncIngestorRegistryTest {
         assertEquals(4, quarantine.size)
         assertTrue(quarantine.all { it.reason.isNotBlank() && it.payload.isNotBlank() })
         // Repeated download must not create an unbounded pile of identical evidence.
+        // ✅ (2026-10-06) الأدلة تبقى صفاً واحداً لكل هوية (نفس المفتاح/الحمولة/السبب)،
+        // لكن العدّاد يتصاعد مع كل دورة يفشل فيها الصف (نظير عدّاد الدورات في
+        // `pull_quarantine.dart`) — وهو ما يقود الشفاء الدوري وإخلاء الأقدم.
         newRegistry().ingestPage(rows)
-        assertEquals(quarantine, db.syncQuarantineDao().getAll())
+        val again = db.syncQuarantineDao().getAll()
+        assertEquals(quarantine.size, again.size)
+        assertEquals(quarantine.map { it.entity to it.recordKey }.toSet(),
+            again.map { it.entity to it.recordKey }.toSet())
+        assertEquals(quarantine.map { it.payload to it.reason }.toSet(),
+            again.map { it.payload to it.reason }.toSet())
+        assertTrue(again.all { it.attempts == 2 })
+        assertEquals(quarantine.map { it.firstSeen }.toSet(), again.map { it.firstSeen }.toSet())
         assertTrue(db.pendingSyncLinksDao().getAll().isEmpty())
     }
 
@@ -460,8 +475,16 @@ class SyncIngestorRegistryTest {
         }
     }
 
+    /**
+     * ✅ (2026-10-06) **العقد المصحَّح** (كان `quarantinedPullDoesNotAdvanceSavedCursor`):
+     * الصفحة نفسها سليمة (شبكة/HTTP/JSON)، والصف غير القابل للتطبيق يُعزل
+     * بحمولته — **والمؤشر يتقدم**. تجميد المؤشر كان يعطي «جهازاً متوقفاً
+     * نهائياً» لخطأ صفٍّ واحد، وهو العطل المُبلَّغ («الدلتا لا تسحب الجداول ولا
+     * الحقول»)؛ ونصّ `pull_quarantine.dart` (٢٠٢٦-٠٩-١٥) يصف القاعدة:
+     * «المؤشر يتقدم في نفس الدورة طالما الصفحات نفسها سليمة».
+     */
     @Test
-    fun quarantinedPullDoesNotAdvanceSavedCursor() = runBlocking {
+    fun quarantinedPullAdvancesSavedCursorAndStaysRecoverable() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))
         prefs.saveAuthToken("test-worker-token")
@@ -486,10 +509,14 @@ class SyncIngestorRegistryTest {
         val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
             service, prefs, registry,
             SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined), derivedRefresh())
-        assertEquals(-1, manager.pullOnly())
-        assertTrue(manager.syncState.value.isError)
-        assertEquals(123L, prefs.getLastPullCursor())
-        assertEquals(1, db.syncQuarantineDao().getAll().size)
+        // لا فشل دورة: الصف عُزل وحده، والمؤشر تقدّم إلى نهاية النافذة.
+        assertTrue(manager.pullOnly() >= 0)
+        assertFalse(manager.syncState.value.isError)
+        assertEquals(456L, prefs.getLastPullCursor())
+        val row = db.syncQuarantineDao().getAll().single()
+        assertEquals("unsupported", row.entity)
+        assertEquals("uuid:preserved", row.recordKey)
+        assertTrue(row.firstSeen > 0L && row.attempts >= 1)
     }
 
     @Test

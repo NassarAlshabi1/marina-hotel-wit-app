@@ -206,8 +206,42 @@ class SyncIngestorRegistry @Inject constructor(
     }
 
     /** D1/SQLite booleans arrive over both sync transports as INTEGER 0/1. */
+    /** أسماء حقول Boolean كما تظهر على السلك (مخزّنة لكل كيان). */
+    private fun booleanWireFields(clazz: Class<*>): Set<String> = booleanWireFieldsCache.getOrPut(clazz) {
+        generateSequence(clazz) { it.superclass }
+            .takeWhile { it != Any::class.java }
+            .flatMap { it.declaredFields.asSequence() }
+            .filter { field ->
+                field.type == Boolean::class.javaPrimitiveType ||
+                    field.type == Boolean::class.javaObjectType
+            }
+            .map { field ->
+                field.getAnnotation(SerializedName::class.java)?.value ?: field.name
+            }
+            .toSet()
+    }
+
+    /**
+     * ✅ (2026-10-06) درع الأعلام: علم غير قابل للـnull غاب عن الصفّ الواصل
+     * (عمود جديد ليس في مخطط D1 المنشور، أو ردّ ناقص) كان يصل `null` إلى
+     * Room فيرفض الصف كاملاً لقيد NOT NULL — فيُعزل صف سليم ويظهر العطل
+     * «لا تُسحب الجداول». الافتراضي: المُثبت في `SyncWireFields.entityDefaults`
+     * (مثل `booking_price_adjustments.is_active` = true و`inventory_items.is_active`
+     * = true)، وإلا `false` (وهو افتراض مُنشئ الكيان في كل الأعلام المتبقية).
+     * الأعلام الواردة صريحةً لا تُلمس.
+     */
+    private fun shieldMissingBooleans(mapped: MutableMap<String, Any>, clazz: Class<*>, entity: String) {
+        val pinned = com.marina.marina.data.sync.SyncWireFields.entityDefaults[entity].orEmpty()
+        for (name in booleanWireFields(clazz)) {
+            if (mapped[name] != null) continue
+            mapped[name] = pinned[name] as? Boolean ?: false
+        }
+    }
+
     private fun normalizeBooleanWireFields(mapped: MutableMap<String, Any>, clazz: Class<*>) {
-        val fieldNames = booleanWireFieldsCache.getOrPut(clazz) {
+        val fieldNames = booleanWireFields(clazz)
+        fieldNames.forEach { name ->
+            val wireValue = mapped[name] ?: return@forEach
             generateSequence(clazz) { it.superclass }
                 .takeWhile { it != Any::class.java }
                 .flatMap { it.declaredFields.asSequence() }
@@ -496,6 +530,13 @@ class SyncIngestorRegistry @Inject constructor(
         mapped.remove("_entity")
         (record["id"] as? Number)?.let { mapped["server_id"] = it.toLong() }
         com.marina.marina.data.sync.SyncWireFields.applyLocalAliases(entity, mapped)
+        // ✅ (2026-10-06) افتراضيات الحقول الناقصة/الفارغة — نظير `?? fallback`
+        // في محوّلات Dart. بلا هذا: حقل Kotlin غير قابل للـnull يصل null
+        // (Gson لا يستدعي قيم المُنشئ) ⇒ Room يرفض الصف كاملاً لقيد NOT NULL
+        // ⇒ عزل صف سليم ⇒ «لا تُسحب الجداول ولا الحقول».
+        com.marina.marina.data.sync.SyncWireFields.applyWireDefaults(entity, mapped)
+        // الحارس نفسه أعلى الدالة يمنع null هنا، لكن نُبقيه صريحاً بلا تعقيد.
+        entityClass(entity)?.let { shieldMissingBooleans(mapped, it, entity) }
         applyBaseDefaults(mapped)
         // A server tombstone does not need its parent to exist locally. Apply it
         // before resolving required references so delete-wins cannot get stuck.

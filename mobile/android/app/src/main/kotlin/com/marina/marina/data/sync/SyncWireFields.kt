@@ -50,6 +50,67 @@ object SyncWireFields {
     val booleanTargets: Set<String> = setOf("blacklist.active")
 
     /**
+     * ✅ (2026-10-06) افتراضيات الحقول **غير القابلة للـnull** حين يغيب العمود
+     * عن الصفّ الواصل أو يصل `null` — نظير `?? fallback` في محوّلات Dart
+     * (`inventory_adapter.dart`: `unit: ... ?? 'قطعة'`، `employees_adapter`:
+     * `position: ... ?? 'موظف'`، `booking_notes_adapter`: `isActive: ... ?? 1`).
+     *
+     * العطل الذي أُغلق بهذا: Gson يترك حقل Kotlin غير القابل للـnull بقيمة
+     * `null` (لا يستدعي القيمة الافتراضية المُعلنة في المُنشئ)، وRoom يرفض
+     * الإدراج لقيد NOT NULL ⇒ الصف **يُعزل كاملاً** ولو كان كل ما فيه سليماً
+     * سوى عمود واحد غاب. القياس: `inventory_items` بلا `unit` يفشل،
+     * `blacklist` بلا `reported_by` يفشل، `salary_withdrawals` بلا
+     * `withdrawal_type` يفشل — أي «لا تُسحب الجداول ولا الحقول» بحرفها.
+     *
+     * الفرق عن Dart: القيم مأخوذة من مخطط D1 (`worker/schema.sql`) ومحوّلات
+     * Dart، وليست قيم مُنشئ Room (مثال: `employees.position` افتراضيه في
+     * Kotlin `"-employed"` بينما Dart والدليل الخادمي `"موظف"` — فالمأخوذ
+     * هو الأخير).
+     *
+     * ملاحظة: `version`/`origin` وبقية حقول [BaseSyncEntity] يعالجها
+     * `applyBaseDefaults` في المستوعب، فلا تُكرَّر هنا.
+     */
+    val entityDefaults: Map<String, Map<String, Any>> = mapOf(
+        // قيم مُثبتة حرفياً من محوّلات Dart (fallback:) — لا اجتهاد:
+        "inventory_items" to mapOf("unit" to "قطعة", "is_active" to true),
+        "employees" to mapOf("position" to "موظف", "phone" to "", "hire_date" to "", "status" to ""),
+        "rooms" to mapOf("cleaning_status" to "clean", "status" to ""),
+        "bookings" to mapOf(
+            "guest_id_type" to "بطاقة شخصية", "discount_type" to "per_night", "status" to "",
+            "expected_nights" to 1, "calculated_nights" to 1
+        ),
+        "guest_infos" to mapOf("id_type" to "بطاقة شخصية"),
+        "salary_cycles" to mapOf("status" to "draft"),
+        "salary_withdrawals" to mapOf("withdrawal_type" to "سحب راتب", "employee_name" to ""),
+        "booking_notes" to mapOf("is_active" to 1),
+        "booking_price_adjustments" to mapOf("is_active" to true),
+        "price_adjustments" to mapOf("adjustment_mode" to "per_night"),
+        "shift_notes" to mapOf("priority" to "medium", "shift_type" to "all", "created_by" to "user", "is_read" to 0),
+        // كيانات بلا محوّل Dart (تُسحب عندنا فقط) — القيمة من مُنشئ Room
+        // نفسه (وهي القيمة التي تحملها قاعدة Flutter محلياً في جدولها):
+        "blacklist" to mapOf("reported_by" to "police", "active" to true),
+        "devices" to mapOf("status" to "active", "is_active" to true),
+        "app_users" to mapOf("active" to true)
+    )
+
+    /**
+     * يملأ الحقول التي غاب مفتاحها **أو وصلت `null`** بافتراضياتها المحلية
+     * (نظير `?? default` في Dart: القيمة الغائبة والقيمة `null` سيان، أما
+     * الفراغ المعلن `""` فقيمة صريحة لا تُستبدل).
+     *
+     * **الحد المقصود**: لا يُلفَّق صفر مكان قيمة مالية («٠ ريال» ليست معلومة
+     * صحيحة). القيم المالية/العددية غير المُدرَجة أعلاه تبقى على سلوكها:
+     * الصف يُعزل بحمولته — وهذا صار آمناً لأن المؤشر يتقدّم (لا تجميد)، ويُعاد
+     * حلّه من الحمولة إن وصلت قيمة صحيحة لاحقاً.
+     */
+    fun applyWireDefaults(entity: String, mapped: MutableMap<String, Any>) {
+        val defaults = entityDefaults[entity] ?: return
+        for ((key, value) in defaults) {
+            if (mapped[key] == null) mapped[key] = value
+        }
+    }
+
+    /**
      * الحقل المحلي → أسماء السلك التي يجب أن تحمل القيمة نفسها عند الرفع.
      * (لا تُحذف الأسماء المحلية من الحمولة: الخادم يفلتر غير المعروف،
      * وإبقاؤها يجعل الصف مقروءاً في سجلات التشخيص.)

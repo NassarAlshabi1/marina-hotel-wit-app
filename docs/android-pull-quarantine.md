@@ -57,3 +57,34 @@ The full `testDebugUnitTest` step passed for source `0c2118c` in
 [run 37236737543](https://github.com/NassarAlshabi1/marina-hotel-wit-app/actions/runs/37236737543),
 including these four new cases. Signed release APK build was still running at this
 update; no device-test or all-green CI claim is made.
+
+## مراجعة 2026-10-06: تغيّر ثابت واحد — المؤشر **يتقدم** فوق الصفحة المعزولة
+
+«Existing failure reporting prevents the pull cursor from advancing over a
+quarantined page» كان ثابتاً مقصوداً في هذه الوثيقة لحماية هوية رواتب/بدلات
+لم تكن مكتملة بعد. القياس الفعلي على جهاز الاستخدام أظهر أن الثابت نفسه هو
+العطل: صف واحد لا يقبل التطبيق (مثلاً قيد `NOT NULL` محلي بلا مقابل خادمي)
+يجمّد المؤشر **إلى الأبد**، فتظهر الشكوى بلفظها: «الدلتا لا تسحب الجداول ولا
+الحقول». إعادة سحب الصفحة نفسها لا تُنتج نتيجة مختلفة — فهي ليست شفاءً.
+
+ما تغيّر (مطابقةً لـ`sync/pull_quarantine.dart` على فرع
+`feat/cloudflare-sync-execution`):
+
+- **المؤشر يتقدم** بعد أن تُحفظ أدلة الفشل داخل معاملة الصفحة نفسها
+  (`sync_quarantine` بلا تغيير في شكلها: مفتاح ثابت + حمولة كاملة + سبب).
+- **محاسبة الحجر**: `attempts` يزيد مع كل تطبيق فاشل، و`firstSeen` يُثبَّت عند
+  أول عزل؛ والسقف 300 يُطبَّق بإخلاء الأقدم عمراً (`enforceQuarantineCap`)،
+  ومحاولات الشفاء 100 لكل دورة (`healQuarantinedBatch` من الحمولة المحفوظة،
+  بلا إعادة سحب أي صفحة).
+- **فشل الشفاء لا يُفشل الدورة**: الصف مُعزول أصلاً ولا معنى لإسقاط دورة كاملة
+  من أجله.
+- **ما بقي كما هو**: أخطاء الجداول على الخادم (`response.errors[]`) لا تُقدِّم
+  المؤشر، ولا تُعالَج محلياً — تُشفى بإصلاح D1.
+- صف Correction لنفس الـUUID يُزيل العزل عند نجاح التطبيق، وصف `LWW` العادي
+  (بيانات محلية أحدث) لا يُعزل — كلاهما غير متأثر بهذا التغيير.
+
+الدليل بالتصريف: `SyncWireFieldParityTest.kt` (منها
+`unappliableRowDoesNotFreezeDeltaCursorAndIsCountedOnce` و
+`quarantineHealsFromStoredPayloadOnceTheCauseDisappears` و
+`quarantineCapEvictsOldestRecords`) و`FinancialMigrationTest` لحالة 75→76 التي
+أضافت `attempts`/`firstSeen`.
