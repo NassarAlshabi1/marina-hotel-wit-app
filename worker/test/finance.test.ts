@@ -152,8 +152,11 @@ describe('GET /api/finance/forecast', () => {
 
     // نزيل حالي: دخل قبل بداية النموذج وبقية مستحقة
     const today = new Date();
-    const inPast = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 5));
-    const after = new Date(inPast.getTime() + 10 * 86_400_000);
+    const forecastStart = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1)
+    );
+    const inPast = new Date(forecastStart.getTime() - 5 * 86_400_000);
+    const after = new Date(forecastStart.getTime() + 5 * 86_400_000);
     const bk = await seedBooking({
       checkin: dayKey(inPast),
       checkout: dayKey(after),
@@ -182,9 +185,12 @@ describe('GET /api/finance/forecast', () => {
   it('honors custom scenario factors without lowering confirmed tier', async () => {
     await seedRoom(2);
     const today = new Date();
-    const inPast = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 2));
+    const forecastStart = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1)
+    );
+    const inPast = new Date(forecastStart.getTime() - 2 * 86_400_000);
     // المغادرة داخل الأسبوع الأول/الثاني من النموذج (لا على حدّه)
-    const after = new Date(inPast.getTime() + 11 * 86_400_000);
+    const after = new Date(forecastStart.getTime() + 9 * 86_400_000);
     await seedBooking({ checkin: dayKey(inPast), checkout: dayKey(after), due: 90000, paid: 0 });
 
     const res = await SELF.fetch(
