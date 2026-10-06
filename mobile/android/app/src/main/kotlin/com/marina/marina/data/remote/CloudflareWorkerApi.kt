@@ -155,6 +155,10 @@ interface CloudflareWorkerApi {
      *    يُعيّن كل 5 صفحات كما في Dart — تخفيف الحمل الخادمي ~80%).
      *  • normalize_timestamps=1 — شفاء خادمي لطوابع المللي القديمة
      *    (الصفحة الأولى من السحب الكامل مرة واحدة فقط).
+     *  • tombstones_only=1 — مسح تقارب الحذفيات التاريخي لمرة واحدة
+     *    (عقد sync.ts l.217-246 وdatabase.ts l.265-275): يجلب الصفوف
+     *    المحذوفة فقط بمؤشر المسح المستقل — نظير `_sweepHistoricalTombstones`
+     *    في Dart؛ لا يمس المؤشر الرئيسي.
      */
     @GET("/api/sync/pull")
     fun pull(
@@ -162,7 +166,8 @@ interface CloudflareWorkerApi {
         @Query("limit") limit: Int,
         @Query("exclude_device") excludeDevice: String? = null,
         @Query("include_remaining") includeRemaining: Boolean? = null,
-        @Query("normalize_timestamps") normalizeTimestamps: Boolean? = null
+        @Query("normalize_timestamps") normalizeTimestamps: Boolean? = null,
+        @Query("tombstones_only") tombstonesOnly: Boolean? = null
     ): Call<WorkerPullResponse>
 
     /** دفع دفعة عمليات outbox — سقف 100 عملية/نداء (حد الخادم). */

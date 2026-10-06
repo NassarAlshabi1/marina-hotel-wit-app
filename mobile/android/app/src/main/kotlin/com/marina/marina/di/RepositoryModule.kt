@@ -115,6 +115,13 @@ abstract class RepositoryModule {
     @Singleton
     abstract fun bindSyncRepository(impl: SyncManager): SyncRepository
 
+    /** المزامنة الفورية (Realtime WebSocket) — نظير CloudflareRealtimeSync في Flutter. */
+    @Binds
+    @Singleton
+    abstract fun bindRealtimeSyncRepository(
+        impl: com.marina.marina.data.remote.realtime.CloudflareRealtimeClient
+    ): com.marina.marina.domain.repository.RealtimeSyncRepository
+
     @Binds
     @Singleton
     abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository

@@ -3,8 +3,13 @@ package com.marina.marina.data.repository
 import com.marina.marina.data.remote.CloudflareConfig
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
+import com.marina.marina.data.sync.MAX_SANE_PULL_CURSOR_FUTURE
 import com.marina.marina.data.sync.SyncEpochPolicy
 import com.marina.marina.data.sync.SyncOperationRunner
+import com.marina.marina.data.sync.evaluateStoredCursor
+import com.marina.marina.data.sync.isPendingCursorSafeToInstall
+import com.marina.marina.data.sync.isServerCursorRejected
+import com.marina.marina.data.sync.tombstoneSweepDue
 import com.marina.marina.domain.model.SyncUiState
 import com.marina.marina.domain.repository.SyncRepository
 import kotlinx.coroutines.CancellationException
@@ -69,6 +74,50 @@ class SyncManager @Inject constructor(
     override suspend fun pushOnly(): Int = runOwned(onBusy = { -1 }) { performPushOnly() }
 
     override suspend fun fullPull(): Int = runOwned(onBusy = { -1 }) { performFullPull() }
+
+    /**
+     * سحب مُشغَّل بحدث Realtime/FCM — نظير `realtimeTriggeredPull` في
+     * Flutter (cloudflare_sync_manager.dart l.4303):
+     *
+     *  • **دلتا فقط**: `push:false, deltaOnly:true` — الرفع الفوري مسؤولية
+     *    مراقب outbox، ومسار الحدث لا يبدأ full sync ولا يرفع بيانات.
+     *  • **يتخطى بصمت عند الانشغال**: مزامنة جارية = `false` بلا انتظار
+     *    (المستدعي يجدول متابعة بعد التهدئة بدل تكديس دورات).
+     *  • **يتجاوز بوابة الساعة عمداً**: الحدث دليل تغيير فعلي — نفس
+     *    `forcePull:true` في Dart — فلا معنى لتأجيله ساعة كاملة.
+     *
+     * @return true إذا اكتملت دورة السحب فعلاً (>= 0 سجل)، وfalse عند
+     *   الانشغال أو الفشل — عقد `RemoteChangePull` نفسه في Dart.
+     */
+    suspend fun pullOnRealtimeEvent(): Boolean {
+        if (_syncState.value.isSyncing) return false
+        val pulled = runCatching { pullOnly() }.getOrNull() ?: -1
+        return pulled >= 0
+    }
+
+    /**
+     * حارس الإقلاع ضد المؤشر المسموم (Dart l.553): مؤشر محفوظ فوق الحد
+     * الثابت (ميلي ثانية/ sentinel) يُصفَّر مع علامة full sync ليعيد
+     * الجهاز سحباً كاملاً نظيفاً. يعيد true عند حدوث إعادة تعيين.
+     */
+    suspend fun sanitizeStoredCursorIfNeeded(): Boolean {
+        val stored = preferences.getLastPullCursor()
+        if (!evaluateStoredCursor(stored).mustReset) return false
+        preferences.resetPullCursorForFreshReplay()
+        runCatching {
+            preferences.recordSyncError(
+                operation = "pull_cursor_poisoned",
+                message = "مؤشر سحب مسموم ($stored) تجاوز الحد الآمن " +
+                    "$MAX_SANE_PULL_CURSOR_FUTURE — صُفّر المؤشر وعلامة full sync لسحب كامل نظيف",
+                pullCursor = 0L,
+                deviceId = preferences.getDeviceId()
+            )
+        }
+        _syncState.update {
+            it.copy(lastMessage = "مؤشر السحب المحفوظ كان مسمّماً — أُعيد الضبط لسحب كامل نظيف")
+        }
+        return true
+    }
 
     private suspend fun <T> runOwned(
         onBusy: () -> T,
@@ -270,6 +319,13 @@ class SyncManager @Inject constructor(
 
         /** ✅ معاينة remaining الخادمية كل 5 صفحات (Dart 2026-09-22 — تخفيف الحمل ~80%). */
         private const val REMAINING_SAMPLE_EVERY_PAGES = 5
+
+        /**
+         * سقف صفحات مسح الحذفيات في الدورة الواحدة (فلسفة H2 نفسها):
+         * مسح ضخم لا يجوز أن يحبس دورة السحب — البقية تُستأنف من مؤشر
+         * المسح المحفوظ في الدورة القادمة (العلم لا يُضبط قبل الاكتمال).
+         */
+        private const val MAX_TOMBSTONE_SWEEP_PAGES_PER_CYCLE = 20
     }
 
     /**
@@ -302,6 +358,11 @@ class SyncManager @Inject constructor(
         isFullPull: Boolean = false,
         allowEpochRestart: Boolean = true
     ): Int {
+        // حارس الإقلاع (Dart l.553) ثم مسح التقارب لمرة واحدة (Dart l.1794)
+        // قبل أي صفحة — كلاهما لا يمسّ تدفق المؤشر الرئيسي عند الفشل.
+        sanitizeStoredCursorIfNeeded()
+        performTombstoneSweepIfDue()
+
         val deviceId = preferences.getDeviceId()
         var cursor = preferences.getLastPullCursor()
         val fullReplay = isFullPull || cursor == 0L || preferences.isFullReplayPending()
@@ -386,6 +447,17 @@ class SyncManager @Inject constructor(
             if (nextCursor < cursor) {
                 throw Exception("Pull cursor regressed from $cursor to $nextCursor")
             }
+            // حارس التسمم أثناء التشغيل (Dart l.2081) — قبل تطبيق الصفحة:
+            // مؤشر خادم يتقدم فوق server_time المُعلن في الرد نفسه بأكثر من
+            // هامش سنة = صفوف بطوابع sentinel/ميلي ما زالت تُقدَّم (worker
+            // غير مُصلح). لا تُطبَّق الصفحة (طوابعها المسمومة كانت ستكسب كل
+            // قرارات LWW) ولا يتقدم المؤشر.
+            if (nextCursor > cursor && isServerCursorRejected(nextCursor, response.serverTime?.toLong())) {
+                throw IllegalStateException(
+                    "مؤشر خادم مسموم رُفض ($nextCursor مقابل server_time=${response.serverTime}) — " +
+                        "لم يتقدم المؤشر ولم تُطبَّق الصفحة"
+                )
+            }
             val changes = response.changes.orEmpty()
             if (changes.isNotEmpty() && nextCursor <= cursor) {
                 throw Exception("Pull returned records without advancing the cursor")
@@ -456,12 +528,116 @@ class SyncManager @Inject constructor(
         }
 
         // دورة نظيفة كاملة — الآن فقط نقدّم نقطة التفتيش المحفوظة.
+        // حارس التثبيت النهائي (Dart l.2534 — طبقة الدفاع الثالثة): الحارس
+        // الديناميكي أعلاه يحتاج server_time، وworker قديم بلا الحقل كان
+        // سيمرر السم؛ هنا حد ثابت صرف (مرآة عتبة الخادم 2e9).
+        if (!isPendingCursorSafeToInstall(cursor)) {
+            preferences.resetPullCursorForFreshReplay()
+            runCatching {
+                preferences.recordSyncError(
+                    operation = "pull_cursor_install_blocked",
+                    message = "منع تثبيت مؤشر مسموم ($cursor) فوق الحد الثابت " +
+                        "$MAX_SANE_PULL_CURSOR_FUTURE — صُفّر المؤشر وعلامة full sync",
+                    pullCursor = 0L,
+                    deviceId = preferences.getDeviceId()
+                )
+            }
+            _syncState.update {
+                it.copy(lastMessage = "رُفض تثبيت مؤشر مسموم — ستُعاد المزامنة الكاملة نظيفة")
+            }
+            return ingested
+        }
         preferences.saveLastPullCursor(cursor)
         if (fullReplay && reachedEnd) {
             preferences.setFullReplayPending(false)
             preferences.setFullSyncComplete(true)
         }
         return ingested
+    }
+
+    // ─── مسح تقارب الحذفيات التاريخي (نظير _sweepHistoricalTombstones) ───
+
+    /**
+     * بوابة المسح: علم غير مضبوط + جهاز قائم فعلاً — تُنفَّذ قبل أي دورة
+     * سحب في [pullDelta]. أفضل جهد: أي فشل يؤجل المسح للدورة القادمة بلا
+     * أي تأثير على المؤشر الرئيسي أو على نتيجة دورة السحب نفسها.
+     */
+    private suspend fun performTombstoneSweepIfDue() {
+        if (!tombstoneSweepDue(
+                preferences.isTombstoneSweepDone(),
+                preferences.getLastPullCursor(),
+                preferences.isFullSyncComplete()
+            )
+        ) {
+            return
+        }
+        val outcome = runCatching { sweepHistoricalTombstones() }.getOrNull() ?: return
+        // بلوغ سقف الدورة ليس اكتمالاً: المؤشر المحفوظ يستأنف البقية،
+        // والعلم يبقى مفتوحاً (لا يجوز إسقاط صفحات حذفيات لم تُطبَّق).
+        if (!outcome.completed) return
+        preferences.setTombstoneSweepDone(true)
+        preferences.clearTombstoneSweepCursor()
+        if (outcome.handled > 0) {
+            _syncState.update {
+                it.copy(lastMessage = "اكتمل مسح الحذفيات التاريخية: ${outcome.handled} سجلاً")
+            }
+        }
+    }
+
+    /** نتيجة صفحة/دورة مسح: ما طُبّق فعلاً + هل نفدت الصفحات. */
+    private data class SweepOutcome(val handled: Int, val completed: Boolean)
+
+    /**
+     * مسح تقارب لمرة واحدة للحذفيات التاريخية — نظير
+     * `_sweepHistoricalTombstones` في Dart (l.3661):
+     *
+     *  • `tombstones_only=1` + استبعاد جهازنا: الحذفيات التي لم تُبَث لهذا
+     *    الجهاز أثناء نافذة العقد القديم تُطبَّق الآن كحذف محلي.
+     *  • مؤشر **مستقل** محفوظ بعد كل صفحة مطبَّقة: فشل شبكي/HTTP يستأنف من
+     *    حيث توقف بدل إعادة المسح من الصفر.
+     *  • حارس تقدم: مؤشر ثابت مع صفوف = حلقة محتملة → إجهاض بلا ضبط العلم.
+     *  • سقف صفحات لكل دورة (فلسفة H2 في هذا الملف): لا نحبس دورة السحب
+     *    خلف مسح ضخم — البقية تُستأنف من المؤشر المحفوظ.
+     *
+     * @return نتيجة الدورة ([SweepOutcome.completed] = نفدت الصفحات فعلاً)،
+     *   أو null عند فشل يستوجب إعادة المحاولة لاحقاً (الشبكة/HTTP/رد ناقص
+     *   أو مؤشر متوقف) — العلم لا يُضبط في هاتين الحالتين.
+     */
+    private suspend fun sweepHistoricalTombstones(): SweepOutcome? {
+        if (!syncService.hasWorkerToken()) return null
+        val excludeDevice = preferences.getDeviceId()?.takeIf { it.isNotBlank() }
+        var cursor = preferences.getTombstoneSweepCursor()
+        var handled = 0
+        var pages = 0
+        while (pages < MAX_TOMBSTONE_SWEEP_PAGES_PER_CYCLE) {
+            val result = syncService.pull(
+                cursor = cursor,
+                limit = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
+                excludeDevice = excludeDevice,
+                tombstonesOnly = true
+            )
+            val response = result.getOrNull() ?: return null
+            val changes = response.changes.orEmpty()
+            if (changes.isNotEmpty()) {
+                // أفضل جهد: فشل تطبيق صف فردي لا يوقف المسح ولا يُفشل الدورة
+                // (Dart: report.errors → متابعة) — المؤشر الرئيسي غير معني.
+                val report = runCatching { ingestorRegistry.ingestPage(changes) }.getOrNull()
+                if (report != null) handled += report.applied
+            }
+            val serverCursor = response.cursor?.toLongOrNull() ?: return null
+            val hasMore = response.hasMore ?: return null
+            if (serverCursor > cursor) {
+                cursor = serverCursor
+                preferences.saveTombstoneSweepCursor(cursor)
+            } else if (hasMore && changes.isNotEmpty()) {
+                // مؤشر متوقف مع صفوف = حلقة لا نهائية محتملة.
+                return null
+            }
+            pages++
+            if (!hasMore || changes.isEmpty()) return SweepOutcome(handled, completed = true)
+        }
+        // سقف الدورة: تقدم محفوظ للاستئناف، والعلم يبقى مفتوحاً.
+        return SweepOutcome(handled, completed = false)
     }
 
     private fun finishWithError(message: String, operation: String) {

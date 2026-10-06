@@ -83,6 +83,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.marina.marina.domain.model.RealtimeSyncState
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.components.MarinaBackButton
 import com.marina.marina.components.MarinaTopAppBar
@@ -407,6 +408,9 @@ fun CloudflareSyncSettingsScreen(
                     enabled = !state.isSaving,
                     onCheckedChange = viewModel::setRealtimeSyncEnabled
                 )
+                if (state.realtimeSyncEnabled) {
+                    RealtimeStatusLine(state.realtime, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                }
             }
 
             // ─── 6) أدوات المزامنة اليدوية ───────────────────────
@@ -663,4 +667,23 @@ private fun ManualActionRow(
 @Composable
 private fun CardDivider() {
     androidx.compose.material3.HorizontalDivider(color = AppColors.DividerColor, thickness = 1.dp)
+}
+
+/**
+ * سطر حالة المزامنة الفورية (Realtime) — يقرأ تشخيصات العميل الحيّة
+ * (اتصال/محاولات/آخر خطأ/شارة تغييرات) فلا يبقى المفتاح وعداً بلا دليل
+ * (نظير ما تعرضه شاشة تشخيصات Realtime في Flutter).
+ */
+@Composable
+private fun RealtimeStatusLine(state: RealtimeSyncState, modifier: Modifier = Modifier) {
+    val (text, color) = when {
+        !state.enabled -> "المزامنة الفورية معطّلة (المفتاح أو مزامنة Cloudflare)" to AppColors.TextSecondary
+        state.connected && state.hasRemoteChanges ->
+            "متصل — وصل ${state.pendingRemoteChanges} تغييراً من أجهزة أخرى ويُسحب الآن" to AppColors.InfoColor
+        state.connected -> "متصل ويستمع لتغييرات الأجهزة الأخرى" to AppColors.SuccessColor
+        state.reconnecting -> "جارٍ إعادة الاتصال بخادم Realtime…" to AppColors.WarningColor
+        state.lastError != null -> "غير متصل: ${state.lastError}" to AppColors.DangerColor
+        else -> "بانتظار بدء الاتصال…" to AppColors.TextSecondary
+    }
+    Text(text = text, fontSize = 11.sp, color = color, modifier = modifier)
 }

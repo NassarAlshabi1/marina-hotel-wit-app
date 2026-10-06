@@ -45,9 +45,20 @@ presentation  ->  domain  <-  data
 - The Worker is authoritative for deletes. A `deleted` push disposition clears
   the losing local outbox edit and tombstones the row; pulled tombstones win
   over local edits without replacing the row's newer business fields.
+- Realtime is an **event, not data**: `CloudflareRealtimeClient` subscribes to
+  `/api/realtime?deviceId=..&entity=*`, ignores its own echo, debounces 500 ms
+  with a 15 s cooldown, and triggers `SyncManager.pullOnRealtimeEvent()` — a
+  delta-only, push-free pull that skips while another sync runs. FCM data
+  messages (`type=marina_sync`) feed the same signal. Both live in the
+  foreground only; background signals are consumed on resume.
+- One-time historical tombstone sweep (`tombstones_only=1`) uses its own
+  resumable cursor and never advances the delta cursor. Cursor poisoning guards
+  (2e9 fixed bound, `server_time` + one year) reject millisecond/sentinel
+  checkpoints at startup, mid-cycle, and install time.
 - Contract logic has JVM tests under `app/src/test`; Worker protocol tests live
   in `worker/test`. Run `./gradlew :app:testDebugUnitTest` and `npm test` from
   their respective project directories when JDK/Node dependencies are present.
+  See `docs/android-pull-parity-flutter.md` for the pull-path parity contract.
 
 ## Financial integrity / Room 72
 

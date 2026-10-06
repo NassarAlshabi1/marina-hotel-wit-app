@@ -330,6 +330,7 @@ class SyncIngestorRegistryTest {
         prefs.saveLastPullCursor(123L)
         prefs.saveLastPullTs(0L)
         prefs.saveSyncEpoch("audit")
+        prefs.setTombstoneSweepDone(true) // مسح الحذفيات له اختبار مخصص؛ لا يغيّر عدّ نداءات هذه الحالات.
         prefs.setFullReplayPending(fullReplay)
         prefs.setTimestampNormalizationDone(false)
         var calls = 0
@@ -406,6 +407,7 @@ class SyncIngestorRegistryTest {
         prefs.saveLastPullCursor(123L)
         prefs.saveSyncEpoch("stable-delta")
         prefs.setFullReplayPending(false)
+        prefs.setTombstoneSweepDone(true) // مسح الحذفيات له اختبار مخصص؛ لا يغيّر عدّ نداءات هذه الحالات.
         val requests = mutableListOf<List<Any?>>()
         val api = Proxy.newProxyInstance(
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
@@ -466,6 +468,7 @@ class SyncIngestorRegistryTest {
         prefs.saveLastPullCursor(123L)
         prefs.saveSyncEpoch("stable")
         prefs.setFullReplayPending(false)
+        prefs.setTombstoneSweepDone(true) // مسح الحذفيات له اختبار مخصص؛ لا يغيّر عدّ نداءات هذه الحالات.
         val api = Proxy.newProxyInstance(
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, _ ->
@@ -1732,6 +1735,7 @@ class SyncIngestorRegistryTest {
         prefs.saveLastPullCursor(999L)
         prefs.saveSyncEpoch("old")
         prefs.setFullReplayPending(false)
+        prefs.setTombstoneSweepDone(true) // مسح الحذفيات له اختبار مخصص؛ لا يغيّر عدّ نداءات هذه الحالات.
         val requests = mutableListOf<Pair<Long, String?>>()
         var calls = 0
         val api = Proxy.newProxyInstance(

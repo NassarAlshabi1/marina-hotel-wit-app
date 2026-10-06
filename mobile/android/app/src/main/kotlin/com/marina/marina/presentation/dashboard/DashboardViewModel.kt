@@ -8,8 +8,10 @@ import com.marina.marina.domain.model.AuthUser
 import com.marina.marina.domain.model.Booking
 import com.marina.marina.domain.model.PaymentUserHotelDaySummary
 import com.marina.marina.domain.model.Room
+import com.marina.marina.domain.model.RealtimeSyncState
 import com.marina.marina.domain.model.RoomWithPaymentStatus
 import com.marina.marina.domain.repository.BookingsRepository
+import com.marina.marina.domain.repository.RealtimeSyncRepository
 import com.marina.marina.domain.repository.ExpensesRepository
 import com.marina.marina.domain.repository.PaymentsRepository
 import com.marina.marina.domain.repository.RoomsRepository
@@ -67,8 +69,12 @@ class DashboardViewModel @Inject constructor(
     private val paymentsRepository: PaymentsRepository,
     private val expensesRepository: ExpensesRepository,
     private val syncManager: SyncRepository,
+    private val realtimeSync: RealtimeSyncRepository,
     private val sessionManager: UserSessionManager
 ) : ViewModel() {
+
+    /** حالة المزامنة الفورية (Realtime) — شارة «تغييرات من أجهزة أخرى». */
+    val realtimeState: StateFlow<RealtimeSyncState> = realtimeSync.realtimeState
 
     // -------------------------------------------------------------------------
     // Tickers (ports of hotelDayTickerProvider and the 1-minute room timer)

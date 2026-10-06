@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.os.SystemClock
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
+import com.marina.marina.data.remote.realtime.CloudflareRealtimeClient
 import com.marina.marina.data.repository.OutboxRepository
 import com.marina.marina.data.repository.SyncManager
 import dagger.Lazy
@@ -34,7 +35,8 @@ class AutoSyncEngine @Inject constructor(
     private val syncManagerProvider: Lazy<SyncManager>,
     private val outboxRepositoryProvider: Lazy<OutboxRepository>,
     private val preferences: SyncPreferences,
-    private val serviceProvider: Lazy<CloudflareSyncService>
+    private val serviceProvider: Lazy<CloudflareSyncService>,
+    private val realtime: CloudflareRealtimeClient
 ) {
     private val syncManager: SyncManager get() = syncManagerProvider.get()
     private val outboxRepository: OutboxRepository get() = outboxRepositoryProvider.get()
@@ -59,13 +61,21 @@ class AutoSyncEngine @Inject constructor(
     @Volatile private var started = false
     @Volatile private var foreground = false
 
+    /** إشارة تغيير بعيد وصلت والتطبيق في الخلفية — تُستهلك عند العودة. */
+    @Volatile private var remoteSignalWhileBackgrounded = false
+
     @Synchronized
     fun start() {
         if (started) return
         started = true
         val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope = appScope
+        // المزامنة الفورية: مسار سحب الحدث = دلتا فقط عبر المحرك (نفس
+        // realtimeTriggeredPull في Dart) — لا رفع ولا full sync من حدث.
+        realtime.setPullTrigger { syncManager.pullOnRealtimeEvent() }
         appScope.launch {
+            // حارس الإقلاع ضد المؤشر المسموم (Dart l.553) — قبل أي دورة.
+            recover { syncManager.sanitizeStoredCursorIfNeeded() }
             val recovered = recover { outboxRepository.recoverStaleProcessing() } ?: 0
             if (recovered > 0) schedulePush(3_000L)
         }
@@ -82,14 +92,45 @@ class AutoSyncEngine @Inject constructor(
     fun onForeground() {
         if (foreground) return
         foreground = true
+        // Realtime في الواجهة فقط (نفس مرحلة Flutter 3.3): استئناف المقبس
+        // عند العودة، ثم إن كان قد وصل حدث أثناء الغياب نسحبه فوراً.
+        if (masterSyncEnabled()) realtime.ensureStarted()
+        if (remoteSignalWhileBackgrounded && masterSyncEnabled() && networkAllowed()) {
+            remoteSignalWhileBackgrounded = false
+            realtime.noteRemoteChange("foreground")
+        }
         if (preferences.getSyncOnStartup()) requestPullCheck(probeWhenFresh = true)
     }
 
-    fun onBackground() { foreground = false }
+    fun onBackground() {
+        foreground = false
+        realtime.stop()
+    }
+
+    /**
+     * إشارة تغيير بعيد من FCM (رسالة بيانات) — نظير `_triggerPull` في
+     * Flutter `fcm_service.dart`:
+     *
+     *  • المفتاح معطّل → لا شيء.
+     *  • التطبيق في الواجهة → شارة UI + سحب دلتا مُدمج مباشرة.
+     *  • التطبيق في الخلفية → تُحفظ الإشارة وتُستهلك عند العودة للواجهة
+     *    بدل بدء شبكة من عملية غير ظاهرة (قيد Android على حدود الخلفية؛
+     *    بديل صريح لا ادعاء مطابقة).
+     */
+    fun onRemoteSignal(source: String) {
+        if (!masterSyncEnabled()) return
+        if (foreground) {
+            realtime.noteRemoteChange(source)
+        } else {
+            remoteSignalWhileBackgrounded = true
+        }
+    }
 
     @Synchronized
     fun stop() {
         foreground = false
+        realtime.stop()
+        remoteSignalWhileBackgrounded = false
         pushJob?.cancel()
         pushJob = null
         pullCheckJob?.cancel()

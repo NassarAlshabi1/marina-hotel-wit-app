@@ -6,6 +6,8 @@ import com.marina.marina.data.remote.CloudflareConfig
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
 import com.marina.marina.data.remote.WorkerEndpoints
+import com.marina.marina.domain.model.RealtimeSyncState
+import com.marina.marina.domain.repository.RealtimeSyncRepository
 import com.marina.marina.domain.repository.SyncRepository
 import com.marina.marina.data.sync.SyncOperationRunner
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,7 +44,8 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
     private val syncService: CloudflareSyncService,
     private val cloudflareConfig: CloudflareConfig,
     private val workerEndpoints: WorkerEndpoints,
-    private val syncOperationRunner: SyncOperationRunner
+    private val syncOperationRunner: SyncOperationRunner,
+    private val realtimeSync: RealtimeSyncRepository
 ) : ViewModel() {
 
     /** رسالة سناك-بار مع لون النتيجة (نظير _showSyncResultSnack في Dart). */
@@ -61,6 +64,8 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
         // ─── Cloudflare Sync ─────────────────────────────────────
         val cloudflareSyncEnabled: Boolean = true,
         val realtimeSyncEnabled: Boolean = true,
+        /** حالة المزامنة الفورية الحيّة (اتصال/آخر خطأ/شارة التغييرات). */
+        val realtime: RealtimeSyncState = RealtimeSyncState(),
         // ─── نظرة عامة (حالة المزامنة) ───────────────────────────
         val lastSyncText: String = "لم تُنفَّذ مزامنة بعد",
         val isConnected: Boolean? = null,
@@ -90,7 +95,15 @@ class CloudflareSyncSettingsViewModel @Inject constructor(
         loadSettings()
         observePendingCount()
         observeSyncState()
+        observeRealtimeState()
         refreshConnection()
+    }
+
+    /** حالة Realtime الحيّة — تُعرض أسفل مفتاحها لإثبات عمل المقبس فعلاً. */
+    private fun observeRealtimeState() {
+        realtimeSync.realtimeState.onEach { realtime ->
+            _state.value = _state.value.copy(realtime = realtime)
+        }.launchIn(viewModelScope)
     }
 
     // ─── التحميل الأولي ──────────────────────────────────────────
