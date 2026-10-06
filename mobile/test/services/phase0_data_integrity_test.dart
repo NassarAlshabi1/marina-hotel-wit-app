@@ -502,7 +502,6 @@ void main() {
         expect(await activeByUuid('sw-orphan'), isNull);
       },
     );
-  });
 
     test(
       'G-3: بلا إثبات فضاء المعرّفات ⇒ لا ربط رقمي (السجل يُعلَّق لا يُربط)',
