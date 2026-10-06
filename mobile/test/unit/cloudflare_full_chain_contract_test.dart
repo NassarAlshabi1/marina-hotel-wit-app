@@ -88,6 +88,7 @@ Map<String, Map<String, _Col>> _loadSchema() {
     ).firstMatch(line);
     if (create != null) {
       current = create.group(2);
+      if (current == null) continue;
       tables.putIfAbsent(current, () => <String, _Col>{});
       continue;
     }
