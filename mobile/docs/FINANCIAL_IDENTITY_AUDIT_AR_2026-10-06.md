@@ -20,8 +20,8 @@
 | 7. الحذف (tombstone، لا عودة للسجل المحذوف) | ✅ قائم | الـ tombstone البعيد يفوز دائمًا؛ لا حذف عند "غياب السجل" |
 | 8. فصل منطق البيانات عن Appwrite | ⚠️ جزئي | طبقة المحوّلات (`EntityAdapter`) جيدة، لكن مدير المزامنة 9000+ سطر يخلط النقل بالمنطق |
 | 9. جاهزية تغيير المزوّد | ⚠️ جزئي | المؤشرات (`sync_checkpoints` / `sync_mirror`) **غير مُنَطَّقة بالمزوّد** → خطر إعادة استخدام مؤشر Appwrite |
-| 5م. منع التكرار في التعارض | ❌ فجوة | الحقول المالية الحرجة (`amount`, `basicSalary`, …) تُدمج صامتة بـ `newerWins` |
-| 12. تقرير مراجعة للسجلات غير المؤكدة | ❌ فجوة | لا يوجد تقرير مُصدَّر؛ الموجود سجلات لوج + عدّادات في الذاكرة |
+| 5م. منع التكرار في التعارض | ✅ أُغلقت (G-4) | الحقول المالية الحرجة لا تُدمج صامتة: تُحفظ القيمتان وتُسجَّل للمراجعة |
+| 12. تقرير مراجعة للسجلات غير المؤكدة | ⚠️ جزئي | التعارضات تُحفظ الآن في `sync_conflicts` (G-4/G-11) وتظهر في شاشة التعارضات؛ تقرير السجلات التاريخية (G-8) لم يُبنَ بعد |
 
 **التوصية:** لا تبدأ إصلاحات المخطط قبل اعتماد هذا التدقيق، ثم تنفيذ الإصلاحات بترتيب الأولوية في القسم 10، مع تشغيل الاختبارات المضافة في القسم 11 على أجهزة حقيقية (A/B) قبل أي كتابة إنتاجية.
 
@@ -34,14 +34,14 @@
 | 3. العلاقات بين الجداول | ⚠️ مُنفَّذ مع 3 فجوات (G-1, G-2, G-3) | §3 |
 | 4. إنشاء السجل + المزامنة في معاملة | ✅ مُنفَّذ | §4 |
 | 5. منع التكرار | ✅ مُنفَّذ | §5 |
-| 5م. سياسة التعارض | ❌ فجوة G-4 (دمج صامت للحقول المالية) | §7 |
+| 5م. سياسة التعارض | ✅ **أُغلقت G-4** (سياسة صريحة + مراجعة بشرية) | §7 |
 | 6. وصول الابن قبل الأب | ✅ مُنفَّذ (طوابير مؤجلة + إعادة ربط) | §6.1 |
 | 7. الحذف (منع الإحياء) | ✅ مُنفَّذ (tombstone يفوز دائمًا) | §6.2 |
 | 8. فصل منطق البيانات عن Appwrite | ⚠️ جزئي (G-6) | §8.1 |
 | 9. الانتقال لمزوّد آخر | ⚠️ يحتاج تنطيق المؤشرات (G-7) + حفظ الكسور (G-10) + قائمة §12 | §8.2, §12 |
 | 10. الاختبارات المطلوبة | ✅ مُضاف ملف اختبارات التدقيق (19 اختبارًا — 18 ناجح) | §11 |
-| 11. معيار النجاح النهائي | ❌ مكسور حاليًا: G-10 يغيّر المجاميع + G-1/G-4 | §11, §12 |
-| 12. عدم التخمين في السجلات التاريخية | ❌ لا تقرير مراجعة مُصدَّر (G-8) + تخمين `serverId` المزدوج (G-3) | §9 |
+| 11. معيار النجاح النهائي | ⚠️ G-4 و G-11 أُغلقتا — يتبقى G-10 (تقريب الكسور) و G-1 (`cycle_uuid`) و G-7 | §11, §12 |
+| 12. عدم التخمين في السجلات التاريخية | ⚠️ لا تقرير مُصدَّر بعد (G-8) + تخمين `serverId` المزدوج (G-3) — لكن التعارضات صارت تُحفظ للمراجعة (G-4/G-11) | §9 |
 | 13. التدقيق قبل الإصلاح | ✅ هذا المستند + استعلامات المراجعة (§9.2) | §1–§9 |
 
 ---
@@ -186,26 +186,37 @@ TextColumn get idempotencyKey
 
 ---
 
-## 7) التعارض (البند 5م) — الفجوة الأخطر: G-4
+## 7) التعارض (البند 5م) — ✅ G-4 مُغلقة بسياسة صريحة
 
-**الوضع الحالي:**
-* `ConflictDetector` يعرف الحقول المالية الحرجة ويحسب `needsManualResolution` (`conflict_detector.dart:59–65`, `282–294`).
-* **لا أحد يستهلك `needsManualResolution`** (فحص شامل: التعريف فقط موجود).
-* `SmartConflictResolver` لا يعرّف سياسات لـ `employees` / `expenses` / `salary_*` → تُطبَّق `_defaultPolicy = newerWins` (`smart_conflict_resolver.dart:88–100, 347–350`).
-* `_autoMerge` (`403–455`) يدمج الحقول المتعارضة (بما فيها `amount`, `basicSalary`) بـ «الأحدث يفوز» ثم يُعيد `pushedToRemote: true` — أي أن نتيجة الدمج تُرفع للسحابة.
-* المسارات المستدعية: `appwrite_sync_manager.dart:1942, 3246` و`sync_pull_service.dart:239`.
+### 7.1 ما كان (قبل 2026-10-06)
+* `ConflictDetector` يعرف الحقول المالية الحرجة ويحسب `needsManualResolution` — **ولم يكن أحد يستهلكه**.
+* `SmartConflictResolver` بلا سياسات لـ `employees/expenses/salary_*` ⇒ `newerWins` على `amount`/`basicSalary`، ثم `pushedToRemote: true` يرفع النتيجة ⇒ **طمس صامت لمبلغ عدّله جهاز آخر** (بلا سجل مراجعة مقروء).
 
-**الأثر:** تعديل نفس المصروف/الراتب من جهازين بشكل متزامن → نتيجة صامتة بلا مراجعة بشرية ولا سجل قرار مقروء (`sync_conflicts` يُكتب فقط في مسار LWW الاحتياطي — تعليق `appwrite_sync_manager.dart` بعد السطر 1990).
+### 7.2 السياسة الجديدة (المُنفَّذة)
+عند تعارض متزامن (concurrent) على حقل مالي حرج (`amount`, `paidAmount`, `price`, `basicSalary`, `isVoided`, `discount`, `discountAmount`):
+1. **لا دمج صامت**: القيمة المحلية تبقى في الصف المحلي (لا يُمسح مال محلي بلا قرار بشري).
+2. **لا طمس للجهاز الآخر**: لا يُرفع الحقل المتنازع عليه (`pushedToRemote = false`) فتبقى قيمة الجهاز الآخر على السحابة.
+3. **تسجيل للمراجعة**: صف في `sync_conflicts` مع `resolution = ''` (بانتظار قرار) ووسم
+   `critical_financial_field_conflict` + أسماء الحقول + نص السياسة — يظهر في شاشة تعارضات المزامنة.
+4. **باقي الحقول** في نفس السجل تُدمج وتُطبَّق كالمعتاد (المزامنة لا تتوقف).
+5. تُرجَع `requiresReview` و`reviewFields` في `ResolutionResult`/`RemoteCheckResult` للتسجيل والاختبارات.
 
-**المطلوب (سياسة صريحة للبنود 5م/12):**
-1. حقل مالي حرج + تعارض متزامن ⇒ **لا دمج صامت**:
-   - إبقاء القيمة المحلية (أو القيمة صاحبة `lastModified` الأكبر مع توثيق)،
-   - كتابة صف في `sync_conflicts` يحمل `localPayload`/`remotePayload`/`resolution='needs_review'`،
-   - إظهاره في «تقرير المراجعة» (G-8)،
-   - وسحب الحقل من نتيجة الدمج المرسلة قبل الرفع.
-2. إبقاء باقي الحقول بسياسة `newerWins` (لا تعطيل المزامنة).
+**مواضع التنفيذ:** `sync_core/smart_conflict_resolver.dart` (`_autoMerge`)،
+`sync_core/sync_pull_service.dart` (`checkAndResolveConflict` + `_recordCriticalConflictForReview`)،
+`appwrite_sync_manager.dart` (`_occCheckAndMerge` + `_recordCriticalConflictForReview`).
 
----
+### 7.3 G-11 (P0 — كشفه اختبار G-4 على CI): التعارضات كانت تُفقد بصمت
+`ConflictManager._persistConflict` كان يُدرج التعارض بـ `logId = latestLog?.id ?? 0`؛ عند خلو جدول
+`sync_log` يفشل الإدراج بـ `FOREIGN KEY constraint failed (787)` ثم **يُبتلع الخطأ في `catch`**
+⇒ التعارض المالي لا يصل لشاشة المراجعة إطلاقاً بلا أي أثر.
+
+**الإصلاح:** إنشاء سجل مزامنة «مرساة» (`status='conflict'`) عند الحاجة قبل ربط التعارض،
+وتسجيل الفشل بمستوى خطأ مرئي (`developer.log`) بدل الابتلاع الصامت.
+
+**اختبارات الإثبات:** `test/unit/financial_identity_audit_test.dart` (3 اختبارات G-4 — منها
+التحقق الفعلي من كتابة صف `sync_conflicts` بـ `resolution=''`) و
+`test/unit/conflict_resolution_fix_test.dart` (سياسة الحقول الحرجة + برهان أن `newerWins`
+ما زال يعمل على الحقول غير الحرجة).
 
 ## 8) فصل المنطق عن Appwrite (البند 8) وجاهزية تغيير المزوّد (البند 9)
 
@@ -307,7 +318,7 @@ WHERE p.amount > 0 AND (c.local_uuid IS NULL OR c.local_uuid = '');
 
 | الأولوية | الإصلاح | الملفات | اختبار الإثبات |
 |---|---|---|---|
-| P0-1 | سياسة تعارض صريحة للحقول المالية الحرجة (G-4): منع الدمج الصامت + كتابة `sync_conflicts` + تقرير | `sync_core/conflict_detector.dart`, `sync_core/smart_conflict_resolver.dart`, مستدعيا الدمج | `concurrent_critical_field_conflict` |
+| ~~P0-1~~ ✅ **منفَّذ** | سياسة تعارض صريحة للحقول المالية الحرجة (G-4) + إصلاح فقدان التعارضات (G-11) | `sync_core/smart_conflict_resolver.dart`, `sync_core/sync_pull_service.dart`, `appwrite_sync_manager.dart`, `conflict_manager.dart` | ✅ 21 اختبار هوية + 75 حارس على CI |
 | P0-0 | **G-10**: منع تقريب المبالغ الكسرية عبر المزوّد (وحدات صغرى ×100 أو سمة كسرية) + حارس «لا تقريب صامت» | `salary_withdrawals_adapter.dart:235`, `cash_transactions_adapter.dart:137`, `debts_adapter.dart:232`, `sync/payload_mapper.dart:302,499,860` | `G-10` في `financial_identity_audit_test.dart` (يصبح `expect(targetAmount, 150.5)`) |
 | P0-2 | حفظ `cycle_uuid` محليًا + في حمولة الـ outbox + إدراجه في الرفع من الصف (G-1) | migration + `local_db.dart`, `salary_payments_adapter.dart`, `payload_mapper.dart`, `appwrite_sync_manager.dart` | `G-1` في `financial_identity_audit_test.dart` (يصبح `expect(stats.deferred, isEmpty)`) |
 | P1-3 | تصعيد ازدواج `serverId` إلى تقرير المراجعة بدل الاختيار (G-3) | `adapters/id_resolver.dart` | `ambiguous_server_id_goes_to_review` |
