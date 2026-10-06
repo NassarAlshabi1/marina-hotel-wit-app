@@ -45,9 +45,9 @@ jobs:
           mkdir -p .arena
           {
             echo "### identity audit tests ($(date -u +%FT%TZ))"
-            flutter test test/unit/financial_identity_audit_test.dart --reporter compact 2>&1 | tail -60
+            flutter test test/unit/financial_identity_audit_test.dart --reporter compact 2>&1 | grep -vE "drift\\):|GeneratedDatabase|_whenConstructed|_handleInstantiated|Invoker|Declarer|asynchronous suspension|This warning|Try to follow|package:drift" | tail -250
           } > .arena/identity-test-report.txt
-          tr '\r' '\n' < .arena/identity-test-report.txt | grep -E "All tests passed|Some tests failed|Failing tests|Expected:|Actual:" | tail -20
+          tr '\r' '\n' < .arena/identity-test-report.txt | grep -E "All tests passed|Some tests failed|\[E\]|Failing tests|Expected:|Actual:|Which:|Exception|Error" | tail -40
 
       - name: Run guard suites
         continue-on-error: true
