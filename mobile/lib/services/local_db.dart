@@ -187,6 +187,8 @@ class Expenses extends Table with SyncFields {
       boolean().withDefault(const Constant(false))();
   // ✅ v2: UUID الموظف المرتبط (لمصروفات الرواتب والسلف)
   TextColumn get employeeUuid => text().nullable()();
+  // Stable reverse link to the mirrored salary withdrawal.
+  TextColumn get withdrawalUuid => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -196,6 +198,10 @@ class Expenses extends Table with SyncFields {
     Index(
       'idx_expenses_category',
       'CREATE INDEX idx_expenses_category ON expenses (category_uuid)',
+    ),
+    Index(
+      'idx_expenses_withdrawal_uuid',
+      'CREATE INDEX idx_expenses_withdrawal_uuid ON expenses (withdrawal_uuid)',
     ),
     Index(
       'idx_expenses_date',
@@ -718,6 +724,8 @@ class SalaryPayments extends Table with SyncFields {
   // ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — مُستنبط من
   // دورة الدفع (salary_cycles.employee_uuid) ومُردَّم في migration 68.
   TextColumn get employeeUuid => text().nullable()();
+  // Portable cycle identity; cycle_id remains a device-local FK.
+  TextColumn get cycleUuid => text().nullable()();
   IntColumn get amount => integer().withDefault(const Constant(0))();
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get paymentDateIso => text()();
@@ -733,6 +741,10 @@ class SalaryPayments extends Table with SyncFields {
     Index(
       'idx_salary_payments_employee_uuid',
       'CREATE INDEX idx_salary_payments_employee_uuid ON salary_payments (employee_uuid)',
+    ),
+    Index(
+      'idx_salary_payments_cycle_uuid',
+      'CREATE INDEX idx_salary_payments_cycle_uuid ON salary_payments (cycle_uuid)',
     ),
   ];
 }
@@ -758,6 +770,8 @@ class SalaryWithdrawals extends Table with SyncFields {
   // → أخطاء صامتة وعدم استفادة من type safety.
   // الآن مُعلن ومتاح عبر ORM. (migration 42 يضمن وجوده في DBs القديمة)
   IntColumn get expenseId => integer().nullable()();
+  // Portable expense identity; expense_id remains a device-local link.
+  TextColumn get expenseUuid => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -772,6 +786,10 @@ class SalaryWithdrawals extends Table with SyncFields {
       'idx_salary_withdrawals_expense',
       'CREATE INDEX idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
     ),
+    Index(
+      'idx_salary_withdrawals_expense_uuid',
+      'CREATE INDEX idx_salary_withdrawals_expense_uuid ON salary_withdrawals (expense_uuid)',
+    ),
   ];
 }
 
@@ -781,6 +799,8 @@ class SalaryWithdrawals extends Table with SyncFields {
 class SalaryCarryOverLogs extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get employeeId => integer().references(Employees, #id)();
+  // Portable employee identity; employee_id remains a device-local FK.
+  TextColumn get employeeUuid => text().nullable()();
   RealColumn get amount => real()();
   TextColumn get previousCycleStart => text()();
   TextColumn get previousCycleEnd => text()();
@@ -799,6 +819,10 @@ class SalaryCarryOverLogs extends Table with SyncFields {
     Index(
       'idx_salary_carryover_employee',
       'CREATE INDEX idx_salary_carryover_employee ON salary_carry_over_logs (employee_id)',
+    ),
+    Index(
+      'idx_salary_carryover_employee_uuid',
+      'CREATE INDEX idx_salary_carryover_employee_uuid ON salary_carry_over_logs (employee_uuid)',
     ),
   ];
 }
@@ -1268,7 +1292,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 69;
+  int get schemaVersion => 70;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1309,6 +1333,22 @@ class AppDatabase extends _$AppDatabase {
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid '
         'ON salary_payments (employee_uuid)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid '
+        'ON salary_withdrawals (expense_uuid)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_expenses_withdrawal_uuid '
+        'ON expenses (withdrawal_uuid)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid '
+        'ON salary_payments (cycle_uuid)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee_uuid '
+        'ON salary_carry_over_logs (employee_uuid)',
       );
     },
     onUpgrade: (m, from, to) async {
@@ -3582,6 +3622,69 @@ class AppDatabase extends _$AppDatabase {
           'CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid '
           'ON salary_payments (employee_uuid)',
         );
+      }
+
+      // Version 70: provider-independent financial relationship identities.
+      // Backfill uses explicit local foreign keys only. It never guesses by
+      // employee, amount, date, or description.
+      if (from < 70) {
+        for (final stmt in [
+          'ALTER TABLE salary_withdrawals ADD COLUMN expense_uuid TEXT',
+          'ALTER TABLE expenses ADD COLUMN withdrawal_uuid TEXT',
+          'ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT',
+          'ALTER TABLE salary_carry_over_logs ADD COLUMN employee_uuid TEXT',
+        ]) {
+          try {
+            await m.database.customStatement(stmt);
+          } catch (e) {
+            developer.log(
+              'Migration 70: column may already exist: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+
+        await m.database.customStatement('''
+          UPDATE salary_withdrawals
+          SET expense_uuid = (
+            SELECT e.local_uuid FROM expenses e
+            WHERE e.id = salary_withdrawals.expense_id)
+          WHERE expense_uuid IS NULL AND expense_id IS NOT NULL
+          ''');
+        // A reverse link is safe only when the explicit local relation has one
+        // candidate. Ambiguous historical rows remain null for review.
+        await m.database.customStatement('''
+          UPDATE expenses
+          SET withdrawal_uuid = (
+            SELECT sw.local_uuid FROM salary_withdrawals sw
+            WHERE sw.expense_id = expenses.id)
+          WHERE withdrawal_uuid IS NULL
+            AND (SELECT COUNT(*) FROM salary_withdrawals sw
+                 WHERE sw.expense_id = expenses.id) = 1
+          ''');
+        await m.database.customStatement('''
+          UPDATE salary_payments
+          SET cycle_uuid = (
+            SELECT sc.local_uuid FROM salary_cycles sc
+            WHERE sc.id = salary_payments.cycle_id)
+          WHERE cycle_uuid IS NULL AND cycle_id IS NOT NULL
+          ''');
+        await m.database.customStatement('''
+          UPDATE salary_carry_over_logs
+          SET employee_uuid = (
+            SELECT e.local_uuid FROM employees e
+            WHERE e.id = salary_carry_over_logs.employee_id)
+          WHERE employee_uuid IS NULL AND employee_id IS NOT NULL
+          ''');
+
+        for (final sql in [
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid ON salary_withdrawals (expense_uuid)',
+          'CREATE INDEX IF NOT EXISTS idx_expenses_withdrawal_uuid ON expenses (withdrawal_uuid)',
+          'CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid ON salary_payments (cycle_uuid)',
+          'CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee_uuid ON salary_carry_over_logs (employee_uuid)',
+        ]) {
+          await m.database.customStatement(sql);
+        }
       }
     },
   );
