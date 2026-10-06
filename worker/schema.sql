@@ -544,6 +544,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   cash_flow_uuid TEXT,
   is_auto_generated INTEGER NOT NULL DEFAULT 0,
   employee_uuid TEXT,
+  withdrawal_uuid TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -566,6 +567,7 @@ CREATE INDEX IF NOT EXISTS idx_expenses_hotel_day ON expenses(hotel_day_key);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_uuid);
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
 CREATE INDEX IF NOT EXISTS idx_expenses_deleted ON expenses(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_expenses_withdrawal_uuid ON expenses(withdrawal_uuid);
 
 -- ─── Debts ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS debts (
@@ -630,6 +632,7 @@ CREATE TABLE IF NOT EXISTS salary_payments (
   -- ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — migration 0007
   -- (مُردَّم من دورة الدفع salary_cycles عبر employee_uuid).
   employee_uuid TEXT,
+  cycle_uuid TEXT,
   amount INTEGER NOT NULL DEFAULT 0,
   hotel_day_key TEXT,
   payment_date_iso TEXT NOT NULL,
@@ -655,6 +658,7 @@ CREATE TABLE IF NOT EXISTS salary_payments (
 CREATE INDEX IF NOT EXISTS idx_salary_payments_updated ON salary_payments(updated_at);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid ON salary_payments(employee_uuid);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle ON salary_payments(cycle_id, hotel_day_key);
+CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid ON salary_payments(cycle_uuid);
 
 -- ─── Salary Withdrawals ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS salary_withdrawals (
@@ -670,6 +674,7 @@ CREATE TABLE IF NOT EXISTS salary_withdrawals (
   withdrawal_type TEXT,
   description TEXT,
   expense_id INTEGER,
+  expense_uuid TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -690,12 +695,14 @@ CREATE TABLE IF NOT EXISTS salary_withdrawals (
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_updated ON salary_withdrawals(updated_at);
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee ON salary_withdrawals(employee_id);
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense ON salary_withdrawals(expense_id);
+CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid ON salary_withdrawals(expense_uuid);
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_hotel_day ON salary_withdrawals(hotel_day_key);
 
 -- ─── Salary Carry-Over Logs ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   employee_id INTEGER NOT NULL,
+  employee_uuid TEXT,
   amount REAL NOT NULL,
   previous_cycle_start TEXT NOT NULL,
   previous_cycle_end TEXT NOT NULL,
@@ -728,6 +735,7 @@ CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_salary_carryover_updated ON salary_carry_over_logs(updated_at);
 CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee ON salary_carry_over_logs(employee_id);
+CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee_uuid ON salary_carry_over_logs(employee_uuid);
 
 -- ─── Shift Notes ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS shift_notes (

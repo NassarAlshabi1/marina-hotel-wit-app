@@ -36,10 +36,10 @@ async function columnsOf(table: string): Promise<Map<string, ColumnInfo>> {
 const EXPECTED: Record<string, Record<string, string>> = {
   // ✅ (2026-09-19) عقد employee_uuid — المفتاح المستقر عبر الأجهزة
   // لموظف في كل جداول الرواتب (توجيه المستخدم؛ migration 0007).
-  expenses: { employee_uuid: 'TEXT' },
-  salary_withdrawals: { employee_uuid: 'TEXT' },
+  expenses: { employee_uuid: 'TEXT', withdrawal_uuid: 'TEXT' },
+  salary_withdrawals: { employee_uuid: 'TEXT', expense_uuid: 'TEXT' },
   salary_cycles: { employee_uuid: 'TEXT' },
-  salary_payments: { employee_uuid: 'TEXT' },
+  salary_payments: { employee_uuid: 'TEXT', cycle_uuid: 'TEXT' },
   bookings: { financial_frozen_at: 'INTEGER', financial_hash: 'TEXT' },
   guest_infos: { guest_phone: 'TEXT' },
   booking_nights: {
@@ -66,6 +66,7 @@ const EXPECTED: Record<string, Record<string, string>> = {
     date: 'TEXT',
   },
   salary_carry_over_logs: {
+    employee_uuid: 'TEXT',
     from_cycle_id: 'TEXT',
     to_cycle_id: 'TEXT',
     carry_date: 'TEXT',
