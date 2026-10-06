@@ -457,6 +457,42 @@ TextColumn get idempotencyKey
 
 ---
 
+## 8.6) ✅ F-D1-1 (كشفها التحقق من حقول الرفع — 2026-10-06): العمود المُضاف بـ ALTER بلا اقتباس كان غير مرئي لمصالحة مخطط D1
+
+### كيف اكتُشفت (لا تخمين)
+اختبار حقول الهوية الذي أُضيف في هذه الجولة فشل فعلياً على CI برسالة دقيقة:
+
+```
+Expected: empty
+  Actual: ['salary_payments.cycle_uuid']
+DDL المنقول إلى D1 لا يتضمن حقول الهوية ⇒ _reconcileSchema لن يستطيع إضافتها
+```
+
+### السبب الجذري (مُثبت في الكود)
+1. `beforeOpen` في `local_db.dart` يضيف عمود G-1 بعبارة **بلا اقتباس**:
+   `ALTER TABLE salary_payments ADD COLUMN cycle_uuid TEXT`.
+2. SQLite يلحق نص العمود بنص `CREATE TABLE` في `sqlite_master` **كما كُتب في العبارة**
+   ⇒ يصبح النص: `..., cycle_uuid TEXT, PRIMARY KEY (...)`.
+3. محلل الأعمدة `_columnFragments` في `cloudflare_d1_service.dart` كان يشترط اسماً
+   **مقتبساً** (`RegExp(r'^"([^"]+)"\s+(.*)$')`) ⇒ لا يعرف `cycle_uuid`.
+4. `_reconcileSchema` كان يتجاهل العمود غير المعروف **بصمت** (`if (raw == null) continue`).
+   والنتيجة على D1: الجدول موجود مسبقاً (CREATE يُتخطى)، والعمود غير موجود ⇒
+   `INSERT OR REPLACE` يذكر `cycle_uuid` ⇒ **فشل رفع جدول `salary_payments` كاملاً**
+   (وهو جدول الرواتب: لا نسخة احتياطية منه على D1 إلى أن يُصلح).
+
+### الإصلاح (إضافي، بلا أي كتابة على D1 أو على بيانات الإنتاج)
+- المحلل يقبل الآن **المقتبس وغير المقتبس**، ويستبعد كلمات القيود صراحةً
+  (`PRIMARY/UNIQUE/CHECK/FOREIGN/CONSTRAINT`) كي لا تُحسب أعمدة.
+- `ALTER ... ADD COLUMN "cycle_uuid"` صار مقتبساً في `beforeOpen` (نمط Drift نفسه)
+  لتصبح نصوص الأجهزة الجديدة متوافقة تماماً.
+- `_reconcileSchema` صار **يُعلن** أسماء الأعمدة التي تعذّر تعريفها بدل الصمت
+  (`تنبيه: تعذر تعريف أعمدة في DDL المحلي لـ <جدول>: …`) فيعرف المستخدم سبب فشل الجدول فوراً.
+- اختباران: (أ) اختبار المحلل على نص DDL فيه عمود غير مقتبس مُلحق بقيود،
+  (ب) اختبار انحدار كامل بمعرّف HTTP مزيّف يحاكي D1 بلا `cycle_uuid` ويثبت صدور
+  `ADD COLUMN "cycle_uuid" TEXT` قبل `INSERT OR REPLACE`.
+
+---
+
 ## 9) السجلات التاريخية غير المؤكدة (البند 12) — إجراء دون تخمين
 
 **ممنوع** ربط أي سجل تاريخي اعتمادًا على `id` أو الاسم أو المبلغ أو التاريخ أو التشابه.
@@ -547,6 +583,8 @@ WHERE p.amount > 0 AND (c.local_uuid IS NULL OR c.local_uuid = '');
 | ~~P1-5~~ ✅ **منفَّذ** (الحارس **G-7**) | تنطيق المؤشرات بالمزوّد + تأسيس إجباري عند التحويل | `sync_core/provider_scope.dart`, `sync_core/sync_checkpoint_store.dart`, `delta_sync_service.dart`, `sync_pull_service.dart` | ✅ `provider_scope_g7_test.dart` |
 | ~~P2-6~~ ✅ **منفَّذ** (تقرير **G-8**) | تقرير المراجعة القابل للتصدير (قراءة فقط) | `services/review_report_service.dart` | ✅ `review_report_g8_test.dart` |
 | ~~P2-7~~ ✅ **منفَّذ 2026-10-06** | تصنيف المرايا بمستوى الإثبات (`identity`/`provenNumeric`/`dataMatch`/`unprovenMarker`) ومنع الربط الرقمي بلا إثبات نفس الجهاز الكاتب + ورقة «مرايا حُكمية» في تقرير المراجعة (G-5) | `salary_mirror_matcher.dart`, `review_report_service.dart`, التقارير الثلاثة | ✅ `financial_links_g1_g2_test.dart` → `P2-7` + الاختبار السلبي في `salary_mirror_cross_device_test.dart` |
+| ~~P2-11~~ ✅ **منفَّذ 2026-10-06** | **ربط الموظف في الاستحقاق كان بالرقم المحلي وحده** (`related_id`/`employee_id`) ⇒ صف يعلن انتماءه لهوية موظف آخر يُنسب لغير صاحبه بصمت | `salary_entitlement_service.dart` (`shouldAttributeRow` + `_getEmployeeExpenses`/`_getEmployeeWithdrawals`) | ✅ `entitlement_identity_attribution_test.dart` (9 اختبارات) |
+| ~~P2-12~~ ✅ **منفَّذ 2026-10-06** | **رفع D1: عمود أُضيف بـ `ALTER` بلا اقتباس لا يراه محلل DDL** ⇒ لا يُضاف إلى D1 ⇒ يفشل `INSERT` الجدول كاملاً هناك (كشفه اختبار حقول الهوية) | `cloudflare_d1_service.dart` (`_columnFragments` يقبل المقتبس وغير المقتبس + إعلان الأعمدة غير القابلة للتعريف)، `local_db.dart` (ALTER مقتبس) | ✅ `cloudflare_d1_upload_fields_test.dart` (اختبار انحدار: D1 بلا العمود ⇒ صدور ALTER قبل INSERT + اختبار المحلل) |
 | ~~P2-8~~ ✅ **مُوثَّق 2026-10-06** | توثيق `serverId = رقم جهاز المصدر` كحقل غير هوية + خريطة نقل الهويات بين المزوّدين (G-6/G-9) | هذا المستند §12-أ + §8.4 | مراجعة يدوية |
 | ~~P2-9~~ ✅ **منفَّذ 2026-10-06** | عدّاد «سحب الآن» كان يعلن السجلات المؤجَّلة (ناقصة الربط) كمطبَّقة ⇒ فرق المخزن (pending+needs_review) يُخصم ويُسجَّل | `utils/identity_gate.dart`, `appwrite_sync_manager.dart` | ✅ `identity_gate_p2_test.dart` (P2-9) |
 | ~~P2-10~~ ✅ **منفَّذ 2026-10-06** | نتائج الرفع كانت تُطابق بالسجل **بالترتيب** ⇒ كتابة `server_id` على صف آخر عند إعادة الترتيب/رد جزئي. الآن بوابة هوية: تُقارن الهوية المُعادة أو يُرفض الكتابة | `utils/identity_gate.dart`, `sync_service.dart` | ✅ `identity_gate_p2_test.dart` (P2-10) |
@@ -686,3 +724,21 @@ flutter test test/unit/id_resolver_cross_device_test.dart \
                                      ──► DeferredRelationStore (حمولة كاملة) ──► DeferredRelationRelinker
                                          (ربط بـ UUID بعد وصول الأب — idempotent؛ ما لا يُثبت ⇒ تقرير المراجعة)
 ```
+
+---
+
+### جولة الإثبات النهائية #2 — مطابقة CI حرفياً (2026-10-06، الشجرة النهائية)
+
+نفس أوامر `CI / lint-test` حرفياً على الشجرة النهائية للفرع (بعد تطبيق تنسيق `dart format .` عليها):
+
+| الفحص (نفس أمر CI) | النتيجة |
+|---|---|
+| `dart format --output=none --set-exit-if-changed .` (كل المستودع) | **0 تغييرات** — «Formatted 590 files (0 changed)» |
+| `dart run build_runner build` | «wrote 1148 outputs» — بلا أخطاء |
+| `flutter analyze --no-fatal-infos --no-fatal-warnings` | **0 أخطاء** — «4 issues found» (نفس الملاحظات الأربع القائمة قبلاً، خارج هذا العمل) |
+| المجموعة المستهدفة (الهوية المالية، حقول D1، ربط الاستحقاق، بحث الهيد، …) | **🎉 77/77 — صفر فشل** (قبل الإصلاح كانت 77 نجاحاً + 1 فشل تحميل من ملف محذوف) |
+| المجموعة الكاملة `flutter test` | **🎉 1002 اختباراً — 0 فشل** (خط الأساس قبل العمل: 987) |
+| CI / Enterprise Quality Gate / Mobile Quality Gate / Performance Benchmarks | ✅ نجحت كلها على الالتزام النهائي `138cfe2` |
+
+ملاحظة أمانة: المجموعة «المستهدفة» في جولة سابقة سجّلت فشلاً وهمياً واحداً فقط لأنها كانت لا تزال تُشغّل
+ملف اختبار شاشة محذوفاً؛ الملف أُزيل من قائمة السير، والتشغيل النهائي نظيف.
