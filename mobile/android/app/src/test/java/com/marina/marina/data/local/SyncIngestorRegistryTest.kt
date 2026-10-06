@@ -1187,7 +1187,8 @@ class SyncIngestorRegistryTest {
             )
             store.put("expenses", report)
             suspend fun check(amount: Double) {
-                val state = withTimeout(10_000) { report.state.first { !it.isLoading } }
+                // نفس سبب awaitSettledReport: سباق قراءة حالة دورة سابقة.
+                val state = awaitSettledReport(report.state) { !it.isLoading && it.totalAmount == amount + 300.0 }
                 val expected = listOf(amount, 100.0, 200.0).sorted()
                 assertEquals(expected, state.groups.flatMap { it.rows }.map { it.amount }.sorted())
                 assertEquals(amount + 300.0, state.totalAmount, 0.0)
@@ -1240,11 +1241,15 @@ class SyncIngestorRegistryTest {
             )
             store.put("income", income)
             suspend fun check(amount: Double) {
-                val state = withTimeout(10_000) { report.state.first { !it.isLoading } }
+                // انتظار تقارب لا «أول حالة غير حاملة»: fetch() غير متزامنة، وقد
+                // تُقرأ حالة دورة سابقة قبل أن يبدأ التحديث (سباق رُصد في CI:
+                // expected:<475.0> but was:<400.0>). الانتظار على القيمة
+                // المتوقعة نفسها يُبقي الاختبار يفشل إن لم يُعكس التعديل أبداً.
+                val state = awaitSettledReport(report.state) { !it.isLoading && it.totalAll == amount + 300.0 }
                 assertEquals(listOf(amount, 100.0, 200.0).sorted(), state.rows.map { it.payment.amount }.sorted())
                 assertEquals(amount + 300.0, state.totalAll, 0.0)
                 assertEquals(originals.map { it.localUuid }.toSet(), state.rows.map { it.payment.localUuid }.toSet())
-                val incomeState = withTimeout(10_000) { income.state.first { !it.isLoading } }
+                val incomeState = awaitSettledReport(income.state) { !it.isLoading && it.incomeTotal == amount + 300.0 }
                 assertEquals(3, incomeState.entries.size)
                 assertEquals(amount + 300.0, incomeState.incomeTotal, 0.0)
                 assertEquals(amount + 300.0, incomeState.net, 0.0)
@@ -1282,13 +1287,13 @@ class SyncIngestorRegistryTest {
             bookings.update(bookings.getById(bookingId)!!)
             val report = com.marina.marina.presentation.reports.PaymentsReportViewModel(payments, bookings)
             store.put("payments", report)
-            val before = withTimeout(10_000) { report.state.first { !it.isLoading } }
+            val before = awaitSettledReport(report.state) { !it.isLoading && it.totalDue == 1000.0 }
             assertEquals(1000.0, before.totalDue, 0.0)
             assertEquals(300.0, before.totalAll, 0.0)
             assertEquals(700.0, before.totalRemaining, 0.0)
             payments.update(db.paymentsDao().getById(first)!!.toDomain().copy(amount = 150.0))
             report.fetch()
-            val after = withTimeout(10_000) { report.state.first { !it.isLoading } }
+            val after = awaitSettledReport(report.state) { !it.isLoading && it.totalAll == 350.0 }
             assertEquals(2, after.rows.size)
             assertEquals(350.0, after.totalAll, 0.0)
             assertEquals("Remaining must reflect the edited payment, not stale booking cache", 650.0, after.totalRemaining, 0.0)
@@ -1507,7 +1512,8 @@ class SyncIngestorRegistryTest {
             )
             store.put("report", report)
             suspend fun assertReport(amount: Double, independent: Double = 0.0) {
-                val state = withTimeout(10_000) { report.state.first { !it.isLoading } }
+                // نفس سبب awaitSettledReport: سباق قراءة حالة دورة سابقة.
+                val state = awaitSettledReport(report.state) { !it.isLoading && it.totalAmount == amount + independent }
                 val rows = state.groups.flatMap { it.rows }
                 assertEquals(if (independent == 0.0) 1 else 2, rows.size)
                 assertEquals(amount, rows.single { !it.isSalaryWithdrawal }.amount, 0.0)
@@ -1842,4 +1848,24 @@ class SyncIngestorRegistryTest {
         assertEquals(1, db.pendingSyncLinksDao().getAll().size)
     }
 
+
+    /**
+     * انتظار **تقارب** حالة تقرير على القيمة المتوقعة بعد `fetch()`.
+     *
+     * السبب: `fetch()` تُحدّث الحالة على `viewModelScope` بينما الاختبار
+     * يقرأ `state.first { !it.isLoading }` — وقد يقرأ حالة *دورة سابقة*
+     * (isLoading=false) قبل أن يبدأ التحديث الجديد أصلاً، أو قبل أن
+     * يُطبَّق نتيجته، فيسقط الاختبار عشوائياً حسب جدولة الخيوط. رُصد فعلاً
+     * في CI على `threeIndependentPaymentsSurviveRepeatedEditsInPaymentAndIncomeReports`:
+     * `expected:<475.0> but was:<400.0>` — أي أن تقرير الدخل قُرئ قبل
+     * تطبيق تعديل الدفعة (400 = المجموع القديم).
+     *
+     * الانتظار هنا على القيمة نفسها لا على العلم: إن لم يُعكس التعديل
+     * إطلاقاً (الانحدار الحقيقي الذي يحرسه الاختبار) ينتهي المهلة ويفشل
+     * الاختبار — فلا يتحول الإصلاح إلى تخفيف للفحص.
+     */
+    private suspend fun <T> awaitSettledReport(
+        flow: kotlinx.coroutines.flow.StateFlow<T>,
+        expected: (T) -> Boolean
+    ): T = withTimeout(10_000) { flow.first(expected) }
 }
