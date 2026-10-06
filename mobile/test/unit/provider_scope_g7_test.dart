@@ -83,12 +83,7 @@ void main() {
     await db.customStatement(
       'INSERT INTO deferred_relations (collection_name, local_uuid, '
       'payload_json, state) VALUES (?, ?, ?, ?)',
-      [
-        d.Variable.withString('salary_withdrawals'),
-        d.Variable.withString('sw-keep'),
-        d.Variable.withString('{"localUuid":"sw-keep"}'),
-        d.Variable.withString('pending'),
-      ],
+      ['salary_withdrawals', 'sw-keep', '{"localUuid":"sw-keep"}', 'pending'],
     );
   }
 

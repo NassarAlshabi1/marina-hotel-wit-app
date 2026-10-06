@@ -47,8 +47,7 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
       final lines = report.summary.entries
           .where((e) => e.value > 0)
           .map((e) => '• ${e.key}: ${e.value}')
-          .join('
-');
+          .join('\n');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

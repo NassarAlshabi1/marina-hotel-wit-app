@@ -132,7 +132,7 @@ void main() {
 
     // (هـ) تعارض مسجّل.
     await db.customStatement(
-      'INSERT INTO sync_logs (sync_id, direction, device_id, metadata, '
+      'INSERT INTO sync_log (sync_id, direction, device_id, metadata, '
       "operations, status, created_at) VALUES ('log-1', 'push', 'devA', "
       "'{}', '[]', 'failed', ?)",
       [DateTime.now().toIso8601String()],

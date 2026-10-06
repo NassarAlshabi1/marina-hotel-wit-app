@@ -163,9 +163,19 @@ class MoneyIntegrityService {
       table: 'debts',
       sql: 'SELECT local_uuid, total_amount AS amount FROM debts',
     );
+    // ✅ (G-8 / 2026-10-06 — تغطية موثّقة): كان الفحص يشير إلى عمود
+    // `amount` غير الموجود في `price_adjustments` (الجدول يخزّن
+    // `previous_value`/`new_value`) فكان الاستعلام يفشل بالكامل ويُسجَّل
+    // تحذيراً فقط ⇒ الجدول كله **خارج التغطية بصمت**. الآن يُفحص العمودان
+    // الحقيقيان (Real) كما هي ممارسة الجدول.
     await scanTable(
-      table: 'price_adjustments',
-      sql: 'SELECT local_uuid, amount FROM price_adjustments',
+      table: 'price_adjustments.previous_value',
+      sql:
+          'SELECT local_uuid, previous_value AS amount FROM price_adjustments',
+    );
+    await scanTable(
+      table: 'price_adjustments.new_value',
+      sql: 'SELECT local_uuid, new_value AS amount FROM price_adjustments',
     );
     await scanTable(
       table: 'booking_price_adjustments',
@@ -233,6 +243,65 @@ class MoneyIntegrityService {
       sql:
           'SELECT local_uuid, amount_impact AS amount FROM audit_logs '
           'WHERE amount_impact IS NOT NULL',
+    );
+    // ✅ (G-8 / 2026-10-06 — سدّ ثغرات التغطية): أعمدة مالية من نوع REAL
+    // كانت خارج الفحص كلياً (لا تُبلَّغ ولا تُفحص). أُضيفت هنا لأن سياسة
+    // «لا كسور عشرية» تُقاس بما يُفحص فعلاً، لا بما يُفترض أنه يُفحص.
+    // (أعمدة المبالغ من نوع INTEGER مثل salary_cycles/salary_payments/
+    // audit_logs.amount_impact لا تقبل كسوراً بنيوياً — لا حاجة لفحصها.)
+    await scanTable(
+      table: 'employees.basic_salary',
+      sql:
+          'SELECT local_uuid, basic_salary AS amount FROM employees '
+          'WHERE deleted_at IS NULL',
+    );
+    await scanTable(
+      table: 'bookings.total_paid_cached',
+      sql:
+          'SELECT local_uuid, total_paid_cached AS amount FROM bookings '
+          'WHERE deleted_at IS NULL AND total_paid_cached IS NOT NULL',
+    );
+    await scanTable(
+      table: 'debts.amount',
+      sql:
+          'SELECT local_uuid, amount AS amount FROM debts '
+          'WHERE amount IS NOT NULL',
+    );
+    await scanTable(
+      table: 'debts.paid_amount',
+      sql:
+          'SELECT local_uuid, paid_amount AS amount FROM debts '
+          'WHERE paid_amount IS NOT NULL',
+    );
+    await scanTable(
+      table: 'debts.remaining_amount',
+      sql:
+          'SELECT local_uuid, remaining_amount AS amount FROM debts '
+          'WHERE remaining_amount IS NOT NULL',
+    );
+    await scanTable(
+      table: 'booking_nights.base_rate',
+      sql:
+          'SELECT local_uuid, base_rate AS amount FROM booking_nights '
+          'WHERE deleted_at IS NULL AND base_rate IS NOT NULL',
+    );
+    await scanTable(
+      table: 'booking_nights.final_rate',
+      sql:
+          'SELECT local_uuid, final_rate AS amount FROM booking_nights '
+          'WHERE deleted_at IS NULL AND final_rate IS NOT NULL',
+    );
+    await scanTable(
+      table: 'hotel_day_ledger.pending_balances',
+      sql:
+          'SELECT hotel_day_key AS local_uuid, pending_balances AS amount '
+          'FROM hotel_day_ledger WHERE pending_balances IS NOT NULL',
+    );
+    await scanTable(
+      table: 'payment_voids.original_amount',
+      sql:
+          'SELECT local_uuid, original_amount AS amount FROM payment_voids '
+          'WHERE original_amount IS NOT NULL',
     );
 
     AppLogger.info(
