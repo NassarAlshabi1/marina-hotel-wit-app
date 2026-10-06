@@ -220,7 +220,7 @@ class SyncPullParityTest {
             val tombstonesOnly = args!![5] as Boolean?
             if (tombstonesOnly == true) {
                 sweepCalls++
-                callOf(Response.error(500, "boom".toResponseBody(null)))
+                callOf(Response.error<Unit>(500, "boom".toResponseBody(null)))
             } else {
                 callOf(Response.success(WorkerPullResponse(
                     changes = emptyList(), cursor = "778", epoch = "parity", hasMore = false,

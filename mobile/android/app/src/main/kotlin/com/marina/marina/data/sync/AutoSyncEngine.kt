@@ -36,9 +36,14 @@ class AutoSyncEngine @Inject constructor(
     private val outboxRepositoryProvider: Lazy<OutboxRepository>,
     private val preferences: SyncPreferences,
     private val serviceProvider: Lazy<CloudflareSyncService>,
-    private val realtime: CloudflareRealtimeClient
+    private val realtimeProvider: Lazy<CloudflareRealtimeClient>
 ) {
     private val syncManager: SyncManager get() = syncManagerProvider.get()
+    /**
+     * عميل Realtime يُحلّ عند الحاجة فقط — لا يفتح مقبساً ولا يكلّف شبكة
+     * أثناء الإقلاع (نمط `Lazy` المستخدم لباقي التبعات الثقيلة هنا).
+     */
+    private val realtime: CloudflareRealtimeClient get() = realtimeProvider.get()
     private val outboxRepository: OutboxRepository get() = outboxRepositoryProvider.get()
     private val connectivityManager by lazy {
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
