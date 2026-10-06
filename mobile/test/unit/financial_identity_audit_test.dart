@@ -1241,10 +1241,14 @@ void main() {
           reason: 'لا سجل مفقود في الانتقال (البند 9: نقل كامل بلا فقد)',
         );
 
-        // 1) الأعداد
+        // 1) الأعداد — نستثني «موظف الحشو» الذي أُدرج عمدًا لتغيير الترقيم
+        final importedEmployees = (await target.select(target.employees).get())
+            .where((e) => e.localUuid != 'filler-emp')
+            .toList();
         expect(
-          (await target.select(target.employees).get()).length,
+          importedEmployees.length,
           (await source.select(source.employees).get()).length,
+          reason: 'كل موظف انتقل مرة واحدة بالضبط (لا فقد ولا تكرار)',
         );
         expect(
           (await target.select(target.expenses).get()).length,

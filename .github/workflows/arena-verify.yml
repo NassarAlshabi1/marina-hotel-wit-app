@@ -65,7 +65,7 @@ jobs:
             flutter test test/unit/financial_identity_audit_test.dart --reporter expanded 2>&1
             echo "IDENTITY_EXIT=$?"
           } >> .arena/identity-test-report.txt
-          tail -c 2000 .arena/identity-test-report.txt
+          grep -nE "Failing tests|All tests passed|Some tests failed|Expected:|Actual:|Which:" .arena/identity-test-report.txt | tail -40 || true
 
       - name: Run guard tests (existing suites)
         continue-on-error: true
@@ -80,7 +80,7 @@ jobs:
               --reporter compact 2>&1
             echo "GUARD_EXIT=$?"
           } >> .arena/identity-test-report.txt
-          tail -c 2000 .arena/identity-test-report.txt
+          grep -nE "Failing tests|All tests passed|Some tests failed|Expected:|Actual:|Which:" .arena/identity-test-report.txt | tail -40 || true
 
       - name: Push report and formatted file
         run: |
