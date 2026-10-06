@@ -1,0 +1,36 @@
+name: Arena Format Financial Links
+
+on:
+  push:
+    branches:
+      - arena/287ede54-marina-hotel-wit-app
+    paths:
+      - '.github/workflows/arena-format-financial-links.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: arena/287ede54-marina-hotel-wit-app
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+      - working-directory: mobile
+        run: dart format --line-length 80 lib/services/adapters/expenses_adapter.dart lib/services/adapters/salary_carry_over_logs_adapter.dart lib/services/adapters/salary_payments_adapter.dart lib/services/adapters/salary_withdrawals_adapter.dart lib/services/repositories/salary_withdrawals_repository.dart lib/services/salary_entitlement_service.dart test/services/provider_independent_financial_links_test.dart
+      - name: Commit formatting
+        run: |
+          git config user.name "arena-ai[bot]"
+          git config user.email "arena-ai[bot]@users.noreply.github.com"
+          git add mobile
+          if ! git diff --cached --quiet; then
+            git commit -m "style(flutter): format portable financial links"
+            git push origin HEAD:arena/287ede54-marina-hotel-wit-app
+          fi
