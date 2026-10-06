@@ -1,0 +1,47 @@
+name: Arena Targeted Financial Tests
+
+on:
+  push:
+    branches:
+      - arena/287ede54-marina-hotel-wit-app
+    paths:
+      - '.github/workflows/arena-targeted-financial-tests.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: arena/287ede54-marina-hotel-wit-app
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+      - working-directory: mobile
+        run: flutter pub get
+      - working-directory: mobile
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded \
+            test/services/provider_independent_financial_links_test.dart \
+            test/services/salary_withdrawals_payload_uuid_test.dart \
+            test/unit/adapters_and_repos_test.dart \
+            test/services/employee_salary_crud_test.dart \
+            > targeted_test_report.txt 2>&1
+          code=$?
+          echo "EXIT_CODE=$code" >> targeted_test_report.txt
+          exit 0
+      - name: Commit report
+        run: |
+          git config user.name "arena-ai[bot]"
+          git config user.email "arena-ai[bot]@users.noreply.github.com"
+          git add mobile/targeted_test_report.txt
+          git commit -m "test(temp): capture financial link failures"
+          git push origin HEAD:arena/287ede54-marina-hotel-wit-app
