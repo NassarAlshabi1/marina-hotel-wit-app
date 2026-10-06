@@ -660,7 +660,7 @@ class SyncPullParityTest {
             requests.add(recordedRequest(args!!))
             callOf(Response.success(WorkerPullResponse(
                 changes = emptyList(), cursor = "7", epoch = "parity", hasMore = false,
-                remaining = 3, errors = emptyList(), serverTime = null
+                remaining = 3.0, errors = emptyList(), serverTime = null
             )))
         } as CloudflareWorkerApi
 
