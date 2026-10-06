@@ -73,14 +73,17 @@ jobs:
           fi
           ls "$ANDROID_HOME/platforms" 2>/dev/null || true
 
-      - name: Collect changed files (for scoped static analysis)
+      - name: Collect batch files (for scoped static analysis)
         run: |
-          BASE="${{ github.event.before }}"
-          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
-            BASE="HEAD~1"
-          fi
-          git diff --name-only "$BASE" HEAD > "$RUNNER_TEMP/changed.txt" 2>/dev/null || true
-          echo "--- changed files ---"
+          # ملفات الدفعة = فرق الفرع عن قاعدة الدمج agent/android-cloudflare
+          # (تاريخ كامل متاح: fetch-depth 0). هذا يجعل قياس Detekt ثابتاً على
+          # كود هذه الدفعة كلها في كل تشغيل، لا على ما تغيّر في آخر push فقط.
+          {
+            git diff --name-only origin/agent/android-cloudflare...HEAD 2>/dev/null \
+              || git diff --name-only "${{ github.event.before }}" HEAD 2>/dev/null \
+              || true
+          } > "$RUNNER_TEMP/changed.txt"
+          echo "--- batch files ---"
           cat "$RUNNER_TEMP/changed.txt"
 
       - name: Run unit tests (sync pull parity batch)
@@ -165,7 +168,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ./gradlew :app:detekt --console=plain 2>&1 | tail -40 || true
-          export CHANGED_FILES="$(git diff --name-only "${{ github.event.before || 'HEAD~1' }}" HEAD 2>/dev/null || true)"
+          export CHANGED_FILES="$(cat "$RUNNER_TEMP/changed.txt" 2>/dev/null || true)"
           python3 - <<'PY' > "$RUNNER_TEMP/detekt.json"
           import json, os, pathlib, re, xml.etree.ElementTree as ET
 
