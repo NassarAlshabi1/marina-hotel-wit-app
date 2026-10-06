@@ -15,12 +15,28 @@ class CurrencyFormatter {
   ///   - الموجب: floor  →  1000.99 → 1000، 1000.5 → 1000
   ///   - السالب: ceil   →  -500.5  → -500
   /// هذا يضمن عدم إضافة أي مبلغ على فاتورة النزيل نتيجة التقريب.
-  static int _roundAmount(double amount) {
-    if (amount >= 0) {
-      return amount.floor();
+  ///
+  /// ✅ (G-10 — تدقيق الهوية المالية 2026-10-06): هذه الدالة هي **مصدر
+  /// الحقيقة الوحيد** لسياسة «لا كسور عشرية» في التطبيق كله (عرض، إدخال،
+  /// وعبور المزوّد). أي مسار مالي (مصروف/سحب/دفعة/خزينة/دين/تعديل سعر) يجب
+  /// أن يمرّ عبرها — بدلاً من `round()` التي كانت تُقرّب لأعلى عبر المزوّد
+  /// فتختلف المجاميع بين الأجهزة (150.5 → 151) وتنكسر مطابقة المرايا.
+  static int truncateAmount(num amount) {
+    final value = amount.toDouble();
+    if (value >= 0) {
+      return value.floor();
     }
-    return amount.ceil();
+    return value.ceil();
   }
+
+  /// المبلغ وفق سياسة «لا كسور عشرية» بصيغة double (لتخزينه في أعمدة REAL).
+  static double wholeAmount(num amount) => truncateAmount(amount).toDouble();
+
+  /// هل المبلغ صحيح بلا كسور؟
+  static bool isWholeAmount(num amount) => amount == truncateAmount(amount);
+
+  /// توافق خلفي مع الاستدعاءات الداخلية القديمة.
+  static int _roundAmount(double amount) => truncateAmount(amount);
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)، وفق سياسة الفندق بدون كسور.
   ///

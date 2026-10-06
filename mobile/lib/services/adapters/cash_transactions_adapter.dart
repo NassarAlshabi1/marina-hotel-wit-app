@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/currency_formatter.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
@@ -134,7 +136,9 @@ class CashTransactionsAdapter
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'registerId', 'register_id'): model.registerId,
       _k(src, 'transactionType', 'transaction_type'): model.transactionType,
-      _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
+      _k(src, 'amount', 'amount'): CurrencyFormatter.truncateAmount(
+          model.amount,
+        ), // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
       _k(src, 'referenceType', 'reference_type'): model.referenceType,
       _k(src, 'referenceId', 'reference_id'): model.referenceId,
       _k(src, 'description', 'description'): model.description,

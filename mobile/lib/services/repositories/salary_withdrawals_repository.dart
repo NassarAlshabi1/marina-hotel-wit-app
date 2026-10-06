@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/app_logger.dart';
+import '../../utils/currency_formatter.dart';
 import '../../utils/expense_reason_matcher.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
@@ -123,6 +124,10 @@ class SalaryWithdrawalsRepository {
     String? recorderName,
     bool originIsServer = false,
   }) async {
+    // ✅ (G-10) سياسة «لا كسور عشرية»: المبلغ يُطبَّع **قبل** التخزين وقبل
+    // الـ outbox وقبل ختم المرآة على المصروف — فتبقى السحبة ومصروفها المرآة
+    // متطابقين بعد عبور المزوّد (كان .round() يُقرّب لأعلى فينكسر التطابق).
+    amount = CurrencyFormatter.truncateAmount(amount).toDouble();
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
     // ✅ وسم الجهاز — عمود deviceId موجود في SyncFields وكان يُرسل فارغاً دائماً
@@ -289,6 +294,8 @@ class SalaryWithdrawalsRepository {
     int? previousEmployeeId,
     bool originIsServer = false,
   }) async {
+    // ✅ (G-10) تطبيع المبلغ قبل الحفظ/المزامنة — لا كسور عشرية.
+    amount = CurrencyFormatter.truncateAmount(amount).toDouble();
     // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
     final employeeUuid = await _employeeUuidFor(employeeId);
 

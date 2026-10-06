@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/currency_formatter.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
@@ -228,8 +230,9 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'paidAmount', 'paid_amount'): model.paidAmount, // Cloud: double ✓
       // ✅ remainingAmount أُضيف إلى Appwrite Cloud (2026-05-15)
       // ⚠️ على Cloud هو integer — نحول من double إلى int عند الإرسال
-      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount
-          .round(),
+      _k(src, 'remainingAmount', 'remaining_amount'):
+          // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+          CurrencyFormatter.truncateAmount(model.remainingAmount),
       _k(src, 'paymentDate', 'payment_date'): model.paymentDate,
       _k(src, 'isSettled', 'is_settled'): model.isSettled,
       _k(src, 'pledge', 'pledge'): model.pledge,

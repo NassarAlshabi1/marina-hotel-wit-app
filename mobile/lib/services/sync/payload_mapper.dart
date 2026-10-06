@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../utils/currency_formatter.dart';
 import '../../utils/time.dart';
 import '../appwrite_config.dart';
 import '../appwrite_sync_utils.dart';
@@ -299,7 +300,10 @@ class PayloadMapper {
       'checkinDate': debt.checkinDate,
       'totalAmount': debt.totalAmount,
       'paidAmount': debt.paidAmount,
-      'remainingAmount': debt.remainingAmount.round(),
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      'remainingAmount': CurrencyFormatter.truncateAmount(
+        debt.remainingAmount,
+      ),
       // ✅ إصلاح: لا نرسل bookingLocalId للسيرفر (id محلي يختلف بين الأجهزة)
       // الربط يتم عبر resolveBooking في debts_adapter باستخدام bookingUuidCache
       'checkoutDate': debt.checkoutDate,
@@ -496,7 +500,8 @@ class PayloadMapper {
     final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
-      'amount': transaction.amount.round(), // Appwrite: integer
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      'amount': CurrencyFormatter.truncateAmount(transaction.amount),
       'transactionTime': transaction.transactionTime,
       'localUuid': transaction.localUuid,
       'createdAt': transaction.createdAt,
@@ -857,7 +862,8 @@ class PayloadMapper {
       'bookingLocalUuid': adj.bookingLocalUuid,
       'adjustmentType': adj.adjustmentType,
       'adjustmentMode': adj.adjustmentMode,
-      'amount': adj.amount.round(),
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      'amount': CurrencyFormatter.truncateAmount(adj.amount),
       'effectiveHotelDay': adj.effectiveHotelDay,
       // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud (required attribute,
       // created 2026-07-03). محلياً BookingPriceAdjustments لا يملك عمود hotelDayKey
