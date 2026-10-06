@@ -160,6 +160,10 @@ class SalaryWithdrawalsAdapter
       // (local_db.dart:669). كان يُستخرج من reason بصيغة "exp_123"
       // لكن لا يُعاد تعبئته في expenseId عند fromJson.
       expenseId: _vInt(json, 'expenseId', src, altKey: 'expense_id'),
+      // ✅ (migration 68) uuid المرآة الدائم — الرابط الذي ينجو من إعادة
+      // ترقيم المعرفات عبر الأجهزة (نفس عائلة employee_uuid). يُحل لاحقاً
+      // في _syncSalaryWithdrawals إلى معرّف المصروف المحلي الصحيح.
+      expenseUuid: _vStr(json, 'expenseUuid', src, altKey: 'expense_uuid'),
       reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       withdrawalType: wt != null ? d.Value(wt) : const d.Value.absent(),
@@ -267,6 +271,10 @@ class SalaryWithdrawalsAdapter
     // ✅ note = ملاحظة المستخدم فقط (من description)
     map['note'] = model.description ?? '';
     map['expenseId'] = expenseId;
+    // ✅ (migration 68) uuid المرآة — يُرسل دائماً لضمان التوافق مع مخطط
+    // Appwrite الجديد؛ القيمة null للسجلات القديمة قبل الترحيل لا تضر
+    // (العمود السحابي optional).
+    map['expenseUuid'] = model.expenseUuid;
     // ✅ إضافة name فارغ (optional لكن بعض إصدارات المخطط تتوقعه)
     // ✅ (2026-09-14) name = اسم من سجّل السحبة (كان يُرسل فارغاً دائماً)
     map['name'] = model.recorderName ?? '';

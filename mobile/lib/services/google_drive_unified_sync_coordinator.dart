@@ -269,28 +269,10 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
 
-    // مراقبة تغييرات outbox للمزامنة التلقائية
+    // 🚫 قرار منتج (2026-10-06): لا مزامنة عبر Google Drive — أُلغيت مراقبة
+    // الـ outbox ومؤقت السحب الدوري، وبقيت فقط جدولة النسخة الكاملة.
     unawaited(_outboxSubscription?.cancel());
-    if (_pushEnabled && _database != null) {
-      _outboxSubscription = _database!.select(_database!.outbox).watch().listen(
-        (_) {
-          _log('📦 Detected change in outbox', level: LogLevel.debug);
-          notifyLocalChange();
-        },
-      );
-      _log('✅ Started outbox monitoring for auto-sync');
-    }
-
-    if (_pullEnabled) {
-      _pullCheckTimer?.cancel();
-      _pullCheckTimer = Timer.periodic(
-        Duration(minutes: _pullIntervalMinutes),
-        (_) => _handlePeriodicPull(),
-      );
-      _log(
-        '⏰ Started periodic pull monitoring (every $_pullIntervalMinutes minutes)',
-      );
-    }
+    _pullCheckTimer?.cancel();
 
     unawaited(_scheduleFullBackup());
   }
@@ -492,6 +474,20 @@ class GoogleDriveUnifiedSyncCoordinator {
       );
     }
 
+    // 🚫 قرار منتج (2026-10-06): لا مزامنة عبر Google Drive — نسخ احتياطي
+    // كامل واستعادة فقط. المحفزات التلقائية (تغيير محلي، فتح التطبيق، دوري)
+    // تُتخطى بنجاح؛ النسخ يتم فقط عند الطلب اليدوي أو بالجدولة.
+    if (trigger != SyncTrigger.manual && trigger != SyncTrigger.scheduled) {
+      _log(
+        '⛔ تخطي دورة Drive للمحفز $trigger — نسخ احتياطي عند الطلب/الجدولة فقط',
+      );
+      return SyncResult.success(
+        message: 'تخطي — النسخ الاحتياطي الكامل عند الطلب أو الجدولة فقط',
+        pushed: 0,
+        pulled: 0,
+      );
+    }
+
     final canStartResult = await SyncLocks.mainSyncLock.synchronized(() async {
       if (!_isInitialized) {
         return _PerformSyncNotInitialized();
@@ -685,6 +681,17 @@ class GoogleDriveUnifiedSyncCoordinator {
   }
 
   SyncMode _determineEffectiveMode(
+    SyncMode requestedMode,
+    SyncTrigger trigger,
+  ) {
+    // 🚫 قرار منتج (2026-10-06): لا مزامنة تفاضلية عبر Google Drive —
+    // كل دورات المنسّق تصبح نسخة احتياطية كاملة بصرف النظر عن الوضع المطلوب.
+    return SyncMode.fullBackup;
+  }
+
+  /// المنطق الأصلي لاختيار الوضع — مجمّد بقرار منتج، يُحتفظ به للمراجعة فقط.
+  // ignore: unused_element
+  SyncMode _determineEffectiveModeLegacy(
     SyncMode requestedMode,
     SyncTrigger trigger,
   ) {

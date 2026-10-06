@@ -216,6 +216,14 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   Future<void> start() async {
+    // 🚫 قرار منتج (2026-10-06): لا مزامنة عبر Google Drive — نسخ احتياطي
+    // كامل واستعادة فقط. محرك المزامنة التلقائية لا يبدأ أبداً.
+    _log('⛔ Auto Sync Engine معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط');
+    return;
+  }
+
+  /// المسار الأصلي لبدء المحرك — مجمّد بقرار منتج، يُحتفظ به للمراجعة فقط.
+  Future<void> startLegacy() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
     final prefs = await SharedPreferences.getInstance();
     final syncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;

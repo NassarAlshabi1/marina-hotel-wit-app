@@ -178,6 +178,14 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
         altKey: 'idempotency_key',
       ),
       employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
+      // ✅ (migration 68) uuid سحبة المرآة — الرابط العكسي الدائم
+      // (مصروف ← سحبة) الذي ينجو من إعادة ترقيم المعرفات عبر الأجهزة.
+      withdrawalUuid: _vStr(
+        json,
+        'withdrawalUuid',
+        src,
+        altKey: 'withdrawal_uuid',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -214,6 +222,9 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       'idempotencyKey': model.idempotencyKey,
       'employeeUuid': model.employeeUuid,
+      // ✅ (migration 68) uuid سحبة المرآة — يُرسل دائماً؛ null للسجلات
+      // القديمة قبل الترحيل لا تضر (العمود السحابي optional).
+      'withdrawalUuid': model.withdrawalUuid,
       'deviceId': model.deviceId,
     };
 

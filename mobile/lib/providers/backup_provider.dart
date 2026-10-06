@@ -372,8 +372,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         googleDriveSyncEnabled: enabled,
         status: BackupStatus.success,
         message: enabled
-            ? 'تم تفعيل مزامنة Google Drive'
-            : 'تم تعطيل مزامنة Google Drive',
+            ? 'تم تفعيل النسخ الاحتياطي التلقائي على Google Drive'
+            : 'تم تعطيل النسخ الاحتياطي التلقائي على Google Drive',
       );
 
       // مسح الرسالة بعد 3 ثوانٍ
@@ -381,8 +381,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         if (!_mounted) {
           return;
         }
-        if (state.message == 'تم تفعيل مزامنة Google Drive' ||
-            state.message == 'تم تعطيل مزامنة Google Drive') {
+        if (state.message ==
+                'تم تفعيل النسخ الاحتياطي التلقائي على Google Drive' ||
+            state.message ==
+                'تم تعطيل النسخ الاحتياطي التلقائي على Google Drive') {
           clearMessage();
         }
       });

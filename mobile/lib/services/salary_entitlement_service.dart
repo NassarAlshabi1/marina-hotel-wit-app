@@ -258,12 +258,16 @@ class SalaryEntitlementService {
     double totalEntitlements = 0,
         totalWithdrawals = 0,
         totalAdvances = 0,
+        totalInstallmentsPaid = 0,
         totalDeductions = 0,
         totalNet = 0;
     for (final e in entitlements) {
       totalEntitlements += e.totalEntitlement;
       totalWithdrawals += e.totalWithdrawals;
       totalAdvances += e.totalAdvances;
+      // ✅ أقساط السلف المسددة تُعرض في الملخص كصف مستقل — هي سداد لرصيد
+      // السلفة وليست خصماً نقدياً، فلا تُخلط مع totalDeductions إطلاقاً.
+      totalInstallmentsPaid += e.installmentsPaid;
       totalDeductions += e.totalDeductions;
       totalNet += e.netEntitlement;
     }
@@ -272,6 +276,7 @@ class SalaryEntitlementService {
       'totalEntitlements': totalEntitlements,
       'totalWithdrawals': totalWithdrawals,
       'totalAdvances': totalAdvances,
+      'totalInstallmentsPaid': totalInstallmentsPaid,
       'totalDeductions': totalDeductions,
       'totalNet': totalNet,
       'entitlements': entitlements,
@@ -669,7 +674,7 @@ class SalaryEntitlementService {
             .get();
     if (rows.isEmpty) return const [];
 
-    // مرشحو المستوى 3: مصروفات الموظف النقدي فقط (بنطاق القراءة المطلوب)
+    // مرشحو المطابقة: مصروفات الموظف النقدي فقط (بنطاق القراءة المطلوب)
     final candidates = (employeeExpenses ?? const <Expense>[])
         .map(
           (e) => MirrorExpenseCandidate(
@@ -680,6 +685,9 @@ class SalaryEntitlementService {
             date: e.date,
             hotelDayKey: e.hotelDayKey,
             relatedId: e.relatedId,
+            // ✅ (هجرة 68) حقول الهوية — المستوى 0 في المطابِق
+            localUuid: e.localUuid,
+            withdrawalUuid: e.withdrawalUuid,
           ),
         )
         .toList(growable: false);
@@ -690,6 +698,9 @@ class SalaryEntitlementService {
       if (sw.amount <= 0) continue;
 
       final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+        // ✅ (هجرة 68) المستوى 0: التمييز بهوية العملية (UUID)
+        expenseUuid: sw.expenseUuid,
+        withdrawalLocalUuid: sw.localUuid,
         expenseId: sw.expenseId,
         reason: sw.reason,
         amount: sw.amount,
