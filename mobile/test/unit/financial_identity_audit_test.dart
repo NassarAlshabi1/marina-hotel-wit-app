@@ -1340,96 +1340,102 @@ void main() {
       },
     );
 
-    test('G-10: the mirror pair (expense ↔ withdrawal) truncates identically', () async {
-      final source = _newDb();
-      addTearDown(() => source.close());
+    test(
+      'G-10: the mirror pair (expense ↔ withdrawal) truncates identically',
+      () async {
+        final source = _newDb();
+        addTearDown(() => source.close());
 
-      final emp = await _employee(source, uuid: 'emp-mirror-2', name: 'موظف');
-      const expUuid = 'exp-mirror-fraction';
-      final expId = await _expense(
-        source,
-        uuid: expUuid,
-        type: _salaryType,
-        amount: 150.5,
-        employeeUuid: 'emp-mirror-2',
-      );
-      await _withdrawal(
-        source,
-        uuid: 'wd-mirror-fraction',
-        employeeId: emp,
-        amount: 150.5,
-        employeeUuid: 'emp-mirror-2',
-        expenseId: expId,
-        expenseUuid: expUuid,
-        reason: 'exp_$expId',
-      );
+        final emp = await _employee(source, uuid: 'emp-mirror-2', name: 'موظف');
+        const expUuid = 'exp-mirror-fraction';
+        final expId = await _expense(
+          source,
+          uuid: expUuid,
+          type: _salaryType,
+          amount: 150.5,
+          employeeUuid: 'emp-mirror-2',
+        );
+        await _withdrawal(
+          source,
+          uuid: 'wd-mirror-fraction',
+          employeeId: emp,
+          amount: 150.5,
+          employeeUuid: 'emp-mirror-2',
+          expenseId: expId,
+          expenseUuid: expUuid,
+          reason: 'exp_$expId',
+        );
 
-      final exported = await exportNeutral(source);
-      final target = _newDb();
-      addTearDown(() => target.close());
-      await importNeutral(target, exported);
+        final exported = await exportNeutral(source);
+        final target = _newDb();
+        addTearDown(() => target.close());
+        await importNeutral(target, exported);
 
-      final expenseAmount =
-          (await target.select(target.expenses).get()).single.amount;
-      final withdrawalAmount =
-          (await target.select(target.salaryWithdrawals).get()).single.amount;
+        final expenseAmount =
+            (await target.select(target.expenses).get()).single.amount;
+        final withdrawalAmount =
+            (await target.select(target.salaryWithdrawals).get()).single.amount;
 
-      expect(expenseAmount, 150);
-      expect(
-        withdrawalAmount,
-        expenseAmount,
-        reason:
-            'مصروف الرواتب = سحب الراتب المرآة بعد عبور المزوّد — '
-            'أي فرق بينهما يكسر معادلة الاستحقاقات',
-      );
-    });
+        expect(expenseAmount, 150);
+        expect(
+          withdrawalAmount,
+          expenseAmount,
+          reason:
+              'مصروف الرواتب = سحب الراتب المرآة بعد عبور المزوّد — '
+              'أي فرق بينهما يكسر معادلة الاستحقاقات',
+        );
+      },
+    );
 
-    test('G-10: legacy fractional rows are reported (read-only) without being rewritten', () async {
-      final db = _newDb();
-      addTearDown(() => db.close());
+    test(
+      'G-10: legacy fractional rows are reported (read-only) without being rewritten',
+      () async {
+        final db = _newDb();
+        addTearDown(() => db.close());
 
-      final emp = await _employee(db, uuid: 'emp-legacy', name: 'موظف');
-      await _withdrawal(
-        db,
-        uuid: 'wd-legacy-fraction',
-        employeeId: emp,
-        amount: 99.99,
-        employeeUuid: 'emp-legacy',
-      );
-      await _expense(
-        db,
-        uuid: 'exp-legacy-fraction',
-        amount: 12.5,
-        employeeUuid: 'emp-legacy',
-        relatedId: emp,
-      );
-      await _expense(db, uuid: 'exp-legacy-whole', amount: 40);
+        final emp = await _employee(db, uuid: 'emp-legacy', name: 'موظف');
+        await _withdrawal(
+          db,
+          uuid: 'wd-legacy-fraction',
+          employeeId: emp,
+          amount: 99.99,
+          employeeUuid: 'emp-legacy',
+        );
+        await _expense(
+          db,
+          uuid: 'exp-legacy-fraction',
+          amount: 12.5,
+          employeeUuid: 'emp-legacy',
+          relatedId: emp,
+        );
+        await _expense(db, uuid: 'exp-legacy-whole', amount: 40);
 
-      final report = await MoneyIntegrityService(db).scan();
+        final report = await MoneyIntegrityService(db).scan();
 
-      expect(report.isClean, isFalse);
-      expect(report.affectedRows, 2);
-      expect(report.countByTable['salary_withdrawals'], 1);
-      expect(report.countByTable['expenses'], 1);
+        expect(report.isClean, isFalse);
+        expect(report.affectedRows, 2);
+        expect(report.countByTable['salary_withdrawals'], 1);
+        expect(report.countByTable['expenses'], 1);
 
-      final withdrawalRow = report.rows.firstWhere(
-        (r) => r.table == 'salary_withdrawals',
-      );
-      expect(withdrawalRow.localUuid, 'wd-legacy-fraction');
-      expect(withdrawalRow.policyAmount, 99); // اقتطاع نحو الصفر
-      expect(withdrawalRow.employeeUuid, 'emp-legacy');
+        final withdrawalRow = report.rows.firstWhere(
+          (r) => r.table == 'salary_withdrawals',
+        );
+        expect(withdrawalRow.localUuid, 'wd-legacy-fraction');
+        expect(withdrawalRow.policyAmount, 99); // اقتطاع نحو الصفر
+        expect(withdrawalRow.employeeUuid, 'emp-legacy');
 
-      // ⚠️ لا تعديل على البيانات التاريخية: الصفوف ما زالت كما هي في القاعدة.
-      final stillFractional =
-          (await db.select(db.salaryWithdrawals).get()).single.amount;
-      expect(stillFractional, 99.99);
-      final expenseStillFractional =
-          (await (db.select(db.expenses)
-                    ..where((e) => e.localUuid.equals('exp-legacy-fraction')))
-                  .getSingle())
-              .amount;
-      expect(expenseStillFractional, 12.5);
-    });
+        // ⚠️ لا تعديل على البيانات التاريخية: الصفوف ما زالت كما هي في القاعدة.
+        final stillFractional =
+            (await db.select(db.salaryWithdrawals).get()).single.amount;
+        expect(stillFractional, 99.99);
+        final expenseStillFractional =
+            (await (db.select(db.expenses)
+                      ..where((e) => e.localUuid.equals('exp-legacy-fraction')))
+                    .getSingle())
+                .amount;
+        expect(expenseStillFractional, 12.5);
+      },
+    );
 
     test(
       'provider swap keeps counts, uuids, relations and money totals',

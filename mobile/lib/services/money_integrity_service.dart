@@ -50,10 +50,7 @@ class FractionalMoneyRow {
 
 /// تقرير الكسور العشرية — للعرض والتصدير فقط.
 class MoneyIntegrityReport {
-  const MoneyIntegrityReport({
-    required this.rows,
-    required this.scannedTables,
-  });
+  const MoneyIntegrityReport({required this.rows, required this.scannedTables});
 
   final List<FractionalMoneyRow> rows;
   final List<String> scannedTables;
@@ -80,8 +77,7 @@ class MoneyIntegrityReport {
   }
 
   @override
-  String toString() =>
-      isClean
+  String toString() => isClean
       ? 'نظيف: كل المبالغ أعداد صحيحة (${scannedTables.length} جدول)'
       : '$affectedRows صف فيه كسور: ${countByTable.entries.map((e) => '${e.key}=${e.value}').join(', ')}';
 }
