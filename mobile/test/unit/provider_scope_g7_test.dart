@@ -100,43 +100,46 @@ void main() {
   }
 
   group('G-7 — حارس نطاق المزوّد', () {
-    test('البصمة دالة نقية: التطبيع لا يُحدث تبديلاً، والتغيير يغيّر البصمة', () {
-      final base = ProviderScopeGuard.fingerprint(
-        endpoint: endpointA,
-        projectId: projectA,
-        databaseId: databaseA,
-      );
-      // اختلاف الشكل فقط (شرطة أخيرة/مسافات/حالة أحرف) ⇒ نفس البصمة.
-      expect(
-        ProviderScopeGuard.fingerprint(
-          endpoint: '  HTTPS://FRA.CLOUD.APPWRITE.IO/V1/  ',
-          projectId: ' $projectA ',
-          databaseId: databaseA,
-        ),
-        base,
-        reason: 'التطبيع لا يجوز أن يُكلّف سحباً كاملاً',
-      );
-      // تغيير أي عنصر من الثلاثة ⇒ بصمة مختلفة.
-      for (final changed in [
-        ProviderScopeGuard.fingerprint(
-          endpoint: endpointB,
-          projectId: projectA,
-          databaseId: databaseA,
-        ),
-        ProviderScopeGuard.fingerprint(
-          endpoint: endpointA,
-          projectId: projectB,
-          databaseId: databaseA,
-        ),
-        ProviderScopeGuard.fingerprint(
+    test(
+      'البصمة دالة نقية: التطبيع لا يُحدث تبديلاً، والتغيير يغيّر البصمة',
+      () {
+        final base = ProviderScopeGuard.fingerprint(
           endpoint: endpointA,
           projectId: projectA,
-          databaseId: databaseB,
-        ),
-      ]) {
-        expect(changed, isNot(base));
-      }
-    });
+          databaseId: databaseA,
+        );
+        // اختلاف الشكل فقط (شرطة أخيرة/مسافات/حالة أحرف) ⇒ نفس البصمة.
+        expect(
+          ProviderScopeGuard.fingerprint(
+            endpoint: '  HTTPS://FRA.CLOUD.APPWRITE.IO/V1/  ',
+            projectId: ' $projectA ',
+            databaseId: databaseA,
+          ),
+          base,
+          reason: 'التطبيع لا يجوز أن يُكلّف سحباً كاملاً',
+        );
+        // تغيير أي عنصر من الثلاثة ⇒ بصمة مختلفة.
+        for (final changed in [
+          ProviderScopeGuard.fingerprint(
+            endpoint: endpointB,
+            projectId: projectA,
+            databaseId: databaseA,
+          ),
+          ProviderScopeGuard.fingerprint(
+            endpoint: endpointA,
+            projectId: projectB,
+            databaseId: databaseA,
+          ),
+          ProviderScopeGuard.fingerprint(
+            endpoint: endpointA,
+            projectId: projectA,
+            databaseId: databaseB,
+          ),
+        ]) {
+          expect(changed, isNot(base));
+        }
+      },
+    );
 
     test('أول تشغيل (لا بصمة): تُحفظ البصمة بلا أي إعادة ضبط', () async {
       await seedProviderState();
@@ -155,10 +158,7 @@ void main() {
       // كل شيء كما هو.
       expect(await checkpoints.getLastPullTs('rooms'), 1111);
       expect(await checkpoints.isFullSyncComplete('bookings'), isTrue);
-      expect(
-        prefs.getString(ProviderScopeGuard.entityPullTsMapKey),
-        isNotNull,
-      );
+      expect(prefs.getString(ProviderScopeGuard.entityPullTsMapKey), isNotNull);
       expect(await deferredCount(), 1);
     });
 
@@ -185,92 +185,95 @@ void main() {
       expect(await checkpoints.getLastPullTs('rooms'), 1111);
     });
 
-    test('تبديل الوجهة: تُصفَّر كل مؤشرات المزوّد — ولا يُمسّ المعلّق', () async {
-      await seedProviderState();
-      await ProviderScopeGuard.ensureCurrent(
-        endpoint: endpointA,
-        projectId: projectA,
-        databaseId: databaseA,
-        db: db,
-        checkpoints: checkpoints,
-        prefs: prefs,
-      );
+    test(
+      'تبديل الوجهة: تُصفَّر كل مؤشرات المزوّد — ولا يُمسّ المعلّق',
+      () async {
+        await seedProviderState();
+        await ProviderScopeGuard.ensureCurrent(
+          endpoint: endpointA,
+          projectId: projectA,
+          databaseId: databaseA,
+          db: db,
+          checkpoints: checkpoints,
+          prefs: prefs,
+        );
 
-      final status = await ProviderScopeGuard.ensureCurrent(
-        endpoint: endpointB,
-        projectId: projectB,
-        databaseId: databaseB,
-        db: db,
-        checkpoints: checkpoints,
-        prefs: prefs,
-      );
+        final status = await ProviderScopeGuard.ensureCurrent(
+          endpoint: endpointB,
+          projectId: projectB,
+          databaseId: databaseB,
+          db: db,
+          checkpoints: checkpoints,
+          prefs: prefs,
+        );
 
-      expect(status.state, ProviderScopeState.changed);
-      expect(status.previousFingerprint, isNotNull);
-      expect(status.changedAt, isNotNull);
-      expect(status.invalidated, contains('sync_checkpoints'));
-      expect(status.invalidated, contains('sync_state'));
-      expect(status.invalidated, contains('sync_remote_meta'));
-      expect(status.invalidated, contains('initial_seed'));
+        expect(status.state, ProviderScopeState.changed);
+        expect(status.previousFingerprint, isNotNull);
+        expect(status.changedAt, isNotNull);
+        expect(status.invalidated, contains('sync_checkpoints'));
+        expect(status.invalidated, contains('sync_state'));
+        expect(status.invalidated, contains('sync_remote_meta'));
+        expect(status.invalidated, contains('initial_seed'));
 
-      // 1) نقاط الفحص صُفّرت (سحب كامل قادم) — وكل المجموعات.
-      expect(await checkpoints.getLastPullTs('rooms'), 0);
-      expect(await checkpoints.getLastPullTs('bookings'), 0);
-      expect(await checkpoints.isFullSyncComplete('bookings'), isFalse);
-      expect(await checkpoints.getFullSyncCursor('bookings'), isNull);
-      expect(await checkpoints.getFullSyncMaxUpdated('bookings'), 0);
+        // 1) نقاط الفحص صُفّرت (سحب كامل قادم) — وكل المجموعات.
+        expect(await checkpoints.getLastPullTs('rooms'), 0);
+        expect(await checkpoints.getLastPullTs('bookings'), 0);
+        expect(await checkpoints.isFullSyncComplete('bookings'), isFalse);
+        expect(await checkpoints.getFullSyncCursor('bookings'), isNull);
+        expect(await checkpoints.getFullSyncMaxUpdated('bookings'), 0);
 
-      // 2) المؤشر العام + علم الاكتمال.
-      final state = await (db.select(
-        db.syncState,
-      )..where((t) => t.id.equals(1))).getSingle();
-      expect(state.lastPullTs, 0);
-      expect(state.fullSyncComplete, 0);
+        // 2) المؤشر العام + علم الاكتمال.
+        final state = await (db.select(
+          db.syncState,
+        )..where((t) => t.id.equals(1))).getSingle();
+        expect(state.lastPullTs, 0);
+        expect(state.fullSyncComplete, 0);
 
-      // 3) مفاتيح SharedPreferences.
-      expect(
-        prefs.getString(ProviderScopeGuard.entityPullTsMapKey),
-        isNull,
-      );
-      expect(prefs.getInt(ProviderScopeGuard.bookingNightsPullTsKey), isNull);
-      expect(prefs.getInt(ProviderScopeGuard.lastSyncTimeKey), isNull);
-      expect(
-        prefs.getBool(ProviderScopeGuard.initialSeedDoneKey),
-        isFalse,
-        reason: 'الرفع الأولي هو المسار الوحيد لنقل ما خرج من outbox',
-      );
+        // 3) مفاتيح SharedPreferences.
+        expect(prefs.getString(ProviderScopeGuard.entityPullTsMapKey), isNull);
+        expect(prefs.getInt(ProviderScopeGuard.bookingNightsPullTsKey), isNull);
+        expect(prefs.getInt(ProviderScopeGuard.lastSyncTimeKey), isNull);
+        expect(
+          prefs.getBool(ProviderScopeGuard.initialSeedDoneKey),
+          isFalse,
+          reason: 'الرفع الأولي هو المسار الوحيد لنقل ما خرج من outbox',
+        );
 
-      // 4) خريطة metadata البعيدة فُرّغت.
-      expect(await db.getRemoteMetaMap('bookings'), isEmpty);
+        // 4) خريطة metadata البعيدة فُرّغت.
+        expect(await db.getRemoteMetaMap('bookings'), isEmpty);
 
-      // 5) مخزن العلاقات المعلّقة **سليم** (حالة ربط بـ UUID).
-      expect(await deferredCount(), 1, reason: 'لا يجوز إسقاط حالات ربط');
+        // 5) مخزن العلاقات المعلّقة **سليم** (حالة ربط بـ UUID).
+        expect(await deferredCount(), 1, reason: 'لا يجوز إسقاط حالات ربط');
 
-      // 6) البصمة الجديدة محفوظة، وتكرار الفحص لا يُعيد الضبط.
-      final again = await ProviderScopeGuard.ensureCurrent(
-        endpoint: endpointB,
-        projectId: projectB,
-        databaseId: databaseB,
-        db: db,
-        checkpoints: checkpoints,
-        prefs: prefs,
-      );
-      expect(again.state, ProviderScopeState.unchanged);
-    });
+        // 6) البصمة الجديدة محفوظة، وتكرار الفحص لا يُعيد الضبط.
+        final again = await ProviderScopeGuard.ensureCurrent(
+          endpoint: endpointB,
+          projectId: projectB,
+          databaseId: databaseB,
+          db: db,
+          checkpoints: checkpoints,
+          prefs: prefs,
+        );
+        expect(again.state, ProviderScopeState.unchanged);
+      },
+    );
 
-    test('resetProviderScopedState — الأساس المشترك (إعادة ضبط يدوية)', () async {
-      await seedProviderState();
-      final reset = await ProviderScopeGuard.resetProviderScopedState(
-        db: db,
-        checkpoints: checkpoints,
-        prefs: prefs,
-      );
-      expect(reset, contains('sync_checkpoints'));
-      expect(reset, contains('sync_state'));
-      expect(reset, contains('sync_remote_meta'));
-      expect(reset, contains('initial_seed'));
-      expect(await checkpoints.getLastPullTs('rooms'), 0);
-      expect(await deferredCount(), 1);
-    });
+    test(
+      'resetProviderScopedState — الأساس المشترك (إعادة ضبط يدوية)',
+      () async {
+        await seedProviderState();
+        final reset = await ProviderScopeGuard.resetProviderScopedState(
+          db: db,
+          checkpoints: checkpoints,
+          prefs: prefs,
+        );
+        expect(reset, contains('sync_checkpoints'));
+        expect(reset, contains('sync_state'));
+        expect(reset, contains('sync_remote_meta'));
+        expect(reset, contains('initial_seed'));
+        expect(await checkpoints.getLastPullTs('rooms'), 0);
+        expect(await deferredCount(), 1);
+      },
+    );
   });
 }

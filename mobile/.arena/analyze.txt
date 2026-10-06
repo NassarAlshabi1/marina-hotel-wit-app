@@ -1,0 +1,21 @@
+Analyzing mobile...
+
+  error - lib/screens/settings/sync_conflicts_screen.dart:50:17 - Unterminated string literal. - unterminated_string_literal
+  error - lib/screens/settings/sync_conflicts_screen.dart:51:3 - Unterminated string literal. - unterminated_string_literal
+  error - lib/screens/settings/sync_conflicts_screen.dart:52:7 - Expected to find ','. - expected_token
+  error - lib/screens/settings/sync_conflicts_screen.dart:52:7 - Too many positional arguments: 1 expected, but 2 found. Try removing the extra arguments. - extra_positional_arguments
+  error - lib/screens/settings/sync_conflicts_screen.dart:57:67 - Local variable 'lines' can't be referenced before it is declared. Try moving the declaration to before the first use, or renaming the local variable so that it doesn't hide a name from an enclosing scope. - referenced_before_declaration
+           - The declaration of 'lines' is here at lib/screens/settings/sync_conflicts_screen.dart:47:13.
+  error - lib/screens/settings/sync_conflicts_screen.dart:61:8 - Expected to find ')'. - expected_token
+  error - lib/services/appwrite_sync_manager.dart:244:21 - Undefined name 'AppwriteConfigManager'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib/services/appwrite_sync_manager.dart:245:22 - Undefined name 'AppwriteConfigManager'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib/services/appwrite_sync_manager.dart:246:23 - Undefined name 'AppwriteConfigManager'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib/services/appwrite_sync_manager.dart:384:21 - Undefined name 'AppwriteConfigManager'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib/services/appwrite_sync_manager.dart:385:22 - Undefined name 'AppwriteConfigManager'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - lib/services/appwrite_sync_manager.dart:386:23 - Undefined name 'AppwriteConfigManager'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+warning - lib/services/google_drive_unified_sync_coordinator.dart:434:16 - The declaration '_handlePeriodicPull' isn't referenced. Try removing the declaration of '_handlePeriodicPull'. - unused_element
+warning - lib/services/smart_google_drive_sync.dart:290:8 - The declaration '_startPeriodicSync' isn't referenced. Try removing the declaration of '_startPeriodicSync'. - unused_element
+warning - lib/services/smart_sync_manager.dart:148:16 - The declaration '_performOptimizedSyncCheck' isn't referenced. Try removing the declaration of '_performOptimizedSyncCheck'. - unused_element
+   info - lib/services/appwrite_service.dart:1184:10 - 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+16 issues found.

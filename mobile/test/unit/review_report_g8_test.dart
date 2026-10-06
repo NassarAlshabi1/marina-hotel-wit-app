@@ -192,7 +192,10 @@ void main() {
       expect(report.conflicts.single['uuid'], 'exp-conflict');
 
       // الانتهاك يحمل نوعه ودرجة خطورته.
-      expect(report.integrityViolations.single['type'], 'foreign_key_violation');
+      expect(
+        report.integrityViolations.single['type'],
+        'foreign_key_violation',
+      );
       expect(report.integrityViolations.single['critical'], isTrue);
     });
 
@@ -253,17 +256,20 @@ void main() {
   });
 
   group('G-8 — العقد (لا كتابة)', () {
-    test('build لا يُنشئ صفوفاً في sync_conflicts أو integrity_violations', () async {
-      await seedAllSources();
-      final before = await db
-          .customSelect('SELECT COUNT(*) AS c FROM sync_conflicts')
-          .getSingle();
-      await service.build();
-      final after = await db
-          .customSelect('SELECT COUNT(*) AS c FROM sync_conflicts')
-          .getSingle();
-      expect(after.read<int>('c'), before.read<int>('c'));
-    });
+    test(
+      'build لا يُنشئ صفوفاً في sync_conflicts أو integrity_violations',
+      () async {
+        await seedAllSources();
+        final before = await db
+            .customSelect('SELECT COUNT(*) AS c FROM sync_conflicts')
+            .getSingle();
+        await service.build();
+        final after = await db
+            .customSelect('SELECT COUNT(*) AS c FROM sync_conflicts')
+            .getSingle();
+        expect(after.read<int>('c'), before.read<int>('c'));
+      },
+    );
 
     test('نوع Variable/تحويل التواريخ لا يُسقط التقرير بأخطاء SQL', () async {
       await seedAllSources();

@@ -127,7 +127,9 @@ class ProviderScopeGuard {
     }
     final canonical =
         '$normalizedEndpoint|${projectId.trim()}|${databaseId.trim()}';
-    final digest = sha256.convert(utf8.encode('marina.provider.scope.v1|$canonical'));
+    final digest = sha256.convert(
+      utf8.encode('marina.provider.scope.v1|$canonical'),
+    );
     return digest.toString().substring(0, 32);
   }
 
@@ -256,15 +258,12 @@ class ProviderScopeGuard {
   }
 
   /// بصمة النطاق السابق — للتقرير (G-8).
-  static Future<String?> previousFingerprint({
-    SharedPreferences? prefs,
-  }) async {
+  static Future<String?> previousFingerprint({SharedPreferences? prefs}) async {
     final p = prefs ?? await SharedPreferences.getInstance();
     return p.getString(previousFingerprintKey);
   }
 
   /// عرض مختصر للبصمة في السجلات (لا نطبع endpoint/project في سجل عام).
-  static String _short(String fingerprint) => fingerprint.length <= 8
-      ? fingerprint
-      : fingerprint.substring(0, 8);
+  static String _short(String fingerprint) =>
+      fingerprint.length <= 8 ? fingerprint : fingerprint.substring(0, 8);
 }

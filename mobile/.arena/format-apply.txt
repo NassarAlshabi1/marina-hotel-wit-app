@@ -1,0 +1,28 @@
+Could not format because the source could not be parsed:
+
+line 50, column 17 of lib/screens/settings/sync_conflicts_screen.dart: Unterminated string literal.
+   ╷
+50 │           .join('
+   │                 ^
+   ╵
+line 51, column 3 of lib/screens/settings/sync_conflicts_screen.dart: Unterminated string literal.
+   ╷
+51 │ ');
+   │   ^
+   ╵
+line 66, column 5 of lib/screens/settings/sync_conflicts_screen.dart: Expected to find ')'.
+   ╷
+66 │     } catch (e) {
+   │     ^
+   ╵
+line 52, column 7 of lib/screens/settings/sync_conflicts_screen.dart: Expected to find ','.
+   ╷
+52 │       ScaffoldMessenger.of(context).showSnackBar(
+   │       ^^^^^^^^^^^^^^^^^
+   ╵
+Formatted lib/services/appwrite_sync_manager.dart
+Formatted lib/services/review_report_service.dart
+Formatted lib/services/sync_core/provider_scope.dart
+Formatted test/unit/provider_scope_g7_test.dart
+Formatted test/unit/review_report_g8_test.dart
+Formatted 572 files (5 changed) in 6.41 seconds.

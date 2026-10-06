@@ -165,9 +165,7 @@ class ReviewReportService {
       final review = deferred
           .where((r) => r.state == DeferredRelationState.needsReview)
           .length;
-      status['deferred_relations'] = ReviewSectionStatus(
-        rows: deferred.length,
-      );
+      status['deferred_relations'] = ReviewSectionStatus(rows: deferred.length);
       status['deferred_pending'] = ReviewSectionStatus(rows: pending);
       status['deferred_needs_review'] = ReviewSectionStatus(rows: review);
     } catch (e) {
@@ -237,9 +235,7 @@ class ReviewReportService {
       final prefs = await _prefs();
       providerScope = {
         'current': prefs.getString(ProviderScopeGuard.fingerprintKey),
-        'previous': prefs.getString(
-          ProviderScopeGuard.previousFingerprintKey,
-        ),
+        'previous': prefs.getString(ProviderScopeGuard.previousFingerprintKey),
         'changedAt': prefs.getInt(ProviderScopeGuard.changedAtKey),
         'checkpointRows': await _checkpointCount(),
       };
@@ -250,13 +246,11 @@ class ReviewReportService {
 
     final summary = <String, int>{
       'fractional_money': fractions.rows.length,
-      'deferred_pending':
-          status['deferred_pending']?.rows ?? 0,
+      'deferred_pending': status['deferred_pending']?.rows ?? 0,
       'deferred_needs_review': status['deferred_needs_review']?.rows ?? 0,
       'conflicts': conflicts.length,
       'integrity_violations': violations.length,
-      for (final entry in identityGaps.entries)
-        entry.key: entry.value.length,
+      for (final entry in identityGaps.entries) entry.key: entry.value.length,
     };
 
     return ReviewReport(
@@ -280,14 +274,9 @@ class ReviewReportService {
     Future<void> run(String key, String sql) async {
       try {
         final rows = await db
-            .customSelect(
-              sql,
-              variables: [Variable.withInt(maxRowsPerSection)],
-            )
+            .customSelect(sql, variables: [Variable.withInt(maxRowsPerSection)])
             .get();
-        gaps[key] = [
-          for (final row in rows) row.data.cast<String, Object?>(),
-        ];
+        gaps[key] = [for (final row in rows) row.data.cast<String, Object?>()];
         status[key] = ReviewSectionStatus(rows: rows.length);
       } catch (e) {
         gaps[key] = const [];
@@ -299,37 +288,37 @@ class ReviewReportService {
     await run(
       'employees_local_server_id',
       'SELECT id, local_uuid, name, server_id, device_id, origin '
-      'FROM employees WHERE deleted_at IS NULL '
-      'AND server_id IS NOT NULL AND server_id = id LIMIT ?',
+          'FROM employees WHERE deleted_at IS NULL '
+          'AND server_id IS NOT NULL AND server_id = id LIMIT ?',
     );
     // (ب) سحوبات بلا هوية موظف ثابتة (لا يمكن ربطها عبر الأجهزة بلا تخمين).
     await run(
       'withdrawals_missing_employee_uuid',
       'SELECT id, local_uuid, employee_id, amount, withdraw_date, device_id '
-      'FROM salary_withdrawals WHERE deleted_at IS NULL '
-      "AND (employee_uuid IS NULL OR TRIM(employee_uuid) = '') LIMIT ?",
+          'FROM salary_withdrawals WHERE deleted_at IS NULL '
+          "AND (employee_uuid IS NULL OR TRIM(employee_uuid) = '') LIMIT ?",
     );
     // (ج) دورات رواتب بلا هوية موظف.
     await run(
       'cycles_missing_employee_uuid',
       'SELECT id, local_uuid, employee_id, cycle_key, device_id '
-      'FROM salary_cycles WHERE deleted_at IS NULL '
-      "AND (employee_uuid IS NULL OR TRIM(employee_uuid) = '') LIMIT ?",
+          'FROM salary_cycles WHERE deleted_at IS NULL '
+          "AND (employee_uuid IS NULL OR TRIM(employee_uuid) = '') LIMIT ?",
     );
     // (د) سجلات ترحيل بلا هوية موظف.
     await run(
       'carryover_missing_employee_uuid',
       'SELECT id, local_uuid, employee_id, amount, device_id '
-      'FROM salary_carry_over_logs WHERE deleted_at IS NULL '
-      "AND (employee_uuid IS NULL OR TRIM(employee_uuid) = '') LIMIT ?",
+          'FROM salary_carry_over_logs WHERE deleted_at IS NULL '
+          "AND (employee_uuid IS NULL OR TRIM(employee_uuid) = '') LIMIT ?",
     );
     // (هـ) مصروفات رواتب بلا هوية موظف (تحتاج مراجعة يدوية قبل أي ربط).
     await run(
       'salary_expenses_missing_employee_uuid',
       'SELECT id, local_uuid, related_id, amount, expense_type, device_id '
-      'FROM expenses WHERE deleted_at IS NULL '
-      "AND (employee_uuid IS NULL OR TRIM(employee_uuid) = '') "
-      'AND related_id IS NOT NULL LIMIT ?',
+          'FROM expenses WHERE deleted_at IS NULL '
+          "AND (employee_uuid IS NULL OR TRIM(employee_uuid) = '') "
+          'AND related_id IS NOT NULL LIMIT ?',
     );
     return gaps;
   }
@@ -454,7 +443,15 @@ class ReviewReportService {
     _tableSheet(
       excel,
       'انتهاكات سلامة',
-      const ['#', 'الجدول', 'المعرّف', 'النوع', 'حرِج', 'وقت الاكتشاف', 'التفاصيل'],
+      const [
+        '#',
+        'الجدول',
+        'المعرّف',
+        'النوع',
+        'حرِج',
+        'وقت الاكتشاف',
+        'التفاصيل',
+      ],
       [
         for (final row in report.integrityViolations)
           [
@@ -487,34 +484,37 @@ class ReviewReportService {
     final sheet = excel['الملخص'];
     sheet.isRTL = true;
 
-    sheet
-        .cell(CellIndex.indexByString('A1'))
-        .value = TextCellValue('فندق مارينا — تقرير مراجعة الهوية المالية');
-    sheet
-        .cell(CellIndex.indexByString('A1'))
-        .cellStyle = CellStyle(bold: true, fontSize: 15);
+    sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue(
+      'فندق مارينا — تقرير مراجعة الهوية المالية',
+    );
+    sheet.cell(CellIndex.indexByString('A1')).cellStyle = CellStyle(
+      bold: true,
+      fontSize: 15,
+    );
     sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('C1'));
 
     sheet.cell(CellIndex.indexByString('A2')).value = TextCellValue(
       'تاريخ التقرير: ${report.generatedAtIso} — قراءة فقط '
       '(لا يُعدَّل أي سجل، ولا تُقترح تصحيحات تلقائية)',
     );
-    sheet
-        .cell(CellIndex.indexByString('A2'))
-        .cellStyle = CellStyle(fontSize: 10);
+    sheet.cell(CellIndex.indexByString('A2')).cellStyle = CellStyle(
+      fontSize: 10,
+    );
     sheet.merge(CellIndex.indexByString('A2'), CellIndex.indexByString('C2'));
 
     final headers = ['الفئة', 'العدد', 'حالة الفحص'];
     for (var i = 0; i < headers.length; i++) {
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 4))
-          .value = TextCellValue(headers[i]);
+          .value = TextCellValue(
+        headers[i],
+      );
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 4))
           .cellStyle = CellStyle(
-            bold: true,
-            backgroundColorHex: ExcelColor.fromHexString('FFDBEAFE'),
-          );
+        bold: true,
+        backgroundColorHex: ExcelColor.fromHexString('FFDBEAFE'),
+      );
     }
 
     const labels = {
@@ -535,10 +535,14 @@ class ReviewReportService {
       final sectionStatus = report.status[entry.key];
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-          .value = TextCellValue(entry.value);
+          .value = TextCellValue(
+        entry.value,
+      );
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
-          .value = IntCellValue(report.summary[entry.key] ?? 0);
+          .value = IntCellValue(
+        report.summary[entry.key] ?? 0,
+      );
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
           .value = TextCellValue(
@@ -551,26 +555,31 @@ class ReviewReportService {
 
     sheet
         .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row + 1))
-        .value = TextCellValue('إجمالي الحالات المعروضة للمراجعة');
+        .value = TextCellValue(
+      'إجمالي الحالات المعروضة للمراجعة',
+    );
     sheet
         .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row + 1))
-        .cellStyle = CellStyle(bold: true);
+        .cellStyle = CellStyle(
+      bold: true,
+    );
     sheet
         .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row + 1))
-        .value = IntCellValue(report.totalFindings);
+        .value = IntCellValue(
+      report.totalFindings,
+    );
   }
 
   void _identityGapsSheet(Excel excel, ReviewReport report) {
     final sheet = excel['فجوات الهوية'];
     sheet.isRTL = true;
-    sheet
-        .cell(CellIndex.indexByString('A1'))
-        .value = TextCellValue(
+    sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue(
       'فجوات هوية تاريخية — لا تُصلَّح آلياً. المطلوب قرار بشري مدعوم بدليل.',
     );
-    sheet
-        .cell(CellIndex.indexByString('A1'))
-        .cellStyle = CellStyle(bold: true, fontSize: 12);
+    sheet.cell(CellIndex.indexByString('A1')).cellStyle = CellStyle(
+      bold: true,
+      fontSize: 12,
+    );
     sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('F1'));
 
     var row = 3;
@@ -589,25 +598,31 @@ class ReviewReportService {
       final sectionStatus = report.status[entry.key];
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-          .value = TextCellValue(entry.value);
+          .value = TextCellValue(
+        entry.value,
+      );
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
           .cellStyle = CellStyle(
-            bold: true,
-            backgroundColorHex: ExcelColor.fromHexString('FFFEF3C7'),
-          );
+        bold: true,
+        backgroundColorHex: ExcelColor.fromHexString('FFFEF3C7'),
+      );
       row++;
       if (sectionStatus != null && !sectionStatus.ok) {
         sheet
             .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-            .value = TextCellValue('تعذّر الفحص: ${sectionStatus.error}');
+            .value = TextCellValue(
+          'تعذّر الفحص: ${sectionStatus.error}',
+        );
         row += 2;
         continue;
       }
       if (rows.isEmpty) {
         sheet
             .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-            .value = TextCellValue('لا صفوف في هذه الفئة');
+            .value = TextCellValue(
+          'لا صفوف في هذه الفئة',
+        );
         row += 2;
         continue;
       }
@@ -615,13 +630,15 @@ class ReviewReportService {
       for (var c = 0; c < columns.length; c++) {
         sheet
             .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row))
-            .value = TextCellValue(columns[c]);
+            .value = TextCellValue(
+          columns[c],
+        );
         sheet
             .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row))
             .cellStyle = CellStyle(
-              bold: true,
-              backgroundColorHex: ExcelColor.fromHexString('FFF3F4F6'),
-            );
+          bold: true,
+          backgroundColorHex: ExcelColor.fromHexString('FFF3F4F6'),
+        );
       }
       row++;
       for (final dataRow in rows) {
@@ -629,7 +646,9 @@ class ReviewReportService {
           final value = dataRow[columns[c]];
           sheet
               .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row))
-              .value = _cellValueFor(value);
+              .value = _cellValueFor(
+            value,
+          );
         }
         row++;
       }
@@ -640,12 +659,13 @@ class ReviewReportService {
   void _providerScopeSheet(Excel excel, ReviewReport report) {
     final sheet = excel['نطاق المزوّد'];
     sheet.isRTL = true;
-    sheet
-        .cell(CellIndex.indexByString('A1'))
-        .value = TextCellValue('حالة نطاق مزوّد المزامنة (G-7)');
-    sheet
-        .cell(CellIndex.indexByString('A1'))
-        .cellStyle = CellStyle(bold: true, fontSize: 12);
+    sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue(
+      'حالة نطاق مزوّد المزامنة (G-7)',
+    );
+    sheet.cell(CellIndex.indexByString('A1')).cellStyle = CellStyle(
+      bold: true,
+      fontSize: 12,
+    );
 
     final scope = report.providerScope;
     final rows = <List<Object?>>[
@@ -663,13 +683,19 @@ class ReviewReportService {
     for (final entry in rows) {
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-          .value = TextCellValue('${entry[0]}');
+          .value = TextCellValue(
+        '${entry[0]}',
+      );
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
-          .cellStyle = CellStyle(bold: true);
+          .cellStyle = CellStyle(
+        bold: true,
+      );
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
-          .value = _cellValueFor(entry[1]);
+          .value = _cellValueFor(
+        entry[1],
+      );
       row++;
     }
   }
@@ -687,28 +713,32 @@ class ReviewReportService {
     if (rows.isEmpty) {
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
-          .value = TextCellValue(emptyNote);
+          .value = TextCellValue(
+        emptyNote,
+      );
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
           .cellStyle = CellStyle(
-            fontSize: 11,
-            fontColorHex: ExcelColor.fromHexString('FF166534'),
-            backgroundColorHex: ExcelColor.fromHexString('FFDCFCE7'),
-          );
+        fontSize: 11,
+        fontColorHex: ExcelColor.fromHexString('FF166534'),
+        backgroundColorHex: ExcelColor.fromHexString('FFDCFCE7'),
+      );
       return;
     }
 
     for (var c = 0; c < columns.length; c++) {
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
-          .value = TextCellValue(columns[c]);
+          .value = TextCellValue(
+        columns[c],
+      );
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
           .cellStyle = CellStyle(
-            bold: true,
-            fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
-            backgroundColorHex: ExcelColor.fromHexString('FF1B3A5C'),
-          );
+        bold: true,
+        fontColorHex: ExcelColor.fromHexString('FFFFFFFF'),
+        backgroundColorHex: ExcelColor.fromHexString('FF1B3A5C'),
+      );
     }
     for (var r = 0; r < rows.length; r++) {
       for (var c = 0; c < columns.length; c++) {

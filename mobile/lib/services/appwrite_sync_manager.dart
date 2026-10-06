@@ -255,7 +255,10 @@ class AppwriteSyncManager {
           );
         }
       } catch (e) {
-        _logger.warning('⚠️ فحص نطاق المزوّد بعد تغيير الإعدادات فشل: $e', tag: 'SYNC');
+        _logger.warning(
+          '⚠️ فحص نطاق المزوّد بعد تغيير الإعدادات فشل: $e',
+          tag: 'SYNC',
+        );
       }
       // إعادة تهيئة Secondary Appwrite
       await SecondaryAppwriteConfig.ensureInitialized();
@@ -6608,9 +6611,9 @@ class AppwriteSyncManager {
       // ✅ (G-7) القائمة السوداء: صفوف بعلامة created_by='blacklist' داخل
       // جدول الملاحظات (نفس المُلقٍ المستخدم في مسار الدفع — انظر
       // _processBlacklistEntry و _getBlacklistEntryByLocalUuid).
-      final blacklistRows = await (database.select(database.shiftNotes)
-            ..where((t) => t.createdBy.equals('blacklist')))
-          .get();
+      final blacklistRows = await (database.select(
+        database.shiftNotes,
+      )..where((t) => t.createdBy.equals('blacklist'))).get();
       for (final item in blacklistRows) {
         if (skipDeleted && item.deletedAt != null) continue;
         try {
@@ -6655,10 +6658,7 @@ class AppwriteSyncManager {
           stats['errors'] = (stats['errors'] ?? 0) + 1;
         }
       }
-      _logger.info(
-        '✅ تم رفع ${stats['_app_users']} مستخدم تطبيق',
-        tag: 'SYNC',
-      );
+      _logger.info('✅ تم رفع ${stats['_app_users']} مستخدم تطبيق', tag: 'SYNC');
 
       final totalRecords =
           stats['rooms']! +
