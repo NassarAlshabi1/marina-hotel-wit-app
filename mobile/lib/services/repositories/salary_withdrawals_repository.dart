@@ -53,6 +53,50 @@ class SalaryWithdrawalsRepository {
     }
   }
 
+  Future<String?> _expenseUuidRef(int expenseId) async {
+    if (expenseId <= 0) return null;
+    final row = await _db
+        .customSelect(
+          'SELECT local_uuid FROM expenses WHERE id = ? LIMIT 1',
+          variables: [d.Variable.withInt(expenseId)],
+        )
+        .getSingleOrNull();
+    return row?.data['local_uuid'] as String?;
+  }
+
+  Future<void> _linkExpenseToWithdrawal({
+    required int expenseId,
+    required String withdrawalUuid,
+  }) async {
+    final changed = await _db.customUpdate(
+      'UPDATE expenses SET withdrawal_uuid = ? '
+      'WHERE id = ? AND (withdrawal_uuid IS NULL OR withdrawal_uuid = ?)',
+      variables: [
+        d.Variable.withString(withdrawalUuid),
+        d.Variable.withInt(expenseId),
+        d.Variable.withString(withdrawalUuid),
+      ],
+      updates: {_db.expenses},
+    );
+    if (changed != 1) {
+      throw StateError(
+        'Expense $expenseId is missing or already linked to another withdrawal',
+      );
+    }
+  }
+
+  Future<void> _queueExpenseReverseLink({
+    required String expenseUuid,
+    required String withdrawalUuid,
+    required int clientTs,
+  }) => _outboxDao.merge(
+    entity: 'expenses',
+    op: 'update',
+    localUuid: expenseUuid,
+    payload: {'withdrawalUuid': withdrawalUuid},
+    clientTs: clientTs,
+  );
+
   /// إنشاء سجل سحب راتب مرتبط بمصروف
   /// [notify] = false عندما أنشأ المستدعي المصروف المقابل بنفسه وأرسل
   /// الإشعار (زواج السحب المباشر بمصروف — شاشة الموظفين) لمنع ازدواج الإشعارات
@@ -73,6 +117,7 @@ class SalaryWithdrawalsRepository {
     // ✅ (2026-09-19) مرجع الموظف المستقر — يُخزَّن في العمود الجديد
     // (migration 68) فيُرسل مع كل دفعة مزامنة لاحقة عبر toJson.
     final employeeUuid = await _employeeUuidRef(employeeId);
+    final expenseUuid = await _expenseUuidRef(expenseId);
 
     final id = await _db.transaction(() async {
       final companion = SalaryWithdrawalsCompanion(
@@ -81,6 +126,9 @@ class SalaryWithdrawalsRepository {
         employeeId: d.Value(employeeId),
         employeeUuid: employeeUuid != null
             ? d.Value(employeeUuid)
+            : const d.Value.absent(),
+        expenseUuid: expenseUuid != null
+            ? d.Value(expenseUuid)
             : const d.Value.absent(),
         amount: d.Value(amount),
         withdrawDate: d.Value(date),
@@ -102,6 +150,19 @@ class SalaryWithdrawalsRepository {
 
       if (expenseId > 0) {
         await _setExpenseIdRaw(id, expenseId);
+        if (expenseUuid != null) {
+          await _linkExpenseToWithdrawal(
+            expenseId: expenseId,
+            withdrawalUuid: uuid,
+          );
+        }
+        if (!originIsServer && expenseUuid != null) {
+          await _queueExpenseReverseLink(
+            expenseUuid: expenseUuid,
+            withdrawalUuid: uuid,
+            clientTs: now,
+          );
+        }
       }
 
       if (!originIsServer) {
@@ -123,6 +184,7 @@ class SalaryWithdrawalsRepository {
         }
         if (expenseId > 0) {
           payload['expenseId'] = expenseId;
+          if (expenseUuid != null) payload['expenseUuid'] = expenseUuid;
         }
         await _outboxDao.merge(
           entity: 'salary_withdrawals',
@@ -316,6 +378,7 @@ class SalaryWithdrawalsRepository {
     }
 
     final now = Time.nowEpoch();
+    final expenseUuid = await _expenseUuidRef(expenseId);
     // reason يحتوي فقط على علامة الربط بالمصروف
     final reasonText = 'exp_$expenseId';
 
@@ -385,6 +448,9 @@ class SalaryWithdrawalsRepository {
         )..where((t) => t.id.equals(matchedId))).write(
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
+            expenseUuid: expenseUuid != null
+                ? d.Value(expenseUuid)
+                : const d.Value.absent(),
             amount: d.Value(amount),
             withdrawDate: d.Value(date),
             reason: d.Value(reasonText),
@@ -397,8 +463,21 @@ class SalaryWithdrawalsRepository {
           ),
         );
 
-        // ✅ تحديث expense_id في العمود الخام
+        // ✅ تحديث expense_id في العمود الخام والرابط العكسي المستقر.
         await _setExpenseIdRaw(matchedId, expenseId);
+        if (expenseUuid != null) {
+          await _linkExpenseToWithdrawal(
+            expenseId: expenseId,
+            withdrawalUuid: matchedLocalUuid,
+          );
+        }
+        if (!originIsServer && expenseUuid != null) {
+          await _queueExpenseReverseLink(
+            expenseUuid: expenseUuid,
+            withdrawalUuid: matchedLocalUuid,
+            clientTs: now,
+          );
+        }
 
         if (!originIsServer) {
           final employeeUuidRef = await _employeeUuidRef(employeeId);
@@ -418,6 +497,7 @@ class SalaryWithdrawalsRepository {
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'lastModified': now,
               'expenseId': expenseId,
+              if (expenseUuid != null) 'expenseUuid': expenseUuid,
             },
             clientTs: now,
           );
@@ -452,6 +532,9 @@ class SalaryWithdrawalsRepository {
                 employeeUuid: newEmployeeUuid != null
                     ? d.Value(newEmployeeUuid)
                     : const d.Value.absent(),
+                expenseUuid: expenseUuid != null
+                    ? d.Value(expenseUuid)
+                    : const d.Value.absent(),
                 amount: d.Value(amount),
                 withdrawDate: d.Value(date),
                 reason: d.Value(reasonText),
@@ -470,8 +553,21 @@ class SalaryWithdrawalsRepository {
               ),
             );
 
-        // ✅ كتابة expense_id في العمود الخام
+        // ✅ كتابة الرابط المحلي والرابط العكسي المستقر.
         await _setExpenseIdRaw(newId, expenseId);
+        if (expenseUuid != null) {
+          await _linkExpenseToWithdrawal(
+            expenseId: expenseId,
+            withdrawalUuid: uuid,
+          );
+        }
+        if (!originIsServer && expenseUuid != null) {
+          await _queueExpenseReverseLink(
+            expenseUuid: expenseUuid,
+            withdrawalUuid: uuid,
+            clientTs: now,
+          );
+        }
         unawaited(
           WhatsAppNotificationService.instance.notifyNewExpense(
             category: 'سحب راتب',
@@ -503,6 +599,7 @@ class SalaryWithdrawalsRepository {
               'description': note,
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'expenseId': expenseId,
+              if (expenseUuid != null) 'expenseUuid': expenseUuid,
             },
             clientTs: now,
           );

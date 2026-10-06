@@ -28,7 +28,39 @@ class SalaryCarryOverLogsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    return ResolveResult.empty;
+    final remoteEmployeeUuid =
+        _asString(json, 'employeeUuid', src) ??
+        _asString(json, 'employee_uuid', src);
+    final remoteEmployeeId =
+        _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
+    final fromRemote = src == Source.appwrite || src == Source.drive;
+    final employeeLocalId = await resolver.resolveEmployee(
+      uuid: remoteEmployeeUuid,
+      serverId: fromRemote ? remoteEmployeeId : null,
+      localId: fromRemote ? null : remoteEmployeeId,
+      fromRemote: fromRemote,
+    );
+
+    String? employeeUuid = remoteEmployeeUuid;
+    if (employeeLocalId != null) {
+      final employee =
+          await (db.select(db.employees)
+                ..where((row) => row.id.equals(employeeLocalId))
+                ..limit(1))
+              .getSingleOrNull();
+      employeeUuid = employee?.localUuid ?? employeeUuid;
+    }
+
+    final shouldSkip = fromRemote && employeeLocalId == null;
+    return ResolveResult(
+      employeeLocalId: employeeLocalId,
+      employeeUuid: employeeUuid,
+      shouldSkip: shouldSkip,
+      skipReason: shouldSkip
+          ? 'salary_carry_over_log: unresolved employee '
+                '(uuid=$remoteEmployeeUuid, remoteId=$remoteEmployeeId)'
+          : null,
+    );
   }
 
   @override
@@ -45,7 +77,14 @@ class SalaryCarryOverLogsAdapter
             _asString(json, 'local_uuid', src) ??
             IdGen.uuid(),
       ),
-      employeeId: _vInt(json, 'employeeId', src, altKey: 'employee_id'),
+      employeeId: refs.employeeLocalId != null
+          ? d.Value(refs.employeeLocalId!)
+          : (src == Source.appwrite || src == Source.drive)
+          ? const d.Value.absent()
+          : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
+      employeeUuid: refs.employeeUuid != null
+          ? d.Value(refs.employeeUuid!)
+          : _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       amount: d.Value(_asDouble(json, 'amount', src) ?? 0),
       previousCycleStart: d.Value(
         _asString(json, 'previousCycleStart', src) ??
@@ -109,6 +148,7 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'amount', 'amount'): model.amount,
       _k(src, 'previousCycleStart', 'previous_cycle_start'):
           model.previousCycleStart,
