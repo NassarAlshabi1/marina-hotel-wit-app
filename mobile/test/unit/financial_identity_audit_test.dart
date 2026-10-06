@@ -984,19 +984,29 @@ void main() {
 
       for (final row in data['employees']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
-        final refs = await employeeAdapter.resolveRefs(db, json, src: Source.drive);
+        final refs = await employeeAdapter.resolveRefs(
+          db,
+          json,
+          src: Source.drive,
+        );
         if (refs.shouldSkip) {
           stats.deferred.add('employees:${json['local_uuid']}');
           continue;
         }
         await db
             .into(db.employees)
-            .insert(employeeAdapter.fromJson(json, src: Source.drive, refs: refs));
+            .insert(
+              employeeAdapter.fromJson(json, src: Source.drive, refs: refs),
+            );
         stats.inserted++;
       }
       for (final row in data['salary_cycles']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
-        final refs = await cycleAdapter.resolveRefs(db, json, src: Source.drive);
+        final refs = await cycleAdapter.resolveRefs(
+          db,
+          json,
+          src: Source.drive,
+        );
         if (refs.shouldSkip) {
           stats.deferred.add('salary_cycles:${json['local_uuid']}');
           continue;
@@ -1008,14 +1018,20 @@ void main() {
       }
       for (final row in data['expenses']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
-        final refs = await expenseAdapter.resolveRefs(db, json, src: Source.drive);
+        final refs = await expenseAdapter.resolveRefs(
+          db,
+          json,
+          src: Source.drive,
+        );
         if (refs.shouldSkip) {
           stats.deferred.add('expenses:${json['local_uuid']}');
           continue;
         }
         await db
             .into(db.expenses)
-            .insert(expenseAdapter.fromJson(json, src: Source.drive, refs: refs));
+            .insert(
+              expenseAdapter.fromJson(json, src: Source.drive, refs: refs),
+            );
         stats.inserted++;
       }
       for (final row in data['salary_withdrawals']!) {
@@ -1038,7 +1054,11 @@ void main() {
       }
       for (final row in data['salary_payments']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
-        final refs = await paymentAdapter.resolveRefs(db, json, src: Source.drive);
+        final refs = await paymentAdapter.resolveRefs(
+          db,
+          json,
+          src: Source.drive,
+        );
         if (refs.shouldSkip) {
           stats.deferred.add('salary_payments:${json['local_uuid']}');
           continue;
@@ -1147,7 +1167,8 @@ void main() {
       expect(
         stats.deferred,
         isEmpty,
-        reason: 'تصدير مُغنى بروابط المزوّد (كما يفعل مسار الرفع) لا يُؤجّل شيئًا',
+        reason:
+            'تصدير مُغنى بروابط المزوّد (كما يفعل مسار الرفع) لا يُؤجّل شيئًا',
       );
 
       final afterEmployees = await target.select(target.employees).get();
