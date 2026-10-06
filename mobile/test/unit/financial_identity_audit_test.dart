@@ -179,6 +179,33 @@ Future<int> _payment(
       );
 }
 
+/// يحاكي حقن روابط الهوية في حمولة الدفعة أثناء الرفع (مسار
+/// `appwrite_sync_manager._processSalaryPaymentEntry`). الحقول تُضاف بصيغة
+/// snake_case (مصدر Drive) لأنها الصيغة التي يقرأها المحوّل في الاتجاهين.
+Map<String, dynamic> _paymentExport(
+  Map<String, dynamic> payload, {
+  required String? cycleUuid,
+  required String? employeeUuid,
+}) {
+  final map = Map<String, dynamic>.from(payload);
+  if (cycleUuid != null && cycleUuid.isNotEmpty) {
+    map['cycle_local_uuid'] = cycleUuid;
+  }
+  if (employeeUuid != null && employeeUuid.isNotEmpty) {
+    map['employee_uuid'] = employeeUuid;
+  }
+  return map;
+}
+
+/// إحصاء استيراد — يفرّق بين ما أُدرج فعلًا وما أُجّل (مرجع غير محلول).
+class ImportStats {
+  int inserted = 0;
+  final List<String> deferred = <String>[];
+
+  @override
+  String toString() => 'inserted=$inserted, deferred=${deferred.length}';
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -886,9 +913,15 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════
   group('7+8) الاستعادة وتغيير المزوّد', () {
     /// تصدير محايد عن المزوّد (نفس مسار Drive/النسخ الاحتياطي: snake_case).
+    ///
+    /// [enrichProviderLinks] = true يحاكي **مسار الرفع الحقيقي** في التطبيق:
+    /// `appwrite_sync_manager._processSalaryPaymentEntry` يحقن `cycleLocalUuid`
+    /// (وهوية الموظف) في حمولة الدفعة وقت الرفع. لهذا يلزم التصدير المُغنى
+    /// كي تُنقل هوية الدورة عبر المزوّد — أما الصف الخام فلا يحملها (فجوة G-1).
     Future<Map<String, List<Map<String, dynamic>>>> exportNeutral(
-      AppDatabase db,
-    ) async {
+      AppDatabase db, {
+      bool enrichProviderLinks = true,
+    }) async {
       final employees = await db.select(db.employees).get();
       final expenses = await db.select(db.expenses).get();
       final withdrawals = await db.select(db.salaryWithdrawals).get();
@@ -900,6 +933,10 @@ void main() {
       final withdrawalAdapter = SalaryWithdrawalsAdapter(IdResolver(db));
       final cycleAdapter = SalaryCyclesAdapter(IdResolver(db));
       final paymentAdapter = SalaryPaymentsAdapter(IdResolver(db));
+
+      final cycleUuidById = <int, String>{
+        for (final c in cycles) c.id: c.localUuid,
+      };
 
       return <String, List<Map<String, dynamic>>>{
         'employees': [
@@ -917,63 +954,69 @@ void main() {
             withdrawalAdapter.toJson(r, src: Source.drive),
         ],
         'salary_payments': [
-          for (final r in payments) paymentAdapter.toJson(r, src: Source.drive),
+          for (final r in payments)
+            _paymentExport(
+              paymentAdapter.toJson(r, src: Source.drive),
+              cycleUuid: enrichProviderLinks ? cycleUuidById[r.cycleId] : null,
+              employeeUuid: enrichProviderLinks ? r.employeeUuid : null,
+            ),
         ],
       };
     }
 
     /// استيراد في قاعدة جديدة — الأب قبل الابن (سياسة الانتقال الرسمية).
-    Future<void> importNeutral(
+    /// استيراد في قاعدة جديدة — الأب قبل الابن (سياسة الانتقال الرسمية).
+    ///
+    /// يحاكي `BaseRepository.upsertFromJson`: أي سجل يُرجع `refs.shouldSkip`
+    /// (مرجع أب غير محلول) **يُؤجّل ولا يُدرج** — لا ربط تخميني ولا crash.
+    /// ملاحظة: نحذف 'id' القادم من المصدر قبل الإدراج (نفس ما يفعله
+    /// BaseRepository للمصادر البعيدة) لأن `id` autoincrement محلي.
+    Future<ImportStats> importNeutral(
       AppDatabase db,
       Map<String, List<Map<String, dynamic>>> data,
     ) async {
+      final stats = ImportStats();
       final employeeAdapter = EmployeesAdapter(IdResolver(db));
       final cycleAdapter = SalaryCyclesAdapter(IdResolver(db));
       final expenseAdapter = ExpensesAdapter(IdResolver(db));
       final withdrawalAdapter = SalaryWithdrawalsAdapter(IdResolver(db));
       final paymentAdapter = SalaryPaymentsAdapter(IdResolver(db));
 
-      // الأب قبل الابن — لا ربط تخميني: كل صف يحمل هويته وعلاقاته.
-      //
-      // ملاحظة: نحذف 'id' القادم من المصدر قبل الإدراج — نفس ما يفعله
-      // `BaseRepository.upsertFromJson` للمصادر البعيدة — لأن `id` هو
-      // autoincrement محلي لا يُنقل بين الأجهزة (الهوية هي local_uuid).
       for (final row in data['employees']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
-        final refs = await employeeAdapter.resolveRefs(
-          db,
-          json,
-          src: Source.drive,
-        );
+        final refs = await employeeAdapter.resolveRefs(db, json, src: Source.drive);
+        if (refs.shouldSkip) {
+          stats.deferred.add('employees:${json['local_uuid']}');
+          continue;
+        }
         await db
             .into(db.employees)
-            .insert(
-              employeeAdapter.fromJson(json, src: Source.drive, refs: refs),
-            );
+            .insert(employeeAdapter.fromJson(json, src: Source.drive, refs: refs));
+        stats.inserted++;
       }
       for (final row in data['salary_cycles']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
-        final refs = await cycleAdapter.resolveRefs(
-          db,
-          json,
-          src: Source.drive,
-        );
+        final refs = await cycleAdapter.resolveRefs(db, json, src: Source.drive);
+        if (refs.shouldSkip) {
+          stats.deferred.add('salary_cycles:${json['local_uuid']}');
+          continue;
+        }
         await db
             .into(db.salaryCycles)
             .insert(cycleAdapter.fromJson(json, src: Source.drive, refs: refs));
+        stats.inserted++;
       }
       for (final row in data['expenses']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
-        final refs = await expenseAdapter.resolveRefs(
-          db,
-          json,
-          src: Source.drive,
-        );
+        final refs = await expenseAdapter.resolveRefs(db, json, src: Source.drive);
+        if (refs.shouldSkip) {
+          stats.deferred.add('expenses:${json['local_uuid']}');
+          continue;
+        }
         await db
             .into(db.expenses)
-            .insert(
-              expenseAdapter.fromJson(json, src: Source.drive, refs: refs),
-            );
+            .insert(expenseAdapter.fromJson(json, src: Source.drive, refs: refs));
+        stats.inserted++;
       }
       for (final row in data['salary_withdrawals']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
@@ -982,25 +1025,32 @@ void main() {
           json,
           src: Source.drive,
         );
+        if (refs.shouldSkip) {
+          stats.deferred.add('salary_withdrawals:${json['local_uuid']}');
+          continue;
+        }
         await db
             .into(db.salaryWithdrawals)
             .insert(
               withdrawalAdapter.fromJson(json, src: Source.drive, refs: refs),
             );
+        stats.inserted++;
       }
       for (final row in data['salary_payments']!) {
         final json = Map<String, dynamic>.from(row)..remove('id');
-        final refs = await paymentAdapter.resolveRefs(
-          db,
-          json,
-          src: Source.drive,
-        );
+        final refs = await paymentAdapter.resolveRefs(db, json, src: Source.drive);
+        if (refs.shouldSkip) {
+          stats.deferred.add('salary_payments:${json['local_uuid']}');
+          continue;
+        }
         await db
             .into(db.salaryPayments)
             .insert(
               paymentAdapter.fromJson(json, src: Source.drive, refs: refs),
             );
+        stats.inserted++;
       }
+      return stats;
     }
 
     Future<AppDatabase> buildSource() async {
@@ -1092,7 +1142,13 @@ void main() {
 
       final target = _newDb();
       addTearDown(() => target.close());
-      await importNeutral(target, exported);
+      final stats = await importNeutral(target, exported);
+
+      expect(
+        stats.deferred,
+        isEmpty,
+        reason: 'تصدير مُغنى بروابط المزوّد (كما يفعل مسار الرفع) لا يُؤجّل شيئًا',
+      );
 
       final afterEmployees = await target.select(target.employees).get();
       final afterExpenses = await target.select(target.expenses).get();
@@ -1110,6 +1166,41 @@ void main() {
     });
 
     test(
+      'G-1 (documented gap): a raw payment row carries no cycle identity → migration defers it',
+      () async {
+        final source = await buildSource();
+        addTearDown(() => source.close());
+
+        // تصدير "خام" بلا حقن روابط المزوّد (كما هو صف الجدول فعلًا)
+        final exported = await exportNeutral(
+          source,
+          enrichProviderLinks: false,
+        );
+        final paymentRow = exported['salary_payments']!.single;
+        expect(
+          paymentRow['cycle_local_uuid'],
+          isNull,
+          reason: 'الصف نفسه لا يحمل هوية دورته — لا عمود cycle_uuid (G-1)',
+        );
+
+        final target = _newDb();
+        addTearDown(() => target.close());
+        final stats = await importNeutral(target, exported);
+
+        // ⚠️ الفجوة: بلا حمولة الرفع، تفقد الدفعة رابط دورتها فيُؤجَّل إدراجها.
+        // المطلوب بعد إصلاح P0-2 (عمود cycle_uuid + كتابته عند الإنشاء):
+        //   expect(stats.deferred, isEmpty);  ← يجب أن يصبح هذا هو السلوك.
+        expect(stats.deferred, hasLength(1));
+        expect(stats.deferred.single, startsWith('salary_payments:'));
+        expect(
+          await target.select(target.salaryPayments).get(),
+          isEmpty,
+          reason: 'لا تُدرج دفعة بمرجع أب غير محلول (لا ربط تخميني)',
+        );
+      },
+    );
+
+    test(
       'provider swap keeps counts, uuids, relations and money totals',
       () async {
         final source = await buildSource();
@@ -1122,7 +1213,12 @@ void main() {
         addTearDown(() => target.close());
         // موظف حشو أولًا ليتغيّر ترقيم المعرفات كليًا
         await _employee(target, uuid: 'filler-emp', name: 'حشو');
-        await importNeutral(target, exported);
+        final stats = await importNeutral(target, exported);
+        expect(
+          stats.deferred,
+          isEmpty,
+          reason: 'لا سجل مفقود في الانتقال (البند 9: نقل كامل بلا فقد)',
+        );
 
         // 1) الأعداد
         expect(
@@ -1211,16 +1307,23 @@ void main() {
           expect(w.expenseUuid, isNotNull);
         }
 
-        // 5) G-1 (فجوة موثّقة): الدفعة تحمل employee_uuid، أما هوية دورتها
-        //    (cycle_uuid) فلا تُخزَّن في الصف نفسه — تعتمد على الحمولة وقت
-        //    الرفع فقط. بعد إصلاح P0-2 يجب أن يصبح هذا التخطيط:
-        //    expect(payment.cycleUuid, 'cycle-uuid-0001');
+        // 5) هوية الدورة في الدفعة: تُنقل عبر حمولة المزوّد (cycle_local_uuid)
+        //    — نفس ما يحقنه مسار الرفع. الرقم المحلي cycle_id لا يُعتمد عليه.
+        expect(
+          exported['salary_payments']!.single['cycle_local_uuid'],
+          'cycle-uuid-0001',
+          reason: 'حمولة الرفع تحمل هوية الدورة الثابتة',
+        );
         final payments = await target.select(target.salaryPayments).get();
         expect(payments.single.employeeUuid, 'emp-uuid-0001');
-        // الربط الرقمي فقط هو المتاح الآن:
         final cycles = await target.select(target.salaryCycles).get();
-        final linkedCycle = cycles.firstWhere(
+        final linkedCycle = cycles.singleWhere(
           (c) => c.id == payments.single.cycleId,
+        );
+        expect(
+          linkedCycle.localUuid,
+          'cycle-uuid-0001',
+          reason: 'الدفعة مرتبطة بدورتها عبر الهوية لا عبر تصادف الأرقام',
         );
         expect(linkedCycle.employeeUuid, 'emp-uuid-0001');
       },
