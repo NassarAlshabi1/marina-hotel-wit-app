@@ -1,0 +1,9 @@
+Changed lib/services/sync_core/financial_link_store.dart
+Changed lib/services/salary_mirror_matcher.dart
+Changed lib/services/review_report_service.dart
+Changed lib/services/adapters/salary_carry_over_logs_adapter.dart
+Changed lib/screens/information/information_screen.dart
+Changed test/unit/financial_links_g1_g2_test.dart
+Changed test/services/salary_mirror_cross_device_test.dart
+Formatted 17 files (7 changed) in 0.30 seconds.
+261 .arena/format.diff

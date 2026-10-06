@@ -1,0 +1,261 @@
+diff --git a/mobile/lib/screens/information/information_screen.dart b/mobile/lib/screens/information/information_screen.dart
+index 95c5fc3..f66d48a 100755
+--- a/mobile/lib/screens/information/information_screen.dart
++++ b/mobile/lib/screens/information/information_screen.dart
+@@ -54,10 +54,24 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
+       '',
+     );
+     const unified = {
+-      'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ٱ': 'ا',
+-      'ى': 'ي', 'ئ': 'ي', 'ؤ': 'و', 'ة': 'ه',
+-      '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+-      '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
++      'أ': 'ا',
++      'إ': 'ا',
++      'آ': 'ا',
++      'ٱ': 'ا',
++      'ى': 'ي',
++      'ئ': 'ي',
++      'ؤ': 'و',
++      'ة': 'ه',
++      '٠': '0',
++      '١': '1',
++      '٢': '2',
++      '٣': '3',
++      '٤': '4',
++      '٥': '5',
++      '٦': '6',
++      '٧': '7',
++      '٨': '8',
++      '٩': '9',
+     };
+     final buffer = StringBuffer();
+     for (final rune in text.runes) {
+diff --git a/mobile/lib/services/adapters/salary_carry_over_logs_adapter.dart b/mobile/lib/services/adapters/salary_carry_over_logs_adapter.dart
+index 2af89d1..6f84bca 100755
+--- a/mobile/lib/services/adapters/salary_carry_over_logs_adapter.dart
++++ b/mobile/lib/services/adapters/salary_carry_over_logs_adapter.dart
+@@ -120,18 +120,12 @@ class SalaryCarryOverLogsAdapter
+       // ✅ (G-2 / 2026-10-06): رابطتا الدورتين (UUID — لا معرّف رقمي).
+       // كانتا لا تُقرآن إطلاقاً ⇒ سجل الترحيل يصل بلا علاقة دورات ثابتة.
+       // تُقبل الأسماء المعلنة أولاً ثم الأسماء البديلة القديمة.
+-      fromCycleId: _vStr(
+-        json,
+-        'fromCycleUuid',
+-        src,
+-        altKey: 'from_cycle_uuid',
+-      ) ?? _vStr(json, 'fromCycleId', src, altKey: 'from_cycle_id'),
+-      toCycleId: _vStr(
+-        json,
+-        'toCycleUuid',
+-        src,
+-        altKey: 'to_cycle_uuid',
+-      ) ?? _vStr(json, 'toCycleId', src, altKey: 'to_cycle_id'),
++      fromCycleId:
++          _vStr(json, 'fromCycleUuid', src, altKey: 'from_cycle_uuid') ??
++          _vStr(json, 'fromCycleId', src, altKey: 'from_cycle_id'),
++      toCycleId:
++          _vStr(json, 'toCycleUuid', src, altKey: 'to_cycle_uuid') ??
++          _vStr(json, 'toCycleId', src, altKey: 'to_cycle_id'),
+       reason: d.Value(_asString(json, 'reason', src) ?? ''),
+       carriedAt: d.Value(_asInt(json, 'carriedAt', src) ?? now),
+       createdAt: d.Value(_asInt(json, 'createdAt', src) ?? now),
+diff --git a/mobile/lib/services/review_report_service.dart b/mobile/lib/services/review_report_service.dart
+index bc35d99..55e4528 100644
+--- a/mobile/lib/services/review_report_service.dart
++++ b/mobile/lib/services/review_report_service.dart
+@@ -599,14 +599,7 @@ class ReviewReportService {
+     _tableSheet(
+       excel,
+       'مرايا حُكمية',
+-      const [
+-        'سحبة',
+-        'الموظف',
+-        'المبلغ',
+-        'اليوم',
+-        'السبب',
+-        'مستوى الإثبات',
+-      ],
++      const ['سحبة', 'الموظف', 'المبلغ', 'اليوم', 'السبب', 'مستوى الإثبات'],
+       [
+         for (final row in report.heuristicMirrors)
+           [
+@@ -815,15 +808,14 @@ class ReviewReportService {
+   void _durableLinksSheet(Excel excel, ReviewReport report) {
+     final sheet = excel['الروابط الدائمة'];
+     sheet.isRTL = true;
+-    sheet
+-        .cell(CellIndex.indexByString('A1'))
+-        .value = TextCellValue(
++    sheet.cell(CellIndex.indexByString('A1')).value = TextCellValue(
+       'الروابط المالية الدائمة (G-1/G-2) — أي رقم «غير مرتبط» يحتاج '
+       'قراراً بشرياً، ولا يُربط تخميناً.',
+     );
+-    sheet
+-        .cell(CellIndex.indexByString('A1'))
+-        .cellStyle = CellStyle(bold: true, fontSize: 11);
++    sheet.cell(CellIndex.indexByString('A1')).cellStyle = CellStyle(
++      bold: true,
++      fontSize: 11,
++    );
+     sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('C1'));
+ 
+     const labels = {
+@@ -838,10 +830,14 @@ class ReviewReportService {
+     for (final entry in labels.entries) {
+       sheet
+           .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+-          .value = TextCellValue(entry.value);
++          .value = TextCellValue(
++        entry.value,
++      );
+       sheet
+           .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+-          .value = IntCellValue(report.durableLinks[entry.key] ?? 0);
++          .value = IntCellValue(
++        report.durableLinks[entry.key] ?? 0,
++      );
+       row++;
+     }
+   }
+diff --git a/mobile/lib/services/salary_mirror_matcher.dart b/mobile/lib/services/salary_mirror_matcher.dart
+index bdb9aa0..984c685 100644
+--- a/mobile/lib/services/salary_mirror_matcher.dart
++++ b/mobile/lib/services/salary_mirror_matcher.dart
+@@ -135,8 +135,7 @@ class SalaryMirrorMatcher {
+           // — نفس الجهاز الكاتب للسحبة والمصروف (نفس قاعدة G-3 في
+           // IdResolver). بلا إثبات ⇒ لا ربط رقمي: يبقى الاحتياط
+           // البياناتي (المستوى 3/4) ولا يُخمَّن الربط.
+-          final deviceProof =
+-              (sourceDeviceId ?? '').trim().isNotEmpty;
++          final deviceProof = (sourceDeviceId ?? '').trim().isNotEmpty;
+           if (deviceProof) {
+             for (final e in expenses) {
+               if (e.serverId != null &&
+diff --git a/mobile/lib/services/sync_core/financial_link_store.dart b/mobile/lib/services/sync_core/financial_link_store.dart
+index bc66540..a4a423a 100644
+--- a/mobile/lib/services/sync_core/financial_link_store.dart
++++ b/mobile/lib/services/sync_core/financial_link_store.dart
+@@ -208,7 +208,9 @@ class FinancialLinkStore {
+             variables: [
+               Variable.withInt(employeeId),
+               Variable.withString(cycleStartIsoDate),
+-              Variable.withString(monthKey ?? cycleStartIsoDate.substring(0, 7)),
++              Variable.withString(
++                monthKey ?? cycleStartIsoDate.substring(0, 7),
++              ),
+             ],
+           )
+           .get();
+diff --git a/mobile/test/services/salary_mirror_cross_device_test.dart b/mobile/test/services/salary_mirror_cross_device_test.dart
+index 790f846..408190d 100644
+--- a/mobile/test/services/salary_mirror_cross_device_test.dart
++++ b/mobile/test/services/salary_mirror_cross_device_test.dart
+@@ -274,35 +274,37 @@ void main() {
+       expect(isMirror, isTrue);
+     });
+ 
+-    test('بدون إثبات الجهاز: رقم جهاز المصدر لا يُربط (يُخدَّد بياناتياً فقط)',
+-        () {
+-      const candidate = MirrorExpenseCandidate(
+-        id: 51,
+-        serverId: 962,
+-        expenseType: 'سحب راتب',
+-        amount: 5000,
+-        date: '2026-08-02',
+-        hotelDayKey: '2026-08-02',
+-        relatedId: 9,
+-        deviceId: 'dev-other',
+-      );
+-      final level = SalaryMirrorMatcher.classify(
+-        expenseId: null,
+-        reason: 'exp_962',
+-        amount: 5000,
+-        hotelDayKey: '2026-08-02',
+-        withdrawDate: '2026-08-02',
+-        employeeId: 9,
+-        expenses: [candidate],
+-        // بلا مصدر جهاز ⇒ لا إثبات
+-      );
+-      expect(level, MirrorMatchLevel.dataMatch);
+-      expect(
+-        level.isHeuristic,
+-        isTrue,
+-        reason: 'الحُكم بياناتي ويجب أن يظهر موسوماً لا صامتاً',
+-      );
+-    });
++    test(
++      'بدون إثبات الجهاز: رقم جهاز المصدر لا يُربط (يُخدَّد بياناتياً فقط)',
++      () {
++        const candidate = MirrorExpenseCandidate(
++          id: 51,
++          serverId: 962,
++          expenseType: 'سحب راتب',
++          amount: 5000,
++          date: '2026-08-02',
++          hotelDayKey: '2026-08-02',
++          relatedId: 9,
++          deviceId: 'dev-other',
++        );
++        final level = SalaryMirrorMatcher.classify(
++          expenseId: null,
++          reason: 'exp_962',
++          amount: 5000,
++          hotelDayKey: '2026-08-02',
++          withdrawDate: '2026-08-02',
++          employeeId: 9,
++          expenses: [candidate],
++          // بلا مصدر جهاز ⇒ لا إثبات
++        );
++        expect(level, MirrorMatchLevel.dataMatch);
++        expect(
++          level.isHeuristic,
++          isTrue,
++          reason: 'الحُكم بياناتي ويجب أن يظهر موسوماً لا صامتاً',
++        );
++      },
++    );
+ 
+     test('مطابقة بيانات: موظف مختلف لا يُخدَّد به (حماية من الربط العابر)', () {
+       const candidate = MirrorExpenseCandidate(
+diff --git a/mobile/test/unit/financial_links_g1_g2_test.dart b/mobile/test/unit/financial_links_g1_g2_test.dart
+index 2e4213f..7a38b75 100644
+--- a/mobile/test/unit/financial_links_g1_g2_test.dart
++++ b/mobile/test/unit/financial_links_g1_g2_test.dart
+@@ -133,20 +133,22 @@ void main() {
+       expect(await storedCycleUuid('pay-A'), 'cyc-A');
+     });
+ 
+-    test('UUID الوارد في الحمولة (هوية معلنة) يتقدّم على المفتاح الرقمي',
+-        () async {
+-      final emp = await employee('emp-1');
+-      final c = await cycle(empId: emp, uuid: 'cyc-local', key: '2026-10');
+-      await payment(cycleId: c, uuid: 'pay-B');
+-
+-      final links = FinancialLinkStore(db);
+-      final resolved = await links.stampPaymentCycleIfMissing(
+-        paymentLocalUuid: 'pay-B',
+-        preferredCycleUuid: 'cyc-from-payload',
+-        fallbackCycleLocalId: c,
+-      );
+-      expect(resolved, 'cyc-from-payload');
+-    });
++    test(
++      'UUID الوارد في الحمولة (هوية معلنة) يتقدّم على المفتاح الرقمي',
++      () async {
++        final emp = await employee('emp-1');
++        final c = await cycle(empId: emp, uuid: 'cyc-local', key: '2026-10');
++        await payment(cycleId: c, uuid: 'pay-B');
++
++        final links = FinancialLinkStore(db);
++        final resolved = await links.stampPaymentCycleIfMissing(
++          paymentLocalUuid: 'pay-B',
++          preferredCycleUuid: 'cyc-from-payload',
++          fallbackCycleLocalId: c,
++        );
++        expect(resolved, 'cyc-from-payload');
++      },
++    );
+ 
+     test('لا دليل ⇒ لا كتابة (يبقى فارغاً ويظهر في المراجعة)', () async {
+       final emp = await employee('emp-1');
