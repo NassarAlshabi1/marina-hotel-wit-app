@@ -780,46 +780,43 @@ void main() {
       },
     );
 
-    test(
-      'G-4: non-critical fields of the same record are still merged',
-      () {
-        const localUuid = 'expense-conflict-2b';
-        final local = <String, dynamic>{
-          'localUuid': localUuid,
-          'amount': 120.0,
-          'hotelDayKey': '2026-10-01',
-          'lastModified': 5000,
-          'vectorClock': '{"device-A": 2, "device-B": 1}',
-        };
-        final remote = <String, dynamic>{
-          'localUuid': localUuid,
-          'amount': 150.0,
-          'hotelDayKey': '2026-10-02',
-          'lastModified': 6000,
-          'vectorClock': '{"device-A": 1, "device-B": 2}',
-        };
-        final ancestor = <String, dynamic>{
-          'localUuid': localUuid,
-          'amount': 100.0,
-          'hotelDayKey': '2026-10-01',
-        };
+    test('G-4: non-critical fields of the same record are still merged', () {
+      const localUuid = 'expense-conflict-2b';
+      final local = <String, dynamic>{
+        'localUuid': localUuid,
+        'amount': 120.0,
+        'hotelDayKey': '2026-10-01',
+        'lastModified': 5000,
+        'vectorClock': '{"device-A": 2, "device-B": 1}',
+      };
+      final remote = <String, dynamic>{
+        'localUuid': localUuid,
+        'amount': 150.0,
+        'hotelDayKey': '2026-10-02',
+        'lastModified': 6000,
+        'vectorClock': '{"device-A": 1, "device-B": 2}',
+      };
+      final ancestor = <String, dynamic>{
+        'localUuid': localUuid,
+        'amount': 100.0,
+        'hotelDayKey': '2026-10-01',
+      };
 
-        final resolution = SmartConflictResolver.resolve(
-          entity: 'expenses',
-          localData: local,
-          remoteData: remote,
-          commonAncestor: ancestor,
-        );
+      final resolution = SmartConflictResolver.resolve(
+        entity: 'expenses',
+        localData: local,
+        remoteData: remote,
+        commonAncestor: ancestor,
+      );
 
-        expect(resolution.requiresReview, isTrue);
-        expect(resolution.mergedData['amount'], 120.0);
-        expect(
-          resolution.mergedData['hotelDayKey'],
-          '2026-10-02',
-          reason: 'الحقل غير المالي يُدمج من الجهاز الذي عدّله',
-        );
-      },
-    );
+      expect(resolution.requiresReview, isTrue);
+      expect(resolution.mergedData['amount'], 120.0);
+      expect(
+        resolution.mergedData['hotelDayKey'],
+        '2026-10-02',
+        reason: 'الحقل غير المالي يُدمج من الجهاز الذي عدّله',
+      );
+    });
 
     test(
       'a critical-field conflict is persisted for human review in sync_conflicts',
@@ -869,7 +866,8 @@ void main() {
         expect(
           conflicts.single.resolution,
           '',
-          reason: 'resolution فارغ = بانتظار قرار بشري (يظهر في شاشة التعارضات)',
+          reason:
+              'resolution فارغ = بانتظار قرار بشري (يظهر في شاشة التعارضات)',
         );
         expect(
           conflicts.single.localPayload,

@@ -333,7 +333,8 @@ class SyncPullService {
           '_review': {
             'reason': 'critical_financial_field_conflict',
             'fields': reviewFields.toList()..sort(),
-            'policy': 'keep local value locally; keep remote value on cloud; '
+            'policy':
+                'keep local value locally; keep remote value on cloud; '
                 'requires human decision',
           },
         },

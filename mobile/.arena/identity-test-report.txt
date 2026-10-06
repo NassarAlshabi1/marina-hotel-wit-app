@@ -1,0 +1,93 @@
+### identity audit tests (2026-10-06T02:16:59Z)
+#11     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:43835:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
+#6      _newDb (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:51:37)
+#7      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:1358:24)
+<asynchronous suspension>
+#8      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:15)
+<asynchronous suspension>
+#9      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+<asynchronous suspension>
+#10     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+00:17 +19 -1: 7+8) الاستعادة وتغيير المزوّد provider swap keeps counts, uuids, relations and money totals                                                                                              00:17 +19 -1: 7+8) الاستعادة وتغيير المزوّد two devices with the same identity produce one employee per uuid (no duplication)                                                                          00:17 +19 -1: 7+8) الاستعادة وتغيير المزوّد two devices with the same identity produce one employee per uuid (no duplication)                                                                          
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:43835:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
+#6      _newDb (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:51:37)
+#7      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:1485:25)
+#8      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:25)
+<asynchronous suspension>
+#9      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+<asynchronous suspension>
+#10     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:43835:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1200:57)
+#6      _newDb (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:51:37)
+#7      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/financial_identity_audit_test.dart:1486:25)
+#8      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:25)
+<asynchronous suspension>
+#9      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+<asynchronous suspension>
+#10     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+00:17 +20 -1: 7+8) الاستعادة وتغيير المزوّد two devices with the same identity produce one employee per uuid (no duplication)                                                                          00:17 +20 -1: Some tests failed.                                                                                                                                                                       
+
+### guard suites
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+00:05 +68: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: ... delivered_to_secondary لكل استدعاء بناءً على SecondaryAppwriteConfig   00:05 +68: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart                                                                      00:05 +68: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... fix) ancestor=null يُرجع الحقول المختلفة فعلياً فقط (ليس كل الحقول)     00:05 +69: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... fix) ancestor=null يُرجع الحقول المختلفة فعلياً فقط (ليس كل الحقول)     00:05 +69: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... (ancestor=null fix) نفس البيانات تماماً → لا حقول متغيرة (لا تعارض زائف)00:05 +70: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... (ancestor=null fix) نفس البيانات تماماً → لا حقول متغيرة (لا تعارض زائف)00:05 +70: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... تساوي timestamp → القرار حتمي عبر deviceId (لا يفوز البعيد تلقائياً)    00:05 +70 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: SmartConflictResolver newerWins tie-break (timestamp equality) تساوي timestamp → القرار حتمي عبر deviceId (لا يفوز البعيد تلقائياً) [E]
+  Expected: <200>
+    Actual: <100>
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test/unit/conflict_resolution_fix_test.dart 88:9    main.<fn>.<fn>
+  
+
+To run this test again: /opt/hostedtoolcache/flutter/stable-3.44.6-x64/flutter/bin/cache/dart-sdk/bin/dart test /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart -p vm --plain-name 'SmartConflictResolver newerWins tie-break (timestamp equality) تساوي timestamp → القرار حتمي عبر deviceId (لا يفوز البعيد تلقائياً)'
+00:05 +70 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... equality) تساوي timestamp ومحلي له deviceId أصغر → يحافظ على المحلي  00:05 +71 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... equality) تساوي timestamp ومحلي له deviceId أصغر → يحافظ على المحلي  00:05 +71 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... tie-break (timestamp equality) remote أحدث صراحةً → يربح دائماً      00:05 +71 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: SmartConflictResolver newerWins tie-break (timestamp equality) remote أحدث صراحةً → يربح دائماً [E]
+  Expected: <200>
+    Actual: <100>
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 473:18  expect
+  test/unit/conflict_resolution_fix_test.dart 133:7   main.<fn>.<fn>
+  
+
+To run this test again: /opt/hostedtoolcache/flutter/stable-3.44.6-x64/flutter/bin/cache/dart-sdk/bin/dart test /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart -p vm --plain-name 'SmartConflictResolver newerWins tie-break (timestamp equality) remote أحدث صراحةً → يربح دائماً'
+00:05 +71 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... محلياً (ancestor=null) حقل محلي فقط متغيّر → يبقى محلياً بعد الدمج   00:05 +72 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/conflict_resolution_fix_test.dart: ... محلياً (ancestor=null) حقل محلي فقط متغيّر → يبقى محلياً بعد الدمج   00:05 +72 -2: Some tests failed.                                                                                                                                                                       
