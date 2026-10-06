@@ -1,3 +1,0 @@
-Formatted 590 files (0 changed) in 6.11 seconds.
-changed files:
-2
