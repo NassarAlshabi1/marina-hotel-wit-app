@@ -384,13 +384,23 @@ TextColumn get idempotencyKey
 | `DeferredRelationRelinker` | يعيد تطبيق الحمولات عبر **نفس مسار المزامنة الرسمي** (`AdapterRegistry` → `upsertFromJson`) بعد كل دورة سحب: ربط بـ UUID فقط، idempotent، لا كتابة فوق سجل محلي أحدث (`last_modified >=`)، وإعادة تفعيل استباقية للصفوف التي وصل أبوها متأخرًا (`rearmAvailableParents`، مطابقة UUID مع تجاهل الشرطات). ما لا رابط هوية له ⇒ `needs_review` فورًا بلا تخمين. | `sync_core/deferred_relation_relinker.dart` |
 | نقطة الالتقاط | `BaseRepository.setSkippedRecordSink` — عند `shouldSkip` تُخزَّن الحمولة بدل إهمالها. الافتراضي `null` (سلوك متوافق للخلف) وتُثبَّتها طبقة المجال فقط على المجموعات ذات الآباء: سحوبات/دورات/ترحيل/دفعات/ليالٍ/حركات مخزون. | `repositories/base_repository.dart`, `adapters/entity_adapter.dart` |
 | مسار التشغيل | تُثبَّت النقطة في مُنشئ `AppwriteSyncManager` (نفس نسخة `AdapterRegistry`)، وتُشغَّل دورة إعادة الربط بعد اكتمال السحب (خطأها غير حرج). | `appwrite_sync_manager.dart` |
+| مسارات لا تمر بالمحوّل | مسارا سحب السحوبات/الدورات كانا يُهملان السجل الذي لا يُحل موظفه (`continue` قبل `upsertFromJson`) — أُضيف تعليق صريح عبر `_deferRemoteRecord` ⇒ لا فقدان حتى في هذه المسارات. | `appwrite_sync_manager.dart` |
+| الإحياء بالإثبات | `rearmAvailableParents` قاعدتان لكل أب: (أ) وجود الأب بنفس UUID، (ب) وجوده بنفس الرقم **ومن نفس الجهاز الكاتب** (`server_id` + `device_id`) — إثبات لا تخمين. | `sync_core/deferred_relation_relinker.dart` |
+| بوابة المراجعة | المراجعة الفورية فقط لما لا رابط هوية له إطلاقاً (لا UUID ولا رقم+جهاز)؛ وإلا تُمنح ميزانية محاولات ثم `needs_review` مع حفظ الدليل. | `sync_core/deferred_relation_relinker.dart` |
 
 **جولة التحقق (CI — سير عمل مؤقت، 2026-10-06):**
 
 * `dart format lib test`: **0 ملفات متغيرة** (المستودع متوافق مع البوابة).
 * `flutter analyze`: **0 أخطاء** (`analyze_exit=0`؛ 4 ملاحظات قديمة غير مالية).
-* اختبارات G-3 الجديدة `test/unit/financial_identity_g3_test.dart`: **+5 ناجحة**.
-* حزمة الحراسة المالية (`financial_identity_audit` + `money_whole_amount_writes` + `money_integer_policy`): **+37 ناجحة**.
+* اختبارات G-3 الجديدة `test/unit/financial_identity_g3_test.dart`: **+6 ناجحة**
+  (تصادم أرقام بين جهازين، ابن قبل أب بـ UUID، إثبات رقمي بالجهاز، مجهول ⇒
+  مراجعة بعد ميزانية المحاولات، لا تكرار، حفظ الحمولة كاملة).
+* اختبارات السياسة القائمة التي كانت تُثبِّت السلوك القديم حُدِّثت لا حُذفت:
+  `test/unit/id_resolver_cross_device_test.dart` (الإثبات + الرفض)،
+  `test/services/phase0_data_integrity_test.dart` (R2 + اختبار G-3 الجديد)،
+  `test/unit/wave6_debts_fields_test.dart` (`_StubResolver`).
+* **حزمة الاختبارات الكاملة: `+1335 ~1: All other tests passed!` (0 فشل)** — أُعيد
+  تشغيلها على الفرع أكثر من مرة بعد كل تعديل حتى خضراء بالكامل.
 
 **ما زال مفتوحًا بوعي (لا يُغلق بالإصلاح أعلاه):**
 
