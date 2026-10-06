@@ -78,11 +78,17 @@ jobs:
           # ملفات الدفعة = فرق الفرع عن قاعدة الدمج agent/android-cloudflare
           # (تاريخ كامل متاح: fetch-depth 0). هذا يجعل قياس Detekt ثابتاً على
           # كود هذه الدفعة كلها في كل تشغيل، لا على ما تغيّر في آخر push فقط.
-          {
-            git diff --name-only origin/agent/android-cloudflare...HEAD 2>/dev/null \
-              || git diff --name-only "${{ github.event.before }}" HEAD 2>/dev/null \
-              || true
-          } > "$RUNNER_TEMP/changed.txt"
+          # الاستنساخ يجلب ref الفرع المُبنى فقط، فنجلب القاعدة صراحةً؛ وإن
+          # تعذّر ذلك نعود لفرق آخر push (السلوك السابق، بلا فشل).
+          git fetch --no-tags --quiet origin \
+            "+refs/heads/agent/android-cloudflare:refs/remotes/origin/agent/android-cloudflare" 2>/dev/null || true
+          if git rev-parse --verify --quiet "origin/agent/android-cloudflare" >/dev/null; then
+            echo "batch base: origin/agent/android-cloudflare ($(git rev-parse --short origin/agent/android-cloudflare))"
+            git diff --name-only origin/agent/android-cloudflare...HEAD > "$RUNNER_TEMP/changed.txt"
+          else
+            echo "batch base: event.before fallback (base ref unavailable)"
+            { git diff --name-only "${{ github.event.before }}" HEAD 2>/dev/null || true; } > "$RUNNER_TEMP/changed.txt"
+          fi
           echo "--- batch files ---"
           cat "$RUNNER_TEMP/changed.txt"
 

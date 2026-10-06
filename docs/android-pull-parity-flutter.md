@@ -183,6 +183,86 @@ final wasFullSync = !deltaOnly && !_fullSyncCompleted;
 حتى في worker هذا الفرع. التفاصيل في
 [`cloudflare-migrations-parity.md`](./cloudflare-migrations-parity.md) §4.
 
+## تدقيق الملفات المرجعية المتبقية (2026-10-06، مقابل `ac283c6c`)
+
+الملفات الخمسة الباقية من مسار السحب في Flutter دُقّقت سطراً بسطر مقابل نظيرها
+في Kotlin (قراءة المصدرين، لا تشغيل جهاز). خلاصة كل ملف:
+
+### 1) `sync/pull_apply_rules.dart` — ✅ مُغطّى بآلية مختلفة
+
+| البند الدارتي | أندرويد |
+| --- | --- |
+| `pullApplyPriority` (الأب قبل الابن في كل محاولة) | لا فرز حسب الأولوية: المؤجّل يُعاد حله بعد اكتمال **كل** الصفحات عبر `retryPendingLinks()` الذي يكرّر المرور حتى انقطاع التقدم. النتيجة النهائية نفسها؛ الفرق أن صفاً يتيماً قد يُحاوَل مرتين بدل مرة (كلفة محلية بلا شبكة). |
+| `naturalUniqueKeys` (ليلة الحجز: `booking_local_id` + `hotel_day_key`) | منفَّذ صراحةً: `SyncIngestorRegistry.fetchByNaturalKey` + `bookingNightsDao.getByNaturalKey`، والدمج LWW بإعادة استخدام معرّف الصف المحلي (`remote.copyWithId(existing.id)`) فلا يُنشأ صف ثانٍ ولا يتجمد المؤشر. |
+| `_isUniqueConstraintError` (SqliteException 2067) | غير مطلوب: كل كتابات الاستيعاب `@Insert(onConflict = REPLACE)` ⇒ تعارض الفريد يُحلّ بـ«استبدال» لا باستثناء (خلاف Drift). الصفوف المرفوضة فعلياً تبقى `Failed` وتُسجَّل في `sync_quarantine` — سلوك **أشدّ صرامة مقصود** ومغطّى باختبار `malformedPullRowsAreQuarantinedInsteadOfSilentlySkipped`. |
+
+### 2) `sync/pull_quarantine.dart` — ✅ الجوهر منفَّذ، والعدّادات/السقوف مقصودة الانتفاء
+
+- **سجل الانتظار** (`_blockedPending`: حمولة كاملة تبقى عبر الجلسات وتُعاد كل
+  دورة، والمؤشر يتقدم) ↔ جدول `pending_sync_links` في Room: يُكتب داخل معاملة
+  الصفحة لكل صف مؤجَّل، ويُعاد حله في `retryPendingLinks()` في كل دورة،
+  و`hasFailures` يعني «فشل تطبيق فعلي» فقط ⇒ الصف اليتيم **لا** يجمّد المؤشر
+  (جوهر إصلاح 2026-09-15).
+- **الحجر** (`_quarantinedRecords`، بلا حمولة معادة) ↔ جدول `sync_quarantine`
+  (دليل لا يُنفَّذ). أندرويد يستخدمه أيضاً للفشل الفعلي؛ ولأن الفشل الفعلي
+  **لا يثبّت المؤشر** فالصف يُعاد سحبه وتطبيقه كل دورة ⇒ الشفاء تلقائي بلا
+  عدّاد دورات (طريق مختلف، ونفس نتيجة الشفاء).
+- **فروق مقصودة**: لا عدّاد حجب/عتبة 3 دورات ولا سقوف `300/300` ولا إخلاء
+  بالأقدم. سبب الوجود الدارتي هو تخزين الحمولات في `SharedPreferences`
+  (بطء + خطر `TransactionTooLarge` على أندرويد)؛ الحمولات هنا في Room مفهرسة.
+  الإخلاء عمداً **غير** منقول حتى لا يُفقد دليل حجب قابل للإصلاح.
+- `isQuarantined` (تخطي المعزول إن عاد في صفحة) غير لازم: الحجر في أندرويد =
+  فشل فعلي يُبقي المؤشر، فإعادة التطبيق هي مسار الشفاء لا التخطي.
+
+### 3) `sync/app_open_pull_gate.dart` — ✅ مُغطّى ببوابة موحّدة
+
+- الدارتي: مفتاح `last_app_open_pull_epoch_ms` + فاصل **ساعة**، ويُختم **فقط
+  بعد سحب ناجح**.
+- أندرويد: `automaticPullDue` + `AUTOMATIC_PULL_INTERVAL_MS` (ساعة) فوق
+  `getLastPullTs()`، والختم في المواضع الثلاثة كلها **بعد** `pulled >= 0`
+  (`performSyncNow` / `performPullOnly` / `performFullPull`)، وبدء التشغيل عبر
+  `preferences.getSyncOnStartup()` في `onForeground()`.
+- فرق مقصود: مفتاح واحد لكل السحب التلقائي بدل مفتاح خاص بفتح التطبيق ⇒ لا
+  يمكن أن ينحرف مساران (وهو سبب استخلاص `AppOpenPullGate` في Dart نفسه)،
+  والنتيجة أشدّ صرامة لا أرخى.
+
+### 4) `sync/auto_outbox_sync_watcher.dart` — ✅ + ثغرتان أُغلقتا في هذه الدفعة
+
+| البند | أندرويد |
+| --- | --- |
+| اشتراك واحد على جدول outbox | `outboxRepository.pendingCount().collect { if (it > 0) schedulePush(3_000L) }` (Flow من Room بدل `SELECT COUNT(*)` مُراقب). |
+| `SyncConstants.outboxDebounceWindow` = 3s | نفس القيمة نصاً (`3_000L`). |
+| رفع فوري عند العودة للاتصال | `registerNetworkCallback`: `onAvailable`/`onCapabilitiesChanged`/`onLost` ⇒ `schedulePush(0L)` + `requestPullCheck(probeWhenFresh = true)`. |
+| `_pushing` + `SyncGuard.tryAcquire` | `SyncOperationRunner` (mutex + `SyncForegroundLifetime` lease) يرفض التقاطع بدل الانتظار. |
+| `_doPush` يتخطى بصمت عند انقطاع الشبكة | `drainOutbox()` ببوابة `networkAllowed()` (INTERNET + VALIDATED + wifiOnly). |
+
+**الثغرة (أ) — الرفع من الخلفية:** `pushOnly()` يحجز خدمة أمامية، و Android 12+
+يمنع بدء خدمة أمامية من الخلفية. كان `drainOutbox()` يحاول في كل دورة خلفية
+فيفشل الحجز ثم يُعاد الجدولة كل 30 ثانية (طَرْق بلا نتيجة). الآن:
+`pushDeferredWhileBackgrounded` يُضبط ويُستهلك في `onForeground()` بـ
+`schedulePush(0L)`؛ الصفوف تبقى `pending` في outbox (لا فقدان بيانات)، وهو نفس
+عقد Dart («الرفع يُؤجَّل، الـ outbox يحتفظ بالصفوف») بديلاً صريحاً عن
+WorkManager الذي يرفع من الخلفية في Flutter.
+
+**الثغرة (ب) — لا شبكة أمان:** لو فشل تسجيل callback الشبكة (يُبتلع الخطأ في
+`runCatching`)، فصفٌّ ظهر والجهاز غير متصل لا يجد من يرفعه. أُضيف
+`pendingPushMonitor` كل 5 دقائق — نظير `SyncGuardian._startPendingMonitor`
+تماماً — يفحص العدّاد ويرفع فوراً في الواجهة، أو يُعلّم التأجيل في الخلفية.
+
+### 5) `sync_guardian.dart` — ✅ مُغطّى، وبند واحد غير منقول عن قصد
+
+- `notifyLocalChange` (debounce 5s ⇒ `syncNow`): مُغطّى بمسار واحد هو مراقب
+  outbox (3s)؛ لا حاجة لتهدئتين متتاليتين لنفس الحدث.
+- `onAppForeground` (تخطي إن مرّت أقل من دقيقتين): أندرويد أشدّ صرامة — بوابة
+  الساعة (ساعة) + `AUTOMATIC_PULL_INTERVAL_MS`، فلا سحب عند كل عودة.
+- `_startPendingMonitor` (كل 5 دقائق): أُضيف كما في البند (ب) أعلاه.
+- لقطة الصحة: `SyncHealthViewModel` (`lastPull`/`lastPush`/`enabled`/
+  `errorCount` + `SyncHealthReport`) مقابل `SyncHealthSnapshot` في Dart.
+- `setDevicePriority` / `sync_guardian_device_priority`: **غير منقول** — القيمة
+  تُكتب وتُقرأ داخل `sync_guardian.dart` نفسه ولا يقرأها أي ملف Dart آخر
+  (تحقّق بحثاً على كامل `mobile/lib` في `ac283c6c`)، وأثرها الوحيد الحقل
+  `priorityOverridden` في لقطة الصحة ⇒ لا سلوك مزامنة مفقود.
+
 ## الاختبارات
 
 | الملف | ما يثبته |
@@ -213,6 +293,15 @@ final wasFullSync = !deltaOnly && !_fullSyncCompleted;
 | الأمر | `./gradlew :app:testDebugUnitTest` على ubuntu-latest + JDK 17 |
 | النتيجة | **success** — المهمة `:app:testDebugUnitTest` نجحت (18:44→18:49 UTC) |
 
+أحدث تشغيلين (بعد تدقيق الملفات المتبقية):
+
+| العنصر | القيمة |
+| --- | --- |
+| التشغيل | `37519136397` — الالتزام `289c31a4` — **success** (المهام الثلاث) |
+| التشغيل | `37519764533` — الالتزام `1b6708f3` — **success** (المهام الثلاث) |
+| Detekt (ملفات الدفعة) | **178 ملاحظة** (المستودع: 1589) — انظر «فحص ثابت إعلامي» أدناه |
+| اختبار هشّ رُصد وأُصلح | `SyncIngestorRegistryTest.threeIndependentPaymentsSurviveRepeatedEditsInPaymentAndIncomeReports`: `expected:<475.0> but was:<400.0>` — كان يقرأ حالة **دورة سابقة** (`state.first { !it.isLoading }`) قبل تطبيق تعديل الدفعة الجديدة. الإصلاح: `awaitSettledReport` ينتظر **تقارب القيمة المتوقعة** نفسها (لا زوال التحميل فقط) ⇒ لا يتحول إلى تخفيف للفحص: التعديل الذي لا يُعكس يبقى فاشلاً بمهلة. |
+
 قبل هذا التشغيل رصد CI الحقيقي — لا المراجعة النصية — ثلاث علل أُصلحت:
 خطأان في التصريف (`AutoSyncEngine` صار يأخذ `Lazy<CloudflareRealtimeClient>`
 و`Response.error<Unit>`)، وساعة اختبار الجدولة (كانت مربوطة يدوياً فلا
@@ -241,6 +330,18 @@ final wasFullSync = !deltaOnly && !_fullSyncCompleted;
 (`android-sync-detekt`)، لأن بوابة الجودة الكاملة في هذا المستودع كانت
 حمراء قبل الدفعة — لا ندّعي جعلها خضراء ولا نُخفي نتائجها.
 
+نطاق القياس نفسه صُحّح مرتين، لأنه هو ما جعل الأرقام السابقة مضللة:
+1. كانت الخطوة تستنسخ `fetch-depth: 1` وتقرأ `git diff` ضد `event.before`
+   غير الموجود ⇒ ملفات «الدفعة» كانت ناقصة (صفر ملاحظة).
+2. ثم صارت تقرأ `<file name>` الصحيح من XML (لا `error@source` = اسم القاعدة)
+   وتستنسخ بتاريخ كامل — فظهرت الملاحظات الحقيقية.
+3. الآن نطاق «الدفعة» = فرق الفرع عن `agent/android-cloudflare` صراحةً (مع
+   جلب الـref وطباعة `batch base:` في السجل)، لا ما تغيّر في آخر push فقط.
+
+هذه 178 ملاحظة **دين قائم في ملفات عدّلتها/لمستها الدفعة** أكثرها في واجهات
+قديمة (`DashboardScreen.kt` وغيرها)، وليست مقدمة من هذه الدفعة؛ لكن الرقم
+يُعرض كما هو ولا يُطمث.
+
 ### ما لم يُتحقق بعد
 
 - **workflow الإنتاج `android-kotlin-build.yml` لم يُشغَّل بعد على هذا
@@ -262,4 +363,11 @@ final wasFullSync = !deltaOnly && !_fullSyncCompleted;
   [`cloudflare-migrations-parity.md`](./cloudflare-migrations-parity.md).
 - **لا** ادعاء مطابقة 100% مع Flutter خارج مسار السحب: هذا العمل محصور في
   سحب التغييرات وصولًا إليه (Realtime/FCM/مسح الحذفيات/الحراس)، ولا يمس
-  الرفع أو المعادلات المالية أو مخطط Room.
+  منطق تشفير/دفع الصفوف نفسه (`performPushOnly`)، لكن **مراقب الـoutbox**
+  (متى يُطلق الرفع وبأي تأجيل) صار جزءاً صريحاً من هذا التدقيق (البند 4
+  أعلاه)، والمعادلات المالية ومخطط Room خارج النطاق.
+- **لم يُضف اختبار JVM** لتأجيل الرفع في الخلفية ومراقب الـ5 دقائق:
+  `AutoSyncEngine` يبنى على تعاونيات أندرويد (`SyncManager`،
+  `OutboxRepository`، `CloudflareRealtimeClient`، `SyncPreferences`) والمستودع
+  لا يستعمل مكتبة mocking (mockk/Mockito)؛ فالتغطية = تصريف CI + مراجعة كود،
+  لا اختبار سلوكي. مسجّل هنا صراحةً بدل ادعاء تغطية.
