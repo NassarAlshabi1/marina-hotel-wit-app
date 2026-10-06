@@ -4158,12 +4158,16 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        // ✅ (G-3) جهاز كاتب السجل — دليل وحيد لفضاء المعرّفات الرقمية.
+        final sourceDeviceId =
+            (data['deviceId'] as String?) ?? (data['device_id'] as String?);
         final resolvedEmployeeId =
             employeeUuid != null || remoteEmployeeId != null
             ? await employeeFkResolver.resolveEmployee(
                 uuid: employeeUuid,
                 serverId: remoteEmployeeId,
                 fromRemote: true,
+                sourceDeviceId: sourceDeviceId,
               )
             : null;
 
@@ -8153,12 +8157,16 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        // ✅ (G-3) جهاز كاتب السجل — دليل وحيد لفضاء المعرّفات الرقمية.
+        final sourceDeviceId =
+            (data['deviceId'] as String?) ?? (data['device_id'] as String?);
         final resolvedEmployeeId =
             employeeUuid != null || remoteEmployeeId != null
             ? await employeeFkResolver.resolveEmployee(
                 uuid: employeeUuid,
                 serverId: remoteEmployeeId,
                 fromRemote: true,
+                sourceDeviceId: sourceDeviceId,
               )
             : null;
 

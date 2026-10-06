@@ -1,5 +1,12 @@
 // ✅ (2026-09-02) اختبارات حسم دلالات حل FK الموظف/الدورة عبر الأجهزة.
 //
+// ✅ (G-3 / 2026-10-06): سياسة أضيق — المطابقة الرقمية عبر الأجهزة
+// (`serverId`) لم تعد كافية وحدها؛ تُشترط **إثبات وحدة فضاء المعرّفات**:
+// تطابق `deviceId` الكاتب بين السجل وسجل الأب (`sourceDeviceId`). وبلا
+// إثبات يُرفض الربط (السجل يُعلَّق ثم يُربط بـ UUID — انظر
+// deferred_relation_store/relinker). الاختبارات أدناه تُغطّي الوجهين:
+// الإثبات ⇒ ربط صحيح، وبلا إثبات ⇒ لا ربط إطلاقاً (لا تخمين).
+//
 // الخلفية (تحذيرات salary_withdrawal "الموظف غير موجود محلياً" على جهاز
 // جديد): المحلل كان يطابق employeeId البعيد (id جهاز المصدر) مع e.id
 // المحلي (autoIncrement بترتيب عشوائي دلالياً بعد إزالة id في
@@ -30,6 +37,7 @@ void main() {
     required String name,
     int? serverId,
     int? deletedAt,
+    String deviceId = 'device-A',
   }) {
     return db
         .into(db.employees)
@@ -41,6 +49,8 @@ void main() {
             status: 'active',
             serverId: Value(serverId),
             deletedAt: Value(deletedAt),
+            // ✅ (G-3) الجهاز الكاتب — دليل فضاء المعرّفات الرقمية.
+            deviceId: Value(deviceId),
             createdAt: 0,
             updatedAt: 0,
             lastModified: 0,
@@ -76,18 +86,44 @@ void main() {
       expect(got, e.id);
     });
 
-    test('يحل عبر serverId عندما لا يوجد uuid (payload قديم)', () async {
-      final e = await insertEmployee(
-        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0003',
-        name: 'موظف ثالث',
-        serverId: 12,
-      );
-      final got = await resolver.resolveEmployee(
-        serverId: 12,
-        fromRemote: true,
-      );
-      expect(got, e.id);
-    });
+    test(
+      'يحل عبر serverId فقط بإثبات جهاز الكاتب (payload قديم بلا uuid)',
+      () async {
+        final e = await insertEmployee(
+          localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0003',
+          name: 'موظف ثالث',
+          serverId: 12,
+          deviceId: 'device-A',
+        );
+
+        // (أ) بلا إثبات ⇒ لا ربط (G-3: لا تخمين رقمي عبر الأجهزة).
+        expect(
+          await resolver.resolveEmployee(serverId: 12, fromRemote: true),
+          isNull,
+          reason: 'بلا deviceId لا إثبات لفضاء المعرّفات',
+        );
+
+        // (ب) من جهاز آخر لا يملك الصف ⇒ لا ربط.
+        expect(
+          await resolver.resolveEmployee(
+            serverId: 12,
+            fromRemote: true,
+            sourceDeviceId: 'device-B',
+          ),
+          isNull,
+        );
+
+        // (ج) نفس الجهاز الكاتب ⇒ ربط صحيح.
+        expect(
+          await resolver.resolveEmployee(
+            serverId: 12,
+            fromRemote: true,
+            sourceDeviceId: 'device-A',
+          ),
+          e.id,
+        );
+      },
+    );
 
     test(
       'لا يطابق employeeId البعيد مع e.id المحلي (منع الربط الخاطئ عبر الأجهزة)',
@@ -117,14 +153,20 @@ void main() {
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0005',
         name: 'النشط',
         serverId: 1,
+        deviceId: 'device-A',
       );
       final deleted = await insertEmployee(
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0006',
         name: 'المحذوف',
         serverId: 1,
         deletedAt: 1783994438,
+        deviceId: 'device-A',
       );
-      final got = await resolver.resolveEmployee(serverId: 1, fromRemote: true);
+      final got = await resolver.resolveEmployee(
+        serverId: 1,
+        fromRemote: true,
+        sourceDeviceId: 'device-A',
+      );
       expect(got, active.id, reason: 'النشط (deletedAt NULL) يسبق المحذوف');
       expect(deleted.id, isNot(got));
     });
@@ -134,13 +176,19 @@ void main() {
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0007',
         name: 'الأول',
         serverId: 2,
+        deviceId: 'device-A',
       );
       final second = await insertEmployee(
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0008',
         name: 'الثاني',
         serverId: 2,
+        deviceId: 'device-A',
       );
-      final got = await resolver.resolveEmployee(serverId: 2, fromRemote: true);
+      final got = await resolver.resolveEmployee(
+        serverId: 2,
+        fromRemote: true,
+        sourceDeviceId: 'device-A',
+      );
       expect(got, first.id < second.id ? first.id : second.id);
     });
   });
@@ -162,6 +210,7 @@ void main() {
       required int employeeId,
       int? serverId,
       int? deletedAt,
+      String deviceId = 'device-A',
     }) {
       return db
           .into(db.salaryCycles)
@@ -172,6 +221,7 @@ void main() {
               cycleKey: '2026-08',
               serverId: Value(serverId),
               deletedAt: Value(deletedAt),
+              deviceId: Value(deviceId),
               createdAt: 0,
               updatedAt: 0,
               lastModified: 0,
@@ -186,14 +236,26 @@ void main() {
           localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000a',
           name: 'دورات',
           serverId: 3,
+          deviceId: 'device-A',
         );
         final cycle = await insertCycle(
           localUuid: 'bbbbbbbb-cccc-dddd-eeee-ffff00000001',
           employeeId: emp.id,
           serverId: 42,
+          deviceId: 'device-A',
         );
+        // (أ) بلا إثبات ⇒ لا ربط (G-3).
         expect(
           await resolver.resolveSalaryCycle(serverId: 42, fromRemote: true),
+          isNull,
+        );
+        // (ب) نفس الجهاز الكاتب ⇒ ربط صحيح.
+        expect(
+          await resolver.resolveSalaryCycle(
+            serverId: 42,
+            fromRemote: true,
+            sourceDeviceId: 'device-A',
+          ),
           cycle,
         );
         expect(

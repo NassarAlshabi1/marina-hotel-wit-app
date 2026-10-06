@@ -83,6 +83,7 @@ void main() {
     required String uuid,
     int? serverId,
     String name = 'موظف',
+    String deviceId = '',
   }) {
     return db
         .into(db.employees)
@@ -91,11 +92,15 @@ void main() {
             id: id != null ? d.Value(id) : const d.Value.absent(),
             name: d.Value(name),
             basicSalary: const d.Value(10000),
-            status: const d.Value('active'),
+            status: d.Value('active'),
             hireDate: const d.Value('2026-01-01'),
             localUuid: d.Value(uuid),
             serverId: serverId != null
                 ? d.Value(serverId)
+                : const d.Value.absent(),
+            // ✅ (G-3) الجهاز الكاتب — دليل فضاء المعرّفات الرقمية.
+            deviceId: deviceId.isNotEmpty
+                ? d.Value(deviceId)
                 : const d.Value.absent(),
             createdAt: const d.Value(1000),
             updatedAt: const d.Value(1000),
@@ -456,6 +461,8 @@ void main() {
         uuid: 'uuid-b',
         serverId: 3,
         name: 'صاحب الـ id الأصلي',
+        // ✅ (G-3) دليل الإثبات: نفس كاتب المستند (device-A).
+        deviceId: 'device-A',
       );
 
       final manager = AppwriteSyncManager(
@@ -493,6 +500,45 @@ void main() {
 
         expect(applied, 0, reason: 'السجل اليتيم لا يُعالج كنجاح');
         expect(await activeByUuid('sw-orphan'), isNull);
+      },
+    );
+  });
+
+    test(
+      'G-3: بلا إثبات فضاء المعرّفات ⇒ لا ربط رقمي (السجل يُعلَّق لا يُربط)',
+      () async {
+        // الموظف صاحب الرقم موجود، لكن كاتبه جهاز آخر غير كاتب المستند
+        // (device-B) ⇒ المطابقة الرقمية تخمين مرفوض.
+        final wrongOwner = await addEmployee(
+          id: 3,
+          uuid: 'uuid-c',
+          serverId: 3,
+          name: 'موظف جهاز آخر بنفس الرقم',
+          deviceId: 'device-B',
+        );
+
+        final manager = AppwriteSyncManager(
+          appwriteService: AppwriteService(),
+          database: db,
+        );
+        final applied = await manager.syncSalaryWithdrawalsForTesting([
+          withdrawalDoc(uuid: 'sw-g3-noproof', remoteEmployeeId: 3),
+        ]);
+
+        expect(applied, 0, reason: 'لا يُطبَّق بلا إثبات (لا ربط تخميني)');
+        expect(
+          await activeByUuid('sw-g3-noproof'),
+          isNull,
+          reason: 'لم يُكتب سجل بموظف غير مُثبت',
+        );
+        // والحفظ لا فقدان: الحمولة في مخزن العلاقات المعلّقة.
+        final deferred = await manager.deferredRelationStore.all();
+        expect(deferred, hasLength(1));
+        expect(deferred.single.localUuid, 'sw-g3-noproof');
+        expect(deferred.single.remoteParentId, 3);
+        expect(deferred.single.sourceDeviceId, 'device-A');
+        expect(deferred.single.missingParent, 'employee');
+        expect(wrongOwner, isNotNull, reason: 'الموظف موجود لكن لا يُربط');
       },
     );
   });
