@@ -43,7 +43,7 @@ import kotlinx.coroutines.CancellationException
  * الفرق المقصود الوحيد: Dart يعيد الحساب لكل **الحقول المشتقة** الاثني عشر
  * (منها `isOverdue` و`needsCheckoutReview` و`hotel_day_checkin/out`)، وأندرويد
  * يعيد الحساب للأعمدة المخزَّنة الخمسة التي تقرأها واجهاته فعلاً (تحقّق بحثاً
- * في `presentation/**`: لا قارئ لـ`isOverdue`/`needsCheckoutReview` في الحجز).
+ * في طبقة `presentation`: لا قارئ لـ`isOverdue`/`needsCheckoutReview` في الحجز).
  * التوسيع لاحقاً لا يغيّر هذا العقد — يُضاف عمود لاستعلام [BookingsDao.updateFinancialCache].
  */
 @Singleton
