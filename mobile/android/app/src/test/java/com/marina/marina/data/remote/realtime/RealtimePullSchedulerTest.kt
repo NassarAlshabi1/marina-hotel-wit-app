@@ -1,6 +1,7 @@
 package com.marina.marina.data.remote.realtime
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -14,18 +15,21 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class RealtimePullSchedulerTest {
 
-    private class Harness(
-        private val schedulerScope: kotlinx.coroutines.CoroutineScope,
-        var clock: Long
-    ) {
+    /**
+     * الساعة المحقونة مربوطة بزمن الاختبار الافتراضي نفسه: `advanceTimeBy`
+     * يحرّك الزمن الافتراضي، فتتحرك الساعة معه. الربط اليدوي السابق كان
+     * يجعل التهدئة (15s) لا تنقضي أبداً لأن `delay` الافتراضي يسبق الساعة
+     * الثابتة — فيُعاد الجدولة بلا نهاية.
+     */
+    private class Harness(private val scope: TestScope) {
         var pulls = 0
         var failNext = false
         lateinit var scheduler: RealtimePullScheduler
 
         fun build() {
             scheduler = RealtimePullScheduler(
-                scope = schedulerScope,
-                now = { clock },
+                scope = scope,
+                now = { scope.testScheduler.currentTime },
                 execute = {
                     pulls++
                     val failed = failNext
@@ -38,7 +42,7 @@ class RealtimePullSchedulerTest {
 
     @Test
     fun burstOfEventsIsDebouncedIntoASinglePull() = runTest {
-        val harness = Harness(this, clock = 1_000L).also { it.build() }
+        val harness = Harness(this).also { it.build() }
         harness.scheduler.onRemoteChange()
         harness.scheduler.onRemoteChange()
         harness.scheduler.onRemoteChange()
@@ -54,7 +58,7 @@ class RealtimePullSchedulerTest {
 
     @Test
     fun changesDuringCooldownAreDeferredThenPulledOnce() = runTest {
-        val harness = Harness(this, clock = 10_000L).also { it.build() }
+        val harness = Harness(this).also { it.build() }
         harness.scheduler.onRemoteChange()
         advanceTimeBy(REALTIME_DEBOUNCE_MS)
         runCurrent()
@@ -62,7 +66,6 @@ class RealtimePullSchedulerTest {
 
         // حدث بعد ثانية من السحب الأول: داخل التهدئة (15s) → لا سحب فوري.
         advanceTimeBy(1_000)
-        harness.clock += 1_000
         harness.scheduler.onRemoteChange()
         advanceTimeBy(REALTIME_DEBOUNCE_MS)
         runCurrent()
@@ -70,14 +73,13 @@ class RealtimePullSchedulerTest {
 
         // بعد انقضاء التهدئة كاملة يُنفَّذ السحب المؤجل مرة واحدة.
         advanceTimeBy(REALTIME_PULL_COOLDOWN_MS)
-        harness.clock += REALTIME_PULL_COOLDOWN_MS
         runCurrent()
         assertEquals(2, harness.pulls)
     }
 
     @Test
     fun failedPullKeepsTheEventQueuedAndRetriesAfterCooldown() = runTest {
-        val harness = Harness(this, clock = 50_000L).also { it.build() }
+        val harness = Harness(this).also { it.build() }
         harness.failNext = true
         harness.scheduler.onRemoteChange()
         advanceTimeBy(REALTIME_DEBOUNCE_MS)
@@ -85,14 +87,13 @@ class RealtimePullSchedulerTest {
         assertEquals(1, harness.pulls)
 
         advanceTimeBy(REALTIME_PULL_COOLDOWN_MS + 1)
-        harness.clock += REALTIME_PULL_COOLDOWN_MS + 1
         runCurrent()
         assertEquals(2, harness.pulls)
     }
 
     @Test
     fun cancelPendingStopsScheduledWork() = runTest {
-        val harness = Harness(this, clock = 5_000L).also { it.build() }
+        val harness = Harness(this).also { it.build() }
         harness.scheduler.onRemoteChange()
         harness.scheduler.cancelPending()
         advanceTimeBy(REALTIME_DEBOUNCE_MS * 4)
@@ -102,15 +103,15 @@ class RealtimePullSchedulerTest {
 
     @Test
     fun cooldownRemainingReflectsTheLastFire() = runTest {
-        val harness = Harness(this, clock = 20_000L).also { it.build() }
+        val harness = Harness(this).also { it.build() }
         assertEquals(0L, harness.scheduler.cooldownRemainingMs())
         harness.scheduler.onRemoteChange()
         advanceTimeBy(REALTIME_DEBOUNCE_MS)
         runCurrent()
         assertEquals(REALTIME_PULL_COOLDOWN_MS, harness.scheduler.cooldownRemainingMs())
-        harness.clock += 5_000
+        advanceTimeBy(5_000)
         assertEquals(REALTIME_PULL_COOLDOWN_MS - 5_000, harness.scheduler.cooldownRemainingMs())
-        harness.clock += REALTIME_PULL_COOLDOWN_MS
+        advanceTimeBy(REALTIME_PULL_COOLDOWN_MS)
         assertEquals(0L, harness.scheduler.cooldownRemainingMs())
     }
 }

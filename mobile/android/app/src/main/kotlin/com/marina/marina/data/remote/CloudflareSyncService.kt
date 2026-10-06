@@ -38,7 +38,20 @@ class CloudflareSyncService @Inject constructor(
 
         /** مهلة فحص ping — نفس 8s في _probeCustomEndpoint بـ Dart. */
         private const val PING_TIMEOUT_MS = 8_000L
+
+        /** القيمة التي يفهمها الـ Worker (`=== '1'`) — نفس ما ترسله Dart. */
+        const val FLAG_01 = "1"
     }
+
+    /**
+     * أعلام الخادم نصياً كما يفعل Flutter بالضبط: `1` عند الطلب و`null`
+     * عند عدمه. Dart ترسل `'1'` (cloudflare_sync_manager.dart
+     * l.2633/2634/3679) والـ Worker يفحص `=== '1'` حرفياً، وتمرير Boolean
+     * عبر Retrofit كان يُنتج `true` فتُهمل الأعلام صامتة — بما فيها
+     * tombstones_only (يُهمل حتى في الـ Worker الحالي بفرع أندرويد:
+     * worker/src/sync.ts l.220-221) وinclude_remaining وnormalize_timestamps.
+     */
+    private fun Boolean?.flag01(): String? = if (this == true) FLAG_01 else null
 
     /** كائن المستخدم من آخر دخول ناجح (id/username/role) — يستخدمه AuthRepository
      * لبناء هوية RBAC الحقيقية (Dart auth_local_store.dart l.355-412). */
@@ -205,8 +218,8 @@ class CloudflareSyncService @Inject constructor(
         try {
             val response = api.pull(
                 cursor, limit, excludeDevice,
-                includeRemaining, normalizeTimestamps,
-                tombstonesOnly.takeIf { it }
+                includeRemaining.flag01(), normalizeTimestamps.flag01(),
+                if (tombstonesOnly) FLAG_01 else null
             ).execute()
             val body = response.body()
             when {

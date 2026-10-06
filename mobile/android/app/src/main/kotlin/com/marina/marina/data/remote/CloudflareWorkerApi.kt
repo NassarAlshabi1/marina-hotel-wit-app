@@ -159,15 +159,21 @@ interface CloudflareWorkerApi {
      *    (عقد sync.ts l.217-246 وdatabase.ts l.265-275): يجلب الصفوف
      *    المحذوفة فقط بمؤشر المسح المستقل — نظير `_sweepHistoricalTombstones`
      *    في Dart؛ لا يمس المؤشر الرئيسي.
+     *
+     * ⚠️ القيم نصية `"1"` لا `Boolean`: Dart ترسل
+     * `include_remaining/normalize_timestamps/tombstones_only` بالقيمة
+     * النصية `'1'` (cloudflare_sync_manager.dart l.2633/2634/3679)، و
+     * الـ Worker يفحص `=== '1'` حرفياً — أي قيمة أخرى (`true`) تُهمل
+     * صامتة. Retrofit يحوّل `Boolean` إلى `"true"` لذا النوع هنا `String?`.
      */
     @GET("/api/sync/pull")
     fun pull(
         @Query("cursor") cursor: Long,
         @Query("limit") limit: Int,
         @Query("exclude_device") excludeDevice: String? = null,
-        @Query("include_remaining") includeRemaining: Boolean? = null,
-        @Query("normalize_timestamps") normalizeTimestamps: Boolean? = null,
-        @Query("tombstones_only") tombstonesOnly: Boolean? = null
+        @Query("include_remaining") includeRemaining: String? = null,
+        @Query("normalize_timestamps") normalizeTimestamps: String? = null,
+        @Query("tombstones_only") tombstonesOnly: String? = null
     ): Call<WorkerPullResponse>
 
     /** دفع دفعة عمليات outbox — سقف 100 عملية/نداء (حد الخادم). */

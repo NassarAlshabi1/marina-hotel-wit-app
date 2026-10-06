@@ -119,7 +119,7 @@ class SyncPullParityTest {
         } as Call<*>
 
     /** طلب سحب مُسجَّل: (المؤشر، استبعاد الجهاز، tombstones_only). */
-    private data class PullRequest(val cursor: Long, val excludeDevice: String?, val tombstonesOnly: Boolean?)
+    private data class PullRequest(val cursor: Long, val excludeDevice: String?, val tombstonesOnly: String?)
 
     private fun manager(
         prefs: SyncPreferences,
@@ -162,9 +162,9 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull") { "مسار السحب لا يدفع: ${method.name}" }
-            val request = PullRequest(args!![0] as Long, args[2] as String?, args[5] as Boolean?)
+            val request = PullRequest(args!![0] as Long, args[2] as String?, args[5] as String?)
             requests.add(request)
-            val response = if (request.tombstonesOnly == true) {
+            val response = if (request.tombstonesOnly == "1") {
                 WorkerPullResponse(
                     changes = listOf(roomPayload("sweep-room", "SW-1", updatedAt = 2_000L, deletedAt = 1_999L)),
                     cursor = "555", epoch = "parity", hasMore = false,
@@ -190,13 +190,13 @@ class SyncPullParityTest {
             assertEquals(1_001L, prefs.getLastPullCursor())
             assertTrue(prefs.isTombstoneSweepDone())
             assertEquals(
-                listOf(PullRequest(0L, "sweep-device", true), PullRequest(1_000L, "sweep-device", false)),
+                listOf(PullRequest(0L, "sweep-device", "1"), PullRequest(1_000L, "sweep-device", null)),
                 requests
             )
 
             // دورة ثانية: المسح لا يُعاد إطلاقاً.
             assertEquals(0, subject.pullOnly())
-            assertEquals(1, requests.count { it.tombstonesOnly == true })
+            assertEquals(1, requests.count { it.tombstonesOnly == "1" })
             assertEquals(1_001L, requests.last().cursor)
         } finally {
             scope.coroutineContext[Job]!!.cancelAndJoin()
@@ -217,8 +217,8 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull")
-            val tombstonesOnly = args!![5] as Boolean?
-            if (tombstonesOnly == true) {
+            val tombstonesOnly = args!![5] as String?
+            if (tombstonesOnly == "1") {
                 sweepCalls++
                 callOf(Response.error<Unit>(500, "boom".toResponseBody(null)))
             } else {
@@ -257,7 +257,7 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull")
-            if (args!![5] as Boolean? == true) {
+            if (args!![5] as String? == "1") {
                 sweepCalls++
                 if (sweepCalls == 1) {
                     callOf(Response.success(WorkerPullResponse(
@@ -303,7 +303,7 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull")
-            if (args!![5] as Boolean? == true) {
+            if (args!![5] as String? == "1") {
                 sweepCalls++
                 callOf(Response.success(WorkerPullResponse(
                     changes = listOf(roomPayload("sweep-$sweepCalls", "SW-$sweepCalls", updatedAt = 10L, deletedAt = 9L)),
@@ -346,7 +346,7 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull")
-            requests.add(PullRequest(args!![0] as Long, args[2] as String?, args[5] as Boolean?))
+            requests.add(PullRequest(args!![0] as Long, args[2] as String?, args[5] as String?))
             callOf(Response.success(WorkerPullResponse(
                 changes = emptyList(), cursor = "10", epoch = "parity", hasMore = false,
                 remaining = null, errors = emptyList(), serverTime = null
@@ -356,7 +356,7 @@ class SyncPullParityTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             manager(prefs, api, scope).pullOnly()
-            assertTrue(requests.none { it.tombstonesOnly == true })
+            assertTrue(requests.none { it.tombstonesOnly == "1" })
             assertFalse(prefs.isTombstoneSweepDone())
         } finally {
             scope.coroutineContext[Job]!!.cancelAndJoin()
@@ -483,7 +483,7 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull") { "حدث Realtime يجب ألا يدفع/يستخدم مساراً آخر: ${method.name}" }
-            requests.add(PullRequest(args!![0] as Long, args[2] as String?, args[5] as Boolean?))
+            requests.add(PullRequest(args!![0] as Long, args[2] as String?, args[5] as String?))
             callOf(Response.success(WorkerPullResponse(
                 changes = emptyList(), cursor = "2001", epoch = "parity", hasMore = false,
                 remaining = null, errors = emptyList(), serverTime = null

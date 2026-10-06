@@ -90,23 +90,46 @@ jobs:
 
           # سبب إضافي: blob storage غير قابل للوصول من جلسة الوكيل، فنُخرج
           # التشخيص عبر check run يمكن قراءته مباشرةً من GitHub API.
+          # نُضمّن رسائل فشل الاختبارات نفسها (XML النتائج) لا سجل Gradle فقط.
           python3 - <<'PY' > "$RUNNER_TEMP/diagnostics.json"
-          import json, os, pathlib, re
+          import json, os, pathlib, re, xml.etree.ElementTree as ET
+
+          root = pathlib.Path("mobile/build/app/test-results/testDebugUnitTest")
+          if not root.exists():
+              root = pathlib.Path("mobile/android/app/build/test-results/testDebugUnitTest")
+
+          failures = []
+          for xml in sorted(root.glob("*.xml")) if root.exists() else []:
+              try:
+                  tree = ET.parse(xml)
+              except Exception as exc:  # noqa: BLE001
+                  failures.append(f"{xml.name}: unparsable ({exc})")
+                  continue
+              for case in tree.iter("testcase"):
+                  for kind in ("failure", "error"):
+                      node = case.find(kind)
+                      if node is None:
+                          continue
+                      text = (node.text or "").strip().splitlines()[:12]
+                      failures.append(
+                          f"### {case.get('classname')}.{case.get('name')}\n"
+                          f"{node.get('message', '')}\n" + "\n".join(text)
+                      )
 
           log = pathlib.Path(os.environ["RUNNER_TEMP"]) / "android-sync-tests.log"
           text = log.read_text(errors="replace") if log.exists() else "(no gradle log)"
           lines = text.splitlines()
           hits = [l for l in lines if re.search(r"e: file:|e: .*\.kt|error:|FAILED|What went wrong|Execution failed|Caused by:", l)]
-          body = "\n".join(hits[-120:] or lines[-120:])
+          detail = ("\n\n".join(failures) if failures else "\n".join(hits[-120:] or lines[-120:]))
           print(json.dumps({
               "name": "android-sync-diagnostics",
               "head_sha": os.environ["GITHUB_SHA"],
               "status": "completed",
               "conclusion": "failure",
               "output": {
-                  "title": "Android sync unit tests failed",
-                  "summary": f"{len(hits)} diagnostic lines (tail)",
-                  "text": body[-60000:],
+                  "title": f"Android sync tests: {len(failures)} failing case(s)",
+                  "summary": f"{len(failures)} failing case(s); {len(hits)} diagnostic lines",
+                  "text": detail[-60000:],
               },
           }))
           PY
