@@ -1,0 +1,6 @@
+Changed lib/services/adapters/id_resolver.dart
+Changed lib/services/appwrite_sync_manager.dart
+Changed lib/services/sync_core/deferred_relation_relinker.dart
+Changed test/unit/financial_identity_g3_test.dart
+Formatted 569 files (4 changed) in 3.77 seconds.
+format_exit=1
