@@ -1,0 +1,38 @@
+name: Arena Generate Drift
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: arena/287ede54-marina-hotel-wit-app
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+      - working-directory: mobile
+        run: flutter pub get
+      - working-directory: mobile
+        run: dart run build_runner build --delete-conflicting-outputs
+      - working-directory: mobile
+        run: dart format --line-length 80 lib/services/local_db.dart lib/services/local_db.g.dart test/services/provider_independent_financial_links_test.dart
+      - name: Commit generated schema
+        run: |
+          git config user.name "arena-ai[bot]"
+          git config user.email "arena-ai[bot]@users.noreply.github.com"
+          git add mobile/lib/services/local_db.dart mobile/lib/services/local_db.g.dart mobile/test/services/provider_independent_financial_links_test.dart
+          if git diff --cached --quiet; then
+            echo "No generated changes"
+          else
+            git commit -m "chore(db): regenerate Drift schema 70"
+            git push origin HEAD:arena/287ede54-marina-hotel-wit-app
+          fi
