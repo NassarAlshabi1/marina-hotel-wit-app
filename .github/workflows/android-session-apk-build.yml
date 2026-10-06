@@ -186,6 +186,13 @@ jobs:
           debug = describe(os.environ["DEBUG_APK"])
           verify = pathlib.Path("verify.log")
           verified = verify.read_text(errors="replace") if verify.exists() else "(no apksigner output)"
+          # أسطر الحكم لا تحذيرات META-INF: وجودها يعني أن apksigner أكّد الخطط
+          # الثلاث فعلاً (وبوابة الـstep تفشل لو غاب أي منها) — فتُنشر صريحةً.
+          verdicts = [
+              line.strip()
+              for line in verified.splitlines()
+              if line.startswith("Verified using v") or line.strip() == "zipalign OK"
+          ]
 
           lines = ["| المخرَج | الحجم | SHA-256 |", "| --- | --- | --- |"]
           for label, info in (("release (موقّع)", release), ("debug", debug)):
@@ -194,7 +201,9 @@ jobs:
               else:
                   lines.append(f"| {label} | {info['bytes']} بايت ({info['mib']} MiB) | `{info['sha256']}` |")
 
-          lines += ["", "**فحص التوقيع (apksigner / zipalign):**", "", "```text", verified.strip()[-3000:], "```"]
+          lines += ["", "**فحص التوقيع (apksigner / zipalign):**", "", "```text"]
+          lines += verdicts or ["(لم يُقرأ سطر حكم واحد من verify.log — راجع خرج apksigner الخام أدناه)"]
+          lines += ["```", "", "`apksigner`/`zipalign` الخام — آخر 1500 حرف (تظهر فيه تحذيرات META-INF المعروفة):", "", "```text", verified.strip()[-1500:], "```"]
           if release is not None:
               lines += [
                   "",

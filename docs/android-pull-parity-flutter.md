@@ -424,6 +424,43 @@ Scan` بحالة **skipped** («You've exceeded your plan limit»). هما لي�
 بواباتنا ولا يقيسان هذا الكود؛ نذكرهما حتى لا يُظن أن «كل شيء أخضر» حيث
 توجد إشارات حمراء خارج نطاق الدفعة.
 
+### بناء APK فعلي (2026-10-06) — للمرة الأولى على هذه الدفعة
+
+`android-kotlin-build.yml` (بناء الإصدار الموقّع) لا يمكن تشغيله من جلسة
+الوكيل: التوكن بلا `actions: write`، و`workflow_dispatch` يرد `HTTP 403`،
+والـworkflow مقيَّد أصلاً بقائمة فروع لا تشمل فرع الجلسة. لذلك أُضيف
+`.github/workflows/android-session-apk-build.yml` (فرع الجلسة فقط) يكرّر
+خطواته حرفياً: استعادة مفتاح التوقيع من `mobile/Keystore.txt` مع التحقق من
+`sha256`، ثم `assembleRelease`/`assembleDebug`، ثم فحص `apksigner` للخطط
+الثلاث (v1+v2+v3) و`zipalign -c 4`، ثم رفع artifacts ونشر check-run
+`android-session-apk` يحمل البصمة والحجم (لأن تنزيل artifacts من بيئة
+الجلسة يفشل بـ`EOF` — أُعيدت المحاولة هنا وفشلت مثل كل مرة).
+
+| العنصر | القيمة |
+| --- | --- |
+| التشغيل | `37532858856` — الالتزام `40bcff51` — **success** |
+| `app-release.apk` (موقّع) | 5,944,507 بايت (5.67 MiB) — `sha256 24f223d2c248a2a3028728943c2146f516f3df545dcec930e04c2dfbdd284ea5` |
+| `app-debug.apk` (تشخيصي) | 25,334,005 بايت (24.16 MiB) — `sha256 5d0e157c8b26eafbabb8e26ad543b2d3cba87c34e1b8e58a1fa7b09a74eb6faa` |
+| `mapping.txt` (R8) | 5,234,396 بايت — لفكّ رموز أعطال الإصدار المقلَّم |
+| التوقيع | بوابة الـstep نجحت ⇒ الخطط الثلاث مُتحقَّقة (`Verified using v1/v2/v3 … true`) و`zipalign OK` — البوابة تفشل لو غاب أي سطر |
+| الـartifacts | `marina-session-release-apk` • `marina-session-debug-apk` • `marina-session-release-mapping` (صلاحية 30 يوماً حتى 2026-11-05) |
+
+**دروس التنفيذ الفعلي (لا تُخفى):**
+
+1. أول تشغيل `37531978458` **فشل** في خطوة تحديد الملفات: كان release قد
+   بُني فعلاً (5.67 MiB — أثبته check-run) لكن الخطوة كانت تشترط وجود debug
+   APK بلا خطوة لبنائه. الإصلاح: خطوة `assembleDebug`، وتحديد صارم للـrelease
+   وحده، والـdebug تحذير لا فشل.
+2. مسار الخرج ليس افتراضي AGP: `mobile/android/build.gradle` يعيد توجيه
+   `buildDir` إلى `mobile/build/app`، فالمسار الفعلي
+   `mobile/build/app/outputs/apk/release/app-release.apk` (تأكيد مباشر من
+   التشغيل، لا افتراض).
+3. **ما لم يُتحقق هنا:** التثبيت على جهاز حقيقي والإطلاق منه (يحتاج جهازاً
+   أو محاكياً؛ `android-emulator-launch-probe.yml` يفعل ذلك خارج فرع
+   الجلسة)، وبناء النسخة غير المقلَّمة (`-PmarinaNoMinify`) التشخيصية.
+   والـAPK نفسه لم يُنزَّل إلى بيئة الجلسة (blob storage يردّ `EOF`)؛ الحجم
+   والبصمة مقروءان من الملف داخل الـrunner عبر check-run.
+
 ### تحقق الخادم (worker) — تشغيل فعلي في بيئة الجلسة
 
 بيئة الجلسة تحتوي Node 22 / npm 10 (خلاف JDK الذي لا يوجد):
