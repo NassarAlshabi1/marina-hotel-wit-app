@@ -125,8 +125,31 @@ class SyncPullParityTest {
             response
         } as Call<*>
 
-    /** طلب سحب مُسجَّل: (المؤشر، استبعاد الجهاز، tombstones_only). */
-    private data class PullRequest(val cursor: Long, val excludeDevice: String?, val tombstonesOnly: String?)
+    /**
+     * طلب سحب مُسجَّل: كل حجج الاستعلام الفعلية المهمة — (المؤشر، استبعاد
+     * الجهاز، include_remaining، normalize_timestamps، tombstones_only).
+     *
+     * تسجيل علامتَي السحب الكامل هو ما يجعل تأكيد «دلتا فقط» **قابلاً
+     * للتكذيب**: مسار [SyncManager.fullPull] يمرّرهما `1`، فلو تسرّب أي منهما
+     * إلى زر اللوحة لفشلت المقارنة. الحقلان الأخيران بلا قيمة افتراضياً
+     * لأن مقارنة السلاسل تكفي بلا تعديل بقية الحالات.
+     */
+    private data class PullRequest(
+        val cursor: Long,
+        val excludeDevice: String?,
+        val tombstonesOnly: String?,
+        val includeRemaining: String? = null,
+        val normalizeTimestamps: String? = null
+    )
+
+    /** يقرأ حجج `CloudflareWorkerApi.pull` بترتيب التوقيع (cursor, limit, exclude_device, include_remaining, normalize_timestamps, tombstones_only). */
+    private fun recordedRequest(args: Array<Any?>): PullRequest = PullRequest(
+        cursor = args[0] as Long,
+        excludeDevice = args[2] as String?,
+        tombstonesOnly = args[5] as String?,
+        includeRemaining = args[3] as String?,
+        normalizeTimestamps = args[4] as String?
+    )
 
     private fun manager(
         prefs: SyncPreferences,
@@ -170,7 +193,7 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull") { "مسار السحب لا يدفع: ${method.name}" }
-            val request = PullRequest(args!![0] as Long, args[2] as String?, args[5] as String?)
+            val request = recordedRequest(args!!)
             requests.add(request)
             val response = if (request.tombstonesOnly == "1") {
                 WorkerPullResponse(
@@ -354,7 +377,7 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull")
-            requests.add(PullRequest(args!![0] as Long, args[2] as String?, args[5] as String?))
+            requests.add(recordedRequest(args!!))
             callOf(Response.success(WorkerPullResponse(
                 changes = emptyList(), cursor = "10", epoch = "parity", hasMore = false,
                 remaining = null, errors = emptyList(), serverTime = null
@@ -491,7 +514,7 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull") { "حدث Realtime يجب ألا يدفع/يستخدم مساراً آخر: ${method.name}" }
-            requests.add(PullRequest(args!![0] as Long, args[2] as String?, args[5] as String?))
+            requests.add(recordedRequest(args!!))
             callOf(Response.success(WorkerPullResponse(
                 changes = emptyList(), cursor = "2001", epoch = "parity", hasMore = false,
                 remaining = null, errors = emptyList(), serverTime = null
@@ -580,7 +603,7 @@ class SyncPullParityTest {
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, args ->
             check(method.name == "pull") { "زر اللوحة لا يدفع: ${method.name}" }
-            requests.add(PullRequest(args!![0] as Long, args[2] as String?, args[5] as String?))
+            requests.add(recordedRequest(args!!))
             callOf(Response.success(WorkerPullResponse(
                 changes = emptyList(), cursor = "42", epoch = "parity", hasMore = false,
                 remaining = null, errors = emptyList(), serverTime = null
@@ -593,12 +616,68 @@ class SyncPullParityTest {
             assertEquals(0, subject.pullOnly())
             // دلتا تفاضلية: فلتر الصدى مفعّل، وبلا include_remaining/
             // normalize_timestamps — أي لا مؤشرات سحب كامل إطلاقاً.
+            // (سجل PullRequest يقرأ الحجج الست كلها، فهذه المقارنة تُفشل
+            // الحالة لو تسرّب `include_remaining=1` أو `normalize_timestamps=1`
+            // إلى مسار زر اللوحة.)
             assertEquals(listOf(PullRequest(0L, "fresh-device", null)), requests)
+            val onlyRequest = requests.single()
+            assertNull(onlyRequest.includeRemaining)
+            assertNull(onlyRequest.normalizeTimestamps)
             // الـ bootstrap لم يُبدأ ولم يُعلَّم كمكتمل.
             assertFalse(prefs.isFullSyncComplete())
             assertFalse(prefs.isFullReplayPending())
             // لكن الدلتا تسحب كل الصفوف من الصفر وتقدم المؤشر فعلاً.
             assertEquals(42L, prefs.getLastPullCursor())
+        } finally {
+            scope.coroutineContext[Job]!!.cancelAndJoin()
+        }
+    }
+
+    /**
+     * الطرف المقابل لحالة زر اللوحة — يمنع كون التأكيد أعلاه **فارغاً**:
+     * الإجراء الصريح [SyncManager.fullPull] هو وحده الذي يطلب من الخادم
+     * عيّنة `remaining` وتطبيع الطوابع (`include_remaining=1` و
+     * `normalize_timestamps=1`)، ووحده يستثني فلتر صدى الجهاز (نظير
+     * Dart l.2063: `excludeOwnDevice: !wasFullSync`)، ثم يُعلن اكتمال
+     * الـ bootstrap. لو غابت هذه العلامات من هذا المسار لكانت حالة
+     * «دلتا فقط» أعلاه بلا معنى (لا شيء يُرصد أصلاً).
+     */
+    @Test
+    fun explicitFullSyncIsTheOnlyPathRequestingRemainingAndNormalization() = runBlocking {
+        val prefs = preferences()
+        prefs.saveAuthToken("test-worker-token")
+        prefs.saveDeviceId("full-device")
+        prefs.saveLastPullCursor(0L)
+        prefs.saveSyncEpoch("parity")
+        prefs.setFullReplayPending(false)
+        prefs.setTombstoneSweepDone(true)
+
+        val requests = mutableListOf<PullRequest>()
+        val api = Proxy.newProxyInstance(
+            CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
+        ) { _, method, args ->
+            check(method.name == "pull") { "السحب الكامل لا يدفع ولا يسلك مساراً آخر: ${method.name}" }
+            requests.add(recordedRequest(args!!))
+            callOf(Response.success(WorkerPullResponse(
+                changes = emptyList(), cursor = "7", epoch = "parity", hasMore = false,
+                remaining = 3, errors = emptyList(), serverTime = null
+            )))
+        } as CloudflareWorkerApi
+
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val subject = manager(prefs, api, scope)
+            assertEquals(0, subject.fullPull())
+            val only = requests.single()
+            assertEquals(0L, only.cursor)
+            // العلامتان اللتان تُثبتان أن الرصد يعمل فعلاً (لا تأكيد فارغ):
+            assertEquals("1", only.includeRemaining)
+            assertEquals("1", only.normalizeTimestamps)
+            // السحب الكامل وحده بلا فلتر صدى.
+            assertNull(only.excludeDevice)
+            // وبعد آخر صفحة يُعلن الـ bootstrap مكتملاً (بعكس مسار الدلتا).
+            assertTrue(prefs.isFullSyncComplete())
+            assertFalse(prefs.isFullReplayPending())
         } finally {
             scope.coroutineContext[Job]!!.cancelAndJoin()
         }
