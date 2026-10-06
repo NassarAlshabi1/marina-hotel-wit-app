@@ -1,5 +1,6 @@
 Changed lib/services/salary_entitlement_service.dart
+Changed lib/services/cloudflare_d1_service.dart
 Changed test/unit/entitlement_identity_attribution_test.dart
 Changed test/unit/information_header_search_widget_test.dart
 Changed test/unit/cloudflare_d1_upload_fields_test.dart
-Formatted 8 files (4 changed) in 0.08 seconds.
+Formatted 8 files (5 changed) in 0.10 seconds.

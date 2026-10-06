@@ -1,3 +1,430 @@
+diff --git a/mobile/.arena/format.diff b/mobile/.arena/format.diff
+index 8219f53..e69de29 100644
+--- a/mobile/.arena/format.diff
++++ b/mobile/.arena/format.diff
+@@ -1,394 +0,0 @@
+-diff --git a/mobile/lib/services/salary_entitlement_service.dart b/mobile/lib/services/salary_entitlement_service.dart
+-index c72be96..b1a5d76 100755
+---- a/mobile/lib/services/salary_entitlement_service.dart
+-+++ b/mobile/lib/services/salary_entitlement_service.dart
+-@@ -727,8 +727,7 @@ class SalaryEntitlementService {
+-   /// مصروفات الموظف: الرقم المحلي **أو** الهوية الدائمة، مع حارس النسب.
+-   Future<List<Expense>> _getEmployeeExpenses(Employee employee) async {
+-     final uuid = employee.localUuid.trim();
+--    final query = _db.select(_db.expenses)
+--      ..where((e) => e.deletedAt.isNull());
+-+    final query = _db.select(_db.expenses)..where((e) => e.deletedAt.isNull());
+-     if (uuid.isEmpty) {
+-       query.where((e) => e.relatedId.equals(employee.id));
+-     } else {
+-diff --git a/mobile/test/unit/cloudflare_d1_upload_fields_test.dart b/mobile/test/unit/cloudflare_d1_upload_fields_test.dart
+-index ad2ef0a..c069720 100644
+---- a/mobile/test/unit/cloudflare_d1_upload_fields_test.dart
+-+++ b/mobile/test/unit/cloudflare_d1_upload_fields_test.dart
+-@@ -798,7 +798,9 @@ void main() {
+-   group('حقول الهوية المالية في رفع D1', () {
+-     /// أعمدة جدول كما تصل إلى D1 (نفس SELECT * الذي يقرأه التبويب).
+-     Future<Set<String>> uploadColumns(String table) async {
+--      final rows = await db.customSelect('SELECT * FROM "$table" LIMIT 0').get();
+-+      final rows = await db
+-+          .customSelect('SELECT * FROM "$table" LIMIT 0')
+-+          .get();
+-       // Drift يعيد الأعمدة حتى مع صفر صفوف عبر pragma.
+-       if (rows.isEmpty) return tableColumns(table);
+-       return rows.first.data.keys.toSet();
+-@@ -849,120 +851,123 @@ void main() {
+-       );
+-     });
+- 
+--    test('نص DDL المحلي (المصدر لـ CREATE/ALTER على D1) يحمل نفس الحقول',
+--        () async {
+--      final failures = <String>[];
+--      for (final entry in identityFields.entries) {
+--        final ddl = await localDdl(entry.key);
+--        if (ddl.isEmpty) {
+--          failures.add('${entry.key}: لا DDL في sqlite_master');
+--          continue;
+--        }
+--        for (final field in entry.value) {
+--          if (!ddl.contains('"$field"')) {
+--            failures.add('${entry.key}.$field');
+-+    test(
+-+      'نص DDL المحلي (المصدر لـ CREATE/ALTER على D1) يحمل نفس الحقول',
+-+      () async {
+-+        final failures = <String>[];
+-+        for (final entry in identityFields.entries) {
+-+          final ddl = await localDdl(entry.key);
+-+          if (ddl.isEmpty) {
+-+            failures.add('${entry.key}: لا DDL في sqlite_master');
+-+            continue;
+-+          }
+-+          for (final field in entry.value) {
+-+            if (!ddl.contains('"$field"')) {
+-+              failures.add('${entry.key}.$field');
+-+            }
+-           }
+-         }
+--      }
+--      expect(
+--        failures,
+--        isEmpty,
+--        reason:
+--            'DDL المنقول إلى D1 لا يتضمن حقول الهوية ⇒ _reconcileSchema لن '
+--            'يستطيع إضافتها هناك: ${failures.join('، ')}',
+--      );
+--    });
+-+        expect(
+-+          failures,
+-+          isEmpty,
+-+          reason:
+-+              'DDL المنقول إلى D1 لا يتضمن حقول الهوية ⇒ _reconcileSchema لن '
+-+              'يستطيع إضافتها هناك: ${failures.join('، ')}',
+-+        );
+-+      },
+-+    );
+- 
+--    test('رفع صفوف فعلية: القيم تُرسل بأسماء الأعمدة snake_case نفسها',
+--        () async {
+--      final empId = await db
+--          .into(db.employees)
+--          .insert(
+--            EmployeesCompanion.insert(
+--              localUuid: 'emp-uuid-d1',
+--              createdAt: 1,
+--              updatedAt: 1,
+--              lastModified: 1,
+--              name: 'موظف D1',
+--              basicSalary: 1000,
+--              status: 'active',
+--            ),
+--          );
+--      final cycleId = await db
+--          .into(db.salaryCycles)
+--          .insert(
+--            SalaryCyclesCompanion.insert(
+--              localUuid: 'cycle-uuid-d1',
+--              createdAt: 1,
+--              updatedAt: 1,
+--              lastModified: 1,
+--              employeeId: empId,
+--              cycleKey: '2026-10',
+--              employeeUuid: const Value('emp-uuid-d1'),
+--            ),
+--          );
+--      await db
+--          .into(db.salaryPayments)
+--          .insert(
+--            SalaryPaymentsCompanion.insert(
+--              localUuid: 'pay-uuid-d1',
+--              createdAt: 1,
+--              updatedAt: 1,
+--              lastModified: 1,
+--              cycleId: cycleId,
+--              amount: const Value(500),
+--              employeeUuid: const Value('emp-uuid-d1'),
+--              paymentDateIso: '2026-10-01',
+--            ),
+--          );
+--      // العمود يضمنه beforeOpen (لا يظهر في Companion المولَّد).
+--      await db.customStatement(
+--        "UPDATE salary_payments SET cycle_uuid = 'cycle-uuid-d1' "
+--        "WHERE local_uuid = 'pay-uuid-d1'",
+--      );
+-+    test(
+-+      'رفع صفوف فعلية: القيم تُرسل بأسماء الأعمدة snake_case نفسها',
+-+      () async {
+-+        final empId = await db
+-+            .into(db.employees)
+-+            .insert(
+-+              EmployeesCompanion.insert(
+-+                localUuid: 'emp-uuid-d1',
+-+                createdAt: 1,
+-+                updatedAt: 1,
+-+                lastModified: 1,
+-+                name: 'موظف D1',
+-+                basicSalary: 1000,
+-+                status: 'active',
+-+              ),
+-+            );
+-+        final cycleId = await db
+-+            .into(db.salaryCycles)
+-+            .insert(
+-+              SalaryCyclesCompanion.insert(
+-+                localUuid: 'cycle-uuid-d1',
+-+                createdAt: 1,
+-+                updatedAt: 1,
+-+                lastModified: 1,
+-+                employeeId: empId,
+-+                cycleKey: '2026-10',
+-+                employeeUuid: const Value('emp-uuid-d1'),
+-+              ),
+-+            );
+-+        await db
+-+            .into(db.salaryPayments)
+-+            .insert(
+-+              SalaryPaymentsCompanion.insert(
+-+                localUuid: 'pay-uuid-d1',
+-+                createdAt: 1,
+-+                updatedAt: 1,
+-+                lastModified: 1,
+-+                cycleId: cycleId,
+-+                amount: const Value(500),
+-+                employeeUuid: const Value('emp-uuid-d1'),
+-+                paymentDateIso: '2026-10-01',
+-+              ),
+-+            );
+-+        // العمود يضمنه beforeOpen (لا يظهر في Companion المولَّد).
+-+        await db.customStatement(
+-+          "UPDATE salary_payments SET cycle_uuid = 'cycle-uuid-d1' "
+-+          "WHERE local_uuid = 'pay-uuid-d1'",
+-+        );
+- 
+--      final rows = await db
+--          .customSelect('SELECT * FROM "salary_payments"')
+--          .get();
+--      final row = rows.first.data;
+--      expect(row['local_uuid'], 'pay-uuid-d1');
+--      expect(row['employee_uuid'], 'emp-uuid-d1');
+--      expect(row['cycle_uuid'], 'cycle-uuid-d1');
+--      expect(row['cycle_id'], cycleId);
+--
+--      // سجل الترحيل: رابطتا الدورتين (G-2) تصلان إلى D1 كنصّين.
+--      final logId = await db
+--          .into(db.salaryCarryOverLogs)
+--          .insert(
+--            SalaryCarryOverLogsCompanion.insert(
+--              localUuid: 'carry-uuid-d1',
+--              createdAt: 1,
+--              updatedAt: 1,
+--              lastModified: 1,
+--              employeeId: empId,
+--              amount: 0,
+--              previousCycleStart: '2026-09-05',
+--              previousCycleEnd: '2026-10-04',
+--              newCycleStart: '2026-10-05',
+--              newCycleEnd: '2026-11-04',
+--              reason: 'اختبار D1',
+--              carriedAt: 1,
+--            ),
+--          );
+--      await db.customStatement(
+--        "UPDATE salary_carry_over_logs SET employee_uuid = 'emp-uuid-d1', "
+--        "from_cycle_id = 'cycle-uuid-prev', to_cycle_id = 'cycle-uuid-d1' "
+--        'WHERE id = ?',
+--        [logId],
+--      );
+--      final logRows = await db
+--          .customSelect('SELECT * FROM "salary_carry_over_logs"')
+--          .get();
+--      final log = logRows.first.data;
+--      expect(log['employee_uuid'], 'emp-uuid-d1');
+--      expect(log['from_cycle_id'], 'cycle-uuid-prev');
+--      expect(log['to_cycle_id'], 'cycle-uuid-d1');
+--    });
+-+        final rows = await db
+-+            .customSelect('SELECT * FROM "salary_payments"')
+-+            .get();
+-+        final row = rows.first.data;
+-+        expect(row['local_uuid'], 'pay-uuid-d1');
+-+        expect(row['employee_uuid'], 'emp-uuid-d1');
+-+        expect(row['cycle_uuid'], 'cycle-uuid-d1');
+-+        expect(row['cycle_id'], cycleId);
+-+
+-+        // سجل الترحيل: رابطتا الدورتين (G-2) تصلان إلى D1 كنصّين.
+-+        final logId = await db
+-+            .into(db.salaryCarryOverLogs)
+-+            .insert(
+-+              SalaryCarryOverLogsCompanion.insert(
+-+                localUuid: 'carry-uuid-d1',
+-+                createdAt: 1,
+-+                updatedAt: 1,
+-+                lastModified: 1,
+-+                employeeId: empId,
+-+                amount: 0,
+-+                previousCycleStart: '2026-09-05',
+-+                previousCycleEnd: '2026-10-04',
+-+                newCycleStart: '2026-10-05',
+-+                newCycleEnd: '2026-11-04',
+-+                reason: 'اختبار D1',
+-+                carriedAt: 1,
+-+              ),
+-+            );
+-+        await db.customStatement(
+-+          "UPDATE salary_carry_over_logs SET employee_uuid = 'emp-uuid-d1', "
+-+          "from_cycle_id = 'cycle-uuid-prev', to_cycle_id = 'cycle-uuid-d1' "
+-+          'WHERE id = ?',
+-+          [logId],
+-+        );
+-+        final logRows = await db
+-+            .customSelect('SELECT * FROM "salary_carry_over_logs"')
+-+            .get();
+-+        final log = logRows.first.data;
+-+        expect(log['employee_uuid'], 'emp-uuid-d1');
+-+        expect(log['from_cycle_id'], 'cycle-uuid-prev');
+-+        expect(log['to_cycle_id'], 'cycle-uuid-d1');
+-+      },
+-+    );
+-   });
+--
+- }
+-diff --git a/mobile/test/unit/entitlement_identity_attribution_test.dart b/mobile/test/unit/entitlement_identity_attribution_test.dart
+-index f2c9a78..9929b77 100644
+---- a/mobile/test/unit/entitlement_identity_attribution_test.dart
+-+++ b/mobile/test/unit/entitlement_identity_attribution_test.dart
+-@@ -56,9 +56,8 @@ void main() {
+-         );
+-   }
+- 
+--  Future<Employee> employeeById(int id) => (db.select(
+--    db.employees,
+--  )..where((e) => e.id.equals(id))).getSingle();
+-+  Future<Employee> employeeById(int id) =>
+-+      (db.select(db.employees)..where((e) => e.id.equals(id))).getSingle();
+- 
+-   Future<int> createExpense({
+-     required int relatedId,
+-@@ -160,11 +159,7 @@ void main() {
+-       final empB = await createEmployee(uuid: 'emp-B', name: 'ب');
+- 
+-       // ربط خاطئ: related_id يشير إلى A والهوية تعلن B.
+--      await createExpense(
+--        relatedId: empA,
+--        employeeUuid: 'emp-B',
+--        amount: 700,
+--      );
+-+      await createExpense(relatedId: empA, employeeUuid: 'emp-B', amount: 700);
+- 
+-       final a = await employeeById(empA);
+-       final b = await employeeById(empB);
+-@@ -183,8 +178,7 @@ void main() {
+-       );
+-     });
+- 
+--    test('سحبة وصلت برقم محلي مختلف لكن بهوية هذا الموظف ⇒ تُنسب له',
+--        () async {
+-+    test('سحبة وصلت برقم محلي مختلف لكن بهوية هذا الموظف ⇒ تُنسب له', () async {
+-       final empA = await createEmployee(uuid: 'emp-A', name: 'أ');
+-       final empB = await createEmployee(uuid: 'emp-B', name: 'ب');
+- 
+-@@ -208,33 +202,37 @@ void main() {
+-       );
+-     });
+- 
+--    test('سحبة بهوية موظف غير موجود محلياً ⇒ تُنسب احتياطاً بلا فقدان',
+--        () async {
+--      final empA = await createEmployee(uuid: 'emp-A');
+--      await createWithdrawal(
+--        employeeId: empA,
+--        employeeUuid: 'emp-DELETED-ELSEWHERE',
+--        amount: 250,
+--      );
+--
+--      final a = await employeeById(empA);
+--      final entA = await service.calculateEmployeeEntitlement(a);
+--      expect(
+--        entA.totalWithdrawals,
+--        250,
+--        reason: 'صاحب الهوية غير موجود محلياً ⇒ لا نُسقط المال من التقارير',
+--      );
+--    });
+--
+--    test('سجل قديم بلا هوية (employee_uuid = NULL) ⇒ النسب بالرقم كما كان',
+--        () async {
+--      final empA = await createEmployee(uuid: 'emp-A');
+--      await createWithdrawal(employeeId: empA, amount: 400);
+-+    test(
+-+      'سحبة بهوية موظف غير موجود محلياً ⇒ تُنسب احتياطاً بلا فقدان',
+-+      () async {
+-+        final empA = await createEmployee(uuid: 'emp-A');
+-+        await createWithdrawal(
+-+          employeeId: empA,
+-+          employeeUuid: 'emp-DELETED-ELSEWHERE',
+-+          amount: 250,
+-+        );
+- 
+--      final a = await employeeById(empA);
+--      final entA = await service.calculateEmployeeEntitlement(a);
+--      expect(entA.totalWithdrawals, 400);
+--    });
+-+        final a = await employeeById(empA);
+-+        final entA = await service.calculateEmployeeEntitlement(a);
+-+        expect(
+-+          entA.totalWithdrawals,
+-+          250,
+-+          reason: 'صاحب الهوية غير موجود محلياً ⇒ لا نُسقط المال من التقارير',
+-+        );
+-+      },
+-+    );
+-+
+-+    test(
+-+      'سجل قديم بلا هوية (employee_uuid = NULL) ⇒ النسب بالرقم كما كان',
+-+      () async {
+-+        final empA = await createEmployee(uuid: 'emp-A');
+-+        await createWithdrawal(employeeId: empA, amount: 400);
+-+
+-+        final a = await employeeById(empA);
+-+        final entA = await service.calculateEmployeeEntitlement(a);
+-+        expect(entA.totalWithdrawals, 400);
+-+      },
+-+    );
+- 
+-     test('السحب المباشر الصحيح يبقى 4000 ويُخصم من الاستحقاق', () async {
+-       final empA = await createEmployee(uuid: 'emp-A');
+-diff --git a/mobile/test/unit/information_header_search_widget_test.dart b/mobile/test/unit/information_header_search_widget_test.dart
+-index 6d24d78..6e2b3c6 100644
+---- a/mobile/test/unit/information_header_search_widget_test.dart
+-+++ b/mobile/test/unit/information_header_search_widget_test.dart
+-@@ -55,9 +55,7 @@ void main() {
+-       ProviderScope(
+-         overrides: [
+-           databaseProvider.overrideWithValue(db),
+--          simpleNotesUnreadCountProvider.overrideWith(
+--            (ref) => Stream.value(0),
+--          ),
+-+          simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
+-         ],
+-         child: const MaterialApp(home: InformationScreen()),
+-       ),
+-@@ -74,8 +72,9 @@ void main() {
+-     expect(find.byTooltip('بحث في السجل بالاسم'), findsOneWidget);
+-   });
+- 
+--  testWidgets('الضغط على أيقونة البحث يُظهر الحقل ويمكن الكتابة فيه',
+--      (tester) async {
+-+  testWidgets('الضغط على أيقونة البحث يُظهر الحقل ويمكن الكتابة فيه', (
+-+    tester,
+-+  ) async {
+-     await pumpScreen(tester);
+- 
+-     await tester.tap(find.byTooltip('بحث في السجل بالاسم'));
+diff --git a/mobile/.arena/format_check.txt b/mobile/.arena/format_check.txt
+index a1119ad..fb60f02 100644
+--- a/mobile/.arena/format_check.txt
++++ b/mobile/.arena/format_check.txt
+@@ -1,5 +1,6 @@
+ Changed lib/services/salary_entitlement_service.dart
++Changed lib/services/cloudflare_d1_service.dart
+ Changed test/unit/entitlement_identity_attribution_test.dart
+ Changed test/unit/information_header_search_widget_test.dart
+ Changed test/unit/cloudflare_d1_upload_fields_test.dart
+-Formatted 8 files (4 changed) in 0.08 seconds.
++Formatted 8 files (5 changed) in 0.10 seconds.
+diff --git a/mobile/lib/services/cloudflare_d1_service.dart b/mobile/lib/services/cloudflare_d1_service.dart
+index cad2c77..6654dd8 100644
+--- a/mobile/lib/services/cloudflare_d1_service.dart
++++ b/mobile/lib/services/cloudflare_d1_service.dart
+@@ -556,7 +556,10 @@ class CloudflareD1Service {
+       if (f.isEmpty) return;
+       final m =
+           RegExp(r'^"([^"]+)"\s+(.*)$', dotAll: true).firstMatch(f) ??
+-          RegExp(r'^([A-Za-z_][A-Za-z0-9_]*)\s+(.*)$', dotAll: true).firstMatch(f);
++          RegExp(
++            r'^([A-Za-z_][A-Za-z0-9_]*)\s+(.*)$',
++            dotAll: true,
++          ).firstMatch(f);
+       if (m == null) return;
+       final name = m.group(1)!;
+       if (_constraintKeywords.contains(name.toUpperCase())) return;
 diff --git a/mobile/lib/services/salary_entitlement_service.dart b/mobile/lib/services/salary_entitlement_service.dart
 index c72be96..b1a5d76 100755
 --- a/mobile/lib/services/salary_entitlement_service.dart
@@ -13,7 +440,7 @@ index c72be96..b1a5d76 100755
        query.where((e) => e.relatedId.equals(employee.id));
      } else {
 diff --git a/mobile/test/unit/cloudflare_d1_upload_fields_test.dart b/mobile/test/unit/cloudflare_d1_upload_fields_test.dart
-index ad2ef0a..c069720 100644
+index 10bc068..21ed195 100644
 --- a/mobile/test/unit/cloudflare_d1_upload_fields_test.dart
 +++ b/mobile/test/unit/cloudflare_d1_upload_fields_test.dart
 @@ -798,7 +798,9 @@ void main() {
@@ -27,7 +454,7 @@ index ad2ef0a..c069720 100644
        // Drift يعيد الأعمدة حتى مع صفر صفوف عبر pragma.
        if (rows.isEmpty) return tableColumns(table);
        return rows.first.data.keys.toSet();
-@@ -849,120 +851,123 @@ void main() {
+@@ -849,37 +851,37 @@ void main() {
        );
      });
  
@@ -41,7 +468,11 @@ index ad2ef0a..c069720 100644
 -          continue;
 -        }
 -        for (final field in entry.value) {
--          if (!ddl.contains('"$field"')) {
+-          // العمود قد يكون مقتبساً (نمط Drift) أو غير مقتبس (عمود أُضيف
+-          // بـ ALTER TABLE ADD COLUMN بلا اقتباس) — كلاهما صالح على D1،
+-          // والمهم أن يحلّله _columnFragments (انظر اختباره المستقل).
+-          if (!ddl.contains('"$field"') &&
+-              !RegExp('\\b$field\\b').hasMatch(ddl)) {
 -            failures.add('${entry.key}.$field');
 +    test(
 +      'نص DDL المحلي (المصدر لـ CREATE/ALTER على D1) يحمل نفس الحقول',
@@ -54,7 +485,11 @@ index ad2ef0a..c069720 100644
 +            continue;
 +          }
 +          for (final field in entry.value) {
-+            if (!ddl.contains('"$field"')) {
++            // العمود قد يكون مقتبساً (نمط Drift) أو غير مقتبس (عمود أُضيف
++            // بـ ALTER TABLE ADD COLUMN بلا اقتباس) — كلاهما صالح على D1،
++            // والمهم أن يحلّله _columnFragments (انظر اختباره المستقل).
++            if (!ddl.contains('"$field"') &&
++                !RegExp('\\b$field\\b').hasMatch(ddl)) {
 +              failures.add('${entry.key}.$field');
 +            }
            }
@@ -68,6 +503,7 @@ index ad2ef0a..c069720 100644
 -            'يستطيع إضافتها هناك: ${failures.join('، ')}',
 -      );
 -    });
+-
 +        expect(
 +          failures,
 +          isEmpty,
@@ -77,6 +513,122 @@ index ad2ef0a..c069720 100644
 +        );
 +      },
 +    );
+ 
+-    test('محلل DDL يقبل الاسم غير المقتبس (شكل العمود المُضاف بـ ALTER)',
+-        () {
++    test('محلل DDL يقبل الاسم غير المقتبس (شكل العمود المُضاف بـ ALTER)', () {
+       // الشكل الحقيقي المُثبت في الإنتاج: ALTER بلا اقتباس يُلحق النص
+       // `cycle_uuid TEXT` بنص CREATE في sqlite_master.
+       const ddl =
+@@ -899,168 +901,167 @@ void main() {
+       expect(frags.containsKey('UNIQUE'), isFalse);
+     });
+ 
+-    test('D1 ينقصه cycle_uuid ⇒ يُضاف بـ ALTER قبل INSERT (إصلاح الرفع)',
+-        () async {
+-      final captured = <String>[];
+-      final client = MockClient((request) async {
+-        final body = jsonDecode(request.body) as Map<String, dynamic>;
+-        final sql = body['sql'] as String;
+-        captured.add(sql);
+-        if (sql.contains('pragma_table_info')) {
+-          // D1 الحقيقي: الجدول موجود لكن بلا العمود الجديد (مخطط أقدم).
+-          return http.Response(
+-            jsonEncode({
+-              'success': true,
+-              'result': [
+-                {
+-                  'results': [
+-                    {'name': 'id'},
+-                    {'name': 'local_uuid'},
+-                  ],
+-                },
+-              ],
+-            }),
+-            200,
+-          );
+-        }
+-        return http.Response('{"success": true, "result": []}', 200);
+-      });
+-      final service = CloudflareD1Service(
+-        const CloudflareD1Config(
+-          accountId: 'a',
+-          databaseId: 'b',
+-          apiToken: 't',
+-        ),
+-        client: client,
+-      );
+-
+-      final result = await service.uploadData(
+-        tables: [
+-          CloudflareD1SourceTable(
+-            name: 'salary_payments',
+-            rowCount: 1,
+-            createSqlList: const [
+-              'CREATE TABLE "salary_payments" ("id" INTEGER NOT NULL, '
+-                  '"local_uuid" TEXT NOT NULL, cycle_uuid TEXT)',
+-            ],
+-            readChunk: (limit, offset) async => offset > 0
+-                ? const <Map<String, Object?>>[]
+-                : [
+-                    <String, Object?>{
+-                      'id': 1,
+-                      'local_uuid': 'pay-uuid-1',
+-                      'cycle_uuid': 'cycle-uuid-1',
+-                    },
+-                  ],
++    test(
++      'D1 ينقصه cycle_uuid ⇒ يُضاف بـ ALTER قبل INSERT (إصلاح الرفع)',
++      () async {
++        final captured = <String>[];
++        final client = MockClient((request) async {
++          final body = jsonDecode(request.body) as Map<String, dynamic>;
++          final sql = body['sql'] as String;
++          captured.add(sql);
++          if (sql.contains('pragma_table_info')) {
++            // D1 الحقيقي: الجدول موجود لكن بلا العمود الجديد (مخطط أقدم).
++            return http.Response(
++              jsonEncode({
++                'success': true,
++                'result': [
++                  {
++                    'results': [
++                      {'name': 'id'},
++                      {'name': 'local_uuid'},
++                    ],
++                  },
++                ],
++              }),
++              200,
++            );
++          }
++          return http.Response('{"success": true, "result": []}', 200);
++        });
++        final service = CloudflareD1Service(
++          const CloudflareD1Config(
++            accountId: 'a',
++            databaseId: 'b',
++            apiToken: 't',
+           ),
+-        ],
+-      );
+-
+-      final blob = captured.join('\n');
+-      expect(
+-        blob,
+-        contains('ADD COLUMN "cycle_uuid" TEXT'),
+-        reason: 'بدون هذا ALTER يفشل INSERT كامل للجدول على D1',
+-      );
+-      expect(blob, contains('INSERT OR REPLACE INTO "salary_payments"'));
+-      expect(blob, contains("'cycle-uuid-1'"));
+-      expect(
+-        result.ok,
+-        isTrue,
+-        reason: result.errors.join('؛ '),
+-      );
+-    });
++          client: client,
++        );
  
 -    test('رفع صفوف فعلية: القيم تُرسل بأسماء الأعمدة snake_case نفسها',
 -        () async {
@@ -118,13 +670,89 @@ index ad2ef0a..c069720 100644
 -              amount: const Value(500),
 -              employeeUuid: const Value('emp-uuid-d1'),
 -              paymentDateIso: '2026-10-01',
--            ),
++        final result = await service.uploadData(
++          tables: [
++            CloudflareD1SourceTable(
++              name: 'salary_payments',
++              rowCount: 1,
++              createSqlList: const [
++                'CREATE TABLE "salary_payments" ("id" INTEGER NOT NULL, '
++                    '"local_uuid" TEXT NOT NULL, cycle_uuid TEXT)',
++              ],
++              readChunk: (limit, offset) async => offset > 0
++                  ? const <Map<String, Object?>>[]
++                  : [
++                      <String, Object?>{
++                        'id': 1,
++                        'local_uuid': 'pay-uuid-1',
++                        'cycle_uuid': 'cycle-uuid-1',
++                      },
++                    ],
+             ),
 -          );
 -      // العمود يضمنه beforeOpen (لا يظهر في Companion المولَّد).
 -      await db.customStatement(
 -        "UPDATE salary_payments SET cycle_uuid = 'cycle-uuid-d1' "
 -        "WHERE local_uuid = 'pay-uuid-d1'",
 -      );
++          ],
++        );
+ 
+-      final rows = await db
+-          .customSelect('SELECT * FROM "salary_payments"')
+-          .get();
+-      final row = rows.first.data;
+-      expect(row['local_uuid'], 'pay-uuid-d1');
+-      expect(row['employee_uuid'], 'emp-uuid-d1');
+-      expect(row['cycle_uuid'], 'cycle-uuid-d1');
+-      expect(row['cycle_id'], cycleId);
+-
+-      // سجل الترحيل: رابطتا الدورتين (G-2) تصلان إلى D1 كنصّين.
+-      final logId = await db
+-          .into(db.salaryCarryOverLogs)
+-          .insert(
+-            SalaryCarryOverLogsCompanion.insert(
+-              localUuid: 'carry-uuid-d1',
+-              createdAt: 1,
+-              updatedAt: 1,
+-              lastModified: 1,
+-              employeeId: empId,
+-              amount: 0,
+-              previousCycleStart: '2026-09-05',
+-              previousCycleEnd: '2026-10-04',
+-              newCycleStart: '2026-10-05',
+-              newCycleEnd: '2026-11-04',
+-              reason: 'اختبار D1',
+-              carriedAt: 1,
+-            ),
+-          );
+-      await db.customStatement(
+-        "UPDATE salary_carry_over_logs SET employee_uuid = 'emp-uuid-d1', "
+-        "from_cycle_id = 'cycle-uuid-prev', to_cycle_id = 'cycle-uuid-d1' "
+-        'WHERE id = ?',
+-        [logId],
+-      );
+-      final logRows = await db
+-          .customSelect('SELECT * FROM "salary_carry_over_logs"')
+-          .get();
+-      final log = logRows.first.data;
+-      expect(log['employee_uuid'], 'emp-uuid-d1');
+-      expect(log['from_cycle_id'], 'cycle-uuid-prev');
+-      expect(log['to_cycle_id'], 'cycle-uuid-d1');
+-    });
+-  });
++        final blob = captured.join('\n');
++        expect(
++          blob,
++          contains('ADD COLUMN "cycle_uuid" TEXT'),
++          reason: 'بدون هذا ALTER يفشل INSERT كامل للجدول على D1',
++        );
++        expect(blob, contains('INSERT OR REPLACE INTO "salary_payments"'));
++        expect(blob, contains("'cycle-uuid-1'"));
++        expect(result.ok, isTrue, reason: result.errors.join('؛ '));
++      },
++    );
++
 +    test(
 +      'رفع صفوف فعلية: القيم تُرسل بأسماء الأعمدة snake_case نفسها',
 +      () async {
@@ -174,48 +802,6 @@ index ad2ef0a..c069720 100644
 +          "WHERE local_uuid = 'pay-uuid-d1'",
 +        );
  
--      final rows = await db
--          .customSelect('SELECT * FROM "salary_payments"')
--          .get();
--      final row = rows.first.data;
--      expect(row['local_uuid'], 'pay-uuid-d1');
--      expect(row['employee_uuid'], 'emp-uuid-d1');
--      expect(row['cycle_uuid'], 'cycle-uuid-d1');
--      expect(row['cycle_id'], cycleId);
--
--      // سجل الترحيل: رابطتا الدورتين (G-2) تصلان إلى D1 كنصّين.
--      final logId = await db
--          .into(db.salaryCarryOverLogs)
--          .insert(
--            SalaryCarryOverLogsCompanion.insert(
--              localUuid: 'carry-uuid-d1',
--              createdAt: 1,
--              updatedAt: 1,
--              lastModified: 1,
--              employeeId: empId,
--              amount: 0,
--              previousCycleStart: '2026-09-05',
--              previousCycleEnd: '2026-10-04',
--              newCycleStart: '2026-10-05',
--              newCycleEnd: '2026-11-04',
--              reason: 'اختبار D1',
--              carriedAt: 1,
--            ),
--          );
--      await db.customStatement(
--        "UPDATE salary_carry_over_logs SET employee_uuid = 'emp-uuid-d1', "
--        "from_cycle_id = 'cycle-uuid-prev', to_cycle_id = 'cycle-uuid-d1' "
--        'WHERE id = ?',
--        [logId],
--      );
--      final logRows = await db
--          .customSelect('SELECT * FROM "salary_carry_over_logs"')
--          .get();
--      final log = logRows.first.data;
--      expect(log['employee_uuid'], 'emp-uuid-d1');
--      expect(log['from_cycle_id'], 'cycle-uuid-prev');
--      expect(log['to_cycle_id'], 'cycle-uuid-d1');
--    });
 +        final rows = await db
 +            .customSelect('SELECT * FROM "salary_payments"')
 +            .get();
@@ -259,8 +845,7 @@ index ad2ef0a..c069720 100644
 +        expect(log['to_cycle_id'], 'cycle-uuid-d1');
 +      },
 +    );
-   });
--
++  });
  }
 diff --git a/mobile/test/unit/entitlement_identity_attribution_test.dart b/mobile/test/unit/entitlement_identity_attribution_test.dart
 index f2c9a78..9929b77 100644
@@ -366,10 +951,10 @@ index f2c9a78..9929b77 100644
      test('السحب المباشر الصحيح يبقى 4000 ويُخصم من الاستحقاق', () async {
        final empA = await createEmployee(uuid: 'emp-A');
 diff --git a/mobile/test/unit/information_header_search_widget_test.dart b/mobile/test/unit/information_header_search_widget_test.dart
-index 6d24d78..6e2b3c6 100644
+index 75502b3..ae1cc98 100644
 --- a/mobile/test/unit/information_header_search_widget_test.dart
 +++ b/mobile/test/unit/information_header_search_widget_test.dart
-@@ -55,9 +55,7 @@ void main() {
+@@ -56,9 +56,7 @@ void main() {
        ProviderScope(
          overrides: [
            databaseProvider.overrideWithValue(db),
@@ -380,7 +965,7 @@ index 6d24d78..6e2b3c6 100644
          ],
          child: const MaterialApp(home: InformationScreen()),
        ),
-@@ -74,8 +72,9 @@ void main() {
+@@ -75,8 +73,9 @@ void main() {
      expect(find.byTooltip('بحث في السجل بالاسم'), findsOneWidget);
    });
  
