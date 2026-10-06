@@ -1,4 +1,0 @@
-Changed lib/screens/settings/sync_conflicts_screen.dart
-Changed lib/services/money_integrity_service.dart
-Changed test/unit/money_scan_coverage_test.dart
-Formatted 574 files (3 changed) in 6.29 seconds.
