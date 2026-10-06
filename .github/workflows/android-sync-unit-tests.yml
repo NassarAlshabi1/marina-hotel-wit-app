@@ -202,13 +202,34 @@ jobs:
                       # نُبلغ فقط عن ملفات هذه الدفعة (بقية المستودع دين قديم مُعلَن).
                       if names and not any(src.endswith(n) for n in names):
                           continue
-                      findings.append(
-                          f"{src}:{err.get('line')} [{err.get('source')}] {err.get('message')}"
-                      )
-          body = "\n".join(findings[:200]) if findings else (
-              "لا ملاحظات Detekt على ملفات هذه الدفعة." if report is not None
-              else "لم يُنتج Detekt تقريراً (المهمة فشلت قبل الكتابة أو المسار مختلف)."
-          )
+                      findings.append((src, err.get("line"), err.get("source"), err.get("message")))
+          # ملخّص قابل للتدقيق أولاً (حتى لا يُقتطع عند 200 سطر): توزيع لكل ملف
+          # ولأعلى القواعد — يسمح بقراءة الرقم بدقة بدل رقم إجمالي معتم.
+          from collections import Counter
+          by_file = Counter(src.rsplit("/", 1)[-1] for src, _, _, _ in findings)
+          by_rule = Counter(source for _, _, source, _ in findings)
+          lines = []
+          if findings:
+              lines.append(f"إجمالي ملاحظات ملفات الدفعة: {len(findings)}")
+              lines.append("")
+              lines.append("| الملف | الملاحظات |")
+              lines.append("| --- | --- |")
+              lines += [f"| {name} | {count} |" for name, count in by_file.most_common()]
+              lines.append("")
+              lines.append("| القاعدة | العدد |")
+              lines.append("| --- | --- |")
+              lines += [f"| {rule} | {count} |" for rule, count in by_rule.most_common(12)]
+              lines.append("")
+              lines.append("--- أول 200 سطر تفصيلي ---")
+              lines += [
+                  f"{src}:{line} [{source}] {message}"
+                  for src, line, source, message in findings[:200]
+              ]
+          elif report is not None:
+              lines.append("لا ملاحظات Detekt على ملفات هذه الدفعة.")
+          else:
+              lines.append("لم يُنتج Detekt تقريراً (المهمة فشلت قبل الكتابة أو المسار مختلف).")
+          body = "\n".join(lines)
           print(json.dumps({
               "name": "android-sync-detekt",
               "head_sha": os.environ["GITHUB_SHA"],
