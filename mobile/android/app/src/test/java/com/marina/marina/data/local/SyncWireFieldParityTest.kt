@@ -193,8 +193,12 @@ class SyncWireFieldParityTest {
         assertEquals("item-7", tx.itemLocalUuid)
         // الوصلة المحلية الصحيحة إلى الصنف (لا الرقم الوارد من الجهاز الآخر).
         assertEquals(db.inventoryDao().getItemByName("صابون")!!.id, tx.itemId)
-        // لا عمود زمني على السلك (`transaction_time`) — يُغذّى من created_at.
-        assertEquals(1_700_000_500L, tx.transactionTime)
+        // لا عمود زمني على السلك (`transaction_time`) — يُغذّى من created_at
+        // **بالميلي** (×1000): العمود محلي بحت، ومستهلكوه (تقارير المخزون
+        // بمدى ميلي + الترتيب التنازلي) يقرأونه بالميلي. كان يُكتب بالثواني
+        // الخام ⇒ كل حركة واردة خارج نطاق التقارير. (تحديث قفل قديم كان
+        // يوثّق السلوك السابق لا عقداً دارتياً — للعمود لا مقابل في Dart.)
+        assertEquals(1_700_000_500_000L, tx.transactionTime)
     }
 
     /**

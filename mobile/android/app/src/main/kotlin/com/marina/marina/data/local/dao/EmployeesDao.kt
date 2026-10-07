@@ -41,11 +41,11 @@ interface EmployeesDao {
     @Update
     suspend fun update(employee: EmployeeEntity)
 
-    @Query("UPDATE employees SET status = :status, termination_date = :terminationDate, termination_reason = :terminationReason, updated_at = :updatedAt WHERE id = :id")
-    suspend fun terminate(id: Long, status: String, terminationDate: String?, terminationReason: String?, updatedAt: Long): Int
+    @Query("UPDATE employees SET status = :status, termination_date = :terminationDate, termination_reason = :terminationReason, updated_at = :updatedAt, last_modified = :lastModified, version = version + 1 WHERE id = :id")
+    suspend fun terminate(id: Long, status: String, terminationDate: String?, terminationReason: String?, updatedAt: Long, lastModified: Long): Int
 
-    @Query("UPDATE employees SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
-    suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
+    @Query("UPDATE employees SET deleted_at = :deletedAt, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
+    suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long, lastModified: Long): Int
     @Query("SELECT * FROM employees WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): EmployeeEntity?
 
@@ -58,9 +58,10 @@ interface EmployeesDao {
      */
     @Query(
         "UPDATE employees SET status = 'active', termination_date = NULL, " +
-            "termination_reason = NULL, updated_at = :updatedAt WHERE id = :id"
+            "termination_reason = NULL, updated_at = :updatedAt, " +
+            "last_modified = :lastModified, version = version + 1 WHERE id = :id"
     )
-    suspend fun reactivate(id: Long, updatedAt: Long): Int
+    suspend fun reactivate(id: Long, updatedAt: Long, lastModified: Long): Int
 
     /**
      * Dart `financialHistoryCount` (employees_repository.dart l.429-489) —

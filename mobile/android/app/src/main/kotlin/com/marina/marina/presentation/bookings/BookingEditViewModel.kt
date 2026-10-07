@@ -301,8 +301,15 @@ class BookingEditViewModel @Inject constructor(
                     }
                 }
 
-                // ✅ تحديث حالة الغرف بعد الحفظ (Dart refreshAllRoomOccupancy).
-                refreshRoomOccupancy(existing, form.status, roomNumber)
+                // ✅ تحديث إشغال الغرف بعد الحفظ — نظير Dart حرفياً
+                // (`booking_edit.dart` l.1131: `await roomsRepo.refreshAllRoomOccupancy()`).
+                // كان هنا تقريب موضعي للغرفتين المعنيتين فقط، يُستبدل بالمسح الشامل
+                // الذي يعيد ضبط كل غرفة من الحجوزات النشطة (نفس دالة Dart نفسها).
+                try {
+                    roomsRepository.refreshAllRoomOccupancy()
+                } catch (_: Exception) {
+                    // Dart: dlog فقط — أخطاء الإشغال لا تُعطّل الحفظ.
+                }
 
                 // مزامنة ثم إغلاق — Dart l.862-866 (await syncNow ثم pop).
                 runCatching { syncRepository.syncNow() }
@@ -335,39 +342,6 @@ class BookingEditViewModel @Inject constructor(
             ?: return existing?.expectedNights ?: 1
         val checkout = HotelTimeEngine.parseDate(checkoutText.trim())
         return HotelTimeEngine.nightsWithCutoff(checkin, checkout)
-    }
-
-    /**
-     * تحديث إشغال الغرف — التقريب المحلي لـ Dart refreshAllRoomOccupancy:
-     * تحرير الغرفة القديمة عند إنهاء الحجز أو نقله، وإشغال الغرفة الجديدة
-     * ما دام الحجز نشطاً. الأخطاء تُتجاهل (Dart: dlog فقط).
-     */
-    private suspend fun refreshRoomOccupancy(old: Booking?, newStatus: String, roomNumber: String) {
-        try {
-            val bookingActive = StatusUtils.isBookingActive(newStatus)
-            if (old != null && (old.roomNumber != roomNumber || !bookingActive)) {
-                val stillUsed = bookingsRepository.getAll().firstOrNull()?.any {
-                    it.roomNumber == old.roomNumber && it.id != old.id &&
-                        StatusUtils.isBookingActive(it.status)
-                } ?: false
-                if (!stillUsed) {
-                    roomsRepository.getByNumber(old.roomNumber)?.let { room ->
-                        if (!StatusUtils.isRoomAvailable(room.status)) {
-                            roomsRepository.update(room.copy(status = "شاغرة"))
-                        }
-                    }
-                }
-            }
-            if (bookingActive) {
-                roomsRepository.getByNumber(roomNumber)?.let { room ->
-                    if (StatusUtils.isRoomAvailable(room.status)) {
-                        roomsRepository.update(room.copy(status = "محجوزة"))
-                    }
-                }
-            }
-        } catch (_: Exception) {
-            // Dart: dlog فقط — لا تُعطّل أخطاء الإشغال الحفظ.
-        }
     }
 
     /**

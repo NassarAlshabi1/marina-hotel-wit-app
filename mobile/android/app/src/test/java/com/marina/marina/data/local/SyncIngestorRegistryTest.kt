@@ -22,6 +22,7 @@ import com.marina.marina.data.repository.BookingNightsRepositoryImpl
 import com.marina.marina.data.repository.OutboxRepository
 import com.marina.marina.data.remote.WorkerPullResponse
 import com.marina.marina.data.repository.SyncManager
+import com.marina.marina.data.sync.SyncEpochs
 import com.marina.marina.data.sync.SyncOperationRunner
 import retrofit2.Call
 import retrofit2.Response
@@ -1980,6 +1981,81 @@ class SyncIngestorRegistryTest {
         assertEquals(1, db.pendingSyncLinksDao().getAll().size)
     }
 
+
+    // ─── حارس انزياح الساعة في LWW (نظير Dart M3) ───
+
+    private fun roomSwapRecord(uuid: String, lastModified: Long, version: Int, price: Double) =
+        mapOf<String, Any>(
+            "_entity" to "rooms", "local_uuid" to uuid, "room_number" to "MS-1",
+            "type" to "single", "price" to price, "status" to "available",
+            "cleaning_status" to "clean", "last_modified" to lastModified,
+            "version" to version
+        )
+
+    /**
+     * جهاز ساعته متقدمة: صفّه المحلي أحدث بالطابع لكن الخادم ختم `version`
+     * أعلى (دليل مستقل). Dart (M3) يمضي بالوارد في هذه الحالة بدل إسقاطه،
+     * وإلا أُسقط كل وارد ضده إلى الأبد بينما مؤشر السحب يتقدم فوقه ⇒ فقد دائم.
+     */
+    @Test
+    fun newerRemoteVersionOverridesFutureLocalStampInsteadOfStarving() = runBlocking {
+        val future = SyncEpochs.nowSeconds() + 86_400L
+        assertEquals(1, registry.ingestPage(listOf(
+            roomSwapRecord("skew-room", lastModified = future, version = 3, price = 100.0)
+        )).applied)
+
+        val report = registry.ingestPage(listOf(
+            roomSwapRecord("skew-room", lastModified = future - 3_600L, version = 4, price = 175.0)
+        ))
+        assertEquals("الوارد أعلى version ⇒ يُطبَّق رغم طابعه الأقدم", 1, report.applied)
+        val room = requireNotNull(db.roomsDao().getByLocalUuid("skew-room"))
+        assertEquals(175.0, room.price, 0.0)
+        assertEquals(4, room.version)
+        assertTrue("لا حجر: الوارد السليم لا يُعزل", db.syncQuarantineDao().getAll().isEmpty())
+    }
+
+    /** بلا دليل `version` أعلى: المحلي الأحدث يفوز (LWW الأساسي كما في Dart). */
+    @Test
+    fun futureLocalStampStillWinsWithoutHigherRemoteVersion() = runBlocking {
+        val future = SyncEpochs.nowSeconds() + 86_400L
+        assertEquals(1, registry.ingestPage(listOf(
+            roomSwapRecord("skew-keep", lastModified = future, version = 5, price = 100.0)
+        )).applied)
+
+        val tieOrLower = registry.ingestPage(listOf(
+            roomSwapRecord("skew-keep", lastModified = future - 3_600L, version = 5, price = 999.0)
+        ))
+        assertEquals(1, tieOrLower.skipped)
+        // الطابع المتساوي في الوحدة الموحّدة (ثوانٍ) يُطبَّق — نظير Dart `local > remote` شرطاً للتخطي.
+        val equalStamp = registry.ingestPage(listOf(
+            roomSwapRecord("skew-keep", lastModified = future, version = 5, price = 250.0)
+        ))
+        assertEquals(1, equalStamp.applied)
+        assertEquals(250.0, requireNotNull(db.roomsDao().getByLocalUuid("skew-keep")).price, 0.0)
+    }
+
+    /**
+     * الطابع المسموم بالميلي (بناء قديم، قبل إصلاح الوحدة) على السلك: يُطبَّع
+     * إلى ثوانٍ قبل قرار LWW — نظير `SyncEpochs.toSeconds` في شرط المقارنة.
+     */
+    @Test
+    fun millisInflatedRemoteStampIsNormalizedBeforeLwwDecision() = runBlocking {
+        val nowSeconds = SyncEpochs.nowSeconds()
+        assertEquals(1, registry.ingestPage(listOf(
+            roomSwapRecord("ms-room", lastModified = nowSeconds - 60L, version = 2, price = 100.0)
+        )).applied)
+
+        // طابع بالميلي = نفس اللحظة (nowSeconds * 1000) — لا يجوز أن يفوز
+        // بوصفه «أحدث» ثم يُخزَّن بالثواني كما هو بعد التطبيع.
+        val report = registry.ingestPage(listOf(
+            roomSwapRecord("ms-room", lastModified = (nowSeconds + 120L) * 1_000L, version = 3, price = 320.0)
+        ))
+        assertEquals(1, report.applied)
+        val room = requireNotNull(db.roomsDao().getByLocalUuid("ms-room"))
+        assertEquals(320.0, room.price, 0.0)
+        assertTrue("الطابع المخزَّن يجب أن يكون ثوانٍ: ${room.lastModified}",
+            room.lastModified in 1_000_000_000L..100_000_000_000L)
+    }
 
     /**
      * انتظار **تقارب** حالة تقرير على القيمة المتوقعة بعد `fetch()`.

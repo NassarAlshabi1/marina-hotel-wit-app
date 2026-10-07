@@ -14,7 +14,6 @@ import com.marina.marina.domain.repository.SyncRepository
 import com.marina.marina.domain.util.BookingFinancials
 import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.domain.util.HotelTimeEngine
-import com.marina.marina.domain.util.StatusUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -198,10 +197,13 @@ class BookingCheckoutViewModel @Inject constructor(
                         calculatedNights = finalNights
                     )
                 )
-                roomsRepository.getByNumber(booking.roomNumber)?.let { room ->
-                    if (StatusUtils.isRoomOccupied(room.status)) {
-                        roomsRepository.update(room.copy(status = "شاغرة"))
-                    }
+                // نظير Dart حرفياً (`booking_checkout_screen.dart` l.702-711):
+                // «استخدام refreshAllRoomOccupancy بدلاً من تحديث يدوي جزئي —
+                // هذا يضمن تناسق جميع حالات الغرف». كان هنا تحديث غرفة واحدة فقط.
+                try {
+                    roomsRepository.refreshAllRoomOccupancy()
+                } catch (_: Exception) {
+                    // Dart: dlog فقط — أخطاء الإشغال لا تُعطّل إتمام المغادرة.
                 }
                 try { syncRepository.syncNow() } catch (_: Exception) { }
                 _state.value = _state.value.copy(

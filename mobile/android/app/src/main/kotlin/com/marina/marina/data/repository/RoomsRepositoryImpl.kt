@@ -2,11 +2,13 @@ package com.marina.marina.data.repository
 
 import com.marina.marina.data.local.dao.BookingsDao
 import com.marina.marina.data.local.dao.RoomsDao
+import com.marina.marina.data.local.entity.RoomEntity
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.data.sync.SyncEpochs
 import com.marina.marina.domain.model.Room
 import com.marina.marina.domain.repository.RoomsRepository
+import com.marina.marina.domain.util.StatusUtils
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -85,6 +87,82 @@ class RoomsRepositoryImpl @Inject constructor(
 
     override suspend fun getByNumber(roomNumber: String): Room? =
         roomsDao.getByNumber(roomNumber)?.toDomain()
+
+    /**
+     * إعادة ضبط إشغال **كل** الغرف من الحجوزات النشطة — منقول حرفياً من Dart
+     * `RoomsRepository.refreshAllRoomOccupancy` (rooms_repository.dart l.221-258):
+     *
+     * 1. مجموعة أرقام الغرف التي لها حجز **غير محذوف ناعمياً** و**نشط**
+     *    (`status IN activeBookingStatuses` الخام في SQL — نظير `selectOnly`).
+     * 2. لكل غرفة غير محذوفة:
+     *    - `shouldBeOccupied && !isRoomOccupied` ⇒ «محجوزة»
+     *    - `!shouldBeOccupied && !isRoomAvailable` ⇒ «شاغرة»
+     *    - غير ذلك: تُترك كما هي (لا كتابة بلا داعٍ).
+     *
+     * **المقايضة الموثّقة (نفس سلوك Dart بالحرف)**: الغرفة التي حالتها «صيانة»
+     * ليست «مشغولة» ولا «متاحة»، فتُعاد إلى «شاغرة» عند عدم وجود حجز نشط —
+     * هذه بالضبط سلوك الدالة في المرجع، ونُقلت كما هي بدل «تحسينها» محلياً
+     * حتى لا يفترق الطرفان (انظر `docs/android-pull-parity-flutter.md`).
+     *
+     * الفرق البنيوي الوحيد: Dart يُحدّث بـ`updateByRoomNumber` لكل غرفة على حدة
+     * (معاملة مستقلة لكل غرفة)، ونحن نُعيد استخدام [update] نفسه — نفس الطوابع
+     * (ثوانٍ) ونفس `version+1` ونفس إدراج الـoutbox.
+     */
+    override suspend fun refreshAllRoomOccupancy(originIsServer: Boolean) {
+        val occupiedRoomNumbers = bookingsDao.listActivelyOccupiedRoomNumbers().toSet()
+        val rooms = roomsDao.getAllOnce()
+        for (room in rooms) {
+            val shouldBeOccupied = occupiedRoomNumbers.contains(room.roomNumber)
+            val isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status)
+            val isCurrentlyAvailable = StatusUtils.isRoomAvailable(room.status)
+            val target = StatusUtils.roomStatusForOccupancy(shouldBeOccupied)
+            if (shouldBeOccupied && !isCurrentlyOccupied) {
+                persistOccupancy(room, target, originIsServer)
+            } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
+                persistOccupancy(room, target, originIsServer)
+            }
+        }
+    }
+
+    /**
+     * كتابة حالة إشغال واحدة — نظير `rooms_dao.dart:updateByNumber`
+     * (`updateByNumber` l.138-175): `updatedAt = now(ثوانٍ)`،
+     * `lastModified = now`، `version = existing.version + 1`، وإدراج عملية
+     * outbox **إلا** عند `originIsServer = true` (فما جاء من الخادم لا يُعاد
+     * رفعه).
+     *
+     * ⚠️ دقّة نظير: في Dart يُحفظ الطابع الوارد **فقط** إذا مرّره المنادي صراحةً
+     * (`originIsServer && data.lastModified.present`) — و`refreshAllRoomOccupancy`
+     * **لا تمرّره** (l.246/253)، فالفرعان يختمان `last_modified = now` سواءً
+     * `originIsServer` صحيحاً أو خاطئاً. كان فرعنا يترك طابع الصف كما هو (صفراً
+     * في صف جديد) ⇒ تلويث `last_modified` بصفر. أُصلح ليطابق المرجع.
+     */
+    private suspend fun persistOccupancy(
+        room: RoomEntity,
+        status: String,
+        originIsServer: Boolean
+    ) {
+        val now = SyncEpochs.nowSeconds()
+        if (originIsServer) {
+            roomsDao.update(
+                room.copy(
+                    status = status,
+                    updatedAt = now,
+                    lastModified = now,
+                    lastModifiedEpoch = now,
+                    version = room.version + 1
+                )
+            )
+            return
+        }
+        val domain = room.toDomain().copy(
+            status = status,
+            updatedAt = now,
+            localUuid = room.localUuid.ifBlank { UUID.randomUUID().toString() }
+        )
+        roomsDao.updateStatus(room.id, status, updatedAt = now, lastModified = now)
+        outboxRepository.enqueueObject("rooms", "update", domain.localUuid, domain)
+    }
 
     override suspend fun updateStatus(id: Long, newStatus: String) {
         // ثوانٍ لا ميلي — كان هذا الموضع أخطر مصادر التسميم (أي نقرة على

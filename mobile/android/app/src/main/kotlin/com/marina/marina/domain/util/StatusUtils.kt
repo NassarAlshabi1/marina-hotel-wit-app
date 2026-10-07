@@ -18,6 +18,11 @@ object StatusUtils {
         "محجوزة", "محجوز", "مشغولة", "occupied", "محجوز temporarily", "نشط", "active", "مؤقت", "provisional"
     ).map(::normalize).toSet()
 
+    /** ولا تُعدّ مشغولة أبداً — Dart status_utils.dart l.105-110 (استبعاد صريح). */
+    private val completedRoomStatuses = setOf(
+        "مكتمل", "مكتملة", "completed", "checked_out", "checked out"
+    ).map(::normalize).toSet()
+
     private val maintenanceRoomStatuses = setOf(
         "صيانة", "maintenance", "under_maintenance", "under maintenance"
     ).map(::normalize).toSet()
@@ -33,7 +38,28 @@ object StatusUtils {
     ).map(::normalize).toSet()
 
     fun isRoomAvailable(status: String): Boolean = availableRoomStatuses.contains(normalize(status))
-    fun isRoomOccupied(status: String): Boolean = occupiedRoomStatuses.contains(normalize(status))
+
+    /**
+     * ✅ نظير Dart `StatusUtils.isRoomOccupied` (status_utils.dart l.103-113) حرفياً:
+     * **استبعاد صريح أولاً** لـ«مكتمل/مكتملة/completed/checked_out/checked out»
+     * ثم فحص مجموعة المشغولة.
+     *
+     * ملاحظة صدق (قِيست في 2026-10-07): المجموعة [occupiedRoomStatuses] عندنا
+     * مطابقة حرفياً لمجموعة Dart، وهذه الحالات الأربع ليست فيها اليوم — فالسلوك
+     * **متطابق فعلاً**. الاستبعاد هنا حماية بنيوية (لو أُضيفت حالة مكتملة إلى
+     * المجموعة يوماً لا ينقلب المعنى) + إغلاق الفجوة الموثّقة في
+     * `docs/android-epoch-unit-parity.md` §5 بعقد اختباري يقارن المجموعتين
+     * بالمرجع الدارتي.
+     */
+    fun isRoomOccupied(status: String): Boolean {
+        val normalized = normalize(status)
+        if (normalized in completedRoomStatuses) return false
+        return occupiedRoomStatuses.contains(normalized)
+    }
+
+    /** Dart `StatusUtils.roomStatusForOccupancy` (status_utils.dart l.202-208). */
+    fun roomStatusForOccupancy(occupied: Boolean): String = if (occupied) "محجوزة" else "شاغرة"
+
     fun isRoomUnderMaintenance(status: String): Boolean = maintenanceRoomStatuses.contains(normalize(status))
     fun isBookingActive(status: String): Boolean = activeBookingStatuses.contains(normalize(status))
     fun isEmployeeActive(status: String): Boolean = activeEmployeeStatuses.contains(normalize(status))

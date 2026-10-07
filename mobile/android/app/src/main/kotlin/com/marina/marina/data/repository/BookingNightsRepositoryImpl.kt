@@ -13,6 +13,7 @@ import com.marina.marina.domain.model.BookingPriceAdjustment
 import com.marina.marina.domain.model.HotelDayLedger
 import com.marina.marina.domain.repository.BookingNightsRepository
 import com.marina.marina.data.local.entity.HotelDayLedgerEntity
+import com.marina.marina.data.sync.SyncEpochs
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,7 +52,7 @@ class BookingNightsRepositoryImpl @Inject constructor(
                 "لا يمكن مزامنة ليالي الحجز $bookingId قبل تثبيت local_uuid للحجز"
             }
 
-            val now = System.currentTimeMillis()
+            val now = SyncEpochs.nowSeconds()
             val currentRows = nightsDao.getByBooking(bookingId)
             val currentByDay = currentRows.groupBy { it.hotelDayKey }
             require(currentByDay.values.none { it.size > 1 }) {
@@ -151,17 +152,31 @@ class BookingNightsRepositoryImpl @Inject constructor(
         adjustmentsDao.getActiveByBooking(bookingUuid).map { it.toDomain() }
 
     override suspend fun upsertAdjustment(adjustment: BookingPriceAdjustment): Long {
+        // نظير Dart `applyTemporaryAdjustment` (booking_price_adjustment_service.dart
+        // l.258-280): create/updated/lastModified = now (ثوانٍ) على الصف الجديد.
+        val now = SyncEpochs.nowSeconds()
         val prepared = adjustment.copy(
-            localUuid = adjustment.localUuid.ifBlank { UUID.randomUUID().toString() }
+            localUuid = adjustment.localUuid.ifBlank { UUID.randomUUID().toString() },
+            createdAt = if (adjustment.createdAt == 0L) now else adjustment.createdAt,
+            updatedAt = now
         )
-        val id = adjustmentsDao.insert(prepared.toEntity())
+        val id = adjustmentsDao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("booking_price_adjustments", "insert", prepared.localUuid, prepared)
         return id
     }
 
     override suspend fun deactivateAdjustment(id: Long) {
         val current = adjustmentsDao.getById(id) ?: return
-        adjustmentsDao.update(current.copy(isActive = false, updatedAt = System.currentTimeMillis()))
+        val now = SyncEpochs.nowSeconds()
+        adjustmentsDao.update(
+            current.copy(
+                isActive = false,
+                updatedAt = now,
+                lastModified = now,
+                lastModifiedEpoch = now,
+                version = current.version + 1
+            )
+        )
     }
 
     override fun watchLedger(): Flow<List<HotelDayLedger>> =

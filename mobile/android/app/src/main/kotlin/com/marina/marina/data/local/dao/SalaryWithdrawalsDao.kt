@@ -50,8 +50,8 @@ interface SalaryWithdrawalsDao {
     @Query("SELECT * FROM salary_withdrawals WHERE deleted_at IS NULL AND reason LIKE '%' || :ref || '%'")
     suspend fun getByReasonLike(ref: String): List<SalaryWithdrawalEntity>
 
-    @Query("UPDATE salary_withdrawals SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
-    suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
+    @Query("UPDATE salary_withdrawals SET deleted_at = :deletedAt, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
+    suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long, lastModified: Long): Int
 
     // ✅ (2026-09-24) سحب المزامنة: إيجاد الصف المحلي بمفتاح local_uuid
     // (توجيه سجلات pull عبر _entity — عقد الـ worker).

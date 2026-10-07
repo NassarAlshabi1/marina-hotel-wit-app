@@ -50,6 +50,21 @@ object SyncWireFields {
     val booleanTargets: Set<String> = setOf("blacklist.active")
 
     /**
+     * ✅ (2026-10-07) حقول محلية وحدتها **ميلي ثانية** بينما مُغذّاها على السلك
+     * بالثواني — تُضاعَف ×1000 عند الاستيعاب.
+     *
+     * `inventory_transactions.transaction_time`: العمود **محلي بحت** (لا وجود
+     * له في `worker/schema.sql` ولا في Drift)، ومستهلكوه عندنا يقرأونه بالميلي
+     * (`InventoryAndSalaryReportViewModels`: الفحص `it.transactionTime in range.from..range.to`
+     * حيث `ReportDateRange.from/to` من `HotelTimeEngine.hotelDayStart` بالميلي،
+     * وترتيب `getTransactionsForItem` تنازلياً). ومُغذّاه على السلك `created_at`
+     * بالثواني ⇒ بلا هذه المضاعفة كانت **كل حركة واردة من السحابة خارج نطاق
+     * التقارير** (وأدنى من كل صف محلي في الترتيب) — نفس صنف عطل الوحدة الذي
+     * تعالجه هذه الطبقة.
+     */
+    val millisTargets: Set<String> = setOf("inventory_transactions.transaction_time")
+
+    /**
      * ✅ (2026-10-06) افتراضيات الحقول **غير القابلة للـnull** حين يغيب العمود
      * عن الصفّ الواصل أو يصل `null` — نظير `?? fallback` في محوّلات Dart
      * (`inventory_adapter.dart`: `unit: ... ?? 'قطعة'`، `employees_adapter`:
@@ -129,6 +144,20 @@ object SyncWireFields {
         "blacklist" to mapOf("active" to "is_active")
     )
 
+    /**
+     * ثوانٍ → ميلي ثانية للحقول المحلية الملزَمة بالميلي: القيم الصفرية
+     * والميلي بالفعل (بناء قديم) تبقى كما هي — لا نُخمّن مكان غياب معلومة.
+     */
+    private fun secondsToMillis(value: Any?): Any? {
+        val asLong = when (value) {
+            is Number -> value.toLong()
+            is String -> value.trim().toLongOrNull()
+            else -> null
+        } ?: return value
+        if (asLong == 0L || asLong > SyncEpochs.MILLIS_THRESHOLD) return value
+        return asLong * 1_000L
+    }
+
     private fun booleanify(value: Any?): Any? = when (value) {
         is Boolean -> value
         is Number -> value.toLong() != 0L
@@ -148,8 +177,16 @@ object SyncWireFields {
             val current = mapped[local]
             val currentIsBlank = current == null || (current as? String)?.isBlank() == true
             if (!currentIsBlank) continue
-            mapped[local] =
-                if ("$entity.$local" in booleanTargets) booleanify(incoming) ?: incoming else incoming
+            val resolved = if ("$entity.$local" in booleanTargets) {
+                booleanify(incoming) ?: incoming
+            } else {
+                incoming
+            }
+            mapped[local] = if ("$entity.$local" in millisTargets) {
+                secondsToMillis(resolved)
+            } else {
+                resolved
+            }
         }
     }
 

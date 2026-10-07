@@ -785,6 +785,20 @@ class SyncIngestorRegistry @Inject constructor(
                     store(entity, remote.copyWithId(existing.id))
                     ApplyOutcome.Applied
                 }
+                // ✅ (2026-10-07) حارس انزياح الساعة — نظير Dart (M3 في
+                // `cloudflare_sync_manager.dart` l.3014-3037): الطابع المحلي
+                // الأحدث **لا يعني** أن المحتوى أحدث؛ ساعة الجهاز قد تكون
+                // متقدمة. الخادم يختم `version` بنفسه عند كل كتابة
+                // (`database.ts` l.1285-1293: `existing.version + 1` — لا يقبل
+                // نسخة العميل)، فارتفاع الوارد دليل مستقل على أنه الأحدث.
+                // بلا هذا الحارس: جهاز ساعته متقدمة يُسقط كل وارد بينما مؤشر
+                // السحب يتقدم فوقه ⇒ **فقد دائم بلا أثر** (الصف لا يعود في أي
+                // دلتا قادمة). التطابق مع Dart: `remoteVersion > localVersion`
+                // ⇒ مضيّ بالوارد، وإلا تخطٍّ (المحلي يفوز).
+                remote.version > existing.version -> {
+                    store(entity, remote.copyWithId(existing.id))
+                    ApplyOutcome.Applied
+                }
                 // المحلي أحدث (تعديل محلي لم يُرفع بعد) — نحتفظ به.
                 else -> ApplyOutcome.Skipped
             }

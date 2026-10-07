@@ -5,6 +5,7 @@ import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.BlacklistEntry
 import com.marina.marina.domain.repository.BlacklistRepository
+import com.marina.marina.data.sync.SyncEpochs
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,30 +66,52 @@ class BlacklistRepositoryImpl @Inject constructor(
     }
 
     override suspend fun insert(entry: BlacklistEntry): Long {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val prepared = entry.copy(
             localUuid = entry.localUuid.ifBlank { UUID.randomUUID().toString() },
             createdAt = if (entry.createdAt == 0L) now else entry.createdAt,
             updatedAt = now
         )
-        val id = dao.insert(prepared.toEntity())
+        val id = dao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("blacklist", "insert", prepared.localUuid, prepared)
         return id
     }
 
     override suspend fun update(entry: BlacklistEntry) {
-        val prepared = entry.copy(updatedAt = System.currentTimeMillis())
-        dao.update(prepared.toEntity())
+        // عقد Dart `updateById`: updatedAt/lastModified = now(ثوانٍ) وversion+1.
+        // كان `last_modified` يُكتب صفراً (نموذج المجال لا يحمله) ⇒ أي صف خادمي
+        // يفوز على تعديلنا في «آخر كتابة تفوز» فيُطمَس صامتاً.
+        val now = SyncEpochs.nowSeconds()
+        val existing = dao.getById(entry.id)
+        val prepared = entry.copy(updatedAt = now)
+        dao.update(
+            prepared.toEntity().copy(
+                localUuid = prepared.localUuid.ifBlank { existing?.localUuid.orEmpty() },
+                createdAt = if (prepared.createdAt == 0L) (existing?.createdAt ?: now) else prepared.createdAt,
+                lastModified = now,
+                lastModifiedEpoch = now,
+                version = (existing?.version ?: 1) + 1
+            )
+        )
         outboxRepository.enqueueObject("blacklist", "update", prepared.localUuid, prepared)
     }
 
     override suspend fun setActive(id: Long, active: Boolean) {
         val current = dao.getById(id) ?: return
-        dao.update(current.copy(active = active, updatedAt = System.currentTimeMillis()))
+        val now = SyncEpochs.nowSeconds()
+        dao.update(
+            current.copy(
+                active = active,
+                updatedAt = now,
+                lastModified = now,
+                lastModifiedEpoch = now,
+                version = current.version + 1
+            )
+        )
     }
 
     override suspend fun softDelete(id: Long) {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         dao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
     }
 }

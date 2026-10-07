@@ -56,6 +56,25 @@ interface BookingsDao {
     @Query("SELECT * FROM bookings WHERE deleted_at IS NULL AND (actual_checkout IS NULL OR actual_checkout = '')")
     suspend fun listDerivedRefreshCandidates(): List<BookingEntity>
 
+    /**
+     * أرقام الغرف المشغولة بحجز نشط — نظير استعلام Dart في
+     * `RoomsRepository.refreshAllRoomOccupancy` (rooms_repository.dart l.226-235):
+     * `selectOnly(roomNumber) where deletedAt IS NULL AND status IN activeBookingStatuses`.
+     *
+     * القائمة الخام (بلا تطبيع) **مقصودة ومطابقة لدالتي**: Dart يمرّر
+     * `StatusUtils.activeBookingStatuses` كما هي إلى SQL، وكل القيم قياسية
+     * عربية/إنجليزية مخزَّنة فعلاً في `bookings.status` (نفس القائمة المستعملة
+     * في `getActiveBookingForRoom` فوق).
+     */
+    @Query(
+        """
+        SELECT DISTINCT room_number FROM bookings
+        WHERE deleted_at IS NULL
+          AND status IN ('محجوزة', 'محجوز', 'نشط', 'active', 'confirmed', 'قيد الحجز', 'in_progress', 'مؤقت', 'provisional')
+        """
+    )
+    suspend fun listActivelyOccupiedRoomNumbers(): List<String>
+
     @Query("UPDATE bookings SET status = :status, actual_checkout = :actualCheckout, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
     suspend fun checkout(id: Long, status: String, actualCheckout: String?, updatedAt: Long, lastModified: Long): Int
 

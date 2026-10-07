@@ -10,6 +10,7 @@ import com.marina.marina.domain.model.SalaryCarryOverLog
 import com.marina.marina.domain.model.SalaryCycle
 import com.marina.marina.domain.model.SalaryPayment
 import com.marina.marina.domain.repository.SalaryRepository
+import com.marina.marina.data.sync.SyncEpochs
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,7 +37,7 @@ class SalaryRepositoryImpl @Inject constructor(
             ?: throw IllegalArgumentException("لا يمكن إنشاء دورة راتب لموظف غير موجود")
         val employeeUuid = employee.localUuid.trim()
         require(employeeUuid.isNotEmpty()) { "لا يمكن مزامنة دورة راتب بلا employee_uuid" }
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val prepared = cycle.copy(
             employeeUuid = employeeUuid,
             localUuid = cycle.localUuid.ifBlank { UUID.randomUUID().toString() },
@@ -44,7 +45,7 @@ class SalaryRepositoryImpl @Inject constructor(
             updatedAt = now,
             remainingAmount = cycle.expectedAmount - cycle.actualPaid
         )
-        val id = cyclesDao.insert(prepared.toEntity())
+        val id = cyclesDao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("salary_cycles", "insert", prepared.localUuid, prepared)
         return id
     }
@@ -54,12 +55,22 @@ class SalaryRepositoryImpl @Inject constructor(
             ?: throw IllegalArgumentException("لا يمكن تحديث دورة راتب لموظف غير موجود")
         val employeeUuid = employee.localUuid.trim()
         require(employeeUuid.isNotEmpty()) { "لا يمكن مزامنة دورة راتب بلا employee_uuid" }
+        val now = SyncEpochs.nowSeconds()
+        val existing = cyclesDao.getById(cycle.id)
         val prepared = cycle.copy(
             employeeUuid = employeeUuid,
-            updatedAt = System.currentTimeMillis(),
+            updatedAt = now,
             remainingAmount = cycle.expectedAmount - cycle.actualPaid
         )
-        cyclesDao.update(prepared.toEntity())
+        cyclesDao.update(
+            prepared.toEntity().copy(
+                localUuid = prepared.localUuid.ifBlank { existing?.localUuid.orEmpty() },
+                createdAt = if (prepared.createdAt == 0L) (existing?.createdAt ?: now) else prepared.createdAt,
+                lastModified = now,
+                lastModifiedEpoch = now,
+                version = (existing?.version ?: 1) + 1
+            )
+        )
         outboxRepository.enqueueObject("salary_cycles", "update", prepared.localUuid, prepared)
     }
 
@@ -74,14 +85,14 @@ class SalaryRepositoryImpl @Inject constructor(
         val employeeUuid = cycle.employeeUuid?.trim()?.takeIf { it.isNotEmpty() }
             ?: employeesDao.getByIdIncludingDeleted(cycle.employeeId)?.localUuid?.trim()?.takeIf { it.isNotEmpty() }
             ?: throw IllegalArgumentException("لا يمكن مزامنة دفعة لدورة بلا employee_uuid")
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val prepared = payment.copy(
             cycleUuid = cycleUuid,
             employeeUuid = employeeUuid,
             localUuid = payment.localUuid.ifBlank { UUID.randomUUID().toString() },
             createdAt = if (payment.createdAt == 0L) now else payment.createdAt
         )
-        val id = paymentsDao.insert(prepared.toEntity())
+        val id = paymentsDao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("salary_payments", "insert", prepared.localUuid, prepared)
         return id
     }
@@ -98,7 +109,7 @@ class SalaryRepositoryImpl @Inject constructor(
             ?: throw IllegalArgumentException("لا يمكن ترحيل رصيد لموظف غير موجود")
         val employeeUuid = employee.localUuid.trim()
         require(employeeUuid.isNotEmpty()) { "لا يمكن مزامنة ترحيل رصيد بلا employee_uuid" }
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val log = SalaryCarryOverLog(
             employeeId = employeeId,
             employeeUuid = employeeUuid,
@@ -111,7 +122,7 @@ class SalaryRepositoryImpl @Inject constructor(
             carriedAt = now,
             localUuid = UUID.randomUUID().toString()
         )
-        val id = carryOverDao.insert(log.toEntity())
+        val id = carryOverDao.insert(log.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("salary_carry_over_logs", "insert", log.localUuid, log)
         return id
     }

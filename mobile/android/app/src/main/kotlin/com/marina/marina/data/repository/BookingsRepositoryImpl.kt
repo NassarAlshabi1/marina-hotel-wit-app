@@ -94,17 +94,49 @@ class BookingsRepositoryImpl @Inject constructor(
      * refresh the cached financials WITHOUT enqueueing a cloud change.
      */
     override suspend fun updateComputedFields(booking: Booking) {
-        val prepared = booking.copy(updatedAt = System.currentTimeMillis())
-        bookingsDao.update(prepared.toEntity())
+        // نظير Dart `BookingDerivedFieldsService` (booking_derived_fields_service.dart
+        // l.132-149): يُكتب `updated_at` (ثوانٍ) + الحقول المشتقة، و**لا تُلمس
+        // `last_modified`/`version`** — بنصّ تعليق المرجع: «لا نحدّث lastModified
+        // للحقول المشتقة لأنها تُحسب محلياً وليست تغييراً من المستخدم، وتحديثه
+        // يجعل البيانات المحلية تبدو أحدث فيمنع السحب من تحديثها».
+        //
+        // العطل الذي أُصلح هنا (2026-10-07): كان `update(prepared.toEntity())`
+        // يكتب **كل** الصف، و`Booking.toEntity()` لا يحمل `last_modified`
+        // (نموذج المجال بلا الحقل) ⇒ يُكتب صفراً في كل فتح لشاشة الدفع ⇒ الصف
+        // يخسر «آخر كتابة تفوز» دائماً أمام أي صف خادمي ولو أقدم. الآن تُحفظ
+        // حقول المزامنة من الصف القائم كما هي، وتتغيّر الحقول المشتقة وحدها.
+        val existing = bookingsDao.getById(booking.id) ?: return
+        val now = SyncEpochs.nowSeconds()
+        bookingsDao.update(
+            booking.toEntity().copy(
+                localUuid = booking.localUuid.ifBlank { existing.localUuid },
+                serverId = existing.serverId,
+                createdAt = if (booking.createdAt == 0L) existing.createdAt else booking.createdAt,
+                deletedAt = existing.deletedAt,
+                lastModified = existing.lastModified,
+                lastModifiedEpoch = existing.lastModifiedEpoch,
+                createdAtIso = existing.createdAtIso,
+                updatedAtIso = existing.updatedAtIso,
+                deletedAtIso = existing.deletedAtIso,
+                createdAtEpoch = existing.createdAtEpoch,
+                version = existing.version,
+                origin = existing.origin,
+                vectorClock = existing.vectorClock,
+                deviceId = existing.deviceId,
+                syncTimestamp = existing.syncTimestamp,
+                idempotencyKey = existing.idempotencyKey,
+                updatedAt = now
+            )
+        )
     }
 
     override suspend fun checkout(id: Long, status: String, actualCheckout: String?) {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         bookingsDao.checkout(id, status, actualCheckout, updatedAt = now, lastModified = now)
     }
 
     override suspend fun softDelete(id: Long) {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         bookingsDao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
     }
 
