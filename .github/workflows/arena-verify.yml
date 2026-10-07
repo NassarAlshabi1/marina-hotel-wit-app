@@ -30,7 +30,20 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (CI step)
-        run: dart run build_runner build
+        continue-on-error: true
+        run: |
+          mkdir -p .arena
+          set +e
+          dart run build_runner build > /tmp/codegen.log 2>&1
+          rc=$?
+          {
+            echo "### build_runner (rc=$rc)"
+            grep -nE "^\[SEVERE\]|Error:|error:|Failed|failed" /tmp/codegen.log | head -30
+            echo "---- tail ----"
+            tail -25 /tmp/codegen.log
+          } > .arena/codegen.txt
+          echo "$rc" > .arena/codegen.rc
+          exit 0
 
       - name: Dart format check (CI parity, after codegen)
         continue-on-error: true
@@ -40,6 +53,7 @@ jobs:
             echo "### dart format --set-exit-if-changed . (AFTER build_runner — مطابق CI)"
             dart format --output=none --set-exit-if-changed . 2>&1 \
               | sed -E 's/ in [0-9.]+ seconds\././' | tail -20
+            cat .arena/codegen.txt
           } > .arena/verify.txt
 
       - name: Format (self-heal)
@@ -97,9 +111,13 @@ jobs:
           git config user.name "arena-verify-bot"
           git config user.email "arena-verify-bot@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "chore(arena): تنسيق + تقرير تحقق م-2/م-3/م-4"
-          git push
-          cat .arena/verify.txt
+          if git diff --cached --quiet; then
+            echo "لا تغييرات للإيداع — لا دفع"
+          else
+            git commit -m "chore(arena): تقرير تحقق م-2/م-3/م-4 (تشخيص)"
+            git push origin HEAD:arena/a2609d75-marina-hotel-wit-app
+          fi
+          cat .arena/verify.txt || true
 
       - name: Gate (fail run if tests failed)
         if: always()
