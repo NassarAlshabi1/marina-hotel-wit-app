@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../utils/currency_formatter.dart';
 import '../../utils/time.dart';
 import '../appwrite_config.dart';
 import '../appwrite_sync_utils.dart';
@@ -163,7 +164,7 @@ class PayloadMapper {
     final data = <String, dynamic>{
       'expenseType': expense.expenseType,
       'description': expense.description,
-      'amount': expense.amount,
+      'amount': CurrencyFormatter.wholeAmountOrNull(expense.amount),
       'date': expense.date,
       'localUuid': expense.localUuid,
       'createdAt': expense.createdAt,
@@ -196,6 +197,14 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'employeeUuid', expense.employeeUuid);
     // ✅ (migration 68) uuid سحبة المرآة — الرابط العكسي الدائم.
     putIfStringNotEmpty(data, 'withdrawalUuid', expense.withdrawalUuid);
+    // ✅ (migration 69 — عقد الفرعين D1 0015) تصنيف المصروف المحمول.
+    // NULL (سجل ما قبل العقد) لا يُرسل — السحابي يعرض تصنيفاً تراثياً محافظاً
+    // والتعديل القادم يُمضي التصنيف ذرياً (نفس دلالة تعليق D1 0015).
+    putIfStringNotEmpty(data, 'expenseKind', expense.expenseKind);
+    // ✅ (migration 69 — D1 0012) علامة إزالة رابط الموظف صراحةً —
+    // تُرسل دائماً كـ boolean (وليس فقط عند true) حتى لا تُفسّر غيابها
+    // عند الطرف الآخر كـ «سجل قديم بلا قيمة» فتعيد استعادة رابط أُزيل.
+    data['employeeLinkCleared'] = expense.employeeLinkCleared;
     putIfStringNotEmpty(data, 'idempotencyKey', expense.idempotencyKey);
     return AppwriteSyncUtils.sanitizePayload(
       'expenses',
@@ -297,9 +306,10 @@ class PayloadMapper {
       'localUuid': debt.localUuid,
       'guestName': debt.guestName,
       'checkinDate': debt.checkinDate,
-      'totalAmount': debt.totalAmount,
-      'paidAmount': debt.paidAmount,
-      'remainingAmount': debt.remainingAmount.round(),
+      'totalAmount': CurrencyFormatter.wholeAmountOrNull(debt.totalAmount),
+      'paidAmount': CurrencyFormatter.wholeAmountOrNull(debt.paidAmount),
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      'remainingAmount': CurrencyFormatter.wholeAmount(debt.remainingAmount),
       // ✅ إصلاح: لا نرسل bookingLocalId للسيرفر (id محلي يختلف بين الأجهزة)
       // الربط يتم عبر resolveBooking في debts_adapter باستخدام bookingUuidCache
       'checkoutDate': debt.checkoutDate,
@@ -344,7 +354,7 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'debtorName', debt.debtorName);
     // amount: مبلغ الدين (قد يختلف عن totalAmount في حالات الديون الجزئية)
     if (debt.amount != null) {
-      data['amount'] = debt.amount;
+      data['amount'] = CurrencyFormatter.wholeAmountOrNull(debt.amount);
     }
     // date: تاريخ الدين (مستقل عن checkinDate/checkoutDate/paymentDate)
     putIfStringNotEmpty(data, 'date', debt.date);
@@ -369,8 +379,8 @@ class PayloadMapper {
     final basicSalary = employee.basicSalary;
     final data = <String, dynamic>{
       'name': employee.name,
-      'basicSalary': basicSalary,
-      'salary': basicSalary,
+      'basicSalary': CurrencyFormatter.wholeAmount(basicSalary),
+      'salary': CurrencyFormatter.wholeAmount(basicSalary),
       'position': employee.position,
       'phone': employee.phone,
       'hireDate': employee.hireDate,
@@ -496,7 +506,8 @@ class PayloadMapper {
     final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
-      'amount': transaction.amount.round(), // Appwrite: integer
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      'amount': CurrencyFormatter.wholeAmount(transaction.amount),
       'transactionTime': transaction.transactionTime,
       'localUuid': transaction.localUuid,
       'createdAt': transaction.createdAt,
@@ -557,6 +568,13 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'updatedAtIso', cycle.updatedAtIso);
     putIfStringNotEmpty(data, 'deletedAtIso', cycle.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', cycle.idempotencyKey);
+    // ✅ (migration 69) هوية الموظف المحمولة في المحوّل نفسه — كانت تُختم
+    // فقط في مسارات appwrite_sync_manager (التزايدي والرفع الكامل)؛ إعلانها
+    // هنا يجعل كل مسار الرفع (delta/Drive/OCC) يحملها من الحقل المخزّن
+    // (migration 67) — حقول camelCase مطابقة لمخطط Appwrite، والمخزن
+    // employeeLocalUuid مرادف قديم يبقى يُرسل معه لتوافق الأجهزة القائمة.
+    putIfStringNotEmpty(data, 'employeeUuid', cycle.employeeUuid);
+    putIfStringNotEmpty(data, 'employeeLocalUuid', cycle.employeeUuid);
     return data;
   }
 
@@ -590,6 +608,15 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
     putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);
+    // ✅ (migration 69 — D1 0011) هوية الدورة والموظف من الحقول المخزّنة
+    // — كانا يُختمان فقط في مسارات appwrite_sync_manager لحظة الرفع
+    // (G-1: تنكسر عند غياب صف الدورة). الآن cycle_uuid عمود Drift رسمي
+    // (migration 69) يُقرأ عند السحب ويُرسل هنا عند الرفع تحت الاسمين
+    // cycleUuid (العقد الحالي) وcycleLocalUuid (مرادف الأجهزة القائمة).
+    putIfStringNotEmpty(data, 'employeeUuid', payment.employeeUuid);
+    putIfStringNotEmpty(data, 'employeeLocalUuid', payment.employeeUuid);
+    putIfStringNotEmpty(data, 'cycleUuid', payment.cycleUuid);
+    putIfStringNotEmpty(data, 'cycleLocalUuid', payment.cycleUuid);
     return data;
   }
 
@@ -645,8 +672,8 @@ class PayloadMapper {
       'targetType': row.targetType,
       'targetUuid': row.targetUuid,
       'adjustmentType': row.adjustmentType,
-      'previousValue': row.previousValue,
-      'newValue': row.newValue,
+      'previousValue': CurrencyFormatter.wholeAmount(row.previousValue),
+      'newValue': CurrencyFormatter.wholeAmount(row.newValue),
       'reason': row.reason,
       'effectiveDate': row.effectiveDate,
       'appliedBy': row.appliedBy,
@@ -801,7 +828,7 @@ class PayloadMapper {
       'deviceId': withdrawal.deviceId,
       // تمت إزالة 'id'
       'employeeId': withdrawal.employeeId,
-      'amount': withdrawal.amount,
+      'amount': CurrencyFormatter.wholeAmountOrNull(withdrawal.amount),
       'withdrawDate': effectiveWithdrawDate,
       'withdrawalDate': effectiveWithdrawDate,
     };
@@ -857,7 +884,8 @@ class PayloadMapper {
       'bookingLocalUuid': adj.bookingLocalUuid,
       'adjustmentType': adj.adjustmentType,
       'adjustmentMode': adj.adjustmentMode,
-      'amount': adj.amount.round(),
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      'amount': CurrencyFormatter.wholeAmount(adj.amount),
       'effectiveHotelDay': adj.effectiveHotelDay,
       // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud (required attribute,
       // created 2026-07-03). محلياً BookingPriceAdjustments لا يملك عمود hotelDayKey
@@ -908,7 +936,7 @@ class PayloadMapper {
       'deviceId': log.deviceId,
       // تمت إزالة 'id'
       'employeeId': log.employeeId,
-      'amount': log.amount,
+      'amount': CurrencyFormatter.wholeAmountOrNull(log.amount),
       'reason': log.reason,
       // دمج كلا الفرعين: إرسال كل الحقول المتاحة في النموذج.
       'previousCycleStart': log.previousCycleStart,
@@ -918,6 +946,14 @@ class PayloadMapper {
       'carriedAt': log.carriedAt,
       'carryDate': log.carryDate,
     };
+
+    // ✅ (G-2 / 2026-10-06): رابطتا الدورتين تُنقلان كهويتين ثابتتين (UUID)
+    // — كانتا تُهملان هنا تماماً فيصل سجل الترحيل بلا علاقة دورات.
+    putIfStringNotEmpty(data, 'employeeUuid', log.employeeUuid);
+    putIfStringNotEmpty(data, 'fromCycleUuid', log.fromCycleId);
+    putIfStringNotEmpty(data, 'fromCycleId', log.fromCycleId);
+    putIfStringNotEmpty(data, 'toCycleUuid', log.toCycleId);
+    putIfStringNotEmpty(data, 'toCycleId', log.toCycleId);
 
     putIfStringNotEmpty(data, 'idempotencyKey', log.idempotencyKey);
 
@@ -1000,7 +1036,11 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'idempotencyKey', voidRecord.idempotencyKey);
     // ✅ v2: حقول إضافية موجودة على Appwrite Cloud
     putIfStringNotEmpty(data, 'note', voidRecord.note);
-    putIfNotNull(data, 'originalAmount', voidRecord.originalAmount);
+    putIfNotNull(
+      data,
+      'originalAmount',
+      CurrencyFormatter.wholeAmountOrNull(voidRecord.originalAmount),
+    );
     putIfStringNotEmpty(data, 'paymentUuid', voidRecord.paymentUuid);
     return data;
   }

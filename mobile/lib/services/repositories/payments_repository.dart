@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/currency_formatter.dart';
 import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
@@ -228,7 +229,8 @@ class PaymentsRepository {
             bookingLocalId: d.Value(bookingLocalId),
             serverBookingId: d.Value(serverBookingId),
             roomNumber: d.Value(roomNumber),
-            amount: d.Value(amount),
+            // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
+            amount: d.Value(CurrencyFormatter.wholeAmount(amount)),
             paymentDate: d.Value(paymentDate),
             notes: d.Value(notes),
             paymentMethod: d.Value(paymentMethod),
@@ -311,7 +313,9 @@ class PaymentsRepository {
             roomNumber: roomNumber != null
                 ? d.Value(roomNumber)
                 : const d.Value.absent(),
-            amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+            amount: amount != null
+                ? d.Value(CurrencyFormatter.wholeAmount(amount))
+                : const d.Value.absent(),
             paymentDate: paymentDate != null
                 ? d.Value(paymentDate)
                 : const d.Value.absent(),

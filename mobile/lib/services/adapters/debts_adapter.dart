@@ -1,5 +1,7 @@
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/currency_formatter.dart';
+
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
@@ -223,13 +225,17 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'checkoutDate', 'checkout_date'): model.checkoutDate,
       _k(src, 'dateRecorded', 'date_recorded'): model.dateRecorded,
       _k(src, 'debtReason', 'debt_reason'): model.debtReason,
-      _k(src, 'totalAmount', 'total_amount'):
-          model.totalAmount, // Cloud: double ✓
-      _k(src, 'paidAmount', 'paid_amount'): model.paidAmount, // Cloud: double ✓
+      // G-10: سياسة «لا كسور عشرية» (اقتطاع نحو الصفر)
+      _k(src, 'totalAmount', 'total_amount'): CurrencyFormatter.wholeAmount(
+        model.totalAmount,
+      ),
+      _k(src, 'paidAmount', 'paid_amount'): CurrencyFormatter.wholeAmount(
+        model.paidAmount,
+      ),
       // ✅ remainingAmount أُضيف إلى Appwrite Cloud (2026-05-15)
       // ⚠️ على Cloud هو integer — نحول من double إلى int عند الإرسال
-      _k(src, 'remainingAmount', 'remaining_amount'): model.remainingAmount
-          .round(),
+      _k(src, 'remainingAmount', 'remaining_amount'):
+          CurrencyFormatter.wholeAmount(model.remainingAmount),
       _k(src, 'paymentDate', 'payment_date'): model.paymentDate,
       _k(src, 'isSettled', 'is_settled'): model.isSettled,
       _k(src, 'pledge', 'pledge'): model.pledge,
@@ -259,7 +265,9 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       // ✅ Wave 6 (2026-08-12): حقول إضافية لـ Drive sync (نفس حقول Appwrite Cloud).
       _k(src, 'bookingUuidCache', 'booking_uuid_cache'): model.bookingUuidCache,
       _k(src, 'debtorName', 'debtor_name'): model.debtorName,
-      _k(src, 'amount', 'amount'): model.amount,
+      _k(src, 'amount', 'amount'): CurrencyFormatter.wholeAmountOrNull(
+        model.amount,
+      ),
       _k(src, 'date', 'date'): model.date,
     };
   }

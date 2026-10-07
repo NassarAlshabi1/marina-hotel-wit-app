@@ -1,4 +1,5 @@
 import '../utils/time.dart';
+import '../utils/currency_formatter.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';
 import 'repositories/salary_withdrawals_repository.dart';
@@ -32,6 +33,14 @@ class SalaryAdvanceInstallmentsService {
       return;
     }
 
+    // ✅ G-10: «لا كسور عشرية» — إجمالي السلفة يُقتطع نحو الصفر ثم يُوزّع
+    // على الأقساط بعدد صحيح، والقسط الأخير يستوعب الباقي ⇒ مجموع الأقساط
+    // = السلفة بالضبط (لا كسور ولا فقدان ريال بين المصروف والسحبة).
+    final total = CurrencyFormatter.truncateAmount(totalAmount);
+    if (total <= 0) {
+      return;
+    }
+
     final date = Time.safeIsoToDateString(advanceDate);
     final effectiveDescription = description.trim().isNotEmpty
         ? description.trim()
@@ -42,7 +51,7 @@ class SalaryAdvanceInstallmentsService {
         expenseType: 'سلفة',
         relatedId: employeeId,
         description: '$effectiveDescription (مقسطة على $installments)',
-        amount: totalAmount,
+        amount: total.toDouble(),
         date: date,
       );
 
@@ -50,15 +59,14 @@ class SalaryAdvanceInstallmentsService {
         expenseId: advanceExpenseId,
         employeeId: employeeId,
         action: 'سلفة',
-        amount: totalAmount,
+        amount: total.toDouble(),
         date: date,
         note: effectiveDescription,
         // ✅ hotelDayKey يُحتسب تلقائياً من date داخل المستودع
       );
 
-      final base = totalAmount / installments;
-      final baseRounded = double.parse(base.toStringAsFixed(2));
-      double remaining = double.parse(totalAmount.toStringAsFixed(2));
+      final base = total ~/ installments;
+      var remaining = total;
 
       DateTime baseDate;
       try {
@@ -69,8 +77,8 @@ class SalaryAdvanceInstallmentsService {
 
       for (var i = 1; i <= installments; i++) {
         final isLast = i == installments;
-        final amt = isLast ? remaining : baseRounded;
-        remaining = double.parse((remaining - amt).toStringAsFixed(2));
+        final amt = isLast ? remaining : base;
+        remaining -= amt;
 
         final monthsToAdd = (startNextMonth ? 1 : 0) + (i - 1);
         final due = _addMonthsPreserveDay(baseDate, monthsToAdd);
@@ -96,7 +104,7 @@ class SalaryAdvanceInstallmentsService {
           expenseType: 'خصم من الراتب',
           relatedId: employeeId,
           description: instDesc,
-          amount: amt,
+          amount: amt.toDouble(),
           date: dueStr,
         );
 
@@ -104,7 +112,7 @@ class SalaryAdvanceInstallmentsService {
           expenseId: installmentExpenseId,
           employeeId: employeeId,
           action: 'خصم من الراتب',
-          amount: -amt,
+          amount: (-amt).toDouble(),
           date: dueStr,
           note: instDesc,
           // ✅ hotelDayKey يُحتسب تلقائياً من date داخل المستودع

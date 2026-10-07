@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../utils/currency_formatter.dart';
 
 import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
@@ -1336,7 +1337,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       return;
     }
 
-    final amount = _parseAmount(amountText).round();
+    // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
+    final amount = CurrencyFormatter.truncateAmount(_parseAmount(amountText));
     if (amount <= 0) {
       ScaffoldMessenger.of(
         context,

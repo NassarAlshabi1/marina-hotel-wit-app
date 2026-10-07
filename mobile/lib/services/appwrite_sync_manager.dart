@@ -17,6 +17,7 @@ import 'package:sqlite3/sqlite3.dart' show SqliteException;
 import '../utils/app_logger.dart';
 import '../utils/debug_log.dart';
 import '../utils/id.dart';
+import '../utils/identity_gate.dart';
 import '../utils/secure_storage.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -27,6 +28,7 @@ import 'adapters/salary_withdrawals_adapter.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
 import 'appwrite_error_handler.dart';
+import 'appwrite_config_manager.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_models.dart';
 import 'appwrite_service.dart';
@@ -35,6 +37,7 @@ import 'booking_derived_fields_service.dart';
 import 'crashlytics_service.dart';
 import 'daos/ancestor_cache_dao.dart';
 import 'daos/outbox_dao.dart';
+import 'conflict_manager.dart';
 import 'local_db.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
@@ -47,6 +50,10 @@ import 'sync_performance_optimizer.dart';
 import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
 import 'sync/outbox_pull_policy.dart';
+import 'sync_core/deferred_relation_relinker.dart';
+import 'sync_core/financial_link_store.dart';
+import 'sync_core/provider_scope.dart';
+import 'sync_core/deferred_relation_store.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_checkpoint_store.dart';
 import 'sync_core/sync_error_service.dart';
@@ -204,6 +211,18 @@ class AppwriteSyncManager {
       checkpoints: _checkpointStore,
       pullService: _pullService!,
     );
+    // ✅ (G-3 / 2026-10-06): مخزن السجلات «ناقصة الربط» + مُعيد الربط.
+    // قبل هذا: أي سجل يصل قبل أبيه (سحب راتب قبل الموظف، دفعة قبل الدورة)
+    // كان يُتخطّى صامتاً ويُهمَل ⇒ فقدان حركة مالية. الآن تُخزَّن الحمولة
+    // وتُعاد محاولة ربطها عبر UUID بعد كل دورة سحب، وما لا يمكن إثباته
+    // يذهب إلى تقرير المراجعة (لا ربط تخميني، لا حذف).
+    _financialLinks = FinancialLinkStore(database);
+    _deferredStore = DeferredRelationStore(database);
+    _deferredRelinker = DeferredRelationRelinker(
+      db: database,
+      registry: _adapterRegistry,
+      store: _deferredStore,
+    )..install();
   }
   static AppwriteSyncManager? _instance;
 
@@ -221,6 +240,30 @@ class AppwriteSyncManager {
     try {
       // إعادة تحميل الإعدادات
       await _loadSettings();
+      // ✅ (G-7): نفس الحارس الذي يعمل عند التهيئة — لو استُدعي هذا بعد
+      // تغيير الإعدادات داخل نفس الجلسة تُصفَّر المؤشرات فوراً بدل انتظار
+      // إعادة التشغيل.
+      try {
+        final scope = await ProviderScopeGuard.ensureCurrent(
+          endpoint: AppwriteConfigManager.endpoint,
+          projectId: AppwriteConfigManager.projectId,
+          databaseId: AppwriteConfigManager.databaseId,
+          db: database,
+          checkpoints: _checkpointStore,
+        );
+        if (scope.changed) {
+          _logger.warning(
+            '🔀 تبدّل نطاق المزوّد بعد تغيير الإعدادات — أُعيد ضبط: '
+            '${scope.invalidated.join(', ')}',
+            tag: 'PROVIDER_SCOPE',
+          );
+        }
+      } catch (e) {
+        _logger.warning(
+          '⚠️ فحص نطاق المزوّد بعد تغيير الإعدادات فشل: $e',
+          tag: 'SYNC',
+        );
+      }
       // إعادة تهيئة Secondary Appwrite
       await SecondaryAppwriteConfig.ensureInitialized();
       _logger.info('🔄 Reinitialized after config change', tag: 'SYNC');
@@ -250,6 +293,43 @@ class AppwriteSyncManager {
   /// (جدول SQLite مخصص `sync_checkpoints` عبر SQL خام) + المحرك الموحد
   /// الذي يجعل `sync()` و`pullRemoteChanges()` على مسار سحب واحد.
   late final SyncCheckpointStore _checkpointStore;
+
+  /// ✅ (G-3): مخزن السجلات ناقصة الربط (ناقص الأب) — لا تخطٍّ صامت.
+  late final DeferredRelationStore _deferredStore;
+
+  /// ✅ (G-3): مُعيد ربط السجلات المعلّقة عبر UUID (طبقة المجال).
+  late final DeferredRelationRelinker _deferredRelinker;
+
+  /// ✅ (G-1/G-2): مخزن الروابط المالية الدائمة (دورة الدفعة، دورتا الترحيل).
+  /// كان الرابط يُبنى لحظة الرفع فقط فينكسر عند غياب صف الدورة محلياً.
+  late final FinancialLinkStore _financialLinks;
+
+  /// للتقارير/الاختبارات (G-3/G-8): ملخص السجلات المعلّقة.
+  Future<Map<String, int>> deferredRelationsSummary() =>
+      _deferredStore.summary();
+
+  /// ✅ (G-3): إتاحة تقرير المراجعة لطبقة العرض/التصدير (G-8).
+  DeferredRelationStore get deferredRelationStore => _deferredStore;
+
+  /// ✅ (G-3): حفظ حمولة سجل بعيد لم يُحل مرجعه في مسارات لا تمر بالمحوّل.
+  /// لا ترمي أبداً — فشل الحفظ لا يجوز أن يُسقط دورة السحب.
+  Future<void> _deferRemoteRecord({
+    required String collection,
+    required Map<String, dynamic> data,
+    required String reason,
+  }) async {
+    try {
+      await _deferredRelinker.deferPayload(
+        collection: collection,
+        data: data,
+        src: Source.appwrite,
+        reason: reason,
+      );
+    } catch (e) {
+      _logger.warning('⚠️ تعذّر تعليق $collection (غير حرج): $e', tag: 'SYNC');
+    }
+  }
+
   late final UnifiedPullEngine _unifiedPull;
 
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
@@ -301,6 +381,35 @@ class AppwriteSyncManager {
       // ✅ نطاق السحب: تحميل الجداول المعطّلة من الإعدادات قبل أي دورة سحب
       // (الفلترة نفسها داخل _buildPullTasks — يغطي كل مسارات السحب).
       await SyncPullScope.load();
+
+      // ✅ (G-7 / 2026-10-06): حارس نطاق المزوّد — قبل أي دورة سحب أو رفع
+      // أولي. إن تبدّلت الوجهة (endpoint/projectId/databaseId) فإن كل
+      // مؤشرات السحب المحلية تُصفَّر مرة واحدة، ويُعاد تفعيل الرفع الأولي
+      // لنقل البيانات المحلية إلى الوجهة الجديدة (upsert بـ UUID نفسه).
+      // لا يجوز تشغيل delta بمؤشر مزوّد آخر: تخطٍّ صامت لسجلات (البند 9).
+      try {
+        final scope = await ProviderScopeGuard.ensureCurrent(
+          endpoint: AppwriteConfigManager.endpoint,
+          projectId: AppwriteConfigManager.projectId,
+          databaseId: AppwriteConfigManager.databaseId,
+          db: database,
+          checkpoints: _checkpointStore,
+        );
+        if (scope.changed) {
+          _logger.warning(
+            '🔀 نطاق المزوّد تبدّل — أُعيد ضبط: ${scope.invalidated.join(', ')} '
+            '(سيُعاد الرفع الأولي الكامل، والدورة القادمة سحب كامل).',
+            tag: 'PROVIDER_SCOPE',
+          );
+        }
+      } catch (e) {
+        // لا يُفشل التهيئة: البصمة لا تُحفظ إلا بعد نجاح إعادة الضبط كاملة،
+        // فالمحاولة تُعاد في التشغيل التالي بأمان.
+        _logger.warning(
+          '⚠️ فحص نطاق المزوّد فشل — سيُعاد في التشغيل التالي: $e',
+          tag: 'SYNC',
+        );
+      }
 
       // ✅ إصلاح تسليم الآباء المحذوفين (2026-09-13): إعادة ضبط checkpoint
       // الموظفين مرة واحدة بعد الترقية — الدورة التالية تسحبهم شاملين
@@ -1173,6 +1282,48 @@ class AppwriteSyncManager {
                 );
               }
 
+              // ✅ (G-3 / 2026-10-06): إعادة ربط السجلات التي وصلت قبل
+              // آبائها (سحب/دورة/دفعة/ليلة ناقصة المرجع). الوصول من مسار
+              // عادي هنا يعني ربطاً بـ UUID فقط بعد وجود الأب — وبلا أي
+              // ربط تخميني. ما لا يمكن إثباته يبقى للمراجعة (G-8).
+              try {
+                final relinkResult = await _deferredRelinker.relinkAll();
+                if (relinkResult.resolved > 0 ||
+                    relinkResult.movedToReview > 0 ||
+                    relinkResult.stillPending > 0) {
+                  _logger.info(
+                    '🔗 إعادة ربط العلاقات: $relinkResult',
+                    tag: 'SYNC',
+                  );
+                }
+              } catch (e) {
+                _logger.warning(
+                  '⚠️ فشل إعادة ربط العلاقات المعلّقة (غير حرج): $e',
+                  tag: 'SYNC',
+                );
+              }
+
+              // ✅ (G-1 / 2026-10-06): تثبيت روابط «الدفعة ↔ الدورة» المثبتة
+              // من المفتاح الأجنبي المحلي (حتمي، بلا تخمين) — بحدٍّ أعلى
+              // حتى لا يثقل الأجهزة الضعيفة. الهدف: ألا يبقى رابط مالي
+              // دائم معتمداً على وجود صف الدورة **لحظة الرفع** فقط.
+              try {
+                final stamped = await _financialLinks
+                    .stampProvablePaymentCycles(limit: 300);
+                if (stamped > 0) {
+                  _logger.info(
+                    '🔗 ثُبِّت رابط الدورة على $stamped دفعة راتب '
+                    '(هوية دائمة بلا تخمين)',
+                    tag: 'SYNC',
+                  );
+                }
+              } catch (e) {
+                _logger.warning(
+                  '⚠️ فشل تثبيت روابط دورات الدفعات (غير حرج): $e',
+                  tag: 'SYNC',
+                );
+              }
+
               // ✅ إعادة حساب حالة إشغال الغرف بناءً على الحجوزات النشطة
               // هذا يضمن أن الغرف التي تم تسجيل خروج نزلائها تظهر كـ "شاغرة"
               // والغرف التي بها حجوزات نشطة تظهر كـ "محجوزة" - بغض النظر عن
@@ -2011,6 +2162,45 @@ class AppwriteSyncManager {
             (normalizedRemoteTs == localLastModified &&
                 remoteDeviceId.compareTo(localDeviceId) < 0);
         return _RemoteNewerResult(shouldApplyRemote: shouldApply);
+    }
+  }
+
+  /// ✅ (G-4 — تدقيق الهوية المالية 2026-10-06): تسجيل تعارض على حقل مالي
+  /// حرج للمراجعة البشرية (resolution فارغ = بانتظار قرار) مع حفظ القيمتين
+  /// كاملتين. لا يُعدَّل أي مبلغ تلقائياً ولا يُطمس أي من النسختين.
+  Future<void> _recordCriticalConflictForReview({
+    required String entity,
+    required String localUuid,
+    required Map<String, dynamic> localData,
+    required Map<String, dynamic> remoteData,
+    required Set<String> reviewFields,
+  }) async {
+    try {
+      await ConflictManager(database).recordConflict(
+        table: entity,
+        uuid: localUuid,
+        localData: <String, dynamic>{
+          ...localData,
+          '_review': {
+            'reason': 'critical_financial_field_conflict',
+            'fields': reviewFields.toList()..sort(),
+            'policy':
+                'keep local value locally; keep remote value on cloud; '
+                'requires human decision',
+          },
+        },
+        remoteData: remoteData,
+      );
+      _logger.warning(
+        '📝 Critical financial conflict queued for review: '
+        'entity=$entity, uuid=$localUuid, fields=${reviewFields.join(",")}',
+        tag: 'OCC',
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ Failed to record critical financial conflict for review: $e',
+        tag: 'OCC',
+      );
     }
   }
 
@@ -3252,9 +3442,21 @@ class AppwriteSyncManager {
 
       if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
         _logger.info(
-          '✅ OCC conflict resolved via 3-way merge: entity=$entity, uuid=$documentId',
+          '✅ OCC conflict resolved via 3-way merge: entity=$entity, '
+          'uuid=$documentId, requiresReview=${resolution.requiresReview} '
+          'fields=${resolution.reviewFields.join(",")}',
           tag: 'OCC',
         );
+        // ✅ (G-4) تعارض مالي حرج: يُسجَّل للمراجعة البشرية ولا يُرفع تلقائياً.
+        if (resolution.requiresReview) {
+          await _recordCriticalConflictForReview(
+            entity: entity,
+            localUuid: documentId,
+            localData: localPayload,
+            remoteData: remoteData,
+            reviewFields: resolution.reviewFields,
+          );
+        }
         try {
           await _ancestorCacheDao.saveAncestor(
             entity: entity,
@@ -4059,12 +4261,16 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        // ✅ (G-3) جهاز كاتب السجل — دليل وحيد لفضاء المعرّفات الرقمية.
+        final sourceDeviceId =
+            (data['deviceId'] as String?) ?? (data['device_id'] as String?);
         final resolvedEmployeeId =
             employeeUuid != null || remoteEmployeeId != null
             ? await employeeFkResolver.resolveEmployee(
                 uuid: employeeUuid,
                 serverId: remoteEmployeeId,
                 fromRemote: true,
+                sourceDeviceId: sourceDeviceId,
               )
             : null;
 
@@ -4081,6 +4287,16 @@ class AppwriteSyncManager {
           // ✅ تقليل السبام: تجميع بدل تحذير لكل سجل (قد تصل 70+ سجل/دورة)
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
+          );
+          // ✅ (G-3 / 2026-10-06): لا إهمال. هذا المسار لا يمر بـ
+          // upsertFromJson (يتخطى قبل المحوّل) ⇒ تُحفظ الحمولة هنا مباشرة
+          // لإعادة الربط لاحقاً عبر UUID عند وصول الموظف.
+          await _deferRemoteRecord(
+            collection: 'salary_withdrawals',
+            data: data,
+            reason:
+                'salary_withdrawal: لم يُحل الموظف (uuid=$employeeUuid, '
+                'originEmployeeId=$remoteEmployeeId) — معلّق للربط بـ UUID',
           );
           continue;
         }
@@ -4219,28 +4435,54 @@ class AppwriteSyncManager {
               ..where((e) => e.id.equals(withdrawal.employeeId))
               ..limit(1))
             .getSingleOrNull();
-    if (employee != null && employee.serverId == null) {
-      // الموظف لم يُرفع بعد — نرفعه أولاً
+    // ✅ (G-3): «لم يُرفع بعد» = لا معرّف بعيد > 0 ولا طابع مزامنة، ولم
+    // يأتِ من السيرفر (origin='server' يعني أنه موجود هناك بالبناء).
+    // ملاحظة: serverId قد يكون **null بشكل دائم** للموظفين الجدد (لأن
+    // documentId هو الـ UUID وليس رقماً) — لذلك لا يصلح وحده كعلامة رفع.
+    final employeeKnownOnServer =
+        employee != null &&
+        (employee.serverId != null ||
+            employee.syncTimestamp > 0 ||
+            employee.origin == 'server');
+    if (employee != null && !employeeKnownOnServer) {
+      // الموظف لم يُرفع بعد — نرفعه أولاً حتى لا يبقى الابن (السحبة)
+      // بلا أب على الأجهزة الأخرى (وقتها يُعلَّق السجل ويُربط عبر UUID
+      // عند وصول الموظف — البند 6).
       _logger.info(
-        '🔄 رفع الموظف ${employee.id} أولاً لضمان FK constraint',
+        '🔄 رفع الموظف ${employee.id} أولاً (الأب قبل الابن)',
         tag: 'SYNC',
       );
       try {
         final empPayload = _payloadMapper.employeeToRemote(employee);
-        await appwriteService.upsertEmployee(
+        final employeeRemoteDoc = await appwriteService.upsertEmployee(
           employee.localUuid,
           _filterPayload('employees', _addIdempotencyKey(empPayload, entry)),
         );
-        // ✅ Forensic audit fix (2026-07-22):
-        // كان الكود السابق يستدعي getDocument منفصل للتحقق من وجود المستند
-        // — لكن النتيجة (remoteDoc) لم تكن تُستخدم إطلاقاً! serverId يُضبط
-        // إلى employee.id (محلي) وليس أي قيمة من remoteDoc. وبما أن
-        // upsertEmployee نجح (لم يرمِ استثناء)، المستند موجود بالتأكيد.
-        // إزالة getDocument تُوفر API call واحد لكل push موظف.
-        // للتراجع: أعد استدعاء getDocument قبل database.update.
-        await (database.update(database.employees)
-              ..where((e) => e.id.equals(employee.id)))
-            .write(EmployeesCompanion(serverId: drift.Value(employee.id)));
+        // ✅ (G-3 / 2026-10-06) إصلاح جذري لهوية الموظف عبر الأجهزة:
+        // كان هذا السطر يكتب `serverId = employee.id` — وهو **المعرّف
+        // المحلي autoincrement على هذا الجهاز**. و`serverId` يُرفع ضمن
+        // حمولة الموظف ويُسحب على الأجهزة الأخرى، فصار «رقم محلي» أساساً
+        // للربط عبر الأجهزة: جهاز A عنده موظف #7 وجهاز B عنده موظف مختلف
+        // #7 ⇒ ربط صامت لسجل مالي (سحبة/دورة/دفعة) بموظف خاطئ.
+        //
+        // القاعدة الجديدة (البند 1): لا يُكتب في `serverId` إلا معرّف
+        // **بعيد حقيقي** كما أعاده الخادم. وبما أن documentId هنا هو
+        // `employee.localUuid` (UUID) فإن serverId يبقى null عمداً —
+        // الهوية عبر الأجهزة هي localUuid وحده.
+        // علامة «الموظف موجود على السيرفر» تُحفظ في syncTimestamp (طابع
+        // زمني — ليس هوية) حتى لا يُعاد رفع الموظف في كل سحبة.
+        final remoteDocId = employeeRemoteDoc.$id;
+        final remoteNumericId = int.tryParse(remoteDocId);
+        await (database.update(
+          database.employees,
+        )..where((e) => e.id.equals(employee.id))).write(
+          EmployeesCompanion(
+            serverId: remoteNumericId == null
+                ? const drift.Value.absent()
+                : drift.Value(remoteNumericId),
+            syncTimestamp: drift.Value(Time.nowEpoch()),
+          ),
+        );
       } catch (e) {
         _logger.warning(
           '⚠️ فشل رفع الموظف ${employee.id} — سيتم تأجيل سحب الراتب: $e',
@@ -5701,6 +5943,20 @@ class AppwriteSyncManager {
         // (الخلل القديم: القائمة كانت تُعلن ولا تُملأ → المؤشر يتقدّم رغم الفشل)
         final failedCollections = <String>[];
 
+        // ✅ (P2-9 / 2026-10-06): قياس «المؤجَّل» — السجل الذي يصل قبل أبيه
+        // يُخزَّن في DeferredRelationStore ولا يُطبَّق فعلياً، لكن مهمة السحب
+        // تحسبه من ضمن `recordsPulled`. النتيجة قبل هذا الإصلاح: الواجهة
+        // تقول «تم سحب N سجلاً» بينما بعضها لم يُطبَّق بعد ⇒ رقم مضلِّل.
+        // القياس هنا **قراءة فقط** (فرق حالات المخزن قبل/بعد الدورة).
+        var deferredBefore = 0;
+        try {
+          final snapshot = await _deferredStore.summary();
+          deferredBefore =
+              (snapshot['pending'] ?? 0) + (snapshot['needs_review'] ?? 0);
+        } catch (_) {
+          // القياس لا يجوز أن يُسقط السحب.
+        }
+
         // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
         _maxUpdatedAtInPull = null;
 
@@ -5731,10 +5987,34 @@ class AppwriteSyncManager {
         recordsPulled = result.recordsPulled;
         failedCollections.addAll(result.failedCollections);
 
+        // ✅ (P2-9): كم سجلاً أُجّل في هذه الدورة؟ يُخصم من العدّاد المعلن.
+        var deferredDelta = 0;
+        try {
+          final snapshotAfter = await _deferredStore.summary();
+          final deferredAfter =
+              (snapshotAfter['pending'] ?? 0) +
+              (snapshotAfter['needs_review'] ?? 0);
+          deferredDelta = deferredAfter - deferredBefore;
+          if (deferredDelta < 0) deferredDelta = 0;
+        } catch (_) {}
+
         // ✅ تسجيل نتيجة الدورة للعرض في شاشة الإعدادات (زر «سحب الآن»).
         // يُسجَّل حتى مع فشل جزئي (failedCollections) لأن السجلات المطبَّقة
         // حقيقية — الفشل الكامل (استثناء) لا يصل هنا أصلاً.
-        _lastPullRecords = recordsPulled;
+        // ⚠️ السجلات المؤجَّلة (ناقصة الربط) لا تُحتسب «مطبَّقة» (P2-9).
+        final appliedNow = UuidIdentity.appliedRecordsInPull(
+          reported: recordsPulled,
+          deferredDelta: deferredDelta,
+        );
+        _lastPullRecords = appliedNow;
+        if (deferredDelta > 0) {
+          _logger.warning(
+            '⏳ P2-9: $deferredDelta سجل من أصل $recordsPulled لم يُطبَّق '
+            'في هذه الدورة (ناقص الربط — ينتظر الأب عبر UUID، وليس فقداناً). '
+            'المُعلَن للتطبيق الفعلي: $appliedNow.',
+            tag: 'SYNC',
+          );
+        }
         _lastPullAt = DateTime.now();
 
         // ✅ P1-5 fix: تحديث المؤشر العام فقط إذا نجحت كل الكولكشنات
@@ -5855,6 +6135,17 @@ class AppwriteSyncManager {
       'guest_infos': 0,
       'salary_withdrawals': 0,
       'salary_carry_over_logs': 0,
+      // ✅ (G-7 / 2026-10-06): كيانات تُدفع عبر الـ outbox ولا تمر
+      // بالرفع الأولي — بلا إضافتها هنا لا ينقل «الانتقال إلى مزوّد جديد»
+      // السجلات التي سُلّمت للمزوّد القديم ثم خرجت من الـ outbox
+      // (لا طابور يذكرها) ⇒ فقدان صامت عند تبديل الوجهة.
+      'price_adjustments': 0,
+      'payment_voids': 0,
+      'audit_logs': 0,
+      'inventory_items': 0,
+      'inventory_transactions': 0,
+      '_blacklist': 0,
+      '_app_users': 0,
       'errors': 0,
     };
 
@@ -6115,6 +6406,18 @@ class AppwriteSyncManager {
         if (skipDeleted && payment.deletedAt != null) continue;
         try {
           final payload = _salaryPaymentToRemote(payment);
+          // ✅ (G-1 / 2026-10-06): نفس قاعدة مسار الـ outbox — الهوية
+          // المخزَّنة أولاً، ثم التثبيت من المفتاح الأجنبي المحلي.
+          final fullPushDurableCycleUuid = await _financialLinks
+              .stampPaymentCycleIfMissing(
+                paymentLocalUuid: payment.localUuid,
+                fallbackCycleLocalId: payment.cycleId,
+              );
+          if (fullPushDurableCycleUuid != null &&
+              fullPushDurableCycleUuid.isNotEmpty) {
+            payload['cycleLocalUuid'] = fullPushDurableCycleUuid;
+            payload['cycleUuid'] = fullPushDurableCycleUuid;
+          }
           // ✅ (2026-09-19) إغلاق فجوة employee_uuid في الرفع الكامل أيضاً:
           // cycleLocalUuid + employeeUuid (نفس منطق _processSalaryPaymentEntry).
           final fullPushCycle =
@@ -6270,6 +6573,172 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
 
+      // ✅ (G-7 / 2026-10-06) تسويات الأسعار — كيان مالي يُدفع عبر الـ outbox
+      // ولم يكن ضمن الرفع الأولي إطلاقاً.
+      final priceAdjustments = await database
+          .select(database.priceAdjustments)
+          .get();
+      for (final row in priceAdjustments) {
+        if (skipDeleted && row.deletedAt != null) continue;
+        try {
+          final payload = _payloadMapper.priceAdjustmentToRemote(row);
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+            documentId: row.localUuid,
+            data: _filterPayload('price_adjustments', payload),
+          );
+          stats['price_adjustments'] = (stats['price_adjustments'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع تسوية سعر: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['price_adjustments']} تسوية سعر',
+        tag: 'SYNC',
+      );
+
+      // ✅ (G-7) إلغاءات الدفع — سجل مالي يُدفع عبر الـ outbox فقط.
+      final paymentVoids = await database.select(database.paymentVoids).get();
+      for (final voidRecord in paymentVoids) {
+        if (skipDeleted && voidRecord.deletedAt != null) continue;
+        try {
+          final payload = _payloadMapper.paymentVoidToRemote(voidRecord);
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.paymentVoidsCollectionId,
+            documentId: voidRecord.localUuid,
+            data: _filterPayload('payment_voids', payload),
+          );
+          stats['payment_voids'] = (stats['payment_voids'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع إلغاء دفع: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['payment_voids']} إلغاء دفع', tag: 'SYNC');
+
+      // ✅ (G-7) سجل التدقيق — عبر الـ outbox فقط سابقاً.
+      final auditLogs = await database.select(database.auditLogs).get();
+      for (final log in auditLogs) {
+        if (skipDeleted && log.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.auditLogs.toJsonForSource(
+            log,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.auditLogsCollectionId,
+            documentId: log.localUuid,
+            data: _filterPayload('audit_logs', payload),
+          );
+          stats['audit_logs'] = (stats['audit_logs'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع سجل تدقيق: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['audit_logs']} سجل تدقيق', tag: 'SYNC');
+
+      // ✅ (G-7) المخزون: الأصناف ثم الحركات (ترتيب الأب قبل الابن).
+      final inventoryItems = await database
+          .select(database.inventoryItems)
+          .get();
+      for (final item in inventoryItems) {
+        if (skipDeleted && item.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.inventoryItems.toJsonForSource(
+            item,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.inventoryItemsCollectionId,
+            documentId: item.localUuid,
+            data: _filterPayload('inventory_items', payload),
+          );
+          stats['inventory_items'] = (stats['inventory_items'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع صنف مخزون: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      final inventoryTransactions = await database
+          .select(database.inventoryTransactions)
+          .get();
+      for (final movement in inventoryTransactions) {
+        if (skipDeleted && movement.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.inventoryTransactions
+              .toJsonForSource(movement, src: Source.appwrite);
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
+            documentId: movement.localUuid,
+            data: _filterPayload('inventory_transactions', payload),
+          );
+          stats['inventory_transactions'] =
+              (stats['inventory_transactions'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع حركة مخزون: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['inventory_items']} صنف و'
+        '${stats['inventory_transactions']} حركة مخزون',
+        tag: 'SYNC',
+      );
+
+      // ✅ (G-7) القائمة السوداء: صفوف بعلامة created_by='blacklist' داخل
+      // جدول الملاحظات (نفس المُلقٍ المستخدم في مسار الدفع — انظر
+      // _processBlacklistEntry و _getBlacklistEntryByLocalUuid).
+      final blacklistRows = await (database.select(
+        database.shiftNotes,
+      )..where((t) => t.createdBy.equals('blacklist'))).get();
+      for (final item in blacklistRows) {
+        if (skipDeleted && item.deletedAt != null) continue;
+        try {
+          final payload = _blacklistToRemote(item);
+          await appwriteService.upsertBlacklist(
+            item.localUuid,
+            _filterPayload('blacklist', payload),
+          );
+          stats['_blacklist'] = (stats['_blacklist'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع عنصر قائمة سوداء: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info(
+        '✅ تم رفع ${stats['_blacklist']} عنصر قائمة سوداء',
+        tag: 'SYNC',
+      );
+
+      // ✅ (G-7) مستخدمو التطبيق: لا جدول محلي لهم — الحمولة تُرفع من
+      // صفوف الـ outbox غير المُسلَّمة (نفس مسار _processAppUserEntry:
+      // upsert للحمولة نفسها بلا أي حل مراجع ⇒ آمن في الرفع الأولي).
+      final appUserEntries =
+          await (database.select(database.outbox)..where(
+                (t) =>
+                    t.entity.equals('app_users') &
+                    t.deliveredToPrimary.equals(false),
+              ))
+              .get();
+      for (final entry in appUserEntries) {
+        try {
+          final raw = jsonDecode(entry.payload);
+          if (raw is! Map) continue;
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.appUsersCollectionId,
+            documentId: entry.localUuid,
+            data: Map<String, dynamic>.from(raw),
+          );
+          stats['_app_users'] = (stats['_app_users'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع مستخدم تطبيق: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+      _logger.info('✅ تم رفع ${stats['_app_users']} مستخدم تطبيق', tag: 'SYNC');
+
       final totalRecords =
           stats['rooms']! +
           stats['bookings']! +
@@ -6286,7 +6755,14 @@ class AppwriteSyncManager {
           (stats['booking_price_adjustments'] ?? 0) +
           (stats['guest_infos'] ?? 0) +
           (stats['salary_withdrawals'] ?? 0) +
-          (stats['salary_carry_over_logs'] ?? 0);
+          (stats['salary_carry_over_logs'] ?? 0) +
+          (stats['price_adjustments'] ?? 0) +
+          (stats['payment_voids'] ?? 0) +
+          (stats['audit_logs'] ?? 0) +
+          (stats['inventory_items'] ?? 0) +
+          (stats['inventory_transactions'] ?? 0) +
+          (stats['_blacklist'] ?? 0) +
+          (stats['_app_users'] ?? 0);
 
       _logger.info(
         '✅ اكتمل رفع البيانات: $totalRecords سجل، ${stats['errors']} خطأ',
@@ -6360,9 +6836,20 @@ class AppwriteSyncManager {
       );
     }
     final payload = _payloadMapper.salaryPaymentToRemote(item);
-    // ✅ (2026-09-19) إغلاق فجوة employee_uuid لدفعات الرواتب:
-    // الربط عبر دورة الراتب (cycleLocalUuid) ثم الموظف (employeeUuid) —
-    // المعرفات الرقمية (cycleId/employeeId) تختلف بين الأجهزة.
+    // ✅ (G-1 / 2026-10-06): رابط الدورة يُقرأ من **الهوية المخزَّنة** أولاً.
+    // سابقاً كان يُبنى هنا لحظة الرفع فقط: لو غاب صف الدورة محلياً (يتيمة/
+    // محذوفة/أُعيد بناء مسار الرفع عند تبديل المزوّد) تُرفع الدفعة بالمعرّف
+    // الرقمي وحده ⇒ رابط غير ثابت عبر الأجهزة. الآن:
+    //   1) cycle_uuid المخزَّن (دليل دائم) ← يُستخدم ويُرسل.
+    //   2) إن كان مفقوداً: يُثبَّت من المفتاح الأجنبي المحلي ثم يُرسل.
+    final durableCycleUuid = await _financialLinks.stampPaymentCycleIfMissing(
+      paymentLocalUuid: item.localUuid,
+      fallbackCycleLocalId: item.cycleId,
+    );
+    if (durableCycleUuid != null && durableCycleUuid.isNotEmpty) {
+      payload['cycleLocalUuid'] = durableCycleUuid;
+      payload['cycleUuid'] = durableCycleUuid;
+    }
     final paymentCycle =
         await (database.select(database.salaryCycles)
               ..where((c) => c.id.equals(item.cycleId))
@@ -7388,12 +7875,25 @@ class AppwriteSyncManager {
     return pullRemoteChanges();
   }
 
-  /// إعادة تعيين حالة المزامنة
+  /// إعادة تعيين حالة المزامنة.
+  ///
+  /// ✅ (G-7 / 2026-10-06): لم يكن هذا المسار يُصفّر **أي** مؤشر حقيقي —
+  /// فقط يحذف مفتاح وقت العرض. والنتيجة: زر «إعادة ضبط المزامنة» يترك
+  /// `sync_checkpoints` و`sync_state` وخريطة مؤشرات الكيانات كما هي ⇒
+  /// الدورة التالية delta بمؤشر قديم (نفس علّة G-7). الآن يستخدم نفس
+  /// الأساس المشترك مع حارس المزوّد.
   Future<void> resetSyncState() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('appwrite_last_sync_time');
+    final reset = await ProviderScopeGuard.resetProviderScopedState(
+      db: database,
+      checkpoints: _checkpointStore,
+      prefs: prefs,
+    );
     _lastSyncTime = null;
-    _logger.info('Sync state reset', tag: 'SYNC');
+    _logger.info(
+      '♻️ إعادة ضبط حالة المزامنة: ${reset.join(', ')}',
+      tag: 'SYNC',
+    );
   }
 
   // Getters
@@ -8028,12 +8528,16 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        // ✅ (G-3) جهاز كاتب السجل — دليل وحيد لفضاء المعرّفات الرقمية.
+        final sourceDeviceId =
+            (data['deviceId'] as String?) ?? (data['device_id'] as String?);
         final resolvedEmployeeId =
             employeeUuid != null || remoteEmployeeId != null
             ? await employeeFkResolver.resolveEmployee(
                 uuid: employeeUuid,
                 serverId: remoteEmployeeId,
                 fromRemote: true,
+                sourceDeviceId: sourceDeviceId,
               )
             : null;
 
@@ -8050,6 +8554,14 @@ class AppwriteSyncManager {
           // ✅ تقليل السبام: تجميع بدل تحذير لكل سجل
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
+          );
+          // ✅ (G-3): لا إهمال — حفظ الحمولة للربط عبر UUID لاحقاً.
+          await _deferRemoteRecord(
+            collection: 'salary_cycles',
+            data: data,
+            reason:
+                'salary_cycle: لم يُحل الموظف (uuid=$employeeUuid, '
+                'originEmployeeId=$remoteEmployeeId) — معلّق للربط بـ UUID',
           );
           continue;
         }
@@ -8179,6 +8691,18 @@ class AppwriteSyncManager {
         await _adapterRegistry.salaryPayments.upsertFromJson(
           data,
           src: Source.appwrite,
+        );
+        // ✅ (G-1 / 2026-10-06): تثبيت رابط الدورة على الدفعة **وقت السحب**.
+        // الدليل: UUID ورد في الحمولة (هوية معلنة)؛ وإن غاب فالمفتاح
+        // الأجنبي المحلي بعد الحل (`cycle_id` صار صالحاً بعد upsert).
+        // بعد التثبيت لا يعود الرفع يحتاج صف الدورة موجوداً وقت الرفع.
+        await _financialLinks.stampPaymentCycleIfMissing(
+          paymentLocalUuid: (data['localUuid'] as String?) ?? '',
+          preferredCycleUuid:
+              (data['cycleUuid'] as String?) ??
+              (data['cycleLocalUuid'] as String?) ??
+              (data['cycle_uuid'] as String?) ??
+              (data['cycle_local_uuid'] as String?),
         );
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(

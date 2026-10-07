@@ -2,8 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:share_plus/share_plus.dart';
+
 import '../../providers/repository_providers.dart';
 import '../../services/conflict_manager.dart';
+import '../../services/review_report_service.dart';
 import '../../utils/performance_monitor.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -19,11 +22,54 @@ class SyncConflictsScreen extends ConsumerStatefulWidget {
 class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
   late final ConflictManager _conflictManager;
 
+  /// ✅ (G-8): جارٍ بناء تقرير المراجعة (قراءة فقط ثم تصدير XLSX).
+  bool _exporting = false;
+
   @override
   void initState() {
     super.initState();
     _conflictManager = ConflictManager(ref.read(databaseProvider));
     _conflictManager.loadPendingConflicts();
+  }
+
+  /// ✅ (G-8 / 2026-10-06): يبني **تقرير المراجعة القابل للتصدير** من كل
+  /// المصادر (كسور عشرية · علاقات معلّقة · تعارضات · انتهاكات سلامة ·
+  /// فجوات هوية تاريخية · نطاق المزوّد) ويشاركه كملف Excel.
+  /// قراءة فقط بالكامل — لا يعدّل أي سجل ولا يقترح تصحيحاً تلقائياً.
+  Future<void> _exportReviewReport() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    try {
+      final service = ReviewReportService(db: ref.read(databaseProvider));
+      final result = await service.exportToFile();
+      final report = result.report;
+      if (!mounted) return;
+      final lines = report.summary.entries
+          .where((e) => e.value > 0)
+          .map((e) => '• ${e.key}: ${e.value}')
+          .join('\n');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            report.totalFindings == 0
+                ? 'تقرير المراجعة: لا حالات تحتاج مراجعة — تم إنشاء الملف.'
+                : 'تقرير المراجعة: ${report.totalFindings} حالة\n$lines',
+          ),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+      await Share.shareXFiles([
+        XFile(result.file.path),
+      ], subject: 'تقرير مراجعة الهوية المالية — Marina');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذّر تصدير تقرير المراجعة: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
   }
 
   @override
@@ -43,6 +89,18 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
             IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: () => _conflictManager.loadPendingConflicts(),
+            ),
+            // ✅ (G-8): تصدير تقرير المراجعة الكامل (Excel، قراءة فقط).
+            IconButton(
+              icon: _exporting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.file_download_outlined),
+              tooltip: 'تصدير تقرير المراجعة (Excel)',
+              onPressed: _exporting ? null : _exportReviewReport,
             ),
             IconButton(
               icon: const Icon(Icons.auto_delete),

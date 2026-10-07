@@ -20,11 +20,19 @@ class AppScaffold extends ConsumerWidget {
     this.titleColor,
     this.subtitleColor,
     this.titleAlign,
+    this.header,
   });
   final String title;
   final Widget body;
   final List<Widget>? actions;
   final Widget? fab;
+
+  /// ✅ (2026-10-06): شريط اختياري أسفل الـ AppBar مباشرة (داخل «الهيد»).
+  ///
+  /// يُستخدم لحقل بحث مضمَّن في رأس الشاشة (مثال: سجل المعلومية — بحث
+  /// بالاسم) بلا حجب العنوان أو الأزرار أو زر المزامنة. الافتراضي `null`
+  /// ⇒ لا يتغير أي شيء في بقية الشاشات.
+  final Widget? header;
 
   /// عنوان ثانوي يظهر أسفل العنوان الرئيسي في الـ AppBar
   /// (مثال: عنوان التقرير بخط أصغر وتوسيط)
@@ -150,6 +158,15 @@ class AppScaffold extends ConsumerWidget {
             const SyncActionButton(),
             if (actions != null) ...actions!,
           ],
+          bottom: header == null
+              ? null
+              : PreferredSize(
+                  preferredSize: const Size.fromHeight(56),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                    child: header,
+                  ),
+                ),
         ),
         body: SafeArea(
           child: PerformanceInspector(name: title, child: body),

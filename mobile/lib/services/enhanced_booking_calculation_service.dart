@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 
 import '../models/financial_models.dart';
+import '../utils/currency_formatter.dart';
 import 'daos/outbox_dao.dart';
 import 'daos/bookings_dao.dart';
 import '../utils/hotel_time_engine.dart';
@@ -681,7 +682,8 @@ class EnhancedBookingCalculationService {
       return value;
     }
     if (value is num) {
-      return value.round();
+      // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
+      return CurrencyFormatter.truncateAmount(value);
     }
     if (value is String) {
       return int.tryParse(value) ?? 0;

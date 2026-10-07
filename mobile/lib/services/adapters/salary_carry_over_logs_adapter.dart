@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 import '../local_db.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
@@ -40,12 +41,16 @@ class SalaryCarryOverLogsAdapter
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
 
+    // ✅ (G-3) جهاز كاتب السجل — دليل فضاء المعرّفات الرقمية.
+    final sourceDeviceId =
+        _asString(json, 'deviceId', src) ?? _asString(json, 'device_id', src);
     final fromRemote = src == Source.appwrite || src == Source.drive;
     final resolvedEmployeeId = await resolver.resolveEmployee(
       uuid: remoteEmployeeUuid,
       serverId: fromRemote ? remoteEmployeeId : null,
       localId: fromRemote ? null : remoteEmployeeId,
       fromRemote: fromRemote,
+      sourceDeviceId: sourceDeviceId,
     );
 
     final createdAt = _asInt(json, 'createdAt', src);
@@ -112,6 +117,21 @@ class SalaryCarryOverLogsAdapter
             _asString(json, 'new_cycle_end', src) ??
             '',
       ),
+      // ✅ (G-2 / 2026-10-06): رابطتا الدورتين (UUID — لا معرّف رقمي).
+      // كانتا لا تُقرآن إطلاقاً ⇒ سجل الترحيل يصل بلا علاقة دورات ثابتة.
+      // تُقبل الأسماء المعلنة أولاً ثم الأسماء البديلة القديمة.
+      fromCycleId: _vStrAny(json, const [
+        'fromCycleUuid',
+        'from_cycle_uuid',
+        'fromCycleId',
+        'from_cycle_id',
+      ], src),
+      toCycleId: _vStrAny(json, const [
+        'toCycleUuid',
+        'to_cycle_uuid',
+        'toCycleId',
+        'to_cycle_id',
+      ], src),
       reason: d.Value(_asString(json, 'reason', src) ?? ''),
       carriedAt: d.Value(_asInt(json, 'carriedAt', src) ?? now),
       createdAt: d.Value(_asInt(json, 'createdAt', src) ?? now),
@@ -155,12 +175,21 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
       _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
-      _k(src, 'amount', 'amount'): model.amount,
+      _k(src, 'amount', 'amount'): CurrencyFormatter.wholeAmount(model.amount),
       _k(src, 'previousCycleStart', 'previous_cycle_start'):
           model.previousCycleStart,
       _k(src, 'previousCycleEnd', 'previous_cycle_end'): model.previousCycleEnd,
       _k(src, 'newCycleStart', 'new_cycle_start'): model.newCycleStart,
       _k(src, 'newCycleEnd', 'new_cycle_end'): model.newCycleEnd,
+      // ✅ (G-2): رابطتا الدورتين تُنقلان كهويتين ثابتتين.
+      if (model.fromCycleId != null && model.fromCycleId!.isNotEmpty) ...{
+        _k(src, 'fromCycleUuid', 'from_cycle_uuid'): model.fromCycleId,
+        _k(src, 'fromCycleId', 'from_cycle_id'): model.fromCycleId,
+      },
+      if (model.toCycleId != null && model.toCycleId!.isNotEmpty) ...{
+        _k(src, 'toCycleUuid', 'to_cycle_uuid'): model.toCycleId,
+        _k(src, 'toCycleId', 'to_cycle_id'): model.toCycleId,
+      },
       _k(src, 'reason', 'reason'): model.reason,
       _k(src, 'carriedAt', 'carried_at'): model.carriedAt,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
@@ -210,6 +239,21 @@ d.Value<String> _vStr(
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+/// ✅ (G-2): أول مفتاح **موجود وغير فارغ** من قائمة مرشّحة (أسماء معلنة
+/// أولاً ثم الأسماء البديلة القديمة). `_vStr` يقبل مفتاحاً بديلاً واحداً
+/// فقط، وقيمته ليست null ⇒ لا يصلح لسلسلة `??`.
+d.Value<String> _vStrAny(
+  Map<String, dynamic> json,
+  List<String> keys,
+  Source src,
+) {
+  for (final key in keys) {
+    final v = _asString(json, key, src);
+    if (v != null && v.isNotEmpty) return d.Value(v);
+  }
+  return const d.Value.absent();
 }
 
 int? _asInt(Map<String, dynamic> json, String key, Source src) {

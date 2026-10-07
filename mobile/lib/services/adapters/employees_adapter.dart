@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 import '../local_db.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
@@ -126,7 +127,9 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'name', 'name'): model.name,
-      _k(src, 'basicSalary', 'basic_salary'): model.basicSalary,
+      _k(src, 'basicSalary', 'basic_salary'): CurrencyFormatter.wholeAmount(
+        model.basicSalary,
+      ),
       _k(src, 'position', 'position'): model.position,
       _k(src, 'phone', 'phone'): model.phone,
       _k(src, 'hireDate', 'hire_date'): model.hireDate,

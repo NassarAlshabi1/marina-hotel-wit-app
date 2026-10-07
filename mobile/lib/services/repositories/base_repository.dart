@@ -31,6 +31,18 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     _batchUuidCache = null;
   }
 
+  // ✅ (G-3): نقطة التقاط السجلات المتخطّاة (FK غير محلول).
+  // تُثبّتها طبقة المجال (DeferredRelationRelinker) فتحفظ الحمولة بدل
+  // إهمالها، وتُعيد ربطها عبر UUID عند وصول الأب. الافتراضي: null
+  // (سلوك قديم: تخطٍّ مع تسجيل — بلا أي تغيير في بقية التطبيقات).
+  SkippedRecordSink? _skippedRecordSink;
+
+  void setSkippedRecordSink(SkippedRecordSink? sink) {
+    _skippedRecordSink = sink;
+  }
+
+  SkippedRecordSink? get skippedRecordSink => _skippedRecordSink;
+
   Future<int> upsertFromJson(
     Map<String, dynamic> json, {
     required Source src,
@@ -74,6 +86,31 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         'Skipping upsert for ${table.actualTableName}: ${refs.skipReason ?? "unresolved FK reference"}',
         name: 'BaseRepository',
       );
+      // ✅ (G-3): لا تخطٍّ صامت. إن ثبّتت طبقة المجال نقطة التقاط ⇒
+      // تُخزَّن الحمولة (كحمولة مزوّد محايدة) وتُعاد محاولة ربطها لاحقاً
+      // عبر UUID. فشل الالتقاط لا يجوز أن يُسقط التخطي نفسه.
+      final sink = _skippedRecordSink;
+      final skippedUuid =
+          json['localUuid'] as String? ?? json['local_uuid'] as String?;
+      if (sink != null &&
+          skippedUuid != null &&
+          skippedUuid.isNotEmpty &&
+          (src == Source.appwrite || src == Source.drive)) {
+        try {
+          await sink(
+            json,
+            tableName: table.actualTableName,
+            collectionId: adapter.collectionId,
+            src: src,
+            skipReason: refs.skipReason,
+          );
+        } catch (e) {
+          developer.log(
+            'Deferred sink failed for ${table.actualTableName}: $e',
+            name: 'BaseRepository',
+          );
+        }
+      }
       return -1; // إشارة إلى أن السجل تم تخطيه
     }
 
@@ -90,7 +127,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       } catch (e, st) {
         lastError = e;
         lastStack = st;
-        if (_isUniqueConstraintError(e)) {
+        if (_isUniqueConstraintError(e) || _isInvalidArbiterError(e)) {
           developer.log(
             'Upsert conflict on ${table.actualTableName} with target ${_targetLabel(target)}',
             error: e,
@@ -185,6 +222,28 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       if (indexName == null || indexName.isEmpty) {
         continue;
       }
+      // ✅ (migration 69 — إصلاح اكتشفته اختبارات G-3) الفهارس الفريدة
+      // الجزئية (بمع WHERE — مثل idx_salary_withdrawals_active_expense
+      // لمطابقة D1 0013) لا تصلح محكّمات upsert: SQLite يرفض العبارة وقت
+      // التحضير ("ON CONFLICT clause does not match any PRIMARY KEY or
+      // UNIQUE constraint") لأن arbiter يجب أن يكون فهرساً فريداً كاملاً.
+      // اكتشاف الجزئية من DDL المخزّن وتخطّيها — وإلا انهار كل upsert
+      // للجدول المعني عند أول مزامنة بعد الترقية.
+      final ddlRow = await db
+          .customSelect(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+            variables: [Variable.withString(indexName)],
+          )
+          .getSingleOrNull();
+      final ddl = (ddlRow?.data['sql'] ?? '').toString();
+      if (RegExp(r'\bWHERE\b', caseSensitive: false).hasMatch(ddl)) {
+        developer.log(
+          'Skipping partial unique index as conflict target: '
+          '$indexName (WHERE clause makes it an invalid ON CONFLICT arbiter)',
+          name: 'BaseRepository',
+        );
+        continue;
+      }
       final sanitizedIndex = indexName.replaceAll("'", "''");
       final infoRows = await db
           .customSelect("PRAGMA index_info('$sanitizedIndex')")
@@ -241,6 +300,17 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     return message.contains('unique constraint failed') ||
         message.contains('constraint failed') ||
         message.contains('duplicate entry');
+  }
+
+  /// ✅ (migration 69) رفض SQLite لمحكّم upsert غير صالح (فهرس جزئي أو
+  /// غير موجود). ليست خطأ قيدٍ وقت التنفيذ بل رفض تحضير — ومع ذلك يجوز
+  /// الانتقال للهدف التالي بدل إنهاء الـ upsert كله (دفاع متعمّق: التخطي
+  /// بالـ DDL أعلاه هو الخط الأول، وهذا الخط الثاني).
+  bool _isInvalidArbiterError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains(
+      'does not match any primary key or unique constraint',
+    );
   }
 
   String _targetLabel(List<Column> target) {

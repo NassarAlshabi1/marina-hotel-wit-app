@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/local_db.dart';
 import '../utils/status_utils.dart';
+import '../utils/currency_formatter.dart';
 import 'repository_providers.dart';
 
 /// ✅ مقارنة قائمتين من RoomWithPaymentStatus لمنع إعادة الإرسال غير الضرورية
@@ -134,7 +135,10 @@ final roomsWithPaymentStatusProvider =
 
           if (activeBooking != null) {
             final hasRemainingBalance =
-                activeBooking.remainingBalanceCached.round() > 0;
+                CurrencyFormatter.truncateAmount(
+                  activeBooking.remainingBalanceCached,
+                ) >
+                0;
 
             if (hasRemainingBalance) {
               final hour = currentTime.hour;

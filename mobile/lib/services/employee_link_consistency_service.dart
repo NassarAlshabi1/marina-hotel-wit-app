@@ -99,6 +99,19 @@ class EmployeeLinkConsistencyService {
             .get();
 
     for (final exp in expenseRows) {
+      // ✅ (m69 — م-3) الإزالة الصريحة مقدسة: علم employeeLinkCleared=true
+      // يعني «المستخدم أزال الرابط عمداً» (تحويل راتب → نوع آخر، أو اختيار
+      // «بدون موظف»). إعادة الربط هنا كانت ستنقض الإزالة بصمت وتُعيد uuid
+      // يتيماً (انتهاك البند 7: الحذف الصريح لا يُنقض بمداد قديم/لاحق).
+      // ملاحظة اتساق مُثبتة: كاتب العلم (expenses_list) يمسح employeeUuid
+      // في نفس العملية، فلا تبقى هوية يتيمة تحت العلم.
+      if (exp.employeeLinkCleared) {
+        report.notes.add(
+          'expense#${exp.id}: الرابط أزاله المستخدم صراحةً '
+          '(employeeLinkCleared) — لا يُعاد، بلا مساس',
+        );
+        continue;
+      }
       final uuid = exp.employeeUuid?.trim() ?? '';
 
       // ── أ) uuid لموظف آخر موجود → الرقمي يُعاد توجيهه لهذا الموظف

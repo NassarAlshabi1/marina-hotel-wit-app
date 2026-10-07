@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' as d;
 
+import '../utils/app_logger.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -9,6 +10,7 @@ import 'local_db.dart';
 import 'salary_cycle_calculator.dart';
 import 'salary_expense_classifier.dart';
 import 'salary_mirror_matcher.dart';
+import 'sync_core/financial_link_store.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SalaryEntitlement {
@@ -101,11 +103,9 @@ class SalaryEntitlementService {
     final totalMonthsWorked = _calculateMonthsDifference(hireDate, now);
     final totalEntitlement = totalMonthsWorked * employee.basicSalary;
 
-    final expenses =
-        await (_db.select(_db.expenses)
-              ..where((e) => e.relatedId.equals(employee.id))
-              ..where((e) => e.deletedAt.isNull()))
-            .get();
+    // ✅ (2026-10-06) بالهوية أولاً: الرقم المحلي أو employee_uuid مع حارس
+    // النسب — انظر shouldAttributeRow (لا ربط برقم وحده، ولا فقدان مال).
+    final expenses = await _getEmployeeExpenses(employee);
 
     double totalWithdrawals = 0; // سحب راتب فقط
     double totalAdvances = 0; // سلفة فقط
@@ -194,7 +194,7 @@ class SalaryEntitlementService {
     // من الاستحقاق إطلاقاً لأن الحساب أعلاه يقرأ جدول expenses فقط.
     // الآن تُضاف السحوبات غير المرتبطة بأي مصروف مقروء.
     final directWithdrawals = await _getUnlinkedWithdrawals(
-      employee.id,
+      employee,
       linkedExpenseIds,
       employeeExpenses: expenses,
     );
@@ -432,6 +432,24 @@ class SalaryEntitlementService {
     final nowEpoch = Time.nowEpoch();
     final carryLogUuid = IdGen.uuid();
 
+    // ✅ (G-2 / 2026-10-06 — تدقيق §3.3): رابطتا الدورتين تُكتبان كهويتين
+    // ثابتتين (UUID) بدل تركهما فارغتين. المطابقة **حتمية ومعلنة**: صف
+    // الدورة الذي يطابق بداية الفترة بدقة (`hotel_day_start`) أو مفتاح
+    // الشهر (`cycle_key = yyyy-MM` عند غياب بداية اليوم) — ولمطابقة واحدة
+    // فقط. صفر مطابقة أو أكثر من واحدة ⇒ يبقى الحقل null (لا تخمين —
+    // والبند 12 يمنع الربط بالاسم/المبلغ/التشابه).
+    final financialLinks = FinancialLinkStore(_db);
+    final previousCycleUuid = await financialLinks.cycleUuidForPeriod(
+      employeeId: employee.id,
+      cycleStartIsoDate: _formatDate(previousCycleStart),
+      monthKey: _monthKey(previousCycleStart),
+    );
+    final currentCycleUuid = await financialLinks.cycleUuidForPeriod(
+      employeeId: employee.id,
+      cycleStartIsoDate: _formatDate(currentCycleStart),
+      monthKey: _monthKey(currentCycleStart),
+    );
+
     // SQLite transaction serializes competing calls from repeated screen opens
     // or two local triggers. The duplicate check and insert must be atomic.
     await _db.transaction(() async {
@@ -447,6 +465,9 @@ class SalaryEntitlementService {
           .insert(
             SalaryCarryOverLogsCompanion.insert(
               employeeId: employee.id,
+              // ✅ (G-2): روابط الدورات الثابتة عبر الأجهزة
+              fromCycleId: d.Value(previousCycleUuid),
+              toCycleId: d.Value(currentCycleUuid),
               // ✅ (2026-09-19) UUID الموظف — الربط الدائم عبر الأجهزة
               employeeUuid: d.Value(
                 employee.localUuid.isEmpty ? null : employee.localUuid,
@@ -476,6 +497,10 @@ class SalaryEntitlementService {
           'employeeUuid': employee.localUuid.isEmpty
               ? null
               : employee.localUuid,
+          // ✅ (G-2): الهويتان الدائمتان للدورتين — تُنقل في الحمولة نفسها
+          // فلا يعتمد الرابط على حل رقمي محلي على أي جهاز لاحقاً.
+          'fromCycleUuid': previousCycleUuid,
+          'toCycleUuid': currentCycleUuid,
           'amount': carriedOver,
           'previousCycleStart': _formatDate(previousCycleStart),
           'previousCycleEnd': _formatDate(previousCycleEnd),
@@ -527,11 +552,9 @@ class SalaryEntitlementService {
     DateTime cycleStart,
     DateTime cycleEnd,
   ) async {
-    final expenses =
-        await (_db.select(_db.expenses)
-              ..where((e) => e.relatedId.equals(employee.id))
-              ..where((e) => e.deletedAt.isNull()))
-            .get();
+    // ✅ (2026-10-06) بالهوية أولاً: الرقم المحلي أو employee_uuid مع حارس
+    // النسب — انظر shouldAttributeRow (لا ربط برقم وحده، ولا فقدان مال).
+    final expenses = await _getEmployeeExpenses(employee);
 
     double withdrawals = 0, deductions = 0, advances = 0, installmentsPaid = 0;
     final transactions = <SalaryCycleTransaction>[];
@@ -606,7 +629,7 @@ class SalaryEntitlementService {
     // ✅ إصلاح المعادلة: السحوبات المباشرة (بلا مصروف مقابل) تدخل الدورة
     // الشهرية أيضاً — وإلا ظل "المتاح للسحب" أعلى من الواقع.
     final directWithdrawals = await _getUnlinkedWithdrawals(
-      employee.id,
+      employee,
       linkedExpenseIds,
       cycleStart: cycleStart,
       cycleEnd: cycleEnd,
@@ -651,6 +674,130 @@ class SalaryEntitlementService {
   /// السحوبات المباشرة غير المرتبطة بأي مصروف مقروء.
   ///
   /// مصدرها زر «سحب راتب» في شاشة الموظفين (settings_employees) الذي ينشئ
+  // ═══════════════════════════════════════════════════════════════════════
+  //  ✅ (2026-10-06) ربط الموظف بالهوية أولاً — لا بالرقم المحلي وحده
+  //
+  //  الفجوة المُثبتة في الكود قبل هذا الإصلاح: كل استعلامات هذه الخدمة كانت
+  //  تُفلتر بالرقم المحلي فقط (`related_id = employee.id` للمصروفات و
+  //  `employee_id` للسحوبات). أي صف وصل من جهاز آخر وفُكّ ربطه محلياً لموظف
+  //  آخر (تصادم أرقام محلية أو ربط مؤجَّل منفَّذ خطأً) كان يُنسب لغير صاحبه
+  //  بصمت — «ربط خاطئ بموظف» في شاشة الاستحقاق.
+  //
+  //  القاعدة الآن (لا تخمين، ولا فقدان مال):
+  //    • لا هوية معلنة على الصف ⇒ يُنسب بالرقم المحلي (سجل قديم، الرقم هو
+  //      الدليل الوحيد المتاح).
+  //    • الهوية المعلنة تطابق هوية الموظف ⇒ يُنسب (وهذا يجذب صفوفاً وصلت
+  //      برقم محلي مختلف — الربط الخاطئ الناتج عن أجهزة متعددة).
+  //    • الهوية المعلنة تخص **موظفاً آخر موجود محلياً** ⇒ يُستبعد هنا
+  //      (سيُحتسب عند صاحبه) — منع الاحتساب المزدوج وسوء النسب.
+  //    • الهوية المعلنة لموظف **غير موجود محلياً** ⇒ يُنسب احتياطاً
+  //      (لا نُسقط مالاً من كل التقارير) مع تسجيل تحذير للمراجعة.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// قرار النسب النقي — قابل للاختبار بلا قاعدة بيانات.
+  static bool shouldAttributeRow({
+    required String declaredUuid,
+    required String ownerUuid,
+    required bool declaredOwnerExistsLocally,
+  }) {
+    final declared = declaredUuid.trim();
+    if (declared.isEmpty) return true; // سجل قديم: الرقم هو الدليل الوحيد
+    if (declared == ownerUuid.trim()) return true;
+    return !declaredOwnerExistsLocally;
+  }
+
+  /// هل توجد محلياً هوية أخرى تحمل [uuid] (أي أن الصف يخص موظفاً آخر)؟
+  Future<bool> _uuidOwnedByOther(String uuid, String selfUuid) async {
+    final value = uuid.trim();
+    if (value.isEmpty || value == selfUuid.trim()) return false;
+    try {
+      final rows = await _db
+          .customSelect(
+            'SELECT id FROM employees WHERE local_uuid = ? LIMIT 1',
+            variables: [d.Variable.withString(value)],
+          )
+          .get();
+      return rows.isNotEmpty;
+    } catch (_) {
+      // تعذّر الفحص ⇒ لا نستبعد (لا فقدان مال) — والقرار يُسجَّل تحذيراً.
+      return false;
+    }
+  }
+
+  /// مصروفات الموظف: الرقم المحلي **أو** الهوية الدائمة، مع حارس النسب.
+  Future<List<Expense>> _getEmployeeExpenses(Employee employee) async {
+    final uuid = employee.localUuid.trim();
+    final query = _db.select(_db.expenses)..where((e) => e.deletedAt.isNull());
+    if (uuid.isEmpty) {
+      query.where((e) => e.relatedId.equals(employee.id));
+    } else {
+      query.where(
+        (e) => e.relatedId.equals(employee.id) | e.employeeUuid.equals(uuid),
+      );
+    }
+    final rows = await query.get();
+    final result = <Expense>[];
+    for (final row in rows) {
+      final declared = (row.employeeUuid ?? '').trim();
+      final ownerExists = declared.isEmpty || declared == uuid
+          ? false
+          : await _uuidOwnedByOther(declared, uuid);
+      if (shouldAttributeRow(
+        declaredUuid: declared,
+        ownerUuid: uuid,
+        declaredOwnerExistsLocally: ownerExists,
+      )) {
+        result.add(row);
+      } else {
+        AppLogger.warning(
+          '⛔ استُبعد مصروف #${row.id} من استحقاق الموظف #${employee.id}: '
+          'يعلن الانتماء لهوية أخرى ($declared) وهي موجودة محلياً — '
+          'يُحتسب عند صاحبه (لا احتساب مزدوج).',
+          tag: 'ENTITLEMENT',
+        );
+      }
+    }
+    return result;
+  }
+
+  /// سحوبات الموظف: الرقم المحلي **أو** الهوية الدائمة، مع حارس النسب.
+  Future<List<SalaryWithdrawal>> _getEmployeeWithdrawals(
+    Employee employee,
+  ) async {
+    final uuid = employee.localUuid.trim();
+    final query = _db.select(_db.salaryWithdrawals)
+      ..where((t) => t.deletedAt.isNull());
+    if (uuid.isEmpty) {
+      query.where((t) => t.employeeId.equals(employee.id));
+    } else {
+      query.where(
+        (t) => t.employeeId.equals(employee.id) | t.employeeUuid.equals(uuid),
+      );
+    }
+    final rows = await query.get();
+    final result = <SalaryWithdrawal>[];
+    for (final row in rows) {
+      final declared = (row.employeeUuid ?? '').trim();
+      final ownerExists = declared.isEmpty || declared == uuid
+          ? false
+          : await _uuidOwnedByOther(declared, uuid);
+      if (shouldAttributeRow(
+        declaredUuid: declared,
+        ownerUuid: uuid,
+        declaredOwnerExistsLocally: ownerExists,
+      )) {
+        result.add(row);
+      } else {
+        AppLogger.warning(
+          '⛔ استُبعدت سحبة #${row.id} من استحقاق الموظف #${employee.id}: '
+          'تعلن الانتماء لهوية أخرى ($declared) وهي موجودة محلياً.',
+          tag: 'ENTITLEMENT',
+        );
+      }
+    }
+    return result;
+  }
+
   /// سجلاً في salary_withdrawals فقط بلا مصروف مقابل (expenseId = 0).
   /// dedup عبر SalaryMirrorMatcher (مصدر الحقيقة الموحّد):
   ///   1. عمود expense_id الخام (Migration 40) — إن أشار لمصروف مقروء.
@@ -661,17 +808,14 @@ class SalaryEntitlementService {
   ///      «الاورمو محمد» المثبتة 2026-09-14).
   /// المرايا السالبة (خصوم) تُهمل — الخصم يُقرأ من جدول المصروفات فقط.
   Future<List<_DirectWithdrawalData>> _getUnlinkedWithdrawals(
-    int employeeId,
+    Employee employee,
     Set<int> linkedExpenseIds, {
     DateTime? cycleStart,
     DateTime? cycleEnd,
     List<Expense>? employeeExpenses,
   }) async {
-    final rows =
-        await (_db.select(_db.salaryWithdrawals)
-              ..where((t) => t.employeeId.equals(employeeId))
-              ..where((t) => t.deletedAt.isNull()))
-            .get();
+    // ✅ (2026-10-06) الرقم المحلي أو الهوية الدائمة + حارس النسب.
+    final rows = await _getEmployeeWithdrawals(employee);
     if (rows.isEmpty) return const [];
 
     // مرشحو المطابقة: مصروفات الموظف النقدي فقط (بنطاق القراءة المطلوب)
@@ -688,6 +832,8 @@ class SalaryEntitlementService {
             // ✅ (هجرة 68) حقول الهوية — المستوى 0 في المطابِق
             localUuid: e.localUuid,
             withdrawalUuid: e.withdrawalUuid,
+            // ✅ (P2-7): دليل فضاء المعرّفات للأرقام المحلية
+            deviceId: e.deviceId,
           ),
         )
         .toList(growable: false);
@@ -706,8 +852,10 @@ class SalaryEntitlementService {
         amount: sw.amount,
         hotelDayKey: sw.hotelDayKey,
         withdrawDate: sw.withdrawDate,
-        employeeId: employeeId,
+        employeeId: employee.id,
         expenses: candidates,
+        // ✅ (P2-7): جهاز كاتب السحبة — proof للربط الرقمي
+        sourceDeviceId: sw.deviceId,
       );
       if (isMirror) continue;
 
@@ -789,6 +937,11 @@ class SalaryEntitlementService {
     );
     return nextStart.subtract(const Duration(days: 1));
   }
+
+  /// مفتاح الشهر (yyyy-MM) لسياسة `cycle_key` في جدول الدورات.
+  String _monthKey(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}';
 
   DateTime? _parseDate(String dateStr) {
     if (dateStr.isEmpty) return null;

@@ -786,4 +786,466 @@ void main() {
     expect(sliceRows(rows, 2, 5), isEmpty, reason: 'OFFSET بعد النهاية');
     expect(sliceRows(rows, 0, 0), isEmpty, reason: 'LIMIT=0 آمن');
   });
+  // ═════════════════════════════════════════════════════════════════════════
+  // ✅ (2026-10-06) التحقق من حقول الهوية المالية في مسار الرفع إلى D1
+  //
+  // مسار D1 يقرأ `SELECT *` من القاعدة المحلية ويرفع أسماء الأعمدة حرفياً،
+  // ويبني CREATE/ALTER من DDL المحلي نفسه (sqlite_master) — لذا يجب أن تكون
+  // حقول الهوية الدائمة (UUID) موجودة **فعلاً** في المخطط المحلي وفي الـ DDL
+  // الذي يُنقل إلى D1، وإلا رُفعت نسخة بلا هوية (نفس الخطر الذي حاربناه في
+  // G-1/G-2 على مستوى المزامنة).
+  // ═════════════════════════════════════════════════════════════════════════
+  group('حقول الهوية المالية في رفع D1', () {
+    /// أعمدة جدول كما تصل إلى D1 (نفس SELECT * الذي يقرأه التبويب).
+    Future<Set<String>> uploadColumns(String table) async {
+      final rows = await db
+          .customSelect('SELECT * FROM "$table" LIMIT 0')
+          .get();
+      // Drift يعيد الأعمدة حتى مع صفر صفوف عبر pragma.
+      if (rows.isEmpty) return tableColumns(table);
+      return rows.first.data.keys.toSet();
+    }
+
+    /// نص CREATE TABLE كما هو في sqlite_master (يُنقل إلى D1 كـ IF NOT EXISTS
+    /// ويُستخرج منه تعريف الأعمدة لمصالحة المخطط).
+    Future<String> localDdl(String table) async {
+      final rows = await db
+          .customSelect(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name = ?",
+            variables: [Variable.withString(table)],
+          )
+          .get();
+      return rows.isEmpty ? '' : (rows.first.data['sql']?.toString() ?? '');
+    }
+
+    const identityFields = <String, List<String>>{
+      'employees': ['local_uuid'],
+      'expenses': ['local_uuid', 'employee_uuid', 'withdrawal_uuid'],
+      'salary_withdrawals': ['local_uuid', 'employee_uuid', 'expense_uuid'],
+      'salary_cycles': ['local_uuid', 'employee_uuid'],
+      'salary_payments': ['local_uuid', 'employee_uuid', 'cycle_uuid'],
+      'salary_carry_over_logs': [
+        'local_uuid',
+        'employee_uuid',
+        'from_cycle_id',
+        'to_cycle_id',
+      ],
+    };
+
+    test('كل جدول مالي يحمل حقول الهوية في المخطط المحلي (SELECT *)', () async {
+      final failures = <String>[];
+      for (final entry in identityFields.entries) {
+        final columns = await uploadColumns(entry.key);
+        for (final field in entry.value) {
+          if (!columns.contains(field)) {
+            failures.add('${entry.key}.$field');
+          }
+        }
+      }
+      expect(
+        failures,
+        isEmpty,
+        reason:
+            'حقول هوية ناقصة من مسار الرفع إلى D1 (ستُرفع بلا رابط دائم): '
+            '${failures.join('، ')}',
+      );
+    });
+
+    test(
+      'نص DDL المحلي (المصدر لـ CREATE/ALTER على D1) يحمل نفس الحقول',
+      () async {
+        final failures = <String>[];
+        for (final entry in identityFields.entries) {
+          final ddl = await localDdl(entry.key);
+          if (ddl.isEmpty) {
+            failures.add('${entry.key}: لا DDL في sqlite_master');
+            continue;
+          }
+          for (final field in entry.value) {
+            // العمود قد يكون مقتبساً (نمط Drift) أو غير مقتبس (عمود أُضيف
+            // بـ ALTER TABLE ADD COLUMN بلا اقتباس) — كلاهما صالح على D1،
+            // والمهم أن يحلّله _columnFragments (انظر اختباره المستقل).
+            if (!ddl.contains('"$field"') &&
+                !RegExp('\\b$field\\b').hasMatch(ddl)) {
+              failures.add('${entry.key}.$field');
+            }
+          }
+        }
+        expect(
+          failures,
+          isEmpty,
+          reason:
+              'DDL المنقول إلى D1 لا يتضمن حقول الهوية ⇒ _reconcileSchema لن '
+              'يستطيع إضافتها هناك: ${failures.join('، ')}',
+        );
+      },
+    );
+
+    test('محلل DDL يقبل الاسم غير المقتبس (شكل العمود المُضاف بـ ALTER)', () {
+      // الشكل الحقيقي المُثبت في الإنتاج: ALTER بلا اقتباس يُلحق النص
+      // `cycle_uuid TEXT` بنص CREATE في sqlite_master.
+      const ddl =
+          'CREATE TABLE "salary_payments" ("id" INTEGER NOT NULL, '
+          '"local_uuid" TEXT NOT NULL, "cycle_id" INTEGER NOT NULL, '
+          '"amount" INTEGER NOT NULL DEFAULT 0, cycle_uuid TEXT, '
+          'PRIMARY KEY ("id"), UNIQUE ("local_uuid"))';
+      final frags = CloudflareD1Service.columnFragmentsForTest(ddl);
+      expect(frags['cycle_uuid'], 'TEXT', reason: 'عمود ALTER غير المقتبس');
+      expect(frags['local_uuid'], 'TEXT NOT NULL');
+      expect(frags['amount'], 'INTEGER NOT NULL DEFAULT 0');
+      expect(
+        frags.containsKey('PRIMARY'),
+        isFalse,
+        reason: 'قيود الجدول ليست أعمدة',
+      );
+      expect(frags.containsKey('UNIQUE'), isFalse);
+    });
+
+    test(
+      'D1 ينقصه cycle_uuid ⇒ يُضاف بـ ALTER قبل INSERT (إصلاح الرفع)',
+      () async {
+        final captured = <String>[];
+        final client = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final sql = body['sql'] as String;
+          captured.add(sql);
+          if (sql.contains('pragma_table_info')) {
+            // D1 الحقيقي: الجدول موجود لكن بلا العمود الجديد (مخطط أقدم).
+            return http.Response(
+              jsonEncode({
+                'success': true,
+                'result': [
+                  {
+                    'results': [
+                      {'name': 'id'},
+                      {'name': 'local_uuid'},
+                    ],
+                  },
+                ],
+              }),
+              200,
+            );
+          }
+          return http.Response('{"success": true, "result": []}', 200);
+        });
+        final service = CloudflareD1Service(
+          const CloudflareD1Config(
+            accountId: 'a',
+            databaseId: 'b',
+            apiToken: 't',
+          ),
+          client: client,
+        );
+
+        final result = await service.uploadData(
+          tables: [
+            CloudflareD1SourceTable(
+              name: 'salary_payments',
+              rowCount: 1,
+              createSqlList: const [
+                'CREATE TABLE "salary_payments" ("id" INTEGER NOT NULL, '
+                    '"local_uuid" TEXT NOT NULL, cycle_uuid TEXT)',
+              ],
+              readChunk: (limit, offset) async => offset > 0
+                  ? const <Map<String, Object?>>[]
+                  : [
+                      <String, Object?>{
+                        'id': 1,
+                        'local_uuid': 'pay-uuid-1',
+                        'cycle_uuid': 'cycle-uuid-1',
+                      },
+                    ],
+            ),
+          ],
+        );
+
+        final blob = captured.join('\n');
+        expect(
+          blob,
+          contains('ADD COLUMN "cycle_uuid" TEXT'),
+          reason: 'بدون هذا ALTER يفشل INSERT كامل للجدول على D1',
+        );
+        expect(blob, contains('INSERT OR REPLACE INTO "salary_payments"'));
+        expect(blob, contains("'cycle-uuid-1'"));
+        expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      },
+    );
+
+    test(
+      'رفع صفوف فعلية: القيم تُرسل بأسماء الأعمدة snake_case نفسها',
+      () async {
+        final empId = await db
+            .into(db.employees)
+            .insert(
+              EmployeesCompanion.insert(
+                localUuid: 'emp-uuid-d1',
+                createdAt: 1,
+                updatedAt: 1,
+                lastModified: 1,
+                name: 'موظف D1',
+                basicSalary: 1000,
+                status: 'active',
+              ),
+            );
+        final cycleId = await db
+            .into(db.salaryCycles)
+            .insert(
+              SalaryCyclesCompanion.insert(
+                localUuid: 'cycle-uuid-d1',
+                createdAt: 1,
+                updatedAt: 1,
+                lastModified: 1,
+                employeeId: empId,
+                cycleKey: '2026-10',
+                employeeUuid: const Value('emp-uuid-d1'),
+              ),
+            );
+        await db
+            .into(db.salaryPayments)
+            .insert(
+              SalaryPaymentsCompanion.insert(
+                localUuid: 'pay-uuid-d1',
+                createdAt: 1,
+                updatedAt: 1,
+                lastModified: 1,
+                cycleId: cycleId,
+                amount: const Value(500),
+                employeeUuid: const Value('emp-uuid-d1'),
+                paymentDateIso: '2026-10-01',
+              ),
+            );
+        // العمود يضمنه beforeOpen (لا يظهر في Companion المولَّد).
+        await db.customStatement(
+          "UPDATE salary_payments SET cycle_uuid = 'cycle-uuid-d1' "
+          "WHERE local_uuid = 'pay-uuid-d1'",
+        );
+
+        final rows = await db
+            .customSelect('SELECT * FROM "salary_payments"')
+            .get();
+        final row = rows.first.data;
+        expect(row['local_uuid'], 'pay-uuid-d1');
+        expect(row['employee_uuid'], 'emp-uuid-d1');
+        expect(row['cycle_uuid'], 'cycle-uuid-d1');
+        expect(row['cycle_id'], cycleId);
+
+        // سجل الترحيل: رابطتا الدورتين (G-2) تصلان إلى D1 كنصّين.
+        final logId = await db
+            .into(db.salaryCarryOverLogs)
+            .insert(
+              SalaryCarryOverLogsCompanion.insert(
+                localUuid: 'carry-uuid-d1',
+                createdAt: 1,
+                updatedAt: 1,
+                lastModified: 1,
+                employeeId: empId,
+                amount: 0,
+                previousCycleStart: '2026-09-05',
+                previousCycleEnd: '2026-10-04',
+                newCycleStart: '2026-10-05',
+                newCycleEnd: '2026-11-04',
+                reason: 'اختبار D1',
+                carriedAt: 1,
+              ),
+            );
+        await db.customStatement(
+          "UPDATE salary_carry_over_logs SET employee_uuid = 'emp-uuid-d1', "
+          "from_cycle_id = 'cycle-uuid-prev', to_cycle_id = 'cycle-uuid-d1' "
+          'WHERE id = ?',
+          [logId],
+        );
+        final logRows = await db
+            .customSelect('SELECT * FROM "salary_carry_over_logs"')
+            .get();
+        final log = logRows.first.data;
+        expect(log['employee_uuid'], 'emp-uuid-d1');
+        expect(log['from_cycle_id'], 'cycle-uuid-prev');
+        expect(log['to_cycle_id'], 'cycle-uuid-d1');
+      },
+    );
+  });
+  // ═══════════════════════════════════════════════════════════════════
+  // ✅ (2026-10-07) حقول عقد العلاقات المحمولة (migration 69) في مسار D1:
+  //    expenses.expense_kind / expenses.employee_link_cleared /
+  //    salary_payments.cycle_uuid — تُثبَّت هنا من طرف الرفع الفعلي لأن
+  //    تبويب D1 يقرأ SELECT * ويرسل أسماء الأعمدة حرفياً بلا طبقة تحويل.
+  // ═══════════════════════════════════════════════════════════════════
+  group('حقول عقد m69 في رفع Cloudflare D1', () {
+    test(
+      'أعمدة العقد موجودة في المخطط المحلي (شرط وصولها إلى SELECT *)',
+      () async {
+        const expected = <String, List<String>>{
+          'expenses': [
+            'expense_kind',
+            'employee_link_cleared',
+            'employee_uuid',
+            'withdrawal_uuid',
+          ],
+          'salary_payments': ['cycle_uuid', 'employee_uuid', 'cycle_id'],
+          'salary_withdrawals': ['employee_uuid', 'expense_uuid'],
+          'salary_cycles': ['employee_uuid'],
+          'salary_carry_over_logs': [
+            'employee_id',
+            'employee_uuid',
+            'from_cycle_id',
+            'to_cycle_id',
+            'carry_date',
+            'hotel_day_key',
+          ],
+          'employees': ['local_uuid'],
+        };
+        final failures = <String>[];
+        for (final entry in expected.entries) {
+          final columns = await tableColumns(entry.key);
+          for (final c in entry.value) {
+            if (!columns.contains(c)) {
+              failures.add('${entry.key}.$c');
+            }
+          }
+        }
+        expect(
+          failures,
+          isEmpty,
+          reason:
+              'أعمدة عقد m69 غائبة عن المخطط المحلي ⇒ لن تصل إلى D1 أبداً '
+              '(الرفع SELECT * بلا whitelist): ${failures.join('، ')}',
+        );
+      },
+    );
+
+    test(
+      'uploadData الفعلي: expense_kind + employee_link_cleared يصلان بقيمهما',
+      () async {
+        final captured = <String>[];
+        final client = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          captured.add(body['sql'] as String);
+          return http.Response('{"success": true, "result": []}', 200);
+        });
+        final service = CloudflareD1Service(
+          const CloudflareD1Config(
+            accountId: 'a',
+            databaseId: 'b',
+            apiToken: 't',
+          ),
+          client: client,
+        );
+
+        final result = await service.uploadData(
+          tables: [
+            CloudflareD1SourceTable(
+              name: 'expenses',
+              rowCount: 1,
+              createSqlList: const [
+                'CREATE TABLE "expenses" ("id" INTEGER NOT NULL, '
+                    '"local_uuid" TEXT NOT NULL, "expense_kind" TEXT, '
+                    '"employee_link_cleared" BOOLEAN NOT NULL DEFAULT 0)',
+              ],
+              readChunk: (limit, offset) async => offset > 0
+                  ? const <Map<String, Object?>>[]
+                  : [
+                      <String, Object?>{
+                        'id': 7,
+                        'local_uuid': 'exp-uuid-7',
+                        'expense_kind': 'salary_installment',
+                        'employee_link_cleared': 1,
+                      },
+                    ],
+            ),
+          ],
+        );
+
+        final blob = captured.join('\n');
+        expect(blob, contains('INSERT OR REPLACE INTO "expenses"'));
+        expect(blob, contains('"expense_kind"'));
+        expect(blob, contains('"employee_link_cleared"'));
+        expect(blob, contains("'salary_installment'"));
+        expect(
+          blob,
+          contains(',1)'),
+          reason: 'employee_link_cleared يُرفع عدداً (0/1) — نفس تمثيل D1',
+        );
+        expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      },
+    );
+
+    test(
+      'D1 قديم بلا حقلي العقد ⇒ ALTER لكل عمود قبل INSERT (لا فشل جدول)',
+      () async {
+        final captured = <String>[];
+        final client = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final sql = body['sql'] as String;
+          captured.add(sql);
+          if (sql.contains('pragma_table_info')) {
+            return http.Response(
+              jsonEncode({
+                'success': true,
+                'result': [
+                  {
+                    'results': [
+                      {'name': 'id'},
+                      {'name': 'local_uuid'},
+                    ],
+                  },
+                ],
+              }),
+              200,
+            );
+          }
+          return http.Response('{"success": true, "result": []}', 200);
+        });
+        final service = CloudflareD1Service(
+          const CloudflareD1Config(
+            accountId: 'a',
+            databaseId: 'b',
+            apiToken: 't',
+          ),
+          client: client,
+        );
+
+        final result = await service.uploadData(
+          tables: [
+            CloudflareD1SourceTable(
+              name: 'expenses',
+              rowCount: 1,
+              createSqlList: const [
+                'CREATE TABLE "expenses" ("id" INTEGER NOT NULL, '
+                    '"local_uuid" TEXT NOT NULL, "expense_kind" TEXT, '
+                    '"employee_link_cleared" BOOLEAN NOT NULL DEFAULT 0)',
+              ],
+              readChunk: (limit, offset) async => offset > 0
+                  ? const <Map<String, Object?>>[]
+                  : [
+                      <String, Object?>{
+                        'id': 7,
+                        'local_uuid': 'exp-uuid-7',
+                        'expense_kind': 'normal',
+                        'employee_link_cleared': 0,
+                      },
+                    ],
+            ),
+          ],
+        );
+
+        final blob = captured.join('\n');
+        expect(blob, contains('ADD COLUMN "expense_kind" TEXT'));
+        expect(
+          blob,
+          contains(
+            'ADD COLUMN "employee_link_cleared" BOOLEAN NOT NULL DEFAULT 0',
+          ),
+          reason: 'NOT NULL مع DEFAULT يبقى كما هو — ALTER صالح في SQLite',
+        );
+        final alterIdx = blob.indexOf('ADD COLUMN "expense_kind"');
+        final insertIdx = blob.indexOf('INSERT OR REPLACE INTO "expenses"');
+        expect(
+          alterIdx,
+          lessThan(insertIdx),
+          reason: 'الـALTER يجب أن يسبق أول INSERT وإلا فشل الجدول كاملاً',
+        );
+        expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      },
+    );
+  });
 }

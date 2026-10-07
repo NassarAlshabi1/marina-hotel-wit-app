@@ -1,5 +1,7 @@
-import '../utils/hotel_date_helper.dart';
 import 'dart:convert';
+
+import '../utils/currency_formatter.dart';
+import '../utils/hotel_date_helper.dart';
 
 /// فئة أدوات موحدة لمعالجة البيانات قبل إرسالها أو بعد سحبها من Appwrite
 class AppwriteSyncUtils {
@@ -35,6 +37,49 @@ class AppwriteSyncUtils {
   // ⚠️ هذا هو المصدر الوحيد للحقيقة — لا تخمن حقولاً!
   // أي حقل غير موجود هنا سيُزال تلقائياً قبل الإرسال لمنع "Unknown attribute"
   // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════
+  //  صلابة «Unknown attribute» (م-2 — عقد m69 على Appwrite)
+  // ════════════════════════════════════════════════════════════════════
+  //
+  // الرمز الذي يُلتقط من خدمة Appwrite عند رفض حقل غير موجود في مخطط المجموعة:
+  //   document_invalid_structure: Unknown attribute: "X" (400)
+  // هذه الدوال نقية (بلا I/O) لتُختبر مباشرة، وهي المصدر الوحيد للسياسة:
+  // يُزال **الحقل المذكور فقط** ويُعاد الإرسال — لا تُسقط الحمولة كاملة ولا
+  // تُخمَّن حقول أخرى (بقية السجلات/الحقول تُرفع كما هي).
+
+  /// استخراج اسم السمة غير المعروفة من خطأ Appwrite — أو null إن لم يكن
+  /// الخطأ من نوع «بنية مستند غير صالحة». [message] نص الرسالة (رسالة
+  /// الاستثناء أو نصه الكامل). النمط نفسه المستخدم في appwrite_service.
+  static final RegExp unknownAttributePattern = RegExp(
+    r'Unknown attribute:\s*"([^"]+)"',
+  );
+
+  static String? unknownAttributeFromError({
+    int? code,
+    String? type,
+    required String message,
+  }) {
+    final t = type ?? '';
+    final isStructureError =
+        code == 400 &&
+        (t.contains('document_invalid_structure') ||
+            message.contains('Invalid document structure') ||
+            message.contains('Unknown attribute'));
+    if (!isStructureError) return null;
+    return unknownAttributePattern.firstMatch(message)?.group(1);
+  }
+
+  /// نسخة الحمولة بعد إزالة حقل واحد فقط — الحقول الأخرى (بما فيها ما بعده
+  /// من حقول العقد) تبقى كما هي، والقيم لا تُمَس إطلاقاً.
+  static Map<String, dynamic> withoutField(
+    Map<String, dynamic> data,
+    String field,
+  ) {
+    final copy = Map<String, dynamic>.from(data);
+    copy.remove(field);
+    return copy;
+  }
+
   static const Map<String, Set<String>> validFieldsPerCollection = {
     'app_settings': {
       // ✅ الإصلاح: حذف 'api_key' (لا يُرفع للسحابة — ثغرة أمنية، ولا يُستخدم
@@ -488,7 +533,9 @@ class AppwriteSyncUtils {
       'deletedAtIso',
       'description',
       'deviceId',
+      'employeeLinkCleared',
       'employeeUuid',
+      'expenseKind',
       'expenseType',
       'hotelDayKey',
       'id',
@@ -749,15 +796,25 @@ class AppwriteSyncUtils {
     'salary_carry_over_logs': {
       'amount',
       'carriedAt',
+      'carryDate',
       'createdAt',
       'createdAtEpoch',
       'createdAtIso',
       'deletedAt',
       'deletedAtIso',
       'deviceId',
+      // ✅ (migration 69 — إغلاق فجوة القص G-2b) رابطتا الدورتين كانتا
+      // تُرسلان من المحوّل منذ إصلاح G-2 لكن قوائم السماح لا تحويهما
+      // فكان filterPayloadForCollection يقصّهما قبل الرفع — إصلاح G-2
+      // لم يكن يصل فعلياً إلى السحابة. الإضافة هنا تُفعّله في كل المسارات.
+      'fromCycleId',
+      'fromCycleUuid',
+      'toCycleId',
+      'toCycleUuid',
       'employeeId',
       'employeeLocalUuid',
       'employeeUuid',
+      'hotelDayKey',
       'idempotencyKey',
       'lastModified',
       'lastModifiedEpoch',
@@ -813,6 +870,9 @@ class AppwriteSyncUtils {
       'createdAtIso',
       'cycleId',
       'cycleLocalUuid',
+      // ✅ (migration 69 — إغلاق فجوة القص G-1b) cycleUuid كان يُختم في
+      // الحمولة (appwrite_sync_manager) ويُقصّ هنا فلا يصل للسحابة أبداً.
+      'cycleUuid',
       'deletedAt',
       'deletedAtIso',
       'deviceId',
@@ -1190,6 +1250,9 @@ class AppwriteSyncUtils {
       'employeeUuid': 'string',
       // ✅ (migration 68) uuid سحبة المرآة
       'withdrawalUuid': 'string',
+      // ✅ (migration 69 — عقد الفرعين D1 0015/0012) حقول العقد المحمولة
+      'expenseKind': 'string',
+      'employeeLinkCleared': 'boolean',
     },
     'debts': {
       'localUuid': 'string',
@@ -1407,6 +1470,8 @@ class AppwriteSyncUtils {
       'sync_origin': 'string',
       'cycleId': 'integer',
       'cycleLocalUuid': 'string',
+      // ✅ (migration 69 — D1 0011) هوية الدورة المحمولة على الدفعة
+      'cycleUuid': 'string',
       'employeeUuid': 'string',
       'employeeLocalUuid': 'string',
       'amount': 'integer',
@@ -1481,6 +1546,14 @@ class AppwriteSyncUtils {
       'newCycleEnd': 'string',
       'reason': 'string',
       'carriedAt': 'integer',
+      // ✅ (migration 69 — إغلاق فجوة القص G-2b) روابط الدورتين + حقول
+      // السجل التي يرسلها المحوّل فعلاً (كانت تُقص قبل الرفع)
+      'fromCycleUuid': 'string',
+      'fromCycleId': 'string',
+      'toCycleUuid': 'string',
+      'toCycleId': 'string',
+      'carryDate': 'string',
+      'hotelDayKey': 'string',
     },
     'blacklist': {
       'localUuid': 'string',
@@ -1935,7 +2008,9 @@ class AppwriteSyncUtils {
     final result = Map<String, dynamic>.from(payload);
     for (final field in intFields) {
       if (result.containsKey(field) && result[field] is num) {
-        result[field] = (result[field] as num).round();
+        // G-10: سياسة «لا كسور عشرية» — اقتطاع نحو الصفر قبل الإرسال إلى
+        // حقل integer على Appwrite (بدل round الذي كان يزيد المبلغ).
+        result[field] = CurrencyFormatter.truncateAmount(result[field] as num);
       }
     }
     return result;

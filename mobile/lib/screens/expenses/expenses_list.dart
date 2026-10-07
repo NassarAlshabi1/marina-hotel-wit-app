@@ -1256,12 +1256,27 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             date: trimmedDate,
             hotelDayKey: updatedHotelDayKey,
             // ✅ التوصية 1: اكتب employeeUuid وقت التعديل.
-            // - لمصروف الراتب: localUuid للموظف المختار.
-            // - لغير الراتب: '' لمسح أي رابط قديم (يمنع بقاء رابط يتيم عند
+            // - لمصروف الرواتب: localUuid للموظف المختار.
+            // - لغير الرواتب: '' لمسح أي رابط قديم (يمنع بقاء رابط يتيم عند
             //   التحويل من راتب إلى نوع آخر).
             employeeUuid: (isSalaryExpense && resolvedEmployee != null)
                 ? resolvedEmployee.localUuid
                 : '',
+            // ✅ (migration 69 — D1 0012) علامة الإزالة الصريحة:
+            // - مصروف راتب بقي مرتبطاً بموظف ⇒ false (الرابط قائم عمداً).
+            // - تحوّل من راتب إلى نوع غير راتبي (أو انفصل موظفه) ⇒ true —
+            //   «المستخدم أزال الرابط عمداً»، فلا يعيد السحب القديم
+            //   استعادة رابط أزيل. مصروف غير راتبي أصلاً ⇒ null (لا تغيير).
+            employeeLinkCleared: isSalaryExpense
+                ? false
+                : (SalaryExpenseClassifier.isSalaryRelated(existing.expenseType)
+                      ? true
+                      : null),
+            // ✅ (m69 — م-3) إزالة صريحة للرابط الرقمي مع إزالة الهوية:
+            // كانت employeeUuid تُمحى بينما relatedId يبقى (لمسحه يحتاج
+            // قيمة صريحة) ⇒ رقم يتيم يشير للموظف. الآن الطرفان يزولان معاً
+            // مع رفع العلم employeeLinkCleared=true.
+            clearRelatedId: !isSalaryExpense,
           );
 
           if (isSalaryExpense && resolvedEmployee != null) {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart' as d;
 
 import '../utils/status_utils.dart';
+import '../utils/currency_formatter.dart';
 import 'hotel_time_engine.dart';
 import 'local_db.dart';
 
@@ -230,11 +231,11 @@ class BookingComputedStreamService {
               ..where((r) => r.roomNumber.equals(booking.roomNumber))
               ..where((r) => r.deletedAt.isNull()))
             .getSingleOrNull();
-    final pricePerNight = (room?.price ?? 0).round();
+    final pricePerNight = CurrencyFormatter.truncateAmount(room?.price ?? 0);
 
     // Calculate total due (days * price, minus total-type discount)
     int totalDue = days * pricePerNight;
-    final discount = booking.discount.round();
+    final discount = CurrencyFormatter.truncateAmount(booking.discount);
     if (booking.discountType == 'total' && discount > 0) {
       totalDue = (totalDue - discount).clamp(0, totalDue);
     }
@@ -273,7 +274,10 @@ class BookingComputedStreamService {
               ..where((p) => p.isPendingBalance.equals(false)))
             .get();
 
-    return payments.fold<int>(0, (sum, p) => sum + p.amount.round());
+    return payments.fold<int>(
+      0,
+      (sum, p) => sum + CurrencyFormatter.truncateAmount(p.amount),
+    );
   }
 
   /// Pre-load all payments for a list of bookings in a single query.
@@ -322,10 +326,12 @@ class BookingComputedStreamService {
       checkOut: effectiveCheckOut,
     );
 
-    final pricePerNight = (roomMap[booking.roomNumber]?.price ?? 0).round();
+    final pricePerNight = CurrencyFormatter.truncateAmount(
+      roomMap[booking.roomNumber]?.price ?? 0,
+    );
 
     int totalDue = days * pricePerNight;
-    final discount = booking.discount.round();
+    final discount = CurrencyFormatter.truncateAmount(booking.discount);
     if (booking.discountType == 'total' && discount > 0) {
       totalDue = (totalDue - discount).clamp(0, totalDue);
     }
@@ -333,7 +339,7 @@ class BookingComputedStreamService {
     final bookingPayments = paymentsMap[booking.id] ?? [];
     final totalPaid = bookingPayments.fold<int>(
       0,
-      (sum, p) => sum + p.amount.round(),
+      (sum, p) => sum + CurrencyFormatter.truncateAmount(p.amount),
     );
     final remaining = (totalDue - totalPaid).clamp(0, totalDue);
 

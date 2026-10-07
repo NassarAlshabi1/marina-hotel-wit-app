@@ -59,9 +59,16 @@ void main() {
     });
   });
 
-  group('SmartConflictResolver newerWins tie-break (timestamp equality)', () {
+  // ✅ (G-4 — تدقيق الهوية المالية 2026-10-06): الحقول المالية الحرجة
+  // (`amount` منها) لم تعد تخضع لـ newerWins عند التعارض المتزامن — السياسة
+  // الصريحة: تُحفظ القيمة المحلية محلياً، وتبقى قيمة الجهاز الآخر على السحابة،
+  // ويُسجَّل التعارض في sync_conflicts للمراجعة البشرية (requiresReview).
+  // لذلك اختبارات هذا الملف التي كانت تؤكد «فوز البعيد/التعادل بالـ deviceId»
+  // على `amount` صارت تؤكد سياسة المراجعة. اختبارات الحقول غير الحرجة تُبرهن
+  // أن newerWins ما زال يعمل (انظر اختبار `room` أدناه).
+  group('SmartConflictResolver — سياسة الحقول المالية الحرجة (G-4)', () {
     test(
-      'تساوي timestamp → القرار حتمي عبر deviceId (لا يفوز البعيد تلقائياً)',
+      'تساوي timestamp على حقل مالي → لا يفوز أحد صامتاً: القيمة المحلية تبقى + مراجعة',
       () {
         // local و remote بنفس lastModified تماماً.
         final localData = {
@@ -84,10 +91,38 @@ void main() {
           commonAncestor: null,
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
-        // deviceId أصغر أبجدياً (device-A) يربح عند التعادل → remote.
-        expect(result.mergedData['amount'], equals(200));
+        // ✅ (G-4) القيمة المحلية محفوظة ولا تُرفع لتطمس نسخة الجهاز الآخر.
+        expect(result.mergedData['amount'], equals(100));
+        expect(result.requiresReview, isTrue);
+        expect(result.reviewFields, contains('amount'));
+        expect(result.pushedToRemote, isFalse);
       },
     );
+
+    test('حقل غير مالي متعارض → newerWins ما زال يعمل (deviceId أصغر)', () {
+      final localData = {
+        'room': 'B',
+        'lastModified': 5000,
+        'deviceId': 'device-B',
+        'vectorClock': '{"device-B":1}',
+      };
+      final remoteData = {
+        'room': 'A',
+        'lastModified': 5000,
+        'deviceId': 'device-A',
+        'vectorClock': '{"device-A":1}',
+      };
+      final result = SmartConflictResolver.resolve(
+        entity: 'payments',
+        localData: localData,
+        remoteData: remoteData,
+        commonAncestor: null,
+      );
+      // deviceId أصغر أبجدياً (device-A) يربح عند التعادل → remote.
+      expect(result.mergedData['room'], equals('A'));
+      expect(result.requiresReview, isFalse);
+      expect(result.pushedToRemote, isTrue);
+    });
 
     test('تساوي timestamp ومحلي له deviceId أصغر → يحافظ على المحلي', () {
       final localData = {
@@ -111,27 +146,34 @@ void main() {
       expect(result.mergedData['amount'], equals(100));
     });
 
-    test('remote أحدث صراحةً → يربح دائماً', () {
-      final localData = {
-        'amount': 100,
-        'lastModified': 4000,
-        'deviceId': 'device-A',
-        'vectorClock': '{"device-A":1}',
-      };
-      final remoteData = {
-        'amount': 200,
-        'lastModified': 5000,
-        'deviceId': 'device-B',
-        'vectorClock': '{"device-B":1}',
-      };
-      final result = SmartConflictResolver.resolve(
-        entity: 'payments',
-        localData: localData,
-        remoteData: remoteData,
-        commonAncestor: null,
-      );
-      expect(result.mergedData['amount'], equals(200));
-    });
+    test(
+      'remote أحدث صراحةً على حقل مالي → يبقى المحلي + مراجعة (لا طمس صامت)',
+      () {
+        final localData = {
+          'amount': 100,
+          'lastModified': 4000,
+          'deviceId': 'device-A',
+          'vectorClock': '{"device-A":1}',
+        };
+        final remoteData = {
+          'amount': 200,
+          'lastModified': 5000,
+          'deviceId': 'device-B',
+          'vectorClock': '{"device-B":1}',
+        };
+        final result = SmartConflictResolver.resolve(
+          entity: 'payments',
+          localData: localData,
+          remoteData: remoteData,
+          commonAncestor: null,
+        );
+        // ✅ (G-4) لا يُطمس المبلغ المحلي بقيمة بعيدة قبل قرار بشري؛ القيمتان
+        // محفوظتان (المحلية محلياً، والبعيدة على السحابة) ويُسجَّل التعارض.
+        expect(result.mergedData['amount'], equals(100));
+        expect(result.requiresReview, isTrue);
+        expect(result.pushedToRemote, isFalse);
+      },
+    );
   });
 
   group('3-way merge يحافظ على الحقول غير المتعارضة محلياً (ancestor=null)', () {

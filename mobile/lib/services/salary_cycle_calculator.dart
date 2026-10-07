@@ -1,3 +1,5 @@
+import '../utils/currency_formatter.dart';
+
 /// منطق حساب دورة راتب واحدة دون ارتباط بواجهة المستخدم أو قاعدة البيانات.
 ///
 /// القاعدة المحاسبية المستخدمة في النظام الحالي:
@@ -92,5 +94,6 @@ class SalaryCycleCalculator {
 
   /// يحوّل قيمة قديمة من SQLite/Drift إلى مبلغ صحيح.
   /// يتم التقريب مرة واحدة عند حدود النظام، وليس أثناء الجمع المتكرر.
-  static int _money(num value) => value.round().clamp(0, 0x7fffffff).toInt();
+  static int _money(num value) =>
+      CurrencyFormatter.truncateAmount(value).clamp(0, 0x7fffffff).toInt();
 }

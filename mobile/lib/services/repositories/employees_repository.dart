@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/status_utils.dart';
+import '../../utils/currency_formatter.dart';
 import '../auto_backup_manager.dart';
 import '../crashlytics_service.dart';
 import '../daos/employees_dao.dart';
@@ -64,7 +65,8 @@ class EmployeesRepository {
       final result = await dao.insertOne(
         EmployeesCompanion(
           name: d.Value(name),
-          basicSalary: d.Value(s),
+          // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
+          basicSalary: d.Value(CurrencyFormatter.wholeAmount(s)),
           position: d.Value(position ?? 'موظف'),
           phone: d.Value(phone ?? ''),
           hireDate: d.Value(hireDate ?? ''),
@@ -110,7 +112,7 @@ class EmployeesRepository {
         EmployeesCompanion(
           name: name != null ? d.Value(name) : const d.Value.absent(),
           basicSalary: (salary ?? basicSalary) != null
-              ? d.Value((salary ?? basicSalary)!)
+              ? d.Value(CurrencyFormatter.wholeAmount((salary ?? basicSalary)!))
               : const d.Value.absent(),
           position: position != null
               ? d.Value(position)
@@ -171,7 +173,7 @@ class EmployeesRepository {
       EmployeesCompanion(
         name: name != null ? d.Value(name) : const d.Value.absent(),
         basicSalary: (salary ?? basicSalary) != null
-            ? d.Value((salary ?? basicSalary)!)
+            ? d.Value(CurrencyFormatter.wholeAmount((salary ?? basicSalary)!))
             : const d.Value.absent(),
         position: position != null ? d.Value(position) : const d.Value.absent(),
         phone: phone != null ? d.Value(phone) : const d.Value.absent(),

@@ -126,6 +126,8 @@ List<SalaryWithdrawal> dedupeMirrorDuplicates(
       expenseId: sw.expenseId,
       reason: sw.reason,
       expenses: expenses,
+      // ✅ (P2-7): جهاز كاتب السحبة — إثبات للربط الرقمي
+      sourceDeviceId: sw.deviceId,
     );
     if (resolvedId != null) {
       final current = anchored[resolvedId];
@@ -357,6 +359,8 @@ class _SalaryWithdrawalsReportScreenState
             // ✅ (هجرة 68) حقول الهوية — المستوى 0 في المطابِق
             localUuid: e.localUuid,
             withdrawalUuid: e.withdrawalUuid,
+            // ✅ (P2-7): دليل فضاء المعرّفات للأرقام المحلية
+            deviceId: e.deviceId,
           ),
         )
         .toList(growable: false);

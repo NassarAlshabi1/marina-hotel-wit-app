@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as d;
 
 import '../crashlytics_service.dart';
+import '../../utils/currency_formatter.dart';
 import '../daos/cash_transactions_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
@@ -42,7 +43,8 @@ class CashRepository {
         CashTransactionsCompanion(
           registerId: d.Value(registerId),
           transactionType: d.Value(type),
-          amount: d.Value(amount),
+          // G-10: «لا كسور عشرية» — اقتطاع نحو الصفر
+          amount: d.Value(CurrencyFormatter.wholeAmount(amount)),
           referenceType: d.Value(referenceType),
           referenceId: d.Value(referenceId),
           description: d.Value(description),
@@ -85,7 +87,9 @@ class CashRepository {
           transactionType: type != null
               ? d.Value(type)
               : const d.Value.absent(),
-          amount: amount != null ? d.Value(amount) : const d.Value.absent(),
+          amount: amount != null
+              ? d.Value(CurrencyFormatter.wholeAmount(amount))
+              : const d.Value.absent(),
           referenceType: referenceType != null
               ? d.Value(referenceType)
               : const d.Value.absent(),

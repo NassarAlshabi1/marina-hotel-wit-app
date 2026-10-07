@@ -59,7 +59,9 @@ void main() {
     test('1c. payload يحتوي على amount', () async {
       final debt = await _insertDebt(db, amount: 1500.50);
       final payload = payloadMapper.debtToRemote(debt);
-      expect(payload['amount'], 1500.50);
+      // G-10: «لا كسور عشرية» — الاقتطاع نحو الصفر عبر المزوّد
+      // (1500.50 → 1500)، والصورة التاريخية تُبلَّغ للقراءة فقط.
+      expect(payload['amount'], 1500);
     });
 
     test('1d. payload يحتوي على date', () async {
@@ -99,7 +101,8 @@ void main() {
       final payload = payloadMapper.debtToRemote(debt);
       expect(payload['bookingUuidCache'], 'booking-uuid-all');
       expect(payload['debtorName'], 'Salem');
-      expect(payload['amount'], 750.25);
+      // G-10: الاقتطاع نحو الصفر في حمولة الرفع (750.25 → 750)
+      expect(payload['amount'], 750);
       expect(payload['date'], '2026-08-12T10:30');
     });
   });
@@ -298,7 +301,7 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 68', () {
+    test('3e. أحدث schemaVersion = 70', () {
       // ✅ (2026-09-14) محاذاة بعد bump إلى 66 (recorder_name على
       // salary_withdrawals — إسناد السحبة لمسجّلها). القيمة مقصودة صريحة:
       // كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
@@ -308,7 +311,14 @@ void main() {
       // ✅ (2026-10-05) bump إلى 68 — رابط المرآة الدائم سحبة↔مصروف:
       // expense_uuid على salary_withdrawals + withdrawal_uuid على expenses
       // + التعبئة الحتمية + الفهارس (Migration 68).
-      expect(db.schemaVersion, 68);
+      // ✅ (2026-10-07) bump إلى 69 — استكمال عقد العلاقات المحمولة:
+      // expense_kind + employee_link_cleared على expenses، cycle_uuid
+      // معلناً رسمياً على salary_payments، الفهرس الفريد الجزئي D1 0013
+      // (Migration 69).
+      // ✅ (2026-10-07) bump إلى 70 — توحيد هوية دفتر الأيام: نقل
+      // local_uuid من صيغة الطابع الزمني `${millis}-${hash}` إلى الصيغة
+      // الحتمية `ldg-<hotel_day_key>` (Migration 70، idempotent، معرّف فقط).
+      expect(db.schemaVersion, 70);
     });
   });
 
@@ -376,7 +386,8 @@ void main() {
     test('5c. toJson (drive) يحتوي على amount', () async {
       final debt = await _insertDebt(db, amount: 999.99);
       final json = debtsAdapter.toJson(debt, src: Source.drive);
-      expect(json['amount'], 999.99);
+      // G-10: الاقتطاع نحو الصفر في تصدير المحوّل (999.99 → 999)
+      expect(json['amount'], 999);
     });
 
     test('5d. toJson (drive) يحتوي على date', () async {
@@ -477,6 +488,7 @@ class _StubResolver implements IdResolver {
     int? serverId,
     int? employeeId,
     bool fromRemote = false,
+    String? sourceDeviceId,
   }) async => localId;
 
   @override
@@ -485,6 +497,7 @@ class _StubResolver implements IdResolver {
     int? serverId,
     String? uuid,
     bool fromRemote = false,
+    String? sourceDeviceId,
   }) async => localId;
 
   @override

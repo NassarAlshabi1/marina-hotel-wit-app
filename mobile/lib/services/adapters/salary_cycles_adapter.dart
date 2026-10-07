@@ -44,12 +44,16 @@ class SalaryCyclesAdapter
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
 
+    // ✅ (G-3) جهاز كاتب السجل — دليل فضاء المعرّفات الرقمية.
+    final sourceDeviceId =
+        _asString(json, 'deviceId', src) ?? _asString(json, 'device_id', src);
     final fromRemote = src == Source.appwrite || src == Source.drive;
     final resolvedEmployeeId = await resolver.resolveEmployee(
       uuid: remoteEmployeeUuid,
       serverId: fromRemote ? remoteEmployeeId : null,
       localId: fromRemote ? null : remoteEmployeeId,
       fromRemote: fromRemote,
+      sourceDeviceId: sourceDeviceId,
     );
 
     final createdAt = _epoch(json, 'createdAt', src);

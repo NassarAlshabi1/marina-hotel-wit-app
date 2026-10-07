@@ -150,8 +150,12 @@ void main() {
         },
       );
 
+      // ✅ (G-4 — تدقيق الهوية المالية 2026-10-06): تغيّرت السياسة على الحقول
+      // المالية الحرجة: لم تعد LWW تُطبَّق عليها. القيمة المحلية تبقى (لا يُمسح
+      // مال محلي بلا قرار)، وتبقى قيمة الجهاز الآخر على السحابة (pushedToRemote=false)،
+      // ويُسجَّل التعارض للمراجعة البشرية (requiresReview). باقي الحقول تُدمج كالمعتاد.
       test(
-        'concurrentSameFields with critical field resolves via LWW (not manual)',
+        'concurrentSameFields with critical field → kept local + queued for review (no silent LWW)',
         () {
           final result = SmartConflictResolver.resolve(
             entity: 'expenses',
@@ -172,11 +176,12 @@ void main() {
             },
           );
           expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
-          // After commit fffa6a37 ("fully automatic conflict resolution"),
-          // critical fields no longer escalate to manual. Instead they resolve
-          // via LWW (Last Write Wins) inside fieldLevelMerge.
-          // The remote has lastModified=2000 > local=1000, so remote value wins.
-          expect(result.mergedData['amount'], equals(200.0));
+          // ✅ (G-4) لا LWW صامت على `amount`: القيمة المحلية محفوظة، ولا رفع
+          // يطمس نسخة الجهاز الآخر، والتعارض مسجَّل للمراجعة البشرية.
+          expect(result.mergedData['amount'], equals(100.0));
+          expect(result.requiresReview, isTrue);
+          expect(result.reviewFields, contains('amount'));
+          expect(result.pushedToRemote, isFalse);
           expect(result.warnings, isNotEmpty);
         },
       );
@@ -369,7 +374,7 @@ void main() {
         expect(result.mergedData['status'], equals('remote'));
       });
 
-      test('rooms: price resolves via LWW (not manual)', () {
+      test('rooms: price → kept local + queued for review (G-4)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'rooms',
           localData: {
@@ -389,13 +394,13 @@ void main() {
           },
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
-        // After commit fffa6a37, 'price' on rooms uses LWW instead of manual escalation.
-        // Remote (lastModified=2000) is newer than local (lastModified=1000),
-        // so the remote price (200.0) should win.
-        expect(result.mergedData['price'], equals(200.0));
+        // ✅ (G-4) 'price' حقل مالي حرج: القيمة المحلية محفوظة + مراجعة بشرية.
+        expect(result.mergedData['price'], equals(100.0));
+        expect(result.requiresReview, isTrue);
+        expect(result.pushedToRemote, isFalse);
       });
 
-      test('payments: amount resolves via LWW (not manual)', () {
+      test('payments: amount → kept local + queued for review (G-4)', () {
         final result = SmartConflictResolver.resolve(
           entity: 'payments',
           localData: {
@@ -415,13 +420,16 @@ void main() {
           },
         );
         expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
-        // After commit fffa6a37, 'amount' on payments uses LWW instead of manual escalation.
-        // Remote (lastModified=2000) is newer than local (lastModified=1000),
-        // so the remote amount (200.0) should win.
-        expect(result.mergedData['amount'], equals(200.0));
+        // ✅ (G-4) 'amount' حقل مالي حرج: القيمة المحلية محفوظة + مراجعة بشرية.
+        expect(result.mergedData['amount'], equals(100.0));
+        expect(result.requiresReview, isTrue);
+        expect(result.pushedToRemote, isFalse);
       });
 
-      test('debts: all fields resolve via LWW (not manual)', () {
+      // ملاحظة (G-4): totalAmount ليس في قائمة الحقول الحرجة (amount,
+      // paidAmount, price, basicSalary, isVoided, discount, discountAmount)
+      // فيظل خاضعًا لـ newerWins — التوثيق الزامي لأي إضافة مستقبلية للقائمة.
+      test('debts: totalAmount (غير مُدرج كحقل حرج) يبقى LWW', () {
         final result = SmartConflictResolver.resolve(
           entity: 'debts',
           localData: {

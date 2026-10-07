@@ -12,10 +12,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
+import '../../components/widgets/guest_search_field.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/guest_info_search.dart';
 import '../../utils/pdf_utils.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -31,11 +33,47 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   bool _exportingPdf = false;
   final _verticalScrollController = ScrollController();
 
+  /// ✅ (2026-10-06): بحث فوري بالاسم من الهيد (AppBar) — يبحث في
+  /// الاسم ورقم الغرفة ورقم الهوية والمحافظة، مع تسامح مع الهمزات
+  /// والألف والتاء المربوطة والياء لتقليل حالات «لا نتائج» الكاذبة.
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+  String _searchQuery = '';
+
+  /// ✅ (2026-10-06): البحث يُفتح **بالضغط** على أيقونة البحث في الهيد
+  /// (AppBar) ويُغلق بزر ✕ — فلا يزحم الرأس في الاستخدام العادي.
+  bool _searchVisible = false;
+
+  void _toggleSearch() {
+    setState(() {
+      _searchVisible = !_searchVisible;
+      if (!_searchVisible) {
+        _searchController.clear();
+        _searchQuery = '';
+        _searchFocusNode.unfocus();
+      }
+    });
+    if (_searchVisible) {
+      // تركيز تلقائي ليكتب المستخدم فوراً بلا نقرة ثانية.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _searchFocusNode.requestFocus();
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _verticalScrollController.dispose();
     super.dispose();
   }
+
+  /// ✅ (2026-10-06): المنطق انتقل إلى `utils/guest_info_search.dart`
+  /// ليكون عاماً قابلاً للاختبار؛ هذه واجهة رقيقة للنداء الداخلي
+  /// (التطبيع يُستدعى داخلياً من الأداة نفسها — لا حاجة لواجهة منفصلة).
+  static bool matchesQuery(GuestInfo info, String query) =>
+      GuestInfoSearch.matches(info, query);
 
   static final List<String> _idTypes = [
     'بطاقة شخصية',
@@ -85,6 +123,12 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       orElse: () => const <GuestInfo>[],
     );
 
+    // ✅ البحث في الرأس: يُطبَّق على نفس القائمة المستخدمة في العرض وفي
+    // تصدير PDF (إن بحثت ثم صدّرت ⇒ الملف يعكس نتائج البحث).
+    final filteredEntries = currentEntries
+        .where((info) => matchesQuery(info, _searchQuery))
+        .toList(growable: false);
+
     return PopScope(
       canPop: !hasUnsyncedChanges,
       onPopInvokedWithResult: (didPop, result) {
@@ -95,12 +139,19 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       },
       child: AppScaffold(
         title: 'سجل المعلومية',
+        // الحقل يظهر فقط بعد الضغط على أيقونة البحث في الهيد.
+        header: _searchVisible ? _buildSearchHeader() : null,
         actions: [
           IconButton(
+            tooltip: _searchVisible ? 'إغلاق البحث' : 'بحث في السجل بالاسم',
+            onPressed: _toggleSearch,
+            icon: Icon(_searchVisible ? Icons.close : Icons.search),
+          ),
+          IconButton(
             tooltip: 'تصدير إلى PDF',
-            onPressed: _exportingPdf || currentEntries.isEmpty
+            onPressed: _exportingPdf || filteredEntries.isEmpty
                 ? null
-                : () => _handleExport(currentEntries),
+                : () => _handleExport(filteredEntries),
             icon: _exportingPdf
                 ? const SizedBox(
                     width: 20,
@@ -116,12 +167,22 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           label: const Text('إضافة سجل'),
         ),
         body: guestInfosAsync.when(
-          data: _buildContent,
+          data: (_) => _buildContent(filteredEntries),
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) =>
               Center(child: Text('حدث خطأ أثناء تحميل البيانات: $error')),
         ),
       ),
+    );
+  }
+
+  /// حقل البحث المضمَّن في الهيد — يظهر بالضغط على أيقونة البحث،
+  /// بلا حجب للعنوان أو الأزرار. المكوّن نفسه قابل للاختبار مستقلاً.
+  Widget _buildSearchHeader() {
+    return GuestSearchField(
+      controller: _searchController,
+      focusNode: _searchFocusNode,
+      onChanged: (value) => setState(() => _searchQuery = value),
     );
   }
 
@@ -150,6 +211,15 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
   Widget _buildContent(List<GuestInfo> entries) {
     if (entries.isEmpty) {
+      if (_searchQuery.trim().isNotEmpty) {
+        return Center(
+          child: EmptyState(
+            title: 'لا نتائج للبحث «${_searchQuery.trim()}»',
+            subtitle: 'جرّب جزءاً من الاسم أو رقم الغرفة أو رقم الهوية.',
+            icon: Icons.search_off,
+          ),
+        );
+      }
       return const Center(
         child: EmptyState(
           title: 'لا توجد سجلات للمعلومية',

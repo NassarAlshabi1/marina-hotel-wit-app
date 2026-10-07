@@ -122,10 +122,14 @@ void main() {
     });
 
     group('الكسور العشرية', () {
-      test('يجب تقريب الكسور', () {
+      // ✅ G-10: سياسة «لا كسور عشرية» — الاقتطاع نحو الصفر (لا تقريب لأعلى)
+      test('تُقتطع الكسور نحو الصفر', () {
         expect(formatYemeniAmount(1000.4), 'ألف ريال يمني فقط');
-        expect(formatYemeniAmount(1000.5), 'ألف و واحد ريال يمني فقط');
-        expect(formatYemeniAmount(1000.6), 'ألف و واحد ريال يمني فقط');
+        expect(formatYemeniAmount(1000.5), 'ألف ريال يمني فقط');
+        expect(formatYemeniAmount(1000.6), 'ألف ريال يمني فقط');
+        expect(formatYemeniAmount(1000.99), 'ألف ريال يمني فقط');
+        // 1001.9 → 1001: الكسر يُقتطع ولا يُضاف مبلغ للموظف
+        expect(formatYemeniAmount(1001.9), 'ألف و واحد ريال يمني فقط');
       });
     });
   });

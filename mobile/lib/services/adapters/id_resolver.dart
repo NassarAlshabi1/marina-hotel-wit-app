@@ -232,6 +232,7 @@ class IdResolver {
     int? serverId,
     int? employeeId,
     bool fromRemote = false,
+    String? sourceDeviceId,
   }) async {
     // 1. البحث بالـ UUID أولاً (الأكثر دقة للمزامنة)
     if (uuid != null && uuid.isNotEmpty) {
@@ -271,31 +272,77 @@ class IdResolver {
         }
       }
     }
-    // 2. البحث بالـ serverId (المعرف الأصلي من جهاز المصدر)
+    // 2. البحث الرقمي (serverId) — **مشروط بإثبات فضاء المعرّفات**.
+    //
+    // 📌 حقيقة موثّقة في هذا المشروع: عمود `employees.server_id` يحمل
+    //    **رقم الموظف محلياً على جهاز نشوئه** (يُضبط عند الرفع إلى
+    //    `employee.id` — انظر AppwriteSyncManager حول `serverId: employee.id`).
+    //    أي أنه معرّف **مقيّد بالجهاز** وليس مفتاحاً عالمياً.
+    //
+    //    ⇒ مطابقة `employees.server_id == employeeId` القادم من جهاز آخر
+    //      هي **تخمين** إلا إذا أثبتنا أن الرقمين من فضاء واحد: نفس الجهاز
+    //      الكاتب. الدليل الوحيد المتاح هو تطابق `deviceId` (كاتب السجل).
+    //
+    //    قبل هذا الإصلاح (G-3): كان أي سجل بعيد بلا UUID يُطابق أول موظف
+    //    يحمل نفس الرقم — جهازان فيهما «موظف #1» مختلفان ⇒ ربط خاطئ صامت
+    //    لسجل مالي. الآن: بلا إثبات ⇒ لا ربط (يتحوّل السجل إلى «معلّق»
+    //    في DeferredRelationStore ويُعاد ربطه عند وصول الموظف، ويظهر في
+    //    تقرير المراجعة).
     if (serverId != null) {
-      // حتمية الاختيار عند ازدواج serverId (خطأ بيانات): النشط أولاً
-      // (NULL يرتّب أولاً ASC) ثم الأصغر id محلياً.
-      final rows =
-          await (db.select(db.employees)
-                ..where((e) => e.serverId.equals(serverId))
-                ..orderBy([
+      final provenSameIdSpace =
+          !fromRemote || (sourceDeviceId != null && sourceDeviceId.isNotEmpty);
+      if (provenSameIdSpace) {
+        var query = db.select(db.employees)
+          ..where((e) => e.serverId.equals(serverId));
+        if (fromRemote) {
+          // إثبات إضافي: نفس الجهاز الكاتب لهذا السجل ولسجل الموظف.
+          query = query..where((e) => e.deviceId.equals(sourceDeviceId!));
+        }
+        // حتمية الاختيار عند تعدد المطابقة: النشط أولاً (NULL أولاً ASC)
+        // ثم الأصغر id محلياً.
+        final rows =
+            await (query..orderBy([
                   (e) => d.OrderingTerm(
                     expression: e.deletedAt,
                     mode: d.OrderingMode.asc,
                   ),
                   (e) => d.OrderingTerm(expression: e.id),
                 ]))
-              .get();
-      if (rows.isNotEmpty) {
-        if (rows.length > 1) {
-          AppLogger.warning(
-            'ازدواج serverId=$serverId في employees: '
-            '${rows.map((r) => 'id=${r.id}(deletedAt=${r.deletedAt})').join(', ')} '
-            '— اختيار id=${rows.first.id} (النشط ثم الأصغر)',
-            tag: 'IdResolver',
-          );
+                .get();
+        if (rows.isNotEmpty) {
+          if (rows.length > 1) {
+            // ✅ (P1-3 / 2026-10-06): ازدواج مطابقة **الرقم البعيد** ليس
+            // حالة «اختيار أفضل» بل حالة عدم يقين: الرقم نفسه مع نفس الجهاز
+            // الكاتب يشير لأكثر من موظف محلي ⇒ أي اختيار قد يربط سجلاً
+            // مالياً بموظف خاطئ بصمت. القرار: **لا ربط** — يعود null
+            // فيُخزَّن السجل في DeferredRelationStore ويظهر في تقرير
+            // المراجعة (G-8) بحالته ودليله، بلا أي تخمين (البند 12).
+            if (fromRemote) {
+              AppLogger.warning(
+                '⛔ ازدواج مرشّحين لـ serverId=$serverId (جهاز=$sourceDeviceId) '
+                'في employees: '
+                '${rows.map((r) => 'id=${r.id}').join(', ')} '
+                '— لا ربط (مراجعة بشرية)، لا يُختار «الأول».',
+                tag: 'IdResolver',
+              );
+              return null;
+            }
+            AppLogger.warning(
+              'تعدد مطابقة serverId=$serverId في employees: '
+              '${rows.map((r) => 'id=${r.id}(deletedAt=${r.deletedAt})').join(', ')} '
+              '— اختيار id=${rows.first.id} (النشط ثم الأصغر)',
+              tag: 'IdResolver',
+            );
+          }
+          return rows.first.id;
         }
-        return rows.first.id;
+      } else {
+        AppLogger.info(
+          '⏳ رفض ربط رقمي عبر الأجهزة: employeeId=$serverId من جهاز غير معروف '
+          '(deviceId فارغ) — لا إثبات لفضاء المعرّفات ⇒ يُترك السجل للربط '
+          'المؤجّل عبر UUID (G-3).',
+          tag: 'IdResolver',
+        );
       }
     }
     // 3. البحث بالـ id المحلي — فقط للمصدر المحلي (نفس الجهاز).
@@ -341,6 +388,7 @@ class IdResolver {
     int? serverId,
     String? uuid,
     bool fromRemote = false,
+    String? sourceDeviceId,
   }) async {
     // البحث بالـ UUID أولاً
     if (uuid != null && uuid.isNotEmpty) {
@@ -378,29 +426,58 @@ class IdResolver {
         }
       }
     }
-    // 2. البحث بالـ serverId (id جهاز المصدر)
+    // 2. البحث الرقمي (serverId) — نفس قاعدة [resolveEmployee]:
+    //    المعرّف الرقمي مقيّد بجهاز النشوء، فلا يُطابق عبر الأجهزة إلا
+    //    بإثبات وحدة فضاء المعرّفات (نفس `deviceId` الكاتب). بلا إثبات
+    //    ⇒ لا ربط (السجل يُعلَّق ويُربط لاحقاً عبر UUID — G-3).
     if (serverId != null) {
-      final rows =
-          await (db.select(db.salaryCycles)
-                ..where((c) => c.serverId.equals(serverId))
-                ..orderBy([
+      final provenSameIdSpace =
+          !fromRemote || (sourceDeviceId != null && sourceDeviceId.isNotEmpty);
+      if (provenSameIdSpace) {
+        var query = db.select(db.salaryCycles)
+          ..where((c) => c.serverId.equals(serverId));
+        if (fromRemote) {
+          query = query..where((c) => c.deviceId.equals(sourceDeviceId!));
+        }
+        final rows =
+            await (query..orderBy([
                   (c) => d.OrderingTerm(
                     expression: c.deletedAt,
                     mode: d.OrderingMode.asc,
                   ),
                   (c) => d.OrderingTerm(expression: c.id),
                 ]))
-              .get();
-      if (rows.isNotEmpty) {
-        if (rows.length > 1) {
-          AppLogger.warning(
-            'ازدواج serverId=$serverId في salary_cycles: '
-            '${rows.map((r) => 'id=${r.id}(deletedAt=${r.deletedAt})').join(', ')} '
-            '— اختيار id=${rows.first.id}',
-            tag: 'IdResolver',
-          );
+                .get();
+        if (rows.isNotEmpty) {
+          if (rows.length > 1) {
+            // ✅ (P1-3 / 2026-10-06): نفس قاعدة الموظفين — ازدواج مرشّحي
+            // الرقم البعيد مع نفس الجهاز الكاتب ⇒ لا ربط (مراجعة بشرية)،
+            // وإلا وُربطت دفعة راتب بدورة خاطئة بصمت.
+            if (fromRemote) {
+              AppLogger.warning(
+                '⛔ ازدواج مرشّحين لـ serverId=$serverId (جهاز=$sourceDeviceId) '
+                'في salary_cycles: '
+                '${rows.map((r) => 'id=${r.id}').join(', ')} '
+                '— لا ربط (مراجعة بشرية).',
+                tag: 'IdResolver',
+              );
+              return null;
+            }
+            AppLogger.warning(
+              'تعدد مطابقة serverId=$serverId في salary_cycles: '
+              '${rows.map((r) => 'id=${r.id}(deletedAt=${r.deletedAt})').join(', ')} '
+              '— اختيار id=${rows.first.id}',
+              tag: 'IdResolver',
+            );
+          }
+          return rows.first.id;
         }
-        return rows.first.id;
+      } else {
+        AppLogger.info(
+          '⏳ رفض ربط رقمي عبر الأجهزة: cycleId=$serverId من جهاز غير معروف '
+          '(deviceId فارغ) — لا إثبات لفضاء المعرّفات (G-3).',
+          tag: 'IdResolver',
+        );
       }
     }
     // 3. البحث بالـ id المحلي — فقط للمصدر المحلي (انظر resolveEmployee).

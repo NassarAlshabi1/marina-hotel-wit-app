@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../../utils/currency_formatter.dart';
 import '../local_db.dart';
 import 'entity_adapter.dart';
 import 'id_resolver.dart';
@@ -186,8 +187,12 @@ class PriceAdjustmentsAdapter
       _k(src, 'targetType', 'target_type'): model.targetType,
       _k(src, 'targetUuid', 'target_uuid'): model.targetUuid,
       _k(src, 'adjustmentType', 'adjustment_type'): model.adjustmentType,
-      _k(src, 'previousValue', 'previous_value'): model.previousValue,
-      _k(src, 'newValue', 'new_value'): model.newValue,
+      _k(src, 'previousValue', 'previous_value'): CurrencyFormatter.wholeAmount(
+        model.previousValue,
+      ),
+      _k(src, 'newValue', 'new_value'): CurrencyFormatter.wholeAmount(
+        model.newValue,
+      ),
       _k(src, 'reason', 'reason'): model.reason,
       _k(src, 'effectiveDate', 'effective_date'): model.effectiveDate,
       _k(src, 'appliedBy', 'applied_by'): model.appliedBy,
