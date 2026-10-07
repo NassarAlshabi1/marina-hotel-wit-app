@@ -153,6 +153,19 @@ Finding بتصحيح تعليق أو توثيق فقط، بل بعقد آلي** 
 | قفل عقد `finance_snapshots` + فهرسَي الحوكمة + فهرس TTL على D1 | `worker/test/finance.snapshots.parity.test.ts` (**جديد**، 6 حالات، 179 سطراً) | تشغيل محلي فعلي: **6/6** للاختبار الجديد، والكامل **236/236** في 23 ملفاً، و`tsc` نظيف — ثم **أُعيد في CI** (وظيفة الـworker = success) |
 | اختبار ترحيل Room **76→77** (بند F-3) | `FinancialMigrationTest.migrate76To77CreatesFinanceSnapshotsWithExactContract` (**جديد**، +176 سطراً) | CI — تشغيل `37573674600` على الالتزام `0f4d2d20`: **success**؛ `:app:testDebugUnitTest` = **384 حالة • فشل 0 • أخطاء 0 • متخطّاة 0** (383 قبله + حالة الترحيل الجديدة)، و`worker: vitest + typecheck` = success، و`android-sync-detekt` = success |
 
+| بناء APK الموقّع (v1+v2+v3) | — | تشغيل `37574913030` على الالتزام `45571fd8`: **success** — release موقّع **5,960,896 بايت** (`f177f83a259cb5a9…`) و`debug` 25,350,401 بايت، و`apksigner`: v1/v2/v3 = `true` (التحقق التشغيلي كما في السابق). |
+
+**إفصاح (لا إخفاء): فشل عارض واحد أثناء الجلسة.** تشغيل APK على الالتزام `0f4d2d20`
+(`37573676227`) **فشل** عند `assembleRelease` بلا سبب مقروء: `--log-failed` وروابط
+`actions/runs/…/logs` ترجع EOF في هذه البيئة، وcheck-run `android-session-apk` نشر
+«release APK missing» بلا سطر Gradle واحد. الفرق البرمجي بينه وبين آخر تشغيل أخضر
+(`78e8f22d`) **لا يمسّ `src/main` إطلاقاً** (ملف اختبار +173 سطراً وتوثيق)، والبناء
+نجح على `45571fd8` (شيفرة `src/main` نفسها حرفياً) ⇒ **عارض بنية تحتية لا خلل شيفرة**.
+ولم يُترك بلا معالجة: أُضيفت خطوة `Publish Gradle diagnostics on failure` في
+`.github/workflows/android-session-apk-build.yml` (بـ`set -o pipefail` + `tee` لسجل
+البناء) تنشر آخر 6000 حرف من سجل Gradle في check-run `android-session-apk-diagnostics`
+عند أي فشل قادم — **إعلامية بحتة**: لا تُغيّر نتيجة الوظيفة ولا تحجب فشلاً.
+
 **ما يقفله اختبار الـWorker** (تشغيل حقيقي على SQLite، لا محاكاة):
 1. الجدول موجود بـ**14 عموداً**: النوع + `NOT NULL` + `DEFAULT` مطابقة لـ`0009` و`schema.sql`.
 2. فهرسا الحوكمة بأعمدتهما وترتيبهما: `(approved_at DESC)` و`(scenario_key, approved_at DESC)`.
