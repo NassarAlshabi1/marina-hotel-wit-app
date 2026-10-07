@@ -286,6 +286,12 @@
 
 ## 1️⃣2️⃣ **hotel_day_ledger** (سجل الأيام الفندقية)
 
+> ⚠️ **تصحيح (2026-10-07):** هذا الجدول **محلي فقط ولا وجود له على Appwrite**،
+> ولا يُزامَن — بقرار موثّق ومُدقَّق (`appwrite_config.dart:59-60`، ولا محوّل ولا
+> حالة في مدير المزامنة). الجدول في هذه الوثيقة **غير مطبَّق على السحابة**،
+> وقبول/رفض المخطط فيه لا يعنيه. التفاصيل والقرار في
+> `HOTEL_DAY_LEDGER_LOCAL_DESIGN_AND_FIX_AR.md`.
+
 | Attribute ID | Type | Required | Default |
 |-------------|------|----------|---------|
 | `localUuid` | string(36) | ✅ | - |
@@ -335,7 +341,7 @@
 ☐ debts
 ☐ salary_cycles
 ☐ salary_payments
-☐ hotel_day_ledger
+☐ hotel_day_ledger   ⛔ محلي فقط — لا يُنشأ على Appwrite (قرار موثّق)
 ```
 
 ### 2️⃣ تعيين Document ID:
@@ -410,7 +416,7 @@ CREATE UNIQUE INDEX idx_salary_cycles_composite ON salary_cycles (employee_id, c
 | 9 | debts | 32 | localUuid | ✅ جاهز |
 | 10 | salary_cycles | 22 | localUuid, (employeeId+cycleKey) | 🔑 مركب |
 | 11 | salary_payments | 20 | localUuid | ✅ جاهز |
-| 12 | hotel_day_ledger | 24 | localUuid, hotelDayKey | ✅ جاهز |
+| 12 | hotel_day_ledger | 24 | localUuid, hotelDayKey | ⛔ محلي فقط (غير مُزامَن — قرار موثّق) |
 
 **إجمالي:** 12 Collection × متوسط 23 حقل = **~276 Attribute**
 
