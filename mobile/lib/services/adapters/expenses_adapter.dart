@@ -179,6 +179,21 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
         src,
         altKey: 'withdrawal_uuid',
       ),
+      // Parity unification: ports branch3 wire fields so a server row
+      // pulled from a B3 worker is round-trip-faithful on the Flutter
+      // side. `expense_kind` is optional (legacy rows have NULL until
+      // the next edit materialises it via the worker's legacy classifier);
+      // `employee_link_cleared` is server-owned metadata persisted to
+      // local Drift so a re-pull of the same row preserves the explicit
+      // unlink. Mirrors Android `ExpenseEntity.kt` L29-31 + L76-80.
+      expenseKind: _vStr(json, 'expenseKind', src, altKey: 'expense_kind'),
+      employeeLinkCleared: _vInt(
+        json,
+        'employeeLinkCleared',
+        src,
+        altKey: 'employee_link_cleared',
+        fallback: 0,
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -216,6 +231,16 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       'idempotencyKey': model.idempotencyKey,
       'employeeUuid': model.employeeUuid,
       _k(src, 'withdrawalUuid', 'withdrawal_uuid'): model.withdrawalUuid,
+      // Parity unification: emit `expense_kind` + `employee_link_cleared`
+      // on the wire so the B3 worker (which validates `expense_kind`)
+      // accepts the push. `expense_kind` is null on legacy rows; the
+      // worker's `expenseKind()` will derive it via the legacy
+      // classifier. `employee_link_cleared` is sent for read fidelity
+      // only — the worker always re-derives it server-side (see
+      // `worker/src/database.ts normalizeExpenseFields`).
+      _k(src, 'expenseKind', 'expense_kind'): model.expenseKind,
+      _k(src, 'employeeLinkCleared', 'employee_link_cleared'):
+          model.employeeLinkCleared,
       'deviceId': model.deviceId,
     };
 

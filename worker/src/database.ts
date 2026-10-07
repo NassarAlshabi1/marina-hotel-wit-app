@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import type { D1Database } from '@cloudflare/workers-types';
+import { expenseKind } from './expense-kind';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -805,6 +806,50 @@ export class Database {
     return cols;
   }
 
+  /**
+   * Parity unification: normalises the wire-side `expenses` fields so the
+   * server owns `employee_link_cleared` and translates the legacy
+   * `clear_employee_link=1` instruction (sent by the Android
+   * PushWireContract when a user unlinks an employee from an expense)
+   * into a NULL `employee_uuid` + `related_id` plus the persisted
+   * `employee_link_cleared=1` flag. Mirrors branch3 worker/src/database.ts
+   * `normalizePushReferences` at L952-997; the only simplification here is
+   * that B2 does not (yet) own a `findEmployeeByUuid` helper — the
+   * employee_uuid resolution is left to the existing client→server
+   * `employees` lookup the Flutter adapter already performs before push.
+   *
+   * Server-owned metadata (`employee_link_cleared`) is always stripped
+   * from incoming client data and recomputed here so a misbehaving client
+   * cannot flip it back to 0 after an explicit unlink.
+   */
+  private normalizeExpenseFields(
+    data: Record<string, unknown>,
+    mode: 'create' | 'update'
+  ): Record<string, unknown> {
+    const normalized = { ...data };
+    const clearLink =
+      mode === 'update' &&
+      this.isExplicitLinkClear(normalized.clear_employee_link);
+    delete normalized.clear_employee_link;
+    // Server-owned; never trust a client value for this column.
+    delete normalized.employee_link_cleared;
+    if (clearLink) {
+      normalized.employee_uuid = null;
+      normalized.related_id = null;
+      normalized.employee_link_cleared = 1;
+      return normalized;
+    }
+    if (mode === 'create' && !('employee_link_cleared' in normalized)) {
+      normalized.employee_link_cleared = 0;
+    }
+    return normalized;
+  }
+
+  private isExplicitLinkClear(value: unknown): boolean {
+    if (value === 1 || value === '1' || value === true) return true;
+    return false;
+  }
+
   async createRecord(
     entity: string,
     data: Record<string, unknown>,
@@ -814,8 +859,26 @@ export class Database {
     const table = getTableName(entity);
     const now = Math.floor(Date.now() / 1000);
 
+    // Parity unification: normalise expense_kind + employee_link_cleared on
+    // the wire before storage (mirrors branch3 worker/src/database.ts
+    // createRecord expense_kind derivation at L1043-1044 and the
+    // normalizePushReferences clear_employee_link translation at L952-997).
+    // The server owns `employee_link_cleared`; clients may send only the
+    // `clear_employee_link` instruction (legacy synonym used by the
+    // Android PushWireContract when an explicit unlink is requested).
+    const normalized = entity === 'expenses'
+      ? this.normalizeExpenseFields({ ...data }, 'create')
+      : { ...data };
+    if (entity === 'expenses') {
+      // Derive the canonical kind: explicit client value wins (validated),
+      // otherwise the conservative legacy classifier fills it in. Throws
+      // on an invalid non-null kind, which surfaces as a 500 → callers
+      // translate to validation_error if it reaches the push pipeline.
+      normalized.expense_kind = expenseKind(data.expense_kind, data);
+    }
+
     // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
-    const localUuid = (data.local_uuid as string) || crypto.randomUUID();
+    const localUuid = (normalized.local_uuid as string) || crypto.randomUUID();
 
     // ✅ Globally-unique updated_at (keeps the pull cursor lossless)
     const serverUpdatedAt = await this.allocateUpdatedAt();
@@ -828,10 +891,10 @@ export class Database {
         ? JSON.stringify(clientVc)
         : JSON.stringify({ [deviceId]: 1 });
 
-    const createdAtNum = Number(data.created_at);
+    const createdAtNum = Number(normalized.created_at);
 
     const record: SyncRecord = {
-      ...data,
+      ...normalized,
       local_uuid: localUuid,
       server_id: null,
       created_at:
@@ -946,6 +1009,24 @@ export class Database {
       return this.createRecord(entity, { ...data, local_uuid: recordId }, deviceId, vectorClock);
     }
 
+    // Parity unification: normalise expense fields BEFORE the LWW decision
+    // so the conflict-audit row reflects what the server would actually
+    // persist (mirrors branch3 worker/src/database.ts `updateRecord`
+    // expense_kind preservation at L1227 + normalizePushReferences at
+    // L1224). For `expenses` only — other entities pass through untouched.
+    let normalizedData = data;
+    if (entity === 'expenses') {
+      normalizedData = this.normalizeExpenseFields({ ...data, local_uuid: recordId }, 'update');
+      // Missing/null on an old client must never erase or re-infer an
+      // existing kind — once written, the kind is authoritative across
+      // free-text description edits (worker/test/expense-kind.test.ts
+      // "preserves installment after a legacy client edits free text").
+      normalizedData.expense_kind = expenseKind(
+        normalizedData.expense_kind ?? existing.expense_kind,
+        existing
+      );
+    }
+
     // ✅ (F1 2026-09-22) عقد delete-vs-update — الحذف يفوز حتماً:
     // تعديل يصل إلى صف محذوف ناعماً يُرفض بوعي (وليس القبول الصامت الذي
     // كان يحدّث محتوى tombstone = صف محدّث ومحذوف في آن واحد ويقنع
@@ -958,7 +1039,7 @@ export class Database {
         entity,
         recordId,
         existing,
-        data,
+        normalizedData,
         existing.vector_clock ?? '{}',
         vectorClock,
         'edit_on_deleted',
@@ -968,11 +1049,11 @@ export class Database {
 
     // ─── Conflict Detection + LWW decision (shared with the atomic
     // push executor — single source of truth for the resolution rules).
-    const decision = this.resolveLwwDecision(existing, data, vectorClock, fallbackUpdatedAt);
+    const decision = this.resolveLwwDecision(existing, normalizedData, vectorClock, fallbackUpdatedAt);
 
     if (decision.conflict === 'concurrent') {
       // Save conflict for audit
-      await this.saveConflict(entity, recordId, existing, data, existing.vector_clock ?? '{}', vectorClock);
+      await this.saveConflict(entity, recordId, existing, normalizedData, existing.vector_clock ?? '{}', vectorClock);
 
       if (decision.timestampLoss) {
         // Server copy is newer — reject incoming
@@ -993,7 +1074,7 @@ export class Database {
     // ─── Apply update (statement building shared with the atomic executor)
     const now = await this.allocateUpdatedAt();
     const build = await this.buildUpdateStatement(
-      table, existing, data, decision.mergedVc, decision.newVersion, deviceId, now
+      table, existing, normalizedData, decision.mergedVc, decision.newVersion, deviceId, now
     );
 
     await this.db
@@ -1253,6 +1334,23 @@ export class Database {
     const table = getTableName(op.entity);
     const now = Math.floor(Date.now() / 1000);
 
+    // Parity unification: normalise expense fields on the atomic push path
+    // (the production code path used by handlePush) so `expense_kind`
+    // derivation + `clear_employee_link` translation run for every push
+    // op, not only the legacy `createRecord`/`updateRecord` paths.
+    // Mirrors branch3 worker/src/database.ts createRecord L1042-1044 +
+    // updateRecord L1224-1228 normalization. We operate on a local copy
+    // so the caller's `op.data` reference is untouched. The `expense_kind`
+    // preservation for `update` (use existing if incoming is null) happens
+    // after the existing row is fetched, below.
+    if (op.entity === 'expenses' && op.operation !== 'delete') {
+      const normalized = this.normalizeExpenseFields({ ...op.data }, op.operation);
+      if (op.operation === 'create') {
+        normalized.expense_kind = expenseKind(op.data.expense_kind, op.data);
+      }
+      op = { ...op, data: normalized };
+    }
+
     try {
       // ─── PLAN (read-only) ──────────────────────────────────
       // Identity resolution: local_uuid is THE sync identity; server_id and
@@ -1296,6 +1394,23 @@ export class Database {
           // Record identity is the row's own local_uuid — never re-key it.
           identity = { ...identity, localUuid: existing.local_uuid, where: 'local_uuid', bind: existing.local_uuid };
         }
+      }
+
+      // Parity unification: preserve `expense_kind` for `expenses` updates —
+      // a missing/null kind on an old client must never erase an existing
+      // kind (worker/test/expense-kind.test.ts "preserves installment after
+      // a legacy client edits free text or omits/nulls kind"). The check
+      // runs here, after `existing` is known, so we can fall back to its
+      // kind when the incoming payload omits the field. Mirrors branch3
+      // worker/src/database.ts updateRecord L1227.
+      if (op.entity === 'expenses' && op.operation === 'update' && existing) {
+        op = {
+          ...op,
+          data: {
+            ...op.data,
+            expense_kind: expenseKind(op.data.expense_kind ?? existing.expense_kind, existing),
+          },
+        };
       }
 
       // Op-level response payload (stored inside the claim row itself).

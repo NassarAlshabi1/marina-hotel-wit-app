@@ -534,6 +534,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_deleted ON payments(deleted_at);
 CREATE TABLE IF NOT EXISTS expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   expense_type TEXT NOT NULL,
+  expense_kind TEXT CHECK (expense_kind IS NULL OR expense_kind IN ('normal','salary_advance','salary_installment','salary_withdrawal','salary_deduction','unclassified')),
   related_id INTEGER,
   description TEXT NOT NULL,
   amount REAL NOT NULL,
@@ -545,6 +546,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   is_auto_generated INTEGER NOT NULL DEFAULT 0,
   employee_uuid TEXT,
   withdrawal_uuid TEXT,
+  employee_link_cleared INTEGER NOT NULL DEFAULT 0,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -1125,3 +1127,22 @@ CREATE TABLE IF NOT EXISTS sync_meta (
 );
 
 INSERT OR IGNORE INTO sync_meta (k, v) VALUES ('epoch', lower(hex(randomblob(16))));
+
+-- ═══════════════════════════════════════════════════════════════
+--  Parity unification — additional schema parity with branch3
+-- ═══════════════════════════════════════════════════════════════
+
+-- 0013 — partial unique index on salary_withdrawals.expense_uuid so the
+-- mirror row is unique per active source expense. NULLs are allowed
+-- (legacy direct withdrawals + soft-deleted mirrors).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_salary_withdrawals_active_expense
+  ON salary_withdrawals(expense_uuid) WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL;
+
+-- 0014 — wall-clock conflict timestamps. Restore this table alongside
+-- entity data; rotate epoch after a server restore.
+CREATE TABLE IF NOT EXISTS sync_write_times (
+  entity TEXT NOT NULL,
+  local_uuid TEXT NOT NULL,
+  edited_at INTEGER NOT NULL,
+  PRIMARY KEY (entity, local_uuid)
+);
