@@ -101,24 +101,22 @@ object DatabaseModule {
     }
 
     /**
-     * Parity unification: ports branch2's worker migrations 0008 +
-     * 0009 to the local Room schema. Both are pure additive — no
-     * financial rewrite, no row mutation. Mirrors worker/migrations
-     * 0008_idempotency_log_cleanup.sql + 0009_finance_snapshots.sql.
+     * Parity unification: ports branch2's worker migration 0009
+     * (finance_snapshots table) to the local Room schema.
      *
-     *  • `idx_idempotency_processed_at` — O(log n) TTL index for the
-     *    daily cron cleanup of the local idempotency_log mirror
-     *    (counterpart of worker/src/maintenance.ts).
+     * NOTE: branch2's worker migration 0008 (idx_idempotency_processed_at)
+     * is intentionally NOT ported here — `idempotency_log` is a Worker/D1
+     * table only, not a Room entity on Android. The Android client never
+     * stores idempotency keys locally (they live on the server). The
+     * Worker applies 0008 to D1 independently via its own migration
+     * pipeline; the Android side only mirrors tables that are Room
+     * entities in AppDatabase.kt.
      *
-     *  • `finance_snapshots` table — append-only governance/forecast
-     *    approval. ~10KB/week growth. Read-only from API.
+     * Pure additive — no financial rewrite, no row mutation.
+     * Mirrors worker/migrations/0009_finance_snapshots.sql.
      */
     val MIGRATION_76_77 = object : Migration(76, 77) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL(
-                "CREATE INDEX IF NOT EXISTS idx_idempotency_processed_at " +
-                    "ON idempotency_log(processed_at)"
-            )
             db.execSQL(
                 """CREATE TABLE IF NOT EXISTS finance_snapshots (
                   id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -139,11 +137,11 @@ object DatabaseModule {
             )
             db.execSQL(
                 "CREATE INDEX IF NOT EXISTS idx_finance_snapshots_approved " +
-                    "ON finance_snapshots(approved_at DESC)"
+                    "ON finance_snapshots(approved_at)"
             )
             db.execSQL(
                 "CREATE INDEX IF NOT EXISTS idx_finance_snapshots_scenario " +
-                    "ON finance_snapshots(scenario_key, approved_at DESC)"
+                    "ON finance_snapshots(scenario_key, approved_at)"
             )
         }
     }

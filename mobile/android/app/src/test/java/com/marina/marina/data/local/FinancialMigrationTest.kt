@@ -28,7 +28,9 @@ class FinancialMigrationTest {
         val room = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries().build()
         try {
-            assertEquals(76, AppDatabase.SCHEMA_VERSION)
+            // Parity unification: bumped 76 → 77 to add idempotency_log TTL index
+            // + finance_snapshots table + governance indexes.
+            assertEquals(77, AppDatabase.SCHEMA_VERSION)
             assertEquals(AppDatabase.SCHEMA_VERSION, room.openHelper.writableDatabase.version)
         } finally { room.close() }
     }
@@ -73,7 +75,7 @@ class FinancialMigrationTest {
         helper.close()
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
+                .addMigrations(DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76, DatabaseModule.MIGRATION_76_77).allowMainThreadQueries().build()
             try {
                 val db = room.openHelper.writableDatabase
                 assertSalaryUuidIndexes(db)
@@ -105,7 +107,7 @@ class FinancialMigrationTest {
             helper.close()
             try {
                 val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                    .addMigrations(DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
+                    .addMigrations(DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76, DatabaseModule.MIGRATION_76_77).allowMainThreadQueries().build()
                 try {
                     val db = room.openHelper.writableDatabase
                     db.query("SELECT expense_kind, amount, updated_at FROM expenses").use {
@@ -151,10 +153,11 @@ class FinancialMigrationTest {
 
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
+                .addMigrations(DatabaseModule.MIGRATION_75_76, DatabaseModule.MIGRATION_76_77).allowMainThreadQueries().build()
             try {
                 val db = room.openHelper.writableDatabase
-                assertEquals(76, db.version)
+                assertEquals(77, db.version)
+                // Parity unification: 76→77 adds idempotency_log TTL index + finance_snapshots table.
 
                 // الأعمدة الثمانية الجديدة موجودة، وبقيم افتراضية سليمة.
                 fun columnInfo(table: String, column: String): Triple<Boolean, String?, String>? =
@@ -262,12 +265,13 @@ class FinancialMigrationTest {
         createV70(name)
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76)
+                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76, DatabaseModule.MIGRATION_76_77)
                 .allowMainThreadQueries().build()
             try {
                     // Opening invokes Room's generated full schema validation, not just column checks.
                     val db = room.openHelper.writableDatabase
-                    assertEquals(76, db.version)
+                    assertEquals(77, db.version)
+                    // Parity unification: 76→77 adds idempotency_log TTL index + finance_snapshots table.
                     for (table in listOf("expenses", "salary_withdrawals")) {
                         db.query("SELECT amount FROM $table").use { cursor ->
                             assertTrue(cursor.moveToFirst())
@@ -312,8 +316,8 @@ class FinancialMigrationTest {
         helper.close()
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
-            try { assertEquals(76, room.openHelper.writableDatabase.version) }
+                .addMigrations(DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76, DatabaseModule.MIGRATION_76_77).allowMainThreadQueries().build()
+            try { assertEquals(77, room.openHelper.writableDatabase.version) }
             finally { room.close() }
         } finally { context.deleteDatabase(name) }
     }
@@ -336,10 +340,11 @@ class FinancialMigrationTest {
         helper.close()
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76).allowMainThreadQueries().build()
+                .addMigrations(DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76, DatabaseModule.MIGRATION_76_77).allowMainThreadQueries().build()
             try {
                 val db = room.openHelper.writableDatabase
-                assertEquals(76, db.version)
+                assertEquals(77, db.version)
+                // Parity unification: 76→77 adds idempotency_log TTL index + finance_snapshots table.
                 db.query("SELECT localUuid FROM pending_sync_links").use {
                     assertTrue(it.moveToFirst())
                     assertEquals("kept", it.getString(0))
@@ -361,7 +366,7 @@ class FinancialMigrationTest {
         }
         try {
             val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76)
+                .addMigrations(DatabaseModule.MIGRATION_70_71, DatabaseModule.MIGRATION_71_72, DatabaseModule.MIGRATION_72_73, DatabaseModule.MIGRATION_73_74, DatabaseModule.MIGRATION_74_75, DatabaseModule.MIGRATION_75_76, DatabaseModule.MIGRATION_76_77)
                 .allowMainThreadQueries().build()
             try { assertTrue(runCatching { room.openHelper.writableDatabase }.isFailure) }
             finally { room.close() }
