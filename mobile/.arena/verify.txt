@@ -18,17 +18,8 @@ warning • The declaration '_performOptimizedSyncCheck' isn't referenced. Try r
 
 4 issues found.
 
-### flutter test (targeted, rc=1)
----- tail ----
-#30     _runZoned (dart:async/zone_api.dart:166:6)
-#31     runZoned (dart:async/zone_api.dart:92:10)
-#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
-#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
-<asynchronous suspension>
-This warning will only appear on debug builds.
-ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)
-🔄 تغيير في expenses (INSERT) - تغييرات معلقة: 9
-🔄 تغيير في expenses (UPDATE) - تغييرات معلقة: 10
+### flutter test (targeted, rc=0)
+---- summary ----
 ::endgroup::
 
-::error::72 tests passed, 3 failed.
+🎉 75 tests passed.
