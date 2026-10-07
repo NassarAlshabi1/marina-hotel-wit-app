@@ -996,9 +996,9 @@ class RestoreFixService {
         .map((row) => row.id)
         .toList();
     if (staleDerivedIds.isNotEmpty) {
-      await (db.delete(db.hotelDayLedger)
-            ..where((t) => t.id.isIn(staleDerivedIds)))
-          .go();
+      await (db.delete(
+        db.hotelDayLedger,
+      )..where((t) => t.id.isIn(staleDerivedIds))).go();
     }
 
     int inserted = 0;

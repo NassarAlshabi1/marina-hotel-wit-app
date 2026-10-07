@@ -169,8 +169,7 @@ class NightAuditService {
               ..where((t) => t.hotelDayKey.equals(key))
               ..limit(1))
             .getSingleOrNull();
-    return entry != null &&
-        entry.status == HotelDayLedgerIdentity.statusClosed;
+    return entry != null && entry.status == HotelDayLedgerIdentity.statusClosed;
   }
 
   /// جمع كل البيانات المالية لليوم الفندقي
@@ -356,7 +355,6 @@ class NightAuditService {
       dlog(() => '📝 [NightAudit] Ledger created for $hotelDayKey');
     }
   }
-
 
   /// بناء رسالة التقرير — نص عادي متوافق مع WhatsApp و Telegram
   String _buildReportMessage(NightAuditData d) {
