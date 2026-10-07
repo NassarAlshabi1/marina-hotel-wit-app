@@ -1,65 +1,34 @@
 ### dart format --set-exit-if-changed . (AFTER build_runner — مطابق CI)
-Changed lib/services/night_audit_service.dart
-Changed lib/services/restore_fix_service.dart
-Changed test/unit/hotel_day_ledger_restore_identity_test.dart
-Formatted 595 files (3 changed).
+Formatted 595 files (0 changed).
 
 ### dart format . (self-heal)
-Formatted lib/services/night_audit_service.dart
-Formatted lib/services/restore_fix_service.dart
-Formatted test/unit/hotel_day_ledger_restore_identity_test.dart
-Formatted 595 files (3 changed).
+Formatted 595 files (0 changed).
 
 ### flutter analyze
+  yaml 3.1.3 (3.1.4 available)
+Got dependencies!
+173 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing mobile...                                             
+
    info • 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead. Try replacing the use of the deprecated member with the replacement • lib/services/appwrite_service.dart:1184:10 • deprecated_member_use
 warning • The declaration '_handlePeriodicPull' isn't referenced. Try removing the declaration of '_handlePeriodicPull' • lib/services/google_drive_unified_sync_coordinator.dart:434:16 • unused_element
-  error • The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'. Try importing the library that defines 'preservedClosed', correcting the name to the name of an existing getter, or defining a getter or field named 'preservedClosed' • lib/services/restore_fix_service.dart:1131:22 • undefined_getter
-  error • The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'. Try importing the library that defines 'preservedClosed', correcting the name to the name of an existing getter, or defining a getter or field named 'preservedClosed' • lib/services/restore_fix_service.dart:1133:54 • undefined_getter
-  error • The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'. Try importing the library that defines 'deletedStale', correcting the name to the name of an existing getter, or defining a getter or field named 'deletedStale' • lib/services/restore_fix_service.dart:1137:22 • undefined_getter
-  error • The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'. Try importing the library that defines 'deletedStale', correcting the name to the name of an existing getter, or defining a getter or field named 'deletedStale' • lib/services/restore_fix_service.dart:1139:54 • undefined_getter
-  error • 'preservedClosed' isn't a field in the enclosing class. Try correcting the name to match an existing field, or defining a field named 'preservedClosed' • lib/services/restore_fix_service.dart:1524:5 • initializing_formal_for_non_existent_field
-  error • 'deletedStale' isn't a field in the enclosing class. Try correcting the name to match an existing field, or defining a field named 'deletedStale' • lib/services/restore_fix_service.dart:1525:5 • initializing_formal_for_non_existent_field
 warning • The declaration '_startPeriodicSync' isn't referenced. Try removing the declaration of '_startPeriodicSync' • lib/services/smart_google_drive_sync.dart:290:8 • unused_element
 warning • The declaration '_performOptimizedSyncCheck' isn't referenced. Try removing the declaration of '_performOptimizedSyncCheck' • lib/services/smart_sync_manager.dart:148:16 • unused_element
 
-10 issues found.
+4 issues found.
 
 ### flutter test (targeted, rc=1)
-lib/services/restore_fix_service.dart:1131:22: Error: The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1133:54: Error: The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1137:22: Error: The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1139:54: Error: The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: lib/services/restore_fix_service.dart:1524:10: Error: 'preservedClosed' isn't an instance field of this class.
-lib/services/restore_fix_service.dart:1525:10: Error: 'deletedStale' isn't an instance field of this class.
-lib/services/restore_fix_service.dart:1131:22: Error: The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1133:54: Error: The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1137:22: Error: The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1139:54: Error: The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'.
-Error: The Dart compiler exited unexpectedly.
-lib/services/restore_fix_service.dart:1524:10: Error: 'preservedClosed' isn't an instance field of this class.
-lib/services/restore_fix_service.dart:1525:10: Error: 'deletedStale' isn't an instance field of this class.
-lib/services/restore_fix_service.dart:1131:22: Error: The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1133:54: Error: The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1137:22: Error: The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1139:54: Error: The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/expense_kind_edit_preservation_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/expense_kind_edit_preservation_test.dart: lib/services/restore_fix_service.dart:1524:10: Error: 'preservedClosed' isn't an instance field of this class.
-lib/services/restore_fix_service.dart:1525:10: Error: 'deletedStale' isn't an instance field of this class.
-lib/services/restore_fix_service.dart:1131:22: Error: The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1133:54: Error: The getter 'preservedClosed' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1137:22: Error: The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'.
-lib/services/restore_fix_service.dart:1139:54: Error: The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'.
 ---- tail ----
-    if (ledgerResult.deletedStale > 0) {
-                     ^^^^^^^^^^^^
-lib/services/restore_fix_service.dart:1139:54: Error: The getter 'deletedStale' isn't defined for the type '_LedgerRebuildResult'.
- - '_LedgerRebuildResult' is from 'package:marina_hotel_mobile/services/restore_fix_service.dart' ('lib/services/restore_fix_service.dart').
-Try correcting the name to the name of an existing getter, or defining a getter or field named 'deletedStale'.
-        '🧹 دفتر HotelDayLedger: حُذف ${ledgerResult.deletedStale} صفاً '
-                                                     ^^^^^^^^^^^^
-.
-
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)
+🔄 تغيير في expenses (INSERT) - تغييرات معلقة: 9
+🔄 تغيير في expenses (UPDATE) - تغييرات معلقة: 10
 ::endgroup::
 
-::error::30 tests passed, 7 failed.
+::error::72 tests passed, 3 failed.
