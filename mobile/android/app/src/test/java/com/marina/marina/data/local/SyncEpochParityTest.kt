@@ -184,8 +184,13 @@ class SyncEpochParityTest {
         assertEquals(3, pendingOps.count { it.op == "update" })
         // الحذف الناعم يجب أن يُرفع بحمولة تحمل عمود القبورة (عقد Dart:
         // op='update' مع deleted_at/updated_at في الحمولة).
-        val deletedOps = pendingOps.filter { it.payload.contains("deleted_at") }
-        assertEquals(1, deletedOps.size)
+        // الحمولة المحفوظة تستعمل اسم حقل المجال (camelCase) — التحويل إلى
+        // snake_case يحدث عند الرفع (`PushWireContract.normalizeForWire`).
+        val deletedOps = pendingOps.filter { it.payload.lowercase().contains("deletedat") }
+        assertEquals(
+            "payloads=" + pendingOps.map { it.payload }.toString(),
+            1, deletedOps.size
+        )
     }
 
     // ─── 2) صف محلي «مسموم» بالميلي لا يحجب تحديث الخادم ──────────
@@ -287,12 +292,21 @@ class SyncEpochParityTest {
                     "bookings", "local_uuid" to completed.localUuid, "room_number" to "E-404",
                     "guest_name" to "ضيف السحابة", "guest_phone" to "", "guest_nationality" to "يمني",
                     "status" to "مكتمل", "checkin_date" to "2026-10-01T14:01:00",
+                    // أعمدة D1 الإلزامية للحجز (schema.sql l.303-310) — الـ Worker
+                    // يرسل الصف كاملاً دائماً؛ غيابها هنا نقص في بيانات الاختبار.
+                    "guest_id_number" to "", "discount" to 0.0,
+                    "total_nights_cached" to 1, "total_due_cached" to 400.0,
+                    "total_paid_cached" to 0.0, "remaining_balance_cached" to 400.0,
                     "updated_at" to (completed.lastModified + 5L),
                     "last_modified" to (completed.lastModified + 5L)
                 )
             )
         )
-        assertEquals(1, pull.applied)
+        assertEquals(
+            "report=applied:${pull.applied} skipped:${pull.skipped} failed:${pull.failed} " +
+                "deferred:${pull.deferred.size} firstError:${pull.firstError}",
+            1, pull.applied
+        )
         assertEquals("ضيف السحابة", db.bookingsDao().getById(bookingId)!!.guestName)
     }
 
