@@ -73,11 +73,18 @@ class OutboxRepository @Inject constructor(
         return outboxDao.insert(outbox)
     }
 
-    /** Generic helper: serializes any entity/model into an outbox payload. */
+    /**
+     * Generic helper: serializes any entity/model into an outbox payload.
+     *
+     * ✅ (2026-10-07) التسلسل عبر [com.marina.marina.data.sync.SyncEntityGson]
+     * الواعي بظلّ الحقول: `Gson()` العادي يرمي
+     * `declares multiple JSON fields named 'id'` على أي كيان يرث
+     * `BaseSyncEntity` (كل كيانات Room) — فكان تسلسل الكيان الخام يفشل بصمت
+     * عند المستدعي. النماذج (domain) كانت تعمل، فبقي العطل مخفياً حتى مرّرنا
+     * كيان حركة المخزون.
+     */
     suspend fun enqueueObject(entity: String, op: String, localUuid: String, payloadObject: Any): Long {
-        val mapType = object : TypeToken<Map<String, Any>>() {}.type
-        @Suppress("UNCHECKED_CAST")
-        val payload = gson.fromJson<Map<String, Any>>(gson.toJson(payloadObject), mapType) ?: emptyMap()
+        val payload = com.marina.marina.data.sync.SyncEntityGson.toMap(payloadObject)
         return enqueue(entity, op, localUuid, payload)
     }
 

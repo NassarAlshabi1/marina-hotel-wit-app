@@ -381,6 +381,32 @@ class RepositoryEpochParityTest {
         assertSeconds("inventory_items.softDelete.deleted_at", requireNotNull(softDeleted.deletedAt))
     }
 
+    /**
+     * عطل مُكتشف بالتشغيل (CI `37696941360`): تمرير **كيان Room** إلى
+     * `enqueueObject` كان يرمي `declares multiple JSON fields named 'id'`
+     * (Gson مقابل ظلّ حقول `BaseSyncEntity`) ⇒ `recordMovement` يفشل كاملاً
+     * وحركات المخزون لا تُرفع. الآن التسلسل واعٍ بظلّ الحقول، والحمولة تحمل
+     * أسماء السلك (`movement_type`) بعد `SyncWireFields.toWire`.
+     */
+    @Test
+    fun entityPayloadSerializesWithWireNamesInsteadOfThrowing() = runBlocking {
+        val repo = inventory()
+        val itemId = repo.addItem(InventoryItem(name = "صنف تسلسل", unit = "قطعة"))
+        val movement = repo.recordMovement(itemId, type = "out", quantity = 2.0, note = "صرف")
+        assertTrue("recordMovement فشل: ${movement.exceptionOrNull()}", movement.isSuccess)
+
+        val row = db.outboxDao().getPendingPrimary().first()
+            .single { it.entity == "inventory_transactions" }
+        val json = com.google.gson.JsonParser.parseString(row.payload).asJsonObject
+        // الاسم السلكي (يراه الخادم) والاسم المحلي (يُفلتر عنده) — كلاهما موجود.
+        assertEquals("out", json["movement_type"].asString)
+        assertEquals("out", json["transaction_type"].asString)
+        // حقول المزامنة الأساسية تُسلسَل مرة واحدة من حقل الصنف لا من ظلّه.
+        assertTrue("الطابع يجب أن يكون ثوانٍ", json["last_modified"].asLong in 1_000_000_000L..SyncEpochs.MILLIS_THRESHOLD)
+        assertTrue("local_uuid مطلوب في الحمولة", json["local_uuid"].asString.isNotBlank())
+        assertTrue("created_at مطلوب (يغذّي transaction_time على الأجهزة الأخرى)", json.has("created_at"))
+    }
+
     // ─── 3) الرواتب: دورة/دفعة/ترحيل/سحب ────────────────────────────────────
 
     @Test

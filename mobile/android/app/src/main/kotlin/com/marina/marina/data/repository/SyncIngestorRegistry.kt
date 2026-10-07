@@ -2,8 +2,6 @@ package com.marina.marina.data.repository
 
 import android.util.Log
 import androidx.room.withTransaction
-import com.google.gson.ExclusionStrategy
-import com.google.gson.FieldAttributes
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
@@ -189,22 +187,16 @@ class SyncIngestorRegistry @Inject constructor(
      * Room إطلاقاً. الاستراتيجية: الحقل المورّث يُتجاهل عندما يعيد
      * الصنف الفعلي إعلانه (الفرعي هو المصدر المرجعي).
      */
-    private val gsonCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Gson>()
     private val booleanWireFieldsCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Set<String>>()
 
-    private fun gsonFor(clazz: Class<*>): Gson = gsonCache.getOrPut(clazz) {
-        val ownNames = clazz.declaredFields.map { it.name }.toSet()
-        val strategy = object : ExclusionStrategy {
-            override fun shouldSkipField(f: FieldAttributes): Boolean =
-                f.declaringClass != clazz && f.name in ownNames
-
-            override fun shouldSkipClass(c: Class<*>): Boolean = false
-        }
-        GsonBuilder()
-            .addDeserializationExclusionStrategy(strategy)
-            .addSerializationExclusionStrategy(strategy)
-            .create()
-    }
+    /**
+     * ✅ (2026-10-07) التسلسل من نقطة واحدة مشتركة مع مسار الرفع
+     * ([com.marina.marina.data.sync.SyncEntityGson]) — كانت الاستراتيجية هنا
+     * مكرّرة، و`OutboxRepository` كان يستعمل `Gson()` بسيطاً فيرمي استثناءً
+     * على أي كيان يرث `BaseSyncEntity` ⇒ حركات المخزون لم تُرفع إطلاقاً.
+     */
+    private fun gsonFor(clazz: Class<*>): Gson =
+        com.marina.marina.data.sync.SyncEntityGson.forClass(clazz)
 
     /** D1/SQLite booleans arrive over both sync transports as INTEGER 0/1. */
     /** أسماء حقول Boolean كما تظهر على السلك (مخزّنة لكل كيان). */
