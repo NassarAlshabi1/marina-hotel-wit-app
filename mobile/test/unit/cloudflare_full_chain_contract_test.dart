@@ -170,7 +170,14 @@ const Map<String, Map<String, String>> _fkPointers = {
 
 /// أعمدة يصدرها الإنتاج المعروف ولا تحملها جداول Drift المحلية
 /// (يسقطها _filterToLocalColumns عمداً — إسقاط لا فقدان).
-const Set<String> _droppableKeys = {'sync_timestamp'};
+///
+/// Parity unification: أُضيف `clear_employee_link` هنا — إنه synonym
+/// قديم (legacy) لـ `employee_link_cleared=1` يرسله Android
+/// `PushWireContract.kt` عند إزالة ارتباط الموظف. الـ worker
+/// (`worker/src/database.ts normalizeExpenseFields`) يحوّله إلى
+/// `employee_uuid=NULL` + `employee_link_cleared=1` ولا يحفظه كعمود.
+/// Drift الـ Flutter لا يحمله محلياً إطلاقاً (العلم خادمي محض).
+const Set<String> _droppableKeys = {'sync_timestamp', 'clear_employee_link'};
 
 /// أعمدة سحابية فقط (في D1 لا في Drift) — تُسقط عند السحب بلا أثر:
 /// مرتبطة بأسباب موثقة؛ أي عمود جديد خارج هذه القائمة = فشل صاخب

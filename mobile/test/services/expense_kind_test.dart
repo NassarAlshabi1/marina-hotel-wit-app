@@ -10,8 +10,8 @@
 // run without `flutter test` — `dart test` is sufficient. If the
 // Flutter SDK is unavailable, run with `dart test test/services/expense_kind_test.dart`.
 
+import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/utils/expense_kind.dart';
-import 'package:test/test.dart';
 
 void main() {
   group('kExpenseKinds', () {

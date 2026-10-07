@@ -534,11 +534,7 @@ CREATE INDEX IF NOT EXISTS idx_payments_deleted ON payments(deleted_at);
 CREATE TABLE IF NOT EXISTS expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   expense_type TEXT NOT NULL,
-  expense_kind TEXT
-    CHECK (expense_kind IS NULL OR expense_kind IN (
-      'normal','salary_advance','salary_installment','salary_withdrawal',
-      'salary_deduction','unclassified'
-    )),
+  expense_kind TEXT CHECK (expense_kind IS NULL OR expense_kind IN ('normal','salary_advance','salary_installment','salary_withdrawal','salary_deduction','unclassified')),
   related_id INTEGER,
   description TEXT NOT NULL,
   amount REAL NOT NULL,
