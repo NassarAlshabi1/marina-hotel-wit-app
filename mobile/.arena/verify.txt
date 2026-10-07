@@ -1,0 +1,24 @@
+### format check BEFORE (CI parity)
+Changed test/unit/cloudflare_d1_upload_fields_test.dart
+Formatted 593 files (1 changed).
+
+### dart format .
+Formatted test/unit/cloudflare_d1_upload_fields_test.dart
+Formatted 593 files (1 changed).
+
+### flutter analyze
+  yaml 3.1.3 (3.1.4 available)
+Got dependencies!
+173 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing mobile...                                             
+
+   info • 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead. Try replacing the use of the deprecated member with the replacement • lib/services/appwrite_service.dart:1184:10 • deprecated_member_use
+warning • The declaration '_handlePeriodicPull' isn't referenced. Try removing the declaration of '_handlePeriodicPull' • lib/services/google_drive_unified_sync_coordinator.dart:434:16 • unused_element
+warning • The declaration '_startPeriodicSync' isn't referenced. Try removing the declaration of '_startPeriodicSync' • lib/services/smart_google_drive_sync.dart:290:8 • unused_element
+warning • The declaration '_performOptimizedSyncCheck' isn't referenced. Try removing the declaration of '_performOptimizedSyncCheck' • lib/services/smart_sync_manager.dart:148:16 • unused_element
+
+4 issues found.
+
+### targeted tests (rc=0)
+00:16 +38: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bug_repro_expense_edit_test.dart: إعادة الإنتاج: تعديل 100→150 من شاشة عرض المصروفات                       00:16 +38: All tests passed!                                                                                                                                                                           
