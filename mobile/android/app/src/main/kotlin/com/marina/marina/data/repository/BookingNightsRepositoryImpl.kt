@@ -156,11 +156,18 @@ class BookingNightsRepositoryImpl @Inject constructor(
         // l.258-280): create/updated/lastModified = now (ثوانٍ) على الصف الجديد.
         val now = SyncEpochs.nowSeconds()
         val prepared = adjustment.copy(
-            localUuid = adjustment.localUuid.ifBlank { UUID.randomUUID().toString() },
-            createdAt = if (adjustment.createdAt == 0L) now else adjustment.createdAt,
-            updatedAt = now
+            localUuid = adjustment.localUuid.ifBlank { UUID.randomUUID().toString() }
         )
-        val id = adjustmentsDao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
+        // نموذج المجال لا يحمل createdAt/updatedAt (لا مقابل لهما فيه) فتُختم
+        // على الصف نفسه — نظير Companion Dart أعلاه.
+        val id = adjustmentsDao.insert(
+            prepared.toEntity().copy(
+                createdAt = now,
+                updatedAt = now,
+                lastModified = now,
+                lastModifiedEpoch = now
+            )
+        )
         outboxRepository.enqueueObject("booking_price_adjustments", "insert", prepared.localUuid, prepared)
         return id
     }

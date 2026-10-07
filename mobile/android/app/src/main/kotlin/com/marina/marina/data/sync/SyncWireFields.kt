@@ -148,7 +148,7 @@ object SyncWireFields {
      * ثوانٍ → ميلي ثانية للحقول المحلية الملزَمة بالميلي: القيم الصفرية
      * والميلي بالفعل (بناء قديم) تبقى كما هي — لا نُخمّن مكان غياب معلومة.
      */
-    private fun secondsToMillis(value: Any?): Any? {
+    private fun secondsToMillis(value: Any): Any {
         val asLong = when (value) {
             is Number -> value.toLong()
             is String -> value.trim().toLongOrNull()
