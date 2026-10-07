@@ -93,10 +93,59 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       }
     }
 
+"    // ✅ (m69 — م-3: مستهلك employeeLinkCleared) منع إحياء رابط أزاله
+    // المستخدم عمداً. الحالة المثبتة من الكود:
+    //   1) المستخدم يحوّل مصروف راتب إلى نوع غير راتبي ⇒ التطبيق يرفع
+    //      employeeLinkCleared=true وemployeeUuid=NULL (expenses_list).
+    //   2) جهاز آخر (أو نسخة سحابية قديمة) لا يزال يحمل المستند السابق
+    //      الذي بلا مفتاح employeeLinkCleared إطلاقاً (سجل ما قبل العقد).
+    //   3) عند سحبه، كانت المحوّلات تكتب employeeUuid/relatedId من الحمولة
+    //      مجدداً ⇒ «إحياء» رابط أزاله المستخدم (انتهاك البند 7: الغياب
+    //      لا يُفسَّر كحذف، والحذف الصريح لا يُنقض بمداد قديم).
+    //
+    // القرار الحتمي (لا تخمين):
+    //   • صف محلي بنفس localUuid وعلم employeeLinkCleared=true،
+    //   • والحمولة الواردة **لا تحمل مفتاح employeeLinkCleared** (سجل ما
+    //     قبل العقد — كل عمليات الرفع بعد m69 تحمل المفتاح دائماً، انظر
+    //     payload_mapper.dart:207)،
+    //   ⇒ يُقمع الربط: employeeUuid=NULL وrelatedId=NULL ويبقى العلم true.
+    //     (relation-incomplete — قابل للربط فوراً متى وصلت نسخة ما بعد
+    //     العقد تُصرّح بإعادة الربط: employeeLinkCleared=false + employeeUuid)
+    //   • أما مصدر محلي (استعادة نسخة على نفس الجهاز) فلا يُقمع أبداً —
+    //     لا معنى لقدم الحمولة هناك.
+    var suppressEmployeeLink = false;
+    final expenseLocalUuid =
+        _asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src);
+    final fromRemoteSource = src == Source.appwrite || src == Source.drive;
+    final payloadCarriesContractFlag =
+        json.containsKey('employeeLinkCleared') ||
+        json.containsKey('employee_link_cleared');
+    if (fromRemoteSource &&
+        expenseLocalUuid != null &&
+        expenseLocalUuid.isNotEmpty &&
+        !payloadCarriesContractFlag) {
+      final String expenseUuidKey = expenseLocalUuid;
+      final localRow =
+          await (db.select(db.expenses)
+                ..where((e) => e.localUuid.equals(expenseUuidKey))
+                ..limit(1))
+              .getSingleOrNull();
+      if (localRow != null && localRow.employeeLinkCleared) {
+        suppressEmployeeLink = true;
+        AppLogger.warning(
+          'expense#$expenseLocalUuid: الحمولة الواردة من $src سجل ما قبل '
+          'عقد m69 (بلا employeeLinkCleared) — قُمع إحياء رابط أزاله '
+          'المستخدم عمداً (يبقى relation-incomplete حتى نسخة صريحة).',
+          tag: 'EXPENSES_ADAPTER',
+        );
+      }
+    }
+
     return ResolveResult(
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
       employeeRelatedId: employeeRelatedId,
+      suppressEmployeeLink: suppressEmployeeLink,
     );
   }
 
@@ -130,10 +179,11 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       // الرقم (ويُحسب راتبه عليه). null يبقى قابلاً لإعادة الربط لاحقاً
       // عبر employeeUuid (relink / قاعدة 6.1). أنواع غير الرواتب
       // (حجز/روابط أخرى) تبقى كما هي: relatedId معاينه محلية فقط.
-      relatedId:
-          PayloadMapper.isSalaryExpenseType(
-            _asString(json, 'expenseType', src) ?? '',
-          )
+      relatedId: refs.suppressEmployeeLink
+          ? const d.Value<int?>(null)
+          : PayloadMapper.isSalaryExpenseType(
+              _asString(json, 'expenseType', src) ?? '',
+            )
           ? d.Value<int?>(refs.employeeRelatedId)
           : _vInt(json, 'relatedId', src),
       description: _vStr(json, 'description', src, fallback: ''),
@@ -178,7 +228,10 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
         src,
         altKey: 'idempotency_key',
       ),
-      employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
+      // ✅ (m69 — م-3) عند القمع: لا يُكتب أي uuid من الحمولة القديمة.
+      employeeUuid: refs.suppressEmployeeLink
+          ? const d.Value<String?>(null)
+          : _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       // ✅ (migration 68) uuid سحبة المرآة — الرابط العكسي الدائم
       // (مصروف ← سحبة) الذي ينجو من إعادة ترقيم المعرفات عبر الأجهزة.
       withdrawalUuid: _vStr(
@@ -193,13 +246,17 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       // ✅ (migration 69 — D1 0012) علامة إزالة الرابط الصريحة —
       // fallback false (not absent) لتفادي غياب العمود في المستندات القديمة؛
       // القيمة true فقط هي ذات معنى سلوكي (لا تعيد المزامنة استعادة رابط أُزيل).
-      employeeLinkCleared: _vBool(
-        json,
-        'employeeLinkCleared',
-        src,
-        altKey: 'employee_link_cleared',
-        fallback: false,
-      ),
+      // ✅ (m69) عند القمع يبقى العلم مرفوعاً (الإزالة الصريحة محفوظة)،
+      // وإلا فقيمة الحمولة كما هي (fallback false لتوافق السجلات القديمة).
+      employeeLinkCleared: refs.suppressEmployeeLink
+          ? const d.Value(true)
+          : _vBool(
+              json,
+              'employeeLinkCleared',
+              src,
+              altKey: 'employee_link_cleared',
+              fallback: false,
+            ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }

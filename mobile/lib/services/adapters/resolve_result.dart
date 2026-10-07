@@ -10,6 +10,7 @@ class ResolveResult {
     this.lastModifiedEpoch,
     this.shouldSkip = false,
     this.skipReason,
+    this.suppressEmployeeLink = false,
   });
 
   final int? bookingLocalId;
@@ -39,6 +40,14 @@ class ResolveResult {
   /// سبب التخطي (للتسجيل في السجلات)
   final String? skipReason;
 
+  /// ✅ (m69 — استكمال عقد employeeLinkCleared) الصف المحلي يحمل إزالة
+  /// رابط **صراحةً** (employeeLinkCleared=true)، والحمولة الواردة سجل ما
+  /// قبل العقد (بلا مفتاح employeeLinkCleared أصلاً) ⇒ لا نسمح للحمولة
+  /// القديمة بإحياء رابط أزاله المستخدم. يُكتب الصف وارداً بلا رابط
+  /// (relation-incomplete) ويبقى العلم مرفوعاً حتى تصل نسخة ما بعد العقد
+  /// تُصرّح بإعادة الربط (employeeLinkCleared=false + employeeUuid).
+  final bool suppressEmployeeLink;
+
   static const empty = ResolveResult();
 
   ResolveResult copyWith({
@@ -52,6 +61,7 @@ class ResolveResult {
     int? lastModifiedEpoch,
     bool? shouldSkip,
     String? skipReason,
+    bool? suppressEmployeeLink,
   }) {
     return ResolveResult(
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
@@ -64,6 +74,7 @@ class ResolveResult {
       lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
       shouldSkip: shouldSkip ?? this.shouldSkip,
       skipReason: skipReason ?? this.skipReason,
+      suppressEmployeeLink: suppressEmployeeLink ?? this.suppressEmployeeLink,
     );
   }
 }

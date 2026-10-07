@@ -37,6 +37,49 @@ class AppwriteSyncUtils {
   // ⚠️ هذا هو المصدر الوحيد للحقيقة — لا تخمن حقولاً!
   // أي حقل غير موجود هنا سيُزال تلقائياً قبل الإرسال لمنع "Unknown attribute"
   // ══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════
+  //  صلابة «Unknown attribute» (م-2 — عقد m69 على Appwrite)
+  // ════════════════════════════════════════════════════════════════════
+  //
+  // الرمز الذي يُلتقط من خدمة Appwrite عند رفض حقل غير موجود في مخطط المجموعة:
+  //   document_invalid_structure: Unknown attribute: "X" (400)
+  // هذه الدوال نقية (بلا I/O) لتُختبر مباشرة، وهي المصدر الوحيد للسياسة:
+  // يُزال **الحقل المذكور فقط** ويُعاد الإرسال — لا تُسقط الحمولة كاملة ولا
+  // تُخمَّن حقول أخرى (بقية السجلات/الحقول تُرفع كما هي).
+
+  /// استخراج اسم السمة غير المعروفة من خطأ Appwrite — أو null إن لم يكن
+  /// الخطأ من نوع «بنية مستند غير صالحة». [message] نص الرسالة (رسالة
+  /// الاستثناء أو نصه الكامل). النمط نفسه المستخدم في appwrite_service.
+  static final RegExp unknownAttributePattern = RegExp(
+    r'Unknown attribute:\s*"([^"]+)"',
+  );
+
+  static String? unknownAttributeFromError({
+    int? code,
+    String? type,
+    required String message,
+  }) {
+    final t = type ?? '';
+    final isStructureError =
+        code == 400 &&
+        (t.contains('document_invalid_structure') ||
+            message.contains('Invalid document structure') ||
+            message.contains('Unknown attribute'));
+    if (!isStructureError) return null;
+    return unknownAttributePattern.firstMatch(message)?.group(1);
+  }
+
+  /// نسخة الحمولة بعد إزالة حقل واحد فقط — الحقول الأخرى (بما فيها ما بعده
+  /// من حقول العقد) تبقى كما هي، والقيم لا تُمَس إطلاقاً.
+  static Map<String, dynamic> withoutField(
+    Map<String, dynamic> data,
+    String field,
+  ) {
+    final copy = Map<String, dynamic>.from(data);
+    copy.remove(field);
+    return copy;
+  }
+
   static const Map<String, Set<String>> validFieldsPerCollection = {
     'app_settings': {
       // ✅ الإصلاح: حذف 'api_key' (لا يُرفع للسحابة — ثغرة أمنية، ولا يُستخدم

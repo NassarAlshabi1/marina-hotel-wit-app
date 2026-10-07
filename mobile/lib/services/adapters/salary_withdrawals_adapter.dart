@@ -85,10 +85,65 @@ class SalaryWithdrawalsAdapter
 
     // ✅ إصلاح حرج: إذا لم يتم العثور على الموظف المرتبط، نُعلم السجل للتخطي
     // لأن employeeId حقل مطلوب (NOT NULL FK) في جدول salary_withdrawals
+    // ✅ (m69 — م-4: ازدواج المرآة القادم من المزامنة) حارس تكرار مؤكد
+    // بالهوية قبل أي إدراج.
+    //
+    // الخلل المُثبت من الكود: فهرس m69 الفريد الجزئي
+    // idx_salary_withdrawals_active_expense يمنع أكثر من مرآة نشطة واحدة
+    // لكل expense_uuid، بينما منطق «تبنّي المرآة اليتيمة» موجود فقط في
+    // saveFromExpense (إنشاء/تعديل المصروف محلياً) — لا في مسار السحب.
+    // لذلك مستند مرآة مكرر قادم من جهاز آخر (نفس expense_uuid،
+    // localUuid مختلف) كان يصطدم بالفهرس: لا يصلح كمحكّم ON CONFLICT
+    // (فهرس جزئي — base_repository يتخطاه)، فيفشل الإدراج بـ
+    // UNIQUE constraint، وتُبتلع النتيجة في تحذير سحب صامت
+    // (appwrite_sync_manager: _syncSalaryWithdrawals → 'Failed to sync
+    // withdrawal ...') بلا تقرير مراجعة ولا إشارة للمشغّل.
+    //
+    // القرار الحتمي (لا تخمين — البند 12): تكرار الهوية مؤكد (نفس
+    // expense_uuid = نفس العملية المالية)، لكن أي المرآتين «الأصح»
+    // (مبلغ/موظف/يوم قد تختلف) لا يُحدَّد بلا قرينة ⇒ لا دمج ولا حذف
+    // تلقائي. يُتخطى الوارد بتقرير صريح، والحمولة كاملة تُحفظ في مخزن
+    // العلاقات المعلّقة (G-3) وتنتهي إلى needs_review في تقرير المراجعة
+    // (بعد استنفاد المحاولات — deferred_relation_relinker). أما تخطّي
+    // المصدر المحلي (استعادة نسخة) فلا يُطبّق — لا معنى للتكرار там.
+    final incomingLocalUuid =
+        _asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src);
+    final incomingExpenseUuid =
+        _asString(json, 'expenseUuid', src) ??
+        _asString(json, 'expense_uuid', src);
+    var duplicateMirrorOfActive = false;
+    if ((src == Source.appwrite || src == Source.drive) &&
+        incomingLocalUuid != null &&
+        incomingLocalUuid.isNotEmpty &&
+        incomingExpenseUuid != null &&
+        incomingExpenseUuid.isNotEmpty) {
+      // نسخ غير-قابلة-للعدم قبل الإغلاق (وضوح ترقية الأنواع داخل closures)
+      final String incomingUuidNonEmpty = incomingLocalUuid;
+      final String incomingExpenseUuidNonEmpty = incomingExpenseUuid;
+      final conflicting =
+          await (db.select(db.salaryWithdrawals)
+                ..where(
+                  (t) =>
+                      t.expenseUuid.equals(incomingExpenseUuidNonEmpty) &
+                      t.deletedAt.isNull() &
+                      t.localUuid.equals(incomingUuidNonEmpty).not(),
+                )
+                ..limit(1))
+              .getSingleOrNull();
+      duplicateMirrorOfActive = conflicting != null;
+    }
+
     final shouldSkip =
-        resolvedEmployeeId == null &&
-        (src == Source.appwrite || src == Source.drive);
-    final skipReason = shouldSkip
+        duplicateMirrorOfActive ||
+        (resolvedEmployeeId == null &&
+            (src == Source.appwrite || src == Source.drive));
+    final skipReason = duplicateMirrorOfActive
+        ? 'salary_withdrawal: مرآة مكررة نشطة لنفس المصروف '
+              '(expense_uuid=$incomingExpenseUuid موجود محلياً بـ '
+              'localUuid=${incomingLocalUuid ?? '?'}) — لا دمج ولا حذف '
+              'تلقائي، ولا يُخمَّن الفائز (قد تختلف المبالغ/الموظف)؛ '
+              'يحتاج مراجعة بشرية'
+        : shouldSkip
         ? 'salary_withdrawal: لا يمكن العثور على الموظف المرتبط '
               '(uuid=$remoteEmployeeUuid, originEmployeeId=$remoteEmployeeId, '
               'src=$src) — تم التخطي لتجنب InvalidDataException وربط خاطئ '

@@ -1272,6 +1272,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 : (SalaryExpenseClassifier.isSalaryRelated(existing.expenseType)
                       ? true
                       : null),
+            // ✅ (m69 — م-3) إزالة صريحة للرابط الرقمي مع إزالة الهوية:
+            // كانت employeeUuid تُمحى بينما relatedId يبقى (لمسحه يحتاج
+            // قيمة صريحة) ⇒ رقم يتيم يشير للموظف. الآن الطرفان يزولان معاً
+            // مع رفع العلم employeeLinkCleared=true.
+            clearRelatedId: !isSalaryExpense,
           );
 
           if (isSalaryExpense && resolvedEmployee != null) {

@@ -522,22 +522,14 @@ class AppwriteService {
   ///   document_invalid_structure: Unknown attribute: "X" (400)
   /// نلتقط اسم الحقل "X" لإزالته ثم إعادة المحاولة، بدل فشل السجل كاملاً.
   /// يُعيد null إذا لم يكن الخطأ من هذا النوع.
-  static final RegExp _unknownAttrPattern = RegExp(
-    r'Unknown attribute:\s*"([^"]+)"',
-  );
-
-  String? _extractUnknownAttribute(AppwriteException e) {
-    final type = e.type ?? '';
-    final msg = e.message ?? e.toString();
-    final isStructureError =
-        e.code == 400 &&
-        (type.contains('document_invalid_structure') ||
-            msg.contains('Invalid document structure') ||
-            msg.contains('Unknown attribute'));
-    if (!isStructureError) return null;
-    final match = _unknownAttrPattern.firstMatch(msg);
-    return match?.group(1);
-  }
+  /// ✅ (م-2) تفويض إلى المساعد النقي [AppwriteSyncUtils.unknownAttributeFromError]
+  /// — سلوك مطابق حرفياً، لكن السياسة صارت قابلة للاختبار مباشرة بلا شبكة.
+  String? _extractUnknownAttribute(AppwriteException e) =>
+      AppwriteSyncUtils.unknownAttributeFromError(
+        code: e.code,
+        type: e.type,
+        message: e.message ?? e.toString(),
+      );
 
   /// غلاف عام حول عملية الرفع الفعلية يجعل المزامنة صامدة أمام انحراف
   /// المخطط بين التطبيق و Appwrite Cloud: إذا رفض الخادم حقلاً غير معروف
@@ -577,8 +569,10 @@ class AppwriteService {
         if (unknownAttr != null &&
             workingData.containsKey(unknownAttr) &&
             attempt < maxRetries) {
-          workingData = Map<String, dynamic>.from(workingData)
-            ..remove(unknownAttr);
+          workingData = AppwriteSyncUtils.withoutField(
+            workingData,
+            unknownAttr,
+          );
           _logger.warning(
             '⚠️ حقل غير معروف في مخطط Appwrite — تمت إزالته وإعادة المحاولة: '
             '$collectionId.$unknownAttr (شغّل unified_appwrite_setup.js '
