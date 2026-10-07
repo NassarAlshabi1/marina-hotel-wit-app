@@ -175,6 +175,12 @@ class Employees extends Table with SyncFields {
 class Expenses extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get expenseType => text()();
+  // Parity unification with branch3 (Android/Kotlin + Cloudflare Worker):
+  // stable discriminator replacing the legacy Arabic-string matching in
+  // PayloadMapper.isSalaryExpenseType. NULL is a pre-contract row; the
+  // next accepted edit materialises the kind atomically with updated_at.
+  // Mirrors worker/migrations/0015_expense_kind.sql CHECK constraint.
+  TextColumn get expenseKind => text().nullable()();
   IntColumn get relatedId => integer().nullable()();
   TextColumn get description => text()();
   RealColumn get amount => real()();
@@ -189,6 +195,15 @@ class Expenses extends Table with SyncFields {
   TextColumn get employeeUuid => text().nullable()();
   // Stable reverse link to the mirrored salary withdrawal.
   TextColumn get withdrawalUuid => text().nullable()();
+  // Parity unification: persisted flag so a pull of a server row that
+  // previously lost its employee_uuid does NOT silently re-link to a
+  // stale snapshot. Server-owned metadata; the client never sets it
+  // directly — the worker (worker/src/database.ts normalizeExpenseFields)
+  // translates the legacy `clear_employee_link=1` wire synonym into
+  // `employee_uuid=NULL` + `employee_link_cleared=1`.
+  // Mirrors worker/migrations/0012_expense_employee_link_clear_flag.sql.
+  IntColumn get employeeLinkCleared =>
+      integer().withDefault(const Constant(0))();
 
   List<Index> get indexes => [
     Index(
@@ -1292,7 +1307,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 70;
+  int get schemaVersion => 71;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1352,6 +1367,55 @@ class AppDatabase extends _$AppDatabase {
       );
     },
     onUpgrade: (m, from, to) async {
+      // ✅ Parity unification (الإصدار 71): إضافة expense_kind +
+      // employee_link_cleared + sync_write_times ليتطابق مخطط Drift
+      // مع branch3 (Android/Kotlin). كل الإضافات آمنة للتكرار (try/catch
+      // لـ ALTER TABLE لا يدعم IF NOT EXISTS في SQLite/D1)، ولا ردم
+      // لتخمين UUID أو نوع المصروف — السجلات التاريخية تبقى NULL
+      // حتى يقوم العميل بتعديلها فيحسب الـ server expense_kind من
+      // legacy classifier (worker/src/expense-kind.ts).
+      if (from < 71) {
+        for (final stmt in [
+          'ALTER TABLE expenses ADD COLUMN expense_kind TEXT',
+          'ALTER TABLE expenses ADD COLUMN employee_link_cleared INTEGER NOT NULL DEFAULT 0',
+        ]) {
+          try {
+            await m.database.customStatement(stmt);
+          } catch (e) {
+            // العمود موجود مسبقاً في بعض قواعد البيانات المتقادمة
+            developer.log(
+              'Migration 71: column already exists: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        try {
+          await m.database.customStatement(
+            'CREATE TABLE IF NOT EXISTS sync_write_times ('
+            'entity TEXT NOT NULL, '
+            'local_uuid TEXT NOT NULL, '
+            'edited_at INTEGER NOT NULL, '
+            'PRIMARY KEY (entity, local_uuid))',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 71: sync_write_times table creation skipped: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_salary_withdrawals_active_expense '
+            'ON salary_withdrawals(expense_uuid) '
+            'WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 71: idx_salary_withdrawals_active_expense skipped: $e',
+            name: 'db.migration',
+          );
+        }
+      }
       // ✅ (2026-09-19) الإصدار 68: employee_uuid في جداول الرواتب الثلاثة
       // (توجيه المستخدم: «اضف الحقل المفقود employee_uuid الى الجداول لا
       // اريد فقدان البيانات نهائياً»). الحقل هو المفتاح المستقر عبر
