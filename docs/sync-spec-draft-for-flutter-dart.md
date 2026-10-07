@@ -6,7 +6,7 @@
 | --- | --- |
 | تاريخ التوليد | 2026-10-08 |
 | فرع الجلسة | `arena/be8302d7-marina-hotel-wit-app` |
-| آخر التزام موثّق | `341f92fd` (سلسلة الإصلاح `c3bc16b5`…`d364b90b`) |
+| آخر التزام موثّق | `7051eae1` (سلسلة الإصلاح `c3bc16b5`…`d364b90b` + توثيق §5 في `341f92fd`) |
 | الفرع المرجعي الدارتي | `feat/cloudflare-sync-execution` |
 | قاعدة الدمج | `agent/android-cloudflare` (`d95974fc`) |
 | كيانات السلك (المتزامنة) | 24 |
@@ -15,7 +15,7 @@
 
 **إعادة التوليد:** `python3 docs/tools/generate_sync_spec.py` (يقرأ المخطط والكيانات وخرائط السلك من المصدر — لا قيم محفوظة).
 
-**كيف تُقرأ:** الأقسام ١–٢ و٤–١٣ هي العقد (يجب أن تُطابقه أي جهة عميل)، والقسم ٣ فهارس حقول كاملة مولّدة لكل جدول. كل رقم في هذا الملف قابل للتحقق من الشيفرة المذكورة بجانبه؛ وما لم يُتحقق منه مُعلَم صراحةً.
+**كيف تُقرأ:** الأقسام ١–٢ و٤–١٢ هي العقد (يجب أن تُطابقه أي جهة عميل)، والقسم ٣ فهارس حقول كاملة مولّدة لكل جدول. كل رقم في هذا الملف قابل للتحقق من الشيفرة المذكورة بجانبه؛ وما لم يُتحقق منه مُعلَم صراحةً.
 
 ## ١) المعمارية
 
@@ -253,6 +253,173 @@
 | `0013_salary_withdrawal_expense_uuid.sql` | uuid المصروف على السحب |
 | `0014_sync_write_times.sql` | أعمدة أوقات الكتابة |
 | `0015_expense_kind.sql` | تصنيف المصروف |
+
+### ٢.٦ الجداول المحلية المحضة (لا تُزامَن: لا رفع ولا سحب)
+
+«محضة» تعني: ليست في `ENTITY_TABLES` ولا تُرسَل في `pull/push` ولا تُذكر في `_entity`.
+نسخة Dart يجب أن تملك مكافئها المحلي (جدول Room/SQLite أو مكافئه) بالحقول نفسها:
+
+#### `outbox` — طابور الصادر — المصدر الوحيد للرفع (§١.٣) — عدد الحقول: 24
+
+| العمود | خاصية Kotlin | اسم السلك (Gson) | ملاحظة |
+| --- | --- | --- | --- |
+| `id` | `id` | `id` | مفتاح أساسي تلقائي — ترتيب FIFO يعتمد عليه مع `client_ts` |
+| `entity` | `entity` | `entity` | كيان السلك (`bookings`, `rooms`, …) |
+| `op` | `op` | `op` | `insert`/`update`/`delete` — ويُترجَم إلى `create` عند الإرسال |
+| `local_uuid` | `localUuid` | `local_uuid` |  |
+| `server_id` | `serverId` | `server_id` |  |
+| `payload` | `payload` | `payload` | JSON نصي **مُحوَّل إلى أسماء السلك** قبل الإدراج (`SyncWireFields.toWire`) |
+| `client_ts` | `clientTs` | `client_ts` | طابع الإدراج **بالمللي** (ترتيب محلي فقط — ليس عمود مزامنة) |
+| `attempts` | `attempts` | `attempts` | عدّاد المحاولات — سقف 5 (استثناء `salary_withdrawals`) |
+| `last_error` | `lastError` | `last_error` | آخر خطأ (يُقصّ) |
+| `idempotency_key` | `idempotencyKey` | `idempotency_key` | `{entity}_{op}_{localUuid}_{uuid}` — ثابت للصف عبر كل المحاولات |
+| `processing_status` | `processingStatus` | `processing_status` | `pending` ⇒ `processing` ⇒ `completed` (و`pending` عند خطأ مؤقت) |
+| `processing_started_at` | `processingStartedAt` | `processing_started_at` | مللي — لأجل استرداد الانهيار |
+| `processing_worker` | `processingWorker` | `processing_worker` | `outbox-processor` |
+| `source` | `source` | `source` | `local` افتراضاً؛ `remote` للسجلات المستوردة |
+| `delivered_to_primary` | `deliveredToPrimary` | `delivered_to_primary` | =1 بعد تأكيد D1 (نجاح أو رفض دائم) |
+| `delivered_to_secondary` | `deliveredToSecondary` | `delivered_to_secondary` | افتراضي 1 — التسليم الثاني معطّل ما لم يُضبط خادم ثانٍ |
+| `primary_processing_status` | `primaryProcessingStatus` | `primary_processing_status` | `pending`/`completed`/`failed` — سجل dead-letter مرئي |
+| `primary_attempts` | `primaryAttempts` | `primary_attempts` | عدّاد محاولات التسليم الأول |
+| `primary_last_error` | `primaryLastError` | `primary_last_error` | سبب dead-letter (`validation_error`/`conflict`/…) |
+| `secondary_processing_status` | `secondaryProcessingStatus` | `secondary_processing_status` | غير مستخدم فعلياً (افتراضي `pending`) |
+| `secondary_attempts` | `secondaryAttempts` | `secondary_attempts` |  |
+| `secondary_last_error` | `secondaryLastError` | `secondary_last_error` |  |
+| `payload_version` | `payloadVersion` | `payload_version` | نسخة شكل الحمولة — تُرفَع عند تغيّر العقد |
+| `processing_payload_version` | `processingPayloadVersion` | `processing_payload_version` | نسخة الحمولة وقت الحجز — للتشخيص |
+
+#### `sync_quarantine` — سجل الحجر: صفوف سحب فشل تطبيقها بحمولتها (نظير cf_pull_orphan_*) — عدد الحقول: 6
+
+| العمود | خاصية Kotlin | اسم السلك (Gson) | ملاحظة |
+| --- | --- | --- | --- |
+| `entity` | `entity` | `—` | كيان الصف المعزول |
+| `recordKey` | `recordKey` | `—` | مفتاح السجل (مثل `uuid:<local_uuid>`) — جزء من المفتاح الأساسي |
+| `payload` | `payload` | `—` | الحمولة الخام للمراجعة — **لا تُرفع ولا تُسجَّل أبداً** |
+| `reason` | `reason` | `—` | سبب العزل (FK غير محلولة/فشل تطبيق) |
+| `attempts` | `attempts` | `—` | عدّاد الدورات الفاشلة (عتبة الشفاء في §٦.٣) |
+| `firstSeen` | `firstSeen` | `—` | طابع أول عزل (ثوانٍ) — أساس إخلاء السقف الأقدم-أولاً |
+
+#### `pending_sync_links` — صندوق دائم للسجلات المؤجَّلة (FK غير محلولة) — يُعاد كل دورة — عدد الحقول: 3
+
+| العمود | خاصية Kotlin | اسم السلك (Gson) | ملاحظة |
+| --- | --- | --- | --- |
+| `entity` | `entity` | `—` | كيان الصف المؤجَّل — جزء من المفتاح الأساسي |
+| `localUuid` | `localUuid` | `—` | هوية الصف المؤجَّل — جزء من المفتاح الأساسي |
+| `payload` | `payload` | `—` | الحمولة الكاملة — تُعاد للمعالجة كل دورة بلا فقد |
+
+> ملاحظة: عمود «اسم السلك» في هذه الجداول هو `@SerializedName` (شكل JSON إن سُجِّل الصف محلياً في
+> النسخ الاحتياطية) — وليس حقلاً يُرسَل إلى الـWorker.
+
+#### ٢.٦.١ آلة حالات طابور الصادر (عقد تنفيذي — يُنقل حرفياً)
+
+| المرحلة | القاعدة | المصدر |
+| --- | --- | --- |
+| الإدراج | `op` يُترجَم: `insert`⇒`create`؛ `update`/`delete` كما هي؛ الحمولة تُحوَّل لأسماء السلك قبل التخزين | `OutboxRepository.enqueue` |
+| مفتاح منع التكرار | `{entity}_{op}_{localUuid}_{uuid}` — يُولَّد مرة ويُعاد استخدامه في كل محاولة | المرجع نفسه |
+| الدفعات | حتى `PUSH_BATCH_SIZE` عملية/طلب؛ الصفوف تُحجز `processing` **قبل** الإرسال | `processPending` |
+| استرداد الانهيار | عند الإقلاع: كل `processing` ⇒ `pending` (صفوف انهار التطبيق قبل إتمامها لا تبقى معلّقة) | `OutboxDao.recoverStaleProcessing` |
+| نجاح | `markDeliveredPrimary` + `completed` ⇒ `delivered++` | المرجع نفسه |
+| نجاح بحالة `deleted` | يُطبَّق حذف محلي فوري (`tombstoneLocalRecord`) — حسم الخادم نهائي | المرجع نفسه |
+| رفض دائم | `validation_error`/`conflict` ⇒ `failed` + `completed` (dead-letter بلا إعادة أبدية) | `isPermanentRejection` |
+| خطأ مؤقت | `internal_error` ⇒ `pending` لإعادة المحاولة | المرجع نفسه |
+| فشل شبكة | الاستثناء ⇒ `pending` للصف كله (لا يُعدّ رفضاً) | `onFailure` |
+| سقف المحاولات | `attempts ≥ 5` ⇒ dead-letter — **عدا `salary_withdrawals`** (الأب قد يصل متأخراً) | `retryLimitReached` |
+| لا نتيجة للعملية | إن لم يُرجع الخادم نتيجة لهذه العملية ⇒ `pending` | المرجع نفسه |
+| التنظيف | `DELETE FROM outbox WHERE delivered_to_primary=1 AND delivered_to_secondary=1` بعد كل دورة | `cleanupDelivered` |
+| التسليم الثاني | معطّل فعلياً: الصفوف تُعلَم `delivered_to_secondary=1` افتراضاً (توافق مع صندوق Dart المزدوج) | `syncOutbox` |
+
+**استعلامات مرآتها إلزامية في Dart:** المعلّق = `processing_status='pending' AND delivered_to_primary=0` بترتيب `client_ts ASC, id ASC`؛ وغير المُسلَّم = `source='local' AND delivered_to_primary=0`.
+
+**جداول مخلّفة موجودة في القاعدة ولا يستعملها مسار Cloudflare** (تُنقل كمرجع للسجل التاريخي فقط،
+ولا حاجة لمكافئها في نسخة Dart):
+
+| الجدول | السبب |
+| --- | --- |
+| `sync_queue` | مخلّف عصر Appwrite: لا مستدعي في مسار Cloudflare (DAO مسجَّل فقط) |
+| `sync_log` | مخلّف: تدوين عمليات الرفع/Sync المستخدم سابقاً |
+| `sync_conflicts` | مخلّف: نزاعات الرفع (مسار الرفع الحالي لا يكتبه) |
+| `sync_remote_meta` | مخلّف: ميتا Appwrite (last updated) قبل مؤشر D1 |
+| `sync_state` | مخلّف: صف مفرد كان يحمل المؤشر — المؤشر الفعلي في SharedPreferences (§٢.٧) |
+
+### ٢.٧ مفاتيح التخزين المحلي (SharedPreferences — عقد أسماء حرفي)
+
+المؤشر والحقبة والإعدادات **ليست في القاعدة**: تُخزَّن في تفضيلات مشفّرة
+(`marina_secure_prefs` عبر `EncryptedSharedPreferencesManager`)، والأسماء
+مطابقة حرفياً لسلاسل Dart (`unified_sync_settings_screen.dart`) لضمان التوافق عند الترقية.
+**نسخة Dart يجب أن تستعمل المفاتيح نفسها حرفياً** وإلا انكسر الاستئناف بعد التحديث:
+
+| الثابت | المفتاح الفعلي | الدور | الافتراضي |
+| --- | --- | --- | --- |
+| `KEY_AUTH_TOKEN` | `auth_token` | توكن Bearer لدخول الـWorker | `—` |
+| `KEY_LAST_PULL` | `last_pull_ts` | طابع آخر سحب ناجح (ثوانٍ) — للعرض/المراقبة | `0` |
+| `KEY_LAST_PUSH` | `last_push_ts` | طابع آخر رفع ناجح (ثوانٍ) | `0` |
+| `KEY_DEVICE_ID` | `device_id` | هوية الجهاز — أساس echo filter و`X-Device-Id` | `—` |
+| `KEY_FULL_SYNC_COMPLETE` | `full_sync_complete` | اكتمل السحب الشامل الأول | `false` |
+| `KEY_CURRENT_USER` | `current_user_json` | JSON المستخدم الحالي | `—` |
+| `KEY_LAST_PULL_CURSOR` | `last_pull_cursor` | **مؤشر السحب العام** (D1 `updated_at`) — أساس الدلتا | `0` |
+| `KEY_FULL_REPLAY_PENDING` | `cf_full_replay_pending` | مطلوب إعادة سحب كاملة (بعد استرجاع نسخة/تغيير حقبة) | `false` |
+| `KEY_SYNC_EPOCH` | `cf_sync_epoch` | حقبة المزامنة الخادمية (§٦.٥) | `—` |
+| `KEY_SYNC_ERROR_HISTORY` | `cf_sync_error_history` | آخر 40 خطأ مزامنة (بلا حمولات/رموز) | `[]` |
+| `KEY_AUTO_SYNC_ENABLED` | `appwrite_auto_sync_enabled` | المفتاح الرئيسي للمزامنة التلقائية | `—` |
+| `KEY_SYNC_ON_STARTUP` | `appwrite_sync_on_startup` | سحب عند الإطلاق | `—` |
+| `KEY_BATTERY_OPTIMIZATION` | `battery_optimization_enabled` | تجاوز تحسين البطارية مطلوب | `—` |
+| `KEY_WIFI_ONLY` | `wifi_only_sync` | المزامنة على Wi‑Fi فقط | `—` |
+| `KEY_SMART_SYNC` | `smart_sync_enabled` | المزامنة الذكية | `—` |
+| `KEY_CLOUDFLARE_SYNC` | `appwrite_sync_enabled` | مفتاح التزامن مع Cloudflare (يُصفَّر عند الاسترجاع) | `—` |
+| `KEY_REALTIME_SYNC` | `appwrite_realtime_sync_enabled` | تشغيل قناة Realtime | `—` |
+| `KEY_SYNC_INTERVAL` | `appwrite_sync_interval_minutes` | دورية الفحص (دقائق) | `—` |
+| `KEY_REMEMBER_ME` | `remember_me` | «تذكرني» في الدخول | `—` |
+| `KEY_TS_NORMALIZATION_DONE` | `cf_timestamp_normalization_done` | اكتمل تطبيع الطوابع الخادمي لمرة واحدة | `false` |
+| `KEY_TOMBSTONE_SWEEP_DONE` | `cf_tombstone_sweep_done` | اكتمل مسح الحذفيات التاريخي (يُضبط على النجاح فقط) | `false` |
+| `KEY_TOMBSTONE_SWEEP_CURSOR` | `cf_tombstone_sweep_cursor` | مؤشر استئناف المسح — يُحفظ بعد كل صفحة مطبَّقة | `0` |
+
+**دلالات مضبوطة (لا اجتهاد):**
+
+- `cf_full_replay_pending`: يُضبط `true` عند الاسترجاع من نسخة محلية، ثم تُطلب دورة كاملة من المؤشر 0.
+- `cf_timestamp_normalization_done`: `false` يعني أن العميل لم يطبّع طوابع ميلي قديمة بعد.
+- `cf_tombstone_sweep_done` لا يُضبط إلا على **اكتمال** مسح ناجح؛ ومؤشره يُحفظ لكل صفحة كي لا يُعاد من الصفر.
+- `marina_cloudflare_prefs` منفصلة: `cf_custom_worker_url` و`cf_worker_active_url` (§٢.٨).
+
+### ٢.٨ المصادقة والنقل (Headers + تبديل نقاط النهاية)
+
+| البند | القيمة | المصدر |
+| --- | --- | --- |
+| الترويسة | `Authorization: Bearer <JWT>` | `WorkerInterceptors.WorkerAuthInterceptor` |
+| ترويسة الجهاز | `X-Device-Id: <device_id>` (تُضاف فقط إن كانت غير فارغة) | المرجع نفسه |
+| مسارات بلا توكن | `/api/auth/login` و`/health` (توكن الجلسة المحلية `local:admin-session` لا يُرسل أبداً) | المرجع نفسه |
+| نقاط النهاية | النطاق المخصّص (`cf_custom_worker_url`) أولاً، وإلا المدمج `workers.dev`؛ والآخر الناجح يُثبَّت (`cf_worker_active_url`) | `WorkerEndpoints` |
+| حالات تُدوّر النقطة | فشل شبكة (`IOException`) أو `521/522/530` من Cloudflare | `WorkerFailoverInterceptor` |
+| تسجيل الجهاز | `POST /api/devices/register` بحقول `deviceId` / `fcmToken` / `deviceName` / `platform` / `localUuid` | `worker/src/index.ts` |
+| توكنات FCM | `GET /api/devices/tokens` (يستثني الجهاز الحالي) | المرجع نفسه |
+| معدّل الطلبات | نافذة `RATE_LIMIT_WINDOW` ثوانٍ بحد `RATE_LIMIT_MAX` (افتراضي 60/1000)، والدخول بحد أقصى 20 محاولة | المرجع نفسه |
+| سرقة التوكن في السجلات | أي `Bearer …` يُستبدل بـ`Bearer [محذوف]` قبل التخزين (حد 2500 حرف/سجل، 40 سجلاً) | `SyncPreferences.recordSyncError` |
+
+**عقد الدخول** (`POST /api/auth/login`): الطلب `{username, password, device_id?}`؛ 
+النجاح `200 {token, user:{id, username, role}}` و`device_id` يُضمَّن في JWT؛ 
+الرفض `401 {error:"Invalid credentials"}`؛ النقص `400 {error:"Username and password required"}`.
+**التسجيل** (`POST /api/auth/register`): الطلب `{username, password, role?}` حيث `role ∈ {admin, manager, staff}`؛ 
+يُسمح به بلا توكن فقط ما دام لا يوجد مستخدم نشط (bootstrap)، وإلا فيشترط دور `admin`.
+
+**غلاف الأخطاء الموحّد:** `{error: "…"}` وبجانبه حسب الحالة: `detail` عند 500، 
+`retry_after` (طابع نهائي بالمللي) + ترويسة `Retry-After` (ثوانٍ) عند 429.
+
+### ٢.٩ سياسات الحسم (منطق خالص قابل للنقل حرفياً)
+
+| السياسة | المدخلات | القرار/القاعدة | الملف |
+| --- | --- | --- | --- |
+| إشارة بعيدة | `data["type"] ?? data["source"]` | `marina_sync` وإلا تُهمَل | `RemoteSignalPolicy.isSyncMessage` |
+| صدى الجهاز | `senderDeviceId` | غائب ⇒ ليست صدى؛ مطابق لمعرّفنا ⇒ صدى (لا سحب) | `RemoteSignalPolicy.isOwnEcho` |
+| ما يُفعل بالإشارة | مفتاح المزامنة + ظهور الواجهة | معطّل ⇒ `IGNORE`؛ أمام الواجهة ⇒ `DELIVER`؛ خلفيتها ⇒ `DEFER` | `RemoteSignalPolicy.decide` |
+| استهلاك المؤجَّل | مفتاح المزامنة + تصريح الشبكة | لا يُستهلك (ولا يُسقَط) إلا بتحقّق الشرطين معاً | `RemoteSignalPolicy.shouldConsumeDeferred` |
+| بوابة الدلتا التلقائية | `now`, `lastSuccess` | فاصل 60 دقيقة (`AUTOMATIC_PULL_INTERVAL_MS`) | `AutomaticDeltaGate` |
+| حقبة المزامنة | المخزّنة، الواردة، `pageBuiltFromZero` | مطابقة ⇒ لا تغيير؛ أول حقبة ⇒ تُتبنّى بلا إعادة سحب؛ تغيّرت بلا صفحة-من-الصفر ⇒ إعادة من 0 | `SyncEpochPolicy.evaluate` |
+| سلامة المؤشر | المخزّن، مؤشر الخادم، وقت الخادم | `> 2e9` مرفوض؛ تقدّم على وقت الخادم > 366 يوماً مرفوض؛ لا يُثبَّت مؤشر معلّق قبل النجاح | `PullSanityPolicy` |
+| مراقب المعلّقات | طابور الصادر | فحص كل 5 دقائق (`PENDING_PUSH_MONITOR_MS`) | `AutoSyncEngine` |
+| Realtime: المهلة/الانحدار | المحاولة | `debounce 500ms`، `cooldown 15s`، انحدار 1s→60s، 6 محاولات، إعادة تسليح 120s، نبض 30s، مهلة اتصال 15s | `RealtimePolicy` |
+| Realtime: الرسالة | نص JSON | `{type, entity, entityId, operation?, deviceId?, timestamp}` — أي شكل غير متوقع ⇒ `null` وتُهمَل بهدوء | `RealtimeMessage.tryParse` |
+
+**FCM:** التصفية (المصدر ثم الصدى) ثم `onRemoteSignal(source="fcm")`؛ ما لم يُنقل عمداً:
+إشعارات FCM المحلية وعرض حمولتها (ليست من عقد السحب).
 
 ---
 
@@ -1270,6 +1437,21 @@
 
 ---
 
+### ٥.٣ عقد التسلسل (ما يقابل `SyncEntityGson` عندنا)
+
+الحمولة تُبنى بـ`Map<String,Any?>` بأسماء **snake_case للسلك**، مع ثلاث قواعد مُثبتة بالتشغيل:
+
+| القاعدة | السبب | الدليل |
+| --- | --- | --- |
+| لا تكرار لاسم مفتاح في JSON ناتج عن كيان يرث حقول الأساس | في Kotlin يفشل `Gson()` البسيط بـ`declares multiple JSON fields named 'id'`؛ في Dart لا يظهر الخطر نفسه لأن البناء يدوي | `SyncEntityGson` + اختبار الانحدار #11 |
+| الحركات التي لا تُرفع = عطل صامت: أي استثناء أثناء التسلسل يجب أن يُسجَّل لا أن يُبتلع | حركات المخزون لم تُرفع إطلاقاً قبل الإصلاح | `2b7af35d` |
+| القيم `null` لا تُرسَل كأعمدة فارغة تُطمس الخادم | الخادم يحدّث الأعمدة المرسلة فقط | `PushWireContract` |
+
+**في Dart:** ابنِ الحمولة من نموذج المجال مع `toWireMap()` صريح، وتحقّق في اختبار أن مفاتيح حمولة 
+كل كيان تساوي تماماً قائمة أعمدة السلك في §٣.٥ (لا زيادة ولا نقصان).
+
+---
+
 ## ٦) عقد السحب التفصيلي
 
 ### ٦.١ LWW + حارس انزياح الساعة (M3)
@@ -1406,6 +1588,13 @@ occupied = { room_number | bookings.deleted_at IS NULL AND status IN (التسع
 - `BookingsRepositoryImpl.checkout`: بلا إدراج outbox (مقصود؛ المسار الفعلي `update`).
 - `inventory_transactions.transaction_time`: عمود محلي بحت (لا مقابل على السلك) — يُغذّى من `created_at` ×1000.
 - `D1` يجلب بترتيب `DESC` مقابل `ASC` في Room لبعض الفهارس — افتراق موثّق بلا أثر وظيفي.
+- جداول مخلّفة في القاعدة المحلية (`sync_queue`/`sync_log`/`sync_conflicts`/`sync_remote_meta`/`sync_state`)
+  لا مستدعي لها في مسار Cloudflare (لم تُحذف حفاظاً على ترقية القاعدة) — و`sync_state` تحديداً
+  **لم يعد يحمل المؤشر**: المؤشر والحقبة في SharedPreferences (§٢.٧).
+- `sync_quarantine` و`pending_sync_links`: يُنشَأان بـ`execSQL` في `DatabaseModule` وتُكتب فيهما
+  `SyncManager` بـSQL مباشر؛ وأصناف DAO الخاصة بهما مسجَّلة بلا مستدعي — نسخة Dart تحتاج النقاش نفسه.
+- `devices` كيان متزامن (في `ENTITY_TABLES`) و`POST /api/devices/register` يكتبه مباشرة في الخادم؛
+  فالجهاز قد يُرى مرتين: عبر السحب كصف، وعبر التسجيل المباشر.
 
 ## ١٢) قائمة تحقق — تطبيق Flutter/Dart
 
@@ -1431,6 +1620,10 @@ occupied = { room_number | bookings.deleted_at IS NULL AND status IN (التسع
 | 16 | الحقن/الحماية | `clear_employee_link=1` عند الفصل الصريح فقط؛ ولا يُرسَل `employee_uuid` فارغاً عمداً |
 | 17 | الاختبارات | عقد آلي يقفل: الوحدة، version، المسح، المجموعات، FK، LWW، الحجر |
 | 18 | الأدلة | تشغيل CI أخضر + إفصاح عن أي فشل خارجي (لا ادّعاء نجاح بلا تشغيل) |
+| 19 | الجداول المحلية المحضة | `outbox` + `sync_quarantine` + `pending_sync_links` بالحقول والاستعلامات نفسها (§٢.٦)، والتنظيف على `delivered_to_primary=1 AND delivered_to_secondary=1` |
+| 20 | آلة حالات الصادر | حجز `processing` قبل الإرسال، استرداد الانهيار عند الإقلاع، dead-letter للرفض الدائم، إعادة `pending` للمؤقت، وسقف 5 بلا استثناء `salary_withdrawals` |
+| 21 | مفاتيح التفضيلات | أسماء المفاتيح حرفياً كما في §٢.٧ — وإلا انكسر الاستئناف بعد الترقية |
+| 22 | النقل | `Authorization: Bearer` + `X-Device-Id`، ولا يُرسَل توكن `local:admin-session`، وتبديل النقاط على 521/522/530 |
 
 ---
 

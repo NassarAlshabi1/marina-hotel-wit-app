@@ -150,7 +150,7 @@ w("| البند | القيمة |")
 w("| --- | --- |")
 w("| تاريخ التوليد | 2026-10-08 |")
 w("| فرع الجلسة | `arena/be8302d7-marina-hotel-wit-app` |")
-w("| آخر التزام موثّق | `341f92fd` (سلسلة الإصلاح `c3bc16b5`…`d364b90b`) |")
+w("| آخر التزام موثّق | `7051eae1` (سلسلة الإصلاح `c3bc16b5`…`d364b90b` + توثيق §5 في `341f92fd`) |")
 w("| الفرع المرجعي الدارتي | `feat/cloudflare-sync-execution` |")
 w("| قاعدة الدمج | `agent/android-cloudflare` (`d95974fc`) |")
 w("| كيانات السلك (المتزامنة) | " + str(len(ENTITY_TABLES)) + " |")
@@ -159,7 +159,7 @@ w("| كيانات Room (كلها) | " + str(len(room_entities)) + " |")
 w()
 w("**إعادة التوليد:** `python3 docs/tools/generate_sync_spec.py` (يقرأ المخطط والكيانات وخرائط السلك من المصدر — لا قيم محفوظة).")
 w()
-w("**كيف تُقرأ:** الأقسام ١–٢ و٤–١٣ هي العقد (يجب أن تُطابقه أي جهة عميل)، "
+w("**كيف تُقرأ:** الأقسام ١–٢ و٤–١٢ هي العقد (يجب أن تُطابقه أي جهة عميل)، "
   "والقسم ٣ فهارس حقول كاملة مولّدة لكل جدول. كل رقم في هذا الملف قابل للتحقق "
   "من الشيفرة المذكورة بجانبه؛ وما لم يُتحقق منه مُعلَم صراحةً.")
 w()
@@ -395,6 +395,187 @@ mig = {
 for f in sorted(p.name for p in (ROOT/"worker/migrations").iterdir()):
     w(f"| `{f}` | {mig.get(f, '—')} |")
 w()
+w("### ٢.٦ الجداول المحلية المحضة (لا تُزامَن: لا رفع ولا سحب)")
+w()
+w("«محضة» تعني: ليست في `ENTITY_TABLES` ولا تُرسَل في `pull/push` ولا تُذكر في `_entity`.")
+w("نسخة Dart يجب أن تملك مكافئها المحلي (جدول Room/SQLite أو مكافئه) بالحقول نفسها:")
+w()
+LOCAL_ACTIVE = [
+    ("outbox", "طابور الصادر — المصدر الوحيد للرفع (§١.٣)", "active"),
+    ("sync_quarantine", "سجل الحجر: صفوف سحب فشل تطبيقها بحمولتها (نظير cf_pull_orphan_*)", "active"),
+    ("pending_sync_links", "صندوق دائم للسجلات المؤجَّلة (FK غير محلولة) — يُعاد كل دورة", "active"),
+]
+LOCAL_LEGACY = [
+    ("sync_queue", "مخلّف عصر Appwrite: لا مستدعي في مسار Cloudflare (DAO مسجَّل فقط)"),
+    ("sync_log", "مخلّف: تدوين عمليات الرفع/Sync المستخدم سابقاً"),
+    ("sync_conflicts", "مخلّف: نزاعات الرفع (مسار الرفع الحالي لا يكتبه)"),
+    ("sync_remote_meta", "مخلّف: ميتا Appwrite (last updated) قبل مؤشر D1"),
+    ("sync_state", "مخلّف: صف مفرد كان يحمل المؤشر — المؤشر الفعلي في SharedPreferences (§٢.٧)"),
+]
+for tbl, desc, _ in LOCAL_ACTIVE:
+    info = room_entities.get(tbl)
+    cols = info["columns"] if info else []
+    w(f"#### `{tbl}` — {desc} — عدد الحقول: {len(cols)}" if cols else f"#### `{tbl}` — {desc}")
+    w()
+    if cols:
+        w("| العمود | خاصية Kotlin | اسم السلك (Gson) |" + (" ملاحظة |"))
+        w("| --- | --- | --- |" + (" --- |"))
+        notes = {
+            ("outbox", "id"): "مفتاح أساسي تلقائي — ترتيب FIFO يعتمد عليه مع `client_ts`",
+            ("outbox", "entity"): "كيان السلك (`bookings`, `rooms`, …)",
+            ("outbox", "op"): "`insert`/`update`/`delete` — ويُترجَم إلى `create` عند الإرسال",
+            ("outbox", "local_uuid"): "هوية الصف — أساس إعادة المحاولة بنفس المفتاح",
+            ("outbox", "server_id"): "ظلّ الخادم إن كان معروفاً",
+            ("outbox", "payload"): "JSON نصي **مُحوَّل إلى أسماء السلك** قبل الإدراج (`SyncWireFields.toWire`)",
+            ("outbox", "clientTs"): "طابع الإدراج **بالمللي** (ترتيب محلي فقط — ليس عمود مزامنة)",
+            ("outbox", "attempts"): "عدّاد المحاولات — سقف 5 (استثناء `salary_withdrawals`)",
+            ("outbox", "lastError"): "آخر خطأ (يُقصّ)",
+            ("outbox", "idempotencyKey"): "`{entity}_{op}_{localUuid}_{uuid}` — ثابت للصف عبر كل المحاولات",
+            ("outbox", "processingStatus"): "`pending` ⇒ `processing` ⇒ `completed` (و`pending` عند خطأ مؤقت)",
+            ("outbox", "processingStartedAt"): "مللي — لأجل استرداد الانهيار",
+            ("outbox", "processingWorker"): "`outbox-processor`",
+            ("outbox", "source"): "`local` افتراضاً؛ `remote` للسجلات المستوردة",
+            ("outbox", "deliveredToPrimary"): "=1 بعد تأكيد D1 (نجاح أو رفض دائم)",
+            ("outbox", "deliveredToSecondary"): "افتراضي 1 — التسليم الثاني معطّل ما لم يُضبط خادم ثانٍ",
+            ("outbox", "primaryProcessingStatus"): "`pending`/`completed`/`failed` — سجل dead-letter مرئي",
+            ("outbox", "primaryAttempts"): "عدّاد محاولات التسليم الأول",
+            ("outbox", "primaryLastError"): "سبب dead-letter (`validation_error`/`conflict`/…)",
+            ("outbox", "secondaryProcessingStatus"): "غير مستخدم فعلياً (افتراضي `pending`)",
+            ("outbox", "payloadVersion"): "نسخة شكل الحمولة — تُرفَع عند تغيّر العقد",
+            ("outbox", "processingPayloadVersion"): "نسخة الحمولة وقت الحجز — للتشخيص",
+            ("sync_quarantine", "entity"): "كيان الصف المعزول",
+            ("sync_quarantine", "recordKey"): "مفتاح السجل (مثل `uuid:<local_uuid>`) — جزء من المفتاح الأساسي",
+            ("sync_quarantine", "payload"): "الحمولة الخام للمراجعة — **لا تُرفع ولا تُسجَّل أبداً**",
+            ("sync_quarantine", "reason"): "سبب العزل (FK غير محلولة/فشل تطبيق)",
+            ("sync_quarantine", "attempts"): "عدّاد الدورات الفاشلة (عتبة الشفاء في §٦.٣)",
+            ("sync_quarantine", "firstSeen"): "طابع أول عزل (ثوانٍ) — أساس إخلاء السقف الأقدم-أولاً",
+            ("pending_sync_links", "entity"): "كيان الصف المؤجَّل — جزء من المفتاح الأساسي",
+            ("pending_sync_links", "localUuid"): "هوية الصف المؤجَّل — جزء من المفتاح الأساسي",
+            ("pending_sync_links", "payload"): "الحمولة الكاملة — تُعاد للمعالجة كل دورة بلا فقد",
+        }
+        for c in cols:
+            note = notes.get((tbl, c["prop"]), "")
+            w(f"| `{c['col'] or c['prop']}` | `{c['prop']}` | `{c['wire'] or '—'}` | {note} |")
+    w()
+w("> ملاحظة: عمود «اسم السلك» في هذه الجداول هو `@SerializedName` (شكل JSON إن سُجِّل الصف محلياً في")
+w("> النسخ الاحتياطية) — وليس حقلاً يُرسَل إلى الـWorker.")
+w()
+w("#### ٢.٦.١ آلة حالات طابور الصادر (عقد تنفيذي — يُنقل حرفياً)")
+w()
+w("| المرحلة | القاعدة | المصدر |")
+w("| --- | --- | --- |")
+w("| الإدراج | `op` يُترجَم: `insert`⇒`create`؛ `update`/`delete` كما هي؛ الحمولة تُحوَّل لأسماء السلك قبل التخزين | `OutboxRepository.enqueue` |")
+w("| مفتاح منع التكرار | `{entity}_{op}_{localUuid}_{uuid}` — يُولَّد مرة ويُعاد استخدامه في كل محاولة | المرجع نفسه |")
+w("| الدفعات | حتى `PUSH_BATCH_SIZE` عملية/طلب؛ الصفوف تُحجز `processing` **قبل** الإرسال | `processPending` |")
+w("| استرداد الانهيار | عند الإقلاع: كل `processing` ⇒ `pending` (صفوف انهار التطبيق قبل إتمامها لا تبقى معلّقة) | `OutboxDao.recoverStaleProcessing` |")
+w("| نجاح | `markDeliveredPrimary` + `completed` ⇒ `delivered++` | المرجع نفسه |")
+w("| نجاح بحالة `deleted` | يُطبَّق حذف محلي فوري (`tombstoneLocalRecord`) — حسم الخادم نهائي | المرجع نفسه |")
+w("| رفض دائم | `validation_error`/`conflict` ⇒ `failed` + `completed` (dead-letter بلا إعادة أبدية) | `isPermanentRejection` |")
+w("| خطأ مؤقت | `internal_error` ⇒ `pending` لإعادة المحاولة | المرجع نفسه |")
+w("| فشل شبكة | الاستثناء ⇒ `pending` للصف كله (لا يُعدّ رفضاً) | `onFailure` |")
+w("| سقف المحاولات | `attempts ≥ 5` ⇒ dead-letter — **عدا `salary_withdrawals`** (الأب قد يصل متأخراً) | `retryLimitReached` |")
+w("| لا نتيجة للعملية | إن لم يُرجع الخادم نتيجة لهذه العملية ⇒ `pending` | المرجع نفسه |")
+w("| التنظيف | `DELETE FROM outbox WHERE delivered_to_primary=1 AND delivered_to_secondary=1` بعد كل دورة | `cleanupDelivered` |")
+w("| التسليم الثاني | معطّل فعلياً: الصفوف تُعلَم `delivered_to_secondary=1` افتراضاً (توافق مع صندوق Dart المزدوج) | `syncOutbox` |")
+w()
+w("**استعلامات مرآتها إلزامية في Dart:** المعلّق = `processing_status='pending' AND delivered_to_primary=0` "
+  "بترتيب `client_ts ASC, id ASC`؛ وغير المُسلَّم = `source='local' AND delivered_to_primary=0`.")
+w()
+w("**جداول مخلّفة موجودة في القاعدة ولا يستعملها مسار Cloudflare** (تُنقل كمرجع للسجل التاريخي فقط،")
+w("ولا حاجة لمكافئها في نسخة Dart):")
+w()
+w("| الجدول | السبب |" )
+w("| --- | --- |")
+for tbl, desc in LOCAL_LEGACY:
+    w(f"| `{tbl}` | {desc} |")
+w()
+w("### ٢.٧ مفاتيح التخزين المحلي (SharedPreferences — عقد أسماء حرفي)")
+w()
+w("المؤشر والحقبة والإعدادات **ليست في القاعدة**: تُخزَّن في تفضيلات مشفّرة")
+w("(`marina_secure_prefs` عبر `EncryptedSharedPreferencesManager`)، والأسماء")
+w("مطابقة حرفياً لسلاسل Dart (`unified_sync_settings_screen.dart`) لضمان التوافق عند الترقية.")
+w("**نسخة Dart يجب أن تستعمل المفاتيح نفسها حرفياً** وإلا انكسر الاستئناف بعد التحديث:")
+w()
+prefs_src = (ROOT/"mobile/android/app/src/main/kotlin/com/marina/marina/data/remote/CloudflareSyncService.kt").read_text(encoding='utf-8')
+KEYS = re.findall(r'private const val (KEY_\w+)\s*=\s*"([^"]+)"', prefs_src)
+KEY_ROLE = {
+ "KEY_AUTH_TOKEN": ("توكن Bearer لدخول الـWorker", "—"),
+ "KEY_LAST_PULL": ("طابع آخر سحب ناجح (ثوانٍ) — للعرض/المراقبة", "0"),
+ "KEY_LAST_PUSH": ("طابع آخر رفع ناجح (ثوانٍ)", "0"),
+ "KEY_DEVICE_ID": ("هوية الجهاز — أساس echo filter و`X-Device-Id`", "—"),
+ "KEY_FULL_SYNC_COMPLETE": ("اكتمل السحب الشامل الأول", "false"),
+ "KEY_CURRENT_USER": ("JSON المستخدم الحالي", "—"),
+ "KEY_LAST_PULL_CURSOR": ("**مؤشر السحب العام** (D1 `updated_at`) — أساس الدلتا", "0"),
+ "KEY_FULL_REPLAY_PENDING": ("مطلوب إعادة سحب كاملة (بعد استرجاع نسخة/تغيير حقبة)", "false"),
+ "KEY_SYNC_EPOCH": ("حقبة المزامنة الخادمية (§٦.٥)", "—"),
+ "KEY_SYNC_ERROR_HISTORY": ("آخر 40 خطأ مزامنة (بلا حمولات/رموز)", "[]"),
+ "KEY_AUTO_SYNC_ENABLED": ("المفتاح الرئيسي للمزامنة التلقائية", "—"),
+ "KEY_SYNC_ON_STARTUP": ("سحب عند الإطلاق", "—"),
+ "KEY_BATTERY_OPTIMIZATION": ("تجاوز تحسين البطارية مطلوب", "—"),
+ "KEY_WIFI_ONLY": ("المزامنة على Wi‑Fi فقط", "—"),
+ "KEY_SMART_SYNC": ("المزامنة الذكية", "—"),
+ "KEY_CLOUDFLARE_SYNC": ("مفتاح التزامن مع Cloudflare (يُصفَّر عند الاسترجاع)", "—"),
+ "KEY_REALTIME_SYNC": ("تشغيل قناة Realtime", "—"),
+ "KEY_SYNC_INTERVAL": ("دورية الفحص (دقائق)", "—"),
+ "KEY_REMEMBER_ME": ("«تذكرني» في الدخول", "—"),
+ "KEY_TS_NORMALIZATION_DONE": ("اكتمل تطبيع الطوابع الخادمي لمرة واحدة", "false"),
+ "KEY_TOMBSTONE_SWEEP_DONE": ("اكتمل مسح الحذفيات التاريخي (يُضبط على النجاح فقط)", "false"),
+ "KEY_TOMBSTONE_SWEEP_CURSOR": ("مؤشر استئناف المسح — يُحفظ بعد كل صفحة مطبَّقة", "0"),
+}
+w("| الثابت | المفتاح الفعلي | الدور | الافتراضي |")
+w("| --- | --- | --- | --- |")
+for name, key in KEYS:
+    role, dflt = KEY_ROLE.get(name, ("—", "—"))
+    w(f"| `{name}` | `{key}` | {role} | `{dflt}` |")
+w()
+w("**دلالات مضبوطة (لا اجتهاد):**")
+w()
+w("- `cf_full_replay_pending`: يُضبط `true` عند الاسترجاع من نسخة محلية، ثم تُطلب دورة كاملة من المؤشر 0.")
+w("- `cf_timestamp_normalization_done`: `false` يعني أن العميل لم يطبّع طوابع ميلي قديمة بعد.")
+w("- `cf_tombstone_sweep_done` لا يُضبط إلا على **اكتمال** مسح ناجح؛ ومؤشره يُحفظ لكل صفحة كي لا يُعاد من الصفر.")
+w("- `marina_cloudflare_prefs` منفصلة: `cf_custom_worker_url` و`cf_worker_active_url` (§٢.٨).")
+w()
+w("### ٢.٨ المصادقة والنقل (Headers + تبديل نقاط النهاية)")
+w()
+w("| البند | القيمة | المصدر |")
+w("| --- | --- | --- |")
+w("| الترويسة | `Authorization: Bearer <JWT>` | `WorkerInterceptors.WorkerAuthInterceptor` |")
+w("| ترويسة الجهاز | `X-Device-Id: <device_id>` (تُضاف فقط إن كانت غير فارغة) | المرجع نفسه |")
+w("| مسارات بلا توكن | `/api/auth/login` و`/health` (توكن الجلسة المحلية `local:admin-session` لا يُرسل أبداً) | المرجع نفسه |")
+w("| نقاط النهاية | النطاق المخصّص (`cf_custom_worker_url`) أولاً، وإلا المدمج `workers.dev`؛ والآخر الناجح يُثبَّت (`cf_worker_active_url`) | `WorkerEndpoints` |")
+w("| حالات تُدوّر النقطة | فشل شبكة (`IOException`) أو `521/522/530` من Cloudflare | `WorkerFailoverInterceptor` |")
+w("| تسجيل الجهاز | `POST /api/devices/register` بحقول `deviceId` / `fcmToken` / `deviceName` / `platform` / `localUuid` | `worker/src/index.ts` |")
+w("| توكنات FCM | `GET /api/devices/tokens` (يستثني الجهاز الحالي) | المرجع نفسه |")
+w("| معدّل الطلبات | نافذة `RATE_LIMIT_WINDOW` ثوانٍ بحد `RATE_LIMIT_MAX` (افتراضي 60/1000)، والدخول بحد أقصى 20 محاولة | المرجع نفسه |")
+w("| سرقة التوكن في السجلات | أي `Bearer …` يُستبدل بـ`Bearer [محذوف]` قبل التخزين (حد 2500 حرف/سجل، 40 سجلاً) | `SyncPreferences.recordSyncError` |")
+w()
+w("**عقد الدخول** (`POST /api/auth/login`): الطلب `{username, password, device_id?}`؛ ")
+w("النجاح `200 {token, user:{id, username, role}}` و`device_id` يُضمَّن في JWT؛ ")
+w("الرفض `401 {error:\"Invalid credentials\"}`؛ النقص `400 {error:\"Username and password required\"}`.")
+w("**التسجيل** (`POST /api/auth/register`): الطلب `{username, password, role?}` حيث `role ∈ {admin, manager, staff}`؛ ")
+w("يُسمح به بلا توكن فقط ما دام لا يوجد مستخدم نشط (bootstrap)، وإلا فيشترط دور `admin`.")
+w()
+w("**غلاف الأخطاء الموحّد:** `{error: \"…\"}` وبجانبه حسب الحالة: `detail` عند 500، ")
+w("`retry_after` (طابع نهائي بالمللي) + ترويسة `Retry-After` (ثوانٍ) عند 429.")
+w()
+w("### ٢.٩ سياسات الحسم (منطق خالص قابل للنقل حرفياً)")
+w()
+w("| السياسة | المدخلات | القرار/القاعدة | الملف |")
+w("| --- | --- | --- | --- |")
+w("| إشارة بعيدة | `data[\"type\"] ?? data[\"source\"]` | `marina_sync` وإلا تُهمَل | `RemoteSignalPolicy.isSyncMessage` |")
+w("| صدى الجهاز | `senderDeviceId` | غائب ⇒ ليست صدى؛ مطابق لمعرّفنا ⇒ صدى (لا سحب) | `RemoteSignalPolicy.isOwnEcho` |")
+w("| ما يُفعل بالإشارة | مفتاح المزامنة + ظهور الواجهة | معطّل ⇒ `IGNORE`؛ أمام الواجهة ⇒ `DELIVER`؛ خلفيتها ⇒ `DEFER` | `RemoteSignalPolicy.decide` |")
+w("| استهلاك المؤجَّل | مفتاح المزامنة + تصريح الشبكة | لا يُستهلك (ولا يُسقَط) إلا بتحقّق الشرطين معاً | `RemoteSignalPolicy.shouldConsumeDeferred` |")
+w("| بوابة الدلتا التلقائية | `now`, `lastSuccess` | فاصل 60 دقيقة (`AUTOMATIC_PULL_INTERVAL_MS`) | `AutomaticDeltaGate` |")
+w("| حقبة المزامنة | المخزّنة، الواردة، `pageBuiltFromZero` | مطابقة ⇒ لا تغيير؛ أول حقبة ⇒ تُتبنّى بلا إعادة سحب؛ تغيّرت بلا صفحة-من-الصفر ⇒ إعادة من 0 | `SyncEpochPolicy.evaluate` |")
+w("| سلامة المؤشر | المخزّن، مؤشر الخادم، وقت الخادم | `> 2e9` مرفوض؛ تقدّم على وقت الخادم > 366 يوماً مرفوض؛ لا يُثبَّت مؤشر معلّق قبل النجاح | `PullSanityPolicy` |")
+w("| مراقب المعلّقات | طابور الصادر | فحص كل 5 دقائق (`PENDING_PUSH_MONITOR_MS`) | `AutoSyncEngine` |")
+w("| Realtime: المهلة/الانحدار | المحاولة | `debounce 500ms`، `cooldown 15s`، انحدار 1s→60s، 6 محاولات، إعادة تسليح 120s، نبض 30s، مهلة اتصال 15s | `RealtimePolicy` |")
+w("| Realtime: الرسالة | نص JSON | `{type, entity, entityId, operation?, deviceId?, timestamp}` — أي شكل غير متوقع ⇒ `null` وتُهمَل بهدوء | `RealtimeMessage.tryParse` |")
+w()
+w("**FCM:** التصفية (المصدر ثم الصدى) ثم `onRemoteSignal(source=\"fcm\")`؛ ما لم يُنقل عمداً:")
+w("إشعارات FCM المحلية وعرض حمولتها (ليست من عقد السحب).")
+w()
 w("---")
 w()
 
@@ -578,6 +759,22 @@ w("---")
 w()
 
 # ─────────────────────────── ٦) السحب ───────────────────────────
+w("### ٥.٣ عقد التسلسل (ما يقابل `SyncEntityGson` عندنا)")
+w()
+w("الحمولة تُبنى بـ`Map<String,Any?>` بأسماء **snake_case للسلك**، مع ثلاث قواعد مُثبتة بالتشغيل:")
+w()
+w("| القاعدة | السبب | الدليل |")
+w("| --- | --- | --- |")
+w("| لا تكرار لاسم مفتاح في JSON ناتج عن كيان يرث حقول الأساس | في Kotlin يفشل `Gson()` البسيط بـ`declares multiple JSON fields named 'id'`؛ في Dart لا يظهر الخطر نفسه لأن البناء يدوي | `SyncEntityGson` + اختبار الانحدار #11 |")
+w("| الحركات التي لا تُرفع = عطل صامت: أي استثناء أثناء التسلسل يجب أن يُسجَّل لا أن يُبتلع | حركات المخزون لم تُرفع إطلاقاً قبل الإصلاح | `2b7af35d` |")
+w("| القيم `null` لا تُرسَل كأعمدة فارغة تُطمس الخادم | الخادم يحدّث الأعمدة المرسلة فقط | `PushWireContract` |")
+w()
+w("**في Dart:** ابنِ الحمولة من نموذج المجال مع `toWireMap()` صريح، وتحقّق في اختبار أن مفاتيح حمولة ")
+w("كل كيان تساوي تماماً قائمة أعمدة السلك في §٣.٥ (لا زيادة ولا نقصان).")
+w()
+w("---")
+w()
+
 w("## ٦) عقد السحب التفصيلي")
 w()
 w("### ٦.١ LWW + حارس انزياح الساعة (M3)")
@@ -737,6 +934,13 @@ w("- `blacklist` كيان سلكي بلا جدول Drift في Flutter الأصل
 w("- `BookingsRepositoryImpl.checkout`: بلا إدراج outbox (مقصود؛ المسار الفعلي `update`).")
 w("- `inventory_transactions.transaction_time`: عمود محلي بحت (لا مقابل على السلك) — يُغذّى من `created_at` ×1000.")
 w("- `D1` يجلب بترتيب `DESC` مقابل `ASC` في Room لبعض الفهارس — افتراق موثّق بلا أثر وظيفي.")
+w("- جداول مخلّفة في القاعدة المحلية (`sync_queue`/`sync_log`/`sync_conflicts`/`sync_remote_meta`/`sync_state`)")
+w("  لا مستدعي لها في مسار Cloudflare (لم تُحذف حفاظاً على ترقية القاعدة) — و`sync_state` تحديداً")
+w("  **لم يعد يحمل المؤشر**: المؤشر والحقبة في SharedPreferences (§٢.٧).")
+w("- `sync_quarantine` و`pending_sync_links`: يُنشَأان بـ`execSQL` في `DatabaseModule` وتُكتب فيهما")
+w("  `SyncManager` بـSQL مباشر؛ وأصناف DAO الخاصة بهما مسجَّلة بلا مستدعي — نسخة Dart تحتاج النقاش نفسه.")
+w("- `devices` كيان متزامن (في `ENTITY_TABLES`) و`POST /api/devices/register` يكتبه مباشرة في الخادم؛")
+w("  فالجهاز قد يُرى مرتين: عبر السحب كصف، وعبر التسجيل المباشر.")
 w("")
 
 # ─────────────────────────── ١٢) قائمة التحقق ───────────────────────────
@@ -765,6 +969,10 @@ for i, r in enumerate([
  ("الحقن/الحماية", "`clear_employee_link=1` عند الفصل الصريح فقط؛ ولا يُرسَل `employee_uuid` فارغاً عمداً"),
  ("الاختبارات", "عقد آلي يقفل: الوحدة، version، المسح، المجموعات، FK، LWW، الحجر"),
  ("الأدلة", "تشغيل CI أخضر + إفصاح عن أي فشل خارجي (لا ادّعاء نجاح بلا تشغيل)"),
+ ("الجداول المحلية المحضة", "`outbox` + `sync_quarantine` + `pending_sync_links` بالحقول والاستعلامات نفسها (§٢.٦)، والتنظيف على `delivered_to_primary=1 AND delivered_to_secondary=1`"),
+ ("آلة حالات الصادر", "حجز `processing` قبل الإرسال، استرداد الانهيار عند الإقلاع، dead-letter للرفض الدائم، إعادة `pending` للمؤقت، وسقف 5 بلا استثناء `salary_withdrawals`"),
+ ("مفاتيح التفضيلات", "أسماء المفاتيح حرفياً كما في §٢.٧ — وإلا انكسر الاستئناف بعد الترقية"),
+ ("النقل", "`Authorization: Bearer` + `X-Device-Id`، ولا يُرسَل توكن `local:admin-session`، وتبديل النقاط على 521/522/530"),
 ]):
     w(f"| {i+1} | {r[0]} | {r[1]} |")
 w()
