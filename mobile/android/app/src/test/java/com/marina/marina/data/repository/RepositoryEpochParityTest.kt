@@ -370,7 +370,8 @@ class RepositoryEpochParityTest {
         assertSeconds("inventory_items.movement.updated_at", itemAfter.updatedAt)
         assertSeconds("inventory_items.movement.last_modified", itemAfter.lastModified)
         assertEquals("الحركة ترفع نسخة الصنف", 2, itemAfter.version)
-        assertEquals(12.0, itemAfter.currentQuantity, 0.0)
+        // الصنف أُنشئ بلا كمية (0) + إدخال 10 ⇒ 10.0
+        assertEquals(10.0, itemAfter.currentQuantity, 0.0)
         val pendingOps = db.outboxDao().getPendingPrimary().first().map { "${it.entity}:${it.op}" }
         assertTrue("يجب رفع تحديث الصنف مع الحركة: $pendingOps", pendingOps.contains("inventory_items:update"))
         assertTrue("يجب رفع الحركة نفسها: $pendingOps", pendingOps.contains("inventory_transactions:insert"))
@@ -392,15 +393,16 @@ class RepositoryEpochParityTest {
     fun entityPayloadSerializesWithWireNamesInsteadOfThrowing() = runBlocking {
         val repo = inventory()
         val itemId = repo.addItem(InventoryItem(name = "صنف تسلسل", unit = "قطعة"))
-        val movement = repo.recordMovement(itemId, type = "out", quantity = 2.0, note = "صرف")
+        // لا رصيد بعد ⇒ إدخال أولاً حتى لا يُرفض الصرف بقاعدة «لا صرف أكثر من الرصيد»
+        val movement = repo.recordMovement(itemId, type = "in", quantity = 2.0, note = "توريد")
         assertTrue("recordMovement فشل: ${movement.exceptionOrNull()}", movement.isSuccess)
 
         val row = db.outboxDao().getPendingPrimary().first()
             .single { it.entity == "inventory_transactions" }
         val json = com.google.gson.JsonParser.parseString(row.payload).asJsonObject
         // الاسم السلكي (يراه الخادم) والاسم المحلي (يُفلتر عنده) — كلاهما موجود.
-        assertEquals("out", json["movement_type"].asString)
-        assertEquals("out", json["transaction_type"].asString)
+        assertEquals("in", json["movement_type"].asString)
+        assertEquals("in", json["transaction_type"].asString)
         // حقول المزامنة الأساسية تُسلسَل مرة واحدة من حقل الصنف لا من ظلّه.
         assertTrue("الطابع يجب أن يكون ثوانٍ", json["last_modified"].asLong in 1_000_000_000L..SyncEpochs.MILLIS_THRESHOLD)
         assertTrue("local_uuid مطلوب في الحمولة", json["local_uuid"].asString.isNotBlank())
