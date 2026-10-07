@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import '../data/sync_models.dart' as sync_models;
 import '../utils/app_logger.dart';
 import '../utils/weak_device_optimizer.dart';
+import 'hotel_day_ledger_identity.dart';
 
 part 'local_db.g.dart';
 
@@ -1256,7 +1257,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 69;
+  int get schemaVersion => 70;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1351,8 +1352,33 @@ class AppDatabase extends _$AppDatabase {
       } catch (_) {
         // فشل الفهرس/الفحص غير حرج — يُعاد في الفتح التالي.
       }
+
+      // ✅ (2026-10-07 / m70) شبكة أمان idempotent: توحيد معرّفات دفتر
+      // الأيام القديمة `${millis}-${hash}` إلى الصيغة الحتمية `ldg-<key>`.
+      // نفس العبارة تُنفَّذ في onUpgrade لمسار الترقية؛ وهنا تلتقط أيضاً
+      // صفوفاً استُعيدت من نسخة احتياطية قديمة داخل جلسات سابقة. معرّف فقط:
+      // لا حالة ولا مجاميع ولا تواريخ ولا أي عمود آخر يُتغيّر.
+      try {
+        await customStatement(HotelDayLedgerIdentity.legacyUuidNormalizeSql);
+      } catch (_) {
+        // خطأ غير حرج (جدول غير جاهز في مسار إنشاء نادر) — يُعاد الفتح التالي.
+      }
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-10-07) الإصدار 70: توحيد هوية دفتر الأيام (قبل m69 لأن
+      // كليهما قد يُنفَّذ في ترقية واحدة من إصدار قديم، والترتيب تصاعدي).
+      // المُثبت من الكود: night_audit_service كان يكتب
+      // `local_uuid = '${millis}-${hotelDayKeyHash}'` — غير حتمي ولا يقبل
+      // إعادة الإنتاج، وإعادة البناء بعد الاستعادة كانت تحذف الكل وتُدرج
+      // بـ IdGen.uuid ⇒ معرّف جديد لنفس اليوم في كل استعادة/نسخ. هنا يُنقل
+      // المعرّف إلى `ldg-<hotel_day_key بلا شرطات>` حتمياً (idempotent).
+      // لا يُغيَّر أي عمود آخر إطلاقاً، والجدول محلي بلا أي مرجع خارجي إليه.
+      if (from < 70) {
+        await m.database.customStatement(
+          HotelDayLedgerIdentity.legacyUuidNormalizeSql,
+        );
+      }
+
       // ✅ (2026-10-07) الإصدار 69: استكمال عقد العلاقات المحمولة بين
       // الفرعين (Appwrite camelCase ↔ D1/Worker snake_case) — المرحلة B
       // من مطالبة إصلاح الفرع الأول. كل العمليات إضافية (أعمدة nullable

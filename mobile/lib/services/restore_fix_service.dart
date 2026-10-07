@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../utils/currency_formatter.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -14,6 +15,7 @@ import 'daos/outbox_dao.dart';
 import 'daos/payments_dao.dart';
 import 'daos/rooms_dao.dart';
 import 'enhanced_booking_calculation_service.dart';
+import 'hotel_day_ledger_identity.dart';
 import 'local_db.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -708,9 +710,19 @@ class RestoreFixService {
 
   Future<_BookingStructuresResult> _handleEmptyBookings() async {
     await db.delete(db.bookingNights).go();
-    await db.delete(db.hotelDayLedger).go();
-    return const _BookingStructuresResult(
-      changes: [],
+    // ✅ (2026-10-07) لا حذف شامل لدفتر الأيام: الصفوف المغلقة
+    // (status='closed') سجل إقفال حقيقي لا يُشتق من الحجوزات ⇒ تُحفظ.
+    // لا تُمسح إلا الصفوف المُشتقة (لا حجوزات ⇒ لا مجاميع مُشتقة).
+    // (سابقاً: delete(hotelDayLedger).go() — كان يمحو أياماً مُقفلة.)
+    final removedDerived =
+        await (db.delete(db.hotelDayLedger)..where(
+              (t) => t.status.equals(HotelDayLedgerIdentity.statusClosed).not(),
+            ))
+            .go();
+    return _BookingStructuresResult(
+      changes: removedDerived > 0
+          ? ['🧹 دفتر الأيام: مسح $removedDerived صفاً مُشتقاً (لا حجوزات)']
+          : const [],
       paymentsProcessed: 0,
       roomsTouched: 0,
       bookingNightCount: 0,
@@ -947,64 +959,126 @@ class RestoreFixService {
     }
   }
 
+  /// إعادة بناء دفتر الأيام بعد الاستعادة/الإصلاح.
+  ///
+  /// ✅ (2026-10-07) — إعادة كتابة غير مُدمِّرة (كانت: حذف الكل ثم إدراج
+  /// صفوف جديدة بـ IdGen.uuid ⇒ فقدان أيام مُقفلة + هوية جديدة كل مرة):
+  ///   • توحيد صيغة المعرّفات القديمة أولاً (SQL idempotent من طبقة المجال).
+  ///   • صف `closed` = سجل إقفال حقيقي: لا يُحذف، ولا تُكتب فوقه المجاميع
+  ///     (منطق الإقفال يختلف عن منطق إعادة البناء — الكتابة فوقه تحريف).
+  ///   • الصف المُشتق القائم: يُحدَّث في مكانه بنفس local_uuid/created_at.
+  ///   • الصف المُشتق بلا أثر بعد إعادة الحساب: يُحذف (بيانات مُشتقة فقط).
+  ///   • الصف الجديد: هوية حتمية `ldg-<hotelDayKey>` + status='rebuilt'.
+  ///   • المبالغ تُمرَّر عبر سياسة «بدون كسور عشرية» (اقتطاع نحو الصفر).
+  ///   • الإشغال يُكتب **نسبة مئوية** (0..100) كما يكتبه NightAuditService
+  ///     وكما يقرأه GeminiService (`toStringAsFixed(0)}%`) — كان يُكتب كسراً
+  ///     (0..1) فتظهر النسبة 0% وتختلط المقاييس في متوسط آخر 30 يوماً.
   Future<_LedgerRebuildResult> _rebuildHotelDayLedger(
     _RebuildContext context,
     _NightsRebuildResult nightsResult,
   ) async {
-    await db.delete(db.hotelDayLedger).go();
+    // 0) نقل أي معرّف قديم `${millis}-${hash}` إلى الصيغة الحتمية.
+    await db.customStatement(HotelDayLedgerIdentity.legacyUuidNormalizeSql);
 
-    final List<HotelDayLedgerCompanion> ledgerRows = [];
-    nightsResult.ledger.forEach((key, accumulator) {
-      final int stamp = Time.nowEpoch();
-      final String stampIso = DateTime.now().toUtc().toIso8601String();
-      final double occupancy = accumulator.occupiedRooms.isEmpty
-          ? 0
-          : accumulator.occupiedRooms.length / context.totalRooms;
-      ledgerRows.add(
-        HotelDayLedgerCompanion(
-          localUuid: Value(IdGen.uuid()),
-          createdAt: Value(stamp),
-          updatedAt: Value(stamp),
-          lastModified: Value(stamp),
-          createdAtIso: Value(stampIso),
-          updatedAtIso: Value(stampIso),
-          createdAtEpoch: Value(stamp),
-          lastModifiedEpoch: Value(stamp),
-          version: const Value(1),
-          origin: const Value('auto_fix'),
-          hotelDayKey: Value(key),
-          totalIncome: Value(accumulator.totalIncome),
-          totalExpenses: Value(accumulator.totalExpenses),
-          pendingBalances: Value(accumulator.pendingBalance),
-          occupancyRate: Value(
-            double.parse(occupancy.clamp(0, 1).toStringAsFixed(4)),
-          ),
-          bookingsProcessed: Value(accumulator.bookingsProcessed),
-          paymentsProcessed: Value(accumulator.paymentsProcessed),
-          debtsProcessed: Value(accumulator.debtsProcessed),
-          expensesProcessed: Value(accumulator.expensesProcessed),
-          status: Value(
-            (accumulator.totalIncome > 0 || accumulator.totalExpenses > 0)
-                ? 'finalized'
-                : 'draft',
-          ),
-        ),
-      );
-    });
+    final existingRows = await db.select(db.hotelDayLedger).get();
+    final existingByKey = <String, HotelDayLedgerEntry>{
+      for (final row in existingRows) row.hotelDayKey: row,
+    };
 
-    if (ledgerRows.isNotEmpty) {
-      await db.batch((batch) {
-        for (final row in ledgerRows) {
-          batch.insert(
-            db.hotelDayLedger,
-            row,
-            mode: InsertMode.insertOrReplace,
-          );
-        }
-      });
+    // 1) الصفوف المُشتقة التي لم يعد لها أثر في إعادة الحساب تُحذف.
+    //    (الصفوف المغلقة لا تُلمس — سجل تاريخي حتى لو تغيّرت الحجوزات.)
+    final staleDerivedIds = existingRows
+        .where(
+          (row) =>
+              row.status != HotelDayLedgerIdentity.statusClosed &&
+              !nightsResult.ledger.containsKey(row.hotelDayKey),
+        )
+        .map((row) => row.id)
+        .toList();
+    if (staleDerivedIds.isNotEmpty) {
+      await (db.delete(db.hotelDayLedger)
+            ..where((t) => t.id.isIn(staleDerivedIds)))
+          .go();
     }
 
-    return _LedgerRebuildResult(ledgerEntryCount: ledgerRows.length);
+    int inserted = 0;
+    int updated = 0;
+    int preservedClosed = 0;
+
+    for (final entry in nightsResult.ledger.entries) {
+      final String key = entry.key;
+      final _LedgerAccumulator accumulator = entry.value;
+      final HotelDayLedgerEntry? existing = existingByKey[key];
+
+      if (existing != null &&
+          existing.status == HotelDayLedgerIdentity.statusClosed) {
+        // سجل إقفال حقيقي — لا مجاميع ولا حالة ولا هوية تُكتب فوقه.
+        preservedClosed++;
+        continue;
+      }
+
+      final int stamp = Time.nowEpoch();
+      final String stampIso = DateTime.now().toUtc().toIso8601String();
+      final double occupancyRatio = accumulator.occupiedRooms.isEmpty
+          ? 0
+          : accumulator.occupiedRooms.length / context.totalRooms;
+      final companion = HotelDayLedgerCompanion(
+        hotelDayKey: Value(key),
+        totalIncome: Value(
+          CurrencyFormatter.wholeAmount(accumulator.totalIncome),
+        ),
+        totalExpenses: Value(
+          CurrencyFormatter.wholeAmount(accumulator.totalExpenses),
+        ),
+        pendingBalances: Value(
+          CurrencyFormatter.wholeAmount(accumulator.pendingBalance),
+        ),
+        occupancyRate: Value(
+          double.parse((occupancyRatio * 100).clamp(0, 100).toStringAsFixed(4)),
+        ),
+        bookingsProcessed: Value(accumulator.bookingsProcessed),
+        paymentsProcessed: Value(accumulator.paymentsProcessed),
+        debtsProcessed: Value(accumulator.debtsProcessed),
+        expensesProcessed: Value(accumulator.expensesProcessed),
+        updatedAt: Value(stamp),
+        lastModified: Value(stamp),
+        updatedAtIso: Value(stampIso),
+        lastModifiedEpoch: Value(stamp),
+      );
+
+      if (existing != null) {
+        // تحديث في المكان — الهوية والتاريخ الأصلي يبقيان.
+        await (db.update(
+          db.hotelDayLedger,
+        )..where((t) => t.id.equals(existing.id))).write(
+          companion.copyWith(
+            status: const Value(HotelDayLedgerIdentity.statusRebuilt),
+          ),
+        );
+        updated++;
+      } else {
+        await db
+            .into(db.hotelDayLedger)
+            .insert(
+              companion.copyWith(
+                localUuid: Value(HotelDayLedgerIdentity.deterministicUuid(key)),
+                createdAt: Value(stamp),
+                createdAtIso: Value(stampIso),
+                createdAtEpoch: Value(stamp),
+                version: const Value(1),
+                origin: const Value('auto_fix'),
+                status: const Value(HotelDayLedgerIdentity.statusRebuilt),
+              ),
+            );
+        inserted++;
+      }
+    }
+
+    return _LedgerRebuildResult(
+      ledgerEntryCount: inserted + updated,
+      preservedClosed: preservedClosed,
+      deletedStale: staleDerivedIds.length,
+    );
   }
 
   Future<_RoomsUpdateResult> _updateRoomsLastOccupied(
@@ -1052,6 +1126,18 @@ class RestoreFixService {
     if (ledgerResult.ledgerEntryCount > 0) {
       changeLog.add(
         '📊 تحديث دفتر HotelDayLedger: ${ledgerResult.ledgerEntryCount} يوم',
+      );
+    }
+    if (ledgerResult.preservedClosed > 0) {
+      changeLog.add(
+        '🔒 دفتر HotelDayLedger: حُفظ ${ledgerResult.preservedClosed} يوماً '
+        'مُقفلاً بلا مساس',
+      );
+    }
+    if (ledgerResult.deletedStale > 0) {
+      changeLog.add(
+        '🧹 دفتر HotelDayLedger: حُذف ${ledgerResult.deletedStale} صفاً '
+        'مُشتقاً بلا أثر',
       );
     }
     if (nightsResult.paymentsProcessed > 0) {
@@ -1433,7 +1519,11 @@ class _NightsRebuildResult {
 }
 
 class _LedgerRebuildResult {
-  const _LedgerRebuildResult({required this.ledgerEntryCount});
+  const _LedgerRebuildResult({
+    required this.ledgerEntryCount,
+    this.preservedClosed = 0,
+    this.deletedStale = 0,
+  });
 
   final int ledgerEntryCount;
 }

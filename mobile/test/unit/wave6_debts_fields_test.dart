@@ -301,7 +301,7 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 69', () {
+    test('3e. أحدث schemaVersion = 70', () {
       // ✅ (2026-09-14) محاذاة بعد bump إلى 66 (recorder_name على
       // salary_withdrawals — إسناد السحبة لمسجّلها). القيمة مقصودة صريحة:
       // كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
@@ -315,7 +315,10 @@ void main() {
       // expense_kind + employee_link_cleared على expenses، cycle_uuid
       // معلناً رسمياً على salary_payments، الفهرس الفريد الجزئي D1 0013
       // (Migration 69).
-      expect(db.schemaVersion, 69);
+      // ✅ (2026-10-07) bump إلى 70 — توحيد هوية دفتر الأيام: نقل
+      // local_uuid من صيغة الطابع الزمني `${millis}-${hash}` إلى الصيغة
+      // الحتمية `ldg-<hotel_day_key>` (Migration 70، idempotent، معرّف فقط).
+      expect(db.schemaVersion, 70);
     });
   });
 

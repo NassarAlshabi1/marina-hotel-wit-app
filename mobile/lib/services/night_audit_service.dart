@@ -7,6 +7,7 @@ import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../services/telegram/telegram_service.dart' as tg;
 import '../utils/hotel_time_engine.dart';
+import 'hotel_day_ledger_identity.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// ✅ خدمة إقفال اليوم (Night Audit) — تجمع البيانات المالية لليوم الفندقي،
@@ -44,7 +45,8 @@ class NightAuditService {
                   ..where((t) => t.hotelDayKey.equals(hotelDayKey))
                   ..limit(1))
                 .getSingleOrNull();
-        if (existing != null && existing.status == 'closed') {
+        if (existing != null &&
+            existing.status == HotelDayLedgerIdentity.statusClosed) {
           dlog(() => '⚠️ [NightAudit] اليوم $hotelDayKey مُقفل مسبقاً');
           return NightAuditResult(
             success: false,
@@ -167,7 +169,8 @@ class NightAuditService {
               ..where((t) => t.hotelDayKey.equals(key))
               ..limit(1))
             .getSingleOrNull();
-    return entry != null && entry.status == 'closed';
+    return entry != null &&
+        entry.status == HotelDayLedgerIdentity.statusClosed;
   }
 
   /// جمع كل البيانات المالية لليوم الفندقي
@@ -327,7 +330,7 @@ class NightAuditService {
       paymentsProcessed: d.Value(data.paymentsProcessed),
       debtsProcessed: d.Value(data.debtsProcessed),
       expensesProcessed: d.Value(data.expensesProcessed),
-      status: const d.Value('closed'),
+      status: const d.Value(HotelDayLedgerIdentity.statusClosed),
       updatedAt: d.Value(now),
       lastModified: d.Value(now),
     );
@@ -343,7 +346,9 @@ class NightAuditService {
           .insert(
             companion.copyWith(
               createdAt: d.Value(now),
-              localUuid: d.Value(_generateUuid()),
+              localUuid: d.Value(
+                HotelDayLedgerIdentity.deterministicUuid(hotelDayKey),
+              ),
               origin: const d.Value('local'),
               version: const d.Value(1),
             ),
@@ -352,12 +357,6 @@ class NightAuditService {
     }
   }
 
-  String _generateUuid() {
-    return '${DateTime.now().millisecondsSinceEpoch}-$hotelDayKeyHash';
-  }
-
-  static String get hotelDayKeyHash =>
-      HotelTimeEngine.getHotelDayKey().replaceAll('-', '');
 
   /// بناء رسالة التقرير — نص عادي متوافق مع WhatsApp و Telegram
   String _buildReportMessage(NightAuditData d) {
