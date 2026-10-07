@@ -1064,4 +1064,184 @@ void main() {
       },
     );
   });
+  // ═══════════════════════════════════════════════════════════════════
+  // ✅ (2026-10-07) حقول عقد العلاقات المحمولة (migration 69) في مسار D1:
+  //    expenses.expense_kind / expenses.employee_link_cleared /
+  //    salary_payments.cycle_uuid — تُثبَّت هنا من طرف الرفع الفعلي لأن
+  //    تبويب D1 يقرأ SELECT * ويرسل أسماء الأعمدة حرفياً بلا طبقة تحويل.
+  // ═══════════════════════════════════════════════════════════════════
+  group('حقول عقد m69 في رفع Cloudflare D1', () {
+    test('أعمدة العقد موجودة في المخطط المحلي (شرط وصولها إلى SELECT *)',
+        () async {
+      const expected = <String, List<String>>{
+        'expenses': [
+          'expense_kind',
+          'employee_link_cleared',
+          'employee_uuid',
+          'withdrawal_uuid',
+        ],
+        'salary_payments': ['cycle_uuid', 'employee_uuid', 'cycle_id'],
+        'salary_withdrawals': ['employee_uuid', 'expense_uuid'],
+        'salary_cycles': ['employee_uuid'],
+        'salary_carry_over_logs': [
+          'employee_id',
+          'employee_uuid',
+          'from_cycle_id',
+          'to_cycle_id',
+          'carry_date',
+          'hotel_day_key',
+        ],
+        'employees': ['local_uuid'],
+      };
+      final failures = <String>[];
+      for (final entry in expected.entries) {
+        final columns = await tableColumns(entry.key);
+        for (final c in entry.value) {
+          if (!columns.contains(c)) {
+            failures.add('${entry.key}.$c');
+          }
+        }
+      }
+      expect(
+        failures,
+        isEmpty,
+        reason:
+            'أعمدة عقد m69 غائبة عن المخطط المحلي ⇒ لن تصل إلى D1 أبداً '
+            '(الرفع SELECT * بلا whitelist): ${failures.join('، ')}',
+      );
+    });
+
+    test(
+      'uploadData الفعلي: expense_kind + employee_link_cleared يصلان بقيمهما',
+      () async {
+        final captured = <String>[];
+        final client = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          captured.add(body['sql'] as String);
+          return http.Response('{"success": true, "result": []}', 200);
+        });
+        final service = CloudflareD1Service(
+          const CloudflareD1Config(
+            accountId: 'a',
+            databaseId: 'b',
+            apiToken: 't',
+          ),
+          client: client,
+        );
+
+        final result = await service.uploadData(
+          tables: [
+            CloudflareD1SourceTable(
+              name: 'expenses',
+              rowCount: 1,
+              createSqlList: const [
+                'CREATE TABLE "expenses" ("id" INTEGER NOT NULL, '
+                    '"local_uuid" TEXT NOT NULL, "expense_kind" TEXT, '
+                    '"employee_link_cleared" BOOLEAN NOT NULL DEFAULT 0)',
+              ],
+              readChunk: (limit, offset) async => offset > 0
+                  ? const <Map<String, Object?>>[]
+                  : [
+                      <String, Object?>{
+                        'id': 7,
+                        'local_uuid': 'exp-uuid-7',
+                        'expense_kind': 'salary_installment',
+                        'employee_link_cleared': 1,
+                      },
+                    ],
+            ),
+          ],
+        );
+
+        final blob = captured.join('\n');
+        expect(blob, contains('INSERT OR REPLACE INTO "expenses"'));
+        expect(blob, contains('"expense_kind"'));
+        expect(blob, contains('"employee_link_cleared"'));
+        expect(blob, contains("'salary_installment'"));
+        expect(
+          blob,
+          contains(',1)'),
+          reason: 'employee_link_cleared يُرفع عدداً (0/1) — نفس تمثيل D1',
+        );
+        expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      },
+    );
+
+    test(
+      'D1 قديم بلا حقلي العقد ⇒ ALTER لكل عمود قبل INSERT (لا فشل جدول)',
+      () async {
+        final captured = <String>[];
+        final client = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final sql = body['sql'] as String;
+          captured.add(sql);
+          if (sql.contains('pragma_table_info')) {
+            return http.Response(
+              jsonEncode({
+                'success': true,
+                'result': [
+                  {
+                    'results': [
+                      {'name': 'id'},
+                      {'name': 'local_uuid'},
+                    ],
+                  },
+                ],
+              }),
+              200,
+            );
+          }
+          return http.Response('{"success": true, "result": []}', 200);
+        });
+        final service = CloudflareD1Service(
+          const CloudflareD1Config(
+            accountId: 'a',
+            databaseId: 'b',
+            apiToken: 't',
+          ),
+          client: client,
+        );
+
+        final result = await service.uploadData(
+          tables: [
+            CloudflareD1SourceTable(
+              name: 'expenses',
+              rowCount: 1,
+              createSqlList: const [
+                'CREATE TABLE "expenses" ("id" INTEGER NOT NULL, '
+                    '"local_uuid" TEXT NOT NULL, "expense_kind" TEXT, '
+                    '"employee_link_cleared" BOOLEAN NOT NULL DEFAULT 0)',
+              ],
+              readChunk: (limit, offset) async => offset > 0
+                  ? const <Map<String, Object?>>[]
+                  : [
+                      <String, Object?>{
+                        'id': 7,
+                        'local_uuid': 'exp-uuid-7',
+                        'expense_kind': 'normal',
+                        'employee_link_cleared': 0,
+                      },
+                    ],
+            ),
+          ],
+        );
+
+        final blob = captured.join('\n');
+        expect(blob, contains('ADD COLUMN "expense_kind" TEXT'));
+        expect(
+          blob,
+          contains('ADD COLUMN "employee_link_cleared" BOOLEAN NOT NULL DEFAULT 0'),
+          reason: 'NOT NULL مع DEFAULT يبقى كما هو — ALTER صالح في SQLite',
+        );
+        final alterIdx = blob.indexOf('ADD COLUMN "expense_kind"');
+        final insertIdx = blob.indexOf('INSERT OR REPLACE INTO "expenses"');
+        expect(
+          alterIdx,
+          lessThan(insertIdx),
+          reason: 'الـALTER يجب أن يسبق أول INSERT وإلا فشل الجدول كاملاً',
+        );
+        expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      },
+    );
+  });
 }
