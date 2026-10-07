@@ -301,7 +301,7 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 68', () {
+    test('3e. أحدث schemaVersion = 69', () {
       // ✅ (2026-09-14) محاذاة بعد bump إلى 66 (recorder_name على
       // salary_withdrawals — إسناد السحبة لمسجّلها). القيمة مقصودة صريحة:
       // كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
@@ -311,7 +311,11 @@ void main() {
       // ✅ (2026-10-05) bump إلى 68 — رابط المرآة الدائم سحبة↔مصروف:
       // expense_uuid على salary_withdrawals + withdrawal_uuid على expenses
       // + التعبئة الحتمية + الفهارس (Migration 68).
-      expect(db.schemaVersion, 68);
+      // ✅ (2026-10-07) bump إلى 69 — استكمال عقد العلاقات المحمولة:
+      // expense_kind + employee_link_cleared على expenses، cycle_uuid
+      // معلناً رسمياً على salary_payments، الفهرس الفريد الجزئي D1 0013
+      // (Migration 69).
+      expect(db.schemaVersion, 69);
     });
   });
 

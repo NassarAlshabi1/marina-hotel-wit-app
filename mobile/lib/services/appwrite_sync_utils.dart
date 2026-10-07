@@ -490,7 +490,9 @@ class AppwriteSyncUtils {
       'deletedAtIso',
       'description',
       'deviceId',
+      'employeeLinkCleared',
       'employeeUuid',
+      'expenseKind',
       'expenseType',
       'hotelDayKey',
       'id',
@@ -751,15 +753,25 @@ class AppwriteSyncUtils {
     'salary_carry_over_logs': {
       'amount',
       'carriedAt',
+      'carryDate',
       'createdAt',
       'createdAtEpoch',
       'createdAtIso',
       'deletedAt',
       'deletedAtIso',
       'deviceId',
+      // ✅ (migration 69 — إغلاق فجوة القص G-2b) رابطتا الدورتين كانتا
+      // تُرسلان من المحوّل منذ إصلاح G-2 لكن قوائم السماح لا تحويهما
+      // فكان filterPayloadForCollection يقصّهما قبل الرفع — إصلاح G-2
+      // لم يكن يصل فعلياً إلى السحابة. الإضافة هنا تُفعّله في كل المسارات.
+      'fromCycleId',
+      'fromCycleUuid',
+      'toCycleId',
+      'toCycleUuid',
       'employeeId',
       'employeeLocalUuid',
       'employeeUuid',
+      'hotelDayKey',
       'idempotencyKey',
       'lastModified',
       'lastModifiedEpoch',
@@ -815,6 +827,9 @@ class AppwriteSyncUtils {
       'createdAtIso',
       'cycleId',
       'cycleLocalUuid',
+      // ✅ (migration 69 — إغلاق فجوة القص G-1b) cycleUuid كان يُختم في
+      // الحمولة (appwrite_sync_manager) ويُقصّ هنا فلا يصل للسحابة أبداً.
+      'cycleUuid',
       'deletedAt',
       'deletedAtIso',
       'deviceId',
@@ -1192,6 +1207,9 @@ class AppwriteSyncUtils {
       'employeeUuid': 'string',
       // ✅ (migration 68) uuid سحبة المرآة
       'withdrawalUuid': 'string',
+      // ✅ (migration 69 — عقد الفرعين D1 0015/0012) حقول العقد المحمولة
+      'expenseKind': 'string',
+      'employeeLinkCleared': 'boolean',
     },
     'debts': {
       'localUuid': 'string',
@@ -1409,6 +1427,8 @@ class AppwriteSyncUtils {
       'sync_origin': 'string',
       'cycleId': 'integer',
       'cycleLocalUuid': 'string',
+      // ✅ (migration 69 — D1 0011) هوية الدورة المحمولة على الدفعة
+      'cycleUuid': 'string',
       'employeeUuid': 'string',
       'employeeLocalUuid': 'string',
       'amount': 'integer',
@@ -1483,6 +1503,14 @@ class AppwriteSyncUtils {
       'newCycleEnd': 'string',
       'reason': 'string',
       'carriedAt': 'integer',
+      // ✅ (migration 69 — إغلاق فجوة القص G-2b) روابط الدورتين + حقول
+      // السجل التي يرسلها المحوّل فعلاً (كانت تُقص قبل الرفع)
+      'fromCycleUuid': 'string',
+      'fromCycleId': 'string',
+      'toCycleUuid': 'string',
+      'toCycleId': 'string',
+      'carryDate': 'string',
+      'hotelDayKey': 'string',
     },
     'blacklist': {
       'localUuid': 'string',

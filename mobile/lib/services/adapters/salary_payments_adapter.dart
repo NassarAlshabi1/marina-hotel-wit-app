@@ -32,6 +32,8 @@ class SalaryPaymentsAdapter
     final remoteCycleId =
         _asInt(json, 'cycleId', src) ?? _asInt(json, 'cycle_id', src);
     final cycleUuid =
+        _asString(json, 'cycleUuid', src) ??
+        _asString(json, 'cycle_uuid', src) ??
         _asString(json, 'cycleLocalUuid', src) ??
         _asString(json, 'cycle_local_uuid', src);
 
@@ -110,6 +112,20 @@ class SalaryPaymentsAdapter
       // ✅ (2026-09-19) تخزين UUID الموظف (مُشتق من الدورة على المصدر) —
       // يُخزّن مباشرة ليُستعلم محلياً دون الانحدار عبر cycleId الرقمي.
       employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
+      // ✅ (migration 69 — D1 0011) تخزين هوية الدورة المحمولة على الدفعة
+      // نفسها — كان العقد يُرسل cycleLocalUuid فقط لحظة الرفع دون تخزين،
+      // فتنكسر إعادة الربط على الأجهزة الأخرى عند غياب صف الدورة. الآن
+      // يُقرأ بالمرادفات الأربعة ويُخزّن في عمود cycle_uuid الرسمي.
+      // دلالة أمان: غياب كل المرادفات في المستند البعيد ⇒ absent — يُحافظ
+      // على الرابط المحلي المُختَم سلفاً ولا يُمحى بـ NULL (نفس فلسفة
+      // employee_link_cleared المعاكسة: هنا الغياب = «لا معلومة» وليس
+      // «إزالة صريحة»، فلا يجوز أن يُفسد رابطاً مثبتاً).
+      cycleUuid: _asStrList(json, const [
+        'cycleUuid',
+        'cycle_uuid',
+        'cycleLocalUuid',
+        'cycle_local_uuid',
+      ]),
       amount: _vInt(json, 'amount', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       paymentDateIso: _vStr(
@@ -167,6 +183,10 @@ class SalaryPaymentsAdapter
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
       _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
+      // ✅ (migration 69) هوية الدورة المحمولة — بالاسمين: cycleUuid
+      // (عقد D1/السحب) وcycleLocalUuid (مرادف الأجهزة القائمة على Appwrite).
+      _k(src, 'cycleUuid', 'cycle_uuid'): model.cycleUuid,
+      _k(src, 'cycleLocalUuid', 'cycle_local_uuid'): model.cycleUuid,
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // المحلي يستخدم IntColumn — النوع متطابق
       _k(src, 'amount', 'amount'): model.amount,
@@ -219,6 +239,19 @@ d.Value<String> _vStr(
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+/// ✅ (migration 69) قراءة نص من قائمة مرادفات بالترتيب — absent إذا غاب
+/// الكل. تُستخدم لحقول الهوية المحمولة ذات الأسماء المتعددة (عقد D1
+/// snake_case مقابل camelCase على Appwrite والمرادفات القديمة).
+d.Value<String> _asStrList(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final v = _asString(json, key, Source.appwrite);
+    if (v != null && v.trim().isNotEmpty) {
+      return d.Value(v);
+    }
+  }
+  return const d.Value.absent();
 }
 
 d.Value<bool> _vBool(

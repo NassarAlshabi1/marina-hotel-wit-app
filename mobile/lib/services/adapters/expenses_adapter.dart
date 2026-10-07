@@ -187,6 +187,19 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
         src,
         altKey: 'withdrawal_uuid',
       ),
+      // ✅ (migration 69 — D1 0015) التصنيف المحمول — NULL يبقى absent
+      // (سجل ما قبل العقد) ولا يُشتق تخميناً عند السحب.
+      expenseKind: _vStr(json, 'expenseKind', src, altKey: 'expense_kind'),
+      // ✅ (migration 69 — D1 0012) علامة إزالة الرابط الصريحة —
+      // fallback false (not absent) لتفادي غياب العمود في المستندات القديمة؛
+      // القيمة true فقط هي ذات معنى سلوكي (لا تعيد المزامنة استعادة رابط أُزيل).
+      employeeLinkCleared: _vBool(
+        json,
+        'employeeLinkCleared',
+        src,
+        altKey: 'employee_link_cleared',
+        fallback: false,
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -229,6 +242,11 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       // ✅ (migration 68) uuid سحبة المرآة — يُرسل دائماً؛ null للسجلات
       // القديمة قبل الترحيل لا تضر (العمود السحابي optional).
       'withdrawalUuid': model.withdrawalUuid,
+      // ✅ (migration 69) حقول العقد المحمولة — camelCase (Appwrite)؛
+      // snake_case يُشتق تلقائياً لمسار Drive عبر _k().
+      _k(src, 'expenseKind', 'expense_kind'): model.expenseKind,
+      _k(src, 'employeeLinkCleared', 'employee_link_cleared'):
+          model.employeeLinkCleared,
       'deviceId': model.deviceId,
     };
 

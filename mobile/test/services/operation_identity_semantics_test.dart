@@ -581,6 +581,14 @@ void main() {
     test('إنشاء مزدوج لنفس الهوية عبر الأجهزة: تُعتمد الأحدث وتُحذف النسخة '
         'الأخرى — العملية تُحتسب مرة واحدة', () async {
       final expId = await createExpense(db, empId, 100, localUuid: 'dup-1');
+      // ✅ (migration 69 — D1 0013) الفهرس الفريد الجزئي يمنع نشوء هذه
+      // الحالة على قاعدة نظيفة — وهو الغرض من القيد نفسه. الاختبار هنا
+      // يغطي منطق الدفاع التراثي في saveFromIdentityDuplicates: قاعدة
+      // قديمة سبقت القيد (ترقية مؤجلة بسبب تكرارات قائمة) — لذا يُسقط
+      // الفهرس مؤقتاً لمحاكاة تلك الحالة، وتبقى كل التأكيدات كما هي.
+      await db.customStatement(
+        'DROP INDEX IF EXISTS idx_salary_withdrawals_active_expense',
+      );
       // نسختان لنفس العملية (تصادم إنشاء من جهازين) — الأحدث تحديثاً 2000.
       await createMirrorRaw(
         100,

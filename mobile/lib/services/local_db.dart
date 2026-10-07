@@ -10,6 +10,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
+import '../utils/app_logger.dart';
 import '../utils/weak_device_optimizer.dart';
 
 part 'local_db.g.dart';
@@ -199,6 +200,26 @@ class Expenses extends Table with SyncFields {
   // ترقيم المعرفات عبر الأجهزة. Nullable — السجلات القديمة تُعبأ عبر
   // backfill الترحيل ما أمكن، وما لا يُحسم حتمياً يبقى بلا رابط (أأمن).
   TextColumn get withdrawalUuid => text().nullable()();
+
+  // ✅ (migration 69 — عقد الفرعين Appwrite/Cloudflare، D1 0015) تصنيف
+  // المصروف المحمول عبر الأجهزة. القيم المسموحة (مطابقة لقيد CHECK في
+  // D1 0015): normal, salary_advance, salary_installment,
+  // salary_withdrawal, salary_deduction, unclassified.
+  // NULL = سجل ما قبل العقد (سطر قديم) — لا يُشتق تخميناً؛ الكتابة
+  // الصحيحة التالية (إنشاء/تعديل) تُمضي التصنيف ذرياً مع updated_at.
+  // صيغة Appwrite: camelCase «expenseKind» (نفس عائلة expenseType)،
+  // وصيغة D1/Worker: snake_case «expense_kind».
+  TextColumn get expenseKind => text().nullable()();
+
+  // ✅ (migration 69 — D1 0012) علامة إزالة رابط الموظف صراحةً.
+  // تميّز «المستخدم أزال الرابط عمداً» عن «سجل قديم لا يحتوي قيمة»
+  // (employeeUuid = NULL تاريخي) حتى لا تعيد المزامنة/السحب القديم
+  // استعادة رابط أزاله المستخدم. INTEGER NOT NULL DEFAULT 0 على D1،
+  // وboolean مع false محلياً — نفس التمثيل الثنائي في SQLite.
+  // صيغة Appwrite: camelCase «employeeLinkCleared»، وD1:
+  // «employee_link_cleared».
+  BoolColumn get employeeLinkCleared =>
+      boolean().withDefault(const Constant(false))();
 
   List<Index> get indexes => [
     Index(
@@ -734,6 +755,22 @@ class SalaryPayments extends Table with SyncFields {
   // ✅ (migration 67) UUID الموظف المالك للدفعة (مُشتق من الدورة) —
   // يُخزّن مباشرة ليُستعلم بدل الانحدار عبر cycleId الرقمي المحلي.
   TextColumn get employeeUuid => text().nullable()();
+
+  // ✅ (migration 69 — D1 0011) UUID دورة الراتب المالكة للدفعة —
+  // الرابط المحمول عبر الأجهزة (نفس عائلة employee_uuid/expense_uuid):
+  // cycle_id رقمي محلي من جهاز المصدر ولا يُعاد ترقيمه عبر المزامنة.
+  //
+  // ملاحظة هجرة حاسمة (مُثبتة من الفرع): هذا العمود كان يُنشأ خاماً
+  // (ALTER TABLE في beforeOpen — إصلاح G-1 بتاريخ 2026-10-06) دون إعلان
+  // في Drift، فكان يُكتب عبر FinancialLinkStore بـ raw SQL فقط ولا يُقرأ
+  // عند السحب ولا يُرسل من المحوّل. الهجرة 69 تُعلنه في المخطط الرسمي
+  // (يبقى beforeOpen شبكة أمان idempotent للتثبيتات القديمة)، والترحيل
+  // يتحقق بـ PRAGMA table_info قبل الإضافة لأن العمود قد يكون موجوداً
+  // سلفاً من beforeOpen (m.addColumn سيفشل بـ duplicate column).
+  //
+  // صيغة Appwrite: camelCase «cycleUuid» (والمرادف القديم
+  // «cycleLocalUuid» يبقى مقبولاً عند السحب)، وD1/Worker: «cycle_uuid».
+  TextColumn get cycleUuid => text().nullable()();
   IntColumn get amount => integer().withDefault(const Constant(0))();
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get paymentDateIso => text()();
@@ -749,6 +786,13 @@ class SalaryPayments extends Table with SyncFields {
     Index(
       'idx_salary_payments_employee_uuid',
       'CREATE INDEX idx_salary_payments_employee_uuid ON salary_payments (employee_uuid)',
+    ),
+    // ✅ (migration 69) فهرسة رابط الدورة الدائم — يطابق D1 0011
+    // (idx_salary_payments_cycle_uuid). مُنشأ أصلاً خاماً في beforeOpen؛
+    // إعلانه هنا يضمن وجوده في القواعد الجديدة من أول إنشاء.
+    Index(
+      'idx_salary_payments_cycle_uuid',
+      'CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid ON salary_payments (cycle_uuid)',
     ),
   ];
 }
@@ -802,6 +846,18 @@ class SalaryWithdrawals extends Table with SyncFields {
     Index(
       'idx_salary_withdrawals_expense_uuid',
       'CREATE INDEX idx_salary_withdrawals_expense_uuid ON salary_withdrawals (expense_uuid)',
+    ),
+    // ✅ (migration 69 — D1 0013 parity) قيد الفريدية: سحبة راتب نشطة
+    // واحدة كحد أقصى لكل expense_uuid. يمنع احتساب مصروف واحد مرتين
+    // عبر مرايا مكررة (retry/إعادة إرسال/تزامن جهازين). الفهرس جزئي:
+    // المحذوفة ناعماً (deleted_at) وسجلات السحب المباشر بلا مصروف
+    // (expense_uuid NULL) مستثناة. الترحيل 69 يفحص التكرارات أولاً:
+    // إن وُجدت لا يُنشأ الفهرس ويُرفع تنبيه تقرير بدل إسقاط بيانات.
+    Index(
+      'idx_salary_withdrawals_active_expense',
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_salary_withdrawals_active_expense '
+          'ON salary_withdrawals (expense_uuid) '
+          'WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL',
     ),
   ];
 }
@@ -1200,7 +1256,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 68;
+  int get schemaVersion => 69;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1260,8 +1316,127 @@ class AppDatabase extends _$AppDatabase {
       } catch (_) {
         // فشل الفهرس غير حرج (يُعاد في الفتح التالي).
       }
+
+      // ✅ (migration 69 — D1 0013 parity) الفهرس الفريد الجزئي لرابط
+      // المرآة النشطة. ملاحظة معمارية مُثبتة: getter `indexes` على فئات
+      // جداول Drift في هذا المشروع توثيقي فقط — المولّد يتجاهله ولا يُنشئ
+      // شيئاً منه (تأكيد: مسبار sqlite_master على قاعدة جديدة لم يُظهر
+      // سوى sqlite_autoindex). لذلك الإنشاء الفعلي خام هنا (مسار التثبيت
+      // الجديد) وفي onUpgrade لمسار الترقية — كلاهما idempotent مع
+      // فحص تكرارات حتى لا يُعطَّل فتح القاعدة على بيانات غير مسوّاة.
+      try {
+        final dupCheck = await customSelect(
+          'SELECT COUNT(*) AS n FROM ('
+          '  SELECT expense_uuid FROM salary_withdrawals'
+          '  WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL'
+          '  GROUP BY expense_uuid HAVING COUNT(*) > 1'
+          ')',
+        ).getSingle();
+        final duplicates = (dupCheck.data['n'] as int?) ?? 0;
+        if (duplicates == 0) {
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS '
+            'idx_salary_withdrawals_active_expense '
+            'ON salary_withdrawals (expense_uuid) '
+            'WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL',
+          );
+        } else {
+          AppLogger.error(
+            '⚠️ فتح القاعدة: $duplicates فتحة expense_uuid بمرايا نشطة '
+            'متعددة — الفهرس الفريد idx_salary_withdrawals_active_expense '
+            'مُعطَّل حتى التسوية اليدوية (لا يُسقط بيانات).',
+            tag: 'DB',
+          );
+        }
+      } catch (_) {
+        // فشل الفهرس/الفحص غير حرج — يُعاد في الفتح التالي.
+      }
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-10-07) الإصدار 69: استكمال عقد العلاقات المحمولة بين
+      // الفرعين (Appwrite camelCase ↔ D1/Worker snake_case) — المرحلة B
+      // من مطالبة إصلاح الفرع الأول. كل العمليات إضافية (أعمدة nullable
+      // + boolean افتراضي false + فهارس) — لا حذف ولا إعادة بناء ولا
+      // فقد بيانات، ولا أي ردّم تخميني للروابط التاريخية.
+      //
+      // الجديد في هذا الإصدار (مطابق للحزمة المرجعية unified-migrations):
+      //   • expenses.expense_kind        (D1 0015 — TEXT nullable)
+      //   • expenses.employee_link_cleared (D1 0012 — INTEGER NOT NULL DEFAULT 0)
+      //   • salary_payments.cycle_uuid   (D1 0011 — إعلان رسمي في Drift)
+      //   • فهرس فريد جزئي على salary_withdrawals(expense_uuid) (D1 0013)
+      //
+      // ⚠️ حالة cycle_uuid الخاصة: العمود قد يكون موجوداً سلفاً خاماً —
+      // أُنشئ بـ ALTER TABLE في beforeOpen (إصلاح G-1) على أي قاعدة فُتحت
+      // بإصدار 68. بما أن onUpgrade يُنفَّذ قبل beforeOpen، فحص PRAGMA
+      // table_info إلزامي قبل m.addColumn وإلا فشلت الترقية بـ
+      // "duplicate column name: cycle_uuid" وتُعطَّل قاعدة الجهاز.
+      if (from < 69) {
+        // 1) أعمدة المصروفات الجديدة (لا تصادم ممكن — أسماء غير مستخدمة)
+        await m.addColumn(expenses, expenses.expenseKind);
+        await m.addColumn(expenses, expenses.employeeLinkCleared);
+
+        // 2) cycle_uuid على الدفعات — إضافة مشروطة بالفحص الفعلي
+        final paymentColumns = await m.database
+            .customSelect('PRAGMA table_info(salary_payments)')
+            .get();
+        final hasCycleUuid = paymentColumns.any(
+          (row) => (row.data['name']?.toString() ?? '') == 'cycle_uuid',
+        );
+        if (!hasCycleUuid) {
+          await m.addColumn(salaryPayments, salaryPayments.cycleUuid);
+        }
+
+        // 3) ردّم حتمي فقط (لا تخمين): رابط الدفعة→دورتها عبر المفتاح
+        // الأجنبي المحلي السليم cycle_id → salary_cycles.id (نفس دلالة
+        // FinancialLinkStore.stampProvablePaymentCycles لكن بنداء واحد).
+        // صفوف بلا دورة محلية صالحة تبقى NULL لمراجعة يدوية — لا يُخترع
+        // لها رابط من مطابقة مبلغ/تاريخ/وصف.
+        // ⚠️ السلسلة الفارغة بعلامات اقتباس مفردة '' (قياسية) — "" تُفسَّر
+        // معرّفاً في SQLite الحديثة (DQS معطَّل) وتفشل بـ "no such column".
+        await m.database.customStatement(
+          "UPDATE salary_payments SET cycle_uuid = ("
+          "  SELECT c.local_uuid FROM salary_cycles c"
+          "  WHERE c.id = salary_payments.cycle_id"
+          ") WHERE (cycle_uuid IS NULL OR TRIM(cycle_uuid) = '')"
+          " AND cycle_id IS NOT NULL",
+        );
+
+        // 4) فهارس الروابط (idempotent — تتوافق مع beforeOpen وD1 0011)
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid '
+          'ON salary_payments (cycle_uuid)',
+        );
+
+        // 5) الفهرس الفريد الجزئي (D1 0013) — بفحص تكرارات أولاً:
+        // إن وُجدت مرايا نشطة متعددة لنفس expense_uuid يُتَرك القرار
+        // للمراجعة/التسوية (تقرير) بدل إسقاط بيانات أو تعطيل الترقية.
+        final duplicateRows = await m.database
+            .customSelect(
+              'SELECT expense_uuid, COUNT(*) AS n FROM salary_withdrawals '
+              'WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL '
+              'GROUP BY expense_uuid HAVING COUNT(*) > 1',
+            )
+            .get();
+        if (duplicateRows.isEmpty) {
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS '
+            'idx_salary_withdrawals_active_expense '
+            'ON salary_withdrawals (expense_uuid) '
+            'WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL',
+          );
+        } else {
+          // تسوية يدوية مطلوبة — الأعمدة والمقارنة تبقى صالحة بلا القيد.
+          // الفهرس سيُحاول قبلOpen/الإصدارات التالية عند نظافة البيانات.
+          AppLogger.error(
+            '⚠️ ترحيل 69: تُركت ${duplicateRows.length} فتحة expense_uuid '
+            'بمرايا نشطة متعددة — الفهرس الفريد idx_salary_withdrawals_active_expense '
+            'لم يُنشأ؛ مطلوبة تسوية يدوية قبل إعادة المحاولة. '
+            'التكرارات: ${duplicateRows.take(10).map((r) => r.data['expense_uuid']).join(', ')}',
+            tag: 'MIGRATION',
+          );
+        }
+      }
+
       // ✅ (2026-10-05) الإصدار 68: uuid رابط المرآة سحبة↔مصروف.
       //
       // المشكلة (نفس عائلة PR #601 employee_uuid و PR #609 cycle_uuid):

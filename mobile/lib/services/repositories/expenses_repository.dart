@@ -10,6 +10,7 @@ import '../crashlytics_service.dart';
 import '../daos/expenses_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
+import '../salary_expense_classifier.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
 
@@ -66,6 +67,10 @@ class ExpensesRepository {
     // (employeeUuid لا يُكتب إلا وقت الرفع). الحقن وقت الرفع يبقى كشبكة أمان
     // للسجلات القديمة التي أُنشئت قبل هذا الإصلاح.
     String? employeeUuid,
+    // ✅ (migration 69 — D1 0015) التصنيف المحمول — إن أُهمل يُشتق حتمياً
+    // من expenseType (تحويل معجمي معلن لا تخمين علاقات)؛ المرّر صراحةً
+    // عند سياق الإنشاء الأدق (أقساط السلفة → salary_installment).
+    String? expenseKind,
   }) async {
     try {
       // ✅ (G-10) سياسة «لا كسور عشرية»: يُطبَّع المبلغ قبل التخزين وبالتالي
@@ -91,6 +96,13 @@ class ExpensesRepository {
           employeeUuid: employeeUuid != null && employeeUuid.isNotEmpty
               ? d.Value(employeeUuid)
               : const d.Value.absent(),
+          // ✅ (migration 69) التصنيف — الاشتقاق الحتمي فقط، والحارس
+          // يمنع أي قيمة خارج عقد D1 0015 من الوصول للقاعدة/السحابة.
+          expenseKind: d.Value(
+            SalaryExpenseClassifier.isAllowedExpenseKind(expenseKind)
+                ? expenseKind!
+                : SalaryExpenseClassifier.classifyExpenseKind(expenseType),
+          ),
         ),
       );
       unawaited(
@@ -169,6 +181,15 @@ class ExpensesRepository {
           employeeUuid: resolvedEmployeeUuid != null
               ? d.Value(resolvedEmployeeUuid)
               : const d.Value.absent(),
+          // ✅ (migration 69) المولّد يخلق نوعين فقط:
+          //   • 'سلفة' → salary_advance (السلفة الأصلية)
+          //   • 'خصم من الراتب' → salary_installment (قسط سلفة مولّد آلياً —
+          //     سياق الإنشاء هنا هو الوحيد القادر على تمييزه عن الخصم اليدوي)
+          expenseKind: d.Value(
+            expenseType.trim().contains('سلفة')
+                ? SalaryExpenseClassifier.kindSalaryAdvance
+                : SalaryExpenseClassifier.kindSalaryInstallment,
+          ),
         ),
       );
       unawaited(
@@ -205,6 +226,14 @@ class ExpensesRepository {
     // - مرّر سلسلة فارغة '' لمسح employeeUuid (عند التحويل من راتب إلى غير راتب).
     // - مرّر null لترك القيمة الحالية دون تغيير (سلوك التوافق للخلف).
     String? employeeUuid,
+    // ✅ (migration 69 — D1 0012) علامة إزالة رابط الموظف صراحةً —
+    // true فقط عندما أزال المستخدم الرابط عمداً (اختيار «بدون موظف»
+    // على مصروف راتب قائم أو تحويله لنوع غير راتبي). تصل للسحابة عبر
+    // employeeLinkCleared فتميّز الطرف الآخر بين «إزالة صريحة» و«سجل
+    // قديم بلا قيمة» ولا تعيد استعادة الرابط بعد سحب قديم.
+    bool? employeeLinkCleared,
+    // ✅ (migration 69 — D1 0015) تصنيف محمول — نفس دلالة create().
+    String? expenseKind,
     bool originIsServer = false,
   }) async {
     try {
@@ -247,6 +276,21 @@ class ExpensesRepository {
               : employeeUuid.isEmpty
               ? const d.Value(null)
               : d.Value(employeeUuid),
+          // ✅ (migration 69) علامة الإزالة الصريحة — null = لا تغيير
+          // (سلوك توافق)، true = أزال المستخدم الرابط عمداً.
+          employeeLinkCleared: employeeLinkCleared == null
+              ? const d.Value.absent()
+              : d.Value(employeeLinkCleared),
+          // ✅ (migration 69) التصنيف — يُمضى عند التعديل إذا توفر
+          // (نفس دلالة D1 0015: التعديل الصحيح يُثبّت التصنيف ذرياً
+          // مع updated_at)، وإلا تبقى NULL السجلات القديمة كما هي.
+          expenseKind: SalaryExpenseClassifier.isAllowedExpenseKind(expenseKind)
+              ? d.Value(expenseKind)
+              : expenseType != null
+              ? d.Value(
+                  SalaryExpenseClassifier.classifyExpenseKind(expenseType),
+                )
+              : const d.Value.absent(),
         ),
         originIsServer: originIsServer,
       );

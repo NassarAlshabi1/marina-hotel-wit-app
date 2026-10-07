@@ -247,6 +247,13 @@ class AppwriteSchemaVerifier {
         {'key': 'employeeUuid', 'type': 'string', 'size': 100},
         // ✅ (migration 68) uuid سحبة المرآة — رابط عكسي دائم عبر الأجهزة
         {'key': 'withdrawalUuid', 'type': 'string', 'size': 36},
+        // ✅ (migration 69 — عقد الفرعين D1 0015) تصنيف المصروف المحمول.
+        // القيم المسموحة: normal, salary_advance, salary_installment,
+        // salary_withdrawal, salary_deduction, unclassified (NULL = سجل
+        // ما قبل العقد). الحجم 32 يكفي أطول قيمة salary_withdrawal (19).
+        {'key': 'expenseKind', 'type': 'string', 'size': 32},
+        // ✅ (migration 69 — D1 0012) علامة إزالة رابط الموظف صراحةً
+        {'key': 'employeeLinkCleared', 'type': 'boolean', 'default': false},
       ],
     },
     'cash_transactions': {
@@ -395,6 +402,10 @@ class AppwriteSchemaVerifier {
         // ✅ D1-path audit fix (2026-10-04) — الفجوة F4: نفس محاذاة
         // collectionSchema — حقول الربط عبر UUID لدفعات الرواتب.
         {'key': 'cycleLocalUuid', 'type': 'string', 'size': 36},
+        // ✅ (migration 69 — D1 0011) هوية الدورة المحمولة على الدفعة —
+        // الاسم القياسي للعقد بين الفرعين (cycle_uuid على D1). cycleLocalUuid
+        // يبقى مرادفاً مقبولاً عند السحب لتوافق الأجهزة القائمة.
+        {'key': 'cycleUuid', 'type': 'string', 'size': 36},
         {'key': 'employeeUuid', 'type': 'string', 'size': 36},
         {'key': 'employeeLocalUuid', 'type': 'string', 'size': 36},
         // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
@@ -674,6 +685,15 @@ class AppwriteSchemaVerifier {
         // collectionSchema — حقول الربط عبر UUID لسجلات ترحيل الرواتب.
         {'key': 'employeeUuid', 'type': 'string', 'size': 36},
         {'key': 'employeeLocalUuid', 'type': 'string', 'size': 36},
+        // ✅ (migration 69 — إغلاق فجوة القص G-2b) روابط الدورتين للسجل —
+        // المحوّل يرسلها منذ G-2 لكنها كانت تُقصّ في appwrite_sync_utils
+        // قبل الرفع؛ إعلانها هنا يصحح التحقق والسكربتات للجهاز الجديد.
+        {'key': 'fromCycleUuid', 'type': 'string', 'size': 36},
+        {'key': 'fromCycleId', 'type': 'string', 'size': 50},
+        {'key': 'toCycleUuid', 'type': 'string', 'size': 36},
+        {'key': 'toCycleId', 'type': 'string', 'size': 50},
+        {'key': 'carryDate', 'type': 'string', 'size': 50},
+        {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
         // ⚠️ amount على Appwrite Cloud هو integer (يُحوَّل تلقائياً عبر
         // AppwriteSyncUtils.convertAmountTypesForAppwrite)
         {'key': 'amount', 'type': 'integer', 'required': true},
