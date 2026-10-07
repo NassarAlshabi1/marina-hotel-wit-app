@@ -1526,6 +1526,12 @@ class _LedgerRebuildResult {
   });
 
   final int ledgerEntryCount;
+
+  /// أيام مُقفلة (status='closed') حُفظت كما هي — لم تُكتب فوقها المجاميع.
+  final int preservedClosed;
+
+  /// صفوف مُشتقة قديمة حُذفت لأن إعادة الحساب لم تُنتج لها أثراً.
+  final int deletedStale;
 }
 
 class _RoomsUpdateResult {
