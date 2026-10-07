@@ -6,7 +6,7 @@
 | --- | --- |
 | تاريخ التوليد | 2026-10-08 |
 | فرع الجلسة | `arena/be8302d7-marina-hotel-wit-app` |
-| آخر التزام موثّق | `7051eae1` (سلسلة الإصلاح `c3bc16b5`…`d364b90b` + توثيق §5 في `341f92fd`) |
+| آخر التزام موثّق | `f7aaf292` — وسلسلة الإصلاح `c3bc16b5`…`d364b90b` وتوثيق §5 في `341f92fd` |
 | الفرع المرجعي الدارتي | `feat/cloudflare-sync-execution` |
 | قاعدة الدمج | `agent/android-cloudflare` (`d95974fc`) |
 | كيانات السلك (المتزامنة) | 24 |
@@ -15,7 +15,7 @@
 
 **إعادة التوليد:** `python3 docs/tools/generate_sync_spec.py` (يقرأ المخطط والكيانات وخرائط السلك من المصدر — لا قيم محفوظة).
 
-**كيف تُقرأ:** الأقسام ١–٢ و٤–١٢ هي العقد (يجب أن تُطابقه أي جهة عميل)، والقسم ٣ فهارس حقول كاملة مولّدة لكل جدول. كل رقم في هذا الملف قابل للتحقق من الشيفرة المذكورة بجانبه؛ وما لم يُتحقق منه مُعلَم صراحةً.
+**كيف تُقرأ:** الأقسام ١–٢ و٤–١٣ هي العقد (يجب أن تُطابقه أي جهة عميل)، والقسم ٣ فهارس حقول كاملة مولّدة لكل جدول. كل رقم في هذا الملف قابل للتحقق من الشيفرة المذكورة بجانبه؛ وما لم يُتحقق منه مُعلَم صراحةً.
 
 ## ١) المعمارية
 
@@ -420,6 +420,36 @@
 
 **FCM:** التصفية (المصدر ثم الصدى) ثم `onRemoteSignal(source="fcm")`؛ ما لم يُنقل عمداً:
 إشعارات FCM المحلية وعرض حمولتها (ليست من عقد السحب).
+
+### ٢.١٠ شكل عملية الدفع الواحدة (نظير `buildPushOperation`)
+
+```json
+{
+  "idempotencyKey": "bookings_update_<localUuid>_<uuid>",
+  "entity": "bookings",
+  "operation": "create" | "update" | "delete",
+  "data": { "local_uuid": "…", "room_number": "101", "…": "أعمدة السلك" },
+  "vectorClock": "{}",
+  "updatedAt": 1760000000,
+  "deviceId": "<device_id>"
+}
+```
+
+| القاعدة | التفصيل |
+| --- | --- |
+| `operation` | `insert`/`create`/`upsert` ⇒ `create`؛ `update`/`edit` ⇒ `update`؛ `delete`/`soft_delete` ⇒ `delete`؛ وغير ذلك يمر كما هو |
+| `entity` | إزالة الفراغات + `blacklist_entries` ⇒ `blacklist` |
+| `data` (أسماء المفاتيح) | camelCase ⇒ snake_case **للمستوى الأعلى فقط**؛ المفصل بين `[a-z0-9]` وكبير (فـ`employeeId` ⇒ `employee_id`)؛ والمفاتيح snake_case تمر كما هي |
+| `data` (القيم) | `true/false` ⇒ `1/0` حصراً (D1 يرفض القيم المنطقية)؛ والكائنات/القوائم/نصوص JSON-داخل-نص **بيانات** لا تُطبَّع مفاتيحها الداخلية |
+| `data` (الهوية) | `local_uuid` يُحفَن من صف outbox إن غاب (حمولات الحذف الرقيقة `{"id": n}` يرفضها الخادم بلا uuid) |
+| `data` (الطوابع) | أي عمود طابع يحمل ميلي يُطبَّع للثواني قبل الإرسال (العتبة `1e11`) — لأن الـWorker ينسخ `last_modified` الوارد حرفياً ويقارنه بثواني بقية الأجهزة |
+| `data` (فصل الموظف) | `expenses` + `update` + `employee_uuid` فارغ نصّياً ⇒ يُحذف المفتاح ويُضاف `clear_employee_link: 1`؛ أي NULL عادي لا يُرسَل ولا يمسح الربط |
+| `vectorClock` | من حمولة الصف، وإلا `{}`؛ (في Dart يُقرأ أيضاً من صف الكيان عبر `resolveRowVectorClock` — نفس الغرض) |
+| `updatedAt` | `clientTs` للصف بعد التطبيع للثواني |
+| `deviceId` | إن كان فارغاً ⇒ `unknown-origin` (لا يُرسَل فارغاً) |
+| احتياط المفتاح | إن غاب `idempotency_key` في الصف ⇒ `{entity}_{op}_{localUuid}` |
+
+**جانب الخادم:** `idempotency_log(key, entity, operation, entity_id, processed_at, response)` — إعادة إرسال المفتاح نفسه تُعيد نفس الاستجابة المخزنة (لا تكرار للأثر)؛ ولذلك المفتاح ثابت للصف عبر كل محاولاته.
 
 ---
 
@@ -1624,6 +1654,57 @@ occupied = { room_number | bookings.deleted_at IS NULL AND status IN (التسع
 | 20 | آلة حالات الصادر | حجز `processing` قبل الإرسال، استرداد الانهيار عند الإقلاع، dead-letter للرفض الدائم، إعادة `pending` للمؤقت، وسقف 5 بلا استثناء `salary_withdrawals` |
 | 21 | مفاتيح التفضيلات | أسماء المفاتيح حرفياً كما في §٢.٧ — وإلا انكسر الاستئناف بعد الترقية |
 | 22 | النقل | `Authorization: Bearer` + `X-Device-Id`، ولا يُرسَل توكن `local:admin-session`، وتبديل النقاط على 521/522/530 |
+
+---
+
+## ١٣) مصفوفة التكافؤ مع الفرع الدارتي المرجعي — ما يُعاد استعماله وما يُنقل
+
+الفحص جرى بالبحث النصي في `origin/feat/cloudflare-sync-execution` (شجرة `mobile/lib`). كل صف يقول حالته صراحةً؛ وما لم يُتحقق منه مُعلَم «يحتاج فحصاً» ولا يُبنى عليه قرار.
+
+### ١٣.١ بنود مُنفَّذة أصلاً في Dart (لا تُعاد كتابتها)
+
+| البند | موضعه في Dart | الحالة عندنا |
+| --- | --- | --- |
+| وحدة الزمن ثوانٍ | `mobile/lib/utils/time.dart`: `Time.nowEpoch() = millisecondsSinceEpoch ~/ 1000` | مطابق (`SyncEpochs.nowSeconds`) |
+| حارس انزياح الساعة M3 | `cloudflare_sync_manager.dart` ≈ l.3013-3037 (`remoteVersion > localVersion`) | مطابق في `SyncIngestorRegistry` + 3 اختبارات |
+| سجل الحجر وسياسته | `services/sync/pull_quarantine.dart` (عتبة 3 + عدّادات في `cf_pull_orphan_block_counts`) | مطابق في جدول `sync_quarantine` |
+| ترجمة العلاقات | `services/sync/fk_rules.dart` (12 قاعدة) | مطابق |
+| دمج المفتاح الطبيعي | `services/sync/pull_apply_rules.dart` | مطابق |
+| الإشغال | `services/repositories/rooms_repository.dart` l.221-258 | منقول حرفياً |
+| الحقول المشتقة بلا لمس `last_modified` | `services/booking_derived_fields_service.dart` l.132-136 (نصّ صريح) | مطابق بعد إصلاح `updateComputedFields` |
+| رصيد المخزون + رفع `inventory_items:update` | `services/repositories/inventory_repository.dart` l.128-200 | منقول ومقفول باختبار |
+| سقف صفحات السحب + حراس المؤشر | `cloudflare_sync_manager.dart` (`maxSanePullCursorFuture = 2e9`, سقف الدورة, `has_more`) | مطابق في `PullSanityPolicy` |
+| حقبة المزامنة وإعادة السحب | `cloudflare_sync_manager.dart` l.207-224, 766-800 (`cf_sync_epoch`) | مطابق في `SyncEpochPolicy` |
+| قناة Realtime | `services/cloudflare_realtime_sync.dart` + `cloudflare_config.dart` | مطابق في `data/remote/realtime/` |
+| تسجيل الأجهزة | عبر `POST /api/devices/register` | مطابق |
+
+### ١٣.٢ فروق تستوجب قراراً في Dart (مُتحقَّق منها بالبحث)
+
+| # | الفرق | عندنا | في Dart المرجعي | الإجراء المقترح في Dart |
+| --- | --- | --- | --- | --- |
+| 1 | تطبيع طوابع الحمولة الصادرة (ميلي⇒ثوانٍ) | مُنفَّذ في `PushWireContract.normalizeForWire` (`SyncEpochs.normalizeOutgoingEpochFields`) | **لا عتبة `1e11`** في `services/sync` — `buildPushOperation` يمرّر `data` كما هو و`updatedAt = item.clientTs` | يُضاف تطبيع صريح لأعمدة الطوابع قبل الإرسال، أو اختبار عقد يمنع أي حمولة بميلي |
+| 2 | أسماء مفاتيح التفضيلات | `last_pull_cursor`, `full_sync_complete`, `cf_timestamp_normalization_done`, `cf_tombstone_sweep_done/cursor` | `cf_last_pull_cursor`, `cf_full_sync_completed`, `cf_timestamp_normalization_v1_done`, `cf_tombstone_sweep_v1_done/v1_cursor` | تُثبَّت أسماء Dart الحالية، وأي هجرة تنسخ القيم بدل تبديل الأسماء (وإلا يعاد السحب من الصفر) |
+| 3 | مفاتيح لا مقابل لها في Dart | `current_user_json`, `cf_full_replay_pending`, `cf_sync_error_history` | لا وجود لها (الفحص النصي) | قرار: إمّا تبنيها بنفس الدور أو اعتماد مكافئ Dart القائم |
+| 4 | ترجمة `op` قبل الإرسال | `insert`/`upsert` ⇒ `create`، و`edit` ⇒ `update`، و`soft_delete` ⇒ `delete` (`PushWireContract.mapOperation`) | `buildPushOperation` يمرّر `item.op` كما هو (وصفوف Dart تُكتب أصلاً بـ`create`) | توثيق/قفل: لا يُخزَّن في الصندوق غير القيم الثلاث `create` و`update` و`delete` |
+| 5 | فصل ربط الموظف عن المصروف | `expenses` + `update` + `employee_uuid` فارغ ⇒ حذف المفتاح + `clear_employee_link=1` | المرادف السلكي موجود للاستيعاب فقط (`local_db.dart` l.202)، ولم يُعثر على ضبطه عند الإرسال | يُضاف لمنع مسح ربط الموظف بلا قصد — أو يُقفل باختبار أن الفارغ لا يُرسل |
+| 6 | مصدر `vectorClock` | من حمولة صف outbox، وإلا `{}` | من صف الكيان عبر `resolveRowVectorClock` | كلاهما مقبول؛ الشرط أن لا يُرسَل `{}` لصف له ساعة قائمة |
+| 7 | تخزين الحجر/المؤجَّل | جدولان: `sync_quarantine` (بحمولة الصف) و`pending_sync_links` (بحمولة الإعادة) | عدّادات في التفضيلات (`cf_pull_orphan_block_counts`) وسياسة في الذاكرة | إن أُريد تشخيص قابل للاستئناف بعد إعادة التشغيل ⇒ الجداول؛ وإلا فسجل Dart يكفي |
+| 8 | كيان `blacklist` | `blacklist_entries` محلياً ⇒ `blacklist` على السلك | خريطة `cloudflare_config.dart` l.225 تعرّف `blacklist` (يحتاج فحصاً: هل يبنى الصندوق بالاسم المحلي؟) | التحقق من اسم الكيان في صفوف الصندوق قبل النقل |
+
+### ١٣.٣ ما لا يُنقل إلى Dart (عطل خاص بمنصة أندرويد)
+
+| البند | السبب |
+| --- | --- |
+| `SyncEntityGson` (تجاوز ظلّ حقول `BaseSyncEntity`) | عطل Kotlin/Gson: `declares multiple JSON fields named 'id'`. في Dart تُبنى الحمولة يدوياً فلا وجود للمشكلة — لكن يبقى واجباً اختبار «مفاتيح الحمولة = أعمدة السلك» |
+| استرداد الانهيار بـ`recoverStaleProcessing` | مكافئه في Dart: `reclaimForPush.maxFailedAttempts` على مسار الرفع (يحتاج فحصاً) |
+| `X-Device-Id` | يُضاف للتشخيص؛ Dart يعتمد `device_id` داخل العملية والرمز |
+
+### ١٣.٤ كيف يُستخدم هذا القسم
+
+1. ابنِ/حدّث تطبيق Dart على عقود الأقسام ٢–٨ (هي المشتركة).
+2. لا تُعِد كتابة بنود ١٣.١ — تحقّق فقط أنها ما زالت على العقد.
+3. اعرض بنود ١٣.٢ على مالك المنتج قبل تنفيذها: كل بند منها تغيير سلوكي.
+4. أعد توليد هذا الملف قبل أي مقارنة جديدة: `python3 docs/tools/generate_sync_spec.py`.
 
 ---
 
