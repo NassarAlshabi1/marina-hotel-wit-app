@@ -41,7 +41,7 @@ import org.robolectric.annotation.Config
 /**
  * عقد **الكتابة المحلية** في المستودعات الثلاثة عشر المتبقية — نظير Dart
  * `Time.nowEpoch()` (ثوانٍ) في كل مسارات `insertOne`/`updateById`/`softDelete`
- * (`mobile/lib/services/daos/*.dart` في فرع `feat/cloudflare-sync-execution`).
+ * (`mobile/lib/services/daos/…dart` في فرع `feat/cloudflare-sync-execution`).
  *
  * ثلاتة عقود يقفلها هذا الملف لكل مستودع:
  *  1. **الوحدة**: `updated_at` / `last_modified` / `deleted_at` بالثواني لا
