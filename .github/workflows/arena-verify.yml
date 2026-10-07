@@ -1,6 +1,5 @@
-# ⚠️ مؤقت: تنسيق الملفات المعدَّلة عبر dart format + تقرير تحقق كـartifact
-# (بيئة الوكيل بلا Flutter SDK) — يُحذف بعد نجاح التحقق.
-# النمط نفسه المستخدم في جولات سابقة على هذا الفرع.
+# ⚠️ مؤقت: تنسيق عبر dart format + تقرير تحقق مُودَع في المستودع
+# (بيئة الوكيل بلا Flutter SDK، وتحميل artifacts محجوب) — يُحذف بعد النجاح.
 name: Arena Verify (temporary)
 
 on:
@@ -31,17 +30,17 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Report format status (before)
-        continue-on-error: true
+      - name: Format status (before) + format
         run: |
+          mkdir -p .arena
           {
-            echo "### dart format --set-exit-if-changed (before formatting)"
+            echo "### format check BEFORE (CI parity)"
             dart format --output=none --set-exit-if-changed . 2>&1 \
-              | sed -E 's/ in [0-9.]+ seconds\././' | tail -12
-          } > "$RUNNER_TEMP/verify.txt"
-
-      - name: Format
-        run: dart format . 2>&1 | sed -E 's/ in [0-9.]+ seconds\././' | tail -3 >> "$RUNNER_TEMP/verify.txt"
+              | sed -E 's/ in [0-9.]+ seconds\././' | tail -12 || true
+            echo ""
+            echo "### dart format ."
+            dart format . 2>&1 | sed -E 's/ in [0-9.]+ seconds\././' | tail -3
+          } > .arena/verify.txt
 
       - name: Analyze (CI parity)
         continue-on-error: true
@@ -51,38 +50,39 @@ jobs:
             echo "### flutter analyze --no-fatal-infos --no-fatal-warnings"
             flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 \
               | sed -E 's/ \(ran in [0-9.]+s\)//' | tail -25
-          } >> "$RUNNER_TEMP/verify.txt"
+          } >> .arena/verify.txt
 
       - name: Targeted regression tests
         continue-on-error: true
         run: |
+          set +e
+          flutter test \
+            test/unit/expense_kind_edit_preservation_test.dart \
+            test/portable_relationships_contract_test.dart \
+            test/migration_69_upgrade_test.dart \
+            test/services/bug_repro_expense_edit_test.dart \
+            --reporter compact > /tmp/targeted.txt 2>&1
+          rc=$?
           {
             echo ""
-            echo "### targeted tests (m69 edit preservation + contract)"
-            flutter test \
-              test/unit/expense_kind_edit_preservation_test.dart \
-              test/portable_relationships_contract_test.dart \
-              test/migration_69_upgrade_test.dart \
-              test/services/bug_repro_expense_edit_test.dart \
-              --reporter compact 2>&1 \
-              | sed -E 's/^[0-9]{2}:[0-9]{2} \+[0-9]+ //' \
+            echo "### targeted tests (rc=$rc)"
+            sed -E 's/^[0-9]{2}:[0-9]{2} \+[0-9]+ //' /tmp/targeted.txt \
               | grep -E "All tests passed|Some tests failed|Expected:|Actual:|Failed to load|Compilation failed|Error:" \
               | tail -25
-          } >> "$RUNNER_TEMP/verify.txt"
-          tr '\r' '\n' < "$RUNNER_TEMP/verify.txt" | tail -35
+          } >> .arena/verify.txt
+          tail -12 .arena/verify.txt
 
-      - name: Upload report artifact
+      - name: Push formatted sources + report
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: arena-verify-report
-          path: ${{ runner.temp }}/verify.txt
-          if-no-files-found: error
-
-      - name: Push formatted sources (if any)
         run: |
           git config user.name "arena-verify-bot"
           git config user.email "arena-verify-bot@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "chore(arena): تنسيق dart format (m69 edit preservation)"
+          git diff --cached --quiet || git commit -m "chore(arena): dart format + تقرير تحقق m69 (التصنيف عند التعديل)"
           git push
+
+      - name: Gate — fail job if targeted tests did not pass
+        if: always()
+        run: |
+          grep -q "All tests passed" .arena/verify.txt \
+            && ! grep -q "rc=[1-9]" .arena/verify.txt
