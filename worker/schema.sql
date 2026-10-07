@@ -137,6 +137,37 @@ CREATE TABLE IF NOT EXISTS idempotency_log (
   response TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_idempotency_entity ON idempotency_log(entity, entity_id);
+-- Parity unification: ports branch2's 0008_idempotency_log_cleanup.sql index
+-- so the daily cron cleanup job (worker/src/maintenance.ts handleScheduledCleanup)
+-- can purge expired idempotency claims by processed_at via an O(log n) index
+-- lookup instead of a full table scan.
+CREATE INDEX IF NOT EXISTS idx_idempotency_processed_at ON idempotency_log(processed_at);
+
+-- ═══════════════════════════════════════════════════════════════
+--  Parity unification — finance_snapshots (ports branch2's 0009)
+--  Governance/forecast approval table; append-only, no UPDATE/DELETE
+--  from API. ~10KB/week growth. Mirrors branch2 worker/schema.sql L1103.
+-- ═══════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS finance_snapshots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  label TEXT NOT NULL DEFAULT '',
+  scenario_key TEXT NOT NULL DEFAULT 'base',
+  scenario_json TEXT NOT NULL DEFAULT '{}',
+  model_start TEXT NOT NULL,
+  model_end TEXT NOT NULL,
+  opening_balance REAL NOT NULL DEFAULT 0,
+  total_inflow REAL NOT NULL DEFAULT 0,
+  total_outflow REAL NOT NULL DEFAULT 0,
+  financing_need REAL NOT NULL DEFAULT 0,
+  weeks_below_threshold INTEGER NOT NULL DEFAULT 0,
+  forecast_json TEXT NOT NULL,
+  approved_by TEXT NOT NULL DEFAULT '',
+  approved_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_finance_snapshots_approved
+  ON finance_snapshots(approved_at DESC);
+CREATE INDEX IF NOT EXISTS idx_finance_snapshots_scenario
+  ON finance_snapshots(scenario_key, approved_at DESC);
 
 -- ═══════════════════════════════════════════════════════════════
 --  Synced entity tables (columns = Drift tables + SyncFields)

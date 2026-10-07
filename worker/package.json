@@ -12,6 +12,8 @@
     "db:migrate:parity": "wrangler d1 execute marina-hotel-db --file=./migrations/0005_schema_parity.sql",
     "db:migrate:salary-withdrawals": "wrangler d1 execute marina-hotel-db --file=./migrations/0006_salary_withdrawals_employee_uuid.sql",
     "db:migrate:salary-employee-uuid": "wrangler d1 execute marina-hotel-db --file=./migrations/0007_salary_tables_employee_uuid.sql",
+    "db:migrate:idempotency-idx": "wrangler d1 execute marina-hotel-db --file=./migrations/0008_idempotency_log_cleanup.sql",
+    "db:migrate:finance": "wrangler d1 execute marina-hotel-db --file=./migrations/0009_finance_snapshots.sql",
     "db:migrate:sync-meta": "wrangler d1 execute marina-hotel-db --file=./migrations/0010_sync_meta.sql",
     "db:migrate:salary-parent-uuids": "wrangler d1 execute marina-hotel-db --file=./migrations/0011_salary_parent_uuids.sql",
     "db:migrate:expense-link-clear-flag": "wrangler d1 execute marina-hotel-db --file=./migrations/0012_expense_employee_link_clear_flag.sql",
