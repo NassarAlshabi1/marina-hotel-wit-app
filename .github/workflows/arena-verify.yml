@@ -77,10 +77,11 @@ jobs:
           {
             echo ""
             echo "### flutter test (targeted, rc=$rc)"
-            grep -E "All tests passed|Some tests failed|^[0-9]{2}:[0-9]{2} .*: (loading|running)|Failed to load|Error:|failed$" /tmp/tests.log | tail -25
-            echo "---- tail ----"
-            tail -12 /tmp/tests.log
+            grep -E "\[E\]|Failed to load|Error:|Some tests failed" /tmp/tests.log | tail -40
+            echo "---- summary ----"
+            tail -3 /tmp/tests.log
           } >> .arena/verify.txt
+          tail -c 400000 /tmp/tests.log > .arena/tests.log
           echo "$rc" > .arena/tests.rc
 
       - name: Push formatted sources + report

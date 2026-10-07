@@ -1374,9 +1374,22 @@ class AppDatabase extends _$AppDatabase {
       // المعرّف إلى `ldg-<hotel_day_key بلا شرطات>` حتمياً (idempotent).
       // لا يُغيَّر أي عمود آخر إطلاقاً، والجدول محلي بلا أي مرجع خارجي إليه.
       if (from < 70) {
-        await m.database.customStatement(
-          HotelDayLedgerIdentity.legacyUuidNormalizeSql,
-        );
+        // حارس وجود الجدول قبل العبارة: الترحيل الذي يفشل = قاعدة معطّلة،
+        // والجدول موجود في كل قاعدة حقيقية منذ الترحيل 24 (وعلى مسار
+        // الإنشاء يُنشئه onCreate) — لكن الحارس يمنع تعطّل الفتح على أي
+        // قاعدة شاذة، والعبارة تُعاد idempotent في beforeOpen كل فتح.
+        // (نفس نمط حراسة m69 لعمود cycle_uuid: تحقق فعلي قبل التنفيذ.)
+        final ledgerTable = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type='table' "
+              "AND name='hotel_day_ledger'",
+            )
+            .getSingleOrNull();
+        if (ledgerTable != null) {
+          await m.database.customStatement(
+            HotelDayLedgerIdentity.legacyUuidNormalizeSql,
+          );
+        }
       }
 
       // ✅ (2026-10-07) الإصدار 69: استكمال عقد العلاقات المحمولة بين
