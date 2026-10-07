@@ -5,6 +5,7 @@ import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.BookingsDao
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
+import com.marina.marina.data.sync.SyncEpochs
 import com.marina.marina.domain.model.Booking
 import com.marina.marina.domain.repository.BookingsRepository
 import java.util.UUID
@@ -34,7 +35,11 @@ class BookingsRepositoryImpl @Inject constructor(
         // Dart bookings_repository.dart l.56-65 — reject a second active booking
         // for a room that already has one.
         assertNoConflictingActiveBooking(booking.roomNumber, excludeId = null)
-        val now = System.currentTimeMillis()
+        // ✅ (2026-10-06) الطوابع بالثواني — نظير `bookings_dao.dart:insertOne`
+        // (`createdAt/updatedAt/lastModified = Time.nowEpoch()`)، ونموذج
+        // المجال لا يحمل `last_modified` أصلاً فكان يُكتب صفراً ⇒ يفوز صف
+        // الخادم الأقدم على تعديلنا في «آخر كتابة تفوز».
+        val now = SyncEpochs.nowSeconds()
         val prepared = booking.copy(
             localUuid = booking.localUuid.ifBlank { UUID.randomUUID().toString() },
             createdAt = if (booking.createdAt == 0L) now else booking.createdAt,
@@ -45,7 +50,9 @@ class BookingsRepositoryImpl @Inject constructor(
         // إلى كتابتين منفصلتين تُظهر للمراقبين (Flow) لحظةً تكون فيها الحقول
         // المشتقة قديمة قبل تحديثها.
         return db.withTransaction {
-            val id = bookingsDao.insert(prepared.toEntity())
+            val id = bookingsDao.insert(
+                prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now)
+            )
             outboxRepository.enqueueObject("bookings", "insert", prepared.localUuid, stripComputed(prepared))
             // نفس خدمة إعادة البناء التي يستدعيها السحب بعد الدورة — مصدر وحيد
             // للحقيقة في الحساب (لا نسخة ثانية قابلة للانحراف).
@@ -58,12 +65,24 @@ class BookingsRepositoryImpl @Inject constructor(
         // Dart bookings_repository.dart l.147-156 — the same guard applies when a
         // booking is moved onto a room that already hosts another active booking.
         assertNoConflictingActiveBooking(booking.roomNumber, excludeId = booking.id)
-        val now = System.currentTimeMillis()
+        // ✅ نظير `bookings_dao.dart:updateById`: updatedAt/lastModified = ثوانٍ
+        // و`version = existing.version + 1` (كاسر التعادل في الـ Worker عند
+        // تساوي updated_at). هذا هو مسار «إنهاء الحجز (مكتمل)» في التطبيق.
+        val now = SyncEpochs.nowSeconds()
+        val existing = bookingsDao.getById(booking.id)
         val prepared = booking.copy(updatedAt = now)
         // نفس عقد create: كتابة + outbox + إعادة بناء المشتقات في معاملة واحدة
         // (bookings_repository.dart update l.205-227).
         db.withTransaction {
-            bookingsDao.update(prepared.toEntity())
+            bookingsDao.update(
+                prepared.toEntity().copy(
+                    localUuid = prepared.localUuid.ifBlank { existing?.localUuid.orEmpty() },
+                    createdAt = if (prepared.createdAt == 0L) (existing?.createdAt ?: now) else prepared.createdAt,
+                    lastModified = now,
+                    lastModifiedEpoch = now,
+                    version = (existing?.version ?: prepared.version) + 1
+                )
+            )
             outboxRepository.enqueueObject("bookings", "update", prepared.localUuid, stripComputed(prepared))
             derivedRefresh.refreshForBookingId(prepared.id)
         }

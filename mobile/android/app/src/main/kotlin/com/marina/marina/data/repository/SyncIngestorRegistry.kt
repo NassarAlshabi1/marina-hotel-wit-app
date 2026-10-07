@@ -77,7 +77,8 @@ import javax.inject.Singleton
  * 4. **الصفحة كلها في معاملة واحدة** — 7,300 commit → ~18 (تسريع
  *     السحب الكامل 2026-09-22 في Dart).
  *
- * 5. **آخر-كتابة-تفوز** بمقارنة last_modified؛ التعادل للقادم من
+ * 5. **آخر-كتابة-تفوز** بمقارنة last_modified (بوحدة موحّدة — ثوانٍ؛
+ *    انظر `SyncEpochs` لعلّة الميلي ثانية)؛ التعادل للقادم من
  *    الخادم (حسم التعارض خادمياً). الحذفيات تُستوعب ناعمياً.
  *
  * hotel_day_ledger مستبعد عمداً (تأكيد المالك: جدول محلي-فقط — خطة D8).
@@ -537,6 +538,11 @@ class SyncIngestorRegistry @Inject constructor(
         // (Gson لا يستدعي قيم المُنشئ) ⇒ Room يرفض الصف كاملاً لقيد NOT NULL
         // ⇒ عزل صف سليم ⇒ «لا تُسحب الجداول ولا الحقول».
         com.marina.marina.data.sync.SyncWireFields.applyWireDefaults(entity, mapped)
+        // ✅ (2026-10-06) توحيد وحدة الطوابع: الثواني هي العقد (Dart `Time.nowEpoch`
+        // + ختم الـ Worker)، وأي طابع ميلي (صف D1 مسموم من ناشر قديم) يُردّ
+        // لثوانٍ قبل قرار «آخر كتابة تفوز» وقبل الخزن — وإلا بقي الصف يرفض
+        // تحديثات الخادم إلى الأبد (1.77e12 > 1.76e9 دائماً).
+        com.marina.marina.data.sync.SyncEpochs.normalizeWireEpochFields(mapped)
         // الحارس نفسه أعلى الدالة يمنع null هنا، لكن نُبقيه صريحاً بلا تعقيد.
         entityClass(entity)?.let { shieldMissingBooleans(mapped, it, entity) }
         applyBaseDefaults(mapped)
@@ -771,7 +777,10 @@ class SyncIngestorRegistry @Inject constructor(
                     )
                     ApplyOutcome.Applied
                 }
-                remoteLastModified >= existing.lastModified -> {
+                // ✅ مقارنة بوحدة موحّدة: صف محلي قديم الطابع (ميلي ثانية من
+                // بناء سابق) لا يجوز أن يفوز على تحديث خادمي أحدث زمنياً.
+                (com.marina.marina.data.sync.SyncEpochs.toSeconds(remoteLastModified) ?: 0L) >=
+                    (com.marina.marina.data.sync.SyncEpochs.toSeconds(existing.lastModified) ?: 0L) -> {
                     // استبدال الصف المحلي نفسه (REPLACE بذات المفتاح).
                     store(entity, remote.copyWithId(existing.id))
                     ApplyOutcome.Applied
