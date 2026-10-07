@@ -14,7 +14,7 @@ import com.google.gson.annotations.SerializedName
  * Android Room schema (Room migration 76→77).
  *
  * Read-only from API: no UPDATE, no DELETE. New snapshots are appended
- * by the manager/admin via the Worker `/api/finance/*` routes.
+ * by the manager/admin via the Worker `/api/finance/…` routes.
  *
  * ⚠️ تصحيح (2026-10-07، فحص الالتزام `4df4118` — انظر
  * `docs/merge-4df4118-review.md` F-1): هذا الجدول **مرآة مخطط فقط ولا مسار
@@ -24,7 +24,7 @@ import com.google.gson.annotations.SerializedName
  *  • `SyncIngestorRegistry` لا يعرف هذا الكيان (لا `entityClass`/`store`/
  *    `fetchExisting`) ⇒ لو وصل صف لرُفض `unsupported_entity` وعُزل.
  *  • `financeSnapshotsDao()` لا مستدعي له في المصدر كله.
- *  • كاتب الجدول على D1 هو مسارات `/api/finance/*` وهي **غير موجودة في هذا
+ *  • كاتب الجدول على D1 هو مسارات `/api/finance/…` وهي **غير موجودة في هذا
  *    الفرع** (موجودة في الفرع المرجعي `feat/cloudflare-sync-execution`).
  * أُبقي الجدول لأن الفرعين يتقاسمان المخطط نفسه؛ وتوصيل مسار بيانات حقيقي
  * قرار مستقل (خيارات ثلاثة في التقرير المذكور).
