@@ -1,59 +1,39 @@
 ### dart format --set-exit-if-changed . (AFTER build_runner — مطابق CI)
-Could not format because the source could not be parsed:
-
-line 96, column 70 of lib/services/adapters/expenses_adapter.dart: Unterminated string literal.
-   ╷
-96 │ "    // ✅ (m69 — م-3: مستهلك employeeLinkCleared) منع إحياء رابط أزاله
-   │                                                                      ^
-   ╵
-line 96, column 1 of lib/services/adapters/expenses_adapter.dart: Expected to find ';'.
-   ╷
-96 │ "    // ✅ (m69 — م-3: مستهلك employeeLinkCleared) منع إحياء رابط أزاله
-   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   ╵
-Changed lib/services/repositories/expenses_repository.dart
-Changed test/unit/m69_appwrite_field_resilience_test.dart
-Changed test/unit/m69_field_consumers_test.dart
-Changed test/unit/sync_duplicate_mirror_guard_test.dart
-Formatted 597 files (4 changed).
-### build_runner (rc=1)
-64:  Failed to build with build_runner/aot in 86s; wrote 1162 outputs.
+Formatted 598 files (0 changed).
+### build_runner (rc=0)
 ---- tail ----
-  Could not resolve Dart library package:marina_hotel_mobile/services/adapters/expenses_adapter.dart
-  96:1: Expected to find ';'.
-  96:70: Unterminated string literal.
-  0s drift_dev on 4656 inputs: 181 skipped, 182 output; lib/services/appwrite_sync_manager.freezed.dart
-W drift_dev on lib/services/adapters/expenses_adapter.dart:
-  Could not resolve Dart library package:marina_hotel_mobile/services/adapters/expenses_adapter.dart
-  96:1: Expected to find ';'.
-  96:70: Unterminated string literal.
-  4s drift_dev on 4656 inputs: 787 skipped, 782 output, 8 no-op; spent 4s analyzing; lib/services/daos/booking_notes_dao.freezed.dart
-  7s drift_dev on 4656 inputs: 788 skipped, 783 output, 8 no-op; spent 6s analyzing; lib/services/daos/bookings_dao.freezed.dart
-  11s drift_dev on 4656 inputs: 790 skipped, 785 output, 8 no-op; spent 11s analyzing; lib/services/daos/debts_dao.freezed.dart
-  13s drift_dev on 4656 inputs: 792 skipped, 787 output, 8 no-op; spent 13s analyzing; lib/services/daos/expenses_dao.freezed.dart
-  19s drift_dev on 4656 inputs: 794 skipped, 789 output, 8 no-op; spent 18s analyzing; lib/services/daos/payments_dao.freezed.dart
-  20s drift_dev on 4656 inputs: 796 skipped, 791 output, 8 no-op; spent 20s analyzing; lib/services/daos/shift_notes_dao.freezed.dart
-  46s drift_dev on 4656 inputs: 830 skipped, 823 output, 10 no-op; spent 46s analyzing; lib/services/local_db.freezed.dart
-  47s drift_dev on 4656 inputs: 1798 skipped, 1141 output, 238 no-op; spent 46s analyzing, 1s building; lib/services/daos/outbox_dao.dart.types.temp.dart
-  49s drift_dev on 4656 inputs: 1909 skipped, 1146 output, 270 no-op; spent 46s analyzing, 3s building; lib/services/local_db.dart.types.temp.dart
-  50s drift_dev on 4656 inputs: 2859 skipped, 1146 output, 588 no-op; spent 46s analyzing, 4s building; test/unit/sync_safety_wave5_final_test.dart.types.temp.dart
-  50s drift_dev on 4656 inputs: 2907 skipped, 1146 output, 603 no-op; spent 46s analyzing, 4s building
+  9s freezed on 582 inputs: 89 no-op; spent 6s analyzing, 1s resolving; lib/screens/rooms/rooms_dashboard.dart
+  10s freezed on 582 inputs: 1 output, 460 no-op; spent 8s analyzing, 1s resolving; test/performance/outbox_load_benchmark_test.dart
+  10s freezed on 582 inputs: 1 output, 581 no-op; spent 8s analyzing, 1s resolving
+  0s json_serializable on 1164 inputs; integration_test/app_test.dart
+  1s json_serializable on 1164 inputs: 27 skipped, 28 no-op; spent 1s analyzing; lib/main.freezed.dart
+  2s json_serializable on 1164 inputs: 581 skipped, 1 output, 582 no-op; spent 1s analyzing
+  0s drift_dev on 4656 inputs; integration_test/app_test.dart
+  0s drift_dev on 4656 inputs: 355 skipped, 358 output; lib/services/sync_safety_layer.freezed.dart
+  4s drift_dev on 4656 inputs: 787 skipped, 783 output, 7 no-op; spent 4s analyzing; lib/services/daos/booking_notes_dao.freezed.dart
+  7s drift_dev on 4656 inputs: 788 skipped, 784 output, 7 no-op; spent 6s analyzing; lib/services/daos/bookings_dao.freezed.dart
+  11s drift_dev on 4656 inputs: 790 skipped, 786 output, 7 no-op; spent 11s analyzing; lib/services/daos/debts_dao.freezed.dart
+  13s drift_dev on 4656 inputs: 792 skipped, 788 output, 7 no-op; spent 13s analyzing; lib/services/daos/expenses_dao.freezed.dart
+  18s drift_dev on 4656 inputs: 794 skipped, 790 output, 7 no-op; spent 18s analyzing; lib/services/daos/payments_dao.freezed.dart
+  20s drift_dev on 4656 inputs: 796 skipped, 792 output, 7 no-op; spent 19s analyzing; lib/services/daos/shift_notes_dao.freezed.dart
+  45s drift_dev on 4656 inputs: 830 skipped, 824 output, 9 no-op; spent 45s analyzing; lib/services/local_db.freezed.dart
+  46s drift_dev on 4656 inputs: 1705 skipped, 1134 output, 214 no-op; spent 45s analyzing, 1s building; lib/services/appwrite_sync_manager.dart.types.temp.dart
+  48s drift_dev on 4656 inputs: 1909 skipped, 1147 output, 269 no-op; spent 45s analyzing, 3s building; lib/services/local_db.dart.types.temp.dart
+  49s drift_dev on 4656 inputs: 2754 skipped, 1147 output, 552 no-op; spent 45s analyzing, 4s building; test/unit/guest_infos_sync_roundtrip_test.dart.types.temp.dart
+  49s drift_dev on 4656 inputs: 2907 skipped, 1147 output, 602 no-op; spent 45s analyzing, 4s building
   0s source_gen:combining_builder on 2328 inputs; integration_test/app_test.dart
   0s source_gen:combining_builder on 2328 inputs: 1745 skipped, 14 output, 569 no-op
   0s mockito:mockBuilder on 1312 inputs; test/adapters_round_trip_test.dart
-  1s mockito:mockBuilder on 1312 inputs: 294 skipped, 43 no-op; test/performance/memory_leak_benchmark_test.dart.types.temp.dart
-  1s mockito:mockBuilder on 1312 inputs: 1148 skipped, 164 no-op; spent 1s analyzing
-  Failed to build with build_runner/aot in 86s; wrote 1162 outputs.
+  1s mockito:mockBuilder on 1312 inputs: 35 skipped, 6 no-op; test/auth/permission_actions_test.dart.types.temp.dart
+  1s mockito:mockBuilder on 1312 inputs: 1148 skipped, 164 no-op
+  Built with build_runner/aot in 84s; wrote 1163 outputs.
 
 ### dart format . (self-heal)
-   ╵
-Formatted lib/services/repositories/expenses_repository.dart
-Formatted test/unit/m69_appwrite_field_resilience_test.dart
-Formatted test/unit/m69_field_consumers_test.dart
-Formatted test/unit/sync_duplicate_mirror_guard_test.dart
-Formatted 597 files (4 changed).
+Formatted 598 files (0 changed).
 
 ### flutter analyze
+  win32 5.15.0 (6.4.0 available)
+  win32_registry 2.1.0 (3.0.3 available)
   window_to_front 0.0.4 (1.0.0 available)
   workmanager 0.9.0+3 (0.10.10 available)
   workmanager_android 0.9.0+2 (0.10.9 available)
@@ -66,57 +46,15 @@ Got dependencies!
 Try `flutter pub outdated` for more information.
 Analyzing mobile...                                             
 
-  error • Expected to find ';' • lib/services/adapters/expenses_adapter.dart:96:1 • expected_token
-  error • Unterminated string literal • lib/services/adapters/expenses_adapter.dart:96:70 • unterminated_string_literal
    info • 'listDocuments' is deprecated and shouldn't be used. This API has been deprecated since 1.8.0. Please use `TablesDB.listRows` instead. Try replacing the use of the deprecated member with the replacement • lib/services/appwrite_service.dart:1178:10 • deprecated_member_use
 warning • The declaration '_handlePeriodicPull' isn't referenced. Try removing the declaration of '_handlePeriodicPull' • lib/services/google_drive_unified_sync_coordinator.dart:434:16 • unused_element
 warning • The declaration '_startPeriodicSync' isn't referenced. Try removing the declaration of '_startPeriodicSync' • lib/services/smart_google_drive_sync.dart:290:8 • unused_element
 warning • The declaration '_performOptimizedSyncCheck' isn't referenced. Try removing the declaration of '_performOptimizedSyncCheck' • lib/services/smart_sync_manager.dart:148:16 • unused_element
 
-6 issues found.
+4 issues found.
 
-### flutter test (targeted, rc=1)
-lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/cloudflare_d1_upload_fields_test.dart: lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/hotel_day_ledger_restore_identity_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/hotel_day_ledger_restore_identity_test.dart: lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/mirror_uuid_link_migration68_test.dart: lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/portable_relationships_contract_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/portable_relationships_contract_test.dart: lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_edit_duplication_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_edit_duplication_test.dart: lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_mirror_cross_device_test.dart: lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/phase0_data_integrity_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/phase0_data_integrity_test.dart: lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
-Failed to load "/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart":
-Compilation failed for testPath=/home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: lib/services/adapters/expenses_adapter.dart:96:1: Error: String starting with " must end with ".
-lib/services/adapters/expenses_adapter.dart:96:1: Error: Expected ';' after this.
+### flutter test (targeted, rc=0)
 ---- summary ----
 ::endgroup::
 
-::error::16 tests passed, 11 failed.
+🎉 131 tests passed.
