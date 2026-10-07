@@ -85,14 +85,55 @@ jobs:
           fi
           ls "$ANDROID_HOME/platforms" 2>/dev/null || true
 
+      # `pipefail` + `tee`: نحتفظ بسجلّ Gradle كاملاً للتحليل بعد الفشل (روابط
+      # logs في GitHub API ترجع EOF في هذه البيئة، وسجل غير مقروء = Investigating
+      # بلا دليل)، مع بقاء رمز خروج Gradle هو الفيصل (`pipefail`).
       - name: Build signed release APK (v1+v2+v3)
-        run: ./gradlew assembleRelease --console=plain --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/release-build.log"
 
       # معيار إخراج التطبيق: mobile/android/build.gradle يعيد توجيه buildDir
       # إلى <rootProject.buildDir>/<projectName> = mobile/build/app — ومسار
       # app-release.apk تحته ثبت فعلاً في التشغيل الأول (5.67 MiB).
       - name: Build debug APK (diagnostic)
-        run: ./gradlew assembleDebug --console=plain --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/debug-build.log"
+
+      # نشر سبب الفشل دائماً — إعلامي بحت: لا يُغيّر نتيجة الوظيفة ولا يحجب فشلاً.
+      - name: Publish Gradle diagnostics on failure
+        if: failure()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY' > "$RUNNER_TEMP/apk-diag.json"
+          import json, os, pathlib
+
+          parts = []
+          for label, name in (
+              ("assembleRelease", "release-build.log"),
+              ("assembleDebug", "debug-build.log"),
+          ):
+              path = pathlib.Path(os.environ.get("RUNNER_TEMP", "/tmp")) / name
+              if path.exists():
+                  text = path.read_text(errors="replace")
+                  parts.append(f"===== {label} — آخر 4000 حرف =====\n" + text[-4000:])
+          body = "\n\n".join(parts) or "(لا سجل بناء — فشل قبل تشغيل Gradle)"
+          print(json.dumps({
+              "name": "android-session-apk-diagnostics",
+              "head_sha": os.environ["GITHUB_SHA"],
+              "status": "completed",
+              "conclusion": "failure",
+              "output": {
+                  "title": "فشل بناء APK — سبب Gradle الخام أدناه",
+                  "summary": "تشخيص آلي (إعلامي؛ لا يُغيّر نتيجة الوظيفة ولا يحجب الفشل)",
+                  "text": body[-60000:],
+              },
+          }))
+          PY
+          gh api -X POST "repos/${{ github.repository }}/check-runs" --input "$RUNNER_TEMP/apk-diag.json" >/dev/null || true
 
       - name: Locate built APKs
         id: locate
