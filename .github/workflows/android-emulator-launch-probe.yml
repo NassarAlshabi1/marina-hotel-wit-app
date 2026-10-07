@@ -26,6 +26,9 @@ on:
   push:
     branches:
       - agent/android-cloudflare
+      # فرع الجلسة: حلقة تشخيص سريعة — الأدلة تُنشر في check-run فيُقرأ
+      # سبب أي فشل من API بلا حاجة إلى سجلات Actions (غير قابلة للقراءة آلياً).
+      - arena/be8302d7-marina-hotel-wit-app
     paths:
       - '.github/workflows/android-emulator-launch-probe.yml'
       - '.github/scripts/emulator-launch-probe.sh'
@@ -33,6 +36,9 @@ on:
 
 permissions:
   contents: read
+  # نشر أدلة الفحص في check-run مخصّص (اسمه android-launch-probe-diagnostics)
+  # حتى يُقرأ سبب الفشل من API بلا سجلات ولا حزمة أدلة.
+  checks: write
 
 concurrency:
   group: android-launch-probe-${{ github.ref }}
@@ -112,6 +118,56 @@ jobs:
           # single command backed by a script file (variables and functions
           # would otherwise be lost between lines).
           script: bash .github/scripts/emulator-launch-probe.sh
+
+      - name: Publish probe diagnostics to a check run
+        if: always()
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY' > "$RUNNER_TEMP/launch-probe-diagnostics.json"
+          import json, os, pathlib
+
+          def read(name, keep=0):
+              path = pathlib.Path("probe") / name
+              if not path.exists():
+                  return f"(missing: {name})"
+              text = path.read_text(errors="replace")
+              if keep and len(text) > keep:
+                  text = text[-keep:]
+              return text
+
+          states = []
+          for label in ("main", "bare", "probe"):
+              states.append(f"{label}: " + read(f"state-{label}.txt").strip())
+
+          sections = [
+              ("state", "\n".join(states)),
+              ("install", read("install.txt", 1500)),
+              ("am-start-main", read("am-start-main.txt", 1500)),
+              ("interesting-main", read("interesting-main.txt", 12000)),
+              ("logcat-crash-main", read("logcat-crash-main.txt", 12000)),
+              ("exit-info-main", read("exit-info-main.txt", 8000)),
+              ("marina-diag", read("stages.log", 5000) + "\n" + read("crash.log", 5000)),
+          ]
+          text = "\n\n".join(f"===== {title} =====\n{body}" for title, body in sections)[:60000]
+          main_state = read("state-main.txt").strip()
+          print(json.dumps({
+              "name": "android-launch-probe-diagnostics",
+              "head_sha": os.environ["GITHUB_SHA"],
+              "status": "completed",
+              # محايد عمداً: القناة للأدلة فقط، والفشل يُعلنه الـjob نفسه.
+              "conclusion": "neutral",
+              "output": {
+                  "title": f"Launch probe evidence — main: {main_state or 'MISSING'}",
+                  "summary": f"state-main: {main_state or 'MISSING'}",
+                  "text": text,
+              },
+          }))
+          PY
+          gh api -X POST "repos/${{ github.repository }}/check-runs" \
+            --input "$RUNNER_TEMP/launch-probe-diagnostics.json" >/dev/null \
+            || echo "diagnostics check-run publish failed"
 
       - name: Upload launch probe evidence
         if: always()
