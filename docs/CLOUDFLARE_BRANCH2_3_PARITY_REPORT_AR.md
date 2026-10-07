@@ -261,7 +261,7 @@ dart test test/services/expense_kind_test.dart
 |-----------|----------------|------|
 | مشروع نظيف + بناء D1 من جميع الترحيلات | `vitest` (Worker) | ✅ مغطّى بـ `schema.parity.test.ts` |
 | ترقية قاعدة محلية قديمة (Flutter 70 → 71) | Flutter `dart test` | ⚠️ مكتوب لكن لم يُشغّل |
-| ترقية قاعدة محلية قديمة (Android 76 → 77) | Kotlin Room migration test | ⚠️ موصى به لكن لم يُكتب |
+| ترقية قاعدة محلية قديمة (Android 76 → 77) | Kotlin Room migration test | ⚠️ موصى به لكن لم يُكتب — **أُعيد قياسه (2026-10-07): كُتب فعلاً** في `FinancialMigrationTest.migrate76To77CreatesFinanceSnapshotsWithExactContract`؛ هذا السطر يسبق الالتزام `f23eb8db` — انظر `docs/merge-4df4118-review.md §5` |
 | قيم UUID الفارغة على السحب | `vitest` (Worker) + `sync.pull.test.ts` | ✅ مغطّى |
 | الروابط المتبادلة (expense ↔ withdrawal) | `vitest` (Worker) + `sync.withdrawals.employee_uuid.test.ts` | ✅ مغطّى |
 | إزالة رابط الموظف (`clear_employee_link=1`) | `vitest` (Worker) + `expense-kind.test.ts` test #5 | ✅ مغطّى |
@@ -398,8 +398,10 @@ Flutter الـ `cloudflare_sync_manager.dart` و Kotlin الـ `CloudflareSyncSe
 2. **عدم وجود واجهة UI مستقلة للسحب المباشر**: كلا المنصتين ينشئ السحب من نموذج المصروف. هذا تطابق وظيفي (B2 = B3) لكن قد لا يطابق متطلبات التصميم المستهدف. موصى بمراجعة تصميم UI.
 3. **عدم تشغيل اختبارات Flutter و Kotlin**: لم تُشغّل بسبب عدم توفر SDK. موصى بتشغيلها محلياً قبل دمج الـ patch.
 4. **عدم وجود Room migration test لـ 76→77**: الـ migration SQL جديد وآمن (`IF NOT EXISTS`) لكن لم يُختبر عبر `MigrationTestHelper`. موصى بإضافة `androidTest` للتحقق.
+   ← **سُدّ (2026-10-07)**: كُتب الاختبار كاختبار **Robolectric على JVM** داخل `:app:testDebugUnitTest` (وهي الوظيفة التي يشغّلها CI فعلاً) بدل `androidTest` الذي يقتضي محاكياً لا يشغّله أي workflow في هذا المستودع. يقفل: بقاء الصفوف، عقد الأعمدة الـ14 بعد الترحيل، الفهرسين وترتيبهما، `DEFAULT` عبر إدراج خام، ورفض `NOT NULL`، ومسار DAO على الجدول المُنشأ. التفاصيل: `docs/merge-4df4118-review.md §5.1`.
 5. **عدم إضافة `withdrawal_uuid` كحقل على `ExpenseEntity.kt` في B3**: الحقل موجود في B2's Drift schema + Worker schema، لكن B3's Room entity لا يحمله. الربط العكسي يحفظه الـ Worker عند إنشاء `salary_withdrawals` (الـ `salary_withdrawals_repository.dart` L72-73 في B2 + الـ Kotlin `SalaryWithdrawalsRepositoryImpl.kt` يحفظ فقط `expense_uuid` على الـ mirror — لا `withdrawal_uuid` على الـ expense). قد يفقد Android الربط العكسي في قراءة واحدة. موصى بمتابعة.
 6. **عدم دمج 0009 (finance_snapshots) في الـ Wire contract للـ Worker**: الـ Worker الـ B3 له `worker/src/finance-data.ts` (الموجود في B2) — لم يُفحص بشكل كامل. قد يكون B3 الـ Worker لا يدعم `/api/finance/snapshots` endpoint على الإطلاق. موصى بمتابعة لإضافة الـ route إذا لزم.
+   ← **أُجيب بالأدلة (2026-10-07)**: فرعنا **لا** يدعم المسار — لا `finance-data.ts` ولا `finance-routes.ts` ولا أي مطابقة `api/finance` في `worker/src`؛ و`finance_snapshots` غائب عن `ENTITY_TABLES` (24 جدولاً) في الفرعين ⇒ لا مسار بيانات له على D1. وعلى العميل: المرجع (Flutter) يقرؤها **REST** لا مزامنة، وDrift بلا جدول لقطات. القرار المُوثَّق: إبقاء الكيان **مرآة مخطط** بلا ادّعاء، والقرار الكامل + شرط إعادة النظر في `docs/merge-4df4118-review.md §5.3`.
 
 ### 8.2. متابعات سريعة موصى بها
 
