@@ -31,6 +31,41 @@ except Exception:
 out = []
 def w(line=""): out.append(line)
 
+# ── خرائط §١٦ (منقولة حرفياً من SyncIngestorRegistry) ──
+LOCAL_MAP = [
+    ("rooms", "rooms"), ("bookings", "bookings"), ("payments", "payments"),
+    ("expenses", "expenses"), ("employees", "employees"), ("debts", "debts"),
+    ("booking_notes", "booking_notes"), ("booking_nights", "booking_nights"),
+    ("booking_price_adjustments", "booking_price_adjustments"), ("guest_infos", "guest_infos"),
+    ("shift_notes", "shift_notes"), ("salary_cycles", "salary_cycles"),
+    ("salary_payments", "salary_payments"), ("salary_withdrawals", "salary_withdrawals"),
+    ("salary_carry_over_logs", "salary_carry_over_logs"), ("app_users", "app_users"),
+    ("devices", "devices"), ("cash_transactions", "cash_transactions"),
+    ("audit_logs", "audit_logs"), ("payment_voids", "payment_voids"),
+    ("price_adjustments", "price_adjustments"), ("inventory_items", "inventory_items"),
+    ("inventory_transactions", "inventory_transactions"),
+    ("blacklist / blacklist_entries", "blacklist_entries"),
+]
+FINGERPRINT = [
+    ("room_number + price", "rooms"), ("guest_name + checkin_date", "bookings"),
+    ("amount + payment_method", "payments"), ("expense_type + description", "expenses"),
+    ("basic_salary + position", "employees"), ("debt_reason + remaining_amount", "debts"),
+    ("final_rate + hotel_day_key", "booking_nights"),
+    ("adjustment_type + effective_hotel_day", "booking_price_adjustments"),
+    ("note_text + alert_type", "booking_notes"), ("guest_name + id_number", "guest_infos"),
+    ("shift_date + is_read", "shift_notes"), ("transaction_type + transaction_time", "cash_transactions"),
+    ("cycle_key + expected_amount", "salary_cycles"),
+    ("payment_date_iso + cycle_id", "salary_payments"),
+    ("withdrawal_type + amount", "salary_withdrawals"),
+    ("previous_cycle_start + new_cycle_start", "salary_carry_over_logs"),
+    ("target_type + target_uuid", "price_adjustments"),
+    ("operation_type + entity_type", "audit_logs"), ("void_reason + voided_by", "payment_voids"),
+    ("minimum_quantity", "inventory_items"), ("movement_type + balance_after", "inventory_transactions"),
+    ("device_name", "devices"), ("reported_by", "blacklist"),
+    ("username + credentials_version", "app_users"),
+]
+
+
 # ─────────────────────────── استخراج البيانات ───────────────────────────
 
 db_src = (ROOT/"worker/src/database.ts").read_text(encoding='utf-8')
@@ -165,7 +200,7 @@ w("| كيانات Room (كلها) | " + str(len(room_entities)) + " |")
 w()
 w("**إعادة التوليد:** `python3 docs/tools/generate_sync_spec.py` (يقرأ المخطط والكيانات وخرائط السلك من المصدر — لا قيم محفوظة).")
 w()
-w("**كيف تُقرأ:** الأقسام ١–٢ و٤–١٣ هي العقد (يجب أن تُطابقه أي جهة عميل)، "
+w("**كيف تُقرأ:** الأقسام ١–٢ و٤–١٦ هي العقد (يجب أن تُطابقه أي جهة عميل)، "
   "والقسم ٣ فهارس حقول كاملة مولّدة لكل جدول. كل رقم في هذا الملف قابل للتحقق "
   "من الشيفرة المذكورة بجانبه؛ وما لم يُتحقق منه مُعلَم صراحةً.")
 w()
@@ -1064,6 +1099,147 @@ w("1. ابنِ/حدّث تطبيق Dart على عقود الأقسام ٢–٨ (
 w("2. لا تُعِد كتابة بنود ١٣.١ — تحقّق فقط أنها ما زالت على العقد.")
 w("3. اعرض بنود ١٣.٢ على مالك المنتج قبل تنفيذها: كل بند منها تغيير سلوكي.")
 w("4. أعد توليد هذا الملف قبل أي مقارنة جديدة: `python3 docs/tools/generate_sync_spec.py`.")
+w()
+w("---")
+w()
+w("## ١٤) أشكال القيم والمفاتيح والتعدادات (عقود بيانات لا تخمين)")
+w()
+w("### ١٤.١ `expense_kind` — مجموعة مغلقة بعقد سلكي")
+w()
+w("القيم المسموحة (يُرفض غيرها بـ`Invalid expense_kind`):")
+w()
+w("`normal` · `salary_advance` · `salary_installment` · `salary_withdrawal` · `salary_deduction` · `unclassified`")
+w()
+w("| الحالة | السلوك |")
+w("| --- | --- |")
+w("| `NULL` (صف ما قبل العقد) | السحب يعرض تصنيفاً محافظاً؛ **أول تعديل مقبول** يُثبّت النوع ذرّياً مع `updated_at` |")
+w("| `expense_kind` غائب في الرفع | يُشتق من الصف القديم (القواعد أدناه) |")
+w("| قيمة نصية غير مسموحة | يُرفض الصف (`validation_error`) — لا تُكتب قيمة حرة |")
+w()
+w("**قواعد الاشتقاق القديم** (`legacyExpenseKind` — حرفية):")
+w()
+w("| `expense_type` (بعد trim) | النوع الناتج |")
+w("| --- | --- |")
+w("| `رواتب` / `سحب راتب` / `سحب من الراتب` | `salary_withdrawal` |")
+w("| `سلفة` | `salary_advance` |")
+w("| `خصم من الراتب` و ليس آلياً (`is_auto_generated` = 0) | `salary_deduction` |")
+w("| `خصم من الراتب` و آلي و الوصف يحتوي `قسط سلفة` | `salary_installment` |")
+w("| `خصم من الراتب` و آلي و غير ذلك | `unclassified` |")
+w("| `خصم راتب` / `خصم` / `غياب` | `salary_deduction` |")
+w("| أي شيء آخر | `normal` |")
+w()
+w("### ١٤.٢ `inventory_items.quantity` و`inventory_transactions`")
+w()
+w("| القيمة | الدلالة | الأثر على رصيد الصنف |")
+w("| --- | --- | --- |")
+w("| `in` | إدخال | `current_quantity + quantity` |")
+w("| `out` | صرف | `current_quantity − quantity`؛ يُرفض إن صار الرصيد سالباً («لا يمكن صرف كمية أكبر من الرصيد الحالي») |")
+w("| `adjustment` | جرد | `quantity` هنا **قيمة مطلقة** للرصيد الجديد (لا فرق)، وتُخزَّن في `quantity` الحركة كما هي |")
+w()
+w("وهذا يوضّح لماذا `balance_after` في الحركة يجب أن يساوي الرصيد الناتج دائماً: أي كتابة تنتجه في Dart "
+  "يجب أن تطابق أحد الصفوف الثلاثة، وإلا اختلف سجل الحركات عن الأرصدة.")
+w()
+w("### ١٤.٣ مفاتيح وأشكال مُثبتة")
+w()
+w("| المفتاح/الشكل | القاعدة | المصدر |")
+w("| --- | --- | --- |")
+w("| `hotel_day_key` | `yyyy-MM-dd`؛ ويوم الفندق يبدأ **14:01** محلياً: قبل ذلك ⇒ اليوم السابق | `HotelTimeEngine.hotelDayKey` |")
+w("| مفتاح منع التكرار في الصندوق | `{entity}_{op}_{localUuid}_{uuid}` | `OutboxRepository.enqueue` |")
+w("| مفتاح الحجر | `recordKey` := `<uuid>:<local_uuid>` أو ما يجعله فريداً للكيان | `sync_quarantine` + `MaintenanceRepairService` |")
+w("| وسم الكيان في السحب | كل سجل يرسله Worker حديث يحمل `_entity` — وهو المسار الحاكم؛ والبصمة بديل فقط | `SyncIngestorRegistry.resolveEntity` |")
+w("| التسليم الثاني | `delivered_to_secondary` افتراضياً 1 (معطّل فعلياً) | `OutboxEntity` |")
+w("| `devices.status` | الافتراضي `active` | `DeviceInfoEntity` |")
+w("| `app_users.role` | أحد `admin` / `manager` / `staff` (يُتحقق منها عند التسجيل) | `worker/src/index.ts` |")
+w()
+w("### ١٤.٤ قيم افتراضية ظاهرة في محوّلات الكتابة (لا تُترك للاجتهاد)")
+w()
+w("| الحقل | الافتراضي |")
+w("| --- | --- |")
+w("| `bookings.guest_id_type` | `بطاقة شخصية` |")
+w("| `bookings.discount_type` | `per_night` |")
+w("| `rooms.cleaning_status` | `clean` |")
+w("| `inventory_items.unit` | `قطعة` |")
+w("| `employees.position` | `موظف` |")
+w("| `blacklist.reported_by` | `police` |")
+w()
+w("> المصدر: جدول `entityDefaults` في §٣.٢ (مولّد من `SyncWireFields.kt`) — هذه القيم تُطبَّق عند تغيّب الحقل في السجل الوارد.")
+w()
+w("---")
+w()
+w("## ١٥) النسخ الاحتياطي والاسترجاع (عقد بيانات مستقل عن المزامنة)")
+w()
+w("مهم لتطبيق Dart إن كان يملك نسخاً احتياطية محلية — وقد فُحص هنا لأنه يلامس حالة المزامنة.")
+w()
+w("### ١٥.١ الجداول المشمولة في النسخة (22 جدولاً + ثلاثة مفاتيح إضافية)")
+w()
+w("| المفتاح في الملف | الجدول المحلي |")
+w("| --- | --- |")
+for k, t in [
+ ("rooms","rooms"), ("bookings","bookings"), ("booking_notes","booking_notes"),
+ ("booking_nights","booking_nights"), ("hotel_day_ledger","hotel_day_ledger ⚠️ محلي بحت"),
+ ("shift_notes","shift_notes"), ("employees","employees"), ("expenses","expenses"),
+ ("cash_transactions","cash_transactions"), ("payments","payments"), ("debts","debts"),
+ ("salary_cycles","salary_cycles"), ("salary_payments","salary_payments"),
+ ("price_adjustments","price_adjustments"), ("booking_price_adjustments","booking_price_adjustments"),
+ ("audit_logs","audit_logs"), ("payment_voids","payment_voids"), ("guest_infos","guest_infos"),
+ ("salary_withdrawals","salary_withdrawals"), ("salary_carry_over_logs","salary_carry_over_logs"),
+ ("inventory_items","inventory_items"), ("inventory_transactions","inventory_transactions"),
+ ("blacklist","`blacklist_entries` (تبديل اسم مقصود)"),
+ ("sync_state","`sync_state` (يُحفظ للعرض، ويُحذف عند الاسترجاع)"),
+]:
+    w(f"| `{k}` | {t} |")
+w()
+w("**جداول داخلية مُستبعدة من النسخة** (لا تُصدَّر ولا تُستورَد):")
+w()
+w("`android_metadata` · `room_master_table` · `outbox` · `sync_remote_meta` · `sync_state`(يُحذف) · "
+  "`sync_log` · `sync_queue` · `sync_conflicts` · `ancestor_cache` · `app_sessions` · "
+  "`sync_quarantine` · `integrity_violations` · `auto_fix_runs` · `restore_fix_log`")
+w("> `sync_state` يُحفظ في الملف للعرض فقط، ويُحذف عند الاسترجاع — لا يُستورَد أبداً.")
+w()
+w("### ١٥.٢ مظروف الملف")
+w()
+w("| القسم | المحتوى |")
+w("| --- | --- |")
+w("| جداول البيانات | مفتاح لكل جدول ⇒ قائمة صفوف (أسماء أعمدة SQLite → قيم) |")
+w("| `metadata` | `app_version`, `database_version`, `backup_timestamp` (ISO), `total_records`, `device_info`, `data_hash` |")
+w("| `data_hash` | SHA-256 على JSON جداول البيانات — يُتحقق منه قبل الاسترجاع |")
+w()
+w("### ١٥.٣ عقد الاسترجاع (مهم للاستئناف الآمن)")
+w()
+w("```text")
+w("① prepareForLocalRestore()  ⇒ المزامنة مطفأة + المؤشر 0 + last_pull 0 +")
+w("                             full_replay_pending = true + full_sync_complete = false +")
+w("                             timestamp_normalization_done = false")
+w("② لكل جدول في النسخة: مسح الجدول ثم إدراج صفوفه (clearAndInsert)")
+w("③ blacklist في النسخة ⇒ blacklist_entries محلياً")
+w("④ DELETE FROM sync_state / sync_remote_meta  ⇒ لا تُستورَد نقاط تحقق جهاز آخر ولا حمولات إعادة قديمة")
+w("```")
+w()
+w("**القاعدة الجوهرية:** بعد أي استرجاع يُعاد البناء من الخادم بدلتا كاملة (مؤشر 0 + `full_replay_pending`)، "
+  "فلا يُفترض أن النسخة المحلية تُطابق حالة السحابة. هذا يمنع «التراجع» عن تغييرات نُفِّذت على أجهزة أخرى.")
+w()
+w("---")
+w()
+w("## ١٦) خريطة الاستيعاب: من الاسم السلكي إلى الجدول المحلي")
+w()
+w("### ١٦.١ الخريطة الصريحة (24 كياناً — حاكم)")
+w()
+w("| الكيان السلكي | الجدول المحلي |")
+w("| --- | --- |")
+for e, t in LOCAL_MAP:
+    w(f"| `{e}` | `{t}` |")
+w()
+w("هذه الخريطة صريحة عمداً (لا SQL ديناميكي من مدخلات السلك) — نسخة Dart يجب أن تحتفظ بنفس الجدول الثابت.")
+w()
+w("### ١٦.٢ استنتاج الكيان من بصمة الأعمدة (بديل فقط عند غياب `_entity`)")
+w()
+w("| أول أزواج أعمدة يطابقها السجل | الكيان المستنتج |")
+w("| --- | --- |")
+for pair, ent in FINGERPRINT:
+    w(f"| `{pair}` | `{ent}` |")
+w()
+w("الترتيب حاكم (أول تطابق يفوز). **فرقنا المقصود عن Dart:** السجل الذي لا يطابق أي بصمة "
+  "يُعزَل بسبب `missing_entity` بحمولته بدل إسقاطه صامتاً — فلا تُفقد حمولة.")
 w()
 w("---")
 w()

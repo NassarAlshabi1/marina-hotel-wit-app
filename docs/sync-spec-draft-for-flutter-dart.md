@@ -6,7 +6,7 @@
 | --- | --- |
 | تاريخ التوليد | 2026-10-08 |
 | فرع الجلسة | `arena/be8302d7-marina-hotel-wit-app` |
-| آخر التزام موثّق | `f7aaf292` — وسلسلة الإصلاح `c3bc16b5`…`d364b90b` وتوثيق §5 في `341f92fd` |
+| آخر التزام موثّق | `d95974f` — وسلسلة الإصلاح `c3bc16b5`…`d364b90b` وتوثيق §5 في `341f92fd` |
 | الفرع المرجعي الدارتي | `feat/cloudflare-sync-execution` |
 | قاعدة الدمج | `agent/android-cloudflare` (`d95974fc`) |
 | كيانات السلك (المتزامنة) | 24 |
@@ -15,7 +15,7 @@
 
 **إعادة التوليد:** `python3 docs/tools/generate_sync_spec.py` (يقرأ المخطط والكيانات وخرائط السلك من المصدر — لا قيم محفوظة).
 
-**كيف تُقرأ:** الأقسام ١–٢ و٤–١٣ هي العقد (يجب أن تُطابقه أي جهة عميل)، والقسم ٣ فهارس حقول كاملة مولّدة لكل جدول. كل رقم في هذا الملف قابل للتحقق من الشيفرة المذكورة بجانبه؛ وما لم يُتحقق منه مُعلَم صراحةً.
+**كيف تُقرأ:** الأقسام ١–٢ و٤–١٦ هي العقد (يجب أن تُطابقه أي جهة عميل)، والقسم ٣ فهارس حقول كاملة مولّدة لكل جدول. كل رقم في هذا الملف قابل للتحقق من الشيفرة المذكورة بجانبه؛ وما لم يُتحقق منه مُعلَم صراحةً.
 
 ## ١) المعمارية
 
@@ -1705,6 +1705,196 @@ occupied = { room_number | bookings.deleted_at IS NULL AND status IN (التسع
 2. لا تُعِد كتابة بنود ١٣.١ — تحقّق فقط أنها ما زالت على العقد.
 3. اعرض بنود ١٣.٢ على مالك المنتج قبل تنفيذها: كل بند منها تغيير سلوكي.
 4. أعد توليد هذا الملف قبل أي مقارنة جديدة: `python3 docs/tools/generate_sync_spec.py`.
+
+---
+
+## ١٤) أشكال القيم والمفاتيح والتعدادات (عقود بيانات لا تخمين)
+
+### ١٤.١ `expense_kind` — مجموعة مغلقة بعقد سلكي
+
+القيم المسموحة (يُرفض غيرها بـ`Invalid expense_kind`):
+
+`normal` · `salary_advance` · `salary_installment` · `salary_withdrawal` · `salary_deduction` · `unclassified`
+
+| الحالة | السلوك |
+| --- | --- |
+| `NULL` (صف ما قبل العقد) | السحب يعرض تصنيفاً محافظاً؛ **أول تعديل مقبول** يُثبّت النوع ذرّياً مع `updated_at` |
+| `expense_kind` غائب في الرفع | يُشتق من الصف القديم (القواعد أدناه) |
+| قيمة نصية غير مسموحة | يُرفض الصف (`validation_error`) — لا تُكتب قيمة حرة |
+
+**قواعد الاشتقاق القديم** (`legacyExpenseKind` — حرفية):
+
+| `expense_type` (بعد trim) | النوع الناتج |
+| --- | --- |
+| `رواتب` / `سحب راتب` / `سحب من الراتب` | `salary_withdrawal` |
+| `سلفة` | `salary_advance` |
+| `خصم من الراتب` و ليس آلياً (`is_auto_generated` = 0) | `salary_deduction` |
+| `خصم من الراتب` و آلي و الوصف يحتوي `قسط سلفة` | `salary_installment` |
+| `خصم من الراتب` و آلي و غير ذلك | `unclassified` |
+| `خصم راتب` / `خصم` / `غياب` | `salary_deduction` |
+| أي شيء آخر | `normal` |
+
+### ١٤.٢ `inventory_items.quantity` و`inventory_transactions`
+
+| القيمة | الدلالة | الأثر على رصيد الصنف |
+| --- | --- | --- |
+| `in` | إدخال | `current_quantity + quantity` |
+| `out` | صرف | `current_quantity − quantity`؛ يُرفض إن صار الرصيد سالباً («لا يمكن صرف كمية أكبر من الرصيد الحالي») |
+| `adjustment` | جرد | `quantity` هنا **قيمة مطلقة** للرصيد الجديد (لا فرق)، وتُخزَّن في `quantity` الحركة كما هي |
+
+وهذا يوضّح لماذا `balance_after` في الحركة يجب أن يساوي الرصيد الناتج دائماً: أي كتابة تنتجه في Dart يجب أن تطابق أحد الصفوف الثلاثة، وإلا اختلف سجل الحركات عن الأرصدة.
+
+### ١٤.٣ مفاتيح وأشكال مُثبتة
+
+| المفتاح/الشكل | القاعدة | المصدر |
+| --- | --- | --- |
+| `hotel_day_key` | `yyyy-MM-dd`؛ ويوم الفندق يبدأ **14:01** محلياً: قبل ذلك ⇒ اليوم السابق | `HotelTimeEngine.hotelDayKey` |
+| مفتاح منع التكرار في الصندوق | `{entity}_{op}_{localUuid}_{uuid}` | `OutboxRepository.enqueue` |
+| مفتاح الحجر | `recordKey` := `<uuid>:<local_uuid>` أو ما يجعله فريداً للكيان | `sync_quarantine` + `MaintenanceRepairService` |
+| وسم الكيان في السحب | كل سجل يرسله Worker حديث يحمل `_entity` — وهو المسار الحاكم؛ والبصمة بديل فقط | `SyncIngestorRegistry.resolveEntity` |
+| التسليم الثاني | `delivered_to_secondary` افتراضياً 1 (معطّل فعلياً) | `OutboxEntity` |
+| `devices.status` | الافتراضي `active` | `DeviceInfoEntity` |
+| `app_users.role` | أحد `admin` / `manager` / `staff` (يُتحقق منها عند التسجيل) | `worker/src/index.ts` |
+
+### ١٤.٤ قيم افتراضية ظاهرة في محوّلات الكتابة (لا تُترك للاجتهاد)
+
+| الحقل | الافتراضي |
+| --- | --- |
+| `bookings.guest_id_type` | `بطاقة شخصية` |
+| `bookings.discount_type` | `per_night` |
+| `rooms.cleaning_status` | `clean` |
+| `inventory_items.unit` | `قطعة` |
+| `employees.position` | `موظف` |
+| `blacklist.reported_by` | `police` |
+
+> المصدر: جدول `entityDefaults` في §٣.٢ (مولّد من `SyncWireFields.kt`) — هذه القيم تُطبَّق عند تغيّب الحقل في السجل الوارد.
+
+---
+
+## ١٥) النسخ الاحتياطي والاسترجاع (عقد بيانات مستقل عن المزامنة)
+
+مهم لتطبيق Dart إن كان يملك نسخاً احتياطية محلية — وقد فُحص هنا لأنه يلامس حالة المزامنة.
+
+### ١٥.١ الجداول المشمولة في النسخة (22 جدولاً + ثلاثة مفاتيح إضافية)
+
+| المفتاح في الملف | الجدول المحلي |
+| --- | --- |
+| `rooms` | rooms |
+| `bookings` | bookings |
+| `booking_notes` | booking_notes |
+| `booking_nights` | booking_nights |
+| `hotel_day_ledger` | hotel_day_ledger ⚠️ محلي بحت |
+| `shift_notes` | shift_notes |
+| `employees` | employees |
+| `expenses` | expenses |
+| `cash_transactions` | cash_transactions |
+| `payments` | payments |
+| `debts` | debts |
+| `salary_cycles` | salary_cycles |
+| `salary_payments` | salary_payments |
+| `price_adjustments` | price_adjustments |
+| `booking_price_adjustments` | booking_price_adjustments |
+| `audit_logs` | audit_logs |
+| `payment_voids` | payment_voids |
+| `guest_infos` | guest_infos |
+| `salary_withdrawals` | salary_withdrawals |
+| `salary_carry_over_logs` | salary_carry_over_logs |
+| `inventory_items` | inventory_items |
+| `inventory_transactions` | inventory_transactions |
+| `blacklist` | `blacklist_entries` (تبديل اسم مقصود) |
+| `sync_state` | `sync_state` (يُحفظ للعرض، ويُحذف عند الاسترجاع) |
+
+**جداول داخلية مُستبعدة من النسخة** (لا تُصدَّر ولا تُستورَد):
+
+`android_metadata` · `room_master_table` · `outbox` · `sync_remote_meta` · `sync_state`(يُحذف) · `sync_log` · `sync_queue` · `sync_conflicts` · `ancestor_cache` · `app_sessions` · `sync_quarantine` · `integrity_violations` · `auto_fix_runs` · `restore_fix_log`
+> `sync_state` يُحفظ في الملف للعرض فقط، ويُحذف عند الاسترجاع — لا يُستورَد أبداً.
+
+### ١٥.٢ مظروف الملف
+
+| القسم | المحتوى |
+| --- | --- |
+| جداول البيانات | مفتاح لكل جدول ⇒ قائمة صفوف (أسماء أعمدة SQLite → قيم) |
+| `metadata` | `app_version`, `database_version`, `backup_timestamp` (ISO), `total_records`, `device_info`, `data_hash` |
+| `data_hash` | SHA-256 على JSON جداول البيانات — يُتحقق منه قبل الاسترجاع |
+
+### ١٥.٣ عقد الاسترجاع (مهم للاستئناف الآمن)
+
+```text
+① prepareForLocalRestore()  ⇒ المزامنة مطفأة + المؤشر 0 + last_pull 0 +
+                             full_replay_pending = true + full_sync_complete = false +
+                             timestamp_normalization_done = false
+② لكل جدول في النسخة: مسح الجدول ثم إدراج صفوفه (clearAndInsert)
+③ blacklist في النسخة ⇒ blacklist_entries محلياً
+④ DELETE FROM sync_state / sync_remote_meta  ⇒ لا تُستورَد نقاط تحقق جهاز آخر ولا حمولات إعادة قديمة
+```
+
+**القاعدة الجوهرية:** بعد أي استرجاع يُعاد البناء من الخادم بدلتا كاملة (مؤشر 0 + `full_replay_pending`)، فلا يُفترض أن النسخة المحلية تُطابق حالة السحابة. هذا يمنع «التراجع» عن تغييرات نُفِّذت على أجهزة أخرى.
+
+---
+
+## ١٦) خريطة الاستيعاب: من الاسم السلكي إلى الجدول المحلي
+
+### ١٦.١ الخريطة الصريحة (24 كياناً — حاكم)
+
+| الكيان السلكي | الجدول المحلي |
+| --- | --- |
+| `rooms` | `rooms` |
+| `bookings` | `bookings` |
+| `payments` | `payments` |
+| `expenses` | `expenses` |
+| `employees` | `employees` |
+| `debts` | `debts` |
+| `booking_notes` | `booking_notes` |
+| `booking_nights` | `booking_nights` |
+| `booking_price_adjustments` | `booking_price_adjustments` |
+| `guest_infos` | `guest_infos` |
+| `shift_notes` | `shift_notes` |
+| `salary_cycles` | `salary_cycles` |
+| `salary_payments` | `salary_payments` |
+| `salary_withdrawals` | `salary_withdrawals` |
+| `salary_carry_over_logs` | `salary_carry_over_logs` |
+| `app_users` | `app_users` |
+| `devices` | `devices` |
+| `cash_transactions` | `cash_transactions` |
+| `audit_logs` | `audit_logs` |
+| `payment_voids` | `payment_voids` |
+| `price_adjustments` | `price_adjustments` |
+| `inventory_items` | `inventory_items` |
+| `inventory_transactions` | `inventory_transactions` |
+| `blacklist / blacklist_entries` | `blacklist_entries` |
+
+هذه الخريطة صريحة عمداً (لا SQL ديناميكي من مدخلات السلك) — نسخة Dart يجب أن تحتفظ بنفس الجدول الثابت.
+
+### ١٦.٢ استنتاج الكيان من بصمة الأعمدة (بديل فقط عند غياب `_entity`)
+
+| أول أزواج أعمدة يطابقها السجل | الكيان المستنتج |
+| --- | --- |
+| `room_number + price` | `rooms` |
+| `guest_name + checkin_date` | `bookings` |
+| `amount + payment_method` | `payments` |
+| `expense_type + description` | `expenses` |
+| `basic_salary + position` | `employees` |
+| `debt_reason + remaining_amount` | `debts` |
+| `final_rate + hotel_day_key` | `booking_nights` |
+| `adjustment_type + effective_hotel_day` | `booking_price_adjustments` |
+| `note_text + alert_type` | `booking_notes` |
+| `guest_name + id_number` | `guest_infos` |
+| `shift_date + is_read` | `shift_notes` |
+| `transaction_type + transaction_time` | `cash_transactions` |
+| `cycle_key + expected_amount` | `salary_cycles` |
+| `payment_date_iso + cycle_id` | `salary_payments` |
+| `withdrawal_type + amount` | `salary_withdrawals` |
+| `previous_cycle_start + new_cycle_start` | `salary_carry_over_logs` |
+| `target_type + target_uuid` | `price_adjustments` |
+| `operation_type + entity_type` | `audit_logs` |
+| `void_reason + voided_by` | `payment_voids` |
+| `minimum_quantity` | `inventory_items` |
+| `movement_type + balance_after` | `inventory_transactions` |
+| `device_name` | `devices` |
+| `reported_by` | `blacklist` |
+| `username + credentials_version` | `app_users` |
+
+الترتيب حاكم (أول تطابق يفوز). **فرقنا المقصود عن Dart:** السجل الذي لا يطابق أي بصمة يُعزَل بسبب `missing_entity` بحمولته بدل إسقاطه صامتاً — فلا تُفقد حمولة.
 
 ---
 
