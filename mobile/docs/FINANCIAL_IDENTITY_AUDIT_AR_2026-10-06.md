@@ -738,7 +738,8 @@ flutter test test/unit/id_resolver_cross_device_test.dart \
 | `flutter analyze --no-fatal-infos --no-fatal-warnings` | **0 أخطاء** — «4 issues found» (نفس الملاحظات الأربع القائمة قبلاً، خارج هذا العمل) |
 | المجموعة المستهدفة (الهوية المالية، حقول D1، ربط الاستحقاق، بحث الهيد، …) | **🎉 77/77 — صفر فشل** (قبل الإصلاح كانت 77 نجاحاً + 1 فشل تحميل من ملف محذوف) |
 | المجموعة الكاملة `flutter test` | **🎉 1002 اختباراً — 0 فشل** (خط الأساس قبل العمل: 987) |
-| CI / Enterprise Quality Gate / Mobile Quality Gate / Performance Benchmarks | ✅ نجحت كلها على الالتزام النهائي `138cfe2` |
+| CI / Enterprise Quality Gate / Mobile Quality Gate / Performance Benchmarks | ✅ نجحت كلها على `138cfe2`، وأيضاً على **الالتزام النهائي `14fa683`** (تنظيف الأدوات المؤقتة) |
+| نظافة الفرع | ✅ `mobile/.arena/` و`.github/workflows/arena-verify.yml` مُزالان من الالتزام النهائي (لا أثر لأدوات التحقق المؤقتة) |
 
 ملاحظة أمانة: المجموعة «المستهدفة» في جولة سابقة سجّلت فشلاً وهمياً واحداً فقط لأنها كانت لا تزال تُشغّل
 ملف اختبار شاشة محذوفاً؛ الملف أُزيل من قائمة السير، والتشغيل النهائي نظيف.
