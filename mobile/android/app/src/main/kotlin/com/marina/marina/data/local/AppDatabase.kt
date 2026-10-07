@@ -112,7 +112,8 @@ import com.marina.marina.data.local.entity.SyncStateEntity
         AncestorCacheEntity::class,
         SyncRemoteMetaEntity::class,
         AppUserEntity::class,
-        DeviceInfoEntity::class
+        DeviceInfoEntity::class,
+        com.marina.marina.data.local.entity.FinanceSnapshotEntity::class
     ],
     version = AppDatabase.SCHEMA_VERSION,
     exportSchema = true
@@ -156,9 +157,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun syncRemoteMetaDao(): SyncRemoteMetaDao
     abstract fun appUsersDao(): AppUsersDao
     abstract fun devicesDao(): DevicesDao
+    abstract fun financeSnapshotsDao(): com.marina.marina.data.local.dao.FinanceSnapshotsDao
 
     companion object {
         const val DATABASE_NAME = "marina_hotel.db"
-        const val SCHEMA_VERSION = 76
+        const val SCHEMA_VERSION = 77
     }
 }

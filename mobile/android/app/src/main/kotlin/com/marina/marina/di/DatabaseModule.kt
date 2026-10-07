@@ -100,6 +100,54 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Parity unification: ports branch2's worker migrations 0008 +
+     * 0009 to the local Room schema. Both are pure additive — no
+     * financial rewrite, no row mutation. Mirrors worker/migrations
+     * 0008_idempotency_log_cleanup.sql + 0009_finance_snapshots.sql.
+     *
+     *  • `idx_idempotency_processed_at` — O(log n) TTL index for the
+     *    daily cron cleanup of the local idempotency_log mirror
+     *    (counterpart of worker/src/maintenance.ts).
+     *
+     *  • `finance_snapshots` table — append-only governance/forecast
+     *    approval. ~10KB/week growth. Read-only from API.
+     */
+    val MIGRATION_76_77 = object : Migration(76, 77) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_idempotency_processed_at " +
+                    "ON idempotency_log(processed_at)"
+            )
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS finance_snapshots (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                  label TEXT NOT NULL DEFAULT '',
+                  scenario_key TEXT NOT NULL DEFAULT 'base',
+                  scenario_json TEXT NOT NULL DEFAULT '{}',
+                  model_start TEXT NOT NULL,
+                  model_end TEXT NOT NULL,
+                  opening_balance REAL NOT NULL DEFAULT 0,
+                  total_inflow REAL NOT NULL DEFAULT 0,
+                  total_outflow REAL NOT NULL DEFAULT 0,
+                  financing_need REAL NOT NULL DEFAULT 0,
+                  weeks_below_threshold INTEGER NOT NULL DEFAULT 0,
+                  forecast_json TEXT NOT NULL,
+                  approved_by TEXT NOT NULL DEFAULT '',
+                  approved_at INTEGER NOT NULL
+                )""".trimIndent()
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_finance_snapshots_approved " +
+                    "ON finance_snapshots(approved_at DESC)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_finance_snapshots_scenario " +
+                    "ON finance_snapshots(scenario_key, approved_at DESC)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -108,7 +156,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75, MIGRATION_75_76)
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75, MIGRATION_75_76, MIGRATION_76_77)
             // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }
