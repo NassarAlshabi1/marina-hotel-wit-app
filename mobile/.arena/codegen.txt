@@ -1,0 +1,28 @@
+### build_runner (rc=1)
+64:  Failed to build with build_runner/aot in 86s; wrote 1162 outputs.
+---- tail ----
+  Could not resolve Dart library package:marina_hotel_mobile/services/adapters/expenses_adapter.dart
+  96:1: Expected to find ';'.
+  96:70: Unterminated string literal.
+  0s drift_dev on 4656 inputs: 181 skipped, 182 output; lib/services/appwrite_sync_manager.freezed.dart
+W drift_dev on lib/services/adapters/expenses_adapter.dart:
+  Could not resolve Dart library package:marina_hotel_mobile/services/adapters/expenses_adapter.dart
+  96:1: Expected to find ';'.
+  96:70: Unterminated string literal.
+  4s drift_dev on 4656 inputs: 787 skipped, 782 output, 8 no-op; spent 4s analyzing; lib/services/daos/booking_notes_dao.freezed.dart
+  7s drift_dev on 4656 inputs: 788 skipped, 783 output, 8 no-op; spent 6s analyzing; lib/services/daos/bookings_dao.freezed.dart
+  11s drift_dev on 4656 inputs: 790 skipped, 785 output, 8 no-op; spent 11s analyzing; lib/services/daos/debts_dao.freezed.dart
+  13s drift_dev on 4656 inputs: 792 skipped, 787 output, 8 no-op; spent 13s analyzing; lib/services/daos/expenses_dao.freezed.dart
+  19s drift_dev on 4656 inputs: 794 skipped, 789 output, 8 no-op; spent 18s analyzing; lib/services/daos/payments_dao.freezed.dart
+  20s drift_dev on 4656 inputs: 796 skipped, 791 output, 8 no-op; spent 20s analyzing; lib/services/daos/shift_notes_dao.freezed.dart
+  46s drift_dev on 4656 inputs: 830 skipped, 823 output, 10 no-op; spent 46s analyzing; lib/services/local_db.freezed.dart
+  47s drift_dev on 4656 inputs: 1798 skipped, 1141 output, 238 no-op; spent 46s analyzing, 1s building; lib/services/daos/outbox_dao.dart.types.temp.dart
+  49s drift_dev on 4656 inputs: 1909 skipped, 1146 output, 270 no-op; spent 46s analyzing, 3s building; lib/services/local_db.dart.types.temp.dart
+  50s drift_dev on 4656 inputs: 2859 skipped, 1146 output, 588 no-op; spent 46s analyzing, 4s building; test/unit/sync_safety_wave5_final_test.dart.types.temp.dart
+  50s drift_dev on 4656 inputs: 2907 skipped, 1146 output, 603 no-op; spent 46s analyzing, 4s building
+  0s source_gen:combining_builder on 2328 inputs; integration_test/app_test.dart
+  0s source_gen:combining_builder on 2328 inputs: 1745 skipped, 14 output, 569 no-op
+  0s mockito:mockBuilder on 1312 inputs; test/adapters_round_trip_test.dart
+  1s mockito:mockBuilder on 1312 inputs: 294 skipped, 43 no-op; test/performance/memory_leak_benchmark_test.dart.types.temp.dart
+  1s mockito:mockBuilder on 1312 inputs: 1148 skipped, 164 no-op; spent 1s analyzing
+  Failed to build with build_runner/aot in 86s; wrote 1162 outputs.

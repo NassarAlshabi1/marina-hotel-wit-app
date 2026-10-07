@@ -142,26 +142,41 @@ void main() {
       expect(comp.employeeUuid.value, isNull, reason: 'الهوية تبقى ممسوحة');
       expect(comp.relatedId.present, isTrue);
       expect(comp.relatedId.value, isNull, reason: 'الرقم اليتيم يبقى ممسوحاً');
-      expect(comp.employeeLinkCleared.value, isTrue, reason: 'العلم يبقى مرفوعاً');
-    });
-
-    test('تصريح صريح بإعادة الربط (employeeLinkCleared=false) يُحترم', () async {
-      await insertEmployee('emp-uuid-1');
-      await insertExpense(uuid: 'exp-1', type: 'خصم من الراتب', linkCleared: true);
-
-      final json = preContractPayload(localUuid: 'exp-1')
-        ..['employeeLinkCleared'] = false
-        ..['expenseKind'] = SalaryExpenseClassifier.kindSalaryWithdrawal;
-      final refs = await adapter.resolveRefs(db, json, src: Source.appwrite);
       expect(
-        refs.suppressEmployeeLink,
-        isFalse,
-        reason: 'نسخة ما بعد العقد تُصرّح بالإحياء ⇒ تُطبَّق كأي تعديل مشروع',
+        comp.employeeLinkCleared.value,
+        isTrue,
+        reason: 'العلم يبقى مرفوعاً',
       );
     });
 
+    test(
+      'تصريح صريح بإعادة الربط (employeeLinkCleared=false) يُحترم',
+      () async {
+        await insertEmployee('emp-uuid-1');
+        await insertExpense(
+          uuid: 'exp-1',
+          type: 'خصم من الراتب',
+          linkCleared: true,
+        );
+
+        final json = preContractPayload(localUuid: 'exp-1')
+          ..['employeeLinkCleared'] = false
+          ..['expenseKind'] = SalaryExpenseClassifier.kindSalaryWithdrawal;
+        final refs = await adapter.resolveRefs(db, json, src: Source.appwrite);
+        expect(
+          refs.suppressEmployeeLink,
+          isFalse,
+          reason: 'نسخة ما بعد العقد تُصرّح بالإحياء ⇒ تُطبَّق كأي تعديل مشروع',
+        );
+      },
+    );
+
     test('مصدر محلي (استعادة نسخة) ⇒ لا قمع أبداً', () async {
-      await insertExpense(uuid: 'exp-1', type: 'خصم من الراتب', linkCleared: true);
+      await insertExpense(
+        uuid: 'exp-1',
+        type: 'خصم من الراتب',
+        linkCleared: true,
+      );
       final json = preContractPayload(localUuid: 'exp-1');
       final refs = await adapter.resolveRefs(db, json, src: Source.local);
       expect(refs.suppressEmployeeLink, isFalse);
@@ -186,7 +201,8 @@ void main() {
         uuid: 'exp-1',
         type: 'خصم من الراتب',
         relatedId: empId,
-        employeeUuid: null, // أُزيلت الهوية، وبقي الرقم (قبل إصلاح clearRelatedId)
+        employeeUuid:
+            null, // أُزيلت الهوية، وبقي الرقم (قبل إصلاح clearRelatedId)
         linkCleared: true,
       );
 
@@ -228,40 +244,43 @@ void main() {
       expect(report.expensesUuidBackfilled, equals(1));
     });
 
-    test('update بـ clearRelatedId يمسح الرقم والهوية معاً ويُبقي العلم', () async {
-      final empId = await insertEmployee('emp-uuid-1');
-      final expId = await insertExpense(
-        uuid: 'exp-3',
-        type: 'سحب راتب',
-        relatedId: empId,
-        employeeUuid: 'emp-uuid-1',
-      );
+    test(
+      'update بـ clearRelatedId يمسح الرقم والهوية معاً ويُبقي العلم',
+      () async {
+        final empId = await insertEmployee('emp-uuid-1');
+        final expId = await insertExpense(
+          uuid: 'exp-3',
+          type: 'سحب راتب',
+          relatedId: empId,
+          employeeUuid: 'emp-uuid-1',
+        );
 
-      final repo = ExpensesRepository(db);
-      await repo.update(
-        expId,
-        expenseType: 'صيانة',
-        employeeUuid: '',
-        clearRelatedId: true,
-        employeeLinkCleared: true,
-      );
+        final repo = ExpensesRepository(db);
+        await repo.update(
+          expId,
+          expenseType: 'صيانة',
+          employeeUuid: '',
+          clearRelatedId: true,
+          employeeLinkCleared: true,
+        );
 
-      final row = await (db.select(
-        db.expenses,
-      )..where((e) => e.id.equals(expId))).getSingle();
-      expect(row.relatedId, isNull, reason: 'الرقم اليتيم يزول مع الإزالة');
-      expect(row.employeeUuid, isNull);
-      expect(row.employeeLinkCleared, isTrue);
+        final row = await (db.select(
+          db.expenses,
+        )..where((e) => e.id.equals(expId))).getSingle();
+        expect(row.relatedId, isNull, reason: 'الرقم اليتيم يزول مع الإزالة');
+        expect(row.employeeUuid, isNull);
+        expect(row.employeeLinkCleared, isTrue);
 
-      // وبعد الإزالة: خدمة الاتساق لا تُحيي شيئاً
-      final service = EmployeeLinkConsistencyService(db);
-      await service.repairLinksForEmployee(empId);
-      final after = await (db.select(
-        db.expenses,
-      )..where((e) => e.id.equals(expId))).getSingle();
-      expect(after.relatedId, isNull);
-      expect(after.employeeUuid, isNull);
-    });
+        // وبعد الإزالة: خدمة الاتساق لا تُحيي شيئاً
+        final service = EmployeeLinkConsistencyService(db);
+        await service.repairLinksForEmployee(empId);
+        final after = await (db.select(
+          db.expenses,
+        )..where((e) => e.id.equals(expId))).getSingle();
+        expect(after.relatedId, isNull);
+        expect(after.employeeUuid, isNull);
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════
@@ -301,7 +320,10 @@ void main() {
       final row = await (db.select(
         db.expenses,
       )..where((e) => e.id.equals(expId))).getSingle();
-      expect(row.expenseKind, equals(SalaryExpenseClassifier.kindSalaryAdvance));
+      expect(
+        row.expenseKind,
+        equals(SalaryExpenseClassifier.kindSalaryAdvance),
+      );
     });
 
     test('تغيير النوع فعلاً ⇒ إعادة اشتقاق (الدلالة تغيّرت)', () async {

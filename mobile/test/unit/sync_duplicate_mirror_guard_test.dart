@@ -160,20 +160,23 @@ void main() {
       expect(refs.shouldSkip, isFalse);
     });
 
-    test('مصدر محلي ⇒ لا يُطبَّق الحارس (لا ازدواج عبر الأجهزة هناك)', () async {
-      final empId = await insertEmployee('emp-uuid-1');
-      await insertWithdrawal(
-        localUuid: 'wd-local-1',
-        employeeId: empId,
-        expenseUuid: 'exp-uuid-1',
-      );
-      final refs = await adapter.resolveRefs(
-        db,
-        incomingPayload(localUuid: 'wd-dup-2'),
-        src: Source.local,
-      );
-      expect(refs.shouldSkip, isFalse);
-    });
+    test(
+      'مصدر محلي ⇒ لا يُطبَّق الحارس (لا ازدواج عبر الأجهزة هناك)',
+      () async {
+        final empId = await insertEmployee('emp-uuid-1');
+        await insertWithdrawal(
+          localUuid: 'wd-local-1',
+          employeeId: empId,
+          expenseUuid: 'exp-uuid-1',
+        );
+        final refs = await adapter.resolveRefs(
+          db,
+          incomingPayload(localUuid: 'wd-dup-2'),
+          src: Source.local,
+        );
+        expect(refs.shouldSkip, isFalse);
+      },
+    );
   });
 
   group('التكامل مع BaseRepository: لا استثناء ولا فقدان', () {
@@ -209,58 +212,59 @@ void main() {
 
       expect(result, equals(-1), reason: 'تخطٍّ صريح لا استثناء');
 
-      final active = await (db.select(
-        db.salaryWithdrawals,
-      )..where((t) => t.expenseUuid.equals('exp-uuid-1') & t.deletedAt.isNull()))
-          .get();
+      final active =
+          await (db.select(db.salaryWithdrawals)..where(
+                (t) =>
+                    t.expenseUuid.equals('exp-uuid-1') & t.deletedAt.isNull(),
+              ))
+              .get();
       expect(active, hasLength(1), reason: 'لا مرآة نشطة ثانية');
       expect(active.single.localUuid, equals('wd-local-1'));
 
       expect(deferred, hasLength(1), reason: 'لا تخطّي صامت — الحمولة محفوظة');
       expect(deferred.single['collectionId'], equals('salary_withdrawals'));
-      expect(
-        deferred.single['skipReason'] as String,
-        contains('مرآة مكررة'),
-      );
+      expect(deferred.single['skipReason'] as String, contains('مرآة مكررة'));
       final payload = deferred.single['json'] as Map<String, dynamic>;
       expect(payload['localUuid'], equals('wd-dup-2'));
       expect(payload['amount'], equals(100));
     });
 
-    test('الفهرس الفريد الجزئي m69 قائم ويرفض النشط الثاني (سبب الحارس)',
-        () async {
-      final empId = await insertEmployee('emp-uuid-1');
-      await insertWithdrawal(
-        localUuid: 'wd-local-1',
-        employeeId: empId,
-        expenseUuid: 'exp-uuid-1',
-      );
-
-      // الفهرس موجود (m69 — D1 0013)
-      final indexes = await db
-          .customSelect("PRAGMA index_list('salary_withdrawals')")
-          .get();
-      expect(
-        indexes.map((r) => r.data['name'].toString()),
-        contains('idx_salary_withdrawals_active_expense'),
-      );
-
-      // إدراج مباشر ثانٍ (يتجاوز طبقة المحوّلات) يفشل بالقيود — هذا ما كان
-      // يرميه مسار السحب القديم ويبتلع تحذيره.
-      await expectLater(
-        insertWithdrawal(
-          localUuid: 'wd-dup-raw',
+    test(
+      'الفهرس الفريد الجزئي m69 قائم ويرفض النشط الثاني (سبب الحارس)',
+      () async {
+        final empId = await insertEmployee('emp-uuid-1');
+        await insertWithdrawal(
+          localUuid: 'wd-local-1',
           employeeId: empId,
           expenseUuid: 'exp-uuid-1',
-        ),
-        throwsA(isA<SqliteException>()),
-      );
+        );
 
-      // والصف الموجود سليم — لم يتأثر بالفشل
-      final active = await (db.select(
-        db.salaryWithdrawals,
-      )..where((t) => t.localUuid.equals('wd-local-1'))).getSingle();
-      expect(active.expenseUuid, equals('exp-uuid-1'));
-    });
+        // الفهرس موجود (m69 — D1 0013)
+        final indexes = await db
+            .customSelect("PRAGMA index_list('salary_withdrawals')")
+            .get();
+        expect(
+          indexes.map((r) => r.data['name'].toString()),
+          contains('idx_salary_withdrawals_active_expense'),
+        );
+
+        // إدراج مباشر ثانٍ (يتجاوز طبقة المحوّلات) يفشل بالقيود — هذا ما كان
+        // يرميه مسار السحب القديم ويبتلع تحذيره.
+        await expectLater(
+          insertWithdrawal(
+            localUuid: 'wd-dup-raw',
+            employeeId: empId,
+            expenseUuid: 'exp-uuid-1',
+          ),
+          throwsA(isA<SqliteException>()),
+        );
+
+        // والصف الموجود سليم — لم يتأثر بالفشل
+        final active = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.localUuid.equals('wd-local-1'))).getSingle();
+        expect(active.expenseUuid, equals('exp-uuid-1'));
+      },
+    );
   });
 }

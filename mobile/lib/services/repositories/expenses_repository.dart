@@ -269,7 +269,8 @@ class ExpensesRepository {
         // المحمول حياً محلياً لا مجرد حقل عبور.
         final storedKind = existingForKind?.expenseKind;
         final typeUnchanged =
-            existingForKind != null && existingForKind.expenseType == expenseType;
+            existingForKind != null &&
+            existingForKind.expenseType == expenseType;
         if (typeUnchanged &&
             SalaryExpenseClassifier.isAllowedExpenseKind(storedKind)) {
           resolvedExpenseKind = d.Value(storedKind);

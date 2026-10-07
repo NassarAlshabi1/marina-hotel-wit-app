@@ -76,47 +76,52 @@ void main() {
       'employeeLinkCleared': false,
     };
 
-    test('إزالة employeeLinkCleared تُبقي expenseKind وبقية الحمولة حرفياً', () {
-      final payload = expensesPayload();
-      final retry = AppwriteSyncUtils.withoutField(
-        payload,
-        'employeeLinkCleared',
-      );
-      expect(retry.containsKey('employeeLinkCleared'), isFalse);
-      expect(retry['expenseKind'], equals('salary_advance'));
-      expect(retry['employeeUuid'], equals('emp-uuid-1'));
-      expect(retry['withdrawalUuid'], equals('wd-uuid-1'));
-      expect(retry['amount'], equals(1500));
-      expect(retry.length, equals(payload.length - 1));
-      // الحمولة الأصلية لا تُمَس (نسخة جديدة دائماً)
-      expect(payload.containsKey('employeeLinkCleared'), isTrue);
-    });
+    test(
+      'إزالة employeeLinkCleared تُبقي expenseKind وبقية الحمولة حرفياً',
+      () {
+        final payload = expensesPayload();
+        final retry = AppwriteSyncUtils.withoutField(
+          payload,
+          'employeeLinkCleared',
+        );
+        expect(retry.containsKey('employeeLinkCleared'), isFalse);
+        expect(retry['expenseKind'], equals('salary_advance'));
+        expect(retry['employeeUuid'], equals('emp-uuid-1'));
+        expect(retry['withdrawalUuid'], equals('wd-uuid-1'));
+        expect(retry['amount'], equals(1500));
+        expect(retry.length, equals(payload.length - 1));
+        // الحمولة الأصلية لا تُمَس (نسخة جديدة دائماً)
+        expect(payload.containsKey('employeeLinkCleared'), isTrue);
+      },
+    );
 
-    test('تتابع محاولات: إزالة الحقلين المعطّلين معاً تُبقي البيانات المالية',
-        () {
-      var data = expensesPayload();
-      final firstUnknown = AppwriteSyncUtils.unknownAttributeFromError(
-        code: 400,
-        type: 'document_invalid_structure',
-        message: 'Unknown attribute: "expenseKind"',
-      );
-      expect(firstUnknown, isNotNull);
-      data = AppwriteSyncUtils.withoutField(data, firstUnknown!);
-      final secondUnknown = AppwriteSyncUtils.unknownAttributeFromError(
-        code: 400,
-        type: 'document_invalid_structure',
-        message: 'Unknown attribute: "employeeLinkCleared"',
-      );
-      expect(secondUnknown, isNotNull);
-      data = AppwriteSyncUtils.withoutField(data, secondUnknown!);
+    test(
+      'تتابع محاولات: إزالة الحقلين المعطّلين معاً تُبقي البيانات المالية',
+      () {
+        var data = expensesPayload();
+        final firstUnknown = AppwriteSyncUtils.unknownAttributeFromError(
+          code: 400,
+          type: 'document_invalid_structure',
+          message: 'Unknown attribute: "expenseKind"',
+        );
+        expect(firstUnknown, isNotNull);
+        data = AppwriteSyncUtils.withoutField(data, firstUnknown!);
+        final secondUnknown = AppwriteSyncUtils.unknownAttributeFromError(
+          code: 400,
+          type: 'document_invalid_structure',
+          message: 'Unknown attribute: "employeeLinkCleared"',
+        );
+        expect(secondUnknown, isNotNull);
+        data = AppwriteSyncUtils.withoutField(data, secondUnknown!);
 
-      expect(data.containsKey('expenseKind'), isFalse);
-      expect(data.containsKey('employeeLinkCleared'), isFalse);
-      expect(data['amount'], equals(1500));
-      expect(data['expenseType'], equals('سلفة'));
-      expect(data['employeeUuid'], equals('emp-uuid-1'));
-      expect(data['localUuid'], equals('exp-uuid-1'));
-    });
+        expect(data.containsKey('expenseKind'), isFalse);
+        expect(data.containsKey('employeeLinkCleared'), isFalse);
+        expect(data['amount'], equals(1500));
+        expect(data['expenseType'], equals('سلفة'));
+        expect(data['employeeUuid'], equals('emp-uuid-1'));
+        expect(data['localUuid'], equals('exp-uuid-1'));
+      },
+    );
 
     test('حقل غير موجود في الحمولة ⇒ لا تغيير إطلاقاً', () {
       final payload = expensesPayload();
