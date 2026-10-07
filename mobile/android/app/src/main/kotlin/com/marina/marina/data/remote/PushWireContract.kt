@@ -91,6 +91,12 @@ object PushWireContract {
                 value
             }
         }
+        // ✅ (2026-10-06) وحدة الطوابع: الـ Worker ينسخ `last_modified` الوارد من
+        // العميل حرفياً (`createRecord`: `if (!record.last_modified) … = now`)
+        // ويقارنه عنده وعند بقية الأجهزة (Flutter) بثوانيها. طابع ميلي قادم
+        // منّا كان يُخزَّن في D1 كما هو فيربح «آخر كتابة تفوز» على كل جهاز
+        // بلا أي سبب زمني حقيقي — يُطبَّع هنا قبل الإرسال.
+        com.marina.marina.data.sync.SyncEpochs.normalizeOutgoingEpochFields(out)
         return out
     }
 

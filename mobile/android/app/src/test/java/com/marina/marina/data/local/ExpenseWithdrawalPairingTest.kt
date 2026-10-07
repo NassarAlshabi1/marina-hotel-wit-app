@@ -135,7 +135,7 @@ class ExpenseWithdrawalPairingTest {
 
         // عقد deleteByExpenseId: الحذف الناعم يُخرج السجل من نطاق الاقتران
         // (كل الاستعلامات النشطة تفلتر deleted_at IS NULL).
-        dao.softDelete(id, now, now)
+        dao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
         assertEquals(0, dao.getByReasonLike("exp_7").size)
     }
 }

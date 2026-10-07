@@ -56,11 +56,16 @@ class OutboxRepository @Inject constructor(
     fun undeliveredCount(): Flow<Int> = outboxDao.undeliveredCount()
 
     suspend fun enqueue(entity: String, op: String, localUuid: String, payload: Map<String, Any>): Long {
+        // ✅ (2026-10-06) أسماء السلك: بعض الأعمدة الخادمية تختلف تسميتها عن
+        // المحلية (مثال: `inventory_items.quantity` ↔ `current_quantity`)،
+        // والخادم يفلتر الأعمدة غير المعروفة — فكان الرفع يفقد قيمة الكمية
+        // ونوع حركة المخزون صامتاً. النقطة هنا واحدة لكل المستودعات.
+        val wirePayload = com.marina.marina.data.sync.SyncWireFields.toWire(entity, payload)
         val outbox = OutboxEntity(
             entity = entity,
             op = op,
             localUuid = localUuid,
-            payload = gson.toJson(payload),
+            payload = gson.toJson(wirePayload),
             clientTs = System.currentTimeMillis(),
             // Each mutation has its own key; retries reuse this persisted row/key.
             idempotencyKey = "${entity}_${op}_${localUuid}_${UUID.randomUUID()}"
@@ -68,11 +73,18 @@ class OutboxRepository @Inject constructor(
         return outboxDao.insert(outbox)
     }
 
-    /** Generic helper: serializes any entity/model into an outbox payload. */
+    /**
+     * Generic helper: serializes any entity/model into an outbox payload.
+     *
+     * ✅ (2026-10-07) التسلسل عبر [com.marina.marina.data.sync.SyncEntityGson]
+     * الواعي بظلّ الحقول: `Gson()` العادي يرمي
+     * `declares multiple JSON fields named 'id'` على أي كيان يرث
+     * `BaseSyncEntity` (كل كيانات Room) — فكان تسلسل الكيان الخام يفشل بصمت
+     * عند المستدعي. النماذج (domain) كانت تعمل، فبقي العطل مخفياً حتى مرّرنا
+     * كيان حركة المخزون.
+     */
     suspend fun enqueueObject(entity: String, op: String, localUuid: String, payloadObject: Any): Long {
-        val mapType = object : TypeToken<Map<String, Any>>() {}.type
-        @Suppress("UNCHECKED_CAST")
-        val payload = gson.fromJson<Map<String, Any>>(gson.toJson(payloadObject), mapType) ?: emptyMap()
+        val payload = com.marina.marina.data.sync.SyncEntityGson.toMap(payloadObject)
         return enqueue(entity, op, localUuid, payload)
     }
 

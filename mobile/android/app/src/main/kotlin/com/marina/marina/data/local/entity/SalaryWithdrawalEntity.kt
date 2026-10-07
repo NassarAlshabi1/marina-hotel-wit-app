@@ -35,6 +35,14 @@ data class SalaryWithdrawalEntity(
     @ColumnInfo(name = "expense_uuid")
     val expenseUuid: String? = null,
 
+    /**
+     * ✅ (2026-10-06) `expense_id` الخادمي (الرقم التسلسلي للمصروف المرتبط) —
+     * كان يُسقَط عند السحب؛ `expense_uuid` وحده لا يكفي للمطابقة الرقمية.
+     */
+    @SerializedName("expense_id")
+    @ColumnInfo(name = "expense_id")
+    val expenseId: Long? = null,
+
     @SerializedName("employee_name")
     @ColumnInfo(name = "employee_name")
     val employeeName: String = "",

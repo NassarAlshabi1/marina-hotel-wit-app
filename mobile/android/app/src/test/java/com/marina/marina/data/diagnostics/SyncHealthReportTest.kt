@@ -4,7 +4,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class SyncHealthReportTest {
-    private val empty = SyncHealthReport(0, 0, 0, 0, 0, null, emptyMap(), emptyMap(), 0, 1)
+    private val empty = SyncHealthReport(
+        0, 0, 0, 0, 0, null, emptyMap(), emptyMap(), 0, quarantined = 0, timestamp = 1
+    )
 
     @Test fun referenceThresholdsAndBoundaryValues() {
         assertEquals(SyncHealthLevel.HEALTHY, empty.level)

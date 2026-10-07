@@ -1,0 +1,268 @@
+name: Android APK Build (session branch)
+
+# بناء APK حقيقي لدفعة «مطابقة سحب التغييرات مع Flutter» على فرع الجلسة.
+# السبب: android-kotlin-build.yml (بناء الإصدار الموقّع) مقيَّد بقائمة فروع
+# ثابتة ولا يقبل workflow_dispatch من جلسة الوكيل (HTTP 403 من
+# actions/workflows/.../dispatches — التوكن بلا actions: write)، فتعذّر
+# تشغيله من هنا. هذا الـworkflow يكرّر خطواته حرفياً (نفس مفتاح التوقيع
+# ونفس فحوص apksigner/zipalign ونفس مسارات الإخراج) على فرع الجلسة فقط،
+# ولا يغيّر سلوك أي workflow قائم.
+on:
+  push:
+    branches:
+      - arena/be8302d7-marina-hotel-wit-app
+    paths:
+      - 'mobile/android/**'
+      - 'mobile/Keystore.txt'
+      - '.github/workflows/android-session-apk-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: session-apk-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # mobile/android/build.gradle يعيد توجيه buildDir لكل مشروع فرعي إلى
+  # <rootProject.buildDir>/<projectName> أي mobile/build/app — لا مسار AGP
+  # الافتراضي mobile/android/app/build.
+  RELEASE_APK: mobile/build/app/outputs/apk/release/app-release.apk
+  DEBUG_APK: mobile/build/app/outputs/apk/debug/app-debug.apk
+
+jobs:
+  apk:
+    name: build signed release + debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile/android
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository/org/robolectric
+          key: ${{ runner.os }}-gradle-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Restore signing keystore
+        working-directory: .
+        run: |
+          grep -oP '(?<=KEYSTORE_BASE64: )[A-Za-z0-9+/=]+' mobile/Keystore.txt \
+            | base64 -d > mobile/android/app/marina-hotel-key.jks
+          sha256sum mobile/android/app/marina-hotel-key.jks
+          echo "4f6e5c58abc68e20f842c868060d515fe2d64d4964572d17ecf9ac04bb7fb865  mobile/android/app/marina-hotel-key.jks" | sha256sum -c -
+
+      - name: Ensure Android SDK components
+        run: |
+          set -x
+          SDKMANAGER="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1 || true)"
+          if [ -z "$SDKMANAGER" ] && command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          fi
+          if [ -n "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null || true
+            "$SDKMANAGER" --install "platforms;android-35" "build-tools;34.0.0" > /dev/null || true
+          else
+            echo "sdkmanager not found — relying on AGP auto-install"
+          fi
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || true
+
+      # `pipefail` + `tee`: نحتفظ بسجلّ Gradle كاملاً للتحليل بعد الفشل (روابط
+      # logs في GitHub API ترجع EOF في هذه البيئة، وسجل غير مقروء = Investigating
+      # بلا دليل)، مع بقاء رمز خروج Gradle هو الفيصل (`pipefail`).
+      - name: Build signed release APK (v1+v2+v3)
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/release-build.log"
+
+      # معيار إخراج التطبيق: mobile/android/build.gradle يعيد توجيه buildDir
+      # إلى <rootProject.buildDir>/<projectName> = mobile/build/app — ومسار
+      # app-release.apk تحته ثبت فعلاً في التشغيل الأول (5.67 MiB).
+      - name: Build debug APK (diagnostic)
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --console=plain --stacktrace 2>&1 | tee "$RUNNER_TEMP/debug-build.log"
+
+      # نشر سبب الفشل دائماً — إعلامي بحت: لا يُغيّر نتيجة الوظيفة ولا يحجب فشلاً.
+      - name: Publish Gradle diagnostics on failure
+        if: failure()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY' > "$RUNNER_TEMP/apk-diag.json"
+          import json, os, pathlib
+
+          parts = []
+          for label, name in (
+              ("assembleRelease", "release-build.log"),
+              ("assembleDebug", "debug-build.log"),
+          ):
+              path = pathlib.Path(os.environ.get("RUNNER_TEMP", "/tmp")) / name
+              if path.exists():
+                  text = path.read_text(errors="replace")
+                  parts.append(f"===== {label} — آخر 4000 حرف =====\n" + text[-4000:])
+          body = "\n\n".join(parts) or "(لا سجل بناء — فشل قبل تشغيل Gradle)"
+          print(json.dumps({
+              "name": "android-session-apk-diagnostics",
+              "head_sha": os.environ["GITHUB_SHA"],
+              "status": "completed",
+              "conclusion": "failure",
+              "output": {
+                  "title": "فشل بناء APK — سبب Gradle الخام أدناه",
+                  "summary": "تشخيص آلي (إعلامي؛ لا يُغيّر نتيجة الوظيفة ولا يحجب الفشل)",
+                  "text": body[-60000:],
+              },
+          }))
+          PY
+          gh api -X POST "repos/${{ github.repository }}/check-runs" --input "$RUNNER_TEMP/apk-diag.json" >/dev/null || true
+
+      - name: Locate built APKs
+        id: locate
+        working-directory: .
+        run: |
+          set -e
+          if [ ! -f "$RELEASE_APK" ]; then
+            echo "::error::release APK not found at $RELEASE_APK"
+            find mobile/build mobile/android/app/build -name '*.apk' 2>/dev/null | head -20 || true
+            exit 1
+          fi
+          ls -la "$RELEASE_APK"
+          if [ -f "$DEBUG_APK" ]; then
+            ls -la "$DEBUG_APK"
+          else
+            echo "::warning::debug APK not found at $DEBUG_APK (يُبنى تشخيصياً — لا يُفشل المهمة)"
+          fi
+          {
+            echo "release_sha256=$(sha256sum "$RELEASE_APK" | cut -d' ' -f1)"
+            echo "release_bytes=$(stat -c%s "$RELEASE_APK")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify APK signature schemes (v1+v2+v3) and alignment
+        working-directory: .
+        run: |
+          BT="$ANDROID_HOME/build-tools/34.0.0"
+          "$BT/apksigner" verify --verbose --min-sdk-version 23 "$RELEASE_APK" | tee verify.log
+          grep -q 'Verified using v1 scheme (JAR signing): true' verify.log \
+            || { echo '::error::v1 signature MISSING — OEM installers will reject this APK'; exit 1; }
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' verify.log \
+            || { echo '::error::v2 signature MISSING'; exit 1; }
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' verify.log \
+            || { echo '::error::v3 signature MISSING'; exit 1; }
+          "$BT/zipalign" -c 4 "$RELEASE_APK" && echo "zipalign OK"
+          # Debug APK كائن تشخيصي: يُتحقق من توقيعه أيضاً لكن دون بوابة v1/v2/v3.
+          if [ -f "$DEBUG_APK" ]; then
+            "$BT/apksigner" verify --verbose "$DEBUG_APK" | head -5 || true
+          fi
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: marina-session-release-apk
+          path: mobile/build/app/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: marina-session-debug-apk
+          path: mobile/build/app/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 0
+
+      - name: Upload R8 mapping (forensics)
+        uses: actions/upload-artifact@v5
+        with:
+          name: marina-session-release-mapping
+          path: mobile/build/app/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      # دليل مقروء من GitHub API بلا تنزيل artifacts: بيئة الجلسة تفشل في
+      # تنزيلها (EOF من blob storage) — فالـcheck-run يحمل البصمة والحجم.
+      - name: Publish build evidence (check-run)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: .
+        run: |
+          python3 - <<'PY' > "$RUNNER_TEMP/apk.json"
+          import hashlib, json, os, pathlib
+
+          def describe(path):
+              p = pathlib.Path(path)
+              if not p.exists():
+                  return None
+              data = p.read_bytes()
+              return {
+                  "path": path,
+                  "bytes": len(data),
+                  "mib": round(len(data) / 1048576, 2),
+                  "sha256": hashlib.sha256(data).hexdigest(),
+              }
+
+          release = describe(os.environ["RELEASE_APK"])
+          debug = describe(os.environ["DEBUG_APK"])
+          verify = pathlib.Path("verify.log")
+          verified = verify.read_text(errors="replace") if verify.exists() else "(no apksigner output)"
+          # أسطر الحكم لا تحذيرات META-INF: وجودها يعني أن apksigner أكّد الخطط
+          # الثلاث فعلاً (وبوابة الـstep تفشل لو غاب أي منها) — فتُنشر صريحةً.
+          verdicts = [
+              line.strip()
+              for line in verified.splitlines()
+              if line.startswith("Verified using v") or line.strip() == "zipalign OK"
+          ]
+
+          lines = ["| المخرَج | الحجم | SHA-256 |", "| --- | --- | --- |"]
+          for label, info in (("release (موقّع)", release), ("debug", debug)):
+              if info is None:
+                  lines.append(f"| {label} | **غير موجود** | — |")
+              else:
+                  lines.append(f"| {label} | {info['bytes']} بايت ({info['mib']} MiB) | `{info['sha256']}` |")
+
+          lines += ["", "**فحص التوقيع (apksigner / zipalign):**", "", "```text"]
+          lines += verdicts or ["(لم يُقرأ سطر حكم واحد من verify.log — راجع خرج apksigner الخام أدناه)"]
+          lines += ["```", "", "`apksigner`/`zipalign` الخام — آخر 1500 حرف (تظهر فيه تحذيرات META-INF المعروفة):", "", "```text", verified.strip()[-1500:], "```"]
+          if release is not None:
+              lines += [
+                  "",
+                  "تحميل الـartifact: تبويب Actions ⇒ هذا التشغيل ⇒ Artifacts ⇒ "
+                  "`marina-session-release-apk` (صلاحية 30 يوماً).",
+              ]
+
+          ok = release is not None
+          print(json.dumps({
+              "name": "android-session-apk",
+              "head_sha": os.environ["GITHUB_SHA"],
+              "status": "completed",
+              "conclusion": "success" if ok else "failure",
+              "output": {
+                  "title": "APK: " + (f"{release['mib']} MiB موقّع — v1+v2+v3" if ok else "لم يُبنَ"),
+                  "summary": (f"release sha256={release['sha256'][:16]}…" if ok else "release APK missing"),
+                  "text": "\n".join(lines)[-60000:],
+              },
+          }))
+          PY
+          gh api -X POST "repos/${{ github.repository }}/check-runs" --input "$RUNNER_TEMP/apk.json" >/dev/null

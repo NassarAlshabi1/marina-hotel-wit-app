@@ -6,6 +6,7 @@ import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.Debt
 import com.marina.marina.domain.repository.DebtsRepository
 import com.marina.marina.domain.util.HotelTimeEngine
+import com.marina.marina.data.sync.SyncEpochs
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,20 +32,30 @@ class DebtsRepositoryImpl @Inject constructor(
         debtsDao.getById(id)?.toDomain()
 
     override suspend fun insert(debt: Debt): Long {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val prepared = debt.copy(
             localUuid = debt.localUuid.ifBlank { UUID.randomUUID().toString() },
             createdAt = if (debt.createdAt == 0L) now else debt.createdAt,
             updatedAt = now
         )
-        val id = debtsDao.insert(prepared.toEntity())
+        val id = debtsDao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("debts", "insert", prepared.localUuid, prepared)
         return id
     }
 
     override suspend fun update(debt: Debt) {
-        val prepared = debt.copy(updatedAt = System.currentTimeMillis())
-        debtsDao.update(prepared.toEntity())
+        val now = SyncEpochs.nowSeconds()
+        val existing = debtsDao.getById(debt.id)
+        val prepared = debt.copy(updatedAt = now)
+        debtsDao.update(
+            prepared.toEntity().copy(
+                localUuid = prepared.localUuid.ifBlank { existing?.localUuid.orEmpty() },
+                createdAt = if (prepared.createdAt == 0L) (existing?.createdAt ?: now) else prepared.createdAt,
+                lastModified = now,
+                lastModifiedEpoch = now,
+                version = (existing?.version ?: prepared.version) + 1
+            )
+        )
         outboxRepository.enqueueObject("debts", "update", prepared.localUuid, prepared)
     }
 
@@ -56,10 +67,10 @@ class DebtsRepositoryImpl @Inject constructor(
     override suspend fun markSettled(id: Long, paidAmount: Double) {
         val entity = debtsDao.getById(id) ?: return
         val today = HotelTimeEngine.currentHotelDayKey()
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         debtsDao.updateSettlement(
             id, paidAmount = paidAmount, remainingAmount = 0.0, isSettled = 1,
-            paymentDate = today, updatedAt = now
+            paymentDate = today, updatedAt = now, lastModified = now
         )
         val settled = entity.toDomain().copy(
             paidAmount = paidAmount,
@@ -73,9 +84,9 @@ class DebtsRepositoryImpl @Inject constructor(
 
     override suspend fun softDelete(id: Long) {
         // Dart debts_dao l.169-180 — delete is soft AND syncs to the cloud.
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val entity = debtsDao.getById(id) ?: return
-        debtsDao.softDelete(id, deletedAt = now, updatedAt = now)
+        debtsDao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
         val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
         outboxRepository.enqueueObject("debts", "delete", deleted.localUuid, deleted)
     }

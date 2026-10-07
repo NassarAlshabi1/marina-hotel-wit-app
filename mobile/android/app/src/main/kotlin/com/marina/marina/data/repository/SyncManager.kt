@@ -3,8 +3,13 @@ package com.marina.marina.data.repository
 import com.marina.marina.data.remote.CloudflareConfig
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
+import com.marina.marina.data.sync.MAX_SANE_PULL_CURSOR_FUTURE
 import com.marina.marina.data.sync.SyncEpochPolicy
 import com.marina.marina.data.sync.SyncOperationRunner
+import com.marina.marina.data.sync.evaluateStoredCursor
+import com.marina.marina.data.sync.isPendingCursorSafeToInstall
+import com.marina.marina.data.sync.isServerCursorRejected
+import com.marina.marina.data.sync.tombstoneSweepDue
 import com.marina.marina.domain.model.SyncUiState
 import com.marina.marina.domain.repository.SyncRepository
 import kotlinx.coroutines.CancellationException
@@ -42,7 +47,8 @@ class SyncManager @Inject constructor(
     private val syncService: CloudflareSyncService,
     private val preferences: SyncPreferences,
     private val ingestorRegistry: SyncIngestorRegistry,
-    private val operationRunner: SyncOperationRunner
+    private val operationRunner: SyncOperationRunner,
+    private val derivedRefresh: BookingDerivedRefreshService
 ) : SyncRepository {
 
     private val _syncState = MutableStateFlow(SyncUiState())
@@ -69,6 +75,50 @@ class SyncManager @Inject constructor(
     override suspend fun pushOnly(): Int = runOwned(onBusy = { -1 }) { performPushOnly() }
 
     override suspend fun fullPull(): Int = runOwned(onBusy = { -1 }) { performFullPull() }
+
+    /**
+     * سحب مُشغَّل بحدث Realtime/FCM — نظير `realtimeTriggeredPull` في
+     * Flutter (cloudflare_sync_manager.dart l.4303):
+     *
+     *  • **دلتا فقط**: `push:false, deltaOnly:true` — الرفع الفوري مسؤولية
+     *    مراقب outbox، ومسار الحدث لا يبدأ full sync ولا يرفع بيانات.
+     *  • **يتخطى بصمت عند الانشغال**: مزامنة جارية = `false` بلا انتظار
+     *    (المستدعي يجدول متابعة بعد التهدئة بدل تكديس دورات).
+     *  • **يتجاوز بوابة الساعة عمداً**: الحدث دليل تغيير فعلي — نفس
+     *    `forcePull:true` في Dart — فلا معنى لتأجيله ساعة كاملة.
+     *
+     * @return true إذا اكتملت دورة السحب فعلاً (>= 0 سجل)، وfalse عند
+     *   الانشغال أو الفشل — عقد `RemoteChangePull` نفسه في Dart.
+     */
+    suspend fun pullOnRealtimeEvent(): Boolean {
+        if (_syncState.value.isSyncing) return false
+        val pulled = runCatching { pullOnly() }.getOrNull() ?: -1
+        return pulled >= 0
+    }
+
+    /**
+     * حارس الإقلاع ضد المؤشر المسموم (Dart l.553): مؤشر محفوظ فوق الحد
+     * الثابت (ميلي ثانية/ sentinel) يُصفَّر مع علامة full sync ليعيد
+     * الجهاز سحباً كاملاً نظيفاً. يعيد true عند حدوث إعادة تعيين.
+     */
+    suspend fun sanitizeStoredCursorIfNeeded(): Boolean {
+        val stored = preferences.getLastPullCursor()
+        if (!evaluateStoredCursor(stored).mustReset) return false
+        preferences.resetPullCursorForFreshReplay()
+        runCatching {
+            preferences.recordSyncError(
+                operation = "pull_cursor_poisoned",
+                message = "مؤشر سحب مسموم ($stored) تجاوز الحد الآمن " +
+                    "$MAX_SANE_PULL_CURSOR_FUTURE — صُفّر المؤشر وعلامة full sync لسحب كامل نظيف",
+                pullCursor = 0L,
+                deviceId = preferences.getDeviceId()
+            )
+        }
+        _syncState.update {
+            it.copy(lastMessage = "مؤشر السحب المحفوظ كان مسمّماً — أُعيد الضبط لسحب كامل نظيف")
+        }
+        return true
+    }
 
     private suspend fun <T> runOwned(
         onBusy: () -> T,
@@ -167,7 +217,10 @@ class SyncManager @Inject constructor(
             return -1
         }
         val pulled = try {
-            pullDelta()
+            // deltaOnly: زر اللوحة والسحب التلقائي وRealtime دلتا دائماً —
+            // لا bootstrap صامت على مؤشر صفر (نظير Dart l.1850-1851:
+            // «Full Sync عملية صريحة»).
+            pullDelta(deltaOnly = true)
         } catch (e: Exception) {
             finishWithError("فشل السحب: ${e.message}", operation = "pull_delta")
             return -1
@@ -270,6 +323,13 @@ class SyncManager @Inject constructor(
 
         /** ✅ معاينة remaining الخادمية كل 5 صفحات (Dart 2026-09-22 — تخفيف الحمل ~80%). */
         private const val REMAINING_SAMPLE_EVERY_PAGES = 5
+
+        /**
+         * سقف صفحات مسح الحذفيات في الدورة الواحدة (فلسفة H2 نفسها):
+         * مسح ضخم لا يجوز أن يحبس دورة السحب — البقية تُستأنف من مؤشر
+         * المسح المحفوظ في الدورة القادمة (العلم لا يُضبط قبل الاكتمال).
+         */
+        private const val MAX_TOMBSTONE_SWEEP_PAGES_PER_CYCLE = 20
     }
 
     /**
@@ -293,24 +353,58 @@ class SyncManager @Inject constructor(
      * @param batchSize حجم الصفحة — دلتا [CloudflareConfig.DELTA_PULL_BATCH_SIZE]
      *   أو سحب كامل [CloudflareConfig.FULL_PULL_BATCH_SIZE].
      * @param isFullPull true للسحب الكامل: بلا فلتر صدى + remaining + تطبيع.
+     * @param deltaOnly يمنع بدء bootstrap صامت على مؤشر صفر (نظير
+     *   `deltaOnly` في Dart): سحب تفاضلي بفلتر الصدى دائماً، ولا يمس علم
+     *   الـ bootstrap — إكماله من الإجراء الصريح [fullPull].
      * @return عدد السجلات المستوعبة، أو -1 عند الفشل الخادمي.
-     * @throws Exception فشل شبكة أو فشل تطبيق — المؤشر لا يتقدم (المستدعي
-     *   يلتقط ويعرض الخطأ؛ نقطة التفتيش المحفوظة تبقى كما هي).
+     * @throws Exception فشل شبكة، أو خطأ في عقد الصفحة (JSON/جداول خادمية)،
+     *   أو تدوير epoch متكرر — المؤشر لا يتقدم (المستدعي يلتقط ويعرض الخطأ؛
+     *   نقطة التفتيش المحفوظة تبقى كما هي). أما **فشل تطبيق صفٍّ بعينه**
+     *   فلا يرمي: الصف يُعزل بحمولته والمؤشر يتقدم (نظير Dart).
      */
     private suspend fun pullDelta(
         batchSize: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
         isFullPull: Boolean = false,
-        allowEpochRestart: Boolean = true
+        allowEpochRestart: Boolean = true,
+        deltaOnly: Boolean = false
     ): Int {
+        // حارس الإقلاع (Dart l.553) ثم مسح التقارب لمرة واحدة (Dart l.1794)
+        // قبل أي صفحة — كلاهما لا يمسّ تدفق المؤشر الرئيسي عند الفشل.
+        sanitizeStoredCursorIfNeeded()
+        performTombstoneSweepIfDue()
+
         val deviceId = preferences.getDeviceId()
         var cursor = preferences.getLastPullCursor()
-        val fullReplay = isFullPull || cursor == 0L || preferences.isFullReplayPending()
+        // ✅ نظير Dart (cloudflare_sync_manager.dart l.1850-1851):
+        // «Full Sync عملية صريحة» — سحب الدلتا لا يبدأ bootstrap صامتاً حتى
+        // لو كان مؤشر هذا الجهاز صفراً؛ يبقى سحباً تفاضلياً بفلتر الصدى
+        // (البيانات كلها تُسحب لأن المؤشر 0)، وإكمال الـ bootstrap مسؤولية
+        // الإجراء الصريح fullPull(). الاستئناف المُعلَّم (تدوير epoch/
+        // استعادة نسخة) لا يُلغى — العلم يعني «بدأناه ويجب إنهاؤه».
+        val pendingReplay = preferences.isFullReplayPending()
+        val fullReplay = isFullPull || pendingReplay || (!deltaOnly && cursor == 0L)
         if (fullReplay) preferences.setFullReplayPending(true)
         var reachedEnd = false
         var ingested = 0
         var pagesDone = 0
         var epochReset = false
         var repairRetries = 0
+        // كيانات الصفوف المطبَّقة في هذه الدورة — تُقرأ منها الحقول المشتقة
+        // للحجوزات بعد اكتمال الدورة (نظير pulledDerivedEntities في Dart).
+        val pulledEntities = mutableSetOf<String>()
+        // صفوف فشل التطبيق في هذه الدورة (تُحاسب مرة واحدة بعد الصفحات).
+        val pageFailures = mutableListOf<com.marina.marina.data.repository.DeferredRecord>()
+
+        // ✅ (2026-10-06) شفاء دوري من الحمولة المحفوظة — نظير
+        // `collectHealCandidates()` في Dart (`pull_quarantine.dart`): كل دورة
+        // تُعيد تطبيق ما عُزل سابقاً من حمولته الكاملة بلا إعادة سحب أي صفحة.
+        // سبب العزل قد يزول: وصول الأب، أو إصلاح قيمة على الخادم، أو ترقية
+        // التطبيق نفسها (أعمدة/تحويلات كانت ناقصة) — فينجو الصف بلا انتظار
+        // إعادة بثّه من الخادم.
+        val healed = runCatching { ingestorRegistry.healQuarantinedBatch() }.getOrNull()
+        pulledEntities += healed?.touched.orEmpty()
+        // المُشفى يدخل عدّاد الاستيعاب (نظير Dart: onApplied يُحسب تطبيقاً فعلياً).
+        ingested += healed?.applied ?: 0
 
         while (true) {
             // سقف الصفحات (H2) — خروج نظيف والبقية دورة قادمة.
@@ -386,6 +480,17 @@ class SyncManager @Inject constructor(
             if (nextCursor < cursor) {
                 throw Exception("Pull cursor regressed from $cursor to $nextCursor")
             }
+            // حارس التسمم أثناء التشغيل (Dart l.2081) — قبل تطبيق الصفحة:
+            // مؤشر خادم يتقدم فوق server_time المُعلن في الرد نفسه بأكثر من
+            // هامش سنة = صفوف بطوابع sentinel/ميلي ما زالت تُقدَّم (worker
+            // غير مُصلح). لا تُطبَّق الصفحة (طوابعها المسمومة كانت ستكسب كل
+            // قرارات LWW) ولا يتقدم المؤشر.
+            if (nextCursor > cursor && isServerCursorRejected(nextCursor, response.serverTime?.toLong())) {
+                throw IllegalStateException(
+                    "مؤشر خادم مسموم رُفض ($nextCursor مقابل server_time=${response.serverTime}) — " +
+                        "لم يتقدم المؤشر ولم تُطبَّق الصفحة"
+                )
+            }
             val changes = response.changes.orEmpty()
             if (changes.isNotEmpty() && nextCursor <= cursor) {
                 throw Exception("Pull returned records without advancing the cursor")
@@ -406,12 +511,20 @@ class SyncManager @Inject constructor(
             if (changes.isNotEmpty()) {
                 val report = ingestorRegistry.ingestPage(changes)
                 ingested += report.applied
+                pulledEntities += report.touched
                 if (report.hasFailures) {
-                    // فشل تطبيق فعلي — دورة فاشلة: المؤشر لا يتقدم
-                    // (التراجع الكامل يضمن إعادة سحب ما بين الحدين).
-                    throw Exception(
-                        "فشل تطبيق ${report.failed} سجلاً: ${report.firstError ?: "غير معروف"}"
-                    )
+                    // ✅ (2026-10-06) **لا تجميد للمؤشر** — مطابقة `pull_quarantine.dart`:
+                    //  • الصفحة نفسها سليمة (شبكة/HTTP/JSON/جداول خادمية)، وقد
+                    //    طُبّق منها ما طُبّق.
+                    //  • الصفوف الفاشلة تُحاسب (عدّاد + أول عزل) وتُعاد محاولتها
+                    //    من حمولتها في كل دورة ([healQuarantinedBatch]).
+                    //  • تجميد المؤشر لصف واحد كان يعني «جهاز متوقف نهائياً»
+                    //    (عطل مُبلَّغ: الدلتا لا تسحب جدولاً ولا حقلاً) لأن
+                    //    إعادة التطبيق تعطي النتيجة نفسها دائماً — إعادة السحب
+                    //    لا تُشفي ما لا يُشفيه غيره.
+                    // تبقى «جداول فاشلة على الخادم» (`response.errors`) دورة
+                    // فاشلة كما هي: تلك تُشفى بإصلاح D1 وإعادة المحاولة.
+                    pageFailures += report.failedRecords
                 }
             }
             if (normalizeTimestamps && response.normalization?.complete == true &&
@@ -440,10 +553,17 @@ class SyncManager @Inject constructor(
                 // the next scheduled cycle will retry without an unbounded loop.
                 throw Exception("Sync epoch changed repeatedly during one pull cycle")
             }
+            if (pageFailures.isNotEmpty()) ingestorRegistry.enforceQuarantineCap()
+            // isFullPull=true هنا إعادة لعب كاملة *بعد* تدوير epoch (حماية
+            // سلامة بيانات، وليس bootstrap اختياري) — تُنفَّذ بنفس
+            // deltaOnly للاستدعاء الأصلي (نظير Dart l.2520:
+            // `_pullChanges(deltaOnly: deltaOnly)`)، وعلم الاستئناف
+            // full_replay_pending مضبوط قبلها فيبقى fullReplay=true.
             return ingested + pullDelta(
                 batchSize = batchSize,
                 isFullPull = true,
-                allowEpochRestart = false
+                allowEpochRestart = false,
+                deltaOnly = deltaOnly
             )
         }
 
@@ -451,17 +571,170 @@ class SyncManager @Inject constructor(
         // Retry on every cycle, including an empty delta after the parent arrived earlier.
         val retry = ingestorRegistry.retryPendingLinks()
         ingested += retry.applied
-        if (retry.hasFailures) {
-            throw Exception("فشل تطبيق سجل مؤجل: ${retry.firstError ?: "غير معروف"}")
+        pulledEntities += retry.touched
+        // المؤجَّل الفاشل محفوظ بحمولته في pending_sync_links ويُعاد كل دورة
+        // (نظير سجل الانتظار الدارتي) — يُحاسب ولا يجمّد المؤشر.
+        pageFailures += retry.failedRecords
+        if (pageFailures.isNotEmpty()) {
+            // المحاسبة تُبقي الحجر داخل السقف؛ العائد = عدد المُخلَّى بالسقف
+            // ولا يدخل في عدّاد المُطبَّق (لا صلة له بعدد الصفوف المطبَّقة).
+            ingestorRegistry.enforceQuarantineCap()
+            // العدّ للرسالة مُوحَّد بالهوية (كيان + local_uuid): الصف نفسه قد
+            // يفشل أكثر من مرة في الدورة (شفاء ثم صفحة، أو صفحة ثم مؤجَّل)
+            // — فلا يُعرض رقم مُنفَّخ.
+            val quarantinedNow = pageFailures
+                .distinctBy { it.entity to (it.record["local_uuid"] as? String ?: "") }
+                .size
+            _syncState.update {
+                it.copy(
+                    lastMessage = it.lastMessage +
+                        " • عُزل $quarantinedNow سجلاً غير قابل للتطبيق ويُعاد حلّها من حمولتها"
+                )
+            }
         }
 
         // دورة نظيفة كاملة — الآن فقط نقدّم نقطة التفتيش المحفوظة.
+        // حارس التثبيت النهائي (Dart l.2534 — طبقة الدفاع الثالثة): الحارس
+        // الديناميكي أعلاه يحتاج server_time، وworker قديم بلا الحقل كان
+        // سيمرر السم؛ هنا حد ثابت صرف (مرآة عتبة الخادم 2e9).
+        if (!isPendingCursorSafeToInstall(cursor)) {
+            preferences.resetPullCursorForFreshReplay()
+            runCatching {
+                preferences.recordSyncError(
+                    operation = "pull_cursor_install_blocked",
+                    message = "منع تثبيت مؤشر مسموم ($cursor) فوق الحد الثابت " +
+                        "$MAX_SANE_PULL_CURSOR_FUTURE — صُفّر المؤشر وعلامة full sync",
+                    pullCursor = 0L,
+                    deviceId = preferences.getDeviceId()
+                )
+            }
+            _syncState.update {
+                it.copy(lastMessage = "رُفض تثبيت مؤشر مسموم — ستُعاد المزامنة الكاملة نظيفة")
+            }
+            refreshDerivedAfterCycle(pulledEntities, ingested)
+            return ingested
+        }
         preferences.saveLastPullCursor(cursor)
         if (fullReplay && reachedEnd) {
             preferences.setFullReplayPending(false)
             preferences.setFullSyncComplete(true)
         }
+        refreshDerivedAfterCycle(pulledEntities, ingested)
         return ingested
+    }
+
+    /**
+     * إعادة بناء الحقول المشتقة للحجوزات بعد دورة سحب ناجحة — نظير
+     * `_refreshDerivedAfterPull` في Dart (cloudflare_sync_manager.dart l.3780)
+     * يُستدعى من `_pullChanges` l.2591.
+     *
+     * الشرط حرفي كالدارتي: `pulledDerivedEntities.isNotEmpty && totalPulled > 0`
+     * — دورة طبّقت صفاً من `bookings`/`booking_nights`/`payments`/
+     * `price_adjustments`/`booking_price_adjustments`/`payment_voids` فقط.
+     * (في Dart أيضاً لا تُنفَّذ في الدورة الفاشلة: مسار الخطأ يرمي قبل هذا
+     * السطر — وأندرويد كذلك لأن الفشل الواقعي يرمي في تقرير التطبيق.)
+     *
+     * بلا رفع وبلا رسالة إضافية: Dart يطبع سطر تشخيص فقط، والقيم تُحدَّث
+     * عبر `BookingsDao.updateFinancialCache` التي لا تمس بيانات المزامنة.
+     *
+     * فشل إعادة البناء لا يُفشل دورة السحب (نظير `try/catch` الدارتي في
+     * `_refreshDerivedAfterPull`) — لكنه لا يبتلع الإلغاء: كوريوتين الدورة
+     * الملغاة تتوقف هنا كما في أي نقطة أخرى.
+     */
+    private suspend fun refreshDerivedAfterCycle(pulledEntities: Set<String>, ingested: Int) {
+        if (ingested <= 0 || !BookingDerivedRefreshService.affectsDerived(pulledEntities)) return
+        try {
+            derivedRefresh.refreshAllActiveBookings()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            android.util.Log.w("SyncManager", "تعذّر إعادة بناء الحقول المشتقة بعد السحب", error)
+        }
+    }
+
+    // ─── مسح تقارب الحذفيات التاريخي (نظير _sweepHistoricalTombstones) ───
+
+    /**
+     * بوابة المسح: علم غير مضبوط + جهاز قائم فعلاً — تُنفَّذ قبل أي دورة
+     * سحب في [pullDelta]. أفضل جهد: أي فشل يؤجل المسح للدورة القادمة بلا
+     * أي تأثير على المؤشر الرئيسي أو على نتيجة دورة السحب نفسها.
+     */
+    private suspend fun performTombstoneSweepIfDue() {
+        if (!tombstoneSweepDue(
+                preferences.isTombstoneSweepDone(),
+                preferences.getLastPullCursor(),
+                preferences.isFullSyncComplete()
+            )
+        ) {
+            return
+        }
+        val outcome = runCatching { sweepHistoricalTombstones() }.getOrNull() ?: return
+        // بلوغ سقف الدورة ليس اكتمالاً: المؤشر المحفوظ يستأنف البقية،
+        // والعلم يبقى مفتوحاً (لا يجوز إسقاط صفحات حذفيات لم تُطبَّق).
+        if (!outcome.completed) return
+        preferences.setTombstoneSweepDone(true)
+        preferences.clearTombstoneSweepCursor()
+        if (outcome.handled > 0) {
+            _syncState.update {
+                it.copy(lastMessage = "اكتمل مسح الحذفيات التاريخية: ${outcome.handled} سجلاً")
+            }
+        }
+    }
+
+    /** نتيجة صفحة/دورة مسح: ما طُبّق فعلاً + هل نفدت الصفحات. */
+    private data class SweepOutcome(val handled: Int, val completed: Boolean)
+
+    /**
+     * مسح تقارب لمرة واحدة للحذفيات التاريخية — نظير
+     * `_sweepHistoricalTombstones` في Dart (l.3661):
+     *
+     *  • `tombstones_only=1` + استبعاد جهازنا: الحذفيات التي لم تُبَث لهذا
+     *    الجهاز أثناء نافذة العقد القديم تُطبَّق الآن كحذف محلي.
+     *  • مؤشر **مستقل** محفوظ بعد كل صفحة مطبَّقة: فشل شبكي/HTTP يستأنف من
+     *    حيث توقف بدل إعادة المسح من الصفر.
+     *  • حارس تقدم: مؤشر ثابت مع صفوف = حلقة محتملة → إجهاض بلا ضبط العلم.
+     *  • سقف صفحات لكل دورة (فلسفة H2 في هذا الملف): لا نحبس دورة السحب
+     *    خلف مسح ضخم — البقية تُستأنف من المؤشر المحفوظ.
+     *
+     * @return نتيجة الدورة ([SweepOutcome.completed] = نفدت الصفحات فعلاً)،
+     *   أو null عند فشل يستوجب إعادة المحاولة لاحقاً (الشبكة/HTTP/رد ناقص
+     *   أو مؤشر متوقف) — العلم لا يُضبط في هاتين الحالتين.
+     */
+    private suspend fun sweepHistoricalTombstones(): SweepOutcome? {
+        if (!syncService.hasWorkerToken()) return null
+        val excludeDevice = preferences.getDeviceId()?.takeIf { it.isNotBlank() }
+        var cursor = preferences.getTombstoneSweepCursor()
+        var handled = 0
+        var pages = 0
+        while (pages < MAX_TOMBSTONE_SWEEP_PAGES_PER_CYCLE) {
+            val result = syncService.pull(
+                cursor = cursor,
+                limit = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
+                excludeDevice = excludeDevice,
+                tombstonesOnly = true
+            )
+            val response = result.getOrNull() ?: return null
+            val changes = response.changes.orEmpty()
+            if (changes.isNotEmpty()) {
+                // أفضل جهد: فشل تطبيق صف فردي لا يوقف المسح ولا يُفشل الدورة
+                // (Dart: report.errors → متابعة) — المؤشر الرئيسي غير معني.
+                val report = runCatching { ingestorRegistry.ingestPage(changes) }.getOrNull()
+                if (report != null) handled += report.applied
+            }
+            val serverCursor = response.cursor?.toLongOrNull() ?: return null
+            val hasMore = response.hasMore ?: return null
+            if (serverCursor > cursor) {
+                cursor = serverCursor
+                preferences.saveTombstoneSweepCursor(cursor)
+            } else if (hasMore && changes.isNotEmpty()) {
+                // مؤشر متوقف مع صفوف = حلقة لا نهائية محتملة.
+                return null
+            }
+            pages++
+            if (!hasMore || changes.isEmpty()) return SweepOutcome(handled, completed = true)
+        }
+        // سقف الدورة: تقدم محفوظ للاستئناف، والعلم يبقى مفتوحاً.
+        return SweepOutcome(handled, completed = false)
     }
 
     private fun finishWithError(message: String, operation: String) {

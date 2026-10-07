@@ -10,6 +10,7 @@ import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.SalaryWithdrawal
 import com.marina.marina.domain.repository.SalaryWithdrawalsRepository
 import com.marina.marina.domain.util.HotelTimeEngine
+import com.marina.marina.data.sync.SyncEpochs
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,11 +40,12 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
         require(withdrawal.employeeUuid.isNullOrBlank() || uuidComparable(withdrawal.employeeUuid) == uuidComparable(employeeUuid)) {
             "employee_uuid does not match the selected employee"
         }
-        val now = System.currentTimeMillis()
+        val nowMillis = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val prepared = withdrawal.copy(
             employeeUuid = employeeUuid,
             localUuid = withdrawal.localUuid.ifBlank { UUID.randomUUID().toString() },
-            withdrawDate = if (withdrawal.withdrawDate == 0L) now else withdrawal.withdrawDate,
+            withdrawDate = if (withdrawal.withdrawDate == 0L) nowMillis else withdrawal.withdrawDate,
             hotelDayKey = withdrawal.hotelDayKey ?: HotelTimeEngine.currentHotelDayKey(),
             createdAt = if (withdrawal.createdAt == 0L) now else withdrawal.createdAt,
             updatedAt = now
@@ -51,16 +53,16 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
         check(salaryWithdrawalsDao.getByLocalUuid(prepared.localUuid) == null) {
             "السحب موجود أو محذوف سابقاً؛ لا يمكن إعادة إنشائه تحت الهوية نفسها"
         }
-        val id = salaryWithdrawalsDao.insert(prepared.toEntity())
+        val id = salaryWithdrawalsDao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("salary_withdrawals", "insert", prepared.localUuid, prepared)
         id
     }
 
     override suspend fun softDelete(id: Long) {
       db.withTransaction {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val entity = salaryWithdrawalsDao.getAllOnce().find { it.id == id } ?: return@withTransaction
-        salaryWithdrawalsDao.softDelete(id, deletedAt = now, updatedAt = now)
+        salaryWithdrawalsDao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
         val deleted = entity.toDomain().copy(deletedAt = now, updatedAt = now)
         outboxRepository.enqueueObject("salary_withdrawals", "delete", deleted.localUuid, deleted)
       }
@@ -97,7 +99,8 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
             check(matched != null || allowCreate) {
                 "المصروف القديم بلا رابط UUID موثوق؛ يلزم مراجعته قبل التعديل، ولم تُحفظ تغييرات"
             }
-            val now = System.currentTimeMillis()
+            val nowMillis = System.currentTimeMillis()
+            val now = SyncEpochs.nowSeconds()
             val prepared = (matched?.toDomain() ?: SalaryWithdrawal(
                 // Identical source UUID => identical mirror identity on every device/retry.
                 localUuid = UUID.nameUUIDFromBytes(("salary-expense:" + expense.localUuid).toByteArray(Charsets.UTF_8)).toString()
@@ -107,7 +110,7 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
                 employeeUuid = employee.localUuid,
                 employeeName = employee.name,
                 amount = amount,
-                withdrawDate = HotelTimeEngine.parseDate(date) ?: now,
+                withdrawDate = HotelTimeEngine.parseDate(date) ?: nowMillis,
                 hotelDayKey = hotelDayKey,
                 withdrawalType = action,
                 reason = "expense_uuid:" + expense.localUuid,
@@ -118,7 +121,17 @@ class SalaryWithdrawalsRepositoryImpl @Inject constructor(
             if (matched == null) {
                 insert(prepared)
             } else {
-                salaryWithdrawalsDao.update(prepared.toEntity())
+                // نظير Dart `updateById`: الطوابع ثوانٍ + version+1 (والمسار الجديد
+                // `insert(prepared)` يُختم داخل insert نفسه).
+                val existing = matched
+                salaryWithdrawalsDao.update(
+                    prepared.toEntity().copy(
+                        localUuid = prepared.localUuid.ifBlank { existing.localUuid },
+                        createdAt = if (prepared.createdAt == 0L) existing.createdAt else prepared.createdAt,
+                        lastModified = now,
+                        lastModifiedEpoch = now
+                    )
+                )
                 outboxRepository.enqueueObject("salary_withdrawals", "update", prepared.localUuid, prepared)
             }
         }

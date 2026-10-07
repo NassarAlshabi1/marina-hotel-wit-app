@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.os.SystemClock
 import com.marina.marina.data.remote.CloudflareSyncService
 import com.marina.marina.data.remote.SyncPreferences
+import com.marina.marina.data.remote.realtime.CloudflareRealtimeClient
 import com.marina.marina.data.repository.OutboxRepository
 import com.marina.marina.data.repository.SyncManager
 import dagger.Lazy
@@ -24,6 +25,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+/** فحص دوري لعمل outbox معلّق — نظير `SyncGuardian._startPendingMonitor`
+ * في Flutter (كل 5 دقائق، يعتمد على علم `auto_sync_pending`): شبكة أمان
+ * إن لم يصل حدث تغيّر (فشل تسجيل callback الاتصال مثلاً) فلا يبقى رفع
+ * معلّق بلا مراقب. */
+private const val PENDING_PUSH_MONITOR_MS = 5L * 60L * 1_000L
+
 /** Offline-first process engine. Upload watching is independent from hourly delta pulling.
  * App entry never awaits network. All automatic pulls share one health/hour gate;
  * SyncManager retains cursor, epoch, foreground lifetime and atomic operation admission.
@@ -34,9 +41,15 @@ class AutoSyncEngine @Inject constructor(
     private val syncManagerProvider: Lazy<SyncManager>,
     private val outboxRepositoryProvider: Lazy<OutboxRepository>,
     private val preferences: SyncPreferences,
-    private val serviceProvider: Lazy<CloudflareSyncService>
+    private val serviceProvider: Lazy<CloudflareSyncService>,
+    private val realtimeProvider: Lazy<CloudflareRealtimeClient>
 ) {
     private val syncManager: SyncManager get() = syncManagerProvider.get()
+    /**
+     * عميل Realtime يُحلّ عند الحاجة فقط — لا يفتح مقبساً ولا يكلّف شبكة
+     * أثناء الإقلاع (نمط `Lazy` المستخدم لباقي التبعات الثقيلة هنا).
+     */
+    private val realtime: CloudflareRealtimeClient get() = realtimeProvider.get()
     private val outboxRepository: OutboxRepository get() = outboxRepositoryProvider.get()
     private val connectivityManager by lazy {
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
@@ -59,13 +72,24 @@ class AutoSyncEngine @Inject constructor(
     @Volatile private var started = false
     @Volatile private var foreground = false
 
+    /** إشارة تغيير بعيد وصلت والتطبيق في الخلفية — تُستهلك عند العودة. */
+    @Volatile private var remoteSignalWhileBackgrounded = false
+
+    /** عمل outbox ظهر والتطبيق في الخلفية — يُرفع عند العودة للواجهة. */
+    @Volatile private var pushDeferredWhileBackgrounded = false
+
     @Synchronized
     fun start() {
         if (started) return
         started = true
         val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope = appScope
+        // المزامنة الفورية: مسار سحب الحدث = دلتا فقط عبر المحرك (نفس
+        // realtimeTriggeredPull في Dart) — لا رفع ولا full sync من حدث.
+        realtime.setPullTrigger { syncManager.pullOnRealtimeEvent() }
         appScope.launch {
+            // حارس الإقلاع ضد المؤشر المسموم (Dart l.553) — قبل أي دورة.
+            recover { syncManager.sanitizeStoredCursorIfNeeded() }
             val recovered = recover { outboxRepository.recoverStaleProcessing() } ?: 0
             if (recovered > 0) schedulePush(3_000L)
         }
@@ -75,6 +99,7 @@ class AutoSyncEngine @Inject constructor(
             }
         }
         appScope.launch { periodicLoop(appScope) }
+        appScope.launch { pendingPushMonitor(appScope) }
         registerNetworkCallback(appScope)
     }
 
@@ -82,14 +107,52 @@ class AutoSyncEngine @Inject constructor(
     fun onForeground() {
         if (foreground) return
         foreground = true
+        // Realtime في الواجهة فقط (نفس مرحلة Flutter 3.3): استئناف المقبس
+        // عند العودة، ثم إن كان قد وصل حدث أثناء الغياب نسحبه فوراً.
+        if (masterSyncEnabled()) realtime.ensureStarted()
+        if (remoteSignalWhileBackgrounded &&
+            RemoteSignalPolicy.shouldConsumeDeferred(masterSyncEnabled(), networkAllowed())
+        ) {
+            remoteSignalWhileBackgrounded = false
+            realtime.noteRemoteChange("foreground")
+        }
+        // رفع مؤجل: صفوف outbox انتظرت لأن Android يمنع بدء خدمة أمامية من
+        // الخلفية — تُرفع الآن فوراً بدل انتظار الدورة الدورية.
+        if (pushDeferredWhileBackgrounded) {
+            pushDeferredWhileBackgrounded = false
+            schedulePush(0L)
+        }
         if (preferences.getSyncOnStartup()) requestPullCheck(probeWhenFresh = true)
     }
 
-    fun onBackground() { foreground = false }
+    fun onBackground() {
+        foreground = false
+        realtime.stop()
+    }
+
+    /**
+     * إشارة تغيير بعيد من FCM (رسالة بيانات) — نظير `_triggerPull` في
+     * Flutter `fcm_service.dart`:
+     *
+     *  • المفتاح معطّل → لا شيء.
+     *  • التطبيق في الواجهة → شارة UI + سحب دلتا مُدمج مباشرة.
+     *  • التطبيق في الخلفية → تُحفظ الإشارة وتُستهلك عند العودة للواجهة
+     *    بدل بدء شبكة من عملية غير ظاهرة (قيد Android على حدود الخلفية؛
+     *    بديل صريح لا ادعاء مطابقة).
+     */
+    fun onRemoteSignal(source: String) {
+        when (RemoteSignalPolicy.decide(masterSyncEnabled(), foreground)) {
+            RemoteSignalPolicy.Decision.IGNORE -> Unit
+            RemoteSignalPolicy.Decision.DELIVER -> realtime.noteRemoteChange(source)
+            RemoteSignalPolicy.Decision.DEFER -> remoteSignalWhileBackgrounded = true
+        }
+    }
 
     @Synchronized
     fun stop() {
         foreground = false
+        realtime.stop()
+        remoteSignalWhileBackgrounded = false
         pushJob?.cancel()
         pushJob = null
         pullCheckJob?.cancel()
@@ -127,6 +190,14 @@ class AutoSyncEngine @Inject constructor(
 
     private suspend fun drainOutbox() {
         if (!masterSyncEnabled() || !networkAllowed()) return
+        // لا يُبدأ Foreground Service من عملية غير ظاهرة (قيد Android 12+).
+        // الصفوف تبقى `pending` في outbox (لا فقدان) وتُرفع فور العودة —
+        // نفس عقد Dart («الرفع يُؤجَّل، الـ outbox يحتفظ بالصفوف»)، بديل
+        // صريح لا ادعاء مطابقة: Flutter يرفع من الخلفية عبر WorkManager.
+        if (!foreground) {
+            pushDeferredWhileBackgrounded = true
+            return
+        }
         recover { syncManager.pushOnly() }
         val stillPending = recover { outboxRepository.pendingCount().first() } ?: 0
         if (stillPending > 0) schedulePush(30_000L)
@@ -144,6 +215,24 @@ class AutoSyncEngine @Inject constructor(
             // Do not initiate an Android foreground service from an invisible app.
             // An already accepted operation still survives Home through SyncOperationRunner.
             if (foreground) requestPullCheck(probeWhenFresh = false)
+        }
+    }
+
+    /**
+     * شبكة أمان لرفع outbox — نظير `SyncGuardian._startPendingMonitor`
+     * (كل 5 دقائق في Flutter). تلتقط الحالة التي لا يصل فيها حدث تغيّر
+     * (فشل تسجيل callback الشبكة) فلا يبقى عمل معلّق بلا رفع.
+     */
+    private suspend fun pendingPushMonitor(appScope: CoroutineScope) {
+        while (appScope.isActive) {
+            delay(PENDING_PUSH_MONITOR_MS)
+            val pending = recover { outboxRepository.pendingCount().first() } ?: 0
+            if (pending <= 0) continue
+            if (foreground) {
+                schedulePush(0L)
+            } else {
+                pushDeferredWhileBackgrounded = true
+            }
         }
     }
 

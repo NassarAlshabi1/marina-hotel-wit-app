@@ -1,29 +1,25 @@
 package com.marina.marina.data.repository
 
-import com.marina.marina.data.local.dao.BookingNightsDao
+import androidx.room.withTransaction
+import com.marina.marina.data.local.AppDatabase
 import com.marina.marina.data.local.dao.BookingsDao
-import com.marina.marina.data.local.dao.PaymentsDao
-import com.marina.marina.data.local.dao.RoomsDao
 import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
+import com.marina.marina.data.sync.SyncEpochs
 import com.marina.marina.domain.model.Booking
 import com.marina.marina.domain.repository.BookingsRepository
-import com.marina.marina.domain.util.BookingFinancials
-import com.marina.marina.domain.util.HotelTimeEngine
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 @Singleton
 class BookingsRepositoryImpl @Inject constructor(
+    private val db: AppDatabase,
     private val bookingsDao: BookingsDao,
-    private val roomsDao: RoomsDao,
-    private val paymentsDao: PaymentsDao,
-    private val nightsDao: BookingNightsDao,
-    private val outboxRepository: OutboxRepository
+    private val outboxRepository: OutboxRepository,
+    private val derivedRefresh: BookingDerivedRefreshService
 ) : BookingsRepository {
 
     override fun getAll(): Flow<List<Booking>> =
@@ -39,27 +35,57 @@ class BookingsRepositoryImpl @Inject constructor(
         // Dart bookings_repository.dart l.56-65 — reject a second active booking
         // for a room that already has one.
         assertNoConflictingActiveBooking(booking.roomNumber, excludeId = null)
-        val now = System.currentTimeMillis()
+        // ✅ (2026-10-06) الطوابع بالثواني — نظير `bookings_dao.dart:insertOne`
+        // (`createdAt/updatedAt/lastModified = Time.nowEpoch()`)، ونموذج
+        // المجال لا يحمل `last_modified` أصلاً فكان يُكتب صفراً ⇒ يفوز صف
+        // الخادم الأقدم على تعديلنا في «آخر كتابة تفوز».
+        val now = SyncEpochs.nowSeconds()
         val prepared = booking.copy(
             localUuid = booking.localUuid.ifBlank { UUID.randomUUID().toString() },
             createdAt = if (booking.createdAt == 0L) now else booking.createdAt,
             updatedAt = now
         )
-        val withDerived = refreshDerivedFields(prepared)
-        val id = bookingsDao.insert(withDerived.toEntity())
-        outboxRepository.enqueueObject("bookings", "insert", withDerived.localUuid, stripComputed(withDerived))
-        return id
+        // معاملة واحدة: الصف + outbox + الحقول المشتقة. Dart يفعل الثلاثة داخل
+        // `db.transaction` (bookings_repository.dart create l.78-99) — والتجزئة
+        // إلى كتابتين منفصلتين تُظهر للمراقبين (Flow) لحظةً تكون فيها الحقول
+        // المشتقة قديمة قبل تحديثها.
+        return db.withTransaction {
+            val id = bookingsDao.insert(
+                prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now)
+            )
+            outboxRepository.enqueueObject("bookings", "insert", prepared.localUuid, stripComputed(prepared))
+            // نفس خدمة إعادة البناء التي يستدعيها السحب بعد الدورة — مصدر وحيد
+            // للحقيقة في الحساب (لا نسخة ثانية قابلة للانحراف).
+            derivedRefresh.refreshForBookingId(id)
+            id
+        }
     }
 
     override suspend fun update(booking: Booking) {
         // Dart bookings_repository.dart l.147-156 — the same guard applies when a
         // booking is moved onto a room that already hosts another active booking.
         assertNoConflictingActiveBooking(booking.roomNumber, excludeId = booking.id)
-        val now = System.currentTimeMillis()
+        // ✅ نظير `bookings_dao.dart:updateById`: updatedAt/lastModified = ثوانٍ
+        // و`version = existing.version + 1` (كاسر التعادل في الـ Worker عند
+        // تساوي updated_at). هذا هو مسار «إنهاء الحجز (مكتمل)» في التطبيق.
+        val now = SyncEpochs.nowSeconds()
+        val existing = bookingsDao.getById(booking.id)
         val prepared = booking.copy(updatedAt = now)
-        val withDerived = refreshDerivedFields(prepared)
-        bookingsDao.update(withDerived.toEntity())
-        outboxRepository.enqueueObject("bookings", "update", withDerived.localUuid, stripComputed(withDerived))
+        // نفس عقد create: كتابة + outbox + إعادة بناء المشتقات في معاملة واحدة
+        // (bookings_repository.dart update l.205-227).
+        db.withTransaction {
+            bookingsDao.update(
+                prepared.toEntity().copy(
+                    localUuid = prepared.localUuid.ifBlank { existing?.localUuid.orEmpty() },
+                    createdAt = if (prepared.createdAt == 0L) (existing?.createdAt ?: now) else prepared.createdAt,
+                    lastModified = now,
+                    lastModifiedEpoch = now,
+                    version = (existing?.version ?: prepared.version) + 1
+                )
+            )
+            outboxRepository.enqueueObject("bookings", "update", prepared.localUuid, stripComputed(prepared))
+            derivedRefresh.refreshForBookingId(prepared.id)
+        }
     }
 
     /**
@@ -68,17 +94,49 @@ class BookingsRepositoryImpl @Inject constructor(
      * refresh the cached financials WITHOUT enqueueing a cloud change.
      */
     override suspend fun updateComputedFields(booking: Booking) {
-        val prepared = booking.copy(updatedAt = System.currentTimeMillis())
-        bookingsDao.update(prepared.toEntity())
+        // نظير Dart `BookingDerivedFieldsService` (booking_derived_fields_service.dart
+        // l.132-149): يُكتب `updated_at` (ثوانٍ) + الحقول المشتقة، و**لا تُلمس
+        // `last_modified`/`version`** — بنصّ تعليق المرجع: «لا نحدّث lastModified
+        // للحقول المشتقة لأنها تُحسب محلياً وليست تغييراً من المستخدم، وتحديثه
+        // يجعل البيانات المحلية تبدو أحدث فيمنع السحب من تحديثها».
+        //
+        // العطل الذي أُصلح هنا (2026-10-07): كان `update(prepared.toEntity())`
+        // يكتب **كل** الصف، و`Booking.toEntity()` لا يحمل `last_modified`
+        // (نموذج المجال بلا الحقل) ⇒ يُكتب صفراً في كل فتح لشاشة الدفع ⇒ الصف
+        // يخسر «آخر كتابة تفوز» دائماً أمام أي صف خادمي ولو أقدم. الآن تُحفظ
+        // حقول المزامنة من الصف القائم كما هي، وتتغيّر الحقول المشتقة وحدها.
+        val existing = bookingsDao.getById(booking.id) ?: return
+        val now = SyncEpochs.nowSeconds()
+        bookingsDao.update(
+            booking.toEntity().copy(
+                localUuid = booking.localUuid.ifBlank { existing.localUuid },
+                serverId = existing.serverId,
+                createdAt = if (booking.createdAt == 0L) existing.createdAt else booking.createdAt,
+                deletedAt = existing.deletedAt,
+                lastModified = existing.lastModified,
+                lastModifiedEpoch = existing.lastModifiedEpoch,
+                createdAtIso = existing.createdAtIso,
+                updatedAtIso = existing.updatedAtIso,
+                deletedAtIso = existing.deletedAtIso,
+                createdAtEpoch = existing.createdAtEpoch,
+                version = existing.version,
+                origin = existing.origin,
+                vectorClock = existing.vectorClock,
+                deviceId = existing.deviceId,
+                syncTimestamp = existing.syncTimestamp,
+                idempotencyKey = existing.idempotencyKey,
+                updatedAt = now
+            )
+        )
     }
 
     override suspend fun checkout(id: Long, status: String, actualCheckout: String?) {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         bookingsDao.checkout(id, status, actualCheckout, updatedAt = now, lastModified = now)
     }
 
     override suspend fun softDelete(id: Long) {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         bookingsDao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
     }
 
@@ -102,37 +160,15 @@ class BookingsRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Dart derived-fields service (refreshForBookingId) — totalDueCached /
-     * totalPaidCached / remainingBalanceCached / isFullyPaid / calculatedNights
-     * are recomputed on every create/update so the bookings list shows live
-     * financials without opening the payment screen.
+     * إعادة بناء الحقول المشتقة لحجز واحد — مُفوَّض إلى
+     * [BookingDerivedRefreshService] (نفس ما ينفّذه السحب بعد الدورة،
+     * ونفس ما ينفّذه `BookingDerivedFieldsService.refreshForBookingId` في Dart).
+     *
+     * كان حساباً داخلياً هنا؛ نُقل ليكون مصدراً وحيداً يمنع انحراف نسختين
+     * (فخ يعرفه المشروع: نفس المنطق في مكانين).
      */
-    private suspend fun refreshDerivedFields(booking: Booking): Booking {
-        val room = roomsDao.getByNumber(booking.roomNumber)
-        val roomRate = room?.price ?: 0.0
-        val payments = paymentsDao.getByBooking(booking.id).first().map { it.toDomain() }
-        val nights = nightsDao.getByBooking(booking.id).map { it.toDomain() }
-        val checkin = HotelTimeEngine.parseDate(booking.checkinDate)
-        val liveNights = if (checkin != null) {
-            val checkout = HotelTimeEngine.parseDate(booking.actualCheckout)
-            HotelTimeEngine.nightsWithCutoff(checkin, checkout)
-        } else booking.calculatedNights
-        val current = booking.copy(calculatedNights = liveNights)
-        val summary = BookingFinancials.calculate(current, roomRate, payments, nights)
-        return current.copy(
-            totalDueCached = summary.totalAmount,
-            totalPaidCached = summary.paidAmount,
-            remainingBalanceCached = summary.remainingAmount,
-            isFullyPaid = summary.isFullyPaid
-        )
-    }
-
-    /** Caller owns the write transaction; refresh caches without a second business mutation. */
     internal suspend fun refreshFinancialCache(id: Long) {
-        val booking = bookingsDao.getById(id)?.toDomain() ?: return
-        val refreshed = refreshDerivedFields(booking)
-        bookingsDao.updateFinancialCache(id, refreshed.calculatedNights, refreshed.totalDueCached,
-            refreshed.totalPaidCached, refreshed.remainingBalanceCached, refreshed.isFullyPaid)
+        derivedRefresh.refreshForBookingId(id)
     }
 
     /**

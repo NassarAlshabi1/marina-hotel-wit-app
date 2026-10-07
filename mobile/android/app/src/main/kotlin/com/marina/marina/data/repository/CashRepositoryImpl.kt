@@ -5,6 +5,7 @@ import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.CashTransaction
 import com.marina.marina.domain.repository.CashRepository
+import com.marina.marina.data.sync.SyncEpochs
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,19 +27,19 @@ class CashRepositoryImpl @Inject constructor(
     override suspend fun sumByType(type: String): Double = dao.sumByType(type)
 
     override suspend fun insert(transaction: CashTransaction): Long {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val prepared = transaction.copy(
             localUuid = transaction.localUuid.ifBlank { UUID.randomUUID().toString() },
             createdAt = if (transaction.createdAt == 0L) now else transaction.createdAt,
             updatedAt = now
         )
-        val id = dao.insert(prepared.toEntity())
+        val id = dao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("cash_transactions", "insert", prepared.localUuid, prepared)
         return id
     }
 
     override suspend fun softDelete(id: Long) {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         dao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
     }
 }

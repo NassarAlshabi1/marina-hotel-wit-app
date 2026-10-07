@@ -29,12 +29,12 @@ interface ShiftNotesDao {
     suspend fun getById(id: Long): ShiftNoteEntity?
 
     // Dart markAsRead (l.172-217) bumps the OCC version alongside the flag.
-    @Query("UPDATE shift_notes SET is_read = 1, version = version + 1, updated_at = :updatedAt WHERE id = :id")
-    suspend fun markRead(id: Long, updatedAt: Long): Int
+    @Query("UPDATE shift_notes SET is_read = 1, version = version + 1, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
+    suspend fun markRead(id: Long, updatedAt: Long, lastModified: Long): Int
 
     // Dart delete (l.268-313) is a SOFT delete, so it propagates via outbox.
-    @Query("UPDATE shift_notes SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
-    suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
+    @Query("UPDATE shift_notes SET deleted_at = :deletedAt, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
+    suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long, lastModified: Long): Int
 
     // ✅ (2026-09-24) سحب المزامنة: إيجاد الصف المحلي بمفتاح local_uuid
     // (توجيه سجلات pull عبر _entity — عقد الـ worker).

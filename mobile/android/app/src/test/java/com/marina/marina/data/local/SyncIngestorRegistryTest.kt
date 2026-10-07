@@ -22,6 +22,7 @@ import com.marina.marina.data.repository.BookingNightsRepositoryImpl
 import com.marina.marina.data.repository.OutboxRepository
 import com.marina.marina.data.remote.WorkerPullResponse
 import com.marina.marina.data.repository.SyncManager
+import com.marina.marina.data.sync.SyncEpochs
 import com.marina.marina.data.sync.SyncOperationRunner
 import retrofit2.Call
 import retrofit2.Response
@@ -45,6 +46,7 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.resetMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -183,7 +185,11 @@ class SyncIngestorRegistryTest {
         assertEquals("NaN", evidence[0].asJsonObject["__sync_non_finite_number"].asString)
         assertEquals("-Infinity", evidence[1].asJsonObject["__sync_non_finite_number"].asString)
         newRegistry().ingestPage(listOf(bad, anonymous))
-        assertEquals(rows, db.syncQuarantineDao().getAll())
+        val after = db.syncQuarantineDao().getAll()
+        assertEquals(rows.size, after.size)
+        assertEquals(rows.map { it.recordKey }.toSet(), after.map { it.recordKey }.toSet())
+        assertEquals(rows.map { it.reason }.toSet(), after.map { it.reason }.toSet())
+        assertTrue(after.all { it.attempts == 2 })
     }
 
     @Test
@@ -233,9 +239,120 @@ class SyncIngestorRegistryTest {
         assertEquals(4, quarantine.size)
         assertTrue(quarantine.all { it.reason.isNotBlank() && it.payload.isNotBlank() })
         // Repeated download must not create an unbounded pile of identical evidence.
+        // ✅ (2026-10-06) الأدلة تبقى صفاً واحداً لكل هوية (نفس المفتاح/الحمولة/السبب)،
+        // لكن العدّاد يتصاعد مع كل دورة يفشل فيها الصف (نظير عدّاد الدورات في
+        // `pull_quarantine.dart`) — وهو ما يقود الشفاء الدوري وإخلاء الأقدم.
         newRegistry().ingestPage(rows)
-        assertEquals(quarantine, db.syncQuarantineDao().getAll())
+        val again = db.syncQuarantineDao().getAll()
+        assertEquals(quarantine.size, again.size)
+        assertEquals(quarantine.map { it.entity to it.recordKey }.toSet(),
+            again.map { it.entity to it.recordKey }.toSet())
+        assertEquals(quarantine.map { it.payload to it.reason }.toSet(),
+            again.map { it.payload to it.reason }.toSet())
+        assertTrue(again.all { it.attempts == 2 })
+        assertEquals(quarantine.map { it.firstSeen }.toSet(), again.map { it.firstSeen }.toSet())
         assertTrue(db.pendingSyncLinksDao().getAll().isEmpty())
+    }
+
+    // ─── استنتاج الكيان بلا وسم `_entity` (نظير `_detectEntity` في Dart) ───
+
+    /**
+     * جدول بصمات الأعمدة منقول حرفياً من `_detectEntity`
+     * (`cloudflare_sync_manager.dart:3798`@`ac283c6c`) — كل كيان مزامَن
+     * (24) له بصمة، والترتيب داخل الدالة يمنع التعارض بين البصمات.
+     */
+    @Test
+    fun everySyncEntityHasAnInferenceSignatureIdenticalToDart() {
+        val signatures: Map<String, Map<String, Any>> = mapOf(
+            "rooms" to mapOf("room_number" to "1", "price" to 1.0),
+            "bookings" to mapOf("guest_name" to "g", "checkin_date" to 1L),
+            "payments" to mapOf("amount" to 1.0, "payment_method" to "cash"),
+            "expenses" to mapOf("expense_type" to "x", "description" to "d"),
+            "employees" to mapOf("basic_salary" to 1.0, "position" to "موظف"),
+            "debts" to mapOf("debt_reason" to "r", "remaining_amount" to 1.0),
+            "booking_nights" to mapOf("final_rate" to 1.0, "hotel_day_key" to "k"),
+            "booking_price_adjustments" to mapOf("adjustment_type" to "t", "effective_hotel_day" to "k"),
+            "booking_notes" to mapOf("note_text" to "n", "alert_type" to "a"),
+            "guest_infos" to mapOf("guest_name" to "g", "id_number" to "1"),
+            "shift_notes" to mapOf("shift_date" to "d", "is_read" to 0),
+            "cash_transactions" to mapOf("transaction_type" to "t", "transaction_time" to 1L),
+            "salary_cycles" to mapOf("cycle_key" to "k", "expected_amount" to 1.0),
+            "salary_payments" to mapOf("payment_date_iso" to "d", "cycle_id" to 1L),
+            "salary_withdrawals" to mapOf("withdrawal_type" to "w", "amount" to 1.0),
+            "salary_carry_over_logs" to mapOf("previous_cycle_start" to "a", "new_cycle_start" to "b"),
+            "price_adjustments" to mapOf("target_type" to "t", "target_uuid" to "u"),
+            "audit_logs" to mapOf("operation_type" to "o", "entity_type" to "e"),
+            "payment_voids" to mapOf("void_reason" to "r", "voided_by" to "u"),
+            "inventory_items" to mapOf("minimum_quantity" to 1.0),
+            "inventory_transactions" to mapOf("movement_type" to "adjustment", "balance_after" to 1.0),
+            "devices" to mapOf("device_name" to "d"),
+            "blacklist" to mapOf("reported_by" to "police"),
+            "app_users" to mapOf("username" to "u", "credentials_version" to 1)
+        )
+        // تغطية كاملة: لا كيان مزامَن بلا بصمة (وإلا سقط سجله القديم في العزل).
+        assertEquals(SyncIngestorRegistry.SYNC_ENTITY_TABLES.keys, signatures.keys)
+        for ((expected, marker) in signatures) {
+            assertEquals(
+                "استنتاج خاطئ لبصمة $expected",
+                expected, SyncIngestorRegistry.inferEntityFromRecord(marker)
+            )
+        }
+        // سجل بلا وسم وبلا بصمة معروفة يُرجع null (لا تخمين).
+        assertNull(SyncIngestorRegistry.inferEntityFromRecord(mapOf<String, Any>("future_column" to 1)))
+    }
+
+    /** الوسم الصريح يسبق البصمة دائماً — حتى لو تعارضا (نفس ترتيب Dart). */
+    @Test
+    fun explicitEntityTagWinsOverColumnSignature() {
+        val conflicting: Map<String, Any> = mapOf(
+            "_entity" to "rooms", "amount" to 5.0, "payment_method" to "cash"
+        )
+        assertEquals("rooms", SyncIngestorRegistry.resolveEntity(conflicting))
+        assertEquals("payments", SyncIngestorRegistry.inferEntityFromRecord(conflicting))
+
+        // وسم فارغ/مسافات = غياب → البصمة.
+        val blankTag: Map<String, Any> = mapOf(
+            "_entity" to "   ", "amount" to 5.0, "payment_method" to "cash"
+        )
+        assertEquals("payments", SyncIngestorRegistry.resolveEntity(blankTag))
+    }
+
+    /**
+     * سجل بلا `_entity` (نشر Worker أقدم) لكن ببصمة سليمة يُطبَّق فعلاً —
+     * قبل هذا كان يُعزل `missing_entity` فيبقى صفٌّ سليم خارج القاعدة.
+     */
+    @Test
+    fun recordWithoutEntityTagIsRoutedByItsColumnSignature() = runBlocking {
+        val untagged = mapOf<String, Any>(
+            "local_uuid" to "untagged-room",
+            "room_number" to "UT-1",
+            "type" to "single",
+            "price" to 175.0,
+            "status" to "available",
+            "cleaning_status" to "clean",
+            "last_modified" to 400L
+        )
+        val report = registry.ingestPage(listOf(untagged))
+        assertEquals(1, report.applied)
+        assertEquals(0, report.failed)
+        assertTrue(db.syncQuarantineDao().getAll().isEmpty())
+        assertEquals("UT-1", db.roomsDao().getByLocalUuid("untagged-room")!!.roomNumber)
+    }
+
+    /**
+     * فرق مقصود عن Dart: هو يُسقط السجل مجهول الهوية صامتاً، ونحن نُعزله
+     * بحمولته (`missing_entity`) فيبقى قابلاً للاسترجاع بعد تحديث التطبيق.
+     */
+    @Test
+    fun untaggedRecordWithUnknownSignatureStaysQuarantinedAsMissingEntity() = runBlocking {
+        val orphan = mapOf<String, Any>("local_uuid" to "orphan-row", "future_column" to 1)
+        val report = registry.ingestPage(listOf(orphan))
+        assertEquals(1, report.failed)
+        val row = db.syncQuarantineDao().getAll().single()
+        assertEquals("unknown", row.entity)
+        assertEquals("uuid:orphan-row", row.recordKey)
+        assertEquals("missing_entity", row.reason)
+        assertTrue(row.payload.contains("orphan-row"))
     }
 
     @Test
@@ -330,6 +447,7 @@ class SyncIngestorRegistryTest {
         prefs.saveLastPullCursor(123L)
         prefs.saveLastPullTs(0L)
         prefs.saveSyncEpoch("audit")
+        prefs.setTombstoneSweepDone(true) // مسح الحذفيات له اختبار مخصص؛ لا يغيّر عدّ نداءات هذه الحالات.
         prefs.setFullReplayPending(fullReplay)
         prefs.setTimestampNormalizationDone(false)
         var calls = 0
@@ -348,7 +466,7 @@ class SyncIngestorRegistryTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
-                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined))
+                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined), derivedRefresh())
             assertEquals(if (success) 0 else -1, manager.pullOnly())
             assertEquals(expectedCalls, calls)
             assertEquals(expectedCursor, prefs.getLastPullCursor())
@@ -406,6 +524,7 @@ class SyncIngestorRegistryTest {
         prefs.saveLastPullCursor(123L)
         prefs.saveSyncEpoch("stable-delta")
         prefs.setFullReplayPending(false)
+        prefs.setTombstoneSweepDone(true) // مسح الحذفيات له اختبار مخصص؛ لا يغيّر عدّ نداءات هذه الحالات.
         val requests = mutableListOf<List<Any?>>()
         val api = Proxy.newProxyInstance(
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
@@ -433,7 +552,7 @@ class SyncIngestorRegistryTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
-                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined))
+                service, prefs, registry, SyncOperationRunner(scope, Dispatchers.Unconfined), derivedRefresh())
             val first = com.marina.marina.presentation.dashboard.runDashboardDirectionalSync(manager, false)
             assertEquals(com.marina.marina.presentation.dashboard.DashboardEvent.SyncCompleted(0, 2), first)
             assertEquals(789L, prefs.getLastPullCursor())
@@ -443,8 +562,8 @@ class SyncIngestorRegistryTest {
             requests.forEach { request ->
                 assertEquals(CloudflareConfig.DELTA_PULL_BATCH_SIZE, request[1])
                 assertEquals("delta-test-device", request[2])
-                assertEquals(false, request[3]) // no full-pull remaining scan
-                assertEquals(false, request[4]) // no timestamp normalization
+                assertNull(request[3]) // no full-pull remaining scan
+                assertNull(request[4]) // no timestamp normalization
             }
             assertEquals(0, manager.pullAutomaticallyIfDue())
             assertEquals(3, requests.size) // Shared manual success also suppresses an automatic pull.
@@ -458,14 +577,23 @@ class SyncIngestorRegistryTest {
         }
     }
 
+    /**
+     * ✅ (2026-10-06) **العقد المصحَّح** (كان `quarantinedPullDoesNotAdvanceSavedCursor`):
+     * الصفحة نفسها سليمة (شبكة/HTTP/JSON)، والصف غير القابل للتطبيق يُعزل
+     * بحمولته — **والمؤشر يتقدم**. تجميد المؤشر كان يعطي «جهازاً متوقفاً
+     * نهائياً» لخطأ صفٍّ واحد، وهو العطل المُبلَّغ («الدلتا لا تسحب الجداول ولا
+     * الحقول»)؛ ونصّ `pull_quarantine.dart` (٢٠٢٦-٠٩-١٥) يصف القاعدة:
+     * «المؤشر يتقدم في نفس الدورة طالما الصفحات نفسها سليمة».
+     */
     @Test
-    fun quarantinedPullDoesNotAdvanceSavedCursor() = runBlocking {
+    fun quarantinedPullAdvancesSavedCursorAndStaysRecoverable() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefs = SyncPreferences(EncryptedSharedPreferencesManager(context))
         prefs.saveAuthToken("test-worker-token")
         prefs.saveLastPullCursor(123L)
         prefs.saveSyncEpoch("stable")
         prefs.setFullReplayPending(false)
+        prefs.setTombstoneSweepDone(true) // مسح الحذفيات له اختبار مخصص؛ لا يغيّر عدّ نداءات هذه الحالات.
         val api = Proxy.newProxyInstance(
             CloudflareWorkerApi::class.java.classLoader, arrayOf(CloudflareWorkerApi::class.java)
         ) { _, method, _ ->
@@ -482,11 +610,15 @@ class SyncIngestorRegistryTest {
         val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
         val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
             service, prefs, registry,
-            SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined))
-        assertEquals(-1, manager.pullOnly())
-        assertTrue(manager.syncState.value.isError)
-        assertEquals(123L, prefs.getLastPullCursor())
-        assertEquals(1, db.syncQuarantineDao().getAll().size)
+            SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined), derivedRefresh())
+        // لا فشل دورة: الصف عُزل وحده، والمؤشر تقدّم إلى نهاية النافذة.
+        assertTrue(manager.pullOnly() >= 0)
+        assertFalse(manager.syncState.value.isError)
+        assertEquals(456L, prefs.getLastPullCursor())
+        val row = db.syncQuarantineDao().getAll().single()
+        assertEquals("unsupported", row.entity)
+        assertEquals("uuid:preserved", row.recordKey)
+        assertTrue(row.firstSeen > 0L && row.attempts >= 1)
     }
 
     @Test
@@ -1127,8 +1259,12 @@ class SyncIngestorRegistryTest {
         assertEquals(180.0, saved.price, 0.001)
     }
 
+    private fun derivedRefresh() = com.marina.marina.data.repository.BookingDerivedRefreshService(
+        db, db.bookingsDao(), db.roomsDao(), db.paymentsDao(), db.bookingNightsDao()
+    )
+
     private fun editTestBookingsRepository() = com.marina.marina.data.repository.BookingsRepositoryImpl(
-        db.bookingsDao(), db.roomsDao(), db.paymentsDao(), db.bookingNightsDao(), outboxRepository()
+        db, db.bookingsDao(), outboxRepository(), derivedRefresh()
     )
 
     private fun editTestPaymentsRepository() = com.marina.marina.data.repository.PaymentsRepositoryImpl(
@@ -1184,7 +1320,8 @@ class SyncIngestorRegistryTest {
             )
             store.put("expenses", report)
             suspend fun check(amount: Double) {
-                val state = withTimeout(10_000) { report.state.first { !it.isLoading } }
+                // نفس سبب awaitSettledReport: سباق قراءة حالة دورة سابقة.
+                val state = awaitSettledReport(report.state) { !it.isLoading && it.totalAmount == amount + 300.0 }
                 val expected = listOf(amount, 100.0, 200.0).sorted()
                 assertEquals(expected, state.groups.flatMap { it.rows }.map { it.amount }.sorted())
                 assertEquals(amount + 300.0, state.totalAmount, 0.0)
@@ -1237,11 +1374,15 @@ class SyncIngestorRegistryTest {
             )
             store.put("income", income)
             suspend fun check(amount: Double) {
-                val state = withTimeout(10_000) { report.state.first { !it.isLoading } }
+                // انتظار تقارب لا «أول حالة غير حاملة»: fetch() غير متزامنة، وقد
+                // تُقرأ حالة دورة سابقة قبل أن يبدأ التحديث (سباق رُصد في CI:
+                // expected:<475.0> but was:<400.0>). الانتظار على القيمة
+                // المتوقعة نفسها يُبقي الاختبار يفشل إن لم يُعكس التعديل أبداً.
+                val state = awaitSettledReport(report.state) { !it.isLoading && it.totalAll == amount + 300.0 }
                 assertEquals(listOf(amount, 100.0, 200.0).sorted(), state.rows.map { it.payment.amount }.sorted())
                 assertEquals(amount + 300.0, state.totalAll, 0.0)
                 assertEquals(originals.map { it.localUuid }.toSet(), state.rows.map { it.payment.localUuid }.toSet())
-                val incomeState = withTimeout(10_000) { income.state.first { !it.isLoading } }
+                val incomeState = awaitSettledReport(income.state) { !it.isLoading && it.incomeTotal == amount + 300.0 }
                 assertEquals(3, incomeState.entries.size)
                 assertEquals(amount + 300.0, incomeState.incomeTotal, 0.0)
                 assertEquals(amount + 300.0, incomeState.net, 0.0)
@@ -1279,13 +1420,13 @@ class SyncIngestorRegistryTest {
             bookings.update(bookings.getById(bookingId)!!)
             val report = com.marina.marina.presentation.reports.PaymentsReportViewModel(payments, bookings)
             store.put("payments", report)
-            val before = withTimeout(10_000) { report.state.first { !it.isLoading } }
+            val before = awaitSettledReport(report.state) { !it.isLoading && it.totalDue == 1000.0 }
             assertEquals(1000.0, before.totalDue, 0.0)
             assertEquals(300.0, before.totalAll, 0.0)
             assertEquals(700.0, before.totalRemaining, 0.0)
             payments.update(db.paymentsDao().getById(first)!!.toDomain().copy(amount = 150.0))
             report.fetch()
-            val after = withTimeout(10_000) { report.state.first { !it.isLoading } }
+            val after = awaitSettledReport(report.state) { !it.isLoading && it.totalAll == 350.0 }
             assertEquals(2, after.rows.size)
             assertEquals(350.0, after.totalAll, 0.0)
             assertEquals("Remaining must reflect the edited payment, not stale booking cache", 650.0, after.totalRemaining, 0.0)
@@ -1504,7 +1645,8 @@ class SyncIngestorRegistryTest {
             )
             store.put("report", report)
             suspend fun assertReport(amount: Double, independent: Double = 0.0) {
-                val state = withTimeout(10_000) { report.state.first { !it.isLoading } }
+                // نفس سبب awaitSettledReport: سباق قراءة حالة دورة سابقة.
+                val state = awaitSettledReport(report.state) { !it.isLoading && it.totalAmount == amount + independent }
                 val rows = state.groups.flatMap { it.rows }
                 assertEquals(if (independent == 0.0) 1 else 2, rows.size)
                 assertEquals(amount, rows.single { !it.isSalaryWithdrawal }.amount, 0.0)
@@ -1669,7 +1811,7 @@ class SyncIngestorRegistryTest {
             throw IllegalStateException("Synthetic Android background restriction")
         }
         val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
-            service, prefs, registry, runner)
+            service, prefs, registry, runner, derivedRefresh())
         assertEquals(-1, manager.pullOnly())
         assertEquals(-1, manager.pushOnly())
         assertEquals(-1, manager.fullPull())
@@ -1705,7 +1847,7 @@ class SyncIngestorRegistryTest {
         } as CloudflareWorkerApi
         val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
         val manager = SyncManager(OutboxRepository(db.outboxDao(), service, prefs, registry),
-            service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined))
+            service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined), derivedRefresh())
         val screen = launch(start = CoroutineStart.UNDISPATCHED) { manager.pullOnly() }
         try {
             assertTrue("Pull reached network", started.await(15, TimeUnit.SECONDS))
@@ -1732,6 +1874,7 @@ class SyncIngestorRegistryTest {
         prefs.saveLastPullCursor(999L)
         prefs.saveSyncEpoch("old")
         prefs.setFullReplayPending(false)
+        prefs.setTombstoneSweepDone(true) // مسح الحذفيات له اختبار مخصص؛ لا يغيّر عدّ نداءات هذه الحالات.
         val requests = mutableListOf<Pair<Long, String?>>()
         var calls = 0
         val api = Proxy.newProxyInstance(
@@ -1753,13 +1896,13 @@ class SyncIngestorRegistryTest {
         } as CloudflareWorkerApi
         val service = CloudflareSyncService(api, CloudflareConfig(context), prefs)
         val outbox = OutboxRepository(db.outboxDao(), service, prefs, registry)
-        assertEquals(0, SyncManager(outbox, service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined)).pullOnly())
+        assertEquals(0, SyncManager(outbox, service, prefs, registry, SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined), derivedRefresh()).pullOnly())
         assertTrue(prefs.isFullReplayPending())
         assertEquals(100L, prefs.getLastPullCursor())
         assertEquals(999L to "device-A", requests.first())
         assertTrue(requests.drop(1).all { it.second == null })
         // New manager resumes from the saved non-zero cursor WITHOUT re-enabling echo filtering.
-        assertEquals(0, SyncManager(outbox, service, prefs, newRegistry(), SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined)).pullOnly())
+        assertEquals(0, SyncManager(outbox, service, prefs, newRegistry(), SyncOperationRunner(CoroutineScope(SupervisorJob() + Dispatchers.IO), Dispatchers.Unconfined), derivedRefresh()).pullOnly())
         assertNull(requests.last().second)
         assertTrue(!prefs.isFullReplayPending())
         assertEquals("new", prefs.getSyncEpoch())
@@ -1838,4 +1981,99 @@ class SyncIngestorRegistryTest {
         assertEquals(1, db.pendingSyncLinksDao().getAll().size)
     }
 
+
+    // ─── حارس انزياح الساعة في LWW (نظير Dart M3) ───
+
+    private fun roomSwapRecord(uuid: String, lastModified: Long, version: Int, price: Double) =
+        mapOf<String, Any>(
+            "_entity" to "rooms", "local_uuid" to uuid, "room_number" to "MS-1",
+            "type" to "single", "price" to price, "status" to "available",
+            "cleaning_status" to "clean", "last_modified" to lastModified,
+            "version" to version
+        )
+
+    /**
+     * جهاز ساعته متقدمة: صفّه المحلي أحدث بالطابع لكن الخادم ختم `version`
+     * أعلى (دليل مستقل). Dart (M3) يمضي بالوارد في هذه الحالة بدل إسقاطه،
+     * وإلا أُسقط كل وارد ضده إلى الأبد بينما مؤشر السحب يتقدم فوقه ⇒ فقد دائم.
+     */
+    @Test
+    fun newerRemoteVersionOverridesFutureLocalStampInsteadOfStarving() = runBlocking {
+        val future = SyncEpochs.nowSeconds() + 86_400L
+        assertEquals(1, registry.ingestPage(listOf(
+            roomSwapRecord("skew-room", lastModified = future, version = 3, price = 100.0)
+        )).applied)
+
+        val report = registry.ingestPage(listOf(
+            roomSwapRecord("skew-room", lastModified = future - 3_600L, version = 4, price = 175.0)
+        ))
+        assertEquals("الوارد أعلى version ⇒ يُطبَّق رغم طابعه الأقدم", 1, report.applied)
+        val room = requireNotNull(db.roomsDao().getByLocalUuid("skew-room"))
+        assertEquals(175.0, room.price, 0.0)
+        assertEquals(4, room.version)
+        assertTrue("لا حجر: الوارد السليم لا يُعزل", db.syncQuarantineDao().getAll().isEmpty())
+    }
+
+    /** بلا دليل `version` أعلى: المحلي الأحدث يفوز (LWW الأساسي كما في Dart). */
+    @Test
+    fun futureLocalStampStillWinsWithoutHigherRemoteVersion() = runBlocking {
+        val future = SyncEpochs.nowSeconds() + 86_400L
+        assertEquals(1, registry.ingestPage(listOf(
+            roomSwapRecord("skew-keep", lastModified = future, version = 5, price = 100.0)
+        )).applied)
+
+        val tieOrLower = registry.ingestPage(listOf(
+            roomSwapRecord("skew-keep", lastModified = future - 3_600L, version = 5, price = 999.0)
+        ))
+        assertEquals(1, tieOrLower.skipped)
+        // الطابع المتساوي في الوحدة الموحّدة (ثوانٍ) يُطبَّق — نظير Dart `local > remote` شرطاً للتخطي.
+        val equalStamp = registry.ingestPage(listOf(
+            roomSwapRecord("skew-keep", lastModified = future, version = 5, price = 250.0)
+        ))
+        assertEquals(1, equalStamp.applied)
+        assertEquals(250.0, requireNotNull(db.roomsDao().getByLocalUuid("skew-keep")).price, 0.0)
+    }
+
+    /**
+     * الطابع المسموم بالميلي (بناء قديم، قبل إصلاح الوحدة) على السلك: يُطبَّع
+     * إلى ثوانٍ قبل قرار LWW — نظير `SyncEpochs.toSeconds` في شرط المقارنة.
+     */
+    @Test
+    fun millisInflatedRemoteStampIsNormalizedBeforeLwwDecision() = runBlocking {
+        val nowSeconds = SyncEpochs.nowSeconds()
+        assertEquals(1, registry.ingestPage(listOf(
+            roomSwapRecord("ms-room", lastModified = nowSeconds - 60L, version = 2, price = 100.0)
+        )).applied)
+
+        // طابع بالميلي = نفس اللحظة (nowSeconds * 1000) — لا يجوز أن يفوز
+        // بوصفه «أحدث» ثم يُخزَّن بالثواني كما هو بعد التطبيع.
+        val report = registry.ingestPage(listOf(
+            roomSwapRecord("ms-room", lastModified = (nowSeconds + 120L) * 1_000L, version = 3, price = 320.0)
+        ))
+        assertEquals(1, report.applied)
+        val room = requireNotNull(db.roomsDao().getByLocalUuid("ms-room"))
+        assertEquals(320.0, room.price, 0.0)
+        assertTrue("الطابع المخزَّن يجب أن يكون ثوانٍ: ${room.lastModified}",
+            room.lastModified in 1_000_000_000L..100_000_000_000L)
+    }
+
+    /**
+     * انتظار **تقارب** حالة تقرير على القيمة المتوقعة بعد `fetch()`.
+     *
+     * السبب: `fetch()` تُحدّث الحالة على `viewModelScope` بينما الاختبار
+     * يقرأ `state.first { !it.isLoading }` — وقد يقرأ حالة *دورة سابقة*
+     * (isLoading=false) قبل أن يبدأ التحديث الجديد أصلاً، أو قبل أن
+     * يُطبَّق نتيجته، فيسقط الاختبار عشوائياً حسب جدولة الخيوط. رُصد فعلاً
+     * في CI على `threeIndependentPaymentsSurviveRepeatedEditsInPaymentAndIncomeReports`:
+     * `expected:<475.0> but was:<400.0>` — أي أن تقرير الدخل قُرئ قبل
+     * تطبيق تعديل الدفعة (400 = المجموع القديم).
+     *
+     * الانتظار هنا على القيمة نفسها لا على العلم: إن لم يُعكس التعديل
+     * إطلاقاً (الانحدار الحقيقي الذي يحرسه الاختبار) ينتهي المهلة ويفشل
+     * الاختبار — فلا يتحول الإصلاح إلى تخفيف للفحص.
+     */
+    private suspend fun <T> awaitSettledReport(
+        flow: kotlinx.coroutines.flow.StateFlow<T>,
+        expected: (T) -> Boolean
+    ): T = withTimeout(10_000) { flow.first(expected) }
 }

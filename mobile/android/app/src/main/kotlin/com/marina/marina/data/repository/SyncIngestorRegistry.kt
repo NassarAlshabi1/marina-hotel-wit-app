@@ -2,8 +2,6 @@ package com.marina.marina.data.repository
 
 import android.util.Log
 import androidx.room.withTransaction
-import com.google.gson.ExclusionStrategy
-import com.google.gson.FieldAttributes
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
@@ -77,7 +75,8 @@ import javax.inject.Singleton
  * 4. **الصفحة كلها في معاملة واحدة** — 7,300 commit → ~18 (تسريع
  *     السحب الكامل 2026-09-22 في Dart).
  *
- * 5. **آخر-كتابة-تفوز** بمقارنة last_modified؛ التعادل للقادم من
+ * 5. **آخر-كتابة-تفوز** بمقارنة last_modified (بوحدة موحّدة — ثوانٍ؛
+ *    انظر `SyncEpochs` لعلّة الميلي ثانية)؛ التعادل للقادم من
  *    الخادم (حسم التعارض خادمياً). الحذفيات تُستوعب ناعمياً.
  *
  * hotel_day_ledger مستبعد عمداً (تأكيد المالك: جدول محلي-فقط — خطة D8).
@@ -100,7 +99,22 @@ data class PullApplyReport(
     val skipped: Int,
     val failed: Int,
     val firstError: String?,
-    val deferred: List<DeferredRecord>
+    val deferred: List<DeferredRecord>,
+    /**
+     * كيانات الصفوف التي طُبّقت فعلاً في هذه الدفعة — نظير `touchedEntities`
+     * في `PullApplyReport` الدارتي (cloudflare_sync_manager.dart l.135):
+     * يُبنى عليها قرار إعادة بناء الحقول المشتقة بعد السحب
+     * (`_derivedRefreshEntities`). لا يدخل فيها المؤجَّل ولا المتخطّى ولا
+     * الفاشل.
+     */
+    val touched: Set<String> = emptySet(),
+    /**
+     * ✅ (2026-10-06) سجلات فشل التطبيق كاملة (entity + الحمولة) — نظير
+     * `conflictedRecords` في تقرير Dart. بلا هذا الحقل كان المدير يعرف
+     * «فشل N سجلاً» فقط، فيُجمّد المؤشر لعدم قدرته على محاسبتها وشفائها
+     * لاحقاً (عطل «الدلتا لا تسحب شيئاً» عند أول صف غير قابل للتطبيق).
+     */
+    val failedRecords: List<DeferredRecord> = emptyList()
 ) {
     val hasFailures: Boolean get() = failed > 0
     val hasDeferred: Boolean get() = deferred.isNotEmpty()
@@ -108,6 +122,18 @@ data class PullApplyReport(
 
 /** Keep the Android Int version contract aligned with the Worker sanitizer. */
 private const val MAX_SANE_SYNC_VERSION = 1_000_000
+
+/**
+ * سقوف سجل الحجر المحلي — لا نهائية (تكلفة صفرية) وحمولاته في SQLite
+ * المحلي: يُعاد حلّها من الحمولة في كل دورة حتى يُشفى سبب الفشل.
+ */
+internal const val PULL_QUARANTINE_CAP = 300
+
+/** سقف محاولات الشفاء في الدورة الواحدة (نظير `_quarantineHealRetryLimit`). */
+internal const val PULL_QUARANTINE_HEAL_LIMIT = 100
+
+// أسماء الحقول بين السلك والحقل المحلي انتقلت إلى `data/sync/SyncWireFields.kt`
+// (مصدر حقيقة واحد للاتجاهين: السحب عبر applyLocalAliases والرفع عبر toWire).
 private val EMPLOYEE_EXPENSE_TYPES = setOf(
     "رواتب", "سحب راتب", "سحب من الراتب", "سلفة", "خصم راتب", "خصم من الراتب", "خصم", "غياب", "employee"
 )
@@ -161,26 +187,54 @@ class SyncIngestorRegistry @Inject constructor(
      * Room إطلاقاً. الاستراتيجية: الحقل المورّث يُتجاهل عندما يعيد
      * الصنف الفعلي إعلانه (الفرعي هو المصدر المرجعي).
      */
-    private val gsonCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Gson>()
     private val booleanWireFieldsCache = java.util.concurrent.ConcurrentHashMap<Class<*>, Set<String>>()
 
-    private fun gsonFor(clazz: Class<*>): Gson = gsonCache.getOrPut(clazz) {
-        val ownNames = clazz.declaredFields.map { it.name }.toSet()
-        val strategy = object : ExclusionStrategy {
-            override fun shouldSkipField(f: FieldAttributes): Boolean =
-                f.declaringClass != clazz && f.name in ownNames
-
-            override fun shouldSkipClass(c: Class<*>): Boolean = false
-        }
-        GsonBuilder()
-            .addDeserializationExclusionStrategy(strategy)
-            .addSerializationExclusionStrategy(strategy)
-            .create()
-    }
+    /**
+     * ✅ (2026-10-07) التسلسل من نقطة واحدة مشتركة مع مسار الرفع
+     * ([com.marina.marina.data.sync.SyncEntityGson]) — كانت الاستراتيجية هنا
+     * مكرّرة، و`OutboxRepository` كان يستعمل `Gson()` بسيطاً فيرمي استثناءً
+     * على أي كيان يرث `BaseSyncEntity` ⇒ حركات المخزون لم تُرفع إطلاقاً.
+     */
+    private fun gsonFor(clazz: Class<*>): Gson =
+        com.marina.marina.data.sync.SyncEntityGson.forClass(clazz)
 
     /** D1/SQLite booleans arrive over both sync transports as INTEGER 0/1. */
+    /** أسماء حقول Boolean كما تظهر على السلك (مخزّنة لكل كيان). */
+    private fun booleanWireFields(clazz: Class<*>): Set<String> = booleanWireFieldsCache.getOrPut(clazz) {
+        generateSequence(clazz) { it.superclass }
+            .takeWhile { it != Any::class.java }
+            .flatMap { it.declaredFields.asSequence() }
+            .filter { field ->
+                field.type == Boolean::class.javaPrimitiveType ||
+                    field.type == Boolean::class.javaObjectType
+            }
+            .map { field ->
+                field.getAnnotation(SerializedName::class.java)?.value ?: field.name
+            }
+            .toSet()
+    }
+
+    /**
+     * ✅ (2026-10-06) درع الأعلام: علم غير قابل للـnull غاب عن الصفّ الواصل
+     * (عمود جديد ليس في مخطط D1 المنشور، أو ردّ ناقص) كان يصل `null` إلى
+     * Room فيرفض الصف كاملاً لقيد NOT NULL — فيُعزل صف سليم ويظهر العطل
+     * «لا تُسحب الجداول». الافتراضي: المُثبت في `SyncWireFields.entityDefaults`
+     * (مثل `booking_price_adjustments.is_active` = true و`inventory_items.is_active`
+     * = true)، وإلا `false` (وهو افتراض مُنشئ الكيان في كل الأعلام المتبقية).
+     * الأعلام الواردة صريحةً لا تُلمس.
+     */
+    private fun shieldMissingBooleans(mapped: MutableMap<String, Any>, clazz: Class<*>, entity: String) {
+        val pinned = com.marina.marina.data.sync.SyncWireFields.entityDefaults[entity].orEmpty()
+        for (name in booleanWireFields(clazz)) {
+            if (mapped[name] != null) continue
+            mapped[name] = pinned[name] as? Boolean ?: false
+        }
+    }
+
     private fun normalizeBooleanWireFields(mapped: MutableMap<String, Any>, clazz: Class<*>) {
-        val fieldNames = booleanWireFieldsCache.getOrPut(clazz) {
+        val fieldNames = booleanWireFields(clazz)
+        fieldNames.forEach { name ->
+            val wireValue = mapped[name] ?: return@forEach
             generateSequence(clazz) { it.superclass }
                 .takeWhile { it != Any::class.java }
                 .flatMap { it.declaredFields.asSequence() }
@@ -287,10 +341,12 @@ class SyncIngestorRegistry @Inject constructor(
         var failed = 0
         var firstError: String? = null
         val deferred = mutableListOf<DeferredRecord>()
+        val failures = mutableListOf<DeferredRecord>()
+        val touched = mutableSetOf<String>()
 
         db.withTransaction {
             for (record in records) {
-                val entity = record["_entity"] as? String ?: "unknown"
+                val entity = resolveEntity(record) ?: "unknown"
                 val uuid = record["local_uuid"] as? String ?: ""
                 val outcome = try {
                     applyRecord(record).also { result ->
@@ -306,6 +362,7 @@ class SyncIngestorRegistry @Inject constructor(
                 }
                 if (outcome is ApplyOutcome.Failed) {
                     persistQuarantine(entity, uuid, record, outcome.error)
+                    failures += DeferredRecord(entity = entity, record = record)
                 } else if (uuid.isNotBlank()) {
                     db.syncQuarantineDao().remove(entity, "uuid:$uuid")
                 }
@@ -313,10 +370,13 @@ class SyncIngestorRegistry @Inject constructor(
                     db.pendingSyncLinksDao().remove(entity, uuid)
                 }
                 when (outcome) {
-                    is ApplyOutcome.Applied -> applied++
+                    is ApplyOutcome.Applied -> {
+                        applied++
+                        touched += entity
+                    }
                     is ApplyOutcome.Skipped -> skipped++
                     is ApplyOutcome.Deferred -> deferred += DeferredRecord(
-                        entity = record["_entity"] as? String ?: "unknown",
+                        entity = resolveEntity(record) ?: "unknown",
                         record = record
                     )
                     is ApplyOutcome.Failed -> {
@@ -330,7 +390,7 @@ class SyncIngestorRegistry @Inject constructor(
         if (salaryOrphans > 0) {
             Log.w("SyncIngestorRegistry", "Preserved $salaryOrphans unresolved salary records in durable inbox; no rows deleted")
         }
-        return PullApplyReport(applied, skipped, failed, firstError, deferred)
+        return PullApplyReport(applied, skipped, failed, firstError, deferred, touched, failures)
     }
 
     private suspend fun persistQuarantine(
@@ -342,7 +402,20 @@ class SyncIngestorRegistry @Inject constructor(
             val key = if (uuid.isNotBlank()) "uuid:$uuid" else "sha256:" +
                 MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(Charsets.UTF_8))
                     .joinToString("") { "%02x".format(it) }
-            db.syncQuarantineDao().put(SyncQuarantineEntity(entity, key, payload, reason))
+            val previous = db.syncQuarantineDao().getAll().firstOrNull { it.entity == entity && it.recordKey == key }
+            db.syncQuarantineDao().put(
+                SyncQuarantineEntity(
+                    entity = entity,
+                    recordKey = key,
+                    payload = payload,
+                    reason = reason,
+                    // الصف نفسه يُعاد عزله كل دورة يفشل فيها: العدّاد يتصاعد
+                    // (نظير `accountBlocked`) والعمر لا يُصفَّر كي يبقى أساس
+                    // إخلاء السقف الأقدم-أولاً صادقاً.
+                    attempts = (previous?.attempts ?: 0) + 1,
+                    firstSeen = previous?.firstSeen?.takeIf { it > 0L } ?: nowSeconds()
+                )
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -352,16 +425,78 @@ class SyncIngestorRegistry @Inject constructor(
         }
     }
 
+    /**
+     * محاسبة الحجر بعد دورة فيها فشل تطبيق — نظير `accountBlocked` +
+     * `evictQuarantineOverflow` في `pull_quarantine.dart`: تُبقي السجل داخل
+     * السقف بإخلاء الأقدم عمراً.
+     *
+     * العدّاد نفسه يُدار في [persistQuarantine] (يزيد مع كل تطبيق فاشل: صفحة
+     * سحب أو محاولة شفاء). وفشل الشفاء قد يزيده مرتين في الدورة نفسها حين
+     * تعود الصفحة بالصف ذاته، ولا يضرّ: العدّاد للتشخيص فقط، والسقف يُحسب من
+     * العمر (`firstSeen`) لا من العدّاد.
+     *
+     * هذا هو ما يمنع عطل «صف واحد يجمّد الدلتا كلها»: الصف يُعزل، والمؤشر
+     * يتقدم، وبقية الجداول تُسحب.
+     *
+     * @return عدد السجلات المُخلَّاة بالسقف.
+     */
+    suspend fun enforceQuarantineCap(cap: Int = PULL_QUARANTINE_CAP): Int {
+        val all = db.syncQuarantineDao().oldestFirst()
+        if (all.size <= cap) return 0
+        var evicted = 0
+        for (row in all.take(all.size - cap)) {
+            db.syncQuarantineDao().remove(row.entity, row.recordKey)
+            evicted++
+        }
+        return evicted
+    }
+
+    /**
+     * محاولات شفاء دورية من الحمولة المحفوظة — نظير `collectHealCandidates()`
+     * في Dart: كل دورة تُعيد تطبيق ما عُزل من حمولته الكاملة (بلا إعادة سحب
+     * صفحة واحدة). سبب الفشل قد يزول بين الدورات (وصول الأب، إصلاح قيمة على
+     * الخادم، أو **ترقية التطبيق** التي تضيف عموداً/تحويلاً كان ناقصاً).
+     *
+     * فشل الشفاء يُعيد كتابة الصف نفسه (بزيادة العدّاد، وبلا مساس بـ
+     * `firstSeen`) ولا يُصعِّد فشل الدورة: الصف مُعزول أصلاً والمدير لا
+     * يجمّد المؤشر من أجله.
+     *
+     * @return تقرير يطابق عقد بقية مسارات التطبيق.
+     */
+    suspend fun healQuarantinedBatch(limit: Int = PULL_QUARANTINE_HEAL_LIMIT): PullApplyReport {
+        val candidates = db.syncQuarantineDao().listForHeal(limit)
+        if (candidates.isEmpty()) return PullApplyReport(0, 0, 0, null, emptyList(), emptySet())
+        val type = object : TypeToken<Map<String, Any>>() {}.type
+        val records = candidates.mapNotNull { row ->
+            runCatching { quarantineGson.fromJson<Map<String, Any>>(row.payload, type) }.getOrNull()
+        }
+        if (records.isEmpty()) return PullApplyReport(0, 0, 0, null, emptyList(), emptySet())
+        // تطبيق واحد: النجاح يُزيل الصف (من داخل ingestPage)، والفشل يُبقي
+        // العدّاد — لكن بلا تصعيد (محاولة الشفاء ليست دورة حجب جديدة).
+        val report = ingestPage(records)
+        return report
+    }
+
+    private fun nowSeconds(): Long = System.currentTimeMillis() / 1_000L
+
     /** Retry across process restarts; parent/child chains may require more than one pass. */
     suspend fun retryPendingLinks(): PullApplyReport {
         var total = 0
+        val touched = mutableSetOf<String>()
         while (true) {
             val pending = db.pendingSyncLinksDao().getAll()
-            if (pending.isEmpty()) return PullApplyReport(total, 0, 0, null, emptyList())
+            if (pending.isEmpty()) {
+                return PullApplyReport(total, 0, 0, null, emptyList(), touched)
+            }
             val type = object : TypeToken<Map<String, Any>>() {}.type
             val report = ingestPage(pending.map { Gson().fromJson<Map<String, Any>>(it.payload, type) })
             total += report.applied
-            if (report.hasFailures || report.applied == 0) return report.copy(applied = total)
+            // كيانات المؤجَّل التي حُلّت في هذه المرورات تُحسب كتطبيق فعلي
+            // (نظير onApplied في _retryDeferredRecords الدارتي).
+            touched += report.touched
+            if (report.hasFailures || report.applied == 0) {
+                return report.copy(applied = total, touched = touched)
+            }
         }
     }
 
@@ -374,8 +509,10 @@ class SyncIngestorRegistry @Inject constructor(
     // ─── تطبيق سجل واحد ─────────────────────────────────────────
 
     private suspend fun applyRecord(record: Map<String, Any>): ApplyOutcome {
-        val entity = (record["_entity"] as? String)?.takeIf { it.isNotBlank() }
-            ?: return ApplyOutcome.Failed("missing_entity")
+        // وسم `_entity` من الخادم، وإن غاب فبصمة الأعمدة (نظير
+        // `record['_entity'] ?? _detectEntity(record)` في Dart) — قديم
+        // الـWorker لا يوسم السجلات، وكان غياب الوسم هنا يُعزل صفاً سليماً.
+        val entity = resolveEntity(record) ?: return ApplyOutcome.Failed("missing_entity")
         if (entityClass(entity) == null) return ApplyOutcome.Failed("unsupported_entity: $entity")
         if ((record["local_uuid"] as? String).isNullOrBlank()) {
             return ApplyOutcome.Failed("missing_local_uuid: $entity")
@@ -387,6 +524,19 @@ class SyncIngestorRegistry @Inject constructor(
         val mapped = record.toMutableMap()
         mapped.remove("_entity")
         (record["id"] as? Number)?.let { mapped["server_id"] = it.toLong() }
+        com.marina.marina.data.sync.SyncWireFields.applyLocalAliases(entity, mapped)
+        // ✅ (2026-10-06) افتراضيات الحقول الناقصة/الفارغة — نظير `?? fallback`
+        // في محوّلات Dart. بلا هذا: حقل Kotlin غير قابل للـnull يصل null
+        // (Gson لا يستدعي قيم المُنشئ) ⇒ Room يرفض الصف كاملاً لقيد NOT NULL
+        // ⇒ عزل صف سليم ⇒ «لا تُسحب الجداول ولا الحقول».
+        com.marina.marina.data.sync.SyncWireFields.applyWireDefaults(entity, mapped)
+        // ✅ (2026-10-06) توحيد وحدة الطوابع: الثواني هي العقد (Dart `Time.nowEpoch`
+        // + ختم الـ Worker)، وأي طابع ميلي (صف D1 مسموم من ناشر قديم) يُردّ
+        // لثوانٍ قبل قرار «آخر كتابة تفوز» وقبل الخزن — وإلا بقي الصف يرفض
+        // تحديثات الخادم إلى الأبد (1.77e12 > 1.76e9 دائماً).
+        com.marina.marina.data.sync.SyncEpochs.normalizeWireEpochFields(mapped)
+        // الحارس نفسه أعلى الدالة يمنع null هنا، لكن نُبقيه صريحاً بلا تعقيد.
+        entityClass(entity)?.let { shieldMissingBooleans(mapped, it, entity) }
         applyBaseDefaults(mapped)
         // A server tombstone does not need its parent to exist locally. Apply it
         // before resolving required references so delete-wins cannot get stuck.
@@ -470,7 +620,13 @@ class SyncIngestorRegistry @Inject constructor(
                         asLong(mapped["employee_link_cleared"]) == 1L ||
                         mapped["clear_employee_link"] == true ||
                         asLong(mapped["clear_employee_link"]) == 1L
-                mapped.remove("employee_link_cleared")
+                // ✅ (2026-10-06) يُحفظ العلم في العمود المحلي الجديد بدل
+                // إزالته: بلا حفظه كانت إعادة سحب الصف نفسه تربط الموظف
+                // القديم مجدداً (و`clear_employee_link` اسم قديم لا عمود له).
+                // لاصق: حمولة لا تحمل العلم ولا ربطاً جديداً لا تمسح فصلاً
+                // سابقاً، وحمولة تحمل `employee_uuid` جديداً ترفعه (إعادة ربط).
+                mapped["employee_link_cleared"] =
+                    explicitUnlink || (incomingUuid == null && existing?.employeeLinkCleared == true)
                 mapped.remove("clear_employee_link")
                 when {
                     explicitUnlink -> {
@@ -613,8 +769,25 @@ class SyncIngestorRegistry @Inject constructor(
                     )
                     ApplyOutcome.Applied
                 }
-                remoteLastModified >= existing.lastModified -> {
+                // ✅ مقارنة بوحدة موحّدة: صف محلي قديم الطابع (ميلي ثانية من
+                // بناء سابق) لا يجوز أن يفوز على تحديث خادمي أحدث زمنياً.
+                (com.marina.marina.data.sync.SyncEpochs.toSeconds(remoteLastModified) ?: 0L) >=
+                    (com.marina.marina.data.sync.SyncEpochs.toSeconds(existing.lastModified) ?: 0L) -> {
                     // استبدال الصف المحلي نفسه (REPLACE بذات المفتاح).
+                    store(entity, remote.copyWithId(existing.id))
+                    ApplyOutcome.Applied
+                }
+                // ✅ (2026-10-07) حارس انزياح الساعة — نظير Dart (M3 في
+                // `cloudflare_sync_manager.dart` l.3014-3037): الطابع المحلي
+                // الأحدث **لا يعني** أن المحتوى أحدث؛ ساعة الجهاز قد تكون
+                // متقدمة. الخادم يختم `version` بنفسه عند كل كتابة
+                // (`database.ts` l.1285-1293: `existing.version + 1` — لا يقبل
+                // نسخة العميل)، فارتفاع الوارد دليل مستقل على أنه الأحدث.
+                // بلا هذا الحارس: جهاز ساعته متقدمة يُسقط كل وارد بينما مؤشر
+                // السحب يتقدم فوقه ⇒ **فقد دائم بلا أثر** (الصف لا يعود في أي
+                // دلتا قادمة). التطابق مع Dart: `remoteVersion > localVersion`
+                // ⇒ مضيّ بالوارد، وإلا تخطٍّ (المحلي يفوز).
+                remote.version > existing.version -> {
                     store(entity, remote.copyWithId(existing.id))
                     ApplyOutcome.Applied
                 }
@@ -712,6 +885,105 @@ class SyncIngestorRegistry @Inject constructor(
         "inventory_transactions" -> "inventory_transactions"
         "blacklist", "blacklist_entries" -> "blacklist_entries"
         else -> null
+    }
+
+    companion object {
+        /**
+         * الكيان الفعلي للسجل: وسم `_entity` من الخادم إن وُجد (وهو مسار كل
+         * سجل يرسله Worker حديث)، وإلا بصمة الأعمدة عبر [inferEntityFromRecord].
+         */
+        fun resolveEntity(record: Map<String, Any>): String? =
+            (record["_entity"] as? String)?.takeIf { it.isNotBlank() }
+                ?: inferEntityFromRecord(record)
+
+        /**
+         * استنتاج الكيان من بصمة أعمدة السجل — نظير `_detectEntity`
+         * (`cloudflare_sync_manager.dart:3798`@`ac283c6c`، الفرع المرجعي
+         * `feat/cloudflare-sync-execution`) ويُستعمل **فقط** عند غياب وسم
+         * `_entity` عن السجل (نشر Worker أقدم من إضافة الوسم، أو سجل مقطوع).
+         *
+         * ⚠️ منقول بأمانة عن Dart: نفس الترتيب ونفس الأزواج ونفس أسماء
+         * `snake_case` — ولأن الخادم يرسل snake_case دائماً لا تُفحص أسماء
+         * camelCase المقابلة (فحصها هنا كان سيخالف المرجع بدل أن يطابقه).
+         * السجل الذي لا يطابق أي بصمة يُرجع `null` — والفرق الوحيد المقصود
+         * عن Dart أن مستدعينا يُعزله بأنه `missing_entity` بدل إسقاطه صامتاً
+         * (لا نفقد حمولة؛ انظر `android-pull-quarantine.md`).
+         */
+        fun inferEntityFromRecord(record: Map<String, Any>): String? {
+            fun has(vararg keys: String) = keys.all { record.containsKey(it) }
+            return when {
+                // Core hotel entities
+                has("room_number", "price") -> "rooms"
+                has("guest_name", "checkin_date") -> "bookings"
+                has("amount", "payment_method") -> "payments"
+                has("expense_type", "description") -> "expenses"
+                has("basic_salary", "position") -> "employees"
+                has("debt_reason", "remaining_amount") -> "debts"
+
+                // Booking-related
+                has("final_rate", "hotel_day_key") -> "booking_nights"
+                has("adjustment_type", "effective_hotel_day") -> "booking_price_adjustments"
+                has("note_text", "alert_type") -> "booking_notes"
+                has("guest_name", "id_number") -> "guest_infos"
+
+                // Shift & cash
+                has("shift_date", "is_read") -> "shift_notes"
+                has("transaction_type", "transaction_time") -> "cash_transactions"
+
+                // Salary
+                has("cycle_key", "expected_amount") -> "salary_cycles"
+                has("payment_date_iso", "cycle_id") -> "salary_payments"
+                has("withdrawal_type", "amount") -> "salary_withdrawals"
+                has("previous_cycle_start", "new_cycle_start") -> "salary_carry_over_logs"
+
+                // Adjustments & audit
+                has("target_type", "target_uuid") -> "price_adjustments"
+                has("operation_type", "entity_type") -> "audit_logs"
+                has("void_reason", "voided_by") -> "payment_voids"
+
+                // Inventory / devices / blacklist / app_users
+                has("minimum_quantity") -> "inventory_items"
+                has("movement_type", "balance_after") -> "inventory_transactions"
+                has("device_name") -> "devices"
+                has("reported_by") -> "blacklist"
+                has("username", "credentials_version") -> "app_users"
+
+                else -> null
+            }
+        }
+
+        /**
+         * خريطة الكيانات المزامَنة كلها → جدول Room المحلي — **مصدر حقيقة
+         * واحد** يستعمله اكتشاف «الجداول المسحوبة» في شاشة حالة المزامنة
+         * (`SyncHealthRepository`)، بعد أن كانت الشاشة تعرض 8 جداول ثابتة
+         * من أصل 24 فلا يرى المستخدم بقية الجداول ولا سجلاتها.
+         */
+        val SYNC_ENTITY_TABLES: Map<String, String> = mapOf(
+            "rooms" to "rooms",
+            "bookings" to "bookings",
+            "payments" to "payments",
+            "expenses" to "expenses",
+            "employees" to "employees",
+            "debts" to "debts",
+            "booking_notes" to "booking_notes",
+            "booking_nights" to "booking_nights",
+            "booking_price_adjustments" to "booking_price_adjustments",
+            "guest_infos" to "guest_infos",
+            "shift_notes" to "shift_notes",
+            "cash_transactions" to "cash_transactions",
+            "salary_cycles" to "salary_cycles",
+            "salary_payments" to "salary_payments",
+            "salary_withdrawals" to "salary_withdrawals",
+            "salary_carry_over_logs" to "salary_carry_over_logs",
+            "price_adjustments" to "price_adjustments",
+            "audit_logs" to "audit_logs",
+            "payment_voids" to "payment_voids",
+            "inventory_items" to "inventory_items",
+            "inventory_transactions" to "inventory_transactions",
+            "app_users" to "app_users",
+            "devices" to "devices",
+            "blacklist" to "blacklist_entries"
+        )
     }
 
     /** الجلب بـ local_uuid — ثم بالمفتاح الطبيعي لليالي (دمج 398 ليلة). */

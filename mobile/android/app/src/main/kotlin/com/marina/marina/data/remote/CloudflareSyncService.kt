@@ -38,7 +38,20 @@ class CloudflareSyncService @Inject constructor(
 
         /** مهلة فحص ping — نفس 8s في _probeCustomEndpoint بـ Dart. */
         private const val PING_TIMEOUT_MS = 8_000L
+
+        /** القيمة التي يفهمها الـ Worker (`=== '1'`) — نفس ما ترسله Dart. */
+        const val FLAG_01 = "1"
     }
+
+    /**
+     * أعلام الخادم نصياً كما يفعل Flutter بالضبط: `1` عند الطلب و`null`
+     * عند عدمه. Dart ترسل `'1'` (cloudflare_sync_manager.dart
+     * l.2633/2634/3679) والـ Worker يفحص `=== '1'` حرفياً، وتمرير Boolean
+     * عبر Retrofit كان يُنتج `true` فتُهمل الأعلام صامتة — بما فيها
+     * tombstones_only (يُهمل حتى في الـ Worker الحالي بفرع أندرويد:
+     * worker/src/sync.ts l.220-221) وinclude_remaining وnormalize_timestamps.
+     */
+    private fun Boolean?.flag01(): String? = if (this == true) FLAG_01 else null
 
     /** كائن المستخدم من آخر دخول ناجح (id/username/role) — يستخدمه AuthRepository
      * لبناء هوية RBAC الحقيقية (Dart auth_local_store.dart l.355-412). */
@@ -199,12 +212,14 @@ class CloudflareSyncService @Inject constructor(
         limit: Int = CloudflareConfig.DELTA_PULL_BATCH_SIZE,
         excludeDevice: String? = null,
         includeRemaining: Boolean? = null,
-        normalizeTimestamps: Boolean? = null
+        normalizeTimestamps: Boolean? = null,
+        tombstonesOnly: Boolean = false
     ): Result<WorkerPullResponse> = withContext(Dispatchers.IO) {
         try {
             val response = api.pull(
                 cursor, limit, excludeDevice,
-                includeRemaining, normalizeTimestamps
+                includeRemaining.flag01(), normalizeTimestamps.flag01(),
+                if (tombstonesOnly) FLAG_01 else null
             ).execute()
             val body = response.body()
             when {
@@ -316,6 +331,16 @@ class SyncPreferences @Inject constructor(
 
         /** ✅ (2026-09-25) علم تطبيع الطوابع الخادمي (normalize_timestamps مرة واحدة). */
         private const val KEY_TS_NORMALIZATION_DONE = "cf_timestamp_normalization_done"
+
+        /**
+         * ✅ مسح الحذفيات التاريخي لمرة واحدة — نفس مفتاحي Dart
+         * (`_kTombstoneSweepDoneKey` / `_kTombstoneSweepCursorKey`،
+         * cloudflare_sync_manager.dart l.277-296): العلم يُضبط فقط على
+         * اكتمال مسح ناجح، والمؤشر يُحفظ بعد كل صفحة مطبَّقة كي يستأنف
+         * فشل شبكي من حيث توقف بدل إعادة المسح من الصفر.
+         */
+        private const val KEY_TOMBSTONE_SWEEP_DONE = "cf_tombstone_sweep_done"
+        private const val KEY_TOMBSTONE_SWEEP_CURSOR = "cf_tombstone_sweep_cursor"
     }
 
     private val syncErrorHistoryGson = Gson()
@@ -429,6 +454,44 @@ class SyncPreferences @Inject constructor(
 
     fun getLastPullCursor(): Long {
         return preferencesManager.getLong(KEY_LAST_PULL_CURSOR, 0L)
+    }
+
+    // ─── مسح الحذفيات التاريخي (نظير _sweepHistoricalTombstones) ───
+
+    fun isTombstoneSweepDone(): Boolean =
+        preferencesManager.getBoolean(KEY_TOMBSTONE_SWEEP_DONE, false)
+
+    fun setTombstoneSweepDone(done: Boolean) {
+        preferencesManager.putBoolean(KEY_TOMBSTONE_SWEEP_DONE, done)
+    }
+
+    /** مؤشر استئناف المسح — يبدأ من صفر ويُحفظ بعد كل صفحة مطبَّقة. */
+    fun getTombstoneSweepCursor(): Long =
+        preferencesManager.getLong(KEY_TOMBSTONE_SWEEP_CURSOR, 0L)
+
+    fun saveTombstoneSweepCursor(cursor: Long) {
+        preferencesManager.saveLong(KEY_TOMBSTONE_SWEEP_CURSOR, cursor)
+    }
+
+    /** تنظيف مؤشر الاستئناف بعد اكتمال المسح (العلم وحده يكفي بعدها). */
+    fun clearTombstoneSweepCursor() {
+        preferencesManager.saveLong(KEY_TOMBSTONE_SWEEP_CURSOR, 0L)
+    }
+
+    /**
+     * إعادة تعيين المؤشر المسموم إلى سحب كامل نظيف — نظير كتلة Dart
+     * (l.553-575 وl.2534-2552): تصفير المؤشر + إسقاط علامة full sync +
+     * طلب إعادة لعب كاملة في الدورة القادمة. الكتابة commit متزامن لأن
+     * القرار حارس سلامة بيانات لا تحسين.
+     */
+    fun resetPullCursorForFreshReplay() {
+        preferencesManager.commitValues(
+            mapOf(
+                KEY_LAST_PULL_CURSOR to 0L,
+                KEY_FULL_SYNC_COMPLETE to false,
+                KEY_FULL_REPLAY_PENDING to true
+            )
+        )
     }
 
     fun isFullReplayPending(): Boolean = preferencesManager.getBoolean(KEY_FULL_REPLAY_PENDING, false)

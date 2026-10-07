@@ -69,6 +69,10 @@ interface PaymentsDao {
     @Query("SELECT * FROM payments WHERE booking_local_id = :bookingId AND deleted_at IS NULL ORDER BY payment_date DESC")
     fun getByBooking(bookingId: Long): Flow<List<PaymentEntity>>
 
+    /** نفس [getByBooking] بلا تدفق: تُقرأ داخل معاملة إعادة بناء الحقول المشتقة. */
+    @Query("SELECT * FROM payments WHERE booking_local_id = :bookingId AND deleted_at IS NULL ORDER BY payment_date DESC")
+    suspend fun getByBookingOnce(bookingId: Long): List<PaymentEntity>
+
     @Query("SELECT * FROM payments WHERE room_number = :roomNumber AND deleted_at IS NULL ORDER BY payment_date DESC")
     fun getByRoom(roomNumber: String): Flow<List<PaymentEntity>>
 
@@ -78,11 +82,11 @@ interface PaymentsDao {
     @Update
     suspend fun update(payment: PaymentEntity)
 
-    @Query("UPDATE payments SET is_voided = 1, voided_at = :voidedAt, voided_by = :voidedBy, void_reason = :voidReason, is_immutable = 1, version = version + 1, updated_at = :updatedAt WHERE id = :id")
-    suspend fun voidPayment(id: Long, voidedAt: Long, voidedBy: String, voidReason: String, updatedAt: Long): Int
+    @Query("UPDATE payments SET is_voided = 1, voided_at = :voidedAt, voided_by = :voidedBy, void_reason = :voidReason, is_immutable = 1, version = version + 1, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
+    suspend fun voidPayment(id: Long, voidedAt: Long, voidedBy: String, voidReason: String, updatedAt: Long, lastModified: Long): Int
 
-    @Query("UPDATE payments SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
-    suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long): Int
+    @Query("UPDATE payments SET deleted_at = :deletedAt, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
+    suspend fun softDelete(id: Long, deletedAt: Long, updatedAt: Long, lastModified: Long): Int
     @Query("SELECT * FROM payments WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): PaymentEntity?
 

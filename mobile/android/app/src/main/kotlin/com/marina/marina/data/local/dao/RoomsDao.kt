@@ -42,9 +42,16 @@ interface RoomsDao {
     @Query("SELECT * FROM rooms WHERE local_uuid = :localUuid LIMIT 1")
     suspend fun getByLocalUuid(localUuid: String): RoomEntity?
 
-    /** Targeted status update used by the Dashboard room-options dialog. */
+    /**
+     * Targeted status update used by the Dashboard room-options dialog.
+     *
+     * ✅ (2026-10-06) يرفع `version` أيضاً — نظير `updateById`/`updateByNumber`
+     * في `rooms_dao.dart` (`version: Value(existing.version + 1)`)، و`version`
+     * هو كاسر التعادل الوحيد في قرار الـ Worker (`incomingVersionWins`).
+     * والطوابع تُمرَّر بالثواني من المستودع (عقد `Time.nowEpoch`).
+     */
     @Query(
-        "UPDATE rooms SET status = :status, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id"
+        "UPDATE rooms SET status = :status, updated_at = :updatedAt, last_modified = :lastModified, version = version + 1 WHERE id = :id"
     )
     suspend fun updateStatus(id: Long, status: String, updatedAt: Long, lastModified: Long): Int
 

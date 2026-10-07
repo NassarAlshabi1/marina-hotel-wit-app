@@ -270,9 +270,19 @@ private fun DashboardLiveHeader(viewModel: DashboardViewModel) {
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val pendingChanges by viewModel.pendingChanges.collectAsStateWithLifecycle()
     val automaticStatus by viewModel.automaticSyncStatus.collectAsStateWithLifecycle()
+    val realtimeState by viewModel.realtimeState.collectAsStateWithLifecycle()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         DashboardHeader(syncState, pendingChanges)
         Text(automaticStatus.message, style = MaterialTheme.typography.bodySmall)
+        // شارة Realtime: تغييرات وصلت من أجهزة أخرى وسُحب حدثها (السحب
+        // التلقائي يجري خلال ثوانٍ — النص إعلامي لا زر إضافي).
+        if (realtimeState.hasRemoteChanges && realtimeState.enabled) {
+            Text(
+                text = "⬇️ تغييرات جديدة من أجهزة أخرى (${realtimeState.pendingRemoteChanges}) — جارٍ السحب خلال ثوانٍ",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF2196F3)
+            )
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             DashboardSyncAction(
                 text = "سحب التغييرات (Delta)", icon = Icons.Filled.CloudDownload,

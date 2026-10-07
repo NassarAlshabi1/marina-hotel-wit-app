@@ -38,6 +38,17 @@ data class InventoryItemEntity(
     @ColumnInfo(name = "minimum_quantity")
     val minimumQuantity: Double = 0.0,
 
+    /**
+     * ✅ (2026-10-06) عمود الخادم الذي كان يُسقَط صامتاً عند السحب:
+     * `worker/schema.sql → inventory_items.is_active` (نظير Flutter Drift:
+     * `isActive` مع `@ColumnInfo(name: 'is_active')`). كان الدفع يكتبه إلى
+     * `current_quantity` والاسم مختلف، فكانت الكمية المسحوبة تُهمل.
+     */
+    @SerializedName("is_active")
+    // defaultValue مطابق لـ MIGRATION_75_76 (اتساق الملف المُرقّى مع النسخة الجديدة).
+    @ColumnInfo(name = "is_active", defaultValue = "1")
+    val isActive: Boolean = true,
+
     @SerializedName("local_uuid")
     @ColumnInfo(name = "local_uuid")
     override val localUuid: String = "",

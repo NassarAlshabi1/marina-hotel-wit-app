@@ -33,11 +33,22 @@ interface InventoryDao {
     @Update
     suspend fun updateItem(item: InventoryItemEntity)
 
-    @Query("UPDATE inventory_items SET deleted_at = :deletedAt, updated_at = :updatedAt WHERE id = :id")
-    suspend fun softDeleteItem(id: Long, deletedAt: Long, updatedAt: Long): Int
+    @Query("UPDATE inventory_items SET deleted_at = :deletedAt, updated_at = :updatedAt, last_modified = :lastModified WHERE id = :id")
+    suspend fun softDeleteItem(id: Long, deletedAt: Long, updatedAt: Long, lastModified: Long): Int
 
-    @Query("UPDATE inventory_items SET current_quantity = :newQuantity, updated_at = :updatedAt WHERE id = :id")
-    suspend fun updateQuantity(id: Long, newQuantity: Double, updatedAt: Long): Int
+    /**
+     * كتابة الرصيد بعد حركة — نظير `InventoryItemsCompanion` في Dart
+     * (`inventory_repository.dart` l.133-146): `updatedAt/lastModified = now`
+     * (ثوانٍ) و`version = item.version + 1`. كان هنا `updated_at` بالميلي بلا
+     * `last_modified` ولا رفع نسخة ⇒ تلويث وحدة + صف لا يرى تحديثاته الواردة
+     * ولا يظهر تعديله في LWW.
+     */
+    @Query(
+        "UPDATE inventory_items SET current_quantity = :newQuantity, updated_at = :updatedAt, " +
+            "last_modified = :lastModified, last_modified_epoch = :lastModified, " +
+            "version = version + 1 WHERE id = :id"
+    )
+    suspend fun updateQuantity(id: Long, newQuantity: Double, updatedAt: Long, lastModified: Long): Int
 
     // -- Transactions ---------------------------------------------------------
 
@@ -59,7 +70,10 @@ interface InventoryDao {
     @Transaction
     suspend fun insertTransactionAndUpdateBalance(tx: InventoryTransactionEntity, newQuantity: Double) {
         insertTransaction(tx)
-        updateQuantity(tx.itemId, newQuantity, System.currentTimeMillis())
+        // الطابع من صف الحركة نفسه (ثوانٍ، يختمه المستودع) — لا ساعة ثانية هنا؛
+        // والاحتياطي يحوّل الميلي إلى ثوانٍ بدل كتابته خاماً.
+        val stamp = tx.updatedAt.takeIf { it > 0L } ?: (System.currentTimeMillis() / 1_000L)
+        updateQuantity(tx.itemId, newQuantity, updatedAt = stamp, lastModified = stamp)
     }
 
     // ✅ (2026-09-24) سحب المزامنة: إيجاد الصف المحلي بمفتاح local_uuid

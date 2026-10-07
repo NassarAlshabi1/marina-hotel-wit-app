@@ -13,6 +13,7 @@ import com.marina.marina.domain.model.PaymentVoid
 import com.marina.marina.domain.repository.PaymentsRepository
 import com.marina.marina.domain.session.PaymentSessionContext
 import com.marina.marina.domain.util.HotelTimeEngine
+import com.marina.marina.data.sync.SyncEpochs
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -38,7 +39,8 @@ class PaymentsRepositoryImpl @Inject constructor(
         paymentsDao.getByBooking(bookingId).map { entities -> entities.map { it.toDomain() } }
 
     override suspend fun insert(payment: Payment): Long {
-        val now = System.currentTimeMillis()
+        val nowMillis = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         // Session stamping — ported from the Flutter `PaymentsRepository.create`
         // contract: a payment requires an active user session and is attributed
         // to it (received_by_user_id / received_by_name / received_session_uuid /
@@ -49,7 +51,7 @@ class PaymentsRepositoryImpl @Inject constructor(
         val sessionUuid = PaymentSessionContext.sessionUuid
         val prepared = payment.copy(
             localUuid = payment.localUuid.ifBlank { UUID.randomUUID().toString() },
-            paymentDate = payment.paymentDate.ifBlank { HotelTimeEngine.formatIso(now) },
+            paymentDate = payment.paymentDate.ifBlank { HotelTimeEngine.formatIso(nowMillis) },
             hotelDayKey = payment.hotelDayKey
                 ?: payment.paymentDate.takeIf { it.isNotBlank() }
                     ?.let { HotelTimeEngine.parseDate(it) }
@@ -62,7 +64,7 @@ class PaymentsRepositoryImpl @Inject constructor(
             createdAt = if (payment.createdAt == 0L) now else payment.createdAt,
             updatedAt = now
         )
-        val id = paymentsDao.insert(prepared.toEntity())
+        val id = paymentsDao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("payments", "insert", prepared.localUuid, prepared)
         return id
     }
@@ -74,10 +76,13 @@ class PaymentsRepositoryImpl @Inject constructor(
             val newBooking = if (moved && payment.bookingLocalId != null) {
                 requireNotNull(db.bookingsDao().getById(payment.bookingLocalId)) { "الحجز غير موجود" }
             } else null
+            val nowSeconds = SyncEpochs.nowSeconds()
             val prepared = payment.copy(localUuid = old.localUuid, serverId = old.serverId,
-                createdAt = old.createdAt, updatedAt = System.currentTimeMillis())
+                createdAt = old.createdAt, updatedAt = nowSeconds)
             // Keep fields absent from the domain model (UUID caches, audit and sync metadata).
             paymentsDao.update(old.copy(
+                lastModified = nowSeconds,
+                lastModifiedEpoch = nowSeconds,
                 bookingLocalId = prepared.bookingLocalId, roomNumber = prepared.roomNumber,
                 bookingUuidCache = if (moved) newBooking?.localUuid else old.bookingUuidCache,
                 serverBookingId = if (moved) newBooking?.serverBookingId else old.serverBookingId,
@@ -89,7 +94,7 @@ class PaymentsRepositoryImpl @Inject constructor(
                 voidedBy = prepared.voidedBy, voidReason = prepared.voidReason,
                 receivedByName = prepared.receivedByName, receivedByUserId = prepared.receivedByUserId,
                 receivedSessionUuid = prepared.receivedSessionUuid, receivedByCloudId = prepared.receivedByCloudId,
-                updatedAt = prepared.updatedAt, deletedAt = prepared.deletedAt, version = prepared.version
+                updatedAt = prepared.updatedAt, deletedAt = prepared.deletedAt, version = old.version + 1
             ))
             outboxRepository.enqueueObject("payments", "update", prepared.localUuid, prepared)
             // Refresh both sides if the payment was moved; never add a second payment.
@@ -104,7 +109,8 @@ class PaymentsRepositoryImpl @Inject constructor(
         // 1) a payment_voids audit record, 2) the payment row flip
         // (isVoided + version+1 + isImmutable), 3) outbox entries for both so
         // the void propagates to the cloud and other devices.
-        val now = System.currentTimeMillis()
+        val nowMillis = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val entity = paymentsDao.getById(id) ?: return
         val domain = entity.toDomain()
         val voidRecord = PaymentVoid(
@@ -115,13 +121,23 @@ class PaymentsRepositoryImpl @Inject constructor(
             voidReason = voidReason,
             voidedBy = voidedBy,
             voidedAt = now,
-            voidedAtIso = HotelTimeEngine.formatIso(now),
+            voidedAtIso = HotelTimeEngine.formatIso(nowMillis),
             hotelDayKey = domain.hotelDayKey ?: HotelTimeEngine.currentHotelDayKey(),
             localUuid = UUID.randomUUID().toString()
         )
-        paymentVoidsDao.insert(voidRecord.toEntity())
+        // نظير Dart (`payment_void_service.dart` l.132-152): سجل الإلغاء نفسه
+        // يُختم `createdAt/updatedAt/lastModified = nowEpoch` — كان `toEntity()`
+        // يكتبها أصفاراً (نموذج المجال بلا حقول مزامنة).
+        paymentVoidsDao.insert(
+            voidRecord.toEntity().copy(
+                createdAt = now,
+                updatedAt = now,
+                lastModified = now,
+                lastModifiedEpoch = now
+            )
+        )
         outboxRepository.enqueueObject("payment_voids", "insert", voidRecord.localUuid, voidRecord)
-        paymentsDao.voidPayment(id, voidedAt = now, voidedBy = voidedBy, voidReason = voidReason, updatedAt = now)
+        paymentsDao.voidPayment(id, voidedAt = now, voidedBy = voidedBy, voidReason = voidReason, updatedAt = now, lastModified = now)
         val voidedDomain = domain.copy(
             isVoided = true,
             voidedAt = now,
@@ -171,10 +187,10 @@ class PaymentsRepositoryImpl @Inject constructor(
     override suspend fun softDelete(id: Long) {
         // Dart `paymentsRepo.delete(id)` — soft delete + outbox merge so the
         // deletion propagates to the cloud.
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val entity = paymentsDao.getById(id) ?: return
-        paymentsDao.softDelete(id, deletedAt = now, updatedAt = now)
-        val deleted = entity.copy(deletedAt = now, updatedAt = now).toDomain()
+        paymentsDao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
+        val deleted = entity.copy(deletedAt = now, updatedAt = now, lastModified = now).toDomain()
         outboxRepository.enqueueObject("payments", "delete", deleted.localUuid, deleted)
     }
 

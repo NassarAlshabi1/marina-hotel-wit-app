@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -99,9 +100,25 @@ fun SyncHealthScreen(
                     }
                 }
                 item {
-                    HealthCard("حجم الجداول — عدد السجلات") {
-                        report.tables.forEach { (table, count) -> HealthRow(table, count) }
+                    HealthCard("الجداول المزامَنة — عدد السجلات (${report.tables.size})") {
+                        report.tables.forEach { (entity, count) ->
+                            // -1 = الجدول غير موجود محلياً (ترحيل ناقص/نسخة أقدم)
+                            HealthRow(entity, count, unknown = count < 0)
+                        }
+                        Text("كل الكيانات الـ24 التي يسحبها المحرك — لا قائمة جزئية.", style = MaterialTheme.typography.bodySmall)
                         Text("يشمل السجلات المحذوفة ناعماً؛ ليست أحجاماً بالبايت.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                if (report.quarantined > 0) {
+                    item {
+                        HealthCard("سجلات معزولة (فشل تطبيقها عند السحب)") {
+                            HealthRow("معزول", report.quarantined)
+                            Text(
+                                "تُعاد محاولة تطبيقها من حمولتها المحفوظة في كل دورة سحب، " +
+                                    "ولا توقف تقدم بقية الجداول.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
                 item {
@@ -135,9 +152,13 @@ private fun HealthCard(title: String, content: @Composable ColumnScope.() -> Uni
 }
 
 @Composable
-private fun HealthRow(label: String, count: Long) {
+private fun HealthRow(label: String, count: Long, unknown: Boolean = false) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, modifier = Modifier.weight(1f))
-        Text(count.toString(), style = MaterialTheme.typography.titleSmall)
+        Text(
+            if (unknown) "غير متاح" else count.toString(),
+            style = MaterialTheme.typography.titleSmall,
+            color = if (unknown) MaterialTheme.colorScheme.outline else Color.Unspecified
+        )
     }
 }

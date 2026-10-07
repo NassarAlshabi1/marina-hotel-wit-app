@@ -5,6 +5,7 @@ import com.marina.marina.data.mapper.toDomain
 import com.marina.marina.data.mapper.toEntity
 import com.marina.marina.domain.model.GuestInfo
 import com.marina.marina.domain.repository.GuestInfosRepository
+import com.marina.marina.data.sync.SyncEpochs
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,25 +30,35 @@ class GuestInfosRepositoryImpl @Inject constructor(
     override suspend fun getById(id: Long): GuestInfo? = dao.getById(id)?.toDomain()
 
     override suspend fun insert(guest: GuestInfo): Long {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         val prepared = guest.copy(
             localUuid = guest.localUuid.ifBlank { UUID.randomUUID().toString() },
             createdAt = if (guest.createdAt == 0L) now else guest.createdAt,
             updatedAt = now
         )
-        val id = dao.insert(prepared.toEntity())
+        val id = dao.insert(prepared.toEntity().copy(lastModified = now, lastModifiedEpoch = now))
         outboxRepository.enqueueObject("guest_infos", "insert", prepared.localUuid, prepared)
         return id
     }
 
     override suspend fun update(guest: GuestInfo) {
-        val prepared = guest.copy(updatedAt = System.currentTimeMillis())
-        dao.update(prepared.toEntity())
+        val now = SyncEpochs.nowSeconds()
+        val existing = dao.getById(guest.id)
+        val prepared = guest.copy(updatedAt = now)
+        dao.update(
+            prepared.toEntity().copy(
+                localUuid = prepared.localUuid.ifBlank { existing?.localUuid.orEmpty() },
+                createdAt = if (prepared.createdAt == 0L) (existing?.createdAt ?: now) else prepared.createdAt,
+                lastModified = now,
+                lastModifiedEpoch = now,
+                version = (existing?.version ?: 1) + 1
+            )
+        )
         outboxRepository.enqueueObject("guest_infos", "update", prepared.localUuid, prepared)
     }
 
     override suspend fun softDelete(id: Long) {
-        val now = System.currentTimeMillis()
+        val now = SyncEpochs.nowSeconds()
         dao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
     }
 }
