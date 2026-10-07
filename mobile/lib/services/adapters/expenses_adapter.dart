@@ -93,7 +93,7 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       }
     }
 
-"    // ✅ (m69 — م-3: مستهلك employeeLinkCleared) منع إحياء رابط أزاله
+    // ✅ (m69 — م-3: مستهلك employeeLinkCleared) منع إحياء رابط أزاله
     // المستخدم عمداً. الحالة المثبتة من الكود:
     //   1) المستخدم يحوّل مصروف راتب إلى نوع غير راتبي ⇒ التطبيق يرفع
     //      employeeLinkCleared=true وemployeeUuid=NULL (expenses_list).
