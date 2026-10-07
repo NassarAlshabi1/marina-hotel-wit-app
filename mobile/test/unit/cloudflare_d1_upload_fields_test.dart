@@ -1071,47 +1071,45 @@ void main() {
   //    تبويب D1 يقرأ SELECT * ويرسل أسماء الأعمدة حرفياً بلا طبقة تحويل.
   // ═══════════════════════════════════════════════════════════════════
   group('حقول عقد m69 في رفع Cloudflare D1', () {
-    test(
-      'أعمدة العقد موجودة في المخطط المحلي (شرط وصولها إلى SELECT *)',
-      () async {
-        const expected = <String, List<String>>{
-          'expenses': [
-            'expense_kind',
-            'employee_link_cleared',
-            'employee_uuid',
-            'withdrawal_uuid',
-          ],
-          'salary_payments': ['cycle_uuid', 'employee_uuid', 'cycle_id'],
-          'salary_withdrawals': ['employee_uuid', 'expense_uuid'],
-          'salary_cycles': ['employee_uuid'],
-          'salary_carry_over_logs': [
-            'employee_id',
-            'employee_uuid',
-            'from_cycle_id',
-            'to_cycle_id',
-            'carry_date',
-            'hotel_day_key',
-          ],
-          'employees': ['local_uuid'],
-        };
-        final failures = <String>[];
-        for (final entry in expected.entries) {
-          final columns = await tableColumns(entry.key);
-          for (final c in entry.value) {
-            if (!columns.contains(c)) {
-              failures.add('${entry.key}.$c');
-            }
+    test('أعمدة العقد موجودة في المخطط المحلي (شرط وصولها إلى SELECT *)',
+        () async {
+      const expected = <String, List<String>>{
+        'expenses': [
+          'expense_kind',
+          'employee_link_cleared',
+          'employee_uuid',
+          'withdrawal_uuid',
+        ],
+        'salary_payments': ['cycle_uuid', 'employee_uuid', 'cycle_id'],
+        'salary_withdrawals': ['employee_uuid', 'expense_uuid'],
+        'salary_cycles': ['employee_uuid'],
+        'salary_carry_over_logs': [
+          'employee_id',
+          'employee_uuid',
+          'from_cycle_id',
+          'to_cycle_id',
+          'carry_date',
+          'hotel_day_key',
+        ],
+        'employees': ['local_uuid'],
+      };
+      final failures = <String>[];
+      for (final entry in expected.entries) {
+        final columns = await tableColumns(entry.key);
+        for (final c in entry.value) {
+          if (!columns.contains(c)) {
+            failures.add('${entry.key}.$c');
           }
         }
-        expect(
-          failures,
-          isEmpty,
-          reason:
-              'أعمدة عقد m69 غائبة عن المخطط المحلي ⇒ لن تصل إلى D1 أبداً '
-              '(الرفع SELECT * بلا whitelist): ${failures.join('، ')}',
-        );
-      },
-    );
+      }
+      expect(
+        failures,
+        isEmpty,
+        reason:
+            'أعمدة عقد m69 غائبة عن المخطط المحلي ⇒ لن تصل إلى D1 أبداً '
+            '(الرفع SELECT * بلا whitelist): ${failures.join('، ')}',
+      );
+    });
 
     test(
       'uploadData الفعلي: expense_kind + employee_link_cleared يصلان بقيمهما',
@@ -1232,9 +1230,7 @@ void main() {
         expect(blob, contains('ADD COLUMN "expense_kind" TEXT'));
         expect(
           blob,
-          contains(
-            'ADD COLUMN "employee_link_cleared" BOOLEAN NOT NULL DEFAULT 0',
-          ),
+          contains('ADD COLUMN "employee_link_cleared" BOOLEAN NOT NULL DEFAULT 0'),
           reason: 'NOT NULL مع DEFAULT يبقى كما هو — ALTER صالح في SQLite',
         );
         final alterIdx = blob.indexOf('ADD COLUMN "expense_kind"');
