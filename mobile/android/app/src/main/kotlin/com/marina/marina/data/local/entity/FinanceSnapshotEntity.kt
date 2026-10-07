@@ -14,14 +14,23 @@ import com.google.gson.annotations.SerializedName
  * Android Room schema (Room migration 76→77).
  *
  * Read-only from API: no UPDATE, no DELETE. New snapshots are appended
- * by the manager/admin via the Worker `/api/finance/snapshots` route
- * (B2 `worker/src/finance-routes.ts`). The local copy is a mirror pulled
- * during sync so the Android app can read the latest snapshot offline
- * and compare variance against live D1 data.
+ * by the manager/admin via the Worker `/api/finance/*` routes.
+ *
+ * ⚠️ تصحيح (2026-10-07، فحص الالتزام `4df4118` — انظر
+ * `docs/merge-4df4118-review.md` F-1): هذا الجدول **مرآة مخطط فقط ولا مسار
+ * بيانات له اليوم** — القياس:
+ *  • `finance_snapshots` ليس في `ENTITY_TABLES` في الـ Worker (نطاق السحب)،
+ *    لا في فرعنا ولا في الفرع المرجعي ⇒ لا يصل منه صف عبر الدلتا أصلاً.
+ *  • `SyncIngestorRegistry` لا يعرف هذا الكيان (لا `entityClass`/`store`/
+ *    `fetchExisting`) ⇒ لو وصل صف لرُفض `unsupported_entity` وعُزل.
+ *  • `financeSnapshotsDao()` لا مستدعي له في المصدر كله.
+ *  • كاتب الجدول على D1 هو مسارات `/api/finance/*` وهي **غير موجودة في هذا
+ *    الفرع** (موجودة في الفرع المرجعي `feat/cloudflare-sync-execution`).
+ * أُبقي الجدول لأن الفرعين يتقاسمان المخطط نفسه؛ وتوصيل مسار بيانات حقيقي
+ * قرار مستقل (خيارات ثلاثة في التقرير المذكور).
  *
  * Not a sync entity — does not extend BaseSyncEntity. Id is server-assigned
- * (D1 INTEGER autoIncrement). Inserted locally only via the sync ingestor
- * on pull; never pushed by the Android client.
+ * (D1 INTEGER autoIncrement).
  */
 @Entity(
     tableName = "finance_snapshots",
