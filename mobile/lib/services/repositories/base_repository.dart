@@ -240,7 +240,12 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     final message = error.toString().toLowerCase();
     return message.contains('unique constraint failed') ||
         message.contains('constraint failed') ||
-        message.contains('duplicate entry');
+        message.contains('duplicate entry') ||
+        // فهرس فريد جزئي لا يطابقه ON CONFLICT(column) ما لم يُذكر
+        // شرط الفهرس. تخطَّ هذا الهدف القديم/غير القابل للاستهداف
+        // واستمر إلى local_uuid أو المفتاح الأساسي دون إسقاط السجل.
+        message.contains('on conflict clause does not match') ||
+        message.contains('does not match any primary key or unique constraint');
   }
 
   String _targetLabel(List<Column> target) {

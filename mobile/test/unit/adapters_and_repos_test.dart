@@ -239,6 +239,37 @@ void main() {
   // SalaryWithdrawalsAdapter — اختبار دوري كامل
   // ═══════════════════════════════════════════════════════════════
   group('SalaryWithdrawalsAdapter — دوري كامل (appwrite)', () {
+    test(
+      'upsert يتجاوز هدف conflict لفهرس expense_uuid جزئي ويكتب السجل عبر local_uuid',
+      () async {
+        await insertEmployee();
+        await db.customStatement(
+          'CREATE UNIQUE INDEX test_salary_expense_uuid_partial '
+          'ON salary_withdrawals (expense_uuid) '
+          'WHERE expense_uuid IS NOT NULL',
+        );
+
+        final rowId = await adapters.salaryWithdrawals.upsertFromJson(
+          {
+            'localUuid': 'sw-partial-index',
+            'employeeUuid': 'emp-1',
+            'amount': 1000,
+            'withdrawDate': '2025-06-15',
+            'expenseUuid': 'expense-uuid-1',
+            'createdAt': 100,
+            'lastModified': 200,
+          },
+          src: Source.appwrite,
+        );
+
+        expect(rowId, greaterThan(0));
+        final saved = await (db.select(db.salaryWithdrawals)
+              ..where((row) => row.localUuid.equals('sw-partial-index')))
+            .getSingle();
+        expect(saved.expenseUuid, 'expense-uuid-1');
+      },
+    );
+
     test('resolveRefs يرجع shouldSkip=true عند عدم وجود الموظف', () async {
       final json = {
         'localUuid': 'sw-1',
