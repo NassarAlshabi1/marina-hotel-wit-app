@@ -68,9 +68,19 @@ class SalaryWithdrawalsRepository {
     required int expenseId,
     required String withdrawalUuid,
   }) async {
+    // ✅ إعادة البطاقة: مؤشر يشير إلى سجل محذوف ناعماً (تحويل المصروف من
+    // «رواتب» إلى نوع آخر ثم العودة) لا يُعدّ رابطاً حياً — نسمح بإعادة
+    // التوجيه. الحماية الأصلية تبقى للمؤشر الحي: نرفض السحب من سجل نشط
+    // حتى لا نسلب رابط سحوبة قائمة.
     final changed = await _db.customUpdate(
       'UPDATE expenses SET withdrawal_uuid = ? '
-      'WHERE id = ? AND (withdrawal_uuid IS NULL OR withdrawal_uuid = ?)',
+      'WHERE id = ? AND ( '
+      '  withdrawal_uuid IS NULL '
+      '  OR withdrawal_uuid = ? '
+      '  OR withdrawal_uuid NOT IN ( '
+      '    SELECT local_uuid FROM salary_withdrawals WHERE deleted_at IS NULL '
+      '  ) '
+      ') ',
       variables: [
         d.Variable.withString(withdrawalUuid),
         d.Variable.withInt(expenseId),
@@ -174,6 +184,12 @@ class SalaryWithdrawalsRepository {
           'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
           'withdrawalType': withdrawalType,
           'description': description,
+          // ✅ الطابعان يُرسَلان معاً — نفس عقد payload_mapper لبقية
+          // الكيانات. غياب last_modified_epoch يجعل الـworker يهبطه 0
+          // بينما last_modified يبقى حيّاً ⇒ طابعان متناقضان في D1
+          // يُرَدَّمان لكل جهاز عند السحب.
+          'lastModified': now,
+          'lastModifiedEpoch': now,
         };
         // ✅ (2026-09-10) جذر «107 سجل محجوب»: الحمولة يجب أن تحمل
         // employeeUuid (مرجع مستقر عبر الأجهزة) — employee_id وحده رقم
@@ -301,6 +317,7 @@ class SalaryWithdrawalsRepository {
             deletedAt: d.Value(now),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
+            lastModifiedEpoch: d.Value(now),
             version: d.Value(version + 1),
           ),
         );
@@ -316,6 +333,7 @@ class SalaryWithdrawalsRepository {
             if (staleUuidRef != null) 'employeeUuid': staleUuidRef,
             'deletedAt': now,
             'lastModified': now,
+            'lastModifiedEpoch': now,
           },
           clientTs: now,
         );
@@ -409,6 +427,7 @@ class SalaryWithdrawalsRepository {
             deletedAt: d.Value(now),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
+            lastModifiedEpoch: d.Value(now),
             version: d.Value(stale.version + 1),
           ),
         );
@@ -430,6 +449,7 @@ class SalaryWithdrawalsRepository {
               if (staleUuidRef != null) 'employeeUuid': staleUuidRef,
               'deletedAt': now,
               'lastModified': now,
+              'lastModifiedEpoch': now,
             },
             clientTs: now,
           );
@@ -442,12 +462,19 @@ class SalaryWithdrawalsRepository {
         final matchedLocalUuid = matched.localUuid;
         final matchedServerId = matched.serverId;
         final matchedVersion = matched.version;
+        // ✅ الموظف الصحيح عند التعديل: employee_id وحده رقم محلي لا يحل
+        // على السيرفر — employee_uuid هو الهوية المحمولة. تغيير الموظف من
+        // شاشة المصروفات كان يحدّث employee_id فقط ويترك uuid الموظف
+        // القديم، فيُنسَب السحب لموظف سابق على بقية الأجهزة.
+        // القيمة null تُمحو الصورة القديمة بدل إبقاء رابط خاطئ.
+        final updatedEmployeeUuid = await _employeeUuidRef(employeeId);
         // تحديث السجل الموجود
         await (_db.update(
           _db.salaryWithdrawals,
         )..where((t) => t.id.equals(matchedId))).write(
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
+            employeeUuid: d.Value(updatedEmployeeUuid),
             expenseUuid: expenseUuid != null
                 ? d.Value(expenseUuid)
                 : const d.Value.absent(),
@@ -459,6 +486,10 @@ class SalaryWithdrawalsRepository {
             hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
+            // ✅ الطابع: الحقلان يُرسَلان معاً على السلك (نفس ما يفعله
+            // مسار الإنشاء) — ترك هذا الحقل عند قيمة الإنشاء يجعل
+            // last_modified وlast_modified_epoch يتناقضان في كل تعديل.
+            lastModifiedEpoch: d.Value(now),
             version: d.Value(matchedVersion + 1),
           ),
         );
@@ -496,6 +527,7 @@ class SalaryWithdrawalsRepository {
               'description': note,
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
               'lastModified': now,
+              'lastModifiedEpoch': now,
               'expenseId': expenseId,
               if (expenseUuid != null) 'expenseUuid': expenseUuid,
             },
@@ -598,6 +630,8 @@ class SalaryWithdrawalsRepository {
               'withdrawalType': action,
               'description': note,
               'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
+              'lastModified': now,
+              'lastModifiedEpoch': now,
               'expenseId': expenseId,
               if (expenseUuid != null) 'expenseUuid': expenseUuid,
             },
@@ -658,6 +692,7 @@ class SalaryWithdrawalsRepository {
             deletedAt: d.Value(now),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
+            lastModifiedEpoch: d.Value(now),
             version: d.Value(item.version + 1),
           ),
         );
@@ -679,6 +714,7 @@ class SalaryWithdrawalsRepository {
               if (itemUuidRef != null) 'employeeUuid': itemUuidRef,
               'deletedAt': now,
               'lastModified': now,
+              'lastModifiedEpoch': now,
             },
             clientTs: now,
           );
