@@ -8,6 +8,7 @@
 
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync/payload_normalizer.dart';
@@ -180,6 +181,209 @@ void main() {
       },
     );
   });
+
+  group('تكافؤ PushWireContract (أندرويد) — مطابقة حرفية', () {
+    // كل توقع هنا مأخوذ حرفياً من
+    // mobile/android/.../data/remote/PushWireContract.kt على فرع
+    // agent/android-cloudflare — لا اجتهاد.
+
+    test('mapOperation: insert/create/upsert ⇒ create', () {
+      for (final op in ['insert', 'create', 'upsert', ' INSERT ']) {
+        expect(mapOperation(op), 'create', reason: op);
+      }
+    });
+
+    test('mapOperation: update/edit ⇒ update و soft_delete ⇒ delete', () {
+      for (final op in ['update', 'edit', ' UPDATE ']) {
+        expect(mapOperation(op), 'update', reason: op);
+      }
+      for (final op in ['delete', 'soft_delete', 'softdelete']) {
+        expect(mapOperation(op), 'delete', reason: op);
+      }
+      // غير المعروف يمر مُطبَّعاً كما في Kotlin (`else -> lowercase()`)
+      // — الـWorker يرفضه برسالة صريحة بدل تخمين الاسم.
+      expect(mapOperation('BoGuS'), 'bogus');
+    });
+
+    test('canonicalEntity: blacklist_entries ⇒ blacklist', () {
+      expect(canonicalEntity('blacklist_entries'), 'blacklist');
+      expect(canonicalEntity(' rooms '), 'rooms');
+      expect(canonicalEntity('invoices'), 'invoices');
+    });
+
+    test('buildPushOperation يطبّق canonicalEntity + mapOperation', () async {
+      final op = await buildPushOperation(
+        _outboxItem(
+          payload: {'id': 7},
+          localUuid: 'x-1',
+          entity: 'blacklist_entries',
+          op: 'insert',
+        ),
+        resolveRowVectorClock: (_, __) async => null,
+      );
+      expect(op['entity'], 'blacklist');
+      expect(op['operation'], 'create');
+    });
+
+    test(
+      'فصل الموظف: employee_uuid فارغ ⇒ clear_employee_link=1 والرأس مرفوع',
+      () async {
+        final op = await buildPushOperation(
+          _outboxItem(
+            payload: {'amount': 10, 'employeeUuid': ''},
+            localUuid: 'e-1',
+            entity: 'expenses',
+            op: 'update',
+          ),
+          resolveRowVectorClock: (_, __) async => null,
+        );
+        final data = op['data'] as Map<String, dynamic>;
+        expect(data.containsKey('employee_uuid'), isFalse);
+        expect(data['clear_employee_link'], 1);
+      },
+    );
+
+    test('الفراغ الغائب أو غير update/expenses لا يمسح الربط أبداً', () async {
+      // (1) بلا مفتاح أصلاً
+      final a = await buildPushOperation(
+        _outboxItem(
+          payload: {'amount': 1},
+          localUuid: 'a-1',
+          entity: 'expenses',
+          op: 'update',
+        ),
+        resolveRowVectorClock: (_, __) async => null,
+      );
+      expect((a['data'] as Map).containsKey('clear_employee_link'), isFalse);
+
+      // (2) قيمة حقيقية تبقى كما هي
+      final b = await buildPushOperation(
+        _outboxItem(
+          payload: {'employeeUuid': 'emp-1'},
+          localUuid: 'b-1',
+          entity: 'expenses',
+          op: 'update',
+        ),
+        resolveRowVectorClock: (_, __) async => null,
+      );
+      expect((b['data'] as Map)['employee_uuid'], 'emp-1');
+      expect((b['data'] as Map).containsKey('clear_employee_link'), isFalse);
+
+      // (3) عملية إنشاء لا تفعّل العلامة
+      final c = await buildPushOperation(
+        _outboxItem(
+          payload: {'employeeUuid': ''},
+          localUuid: 'c-1',
+          entity: 'expenses',
+          op: 'create',
+        ),
+        resolveRowVectorClock: (_, __) async => null,
+      );
+      expect((c['data'] as Map).containsKey('clear_employee_link'), isFalse);
+    });
+
+    test('تطبيع طوابع الصادر: ميلي ⇒ ثوانٍ في الأعمدة الستة فقط', () async {
+      final op = await buildPushOperation(
+        _outboxItem(
+          payload: {
+            'last_modified': 1760000000000,
+            'created_at': '1760000000000',
+            'updated_at': 1760000000,
+            // ليسا عمودي طابع ⇒ يمرّان كما هما (withdraw_date ميلي بعمد)
+            'withdraw_date': 1760000000000,
+            'amount': 1760000000000,
+            'localUuid': 'p-1',
+          },
+          localUuid: 'p-1',
+          entity: 'salary_withdrawals',
+          op: 'update',
+        ),
+        resolveRowVectorClock: (_, __) async => null,
+      );
+      final data = op['data'] as Map<String, dynamic>;
+      expect(data['last_modified'], 1760000000);
+      expect(data['created_at'], 1760000000);
+      expect(data['updated_at'], 1760000000);
+      expect(data['withdraw_date'], 1760000000000);
+      expect(data['amount'], 1760000000000);
+    });
+
+    test('updatedAt يُوحَّد إلى ثوانٍ عند تجاوز عتبة 1e11', () async {
+      final op = await buildPushOperation(
+        _outboxItem(
+          payload: {'roomNumber': '101'},
+          localUuid: 'u-1',
+          clientTs: 1760000000000,
+        ),
+        resolveRowVectorClock: (_, __) async => null,
+      );
+      expect(op['updatedAt'], 1760000000);
+    });
+
+    test('updatedAt بالثواني (صندوق Dart) يبقى كما هو', () async {
+      final op = await buildPushOperation(
+        _outboxItem(payload: {'roomNumber': '101'}, localUuid: 'u-2'),
+        resolveRowVectorClock: (_, __) async => null,
+      );
+      expect(op['updatedAt'], 1720000000);
+    });
+
+    test('deviceId: مقدَّم يُرسَل، وغائب أو فارغ ⇒ unknown-origin', () async {
+      final present = await buildPushOperation(
+        _outboxItem(payload: {}, localUuid: 'd-1'),
+        resolveRowVectorClock: (_, __) async => null,
+        deviceId: 'dev-1',
+      );
+      expect(present['deviceId'], 'dev-1');
+
+      final absent = await buildPushOperation(
+        _outboxItem(payload: {}, localUuid: 'd-2'),
+        resolveRowVectorClock: (_, __) async => null,
+      );
+      expect(absent['deviceId'], 'unknown-origin');
+
+      final blank = await buildPushOperation(
+        _outboxItem(payload: {}, localUuid: 'd-3'),
+        resolveRowVectorClock: (_, __) async => null,
+        deviceId: '   ',
+      );
+      expect(blank['deviceId'], 'unknown-origin');
+    });
+
+    test('local_uuid نص فارغ ⇒ يُحقن من صف outbox (isNullOrBlank)', () async {
+      final op = await buildPushOperation(
+        _outboxItem(payload: {'local_uuid': ''}, localUuid: 'row-9'),
+        resolveRowVectorClock: (_, __) async => null,
+      );
+      expect((op['data'] as Map)['local_uuid'], 'row-9');
+    });
+
+    test(
+      'idempotencyKey غائبة أو فارغة ⇒ احتياط entity_op_localUuid',
+      () async {
+        final nullKey = _outboxItem(
+          payload: {},
+          localUuid: 'k-1',
+          entity: 'bookings',
+          op: 'update',
+        ).copyWith(idempotencyKey: const Value<String?>(null));
+        final opA = await buildPushOperation(
+          nullKey,
+          resolveRowVectorClock: (_, __) async => null,
+        );
+        expect(opA['idempotencyKey'], 'bookings_update_k-1');
+
+        final blankKey = nullKey.copyWith(
+          idempotencyKey: const Value<String?>('  '),
+        );
+        final opB = await buildPushOperation(
+          blankKey,
+          resolveRowVectorClock: (_, __) async => null,
+        );
+        expect(opB['idempotencyKey'], 'bookings_update_k-1');
+      },
+    );
+  });
 }
 
 /// OutboxData حقيقية كما يولّدها Drift (نفس الصف المقروء من outbox).
@@ -188,8 +392,8 @@ OutboxData _outboxItem({
   required String localUuid,
   String entity = 'rooms',
   String op = 'create',
+  int clientTs = 1720000000,
 }) {
-  const clientTs = 1720000000;
   return OutboxData(
     id: 1,
     entity: entity,
