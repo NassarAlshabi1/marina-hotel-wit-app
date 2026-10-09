@@ -271,13 +271,18 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   /// أخرى حيث قد يختلف المعرف الرقمي (autoIncrement) — نفس نهج
   /// EmployeeLinkConsistencyService.
   Future<int> countFinancialRecords(int employeeId, String localUuid) async {
+    final employeeUuid = localUuid.trim();
     final expensesCountExp = db.expenses.id.count();
     final expensesQuery = db.selectOnly(db.expenses)
       ..addColumns([expensesCountExp])
       ..where(
-        (db.expenses.relatedId.equals(employeeId) |
-                db.expenses.employeeUuid.equals(localUuid)) &
-            db.expenses.deletedAt.isNull(),
+        db.expenses.deletedAt.isNull() &
+            (employeeUuid.isEmpty
+                ? db.expenses.relatedId.equals(employeeId)
+                : db.expenses.employeeUuid.equals(employeeUuid) |
+                      ((db.expenses.employeeUuid.isNull() |
+                              db.expenses.employeeUuid.equals('')) &
+                          db.expenses.relatedId.equals(employeeId))),
       );
     final expensesCount =
         (await expensesQuery.getSingle()).read(expensesCountExp) ?? 0;
@@ -286,9 +291,13 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     final withdrawalsQuery = db.selectOnly(db.salaryWithdrawals)
       ..addColumns([withdrawalsCountExp])
       ..where(
-        (db.salaryWithdrawals.employeeId.equals(employeeId) |
-                db.salaryWithdrawals.employeeUuid.equals(localUuid)) &
-            db.salaryWithdrawals.deletedAt.isNull() &
+        db.salaryWithdrawals.deletedAt.isNull() &
+            (employeeUuid.isEmpty
+                ? db.salaryWithdrawals.employeeId.equals(employeeId)
+                : db.salaryWithdrawals.employeeUuid.equals(employeeUuid) |
+                      ((db.salaryWithdrawals.employeeUuid.isNull() |
+                              db.salaryWithdrawals.employeeUuid.equals('')) &
+                          db.salaryWithdrawals.employeeId.equals(employeeId))) &
             (db.salaryWithdrawals.expenseId.isNull() |
                 db.salaryWithdrawals.expenseId.equals(0)),
       );
