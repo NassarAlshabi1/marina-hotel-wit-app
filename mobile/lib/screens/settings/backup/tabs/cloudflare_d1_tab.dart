@@ -57,6 +57,11 @@ const String kShiftNotesD1ExclusionWhere =
 ///   best-effort سحابي) — انظر cloudflare_d1_app_users_source.dart.
 const Set<String> kD1SyntheticTables = <String>{'app_users'};
 
+/// جداول تشغيل محلية لا تمثل بيانات الفندق ولا يجوز رفعها إلى D1 من شاشة
+/// النسخ الاحتياطي، حتى عند إيقاف مرشح Appwrite واختيار «كل الجداول».
+bool _isD1SyncInfrastructure(String name) =>
+    name == 'outbox' || name.startsWith('sync_');
+
 /// تبويب رفع البيانات المحلية (المسحوبة من Appwrite) إلى Cloudflare D1.
 ///
 /// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم UPSERT بالهوية الثابتة
@@ -307,7 +312,11 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   /// الجداول الظاهرة حسب وضع التصفية (مزامنة Appwrite فقط / الكل).
   /// تشمل الجداول التركيبية (app_users) في الوضعين — مجموعتها متزامنة.
   List<_LocalTableInfo> get _visibleTables {
-    if (!_appwriteOnly) return _localTables;
+    if (!_appwriteOnly) {
+      return _localTables
+          .where((t) => !_isD1SyncInfrastructure(t.name))
+          .toList();
+    }
     return _localTables
         .where(
           (t) =>
