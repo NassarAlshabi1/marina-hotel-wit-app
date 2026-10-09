@@ -43876,6 +43876,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $InventoryTransactionsTable(this);
   late final $AncestorCacheTable ancestorCache = $AncestorCacheTable(this);
   late final $SyncRemoteMetaTable syncRemoteMeta = $SyncRemoteMetaTable(this);
+  late final Index uxSalaryWithdrawalsExpenseUuidActive = Index(
+    'ux_salary_withdrawals_expense_uuid_active',
+    "CREATE UNIQUE INDEX ux_salary_withdrawals_expense_uuid_active ON salary_withdrawals (expense_uuid) WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' AND deleted_at IS NULL",
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -43914,6 +43918,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     inventoryTransactions,
     ancestorCache,
     syncRemoteMeta,
+    uxSalaryWithdrawalsExpenseUuidActive,
   ];
 }
 

@@ -298,7 +298,7 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 68', () {
+    test('3e. أحدث schemaVersion = 70', () {
       // ✅ (2026-09-14) محاذاة بعد bump إلى 66 (recorder_name على
       // salary_withdrawals — إسناد السحبة لمسجّلها). القيمة مقصودة صريحة:
       // كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
@@ -308,7 +308,8 @@ void main() {
       // ✅ (2026-10-05) bump إلى 68 — رابط المرآة الدائم سحبة↔مصروف:
       // expense_uuid على salary_withdrawals + withdrawal_uuid على expenses
       // + التعبئة الحتمية + الفهارس (Migration 68).
-      expect(db.schemaVersion, 68);
+      // ✅ Migrations 69–70 تحافظ على فهرس المرآة الجزئي عند الترقية والإنشاء.
+      expect(db.schemaVersion, 70);
     });
   });
 

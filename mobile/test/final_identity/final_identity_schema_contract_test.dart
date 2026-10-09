@@ -29,9 +29,9 @@ void main() {
         if (row['unique'] != 1) continue;
         final name = row['name']?.toString();
         if (name == null) continue;
-        final cols = await db.customSelect(
-          "PRAGMA index_info('${name.replaceAll("'", "''")}')",
-        ).get();
+        final cols = await db
+            .customSelect("PRAGMA index_info('${name.replaceAll("'", "''")}')")
+            .get();
         if (cols.length == 1 && cols.first.data['name'] == 'local_uuid') {
           found = true;
           break;
@@ -49,13 +49,16 @@ void main() {
     expect(target, isNotEmpty);
     expect(target.first['unique'], 1);
 
-    final sql = await db.customSelect(
-      "SELECT sql FROM sqlite_master WHERE type='index' AND name='ux_salary_withdrawals_expense_uuid_active'",
-    ).getSingle();
+    final sql = await db
+        .customSelect(
+          "SELECT sql FROM sqlite_master WHERE type='index' AND name='ux_salary_withdrawals_expense_uuid_active'",
+        )
+        .getSingle();
     final ddl = (sql.data['sql'] as String).toLowerCase();
     expect(ddl, contains('unique index'));
     expect(ddl, contains('expense_uuid'));
     expect(ddl, contains('where'));
+    expect(ddl, contains("trim(expense_uuid) != ''"));
     expect(ddl, contains('deleted_at is null'));
   });
 }

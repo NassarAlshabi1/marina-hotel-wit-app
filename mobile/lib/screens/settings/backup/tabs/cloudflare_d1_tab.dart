@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../providers/repository_providers.dart';
 import '../../../../services/auth_local_store.dart';
 import '../../../../services/cloudflare_d1_app_users_source.dart';
+import '../../../../services/cloudflare_d1_identity_validator.dart';
 import '../../../../services/cloudflare_d1_service.dart';
 import '../../../../services/daos/outbox_dao.dart';
 
@@ -360,65 +361,33 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     await _upload();
   }
 
-  Future<List<String>> _identityWarnings(AppDatabase db) async {
-    final warnings = <String>[];
-    Future<int> count(
-      String sql, [
-      List<Variable<Object>> variables = const [],
-    ]) async {
-      final rows = await db.customSelect(sql, variables: variables).get();
-      return (rows.firstOrNull?.data['n'] as num?)?.toInt() ?? 0;
-    }
-
-    if (_selected.contains('employees')) {
-      final n = await count(
-        "SELECT COUNT(*) AS n FROM employees WHERE local_uuid IS NULL OR TRIM(local_uuid) = ''",
-      );
-      if (n > 0) {
-        warnings.add(
-          'employees: $n سجل بلا local_uuid ثابت. لم يتم اختراع UUID أثناء النسخ الاحتياطي.',
-        );
-      }
-    }
-    if (_selected.contains('expenses')) {
-      final n = await count(
-        "SELECT COUNT(*) AS n FROM expenses WHERE employee_uuid IS NOT NULL AND TRIM(employee_uuid) <> '' AND NOT EXISTS (SELECT 1 FROM employees e WHERE LOWER(e.local_uuid)=LOWER(expenses.employee_uuid))",
-      );
-      if (n > 0) {
-        warnings.add(
-          'expenses: $n مصروف يحمل employee_uuid غير موجود في employees؛ سيُرفع كما هو دون إعادة ربط تخميني.',
-        );
-      }
-    }
-    if (_selected.contains('salary_withdrawals')) {
-      final n = await count(
-        "SELECT COUNT(*) AS n FROM salary_withdrawals WHERE employee_uuid IS NOT NULL AND TRIM(employee_uuid) <> '' AND NOT EXISTS (SELECT 1 FROM employees e WHERE LOWER(e.local_uuid)=LOWER(salary_withdrawals.employee_uuid))",
-      );
-      if (n > 0) {
-        warnings.add(
-          'salary_withdrawals: $n سحبة تحمل employee_uuid غير موجود؛ لم يتم تحويلها إلى موظف آخر.',
-        );
-      }
-      final m = await count(
-        "SELECT COUNT(*) AS n FROM salary_withdrawals sw JOIN expenses ex ON ex.local_uuid = sw.expense_uuid WHERE sw.expense_uuid IS NOT NULL AND sw.expense_uuid <> '' AND sw.employee_uuid IS NOT NULL AND ex.employee_uuid IS NOT NULL AND LOWER(sw.employee_uuid) <> LOWER(ex.employee_uuid)",
-      );
-      if (m > 0) {
-        warnings.add(
-          'salary_withdrawals: $m سحبة لا يتطابق موظفها UUID مع موظف المصروف المرتبط؛ لم يتم إصلاحها بالتخمين.',
-        );
-      }
-    }
-    return warnings;
-  }
-
   Future<void> _upload() async {
     final db = ref.read(databaseProvider);
-    final identityWarnings = await _identityWarnings(db);
+    final identityIssues = await CloudflareD1IdentityValidator.inspect(
+      db: db,
+      selectedTables: _selected,
+    );
+    if (identityIssues.isNotEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _logs
+          ..clear()
+          ..addAll(identityIssues);
+        _stage = 'أُوقف الرفع قبل الاتصال بـ Cloudflare بسبب فشل التحقق';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'لم يُرسل أي طلب إلى Cloudflare. أصلح هوية local_uuid وروابط UUID أولاً.',
+          ),
+        ),
+      );
+      return;
+    }
     final service = CloudflareD1Service(_config);
     _activeService = service;
 
     final infoLogs = <String>[];
-    infoLogs.addAll(identityWarnings);
     final sources = <CloudflareD1SourceTable>[];
 
     // ✅ F2 (2026-10-04): الجدول التركيبي app_users — يُجمع قبل الرفع

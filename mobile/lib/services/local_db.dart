@@ -757,6 +757,12 @@ class SalaryPayments extends Table with SyncFields {
   ];
 }
 
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX ux_salary_withdrawals_expense_uuid_active '
+  'ON salary_withdrawals (expense_uuid) '
+  "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+  'AND deleted_at IS NULL',
+)
 @DataClassName('SalaryWithdrawal')
 class SalaryWithdrawals extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
@@ -806,8 +812,8 @@ class SalaryWithdrawals extends Table with SyncFields {
     Index(
       'ux_salary_withdrawals_expense_uuid_active',
       'CREATE UNIQUE INDEX ux_salary_withdrawals_expense_uuid_active '
-      'ON salary_withdrawals (expense_uuid) '
-      'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL',
+          'ON salary_withdrawals (expense_uuid) '
+          'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL',
     ),
   ];
 }
@@ -1206,7 +1212,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 69;
+  int get schemaVersion => 70;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1448,18 +1454,21 @@ class AppDatabase extends _$AppDatabase {
         // ── فهارس الأعمدة الجديدة ──
         // Do not force uniqueness over legacy collisions. Preserve every row
         // and let the deterministic relink/repair pass resolve any collision.
-        final mirrorDuplicates = await m.database.customSelect(
-          'SELECT expense_uuid, COUNT(*) AS c '
-          'FROM salary_withdrawals '
-          "WHERE expense_uuid IS NOT NULL AND expense_uuid != '' "
-          'AND deleted_at IS NULL '
-          'GROUP BY expense_uuid HAVING COUNT(*) > 1',
-        ).get();
+        final mirrorDuplicates = await m.database
+            .customSelect(
+              'SELECT expense_uuid, COUNT(*) AS c '
+              'FROM salary_withdrawals '
+              "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+              'AND deleted_at IS NULL '
+              'GROUP BY expense_uuid HAVING COUNT(*) > 1',
+            )
+            .get();
         if (mirrorDuplicates.isEmpty) {
           await m.database.customStatement(
             'CREATE UNIQUE INDEX IF NOT EXISTS ux_salary_withdrawals_expense_uuid_active '
             'ON salary_withdrawals (expense_uuid) '
-            'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL',
+            "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+            'AND deleted_at IS NULL',
           );
         } else {
           await m.database.customStatement(
@@ -1494,13 +1503,15 @@ class AppDatabase extends _$AppDatabase {
           'CREATE INDEX IF NOT EXISTS idx_expenses_employee_uuid '
           'ON expenses (employee_uuid)',
         );
-        final duplicateRows = await m.database.customSelect(
-          'SELECT expense_uuid, COUNT(*) AS c '
-          'FROM salary_withdrawals '
-          "WHERE expense_uuid IS NOT NULL AND expense_uuid != '' "
-          'AND deleted_at IS NULL '
-          'GROUP BY expense_uuid HAVING COUNT(*) > 1',
-        ).get();
+        final duplicateRows = await m.database
+            .customSelect(
+              'SELECT expense_uuid, COUNT(*) AS c '
+              'FROM salary_withdrawals '
+              "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+              'AND deleted_at IS NULL '
+              'GROUP BY expense_uuid HAVING COUNT(*) > 1',
+            )
+            .get();
 
         await m.database.customStatement(
           'DROP INDEX IF EXISTS idx_salary_withdrawals_expense_uuid',
@@ -1513,7 +1524,8 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'CREATE UNIQUE INDEX ux_salary_withdrawals_expense_uuid_active '
             'ON salary_withdrawals (expense_uuid) '
-            'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL',
+            "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+            'AND deleted_at IS NULL',
           );
         } else {
           await m.database.customStatement(
@@ -1524,6 +1536,44 @@ class AppDatabase extends _$AppDatabase {
             'Migration 69: found ${duplicateRows.length} active duplicate '
             'expense_uuid group(s); unique enforcement withheld to prevent '
             'data loss. Deterministic repair is required.',
+            name: 'db.migration',
+          );
+        }
+      }
+      // Migration 70: explicitly protect the mirror link on databases that
+      // upgraded from schema 69. Fresh databases get the same partial UNIQUE
+      // index from the @TableIndex.sql declaration above.
+      if (from < 70) {
+        final duplicateRows = await m.database
+            .customSelect(
+              'SELECT expense_uuid, COUNT(*) AS c '
+              'FROM salary_withdrawals '
+              "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+              'AND deleted_at IS NULL '
+              'GROUP BY expense_uuid HAVING COUNT(*) > 1',
+            )
+            .get();
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS ux_salary_withdrawals_expense_uuid_active',
+        );
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS idx_salary_withdrawals_expense_uuid',
+        );
+        if (duplicateRows.isEmpty) {
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ux_salary_withdrawals_expense_uuid_active '
+            'ON salary_withdrawals (expense_uuid) '
+            "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+            'AND deleted_at IS NULL',
+          );
+        } else {
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid '
+            'ON salary_withdrawals (expense_uuid)',
+          );
+          developer.log(
+            'Migration 70: preserved ${duplicateRows.length} active '
+            'expense_uuid collision group(s); unique enforcement withheld.',
             name: 'db.migration',
           );
         }

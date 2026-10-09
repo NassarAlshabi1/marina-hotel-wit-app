@@ -65,10 +65,13 @@ void main() {
 
   late AppDatabase db;
 
-  /// استخراج قائمة الأعمدة من عبارة INSERT OR REPLACE الملتقطة
+  /// استخراج قائمة الأعمدة من عبارة INSERT/UPSERT الملتقطة
   /// (بين أول '(' و ') VALUES').
-  List<String> insertColsOf(String sql) =>
-      sql.substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES')).split(',');
+  List<String> insertColsOf(String sql) => sql
+      .substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES'))
+      .split(',')
+      .map((column) => column.replaceAll('"', ''))
+      .toList();
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -318,7 +321,7 @@ void main() {
             )
             .expand((sql) => sql.split(';\n'))
             .map((s) => s.trim())
-            .where((s) => s.startsWith('INSERT OR REPLACE INTO "rooms"'))
+            .where((s) => s.startsWith('INSERT INTO "rooms"'))
             .toList();
         expect(
           inserts,
@@ -331,11 +334,12 @@ void main() {
       final firstRun = await runUpload();
       final sql = firstRun.single;
 
-      // 1) أسماء الأعمدة الـ 17 بصيغة snake_case داخل نص SQL
-      //    (الإنتاج يكتب قائمة الأعمدة بدون اقتباس — أسماء صالحة لـ SQLite).
+      // 1) أسماء الأعمدة الـ 17 بصيغة snake_case داخل نص SQL.
       final colList = sql
           .substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES'))
-          .split(',');
+          .split(',')
+          .map((column) => column.replaceAll('"', ''))
+          .toList();
       expect(colList.toSet(), containsAll(kExpectedSyncFieldMapping.values));
       expect(colList, isNot(contains('localUuid')));
       expect(colList, isNot(contains('idempotencyKey')));
@@ -346,10 +350,15 @@ void main() {
       final row =
           (await db.customSelect('SELECT * FROM "rooms"').get()).first.data;
       final cols = row.keys.toList();
+      final updateCols = cols
+          .where((c) => c != 'local_uuid')
+          .map((c) => '$c = excluded.$c')
+          .join(',');
       final expectedSql =
-          'INSERT OR REPLACE INTO "rooms" '
+          'INSERT INTO "rooms" '
           '(${cols.join(',')}) '
-          'VALUES (${cols.map((c) => lit(row[c])).join(',')})';
+          'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
+          'ON CONFLICT("local_uuid") DO UPDATE SET $updateCols';
       expect(
         sql,
         expectedSql,
@@ -501,16 +510,16 @@ void main() {
           .map((s) => s.trim())
           // جدول app_backup_meta تُكتبه الخدمة تلقائياً بعد اكتمال الرفع —
           // نستثنيه (اسمه غير مقتبس بعلامات تنصيص).
-          .where((s) => s.startsWith('INSERT OR REPLACE INTO "'))
+          .where((s) => s.startsWith('INSERT INTO "'))
           .toList();
       expect(inserts, hasLength(3));
 
-      String insertFor(String table) => inserts.firstWhere(
-        (s) => s.startsWith('INSERT OR REPLACE INTO "$table"'),
-      );
+      String insertFor(String table) =>
+          inserts.firstWhere((s) => s.startsWith('INSERT INTO "$table"'));
 
       // 1) salary_cycles: عمود employee_uuid موجود وقيمته الحرفية تصل.
       final cyclesSql = insertFor('salary_cycles');
+      expect(cyclesSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
       final cyclesCols = insertColsOf(cyclesSql);
       expect(cyclesCols, contains('employee_uuid'));
       expect(
@@ -521,11 +530,13 @@ void main() {
 
       // 2) salary_withdrawals: نفس التثبيت.
       final wdSql = insertFor('salary_withdrawals');
+      expect(wdSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
       expect(insertColsOf(wdSql), contains('employee_uuid'));
       expect(wdSql, contains("'emp-uuid-9'"));
 
       // 3) expenses: employee_uuid يصل وrelated_id يصل NULL صراحةً (P0.4).
       final expSql = insertFor('expenses');
+      expect(expSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
       expect(insertColsOf(expSql), contains('employee_uuid'));
       expect(expSql, contains("'emp-uuid-9'"));
       // التحقق الحرفي: الصف المحلي related_id == NULL ويجب أن يُرسل NULL
@@ -545,8 +556,11 @@ void main() {
 
       expect(
         expSql,
-        'INSERT OR REPLACE INTO "expenses" '
-        '(${cols.join(',')}) VALUES (${cols.map((c) => lit(row[c])).join(',')})',
+        'INSERT INTO "expenses" '
+        '(${cols.join(',')}) '
+        'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
+        'ON CONFLICT("local_uuid") DO UPDATE SET '
+        '${cols.where((c) => c != 'local_uuid').map((c) => '$c = excluded.$c').join(',')}',
         reason: 'عبارة expenses المرسلة لا تطابق القيم الحرفية للصف',
       );
     },
