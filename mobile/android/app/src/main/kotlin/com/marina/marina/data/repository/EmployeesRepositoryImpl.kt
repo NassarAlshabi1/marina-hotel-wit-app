@@ -119,4 +119,8 @@ class EmployeesRepositoryImpl @Inject constructor(
             isKnown = true
         )
     }
+
+    /** Raw lookup — includes soft-deleted rows (Dart archived-employee protection). */
+    override suspend fun getByIdIncludingDeleted(id: Long): Employee? =
+        employeesDao.getByIdIncludingDeleted(id)?.toDomain()
 }

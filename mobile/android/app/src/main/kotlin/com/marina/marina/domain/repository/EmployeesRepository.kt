@@ -45,4 +45,11 @@ interface EmployeesRepository {
      * missing locally (same `EmployeeFinancialHistory.unknown()` contract).
      */
     suspend fun financialHistoryCount(id: Long, localUuid: String): EmployeeFinancialHistory
+
+    /**
+     * Dart archived-employee protection (expenses_list.dart l.970-983): the
+     * raw lookup includes soft-deleted rows so a linked archived employee is
+     * still displayed with a (مؤرشف) marker instead of breaking the dialog.
+     */
+    suspend fun getByIdIncludingDeleted(id: Long): Employee?
 }
