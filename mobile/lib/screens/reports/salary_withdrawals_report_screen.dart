@@ -26,6 +26,7 @@ class _SalaryTxRow {
   _SalaryTxRow({
     required this.id,
     required this.date,
+    required this.employeeUuid,
     required this.amount,
     required this.withdrawalType,
     required this.reason,
@@ -39,6 +40,9 @@ class _SalaryTxRow {
 
   final int id;
   final DateTime date;
+  /// Stable employee identity used for reporting/grouping across devices.
+  /// Never use the local SQLite employee id as the cross-device identity.
+  final String? employeeUuid;
   final double amount;
   final String withdrawalType;
   final String reason;
@@ -112,7 +116,11 @@ List<SalaryWithdrawal> dedupeMirrorDuplicates(
         ? sw.hotelDayKey!.trim()
         : sw.withdrawDate.trim();
     final family = sw.amount >= 0 ? 'cash' : 'deduction';
-    return '${sw.employeeId}|$day|$family';
+    final employeeKey = (sw.employeeUuid ?? '').trim().toLowerCase();
+    final stableOrLegacyKey = employeeKey.isNotEmpty
+        ? 'uuid:$employeeKey'
+        : 'legacy-id:${sw.employeeId}';
+    return '$stableOrLegacyKey|$day|$family';
   }
 
   final kept = <SalaryWithdrawal>[];
@@ -198,11 +206,11 @@ class _SalaryWithdrawalsReportScreenState
   bool _initialized = false;
 
   final List<_SalaryTxRow> _allRows = [];
-  final Map<int, _EmployeeSalaryGroup> _employeeGroups = {};
+  final Map<String, _EmployeeSalaryGroup> _employeeGroups = {};
   final List<Employee> _allEmployees = [];
 
   final String _sortBy = 'date';
-  int? _selectedEmployeeId; // null = الكل
+  String? _selectedEmployeeUuid; // null = الكل; stable identity
 
   @override
   void didChangeDependencies() {
@@ -306,10 +314,11 @@ class _SalaryWithdrawalsReportScreenState
         );
     }
 
-    // فلترة حسب الموظف المحدد
-    if (_selectedEmployeeId != null) {
+    // فلترة حسب هوية الموظف الثابتة. لا نستخدم employeeId المحلي
+    // كمرجع للمزامنة أو التقرير، لأنه يختلف بين الأجهزة.
+    if (_selectedEmployeeUuid != null) {
       query = query
-        ..where((tbl) => tbl.employeeId.equals(_selectedEmployeeId!));
+        ..where((tbl) => tbl.employeeUuid.equals(_selectedEmployeeUuid!));
     }
 
     final rawWithdrawals = await query.get();
@@ -368,15 +377,23 @@ class _SalaryWithdrawalsReportScreenState
 
     // بناء خريطة الموظفين — من **كل** الموظفين (نشطين ومحذوفين ناعماً):
     // سحوبات الموظف المحذوف يجب أن تحلّ اسمه في التقارير (fix أعلاه).
-    final employeeMap = <int, Employee>{};
+    final employeeByUuid = <String, Employee>{};
+    final employeeById = <int, Employee>{};
     for (final emp in allEmployees) {
-      employeeMap[emp.id] = emp;
+      final uuid = emp.localUuid.trim().toLowerCase();
+      if (uuid.isNotEmpty) employeeByUuid[uuid] = emp;
+      employeeById[emp.id] = emp;
     }
 
-    // بناء الصفوف
+    // بناء الصفوف: UUID الموظف هو المصدر الأساسي.
+    // fallback إلى employeeId مسموح فقط للسجلات التاريخية التي لا تحمل
+    // UUID، ولا يُستخدم لتحديد هوية سجل متزامن جديد.
     final rows = <_SalaryTxRow>[];
     for (final sw in withdrawals) {
-      final employee = employeeMap[sw.employeeId];
+      final employeeUuid = sw.employeeUuid?.trim().toLowerCase();
+      final employee = employeeUuid != null && employeeUuid.isNotEmpty
+          ? employeeByUuid[employeeUuid]
+          : employeeById[sw.employeeId];
       final date = _parseDate(sw.withdrawDate);
       // ✅ وقت الإنشاء الفعلي من عمود createdAt (epoch) — إن وُجد
       final createdAt = sw.createdAt > 0
@@ -386,6 +403,7 @@ class _SalaryWithdrawalsReportScreenState
         _SalaryTxRow(
           id: sw.id,
           date: date,
+          employeeUuid: employeeUuid,
           amount: sw.amount,
           withdrawalType: sw.withdrawalType ?? '',
           reason: sw.reason ?? '',
@@ -411,14 +429,18 @@ class _SalaryWithdrawalsReportScreenState
     });
 
     // تجميع حسب الموظف
-    final groups = <int, _EmployeeSalaryGroup>{};
+    final groups = <String, _EmployeeSalaryGroup>{};
     for (final row in rows) {
-      final empId = row.employee?.id ?? 0;
+      // Group by stable employee UUID. For legacy rows without UUID, use a
+      // namespaced local key so they can never collide with a real UUID.
+      final groupKey = row.employeeUuid?.isNotEmpty == true
+          ? row.employeeUuid!
+          : 'legacy:${row.employee?.id ?? row.id}';
       groups.putIfAbsent(
-        empId,
+        groupKey,
         () => _EmployeeSalaryGroup(employee: row.employee),
       );
-      final group = groups[empId]!;
+      final group = groups[groupKey]!;
       group.transactions.add(row);
       group.totalAmount += row.amount;
       group.txCount++;
@@ -439,13 +461,15 @@ class _SalaryWithdrawalsReportScreenState
       return;
     }
 
-    final selectedEmpName = _selectedEmployeeId != null
+    final selectedEmpName = _selectedEmployeeUuid != null
         ? _employeeDisplayName(
-            _allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull,
+            _allEmployees
+                .where((e) => e.localUuid.trim().toLowerCase() == _selectedEmployeeUuid)
+                .firstOrNull,
           )
         : null;
 
-    final headers = _selectedEmployeeId != null
+    final headers = _selectedEmployeeUuid != null
         ? <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الملاحظات']
         : <String>[
             'التاريخ',
@@ -471,7 +495,7 @@ class _SalaryWithdrawalsReportScreenState
         displayReason,
         if (row.description.isNotEmpty) row.description else '-',
       ];
-      if (_selectedEmployeeId == null) {
+      if (_selectedEmployeeUuid == null) {
         cells.add(_employeeDisplayName(row.employee));
       }
       dataRows.add(cells);
@@ -574,22 +598,22 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   List<_SalaryTxRow> get _filteredRows {
-    if (_selectedEmployeeId == null) {
+    if (_selectedEmployeeUuid == null) {
       return _allRows;
     }
     return _allRows
-        .where((r) => r.employee?.id == _selectedEmployeeId)
+        .where((r) => r.employeeUuid == _selectedEmployeeUuid)
         .toList();
   }
 
-  Map<int, _EmployeeSalaryGroup> get _filteredGroups {
-    if (_selectedEmployeeId == null) {
+  Map<String, _EmployeeSalaryGroup> get _filteredGroups {
+    if (_selectedEmployeeUuid == null) {
       return _employeeGroups;
     }
-    final filtered = <int, _EmployeeSalaryGroup>{};
-    final g = _employeeGroups[_selectedEmployeeId];
+    final filtered = <String, _EmployeeSalaryGroup>{};
+    final g = _employeeGroups[_selectedEmployeeUuid];
     if (g != null) {
-      filtered[_selectedEmployeeId!] = g;
+      filtered[_selectedEmployeeUuid!] = g;
     }
     return filtered;
   }
@@ -643,8 +667,8 @@ class _SalaryWithdrawalsReportScreenState
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int?>(
-                        value: _selectedEmployeeId,
+                      child: DropdownButton<String?>(
+                        value: _selectedEmployeeUuid,
                         isExpanded: true,
                         hint: const Text(
                           'عرض بحسب الموظف',
@@ -652,7 +676,7 @@ class _SalaryWithdrawalsReportScreenState
                         ),
                         icon: const Icon(Icons.arrow_drop_down, size: 20),
                         items: [
-                          const DropdownMenuItem<int?>(
+                          const DropdownMenuItem<String?>(
                             child: Row(
                               children: [
                                 Icon(
@@ -669,8 +693,9 @@ class _SalaryWithdrawalsReportScreenState
                             ),
                           ),
                           ..._allEmployees.map((emp) {
-                            return DropdownMenuItem<int?>(
-                              value: emp.id,
+                            final uuid = emp.localUuid.trim().toLowerCase();
+                            return DropdownMenuItem<String?>(
+                              value: uuid.isEmpty ? null : uuid,
                               child: Row(
                                 children: [
                                   const Icon(
@@ -692,7 +717,7 @@ class _SalaryWithdrawalsReportScreenState
                           }),
                         ],
                         onChanged: (value) {
-                          setState(() => _selectedEmployeeId = value);
+                          setState(() => _selectedEmployeeUuid = value);
                         },
                       ),
                     ),
@@ -738,8 +763,10 @@ class _SalaryWithdrawalsReportScreenState
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _selectedEmployeeId != null
-                            ? 'سحبيات: ${_employeeDisplayName(_allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull, fallback: "")} — ${filteredRows.length} عملية'
+                        _selectedEmployeeUuid != null
+                            ? 'سحبيات: ${_employeeDisplayName(_allEmployees
+                                .where((e) => e.localUuid.trim().toLowerCase() == _selectedEmployeeUuid)
+                                .firstOrNull, fallback: "")} — ${filteredRows.length} عملية'
                             : 'جميع الموظفين — ${filteredRows.length} عملية',
                         style: TextStyle(
                           fontSize: 12,
@@ -773,7 +800,7 @@ class _SalaryWithdrawalsReportScreenState
                           'لم يتم العثور على سحبيات رواتب ضمن النطاق المحدد.',
                       icon: Icons.account_balance_wallet,
                     )
-                  : _selectedEmployeeId == null
+                  : _selectedEmployeeUuid == null
                   ? ListView(
                       padding: const EdgeInsets.only(bottom: 8),
                       children: _buildGroupedList(filteredGroups),
@@ -793,7 +820,7 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   /// بناء القائمة مجمععة حسب الموظف (عند اختيار "الكل")
-  List<Widget> _buildGroupedList(Map<int, _EmployeeSalaryGroup> groups) {
+  List<Widget> _buildGroupedList(Map<String, _EmployeeSalaryGroup> groups) {
     final widgets = <Widget>[];
     final entries = groups.entries.toList();
 
@@ -1165,6 +1192,6 @@ class _SalaryReportData {
   });
 
   final List<_SalaryTxRow> rows;
-  final Map<int, _EmployeeSalaryGroup> groups;
+  final Map<String, _EmployeeSalaryGroup> groups;
   final List<Employee> allEmployees;
 }

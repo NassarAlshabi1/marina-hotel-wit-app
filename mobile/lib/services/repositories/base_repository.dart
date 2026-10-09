@@ -13,7 +13,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     required this.adapter,
   });
 
-  static final Map<String, List<List<Column>>> _conflictTargetCache = {};
+  final Map<String, List<List<Column>>> _conflictTargetCache = {};
 
   final AppDatabase db;
   final TableInfo<Table, D> table;
@@ -43,9 +43,14 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     // الحل: إزالة id من البيانات ليقوم SQLite بتعيين id تلقائي
     // للسجلات الجديدة، أو استخدام id المحلي الموجود للتحديث.
     if (src == Source.appwrite || src == Source.drive) {
-      final localUuid =
-          json['localUuid'] as String? ?? json['local_uuid'] as String?;
+      final localUuid = _normalizeStableUuid(
+        (json['localUuid'] ?? json['local_uuid'])?.toString(),
+      );
       if (localUuid != null) {
+        // Canonicalize the stable identity before lookup and persistence so
+        // UUIDs with/without dashes cannot create duplicate rows.
+        json['localUuid'] = localUuid;
+        json['local_uuid'] = localUuid;
         // تحقق هل يوجد سجل محلي بنفس local_uuid
         final existing = await _findByLocalUuid(localUuid);
         if (existing == null) {
@@ -64,6 +69,21 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       }
     }
 
+    if (src == Source.appwrite || src == Source.drive) {
+      final remoteLocalUuid = _normalizeStableUuid(
+        (json['localUuid'] ?? json['local_uuid'])?.toString(),
+      );
+      if (remoteLocalUuid == null || remoteLocalUuid.isEmpty) {
+        // A remote record without its stable identity cannot be safely merged.
+        // Generating a new UUID here would create duplicates on every device
+        // and would make a future provider migration impossible to reconcile.
+        throw StateError(
+          'Remote ${table.actualTableName} record has no local_uuid; '
+          'refusing to invent an identity or use the remote numeric id.',
+        );
+      }
+    }
+
     final refs = await adapter.resolveRefs(db, json, src: src);
 
     // ✅ إصلاح حرج: تخطي السجل إذا تعذر حل مرجع خارجي مطلوب (FK)
@@ -78,7 +98,21 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     }
 
     final comp = adapter.fromJson(json, src: src, refs: refs);
-    final targets = await _resolveConflictTargets();
+
+    // Remote records are identified exclusively by local_uuid.  The numeric
+    // SQLite id is device-local and must never become a remote conflict key.
+    // In particular, PRIMARY KEY(id) is unsafe here: two devices can assign
+    // the same autoincrement id to different records.  Likewise, partial
+    // UNIQUE indexes (for example expense_uuid WHERE ... IS NOT NULL) cannot
+    // be named by SQLite's ON CONFLICT(column) syntax unless their predicate
+    // is also part of the conflict target.
+    //
+    // Therefore the sync contract is: resolve local_uuid -> preserve its
+    // local id, then upsert by the unique local_uuid only.  Business/legacy
+    // indexes remain query constraints, never identity constraints.
+    final targets = src == Source.appwrite || src == Source.drive
+        ? await _resolveRemoteConflictTargets()
+        : await _resolveConflictTargets();
     Object? lastError;
     StackTrace? lastStack;
 
@@ -158,6 +192,66 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         .getSingleOrNull();
     if (result == null) return null;
     return result.data['id'] as int?;
+  }
+
+  String? _normalizeStableUuid(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    final compact = trimmed.replaceAll('-', '');
+    if (compact.length == 32 && !compact.contains(RegExp(r'[^0-9a-fA-F]'))) {
+      return '${compact.substring(0, 8)}-${compact.substring(8, 12)}-'
+          '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
+          '${compact.substring(20)}'.toLowerCase();
+    }
+    return trimmed.toLowerCase();
+  }
+
+  Future<List<List<Column>>> _resolveRemoteConflictTargets() async {
+    final columnsByName = <String, Column>{
+      for (final column in table.$columns) column.$name: column,
+    };
+    final localUuid = columnsByName['local_uuid'];
+    if (localUuid == null) {
+      throw StateError(
+        'Sync entity ${table.actualTableName} has no local_uuid column; '
+        'remote upsert is refused to prevent cross-device data corruption.',
+      );
+    }
+
+    // SyncFields declares local_uuid as UNIQUE on every synchronised entity.
+    // Verify the physical schema as a fail-closed guard against an incomplete
+    // migration rather than silently falling back to id.
+    final tableName = table.actualTableName.replaceAll("'", "''");
+    final rows = await db
+        .customSelect("PRAGMA index_list('$tableName')")
+        .get();
+    var localUuidUnique = false;
+    for (final row in rows) {
+      final isUnique = row.data['unique'] == 1 || row.data['unique'] == true;
+      if (!isUnique) continue;
+      final indexName = row.data['name']?.toString();
+      if (indexName == null || indexName.isEmpty) continue;
+      final indexInfo = await db
+          .customSelect(
+            "PRAGMA index_info('${indexName.replaceAll("'", "''")}')",
+          )
+          .get();
+      if (indexInfo.length == 1 &&
+          indexInfo.first.data['name']?.toString() == 'local_uuid') {
+        localUuidUnique = true;
+        break;
+      }
+    }
+
+    if (!localUuidUnique) {
+      throw StateError(
+        'Sync entity ${table.actualTableName} has local_uuid but no physical '
+        'UNIQUE constraint. Refusing remote upsert until the schema migration '
+        'is complete.',
+      );
+    }
+
+    return [<Column>[localUuid]];
   }
 
   Future<List<List<Column>>> _resolveConflictTargets() async {
@@ -358,10 +452,20 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
         // حل localUuid + id باستخدام الـ batch lookup المُسبق
         if (src == Source.appwrite || src == Source.drive) {
-          final localUuid =
-              jsonCopy['localUuid'] as String? ??
-              jsonCopy['local_uuid'] as String?;
-          if (localUuid != null) {
+          final localUuid = _normalizeStableUuid(
+            (jsonCopy['localUuid'] ?? jsonCopy['local_uuid'])?.toString(),
+          );
+          if (localUuid == null || localUuid.isEmpty) {
+            developer.log(
+              'Skipping remote ${table.actualTableName} row without local_uuid',
+              name: 'BaseRepository.batch',
+            );
+            skipped++;
+            continue;
+          }
+          jsonCopy['localUuid'] = localUuid;
+          jsonCopy['local_uuid'] = localUuid;
+          if (localUuid.isNotEmpty) {
             // ✅ استخدم الـ Map المُسبق التحضير (O(1)) بدلاً من استعلام SQL
             final existing =
                 existingUuidToId[localUuid] ??

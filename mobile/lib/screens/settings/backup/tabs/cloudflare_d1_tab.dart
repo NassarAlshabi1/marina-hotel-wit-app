@@ -57,7 +57,7 @@ const Set<String> kD1SyntheticTables = <String>{'app_users'};
 
 /// تبويب رفع البيانات المحلية (المسحوبة من Appwrite) إلى Cloudflare D1.
 ///
-/// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT OR REPLACE
+/// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم UPSERT بالهوية الثابتة
 /// إلى D1 — لا يمس حلقة مزامنة Appwrite ولا يحذف أي سجل بعيد.
 /// القيود المطبقة (مثبتة تجريبياً): عبارات حرفية متعددة بلا معاملات في
 /// النداء الواحد — دفعة 200 عبارة (مثبت: 800 عبارة/187KB نجحت بـ 635ms).
@@ -339,10 +339,10 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         title: const Text('تأكيد الرفع إلى Cloudflare D1'),
         content: Text(
           'سيتم رفع ${_selected.length} جدولاً ($totalRows صفاً) إلى قاعدة '
-          'D1 المحددة باستخدام INSERT OR REPLACE.\n\n'
+          'D1 المحددة. الجداول التي تحمل local_uuid تستخدم UPSERT على الهوية الثابتة، وليس INSERT OR REPLACE.\n\n'
           '• لا يُحذف أي سجل موجود في D1 غير موجود محلياً.\n'
-          '• إعادة الرفع آمنة (نفس البيانات تستبدل نفسها).\n'
-          '• يُنصح بعدد صفوف كبير بألا تكون هناك عمليات كتابة كثيرة أثناء الرفع.',
+          '• لا يتم اختراع employee_uuid أو إعادة ربط سجل بموظف بالتخمين.\n'
+          '• قد تظهر تحذيرات للسجلات التاريخية التي تحتاج مراجعة.',
         ),
         actions: [
           TextButton(
@@ -360,12 +360,65 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     await _upload();
   }
 
+  Future<List<String>> _identityWarnings(AppDatabase db) async {
+    final warnings = <String>[];
+    Future<int> count(
+      String sql, [
+      List<Variable<Object>> variables = const [],
+    ]) async {
+      final rows = await db.customSelect(sql, variables: variables).get();
+      return (rows.firstOrNull?.data['n'] as num?)?.toInt() ?? 0;
+    }
+
+    if (_selected.contains('employees')) {
+      final n = await count(
+        "SELECT COUNT(*) AS n FROM employees WHERE local_uuid IS NULL OR TRIM(local_uuid) = ''",
+      );
+      if (n > 0) {
+        warnings.add(
+          'employees: $n سجل بلا local_uuid ثابت. لم يتم اختراع UUID أثناء النسخ الاحتياطي.',
+        );
+      }
+    }
+    if (_selected.contains('expenses')) {
+      final n = await count(
+        "SELECT COUNT(*) AS n FROM expenses WHERE employee_uuid IS NOT NULL AND TRIM(employee_uuid) <> '' AND NOT EXISTS (SELECT 1 FROM employees e WHERE LOWER(e.local_uuid)=LOWER(expenses.employee_uuid))",
+      );
+      if (n > 0) {
+        warnings.add(
+          'expenses: $n مصروف يحمل employee_uuid غير موجود في employees؛ سيُرفع كما هو دون إعادة ربط تخميني.',
+        );
+      }
+    }
+    if (_selected.contains('salary_withdrawals')) {
+      final n = await count(
+        "SELECT COUNT(*) AS n FROM salary_withdrawals WHERE employee_uuid IS NOT NULL AND TRIM(employee_uuid) <> '' AND NOT EXISTS (SELECT 1 FROM employees e WHERE LOWER(e.local_uuid)=LOWER(salary_withdrawals.employee_uuid))",
+      );
+      if (n > 0) {
+        warnings.add(
+          'salary_withdrawals: $n سحبة تحمل employee_uuid غير موجود؛ لم يتم تحويلها إلى موظف آخر.',
+        );
+      }
+      final m = await count(
+        "SELECT COUNT(*) AS n FROM salary_withdrawals sw JOIN expenses ex ON ex.local_uuid = sw.expense_uuid WHERE sw.expense_uuid IS NOT NULL AND sw.expense_uuid <> '' AND sw.employee_uuid IS NOT NULL AND ex.employee_uuid IS NOT NULL AND LOWER(sw.employee_uuid) <> LOWER(ex.employee_uuid)",
+      );
+      if (m > 0) {
+        warnings.add(
+          'salary_withdrawals: $m سحبة لا يتطابق موظفها UUID مع موظف المصروف المرتبط؛ لم يتم إصلاحها بالتخمين.',
+        );
+      }
+    }
+    return warnings;
+  }
+
   Future<void> _upload() async {
     final db = ref.read(databaseProvider);
+    final identityWarnings = await _identityWarnings(db);
     final service = CloudflareD1Service(_config);
     _activeService = service;
 
     final infoLogs = <String>[];
+    infoLogs.addAll(identityWarnings);
     final sources = <CloudflareD1SourceTable>[];
 
     // ✅ F2 (2026-10-04): الجدول التركيبي app_users — يُجمع قبل الرفع
@@ -517,12 +570,31 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'ينقل هذا التبويب بيانات جداول المزامنة من Appwrite Cloud — '
-          'المطابقة لمجموعات collections — إلى قاعدة Cloudflare D1 كنسخة '
-          'استشارية على السحابة. القراءة من القاعدة المحلية فقط والكتابة '
-          'بأسلوب INSERT OR REPLACE الآمن، ويمكن إظهار جميع الجداول '
-          'المحلية عبر المفتاح أدناه.',
+          'ينقل هذا التبويب نسخة بيانات محلية إلى Cloudflare D1. هوية السجل '
+          'المحمولة هي local_uuid، وعلاقات الموظفين تعتمد على employee_uuid؛ '
+          'لا يتم استخدام id الرقمي المحلي/البعيد كهوية للمزامنة. الرفع يتم '
+          'بـ UPSERT على local_uuid للجداول التي تحتويه، وليس REPLACE، لمنع '
+          'حذف وإعادة إنشاء الصفوف وكسر العلاقات.',
           textAlign: TextAlign.start,
+        ),
+        const SizedBox(height: 10),
+        Card(
+          color: colorScheme.tertiaryContainer,
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.verified_user_outlined),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'حارس الهوية: employees / expenses / salary_withdrawals وكيانات الرواتب يجب أن تحمل local_uuid، والروابط employee_uuid. أي سجل بلا هوية ثابتة لا يُعاد تعيينه اعتمادًا على id الرقمي.',
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         if (_outboxPending > 0) ...[
           const SizedBox(height: 8),

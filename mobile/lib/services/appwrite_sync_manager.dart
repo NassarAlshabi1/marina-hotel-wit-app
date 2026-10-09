@@ -4323,6 +4323,28 @@ class AppwriteSyncManager {
                   ..where((e) => e.localUuid.equals(expenseUuid))
                   ..limit(1))
                 .getSingleOrNull();
+        if (linkedExpense != null) {
+          final withdrawal =
+              await (database.select(database.salaryWithdrawals)
+                    ..where((w) => w.id.equals(salaryWithdrawalRowId))
+                    ..limit(1))
+                  .getSingleOrNull();
+          final withdrawalEmployeeUuid = withdrawal?.employeeUuid?.trim();
+          final expenseEmployeeUuid = linkedExpense.employeeUuid?.trim();
+          if (withdrawalEmployeeUuid != null &&
+              withdrawalEmployeeUuid.isNotEmpty &&
+              expenseEmployeeUuid != null &&
+              expenseEmployeeUuid.isNotEmpty &&
+              withdrawalEmployeeUuid != expenseEmployeeUuid) {
+            _logger.error(
+              '❌ رفض ربط السحبة #$salaryWithdrawalRowId بالمصروف '
+              '$expenseUuid: employeeUuid mismatch '
+              '($withdrawalEmployeeUuid != $expenseEmployeeUuid)',
+              tag: 'SYNC_RELINK',
+            );
+            return;
+          }
+        }
         resolvedExpenseId = linkedExpense?.id;
       } catch (e) {
         _logger.warning(
@@ -4332,17 +4354,33 @@ class AppwriteSyncManager {
         );
       }
     }
-    // المستوى 2: بلا uuid (سجلات قديمة) → القيمة الخام كما في السلوك السابق
-    final effectiveExpenseId = resolvedExpenseId ?? rawExpenseId;
-    if (effectiveExpenseId != null && effectiveExpenseId > 0) {
-      final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
-      if (swAdapter is SalaryWithdrawalsAdapter) {
-        await swAdapter.writeExpenseIdRaw(
-          database,
-          salaryWithdrawalRowId,
-          effectiveExpenseId,
-        );
-      }
+    if (expenseUuid == null || expenseUuid.trim().isEmpty) {
+      // Remote numeric expense_id is a source-device autoincrement value.
+      // It is never safe to copy it into this device because the same number
+      // may belong to a completely different expense/employee here. Preserve
+      // the existing local value and wait for a UUID-bearing record/relink.
+      _logger.warning(
+        '⚠️ salary_withdrawal #$salaryWithdrawalRowId arrived without '
+        'expenseUuid; raw remote expenseId=$rawExpenseId was deliberately ignored',
+        tag: 'SYNC_RELINK',
+      );
+      return;
+    }
+
+    if (resolvedExpenseId == null) {
+      // UUID is authoritative but the expense may not have arrived yet. Do
+      // not fall back to the remote numeric id. _relinkMirrorExpenseIds()
+      // will resolve it after the expense is pulled.
+      return;
+    }
+
+    final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
+    if (swAdapter is SalaryWithdrawalsAdapter) {
+      await swAdapter.writeExpenseIdRaw(
+        database,
+        salaryWithdrawalRowId,
+        resolvedExpenseId,
+      );
     }
   }
 
@@ -4362,7 +4400,9 @@ class AppwriteSyncManager {
             'SELECT w.id AS wid, w.expense_id AS current_expense_id, '
             'w.expense_uuid AS expense_uuid, '
             '(SELECT e.id FROM expenses e WHERE e.local_uuid = w.expense_uuid '
-            '  AND e.deleted_at IS NULL LIMIT 1) AS resolved_expense_id '
+            '  AND e.deleted_at IS NULL '
+            '  AND (e.employee_uuid IS NULL OR w.employee_uuid IS NULL '
+            '       OR e.employee_uuid = w.employee_uuid) LIMIT 1) AS resolved_expense_id '
             'FROM salary_withdrawals w '
             'WHERE w.expense_uuid IS NOT NULL '
             "AND w.expense_uuid != '' "

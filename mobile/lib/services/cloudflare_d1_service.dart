@@ -62,8 +62,8 @@ class CloudflareD1Service {
       'Authorization': 'Bearer ${config.apiToken}',
       'Content-Type': 'application/json',
     };
-    // إعادة محاولة واحدة عند أعطال الشبكة — آمنة لأن كل الكتابات
-    // INSERT OR REPLACE (idempotent).
+    // إعادة محاولة واحدة عند أعطال الشبكة — عمليات الرفع مصممة لتكون idempotent
+    // عبر local_uuid/مفتاح السجل المناسب.
     Object? lastError;
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
@@ -258,8 +258,9 @@ class CloudflareD1Service {
   //  الرفع
   // ════════════════════════════════════════════════════════════════
 
-  /// رفع الجداول المحددة إلى D1 (مخطط + بيانات) بأسلوب INSERT OR REPLACE
-  /// — الإعادة آمنة (idempotent) ولا تحذف أي سجل بعيد غير موجود محلياً.
+  /// رفع الجداول المحددة إلى D1 (مخطط + بيانات) بأسلوب UPSERT على local_uuid
+  /// للجداول المتزامنة — الإعادة آمنة (idempotent) ولا تحذف أي سجل بعيد غير
+  /// موجود محلياً.
   Future<CloudflareD1UploadResult> uploadData({
     required List<CloudflareD1SourceTable> tables,
     String? deviceLabel,
@@ -340,15 +341,30 @@ class CloudflareD1Service {
             offset += chunk.length;
             continue;
           }
-          // نمط موحد لكل الجداول: عبارات INSERT OR REPLACE حرفية بلا
-          // معاملات — دفعات _statementBatch في النداء الواحد (مُثبت أعلاه).
+          // الهوية الدائمة هي local_uuid. لا نستخدم REPLACE لأنه يحذف الصف
+          // ثم يعيد إدخاله، وقد يكسر علاقات/تدقيقات محلية في مرآة D1.
+          // إذا كان الجدول متزامناً ويحمل local_uuid، نستخدم UPSERT على هذه
+          // الهوية؛ أما الجداول القديمة غير المتزامنة فتحتفظ بالمسار السابق.
           final statements = <String>[];
+          final hasLocalUuid = columns.contains('local_uuid');
           for (final row in chunk) {
             final values = columns.map((c) => _sqlLiteral(row[c])).join(',');
-            statements.add(
-              'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
-              '(${columns.map(_quoteIdent).join(',')}) VALUES ($values)',
-            );
+            if (hasLocalUuid) {
+              final updateColumns = columns
+                  .where((c) => c != 'local_uuid')
+                  .map((c) => '${_quoteIdent(c)} = excluded.${_quoteIdent(c)}')
+                  .join(',');
+              statements.add(
+                'INSERT INTO "${_quoteIdent(t.name)}" '
+                '(${columns.map(_quoteIdent).join(',')}) VALUES ($values) '
+                'ON CONFLICT("local_uuid") DO UPDATE SET $updateColumns',
+              );
+            } else {
+              statements.add(
+                'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
+                '(${columns.map(_quoteIdent).join(',')}) VALUES ($values)',
+              );
+            }
           }
           var bi = 0;
           while (bi < statements.length) {
@@ -397,9 +413,10 @@ class CloudflareD1Service {
         final nowIso = DateTime.now().toUtc().toIso8601String();
         final label = _sqlLiteral(deviceLabel ?? '');
         await executeStatements([
-          "INSERT OR REPLACE INTO app_backup_meta "
-              "(id, uploaded_at, tables_count, rows_count, device_label) "
-              "VALUES (1, '$nowIso', ${doneTables.length}, $rowsUploaded, $label)",
+          "INSERT INTO app_backup_meta (id, uploaded_at, tables_count, rows_count, device_label) "
+              "VALUES (1, '$nowIso', ${doneTables.length}, $rowsUploaded, $label) "
+              "ON CONFLICT(id) DO UPDATE SET uploaded_at=excluded.uploaded_at, "
+              "tables_count=excluded.tables_count, rows_count=excluded.rows_count, device_label=excluded.device_label",
         ]);
         callCount++;
       } on CloudflareD1Exception catch (e) {

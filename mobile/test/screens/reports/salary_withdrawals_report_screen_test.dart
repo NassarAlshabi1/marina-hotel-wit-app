@@ -40,6 +40,7 @@ void main() {
       syncTimestamp: 0,
       id: id,
       employeeId: employeeId,
+      employeeUuid: 'employee-$employeeId',
       amount: amount,
       withdrawDate: day,
       hotelDayKey: day,
@@ -191,6 +192,42 @@ void main() {
       expect(result, hasLength(3));
     },
   );
+
+  test('اختلاف employeeUuid يمنع دمج سحبتين من موظفين مختلفين حتى لو تطابق employeeId المحلي', () {
+    final first = sw(
+      id: 1,
+      employeeId: 5,
+      amount: 100,
+      reason: 'exp_1001',
+      expenseId: 1001,
+    );
+    final second = SalaryWithdrawal(
+      localUuid: 'uuid-2',
+      createdAt: 1000,
+      updatedAt: 1000,
+      lastModified: 1000,
+      createdAtEpoch: 1000,
+      lastModifiedEpoch: 1000,
+      version: 1,
+      origin: 'local',
+      vectorClock: '{}',
+      deviceId: '',
+      syncTimestamp: 0,
+      id: 2,
+      employeeId: 5,
+      employeeUuid: 'employee-other',
+      amount: 100,
+      withdrawDate: day,
+      hotelDayKey: day,
+      reason: 'exp_1002',
+      withdrawalType: 'سحب راتب',
+      expenseId: 1002,
+    );
+
+    // لا توجد مرآة محلية؛ الاختبار يعزل مفتاح التجميع الاحتياطي.
+    final result = dedupeMirrorDuplicates([first, second], const []);
+    expect(result, hasLength(2));
+  });
 
   test('سحبة مباشرة (direct_withdrawal_) لا تُدمَج أبداً حتى لو تشابهت', () {
     final direct1 = sw(

@@ -90,7 +90,7 @@ class SalaryCarryOverLogsAdapter
           ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
       // ✅ (2026-09-19) تخزين UUID الموظف — الربط الدائم عبر الأجهزة
-      employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
+      employeeUuid: _vUuid(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       amount: d.Value(_asDouble(json, 'amount', src) ?? 0),
       previousCycleStart: d.Value(
         _asString(json, 'previousCycleStart', src) ??
@@ -184,6 +184,27 @@ class SalaryCarryOverLogsAdapter
 }
 
 // Helpers
+d.Value<String> _vUuid(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+}) {
+  final raw = _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null);
+  if (raw == null || raw.trim().isEmpty) return const d.Value.absent();
+  final trimmed = raw.trim();
+  final compact = trimmed.replaceAll('-', '');
+  if (compact.length == 32 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(compact)) {
+    return d.Value(
+      '${compact.substring(0, 8)}-${compact.substring(8, 12)}-'
+      '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
+      '${compact.substring(20)}'.toLowerCase(),
+    );
+  }
+  return d.Value(trimmed.toLowerCase());
+}
+
 d.Value<int> _vInt(
   Map<String, dynamic> json,
   String key,

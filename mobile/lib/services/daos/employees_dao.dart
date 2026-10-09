@@ -176,6 +176,15 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
+  Future<int> softDeleteByLocalUuid(
+    String localUuid, {
+    bool originIsServer = false,
+  }) async {
+    final existing = await getByLocalUuid(localUuid);
+    if (existing == null) return 0;
+    return softDelete(existing.id, originIsServer: originIsServer);
+  }
+
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();

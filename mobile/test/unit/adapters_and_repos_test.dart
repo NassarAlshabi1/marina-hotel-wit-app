@@ -102,6 +102,109 @@ void main() {
   // SalaryCyclesAdapter — اختبار دوري كامل
   // ═══════════════════════════════════════════════════════════════
   group('SalaryCyclesAdapter — دوري كامل (appwrite)', () {
+    test('fresh schema enforces active 1:1 expenseUuid mirror identity', () async {
+      await insertEmployee();
+      await db.into(db.salaryWithdrawals).insert(
+        SalaryWithdrawalsCompanion(
+          localUuid: const d.Value('mirror-a'),
+          employeeId: const d.Value(1),
+          employeeUuid: const d.Value('emp-1'),
+          amount: const d.Value(100),
+          withdrawDate: const d.Value('2025-06-01'),
+          expenseUuid: const d.Value('expense-a'),
+          createdAt: const d.Value(1),
+          updatedAt: const d.Value(1),
+          lastModified: const d.Value(1),
+        ),
+      );
+      await expectLater(
+        db.into(db.salaryWithdrawals).insert(
+          SalaryWithdrawalsCompanion(
+            localUuid: const d.Value('mirror-b'),
+            employeeId: const d.Value(1),
+            employeeUuid: const d.Value('emp-1'),
+            amount: const d.Value(200),
+            withdrawDate: const d.Value('2025-06-01'),
+            expenseUuid: const d.Value('expense-a'),
+            createdAt: const d.Value(2),
+            updatedAt: const d.Value(2),
+            lastModified: const d.Value(2),
+          ),
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test(
+      'remote upsert never uses a colliding remote numeric id as conflict key',
+      () async {
+        final firstEmployeeId = await insertEmployee(uuid: 'emp-remote-a');
+        final secondEmployeeId = await insertEmployee(
+          uuid: 'emp-remote-b',
+          name: 'محمد',
+        );
+        // Simulate a local row already occupying the numeric id that the
+        // remote device sends for a different withdrawal.
+        final existingId = await db.into(db.salaryWithdrawals).insert(
+          SalaryWithdrawalsCompanion(
+            localUuid: const d.Value('local-existing'),
+            employeeId: d.Value(firstEmployeeId),
+            employeeUuid: const d.Value('emp-remote-a'),
+            amount: const d.Value(111),
+            withdrawDate: const d.Value('2025-06-01'),
+            createdAt: const d.Value(1),
+            updatedAt: const d.Value(1),
+            lastModified: const d.Value(1),
+          ),
+        );
+
+        final remoteId = existingId;
+        final insertedId = await adapters.salaryWithdrawals.upsertFromJson(
+          {
+            'id': remoteId,
+            'localUuid': 'remote-new-uuid',
+            'employeeUuid': 'emp-remote-b',
+            'amount': 222,
+            'withdrawDate': '2025-06-02',
+            'createdAt': 2,
+            'lastModified': 2,
+          },
+          src: Source.appwrite,
+        );
+
+        expect(insertedId, isNot(equals(remoteId)));
+        final existing = await (db.select(db.salaryWithdrawals)
+              ..where((w) => w.localUuid.equals('local-existing')))
+            .getSingle();
+        final remote = await (db.select(db.salaryWithdrawals)
+              ..where((w) => w.localUuid.equals('remote-new-uuid')))
+            .getSingle();
+        expect(existing.amount, 111);
+        expect(existing.employeeId, firstEmployeeId);
+        expect(remote.amount, 222);
+        expect(remote.employeeId, secondEmployeeId);
+      },
+    );
+
+    test('remote upsert refuses records without stable localUuid', () async {
+      await insertEmployee();
+      await expectLater(
+        adapters.salaryWithdrawals.upsertFromJson(
+          {
+            'id': 999,
+            'employeeUuid': 'emp-1',
+            'amount': 1000,
+            'withdrawDate': '2025-06-15',
+            'createdAt': 100,
+            'lastModified': 200,
+          },
+          src: Source.appwrite,
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(await db.select(db.salaryWithdrawals).get(), isEmpty);
+    });
+
     test('resolveRefs يرجع shouldSkip=true عند عدم وجود الموظف', () async {
       final json = {
         'localUuid': 'sc-1',
