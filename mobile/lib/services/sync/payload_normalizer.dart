@@ -63,7 +63,47 @@ class PayloadNormalizer {
     payload.forEach((key, value) {
       out[toSnakeCase(key)] = _normalizeValue(value);
     });
+    // ✅ تكافؤ `SyncEpochs.normalizeOutgoingEpochFields` (أندرويد): وحدة
+    // الطوابع تُطبَّق عند نقطة الدفع نفسها، بعد توحيد الأسماء والأنواع.
+    normalizeEpochFields(out);
     return out;
+  }
+
+  /// أعمدة الطابع الستة على السلك — نظير `SyncEpochs.WIRE_EPOCH_FIELDS`
+  /// في أندرويد بنفس الأسماء.
+  static const Set<String> wireEpochFields = {
+    'created_at',
+    'updated_at',
+    'deleted_at',
+    'last_modified',
+    'created_at_epoch',
+    'last_modified_epoch',
+  };
+
+  /// العتبة الفاصلة بين الثواني والميلي — `SyncEpochs.MILLIS_THRESHOLD`
+  /// و`Database.MS_TIMESTAMP_THRESHOLD` في الطرفين: 1e11.
+  static const int millisThreshold = 100000000000;
+
+  /// يحوّل أي طابع ميلي في [wireEpochFields] إلى ثوانٍ (÷1000).
+  ///
+  /// لماذا: الـWorker ينسخ `last_modified` الوارد حرفياً (`createRecord`)
+  /// ويقارنه عندنا وعند بقية الأجهزة بثوانيها — طابع ميلي يُخزَّن كما هو
+  /// فيربح «الأحدث يفوز» على كل جهاز بلا سبب زمني حقيقي.
+  ///
+  /// ما لا يُلمس: القيم ≤ 1e11، والغائبة، والنصوص غير الرقمية —
+  /// لا نُخمّن مكان غياب معلومة (سلوك `isMillisLike` نفسه).
+  static void normalizeEpochFields(Map<String, dynamic> data) {
+    for (final field in wireEpochFields) {
+      final raw = data[field];
+      final int? asInt = switch (raw) {
+        final int v => v,
+        final double v => v.truncate(),
+        final String v => int.tryParse(v.trim()),
+        _ => null,
+      };
+      if (asInt == null || asInt <= millisThreshold) continue;
+      data[field] = asInt ~/ 1000;
+    }
   }
 
   /// bool → int (D1/SQLite INTEGER affinity; Workers D1 rejects booleans).
@@ -85,28 +125,86 @@ typedef RowVectorClockResolver =
 Future<Map<String, dynamic>> buildPushOperation(
   OutboxData item, {
   required RowVectorClockResolver resolveRowVectorClock,
+  String? deviceId,
 }) async {
   final data = PayloadNormalizer.normalize(
     jsonDecode(item.payload) as Map<String, dynamic>,
   );
+  final entity = canonicalEntity(item.entity);
+  final operation = mapOperation(item.op);
+
   // ✅ عقد الهوية: صف outbox يحمل local_uuid دائماً (OutboxDao.merge
   // required localUuid) — الحمولات الرقيقة (soft-deletes `{'id': n}`)
   // لا تحمله، و requireEntityId يرمي على id الرقمي → validation_error.
-  data['local_uuid'] ??= item.localUuid;
+  // يُحقن أيضاً إن كان نصّاً فارغاً (سلوك Android: `isNullOrBlank`).
+  final localUuid = data['local_uuid'];
+  if (localUuid is! String || localUuid.trim().isEmpty) {
+    data['local_uuid'] = item.localUuid;
+  }
+
+  // ✅ تكافؤ `PushWireContract.buildOperation`: مسار الفصل الصريح لربط
+  // الموظف (مصروف راتب تحوّل إلى مصروف بغير موظف) يُبلَّغ بعلامة
+  // `clear_employee_link=1` — والـWorker يترجمها إلى
+  // `employee_uuid=NULL + employee_link_cleared=1`.
+  // الفارغ الغائب (null) أو وجود الكيان/العملية غيرهما لا يمسح الربط أبداً.
+  if (entity == 'expenses' && operation == 'update') {
+    final employeeUuid = data['employee_uuid'];
+    if (employeeUuid is String && employeeUuid.trim().isEmpty) {
+      data.remove('employee_uuid');
+      data['clear_employee_link'] = 1;
+    }
+  }
+
   // ✅ عقد ساعة المتجه: authoritative clock يعيش على صف الكيان
   // (OutboxDao._bumpVectorClockForLocalWrite يحدّث الجدول لا الحمولة).
   // إرسال '{}' كان يجبر الـ worker على تهيئة ساعة جديدة وفقدان التاريخ.
+  // ترتيب المصادر: الحمولة (إن كانت نصّاً غير فارغ) ← صف الكيان ← '{}'
+  // (Android لا يملك مصدراً ثالثاً: حمولة، وإلا '{}').
+  final rawVectorClock = data['vector_clock'];
   final vectorClock =
-      data['vector_clock'] as String? ??
-      await resolveRowVectorClock(item.entity, item.localUuid) ??
-      '{}';
+      (rawVectorClock is String && rawVectorClock.trim().isNotEmpty)
+      ? rawVectorClock
+      : await resolveRowVectorClock(item.entity, item.localUuid) ?? '{}';
   data['vector_clock'] = vectorClock;
+
   return <String, dynamic>{
-    'idempotencyKey': item.idempotencyKey,
-    'entity': item.entity,
-    'operation': item.op,
+    'idempotencyKey': switch (item.idempotencyKey) {
+      final String k when k.trim().isNotEmpty => k,
+      _ => '${entity}_${operation}_${item.localUuid}',
+    },
+    'entity': entity,
+    'operation': operation,
     'data': data,
     'vectorClock': vectorClock,
-    'updatedAt': item.clientTs,
+    'updatedAt': toWireEpochSeconds(item.clientTs),
+    'deviceId': switch (deviceId) {
+      final String d when d.trim().isNotEmpty => d,
+      _ => 'unknown-origin',
+    },
   };
 }
+
+/// `create|update|delete` حصراً — نظير `PushWireContract.mapOperation`.
+///
+/// الـWorker يرفض أي قيمة أخرى بـ`Invalid operation` (`sync.ts:77`) وهي
+/// `validation_error` ⇒ رفض دائم وdead-letter بلا إعادة. صندوق Dart يكتب
+/// القيم الثلاث نفسها اليوم، فالترجمة حارس لا إصلاح — وقفل بالاختبار.
+String mapOperation(String op) => switch (op.trim().toLowerCase()) {
+  'insert' || 'create' || 'upsert' => 'create',
+  'update' || 'edit' => 'update',
+  'delete' || 'soft_delete' || 'softdelete' => 'delete',
+  final other => other,
+};
+
+/// توحيد اسم الكيان إلى اسم السلك — نظير `PushWireContract.canonicalEntity`.
+///
+/// القيم غير المعروفة تمر كما هي: رفض الخادم الصريح أوضح من التخمين.
+String canonicalEntity(String entity) =>
+    entity.trim() == 'blacklist_entries' ? 'blacklist' : entity.trim();
+
+/// `updatedAt` بوحدة ثوانٍ — نظير `PushWireContract.clientTimestampSeconds`
+/// (عتبة 1e11 ⇒ ÷1000). صندوق Dart يخزّن `client_ts` بالثوانٍ أصلاً
+/// (`Time.nowEpoch()`)، فالشرط دفاع لوراثة صفوف قديمة أو مُعادلتها من
+/// أندرويد — والـWorker يقارن هذا الحقل بثواني الأجهزة الأخرى.
+int toWireEpochSeconds(int value) =>
+    value >= PayloadNormalizer.millisThreshold ? value ~/ 1000 : value;

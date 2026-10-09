@@ -1407,12 +1407,16 @@ class CloudflareSyncManager {
       // ✅ عقد الدفع (2026-09-05): snake_case + local_uuid + vector_clock —
       // البناء الكامل في buildPushOperation (sync/payload_normalizer.dart)
       // ليُحارس العقد باختبارات تشغّل المنتجين الحقيقيين للكيانات.
+      // deviceId يُبنى داخل العقد نفسه (fallback `unknown-origin`) —
+      // تكافؤ `PushWireContract.buildOperation` حتى لا تعتمد الصياغة على
+      // ترتيب الحقن بعد البناء.
       operations.add(
-        await buildPushOperation(item, resolveRowVectorClock: _rowVectorClock),
+        await buildPushOperation(
+          item,
+          resolveRowVectorClock: _rowVectorClock,
+          deviceId: _deviceId,
+        ),
       );
-      if (_deviceId != null) {
-        operations.last['deviceId'] = _deviceId;
-      }
     }
 
     // ─── gzip compress the push payload for faster upload ───

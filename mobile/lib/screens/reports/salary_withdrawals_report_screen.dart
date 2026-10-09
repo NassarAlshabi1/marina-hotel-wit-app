@@ -965,6 +965,7 @@ Future<MirrorDedupeResult> dedupeMirrorDuplicates(
           deletedAt: Value(now),
           updatedAt: Value(now),
           lastModified: Value(now),
+          lastModifiedEpoch: Value(now),
           version: Value(sw.version + 1),
         ),
       );
@@ -980,6 +981,7 @@ Future<MirrorDedupeResult> dedupeMirrorDuplicates(
           if (uuidRef != null) 'employeeUuid': uuidRef,
           'deletedAt': now,
           'lastModified': now,
+          'lastModifiedEpoch': now,
         },
         clientTs: now,
       );

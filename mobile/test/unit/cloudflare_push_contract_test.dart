@@ -43,9 +43,14 @@ import 'package:marina_hotel_mobile/services/repositories/inventory_repository.d
 import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
 import 'package:marina_hotel_mobile/services/sync/payload_normalizer.dart';
 
-// الأعمدة المسموحة إضافةً لأعمدة جدول D1: عمود محلي بلا مرآة D1
-// (مستبعد عمداً من العقد السحابي — يسقطه الـ worker بلا أثر).
-const _droppableKeys = {'sync_timestamp'};
+// الأعمدة المسموحة إضافةً لأعمدة جدول D1:
+//  • sync_timestamp — عمود محلي بلا مرآة D1 (مستبعد عمداً من العقد
+//    السحابي — يسقطه الـ worker بلا أثر).
+//  • clear_employee_link — مرادف سلكي وليس عموداً: الـ worker يترجمه إلى
+//    employee_uuid=NULL + employee_link_cleared=1
+//    (worker/src/database.ts — normalizeExpenseFields). يظهر فقط في مسار
+//    الفصل الصريح لربط الموظف (تكافؤ PushWireContract).
+const _droppableKeys = {'sync_timestamp', 'clear_employee_link'};
 
 final RegExp _snakeKey = RegExp(r'^[a-z][a-z0-9_]*$');
 
