@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../providers/repository_providers.dart';
 import '../../../../services/auth_local_store.dart';
 import '../../../../services/cloudflare_d1_app_users_source.dart';
+import '../../../../services/cloudflare_d1_identity_repair.dart';
 import '../../../../services/cloudflare_d1_identity_validator.dart';
 import '../../../../services/cloudflare_d1_service.dart';
 import '../../../../services/daos/outbox_dao.dart';
@@ -322,6 +323,71 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         ..clear()
         ..addAll(_visibleTables.map((t) => t.name));
     });
+  }
+
+  Future<void> _repairIdentity() async {
+    if (_selected.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('اختر جدولاً واحداً على الأقل أولاً')),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إصلاح هوية السجلات والروابط'),
+        content: const Text(
+          'سيتم إنشاء local_uuid للسجلات القديمة التي تفتقده فقط، '
+          'وربط employee_uuid وbooking_uuid والروابط المالية من المفاتيح '
+          'المحلية الصريحة. لن يتم حذف أي سجل أو تغيير مبالغ أو تواريخ، '
+          'ولن يتم لمس جداول المزامنة المحلية.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('إصلاح الآن'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _uploading = true;
+      _stage = 'إصلاح الهوية والروابط...';
+      _result = null;
+    });
+    try {
+      final result = await CloudflareD1IdentityRepair.repair(
+        db: ref.read(databaseProvider),
+        selectedTables: _selected,
+      );
+      await _loadLocalTables();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم إصلاح ${result.identitiesRepaired} هوية و${result.linksRepaired} رابط. '
+            'يمكنك الآن رفع البيانات إلى D1.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر إصلاح الهوية: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _stage = '';
+        });
+      }
+    }
   }
 
   Future<void> _confirmAndUpload() async {
@@ -811,6 +877,13 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                       : _loadLocalTables,
                   icon: const Icon(Icons.refresh),
                   label: const Text('تحديث قائمة الجداول والأعداد'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: (_loadingTables || _uploading || _selected.isEmpty)
+                      ? null
+                      : _repairIdentity,
+                  icon: const Icon(Icons.build_circle_outlined),
+                  label: const Text('إصلاح الهوية والروابط'),
                 ),
               ],
             ),
