@@ -27,10 +27,10 @@ void main() {
   });
 
   group('devices ككيان متزامن (v67)', () {
-    test('schemaVersion = 71', () {
-      // Parity unification: bumped from 70 → 71 to add expense_kind +
-      // employee_link_cleared + sync_write_times + idx_salary_withdrawals_active_expense
-      expect(db.schemaVersion, 71);
+    test('schemaVersion = 72', () {
+      // Migration 72 reasserts the active expense_uuid uniqueness invariant
+      // for upgraded databases; beforeOpen creates it for fresh databases.
+      expect(db.schemaVersion, 72);
     });
 
     test('جدول devices موجود في قاعدة جديدة', () async {

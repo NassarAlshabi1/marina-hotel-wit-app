@@ -22,6 +22,20 @@ void main() {
       }),
     );
 
+    final expenseLinkIndex = await db
+        .customSelect(
+          "SELECT sql FROM sqlite_master WHERE type = 'index' "
+          "AND name = 'idx_salary_withdrawals_active_expense'",
+        )
+        .get();
+    expect(expenseLinkIndex, hasLength(1));
+    expect(
+      expenseLinkIndex.single.read<String>('sql'),
+      contains('WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL'),
+      reason:
+          'active expense_uuid must be unique without constraining NULL links',
+    );
+
     for (final table in <String>[
       'salary_withdrawals',
       'salary_cycles',

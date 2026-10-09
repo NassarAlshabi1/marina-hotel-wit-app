@@ -23,6 +23,7 @@
 //  بلا تعديل حقيقي وراءه.
 // ══════════════════════════════════════════════════════════════════
 
+import 'cloudflare_d1_identity_validator.dart';
 import 'cloudflare_d1_service.dart'
     show CloudflareD1SourceTable, CloudflareD1Progress, CloudflareD1UploadResult;
 import 'cloudflare_sync_manager.dart';
@@ -54,6 +55,27 @@ class CloudflareD1PushMirror {
     _cancelled = false;
     final sw = Stopwatch()..start();
     final outboxDao = OutboxDao(db);
+
+    // Validate the complete selected dataset before creating restore outbox
+    // entries or sending the first push request. A partial first upload could
+    // otherwise strand financial rows with broken portable UUID references.
+    final preflightIssues = await CloudflareD1IdentityValidator.inspect(
+      db: db,
+      selectedTables: tables.map((table) => table.name).toSet(),
+    );
+    if (preflightIssues.isNotEmpty) {
+      sw.stop();
+      return CloudflareD1UploadResult(
+        ok: false,
+        cancelled: false,
+        tablesDone: 0,
+        rowsUploaded: 0,
+        apiCalls: 0,
+        errors: preflightIssues,
+        warnings: const [],
+        elapsed: sw.elapsed,
+      );
+    }
 
     var rowsUploaded = 0;
     var flushCalls = 0;
@@ -92,20 +114,22 @@ class CloudflareD1PushMirror {
       try {
         var offset = 0;
         var rowsForTable = 0;
-        var skippedNoUuid = 0;
         while (offset < t.rowCount) {
           if (_cancelled || networkFailed) break;
           final chunk = await t.readChunk(_readChunkSize, offset);
           if (chunk.isEmpty) break;
 
           for (final row in chunk) {
-            final localUuid = row['local_uuid'] as String?;
-            if (localUuid == null || localUuid.isEmpty) {
-              // ✅ صف بلا هوية مزامنة (نادر: SyncFields مفقودة استثنائياً)
-              // — لا يمكن دفعه عبر /push (يتطلب local_uuid). يُتخطى بدل
-              // إسقاط الجدول كله.
-              skippedNoUuid++;
-              continue;
+            final localUuid = row['local_uuid'];
+            if (localUuid is! String ||
+                localUuid.isEmpty ||
+                localUuid.trim() != localUuid) {
+              errors.add(
+                '${t.name}: ظهر صف بلا local_uuid صالح بعد الفحص المسبق؛ '
+                'أُوقف الرفع لمنع إسقاطه أو إرساله بهوية بديلة.',
+              );
+              networkFailed = true;
+              break;
             }
             // ✅ id المحلي عمود Drift autoincrement بلا معنى على D1 (لها
             // عمود id مستقل بترقيمها الخاص) — نفس التصرف المتبع في
@@ -141,6 +165,8 @@ class CloudflareD1PushMirror {
             rowsForTable++;
           }
 
+          if (networkFailed) break;
+
           offset += chunk.length;
           rowsUploaded += chunk.length;
           onProgress?.call(
@@ -171,9 +197,6 @@ class CloudflareD1PushMirror {
               break;
             }
           }
-        }
-        if (skippedNoUuid > 0) {
-          warnings.add('${t.name}: تخطي $skippedNoUuid صف بلا local_uuid');
         }
         if (!networkFailed) doneTables.add(t.name);
       } catch (e) {

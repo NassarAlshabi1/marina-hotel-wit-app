@@ -127,8 +127,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.equals('').not() &
                 t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-            (t.hotelDayKey.isNull() &
+            ((t.hotelDayKey.isNull() | t.hotelDayKey.equals('')) &
                 t.date.isBiggerOrEqualValue(fromHotelDay)),
       );
     }
@@ -137,8 +138,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.equals('').not() &
                 t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-            (t.hotelDayKey.isNull() &
+            ((t.hotelDayKey.isNull() | t.hotelDayKey.equals('')) &
                 (endRange == null
                     ? t.date.isSmallerOrEqualValue(toHotelDay)
                     : t.date.isSmallerThanValue(endRange.endExclusive))),

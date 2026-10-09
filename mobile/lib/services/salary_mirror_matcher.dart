@@ -1,112 +1,143 @@
 // ═══════════════════════════════════════════════════════════════
-//  salary_mirror_matcher.dart — (2026-09-25)
+//  salary_mirror_matcher.dart
 //
-//  «المرآة» = سجل salary_withdrawals الذي يمثل مصروف راتب مقابلاً.
-//  الرابط بينهما موجود بشكلين في الكود الموجود (نفس منطق
-//  saveFromExpense في SalaryWithdrawalsRepository و«الطريقتان 1/2»
-//  في expenses_report_screen):
+//  عقد الربط الثابت:
+//   • local_uuid هو هوية كل سجل.
+//   • expenses.employee_uuid / salary_withdrawals.employee_uuid يربطان
+//     الموظف عبر الأجهزة.
+//   • salary_withdrawals.expense_uuid / expenses.withdrawal_uuid يربطان
+//     المرآة المالية عبر الأجهزة.
 //
-//    Level 1: عمود expense_id الخام (migration 40) — الأكثر موثوقية.
-//    Level 2: علامة reason = 'exp_<id>' — الرابط عبر الأجهزة قبل
-//             وجود العمود، ويُطابق بـ RegExp(r'exp_(\d+)').
-//
-//  تُستخرج هنا دالتان عامتان من ذلك المنطق كي يستخدمهما تنظيف
-//  التكرار في تقرير سحبيات الرواتب (dedupeMirrorDuplicates) بدل
-//  إعادة تفسيره في كل مكان:
-//
-//    • hasMirrorMarker       — هل السحوبة تحمل علامة ربط أصلاً
-//                              (بصرف النظر عن نجاح الحلّ)؟
-//    • resolveLinkedExpenseId — حلّ الرابط (Level 1/2) إلى id
-//                              مصروف محلي حقيقي (حي) أو null.
-//
-//  عقد صارم بلا تخمين: resolveLinkedExpenseId لا يُعيد أبداً id
-//  مصروف غير موجود أو محذوف ناعماً — الرابط إلى هدف غير حي يُعد
-//  «رابطاً أجنبياً مكسوراً» ويُرجع null (المرآة اليتيمة).
+//  expense_id وreason=exp_<id> لا يُستخدمان إلا كمسار توافق لبيانات
+//  محلية قديمة تفتقد روابط UUID؛ لا يُعتمدان كهوية مزامنة.
 // ═══════════════════════════════════════════════════════════════
 
-import 'package:drift/drift.dart' as d;
+import 'package:drift/drift.dart';
 
 import 'local_db.dart';
+import 'sync/payload_mapper.dart';
 
 class SalaryMirrorMatcher {
   SalaryMirrorMatcher._();
 
-  /// نفس نمط «الطريقة 2» في expenses_report_screen: exp_ متبوعاً
-  /// برقم كامل — يلتقط الرقم كاملاً فلا يختلط exp_1 بـ exp_10.
   static final RegExp _expenseRefPattern = RegExp(r'exp_(\d+)');
 
-  /// هل السحوبة تحمل علامة ربط بمصروف أصلاً؟
-  ///
-  /// تعتمد على وجود أي دليل ربط آلي:
-  ///  • Level 1: العمود الخام expense_id > 0، أو
-  ///  • Level 2: reason يحتوي exp_<أرقام> (النمط الآلي فقط —
-  ///    reason مكتوب يدوياً بلا نمط exp_ لا يُعتبر علامة).
-  ///
-  /// لا تبحث في قاعدة البيانات إطلاقاً — بصرف النظر عن نجاح الحلّ.
+  /// هل توجد علامة رابط للمرآة؟ تُستكمل العلامات العكسية من expenses
+  /// في dedupeMirrorDuplicates لأن هذه الدالة لا تقرأ قاعدة البيانات.
   static bool hasMirrorMarker(SalaryWithdrawal sw) {
-    final columnId = sw.expenseId;
-    if (columnId != null && columnId > 0) {
-      return true;
-    }
+    if (_nonEmpty(sw.expenseUuid) != null) return true;
+    if (sw.expenseId != null && sw.expenseId! > 0) return true;
     final reason = sw.reason;
-    if (reason == null || reason.isEmpty) {
-      return false;
-    }
-    return _expenseRefPattern.hasMatch(reason);
+    return reason != null && _expenseRefPattern.hasMatch(reason);
   }
 
-  /// حلّ رابط المرآة (Level 1/2) إلى id مصروف محلي حقيقي أو null.
-  ///
-  ///  • Level 1: expense_id يشير إلى مصروف حي → يُعاد فوراً
-  ///    (الأعلى موثوقية — نفس أولوية «الطريقة 1» في saveFromExpense).
-  ///  • Level 2: fallback على reason — تُستخرج كل مراجع exp_<id>
-  ///    ويُعاد الوحيد الحي منها. أكثر من هدف حي واحد = غموض → null
-  ///    (الحذف الآلي للغامض مرفوض مالياً).
-  ///  • هدف غير موجود أو محذوف ناعماً = رابط مكسور → null.
-  ///
-  /// «حقيقي» = صف expenses موجود و deleted_at IS NULL.
-  static Future<int?> resolveLinkedExpenseId(
+  /// رابط UUID متوافق بين سجل المصروف وسجل السحبة.
+  /// إذا وُجدت مراجع UUID متعارضة، لا نُسقطها إلى مطابقة رقمية.
+  static bool hasStableExpenseLink(Expense expense, SalaryWithdrawal sw) {
+    final expenseRef = _nonEmpty(sw.expenseUuid);
+    final withdrawalRef = _nonEmpty(expense.withdrawalUuid);
+
+    if (expenseRef != null && expenseRef != expense.localUuid) return false;
+    if (withdrawalRef != null && withdrawalRef != sw.localUuid) return false;
+
+    return expenseRef == expense.localUuid || withdrawalRef == sw.localUuid;
+  }
+
+  /// مطابقة الموظف عبر UUID أولاً. لا نستخدم الأرقام المحلية إذا كان
+  /// أحد الطرفين يحمل UUID؛ اختلاف UUID دليل تعارض لا يجوز تجاهله.
+  static bool employeesMatch(Expense expense, SalaryWithdrawal sw) {
+    final expenseUuid = _nonEmpty(expense.employeeUuid);
+    final withdrawalUuid = _nonEmpty(sw.employeeUuid);
+    if (expenseUuid != null || withdrawalUuid != null) {
+      return expenseUuid != null &&
+          withdrawalUuid != null &&
+          expenseUuid == withdrawalUuid;
+    }
+    if (expense.employeeLinkCleared != 0) return false;
+    return expense.relatedId != null && expense.relatedId == sw.employeeId;
+  }
+
+  /// يحل مرجع السحبة إلى local_uuid للمصروف الحي.
+  /// UUID هو المصدر الأول والمرجع الرقمي لا يُستخدم إلا إذا كان UUID
+  /// مفقوداً بالكامل في السجل القديم.
+  static Future<String?> resolveLinkedExpenseUuid(
     AppDatabase db,
     SalaryWithdrawal sw,
   ) async {
-    // ─── Level 1: عمود expense_id الخام (الأكثر موثوقية) ───
-    final columnId = sw.expenseId;
-    if (columnId != null &&
-        columnId > 0 &&
-        await _expenseIsLive(db, columnId)) {
-      return columnId;
+    final stableRef = _nonEmpty(sw.expenseUuid);
+    if (stableRef != null) {
+      final expense = await _liveExpenseByUuid(db, stableRef);
+      return expense != null &&
+              PayloadMapper.isSalaryExpenseType(expense.expenseType) &&
+              hasStableExpenseLink(expense, sw)
+          ? stableRef
+          : null;
     }
 
-    // ─── Level 2: علامة reason = exp_<id> (الطريقة القديمة) ───
+    // الرابط العكسي المستقر في expenses.
+    final reverseRows =
+        await (db.select(db.expenses)..where(
+              (e) =>
+                  e.withdrawalUuid.equals(sw.localUuid) & e.deletedAt.isNull(),
+            ))
+            .get();
+    final reverseUuids = reverseRows
+        .where((e) => PayloadMapper.isSalaryExpenseType(e.expenseType))
+        .map((e) => e.localUuid)
+        .where((uuid) => uuid.isNotEmpty)
+        .toSet();
+    if (reverseUuids.length == 1) return reverseUuids.single;
+    if (reverseUuids.length > 1) return null;
+
+    // توافق فقط لسجلات محلية قديمة لم تُخزّن expense_uuid.
+    final legacyId = sw.expenseId;
+    if (legacyId != null && legacyId > 0) {
+      final uuid = await _liveExpenseUuidByLocalId(db, legacyId);
+      if (uuid != null) return uuid;
+    }
+
     final reason = sw.reason;
-    if (reason != null && reason.isNotEmpty) {
-      final candidateIds = _expenseRefPattern
-          .allMatches(reason)
-          .map((m) => int.tryParse(m.group(1)!))
-          .whereType<int>()
-          .toSet();
-      final liveIds = <int>[];
-      for (final id in candidateIds) {
-        if (await _expenseIsLive(db, id)) {
-          liveIds.add(id);
-        }
-      }
-      if (liveIds.length == 1) {
-        return liveIds.single;
-      }
-      // 0 → رابط مكسور؛ >1 → غموض — null في الحالين.
+    if (reason == null || reason.isEmpty) return null;
+    final candidateIds = _expenseRefPattern
+        .allMatches(reason)
+        .map((m) => int.tryParse(m.group(1)!))
+        .whereType<int>()
+        .toSet();
+    final liveUuids = <String>{};
+    for (final id in candidateIds) {
+      final uuid = await _liveExpenseUuidByLocalId(db, id);
+      if (uuid != null) liveUuids.add(uuid);
     }
-
-    return null;
+    return liveUuids.length == 1 ? liveUuids.single : null;
   }
 
-  /// هل المصروف موجود محلياً وحيّاً (غير محذوف ناعماً)؟
-  static Future<bool> _expenseIsLive(AppDatabase db, int expenseId) async {
+  static Future<String?> _liveExpenseUuidByLocalId(
+    AppDatabase db,
+    int expenseId,
+  ) async {
     final row =
         await (db.select(db.expenses)..where(
               (e) => e.id.equals(expenseId) & e.deletedAt.isNull(),
             ))
             .getSingleOrNull();
-    return row != null;
+    if (row == null || !PayloadMapper.isSalaryExpenseType(row.expenseType)) {
+      return null;
+    }
+    return row.localUuid;
+  }
+
+  static Future<Expense?> _liveExpenseByUuid(
+    AppDatabase db,
+    String expenseUuid,
+  ) async {
+    return (db.select(db.expenses)..where(
+          (e) => e.localUuid.equals(expenseUuid) & e.deletedAt.isNull(),
+        ))
+        .getSingleOrNull();
+  }
+
+  static String? _nonEmpty(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 }

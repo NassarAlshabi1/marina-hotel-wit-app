@@ -49,8 +49,8 @@ describe('push: validation', () => {
       { idempotencyKey: uniqueUuid(), operation: 'create', data: {}, vectorClock: '{}', updatedAt: 1 }, // no entity
       { idempotencyKey: uniqueUuid(), entity: 'rooms', operation: 'upsert', data: {}, vectorClock: '{}', updatedAt: 1 }, // bad op
       { idempotencyKey: uniqueUuid(), entity: 'rooms', operation: 'create', vectorClock: '{}', updatedAt: 1 }, // no data
-      { idempotencyKey: uniqueUuid(), entity: 'rooms', operation: 'create', data: {}, updatedAt: 1 }, // no vectorClock
-      { idempotencyKey: uniqueUuid(), entity: 'rooms', operation: 'create', data: {}, vectorClock: '{}', updatedAt: -5 }, // bad ts
+      { idempotencyKey: uniqueUuid(), entity: 'rooms', operation: 'create', data: { local_uuid: uniqueUuid() }, updatedAt: 1 }, // no vectorClock
+      { idempotencyKey: uniqueUuid(), entity: 'rooms', operation: 'create', data: { local_uuid: uniqueUuid() }, vectorClock: '{}', updatedAt: -5 }, // bad ts
     ]);
     expect(res.status).toBe(200); // per-op errors, not a batch rejection
     const body = (await res.json()) as PushResponseBody;
@@ -63,6 +63,25 @@ describe('push: validation', () => {
     expect(body.results[3].error).toContain('data');
     expect(body.results[4].error).toContain('vectorClock');
     expect(body.results[5].error).toContain('updatedAt');
+  });
+
+  it.each([
+    ['id', { id: 456 }],
+    ['server_id', { server_id: 789 }],
+    ['employee_id', { employee_id: 12 }],
+    ['expense_id', { expense_id: 34 }],
+    ['blank local_uuid', { local_uuid: '  ' }],
+  ])('requires local_uuid and never falls back to %s', async (_label, identity) => {
+    const auth = await adminAuthHeader();
+    const res = await pushOperations(auth, [
+      pushOp('rooms', 'create', identity),
+    ]);
+    const body = (await res.json()) as PushResponseBody;
+    expect(body.summary.failed).toBe(1);
+    expect(body.results[0].error).toContain('local_uuid');
+    const count = await env.DB.prepare('SELECT COUNT(*) AS c FROM rooms')
+      .first<{ c: number }>();
+    expect(count?.c).toBe(0);
   });
 
   it('rejects unknown entities including the removed local-only ledger and users (400/failed)', async () => {
@@ -100,6 +119,20 @@ describe('push: create flow', () => {
 
     const pulled = await pull(auth);
     expect(pulled.changes.some((c) => c.local_uuid === payload.local_uuid)).toBe(true);
+  });
+
+  it('uses local_uuid for entity identity and ignores the client numeric id', async () => {
+    const auth = await adminAuthHeader();
+    const payload = roomPayload() as Record<string, unknown> & { local_uuid: string };
+    payload.id = 987654;
+    const res = await pushOperations(auth, [pushOp('rooms', 'create', payload)]);
+    const body = (await res.json()) as PushResponseBody;
+    expect(body.results[0].entityId).toBe(payload.local_uuid);
+    const row = await env.DB.prepare('SELECT id, local_uuid FROM rooms WHERE local_uuid = ?')
+      .bind(payload.local_uuid)
+      .first<{ id: number; local_uuid: string }>();
+    expect(row?.local_uuid).toBe(payload.local_uuid);
+    expect(row?.id).not.toBe(payload.id);
   });
 
   it('is idempotent: duplicate idempotencyKey → skipped:true, no duplicate row', async () => {

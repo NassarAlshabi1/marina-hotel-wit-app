@@ -35,6 +35,7 @@ import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/repositories/expenses_repository.dart';
 import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
 import 'package:marina_hotel_mobile/utils/id.dart';
+import 'package:marina_hotel_mobile/utils/sql_date_range.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 
 /// صف تقرير سحبيات الرواتب كما تعيده الشاشة
@@ -53,6 +54,7 @@ Future<List<_ReportRow>> _salaryReportRows(
   required String fromHotelDay,
   required String toHotelDay,
   int? employeeId,
+  String? employeeUuid,
 }) async {
   var query = db.select(db.salaryWithdrawals)
     ..where((tbl) => tbl.deletedAt.isNull());
@@ -61,21 +63,37 @@ Future<List<_ReportRow>> _salaryReportRows(
     ..where(
       (tbl) =>
           (tbl.hotelDayKey.isNotNull() &
+              tbl.hotelDayKey.equals('').not() &
               tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-          (tbl.hotelDayKey.isNull() &
+          ((tbl.hotelDayKey.isNull() | tbl.hotelDayKey.equals('')) &
               tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)),
     );
+  final endRange = SqlDateRange.forDay(toHotelDay);
   query = query
     ..where(
       (tbl) =>
           (tbl.hotelDayKey.isNotNull() &
+              tbl.hotelDayKey.equals('').not() &
               tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-          (tbl.hotelDayKey.isNull() &
-              tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)),
+          ((tbl.hotelDayKey.isNull() | tbl.hotelDayKey.equals('')) &
+              (endRange == null
+                  ? tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)
+                  : tbl.withdrawDate.isSmallerThanValue(
+                      endRange.endExclusive,
+                    ))),
     );
 
   if (employeeId != null) {
-    query = query..where((tbl) => tbl.employeeId.equals(employeeId));
+    final stableUuid = employeeUuid?.trim();
+    query = query
+      ..where((tbl) {
+        if (stableUuid == null || stableUuid.isEmpty) {
+          return tbl.employeeId.equals(employeeId);
+        }
+        return tbl.employeeUuid.equals(stableUuid) |
+            ((tbl.employeeUuid.isNull() | tbl.employeeUuid.equals('')) &
+                tbl.employeeId.equals(employeeId));
+      });
   }
 
   final rows = await query.get();
@@ -108,6 +126,7 @@ Future<int> insertLegacyOrphanWithdrawal(
   required double amount,
   required String date,
   required String? hotelDayKey,
+  String? employeeUuid,
 }) async {
   final now = Time.nowEpoch();
   final id = await db
@@ -116,6 +135,9 @@ Future<int> insertLegacyOrphanWithdrawal(
         SalaryWithdrawalsCompanion(
           localUuid: Value(IdGen.uuid()),
           employeeId: Value(employeeId),
+          employeeUuid: employeeUuid == null
+              ? const Value.absent()
+              : Value(employeeUuid),
           amount: Value(amount),
           withdrawDate: Value(date),
           reason: const Value(null),
@@ -443,6 +465,58 @@ void main() {
         reason: 'اليتيمة القديمة بلا مفتاح يوم تُطابق بالتاريخ وتُنظّف',
       );
       expect(after.single.amount, 250);
+    },
+  );
+
+  test('hotel_day_key="" يتبع withdraw_date ويضم وقت نهاية اليوم', () async {
+    final employeeId = await insertEmployee(db);
+    await insertLegacyOrphanWithdrawal(
+      db,
+      employeeId: employeeId,
+      amount: 75,
+      date: '2026-09-25 23:59:59',
+      hotelDayKey: '',
+    );
+
+    final rows = await _salaryReportRows(
+      db,
+      fromHotelDay: '2026-09-25',
+      toHotelDay: '2026-09-25',
+      employeeId: employeeId,
+    );
+
+    expect(rows, hasLength(1));
+    expect(rows.single.amount, 75);
+  });
+
+  test(
+    'فلتر الموظف يفضّل employee_uuid على employee_id المحلي المختلف',
+    () async {
+      final selectedEmployeeId = await insertEmployee(db);
+      final otherLocalEmployeeId = await insertEmployee(db);
+      final selectedEmployee =
+          await (db.select(
+                db.employees,
+              )..where((employee) => employee.id.equals(selectedEmployeeId)))
+              .getSingle();
+      await insertLegacyOrphanWithdrawal(
+        db,
+        employeeId: otherLocalEmployeeId,
+        employeeUuid: selectedEmployee.localUuid,
+        amount: 120,
+        date: '2026-09-25 12:00:00',
+        hotelDayKey: '2026-09-25',
+      );
+
+      final rows = await _salaryReportRows(
+        db,
+        fromHotelDay: '2026-09-25',
+        toHotelDay: '2026-09-25',
+        employeeId: selectedEmployeeId,
+        employeeUuid: selectedEmployee.localUuid,
+      );
+
+      expect(rows, hasLength(1));
     },
   );
 }

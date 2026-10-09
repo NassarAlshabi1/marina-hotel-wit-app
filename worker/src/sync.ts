@@ -58,6 +58,7 @@ export const PUSH_FIELD_LIMITS = {
   deviceId: 128,
   entity: 64,
   entityId: 256,
+  localUuid: 256,
   vectorClock: 4096,
 } as const;
 
@@ -79,6 +80,13 @@ function validatePushOperation(op: PushOperation): string | null {
   }
   if (!op.data || typeof op.data !== 'object') {
     return 'data must be an object';
+  }
+  const localUuid = op.data.local_uuid;
+  if (typeof localUuid !== 'string' || localUuid.length === 0 || localUuid.trim() !== localUuid) {
+    return 'data.local_uuid is required as the stable entity identity';
+  }
+  if (localUuid.length > PUSH_FIELD_LIMITS.localUuid) {
+    return `data.local_uuid too long (max ${PUSH_FIELD_LIMITS.localUuid})`;
   }
   // Parity unification: validate `expense_kind` against the closed wire
   // contract shared with branch3 (worker/src/expense-kind.ts). Mirrors
@@ -112,19 +120,17 @@ function validatePushOperation(op: PushOperation): string | null {
 }
 
 /**
- * ✅ P0 review (2026-09-24): local_uuid هو الهوية الأساسية للمزامنة،
- * ثم server_id، ثم legacy id (لمخططات قديمة فقط). لا يوجد بديل صامت
- * لـ data.id — الحالات الغامضة تُرفض برسالة واضحة، والمنفّذ الذري في
- * database.ts يحدد هوية الصف الفعلية من الصف نفسه (ولا يعيد تغيير
- * local_uuid أبداً).
+ * ✅ P0 identity contract: local_uuid is the only portable entity identity.
+ * Numeric `id`, `server_id`, `employee_id`, and `expense_id` are never
+ * accepted as identity fallbacks; those values are device/database-local.
  */
 export function resolvePushEntityId(data: Record<string, unknown>): string {
-  const value = data.local_uuid ?? data.id ?? data.server_id;
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new Error('Record is missing local_uuid, id, or server_id');
+  const value = data.local_uuid;
+  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+    throw new Error('Record is missing a valid local_uuid');
   }
-  if (value.length > PUSH_FIELD_LIMITS.entityId) {
-    throw new Error(`entityId too long (max ${PUSH_FIELD_LIMITS.entityId})`);
+  if (value.length > PUSH_FIELD_LIMITS.localUuid) {
+    throw new Error(`local_uuid too long (max ${PUSH_FIELD_LIMITS.localUuid})`);
   }
   return value;
 }

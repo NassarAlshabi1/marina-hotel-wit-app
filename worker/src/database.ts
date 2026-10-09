@@ -1353,35 +1353,18 @@ export class Database {
 
     try {
       // ─── PLAN (read-only) ──────────────────────────────────
-      // Identity resolution: local_uuid is THE sync identity; server_id and
-      // legacy numeric id are lookup fallbacks that never overwrite the
-      // row's identity. Ambiguous resolutions are logged for audit.
-      let identity: { localUuid: string | null; where: string; bind: unknown; source: string };
-      const dataLocalUuid = typeof op.data.local_uuid === 'string' && op.data.local_uuid.length > 0
+      // `local_uuid` is the only portable entity identity. Local integer
+      // columns (`id`, `server_id`, `employee_id`, `expense_id`) must never
+      // become a cross-device lookup key.
+      const dataLocalUuid = typeof op.data.local_uuid === 'string' &&
+          op.data.local_uuid.length > 0 &&
+          op.data.local_uuid.trim() === op.data.local_uuid
         ? op.data.local_uuid
         : null;
-
-      if (op.operation === 'create') {
-        identity = { localUuid: dataLocalUuid, where: 'local_uuid', bind: dataLocalUuid, source: 'local_uuid' };
-      } else {
-        // update / delete: local_uuid → server_id → legacy id priority.
-        if (dataLocalUuid) {
-          identity = { localUuid: dataLocalUuid, where: 'local_uuid', bind: dataLocalUuid, source: 'local_uuid' };
-        } else if (op.data.server_id !== undefined && op.data.server_id !== null && Number.isFinite(Number(op.data.server_id))) {
-          identity = { localUuid: null, where: 'server_id', bind: Math.floor(Number(op.data.server_id)), source: 'server_id' };
-        } else if (op.data.id !== undefined && op.data.id !== null && Number.isFinite(Number(op.data.id))) {
-          identity = { localUuid: null, where: 'id', bind: Math.floor(Number(op.data.id)), source: 'legacy_id' };
-        } else {
-          // Same contract message the old requireEntityId threw (tests rely
-          // on the wording) — nothing changed for clients.
-          return { kind: 'failed', error: 'Error: Record is missing local_uuid, id, or server_id' };
-        }
-        if (identity.source !== 'local_uuid') {
-          console.warn(
-            `[SYNC/PUSH] ${op.entity} ${op.operation} resolved via ${identity.source}=${String(identity.bind)} — ambiguous identity (local_uuid missing)`
-          );
-        }
+      if (!dataLocalUuid) {
+        return { kind: 'failed', error: 'Error: Record is missing a valid local_uuid' };
       }
+      const identity = { where: 'local_uuid', bind: dataLocalUuid };
 
       // Pre-read the existing row for update/delete decisions.
       let existing: SyncRecord | null = null;
@@ -1390,10 +1373,6 @@ export class Database {
           .prepare(`SELECT * FROM ${table} WHERE ${identity.where} = ?`)
           .bind(identity.bind as string | number)
           .first<SyncRecord>();
-        if (existing && identity.source !== 'local_uuid') {
-          // Record identity is the row's own local_uuid — never re-key it.
-          identity = { ...identity, localUuid: existing.local_uuid, where: 'local_uuid', bind: existing.local_uuid };
-        }
       }
 
       // Parity unification: preserve `expense_kind` for `expenses` updates —
@@ -1450,16 +1429,12 @@ export class Database {
         }
       } else if (op.operation === 'update') {
         if (!existing) {
-          // Old contract: update of a missing local_uuid falls back to create.
-          // (Only for local_uuid-resolved ops — server_id/legacy lookups that
-          // miss are ambiguous and rejected instead of fabricating an identity.)
-          if (identity.source === 'local_uuid' && dataLocalUuid) {
-            return this.executeOperationAtomically(
-              { ...op, operation: 'create', data: { ...op.data, local_uuid: dataLocalUuid } },
-              deviceId
-            );
-          }
-          return { kind: 'failed', error: `Error: Record not found for ${op.entity} via ${identity.source}` };
+          // Update of a missing local_uuid retains the established idempotent
+          // create behavior, but it never falls back to a numeric identifier.
+          return this.executeOperationAtomically(
+            { ...op, operation: 'create', data: { ...op.data, local_uuid: dataLocalUuid } },
+            deviceId
+          );
         }
 
         // ✅ (F1 2026-09-22) delete-vs-update contract — tombstone wins.

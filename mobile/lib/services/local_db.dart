@@ -1307,7 +1307,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 71;
+  int get schemaVersion => 72;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1336,7 +1336,7 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
 
       // Drift لا ينشئ فهارس Table.indexes المخصصة في مسار الإنشاء الحالي؛
-      // نضمن وجودها أيضاً للقواعد الجديدة، بينما onUpgrade يغطي 68→69.
+      // نضمن وجودها أيضاً للقواعد الجديدة؛ onUpgrade يغطي الإصدارات السابقة.
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee_uuid '
         'ON salary_withdrawals (employee_uuid)',
@@ -1365,6 +1365,22 @@ class AppDatabase extends _$AppDatabase {
         'CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee_uuid '
         'ON salary_carry_over_logs (employee_uuid)',
       );
+      // Apply the same partial uniqueness contract to fresh databases. The
+      // migration-only creation below does not run during Drift onCreate.
+      try {
+        await customStatement(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_salary_withdrawals_active_expense '
+          'ON salary_withdrawals(expense_uuid) '
+          'WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL',
+        );
+      } catch (e) {
+        // Existing duplicate links remain intact and are reported by the
+        // Cloudflare preflight; never make opening the local DB destructive.
+        developer.log(
+          'beforeOpen: idx_salary_withdrawals_active_expense skipped: $e',
+          name: 'db.migration',
+        );
+      }
     },
     onUpgrade: (m, from, to) async {
       // ✅ Parity unification (الإصدار 71): إضافة expense_kind +
@@ -1390,13 +1406,14 @@ class AppDatabase extends _$AppDatabase {
           }
         }
         try {
-          await m.database.customStatement(
-            'CREATE TABLE IF NOT EXISTS sync_write_times ('
-            'entity TEXT NOT NULL, '
-            'local_uuid TEXT NOT NULL, '
-            'edited_at INTEGER NOT NULL, '
-            'PRIMARY KEY (entity, local_uuid))',
-          );
+          await m.database.customStatement('''
+            CREATE TABLE IF NOT EXISTS sync_write_times (
+              entity TEXT NOT NULL,
+              local_uuid TEXT NOT NULL,
+              edited_at INTEGER NOT NULL,
+              PRIMARY KEY (entity, local_uuid)
+            )
+          ''');
         } catch (e) {
           developer.log(
             'Migration 71: sync_write_times table creation skipped: $e',
@@ -1412,6 +1429,20 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 71: idx_salary_withdrawals_active_expense skipped: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      if (from < 72) {
+        try {
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_salary_withdrawals_active_expense '
+            'ON salary_withdrawals(expense_uuid) '
+            'WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 72: idx_salary_withdrawals_active_expense skipped: $e',
             name: 'db.migration',
           );
         }

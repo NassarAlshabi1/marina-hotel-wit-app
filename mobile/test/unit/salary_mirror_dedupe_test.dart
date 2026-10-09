@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
 //  salary_mirror_dedupe_test.dart — (2026-09-25)
 //
-//  تغطية استخراج منطق المطابقة الموجود إلى SalaryMirrorMatcher
-//  (resolveLinkedExpenseId + hasMirrorMarker) ووظيفة التنظيف
+//  تغطية SalaryMirrorMatcher (UUID references + legacy compatibility)
+//  ووظيفة التنظيف
 //  dedupeMirrorDuplicates في تقرير سحبيات الرواتب:
 //
 //   • السحوبات التي تُحلّ لنفس مصروف حقيقي واحد → تُدمج
@@ -50,6 +50,8 @@ Future<int> _insertSalaryExpense(
   AppDatabase db, {
   required int employeeId,
   required double amount,
+  String? employeeUuid,
+  String? withdrawalUuid,
   String expenseType = 'سحب راتب',
   String? hotelDayKey = _dayKey,
   String? date,
@@ -61,6 +63,12 @@ Future<int> _insertSalaryExpense(
       .insert(
         ExpensesCompanion(
           localUuid: Value(IdGen.uuid()),
+          employeeUuid: employeeUuid == null
+              ? const Value.absent()
+              : Value(employeeUuid),
+          withdrawalUuid: withdrawalUuid == null
+              ? const Value.absent()
+              : Value(withdrawalUuid),
           expenseType: Value(expenseType),
           relatedId: Value(employeeId),
           description: const Value('سحب راتب'),
@@ -79,6 +87,9 @@ Future<int> _insertWithdrawal(
   AppDatabase db, {
   required int employeeId,
   required double amount,
+  String? localUuid,
+  String? employeeUuid,
+  String? expenseUuid,
   int? expenseId,
   String? reason,
   String? hotelDayKey = _dayKey,
@@ -91,8 +102,11 @@ Future<int> _insertWithdrawal(
       .into(db.salaryWithdrawals)
       .insert(
         SalaryWithdrawalsCompanion(
-          localUuid: Value(IdGen.uuid()),
+          localUuid: Value(localUuid ?? IdGen.uuid()),
           employeeId: Value(employeeId),
+          employeeUuid: employeeUuid == null
+              ? const Value.absent()
+              : Value(employeeUuid),
           amount: Value(amount),
           withdrawDate: Value(withdrawDate),
           reason: Value(reason),
@@ -101,6 +115,9 @@ Future<int> _insertWithdrawal(
           expenseId: expenseId == null
               ? const Value.absent()
               : Value(expenseId),
+          expenseUuid: expenseUuid == null
+              ? const Value.absent()
+              : Value(expenseUuid),
           createdAt: Value(now),
           updatedAt: Value(updatedAt),
           lastModified: Value(now),
@@ -248,28 +265,133 @@ void main() {
     });
   });
 
-  group('SalaryMirrorMatcher.resolveLinkedExpenseId', () {
-    test('Level 1: العمود الخام إلى مصروف حي يُعاد فوراً', () async {
+  group('SalaryMirrorMatcher — عقد UUID الثابت', () {
+    test('expense_uuid يربط الصف حتى مع اختلاف الأرقام المحلية', () async {
+      final employeeId = await _insertEmployee(db);
+      final otherEmployeeId = await _insertEmployee(db);
+      final employee = await (db.select(
+        db.employees,
+      )..where((t) => t.id.equals(employeeId))).getSingle();
+      final expenseId = await _insertSalaryExpense(
+        db,
+        employeeId: employeeId,
+        employeeUuid: employee.localUuid,
+        amount: 100,
+      );
+      final expense = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseId))).getSingle();
+      final withdrawalId = await _insertWithdrawal(
+        db,
+        employeeId: otherEmployeeId,
+        employeeUuid: employee.localUuid,
+        expenseId: 999999,
+        expenseUuid: expense.localUuid,
+        amount: 100,
+      );
+      final withdrawal = await _loadWithdrawal(db, withdrawalId);
+
+      expect(SalaryMirrorMatcher.employeesMatch(expense, withdrawal!), isTrue);
+      expect(
+        SalaryMirrorMatcher.hasStableExpenseLink(expense, withdrawal),
+        isTrue,
+      );
+      expect(
+        await SalaryMirrorMatcher.resolveLinkedExpenseUuid(db, withdrawal),
+        expense.localUuid,
+      );
+    });
+
+    test('employee_uuid مختلف يمنع المطابقة رغم تساوي employee_id', () async {
+      final employeeId = await _insertEmployee(db);
+      final otherEmployeeId = await _insertEmployee(db);
+      final employee = await (db.select(
+        db.employees,
+      )..where((t) => t.id.equals(employeeId))).getSingle();
+      final otherEmployee = await (db.select(
+        db.employees,
+      )..where((t) => t.id.equals(otherEmployeeId))).getSingle();
+      final expenseId = await _insertSalaryExpense(
+        db,
+        employeeId: employeeId,
+        employeeUuid: employee.localUuid,
+        amount: 100,
+      );
+      final withdrawalId = await _insertWithdrawal(
+        db,
+        employeeId: employeeId,
+        employeeUuid: otherEmployee.localUuid,
+        amount: 100,
+      );
+      final expense = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseId))).getSingle();
+      final withdrawal = await _loadWithdrawal(db, withdrawalId);
+
+      expect(SalaryMirrorMatcher.employeesMatch(expense, withdrawal!), isFalse);
+    });
+
+    test(
+      'expenses.withdrawal_uuid يحل الرابط العكسي إلى expense local_uuid',
+      () async {
+        final employeeId = await _insertEmployee(db);
+        final employee = await (db.select(
+          db.employees,
+        )..where((t) => t.id.equals(employeeId))).getSingle();
+        const withdrawalUuid = 'withdrawal-stable-uuid';
+        final expenseId = await _insertSalaryExpense(
+          db,
+          employeeId: employeeId,
+          employeeUuid: employee.localUuid,
+          withdrawalUuid: withdrawalUuid,
+          amount: 100,
+        );
+        final expense = await (db.select(
+          db.expenses,
+        )..where((t) => t.id.equals(expenseId))).getSingle();
+        final withdrawalId = await _insertWithdrawal(
+          db,
+          localUuid: withdrawalUuid,
+          employeeId: employeeId,
+          employeeUuid: employee.localUuid,
+          amount: 100,
+        );
+        final withdrawal = await _loadWithdrawal(db, withdrawalId);
+
+        expect(
+          await SalaryMirrorMatcher.resolveLinkedExpenseUuid(db, withdrawal!),
+          expense.localUuid,
+        );
+      },
+    );
+  });
+
+  group('SalaryMirrorMatcher.resolveLinkedExpenseUuid', () {
+    test('expense_uuid الثابت يحلّ إلى local_uuid للمصروف', () async {
       final empId = await _insertEmployee(db);
       final expenseId = await _insertSalaryExpense(
         db,
         employeeId: empId,
         amount: 100,
       );
+      final expense = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseId))).getSingle();
       final swId = await _insertWithdrawal(
         db,
         employeeId: empId,
         amount: 100,
-        expenseId: expenseId,
+        expenseId: 999999,
+        expenseUuid: expense.localUuid,
       );
       final sw = await _loadWithdrawal(db, swId);
       expect(
-        await SalaryMirrorMatcher.resolveLinkedExpenseId(db, sw!),
-        expenseId,
+        await SalaryMirrorMatcher.resolveLinkedExpenseUuid(db, sw!),
+        expense.localUuid,
       );
     });
 
-    test('Level 1 له الأولوية على Level 2 عند نجاحهما معاً', () async {
+    test('expense_uuid يتقدم على expense_id وreason عند تعارضهما', () async {
       final empId = await _insertEmployee(db);
       final expenseA = await _insertSalaryExpense(
         db,
@@ -281,40 +403,49 @@ void main() {
         employeeId: empId,
         amount: 200,
       );
+      final stableExpense = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseA))).getSingle();
       final swId = await _insertWithdrawal(
         db,
         employeeId: empId,
         amount: 100,
-        expenseId: expenseA,
+        expenseId: expenseB,
+        expenseUuid: stableExpense.localUuid,
         reason: 'exp_$expenseB',
       );
       final sw = await _loadWithdrawal(db, swId);
       expect(
-        await SalaryMirrorMatcher.resolveLinkedExpenseId(db, sw!),
-        expenseA,
+        await SalaryMirrorMatcher.resolveLinkedExpenseUuid(db, sw!),
+        stableExpense.localUuid,
       );
     });
 
-    test('Level 1 مكسور → fallback إلى Level 2 عبر reason', () async {
-      final empId = await _insertEmployee(db);
-      final expenseLive = await _insertSalaryExpense(
-        db,
-        employeeId: empId,
-        amount: 100,
-      );
-      final swId = await _insertWithdrawal(
-        db,
-        employeeId: empId,
-        amount: 100,
-        expenseId: 999999, // هدف غير موجود — رابط مكسور
-        reason: 'exp_$expenseLive',
-      );
-      final sw = await _loadWithdrawal(db, swId);
-      expect(
-        await SalaryMirrorMatcher.resolveLinkedExpenseId(db, sw!),
-        expenseLive,
-      );
-    });
+    test(
+      'مرجع legacy exp_id يُحوّل إلى local_uuid عند غياب expense_uuid',
+      () async {
+        final empId = await _insertEmployee(db);
+        final expenseLive = await _insertSalaryExpense(
+          db,
+          employeeId: empId,
+          amount: 100,
+        );
+        final swId = await _insertWithdrawal(
+          db,
+          employeeId: empId,
+          amount: 100,
+          expenseId: 999999, // هدف غير موجود — رابط مكسور
+          reason: 'exp_$expenseLive',
+        );
+        final sw = await _loadWithdrawal(db, swId);
+        expect(
+          await SalaryMirrorMatcher.resolveLinkedExpenseUuid(db, sw!),
+          (await (db.select(
+            db.expenses,
+          )..where((t) => t.id.equals(expenseLive))).getSingle()).localUuid,
+        );
+      },
+    );
 
     test('هدف محذوف ناعماً = رابط مكسور → null (لا مصروف غير حقيقي)', () async {
       final empId = await _insertEmployee(db);
@@ -336,7 +467,10 @@ void main() {
         expenseId: expenseId,
       );
       final sw = await _loadWithdrawal(db, swId);
-      expect(await SalaryMirrorMatcher.resolveLinkedExpenseId(db, sw!), isNull);
+      expect(
+        await SalaryMirrorMatcher.resolveLinkedExpenseUuid(db, sw!),
+        isNull,
+      );
     });
 
     test('مرجعان حيّان في reason = غموض → null', () async {
@@ -358,7 +492,10 @@ void main() {
         reason: 'exp_$expenseA و exp_$expenseB',
       );
       final sw = await _loadWithdrawal(db, swId);
-      expect(await SalaryMirrorMatcher.resolveLinkedExpenseId(db, sw!), isNull);
+      expect(
+        await SalaryMirrorMatcher.resolveLinkedExpenseUuid(db, sw!),
+        isNull,
+      );
     });
   });
 
@@ -405,6 +542,54 @@ void main() {
           (await _reportRows(db, fromDay: _fromDay, toDay: _toDay)).length,
           1,
         );
+      },
+    );
+
+    test(
+      'expense_uuid يدمج السجل الحديث مع مرآة legacy بعد حل local_uuid',
+      () async {
+        final employeeId = await _insertEmployee(db);
+        final otherEmployeeId = await _insertEmployee(db);
+        final employee = await (db.select(
+          db.employees,
+        )..where((t) => t.id.equals(employeeId))).getSingle();
+        final expenseId = await _insertSalaryExpense(
+          db,
+          employeeId: employeeId,
+          employeeUuid: employee.localUuid,
+          amount: 300,
+        );
+        final expense = await (db.select(
+          db.expenses,
+        )..where((t) => t.id.equals(expenseId))).getSingle();
+        final olderId = await _insertWithdrawal(
+          db,
+          employeeId: employeeId,
+          employeeUuid: employee.localUuid,
+          expenseId: 987654,
+          expenseUuid: expense.localUuid,
+          amount: 300,
+          localUuid: 'withdrawal-old-stable-uuid',
+        );
+        final newerId = await _insertWithdrawal(
+          db,
+          employeeId: otherEmployeeId,
+          employeeUuid: employee.localUuid,
+          reason: 'exp_$expenseId',
+          amount: 300,
+          updatedAt: 2000,
+          localUuid: 'withdrawal-new-stable-uuid',
+        );
+
+        final result = await _runDedupe(
+          db,
+          await _reportRows(db, fromDay: _fromDay, toDay: _toDay),
+        );
+
+        expect(result.mergedAway, 1);
+        expect(result.kept.single.localUuid, 'withdrawal-new-stable-uuid');
+        expect((await _loadWithdrawal(db, olderId))!.deletedAt, isNotNull);
+        expect((await _loadWithdrawal(db, newerId))!.deletedAt, isNull);
       },
     );
 
@@ -659,6 +844,51 @@ void main() {
       expect(result.changed, isFalse);
       final direct = await _loadWithdrawal(db, directId);
       expect(direct!.deletedAt, isNull);
+    });
+
+    test('اختلاف employee_uuid يمنع حذف اليتيمة بالتخمين الرقمي', () async {
+      final employeeId = await _insertEmployee(db);
+      final otherEmployeeId = await _insertEmployee(db);
+      final employee = await (db.select(
+        db.employees,
+      )..where((t) => t.id.equals(employeeId))).getSingle();
+      final otherEmployee = await (db.select(
+        db.employees,
+      )..where((t) => t.id.equals(otherEmployeeId))).getSingle();
+      final expenseId = await _insertSalaryExpense(
+        db,
+        employeeId: employeeId,
+        employeeUuid: employee.localUuid,
+        amount: 200,
+      );
+      final expense = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseId))).getSingle();
+      await _insertWithdrawal(
+        db,
+        employeeId: employeeId,
+        employeeUuid: employee.localUuid,
+        expenseUuid: expense.localUuid,
+        amount: 200,
+        updatedAt: 2000,
+      );
+      final conflictingId = await _insertWithdrawal(
+        db,
+        employeeId: employeeId,
+        employeeUuid: otherEmployee.localUuid,
+        expenseId: 999999,
+        reason: 'exp_999999',
+        amount: 200,
+      );
+
+      final result = await _runDedupe(
+        db,
+        await _reportRows(db, fromDay: _fromDay, toDay: _toDay),
+      );
+
+      expect(result.orphansDeleted, 0);
+      expect(result.kept, hasLength(2));
+      expect((await _loadWithdrawal(db, conflictingId))!.deletedAt, isNull);
     });
 
     test('التنظيف idempotent — التشغيل الثاني لا يغيّر شيئاً', () async {

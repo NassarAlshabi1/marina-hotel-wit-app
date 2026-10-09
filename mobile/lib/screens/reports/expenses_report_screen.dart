@@ -11,9 +11,11 @@ import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
+import '../../services/salary_mirror_matcher.dart';
 import '../../src/pdf/report_templates/expenses_report_pdf.dart';
 import '../../utils/debug_log.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/sql_date_range.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 
@@ -253,7 +255,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
 
     // ✅ فلترة بحقل hotelDayKey بدلاً من date التقويمي
     // ✅ (2026-09-14) العقد النقدي: السلفة نقد خرج فعلاً فتُعرض وتُحسب
-    // مرة واحدة — إزالة التكرار مع السحوبات مقبول عبر مطابقة expense_id/reason
+    // مرة واحدة — إزالة التكرار مع السحوبات عبر UUID المستقر.
     // أدناه، وأقساط «خصم من الراتب» تظهر كسجلات معلوماتية في مجموعتها الخاصة.
     var expenses = await expensesDao.listFilteredByHotelDay(
       fromHotelDay: fromHotelDay,
@@ -271,9 +273,15 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
 
     // ─── سحب أسماء الموظفين من جدول expenses ───
     final employeeMap = <int, Employee>{};
+    final employeeMapByUuid = <String, Employee>{};
     final employeeIds = expenses
         .map((e) => e.relatedId)
         .whereType<int>()
+        .toSet();
+    final employeeUuids = expenses
+        .map((e) => e.employeeUuid?.trim())
+        .whereType<String>()
+        .where((uuid) => uuid.isNotEmpty)
         .toSet();
 
     // ─── سحب سحوبات الرواتب من salary_withdrawals ───
@@ -293,38 +301,97 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
             ..where(
               (tbl) =>
                   (tbl.hotelDayKey.isNotNull() &
+                      tbl.hotelDayKey.equals('').not() &
                       tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-                  (tbl.hotelDayKey.isNull() &
+                  ((tbl.hotelDayKey.isNull() | tbl.hotelDayKey.equals('')) &
                       tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)),
             );
         }
         if (toHotelDay != null) {
+          final endRange = SqlDateRange.forDay(toHotelDay);
           swQuery = swQuery
             ..where(
               (tbl) =>
                   (tbl.hotelDayKey.isNotNull() &
+                      tbl.hotelDayKey.equals('').not() &
                       tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-                  (tbl.hotelDayKey.isNull() &
-                      tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)),
+                  ((tbl.hotelDayKey.isNull() | tbl.hotelDayKey.equals('')) &
+                      (endRange == null
+                          ? tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)
+                          : tbl.withdrawDate.isSmallerThanValue(
+                              endRange.endExclusive,
+                            ))),
             );
         }
         salaryWithdrawals = await swQuery.get();
         // إضافة أرقام الموظفين من salary_withdrawals
         for (final sw in salaryWithdrawals) {
           employeeIds.add(sw.employeeId);
+          final uuid = sw.employeeUuid?.trim();
+          if (uuid != null && uuid.isNotEmpty) employeeUuids.add(uuid);
         }
       } catch (_) {
         // في حال عدم وجود الجدول أو خطأ آخر
       }
     }
 
+    // اقرأ الروابط العكسية الثابتة خارج نطاق التاريخ أيضاً: قد يقع المصروف
+    // في يوم مختلف عن السحوبة، ويجب ألا نرجع عندها إلى مطابقة IDs رقمية.
+    final reverseExpensesByWithdrawalUuid = <String, List<Expense>>{};
+    var reverseExpenseLookupComplete = true;
+    final withdrawalUuids = salaryWithdrawals
+        .map((sw) => sw.localUuid.trim())
+        .where((uuid) => uuid.isNotEmpty)
+        .toSet()
+        .toList();
+    try {
+      for (var offset = 0; offset < withdrawalUuids.length; offset += 500) {
+        final end = offset + 500 < withdrawalUuids.length
+            ? offset + 500
+            : withdrawalUuids.length;
+        final chunk = withdrawalUuids.sublist(offset, end);
+        final linkedExpenses =
+            await (db.select(db.expenses)..where(
+                  (expense) =>
+                      expense.withdrawalUuid.isIn(chunk) &
+                      expense.deletedAt.isNull(),
+                ))
+                .get();
+        for (final expense in linkedExpenses) {
+          final withdrawalUuid = expense.withdrawalUuid?.trim();
+          if (withdrawalUuid == null || withdrawalUuid.isEmpty) continue;
+          reverseExpensesByWithdrawalUuid
+              .putIfAbsent(withdrawalUuid, () => [])
+              .add(expense);
+        }
+      }
+    } catch (_) {
+      // لا نستخدم أي fallback رقمي إذا تعذر التأكد من الروابط الثابتة.
+      reverseExpenseLookupComplete = false;
+    }
+
     // جلب بيانات الموظفين دفعة واحدة
-    if (employeeIds.isNotEmpty) {
-      final employees = await (db.select(
-        db.employees,
-      )..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
+    if (employeeIds.isNotEmpty || employeeUuids.isNotEmpty) {
+      final employeeQuery = db.select(db.employees)
+        ..where((tbl) => tbl.deletedAt.isNull());
+      if (employeeIds.isNotEmpty && employeeUuids.isNotEmpty) {
+        employeeQuery.where(
+          (tbl) =>
+              tbl.id.isIn(employeeIds.toList()) |
+              tbl.localUuid.isIn(employeeUuids.toList()),
+        );
+      } else if (employeeIds.isNotEmpty) {
+        employeeQuery.where((tbl) => tbl.id.isIn(employeeIds.toList()));
+      } else {
+        employeeQuery.where(
+          (tbl) => tbl.localUuid.isIn(employeeUuids.toList()),
+        );
+      }
+      final employees = await employeeQuery.get();
       for (final employee in employees) {
         employeeMap[employee.id] = employee;
+        final uuid = employee.localUuid.trim();
+        if (uuid.isNotEmpty) employeeMapByUuid[uuid] = employee;
       }
     }
 
@@ -338,62 +405,35 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
     // المشكلة الجذرية: تقرير المصروفات يعرض نفس المعاملة مرتين
     //   مرة من جدول expenses ومرة من جدول salary_withdrawals
     //
-    // السبب: السجلات القديمة (قبل إضافة عمود expense_id أو تنسيق exp_XX)
+    // السبب: السجلات القديمة قد تفتقد روابط UUID المباشرة.
     //   لا تحتوي على رابط مباشر → تُعتبر يتيماً → تُضاف مكررة
     //
-    // ثلاث طرق مطابقة (مرتبة بالأولوية):
+    // طرق المطابقة (مرتبة بالأولوية):
     //
-    //   الطريقة 1: عمود expense_id (FK مباشر) — الأكثر موثوقية
-    //   الطريقة 2: نمط exp_XX في reason — مُضمون من saveFromExpense()
-    //   الطريقة 3: مطابقة بيانات احتياطية (hotelDayKey + employeeId + amount)
-    //              → شبكة أمان للسجلات القديمة بدون expense_id أو exp_XX
-    //              → احتمال false positive منخفض جداً (ثلاثة حقول متطابقة)
-    //              → حتى لو حدث false positive: إخفاء مكرر أفضل من عرض مكرر
+    //   1) expense_uuid / withdrawal_uuid عبر local_uuid.
+    //   2) expense_id وexp_XX كمسار توافق للصفوف المحلية القديمة فقط.
+    //   3) مطابقة احتياطية تتطلب employee_uuid واليوم الفندقي والمبلغ.
     //
     //   السحوبات المباشرة (reason يبدأ بـ "direct_withdrawal_") لا تُطابق أبداً
     //   لأنها لا تحتوي على مصروف مقابل أصلاً.
     // ═══════════════════════════════════════════════════════════════════════
 
-    // ─── قراءة expense_id من جدول salary_withdrawals عبر SQL خام ───
-    // عمود expense_id أُضيف عبر ترحيل قاعدة البيانات (schema v40+)
-    // ولا يوجد في الـ data class المُولّد لذلك نقرأه يدوياً
-    final swExpenseIdMap = <int, int>{}; // salary_withdrawal.id → expense_id
-    if (shouldFetchSalaryWithdrawals && salaryWithdrawals.isNotEmpty) {
-      try {
-        final swIds = salaryWithdrawals.map((sw) => sw.id).toList();
-        final placeholders = List.filled(swIds.length, '?').join(',');
-        final rows = await db
-            .customSelect(
-              'SELECT id, expense_id FROM salary_withdrawals WHERE id IN ($placeholders)',
-              variables: swIds.map(Variable.withInt).toList(),
-            )
-            .get();
-        for (final row in rows) {
-          final swId = row.read<int>('id');
-          // QueryRow لا يملك readOrNull — نستخدم read مع try-catch
-          // لأن expense_id قد يكون NULL
-          final expId = _readNullableInt(row, 'expense_id');
-          if (expId != null && expId > 0) {
-            swExpenseIdMap[swId] = expId;
-          }
-        }
-      } catch (_) {
-        // العمود قد لا يكون موجوداً بعد في الإصدارات القديمة — نتخطى
-      }
-    }
-
-    // ─── بناء مجموعة من المصروفات التي تمت إضافتها بالفعل ───
-    final Set<int> addedExpenseIds = {}; // معرفات المصروفات المضافة
-    final Set<int> addedWithdrawalIds =
-        {}; // معرفات السحوبات المضافة (لتجنب التكرار)
+    // ─── فهارس محلية للمطابقة: local_uuid هو هوية الصف ───
+    final expensesByLocalId = {for (final e in expenses) e.id: e};
+    final expensesByUuid = {for (final e in expenses) e.localUuid: e};
+    final addedExpenseUuids = expenses.map((e) => e.localUuid).toSet();
+    final Set<String> addedWithdrawalUuids = {};
 
     // ─── أولاً: إضافة جميع المصروفات من جدول expenses ───
     // ✅ (2026-09-14) العقد النقدي: السلفة تُعرض وتُحسب مرة واحدة —
-    // سجل السلفة المقترن بسحب يُطابق عبر expense_id/reason (أدناه) فلا
-    // يتكرر، بينما أقساط «خصم من الراتب» تظهر كسجلات في مجموعتها
+    // سجل السلفة المقترن بسحب يُطابق عبر UUID (أدناه) فلا يتكرر،
+    // بينما أقساط «خصم من الراتب» تظهر كسجلات في مجموعتها
     // الخاصة دون دخول ملخص سحوبات الرواتب النقدي.
     for (final expense in expenses) {
-      final employee = expense.relatedId != null
+      final employeeUuid = expense.employeeUuid?.trim();
+      final employee = employeeUuid != null && employeeUuid.isNotEmpty
+          ? employeeMapByUuid[employeeUuid]
+          : expense.employeeLinkCleared == 0 && expense.relatedId != null
           ? employeeMap[expense.relatedId!]
           : null;
       // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
@@ -417,7 +457,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
           relatedId: expense.relatedId,
         ),
       );
-      addedExpenseIds.add(expense.id);
     }
 
     // ─── ثانياً: معالجة سحوبات الرواتب – إضافة اليتيمة فقط ───
@@ -426,7 +465,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
 
       for (final sw in salaryWithdrawals) {
         // تجنب إضافة نفس السحب مرتين (أمان)
-        if (addedWithdrawalIds.contains(sw.id)) {
+        if (!addedWithdrawalUuids.add(sw.localUuid)) {
           continue;
         }
 
@@ -437,31 +476,65 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
             sw.reason != null && sw.reason!.startsWith('direct_withdrawal_');
 
         if (!isDirectWithdrawal) {
-          // ─── الطريقة 1: مطابقة عبر عمود expense_id (الأكثر موثوقية) ───
-          final expenseIdFromColumn = swExpenseIdMap[sw.id];
-          if (expenseIdFromColumn != null &&
-              addedExpenseIds.contains(expenseIdFromColumn)) {
-            hasMatchingExpense = true;
+          final expenseUuid = sw.expenseUuid?.trim();
+          final reverseLinkedExpenses =
+              reverseExpensesByWithdrawalUuid[sw.localUuid.trim()] ?? const [];
+          final reverseCandidates = reverseLinkedExpenses
+              .where((e) => _isSalaryType(e.expenseType))
+              .toList();
+          final hasStableReference =
+              (expenseUuid != null && expenseUuid.isNotEmpty) ||
+              reverseLinkedExpenses.isNotEmpty ||
+              !reverseExpenseLookupComplete;
+
+          // العقد الأساسي: روابط UUID، لا IDs محلية.
+          if (expenseUuid != null && expenseUuid.isNotEmpty) {
+            final linkedExpense = expensesByUuid[expenseUuid];
+            hasMatchingExpense =
+                linkedExpense != null &&
+                addedExpenseUuids.contains(expenseUuid) &&
+                _isSalaryType(linkedExpense.expenseType) &&
+                SalaryMirrorMatcher.hasStableExpenseLink(linkedExpense, sw);
+          } else if (reverseCandidates.length == 1) {
+            final linkedExpense =
+                expensesByUuid[reverseCandidates.single.localUuid];
+            hasMatchingExpense =
+                linkedExpense != null &&
+                SalaryMirrorMatcher.hasStableExpenseLink(linkedExpense, sw);
           }
 
-          // ─── الطريقة 2: مطابقة عبر reason الذي يحتوي exp_XX ───
-          if (!hasMatchingExpense && sw.reason != null) {
-            final match = RegExp(r'exp_(\d+)').firstMatch(sw.reason!);
-            if (match != null) {
-              final expId = int.tryParse(match.group(1)!);
-              if (expId != null && addedExpenseIds.contains(expId)) {
-                hasMatchingExpense = true;
-              }
-            }
+          // توافق محدود للسجلات المحلية القديمة فقط: تُحوّل المراجع
+          // الرقمية إلى local_uuid أولاً ولا تُستخدم كهوية للمزامنة.
+          if (!hasMatchingExpense && !hasStableReference) {
+            final legacyIds = <int>{
+              if (sw.expenseId != null && sw.expenseId! > 0) sw.expenseId!,
+              if (sw.reason != null)
+                ...RegExp(r'exp_(\d+)')
+                    .allMatches(sw.reason!)
+                    .map((m) => int.tryParse(m.group(1)!))
+                    .whereType<int>(),
+            };
+            final legacyCandidates = legacyIds
+                .map((id) => expensesByLocalId[id])
+                .whereType<Expense>()
+                .where((e) => _isSalaryType(e.expenseType))
+                .where(
+                  (e) =>
+                      e.withdrawalUuid == null ||
+                      e.withdrawalUuid!.trim().isEmpty ||
+                      e.withdrawalUuid == sw.localUuid,
+                )
+                .where((e) => SalaryMirrorMatcher.employeesMatch(e, sw))
+                .toSet();
+            hasMatchingExpense = legacyCandidates.length == 1;
           }
 
-          // ─── الطريقة 3 (الاحتياطية): مطابقة بالبيانات (للسجلات القديمة جداً) ───
-          // هذه تمنع التكرار حتى لو فشلت الطريقتان السابقتان
-          // شرط المطابقة: نفس نوع راتب، نفس الموظف، نفس اليوم الفندقي، نفس المبلغ
-          if (!hasMatchingExpense) {
+          // شبكة أمان للبيانات التاريخية التي لا تحمل أي مرجع ثابت.
+          // لا نخمن إذا ظهر UUID صريح لكنه غير متطابق أو غير مكتمل.
+          if (!hasMatchingExpense && !hasStableReference) {
             for (final expense in expenses) {
               if (_isSalaryType(expense.expenseType) &&
-                  expense.relatedId == sw.employeeId &&
+                  SalaryMirrorMatcher.employeesMatch(expense, sw) &&
                   _hotelDayKeysMatch(
                     expense.hotelDayKey,
                     sw.hotelDayKey,
@@ -482,7 +555,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
 
         // إذا لم يتم العثور على مصروف مقابل، فهذا السحب يتيم – أضفه
         if (!hasMatchingExpense) {
-          final employee = employeeMap[sw.employeeId];
+          final employeeUuid = sw.employeeUuid?.trim();
+          final employee = employeeUuid != null && employeeUuid.isNotEmpty
+              ? employeeMapByUuid[employeeUuid]
+              : employeeMap[sw.employeeId];
           // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
           final swDisplayDate =
               (sw.hotelDayKey != null && sw.hotelDayKey!.isNotEmpty)
@@ -517,7 +593,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
               isSalaryWithdrawal: true,
             ),
           );
-          addedWithdrawalIds.add(sw.id);
         }
       }
     }
@@ -1193,16 +1268,6 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
         ],
       ),
     );
-  }
-
-  /// قراءة حقل INTEGER قابل للقيم الفارغة من QueryRow
-  /// Drift's QueryRow لا يوفر readOrNull مباشرة — نستخدم try-catch
-  static int? _readNullableInt(QueryRow row, String column) {
-    try {
-      return row.read<int>(column);
-    } catch (_) {
-      return null;
-    }
   }
 
   /// مطابقة مفتاحي اليوم الفندقي بين مصروف وسحب راتب

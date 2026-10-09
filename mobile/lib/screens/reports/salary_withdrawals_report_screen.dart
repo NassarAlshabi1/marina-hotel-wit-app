@@ -15,6 +15,7 @@ import '../../services/sync/payload_mapper.dart';
 import '../../src/pdf/report_templates/salary_withdrawals_report_pdf.dart';
 import '../../utils/debug_log.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/sql_date_range.dart';
 import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
 
@@ -158,26 +159,45 @@ class _SalaryWithdrawalsReportScreenState
         ..where(
           (tbl) =>
               (tbl.hotelDayKey.isNotNull() &
+                  tbl.hotelDayKey.equals('').not() &
                   tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-              (tbl.hotelDayKey.isNull() &
+              ((tbl.hotelDayKey.isNull() | tbl.hotelDayKey.equals('')) &
                   tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)),
         );
     }
     if (toHotelDay != null) {
+      final endRange = SqlDateRange.forDay(toHotelDay);
       query = query
         ..where(
           (tbl) =>
               (tbl.hotelDayKey.isNotNull() &
+                  tbl.hotelDayKey.equals('').not() &
                   tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-              (tbl.hotelDayKey.isNull() &
-                  tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)),
+              ((tbl.hotelDayKey.isNull() | tbl.hotelDayKey.equals('')) &
+                  (endRange == null
+                      ? tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)
+                      : tbl.withdrawDate.isSmallerThanValue(
+                          endRange.endExclusive,
+                        ))),
         );
     }
 
-    // فلترة حسب الموظف المحدد
+    // فلترة حسب الموظف المحدد: UUID هو المرجع المحمول؛ employee_id
+    // المحلي يُستخدم فقط لصفوف الإصدارات القديمة التي لا تحمل employee_uuid.
     if (_selectedEmployeeId != null) {
+      final selectedEmployee = allEmployees
+          .where((employee) => employee.id == _selectedEmployeeId)
+          .firstOrNull;
+      final selectedUuid = selectedEmployee?.localUuid.trim();
       query = query
-        ..where((tbl) => tbl.employeeId.equals(_selectedEmployeeId!));
+        ..where((tbl) {
+          if (selectedUuid == null || selectedUuid.isEmpty) {
+            return tbl.employeeId.equals(_selectedEmployeeId!);
+          }
+          return tbl.employeeUuid.equals(selectedUuid) |
+              ((tbl.employeeUuid.isNull() | tbl.employeeUuid.equals('')) &
+                  tbl.employeeId.equals(_selectedEmployeeId!));
+        });
     }
 
     final withdrawals = await query.get();
@@ -196,15 +216,26 @@ class _SalaryWithdrawalsReportScreenState
 
     // بناء خريطة الموظفين
     final employeeMap = <int, Employee>{};
+    final employeeMapByUuid = <String, Employee>{};
     for (final emp in allEmployees) {
       employeeMap[emp.id] = emp;
+      if (emp.localUuid.trim().isNotEmpty) {
+        employeeMapByUuid[emp.localUuid.trim()] = emp;
+      }
     }
 
     // بناء الصفوف
     final rows = <_SalaryTxRow>[];
     for (final sw in activeWithdrawals) {
-      final employee = employeeMap[sw.employeeId];
-      final date = _parseDate(sw.withdrawDate);
+      final employeeUuid = sw.employeeUuid?.trim();
+      final employee = employeeUuid != null && employeeUuid.isNotEmpty
+          ? employeeMapByUuid[employeeUuid]
+          : employeeMap[sw.employeeId];
+      final hotelDay = sw.hotelDayKey?.trim();
+      final displayDate = hotelDay != null && hotelDay.isNotEmpty
+          ? hotelDay
+          : sw.withdrawDate;
+      final date = _parseDate(displayDate);
       rows.add(
         _SalaryTxRow(
           id: sw.id,
@@ -886,32 +917,58 @@ Future<MirrorDedupeResult> dedupeMirrorDuplicates(
     return MirrorDedupeResult(kept: live, mergedAway: 0, orphansDeleted: 0);
   }
 
-  // بلا أي علامة ربط في النطاق → لا دمج ممكن ولا مرايا يتيمة — خروج سريع
-  final marked = <int, bool>{
-    for (final sw in live) sw.id: SalaryMirrorMatcher.hasMirrorMarker(sw),
+  final marked = <String, bool>{
+    for (final sw in live)
+      sw.localUuid: SalaryMirrorMatcher.hasMirrorMarker(sw),
   };
+
+  // افحص الروابط العكسية الثابتة أولاً حتى يبقى الخروج السريع فعالاً
+  // عندما لا توجد مرايا. تجزئة القائمة تبقي SQLite تحت حد bind parameters.
+  final liveUuids = live.map((sw) => sw.localUuid).toList();
+  for (var offset = 0; offset < liveUuids.length; offset += 500) {
+    final end = offset + 500 < liveUuids.length
+        ? offset + 500
+        : liveUuids.length;
+    final chunk = liveUuids.sublist(offset, end);
+    final reverseLinks =
+        await (db.select(db.expenses)..where(
+              (expense) =>
+                  expense.withdrawalUuid.isIn(chunk) &
+                  expense.deletedAt.isNull(),
+            ))
+            .get();
+    for (final expense in reverseLinks) {
+      final withdrawalUuid = expense.withdrawalUuid?.trim();
+      if (withdrawalUuid != null && marked.containsKey(withdrawalUuid)) {
+        marked[withdrawalUuid] = true;
+      }
+    }
+  }
   if (!marked.values.any((m) => m)) {
     return MirrorDedupeResult(kept: live, mergedAway: 0, orphansDeleted: 0);
   }
 
-  // (1) جلب مصروفات نفس النطاق الزمني للمطابقة
+  // (1) جلب مصروفات نفس النطاق الزمني لمطابقة المرايا اليتيمة.
   final expensesInRange = await _fetchExpensesInRange(
     db,
     fromHotelDay: fromHotelDay,
     toHotelDay: toHotelDay,
   );
 
-  // (2) حلّ رابط المرآة (Level 1/2) لكل سحوبة حية
-  final resolved = <int, int?>{};
+  // (2) حلّ رابط المرآة إلى local_uuid للمصروف الحقيقي.
+  final resolved = <String, String?>{};
   for (final sw in live) {
-    resolved[sw.id] = await SalaryMirrorMatcher.resolveLinkedExpenseId(db, sw);
+    resolved[sw.localUuid] = await SalaryMirrorMatcher.resolveLinkedExpenseUuid(
+      db,
+      sw,
+    );
   }
 
   // (3) الدمج: هدف واحد حقيقي + أكثر من سحوبة → الأحدث تحديثاً فقط
   final toDelete = <SalaryWithdrawal>{};
-  final byExpense = <int, List<SalaryWithdrawal>>{};
+  final byExpense = <String, List<SalaryWithdrawal>>{};
   for (final sw in live) {
-    final target = resolved[sw.id];
+    final target = resolved[sw.localUuid];
     if (target == null) continue;
     byExpense.putIfAbsent(target, () => []).add(sw);
   }
@@ -924,18 +981,23 @@ Future<MirrorDedupeResult> dedupeMirrorDuplicates(
   // (4) المرايا اليتيمة (رابط مكسور): علامة موجودة والحلّ null
   final liveAfterMerge = live.where((sw) => !toDelete.contains(sw)).toList();
   // «مُرسّى بالفعل»: المصروفات التي لديها سحوبة حية تحلّ إليها بعد الدمج
-  final anchoredExpenseIds = <int>{
+  final anchoredExpenseUuids = <String>{
     for (final sw in liveAfterMerge)
-      if (resolved[sw.id] != null) resolved[sw.id]!,
+      if (resolved[sw.localUuid] != null) resolved[sw.localUuid]!,
   };
   var orphansDeleted = 0;
   for (final sw in liveAfterMerge) {
-    if (resolved[sw.id] != null || !marked[sw.id]!) continue;
+    if (resolved[sw.localUuid] != null || !marked[sw.localUuid]!) continue;
+    // رابط UUID صريح لكنه لا يحل إلى مصروف حي: لا نحذفه تخميناً من
+    // حقول الموظف/اليوم/المبلغ؛ قد يكون هدفه لم يصل بعد إلى هذا الجهاز.
+    if (sw.expenseUuid != null && sw.expenseUuid!.trim().isNotEmpty) {
+      continue;
+    }
     final candidates = expensesInRange
         .where(
           (e) =>
               PayloadMapper.isSalaryExpenseType(e.expenseType) &&
-              _mirrorEmployeeMatches(e, sw) &&
+              SalaryMirrorMatcher.employeesMatch(e, sw) &&
               _mirrorDayMatches(e, sw),
         )
         .toList();
@@ -943,7 +1005,7 @@ Future<MirrorDedupeResult> dedupeMirrorDuplicates(
     if (candidates.length != 1) continue;
     // إن لم تكن المرشحة مُرسّاة فاليتيمة قد تكون مرآتها الوحيدة —
     // حذفها قد يفقد الحدث المالي كله (مرفوض مالياً).
-    if (!anchoredExpenseIds.contains(candidates.single.id)) continue;
+    if (!anchoredExpenseUuids.contains(candidates.single.localUuid)) continue;
     toDelete.add(sw);
     orphansDeleted++;
   }
@@ -960,7 +1022,7 @@ Future<MirrorDedupeResult> dedupeMirrorDuplicates(
     for (final sw in toDelete) {
       await (db.update(
         db.salaryWithdrawals,
-      )..where((t) => t.id.equals(sw.id))).write(
+      )..where((t) => t.localUuid.equals(sw.localUuid))).write(
         SalaryWithdrawalsCompanion(
           deletedAt: Value(now),
           updatedAt: Value(now),
@@ -970,7 +1032,9 @@ Future<MirrorDedupeResult> dedupeMirrorDuplicates(
         ),
       );
 
-      final uuidRef = await _employeeUuidRefForMirrorDedupe(db, sw.employeeId);
+      final uuidRef = sw.employeeUuid?.trim().isNotEmpty == true
+          ? sw.employeeUuid!.trim()
+          : await _employeeUuidRefForMirrorDedupe(db, sw.employeeId);
       await outbox.merge(
         entity: 'salary_withdrawals',
         op: 'update',
@@ -1000,19 +1064,7 @@ Future<MirrorDedupeResult> dedupeMirrorDuplicates(
 int _newestUpdatedFirst(SalaryWithdrawal a, SalaryWithdrawal b) {
   final byUpdated = b.updatedAt.compareTo(a.updatedAt);
   if (byUpdated != 0) return byUpdated;
-  return b.id.compareTo(a.id);
-}
-
-/// مطابقة الموظف: relatedId مباشرة أو employeeUuid كمرجع مستقر عبر الأجهزة.
-bool _mirrorEmployeeMatches(Expense expense, SalaryWithdrawal sw) {
-  if (expense.relatedId != null && expense.relatedId == sw.employeeId) {
-    return true;
-  }
-  final expenseUuid = expense.employeeUuid;
-  final swUuid = sw.employeeUuid;
-  if (expenseUuid == null || expenseUuid.isEmpty) return false;
-  if (swUuid == null || swUuid.isEmpty) return false;
-  return expenseUuid == swUuid;
+  return b.localUuid.compareTo(a.localUuid);
 }
 
 /// مطابقة اليوم: hotel_day_key أولاً ثم جزء التاريخ التقويمي —
@@ -1048,18 +1100,24 @@ Future<List<Expense>> _fetchExpensesInRange(
       ..where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.equals('').not() &
                 t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-            (t.hotelDayKey.isNull() &
+            ((t.hotelDayKey.isNull() | t.hotelDayKey.equals('')) &
                 t.date.isBiggerOrEqualValue(fromHotelDay)),
       );
   }
   if (toHotelDay != null) {
+    final endRange = SqlDateRange.forDay(toHotelDay);
     query = query
       ..where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.equals('').not() &
                 t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-            (t.hotelDayKey.isNull() & t.date.isSmallerOrEqualValue(toHotelDay)),
+            ((t.hotelDayKey.isNull() | t.hotelDayKey.equals('')) &
+                (endRange == null
+                    ? t.date.isSmallerOrEqualValue(toHotelDay)
+                    : t.date.isSmallerThanValue(endRange.endExclusive))),
       );
   }
   return query.get();

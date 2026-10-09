@@ -209,6 +209,50 @@ void main() {
       },
     );
 
+    test('preflight يمنع مصروف راتب بلا employee_uuid قبل outbox أو push', () async {
+      await db.into(db.expenses).insert(
+        const ExpensesCompanion(
+          localUuid: d.Value('salary-expense-without-employee-uuid'),
+          expenseType: d.Value('رواتب'),
+          description: d.Value('راتب بلا رابط موظف'),
+          amount: d.Value(1000),
+          date: d.Value('2026-10-09'),
+          hotelDayKey: d.Value('2026-10-09'),
+          createdAt: d.Value(1),
+          updatedAt: d.Value(1),
+          lastModified: d.Value(1),
+          createdAtEpoch: d.Value(1),
+          lastModifiedEpoch: d.Value(1),
+        ),
+      );
+      final row = await db
+          .customSelect(
+            'SELECT * FROM expenses WHERE local_uuid = ?',
+            variables: [
+              const d.Variable<String>('salary-expense-without-employee-uuid'),
+            ],
+          )
+          .getSingle();
+
+      final result = await CloudflareD1PushMirror(db).upload(
+        tables: [
+          CloudflareD1SourceTable(
+            name: 'expenses',
+            rowCount: 1,
+            readChunk: (limit, offset) async =>
+                offset == 0 ? [row.data] : const [],
+          ),
+        ],
+      );
+
+      expect(result.ok, isFalse);
+      expect(result.rowsUploaded, 0);
+      expect(result.apiCalls, 0);
+      expect(result.errors.join('\n'), contains('employee_uuid'));
+      expect(worker.pushAttempts, 0);
+      expect(await outboxCount(db), 0);
+    });
+
     test('W2: الطابع الزمني المُرسَل = updated_at الصف، لا لحظة الرفع',
         () async {
       final uuid = await produceRoom();

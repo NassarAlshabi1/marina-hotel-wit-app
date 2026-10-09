@@ -297,16 +297,11 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 71', () {
-      // ✅ (2026-08-30) محاذاة بعد bump إلى 65 (جدول sync_remote_meta —
-      // الفجوتان 3+4 metadata-first). القيمة مقصودة صريحة: كل bump جديد
-      // يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
-      //
-      // ✅ Parity unification (2026-10-07): bump 70 → 71 لإضافة
-      // expense_kind + employee_link_cleared + sync_write_times +
-      // idx_salary_withdrawals_active_expense — توحيد مخطط Drift مع
-      // branch3 (Android/Kotlin + Worker).
-      expect(db.schemaVersion, 71);
+    test('3e. أحدث schemaVersion = 72', () {
+      // القيمة مقصودة صريحة: كل bump جديد يجب أن يحدّث هذا التأكيد عمداً.
+      // Migration 72 يثبت فهرس علاقة expense_uuid في القواعد القديمة؛
+      // beforeOpen ينشئ الفهرس نفسه في القواعد الجديدة.
+      expect(db.schemaVersion, 72);
     });
   });
 
