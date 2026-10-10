@@ -45,18 +45,14 @@ class CloudflareD1IdentityRepair {
         final where = table == 'shift_notes'
             ? " AND (created_by IS NULL OR created_by <> 'blacklist')"
             : '';
-        final rows = await db
-            .customSelect(
-              'SELECT id FROM "$table" WHERE '
-              '(local_uuid IS NULL OR TRIM(local_uuid) = "")$where',
-            )
-            .get();
+        final rows = await db.customSelect("""SELECT id FROM "$table" WHERE
+              (local_uuid IS NULL OR TRIM(local_uuid) = '')$where""").get();
         for (final row in rows) {
           final id = row.data['id'];
           if (id == null) continue;
           identitiesRepaired += await db.customUpdate(
-            'UPDATE "$table" SET local_uuid = ? WHERE id = ? AND '
-            '(local_uuid IS NULL OR TRIM(local_uuid) = "")',
+            """UPDATE "$table" SET local_uuid = ? WHERE id = ? AND
+            (local_uuid IS NULL OR TRIM(local_uuid) = '')$where""",
             variables: [Variable<String>(IdGen.uuid()), Variable<Object>(id)],
             updateKind: UpdateKind.update,
           );
@@ -138,15 +134,15 @@ class CloudflareD1IdentityRepair {
           continue;
         }
         linksRepaired += await db.customUpdate(
-          'UPDATE "${mapping.child}" AS child SET "${mapping.childColumn}" '
-          '= (SELECT parent."${mapping.parentUuidColumn}" FROM "${mapping.parent}" AS parent '
-          'WHERE parent.id = child."${mapping.fkColumn}") '
-          'WHERE child."${mapping.fkColumn}" IS NOT NULL AND '
-          '(child."${mapping.childColumn}" IS NULL OR TRIM(child."${mapping.childColumn}") = "") '
-          'AND EXISTS (SELECT 1 FROM "${mapping.parent}" AS parent '
-          'WHERE parent.id = child."${mapping.fkColumn}" AND '
-          'parent."${mapping.parentUuidColumn}" IS NOT NULL AND '
-          'TRIM(parent."${mapping.parentUuidColumn}") <> "")',
+          """UPDATE "${mapping.child}" AS child SET "${mapping.childColumn}"
+          = (SELECT parent."${mapping.parentUuidColumn}" FROM "${mapping.parent}" AS parent
+          WHERE parent.id = child."${mapping.fkColumn}")
+          WHERE child."${mapping.fkColumn}" IS NOT NULL AND
+          (child."${mapping.childColumn}" IS NULL OR TRIM(child."${mapping.childColumn}") = '')
+          AND EXISTS (SELECT 1 FROM "${mapping.parent}" AS parent
+          WHERE parent.id = child."${mapping.fkColumn}" AND
+          parent."${mapping.parentUuidColumn}" IS NOT NULL AND
+          TRIM(parent."${mapping.parentUuidColumn}") <> '')""",
           updateKind: UpdateKind.update,
         );
       }
