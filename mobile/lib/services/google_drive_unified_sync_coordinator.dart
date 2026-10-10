@@ -431,6 +431,9 @@ class GoogleDriveUnifiedSyncCoordinator {
     });
   }
 
+  // Reserved for the legacy delta-pull scheduler; full-backup mode is the
+  // current product behavior, so this callback is intentionally unreferenced.
+  // ignore: unused_element
   Future<void> _handlePeriodicPull() async {
     if (!_isSyncing && (_backupService?.isSignedIn ?? false)) {
       if (_pullEnabled) {

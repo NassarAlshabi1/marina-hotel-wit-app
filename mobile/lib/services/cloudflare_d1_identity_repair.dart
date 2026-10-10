@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show Variable;
+import 'package:drift/drift.dart' show UpdateKind, Variable;
 
 import '../utils/id.dart';
 import 'local_db.dart';
@@ -45,10 +45,12 @@ class CloudflareD1IdentityRepair {
         final where = table == 'shift_notes'
             ? " AND (created_by IS NULL OR created_by <> 'blacklist')"
             : '';
-        final rows = await db.customSelect(
-          'SELECT id FROM "$table" WHERE '
-          '(local_uuid IS NULL OR TRIM(local_uuid) = "")$where',
-        ).get();
+        final rows = await db
+            .customSelect(
+              'SELECT id FROM "$table" WHERE '
+              '(local_uuid IS NULL OR TRIM(local_uuid) = "")$where',
+            )
+            .get();
         for (final row in rows) {
           final id = row.data['id'];
           if (id == null) continue;
@@ -56,29 +58,85 @@ class CloudflareD1IdentityRepair {
             'UPDATE "$table" SET local_uuid = ? WHERE id = ? AND '
             '(local_uuid IS NULL OR TRIM(local_uuid) = "")',
             variables: [Variable<String>(IdGen.uuid()), Variable<Object>(id)],
-            updates: {table},
+            updateKind: UpdateKind.update,
           );
         }
       }
 
       const mappings = <_UuidLinkMapping>[
-        _UuidLinkMapping('salary_withdrawals', 'employee_uuid', 'employee_id', 'employees'),
-        _UuidLinkMapping('salary_cycles', 'employee_uuid', 'employee_id', 'employees'),
         _UuidLinkMapping(
-          'salary_payments', 'employee_uuid', 'cycle_id', 'salary_cycles',
+          'salary_withdrawals',
+          'employee_uuid',
+          'employee_id',
+          'employees',
+        ),
+        _UuidLinkMapping(
+          'salary_cycles',
+          'employee_uuid',
+          'employee_id',
+          'employees',
+        ),
+        _UuidLinkMapping(
+          'salary_payments',
+          'employee_uuid',
+          'cycle_id',
+          'salary_cycles',
           parentUuidColumn: 'employee_uuid',
         ),
-        _UuidLinkMapping('salary_payments', 'cycle_uuid', 'cycle_id', 'salary_cycles'),
-        _UuidLinkMapping('salary_carry_over_logs', 'employee_uuid', 'employee_id', 'employees'),
-        _UuidLinkMapping('salary_withdrawals', 'expense_uuid', 'expense_id', 'expenses'),
-        _UuidLinkMapping('inventory_transactions', 'item_local_uuid', 'item_id', 'inventory_items'),
-        _UuidLinkMapping('payments', 'booking_uuid_cache', 'booking_local_id', 'bookings'),
-        _UuidLinkMapping('debts', 'booking_uuid_cache', 'booking_local_id', 'bookings'),
-        _UuidLinkMapping('booking_nights', 'booking_uuid_cache', 'booking_local_id', 'bookings'),
-        _UuidLinkMapping('booking_price_adjustments', 'booking_local_uuid', 'booking_local_id', 'bookings'),
+        _UuidLinkMapping(
+          'salary_payments',
+          'cycle_uuid',
+          'cycle_id',
+          'salary_cycles',
+        ),
+        _UuidLinkMapping(
+          'salary_carry_over_logs',
+          'employee_uuid',
+          'employee_id',
+          'employees',
+        ),
+        _UuidLinkMapping(
+          'salary_withdrawals',
+          'expense_uuid',
+          'expense_id',
+          'expenses',
+        ),
+        _UuidLinkMapping(
+          'inventory_transactions',
+          'item_local_uuid',
+          'item_id',
+          'inventory_items',
+        ),
+        _UuidLinkMapping(
+          'payments',
+          'booking_uuid_cache',
+          'booking_local_id',
+          'bookings',
+        ),
+        _UuidLinkMapping(
+          'debts',
+          'booking_uuid_cache',
+          'booking_local_id',
+          'bookings',
+        ),
+        _UuidLinkMapping(
+          'booking_nights',
+          'booking_uuid_cache',
+          'booking_local_id',
+          'bookings',
+        ),
+        _UuidLinkMapping(
+          'booking_price_adjustments',
+          'booking_local_uuid',
+          'booking_local_id',
+          'bookings',
+        ),
       ];
       for (final mapping in mappings) {
-        if (!selected.contains(mapping.child) || !selected.contains(mapping.parent)) continue;
+        if (!selected.contains(mapping.child) ||
+            !selected.contains(mapping.parent)) {
+          continue;
+        }
         linksRepaired += await db.customUpdate(
           'UPDATE "${mapping.child}" AS child SET "${mapping.childColumn}" '
           '= (SELECT parent."${mapping.parentUuidColumn}" FROM "${mapping.parent}" AS parent '
@@ -89,7 +147,7 @@ class CloudflareD1IdentityRepair {
           'WHERE parent.id = child."${mapping.fkColumn}" AND '
           'parent."${mapping.parentUuidColumn}" IS NOT NULL AND '
           'TRIM(parent."${mapping.parentUuidColumn}") <> "")',
-          updates: {mapping.child},
+          updateKind: UpdateKind.update,
         );
       }
     });

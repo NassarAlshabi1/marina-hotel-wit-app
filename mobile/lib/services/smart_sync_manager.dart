@@ -144,7 +144,8 @@ class SmartSyncManager {
     );
   }
 
-  /// فحص مزامنة محسن للأداء
+  /// فحص مزامنة محسن للأداء — محفوظ للتوافق مع مسار المزامنة القديم.
+  // ignore: unused_element
   Future<void> _performOptimizedSyncCheck() async {
     final optimizer = SyncPerformanceOptimizer.instance;
     final dataManager = DataUsageManager.instance;
