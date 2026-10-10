@@ -6,6 +6,7 @@ import '../../utils/expense_reason_matcher.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../adapters/source.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../telegram/telegram_notification_service.dart';
@@ -40,6 +41,16 @@ class SalaryWithdrawalsRepository {
     }
   }
 
+  Future<String> _requireEmployeeUuidRef(int employeeId) async {
+    final uuid = await _employeeUuidRef(employeeId);
+    if (uuid == null || uuid.trim().isEmpty) {
+      throw StateError(
+        'تعذر حفظ السحب: لا يوجد local_uuid صالح للموظف #$employeeId.',
+      );
+    }
+    return uuid.trim();
+  }
+
   /// ✅ كتابة expense_id في عمود SQL خام بعد كل إدراج/تحديث
   /// العمود أُضيف عبر Migration 40 ولا يوجد في الـ data class المُولّد
   Future<void> _setExpenseIdRaw(int salaryWithdrawalId, int expenseId) async {
@@ -67,13 +78,29 @@ class SalaryWithdrawalsRepository {
   Future<void> _linkExpenseToWithdrawal({
     required int expenseId,
     required String withdrawalUuid,
+    required int clientTs,
+    bool originIsServer = false,
   }) async {
     // ✅ إعادة البطاقة: مؤشر يشير إلى سجل محذوف ناعماً (تحويل المصروف من
     // «رواتب» إلى نوع آخر ثم العودة) لا يُعدّ رابطاً حياً — نسمح بإعادة
     // التوجيه. الحماية الأصلية تبقى للمؤشر الحي: نرفض السحب من سجل نشط
     // حتى لا نسلب رابط سحوبة قائمة.
+    final setClause = originIsServer
+        ? 'withdrawal_uuid = ?'
+        : 'withdrawal_uuid = ?, updated_at = ?, last_modified = ?, '
+              'last_modified_epoch = ?, version = version + 1';
+    final variables = <d.Variable<Object>>[
+      d.Variable.withString(withdrawalUuid),
+      if (!originIsServer) ...[
+        d.Variable.withInt(clientTs),
+        d.Variable.withInt(clientTs),
+        d.Variable.withInt(clientTs),
+      ],
+      d.Variable.withInt(expenseId),
+      d.Variable.withString(withdrawalUuid),
+    ];
     final changed = await _db.customUpdate(
-      'UPDATE expenses SET withdrawal_uuid = ? '
+      'UPDATE expenses SET $setClause '
       'WHERE id = ? AND ( '
       '  withdrawal_uuid IS NULL '
       '  OR withdrawal_uuid = ? '
@@ -81,11 +108,7 @@ class SalaryWithdrawalsRepository {
       '    SELECT local_uuid FROM salary_withdrawals WHERE deleted_at IS NULL '
       '  ) '
       ') ',
-      variables: [
-        d.Variable.withString(withdrawalUuid),
-        d.Variable.withInt(expenseId),
-        d.Variable.withString(withdrawalUuid),
-      ],
+      variables: variables,
       updates: {_db.expenses},
     );
     if (changed != 1) {
@@ -99,13 +122,28 @@ class SalaryWithdrawalsRepository {
     required String expenseUuid,
     required String withdrawalUuid,
     required int clientTs,
-  }) => _outboxDao.merge(
-    entity: 'expenses',
-    op: 'update',
-    localUuid: expenseUuid,
-    payload: {'withdrawalUuid': withdrawalUuid},
-    clientTs: clientTs,
-  );
+  }) async {
+    final expense =
+        await (_db.select(_db.expenses)
+              ..where((e) => e.localUuid.equals(expenseUuid))
+              ..limit(1))
+            .getSingleOrNull();
+    if (expense == null) {
+      throw StateError('Expense $expenseUuid disappeared before outbox update');
+    }
+    final payload = _outboxDao.adapters.expenses.toJsonForSource(
+      expense,
+      src: Source.appwrite,
+    );
+    payload['withdrawalUuid'] = withdrawalUuid;
+    await _outboxDao.merge(
+      entity: 'expenses',
+      op: 'update',
+      localUuid: expenseUuid,
+      payload: payload,
+      clientTs: clientTs,
+    );
+  }
 
   /// إنشاء سجل سحب راتب مرتبط بمصروف
   /// [notify] = false عندما أنشأ المستدعي المصروف المقابل بنفسه وأرسل
@@ -126,7 +164,7 @@ class SalaryWithdrawalsRepository {
     final uuid = IdGen.uuid();
     // ✅ (2026-09-19) مرجع الموظف المستقر — يُخزَّن في العمود الجديد
     // (migration 68) فيُرسل مع كل دفعة مزامنة لاحقة عبر toJson.
-    final employeeUuid = await _employeeUuidRef(employeeId);
+    final employeeUuid = await _requireEmployeeUuidRef(employeeId);
     final expenseUuid = await _expenseUuidRef(expenseId);
 
     final id = await _db.transaction(() async {
@@ -134,9 +172,7 @@ class SalaryWithdrawalsRepository {
         localUuid: d.Value(uuid),
         serverId: const d.Value(null),
         employeeId: d.Value(employeeId),
-        employeeUuid: employeeUuid != null
-            ? d.Value(employeeUuid)
-            : const d.Value.absent(),
+        employeeUuid: d.Value(employeeUuid),
         expenseUuid: expenseUuid != null
             ? d.Value(expenseUuid)
             : const d.Value.absent(),
@@ -164,6 +200,8 @@ class SalaryWithdrawalsRepository {
           await _linkExpenseToWithdrawal(
             expenseId: expenseId,
             withdrawalUuid: uuid,
+            clientTs: now,
+            originIsServer: originIsServer,
           );
         }
         if (!originIsServer && expenseUuid != null) {
@@ -194,10 +232,7 @@ class SalaryWithdrawalsRepository {
         // ✅ (2026-09-10) جذر «107 سجل محجوب»: الحمولة يجب أن تحمل
         // employeeUuid (مرجع مستقر عبر الأجهزة) — employee_id وحده رقم
         // محلي على جهاز المصدر ولا يحل خادمياً (server_id عمود هجرة فقط).
-        final employeeUuidRef = await _employeeUuidRef(employeeId);
-        if (employeeUuidRef != null) {
-          payload['employeeUuid'] = employeeUuidRef;
-        }
+        payload['employeeUuid'] = employeeUuid;
         if (expenseId > 0) {
           payload['expenseId'] = expenseId;
           if (expenseUuid != null) payload['expenseUuid'] = expenseUuid;
@@ -357,6 +392,7 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     bool originIsServer = false,
   }) async {
+    final employeeUuid = await _requireEmployeeUuidRef(employeeId);
     // ✅ البحث عن سجل موجود — محاولة عبر عمود expense_id أولاً
     SalaryWithdrawal? matched;
 
@@ -446,6 +482,7 @@ class SalaryWithdrawalsRepository {
             serverId: stale.serverId,
             payload: {
               'employeeId': stale.employeeId,
+              'expenseUuid': stale.expenseUuid,
               if (staleUuidRef != null) 'employeeUuid': staleUuidRef,
               'deletedAt': now,
               'lastModified': now,
@@ -467,14 +504,13 @@ class SalaryWithdrawalsRepository {
         // شاشة المصروفات كان يحدّث employee_id فقط ويترك uuid الموظف
         // القديم، فيُنسَب السحب لموظف سابق على بقية الأجهزة.
         // القيمة null تُمحو الصورة القديمة بدل إبقاء رابط خاطئ.
-        final updatedEmployeeUuid = await _employeeUuidRef(employeeId);
         // تحديث السجل الموجود
         await (_db.update(
           _db.salaryWithdrawals,
         )..where((t) => t.id.equals(matchedId))).write(
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
-            employeeUuid: d.Value(updatedEmployeeUuid),
+            employeeUuid: d.Value(employeeUuid),
             expenseUuid: expenseUuid != null
                 ? d.Value(expenseUuid)
                 : const d.Value.absent(),
@@ -500,6 +536,8 @@ class SalaryWithdrawalsRepository {
           await _linkExpenseToWithdrawal(
             expenseId: expenseId,
             withdrawalUuid: matchedLocalUuid,
+            clientTs: now,
+            originIsServer: originIsServer,
           );
         }
         if (!originIsServer && expenseUuid != null) {
@@ -511,7 +549,6 @@ class SalaryWithdrawalsRepository {
         }
 
         if (!originIsServer) {
-          final employeeUuidRef = await _employeeUuidRef(employeeId);
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'update',
@@ -519,7 +556,7 @@ class SalaryWithdrawalsRepository {
             serverId: matchedServerId,
             payload: {
               'employeeId': employeeId,
-              if (employeeUuidRef != null) 'employeeUuid': employeeUuidRef,
+              'employeeUuid': employeeUuid,
               'amount': amount,
               'withdrawDate': date,
               'reason': reasonText,
@@ -552,8 +589,6 @@ class SalaryWithdrawalsRepository {
       } else {
         // إنشاء سجل جديد
         final uuid = IdGen.uuid();
-        // ✅ (2026-09-19) مرجع الموظف المستقر في العمود المحلي (migration 68)
-        final newEmployeeUuid = await _employeeUuidRef(employeeId);
         final newId = await _db
             .into(_db.salaryWithdrawals)
             .insert(
@@ -561,9 +596,7 @@ class SalaryWithdrawalsRepository {
                 localUuid: d.Value(uuid),
                 serverId: const d.Value(null),
                 employeeId: d.Value(employeeId),
-                employeeUuid: newEmployeeUuid != null
-                    ? d.Value(newEmployeeUuid)
-                    : const d.Value.absent(),
+                employeeUuid: d.Value(employeeUuid),
                 expenseUuid: expenseUuid != null
                     ? d.Value(expenseUuid)
                     : const d.Value.absent(),
@@ -591,6 +624,8 @@ class SalaryWithdrawalsRepository {
           await _linkExpenseToWithdrawal(
             expenseId: expenseId,
             withdrawalUuid: uuid,
+            clientTs: now,
+            originIsServer: originIsServer,
           );
         }
         if (!originIsServer && expenseUuid != null) {
@@ -616,14 +651,13 @@ class SalaryWithdrawalsRepository {
         );
 
         if (!originIsServer) {
-          final employeeUuidRef = await _employeeUuidRef(employeeId);
           await _outboxDao.merge(
             entity: 'salary_withdrawals',
             op: 'create',
             localUuid: uuid,
             payload: {
               'employeeId': employeeId,
-              if (employeeUuidRef != null) 'employeeUuid': employeeUuidRef,
+              'employeeUuid': employeeUuid,
               'amount': amount,
               'withdrawDate': date,
               'reason': reasonText,

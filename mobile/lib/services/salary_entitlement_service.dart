@@ -99,10 +99,18 @@ class SalaryEntitlementService {
     final totalMonthsWorked = _calculateMonthsDifference(hireDate, now);
     final totalEntitlement = totalMonthsWorked * employee.basicSalary;
 
+    final employeeUuid = employee.localUuid.trim();
     final expenses =
-        await (_db.select(_db.expenses)
-              ..where((e) => e.relatedId.equals(employee.id))
-              ..where((e) => e.deletedAt.isNull()))
+        await (_db.select(_db.expenses)..where(
+              (e) =>
+                  e.deletedAt.isNull() &
+                  (employeeUuid.isEmpty
+                      ? e.relatedId.equals(employee.id)
+                      : e.employeeUuid.equals(employeeUuid) |
+                            ((e.employeeUuid.isNull() |
+                                    e.employeeUuid.equals('')) &
+                                e.relatedId.equals(employee.id))),
+            ))
             .get();
 
     double totalWithdrawals = 0; // سحب راتب فقط
@@ -256,7 +264,7 @@ class SalaryEntitlementService {
       cycleEnd,
     );
     final carryOverLogs = await _getCarryOverLogsForCycle(
-      employee.id,
+      employee,
       cycleStart,
     );
 
@@ -290,7 +298,7 @@ class SalaryEntitlementService {
       final cycleEnd = _getCycleEnd(cycleStart);
       final txns = await _getCycleTransactions(employee, cycleStart, cycleEnd);
       final carryOverLogs = await _getCarryOverLogsForCycle(
-        employee.id,
+        employee,
         cycleStart,
       );
 
@@ -384,7 +392,7 @@ class SalaryEntitlementService {
     // or two local triggers. The duplicate check and insert must be atomic.
     await _db.transaction(() async {
       final existing = await _checkExistingCarryOver(
-        employee.id,
+        employee,
         previousCycleStart,
         currentCycleStart,
       );
@@ -470,10 +478,18 @@ class SalaryEntitlementService {
     DateTime cycleStart,
     DateTime cycleEnd,
   ) async {
+    final employeeUuid = employee.localUuid.trim();
     final expenses =
-        await (_db.select(_db.expenses)
-              ..where((e) => e.relatedId.equals(employee.id))
-              ..where((e) => e.deletedAt.isNull()))
+        await (_db.select(_db.expenses)..where(
+              (e) =>
+                  e.deletedAt.isNull() &
+                  (employeeUuid.isEmpty
+                      ? e.relatedId.equals(employee.id)
+                      : e.employeeUuid.equals(employeeUuid) |
+                            ((e.employeeUuid.isNull() |
+                                    e.employeeUuid.equals('')) &
+                                e.relatedId.equals(employee.id))),
+            ))
             .get();
 
     double withdrawals = 0, deductions = 0, advances = 0, installmentsPaid = 0;
@@ -550,31 +566,49 @@ class SalaryEntitlementService {
   }
 
   Future<bool> _checkExistingCarryOver(
-    int employeeId,
+    Employee employee,
     DateTime prevStart,
     DateTime newStart,
   ) async {
+    final employeeUuid = employee.localUuid.trim();
     final result =
         await (_db.select(_db.salaryCarryOverLogs)
-              ..where((t) => t.employeeId.equals(employeeId))
+              ..where(
+                (t) =>
+                    (employeeUuid.isEmpty
+                        ? t.employeeId.equals(employee.id)
+                        : t.employeeUuid.equals(employeeUuid) |
+                              ((t.employeeUuid.isNull() |
+                                      t.employeeUuid.equals('')) &
+                                  t.employeeId.equals(employee.id))) &
+                    t.deletedAt.isNull(),
+              )
               ..where(
                 (t) => t.previousCycleStart.equals(_formatDate(prevStart)),
               )
               ..where((t) => t.newCycleStart.equals(_formatDate(newStart)))
-              ..where((t) => t.deletedAt.isNull())
               ..limit(1))
             .get();
     return result.isNotEmpty;
   }
 
   Future<List<SalaryCarryOverLog>> _getCarryOverLogsForCycle(
-    int employeeId,
+    Employee employee,
     DateTime cycleStart,
   ) async {
     final startStr = _formatDate(cycleStart);
+    final employeeUuid = employee.localUuid.trim();
     return (_db.select(_db.salaryCarryOverLogs)
-          ..where((t) => t.employeeId.equals(employeeId))
-          ..where((t) => t.deletedAt.isNull())
+          ..where(
+            (t) =>
+                t.deletedAt.isNull() &
+                (employeeUuid.isEmpty
+                    ? t.employeeId.equals(employee.id)
+                    : t.employeeUuid.equals(employeeUuid) |
+                          ((t.employeeUuid.isNull() |
+                                  t.employeeUuid.equals('')) &
+                              t.employeeId.equals(employee.id))),
+          )
           ..where(
             (t) =>
                 t.newCycleStart.equals(startStr) |

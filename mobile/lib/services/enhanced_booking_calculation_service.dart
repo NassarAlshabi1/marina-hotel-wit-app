@@ -480,11 +480,11 @@ class EnhancedBookingCalculationService {
     }
 
     Future<void> doWrite() async {
-      if (shouldRebuild) {
-        await (db.delete(
-          db.bookingNights,
-        )..where((n) => n.bookingLocalId.equals(booking.id))).go();
-      }
+      if (!shouldRebuild) return;
+
+      await (db.delete(
+        db.bookingNights,
+      )..where((n) => n.bookingLocalId.equals(booking.id))).go();
 
       int sequence = 0;
       await db.batch((batch) {
@@ -524,7 +524,6 @@ class EnhancedBookingCalculationService {
               sequence: d.Value(sequence),
               isProcessedByAutoFix: const d.Value(false),
             ),
-            mode: d.InsertMode.insertOrReplace,
           );
         }
       });

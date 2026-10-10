@@ -1405,11 +1405,16 @@ class AuthLocalStore {
           'created_at_epoch': 0,
           'sync_timestamp': 0,
         }..remove('id');
-        final columns = row.keys.join(', ');
+        final columns = row.keys.map((column) => '"$column"').join(', ');
         final placeholders = row.keys.map((_) => '?').join(', ');
+        final updates = row.keys
+            .where((column) => column != 'local_uuid' && column != 'id')
+            .map((column) => '"$column" = excluded."$column"')
+            .join(', ');
         await db.customStatement(
-          'INSERT OR REPLACE INTO app_users ($columns) '
-          'VALUES ($placeholders)',
+          'INSERT INTO app_users ($columns) VALUES ($placeholders) '
+          'ON CONFLICT(local_uuid) DO UPDATE SET '
+          '${updates.isEmpty ? '"local_uuid" = excluded."local_uuid"' : updates}',
           row.values.toList(),
         );
       }

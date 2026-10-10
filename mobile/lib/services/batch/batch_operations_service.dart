@@ -46,7 +46,20 @@ class BatchOperationsService {
         final batch = rooms.skip(i).take(batchSize).toList();
         try {
           await db.batch((b) {
-            b.insertAll(db.rooms, batch, mode: InsertMode.insertOrReplace);
+            for (final room in batch) {
+              if (onConflict) {
+                b.insert(
+                  db.rooms,
+                  room,
+                  onConflict: DoUpdate(
+                    (_) => room,
+                    target: [db.rooms.localUuid],
+                  ),
+                );
+              } else {
+                b.insert(db.rooms, room);
+              }
+            }
           });
           success += batch.length;
         } catch (e) {
@@ -72,7 +85,16 @@ class BatchOperationsService {
     return _batchInsert<local_db.Payment, local_db.PaymentsCompanion>(
       payments,
       inserter: (batch) => db.batch((b) {
-        b.insertAll(db.payments, batch, mode: InsertMode.insertOrReplace);
+        for (final payment in batch) {
+          b.insert(
+            db.payments,
+            payment,
+            onConflict: DoUpdate(
+              (_) => payment,
+              target: [db.payments.localUuid],
+            ),
+          );
+        }
       }),
       batchSize: batchSize,
     );
@@ -233,9 +255,34 @@ extension BatchExtensions on BatchOperationsService {
       return;
     }
 
-    final keys = records.first.keys.toList();
-    final columns = keys.join(', ');
+    if (!RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(table)) {
+      throw ArgumentError.value(table, 'table', 'Invalid table name');
+    }
+    final keys = records.first.keys.where((key) => key != 'id').toList();
+    if (keys.any(
+      (key) => !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(key),
+    )) {
+      throw ArgumentError('Sync rows contain an invalid SQL column name');
+    }
+    if (!keys.contains('local_uuid') ||
+        records.any((record) {
+          final uuid = record['local_uuid'];
+          return uuid is! String || uuid.trim().isEmpty;
+        })) {
+      throw ArgumentError('Sync rows must all have a valid local_uuid');
+    }
+    final columns = keys.map((key) => '"$key"').join(', ');
     final placeholders = List.filled(keys.length, '?').join(', ');
+    final updates = keys
+        .where((key) => key != 'local_uuid')
+        .map((key) => '"$key" = excluded."$key"')
+        .join(', ');
+    final conflictAction = updates.isEmpty
+        ? 'DO UPDATE SET "local_uuid" = excluded."local_uuid"'
+        : 'DO UPDATE SET $updates';
+    final sql =
+        'INSERT INTO "$table" ($columns) VALUES ($placeholders) '
+        'ON CONFLICT(local_uuid) $conflictAction';
 
     await db.transaction(() async {
       await db.batch((batch) {
@@ -243,10 +290,7 @@ extension BatchExtensions on BatchOperationsService {
           final chunk = records.skip(i).take(batchSize);
           for (final record in chunk) {
             final values = keys.map((k) => record[k]).toList();
-            batch.customStatement(
-              'INSERT OR REPLACE INTO $table ($columns) VALUES ($placeholders)',
-              values,
-            );
+            batch.customStatement(sql, values);
           }
         }
       });

@@ -31,6 +31,13 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     _batchUuidCache = null;
   }
 
+  Column? get _localUuidColumn {
+    for (final column in table.$columns) {
+      if (column.$name == 'local_uuid') return column;
+    }
+    return null;
+  }
+
   Future<int> upsertFromJson(
     Map<String, dynamic> json, {
     required Source src,
@@ -167,6 +174,18 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       return cached;
     }
 
+    // UUID-backed sync entities have exactly one portable identity. Never
+    // fall back to a local auto-increment id or another business key: a
+    // conflict on local_uuid is the only conflict allowed to update a row.
+    final localUuidColumn = _localUuidColumn;
+    if (localUuidColumn != null) {
+      final uuidTarget = <List<Column>>[
+        [localUuidColumn],
+      ];
+      _conflictTargetCache[tableName] = uuidTarget;
+      return uuidTarget;
+    }
+
     final columnsByName = <String, Column>{
       for (final column in table.$columns) column.$name: column,
     };
@@ -204,14 +223,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
     final deduped = _dedupeTargets(targets);
 
-    // ✅ إصلاح حرج: إضافة المفتاح الرئيسي (PRIMARY KEY) كـ fallback دائماً
-    // وليس فقط عندما لا توجد أهداف أخرى.
-    // السبب: عند السحب من Appwrite، قد يأتي سجل بـ id=505 و localUuid=xyz
-    // بينما محلياً يوجد سجل مختلف بـ id=505 و localUuid=abc.
-    // INSERT ON CONFLICT("local_uuid") يحاول إدراج صف جديد (لأن localUuid غير موجود)،
-    // لكن يصطدم بـ id=505 الموجود مسبقاً → UNIQUE constraint failed!
-    // بإضافة PRIMARY KEY كـ fallback، المحاولة الثانية بـ ON CONFLICT("id")
-    // تُحدّث السجل المحلي الموجود.
+    // Tables without local_uuid may use their primary key as the final
+    // conflict target. UUID-backed sync entities returned above and never
+    // identify or update a row through a device-local integer id.
     final pk = table.$primaryKey.toList();
     if (pk.isNotEmpty) {
       final pkLabel = _targetLabel(pk);
@@ -295,16 +309,15 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
   /// إلى 1 (لـ chunk واحد من 500 صف).
   ///
   /// **الفرق عن `upsertFromJson`:**
-  /// - `upsertFromJson` يُستخدم في المزامنة (sync) حيث قد يكون السجل موجوداً
-  ///   محلياً → يحتاج DoUpdate مع conflict targets متعددة
-  /// - `batchUpsertFromJson` يُستخدم في الاستعادة (restore) بعد DELETE كامل
-  ///   → الجدول فارغ → INSERT OR REPLACE كافٍ (لا توجد تعارضات محتملة)
+  /// - هذا المسار يعالج عدة سجلات بكفاءة أثناء الاستعادة/المزامنة.
+  /// - الجداول ذات `local_uuid` تستخدم `ON CONFLICT(local_uuid) DO UPDATE`
+  ///   لكل صف؛ الجداول التي لا تحمل UUID فقط تستخدم إدراج الدفعات العادي.
   ///
   /// **الخطوات:**
   /// 1. لكل صف: حل localUuid + FK references (SELECTs منفصلة لكل صف)
   /// 2. تخطّي الصفوف ذات FK غير محلول (مع تسجيل السبب)
   /// 3. تجميع الـ companions الناجحة في chunks من 500 صف
-  /// 4. تنفيذ `db.batch.insertAll` واحد لكل chunk (mode: insertOrReplace)
+  /// 4. UUID upsert لكل صف متزامن؛ batch insert عادي للجداول بلا UUID.
   Future<({int inserted, int skipped})> batchUpsertFromJson(
     List<Map<String, dynamic>> jsons, {
     required Source src,
@@ -405,7 +418,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       return (inserted: 0, skipped: skipped);
     }
 
-    // المرحلة 2: batch insert في chunks من 500
+    // المرحلة 2: إدراج chunks من 500
     // chunking ضروري لأن SQLite له حد لعدد المتغيرات في استعلام واحد
     // (SQLITE_MAX_VARIABLE_COUNT = 999 افتراضياً، وكل صف قد يستخدم 20-50 متغير)
     const chunkSize = 500;
@@ -416,6 +429,54 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
           ? i + chunkSize
           : companions.length;
       final chunk = companions.sublist(i, end);
+
+      final localUuidColumn = _localUuidColumn;
+      if (localUuidColumn != null) {
+        final target = [localUuidColumn];
+        try {
+          await db.batch((batch) {
+            for (final comp in chunk) {
+              batch.insert(
+                table,
+                comp,
+                onConflict: DoUpdate((_) => comp, target: target),
+              );
+            }
+          });
+          inserted += chunk.length;
+        } catch (e, st) {
+          developer.log(
+            'UUID batch upsert failed for ${table.actualTableName}; '
+            'falling back to per-row upsert',
+            error: e,
+            stackTrace: st,
+            name: 'BaseRepository.batch',
+          );
+          try {
+            for (final comp in chunk) {
+              try {
+                await db
+                    .into(table)
+                    .insert(
+                      comp,
+                      onConflict: DoUpdate((_) => comp, target: target),
+                    );
+                inserted++;
+              } catch (rowError) {
+                developer.log(
+                  'UUID upsert failed for ${table.actualTableName}',
+                  error: rowError,
+                  name: 'BaseRepository.batch',
+                );
+                skipped++;
+              }
+            }
+          } catch (_) {
+            skipped += chunk.length;
+          }
+        }
+        continue;
+      }
 
       try {
         await db.batch(

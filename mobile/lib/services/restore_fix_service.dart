@@ -763,7 +763,7 @@ class RestoreFixService {
     if (nightRows.isNotEmpty) {
       await db.batch((batch) {
         for (final row in nightRows) {
-          batch.insert(db.bookingNights, row, mode: InsertMode.insertOrReplace);
+          batch.insert(db.bookingNights, row);
         }
       });
     }
@@ -1000,7 +1000,6 @@ class RestoreFixService {
           batch.insert(
             db.hotelDayLedger,
             row,
-            mode: InsertMode.insertOrReplace,
           );
         }
       });

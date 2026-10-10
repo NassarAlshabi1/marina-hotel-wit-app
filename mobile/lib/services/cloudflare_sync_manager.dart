@@ -1003,11 +1003,19 @@ class CloudflareSyncManager {
               (syncPayload['created_at'] ?? syncPayload['updated_at']) as int,
           'created_at_epoch': 0,
         }..remove('id');
-        final columns = row.keys.join(', ');
+        final localUuid = row['local_uuid'];
+        if (localUuid is! String || localUuid.trim().isEmpty) {
+          throw StateError('Cloudflare device snapshot is missing local_uuid');
+        }
+        final columns = row.keys.map((column) => '"$column"').join(', ');
         final placeholders = row.keys.map((_) => '?').join(', ');
+        final updates = row.keys
+            .where((column) => column != 'local_uuid')
+            .map((column) => '"$column" = excluded."$column"')
+            .join(', ');
         await db.customStatement(
-          'INSERT OR REPLACE INTO devices ($columns) '
-          'VALUES ($placeholders)',
+          'INSERT INTO devices ($columns) VALUES ($placeholders) '
+          'ON CONFLICT(local_uuid) DO UPDATE SET $updates',
           row.values.toList(),
         );
       }

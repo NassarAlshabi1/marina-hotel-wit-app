@@ -326,7 +326,7 @@ class CloudflareMigrationService {
   }
 
   /// Build a SQL INSERT statement with multiple VALUES from a batch of records.
-  /// Uses INSERT OR REPLACE for idempotent re-runs (unique local_uuid).
+  /// UUID-backed rows upsert only on local_uuid (never delete-and-reinsert).
   /// All values are properly SQL-escaped to prevent injection.
   /// Fills NOT NULL columns (without defaults) with empty values to prevent
   /// silent constraint violations.
@@ -370,6 +370,20 @@ class CloudflareMigrationService {
       }
     }
 
+    final hasLocalUuid =
+        allColumns.contains('local_uuid') ||
+        batch.first.containsKey('local_uuid');
+    if (hasLocalUuid) {
+      for (final record in batch) {
+        final uuid = record['local_uuid'];
+        if (uuid is! String || uuid.trim().isEmpty) {
+          throw StateError(
+            'Refusing Cloudflare migration row for $tableName without local_uuid',
+          );
+        }
+      }
+    }
+
     // Build the column list: union of record columns + NOT NULL defaults
     final recordColumns = batch.first.keys.toSet();
     final requiredColumns = <String>[];
@@ -398,7 +412,7 @@ class CloudflareMigrationService {
     final d1Columns = requiredColumns
         .map((col) => columnRenames[col] ?? col)
         .toList();
-    final columnsStr = d1Columns.join(', ');
+    final columnsStr = d1Columns.map((column) => '"$column"').join(', ');
 
     // Build VALUES clauses with proper escaping + fill defaults.
     // Reference columns keep their real values (see doc comment above).
@@ -417,8 +431,18 @@ class CloudflareMigrationService {
       valuesClauses.add('(${values.join(', ')})');
     }
 
-    return 'INSERT OR REPLACE INTO $tableName ($columnsStr) VALUES\n'
-        '${valuesClauses.join(',\n')};';
+    final insertVerb = hasLocalUuid ? 'INSERT INTO' : 'INSERT OR REPLACE INTO';
+    final updates = d1Columns
+        .where((column) => column != 'local_uuid' && column != 'id')
+        .map((column) => '"$column" = excluded."$column"')
+        .join(', ');
+    final conflictClause = hasLocalUuid
+        ? ' ON CONFLICT(local_uuid) DO UPDATE SET '
+              '${updates.isEmpty ? '"local_uuid" = excluded."local_uuid"' : updates}'
+        : '';
+
+    return '$insertVerb $tableName ($columnsStr) VALUES\n'
+        '${valuesClauses.join(',\n')}$conflictClause;';
   }
 
   /// Escape a Dart value for SQL insertion.

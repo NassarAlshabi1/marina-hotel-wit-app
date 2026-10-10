@@ -645,6 +645,50 @@ void main() {
       expect(rows.first.expectedAmount, 7000);
       expect(rows.first.status, 'active');
     });
+
+    test('batchUpsertFromJson يحدث حصراً بهوية local_uuid', () async {
+      await insertEmployee();
+      final localId = await adapters.salaryCycles.upsertFromJson(
+        {
+          'localUuid': 'sc-batch-uuid',
+          'employeeUuid': 'emp-1',
+          'cycleKey': '2025-07',
+          'hotelDayStart': '2025-07-01',
+          'hotelDayEnd': '2025-07-31',
+          'expectedAmount': 5000,
+          'status': 'draft',
+          'createdAt': 100,
+          'lastModified': 200,
+        },
+        src: Source.appwrite,
+      );
+
+      final result = await adapters.salaryCycles.batchUpsertFromJson(
+        [
+          {
+            'id': 999,
+            'localUuid': 'sc-batch-uuid',
+            'employeeUuid': 'emp-1',
+            'cycleKey': '2025-07',
+            'hotelDayStart': '2025-07-01',
+            'hotelDayEnd': '2025-07-31',
+            'expectedAmount': 7500,
+            'status': 'active',
+            'createdAt': 100,
+            'lastModified': 300,
+          },
+        ],
+        src: Source.appwrite,
+      );
+
+      final rows = await db.select(db.salaryCycles).get();
+      expect(result.skipped, 0);
+      expect(result.inserted, 1);
+      expect(rows, hasLength(1));
+      expect(rows.single.id, localId);
+      expect(rows.single.localUuid, 'sc-batch-uuid');
+      expect(rows.single.expectedAmount, 7500);
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════

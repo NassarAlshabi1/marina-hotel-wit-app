@@ -353,12 +353,40 @@ class SyncSafetyLayer {
         final columns = filtered.keys.toList();
         final values = filtered.values.toList();
         final placeholders = List.filled(values.length, '?').join(', ');
-        final columnNames = columns.join(', ');
-
-        batch.customStatement(
-          'INSERT OR REPLACE INTO $tableName ($columnNames) VALUES ($placeholders)',
-          values,
-        );
+        final columnNames = columns
+            .map((column) => '"${column.replaceAll('"', '""')}"')
+            .join(', ');
+        if (existingColumns.contains('local_uuid')) {
+          final localUuid = filtered['local_uuid'];
+          if (localUuid is! String || localUuid.trim().isEmpty) {
+            dlog(
+              () => '⚠️ تخطي استعادة صف $tableName بلا local_uuid صالح',
+            );
+            continue;
+          }
+          final updates = columns
+              .where((column) => column != 'local_uuid' && column != 'id')
+              .map(
+                (column) =>
+                    '"${column.replaceAll('"', '""')}" = '
+                    'excluded."${column.replaceAll('"', '""')}"',
+              )
+              .join(', ');
+          final conflictAction = updates.isEmpty
+              ? 'DO UPDATE SET "local_uuid" = excluded."local_uuid"'
+              : 'DO UPDATE SET $updates';
+          batch.customStatement(
+            'INSERT INTO "$tableName" ($columnNames) VALUES ($placeholders) '
+            'ON CONFLICT(local_uuid) $conflictAction',
+            values,
+          );
+        } else {
+          batch.customStatement(
+            'INSERT OR REPLACE INTO "$tableName" ($columnNames) '
+            'VALUES ($placeholders)',
+            values,
+          );
+        }
       }
     });
     dlog(() => '✅ تم استعادة ${rows.length} سجل من $tableName');

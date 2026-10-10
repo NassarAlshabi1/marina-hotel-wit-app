@@ -131,6 +131,7 @@ class ExpensesRepository {
     required double amount,
     required String date,
     int? relatedId,
+    String? employeeUuid,
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
@@ -142,6 +143,9 @@ class ExpensesRepository {
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
           relatedId: d.Value(relatedId),
+          employeeUuid: employeeUuid != null && employeeUuid.trim().isNotEmpty
+              ? d.Value(employeeUuid.trim())
+              : const d.Value.absent(),
           description: d.Value(description),
           amount: d.Value(amount),
           date: d.Value(normalizedDate),

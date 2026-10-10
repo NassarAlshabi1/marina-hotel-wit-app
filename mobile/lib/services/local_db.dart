@@ -3874,7 +3874,6 @@ class AppDatabase extends _$AppDatabase {
             batch.insertAll(
               table,
               rows.map(fromJson).toList(),
-              mode: InsertMode.insertOrReplace,
             );
           });
         }
