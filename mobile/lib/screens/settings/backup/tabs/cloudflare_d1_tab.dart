@@ -374,21 +374,31 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         db: ref.read(databaseProvider),
         selectedTables: _selected,
       );
+      final selectedTables = Set<String>.of(_selected);
+      final identityIssues = await CloudflareD1IdentityValidator.inspect(
+        db: ref.read(databaseProvider),
+        selectedTables: selectedTables,
+      );
       await _loadLocalTables();
       if (!mounted) return;
+      setState(() {
+        _logs
+          ..clear()
+          ..addAll(identityIssues);
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'تم إصلاح ${result.identitiesRepaired} هوية و${result.linksRepaired} رابط. '
-            'يمكنك الآن رفع البيانات إلى D1.',
+            '${identityIssues.isEmpty ? 'اجتاز فحص الهوية ويمكنك متابعة الرفع.' : 'بقيت ${identityIssues.length} ملاحظات تمنع الرفع؛ راجع سجل التحقق.'}',
           ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر إصلاح الهوية: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('تعذر إصلاح الهوية: $e')));
     } finally {
       if (mounted) {
         setState(() {

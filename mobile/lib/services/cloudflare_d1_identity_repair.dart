@@ -96,6 +96,8 @@ class CloudflareD1IdentityRepair {
           'expense_uuid',
           'expense_id',
           'expenses',
+          uniqueActiveLink: true,
+          parentReverseUuidColumn: 'withdrawal_uuid',
         ),
         _UuidLinkMapping(
           'inventory_transactions',
@@ -133,6 +135,25 @@ class CloudflareD1IdentityRepair {
             !selected.contains(mapping.parent)) {
           continue;
         }
+        final exactReverseUuidMatch = mapping.parentReverseUuidColumn == null
+            ? ''
+            : ' OR EXISTS (SELECT 1 FROM "${mapping.parent}" AS reverse'
+                  ' WHERE reverse.id = child."${mapping.fkColumn}"'
+                  ' AND LOWER(TRIM(reverse."${mapping.parentReverseUuidColumn}"))'
+                  ' = LOWER(TRIM(child.local_uuid)))';
+        final uniqueActiveLinkFilter = mapping.uniqueActiveLink
+            ? ' AND child.deleted_at IS NULL'
+                  ' AND ((SELECT COUNT(1) FROM "${mapping.child}" AS sibling'
+                  ' WHERE sibling."${mapping.fkColumn}" = child."${mapping.fkColumn}"'
+                  ' AND sibling.deleted_at IS NULL) = 1'
+                  '$exactReverseUuidMatch)'
+                  ' AND NOT EXISTS (SELECT 1 FROM "${mapping.child}" AS linked'
+                  ' WHERE linked."${mapping.childColumn}" = ('
+                  ' SELECT parent."${mapping.parentUuidColumn}"'
+                  ' FROM "${mapping.parent}" AS parent'
+                  ' WHERE parent.id = child."${mapping.fkColumn}")'
+                  ' AND linked.deleted_at IS NULL AND linked.id <> child.id)'
+            : '';
         linksRepaired += await db.customUpdate(
           """UPDATE "${mapping.child}" AS child SET "${mapping.childColumn}"
           = (SELECT parent."${mapping.parentUuidColumn}" FROM "${mapping.parent}" AS parent
@@ -142,7 +163,8 @@ class CloudflareD1IdentityRepair {
           AND EXISTS (SELECT 1 FROM "${mapping.parent}" AS parent
           WHERE parent.id = child."${mapping.fkColumn}" AND
           parent."${mapping.parentUuidColumn}" IS NOT NULL AND
-          TRIM(parent."${mapping.parentUuidColumn}") <> '')""",
+          TRIM(parent."${mapping.parentUuidColumn}") <> '')
+          $uniqueActiveLinkFilter""",
           updateKind: UpdateKind.update,
         );
       }
@@ -162,6 +184,8 @@ class _UuidLinkMapping {
     this.fkColumn,
     this.parent, {
     this.parentUuidColumn = 'local_uuid',
+    this.uniqueActiveLink = false,
+    this.parentReverseUuidColumn,
   });
 
   final String child;
@@ -169,6 +193,8 @@ class _UuidLinkMapping {
   final String fkColumn;
   final String parent;
   final String parentUuidColumn;
+  final bool uniqueActiveLink;
+  final String? parentReverseUuidColumn;
 }
 
 class CloudflareD1IdentityRepairResult {

@@ -135,6 +135,18 @@ class CloudflareD1IdentityValidator {
     }
 
     if (selectedTables.contains('salary_withdrawals')) {
+      final missingExpenseLinks = await _count(
+        db,
+        'SELECT COUNT(*) AS n FROM salary_withdrawals sw '
+        'WHERE sw.deleted_at IS NULL AND sw.expense_id IS NOT NULL AND '
+        "(sw.expense_uuid IS NULL OR TRIM(sw.expense_uuid) = '')",
+      );
+      if (missingExpenseLinks > 0) {
+        issues.add(
+          'salary_withdrawals: يوجد $missingExpenseLinks سحب نشط له expense_id '
+          'لكن expense_uuid مفقود أو غير محسوم؛ لن يُرفع حتى إصلاح الرابط.',
+        );
+      }
       final brokenExpenseLinks = await _count(
         db,
         'SELECT COUNT(*) AS n FROM salary_withdrawals sw '
