@@ -428,10 +428,8 @@ class GoogleDriveBackupService {
         db.inventoryTransactions,
       );
 
-      // استخراج عناصر القائمة السوداء بشكل منفصل (createdBy = 'blacklist')
-      final blacklistQuery = db.select(db.shiftNotes)
-        ..where((t) => t.createdBy.equals('blacklist'));
-      final blacklistData = await blacklistQuery.get();
+      // استخراج عناصر القائمة السوداء من جدول blacklist المستقل (migration 72)
+      final blacklistData = await db.select(db.blacklist).get();
 
       final tableData = BackupTableData(
         roomsData: roomsData,
@@ -1301,6 +1299,7 @@ class GoogleDriveBackupService {
           // Level 0 – جداول مستقلة بدون FK صادرة
           await db.delete(db.hotelDayLedger).go();
           await db.delete(db.shiftNotes).go();
+          await db.delete(db.blacklist).go();
           await db.delete(db.integrityViolations).go();
           await db.delete(db.autoFixRuns).go();
           await db.delete(db.syncConflicts).go();
@@ -1425,6 +1424,18 @@ class GoogleDriveBackupService {
                 serializer: lenientValueSerializer,
               );
               await db.into(db.shiftNotes).insertOnConflictUpdate(data);
+            }
+          }
+
+          if (backupData.containsKey('blacklist')) {
+            final blacklistData = backupData['blacklist'] as List<dynamic>;
+            for (final itemJson in blacklistData) {
+              final map = Map<String, dynamic>.from(itemJson as Map);
+              final data = BlacklistData.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
+              await db.into(db.blacklist).insertOnConflictUpdate(data);
             }
           }
 

@@ -218,6 +218,7 @@ class LocalBackupService {
         final inventoryTransactionsData = await db
             .select(db.inventoryTransactions)
             .get();
+        final blacklistData = await db.select(db.blacklist).get();
 
         final tableData = BackupTableData(
           roomsData: roomsData,
@@ -242,6 +243,7 @@ class LocalBackupService {
           salaryCarryOverLogsData: salaryCarryOverLogsData,
           inventoryItemsData: inventoryItemsData,
           inventoryTransactionsData: inventoryTransactionsData,
+          blacklistData: blacklistData,
         );
 
         final totalRecords = tableData.totalRecords;
@@ -636,6 +638,7 @@ class LocalBackupService {
         await db.delete(db.rooms).go();
         await db.delete(db.hotelDayLedger).go();
         await db.delete(db.shiftNotes).go();
+        await db.delete(db.blacklist).go();
         await db.delete(db.priceAdjustments).go();
         await db.delete(db.auditLogs).go();
         await db.delete(db.paymentVoids).go();
@@ -708,6 +711,14 @@ class LocalBackupService {
             serializer: lenientValueSerializer,
           );
           await db.into(db.shiftNotes).insertOnConflictUpdate(data);
+        });
+        await insertList<dynamic>('blacklist', (json) async {
+          final map = Map<String, dynamic>.from(json as Map);
+          final data = BlacklistData.fromJson(
+            map,
+            serializer: lenientValueSerializer,
+          );
+          await db.into(db.blacklist).insertOnConflictUpdate(data);
         });
         await insertList<dynamic>('hotel_day_ledger', (json) async {
           final map = Map<String, dynamic>.from(json as Map);

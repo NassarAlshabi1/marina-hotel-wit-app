@@ -675,14 +675,7 @@ class PayloadMapper {
   }
 
   /// يحوّل سجل [ShiftNote] (يُستخدم كـ blacklist محلي) إلى payload لـ Appwrite.
-  Map<String, dynamic> blacklistToRemote(ShiftNote item) {
-    Map<String, dynamic> extra = {};
-    try {
-      extra = jsonDecode(item.content) as Map<String, dynamic>;
-    } catch (e) {
-      dlog(() => 'WARN: Failed to parse blacklist content for sync: $e');
-    }
-
+    Map<String, dynamic> blacklistToRemote(BlacklistData item) {
     final now = Time.nowEpoch();
     final createdAtIso =
         item.createdAtIso ??
@@ -702,17 +695,17 @@ class PayloadMapper {
         : null;
 
     final data = <String, dynamic>{
-      'name': item.title,
-      'nationality': (extra['nationality'] as String?) ?? '',
-      'nationalId': (extra['nationalId'] as String?) ?? '',
-      'phone': (extra['phone'] as String?) ?? '',
-      'reason': (extra['reason'] as String?) ?? '',
-      'notes': (extra['notes'] as String?) ?? '',
-      'active': (extra['active'] as bool?) ?? true,
-      'reportedBy': (extra['reportedBy'] as String?) ?? 'police',
+      'name': item.name,
+      'nationality': item.nationality ?? '',
+      'nationalId': item.nationalId ?? '',
+      'phone': item.phone ?? '',
+      'reason': item.reason ?? '',
+      'notes': item.notes ?? '',
+      'active': item.active,
+      'reportedBy': item.reportedBy ?? 'police',
 
       'localUuid': item.localUuid,
-      // ✅ إصلاح: blacklist schema يُعرّف createdAt/updatedAt/deletedAt كـ string (ISO)
+      // ✅ blacklist schema يُعرّف createdAt/updatedAt/deletedAt كـ string (ISO)
       // وليس integer (epoch) مثل باقي الكيانات — نرسل ISO string لتجنب
       // خطأ "createdAt has invalid type. Value must be a valid string"
       'createdAt': createdAtIso,
@@ -720,7 +713,6 @@ class PayloadMapper {
       'updatedAt': updatedAtIso,
       'updatedAtIso': updatedAtIso,
       'lastModified': item.lastModified,
-      // ✅ إصلاح: version/origin/vectorClock من السجل (كانت ثوابت 'mobile')
       'version': item.version,
       'origin': item.origin,
       'vectorClock': item.vectorClock,
@@ -728,7 +720,7 @@ class PayloadMapper {
       'deviceId': item.deviceId,
       'sync_origin': item.origin,
     };
-    // ✅ إصلاح: deletedAt كـ integer (epoch seconds) وليس ISO string
+    // ✅ deletedAt كـ integer (epoch seconds) وليس ISO string
     putIfNotNull(data, 'deletedAt', item.deletedAt);
     if (deletedAtIso != null) {
       putIfStringNotEmpty(data, 'deletedAtIso', deletedAtIso);
@@ -737,8 +729,6 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'idempotencyKey', item.idempotencyKey);
     return data;
   }
-
-  /// يحوّل [GuestInfo] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> guestInfoToRemote(GuestInfo info) {
     final now = Time.nowEpoch();
     final data = <String, dynamic>{

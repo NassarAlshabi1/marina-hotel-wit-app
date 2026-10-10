@@ -443,6 +443,32 @@ class ShiftNotes extends Table with SyncFields {
   ];
 }
 
+@DataClassName('BlacklistEntry')
+class Blacklist extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get nationality => text().nullable()();
+  TextColumn get nationalId => text().nullable()();
+  TextColumn get phone => text().nullable()();
+  TextColumn get reason => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  TextColumn get reportedBy => text().withDefault(const Constant('police'))();
+  BoolColumn get active =>
+      boolean().withDefault(const Constant(true))();
+  IntColumn get createdAt => integer()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_blacklist_name',
+      'CREATE INDEX idx_blacklist_name ON blacklist (name)',
+    ),
+    Index(
+      'idx_blacklist_active',
+      'CREATE INDEX idx_blacklist_active ON blacklist (active)',
+    ),
+  ];
+}
+
 @DataClassName('BookingNight')
 class BookingNights extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
@@ -1181,6 +1207,7 @@ class SyncRemoteMeta extends Table {
     Bookings,
     BookingNotes,
     ShiftNotes,
+    Blacklist,
     Employees,
     Expenses,
     CashTransactions,
@@ -1219,7 +1246,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 71;
+  int get schemaVersion => 72;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1617,6 +1644,49 @@ class AppDatabase extends _$AppDatabase {
 
         developer.log(
           'Migration 71: added cycle_uuid to salary_payments + backfill',
+          name: 'db.migration',
+        );
+      }
+      // ✅ (2026-10-11) الإصدار 72: فصل جدول blacklist عن shift_notes.
+      //
+      // المشكلة: عناصر القائمة السوداء كانت مخزنة داخل shift_notes
+      // بفلتر created_by='blacklist' — هذا يسبب تعقيداً في المزامنة
+      // (مسارين مختلفين لجدول واحد فيزيائي) وصعوبة في الاستعلام.
+      //
+      // الحل: جدول Drift مستقل `blacklist` بأعمدة صريحة
+      // (name, nationality, nationalId, phone, reason, notes, reportedBy, active)
+      // + ترحيل البيانات الموجودة من shift_notes حيث created_by='blacklist'.
+      if (from < 72) {
+        await m.createTable(blacklist);
+
+        // ترحيل البيانات من shift_notes إلى blacklist
+        await m.database.customStatement(
+          'INSERT INTO blacklist ('
+          'id, name, nationality, national_id, phone, reason, notes, '
+          'reported_by, active, created_at, '
+          'local_uuid, server_id, version, origin, vector_clock, device_id, '
+          'idempotency_key, created_at_iso, updated_at_iso, deleted_at, deleted_at_iso, '
+          'last_modified, created_at_epoch, last_modified_epoch'
+          ') '
+          'SELECT '
+          'id, title, '
+          'json_extract(content, \'$.nationality\'), '
+          'json_extract(content, \'$.nationalId\'), '
+          'json_extract(content, \'$.phone\'), '
+          'json_extract(content, \'$.reason\'), '
+          'json_extract(content, \'$.notes\'), '
+          'COALESCE(json_extract(content, \'$.reportedBy\'), \'police\'), '
+          'COALESCE(json_extract(content, \'$.active\'), 1), '
+          'created_at, '
+          'local_uuid, server_id, version, origin, vector_clock, device_id, '
+          'idempotency_key, created_at_iso, updated_at_iso, deleted_at, deleted_at_iso, '
+          'last_modified, created_at_epoch, last_modified_epoch '
+          'FROM shift_notes '
+          "WHERE created_by = 'blacklist'",
+        );
+
+        developer.log(
+          'Migration 72: created blacklist table + migrated data from shift_notes',
           name: 'db.migration',
         );
       }

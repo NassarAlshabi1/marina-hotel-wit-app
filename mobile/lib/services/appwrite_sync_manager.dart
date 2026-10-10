@@ -6546,11 +6546,9 @@ class AppwriteSyncManager {
   // دائماً لمدخلات blacklist في الـ outbox → `_handleDeleteOp` يدفع
   // tombstone ويحذف مستند blacklist من السحابة عند كل رفع!
   // الفصل الصريح أدناه يعيد المسارين إلى المسار الصحيح لكل منهما.
-  Future<ShiftNote?> _getBlacklistEntryByLocalUuid(String uuid) {
-    return (database.select(database.shiftNotes)
-          ..where(
-            (t) => t.localUuid.equals(uuid) & t.createdBy.equals('blacklist'),
-          )
+  Future<BlacklistData?> _getBlacklistEntryByLocalUuid(String uuid) {
+    return (database.select(database.blacklist)
+          ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
         .getSingleOrNull();
   }
@@ -6664,10 +6662,10 @@ class AppwriteSyncManager {
   Future<ShiftNote?> shiftNoteByLocalUuidForTesting(String uuid) =>
       _getShiftNoteByLocalUuid(uuid);
 
-  /// ✅ جسر يثبت فلتر المُلقٍ المخصص (createdBy='blacklist') — يرى صفوف
+  /// ✅ جسر يثبت فلتر المُلقٍ المخصص — يرى صفوف
   /// القائمة السوداء فقط، ويمنع سقوط الرفع في مسار الحذف.
   @visibleForTesting
-  Future<ShiftNote?> blacklistEntryByLocalUuidForTesting(String uuid) =>
+  Future<BlacklistData?> blacklistEntryByLocalUuidForTesting(String uuid) =>
       _getBlacklistEntryByLocalUuid(uuid);
 
   // ─── PriceAdjustments ─────────────────────────────────────────────────
@@ -6724,7 +6722,7 @@ class AppwriteSyncManager {
   Map<String, dynamic> _priceAdjustmentToRemote(PriceAdjustment row) =>
       _payloadMapper.priceAdjustmentToRemote(row);
 
-  Map<String, dynamic> _blacklistToRemote(ShiftNote item) =>
+  Map<String, dynamic> _blacklistToRemote(BlacklistData item) =>
       _payloadMapper.blacklistToRemote(item);
 
   Future<int> _syncBlacklist(List<models.Document> documents) async {
@@ -6733,19 +6731,8 @@ class AppwriteSyncManager {
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
-        final localUuid = (data['localUuid'] as String?) ?? doc.$id;
+        final localUuid = (data['localUuid'] as String?) ?? doc.\$id;
         final name = (data['name'] as String?) ?? '';
-
-        // تحويل بيانات Appwrite إلى صيغة shift_notes المحلية
-        final content = jsonEncode({
-          'nationality': (data['nationality'] as String?) ?? '',
-          'nationalId': (data['nationalId'] as String?) ?? '',
-          'phone': (data['phone'] as String?) ?? '',
-          'reason': (data['reason'] as String?) ?? '',
-          'notes': (data['notes'] as String?) ?? '',
-          'reportedBy': (data['reportedBy'] as String?) ?? 'police',
-          'active': (data['active'] as bool?) ?? true,
-        });
 
         // Appwrite blacklist: createdAt/updatedAt/deletedAt هي STRING (ISO)
         final createdAtIso =
@@ -6785,7 +6772,7 @@ class AppwriteSyncManager {
         // معالجة الحذف الناعم
         final deletedAtVal = data['deletedAt'];
         int? deletedAtEpoch;
-        String? deletedAtStr; // ✅ Audit Fix: رفع لـ outer scope
+        String? deletedAtStr;
         if (deletedAtVal != null) {
           deletedAtStr = deletedAtVal as String?;
           if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
@@ -6803,11 +6790,11 @@ class AppwriteSyncManager {
         // إذا كان السجل محذوفاً، نحذفه محلياً
         if (deletedAtEpoch != null && deletedAtEpoch > 0) {
           final existing = await (database.select(
-            database.shiftNotes,
+            database.blacklist,
           )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
           if (existing != null) {
             await (database.delete(
-              database.shiftNotes,
+              database.blacklist,
             )..where((t) => t.localUuid.equals(localUuid))).go();
           }
           processed++;
@@ -6818,7 +6805,7 @@ class AppwriteSyncManager {
         // المنطق السابق كان يستبدل السجل المحلي بغض النظر عن lastModified.
         // الآن نفحص أولاً: إذا كان المحلي أحدث، نتخطى (نحمي تعديلات المستخدم).
         final existingForCheck = await (database.select(
-          database.shiftNotes,
+          database.blacklist,
         )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
         if (!(await _isRemoteDataNewer(
           data,
@@ -6832,47 +6819,41 @@ class AppwriteSyncManager {
           localData: existingForCheck?.toJson(),
         )).shouldApplyRemote) {
           _logger.debug(
-            'Skipping blacklist ${doc.$id}: local is newer or equal '
-            '(local=${existingForCheck?.lastModified}, remote=$lastModified)',
+            'Skipping blacklist \${doc.\$id}: local is newer or equal '
+            '(local=\${existingForCheck?.lastModified}, remote=\$lastModified)',
             tag: 'SYNC',
           );
           processed++;
           continue;
         }
 
-        final companion = ShiftNotesCompanion(
-          title: drift.Value(name),
-          content: drift.Value(content),
-          priority: const drift.Value('high'),
-          shiftType: const drift.Value('all'),
+        final companion = BlacklistCompanion(
+          name: drift.Value(name),
+          nationality: drift.Value((data['nationality'] as String?) ?? ''),
+          nationalId: drift.Value((data['nationalId'] as String?) ?? ''),
+          phone: drift.Value((data['phone'] as String?) ?? ''),
+          reason: drift.Value((data['reason'] as String?) ?? ''),
+          notes: drift.Value((data['notes'] as String?) ?? ''),
+          reportedBy: drift.Value((data['reportedBy'] as String?) ?? 'police'),
+          active: drift.Value((data['active'] as bool?) ?? true),
           createdAt: drift.Value(createdAtEpoch),
           createdAtIso: drift.Value(createdAtIso),
           updatedAt: drift.Value(updatedAtEpoch),
           lastModified: drift.Value(lastModified),
-          // ✅ Audit Fix (2026-08-06): إضافة SyncFields المفقودة.
-          // سابقاً، هذه الحقول لم تكن تُكتب عند sync الـ blacklist.
-          // النتيجة: version=1 (default), vectorClock='{}' (default),
-          // origin='local' (default), deviceId='' (default).
-          // هذا يُسبب فشل كشف التعارضات في المزامنة اللاحقة لأن
-          // VectorClockComparator.compare يرى VC فارغة → LWW فقط
-          // (بدلاً من 3-way merge).
           createdAtEpoch: drift.Value(createdAtEpoch),
           lastModifiedEpoch: drift.Value(lastModified),
           version: drift.Value((existingForCheck?.version ?? 0) + 1),
           origin: const drift.Value('server'),
           vectorClock: drift.Value(
             (data['vectorClock'] as String?) ??
-                (data['vector_clock'] as String?) ??
-                '{}',
+            (data['vector_clock'] as String?) ??
+            '{}',
           ),
           deviceId: drift.Value((data['deviceId'] as String?) ?? ''),
           idempotencyKey: drift.Value(
             (data['idempotencyKey'] as String?) ??
-                (data['idempotency_key'] as String?),
+            (data['idempotency_key'] as String?),
           ),
-          expiresAt: const drift.Value(null),
-          isRead: const drift.Value(0),
-          createdBy: const drift.Value('blacklist'),
           localUuid: drift.Value(localUuid),
           serverId: serverId != null
               ? drift.Value(serverId)
@@ -6888,21 +6869,19 @@ class AppwriteSyncManager {
         // upsert: البحث عن سجل موجود بنفس localUuid
         if (existingForCheck != null) {
           await (database.update(
-            database.shiftNotes,
+            database.blacklist,
           )..where((t) => t.localUuid.equals(localUuid))).write(companion);
         } else {
-          await database.into(database.shiftNotes).insert(companion);
+          await database.into(database.blacklist).insert(companion);
         }
 
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync blacklist ${doc.$id}: $e', tag: 'SYNC');
+        _logger.warning('Failed to sync blacklist \${doc.\$id}: \$e', tag: 'SYNC');
       }
     }
     return processed;
   }
-
-  /// ✅ معالجة سجل إلغاء دفع (PaymentVoid) من الـ outbox
   Future<bool> _processPaymentVoidEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       // ✅ Wave 5: durable tombstone

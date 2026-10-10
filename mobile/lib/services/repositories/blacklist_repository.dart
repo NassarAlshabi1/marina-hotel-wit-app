@@ -50,6 +50,9 @@ class BlacklistEntry {
     this.notes,
     this.reportedBy = 'police',
     this.active = true,
+    this.localUuid,
+    this.serverId,
+    this.version,
   });
   final int id;
   final String name;
@@ -61,6 +64,9 @@ class BlacklistEntry {
   final String reportedBy;
   final bool active;
   final DateTime createdAt;
+  final String? localUuid;
+  final int? serverId;
+  final int? version;
 }
 
 class BlacklistRepository {
@@ -68,64 +74,38 @@ class BlacklistRepository {
   final AppDatabase db;
   final OutboxDao _outboxDao;
 
-  static const _createdByTag = 'blacklist';
-
-  Map<String, dynamic> _toPayload({
-    String? nationality,
-    String? nationalId,
-    String? phone,
-    String? reason,
-    String? notes,
-    String reportedBy = 'police',
-    bool active = true,
-  }) => {
-    'nationality': nationality,
-    'nationalId': nationalId,
-    'phone': phone,
-    'reason': reason,
-    'notes': notes,
-    'reportedBy': reportedBy,
-    'active': active,
-  };
-
-  BlacklistEntry _fromRow(ShiftNote row) {
-    Map<String, dynamic> payload = const {};
-    try {
-      payload = jsonDecode(row.content) as Map<String, dynamic>;
-    } catch (e) {
-      dlog(() => 'WARN: Failed to parse blacklist JSON: $e');
-    }
+  BlacklistEntry _fromRow(BlacklistData row) {
     return BlacklistEntry(
       id: row.id,
-      name: row.title,
-      nationality: payload['nationality'] as String?,
-      nationalId: payload['nationalId'] as String?,
-      phone: payload['phone'] as String?,
-      reason: payload['reason'] as String?,
-      notes: payload['notes'] as String?,
-      reportedBy: (payload['reportedBy'] as String?) ?? 'police',
-      active: (payload['active'] as bool?) ?? true,
+      name: row.name,
+      nationality: row.nationality,
+      nationalId: row.nationalId,
+      phone: row.phone,
+      reason: row.reason,
+      notes: row.notes,
+      reportedBy: row.reportedBy ?? 'police',
+      active: row.active,
       createdAt: row.createdAtIso != null
-          ? DateTime.tryParse(row.createdAtIso!) ?? DateTime.now()
+          ? DateTime.tryParse(row.createdAtIso!) ?? DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000)
           : DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000),
+      localUuid: row.localUuid,
+      serverId: row.serverId,
+      version: row.version,
     );
   }
 
   Stream<List<BlacklistEntry>> watchAll() {
-    final query = (db.select(db.shiftNotes)
-      ..where((t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull())
+    final query = (db.select(db.blacklist)
+      ..where((t) => t.deletedAt.isNull())
       ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]));
     return query.watch().map((rows) => rows.map(_fromRow).toList());
   }
 
   Future<List<BlacklistEntry>> listAll() async {
-    final rows =
-        await (db.select(db.shiftNotes)
-              ..where(
-                (t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull(),
-              )
-              ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]))
-            .get();
+    final rows = await (db.select(db.blacklist)
+          ..where((t) => t.deletedAt.isNull())
+          ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]))
+        .get();
     return rows.map(_fromRow).toList();
   }
 
@@ -143,32 +123,21 @@ class BlacklistRepository {
     final uuid = IdGen.uuid();
     return db.transaction(() async {
       final id = await db
-          .into(db.shiftNotes)
+          .into(db.blacklist)
           .insert(
-            ShiftNotesCompanion(
-              title: d.Value(name.trim()),
-              content: d.Value(
-                jsonEncode(
-                  _toPayload(
-                    nationality: nationality?.trim(),
-                    nationalId: nationalId?.trim(),
-                    phone: phone?.trim(),
-                    reason: reason?.trim(),
-                    notes: notes?.trim(),
-                    reportedBy: reportedBy,
-                    active: active,
-                  ),
-                ),
-              ),
-              priority: const d.Value('high'),
-              shiftType: const d.Value('all'),
+            BlacklistCompanion(
+              name: d.Value(name.trim()),
+              nationality: d.Value(nationality?.trim()),
+              nationalId: d.Value(nationalId?.trim()),
+              phone: d.Value(phone?.trim()),
+              reason: d.Value(reason?.trim()),
+              notes: d.Value(notes?.trim()),
+              reportedBy: d.Value(reportedBy),
+              active: d.Value(active),
               createdAt: d.Value(now),
               createdAtIso: d.Value(DateTime.now().toIso8601String()),
               updatedAt: d.Value(now),
               lastModified: d.Value(now),
-              expiresAt: const d.Value(null),
-              isRead: const d.Value(0),
-              createdBy: const d.Value(_createdByTag),
               localUuid: d.Value(uuid),
             ),
           );
@@ -200,25 +169,18 @@ class BlacklistRepository {
   Future<bool> updateActive(int id, bool active) async {
     return db.transaction(() async {
       final row = await (db.select(
-        db.shiftNotes,
+        db.blacklist,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
       if (row == null) {
         return false;
       }
-      Map<String, dynamic> payload = const {};
-      try {
-        payload = jsonDecode(row.content) as Map<String, dynamic>;
-      } catch (e) {
-        dlog(() => 'WARN: Failed to parse blacklist JSON: $e');
-      }
-      payload['active'] = active;
       final now = Time.nowEpoch();
       final updated =
-          await (db.update(db.shiftNotes)
+          await (db.update(db.blacklist)
                 ..where((t) => t.id.equals(id) & t.version.equals(row.version)))
               .write(
-                ShiftNotesCompanion(
-                  content: d.Value(jsonEncode(payload)),
+                BlacklistCompanion(
+                  active: d.Value(active),
                   updatedAt: d.Value(now),
                   lastModified: d.Value(now),
                   version: d.Value(row.version + 1),
@@ -252,35 +214,24 @@ class BlacklistRepository {
   }) async {
     return db.transaction(() async {
       final row = await (db.select(
-        db.shiftNotes,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+        db.blacklist,
+      )...where((t) => t.id.equals(id))).getSingleOrNull();
       if (row == null) {
         return false;
       }
-      final oldPayload = jsonDecode(row.content) as Map<String, dynamic>;
       final now = Time.nowEpoch();
       final updated =
-          await (db.update(db.shiftNotes)
+          await (db.update(db.blacklist)
                 ..where((t) => t.id.equals(id) & t.version.equals(row.version)))
               .write(
-                ShiftNotesCompanion(
-                  title: d.Value(name.trim()),
-                  content: d.Value(
-                    jsonEncode(
-                      _toPayload(
-                        nationality: nationality?.trim(),
-                        nationalId: nationalId?.trim(),
-                        phone: phone?.trim(),
-                        reason: reason?.trim(),
-                        notes: notes?.trim(),
-                        reportedBy:
-                            reportedBy ??
-                            (oldPayload['reportedBy'] as String?) ??
-                            'police',
-                        active: (oldPayload['active'] as bool?) ?? true,
-                      ),
-                    ),
-                  ),
+                BlacklistCompanion(
+                  name: d.Value(name.trim()),
+                  nationality: d.Value(nationality?.trim()),
+                  nationalId: d.Value(nationalId?.trim()),
+                  phone: d.Value(phone?.trim()),
+                  reason: d.Value(reason?.trim()),
+                  notes: d.Value(notes?.trim()),
+                  reportedBy: d.Value(reportedBy ?? row.reportedBy),
                   updatedAt: d.Value(now),
                   lastModified: d.Value(now),
                   version: d.Value(row.version + 1),
@@ -300,9 +251,8 @@ class BlacklistRepository {
             'phone': phone?.trim() ?? '',
             'reason': reason?.trim() ?? '',
             'notes': notes?.trim() ?? '',
-            'reportedBy':
-                reportedBy ?? (oldPayload['reportedBy'] as String?) ?? 'police',
-            'active': (oldPayload['active'] as bool?) ?? true,
+            'reportedBy': reportedBy ?? row.reportedBy,
+            'active': row.active,
             'lastModified': now,
           },
           clientTs: now,
@@ -318,7 +268,7 @@ class BlacklistRepository {
   Future<bool> delete(int id) async {
     return db.transaction(() async {
       final row = await (db.select(
-        db.shiftNotes,
+        db.blacklist,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
       if (row == null) {
         return false;
@@ -328,8 +278,8 @@ class BlacklistRepository {
       final nowIso = DateTime.now().toUtc().toIso8601String();
 
       final updated =
-          await (db.update(db.shiftNotes)..where((t) => t.id.equals(id))).write(
-            ShiftNotesCompanion(
+          await (db.update(db.blacklist)..where((t) => t.id.equals(id))).write(
+            BlacklistCompanion(
               deletedAt: d.Value(now),
               deletedAtIso: d.Value(nowIso),
               updatedAt: d.Value(now),
@@ -361,26 +311,19 @@ class BlacklistRepository {
   /// تطابق: الاسم الكامل أو أول 3 أسماء متطابقة
   /// ✅ إصلاح: استبعاد المحذوفة ناعماً
   Future<BlacklistEntry?> findBlacklistMatch(String name) async {
-    final rows =
-        await (db.select(db.shiftNotes)..where(
-              (t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull(),
-            ))
-            .get();
+    final rows = await (db.select(db.blacklist)..where(
+          (t) => t.deletedAt.isNull(),
+        ))
+        .get();
     final nNorm = _normalizeArabic(name);
     final nTokens = _tokens(name);
     for (final row in rows) {
-      final rNorm = _normalizeArabic(row.title);
-      final rTokens = _tokens(row.title);
+      final rNorm = _normalizeArabic(row.name);
+      final rTokens = _tokens(row.name);
       final fullEq = rNorm == nNorm;
       final tripleEq = _tripleMatch(rTokens, nTokens);
       if (fullEq || tripleEq) {
-        try {
-          final payload = jsonDecode(row.content) as Map<String, dynamic>;
-          final active = (payload['active'] as bool?) ?? true;
-          if (active) {
-            return _fromRow(row);
-          }
-        } catch (_) {
+        if (row.active) {
           return _fromRow(row);
         }
       }

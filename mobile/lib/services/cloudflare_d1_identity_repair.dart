@@ -42,17 +42,14 @@ class CloudflareD1IdentityRepair {
 
     await db.transaction(() async {
       for (final table in selected) {
-        final where = table == 'shift_notes'
-            ? " AND (created_by IS NULL OR created_by <> 'blacklist')"
-            : '';
         final rows = await db.customSelect("""SELECT id FROM "$table" WHERE
-              (local_uuid IS NULL OR TRIM(local_uuid) = '')$where""").get();
+              (local_uuid IS NULL OR TRIM(local_uuid) = '')""").get();
         for (final row in rows) {
           final id = row.data['id'];
           if (id == null) continue;
           identitiesRepaired += await db.customUpdate(
             """UPDATE "$table" SET local_uuid = ? WHERE id = ? AND
-            (local_uuid IS NULL OR TRIM(local_uuid) = '')$where""",
+            (local_uuid IS NULL OR TRIM(local_uuid) = '')""",
             variables: [Variable<String>(IdGen.uuid()), Variable<Object>(id)],
             updateKind: UpdateKind.update,
           );

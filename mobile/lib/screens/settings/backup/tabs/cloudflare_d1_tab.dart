@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../providers/repository_providers.dart';
-import '../../../../services/cloudflare_d1_blacklist_source.dart';
 import '../../../../services/cloudflare_d1_identity_repair.dart';
 import '../../../../services/cloudflare_d1_identity_validator.dart';
 import '../../../../services/cloudflare_d1_service.dart';
@@ -11,10 +10,8 @@ import '../../../../services/daos/outbox_dao.dart';
 
 /// الجداول المحلية المطابقة لمجموعات Appwrite Cloud (collections) —
 /// مشتقة من خريطة `_entityToCollectionId` في AppwriteSyncManager ومن دورة
-/// السحب الفعلية. بيانات blacklist تُخزّن محلياً داخل shift_notes (بعد
-/// فلترة createdBy='blacklist' — انظر kShiftNotesD1ExclusionWhere).
+/// السحب الفعلية. blacklist جدول Drift مستقل (منذ migration 72).
 /// app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
-/// blacklist يُرفع كجدول تركيبي (kD1SyntheticTables) من shift_notes حيث createdBy='blacklist'.
 const Set<String> kAppwriteSyncedTables = <String>{
   'rooms',
   'bookings',
@@ -30,6 +27,7 @@ const Set<String> kAppwriteSyncedTables = <String>{
   'guest_infos',
   'cash_transactions',
   'shift_notes',
+  'blacklist',
   'salary_cycles',
   'salary_payments',
   'salary_withdrawals',
@@ -39,21 +37,8 @@ const Set<String> kAppwriteSyncedTables = <String>{
   'inventory_transactions',
 };
 
-/// ✅ D1-path audit fix (2026-10-04) — الفجوة F1:
-/// مرآة D1 لجدول shift_notes يجب أن تطابق محتوى مجموعة shift_notes على
-/// Appwrite: صفوف القائمة السوداء (created_by='blacklist') تُستبعد من
-/// الرفع لأن مزامنة Appwrite توجهها إلى مجموعة `blacklist` المستقلة،
-/// بينما لا يوجد جدول blacklist في D1 — رفعها داخل shift_notes كان يُنشئ
-/// تفرّعاً في المسار (وهو ما يعرض بيانات ضيوف القائمة السوداء في مرآة
-/// مخصصة للملاحظات). الفلتر يُطبق في وضعي الرفع (جداول المزامنة والكل)
-/// لأن الجدول فيزيائياً واحد.
-const String kShiftNotesD1ExclusionWhere =
-    "(created_by IS NULL OR created_by <> 'blacklist')";
-
-/// app_users و blacklist لا يُرفعان إلى D1 — كلاهما متزامن عبر Appwrite مباشرة:
-/// - app_users: عبر outbox → مجموعة app_users (AuthLocalStore + Outbox)
-/// - blacklist: عبر outbox → مجموعة blacklist (ShiftNotesRepository + Outbox)
-/// مسار D1 يغطي جداول بيانات الفندق فقط (kAppwriteSyncedTables).
+/// blacklist جدول Drift مستقل (منذ migration 72) — يُرفع إلى D1 كجدول مستقل.
+/// app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
 const Set<String> kD1SyntheticTables = <String>{};
 
 /// جداول تشغيل محلية لا تمثل بيانات الفندق ولا يجوز رفعها إلى D1 من شاشة
@@ -249,14 +234,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
 
       final tables = <_LocalTableInfo>[];
       for (final n in names) {
-        // ✅ F1 (2026-10-04): صفوف blacklist داخل shift_notes لا تُحسب
-        // لأنها مستبعدة من الرفع (نفس فلتر readChunk أدناه).
-        final countWhere = n == 'shift_notes'
-            ? 'WHERE $kShiftNotesD1ExclusionWhere'
-            : '';
         final countRows = await db
             .customSelect(
-              'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}" $countWhere',
+              'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}"',
             )
             .get();
         final count = (countRows.first.data['n'] as int?) ?? 0;
@@ -270,12 +250,6 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       }
 
       // app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
-
-      // ✅ F3 (2026-10-11): blacklist جدول تركيبي — يُقرأ من shift_notes
-      // حيث created_by = 'blacklist' (مطابق لمجموعة Appwrite blacklist).
-      if (names.contains('blacklist')) {
-        // غير متوقع — جدول Drift بنفس الاسم يغني عن التركيبي.
-      } else {
         try {
           final db = ref.read(databaseProvider);
           final exportedAtIso = DateTime.now().toIso8601String();
@@ -503,11 +477,6 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       if (!_selected.contains(t.name)) continue;
       if (t.name == 'blacklist') continue; // تركيبي — عولج أعلاه
       final table = t;
-      // ✅ F1 (2026-10-04): استبعاد صفوف blacklist من shift_notes
-      // (تفصيل الفجوة F1 في توثيق kShiftNotesD1ExclusionWhere).
-      final where = table.name == 'shift_notes'
-          ? 'WHERE $kShiftNotesD1ExclusionWhere'
-          : '';
       sources.add(
         CloudflareD1SourceTable(
           name: table.name,
@@ -516,7 +485,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           readChunk: (limit, offset) async {
             final rows = await db
                 .customSelect(
-                  'SELECT * FROM "${table.name.replaceAll('"', '""')}" $where '
+                  'SELECT * FROM "${table.name.replaceAll('"', '""')}" '
                   'LIMIT ? OFFSET ?',
                   variables: [
                     Variable.withInt(limit),
