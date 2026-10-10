@@ -275,7 +275,6 @@ void main() {
           payload: {'employeeUuid': ''},
           localUuid: 'c-1',
           entity: 'expenses',
-          op: 'create',
         ),
         resolveRowVectorClock: (_, __) async => null,
       );

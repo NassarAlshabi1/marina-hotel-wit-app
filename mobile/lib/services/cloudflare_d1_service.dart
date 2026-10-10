@@ -117,8 +117,8 @@ class CloudflareD1Service {
   /// فحص صلاحية التوكن وإمكانية الوصول إلى الحساب وقاعدة D1.
   ///
   /// ينفذ استعلام `SELECT 1` للقراءة فقط ولا يختبر DML أو DDL، لأن فحص
-  /// الإعدادات يجب ألا يغيّر قاعدة البيانات. لذلك تبقى [dmlAllowed]
-  /// و[ddlAllowed] بقيمة false، وتتم الكتابة التشغيلية عبر Worker sync فقط.
+  /// الإعدادات يجب ألا يغيّر قاعدة البيانات. لذلك تبقى `dmlAllowed`
+  /// و`ddlAllowed` بقيمة false، وتتم الكتابة التشغيلية عبر Worker sync فقط.
   Future<CloudflareD1ProbeResult> probe() async {
     var tokenValid = false;
     var accountReachable = false;

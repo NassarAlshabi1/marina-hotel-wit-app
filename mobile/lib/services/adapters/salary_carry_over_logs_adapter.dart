@@ -83,7 +83,7 @@ class SalaryCarryOverLogsAdapter
           ? const d.Value.absent()
           : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
       employeeUuid: refs.employeeUuid != null
-          ? d.Value(refs.employeeUuid!)
+          ? d.Value(refs.employeeUuid)
           : _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       amount: d.Value(_asDouble(json, 'amount', src) ?? 0),
       previousCycleStart: d.Value(
