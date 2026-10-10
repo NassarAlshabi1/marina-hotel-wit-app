@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../providers/repository_providers.dart';
-import '../../../../services/auth_local_store.dart';
-import '../../../../services/cloudflare_d1_app_users_source.dart';
+import '../../../../services/cloudflare_d1_blacklist_source.dart';
 import '../../../../services/cloudflare_d1_identity_repair.dart';
 import '../../../../services/cloudflare_d1_identity_validator.dart';
 import '../../../../services/cloudflare_d1_service.dart';
@@ -13,9 +12,9 @@ import '../../../../services/daos/outbox_dao.dart';
 /// الجداول المحلية المطابقة لمجموعات Appwrite Cloud (collections) —
 /// مشتقة من خريطة `_entityToCollectionId` في AppwriteSyncManager ومن دورة
 /// السحب الفعلية. بيانات blacklist تُخزّن محلياً داخل shift_notes (بعد
-/// فلترة createdBy='blacklist' — انظر kShiftNotesD1ExclusionWhere)، و
-/// app_users يُرفع كجدول تركيبي (kD1SyntheticTables) لأنه بلا جدول Drift
-/// محلي (AuthLocalStore في SharedPreferences).
+/// فلترة createdBy='blacklist' — انظر kShiftNotesD1ExclusionWhere).
+/// app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
+/// blacklist يُرفع كجدول تركيبي (kD1SyntheticTables) من shift_notes حيث createdBy='blacklist'.
 const Set<String> kAppwriteSyncedTables = <String>{
   'rooms',
   'bookings',
@@ -51,11 +50,11 @@ const Set<String> kAppwriteSyncedTables = <String>{
 const String kShiftNotesD1ExclusionWhere =
     "(created_by IS NULL OR created_by <> 'blacklist')";
 
-/// الجداول التركيبية في مسار D1 — مجموعات Appwrite متزامنة بلا جدول Drift
-/// محلي، تُبنى صفوفها من مصدرها المحلي الخاص بدلاً من SELECT *.
-/// - app_users: من AuthLocalStore (custom_accounts + user_permissions +
-///   best-effort سحابي) — انظر cloudflare_d1_app_users_source.dart.
-const Set<String> kD1SyntheticTables = <String>{'app_users'};
+/// app_users و blacklist لا يُرفعان إلى D1 — كلاهما متزامن عبر Appwrite مباشرة:
+/// - app_users: عبر outbox → مجموعة app_users (AuthLocalStore + Outbox)
+/// - blacklist: عبر outbox → مجموعة blacklist (ShiftNotesRepository + Outbox)
+/// مسار D1 يغطي جداول بيانات الفندق فقط (kAppwriteSyncedTables).
+const Set<String> kD1SyntheticTables = <String>{};
 
 /// جداول تشغيل محلية لا تمثل بيانات الفندق ولا يجوز رفعها إلى D1 من شاشة
 /// النسخ الاحتياطي، حتى عند إيقاف مرشح Appwrite واختيار «كل الجداول».
@@ -270,28 +269,29 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         );
       }
 
-      // ✅ F2 (2026-10-04): app_users جدول تركيبي — مجموعته متزامنة مع
-      // Appwrite لكنها بلا جدول Drift. يُعرض بعدد الصفوف المحلية (بلا
-      // شبكة)، وعند الرفع يُجمع من جديد شاملاً الحسابات السحابية.
-      if (names.contains('app_users')) {
+      // app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
+
+      // ✅ F3 (2026-10-11): blacklist جدول تركيبي — يُقرأ من shift_notes
+      // حيث created_by = 'blacklist' (مطابق لمجموعة Appwrite blacklist).
+      if (names.contains('blacklist')) {
         // غير متوقع — جدول Drift بنفس الاسم يغني عن التركيبي.
       } else {
         try {
-          final appUsersRows = await AuthLocalStore().exportAppUsersD1Rows(
-            includeCloud: false,
-          );
+          final db = ref.read(databaseProvider);
+          final exportedAtIso = DateTime.now().toIso8601String();
+          final blacklistRows = await buildBlacklistBackupRows(db, exportedAtIso);
           tables.add(
             _LocalTableInfo(
-              name: 'app_users',
-              rowCount: appUsersRows.length,
-              createSqlList: const [kAppUsersD1CreateSql],
+              name: 'blacklist',
+              rowCount: blacklistRows.length,
+              createSqlList: const [kBlacklistD1CreateSql],
             ),
           );
         } catch (e) {
-          // فشل التصدير لا يعطل بقية الجداول — يُسجل ويُتخطى.
-          debugPrint('D1: تعذر تجهيز صفوف app_users التركيبية: $e');
+          debugPrint('D1: تعذر تجهيز صفوف blacklist التركيبية: $e');
         }
       }
+
       if (!mounted) return;
       setState(() {
         _localTables = tables;
@@ -310,7 +310,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   }
 
   /// الجداول الظاهرة حسب وضع التصفية (مزامنة Appwrite فقط / الكل).
-  /// تشمل الجداول التركيبية (app_users) في الوضعين — مجموعتها متزامنة.
+  /// تشمل الجداول التركيبية (app_users, blacklist) في الوضعين — مجموعتهما متزامنة.
   List<_LocalTableInfo> get _visibleTables {
     if (!_appwriteOnly) {
       return _localTables
@@ -475,32 +475,33 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     final infoLogs = <String>[];
     final sources = <CloudflareD1SourceTable>[];
 
-    // ✅ F2 (2026-10-04): الجدول التركيبي app_users — يُجمع قبل الرفع
-    // (شاملاً الحسابات السحابية best-effot بمهلة قصيرة) ليعرف الرفع
-    // عدد الصفوف الحقيقي مسبقاً (شرط حلقة الترقيم في uploadData).
-    if (_selected.contains('app_users')) {
+    // ✅ F3 (2026-10-11): الجدول التركيبي blacklist — يُجمع من shift_notes
+    // حيث created_by = 'blacklist' لرفعه كجدول مستقل في D1 (مطابق لمجموعة
+    // Appwrite blacklist). لا يُرفَع داخل shift_notes لتجنب التفرّع في المسار.
+    // app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
+    if (_selected.contains('blacklist')) {
       try {
-        final appUsersRows = await AuthLocalStore().exportAppUsersD1Rows(
-          includeCloud: true,
-        );
-        infoLogs.add('app_users: ${appUsersRows.length} حساب (محلي + سحابي)');
+        final db = ref.read(databaseProvider);
+        final exportedAtIso = DateTime.now().toIso8601String();
+        final blacklistRows = await buildBlacklistBackupRows(db, exportedAtIso);
+        infoLogs.add('blacklist: ${blacklistRows.length} سجل');
         sources.add(
           CloudflareD1SourceTable(
-            name: 'app_users',
-            rowCount: appUsersRows.length,
-            createSqlList: const [kAppUsersD1CreateSql],
+            name: 'blacklist',
+            rowCount: blacklistRows.length,
+            createSqlList: const [kBlacklistD1CreateSql],
             readChunk: (limit, offset) async =>
-                sliceRows(appUsersRows, limit, offset),
+                sliceBlacklistRows(blacklistRows, limit, offset),
           ),
         );
       } catch (e) {
-        infoLogs.add('app_users: فشل التجهيز — طُلب من الرفع: $e');
+        infoLogs.add('blacklist: فشل التجهيز — طُلب من الرفع: $e');
       }
     }
 
     for (final t in _localTables) {
       if (!_selected.contains(t.name)) continue;
-      if (t.name == 'app_users') continue; // تركيبي — عولج أعلاه
+      if (t.name == 'blacklist') continue; // تركيبي — عولج أعلاه
       final table = t;
       // ✅ F1 (2026-10-04): استبعاد صفوف blacklist من shift_notes
       // (تفصيل الفجوة F1 في توثيق kShiftNotesD1ExclusionWhere).

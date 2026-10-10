@@ -106,6 +106,8 @@ class SalaryPaymentsAdapter
       // ✅ (2026-09-19) تخزين UUID الموظف (مُشتق من الدورة على المصدر) —
       // يُخزّن مباشرة ليُستعلم محلياً دون الانحدار عبر cycleId الرقمي.
       employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
+      // ✅ (migration 71) UUID دورة الراتب — يُرسل/يُستقبل للمزامنة عبر الأجهزة
+      cycleUuid: _vStr(json, 'cycleUuid', src, altKey: 'cycle_uuid'),
       amount: _vInt(json, 'amount', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       paymentDateIso: _vStr(
@@ -162,6 +164,7 @@ class SalaryPaymentsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
+      _k(src, 'cycleUuid', 'cycle_uuid'): model.cycleUuid,
       _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // المحلي يستخدم IntColumn — النوع متطابق

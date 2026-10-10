@@ -738,6 +738,9 @@ class SalaryPayments extends Table with SyncFields {
   // ✅ (migration 67) UUID الموظف المالك للدفعة (مُشتق من الدورة) —
   // يُخزّن مباشرة ليُستعلم بدل الانحدار عبر cycleId الرقمي المحلي.
   TextColumn get employeeUuid => text().nullable()();
+  // ✅ (migration 71) UUID دورة الراتب — الهوية الثابتة عبر الأجهزة
+  // للربط مع salary_cycles.local_uuid بدلاً من cycleId الرقمي المحلي.
+  TextColumn get cycleUuid => text().nullable()();
   IntColumn get amount => integer().withDefault(const Constant(0))();
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get paymentDateIso => text()();
@@ -753,6 +756,10 @@ class SalaryPayments extends Table with SyncFields {
     Index(
       'idx_salary_payments_employee_uuid',
       'CREATE INDEX idx_salary_payments_employee_uuid ON salary_payments (employee_uuid)',
+    ),
+    Index(
+      'idx_salary_payments_cycle_uuid',
+      'CREATE INDEX idx_salary_payments_cycle_uuid ON salary_payments (cycle_uuid)',
     ),
   ];
 }
@@ -1212,7 +1219,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 70;
+  int get schemaVersion => 71;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1577,6 +1584,41 @@ class AppDatabase extends _$AppDatabase {
             name: 'db.migration',
           );
         }
+      }
+      // ✅ (2026-10-11) الإصدار 71: إضافة cycle_uuid إلى salary_payments.
+      //
+      // المشكلة: salary_payments تستخدم cycleId الرقمي المحلي للربط مع
+      // salary_cycles، لكن هذا المعرف يختلف بين الأجهزة. عند المزامنة مع
+      // Cloudflare D1 أو Appwrite، لا يمكن الاعتماد على cycleId لتطابق
+      // الدفعة مع دورتها على جهاز آخر.
+      //
+      // الحل: عمود cycle_uuid يخزن salary_cycles.local_uuid (هوية ثابتة
+      // عبر الأجهزة) — يُملأ من الربط المحلي الحالي (cycle_id → cycle.local_uuid)
+      // لكل السجلات الموجودة. العمليات إضافية فقط (nullable + UPDATE backfill).
+      if (from < 71) {
+        await m.addColumn(salaryPayments, salaryPayments.cycleUuid);
+
+        // Backfill: تعبئة cycle_uuid من salary_cycles.local_uuid عبر cycle_id
+        await m.database.customStatement(
+          'UPDATE salary_payments SET cycle_uuid = ('
+          '  SELECT sc.local_uuid FROM salary_cycles sc'
+          '  WHERE sc.id = salary_payments.cycle_id'
+          '    AND sc.local_uuid IS NOT NULL'
+          '    AND TRIM(sc.local_uuid) != \'\''
+          ') WHERE cycle_uuid IS NULL'
+          '  AND cycle_id IS NOT NULL'
+          '  AND EXISTS ('
+          '    SELECT 1 FROM salary_cycles sc2'
+          '    WHERE sc2.id = salary_payments.cycle_id'
+          '      AND sc2.local_uuid IS NOT NULL'
+          '      AND TRIM(sc2.local_uuid) != \'\''
+          '  )',
+        );
+
+        developer.log(
+          'Migration 71: added cycle_uuid to salary_payments + backfill',
+          name: 'db.migration',
+        );
       }
       if (from < 66) {
         await m.addColumn(salaryWithdrawals, salaryWithdrawals.recorderName);
