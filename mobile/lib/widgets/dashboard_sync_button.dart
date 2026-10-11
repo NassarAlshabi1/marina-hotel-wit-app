@@ -538,8 +538,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         status: failed ? 'failed' : (partial ? 'partial' : 'success'),
         recordsPushed: pushedCount > 0 ? pushedCount : 0,
         durationMs: stopwatch.elapsedMilliseconds,
-        errorMessage:
-            failed ? 'تعذر إتمام sync() — راجع الاتصال وحالة المزامنة' : null,
+        errorMessage: failed
+            ? 'تعذر إتمام sync() — راجع الاتصال وحالة المزامنة'
+            : null,
       );
 
       if (mounted) {
