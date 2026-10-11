@@ -101,6 +101,25 @@ void main() {
     expect(await outboxCount(), 0);
   });
 
+  test('التحديث للعرض لا يرقّي الحجز المؤقت ولا ينشئ Outbox', () async {
+    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId))).write(
+      const BookingsCompanion(status: d.Value('مؤقت')),
+    );
+
+    final service = BookingDerivedFieldsService(db);
+    await service.refreshAllActiveBookings(
+      now: DateTime.now().add(const Duration(days: 1)),
+      enqueueOutbox: false,
+      promoteProvisional: false,
+    );
+
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingle();
+    expect(booking.status, 'مؤقت');
+    expect(await outboxCount(), 0);
+  });
+
   test('إعادة الحساب المحلي تبقى قابلة للرفع عبر Outbox', () async {
     final service = BookingDerivedFieldsService(db);
 

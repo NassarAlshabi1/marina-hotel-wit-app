@@ -687,6 +687,7 @@ class AutoBackupManager {
       // مباشراً من المستخدم ولا ينبغي أن ينشئ عمليات مزامنة في Outbox.
       final count = await service.refreshAllActiveBookings(
         enqueueOutbox: false,
+        promoteProvisional: false,
       );
       _lastRenewedHotelDay = currentHotelDay;
       if (count > 0) {
