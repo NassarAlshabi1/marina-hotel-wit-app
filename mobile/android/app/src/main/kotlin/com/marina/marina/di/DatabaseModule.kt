@@ -147,37 +147,45 @@ object DatabaseModule {
     }
 
     /**
-     * Migration 77 → 78: add custom_list_items table for dynamic catalogs
-     * (expense_type, id_type, payment_method, etc.) — mirrors Flutter
-     * custom_list_providers.dart Migration 37 and server custom_list_items table.
-     * No seeding — lists are populated from server sync or user input.
+     * Migration 77 → 78: custom_list_items (قوائم ديناميكية) + withdrawal_uuid
+     * للمصروفات + مواءمة blacklist_entries مع Flutter (المرجع).
+     *
+     * ملاحظات تحقّق المخطط (Room يقارن الجدول الفعلي بالكيان بعد الهجرة):
+     *  • الجداول/الأعمدة الجديدة تُنشأ هنا، وكل فهرس معلن في @Entity يجب
+     *    إنشاؤه هنا أيضاً (وإلا: "Migration didn't properly handle").
+     *  • `added_by`/`added_date` كانا يُضافان في MIGRATION_75_76 ثم حُذفا من
+     *    الكيان لمواءمة Flutter — أي عمود زائد في الجدول الفعلي يُفشل التحقق،
+     *    فتُعاد بناء الجدول بدونهما (SQLite على minSdk 26 بلا DROP COLUMN).
+     *  • بلا بذر بيانات: القوائم تملأ من المزامنة أو إدخال المستخدم.
      */
     val MIGRATION_77_78 = object : Migration(77, 78) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
+                // الأنواع/القيود مطابقة لما يولّده Room من CustomListItemEntity —
+                // بلا DEFAULT لأن الكيان لا يعلن @ColumnInfo(defaultValue=…).
                 """CREATE TABLE IF NOT EXISTS custom_list_items (
                   id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                   list_key TEXT NOT NULL,
                   name TEXT NOT NULL,
-                  sort_order INTEGER NOT NULL DEFAULT 0,
-                  is_active INTEGER NOT NULL DEFAULT 1,
-                  is_system INTEGER NOT NULL DEFAULT 0,
-                  local_uuid TEXT NOT NULL DEFAULT '',
+                  sort_order INTEGER NOT NULL,
+                  is_active INTEGER NOT NULL,
+                  is_system INTEGER NOT NULL,
+                  local_uuid TEXT NOT NULL,
                   server_id INTEGER,
-                  created_at INTEGER NOT NULL DEFAULT 0,
-                  updated_at INTEGER NOT NULL DEFAULT 0,
+                  created_at INTEGER NOT NULL,
+                  updated_at INTEGER NOT NULL,
                   deleted_at INTEGER,
-                  last_modified INTEGER NOT NULL DEFAULT 0,
+                  last_modified INTEGER NOT NULL,
                   created_at_iso TEXT,
                   updated_at_iso TEXT,
                   deleted_at_iso TEXT,
-                  created_at_epoch INTEGER NOT NULL DEFAULT 0,
-                  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
-                  version INTEGER NOT NULL DEFAULT 1,
-                  origin TEXT NOT NULL DEFAULT 'local',
-                  vector_clock TEXT NOT NULL DEFAULT '{}',
-                  device_id TEXT NOT NULL DEFAULT '',
-                  sync_timestamp INTEGER NOT NULL DEFAULT 0,
+                  created_at_epoch INTEGER NOT NULL,
+                  last_modified_epoch INTEGER NOT NULL,
+                  version INTEGER NOT NULL,
+                  origin TEXT NOT NULL,
+                  vector_clock TEXT NOT NULL,
+                  device_id TEXT NOT NULL,
+                  sync_timestamp INTEGER NOT NULL,
                   idempotency_key TEXT
                 )""".trimIndent()
             )
@@ -192,19 +200,74 @@ object DatabaseModule {
 
             // Add withdrawal_uuid column to expenses table (parity with Flutter)
             db.execSQL("ALTER TABLE expenses ADD COLUMN withdrawal_uuid TEXT")
-        }
-    }
+            // فهرس ExpenseEntity idx_expenses_withdrawal_uuid — مطلوب للتحقق.
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_expenses_withdrawal_uuid " +
+                    "ON expenses(withdrawal_uuid)"
+            )
 
-            // Seed default payment_method
-            val paymentDefaults = listOf("نقدي" to 1, "تحويل بنكي" to 2)
-            paymentDefaults.forEachIndexed { index, (name, sortOrder) ->
-                val uuid = java.util.UUID.randomUUID().toString()
-                db.execSQL(
-                    "INSERT OR IGNORE INTO custom_list_items " +
-                        "(list_key, name, sort_order, is_active, is_system, local_uuid, version, origin, created_at, updated_at, last_modified) " +
-                        "VALUES ('payment_method', '$name', $sortOrder, 1, 0, '$uuid', 1, 'system', $now, $now, $now)"
-                )
-            }
+            // ── blacklist_entries: إزالة added_by/added_date وبناء الفهارس ──
+            db.execSQL(
+                """CREATE TABLE blacklist_entries_new (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                  name TEXT NOT NULL,
+                  nationality TEXT,
+                  national_id TEXT,
+                  phone TEXT,
+                  reason TEXT,
+                  notes TEXT,
+                  reported_by TEXT NOT NULL,
+                  active INTEGER NOT NULL,
+                  local_uuid TEXT NOT NULL,
+                  server_id INTEGER,
+                  created_at INTEGER NOT NULL,
+                  updated_at INTEGER NOT NULL,
+                  deleted_at INTEGER,
+                  last_modified INTEGER NOT NULL,
+                  created_at_iso TEXT,
+                  updated_at_iso TEXT,
+                  deleted_at_iso TEXT,
+                  created_at_epoch INTEGER NOT NULL,
+                  last_modified_epoch INTEGER NOT NULL,
+                  version INTEGER NOT NULL,
+                  origin TEXT NOT NULL,
+                  vector_clock TEXT NOT NULL,
+                  device_id TEXT NOT NULL,
+                  sync_timestamp INTEGER NOT NULL,
+                  idempotency_key TEXT
+                )""".trimIndent()
+            )
+            db.execSQL(
+                """INSERT INTO blacklist_entries_new (
+                  id, name, nationality, national_id, phone, reason, notes,
+                  reported_by, active, local_uuid, server_id, created_at,
+                  updated_at, deleted_at, last_modified, created_at_iso,
+                  updated_at_iso, deleted_at_iso, created_at_epoch,
+                  last_modified_epoch, version, origin, vector_clock,
+                  device_id, sync_timestamp, idempotency_key
+                ) SELECT
+                  id, name, nationality, national_id, phone, reason, notes,
+                  reported_by, active, local_uuid, server_id, created_at,
+                  updated_at, deleted_at, last_modified, created_at_iso,
+                  updated_at_iso, deleted_at_iso, created_at_epoch,
+                  last_modified_epoch, version, origin, vector_clock,
+                  device_id, sync_timestamp, idempotency_key
+                FROM blacklist_entries""".trimIndent()
+            )
+            db.execSQL("DROP TABLE blacklist_entries")
+            db.execSQL(
+                "ALTER TABLE blacklist_entries_new RENAME TO blacklist_entries"
+            )
+            // فهارس BlacklistEntryEntity (معلنة في الكيان منذ مواءمة Flutter).
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_blacklist_entries_active " +
+                    "ON blacklist_entries(active) WHERE deleted_at IS NULL"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_blacklist_entries_search " +
+                    "ON blacklist_entries(name, phone, national_id, nationality) " +
+                    "WHERE deleted_at IS NULL AND active = 1"
+            )
         }
     }
 
@@ -356,4 +419,8 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDevicesDao(db: AppDatabase) = db.devicesDao()
+
+    @Provides
+    @Singleton
+    fun provideCustomListsDao(db: AppDatabase) = db.customListsDao()
 }

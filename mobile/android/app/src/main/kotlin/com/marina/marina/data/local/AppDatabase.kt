@@ -113,7 +113,8 @@ import com.marina.marina.data.local.entity.SyncStateEntity
         SyncRemoteMetaEntity::class,
         AppUserEntity::class,
         DeviceInfoEntity::class,
-        com.marina.marina.data.local.entity.FinanceSnapshotEntity::class
+        com.marina.marina.data.local.entity.FinanceSnapshotEntity::class,
+        com.marina.marina.data.local.entity.CustomListItemEntity::class
     ],
     version = AppDatabase.SCHEMA_VERSION,
     exportSchema = true
@@ -158,9 +159,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun appUsersDao(): AppUsersDao
     abstract fun devicesDao(): DevicesDao
     abstract fun financeSnapshotsDao(): com.marina.marina.data.local.dao.FinanceSnapshotsDao
+    abstract fun customListsDao(): com.marina.marina.data.local.dao.CustomListsDao
 
     companion object {
         const val DATABASE_NAME = "marina_hotel.db"
-        const val SCHEMA_VERSION = 77
+        /** 78: custom_list_items + withdrawal_uuid + مواءمة blacklist_entries. */
+        const val SCHEMA_VERSION = 78
     }
 }

@@ -3,6 +3,7 @@ package com.marina.marina.di
 import com.marina.marina.data.ai.AiAssistantRepositoryImpl
 import com.marina.marina.data.auth.AuthRepositoryImpl
 import com.marina.marina.data.repository.BlacklistRepositoryImpl
+import com.marina.marina.data.repository.CustomListsRepositoryImpl
 import com.marina.marina.data.repository.SyncManager
 import com.marina.marina.data.repository.BookingNightsRepositoryImpl
 import com.marina.marina.data.repository.CashRepositoryImpl
@@ -12,6 +13,7 @@ import com.marina.marina.data.repository.SalaryRepositoryImpl
 import com.marina.marina.domain.repository.AiAssistantRepository
 import com.marina.marina.domain.repository.AuthRepository
 import com.marina.marina.domain.repository.BlacklistRepository
+import com.marina.marina.domain.repository.CustomListsRepository
 import com.marina.marina.domain.repository.SyncRepository
 import com.marina.marina.domain.repository.BookingNightsRepository
 import com.marina.marina.domain.repository.CashRepository
@@ -129,4 +131,9 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAiAssistantRepository(impl: AiAssistantRepositoryImpl): AiAssistantRepository
+
+    /** القوائم المنسدلة الديناميكية — نظير customListProviders في Flutter. */
+    @Binds
+    @Singleton
+    abstract fun bindCustomListsRepository(impl: CustomListsRepositoryImpl): CustomListsRepository
 }
