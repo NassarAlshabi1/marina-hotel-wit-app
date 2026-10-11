@@ -14,7 +14,8 @@ import com.google.gson.annotations.SerializedName
         Index(value = ["date"], name = "idx_expenses_date"),
         Index(value = ["hotel_day_key", "expense_type", "date"], name = "idx_expenses_active_hotel_day"),
         Index(value = ["date"], name = "idx_expenses_legacy_active_date"),
-        Index(value = ["date"], orders = [androidx.room.Index.Order.DESC], name = "idx_expenses_active_date")
+        Index(value = ["date"], orders = [androidx.room.Index.Order.DESC], name = "idx_expenses_active_date"),
+        Index(value = ["withdrawal_uuid"], name = "idx_expenses_withdrawal_uuid")
     ]
 )
 data class ExpenseEntity(
@@ -78,6 +79,10 @@ data class ExpenseEntity(
     // الجديدة (CREATE TABLE) عن مخطط الملف المُرقّى (ALTER TABLE).
     @ColumnInfo(name = "employee_link_cleared", defaultValue = "0")
     val employeeLinkCleared: Boolean = false,
+
+    @SerializedName("withdrawal_uuid")
+    @ColumnInfo(name = "withdrawal_uuid")
+    val withdrawalUuid: String? = null,
 
     @SerializedName("local_uuid")
     @ColumnInfo(name = "local_uuid")

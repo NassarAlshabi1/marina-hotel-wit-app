@@ -146,6 +146,95 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Migration 77 → 78: add custom_list_items table for dynamic catalogs
+     * (expense_type, id_type, payment_method, etc.) — mirrors Flutter
+     * custom_list_providers.dart Migration 37 and server custom_list_items table.
+     * Includes seeding of default values.
+     */
+    val MIGRATION_77_78 = object : Migration(77, 78) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS custom_list_items (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                  list_key TEXT NOT NULL,
+                  name TEXT NOT NULL,
+                  sort_order INTEGER NOT NULL DEFAULT 0,
+                  is_active INTEGER NOT NULL DEFAULT 1,
+                  is_system INTEGER NOT NULL DEFAULT 0,
+                  local_uuid TEXT NOT NULL DEFAULT '',
+                  server_id INTEGER,
+                  created_at INTEGER NOT NULL DEFAULT 0,
+                  updated_at INTEGER NOT NULL DEFAULT 0,
+                  deleted_at INTEGER,
+                  last_modified INTEGER NOT NULL DEFAULT 0,
+                  created_at_iso TEXT,
+                  updated_at_iso TEXT,
+                  deleted_at_iso TEXT,
+                  created_at_epoch INTEGER NOT NULL DEFAULT 0,
+                  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+                  version INTEGER NOT NULL DEFAULT 1,
+                  origin TEXT NOT NULL DEFAULT 'local',
+                  vector_clock TEXT NOT NULL DEFAULT '{}',
+                  device_id TEXT NOT NULL DEFAULT '',
+                  sync_timestamp INTEGER NOT NULL DEFAULT 0,
+                  idempotency_key TEXT
+                )""".trimIndent()
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_custom_list_key_order " +
+                    "ON custom_list_items(list_key, sort_order)"
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_list_key_name " +
+                    "ON custom_list_items(list_key, name) WHERE deleted_at IS NULL"
+            )
+
+            // Add withdrawal_uuid column to expenses table (parity with Flutter)
+            db.execSQL("ALTER TABLE expenses ADD COLUMN withdrawal_uuid TEXT")
+
+            // Seed default expense_type (mirrors Flutter Migration 37)
+            val now = System.currentTimeMillis() / 1000
+            val expenseDefaults = listOf(
+                "رواتب" to 1, "ديزل" to 2, "صيانة" to 3, "فواتير كهرباء ومياه" to 4,
+                "مستلزمات" to 5, "مساعدة محتاج" to 6, "أغذية" to 7, "اخرى" to 8
+            )
+            expenseDefaults.forEachIndexed { index, (name, sortOrder) ->
+                val uuid = java.util.UUID.randomUUID().toString()
+                db.execSQL(
+                    "INSERT OR IGNORE INTO custom_list_items " +
+                        "(list_key, name, sort_order, is_active, is_system, local_uuid, version, origin, created_at, updated_at, last_modified) " +
+                        "VALUES ('expense_type', '$name', $sortOrder, 1, ${if (name == "رواتب") 1 else 0}, '$uuid', 1, 'system', $now, $now, $now)"
+                )
+            }
+
+            // Seed default id_type
+            val idTypeDefaults = listOf(
+                "بطاقة شخصية" to 1, "جواز سفر" to 2, "رخصة قيادة" to 3,
+                "بطاقة عسكرية" to 4, "استبيان" to 5, "شهادة ميلاد" to 6
+            )
+            idTypeDefaults.forEachIndexed { index, (name, sortOrder) ->
+                val uuid = java.util.UUID.randomUUID().toString()
+                db.execSQL(
+                    "INSERT OR IGNORE INTO custom_list_items " +
+                        "(list_key, name, sort_order, is_active, is_system, local_uuid, version, origin, created_at, updated_at, last_modified) " +
+                        "VALUES ('id_type', '$name', $sortOrder, 1, 0, '$uuid', 1, 'system', $now, $now, $now)"
+                )
+            }
+
+            // Seed default payment_method
+            val paymentDefaults = listOf("نقدي" to 1, "تحويل بنكي" to 2)
+            paymentDefaults.forEachIndexed { index, (name, sortOrder) ->
+                val uuid = java.util.UUID.randomUUID().toString()
+                db.execSQL(
+                    "INSERT OR IGNORE INTO custom_list_items " +
+                        "(list_key, name, sort_order, is_active, is_system, local_uuid, version, origin, created_at, updated_at, last_modified) " +
+                        "VALUES ('payment_method', '$name', $sortOrder, 1, 0, '$uuid', 1, 'system', $now, $now, $now)"
+                )
+            }
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -154,7 +243,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75, MIGRATION_75_76, MIGRATION_76_77)
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75, MIGRATION_75_76, MIGRATION_76_77, MIGRATION_77_78)
             // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }
