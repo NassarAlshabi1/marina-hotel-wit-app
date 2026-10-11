@@ -150,7 +150,7 @@ object DatabaseModule {
      * Migration 77 → 78: add custom_list_items table for dynamic catalogs
      * (expense_type, id_type, payment_method, etc.) — mirrors Flutter
      * custom_list_providers.dart Migration 37 and server custom_list_items table.
-     * Includes seeding of default values.
+     * No seeding — lists are populated from server sync or user input.
      */
     val MIGRATION_77_78 = object : Migration(77, 78) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -192,35 +192,8 @@ object DatabaseModule {
 
             // Add withdrawal_uuid column to expenses table (parity with Flutter)
             db.execSQL("ALTER TABLE expenses ADD COLUMN withdrawal_uuid TEXT")
-
-            // Seed default expense_type (mirrors Flutter Migration 37)
-            val now = System.currentTimeMillis() / 1000
-            val expenseDefaults = listOf(
-                "رواتب" to 1, "ديزل" to 2, "صيانة" to 3, "فواتير كهرباء ومياه" to 4,
-                "مستلزمات" to 5, "مساعدة محتاج" to 6, "أغذية" to 7, "اخرى" to 8
-            )
-            expenseDefaults.forEachIndexed { index, (name, sortOrder) ->
-                val uuid = java.util.UUID.randomUUID().toString()
-                db.execSQL(
-                    "INSERT OR IGNORE INTO custom_list_items " +
-                        "(list_key, name, sort_order, is_active, is_system, local_uuid, version, origin, created_at, updated_at, last_modified) " +
-                        "VALUES ('expense_type', '$name', $sortOrder, 1, ${if (name == "رواتب") 1 else 0}, '$uuid', 1, 'system', $now, $now, $now)"
-                )
-            }
-
-            // Seed default id_type
-            val idTypeDefaults = listOf(
-                "بطاقة شخصية" to 1, "جواز سفر" to 2, "رخصة قيادة" to 3,
-                "بطاقة عسكرية" to 4, "استبيان" to 5, "شهادة ميلاد" to 6
-            )
-            idTypeDefaults.forEachIndexed { index, (name, sortOrder) ->
-                val uuid = java.util.UUID.randomUUID().toString()
-                db.execSQL(
-                    "INSERT OR IGNORE INTO custom_list_items " +
-                        "(list_key, name, sort_order, is_active, is_system, local_uuid, version, origin, created_at, updated_at, last_modified) " +
-                        "VALUES ('id_type', '$name', $sortOrder, 1, 0, '$uuid', 1, 'system', $now, $now, $now)"
-                )
-            }
+        }
+    }
 
             // Seed default payment_method
             val paymentDefaults = listOf("نقدي" to 1, "تحويل بنكي" to 2)
