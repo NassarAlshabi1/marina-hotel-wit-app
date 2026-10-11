@@ -19,7 +19,6 @@ import '../utils/weak_device_optimizer.dart';
 import 'appwrite_models.dart' show AppwriteDevice;
 import 'booking_derived_fields_service.dart';
 import 'cloudflare_config.dart';
-import 'cloudflare_d1_service.dart';
 import 'cloudflare_dual_run_service.dart';
 import 'cloudflare_realtime_sync.dart';
 import 'daos/outbox_dao.dart';
@@ -1742,8 +1741,8 @@ class CloudflareSyncManager {
 
   /// يقرأ ساعة المتجه الحالية لصف الكيان المحلي — العقد المرجعي الذي
   /// يفهمه الـ worker في OCC (database.ts detectConflict). تُعاد null
-  /// للكيانات بلا جدول محلي (blacklist) أو الصفوف المفقودة — عندها
-  /// يهيّئ الـ worker ساعة جديدة {deviceId: 1} (سلوك create الأصلي).
+  /// للصفوف المفقودة — عندها يهيّئ الـ worker ساعة جديدة {deviceId: 1}
+  /// (سلوك create الأصلي).
   Future<String?> _rowVectorClock(String entity, String localUuid) async {
     final table = CloudflareConfig.tableNameFor(entity);
     if (table == null || _db == null) return null;
@@ -1758,7 +1757,7 @@ class CloudflareSyncManager {
       if (vc == null || vc.isEmpty || vc == '{}') return null;
       return vc;
     } catch (_) {
-      // جدول محلي غير موجود (blacklist) أو صف محذوف — {} يهيئها الـ worker
+      // صف محذوف أو جدول غير متوفر — {} يهيّئها الـ worker
       return null;
     }
   }
@@ -2916,17 +2915,10 @@ class CloudflareSyncManager {
       return _applyTombstone(entity, record);
     }
 
-    // ✅ عقد القائمة السوداء (2026-09-05): صفوف blacklist بلا جدول Drift
-    // محلي — تخزينها في shift_notes الموسومة created_by='blacklist'
-    // (blacklist_repository.dart:92). قبل هذا التحويل كان سحب صفوف
-    // blacklist من D1 يفشل صمتاً (no such table: blacklist) ولا تصل
-    // القائمة السوداء للأجهزة الأخرى أبداً.
-    if (entity == 'blacklist') {
-      final converted = CloudflareD1Service.blacklistShiftNoteRowFromD1(record);
-      if (converted == null) return true;
-      entity = 'shift_notes';
-      record = converted;
-    }
+    // ✅ (مواءمة 2026-10-11 مع فرع Android): القائمة السوداء لها جدول
+    // محلي مستقل blacklist_entries (entityToTable) فلا تحويل خاص —
+    // كان يُحوَّل إلى shift_notes الموسومة created_by='blacklist' قبل
+    // أن يُنشأ الجدول المستقل، فلا تصل القائمة السوداء المسحبة لواجهتها.
 
     final tableName = CloudflareConfig.tableNameFor(entity);
     if (tableName == null) {
@@ -3452,21 +3444,15 @@ class CloudflareSyncManager {
   /// المحلي المطابق بـ local_uuid — أو لا شيء إن لم يصل الصف لهذا
   /// الجهاز قطّ. P0-E: tombstone يفوز حتى على تعديل محلي أحدث معلّق
   /// في outbox — قرار الحذف نهائي من الجهاز المصدر (نفس دلالات
-  /// المسار الميت القديم في المسار update). blacklist يُترجم إلى
-  /// shift_notes الموسومة created_by='blacklist'.
+  /// المسار الميت القديم في المسار update). blacklist يهبط في
+  /// blacklist_entries مباشرة (entityToTable — مواءمة Android).
   Future<bool> _applyTombstone(
     String entity,
     Map<String, dynamic> record,
   ) async {
     if (_db == null) return true;
 
-    var tableName = CloudflareConfig.tableNameFor(entity);
-    var extraWhere = '';
-    if (entity == 'blacklist') {
-      tableName = 'shift_notes';
-      extraWhere =
-          " AND created_by = '${CloudflareConfig.blacklistStorageTag}'";
-    }
+    final tableName = CloudflareConfig.tableNameFor(entity);
     if (tableName == null) {
       debugPrint('⏭️ Tombstone: no local table for "$entity" — skipped');
       return true;
@@ -3479,7 +3465,7 @@ class CloudflareSyncManager {
     try {
       final existing = await _db!
           .customSelect(
-            'SELECT id FROM $tableName WHERE local_uuid = ?$extraWhere',
+            'SELECT id FROM $tableName WHERE local_uuid = ?',
             variables: [Variable<String>(localUuid)],
           )
           .getSingleOrNull();
@@ -3609,18 +3595,11 @@ class CloudflareSyncManager {
     final db = _db;
     if (db == null) return;
     try {
-      var tableName = CloudflareConfig.tableNameFor(entity);
-      var extraWhere = '';
-      if (entity == 'blacklist') {
-        tableName = 'shift_notes';
-        extraWhere =
-            " AND created_by = '${CloudflareConfig.blacklistStorageTag}'";
-      }
+      final tableName = CloudflareConfig.tableNameFor(entity);
       if (tableName == null) return;
       final existing = await db
           .customSelect(
-            'SELECT id, deleted_at FROM $tableName WHERE local_uuid = ?'
-            '$extraWhere',
+            'SELECT id, deleted_at FROM $tableName WHERE local_uuid = ?',
             variables: [Variable.withString(localUuid)],
           )
           .getSingleOrNull();
@@ -3907,7 +3886,7 @@ class CloudflareSyncManager {
     }
 
     // blacklist — reported_by لا يوجد إلا في صفوف القائمة السوداء
-    // (جدول blacklist في D1 — يُحوَّل لـ shift_notes في _applyChange).
+    // (جدول blacklist في D1 — يهبط في blacklist_entries محلياً).
     if (record.containsKey('reported_by')) {
       return 'blacklist';
     }

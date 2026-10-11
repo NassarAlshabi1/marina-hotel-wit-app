@@ -15,8 +15,8 @@
 //      (جهاز آخر) — بدون فقدان أو تغيير نوع، مع ترجمة FK وظلّ server_id.
 //
 // يغطي أيضاً حدود النطاق المعماري: مطابقة ENTITY_TABLES بين الـ worker
-// وCloudflareConfig، واستبعاد hotel_day_ledger (محلي محسوب)، ومسار
-// blacklist الخاص (كيان سحابي بلا جدول Drift — يهبط في shift_notes).
+// وCloudflareConfig، واستبعاد hotel_day_ledger (محلي محسوب)، وكيان
+// blacklist (جدول محلي مستقل blacklist_entries — جدول D1 blacklist).
 
 import 'dart:convert';
 import 'dart:io';
@@ -197,6 +197,12 @@ bool _sameValue(Object? a, Object? b) {
   return false;
 }
 
+/// اسم جدول D1 للكيان — الاستثناء blacklist: جدولها السحابي `blacklist`
+/// (worker ENTITY_TABLES) بينما جدولها المحلي `blacklist_entries`
+/// (entityToTable يحيل محلياً — مواءمة مع فرع Android).
+String _d1TableFor(String entity) =>
+    entity == 'blacklist' ? 'blacklist' : CloudflareConfig.tableNameFor(entity)!;
+
 // ═══════════════════════════════════════════════════════════════
 //  محاكاة أمينة لدلالات worker createRecord (worker/src/database.ts)
 // ═══════════════════════════════════════════════════════════════
@@ -208,7 +214,7 @@ Map<String, dynamic> _simulateWorkerCreateRow({
   required int serverUpdatedAt,
   required String deviceId,
 }) {
-  final table = CloudflareConfig.tableNameFor(entity)!;
+  final table = _d1TableFor(entity);
   final cols = _loadSchema()[table]!;
   final data = (op['data'] as Map).cast<String, dynamic>();
 
@@ -579,7 +585,7 @@ void main() {
           reason: 'كيانات في worker بلا مرآة في CloudflareConfig',
         );
         for (final entity in workerEntities) {
-          final table = CloudflareConfig.tableNameFor(entity);
+          final table = _d1TableFor(entity);
           expect(table, isNotNull, reason: '$entity بلا جدول');
           expect(
             _loadSchema().containsKey(table),
@@ -612,17 +618,29 @@ void main() {
     );
 
     test(
-      'blacklist كيان سحابي بلا جدول Drift — يهبط في shift_notes الموسومة',
+      'blacklist له جدول محلي مستقل blacklist_entries — واسم D1 blacklist',
       () async {
         expect(_loadWorkerEntities().contains('blacklist'), isTrue);
+        // entityToTable يحيل محلياً إلى blacklist_entries (مواءمة Android)
+        expect(
+          CloudflareConfig.tableNameFor('blacklist'),
+          'blacklist_entries',
+        );
+        // واسم جدول D1 يبقى blacklist (عقد ENTITY_TABLES)
+        expect(_d1TableFor('blacklist'), 'blacklist');
         final tables = await dbA
             .customSelect("SELECT name FROM sqlite_master WHERE type='table'")
             .get();
         final names = tables.map((r) => r.data['name'] as String).toSet();
         expect(
+          names.contains('blacklist_entries'),
+          isTrue,
+          reason: 'الجدول المحلي المستقل للقائمة السوداء',
+        );
+        expect(
           names.contains('blacklist'),
           isFalse,
-          reason: 'لا جدول Drift محلياً — المسار خاص عبر shift_notes',
+          reason: 'لا جدول محلي باسم الكيان نفسه — الاسم لجدول D1 فقط',
         );
         expect(names.contains('shift_notes'), isTrue);
       },
@@ -651,7 +669,7 @@ void main() {
       final failures = <String>[];
       for (final op in ops) {
         final entity = op['entity'] as String;
-        final table = CloudflareConfig.tableNameFor(entity)!;
+        final table = _d1TableFor(entity);
         final cols = _loadSchema()[table]!;
         final data = (op['data'] as Map).cast<String, dynamic>();
         final where = '$entity/$table';
@@ -896,48 +914,6 @@ void main() {
           final localUuid = data['local_uuid'] as String;
           final table = CloudflareConfig.tableNameFor(entity)!;
           final localCols = await localColumns(dbB, table);
-
-          if (entity == 'blacklist') {
-            // المسار الخاص: يهبط في shift_notes الموسومة
-            final row = await dbB
-                .customSelect(
-                  'SELECT * FROM shift_notes '
-                  "WHERE local_uuid = ? AND created_by = 'blacklist'",
-                  variables: [d.Variable.withString(localUuid)],
-                )
-                .getSingleOrNull();
-            if (row == null) {
-              failures.add('blacklist/$localUuid: لم يهبط في shift_notes');
-              continue;
-            }
-            if (!_sameValue(row.data['title'], data['name'])) {
-              failures.add(
-                'blacklist: title=${row.data['title']} ≠ name=${data['name']}',
-              );
-            }
-            final content =
-                jsonDecode(row.data['content'] as String)
-                    as Map<String, dynamic>;
-            for (final pair in {
-              'nationality': 'nationality',
-              'reason': 'reason',
-              'reportedBy': 'reported_by',
-            }.entries) {
-              if (!_sameValue(content[pair.key], data[pair.value])) {
-                failures.add(
-                  'blacklist: content.${pair.key}=${content[pair.key]} '
-                  '≠ wire.${pair.value}=${data[pair.value]}',
-                );
-              }
-            }
-            final wireActive = (data['active'] as num? ?? 1) != 0;
-            if (content['active'] != wireActive) {
-              failures.add(
-                'blacklist: active=${content['active']} ≠ $wireActive',
-              );
-            }
-            continue;
-          }
 
           final row = await dbB
               .customSelect(

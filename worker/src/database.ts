@@ -115,7 +115,8 @@ const ENTITY_TABLES: Record<string, string> = {
   // same row via local_uuid so both paths converge)
   devices: 'devices',
 
-  // Blacklist (cloud-only entity, no Drift table client-side)
+  // Blacklist (guests blacklisted across devices — local Drift table
+  // blacklist_entries client-side; D1 table keeps the entity name)
   blacklist: 'blacklist',
 };
 

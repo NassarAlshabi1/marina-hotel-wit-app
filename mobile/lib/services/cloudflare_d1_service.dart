@@ -4,8 +4,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'cloudflare_config.dart';
-
 /// خدمة رفع البيانات المحلية إلى Cloudflare D1 (نسخ احتياطي للقراءة فقط من
 /// القاعدة المحلية — لا يمس حلقة مزامنة Appwrite إطلاقاً).
 ///
@@ -246,122 +244,14 @@ class CloudflareD1Service {
     );
   }
 
-  /// تحويل صف shift_notes موسوم created_by='blacklist' إلى صف بأعمدة
-  /// جدول blacklist في D1 (worker/schema.sql — نفس اتجاه مسار المزامنة:
-  /// outbox entity='blacklist' → جدول blacklist).
-  ///
-  /// تخزين القائمة السوداء المحلي (repositories/blacklist_repository.dart):
-  /// الاسم في `title` وبقية الحقول JSON في `content`. القيم الافتراضية
-  /// مطابقة لسلوك المستودع (reportedBy='police'، active=true). الأعمدة
-  /// السحابية القديمة (guest_name/guest_phone/guest_id_number/is_active/
-  /// added_date/added_by) تُترك لقيم D1 الافتراضية كما يفعل payload
-  /// المزامنة الذي لا يحملها.
-  static Map<String, Object?> blacklistRowFromShiftNote(
-    Map<String, Object?> row,
-  ) {
-    Map<String, dynamic> payload = const <String, dynamic>{};
-    final raw = row['content'];
-    if (raw is String && raw.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(raw);
-        if (decoded is Map<String, dynamic>) payload = decoded;
-      } catch (_) {
-        // محتوى غير صالح — تُعتمد القيم الافتراضية (نفس سلوك المستودع).
-      }
-    }
-    final active = payload['active'] is bool ? payload['active'] as bool : true;
-    return <String, Object?>{
-      'local_uuid': row['local_uuid'],
-      'name': row['title'],
-      'nationality': payload['nationality'] as String? ?? '',
-      'national_id': payload['nationalId'] as String?,
-      'phone': payload['phone'] as String?,
-      'reason': payload['reason'] as String?,
-      'notes': payload['notes'] as String?,
-      'reported_by': payload['reportedBy'] as String? ?? 'police',
-      'active': active ? 1 : 0,
-      'server_id': row['server_id'],
-      'created_at': row['created_at'],
-      'updated_at': row['updated_at'],
-      'deleted_at': row['deleted_at'],
-      'last_modified': row['last_modified'],
-      'created_at_iso': row['created_at_iso'],
-      'updated_at_iso': row['updated_at_iso'],
-      'deleted_at_iso': row['deleted_at_iso'],
-      'created_at_epoch': row['created_at_epoch'],
-      'last_modified_epoch': row['last_modified_epoch'],
-      'version': row['version'],
-      'origin': row['origin'],
-      'vector_clock': row['vector_clock'],
-      'device_id': row['device_id'],
-      'idempotency_key': row['idempotency_key'],
-    };
-  }
-
-  /// استعلام مصدر صفوف القائمة السوداء من التخزين المحلي (shift_notes
-  /// الموسومة) — يُستخدم في تبويب الرفع ومسار الترحيل الشامل.
-  static const String blacklistSourceSql =
-      "SELECT * FROM shift_notes WHERE created_by = 'blacklist'";
-
   /// استعلام مصدر صفوف shift_notes الحقيقية (مطابقة مجموعة shift_notes
-  /// في Appwrite Cloud) — يستبعد صفوف القائمة السوداء لأن المزامنة
-  /// ترسلها ككيان blacklist منفصل (blacklist_repository.dart يُنشئ
-  /// outbox entity='blacklist' فقط).
+  /// في Appwrite Cloud) — يستبعد الصفوف الموسومة بالتسمية القديمة
+  /// created_by='blacklist' (أجهزة على المخطط السابق): مزامنتها ككيان
+  /// shift_notes كانت ستكرر القائمة السوداء بعد أن أُنشئ لها الجدول
+  /// المستقل blacklist_entries (القائمة السوداء تُرفع ككيان blacklist
+  /// منفصل — blacklist_repository.dart يُنشئ outbox entity='blacklist').
   static const String shiftNotesSourceSql =
       "SELECT * FROM shift_notes WHERE created_by != 'blacklist'";
-
-  /// الاتجاه العكسي (سحب): تحويل صف blacklist من D1 إلى صف shift_notes
-  /// موسوم created_by='blacklist' — يُستخدم في _applyChange عند سحب
-  /// كيان 'blacklist' لأن القائمة السوداء بلا جدول Drift محلي.
-  ///
-  /// المرآة الكاملة لـ blacklistRowFromShiftNote: الاسم يرجع إلى `title`
-  /// وحقول JSON ترجع إلى `content`، وأعمدة SyncFields تُمرر كما هي
-  /// (local_uuid نفسه يربط الصفين عبر الاتجاهين). يعيد null إذا كان
-  /// الصف بلا local_uuid (لا يمكن تطبيقه محلياً).
-  static Map<String, Object?>? blacklistShiftNoteRowFromD1(
-    Map<String, Object?> record,
-  ) {
-    final localUuid = record['local_uuid'];
-    if (localUuid is! String || localUuid.isEmpty) return null;
-
-    final content = jsonEncode(<String, Object?>{
-      'nationality': record['nationality'],
-      'nationalId': record['national_id'],
-      'phone': record['phone'],
-      'reason': record['reason'],
-      'notes': record['notes'],
-      'reportedBy': record['reported_by'],
-      'active': record['active'] == null
-          ? true
-          : (record['active'] as num? ?? 1) != 0,
-    });
-
-    return <String, Object?>{
-      'local_uuid': localUuid,
-      'title': (record['name'] as String?) ?? '',
-      'content': content,
-      'priority': 'medium',
-      'shift_type': 'all',
-      'is_read': 0,
-      'expires_at': null,
-      'created_by': CloudflareConfig.blacklistStorageTag,
-      'server_id': record['server_id'],
-      'created_at': record['created_at'],
-      'updated_at': record['updated_at'],
-      'deleted_at': record['deleted_at'],
-      'last_modified': record['last_modified'],
-      'created_at_iso': record['created_at_iso'],
-      'updated_at_iso': record['updated_at_iso'],
-      'deleted_at_iso': record['deleted_at_iso'],
-      'created_at_epoch': record['created_at_epoch'],
-      'last_modified_epoch': record['last_modified_epoch'],
-      'version': record['version'],
-      'origin': record['origin'],
-      'vector_clock': record['vector_clock'],
-      'device_id': record['device_id'],
-      'idempotency_key': record['idempotency_key'],
-    };
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════

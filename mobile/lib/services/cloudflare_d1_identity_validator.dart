@@ -26,13 +26,12 @@ class CloudflareD1IdentityValidator {
     };
     final selected = selectedTables.intersection(knownTables);
 
-    // `blacklist` is a projection of local shift_notes; inspect its source.
+    // blacklist lands in the local blacklist_entries table (aligned with
+    // the Android branch); shift_notes still excludes legacy tagged rows.
     for (final table in selected) {
-      final sourceTable = table == 'blacklist' ? 'shift_notes' : table;
+      final sourceTable = table == 'blacklist' ? 'blacklist_entries' : table;
       final where = table == 'shift_notes'
           ? "COALESCE(created_by, '') <> 'blacklist'"
-          : table == 'blacklist'
-          ? "COALESCE(created_by, '') = 'blacklist'"
           : null;
       final whereSql = where == null ? '' : ' WHERE $where';
       final joiner = where == null ? ' WHERE' : ' AND';

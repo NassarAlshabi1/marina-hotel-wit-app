@@ -481,7 +481,7 @@ void main() {
       expect(data.containsKey('employeeId'), isFalse);
     });
 
-    test('blacklist — تجسيد افتراضي من shift_notes الموسومة', () async {
+    test('blacklist — من blacklist_entries عبر outbox entity=blacklist', () async {
       await BlacklistRepository(
         db,
       ).addEntry(name: 'محظور العقد', nationality: 'يمني', reason: 'تجربة');

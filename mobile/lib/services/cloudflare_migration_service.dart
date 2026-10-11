@@ -150,17 +150,11 @@ class CloudflareMigrationService {
         }
 
         // Read all records from local Drift DB.
-        // ✅ blacklist بلا جدول Drift محلي — صفوفه مخزنة في shift_notes
-        //    الموسومة created_by='blacklist' وتُحوَّل إلى أعمدة جدول D1
-        //    (كان SELECT * FROM blacklist يفشل صمتاً في كل تشغيلة —
-        //    no such table: blacklist — فلا تُرحَّل بيانات القائمة
-        //    السوداء أبداً).
-        // ✅ shift_notes يستبعد الصفوف الموسومة (تُرحَّل ككيان blacklist
-        //    مستقل — مطابقة مجموعات Appwrite Cloud، نفس سلوك حلقة
-        //    المزامنة التي ترسلها entity='blacklist' فقط).
-        final sourceSql = entity == 'blacklist'
-            ? CloudflareD1Service.blacklistSourceSql
-            : entity == 'shift_notes'
+        // ✅ shift_notes يستبعد الصفوف الموسومة بالتسمية القديمة
+        //    created_by='blacklist' (أجهزة على المخطط القديم —
+        //    مزامنتها ككيان shift_notes كانت ستكرر القائمة السوداء
+        //    بعد أن أُنشئ لها الجدول المستقل blacklist_entries).
+        final sourceSql = entity == 'shift_notes'
             ? CloudflareD1Service.shiftNotesSourceSql
             : 'SELECT * FROM $tableName';
         final records = await db.customSelect(sourceSql).get();
@@ -189,13 +183,7 @@ class CloudflareMigrationService {
         // This gives ~8x size reduction + D1 native batch insert speed.
         final allRecords = <Map<String, dynamic>>[];
         for (final row in records) {
-          // blacklist: تحويل صف shift_notes الموسوم إلى أعمدة جدول D1
-          // (المخرجات بلا مفتاح id أصلاً — الإزالة أدناه no-op آمنة).
-          final record = entity == 'blacklist'
-              ? Map<String, dynamic>.from(
-                  CloudflareD1Service.blacklistRowFromShiftNote(row.data),
-                )
-              : Map<String, dynamic>.from(row.data);
+          final record = Map<String, dynamic>.from(row.data);
           record.remove('id'); // Remove local autoIncrement id
           // ✅ Stamp a UNIQUE, strictly-increasing updated_at for the server
           // (kept in sync with last_modified — both are sync-order fields).

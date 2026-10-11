@@ -27,10 +27,10 @@ import '../../../../widgets/cloudflare_auto_connection_card.dart';
 /// Appwrite ولا يحذف أي سجل بعيد.
 /// النطاق: [CloudflareConfig.d1BackupTables] = كيانات النطاق الافتراضي
 /// للمزامنة حصراً (migrationOrder — 24 كياناً بتأكيد المستخدم
-/// 2026-09-05 الذي أضاف user_app/app_users ثم devices)، ومعها يُجسَّد كيان
-/// blacklist افتراضياً من shift_notes الموسومة created_by='blacklist'
-/// عبر CloudflareD1Service.blacklistRowFromShiftNote (لا جدول Drift
-/// محلي له). app_users له جدول Drift محلي (schemaVersion 66) فيمرّ
+/// 2026-09-05 الذي أضاف user_app/app_users ثم devices)، ومعها يظهر كيان
+/// blacklist باسمه في القائمة ومصدره الجدول المحلي المستقل
+/// blacklist_entries (مواءمة مع فرع Android) — جدول D1 يبقى blacklist.
+/// app_users له جدول Drift محلي (schemaVersion 66) فيمرّ
 /// كأي جدول فيزيائي. hotel_day_ledger جدول محلي-فقط (تأكيد المستخدم)
 /// وجداول البنية المحلية — كلها مستبعدة.
 /// القيود المطبقة (مثبتة تجريبياً): ≤ 96 معاملاً لكل استعلام،
@@ -45,9 +45,9 @@ class CloudflareD1Tab extends ConsumerStatefulWidget {
   /// أي جدول محلي بلا مقابل في النطاق (outbox، sync_remote_meta،
   /// sync_state، sync_log، hotel_day_ledger المحلي-فقط بتأكيد
   /// المستخدم 2026-09-05، custom_list_items، جداول Room
-  /// الداخلية…) يُستبعد هنا، وكيان blacklist (بلا جدول محلي)
-  /// يُتخطى في الفلترة الفيزيائية — ويُجسَّد افتراضياً من
-  /// shift_notes الموسومة في `_loadLocalTables`. app_users له جدول
+  /// الداخلية…) يُستبعد هنا، وكيان blacklist يُتخطى في الفلترة
+  /// الفيزيائية (لا جدول محلي اسمه blacklist — مصدره blacklist_entries
+  /// ويُضاف افتراضياً في `_loadLocalTables`). app_users له جدول
   /// محلي (AppUsers، schemaVersion 66) فيمرّ في الفلترة الفيزيائية.
   @visibleForTesting
   static List<String> scopeSyncTables(Iterable<String> existingTables) {
@@ -207,11 +207,10 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       final db = ref.read(databaseProvider);
       // ✅ نطاق الرفع: CloudflareConfig.d1BackupTables = كيانات النطاق
       // الافتراضي للمزامنة (migrationOrder — 24 كياناً بتأكيد المستخدم
-      // 2026-09-05). لا يُرفع قاعدة البيانات المحلية كاملة. الكيانات
-      // بلا جدول Drift محلي (blacklist — سحابية فقط) تُتخطى بفحص
-      // sqlite_master ثم تُجسَّد افتراضياً أدناه من shift_notes
-      // الموسومة created_by='blacklist'. app_users له جدول محلي
-      // (AppUsers، schemaVersion 66) فيُكتشف فيزيائياً كأي جدول.
+      // 2026-09-05). لا يُرفع قاعدة البيانات المحلية كاملة. كيان
+      // blacklist لا جدول محلياً باسمه (مصدره blacklist_entries) فيُتخطى
+      // بفحص sqlite_master ثم يُضاف افتراضياً أدناه. app_users له جدول
+      // محلي (AppUsers، schemaVersion 66) فيُكتشف فيزيائياً كأي جدول.
       // hotel_day_ledger (محلي-فقط بتأكيد المستخدم 2026-09-05)
       // وجداول البنية المحلية (outbox, sync_remote_meta, sync_state,
       // sync_log, custom_list_items، ...) مستبعدة عمداً — لا مقابل
@@ -246,8 +245,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
 
       final tables = <_LocalTableInfo>[];
       for (final n in names) {
-        // shift_notes: العدّ يستبعد صفوف القائمة السوداء الموسومة
-        // (تُرفع ككيان blacklist مستقل — مطابقة المجموعات).
+        // shift_notes: العدّ يستبعد الصفوف الموسومة بالتسمية القديمة
+        // (أجهزة على المخطط السابق — مزامنتها ككيان shift_notes كانت
+        // ستكرر القائمة السوداء).
         final countSql = n == 'shift_notes'
             ? 'SELECT COUNT(*) AS n FROM shift_notes WHERE created_by != '
                   "'${CloudflareConfig.blacklistStorageTag}'"
@@ -263,17 +263,12 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         );
       }
 
-      // ✅ تجسيد blacklist افتراضياً (كيان عقد Appwrite بلا جدول Drift
-      // محلي — صفوفها مخزنة في shift_notes الموسومة
-      // created_by='blacklist'، انظر repositories/blacklist_repository).
-      // يُرفع إلى جدول blacklist في D1 عبر تحويل
-      // CloudflareD1Service.blacklistRowFromShiftNote؛ جدول D1 موجود
-      // مسبقاً من worker/schema.sql فلا DDL مطلوب.
+      // ✅ blacklist: الكيان يظهر باسمه في القائمة (عقد ENTITY_TABLES
+      // واسم جدول D1) لكن مصدره الجدول المحلي المستقل blacklist_entries
+      // (مواءمة مع فرع Android) — جدول D1 موجود مسبقاً من
+      // worker/schema.sql فلا DDL مطلوب.
       final blCountRows = await db
-          .customSelect(
-            'SELECT COUNT(*) AS n FROM shift_notes WHERE created_by = '
-            "'${CloudflareConfig.blacklistStorageTag}'",
-          )
+          .customSelect('SELECT COUNT(*) AS n FROM blacklist_entries')
           .get();
       tables.add(
         _LocalTableInfo(
@@ -344,9 +339,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   Future<void> _upload() async {
     final db = ref.read(databaseProvider);
     // ✅ الكتابة الفعلية إلى D1 تمر عبر CloudflareD1PushMirror (outbox +
-    // /api/sync/push) لا عبر CloudflareD1Service — الأعضاء الساكنة
-    // (blacklistSourceSql/blacklistRowFromShiftNote/shiftNotesSourceSql)
-    // أدناه لا تحتاج نسخة (instance)، فقط بناء الأعمدة/التحويل محلياً.
+    // /api/sync/push) لا عبر CloudflareD1Service — عضوها الساكن
+    // (shiftNotesSourceSql) لا يحتاج نسخة (instance).
     final mirror = CloudflareD1PushMirror(db);
     _activeMirror = mirror;
 
@@ -360,27 +354,22 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           rowCount: table.rowCount,
           createSqlList: table.createSqlList,
           readChunk: (limit, offset) async {
-            // blacklist: مصدره shift_notes الموسومة → تحويل إلى أعمدة
-            // جدول D1 (نفس اتجاه مسار المزامنة entity='blacklist').
+            // blacklist: مصدره الجدول المحلي المستقل blacklist_entries
+            // (أعمدة مطابقة لجدول D1 blacklist — مواءمة Android).
             if (table.name == 'blacklist') {
               final rows = await db
                   .customSelect(
-                    '${CloudflareD1Service.blacklistSourceSql} LIMIT ? OFFSET ?',
+                    'SELECT * FROM blacklist_entries LIMIT ? OFFSET ?',
                     variables: [
                       Variable.withInt(limit),
                       Variable.withInt(offset),
                     ],
                   )
                   .get();
-              return rows
-                  .map(
-                    (r) =>
-                        CloudflareD1Service.blacklistRowFromShiftNote(r.data),
-                  )
-                  .toList();
+              return rows.map((r) => r.data).toList();
             }
-            // shift_notes: يستبعد صفوف القائمة السوداء (كيان blacklist
-            // منفصل — مطابقة مجموعة shift_notes في Appwrite Cloud).
+            // shift_notes: يستبعد الصفوف الموسومة بالتسمية القديمة
+            // (مزامنتها ككيان shift_notes كانت ستكرر القائمة السوداء).
             final sourceSql = table.name == 'shift_notes'
                 ? CloudflareD1Service.shiftNotesSourceSql
                 : 'SELECT * FROM "${table.name.replaceAll('"', '""')}"';
@@ -490,8 +479,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           'المزامنة الحقيقي (outbox + /api/sync/push) — كل صف يمر بنفس '
           'فحص الإصدار والساعة المتجهة الذي يحمي أي تعديل عادي، فلا يمكن '
           'لجهاز قديم لم يُزامن منذ فترة أن يمحو عمل جهاز أحدث. القائمة '
-          'السوداء blacklist كيان بلا جدول محلي فتُجسَّد من ملاحظات '
-          'الورديات الموسومة إلى جدولها في D1، أما hotel_day_ledger '
+          'السوداء blacklist تُرفع من جدولها المحلي المستقل '
+          'blacklist_entries إلى جدولها في D1، أما hotel_day_ledger '
           '(محلي-فقط) وجداول البنية المحلية (outbox، sync_remote_meta، '
           'sync_state، sync_log، …) فتُستبعد كلياً.',
           textAlign: TextAlign.start,

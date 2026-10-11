@@ -23,8 +23,9 @@ import 'package:marina_hotel_mobile/services/cloudflare_config.dart';
 ///   ENTITY_TABLES؛ يستبدل مجموعة devices في Appwrite.
 /// - hotel_day_ledger مستبعد عمداً بتأكيد المستخدم (2026-09-05:
 ///   «جدول محلي لا أريد أن يتم مزامنته») — محلي-فقط بالتصميم (D8).
-/// - blacklist تُخزَّن في shift_notes بوسم created_by='blacklist'
-///   (blacklist_repository.dart) — لا جدول sqlite_master لها.
+/// - blacklist يظهر باسمه في النطاق لكن لا جدول محلي اسمه blacklist
+///   (مصدره الجدول المحلي المستقل blacklist_entries — مواءمة Android؛
+///   جدول D1 يبقى blacklist) فيُتخطى في الفلترة الفيزيائية.
 void main() {
   /// كل ما قد يظهر في sqlite_master المحلي: كيانات النطاق + جداول
   /// البنية المحلية + الداخلية — لنثبت أن الحصر يرفضها كلها.
@@ -38,6 +39,7 @@ void main() {
     'sync_log',
     'sync_conflicts',
     'custom_list_items',
+    'blacklist_entries', // جدول القائمة السوداء المحلي (لا اسم blacklist)
     'ancestor_cache',
     'auto_fix_runs',
     'app_sessions',
@@ -146,6 +148,7 @@ void main() {
           'sync_conflicts',
           'hotel_day_ledger', // استبعاد صريح — تأكيد المستخدم
           'custom_list_items',
+          'blacklist_entries', // جدول محلي لا اسمه كيان النطاق
           'ancestor_cache',
           'room_master_table',
           'android_metadata',

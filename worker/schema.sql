@@ -1004,7 +1004,9 @@ CREATE INDEX IF NOT EXISTS idx_inventory_transactions_deleted ON inventory_trans
 CREATE INDEX IF NOT EXISTS idx_inventory_transactions_item_date ON inventory_transactions(item_id, created_at DESC);
 
 -- ─── blacklist ───────────────────────────────────────────────
--- Cloud-only entity (no Drift table): guests blacklisted across devices.
+-- Guests blacklisted across devices. Local landing zone is the
+-- blacklist_entries Drift table (Android + Flutter schemaVersion 73+);
+-- entity name in the sync protocol stays `blacklist`.
 CREATE TABLE IF NOT EXISTS blacklist (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   local_uuid TEXT NOT NULL UNIQUE,

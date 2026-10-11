@@ -184,7 +184,11 @@ class CloudflareConfig {
     _passwordOverride = null;
   }
 
-  /// Entity → D1 table name mapping (1:1, same names as Drift)
+  /// Entity → local Drift table name mapping.
+  ///
+  /// الاستثناء الوحيد: `blacklist` → `blacklist_entries` (الجدول المحلي
+  /// المستقل — مواءمة مع فرع Android) بينما اسم جدول D1 يبقى `blacklist`
+  /// (worker ENTITY_TABLES). بقية الكيانات أسماء متطابقة 1:1.
   ///
   /// خطة الانتقال D7: أُضيفت inventory_items وinventory_transactions
   /// وblacklist — الثلاثة موجودة في عقد Appwrite (27 مجموعة) وكانت مفقودة
@@ -222,7 +226,9 @@ class CloudflareConfig {
     'inventory_transactions': 'inventory_transactions',
     'app_users': 'app_users',
     'devices': 'devices',
-    'blacklist': 'blacklist',
+    // الجدول المحلي المستقل (local_db.dart BlacklistEntries — migration 73)؛
+    // جدول D1 يبقى blacklist بعقد worker ENTITY_TABLES.
+    'blacklist': 'blacklist_entries',
   };
 
   /// Tables to migrate (ordered by FK dependency — topological sort)
@@ -247,7 +253,7 @@ class CloudflareConfig {
   ///      schemaVersion 66)
   ///  16. devices (no FK deps — local Drift table Devices,
   ///      schemaVersion 67; يستبدل مجموعة devices في Appwrite)
-  ///  17. blacklist (cloud-only, no deps)
+  ///  17. blacklist (جدول محلي blacklist_entries — بلا تبعيات FK)
   static const List<String> migrationOrder = [
     'rooms',
     'employees',
@@ -287,12 +293,12 @@ class CloudflareConfig {
   ///   guest_infos، cash_transactions، shift_notes، salary_cycles،
   ///   salary_payments، salary_withdrawals، salary_carry_over_logs،
   ///   audit_logs، inventory_items، inventory_transactions — ومعها
-  ///   blacklist (طلب صريح سابق من المستخدم ولم يسحبه؛ تجسيد افتراضي
-  ///   من shift_notes الموسومة).
-  /// - `blacklist` ضمن القائمة (كيان من عقد Appwrite) لكن بلا جدول
-  ///   Drift محلي — صفوفها مخزنة في shift_notes الموسومة
-  ///   created_by='blacklist' وتُجسَّد افتراضياً عند الرفع عبر
-  ///   CloudflareD1Service.blacklistRowFromShiftNote.
+  ///   blacklist (طلب صريح سابق من المستخدم).
+  /// - `blacklist` له جدول Drift محلي مستقل الآن (blacklist_entries،
+  ///   migration 73 — مواءمة مع فرع Android) لكنه يظهر باسم كيانه
+  ///   `blacklist` في القائمة (لا جدول محلي بهذا الاسم) ويُضاف افتراضياً
+  ///   في تبويب الرفع بمصدره blacklist_entries؛ اسم جدول D1 يبقى
+  ///   `blacklist` (worker ENTITY_TABLES).
   /// - `app_users` له جدول Drift محلي الآن (AppUsers، schemaVersion 66)
   ///   فيمرّ عبر الفلترة الفيزيائية كأي جدول.
   /// - `hotel_day_ledger` مستبعد عمداً (تأكيد المستخدم 2026-09-05:
@@ -300,9 +306,10 @@ class CloudflareConfig {
   ///   ولا مقابل له في Appwrite Cloud، ويبقى محلياً كلياً.
   static const List<String> d1BackupTables = migrationOrder;
 
-  /// وسم تخزين القائمة السوداء داخل جدول shift_notes المحلي
-  /// (مطابق لـ BlacklistRepository._createdByTag — منع تكرار السلسلة
-  /// النصية في استعلامات النطاق).
+  /// وسم تخزين القائمة السوداء القديم داخل جدول shift_notes المحلي
+  /// (أجهزة سابقة على المخطط القديم — shift_notesSourceSql يستبعد
+  /// الصفوف الموسومة حتى لا تُرفع مرتين ككيان shift_notes بعد أن
+  /// أصبح لها الجدول المستقل blacklist_entries).
   static const String blacklistStorageTag = 'blacklist';
 
   /// Sync settings
