@@ -144,4 +144,25 @@ interface BookingsDao {
 
     @Query("SELECT * FROM bookings WHERE server_booking_id = :serverBookingId ORDER BY id ASC")
     suspend fun getByServerBookingIdCandidates(serverBookingId: Long): List<BookingEntity>
+
+    /**
+     * All currently checked-in guests for blacklist scanning.
+     * Returns only id, guest_name, room_number for efficiency.
+     * Matches Dart: status = 'checked_in' AND deleted_at IS NULL AND actual_checkout IS NULL
+     */
+    @Query(
+        """
+        SELECT id, guest_name, room_number FROM bookings
+        WHERE deleted_at IS NULL
+          AND actual_checkout IS NULL
+          AND status = 'checked_in'
+        """
+    )
+    suspend fun getCheckedInGuests(): List<CheckedInGuest>
+
+    data class CheckedInGuest(
+        val id: Long,
+        val guest_name: String,
+        val room_number: String
+    )
 }
