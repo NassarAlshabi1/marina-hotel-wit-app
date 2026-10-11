@@ -160,7 +160,10 @@ class BookingDerivedFieldsService {
     }
   }
 
-  Future<int> refreshAllActiveBookings({DateTime? now}) async {
+  Future<int> refreshAllActiveBookings({
+    DateTime? now,
+    bool enqueueOutbox = true,
+  }) async {
     final moment = now ?? DateTime.now();
     final activeBookings =
         await (db.select(db.bookings)
@@ -182,13 +185,17 @@ class BookingDerivedFieldsService {
         try {
           if (StatusUtils.isBookingProvisional(booking) &&
               HotelTimeEngine.isAfterCutoff(moment)) {
-            await _promoteProvisionalBooking(booking.id);
+            await _promoteProvisionalBooking(
+              booking.id,
+              enqueueOutbox: enqueueOutbox,
+            );
             promoted++;
           }
           await _refreshForBookingInTransaction(
             booking,
             now: moment,
             forceRebuild: true,
+            enqueueOutbox: enqueueOutbox,
           );
           refreshed++;
         } catch (e) {
@@ -206,7 +213,10 @@ class BookingDerivedFieldsService {
     return refreshed;
   }
 
-  Future<void> _promoteProvisionalBooking(int bookingId) async {
+  Future<void> _promoteProvisionalBooking(
+    int bookingId, {
+    required bool enqueueOutbox,
+  }) async {
     final booking = await (db.select(
       db.bookings,
     )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
@@ -220,6 +230,8 @@ class BookingDerivedFieldsService {
       db.bookings,
     )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (updated == null) return;
+
+    if (!enqueueOutbox) return;
 
     final bookingsDao = BookingsDao(db, _outboxDao);
     final payload = await bookingsDao.payloadForLocalUuid(updated.localUuid);

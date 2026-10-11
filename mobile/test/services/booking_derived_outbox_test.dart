@@ -90,6 +90,17 @@ void main() {
     expect(nights, isNotEmpty);
   });
 
+  test('تحديث جميع الحجوزات للعرض لا يضيف Outbox', () async {
+    final service = BookingDerivedFieldsService(db);
+
+    await service.refreshAllActiveBookings(
+      now: DateTime.now(),
+      enqueueOutbox: false,
+    );
+
+    expect(await outboxCount(), 0);
+  });
+
   test('إعادة الحساب المحلي تبقى قابلة للرفع عبر Outbox', () async {
     final service = BookingDerivedFieldsService(db);
 
