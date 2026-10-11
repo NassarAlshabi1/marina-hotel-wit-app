@@ -6,7 +6,12 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.google.gson.annotations.SerializedName
 
-@Entity(tableName = "blacklist_entries",
+@Entity(
+    tableName = "blacklist_entries",
+    indices = [
+        Index(value = ["active"], name = "idx_blacklist_entries_active"),
+        Index(value = ["name", "phone", "national_id", "nationality"], name = "idx_blacklist_entries_search"),
+    ]
 )
 data class BlacklistEntryEntity(
     @PrimaryKey(autoGenerate = true) @SerializedName("id") override val id: Long = 0,
@@ -19,10 +24,6 @@ data class BlacklistEntryEntity(
     @SerializedName("notes") val notes: String? = null,
     @SerializedName("reported_by") @ColumnInfo(name = "reported_by") val reportedBy: String = "police",
     @SerializedName("active") val active: Boolean = true,
-
-    /** ✅ (2026-10-06) حقول خادمية كانت تُسقَط صامتاً عند السحب (schema.sql). */
-    @SerializedName("added_by") @ColumnInfo(name = "added_by") val addedBy: String? = null,
-    @SerializedName("added_date") @ColumnInfo(name = "added_date") val addedDate: String? = null,
 
     @SerializedName("local_uuid") @ColumnInfo(name = "local_uuid") override val localUuid: String = "",
     @SerializedName("server_id") @ColumnInfo(name = "server_id") override val serverId: Int? = null,
