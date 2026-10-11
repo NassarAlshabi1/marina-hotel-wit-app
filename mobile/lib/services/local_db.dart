@@ -467,6 +467,9 @@ class ShiftNotes extends Table with SyncFields {
 
 // جدول القائمة السوداء — مستقل عن shift_notes
 // مطابق لجدول blacklist_entries في Android (Native Kotlin)
+// DataClassName 'BlacklistEntryRow' لتجنب تعارض الاسم مع كلاس النطاق
+// BlacklistEntry المعريف في blacklist_repository.dart
+@DataClassName('BlacklistEntryRow')
 class BlacklistEntries extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();

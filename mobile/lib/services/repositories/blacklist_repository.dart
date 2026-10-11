@@ -1,8 +1,5 @@
-import 'dart:convert';
-
 import 'package:drift/drift.dart' as d;
 
-import '../../utils/debug_log.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../daos/outbox_dao.dart';
@@ -239,7 +236,7 @@ class BlacklistRepository {
     return db.transaction(() async {
       final row = await (db.select(
         db.blacklistEntries,
-      )...where((t) => t.id.equals(id))).getSingleOrNull();
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
       if (row == null) {
         return false;
       }
