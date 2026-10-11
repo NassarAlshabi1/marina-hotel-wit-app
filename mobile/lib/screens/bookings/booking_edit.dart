@@ -12,6 +12,7 @@ import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart';
 import '../../providers/service_providers.dart';
+import '../../services/blacklist_alert_service.dart';
 import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
@@ -799,6 +800,23 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                   .read(appwriteSyncManagerProvider)
                                   .pushLocalChanges(),
                             );
+
+                            // ✅ تنبيه أمني: عند تسجيل حجز جديد باسم مطلوب في
+                            // القائمة السوداء يُرسل إشعار نظام يظهر على
+                            // الشاشة الرئيسية (fire-and-forget — لا يكسر الحفظ).
+                            if (widget.existing == null &&
+                                newBookingId != null &&
+                                blacklistedMatch != null) {
+                              unawaited(
+                                BlacklistAlertService(
+                                  ref.read(blacklistRepoProvider),
+                                ).notifyIfBlacklisted(
+                                  guestName: name,
+                                  bookingId: newBookingId,
+                                  roomNumber: roomNumber,
+                                ),
+                              );
+                            }
 
                             // ✅ حفظ الدفعة المقدمة إذا تم تحديدها
                             if (_hasAdvancePayment) {

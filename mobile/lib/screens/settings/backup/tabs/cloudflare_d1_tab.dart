@@ -282,7 +282,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   }
 
   /// الجداول الظاهرة حسب وضع التصفية (مزامنة Appwrite فقط / الكل).
-  /// تشمل الجداول التركيبية (app_users, blacklist) في الوضعين — مجموعتهما متزامنة.
+  /// blacklist جدول Drift حقيقي منذ migration 72 ويُعرض في الوضعين ضمن
+  /// الجداول المتزامنة. app_users لا يُرفع إلى D1 إطلاقاً (عبر Appwrite مباشرة).
   List<_LocalTableInfo> get _visibleTables {
     if (!_appwriteOnly) {
       return _localTables

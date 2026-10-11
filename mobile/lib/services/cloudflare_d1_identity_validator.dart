@@ -22,6 +22,8 @@ class CloudflareD1IdentityValidator {
     'guest_infos',
     'cash_transactions',
     'shift_notes',
+    // ✅ جدول مستقل منذ migration 72 — يُرفع إلى D1 ويُفحص local_uuid.
+    'blacklist',
     'salary_cycles',
     'salary_payments',
     'salary_withdrawals',
@@ -130,6 +132,37 @@ class CloudflareD1IdentityValidator {
         issues.add(
           'salary_payments: يوجد $invalidOwners دفعة لا يطابق فيها employee_uuid '
           'موظفها ودورة الراتب؛ لن تُرفع.',
+        );
+      }
+
+      // ✅ بوابة cycle_uuid (migration 71): هوية الدورة الثابتة عبر الأجهزة.
+      // الدفعة النشطة المرتبطة بدورة يجب أن تحمل cycle_uuid يحل إلى
+      // salary_cycles.local_uuid للدورة نفسها عبر cycle_id.
+      final missingCycleLinks = await _count(
+        db,
+        'SELECT COUNT(*) AS n FROM salary_payments p '
+        'WHERE p.deleted_at IS NULL AND p.cycle_id IS NOT NULL AND ('
+        "p.cycle_uuid IS NULL OR TRIM(p.cycle_uuid) = '')",
+      );
+      if (missingCycleLinks > 0) {
+        issues.add(
+          'salary_payments: يوجد $missingCycleLinks دفعة نشطة لها cycle_id '
+          'لكن cycle_uuid مفقود؛ نفّذ إصلاح الهوية أولاً.',
+        );
+      }
+      final brokenCycleLinks = await _count(
+        db,
+        'SELECT COUNT(*) AS n FROM salary_payments p '
+        'WHERE p.deleted_at IS NULL AND p.cycle_uuid IS NOT NULL AND ('
+        "TRIM(p.cycle_uuid) = '' OR NOT EXISTS ("
+        'SELECT 1 FROM salary_cycles c '
+        'WHERE c.id = p.cycle_id '
+        'AND LOWER(TRIM(c.local_uuid)) = LOWER(TRIM(p.cycle_uuid))))',
+      );
+      if (brokenCycleLinks > 0) {
+        issues.add(
+          'salary_payments: يوجد $brokenCycleLinks دفعة لا يحل فيها cycle_uuid '
+          'إلى local_uuid دورتها عبر cycle_id؛ لن تُرفع.',
         );
       }
     }

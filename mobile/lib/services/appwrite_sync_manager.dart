@@ -1657,6 +1657,42 @@ class AppwriteSyncManager {
   /// - حلقة المزامنة الدائرية (pull → update → push → pull → ...)
   /// ✅ استخراج $updatedAt من مستند Appwrite وتحويله إلى ثوانٍ epoch.
   ///
+  /// مفتاح قانوني لمطابقة المستندات المكررة (نفس localUuid بعدة $ids).
+  /// يطابق تطبيع base_repository (شرطات + حالة أحرف) حتى لا تنشأ مجموعتان
+  /// لصيغتين نصيتين لنفس الهوية.
+  String _canonicalDedupKey(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final compact = trimmed.replaceAll('-', '');
+    if (compact.length == 32 && !compact.contains(RegExp(r'[^0-9a-fA-F]'))) {
+      return '${compact.substring(0, 8)}-${compact.substring(8, 12)}-'
+              '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
+              '${compact.substring(20)}'
+          .toLowerCase();
+    }
+    return trimmed.toLowerCase();
+  }
+
+  /// حداثة المستند للمفاضلة بين النسخ المكررة — بلا آثار جانبية
+  /// (لا يلمس `_maxUpdatedAtInPull` الذي يُدار في مسار السحب نفسه).
+  int _docRecency(models.Document doc) {
+    final data = doc.data;
+    final lm = data['lastModified'];
+    if (lm is int) return lm;
+    if (lm is num) return lm.toInt();
+    if (lm is String) {
+      final n = int.tryParse(lm);
+      if (n != null) return n;
+    }
+    try {
+      final s = doc.$updatedAt;
+      if (s.isEmpty) return 0;
+      return DateTime.parse(s).millisecondsSinceEpoch ~/ 1000;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// $updatedAt هو حقل نظام في Appwrite يتوفر دائماً في كل مستند ويُحدَّث
   /// تلقائياً عند أي تعديل. نستخدمه كمرجع زمني موثوق لفحص التعارضات عندما
   /// يكون lastModified البعيد مفقوداً (وهو ما يحدث في بعض المجموعات مثل
@@ -4016,7 +4052,40 @@ class AppwriteSyncManager {
     // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
     final employeeFkResolver = IdResolver(database);
 
+    // ✅ إزالة تكرار مستندات السحابة اليتيمة: نفس localUuid بعدة $ids
+    // (بقايا حقبة ما قبل idempotency والنسخ الشامل بـ ID.unique()).
+    // بدونها يُعاد upsert نفس الصف N مرات في الدورة (آخر كاتب يفوز حسب
+    // ترتيب الصفحات عشوائياً) ويتكرر تحذير SYNC_RELINK لكل نسخة.
+    // القاعدة: المرجع ($id == localUuid) أولاً — الدفع يستهدف documentId
+    // = localUuid دائماً فهو الأحدث بالبناء؛ ثم الأحدث lastModified.
+    final docsByUuid = <String, models.Document>{};
+    var dupCollapsed = 0;
     for (final doc in documents) {
+      final rawKey = (doc.data['localUuid']?.toString() ?? doc.$id);
+      final key = _canonicalDedupKey(rawKey);
+      final prev = docsByUuid[key];
+      if (prev == null) {
+        docsByUuid[key] = doc;
+      } else {
+        dupCollapsed++;
+        final prevCanon = prev.$id == key || _canonicalDedupKey(prev.$id) == key;
+        final curCanon = doc.$id == key || _canonicalDedupKey(doc.$id) == key;
+        if ((curCanon && !prevCanon) ||
+            (curCanon == prevCanon &&
+                _docRecency(doc) > _docRecency(prev))) {
+          docsByUuid[key] = doc;
+        }
+      }
+    }
+    if (dupCollapsed > 0) {
+      _logger.debug(
+        '🧹 دُمج $dupCollapsed مستند withdrawals مكرر (نفس localUuid بعدة '
+        r'$ids) — عولج المرجع/الأحدث فقط، والباقي يتيم يُشفى سحابياً',
+        tag: 'SYNC',
+      );
+    }
+
+    for (final doc in docsByUuid.values) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;

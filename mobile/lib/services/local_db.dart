@@ -1663,28 +1663,41 @@ class AppDatabase extends _$AppDatabase {
       if (from < 72) {
         await m.createTable(blacklist);
 
-        // ترحيل البيانات من shift_notes إلى blacklist
+        // ترحيل البيانات من shift_notes إلى blacklist.
+        // ملاحظة سلامة: vector_clock و device_id و *_epoch أُضيفت لأعمدة
+        // SyncFields عبر addColumn بلا backfill، لذا تحمل NULL في قواعد
+        // الأجهزة المرقّاة — وblacklist تفرض NOT NULL عليها. COALESCE يمنع
+        // فشل الترحيل (NOT NULL constraint) دون فقدان أي صف.
+        // حراسة JSON: json_extract يرمي خطأً على المحتوى التالف (لا يعيد
+        // NULL) — json_valid يطابق دلالة try/catch في BlacklistRepository:
+        // الصف يُرحَّل دائماً بالاسم والهوية، وحقول JSON التالفة تُملأ
+        // بالقيم الافتراضية بدل إسقاط الترحيل كله.
         await m.database.customStatement(
           'INSERT INTO blacklist ('
           'id, name, nationality, national_id, phone, reason, notes, '
-          'reported_by, active, created_at, '
+          'reported_by, active, created_at, updated_at, '
           'local_uuid, server_id, version, origin, vector_clock, device_id, '
           'idempotency_key, created_at_iso, updated_at_iso, deleted_at, deleted_at_iso, '
           'last_modified, created_at_epoch, last_modified_epoch'
           ') '
           'SELECT '
           'id, title, '
-          "json_extract(content, '\$.nationality'), "
-          "json_extract(content, '\$.nationalId'), "
-          "json_extract(content, '\$.phone'), "
-          "json_extract(content, '\$.reason'), "
-          "json_extract(content, '\$.notes'), "
-          "COALESCE(json_extract(content, '\$.reportedBy'), 'police'), "
-          "COALESCE(json_extract(content, '\$.active'), 1), "
-          'created_at, '
-          'local_uuid, server_id, version, origin, vector_clock, device_id, '
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.nationality') END, "
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.nationalId') END, "
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.phone') END, "
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.reason') END, "
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.notes') END, "
+          "COALESCE(CASE WHEN json_valid(content) THEN json_extract(content, '\$.reportedBy') END, 'police'), "
+          'CASE WHEN json_valid(content) '
+          "AND json_extract(content, '\$.active') IN (0, 1) "
+          "THEN json_extract(content, '\$.active') ELSE 1 END, "
+          'created_at, updated_at, '
+          'local_uuid, server_id, '
+          'COALESCE(version, 1), COALESCE(origin, \'local\'), '
+          'COALESCE(vector_clock, \'{}\'), COALESCE(device_id, \'\'), '
           'idempotency_key, created_at_iso, updated_at_iso, deleted_at, deleted_at_iso, '
-          'last_modified, created_at_epoch, last_modified_epoch '
+          'COALESCE(last_modified, updated_at, created_at, 0), '
+          'COALESCE(created_at_epoch, 0), COALESCE(last_modified_epoch, 0) '
           'FROM shift_notes '
           "WHERE created_by = 'blacklist'",
         );

@@ -23,6 +23,9 @@ class CloudflareD1IdentityRepair {
     'guest_infos',
     'cash_transactions',
     'shift_notes',
+    // ✅ جدول مستقل منذ migration 72 — يُرفع إلى D1 ويحتاج تعبئة local_uuid.
+    // بلا روابط UUID (جدول مسطّح) لذا لا mapping له أدناه.
+    'blacklist',
     'salary_cycles',
     'salary_payments',
     'salary_withdrawals',
