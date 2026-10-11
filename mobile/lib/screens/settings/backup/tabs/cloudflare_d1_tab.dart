@@ -41,6 +41,13 @@ const Set<String> kAppwriteSyncedTables = <String>{
 /// app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
 const Set<String> kD1SyntheticTables = <String>{};
 
+/// ✅ استبعاد صفوف القائمة السوداء القديمة من رفع shift_notes.
+/// الهجرة 72 تنسخ صفوف created_by='blacklist' إلى جدول blacklist المستقل
+/// لكنها لا تحذفها من shift_notes — بدون هذا الفلتر ستُرفع مرتين
+/// (داخل shift_notes وداخل blacklist) وتتضخم المرآة المخصصة للملاحظات.
+const String kShiftNotesD1ExclusionWhere =
+    "(created_by IS NULL OR created_by <> 'blacklist')";
+
 /// جداول تشغيل محلية لا تمثل بيانات الفندق ولا يجوز رفعها إلى D1 من شاشة
 /// النسخ الاحتياطي، حتى عند إيقاف مرشح Appwrite واختيار «كل الجداول».
 bool _isD1SyncInfrastructure(String name) =>
@@ -234,9 +241,13 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
 
       final tables = <_LocalTableInfo>[];
       for (final n in names) {
+        // ✅ صفوف blacklist داخل shift_notes لا تُحسب ولا تُرفع (نفس فلتر readChunk أدناه).
+        final countWhere = n == 'shift_notes'
+            ? 'WHERE $kShiftNotesD1ExclusionWhere'
+            : '';
         final countRows = await db
             .customSelect(
-              'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}"',
+              'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}" $countWhere',
             )
             .get();
         final count = (countRows.first.data['n'] as int?) ?? 0;
@@ -249,22 +260,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         );
       }
 
+      // ✅ (migration 72) blacklist الآن جدول Drift حقيقي في sqlite_master —
+      // يُعدّد تلقائياً في الحلقة أعلاه بـ DDL وعدد حقيقيين.
       // app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
-        try {
-          final db = ref.read(databaseProvider);
-          final exportedAtIso = DateTime.now().toIso8601String();
-          final blacklistRows = await buildBlacklistBackupRows(db, exportedAtIso);
-          tables.add(
-            _LocalTableInfo(
-              name: 'blacklist',
-              rowCount: blacklistRows.length,
-              createSqlList: const [kBlacklistD1CreateSql],
-            ),
-          );
-        } catch (e) {
-          debugPrint('D1: تعذر تجهيز صفوف blacklist التركيبية: $e');
-        }
-      }
 
       if (!mounted) return;
       setState(() {
@@ -449,34 +447,16 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     final infoLogs = <String>[];
     final sources = <CloudflareD1SourceTable>[];
 
-    // ✅ F3 (2026-10-11): الجدول التركيبي blacklist — يُجمع من shift_notes
-    // حيث created_by = 'blacklist' لرفعه كجدول مستقل في D1 (مطابق لمجموعة
-    // Appwrite blacklist). لا يُرفَع داخل shift_notes لتجنب التفرّع في المسار.
+    // ✅ (migration 72) blacklist جدول Drift حقيقي منذ migration 72 — يُرفع
+    // عبر المسار العام أدناه من sqlite_master (بلا صفوف تركيبية).
     // app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
-    if (_selected.contains('blacklist')) {
-      try {
-        final db = ref.read(databaseProvider);
-        final exportedAtIso = DateTime.now().toIso8601String();
-        final blacklistRows = await buildBlacklistBackupRows(db, exportedAtIso);
-        infoLogs.add('blacklist: ${blacklistRows.length} سجل');
-        sources.add(
-          CloudflareD1SourceTable(
-            name: 'blacklist',
-            rowCount: blacklistRows.length,
-            createSqlList: const [kBlacklistD1CreateSql],
-            readChunk: (limit, offset) async =>
-                sliceBlacklistRows(blacklistRows, limit, offset),
-          ),
-        );
-      } catch (e) {
-        infoLogs.add('blacklist: فشل التجهيز — طُلب من الرفع: $e');
-      }
-    }
-
     for (final t in _localTables) {
       if (!_selected.contains(t.name)) continue;
-      if (t.name == 'blacklist') continue; // تركيبي — عولج أعلاه
       final table = t;
+      // ✅ استبعاد صفوف blacklist القديمة من shift_notes (انظر تعريف الثابت أعلاه).
+      final uploadWhere = table.name == 'shift_notes'
+          ? 'WHERE $kShiftNotesD1ExclusionWhere'
+          : '';
       sources.add(
         CloudflareD1SourceTable(
           name: table.name,
@@ -485,7 +465,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           readChunk: (limit, offset) async {
             final rows = await db
                 .customSelect(
-                  'SELECT * FROM "${table.name.replaceAll('"', '""')}" '
+                  'SELECT * FROM "${table.name.replaceAll('"', '""')}" $uploadWhere '
                   'LIMIT ? OFFSET ?',
                   variables: [
                     Variable.withInt(limit),

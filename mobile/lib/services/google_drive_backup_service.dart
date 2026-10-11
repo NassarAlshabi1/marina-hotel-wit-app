@@ -454,9 +454,10 @@ class GoogleDriveBackupService {
         salaryCarryOverLogsData: salaryCarryOverLogsData,
         inventoryItemsData: inventoryItemsData,
         inventoryTransactionsData: inventoryTransactionsData,
+        blacklistData: blacklistData,
       );
 
-      final totalRecords = tableData.totalRecords + blacklistData.length;
+      final totalRecords = tableData.totalRecords;
 
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',

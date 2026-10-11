@@ -128,6 +128,9 @@ void main() {
     await db.delete(db.outbox).go();
     await db.delete(db.salaryWithdrawals).go();
     await db.delete(db.shiftNotes).go();
+    // ✅ (migration 72) جدول القائمة السوداء المستقل يُنظَّف أيضاً —
+    // UNIQUE(local_uuid) كان يفجّر الإدخال الثاني لـ bl-1 بين الاختبارات.
+    await db.delete(db.blacklist).go();
     await db.delete(db.employees).go();
     fakeService.upsertedDocuments.clear();
     fakeService.upsertedBlacklist.clear();
@@ -292,17 +295,21 @@ void main() {
 
   // ═══════════════════════════════════════════════════════════════════════
   group('blacklist: رفع القائمة السوداء بلا حذف سحابي', () {
+    // ✅ تحديث (2026-10-11) لمعمارية migration 72: الصف يُزرع في جدول
+    // blacklist المستقل بدل shift_notes بـ content JSON — نفس عقد الرفع:
+    // upsert واحد بلا حذف سحابي، والمُلقٍ القديم يبقى أعمى عن الصف.
     Future<int> addBlacklistRow({String uuid = 'bl-1'}) => db
-        .into(db.shiftNotes)
+        .into(db.blacklist)
         .insert(
-          ShiftNotesCompanion(
-            title: const d.Value('أورمو محمد'),
-            content: const d.Value(
-              '{"nationality":"EG","nationalId":"123","phone":"010",'
-              '"reason":"اختبار","notes":"","reportedBy":"police",'
-              '"active":true}',
-            ),
-            createdBy: const d.Value('blacklist'),
+          BlacklistCompanion(
+            name: const d.Value('أورمو محمد'),
+            nationality: const d.Value('EG'),
+            nationalId: const d.Value('123'),
+            phone: const d.Value('010'),
+            reason: const d.Value('اختبار'),
+            notes: const d.Value(''),
+            reportedBy: const d.Value('police'),
+            active: const d.Value(true),
             localUuid: d.Value(uuid),
             createdAt: const d.Value(1000),
             updatedAt: const d.Value(1000),

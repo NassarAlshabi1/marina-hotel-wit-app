@@ -298,7 +298,7 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 70', () {
+    test('3e. أحدث schemaVersion = 72', () {
       // ✅ (2026-09-14) محاذاة بعد bump إلى 66 (recorder_name على
       // salary_withdrawals — إسناد السحبة لمسجّلها). القيمة مقصودة صريحة:
       // كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
@@ -309,7 +309,9 @@ void main() {
       // expense_uuid على salary_withdrawals + withdrawal_uuid على expenses
       // + التعبئة الحتمية + الفهارس (Migration 68).
       // ✅ Migrations 69–70 تحافظ على فهرس المرآة الجزئي عند الترقية والإنشاء.
-      expect(db.schemaVersion, 70);
+      // ✅ (2026-10-10) bump إلى 71 — cycle_uuid على salary_payments.
+      // ✅ (2026-10-10) bump إلى 72 — جدول blacklist المستقل + ترحيله من shift_notes.
+      expect(db.schemaVersion, 72);
     });
   });
 

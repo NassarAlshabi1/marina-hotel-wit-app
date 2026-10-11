@@ -1,10 +1,7 @@
-import 'dart:convert';
-
 import '../../utils/time.dart';
 import '../appwrite_config.dart';
 import '../appwrite_sync_utils.dart';
 import '../local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// PayloadMapper — يحوّل كيانات Drift المحلية إلى Map<String, dynamic>
 /// جاهزة للإرسال إلى Appwrite Cloud.
@@ -702,7 +699,7 @@ class PayloadMapper {
       'reason': item.reason ?? '',
       'notes': item.notes ?? '',
       'active': item.active,
-      'reportedBy': item.reportedBy ?? 'police',
+      'reportedBy': item.reportedBy,
 
       'localUuid': item.localUuid,
       // ✅ blacklist schema يُعرّف createdAt/updatedAt/deletedAt كـ string (ISO)

@@ -1,12 +1,9 @@
-import 'dart:convert';
-
 import 'package:drift/drift.dart' as d;
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 String _normalizeArabic(String input) {
   var s = input.trim();
@@ -83,7 +80,7 @@ class BlacklistRepository {
       phone: row.phone,
       reason: row.reason,
       notes: row.notes,
-      reportedBy: row.reportedBy ?? 'police',
+      reportedBy: row.reportedBy,
       active: row.active,
       createdAt: row.createdAtIso != null
           ? DateTime.tryParse(row.createdAtIso!) ?? DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000)
@@ -215,7 +212,7 @@ class BlacklistRepository {
     return db.transaction(() async {
       final row = await (db.select(
         db.blacklist,
-      )...where((t) => t.id.equals(id))).getSingleOrNull();
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
       if (row == null) {
         return false;
       }

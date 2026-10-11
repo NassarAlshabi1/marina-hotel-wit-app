@@ -443,7 +443,10 @@ class ShiftNotes extends Table with SyncFields {
   ];
 }
 
-@DataClassName('BlacklistEntry')
+// ✅ إصلاح (2026-10-11): بلا @DataClassName — الاسم الافتراضي المولّد
+// `BlacklistData` هو ما يستخدمه كل المستهلكون (sync manager, repository,
+// payload mapper, خدمات النسخ). لا نستخدم 'BlacklistEntry' لأنه يتعارض
+// مع نموذج واجهة المستخدم BlacklistEntry في blacklist_repository.dart.
 class Blacklist extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
@@ -455,6 +458,8 @@ class Blacklist extends Table with SyncFields {
   TextColumn get reportedBy => text().withDefault(const Constant('police'))();
   BoolColumn get active =>
       boolean().withDefault(const Constant(true))();
+  // ✅ override لـ SyncFields.createdAt (نفس النوع) — يبطل تحذير annotate_overrides.
+  @override
   IntColumn get createdAt => integer()();
 
   List<Index> get indexes => [
@@ -1670,13 +1675,13 @@ class AppDatabase extends _$AppDatabase {
           ') '
           'SELECT '
           'id, title, '
-          'json_extract(content, \'$.nationality\'), '
-          'json_extract(content, \'$.nationalId\'), '
-          'json_extract(content, \'$.phone\'), '
-          'json_extract(content, \'$.reason\'), '
-          'json_extract(content, \'$.notes\'), '
-          'COALESCE(json_extract(content, \'$.reportedBy\'), \'police\'), '
-          'COALESCE(json_extract(content, \'$.active\'), 1), '
+          "json_extract(content, '\$.nationality'), "
+          "json_extract(content, '\$.nationalId'), "
+          "json_extract(content, '\$.phone'), "
+          "json_extract(content, '\$.reason'), "
+          "json_extract(content, '\$.notes'), "
+          "COALESCE(json_extract(content, '\$.reportedBy'), 'police'), "
+          "COALESCE(json_extract(content, '\$.active'), 1), "
           'created_at, '
           'local_uuid, server_id, version, origin, vector_clock, device_id, '
           'idempotency_key, created_at_iso, updated_at_iso, deleted_at, deleted_at_iso, '

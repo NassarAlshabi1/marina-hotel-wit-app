@@ -6731,7 +6731,7 @@ class AppwriteSyncManager {
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
-        final localUuid = (data['localUuid'] as String?) ?? doc.\$id;
+        final localUuid = (data['localUuid'] as String?) ?? doc.$id;
         final name = (data['name'] as String?) ?? '';
 
         // Appwrite blacklist: createdAt/updatedAt/deletedAt هي STRING (ISO)
@@ -6819,8 +6819,8 @@ class AppwriteSyncManager {
           localData: existingForCheck?.toJson(),
         )).shouldApplyRemote) {
           _logger.debug(
-            'Skipping blacklist \${doc.\$id}: local is newer or equal '
-            '(local=\${existingForCheck?.lastModified}, remote=\$lastModified)',
+            'Skipping blacklist ${doc.$id}: local is newer or equal '
+            '(local=${existingForCheck?.lastModified}, remote=$lastModified)',
             tag: 'SYNC',
           );
           processed++;
@@ -6877,7 +6877,7 @@ class AppwriteSyncManager {
 
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync blacklist \${doc.\$id}: \$e', tag: 'SYNC');
+        _logger.warning('Failed to sync blacklist ${doc.$id}: $e', tag: 'SYNC');
       }
     }
     return processed;
