@@ -804,8 +804,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                             // ✅ تنبيه أمني: عند تسجيل حجز جديد باسم مطلوب في
                             // القائمة السوداء يُرسل إشعار نظام يظهر على
                             // الشاشة الرئيسية (fire-and-forget — لا يكسر الحفظ).
+                            // ملاحظة: newBookingId مضمونة غير null هنا لأن كلا
+                            // فرعي الإنشاء/التحديث يسندان قيمة int غير قابلة للـ null.
                             if (widget.existing == null &&
-                                newBookingId != null &&
                                 blacklistedMatch != null) {
                               unawaited(
                                 BlacklistAlertService(

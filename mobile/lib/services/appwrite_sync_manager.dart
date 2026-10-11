@@ -4068,11 +4068,11 @@ class AppwriteSyncManager {
         docsByUuid[key] = doc;
       } else {
         dupCollapsed++;
-        final prevCanon = prev.$id == key || _canonicalDedupKey(prev.$id) == key;
+        final prevCanon =
+            prev.$id == key || _canonicalDedupKey(prev.$id) == key;
         final curCanon = doc.$id == key || _canonicalDedupKey(doc.$id) == key;
         if ((curCanon && !prevCanon) ||
-            (curCanon == prevCanon &&
-                _docRecency(doc) > _docRecency(prev))) {
+            (curCanon == prevCanon && _docRecency(doc) > _docRecency(prev))) {
           docsByUuid[key] = doc;
         }
       }

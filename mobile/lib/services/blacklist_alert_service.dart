@@ -29,8 +29,7 @@ class BlacklistAlertService {
       if (match == null) return null;
       try {
         final where = [
-          if (roomNumber != null && roomNumber.isNotEmpty)
-            'غرفة $roomNumber',
+          if (roomNumber != null && roomNumber.isNotEmpty) 'غرفة $roomNumber',
           if (bookingId != null) 'حجز #$bookingId',
         ].join(' — ');
         await SyncNotificationManager.instance.showSystemNotification(
