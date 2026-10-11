@@ -237,6 +237,28 @@ class Expenses extends Table with SyncFields {
   ];
 }
 
+// جدول القوائم المخصصة — أنواع المصروفات، أنواع الهوية، طرق الدفع
+// مع حقول المزامنة الكاملة (SyncFields) مطابقة لـ Android (Native Kotlin)
+class CustomListItems extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get listKey => text()();
+  TextColumn get name => text()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  BoolColumn get isSystem => boolean().withDefault(const Constant(false))();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_custom_list_key_order',
+      'CREATE INDEX idx_custom_list_key_order ON custom_list_items (list_key, sort_order)',
+    ),
+    Index(
+      'idx_custom_list_key_name',
+      'CREATE UNIQUE INDEX idx_custom_list_key_name ON custom_list_items (list_key, name) WHERE deleted_at IS NULL',
+    ),
+  ];
+}
+
 class CashTransactions extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get registerId => integer().nullable()();
@@ -1294,6 +1316,7 @@ class SyncRemoteMeta extends Table {
     BookingNotes,
     ShiftNotes,
     BlacklistEntries,
+    CustomListItems,
     Employees,
     Expenses,
     CashTransactions,
@@ -1334,7 +1357,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 73;
+  int get schemaVersion => 74;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1528,8 +1551,59 @@ class AppDatabase extends _$AppDatabase {
             'Migration 73: blacklist_entries creation skipped: $e',
             name: 'db.migration',
           );
+}
+      }
+
+      // ✅ (2026-10-11) الإصدار 74: إضافة حقول المزامنة إلى custom_list_items
+      // مطابقة لجدول CustomListItemEntity في Android (Migration 77→78)
+      // الحقول: local_uuid, server_id, version, origin, vector_clock, device_id,
+      // sync_timestamp, idempotency_key, created_at_iso, updated_at_iso,
+      // deleted_at_iso, created_at_epoch, last_modified_epoch
+      if (from < 74) {
+        try {
+          final syncColumns = [
+            'ALTER TABLE custom_list_items ADD COLUMN local_uuid TEXT NOT NULL DEFAULT \'\'',
+            'ALTER TABLE custom_list_items ADD COLUMN server_id INTEGER',
+            'ALTER TABLE custom_list_items ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE custom_list_items ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE custom_list_items ADD COLUMN deleted_at INTEGER',
+            'ALTER TABLE custom_list_items ADD COLUMN last_modified INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE custom_list_items ADD COLUMN created_at_iso TEXT',
+            'ALTER TABLE custom_list_items ADD COLUMN updated_at_iso TEXT',
+            'ALTER TABLE custom_list_items ADD COLUMN deleted_at_iso TEXT',
+            'ALTER TABLE custom_list_items ADD COLUMN created_at_epoch INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE custom_list_items ADD COLUMN last_modified_epoch INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE custom_list_items ADD COLUMN version INTEGER NOT NULL DEFAULT 1',
+            'ALTER TABLE custom_list_items ADD COLUMN origin TEXT NOT NULL DEFAULT \'local\'',
+            'ALTER TABLE custom_list_items ADD COLUMN vector_clock TEXT NOT NULL DEFAULT \'{}\'',
+            'ALTER TABLE custom_list_items ADD COLUMN device_id TEXT NOT NULL DEFAULT \'\'',
+            'ALTER TABLE custom_list_items ADD COLUMN sync_timestamp INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE custom_list_items ADD COLUMN idempotency_key TEXT',
+          ];
+          for (final stmt in syncColumns) {
+            try {
+              await m.database.customStatement(stmt);
+            } catch (e) {
+              // العمود موجود مسبقاً
+            }
+          }
+          // الفهرس الفريد المطابق للأندرويد
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_list_key_name '
+            'ON custom_list_items (list_key, name) WHERE deleted_at IS NULL'
+          );
+          developer.log(
+            'Migration 74: custom_list_items sync fields added',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 74: custom_list_items sync fields skipped: $e',
+            name: 'db.migration',
+          );
         }
       }
+
       // ✅ (2026-09-19) الإصدار 68: employee_uuid في جداول الرواتب الثلاثة
       // (توجيه المستخدم: «اضف الحقل المفقود employee_uuid الى الجداول لا
       // اريد فقدان البيانات نهائياً»). الحقل هو المفتاح المستقر عبر
@@ -2698,6 +2772,7 @@ class AppDatabase extends _$AppDatabase {
       }
 
       // === Migration 37: جدول القوائم المخصصة (أنواع المصروفات، أنواع الهوية، طرق الدفع) ===
+      // بدون بذر بيانات افتراضية — تُملأ من المزامنة مع السيرفر أو إدخال المستخدم
       if (from < 37) {
         await m.database.customStatement(
           'CREATE TABLE IF NOT EXISTS custom_list_items '
@@ -2712,54 +2787,8 @@ class AppDatabase extends _$AppDatabase {
           'CREATE INDEX IF NOT EXISTS idx_custom_list_key '
           'ON custom_list_items (list_key, sort_order)',
         );
-
-        // بذر أنواع المصروفات الافتراضية
-        const expenseDefaults = [
-          ['رواتب', '1', '1'],
-          ['ديزل', '2', '0'],
-          ['صيانة', '3', '0'],
-          ['فواتير كهرباء ومياه', '4', '0'],
-          ['مستلزمات', '5', '0'],
-          ['مساعدة محتاج', '6', '0'],
-          ['اخرى', '7', '0'],
-        ];
-        for (final e in expenseDefaults) {
-          await m.database.customStatement(
-            'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
-            "VALUES ('expense_type', '${e[0]}', ${e[1]}, 1, ${e[2]})",
-          );
-        }
-
-        // بذر أنواع الهوية الافتراضية
-        const idTypeDefaults = [
-          ['بطاقة شخصية', '1', '0'],
-          ['جواز سفر', '2', '0'],
-          ['رخصة قيادة', '3', '0'],
-          ['بطاقة عسكرية', '4', '0'],
-          ['استبيان', '5', '0'],
-          ['شهادة ميلاد', '6', '0'],
-        ];
-        for (final e in idTypeDefaults) {
-          await m.database.customStatement(
-            'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
-            "VALUES ('id_type', '${e[0]}', ${e[1]}, 1, ${e[2]})",
-          );
-        }
-
-        // بذر طرق الدفع الافتراضية
-        const paymentMethodDefaults = [
-          ['نقدي', '1', '0'],
-          ['تحويل بنكي', '2', '0'],
-        ];
-        for (final e in paymentMethodDefaults) {
-          await m.database.customStatement(
-            'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
-            "VALUES ('payment_method', '${e[0]}', ${e[1]}, 1, ${e[2]})",
-          );
-        }
-
         developer.log(
-          'Migration 37: custom_list_items table created and seeded',
+          'Migration 37: custom_list_items table created (no seeding)',
           name: 'db.migration',
         );
       }
