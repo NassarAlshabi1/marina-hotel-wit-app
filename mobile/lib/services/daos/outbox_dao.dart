@@ -1353,7 +1353,9 @@ const _entityTableMap = <String, String>{
   'salary_payments': 'salary_payments',
   'salary_withdrawals': 'salary_withdrawals',
   'guest_infos': 'guest_infos',
-  'blacklist': 'blacklist',
+  // ✅ (2026-10-11) الجدول الفعلي اسمه blacklist_entries (Migration 73) —
+  // الاسم القديم 'blacklist' كان يفشل VC bump بصمت (no such table).
+  'blacklist': 'blacklist_entries',
   'booking_price_adjustments': 'booking_price_adjustments',
   'price_adjustments': 'price_adjustments',
   'payment_voids': 'payment_voids',

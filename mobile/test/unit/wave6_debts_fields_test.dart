@@ -297,11 +297,13 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 72', () {
+    test('3e. أحدث schemaVersion = 74', () {
       // القيمة مقصودة صريحة: كل bump جديد يجب أن يحدّث هذا التأكيد عمداً.
       // Migration 72 يثبت فهرس علاقة expense_uuid في القواعد القديمة؛
       // beforeOpen ينشئ الفهرس نفسه في القواعد الجديدة.
-      expect(db.schemaVersion, 72);
+      // Migration 73: جدول blacklist_entries مستقل؛ Migration 74: حقول
+      // المزامنة لـ custom_list_items.
+      expect(db.schemaVersion, 74);
     });
   });
 

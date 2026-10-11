@@ -39,7 +39,8 @@ class VectorClockHelper {
     'booking_price_adjustments': 'booking_price_adjustments',
     'guest_infos': 'guest_infos',
     'salary_withdrawals': 'salary_withdrawals',
-    'blacklist': 'blacklist',
+    // الجدول المحلي الفعلي (Migration 73) — وليس 'blacklist'
+    'blacklist': 'blacklist_entries',
     'price_adjustments': 'price_adjustments',
     'payment_voids': 'payment_voids',
   };
