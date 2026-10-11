@@ -443,6 +443,32 @@ class ShiftNotes extends Table with SyncFields {
   ];
 }
 
+// جدول القائمة السوداء — مستقل عن shift_notes
+// مطابق لجدول blacklist_entries في Android (Native Kotlin)
+class BlacklistEntries extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get nationality => text().nullable()();
+  TextColumn get nationalId => text().nullable()();
+  TextColumn get phone => text().nullable()();
+  TextColumn get reason => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  TextColumn get reportedBy => text().withDefault(const Constant('police'))();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+
+  // فهارس لتسريع البحث
+  List<Index> get indexes => [
+    Index(
+      'idx_blacklist_entries_active',
+      'CREATE INDEX idx_blacklist_entries_active ON blacklist_entries (active) WHERE deleted_at IS NULL',
+    ),
+    Index(
+      'idx_blacklist_entries_search',
+      'CREATE INDEX idx_blacklist_entries_search ON blacklist_entries (name, phone, national_id, nationality) WHERE deleted_at IS NULL AND active = 1',
+    ),
+  ];
+}
+
 @DataClassName('BookingNight')
 class BookingNights extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
@@ -1267,6 +1293,7 @@ class SyncRemoteMeta extends Table {
     Bookings,
     BookingNotes,
     ShiftNotes,
+    BlacklistEntries,
     Employees,
     Expenses,
     CashTransactions,
@@ -1307,7 +1334,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 72;
+  int get schemaVersion => 73;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1443,6 +1470,62 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 72: idx_salary_withdrawals_active_expense skipped: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+      // ✅ (2026-10-11) الإصدار 73: جدول blacklist_entries مستقل عن shift_notes
+      // (تعليمات: «blacklist هنا يتم اضافة اسماء اشخاص مطلوبين امنيا لدى الشرطة
+      // ويتم تسجيلهم في جدول blacklist وفي حالة احد المطلوبين المسجلين في blacklist
+      // تم تسجيلة في جدول الحجوزات يتم ارسال اشعار على الشاشة الرئيسية»)
+      // مطابقة لجدول blacklist_entries في Android (Native Kotlin branch).
+      if (from < 73) {
+        try {
+          await m.database.customStatement('''
+            CREATE TABLE IF NOT EXISTS blacklist_entries (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              name TEXT NOT NULL,
+              nationality TEXT,
+              national_id TEXT,
+              phone TEXT,
+              reason TEXT,
+              notes TEXT,
+              reported_by TEXT NOT NULL DEFAULT 'police',
+              active INTEGER NOT NULL DEFAULT 1,
+              local_uuid TEXT NOT NULL DEFAULT '',
+              server_id INTEGER,
+              created_at INTEGER NOT NULL DEFAULT 0,
+              updated_at INTEGER NOT NULL DEFAULT 0,
+              deleted_at INTEGER,
+              last_modified INTEGER NOT NULL DEFAULT 0,
+              created_at_iso TEXT,
+              updated_at_iso TEXT,
+              deleted_at_iso TEXT,
+              created_at_epoch INTEGER NOT NULL DEFAULT 0,
+              last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+              version INTEGER NOT NULL DEFAULT 1,
+              origin TEXT NOT NULL DEFAULT 'local',
+              vector_clock TEXT NOT NULL DEFAULT '{}',
+              device_id TEXT NOT NULL DEFAULT '',
+              sync_timestamp INTEGER NOT NULL DEFAULT 0,
+              idempotency_key TEXT
+            )
+            ''');
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_blacklist_entries_active '
+            'ON blacklist_entries (active) WHERE deleted_at IS NULL'
+          );
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_blacklist_entries_search '
+            'ON blacklist_entries (name, phone, national_id, nationality) WHERE deleted_at IS NULL AND active = 1'
+          );
+          developer.log(
+            'Migration 73: blacklist_entries table created',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 73: blacklist_entries creation skipped: $e',
             name: 'db.migration',
           );
         }
