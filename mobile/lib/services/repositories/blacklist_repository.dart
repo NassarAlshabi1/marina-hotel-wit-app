@@ -299,7 +299,9 @@ class BlacklistRepository {
       final nowIso = DateTime.now().toUtc().toIso8601String();
 
       final updated =
-          await (db.update(db.blacklistEntries)..where((t) => t.id.equals(id))).write(
+          await (db.update(
+            db.blacklistEntries,
+          )..where((t) => t.id.equals(id))).write(
             BlacklistEntriesCompanion(
               deletedAt: d.Value(now),
               deletedAtIso: d.Value(nowIso),

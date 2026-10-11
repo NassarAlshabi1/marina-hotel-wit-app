@@ -1539,11 +1539,11 @@ class AppDatabase extends _$AppDatabase {
             ''');
           await m.database.customStatement(
             'CREATE INDEX IF NOT EXISTS idx_blacklist_entries_active '
-            'ON blacklist_entries (active) WHERE deleted_at IS NULL'
+            'ON blacklist_entries (active) WHERE deleted_at IS NULL',
           );
           await m.database.customStatement(
             'CREATE INDEX IF NOT EXISTS idx_blacklist_entries_search '
-            'ON blacklist_entries (name, phone, national_id, nationality) WHERE deleted_at IS NULL AND active = 1'
+            'ON blacklist_entries (name, phone, national_id, nationality) WHERE deleted_at IS NULL AND active = 1',
           );
           developer.log(
             'Migration 73: blacklist_entries table created',
@@ -1554,7 +1554,7 @@ class AppDatabase extends _$AppDatabase {
             'Migration 73: blacklist_entries creation skipped: $e',
             name: 'db.migration',
           );
-}
+        }
       }
 
       // ✅ (2026-10-11) الإصدار 74: إضافة حقول المزامنة إلى custom_list_items
@@ -1593,7 +1593,7 @@ class AppDatabase extends _$AppDatabase {
           // الفهرس الفريد المطابق للأندرويد
           await m.database.customStatement(
             'CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_list_key_name '
-            'ON custom_list_items (list_key, name) WHERE deleted_at IS NULL'
+            'ON custom_list_items (list_key, name) WHERE deleted_at IS NULL',
           );
           developer.log(
             'Migration 74: custom_list_items sync fields added',
