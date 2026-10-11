@@ -8382,6 +8382,7 @@ class AppwriteSyncManager {
           if (adj != null && adj.bookingLocalId != null) {
             await _bookingsRepository.derivedFields.refreshForBookingId(
               adj.bookingLocalId!,
+              enqueueOutbox: false,
             );
           }
         }
@@ -8439,6 +8440,7 @@ class AppwriteSyncManager {
             if (adj != null && adj.bookingLocalId != null) {
               await _bookingsRepository.derivedFields.refreshForBookingId(
                 adj.bookingLocalId!,
+                enqueueOutbox: false,
               );
             }
           }
@@ -8537,6 +8539,7 @@ class AppwriteSyncManager {
                 await derivedFieldsService.refreshForBookingId(
                   booking.id,
                   forceRebuild: true,
+                  enqueueOutbox: false,
                 );
               }
             }
@@ -9302,6 +9305,7 @@ class AppwriteSyncManager {
           try {
             await _bookingsRepository.derivedFields.refreshForBookingId(
               bookingId,
+              enqueueOutbox: false,
             );
           } catch (e) {
             dwarn(() => 'refreshForBookingId($bookingId) failed: $e');

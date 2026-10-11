@@ -70,7 +70,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     try {
       final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
-      await derivedService.refreshAllActiveBookings();
+      await derivedService.refreshAllActiveBookings(enqueueOutbox: false);
     } catch (_) {}
     await _fetchReport();
   }

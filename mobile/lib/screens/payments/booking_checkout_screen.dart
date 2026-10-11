@@ -58,7 +58,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
-    await derivedService.refreshForBookingId(widget.booking.id);
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      enqueueOutbox: false,
+    );
   }
 
   DateTime? _parseDateTime(String? value) => DateParser.parse(value);

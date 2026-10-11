@@ -131,6 +131,7 @@ class EnhancedBookingCalculationService {
       booking: booking,
       breakdown: calculation.breakdown,
       forceRebuild: true,
+      enqueueOutbox: false,
     );
 
     final summary = calculation.financialSummary;
@@ -158,25 +159,6 @@ class EnhancedBookingCalculationService {
         updatedAtIso: d.Value(stampIso),
       ),
     );
-
-    final updatedBooking = await (db.select(
-      db.bookings,
-    )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
-    if (updatedBooking != null) {
-      final bookingsDao = BookingsDao(db, _outboxDao);
-      final payload = await bookingsDao.payloadForLocalUuid(
-        updatedBooking.localUuid,
-      );
-      if (payload != null) {
-        await _outboxDao.merge(
-          entity: 'bookings',
-          op: 'update',
-          localUuid: updatedBooking.localUuid,
-          payload: payload,
-          clientTs: stamp,
-        );
-      }
-    }
   }
 
   Future<List<NightlyBreakdown>> _buildNightlyBreakdown(
