@@ -5445,9 +5445,19 @@ class AppwriteSyncManager {
 
   /// رفع التغييرات المحلية إلى Appwrite فوراً
   /// ✅ P1-3 fix: يُرجع عدد السجلات المدفوعة فعلياً بدل bool
+  /// ✅ P1-3 موسّع: يُرجع `-1` عند الفشل الحقيقي (فشل `sync()` أو استثناء)
+  /// حتى لا يعرض النداء «نجاح» كاذماً عند بقاء Outbox ممتلئاً.
   Future<int> pushLocalChanges() async {
     try {
       final result = await sync(pull: false);
+      if (result.status == SyncStatus.failed) {
+        _logger.warning(
+          'pushLocalChanges: sync() returned failed — '
+          '${result.errorMessage ?? 'unknown'}',
+          tag: 'SYNC',
+        );
+        return -1;
+      }
       return result.recordsPushed;
     } catch (e, stackTrace) {
       _logger.error(
@@ -5461,7 +5471,7 @@ class AppwriteSyncManager {
         error: e.toString(),
         stackTrace: stackTrace,
       );
-      return 0;
+      return -1;
     }
   }
 
