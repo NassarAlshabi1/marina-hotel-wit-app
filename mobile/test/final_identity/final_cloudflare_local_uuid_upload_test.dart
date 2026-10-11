@@ -20,7 +20,8 @@ void main() {
     );
 
     final source = CloudflareD1SourceTable(
-      name: 'employees', rowCount: 1,
+      name: 'employees',
+      rowCount: 1,
       readChunk: (limit, offset) async => [
         {'local_uuid': 'EMP-A', 'name': 'A'},
       ],

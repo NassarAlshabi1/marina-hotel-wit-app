@@ -83,7 +83,8 @@ class BlacklistRepository {
       reportedBy: row.reportedBy,
       active: row.active,
       createdAt: row.createdAtIso != null
-          ? DateTime.tryParse(row.createdAtIso!) ?? DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000)
+          ? DateTime.tryParse(row.createdAtIso!) ??
+                DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000)
           : DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000),
       localUuid: row.localUuid,
       serverId: row.serverId,
@@ -99,10 +100,11 @@ class BlacklistRepository {
   }
 
   Future<List<BlacklistEntry>> listAll() async {
-    final rows = await (db.select(db.blacklist)
-          ..where((t) => t.deletedAt.isNull())
-          ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]))
-        .get();
+    final rows =
+        await (db.select(db.blacklist)
+              ..where((t) => t.deletedAt.isNull())
+              ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]))
+            .get();
     return rows.map(_fromRow).toList();
   }
 
@@ -308,10 +310,9 @@ class BlacklistRepository {
   /// تطابق: الاسم الكامل أو أول 3 أسماء متطابقة
   /// ✅ إصلاح: استبعاد المحذوفة ناعماً
   Future<BlacklistEntry?> findBlacklistMatch(String name) async {
-    final rows = await (db.select(db.blacklist)..where(
-          (t) => t.deletedAt.isNull(),
-        ))
-        .get();
+    final rows = await (db.select(
+      db.blacklist,
+    )..where((t) => t.deletedAt.isNull())).get();
     final nNorm = _normalizeArabic(name);
     final nTokens = _tokens(name);
     for (final row in rows) {

@@ -680,11 +680,17 @@ void main() {
     // - app_users لم يعد يُرفع إلى D1 إطلاقاً (متزامن عبر Appwrite outbox مباشرة)
     //   → لا جداول تركيبية في مسار D1 بعد الآن.
     // - blacklist صار جدول Drift حقيقي ضمن الجداول المتزامنة (بلا صفوف تركيبية).
-    expect(kD1SyntheticTables, isEmpty,
-        reason: 'لا مصادر تركيبية بعد إزالة app_users من مسار D1');
+    expect(
+      kD1SyntheticTables,
+      isEmpty,
+      reason: 'لا مصادر تركيبية بعد إزالة app_users من مسار D1',
+    );
     expect(kAppwriteSyncedTables, isNot(contains('app_users')));
-    expect(kAppwriteSyncedTables, contains('blacklist'),
-        reason: 'blacklist جدول متزامن حقيقي منذ migration 72');
+    expect(
+      kAppwriteSyncedTables,
+      contains('blacklist'),
+      reason: 'blacklist جدول متزامن حقيقي منذ migration 72',
+    );
   });
 
   test('الفجوة F2: بناء صفوف app_users التركيبية — الدمج والأمان والثبات', () {

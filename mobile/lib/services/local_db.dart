@@ -456,8 +456,7 @@ class Blacklist extends Table with SyncFields {
   TextColumn get reason => text().nullable()();
   TextColumn get notes => text().nullable()();
   TextColumn get reportedBy => text().withDefault(const Constant('police'))();
-  BoolColumn get active =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
   // ✅ override لـ SyncFields.createdAt (نفس النوع) — يبطل تحذير annotate_overrides.
   @override
   IntColumn get createdAt => integer()();

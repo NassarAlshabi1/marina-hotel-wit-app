@@ -672,7 +672,7 @@ class PayloadMapper {
   }
 
   /// يحوّل سجل [ShiftNote] (يُستخدم كـ blacklist محلي) إلى payload لـ Appwrite.
-    Map<String, dynamic> blacklistToRemote(BlacklistData item) {
+  Map<String, dynamic> blacklistToRemote(BlacklistData item) {
     final now = Time.nowEpoch();
     final createdAtIso =
         item.createdAtIso ??
@@ -726,6 +726,7 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'idempotencyKey', item.idempotencyKey);
     return data;
   }
+
   Map<String, dynamic> guestInfoToRemote(GuestInfo info) {
     final now = Time.nowEpoch();
     final data = <String, dynamic>{

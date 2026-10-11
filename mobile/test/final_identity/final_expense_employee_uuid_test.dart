@@ -16,19 +16,31 @@ void main() {
 
   test('salary expense stores employeeUuid at creation time', () async {
     final id = await repo.create(
-      expenseType: 'سحب راتب', description: 'x', amount: 100,
-      date: '2026-10-01', relatedId: 7, employeeUuid: 'EMP-UUID-1',
+      expenseType: 'سحب راتب',
+      description: 'x',
+      amount: 100,
+      date: '2026-10-01',
+      relatedId: 7,
+      employeeUuid: 'EMP-UUID-1',
     );
-    final row = await (db.select(db.expenses)..where((e) => e.id.equals(id))).getSingle();
+    final row = await (db.select(
+      db.expenses,
+    )..where((e) => e.id.equals(id))).getSingle();
     expect(row.employeeUuid, 'EMP-UUID-1');
   });
 
   test('employeeUuid is not silently replaced by relatedId', () async {
     final id = await repo.create(
-      expenseType: 'سحب راتب', description: 'x', amount: 100,
-      date: '2026-10-01', relatedId: 999, employeeUuid: 'EMP-REAL',
+      expenseType: 'سحب راتب',
+      description: 'x',
+      amount: 100,
+      date: '2026-10-01',
+      relatedId: 999,
+      employeeUuid: 'EMP-REAL',
     );
-    final row = await (db.select(db.expenses)..where((e) => e.id.equals(id))).getSingle();
+    final row = await (db.select(
+      db.expenses,
+    )..where((e) => e.id.equals(id))).getSingle();
     expect(row.relatedId, 999);
     expect(row.employeeUuid, 'EMP-REAL');
   });

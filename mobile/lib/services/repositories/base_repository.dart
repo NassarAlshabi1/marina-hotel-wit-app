@@ -200,8 +200,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     final compact = trimmed.replaceAll('-', '');
     if (compact.length == 32 && !compact.contains(RegExp(r'[^0-9a-fA-F]'))) {
       return '${compact.substring(0, 8)}-${compact.substring(8, 12)}-'
-          '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
-          '${compact.substring(20)}'.toLowerCase();
+              '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
+              '${compact.substring(20)}'
+          .toLowerCase();
     }
     return trimmed.toLowerCase();
   }
@@ -222,9 +223,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     // Verify the physical schema as a fail-closed guard against an incomplete
     // migration rather than silently falling back to id.
     final tableName = table.actualTableName.replaceAll("'", "''");
-    final rows = await db
-        .customSelect("PRAGMA index_list('$tableName')")
-        .get();
+    final rows = await db.customSelect("PRAGMA index_list('$tableName')").get();
     var localUuidUnique = false;
     for (final row in rows) {
       final isUnique = row.data['unique'] == 1 || row.data['unique'] == true;
@@ -251,7 +250,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       );
     }
 
-    return [<Column>[localUuid]];
+    return [
+      <Column>[localUuid],
+    ];
   }
 
   Future<List<List<Column>>> _resolveConflictTargets() async {

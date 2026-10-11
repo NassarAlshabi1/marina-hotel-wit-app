@@ -6846,13 +6846,13 @@ class AppwriteSyncManager {
           origin: const drift.Value('server'),
           vectorClock: drift.Value(
             (data['vectorClock'] as String?) ??
-            (data['vector_clock'] as String?) ??
-            '{}',
+                (data['vector_clock'] as String?) ??
+                '{}',
           ),
           deviceId: drift.Value((data['deviceId'] as String?) ?? ''),
           idempotencyKey: drift.Value(
             (data['idempotencyKey'] as String?) ??
-            (data['idempotency_key'] as String?),
+                (data['idempotency_key'] as String?),
           ),
           localUuid: drift.Value(localUuid),
           serverId: serverId != null
@@ -6882,6 +6882,7 @@ class AppwriteSyncManager {
     }
     return processed;
   }
+
   Future<bool> _processPaymentVoidEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       // ✅ Wave 5: durable tombstone

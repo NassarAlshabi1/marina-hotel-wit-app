@@ -40,6 +40,7 @@ class _SalaryTxRow {
 
   final int id;
   final DateTime date;
+
   /// Stable employee identity used for reporting/grouping across devices.
   /// Never use the local SQLite employee id as the cross-device identity.
   final String? employeeUuid;
@@ -464,7 +465,10 @@ class _SalaryWithdrawalsReportScreenState
     final selectedEmpName = _selectedEmployeeUuid != null
         ? _employeeDisplayName(
             _allEmployees
-                .where((e) => e.localUuid.trim().toLowerCase() == _selectedEmployeeUuid)
+                .where(
+                  (e) =>
+                      e.localUuid.trim().toLowerCase() == _selectedEmployeeUuid,
+                )
                 .firstOrNull,
           )
         : null;
@@ -764,9 +768,7 @@ class _SalaryWithdrawalsReportScreenState
                     Expanded(
                       child: Text(
                         _selectedEmployeeUuid != null
-                            ? 'سحبيات: ${_employeeDisplayName(_allEmployees
-                                .where((e) => e.localUuid.trim().toLowerCase() == _selectedEmployeeUuid)
-                                .firstOrNull, fallback: "")} — ${filteredRows.length} عملية'
+                            ? 'سحبيات: ${_employeeDisplayName(_allEmployees.where((e) => e.localUuid.trim().toLowerCase() == _selectedEmployeeUuid).firstOrNull, fallback: "")} — ${filteredRows.length} عملية'
                             : 'جميع الموظفين — ${filteredRows.length} عملية',
                         style: TextStyle(
                           fontSize: 12,

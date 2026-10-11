@@ -1007,8 +1007,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         }
         return true;
       }).toList();
-      String? selectedEmployeeUuid =
-          existing?.employeeUuid?.trim().toLowerCase();
+      String? selectedEmployeeUuid = existing?.employeeUuid
+          ?.trim()
+          .toLowerCase();
       if ((selectedEmployeeUuid == null || selectedEmployeeUuid.isEmpty) &&
           existing?.relatedId != null) {
         selectedEmployeeUuid = allEmployees
@@ -1019,12 +1020,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       int? selectedEmployeeId = selectedEmployeeUuid == null
           ? null
           : availableEmployees
-              .where(
-                (e) =>
-                    e.localUuid.trim().toLowerCase() == selectedEmployeeUuid,
-              )
-              .map((e) => e.id)
-              .firstOrNull;
+                .where(
+                  (e) =>
+                      e.localUuid.trim().toLowerCase() == selectedEmployeeUuid,
+                )
+                .map((e) => e.id)
+                .firstOrNull;
 
       final ok = await showDialog<bool>(
         context: context,
@@ -1067,7 +1068,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           if (selectedType == _salaryType) {
                             if (availableEmployees.isNotEmpty) {
                               selectedEmployeeUuid ??= availableEmployees
-                                  .first.localUuid
+                                  .first
+                                  .localUuid
                                   .trim()
                                   .toLowerCase();
                               selectedEmployeeId = availableEmployees.first.id;
@@ -1093,7 +1095,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           items: availableEmployees
                               .map(
                                 (employee) => DropdownMenuItem<String>(
-                                  value: employee.localUuid.trim().toLowerCase(),
+                                  value: employee.localUuid
+                                      .trim()
+                                      .toLowerCase(),
                                   child: Text(
                                     employee.name,
                                     style: dropdownTextStyle,
@@ -1105,7 +1109,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             selectedEmployeeUuid = value;
                             selectedEmployeeId = availableEmployees
                                 .where(
-                                  (e) => e.localUuid.trim().toLowerCase() == value,
+                                  (e) =>
+                                      e.localUuid.trim().toLowerCase() == value,
                                 )
                                 .map((e) => e.id)
                                 .firstOrNull;
@@ -1253,11 +1258,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           final Employee? resolvedEmployee =
               isSalaryExpense && selectedEmployeeUuid != null
               ? availableEmployees
-                  .where(
-                    (e) =>
-                        e.localUuid.trim().toLowerCase() == selectedEmployeeUuid,
-                  )
-                  .firstOrNull
+                    .where(
+                      (e) =>
+                          e.localUuid.trim().toLowerCase() ==
+                          selectedEmployeeUuid,
+                    )
+                    .firstOrNull
               : null;
           if (isSalaryExpense && resolvedEmployee == null) {
             throw StateError(
@@ -1307,11 +1313,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           final Employee? resolvedEmployee =
               isSalaryExpense && selectedEmployeeUuid != null
               ? availableEmployees
-                  .where(
-                    (e) =>
-                        e.localUuid.trim().toLowerCase() == selectedEmployeeUuid,
-                  )
-                  .firstOrNull
+                    .where(
+                      (e) =>
+                          e.localUuid.trim().toLowerCase() ==
+                          selectedEmployeeUuid,
+                    )
+                    .firstOrNull
               : null;
           if (isSalaryExpense && resolvedEmployee == null) {
             throw StateError(

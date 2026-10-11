@@ -291,7 +291,8 @@ d.Value<String> _vUuid(
   Source src, {
   String? altKey,
 }) {
-  final raw = _asString(json, key, src) ??
+  final raw =
+      _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null);
   if (raw == null || raw.trim().isEmpty) return const d.Value.absent();
   final trimmed = raw.trim();
@@ -299,8 +300,9 @@ d.Value<String> _vUuid(
   if (compact.length == 32 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(compact)) {
     return d.Value(
       '${compact.substring(0, 8)}-${compact.substring(8, 12)}-'
-      '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
-      '${compact.substring(20)}'.toLowerCase(),
+              '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
+              '${compact.substring(20)}'
+          .toLowerCase(),
     );
   }
   return d.Value(trimmed.toLowerCase());
