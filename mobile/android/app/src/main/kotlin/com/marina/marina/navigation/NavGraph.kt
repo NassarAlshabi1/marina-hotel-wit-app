@@ -44,6 +44,7 @@ import com.marina.marina.presentation.rooms.RoomsListScreen
 import com.marina.marina.presentation.settings.BookingsReminderScreen
 import com.marina.marina.presentation.settings.CloudflareSyncSettingsScreen
 import com.marina.marina.presentation.settings.MaintenanceScreen
+import com.marina.marina.presentation.settings.SettingsCustomListsScreen
 import com.marina.marina.presentation.settings.SettingsScreen
 import com.marina.marina.presentation.settings.SyncHealthScreen
 import com.marina.marina.presentation.settings.SyncDiagnosticsScreen
@@ -369,6 +370,11 @@ fun MarinaNavGraph(
         }
         composable(Screen.BookingsReminder.route) {
             BookingsReminderScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.CustomLists.route) {
+            SettingsCustomListsScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(Screen.LocalBackup.route) {
             val authState by authViewModel.authState.collectAsState()

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.NightlightRound
 import androidx.compose.material.icons.filled.Notifications
@@ -125,7 +126,8 @@ fun SettingsScreen(
         HubItem("إدارة الضيوف", "عرض تاريخ وإحصائيات الضيوف", Icons.Default.Person, DartColors.green, route = "information"),
         HubItem("القائمة السوداء", "إضافة/إدارة الأشخاص المطلوبين", Icons.Default.Gavel, DartColors.red, route = "blacklist"),
         HubItem("المخزون", "الأصناف والرصيد والوارد والصرف والجرد", Icons.Default.Inventory2, DartColors.brown, route = "inventory"),
-        HubItem("الاستحقاقات", "استحقاقات الرواتب للموظفين", Icons.Default.Payment, DartColors.indigo, route = "salary_entitlements")
+        HubItem("الاستحقاقات", "استحقاقات الرواتب للموظفين", Icons.Default.Payment, DartColors.indigo, route = "salary_entitlements"),
+        HubItem("القوائم المنسدلة", "إدارة أنواع المصروفات والهوية والدفع", Icons.Default.ListAlt, DartColors.teal, route = "custom_lists")
     )
     val syncItems = listOf(
         HubItem(
@@ -364,6 +366,7 @@ private object DartColors {
     val indigo = Color(0xFF3F51B5)
     val red = Color(0xFFF44336)
     val brown = Color(0xFF795548)
+    val teal = Color(0xFF009688)
     val amber700 = Color(0xFFFFA000)
     val grey: Color
         @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
