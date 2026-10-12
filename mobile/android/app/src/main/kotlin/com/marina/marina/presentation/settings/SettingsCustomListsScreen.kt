@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -146,7 +147,7 @@ fun SettingsCustomListsScreen(
                             }
                         }
                     }
-                )
+                }
 
                 Spacer(modifier = Modifier.padding(16.dp))
 
@@ -248,7 +249,7 @@ private fun CustomListTabContent(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        androidx.compose.foundation.lazy.items(sortedItems) { item ->
+        items(sortedItems) { item ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -280,33 +281,24 @@ private fun CustomListTabContent(
                     androidx.compose.foundation.layout.Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        IconButton(
-                            onClick = { onToggleActive(item) },
-                            contentDescription = if (item.isActive) "تعطيل" else "تفعيل"
-                        ) {
+                        IconButton(onClick = { onToggleActive(item) }) {
                             Icon(
                                 Icons.Default.PowerSettingsNew,
-                                contentDescription = null,
+                                contentDescription = if (item.isActive) "تعطيل" else "تفعيل",
                                 tint = if (item.isActive) AppColors.SuccessColor else AppColors.TextSecondary
                             )
                         }
-                        IconButton(
-                            onClick = { onEdit(item) },
-                            contentDescription = "تعديل"
-                        ) {
+                        IconButton(onClick = { onEdit(item) }) {
                             Icon(
                                 Icons.Default.Edit,
-                                contentDescription = null,
+                                contentDescription = "تعديل",
                                 tint = AppColors.InfoColor
                             )
                         }
-                        IconButton(
-                            onClick = { onDelete(item) },
-                            contentDescription = "حذف"
-                        ) {
+                        IconButton(onClick = { onDelete(item) }) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = null,
+                                contentDescription = "حذف",
                                 tint = AppColors.DangerColor
                             )
                         }
@@ -315,6 +307,7 @@ private fun CustomListTabContent(
             }
         }
         if (sortedItems.isEmpty()) {
+            item {
             androidx.compose.foundation.layout.Box(
                 modifier = Modifier.fillMaxSize().padding(32.dp),
                 contentAlignment = Alignment.Center
@@ -327,6 +320,7 @@ private fun CustomListTabContent(
                     Text("لا توجد عناصر", style = AppTypography.bodyLarge, color = AppColors.TextSecondary)
                     Text("اضغط + لإضافة أول عنصر", style = AppTypography.bodySmall, color = AppColors.TextSecondary)
                 }
+            }
             }
         }
     }
@@ -365,11 +359,11 @@ private fun CustomListItemDialog(
                     onValueChange = { sortOrder = it.toIntOrNull() ?: 0 },
                     label = { Text("الترتيب") },
                     singleLine = true,
-                    keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (!isEditing) {
-                    androidx.compose.material3.Row(
+                    androidx.compose.foundation.layout.Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

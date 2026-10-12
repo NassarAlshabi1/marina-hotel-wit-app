@@ -237,7 +237,7 @@ class SyncWireFieldParityTest {
     // ─── 3) blacklist: حقول الضيف ────────────────────────────────
 
     @Test
-    fun blacklistPullMapsGuestFieldsAndKeepsAddedBy() = runBlocking {
+    fun blacklistPullMapsGuestFieldsAndDropsServerOnlyColumns() = runBlocking {
         val report = registry.ingestPage(
             listOf(
                 wire(
@@ -260,8 +260,9 @@ class SyncWireFieldParityTest {
         assertEquals("777123456", row.phone)
         assertEquals("00123456", row.nationalId)
         assertFalse(row.active)
-        assertEquals("الاستقبال", row.addedBy)
-        assertEquals("2026-10-01", row.addedDate)
+        // بعد مواءمة 00765868 مع Flutter (مصدر الحقيقة): عمودا added_by/
+        // added_date خادميان فقط ولا وجود لهما في كيان Android/Flutter —
+        // يُهملان صامتين عند الاستيعاب (يستمر الصف في التطبيق بنجاح).
     }
 
     // ─── 4) salary_withdrawals: هوية المصروف المرتبط ─────────────

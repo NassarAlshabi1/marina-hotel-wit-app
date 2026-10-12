@@ -3,10 +3,12 @@ package com.marina.marina.presentation.blacklist
 import android.util.Log
 import com.marina.marina.data.blacklist.BlacklistAlertStore
 import com.marina.marina.data.local.AppDatabase
-import com.marina.marina.data.repository.BlacklistRepository
 import com.marina.marina.domain.model.BlacklistEntry
+import com.marina.marina.domain.repository.BlacklistRepository
+import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -43,9 +45,12 @@ class BlacklistAlertService @Inject constructor(
         val displayName: String = "${blacklistEntry.name} (غرفة $roomNumber)"
         val reasonText: String = blacklistEntry.reason ?: "سبب غير محدد"
 
-        fun toJson(): String = kotlinx.serialization.json.Json.encodeToString(this)
+        // Gson — نفس حزمة التسلسل المعتمدة في بقية المشروع (لا حاجة لإضافة
+        // kotlinx-serialization إلى إعدادات البناء من أجل ميزة واحدة).
+        fun toJson(): String = gson.toJson(this)
         companion object {
-            fun fromJson(json: String): BlacklistAlert = kotlinx.serialization.json.Json.decodeFromString(json)
+            private val gson = Gson()
+            fun fromJson(json: String): BlacklistAlert = gson.fromJson(json, BlacklistAlert::class.java)
         }
     }
 
@@ -154,7 +159,7 @@ class BlacklistAlertService @Inject constructor(
         scope.launch(Dispatchers.IO) {
             try {
                 val savedAlerts = alertStore.loadAlerts()
-                if (savedAlerts.isEmpty()) return
+                if (savedAlerts.isEmpty()) return@launch
 
                 val allEntries = blacklistRepository.getActive().firstOrNull() ?: emptyList()
                 val activeEntries = allEntries.filter { it.active }.associateBy { it.name }

@@ -7,11 +7,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.marina.marina.presentation.blacklist.BlacklistAlertService
+import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,7 +34,8 @@ class BlacklistAlertStore @Inject constructor(
     val alertsJsonFlow: Flow<String?> = context.blacklistAlertDataStore.data.map { it[ALERTS_JSON] }
 
     suspend fun saveAlerts(alerts: List<BlacklistAlertService.BlacklistAlert>) {
-        val jsonStr = Json.encodeToString(alerts.map { it.toJson() })
+        // Gson — حزمة التسلسل المعتمدة في المشروع (بدون kotlinx-serialization).
+        val jsonStr = Gson().toJson(alerts.map { it.toJson() })
         context.blacklistAlertDataStore.edit { it[ALERTS_JSON] = jsonStr }
     }
 
@@ -42,7 +43,7 @@ class BlacklistAlertStore @Inject constructor(
         val jsonStr = alertsJsonFlow.first() ?: return emptyList()
         if (jsonStr.isBlank()) return emptyList()
         try {
-            val list = Json.decodeFromString<List<String>>(jsonStr)
+            val list = Gson().fromJson(jsonStr, Array<String>::class.java).toList()
             return list.map { BlacklistAlertService.BlacklistAlert.fromJson(it) }
         } catch (e: Exception) {
             return emptyList()
