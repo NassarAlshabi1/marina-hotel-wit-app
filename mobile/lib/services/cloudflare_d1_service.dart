@@ -26,11 +26,35 @@ class CloudflareD1Service {
   /// ✅ تسريع الرفع (مُثبت تجريبياً على هذا الحساب 2026-09-05):
   /// النمط الحرفي (عبارات INSERT بلا معاملات، منضمة بـ ";\n") نجح بـ 800
   /// عبارة (187KB) في نداء واحد خلال 635ms — والزمن شبه ثابت من 50 حتى
-  /// 800 عبارة (يقوده RTT لا الحجم). لذلك توحيد كل الجداول على النمط
-  /// الحرفي بدفعة 200 عبارة (~46KB نموذجياً — هامش أمان كبير للصفوف
-  /// العريضة) بدل نمط المعاملات الذي كان يرسل 96÷عدد الأعمدة صفاً
-  /// لكل نداء (3-5 صفوف فقط للجداول المتزامنة → آلاف النداءات).
-  static const int _statementBatch = 200;
+  /// 800 عبارة (يقوده RTT ~0.6s لا الحجم) بدل نمط المعاملات الذي كان يرسل
+  /// 96÷عدد الأعمدة صفاً لكل نداء (3-5 صفوف فقط للجداول المتزامنة).
+  ///
+  /// ✅ تسريع إضافي (2026-10-12): بما أن زمن النداء ثابت تقريباً، فالزمن
+  /// الكلي ≈ عدد النداءات × RTT — لذا رُفع سقف العبارات من 200 إلى 800
+  /// (نفس القيمة المثبتة تجريبياً) ووُزّعت الدفعات بالتوازي المحدود
+  /// (‏_maxParallelCalls) بدل الانتظار التسلسلي لكل نداء.
+  /// المقاس في اختبار الانحدار (test/unit/cloudflare_d1_upload_speed_test):
+  /// 5000 صف ضيق = 10 نداءات بدل 25 (‏2.5×)؛ و5000 صف عريض = 15 بدل 25
+  /// لأن _maxBatchChars (128KB) يتقدّم على سقف العدد — والسقف لا يُرفع فوق
+  /// القيمة المثبتة تجريبياً.
+  static const int _statementBatch = 800;
+
+  /// ✅ تسريع إضافي (2026-10-12): حتى هذا العدد من النداءات يكون في الطيران
+  /// داخل الجدول الواحد. صفوف الجدول الواحد هويتها فريدة (UPSERT على
+  /// local_uuid أو INSERT OR REPLACE على المفتاح المحلي) فلا يُنشئ التوازي
+  /// تعارضاً، بينما ترتيب الجداول نفسه يبقى متسلسلاً لحفظ علاقات
+  /// FOREIGN KEY (D1 يفرضها افتراضياً).
+  /// التوازي محافظ عن قصد: D1 أحادي الخيط ويُصدر "overloaded" عند تجاوز
+  /// طابوره، وسقف Cloudflare العام 1200 طلب/5 دقائق لكل مستخدم.
+  static const int _maxParallelCalls = 3;
+
+  /// محاولات إعادة الطلب عند أعطال الشبكة (كما كان: محاولة إضافية واحدة).
+  static const int _networkAttempts = 2;
+
+  /// محاولات إعادة الطلب عند ردود عابرة: 429 (سقف معدل Cloudflare) و5xx —
+  /// أرخص من عطل الشبكة وأكثر احتمالاً مع التوازي، فتُمنح محاولات أكثر
+  /// بمهلة تصاعدية تحترم Retry-After. الكتابة idempotent فالإعادة آمنة.
+  static const int _statusAttempts = 4;
 
   /// سقف حجم الدفعة الحرفية بالأحرف (UTF-16؛ عدد الأحرف ≥ بايتات UTF-8
   /// للنصوص العربية — تقدير متحفظ بالاتجاه الآمن). المثبت تجريبياً على
@@ -62,10 +86,13 @@ class CloudflareD1Service {
       'Authorization': 'Bearer ${config.apiToken}',
       'Content-Type': 'application/json',
     };
-    // إعادة محاولة واحدة عند أعطال الشبكة — عمليات الرفع مصممة لتكون idempotent
-    // عبر local_uuid/مفتاح السجل المناسب.
+    // إعادة محاولة عند أعطال الشبكة (محاولة إضافية واحدة كما كان) وعند
+    // الردود العابرة 429/5xx (بمهلة تصاعدية) — عمليات الرفع idempotent عبر
+    // local_uuid/مفتاح السجل المناسب، فالإعادة لا تُنشئ تكراراً.
     Object? lastError;
-    for (var attempt = 0; attempt < 2; attempt++) {
+    var networkAttempt = 0;
+    var statusAttempt = 0;
+    while (true) {
       try {
         final http.Response resp;
         if (method == 'GET') {
@@ -84,10 +111,17 @@ class CloudflareD1Service {
         final decoded =
             jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
         if (decoded['success'] != true) {
-          final errors = decoded['errors'];
+          final errors = decoded['errors']?.toString();
+          if (_isTransientStatus(resp.statusCode) &&
+              statusAttempt + 1 < _statusAttempts) {
+            lastError = 'HTTP ${resp.statusCode}: $errors';
+            await Future<void>.delayed(_retryDelay(statusAttempt, resp));
+            statusAttempt++;
+            continue;
+          }
           throw CloudflareD1Exception(
             'فشل نداء Cloudflare (HTTP ${resp.statusCode})',
-            details: errors?.toString(),
+            details: errors,
           );
         }
         return decoded;
@@ -95,13 +129,31 @@ class CloudflareD1Service {
         rethrow;
       } catch (e) {
         lastError = e;
-        if (attempt == 0) continue;
+        networkAttempt++;
+        if (networkAttempt >= _networkAttempts) break;
+        await Future<void>.delayed(_retryDelay(networkAttempt - 1, null));
       }
     }
     throw CloudflareD1Exception(
       'تعذر الاتصال بـ Cloudflare',
-      details: lastError?.toString(),
+      // lastError مضمونة التعيين: الحلقة لا تخرج إلا بعد التقاط خطأ.
+      details: lastError.toString(),
     );
+  }
+
+  /// رد عابر يستحق إعادة المحاولة: سقف المعدل أو عطل مؤقت في الخدمة.
+  static bool _isTransientStatus(int status) =>
+      status == 429 || status == 408 || status >= 500;
+
+  /// مهلة تصاعدية (300ms ثم 600ms ثم 1200ms) مع احترام Retry-After إن أرسله
+  /// Cloudflare (يُقيَّد بـ 10s حتى لا يتجمد الرفع بلا سبب).
+  static Duration _retryDelay(int attempt, http.Response? resp) {
+    final raw = resp?.headers['retry-after']?.trim();
+    final seconds = raw == null ? null : int.tryParse(raw);
+    if (seconds != null && seconds > 0) {
+      return Duration(milliseconds: (seconds * 1000).clamp(0, 10000));
+    }
+    return Duration(milliseconds: 300 * (1 << attempt));
   }
 
   /// تنفيذ SQL وإرجاع كل مجموعات النتائج (متعددة العبارات → مجموعات متعددة).
@@ -324,9 +376,27 @@ class CloudflareD1Service {
         List<Map<String, Object?>>? firstChunk;
         List<String> columns = const [];
         var rowsForTable = 0;
+        // ✅ تسريع (2026-10-12): حتى _maxParallelCalls دفعة في الطيران لهذا
+        // الجدول. الزمن الكلي يقوده زمن النداء الثابت (RTT) لا حجم العمل،
+        // فإخفاء زمن الشبكة بالتوازي مع دفعات أكبر (800 عبارة) يقلّص الزمن
+        // بعدد النداءات. النافذة تُفرَّغ قبل بدء الجدول التالي (والجداول نفسها
+        // بالتسلسل) حفظاً لترتيب علاقات FOREIGN KEY كما في المسار السابق.
+        final inFlight = <Future<void>>[];
+        Object? firstBatchError;
+        Future<void> awaitSlot() async {
+          if (inFlight.length < _maxParallelCalls) return;
+          await inFlight.removeAt(0);
+        }
+
+        Future<void> drainBatches() async {
+          while (inFlight.isNotEmpty) {
+            await inFlight.removeAt(0);
+          }
+        }
+
         // عدد الأعمدة يُستنتج من أول دفعة (أسماء الأعمدة من SELECT *).
         while (offset < t.rowCount) {
-          if (_cancelled) break;
+          if (_cancelled || firstBatchError != null) break;
           final chunk = await t.readChunk(_chunkSize, offset);
           if (chunk.isEmpty) break;
           firstChunk ??= chunk;
@@ -368,24 +438,47 @@ class CloudflareD1Service {
           }
           var bi = 0;
           while (bi < statements.length) {
-            if (_cancelled) break;
+            if (_cancelled || firstBatchError != null) break;
             final end = _batchEnd(statements, bi);
-            await executeStatements(statements.sublist(bi, end));
-            callCount++;
-            rowsForTable += end - bi;
-            onProgress?.call(
-              CloudflareD1Progress(
-                stage: 'رفع البيانات',
-                currentTable: t.name,
-                tableIndex: ti,
-                tableCount: totalTables,
-                rowsDone: rowsForTable,
-                rowsTotal: t.rowCount,
-              ),
-            );
+            final batch = statements.sublist(bi, end);
+            final batchRows = end - bi;
+            // ضغط خلفي: لا نبني الدفعة التالية قبل توفّر خانة في النافذة،
+            // فلا تتكدّس عبارات جدول كبير في الذاكرة.
+            await awaitSlot();
+            inFlight.add(() async {
+              try {
+                await executeStatements(batch);
+              } catch (e) {
+                // أول فشل يوقف إرسال دفعات جديدة للجدول فوراً، ويُعاد إطلاقه
+                // بعد تفريغ النافذة ليُسجَّل خطأ الجدول برسالته الأصلية.
+                firstBatchError ??= e;
+                return;
+              }
+              callCount++;
+              rowsForTable += batchRows;
+              onProgress?.call(
+                CloudflareD1Progress(
+                  stage: 'رفع البيانات',
+                  currentTable: t.name,
+                  tableIndex: ti,
+                  tableCount: totalTables,
+                  rowsDone: rowsForTable,
+                  rowsTotal: t.rowCount,
+                ),
+              );
+            }());
             bi = end;
           }
           offset += chunk.length;
+        }
+        await drainBatches();
+        final batchError = firstBatchError;
+        if (batchError != null) {
+          if (batchError is CloudflareD1Exception) throw batchError;
+          throw CloudflareD1Exception(
+            '${t.name}: فشل تنفيذ دفعة',
+            details: batchError.toString(),
+          );
         }
         rowsUploaded += rowsForTable;
         doneTables.add(t.name);
