@@ -4042,7 +4042,6 @@ class AppwriteSyncManager {
       _processSalaryWithdrawalEntry(entry);
 
   Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
@@ -4051,6 +4050,14 @@ class AppwriteSyncManager {
     final orphans = <String>[];
     // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
     final employeeFkResolver = IdResolver(database);
+
+    // ✅ إصلاح (طابور يتامى دائم): نحاول أولاً استعادة سحوبات رواتب يتيمة
+    // من دورات سابقة — حتى لو وصلت هذه الدورة بلا مستندات جديدة إطلاقاً
+    // (`documents.isEmpty`)، فالموظف الناقص قد يكون وصل عبر مجموعة أخرى في
+    // هذه الدورة أو دورة سابقة. لذلك هذا الاستدعاء قبل أي عودة مبكرة.
+    processed += await _flushPendingSalaryWithdrawalOrphans(employeeFkResolver);
+
+    if (documents.isEmpty) return processed;
 
     // ✅ إزالة تكرار مستندات السحابة اليتيمة: نفس localUuid بعدة $ids
     // (بقايا حقبة ما قبل idempotency والنسخ الشامل بـ ID.unique()).
@@ -4151,6 +4158,14 @@ class AppwriteSyncManager {
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
           );
+          // ✅ إصلاح: حفظ المستند في طابور يتامى دائم (SharedPreferences)
+          // بدل تخطيه نهائياً. employeeId عمود NOT NULL على salary_withdrawals
+          // (local_db.dart) فلا يمكن حفظ الصف محلياً بلا موظف محلول كما
+          // تفعل payments/debts (bookingLocalId nullable هناك) — الطابور
+          // المعلّق هو البديل الدائم بدل الاعتماد على إعادة إرسال Appwrite
+          // لنفس المستند (قد يكون الـ checkpoint تجاوزه فعلاً فلا يُعاد
+          // سحبه أبداً في دورة Delta لاحقة). يُستأنف من [_flushPendingSalaryWithdrawalOrphans].
+          await _queueSalaryWithdrawalOrphan(data);
           continue;
         }
 
@@ -4259,6 +4274,192 @@ class AppwriteSyncManager {
     }
 
     return processed;
+  }
+
+  /// مفتاح SharedPreferences لطابور مسحوبات الرواتب اليتيمة المعلّقة
+  /// (مستند وصل من Appwrite أثناء السحب لكن موظفه غير موجود محلياً بعد).
+  ///
+  /// سبب الحاجة لطابور دائم بدل الاعتماد على دورة سحب لاحقة فقط: مؤشر
+  /// Delta لهذه المجموعة يتقدّم من `max($updatedAt)` لكل مستندات الصفحة
+  /// (unified_pull_engine.dart) بصرف النظر عن نجاح تطبيقها محلياً — فإن لم
+  /// يُحفظ المستند اليتيم هنا، لن يُعاد سحبه أبداً في دورة Delta قادمة (قد
+  /// يكون أقدم من المؤشر الجديد)، ويبقى ضائعاً صامتاً حتى يُشغَّل سكربت
+  /// backfill يدوي. تخزينه محلياً يجعل الاستعادة تلقائية فوراً عند توفّر
+  /// الموظف، بصرف النظر عن حالة مؤشر Delta.
+  static const String _pendingSalaryWithdrawalOrphansKey =
+      'salary_withdrawal_pending_orphans_v1';
+
+  /// سقف أمان ضد نمو غير محدود — مؤشر خلل جوهري (لا سيناريو تشغيلي طبيعي
+  /// يُنتج آلاف سحوبات رواتب يتيمة الموظف في فندق واحد).
+  static const int _maxPendingSalaryWithdrawalOrphans = 500;
+
+  Future<List<Map<String, dynamic>>>
+  _loadPendingSalaryWithdrawalOrphans() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_pendingSalaryWithdrawalOrphansKey);
+      if (raw == null || raw.isEmpty) return <Map<String, dynamic>>[];
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return <Map<String, dynamic>>[];
+      return decoded
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل قراءة طابور يتامى مسحوبات الرواتب المعلّق: $e',
+        tag: 'SYNC',
+      );
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<void> _savePendingSalaryWithdrawalOrphans(
+    List<Map<String, dynamic>> docs,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (docs.isEmpty) {
+        await prefs.remove(_pendingSalaryWithdrawalOrphansKey);
+        return;
+      }
+      await prefs.setString(
+        _pendingSalaryWithdrawalOrphansKey,
+        jsonEncode(docs),
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل حفظ طابور يتامى مسحوبات الرواتب المعلّق: $e',
+        tag: 'SYNC',
+      );
+    }
+  }
+
+  /// ✅ يضيف مستند سحب راتب يتيم (موظف غير موجود محلياً) إلى الطابور
+  /// المعلّق الدائم — انظر توثيق [_pendingSalaryWithdrawalOrphansKey].
+  Future<void> _queueSalaryWithdrawalOrphan(Map<String, dynamic> data) async {
+    final localUuid = data['localUuid']?.toString();
+    if (localUuid == null || localUuid.isEmpty) return;
+
+    final pending = await _loadPendingSalaryWithdrawalOrphans();
+    final byUuid = <String, Map<String, dynamic>>{
+      for (final d in pending)
+        if (d['localUuid']?.toString() != null) d['localUuid'].toString(): d,
+    };
+
+    if (!byUuid.containsKey(localUuid) &&
+        byUuid.length >= _maxPendingSalaryWithdrawalOrphans) {
+      _logger.error(
+        '🚨 طابور يتامى مسحوبات الرواتب تجاوز '
+        '$_maxPendingSalaryWithdrawalOrphans — تخطي $localUuid (مؤشر خلل '
+        'جوهري يحتاج تدخلاً، راجع '
+        'scripts/appwrite/backfill_salary_withdrawals_employee_uuid.js)',
+        tag: 'SYNC',
+      );
+      return;
+    }
+
+    byUuid[localUuid] = data; // آخر نسخة مستلمة لنفس السجل تفوز.
+    await _savePendingSalaryWithdrawalOrphans(byUuid.values.toList());
+  }
+
+  /// ✅ يعيد محاولة ربط سحوبات الرواتب اليتيمة المعلّقة من دورات سابقة.
+  ///
+  /// يُستدعى في بداية كل دورة سحب لـ salary_withdrawals (حتى لو وصلت هذه
+  /// الدورة بلا مستندات جديدة إطلاقاً) لأن الموظف الناقص قد يكون وصل عبر
+  /// مجموعة `employees` ضمن الدورة الحالية أو دورة سابقة. يُعيد عدد
+  /// السجلات التي استُعيدت بنجاح (تُضاف إلى `processed`).
+  Future<int> _flushPendingSalaryWithdrawalOrphans(
+    IdResolver employeeFkResolver,
+  ) async {
+    final pending = await _loadPendingSalaryWithdrawalOrphans();
+    if (pending.isEmpty) return 0;
+
+    var recovered = 0;
+    final stillPending = <Map<String, dynamic>>[];
+
+    for (final data in pending) {
+      try {
+        final remoteEmployeeId =
+            _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
+        final employeeUuid =
+            (data['employeeUuid'] as String?) ??
+            (data['employee_uuid'] as String?) ??
+            (data['employeeLocalUuid'] as String?) ??
+            (data['employee_local_uuid'] as String?);
+
+        final resolvedEmployeeId =
+            employeeUuid != null || remoteEmployeeId != null
+            ? await employeeFkResolver.resolveEmployee(
+                uuid: employeeUuid,
+                serverId: remoteEmployeeId,
+                fromRemote: true,
+              )
+            : null;
+
+        Employee? employee;
+        if (resolvedEmployeeId != null) {
+          employee =
+              await (database.select(database.employees)
+                    ..where((e) => e.id.equals(resolvedEmployeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+        }
+
+        if (employee == null) {
+          // لا يزال الموظف غائباً محلياً — يبقى في الطابور لدورة لاحقة.
+          stillPending.add(data);
+          continue;
+        }
+
+        data['employeeId'] = employee.id;
+        data['employeeUuid'] = employee.localUuid;
+
+        final insertedId = await _adapterRegistry.salaryWithdrawals
+            .upsertFromJson(data, src: Source.appwrite);
+
+        await _resolveAndWriteMirrorExpenseId(
+          insertedId,
+          expenseUuid: _asNullableString(
+            data['expenseUuid'] ?? data['expense_uuid'],
+          ),
+          rawExpenseId: _asIntSafe(data, 'expenseId'),
+        );
+
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'salary_withdrawals',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+
+        recovered++;
+        _logger.info(
+          '✅ استُعيد سحب راتب يتيم معلّق ${data['localUuid']} '
+          '→ employee #${employee.id}',
+          tag: 'SYNC_RELINK',
+        );
+      } catch (e) {
+        // فشل مؤقت (مثل FK constraint) — يبقى في الطابور ليُعاد لاحقاً.
+        stillPending.add(data);
+        _logger.warning(
+          '⚠️ فشلت محاولة استعادة سحب راتب يتيم معلّق '
+          '${data['localUuid']}: $e',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    }
+
+    if (recovered > 0) {
+      _logger.info(
+        '🔗 تم استرجاع $recovered/${pending.length} سحب راتب يتيم من الطابور المعلّق',
+        tag: 'SYNC_RELINK',
+      );
+    }
+
+    await _savePendingSalaryWithdrawalOrphans(stillPending);
+    return recovered;
   }
 
   Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
@@ -9160,7 +9361,6 @@ class AppwriteSyncManager {
 
       // 2. التحقق من السجلات اليتيمة - باستخدام JOIN بدل الأعمدة غير الموجودة
       // ✅ إصلاح: استخدام LEFT JOIN للتحقق من وجود الحجز بدلاً من booking_uuid_cache
-      // (booking_uuid_cache موجود فقط في جدول payments وليس في جدول debts)
       final orphanPayments = await database.customSelect('''
         SELECT COUNT(*) as count FROM payments p
         LEFT JOIN bookings b ON p.booking_local_id = b.id
@@ -9176,6 +9376,28 @@ class AppwriteSyncManager {
 
         // ✅ إصلاح: إعادة ربط المدفوعات اليتيمة بـ bookingUuidCache
         await _relinkOrphanedPayments();
+      }
+
+      // 2ب. ✅ إصلاح (مطابق للدفعات): الديون اليتيمة — booking_uuid_cache
+      // موجود فعلاً في جدول debts (Wave 6، local_db.dart:379) بالضبط كما في
+      // payments، لذا تخضع لنفس فحص واتجاه إعادة الربط التلقائي — قبل هذا
+      // الإصلاح كانت الديون التي تفشل في ربطها داخل دورة السحب (الحجز لم
+      // يُسحب بعد من جهاز آخر) تبقى غير مربوطة إلى الأبد بلا أي محاولة لاحقة.
+      final orphanDebts = await database.customSelect('''
+        SELECT COUNT(*) as count FROM debts d
+        LEFT JOIN bookings b ON d.booking_local_id = b.id
+        WHERE d.booking_local_id IS NOT NULL AND b.id IS NULL AND d.deleted_at IS NULL
+      ''').getSingle();
+
+      final orphanDebtCount = orphanDebts.read<int>('count');
+      if (orphanDebtCount > 0) {
+        _logger.warning(
+          '⚠️ يوجد $orphanDebtCount دين يتيم (بدون ربط بحجز موجود)',
+          tag: 'SYNC_INTEGRITY',
+        );
+
+        // ✅ إصلاح: إعادة ربط الديون اليتيمة بـ bookingUuidCache
+        await _relinkOrphanedDebts();
       }
 
       // 3. التحقق من سحوبات الرواتب اليتيمة
@@ -9296,7 +9518,9 @@ class AppwriteSyncManager {
 
       if (relinked > 0) {
         _logger.info(
-          '✅ تم إعادة ربط $relinked/$orphans.length دفعة يتيمة',
+          // ✅ إصلاح طفيف: كانت $orphans.length (بلا أقواس) تُفسَّر كـ
+          // toString() للقائمة + النص الحرفي ".length" بدل طول القائمة.
+          '✅ تم إعادة ربط $relinked/${orphans.length} دفعة يتيمة',
           tag: 'SYNC_RELINK',
         );
 
@@ -9325,6 +9549,95 @@ class AppwriteSyncManager {
     } catch (e, st) {
       _logger.error(
         '❌ فشل إعادة ربط المدفوعات اليتيمة',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
+      );
+    }
+  }
+
+  /// ✅ إعادة ربط الديون اليتيمة بحجوزاتها عبر bookingUuidCache.
+  ///
+  /// نفس مشكلة [_relinkOrphanedPayments] بالضبط وبنفس الحل — جدول `debts`
+  /// يحمل `bookingUuidCache` (Wave 6، local_db.dart:379) و[DebtsAdapter]
+  /// يترك `bookingLocalId` فارغاً عمداً عند فشل resolveBooking أثناء السحب
+  /// (debts_adapter.dart) بدل رفض السجل، تماماً كما تفعل المدفوعات. قبل
+  /// هذا الإصلاح لم يكن لهذه الحالة أي مسار إعادة ربط لاحق — الدين يبقى
+  /// يتيماً إلى الأبد إن فشلت محاولة الربط داخل دورة السحب (مثلاً الحجز لم
+  /// يصل بعد من جهاز آخر). الآن تُعاد المحاولة بعد كل مزامنة كاملة.
+  ///
+  /// ملاحظة: بعكس المدفوعات، لا توجد حقول مشتقة على `Bookings` تعتمد على
+  /// الديون (لا مجموع ديون مخزَّن على الحجز) — لذا لا حاجة لاستدعاء
+  /// `refreshForBookingId` بعد إعادة الربط هنا.
+  Future<void> _relinkOrphanedDebts() async {
+    try {
+      // ابحث عن الديون التي لها bookingUuidCache لكن bookingLocalId
+      // غير مربوط (NULL أو يشير لحجز غير موجود).
+      final orphans = await database
+          .customSelect(
+            'SELECT d.id, d.booking_uuid_cache, d.booking_local_id '
+            'FROM debts d '
+            'LEFT JOIN bookings b ON d.booking_local_id = b.id '
+            'WHERE d.booking_uuid_cache IS NOT NULL '
+            "AND d.booking_uuid_cache != '' "
+            'AND d.deleted_at IS NULL '
+            'AND (d.booking_local_id IS NULL OR b.id IS NULL)',
+            readsFrom: {database.debts, database.bookings},
+          )
+          .get();
+
+      if (orphans.isEmpty) {
+        return;
+      }
+
+      _logger.info(
+        '🔗 إعادة ربط ${orphans.length} دين يتيم عبر bookingUuidCache',
+        tag: 'SYNC_RELINK',
+      );
+
+      final resolver = IdResolver(database);
+      int relinked = 0;
+
+      for (final row in orphans) {
+        final debtId = row.read<int>('id');
+        final bookingUuid = row.read<String>('booking_uuid_cache');
+
+        // استخدم IdResolver لـ resolveBooking (يجرّب كلا صيغتي UUID).
+        final resolvedBookingId = await resolver.resolveBooking(
+          uuid: bookingUuid,
+        );
+
+        if (resolvedBookingId != null) {
+          // ✅ وجدنا الحجز — أعد الربط.
+          await (database.update(
+            database.debts,
+          )..where((t) => t.id.equals(debtId))).write(
+            DebtsCompanion(bookingLocalId: drift.Value(resolvedBookingId)),
+          );
+          relinked++;
+          _logger.debug(
+            '  ✅ Debt #$debtId → booking #$resolvedBookingId '
+            '(uuid: ${bookingUuid.substring(0, 8)}...)',
+            tag: 'SYNC_RELINK',
+          );
+        } else {
+          _logger.warning(
+            '  ❌ Debt #$debtId: could not resolve booking '
+            'uuid: $bookingUuid',
+            tag: 'SYNC_RELINK',
+          );
+        }
+      }
+
+      if (relinked > 0) {
+        _logger.info(
+          '✅ تم إعادة ربط $relinked/${orphans.length} دين يتيم',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إعادة ربط الديون اليتيمة',
         error: e,
         stackTrace: st,
         tag: 'SYNC_RELINK',
