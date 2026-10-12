@@ -66,7 +66,6 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   }
 
   DateTime? _parseDateTime(String? value) => DateParser.parse(value);
-  DateTime? _parseDateTime(String? value) => DateParser.parse(value);
 
   /// يتحقق من نظافة سجلات BookingNight:
   /// - لا تكرار في sequence
@@ -222,9 +221,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
 
     final totalDue = discount > 0 && discountType == "total"
         ? (nightTotal - discount).clamp(0.0, nightTotal)
-        : nightTotal;
 
-        : nightTotal;
 
     // ✅ الرصيد الفعلي (قاعدة موحدة مع المحرك): الدفعات الفعلية فقط —
     // غير الملغاة وغير المعلّقة، بغض النظر عن نوع الإيراد (deposit/service
