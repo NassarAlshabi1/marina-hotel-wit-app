@@ -206,6 +206,13 @@ class PaymentsRepository {
     String? roomNumber,
     String? notes,
     bool isPendingBalance = false,
+    // ✅ رابط دفعة بدين مسدَّد من شاشة الديون (Debts.localUuid) — يجعل
+    // تسديد الدين دفعة حقيقية في جدول payments فتظهر في مدفوعات اليوم
+    // الفندقي وفي الداشبورد تلقائياً (نفس الاستعلام الموحّد SUM(amount)
+    // WHERE hotel_day_key = ...)، بدل أن تبقى تحديثاً معزولاً داخل جدول
+    // debts فقط. العمود موجود أصلاً في الجدول والمزامنة (migration قديم)
+    // لكنه لم يكن يُملأ من أي مسار إنشاء دفعة قبل هذا الإصلاح.
+    String? linkedDebtUuid,
   }) async {
     try {
       if (!PaymentSessionContext.isActive) {
@@ -236,6 +243,7 @@ class PaymentsRepository {
             hotelDayKey: d.Value(hotelDayKey),
             bookingUuidCache: d.Value(bookingUuidCache),
             isPendingBalance: d.Value(isPendingBalance),
+            linkedDebtUuid: d.Value(linkedDebtUuid),
             receivedByUserId: d.Value(PaymentSessionContext.userId),
             receivedByName: d.Value(PaymentSessionContext.userName),
             receivedSessionUuid: d.Value(PaymentSessionContext.sessionUuid),
