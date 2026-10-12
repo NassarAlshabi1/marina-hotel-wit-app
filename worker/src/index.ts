@@ -5,10 +5,12 @@
 
 import { Database, ALL_TABLE_NAMES } from './database';
 import { authMiddleware, handleLogin, hashPassword, resolveExpiryHours, signToken } from './auth';
-import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate } from './sync';
+import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate, setSyncCorsOrigin } from './sync';
 import { SyncLockDO, type RealtimeMessage } from './sync-lock';
 import { RealtimeHubDO } from './realtime-hub';
 import { handleAiRequest } from './ai';
+import { handleScheduledCleanup } from './maintenance';
+import { handleFinanceRequest } from './finance-routes';
 
 // ─── Environment bindings ─────────────────────────────────────
 
@@ -30,6 +32,16 @@ export interface Env {
   // وCLOUDFLARE_ACCOUNT_ID = var عام في wrangler.toml (ليس سراً).
   AI_TOKEN?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
+  // ✅ (2026-09-24) تنظيف idempotency_log اليومي (scheduled → maintenance.ts):
+  // أيام الاحتفاظ (افتراضي 30) وحجم دفعة الحذف (افتراضي 500، سقف صلب 500).
+  IDEMPOTENCY_RETENTION_DAYS?: string;
+  IDEMPOTENCY_CLEANUP_BATCH?: string;
+  // ✅ (2026-09-28) سر جسر pages.dev (wrangler secret put RELAY_SECRET):
+  // يوقّع طلبات marina-hotel-api-relay.pages.dev ليُقبل منها هوية
+  // العميل الحقيقية (x-mh-client-ip / x-mh-client-country) رغم اقتطاع
+  // Cloudflare لترويسات CF-* في الـsubrequest. اختياري — غيابه يعني
+  // تجاهل ترويسات الجسر كلياً (السلوك السابق).
+  RELAY_SECRET?: string;
 }
 
 // ─── Realtime Broadcast Adapter (plan phase 3) ────────────────
@@ -97,10 +109,49 @@ async function checkRateLimit(
   }
 }
 
+// ─── Trusted relay identity (pages.dev bridge) ────────────
+// ✅ (2026-09-28) جسر marina-hotel-api-relay.pages.dev (حل حجب
+// workers.dev في اليمن بلا شراء دومين): داخل subrequest تقتطع
+// Cloudflare ترويسات CF-* فيرى الـ Worker عنوان خروج الجسر لكل
+// العملاء — مثبت بـwrangler tail (client_id = 2a06:98c0:…). الجسر
+// يعيد الهوية الحقيقية تحت x-mh-client-ip/x-mh-client-country ويوقّع
+// الطلب بـx-mh-relay-key = RELAY_SECRET. القبول مشروط بمطابقة السر
+// (مقارنة زمن-ثابت) — لا انتحال هوية من المتصلين المباشرين بـ
+// workers.dev ولا من عبر الجسر، وتحديد المعدل يبقى لكل عميل حقيقي.
+function secureCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const subtleExt = (
+    globalThis as unknown as { crypto?: Crypto }
+  ).crypto?.subtle as SubtleCrypto & {
+    timingSafeEqual?: (a: ArrayBuffer, b: ArrayBuffer) => boolean;
+  };
+  if (typeof subtleExt?.timingSafeEqual === 'function') {
+    try {
+      const enc = new TextEncoder();
+      return subtleExt.timingSafeEqual(
+        enc.encode(a).buffer as ArrayBuffer,
+        enc.encode(b).buffer as ArrayBuffer,
+      );
+    } catch {
+      return false;
+    }
+  }
+  // Fallback: XOR تراكمي — الطول متساوٍ مسبقاً فلا تسريب طول.
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 // Cloudflare adds the request country through request.cf at the edge.
-// Yemen traffic is exempt from Worker rate limits so sync connectivity is
-// not interrupted by the edge/WAF allow-list configuration. Authentication
-// and authorization remain enforced below.
+// ✅ P2 (2026-09-24) اليمن لم يعد معفياً من تحديد المعدل — الإعفاء الكامل
+// كان يعطّل الحماية كلها. الآن حزمة اليمن أعلى من الحزمة العامة (سماحية
+// لظروف الاتصال) لكنها ليست غير محدودة:
+//   global: RATE_LIMIT_MAX (افتراضي 1000)/window
+//   Yemen:  RATE_LIMIT_MAX * RATE_LIMIT_YEMEN_MULTIPLIER (افتراضي 3)
+//   login:  20/window لكل الجنسيات — حماية brute-force بلا استثناء.
+const RATE_LIMIT_YEMEN_MULTIPLIER = 3;
+const LOGIN_RATE_LIMIT_MAX = 20;
+
 function isYemenRequest(request: Request): boolean {
   const country = (request as Request & { cf?: { country?: string } }).cf?.country;
   return country?.toUpperCase() === 'YE';
@@ -151,6 +202,10 @@ function logRequest(method: string, path: string, status: number, durationMs: nu
 
 async function handleRequest(request: Request, env: Env): Promise<Response> {
   const startTime = Date.now();
+  // ✅ P2: مصدر CORS واحد — دوال sync كانت ترسل '*' دائماً بينما بقية
+  // الردود تستخدم env.CORS_ORIGIN. القيمة ثابتة لكل deployment فلا تعارض
+  // بين الطلبات المتزامنة داخل نفس العزل.
+  setSyncCorsOrigin(env.CORS_ORIGIN);
   const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
@@ -182,17 +237,33 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }
 
     // ─── Extract client ID for rate limiting ─────────────────
-    const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+    // ✅ (2026-09-28) هوية موثوقة عبر جسر pages.dev (انظر secureCompare
+    // أعلاه): بلا سر مطابق تبقى ترويسات x-mh-* مهملة تماماً.
+    const relaySecret = env.RELAY_SECRET ?? '';
+    const relayKey = request.headers.get('x-mh-relay-key') ?? '';
+    const relayIp = request.headers.get('x-mh-client-ip');
+    const relayCountry = request.headers.get('x-mh-client-country');
+    const trustedRelay =
+      relaySecret !== '' && relayIp !== null && secureCompare(relayKey, relaySecret);
+    const clientIp = trustedRelay
+      ? relayIp!
+      : request.headers.get('CF-Connecting-IP') || 'unknown';
     const rateLimitWindow = parseInt(env.RATE_LIMIT_WINDOW, 10) || 60;
     const rateLimitMax = parseInt(env.RATE_LIMIT_MAX, 10) || 1000;
-    const isYemen = isYemenRequest(request);
+    // عبر الجسر يعكس cf.country البيئة الداخلية لا العميل — بلد العميل
+    // الحقيقي يصل في x-mh-client-country (مضاعف اليمن 3× يبقى منصفاً).
+    const isYemen = trustedRelay
+      ? (relayCountry ?? '').toUpperCase() === 'YE'
+      : isYemenRequest(request);
 
     // ─── Rate limit check (D1-based, no KV daily limit) ─────
+    // ✅ P2: اليمن حزمة أعلى (مضاعف) وليست إعفاءً — الحماية فعالة للجميع.
     const rateDb = new Database(env.DB);
-    const rateResult = isYemen
-      ? { allowed: true, remaining: rateLimitMax, resetAt: Date.now() + rateLimitWindow * 1000 }
-      : await checkRateLimit(rateDb, clientIp, rateLimitWindow, rateLimitMax);
-    if (!isYemen && !rateResult.allowed) {
+    const effectiveMax = isYemen
+      ? rateLimitMax * RATE_LIMIT_YEMEN_MULTIPLIER
+      : rateLimitMax;
+    const rateResult = await checkRateLimit(rateDb, clientIp, rateLimitWindow, effectiveMax);
+    if (!rateResult.allowed) {
       logRequest(method, path, 429, Date.now() - startTime, clientIp);
       // ✅ Add Retry-After header (seconds) for proper HTTP 429 semantics.
       // Client should respect this header and not retry before it elapses.
@@ -202,7 +273,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       cors.forEach((val: string, key: string) => headers.set(key, val));
       headers.set('Retry-After', String(Math.max(1, retryAfterSec)));
       return new Response(
-        JSON.stringify({ error: 'Rate limit exceeded', retry_after: rateResult.resetAt }),
+        // ✅ P2: retry_after الآن بالثواني (عدد نسبي) متطابقاً مع هيدر
+        // Retry-After — كان epoch-ms وبعض العملاء تفسّره خطأً.
+        JSON.stringify({ error: 'Rate limit exceeded', retry_after: Math.max(1, retryAfterSec) }),
         { status: 429, headers }
       );
     }
@@ -210,17 +283,16 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // ─── Auth endpoint (no token needed) ─────────────────────
     if (path === '/api/auth/login' && method === 'POST') {
       // ✅ Dedicated brute-force bucket per IP — far stricter than the
-      // global limit (20 attempts/window) so password guessing is not
-      // drowned in the 1000/min global budget.
-      const loginLimit = isYemen
-        ? { allowed: true, remaining: 20, resetAt: Date.now() + rateLimitWindow * 1000 }
-        : await checkRateLimit(
-            new Database(env.DB),
-            `login:${clientIp}`,
-            rateLimitWindow,
-            20
-          );
-      if (!isYemen && !loginLimit.allowed) {
+      // global limit (LOGIN_RATE_LIMIT_MAX attempts/window) so password
+      // guessing is not drowned in the global budget.
+      // ✅ P2: الحماية تشمل اليمن أيضاً — brute-force لا جنسية له.
+      const loginLimit = await checkRateLimit(
+        new Database(env.DB),
+        `login:${clientIp}`,
+        rateLimitWindow,
+        LOGIN_RATE_LIMIT_MAX
+      );
+      if (!loginLimit.allowed) {
         logRequest(method, path, 429, Date.now() - startTime, clientIp);
         const retryAfterSec = Math.ceil((loginLimit.resetAt - Date.now()) / 1000);
         const headers = new Headers({ 'Content-Type': 'application/json' });
@@ -228,7 +300,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         cors.forEach((val: string, key: string) => headers.set(key, val));
         headers.set('Retry-After', String(Math.max(1, retryAfterSec)));
         return new Response(
-          JSON.stringify({ error: 'Too many login attempts', retry_after: loginLimit.resetAt }),
+          JSON.stringify({ error: 'Too many login attempts', retry_after: Math.max(1, retryAfterSec) }),
           { status: 429, headers }
         );
       }
@@ -278,6 +350,20 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         }
         if (!['admin', 'manager', 'staff'].includes(role)) {
           return json({ error: 'Invalid role' }, 400, env);
+        }
+        // ✅ (2026-09-30) Credential policy — the endpoint previously
+        // accepted ANY non-empty password (even 1 char) and unbounded
+        // usernames. Applies to bootstrap AND admin-created accounts;
+        // existing stored hashes are unaffected (policy is create-time
+        // only — no forced rotation, no login-side minimum).
+        if (username.length > 64) {
+          return json({ error: 'Username too long (max 64 characters)' }, 400, env);
+        }
+        if (password.length < 8) {
+          return json({ error: 'Password too short (min 8 characters)' }, 400, env);
+        }
+        if (password.length > 256) {
+          return json({ error: 'Password too long (max 256 characters)' }, 400, env);
         }
 
         const hash = await hashPassword(password);
@@ -336,13 +422,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         const d1Start = Date.now();
         try {
           await db.raw.prepare('SELECT 1 AS ok').first<{ ok: number }>();
-          const expenseColumns = await db.raw.prepare('PRAGMA table_info(expenses)').all<{ name: string }>();
           logRequest(method, path, 200, Date.now() - startTime, clientIp);
           return json(
             {
               status: 'ok',
               d1: 'ok',
-              expense_kind: expenseColumns.results.some((column) => column.name === 'expense_kind'),
               latency_ms: Date.now() - d1Start,
               server_time: Math.floor(Date.now() / 1000),
               timestamp: Date.now(),
@@ -357,25 +441,6 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             503,
             env
           );
-        }
-      }
-
-      // ─── Admin: rotate sync data generation ─────────────
-      // After a server-side restore/import that reuses old timestamps, every
-      // client must discard its old cursor and pull from zero. This is an
-      // explicit admin-only operation because it causes real network work.
-      if (path === '/api/admin/sync/rotate-epoch' && method === 'POST') {
-        if (ctx.role !== 'admin') {
-          logRequest(method, path, 403, Date.now() - startTime, clientIp);
-          return json({ error: 'Admin role required' }, 403, env);
-        }
-        try {
-          const epoch = await db.rotateSyncEpoch();
-          logRequest(method, path, 200, Date.now() - startTime, clientIp);
-          return json({ success: true, epoch }, 200, env);
-        } catch (err) {
-          logRequest(method, path, 500, Date.now() - startTime, clientIp);
-          return json({ error: 'Sync epoch rotation failed', detail: String(err) }, 500, env);
         }
       }
 
@@ -403,6 +468,55 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         return response;
       }
 
+      // ─── P2 (2026-09-24) بوابات الأدوار للنقاط الإدارية/المراقبة ───
+      // /api/stats و/api/sync/log و/api/sync/conflicts معلومات تشغيلية
+      // حساسة (أحجام الجداول وسجل التزامن والتعارضات) — admin/manager فقط.
+      // /api/sync/pull و/api/sync/push كما هما (كل الأدوار) — لا تغيير.
+      const isPrivilegedRole = ctx.role === 'admin' || ctx.role === 'manager';
+
+      if ((path === '/api/stats' || path === '/api/sync/log' || path === '/api/sync/conflicts') && !isPrivilegedRole) {
+        logRequest(method, path, 403, Date.now() - startTime, clientIp);
+        return json({ error: 'Manager or admin role required' }, 403, env);
+      }
+
+      // ─── Admin-only maintenance: normalize timestamps ─────────
+      // ✅ P1: الصيانة انتقلت من GET /api/sync/pull?normalize_timestamps=1
+      // (كتابة داخل GET) إلى endpoint إداري مخصص. معامل الـ GET يبقى
+      // متوافقاً لـ admin/manager (انظر handlePull) فلا يتكسر العميل الحالي.
+      if (path === '/api/admin/sync/normalize-timestamps' && method === 'POST') {
+        if (ctx.role !== 'admin') {
+          logRequest(method, path, 403, Date.now() - startTime, clientIp);
+          return json({ error: 'Admin role required' }, 403, env);
+        }
+        try {
+          const result = await db.normalizeTimestamps(500);
+          logRequest(method, path, 200, Date.now() - startTime, clientIp);
+          return json({ success: true, ...result, server_time: Math.floor(Date.now() / 1000) }, 200, env);
+        } catch (err) {
+          logRequest(method, path, 500, Date.now() - startTime, clientIp);
+          return json({ error: 'Normalization failed', detail: String(err) }, 500, env);
+        }
+      }
+
+      // ─── Admin: rotate sync epoch ────────────────────────
+      // ✅ (2026-09-29) رافعة «أعد مزامنة كل الأجهزة من الصفر» بعد جراحة
+      // بيانات خادمية (استعادة Time Travel، إعادة استيراد بطوابع قديمة).
+      // admin فقط — كل جهاز سيعيد سحباً كاملاً (كلفة شبكية حقيقية).
+      if (path === '/api/admin/sync/rotate-epoch' && method === 'POST') {
+        if (ctx.role !== 'admin') {
+          logRequest(method, path, 403, Date.now() - startTime, clientIp);
+          return json({ error: 'Admin role required' }, 403, env);
+        }
+        try {
+          const epoch = await db.rotateSyncEpoch();
+          logRequest(method, path, 200, Date.now() - startTime, clientIp);
+          return json({ success: true, epoch }, 200, env);
+        } catch (err) {
+          logRequest(method, path, 500, Date.now() - startTime, clientIp);
+          return json({ error: 'Epoch rotation failed', detail: String(err) }, 500, env);
+        }
+      }
+
       // ─── Sync Log ───────────────────────────────────────
       if (path === '/api/sync/log' && method === 'GET') {
         const response = await handleSyncLog(request, db, ctx);
@@ -416,11 +530,18 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         try {
           // ✅ Table list derived from the single source of truth — the old
           // hardcoded list drifted from the schema and made /api/stats 500.
+          // ✅ P2: COUNT(*) لكل الجداول في دفعة D1 واحدة (atomic batch =
+          // رحلة شبكية واحدة بدل ~26 رحلة متسلسلة) — أسرع وأرخص، ولا يمس
+          // مسار التزامن إطلاقاً.
+          const countStmts = ALL_TABLE_NAMES.map((t) =>
+            db.raw.prepare(`SELECT COUNT(*) as c FROM ${t}`)
+          );
+          const countResults = await db.raw.batch(countStmts);
           const tableCounts: Record<string, number> = {};
-          for (const t of ALL_TABLE_NAMES) {
-            const r = await db.raw.prepare(`SELECT COUNT(*) as c FROM ${t}`).first<{ c: number }>();
-            tableCounts[t] = r?.c ?? 0;
-          }
+          ALL_TABLE_NAMES.forEach((t, i) => {
+            const r = countResults[i] as { results?: Array<{ c: number }> } | undefined;
+            tableCounts[t] = r?.results?.[0]?.c ?? 0;
+          });
           logRequest(method, path, 200, Date.now() - startTime, clientIp);
           return json({
             tables: tableCounts,
@@ -477,6 +598,16 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           logRequest(method, path, 500, Date.now() - startTime, clientIp);
           return json({ error: 'Device token fetch failed', detail: String(err) }, 500, env);
         }
+      }
+
+      // ─── Finance: نموذج 13 أسبوعاً + KPI + اللقطات والانحراف ───
+      // الحساب خادمي على D1 الحية (مصدر حقيقة واحد عبر الأجهزة).
+      // القراءة لكل الأدوار؛ الاعتماد والمقارنة admin/manager
+      // (بوابة الدور داخل handleFinanceRequest نفسه).
+      if (path.startsWith('/api/finance/')) {
+        const response = await handleFinanceRequest(request, db.raw, ctx, url, env);
+        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
+        return response;
       }
 
       // ─── Durable Object: Sync Lock ────────────────────────
@@ -564,5 +695,22 @@ export default {
         { status: 500, headers }
       );
     }
+  },
+
+  // ✅ (2026-09-24) cron يومي (wrangler.toml [triggers] 03:17 UTC):
+  // تنظيف idempotency_log الأقدم من نافذة الاحتفاظ — يغلق ملاحظة
+  // «الجدول ينمو بلا حد». المنطق كله في maintenance.ts (مُختبر مباشرة)،
+  // والفشل هنا يُسجّل فقط: cron فاشل لا يعطل أي مسار خدمة، والتشغيل
+  // القادم (بعد 24 ساعة) يكمل الحذف — الحذف رتيب ومتكرر الأمان.
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      handleScheduledCleanup(env)
+        .then((r) =>
+          console.log(
+            `[MAINTENANCE] idempotency_log cleanup: deleted=${r.deleted} chunks=${r.chunks} cutoff=${r.cutoff} retention=${r.retentionDays}d batch=${r.batchSize}`
+          )
+        )
+        .catch((err) => console.error('[MAINTENANCE] idempotency_log cleanup failed:', err))
+    );
   },
 };

@@ -3,8 +3,8 @@
 //  Handles all SQL queries with parameterized statements (SQL injection safe)
 // ═══════════════════════════════════════════════════════════════
 
-import { expenseKind } from './expense-kind';
 import type { D1Database } from '@cloudflare/workers-types';
+import { expenseKind } from './expense-kind';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -27,7 +27,6 @@ export interface PullResult {
   changes: SyncRecord[];
   cursor: number;
   has_more: boolean;
-  repair_pending: boolean;
   /**
    * ✅ (2026-09-10) طلب المستخدم: «مؤشر السحب الكامل يجب أن أعرف حجم
    * السحب والمتبقي». عدد الصفوف الباقية بعد cursor (عبر كل الجداول،
@@ -116,23 +115,12 @@ const ENTITY_TABLES: Record<string, string> = {
   // same row via local_uuid so both paths converge)
   devices: 'devices',
 
-  // Blacklist (cloud-only entity, no Drift table client-side)
+  // Blacklist (guests blacklisted across devices — local Drift table
+  // blacklist_entries client-side; D1 table keeps the entity name)
   blacklist: 'blacklist',
 };
 
 const VALID_ENTITIES = new Set(Object.keys(ENTITY_TABLES));
-
-const EMPLOYEE_EXPENSE_TYPES = new Set([
-  'رواتب',
-  'سحب راتب',
-  'سحب من الراتب',
-  'سلفة',
-  'خصم راتب',
-  'خصم من الراتب',
-  'خصم',
-  'غياب',
-  'employee',
-]);
 
 export function isValidEntity(entity: string): boolean {
   return VALID_ENTITIES.has(entity);
@@ -169,9 +157,10 @@ export class Database {
   // ─── Sync Clock (monotonic unique updated_at allocator) ───────
 
   /**
-   * Reserve a strictly-monotonic clock boundary for a pull. This alone is
-   * NOT a safe business-row timestamp: row publication must use commitStamped
-   * (or an equivalent atomic batch) so commit order also determines cursors.
+   * Allocate a globally-unique, strictly-monotonic `updated_at` (seconds).
+   * Single atomic statement against the sync_clock singleton; two concurrent
+   * writes can therefore never share the same updated_at, which is what
+   * makes the integer pull cursor lossless.
    */
   async allocateUpdatedAt(): Promise<number> {
     const now = Math.floor(Date.now() / 1000);
@@ -201,24 +190,6 @@ export class Database {
       return retry.last_ts;
     }
     throw new Error('sync_clock allocation failed');
-  }
-
-  /** Publish the row and its final cursor in ONE D1 transaction. A reserved
-   * timestamp is not a commit watermark: another writer may finish first.
-   * The readback belongs to the batch too, so the response matches this commit.
-   */
-  private async commitStamped(
-    table: string, key: string, id: string, statements: D1PreparedStatement[]
-  ): Promise<{ results: D1Result[]; record: SyncRecord }> {
-    const results = await this.db.batch([
-      ...statements,
-      this.db.prepare('INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, 0)'),
-      this.db.prepare('UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1')
-        .bind(Math.floor(Date.now() / 1000)),
-      this.db.prepare(`UPDATE ${table} SET updated_at = (SELECT last_ts FROM sync_clock WHERE id = 1) WHERE ${key} = ?`).bind(id),
-      this.db.prepare(`SELECT * FROM ${table} WHERE ${key} = ?`).bind(id),
-    ]);
-    return { results, record: results[results.length - 1].results[0] as unknown as SyncRecord };
   }
 
   /** Advance the sync clock past a foreign timestamp (e.g. after bulk migration). */
@@ -283,42 +254,31 @@ export class Database {
     const errors: Array<{ entity: string; error: string }> = [];
     let windowTruncated = false;
 
-    // Indexed MAX probes account for legacy/imported sane timestamps too.
-    // A missing table still prevents checkpoint advancement, as before.
-    let legacyMax = cursor;
-    const maxProbe = (ent: string) => this.db.prepare(
-      `SELECT MAX(updated_at) AS m FROM ${ENTITY_TABLES[ent]} WHERE updated_at <= ?`
-    ).bind(Database.FUTURE_TIMESTAMP_THRESHOLD);
-    try {
-      // One D1 round trip on the healthy path, with only scalar results.
-      const maxima = await this.db.batch<{ m: number | null }>(entities.map(maxProbe));
-      for (const result of maxima) {
-        legacyMax = Math.max(legacyMax, Number(result.results[0]?.m ?? 0));
-      }
-    } catch {
-      // Preserve table-specific diagnostics when one table breaks the batch.
-      for (const ent of entities) {
-        try {
-          const row = await maxProbe(ent).first<{ m: number | null }>();
-          legacyMax = Math.max(legacyMax, Number(row?.m ?? 0));
-        } catch (err) {
-          errors.push({ entity: ent, error: String(err).slice(0, 300) });
-        }
-      }
-    }
-    await this.advanceSyncClock(legacyMax);
-    const ceiling = await this.allocateUpdatedAt();
-    // Every later commitStamped/reStampPoisoned transaction publishes ABOVE
-    // this boundary. Never advance a page across writes between table reads.
-    const boundClause = ` AND (updated_at <= ${ceiling} OR updated_at > ${Database.FUTURE_TIMESTAMP_THRESHOLD})`;
-
     // Safety cap for the group-completion loop below. A legacy dataset
     // whose rows share one updated_at can force large windows; past this
     // point we accept the (logged) truncation rather than grow forever.
     const MAX_PULL_WINDOW = 20_000;
 
-    for (const ent of entities) {
+    // ✅ (2026-09-22 تسريع full sync) الحلقة كانت تنتظر كل جدول قبل بدء
+    // التالي (await متسلسل داخل for) — 24 جدولاً × ~32 صفحة full sync
+    // = ~768 رحلة شبكية متتالية إلى D1. لا اعتماد بين الجداول (كل
+    // استعلام مستقل تماماً بمؤشر/فلتر جهاز واحد)، فمعالجتها بالتوازي
+    // عبر Promise.all (نفس نمط db.batch المستخدم أصلاً لـ`remaining`
+    // أدناه) تُخفي زمن الرحلة الشبكية لـ23 جدولاً خلف الجدول الأبطأ
+    // بدل جمع أزمنتها التسلسلية. المنطق الداخلي لكل جدول (نافذة
+    // group-completion) لم يتغيّر حرفياً — فقط غُلّف بدالة تُستدعى
+    // بالتوازي بدل جسم for تسلسلي.
+    type TableFetchResult = {
+      ent: string;
+      rows: SyncRecord[];
+      error?: { entity: string; error: string };
+      windowTruncated?: boolean;
+    };
+
+    const fetchTableChanges = async (ent: string): Promise<TableFetchResult> => {
       const table = ENTITY_TABLES[ent];
+      let tableWindowTruncated = false;
+      let tableError: { entity: string; error: string } | undefined;
       try {
         // ── Group-complete fetch window (live rows + tombstones) ──
         // ✅ إصلاح «الحذف لا يصل إلى الأجهزة الأخرى» (مراجعة 2026-09-09
@@ -356,13 +316,13 @@ export class Database {
           excludeDevice
             ? this.db
                 .prepare(
-                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ?${boundClause}${devFilter} ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ?${devFilter} ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
                 .bind(afterTs, ...devBind, lim)
                 .all<Record<string, unknown>>()
             : this.db
                 .prepare(
-                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ?${boundClause} ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                  `SELECT * FROM ${table} WHERE ${delClause}updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
                 .bind(afterTs, lim)
                 .all<Record<string, unknown>>();
@@ -401,11 +361,11 @@ export class Database {
                 `[SYNC/PULL] table ${table}: duplicate-ts group exceeds ` +
                   `${MAX_PULL_WINDOW} rows — page may truncate mid-group`
               );
-              errors.push({
+              tableWindowTruncated = true;
+              tableError = {
                 entity: ent,
                 error: `duplicate updated_at group exceeds ${MAX_PULL_WINDOW} rows`,
-              });
-              windowTruncated = true;
+              };
               tableRows = before;
             } else {
               const group = excludeDevice
@@ -428,16 +388,19 @@ export class Database {
             }
           }
         }
-        for (const row of tableRows) {
+        const rows: SyncRecord[] = tableRows.map((row) => {
           const record = row as unknown as SyncRecord;
-          if (ent === 'expenses' && record.expense_kind == null) {
-            record.expense_kind = expenseKind(null, record);
-          }
           // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
           // بدون الحاجة لتخمين نوعه من الحقول
           (record as Record<string, unknown>)._entity = ent;
-          allChanges.push(record);
-        }
+          return record;
+        });
+        return {
+          ent,
+          rows,
+          error: tableError,
+          windowTruncated: tableWindowTruncated || undefined,
+        };
       } catch (err) {
         // Per-table isolation: one broken table (missed D1 migration —
         // missing table or column) must not fail the entire pull for all
@@ -445,8 +408,18 @@ export class Database {
         // and server logs point at the exact table to fix.
         const msg = String(err).slice(0, 300);
         console.error(`[SYNC/PULL] table ${table} failed, skipping:`, msg);
-        errors.push({ entity: ent, error: msg });
+        return { ent, rows: [], error: { entity: ent, error: msg } };
       }
+    };
+
+    // كل الجداول بالتوازي — انتظار واحد بدل تسلسل 24 انتظاراً.
+    const tableResults = await Promise.all(entities.map(fetchTableChanges));
+    for (const result of tableResults) {
+      for (const record of result.rows) {
+        allChanges.push(record);
+      }
+      if (result.error) errors.push(result.error);
+      if (result.windowTruncated) windowTruncated = true;
     }
 
     // Global deterministic order across tables.
@@ -584,7 +557,6 @@ export class Database {
       changes: servedPage,
       cursor: nextCursor,
       has_more: hasMore,
-      repair_pending: safeToAdvance && healedPoison > 0,
       remaining,
       errors,
     };
@@ -613,14 +585,27 @@ export class Database {
    */
   static readonly FUTURE_TIMESTAMP_THRESHOLD = 2_000_000_000;
 
-  /** Maximum future clock skew accepted from a client, in seconds. */
+  /**
+   * ✅ (F2 2026-09-22) سماحية انحراف ساعة الجهاز عن ساعة الخادم (بالثواني).
+   *
+   * part (أ): قصّ الطابع الوارد — incoming = min(clientTs, serverNow + N).
+   * جهاز ساعته أسرع لا يستطيع ختم تعديله في المستقبل البعيد ليحسم كل
+   * تعارضات النافذة القادمة (قاعدة LWW الخام كانت تجعل +30 دقيقة ساعة
+   * تعني فوزاً مضموناً لمدة 30 دقيقة على كل الأجهزة السليمة).
+   * part (ب): داخل النافذة، version يحسم بدل الطابع — جهاز ساعته أبطأ
+   * قد يحمل تعديلاً أحدث فعلاً (version أعلى) بطابع أدنى بثوانٍ؛ خارج
+   * النافذة الزمن يحكم كما كان (تعديل عتيق حقيقي وليس انحراف ساعة).
+   */
   static readonly CLOCK_SKEW_ALLOWANCE_S = 90;
 
   // ─── Sync epoch (data generation) ─────────────────────────
+  // ✅ (2026-09-29) انظر migrations/0010_sync_meta.sql.
 
   /**
-   * Current sync data generation. The lazy insert keeps pull backward
-   * compatible with deployments that have not applied migration 0010 yet.
+   * جيل بيانات المزامنة الحالي. يُزرع كسولاً (INSERT OR IGNORE — آمن
+   * تحت التزامن) إن غاب. يعيد null إن تعذّر (جدول غائب في نشر لم يطبّق
+   * الترحيل): السحب يستمر بلا epoch والعميل يتجاهله — لا يُكسر السحب
+   * أبداً بسبب هذه الميزة.
    */
   async getSyncEpoch(): Promise<string | null> {
     try {
@@ -628,7 +613,6 @@ export class Database {
         .prepare("SELECT v FROM sync_meta WHERE k = 'epoch'")
         .first<{ v: string }>();
       if (row?.v) return row.v;
-
       await this.db
         .prepare("INSERT OR IGNORE INTO sync_meta (k, v) VALUES ('epoch', ?)")
         .bind(crypto.randomUUID().replace(/-/g, ''))
@@ -638,20 +622,18 @@ export class Database {
         .first<{ v: string }>();
       return seeded?.v ?? null;
     } catch (err) {
-      // The epoch is an optional safety contract; a missing/unavailable
-      // migration must never turn an otherwise valid pull into a failure.
       console.warn('[SYNC] epoch unavailable (pull continues without it):', err);
       return null;
     }
   }
 
-  /** Rotate the generation after a server-side restore or data rewrite. */
+  /** تدوير الجيل — كل جهاز يرى القيمة الجديدة يعيد السحب من الصفر. */
   async rotateSyncEpoch(): Promise<string> {
     const epoch = crypto.randomUUID().replace(/-/g, '');
     await this.db
       .prepare(
         "INSERT INTO sync_meta (k, v, updated_at) VALUES ('epoch', ?, unixepoch()) " +
-          'ON CONFLICT (k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at'
+          'ON CONFLICT (k) DO UPDATE SET v = excluded.v, updated_at = excluded.updated_at',
       )
       .bind(epoch)
       .run();
@@ -690,12 +672,10 @@ export class Database {
     normalized: number;
     remaining: number;
     perTable: Record<string, number>;
-    complete: boolean;
   }> {
     const perTable: Record<string, number> = {};
     let normalized = 0;
     let remainingTotal = 0;
-    let failed = false;
 
     for (const table of Object.values(ENTITY_TABLES)) {
       try {
@@ -725,7 +705,8 @@ export class Database {
         if (rows.results.length === 0) continue;
 
         // ✅ (2026-09-17) نفس ميكانيكية إعادة الختم المشتركة مع الإصلاح
-        // الذاتي في pullChanges — تخصيص ونشر الطوابع في دفعة ذرية، وlast_modified يُعاد
+        // الذاتي في pullChanges — التخصيص الذري (‎UPDATE…RETURNING) للنطاق
+        // المتزايد الصارم فوق الساعة يبقى كما هو، وlast_modified يُعاد
         // ختمه فقط إذا كان هو نفسه فوق عتبة التسميم FUTURE (الثواني
         // السليمة ~1.79e9 تبقى محفوظة دائماً).
         const fixed = await this.reStampPoisoned(table, rows.results);
@@ -733,13 +714,12 @@ export class Database {
         perTable[table] = fixed;
         remainingTotal = Math.max(0, remainingTotal - fixed);
       } catch (err) {
-        failed = true;
         // Normalization is best-effort repair — never block the pull.
         console.error(`[SYNC/PULL] normalize ${table} failed:`, String(err).slice(0, 200));
       }
     }
 
-    return { normalized, remaining: remainingTotal, perTable, complete: !failed && remainingTotal === 0 };
+    return { normalized, remaining: remainingTotal, perTable };
   }
 
   /**
@@ -747,10 +727,12 @@ export class Database {
    * المشتركة بين normalizeTimestamps (مسح الصيانة) والإصلاح الذاتي داخل
    * pullChanges (الصفوف التي صادفتها الصفحة فعلاً).
    *
-   * Each batch allocates AND publishes up to 20 rows (40 statements) in
-   * one transaction. Guarded updates preserve a concurrent legitimate edit.
-   * last_modified is replaced only if it is itself poisoned. No reserved
-   * timestamp can be published later below an already-served pull boundary.
+   * تحجز نطاقاً متزايداً صارماً فوق sync_clock ذرياً (عبارة واحدة
+   * ‎RETURNING واحدة — لا يمكن لطلبي سحب متزامنين أن يتقاسا النطاق نفسه
+   * فتنشأ طوابع مكررة)، ثم تعيد ختم updated_at لكل صف ضمن النطاق و
+   * last_modified فقط إذا كان هو نفسه مسموماً (فوق 2e9). الدفعات
+   * بـ db.batch ذرّية (50 عبارة/دفعة) — إعادة المحاولة آمنة: صف خُتم
+   * فعلاً لم يعد يطابق مرشّح السم فلا يُلمس مجدداً (idempotent).
    */
   private async reStampPoisoned(
     table: string,
@@ -761,25 +743,43 @@ export class Database {
       .filter((u) => u.length > 0);
     if (targets.length === 0) return 0;
 
-    let repaired = 0;
-    for (let start = 0; start < targets.length; start += 20) {
-      const statements: D1PreparedStatement[] = [];
-      for (const uuid of targets.slice(start, start + 20)) {
-        statements.push(
-          this.db.prepare('UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1')
-            .bind(Math.floor(Date.now() / 1000)),
-          this.db.prepare(`UPDATE ${table}
-            SET updated_at = (SELECT last_ts FROM sync_clock WHERE id = 1),
-                last_modified = CASE WHEN last_modified > ?
-                  THEN (SELECT last_ts FROM sync_clock WHERE id = 1) ELSE last_modified END
-            WHERE local_uuid = ? AND updated_at > ?`)
-            .bind(Database.FUTURE_TIMESTAMP_THRESHOLD, uuid, Database.FUTURE_TIMESTAMP_THRESHOLD)
-        );
-      }
-      const results = await this.db.batch(statements);
-      repaired += results.reduce((sum, result, i) => sum + (i % 2 === 1 ? result.meta.changes : 0), 0);
+    // Allocate a contiguous, strictly-increasing second-based range past
+    // the current clock — ATOMICALLY (single UPDATE … RETURNING): two
+    // concurrent healers could otherwise read the same clock base and
+    // assign overlapping timestamps (the duplicate-ts disease).
+    const alloc = await this.db
+      .prepare(
+        'UPDATE sync_clock SET last_ts = MAX(last_ts, ?) + ? WHERE id = 1 RETURNING last_ts'
+      )
+      .bind(Math.floor(Date.now() / 1000), targets.length)
+      .first<{ last_ts: number }>();
+    if (!alloc || typeof alloc.last_ts !== 'number') {
+      throw new Error('sync_clock allocation failed (poison re-stamp)');
     }
-    return repaired;
+    const rangeStart = alloc.last_ts - targets.length + 1;
+
+    const statements: D1PreparedStatement[] = targets.map((uuid, i) => {
+      const newTs = rangeStart + i;
+      // last_modified يُعاد ختمه فقط إذا كان هو نفسه مسموماً — الثواني
+      // السليمة (مخرجات المخصّص الخادمي) تبقى كما هي.
+      return this.db
+        .prepare(
+          `UPDATE ${table}
+           SET updated_at = ?,
+               last_modified = CASE WHEN last_modified > ? THEN ? ELSE last_modified END
+           WHERE local_uuid = ?`
+        )
+        .bind(newTs, Database.FUTURE_TIMESTAMP_THRESHOLD, newTs, uuid);
+    });
+
+    // D1 batch is atomic per call — 50 statements per batch mirrors the
+    // migrate handler's chunking. Re-stamping is idempotent per batch: a
+    // retried batch re-stamps already-repaired rows only if they still
+    // exceed the poison filter, which they no longer do.
+    for (let start = 0; start < statements.length; start += 50) {
+      await this.db.batch(statements.slice(start, start + 50));
+    }
+    return targets.length;
   }
 
   // ─── Push: Create ──────────────────────────────────────────
@@ -808,188 +808,37 @@ export class Database {
   }
 
   /**
-   * Normalize synced foreign keys before D1 writes. Numeric child ids are
-   * device-local caches; the UUID column is the only cross-device authority.
+   * Parity unification: normalises the wire-side `expenses` fields so the
+   * server owns `employee_link_cleared` and translates the legacy
+   * `clear_employee_link=1` instruction (sent by the Android
+   * PushWireContract when a user unlinks an employee from an expense)
+   * into a NULL `employee_uuid` + `related_id` plus the persisted
+   * `employee_link_cleared=1` flag. Mirrors branch3 worker/src/database.ts
+   * `normalizePushReferences` at L952-997; the only simplification here is
+   * that B2 does not (yet) own a `findEmployeeByUuid` helper — the
+   * employee_uuid resolution is left to the existing client→server
+   * `employees` lookup the Flutter adapter already performs before push.
+   *
+   * Server-owned metadata (`employee_link_cleared`) is always stripped
+   * from incoming client data and recomputed here so a misbehaving client
+   * cannot flip it back to 0 after an explicit unlink.
    */
-  private async normalizePushReferences(
-    entity: string,
+  private normalizeExpenseFields(
     data: Record<string, unknown>,
     mode: 'create' | 'update'
-  ): Promise<Record<string, unknown>> {
-    if (entity === 'booking_nights') {
-      const bookingUuid =
-        typeof data.booking_uuid_cache === 'string' ? data.booking_uuid_cache.trim() : '';
-      if (bookingUuid) {
-        const parent = await this.db
-          .prepare('SELECT id FROM bookings WHERE local_uuid = ? LIMIT 1')
-          .bind(bookingUuid)
-          .first<{ id: number }>();
-        if (!parent) {
-          // Do not let an unresolved child be stored against another device's
-          // numeric booking_local_id. The client can retry after the parent push.
-          throw new Error('booking_nights parent booking_uuid_cache is not present in D1 yet');
-        }
-        return { ...data, booking_local_id: parent.id };
-      }
-
-      // Compatibility for older clients: accept this legacy bridge only when
-      // it uniquely identifies a D1 booking.
-      const legacyBookingId = Number(data.server_booking_id);
-      if (Number.isSafeInteger(legacyBookingId) && legacyBookingId > 0) {
-        const matches = await this.db
-          .prepare('SELECT id FROM bookings WHERE server_booking_id = ? LIMIT 2')
-          .bind(legacyBookingId)
-          .all<{ id: number }>();
-        if (matches.results.length > 1) {
-          throw new Error('booking_nights legacy server_booking_id is ambiguous');
-        }
-        if (matches.results.length === 1) {
-          return { ...data, booking_local_id: matches.results[0].id };
-        }
-      }
-      if (mode === 'create') {
-        throw new Error('booking_nights requires a resolvable booking_uuid_cache or server_booking_id');
-      }
-      // A legacy partial update cannot change the canonical parent by raw id.
-      const partial = { ...data };
-      delete partial.booking_local_id;
-      delete partial.booking_uuid_cache;
-      delete partial.server_booking_id;
-      return partial;
-    }
-
+  ): Record<string, unknown> {
     const normalized = { ...data };
-    const readUuid = (value: unknown): string =>
-      typeof value === 'string' ? value.trim() : '';
-    const employeeUuid = readUuid(normalized.employee_uuid);
-
-    if (entity === 'salary_withdrawals') {
-      const expenseUuid = readUuid(normalized.expense_uuid);
-      if (expenseUuid) {
-        if (!(await this.getTableColumns('salary_withdrawals')).has('expense_uuid')) {
-          throw new Error('Migration 0013 is required before syncing expense-linked withdrawals');
-        }
-        const expense = await this.db.prepare(
-          'SELECT local_uuid, employee_uuid FROM expenses WHERE local_uuid = ?'
-        ).bind(expenseUuid).first<{ local_uuid: string; employee_uuid: string | null }>();
-        if (!expense) throw new Error('salary_withdrawals parent expense_uuid is not present in D1 yet');
-        if (!employeeUuid || !expense.employee_uuid ||
-            this.uuidComparable(employeeUuid) !== this.uuidComparable(expense.employee_uuid)) {
-          throw new Error('salary_withdrawals employee_uuid does not match its expense');
-        }
-        normalized.expense_uuid = expense.local_uuid;
-        // One source cannot acquire a second active mirror with a different UUID.
-        const mirror = await this.db.prepare(
-          'SELECT local_uuid FROM salary_withdrawals WHERE expense_uuid = ? AND deleted_at IS NULL AND local_uuid != ? LIMIT 1'
-        ).bind(expense.local_uuid, readUuid(normalized.local_uuid)).first();
-        if (mirror) throw new Error('salary_withdrawals expense_uuid already has an active mirror');
-      } else {
-        delete normalized.expense_uuid; // absent/null never unlinks a known source
-      }
-    }
-
-    if (entity === 'salary_cycles' || entity === 'salary_withdrawals' || entity === 'salary_carry_over_logs') {
-      if (!employeeUuid) {
-        delete normalized.employee_uuid;
-        if (mode === 'create') {
-          throw new Error(`${entity} requires employee_uuid; numeric employee_id is device-local`);
-        }
-        // A partial/legacy update may edit business fields, but it must not
-        // replace a canonical employee_id with the sender's local id.
-        delete normalized.employee_id;
-        return normalized;
-      }
-
-      const parent = await this.findEmployeeByUuid(employeeUuid);
-      if (!parent) {
-        throw new Error(`${entity} parent employee_uuid is not present in D1 yet`);
-      }
-      normalized.employee_uuid = parent.local_uuid;
-      normalized.employee_id = parent.id;
-      return normalized;
-    }
-
-    if (entity === 'salary_payments') {
-      const cycleUuid = readUuid(normalized.cycle_uuid);
-      if (!cycleUuid) {
-        delete normalized.cycle_uuid;
-        delete normalized.employee_uuid;
-        if (mode === 'create') {
-          throw new Error('salary_payments requires cycle_uuid; numeric cycle_id is device-local');
-        }
-        delete normalized.cycle_id;
-        return normalized;
-      }
-
-      const cycle = await this.findSalaryCycleByUuid(cycleUuid);
-      if (!cycle) {
-        throw new Error('salary_payments parent cycle_uuid is not present in D1 yet');
-      }
-      normalized.cycle_uuid = cycle.local_uuid;
-      normalized.cycle_id = cycle.id;
-
-      const suppliedEmployeeUuid = readUuid(normalized.employee_uuid);
-      if (cycle.employee_uuid) {
-        if (
-          suppliedEmployeeUuid &&
-          this.uuidComparable(suppliedEmployeeUuid) !== this.uuidComparable(cycle.employee_uuid)
-        ) {
-          throw new Error('salary_payments employee_uuid does not match its cycle');
-        }
-        normalized.employee_uuid = cycle.employee_uuid;
-      } else if (suppliedEmployeeUuid) {
-        const employee = await this.findEmployeeByUuid(suppliedEmployeeUuid);
-        if (!employee) {
-          throw new Error('salary_payments employee_uuid is not present in D1 yet');
-        }
-        normalized.employee_uuid = employee.local_uuid;
-      } else {
-        delete normalized.employee_uuid;
-      }
-      return normalized;
-    }
-
-    if (entity !== 'expenses') return normalized;
-
-    const clearEmployeeLink =
-      mode === 'update' && this.isExplicitLinkClear(normalized.clear_employee_link);
+    const clearLink =
+      mode === 'update' &&
+      this.isExplicitLinkClear(normalized.clear_employee_link);
     delete normalized.clear_employee_link;
-    // This column is server-owned metadata, never trust its value from a client.
+    // Server-owned; never trust a client value for this column.
     delete normalized.employee_link_cleared;
-    if (clearEmployeeLink) {
+    if (clearLink) {
       normalized.employee_uuid = null;
       normalized.related_id = null;
       normalized.employee_link_cleared = 1;
       return normalized;
-    }
-
-    const expenseType = readUuid(normalized.expense_type).toLowerCase();
-    const employeeLinkedType = EMPLOYEE_EXPENSE_TYPES.has(expenseType);
-    if (employeeUuid) {
-      const parent = await this.findEmployeeByUuid(employeeUuid);
-      if (parent) {
-        normalized.employee_uuid = parent.local_uuid;
-        normalized.related_id = parent.id;
-        normalized.employee_link_cleared = 0;
-      } else if (mode === 'create') {
-        // Keep the stable UUID for future repair/pull resolution, but never
-        // persist the sender's raw numeric employee id in D1.
-        normalized.employee_uuid = employeeUuid;
-        normalized.related_id = null;
-        normalized.employee_link_cleared = 0;
-      } else {
-        throw new Error('expenses parent employee_uuid is not present in D1 yet');
-      }
-      return normalized;
-    }
-
-    delete normalized.employee_uuid;
-    if (employeeLinkedType) {
-      if (mode === 'create') normalized.related_id = null;
-      else delete normalized.related_id;
-    } else if (mode === 'update' && normalized.related_id === null) {
-      // NULL without the explicit clear marker is not an unlink instruction.
-      delete normalized.related_id;
     }
     if (mode === 'create' && !('employee_link_cleared' in normalized)) {
       normalized.employee_link_cleared = 0;
@@ -997,38 +846,9 @@ export class Database {
     return normalized;
   }
 
-  private async findEmployeeByUuid(
-    localUuid: string
-  ): Promise<{ id: number; local_uuid: string } | null> {
-    const matches = await this.db
-      .prepare(
-        "SELECT id, local_uuid FROM employees " +
-          "WHERE LOWER(REPLACE(local_uuid, '-', '')) = LOWER(REPLACE(?, '-', '')) LIMIT 2",
-      )
-      .bind(localUuid)
-      .all<{ id: number; local_uuid: string }>();
-    return matches.results.length === 1 ? matches.results[0]! : null;
-  }
-
-  private async findSalaryCycleByUuid(
-    localUuid: string
-  ): Promise<{ id: number; local_uuid: string; employee_uuid: string | null } | null> {
-    const matches = await this.db
-      .prepare(
-        "SELECT id, local_uuid, employee_uuid FROM salary_cycles " +
-          "WHERE LOWER(REPLACE(local_uuid, '-', '')) = LOWER(REPLACE(?, '-', '')) LIMIT 2",
-      )
-      .bind(localUuid)
-      .all<{ id: number; local_uuid: string; employee_uuid: string | null }>();
-    return matches.results.length === 1 ? matches.results[0]! : null;
-  }
-
   private isExplicitLinkClear(value: unknown): boolean {
-    return value === true || value === 1 || value === '1' || value === 'true';
-  }
-
-  private uuidComparable(value: string): string {
-    return value.trim().replace(/-/g, '').toLowerCase();
+    if (value === 1 || value === '1' || value === true) return true;
+    return false;
   }
 
   async createRecord(
@@ -1038,18 +858,31 @@ export class Database {
     clientVectorClock?: string
   ): Promise<SyncRecord> {
     const table = getTableName(entity);
-    const normalizedData = await this.normalizePushReferences(entity, data, 'create');
-    if (entity === 'expenses') {
-      normalizedData.expense_kind = expenseKind(data.expense_kind, data);
-      if (!(await this.getTableColumns(table)).has('expense_kind')) throw new Error('D1 migration 0015 is required');
-    }
     const now = Math.floor(Date.now() / 1000);
 
-    // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
-    const localUuid = (normalizedData.local_uuid as string) || crypto.randomUUID();
+    // Parity unification: normalise expense_kind + employee_link_cleared on
+    // the wire before storage (mirrors branch3 worker/src/database.ts
+    // createRecord expense_kind derivation at L1043-1044 and the
+    // normalizePushReferences clear_employee_link translation at L952-997).
+    // The server owns `employee_link_cleared`; clients may send only the
+    // `clear_employee_link` instruction (legacy synonym used by the
+    // Android PushWireContract when an explicit unlink is requested).
+    const normalized = entity === 'expenses'
+      ? this.normalizeExpenseFields({ ...data }, 'create')
+      : { ...data };
+    if (entity === 'expenses') {
+      // Derive the canonical kind: explicit client value wins (validated),
+      // otherwise the conservative legacy classifier fills it in. Throws
+      // on an invalid non-null kind, which surfaces as a 500 → callers
+      // translate to validation_error if it reaches the push pipeline.
+      normalized.expense_kind = expenseKind(data.expense_kind, data);
+    }
 
-    // The final timestamp is assigned inside the write transaction below.
-    const serverUpdatedAt = now; // provisional; commitStamped assigns the final cursor
+    // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
+    const localUuid = (normalized.local_uuid as string) || crypto.randomUUID();
+
+    // ✅ Globally-unique updated_at (keeps the pull cursor lossless)
+    const serverUpdatedAt = await this.allocateUpdatedAt();
 
     // ✅ Respect the client's vector clock when it is a valid object;
     // otherwise seed a fresh clock for this device.
@@ -1059,10 +892,10 @@ export class Database {
         ? JSON.stringify(clientVc)
         : JSON.stringify({ [deviceId]: 1 });
 
-    const createdAtNum = Number(normalizedData.created_at);
+    const createdAtNum = Number(normalized.created_at);
 
     const record: SyncRecord = {
-      ...normalizedData,
+      ...normalized,
       local_uuid: localUuid,
       server_id: null,
       created_at:
@@ -1124,15 +957,14 @@ export class Database {
 
     // Use INSERT OR IGNORE for idempotency (duplicate local_uuid = skip)
     // but check the actual row count to detect silent failures
-    const committed = await this.commitStamped(table, 'local_uuid', localUuid, [
-      this.db.prepare(`INSERT OR IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`).bind(...values),
-      this.db.prepare('INSERT OR IGNORE INTO sync_write_times (entity, local_uuid, edited_at) VALUES (?, ?, ?)')
-        .bind(entity, localUuid, now),
-    ]);
+    const insertResult = await this.db
+      .prepare(`INSERT OR IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
+      .bind(...values)
+      .run();
 
     // If no rows were written, check if the record already exists
     // (idempotent skip) or if there was a silent constraint violation
-    if (committed.results[0].meta.changes === 0) {
+    if (insertResult.meta.changes === 0) {
       const existing = await this.db
         .prepare(`SELECT local_uuid FROM ${table} WHERE local_uuid = ?`)
         .bind(localUuid)
@@ -1142,16 +974,17 @@ export class Database {
         // Not a duplicate — a constraint was silently violated.
         // Retry with a plain INSERT to surface the actual error.
         console.error(`[CREATE] Silent insert failure for ${entity}/${localUuid}. Retrying with plain INSERT to surface error.`);
-        await this.commitStamped(table, 'local_uuid', localUuid, [this.db
+        await this.db
           .prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
-          .bind(...values)]);
+          .bind(...values)
+          .run();
       }
     }
 
     // Log to sync_log — use local_uuid as entity_id
-    await this.logSync(entity, localUuid, 'create', 1, deviceId, committed.record);
+    await this.logSync(entity, localUuid, 'create', 1, deviceId, record);
 
-    return committed.record;
+    return record;
   }
 
   // ─── Push: Update ──────────────────────────────────────────
@@ -1164,71 +997,117 @@ export class Database {
     deviceId: string,
     fallbackUpdatedAt?: number
   ): Promise<SyncRecord> {
-    // Freeze the operation's edit time across retries, rather than making a
-    // contended old edit appear newer each time it is evaluated.
-    const editTime = fallbackUpdatedAt !== undefined && Number.isFinite(fallbackUpdatedAt)
-      ? fallbackUpdatedAt : Number(data.updated_at) || Math.floor(Date.now() / 1000);
-    return this.updateRecordAttempt(entity, recordId, data, vectorClock, deviceId, editTime, 0);
-  }
-
-  private async updateRecordAttempt(
-    entity: string, recordId: string, data: Record<string, unknown>,
-    vectorClock: string, deviceId: string, fallbackUpdatedAt: number, attempt: number
-  ): Promise<SyncRecord> {
-    const originalData = data;
     const table = getTableName(entity);
-    const clearEmployeeLink =
-      entity === 'expenses' && this.isExplicitLinkClear(data.clear_employee_link);
 
-    // One SQL snapshot for the business row AND its conflict edit time.
-    // A second SELECT could pair an old row with a newer writer's edit time.
-    const snapshot = await this.db
-      .prepare(`SELECT r.*, (SELECT edited_at FROM sync_write_times
-        WHERE entity = ? AND local_uuid = r.local_uuid) AS __conflict_edit_time
-        FROM ${table} r WHERE r.local_uuid = ?`)
-      .bind(entity, recordId)
-      .first<SyncRecord & { __conflict_edit_time?: number | null }>();
-    const observedEditTime = snapshot?.__conflict_edit_time ?? null;
-    const existing = snapshot;
-    if (existing) delete existing.__conflict_edit_time;
+    // Fetch existing record by local_uuid (not id — id is autoIncrement)
+    const existing = await this.db
+      .prepare(`SELECT * FROM ${table} WHERE local_uuid = ?`)
+      .bind(recordId)
+      .first<SyncRecord>();
 
     if (!existing) {
       // Record doesn't exist — create it instead
       return this.createRecord(entity, { ...data, local_uuid: recordId }, deviceId, vectorClock);
     }
 
-    // Delete wins over every later-arriving edit. Returning an explicit
-    // operation status lets the client clear the losing outbox item without
-    // treating the rejection as a transient network failure.
-    if (existing.deleted_at !== null && existing.deleted_at !== undefined) {
+    // Parity unification: normalise expense fields BEFORE the LWW decision
+    // so the conflict-audit row reflects what the server would actually
+    // persist (mirrors branch3 worker/src/database.ts `updateRecord`
+    // expense_kind preservation at L1227 + normalizePushReferences at
+    // L1224). For `expenses` only — other entities pass through untouched.
+    let normalizedData = data;
+    if (entity === 'expenses') {
+      normalizedData = this.normalizeExpenseFields({ ...data, local_uuid: recordId }, 'update');
+      // Missing/null on an old client must never erase or re-infer an
+      // existing kind — once written, the kind is authoritative across
+      // free-text description edits (worker/test/expense-kind.test.ts
+      // "preserves installment after a legacy client edits free text").
+      normalizedData.expense_kind = expenseKind(
+        normalizedData.expense_kind ?? existing.expense_kind,
+        existing
+      );
+    }
+
+    // ✅ (F1 2026-09-22) عقد delete-vs-update — الحذف يفوز حتماً:
+    // تعديل يصل إلى صف محذوف ناعماً يُرفض بوعي (وليس القبول الصامت الذي
+    // كان يحدّث محتوى tombstone = صف محدّث ومحذوف في آن واحد ويقنع
+    // العميل بالنجاح ثم يمحو نسخته عند السحب بلا سجل تعارض).
+    // saveConflict يُكتب هنا دائماً (الخسارة مرئية في التدقيق)،
+    // والناتج يحمل opStatus:'deleted' (يرفعه handlePush) ليُوقف
+    // العميل إعادة المحاولة ويُطابق نسخته المحلية مع الحذف.
+    if (existing.deleted_at != null) {
       await this.saveConflict(
         entity,
         recordId,
         existing,
-        data,
+        normalizedData,
         existing.vector_clock ?? '{}',
         vectorClock,
-        'edit_on_deleted'
+        'edit_on_deleted',
       );
       return { ...existing, opStatus: 'deleted' };
     }
 
-    if (entity === 'salary_withdrawals' && existing.expense_uuid && data.expense_uuid &&
-        existing.expense_uuid !== data.expense_uuid) {
-      throw new Error('Cannot reassign the source expense_uuid of a salary withdrawal');
-    }
-    if (entity === 'salary_withdrawals' && existing.expense_uuid) {
-      data = { ...data, expense_uuid: existing.expense_uuid,
-        employee_uuid: data.employee_uuid || existing.employee_uuid };
-    }
-    data = await this.normalizePushReferences(entity, { ...data, local_uuid: recordId }, 'update');
-    if (entity === 'expenses') {
-      // Missing/null on an old client must never erase or re-infer an existing kind.
-      data = { ...data, expense_kind: expenseKind(data.expense_kind ?? existing.expense_kind, existing) };
-      if (!(await this.getTableColumns(table)).has('expense_kind')) throw new Error('D1 migration 0015 is required');
-    }
+    // ─── Conflict Detection + LWW decision (shared with the atomic
+    // push executor — single source of truth for the resolution rules).
+    const decision = this.resolveLwwDecision(existing, normalizedData, vectorClock, fallbackUpdatedAt);
 
-    // ─── Conflict Detection: Vector Clock ───────────────────
+    if (decision.conflict === 'concurrent') {
+      // Save conflict for audit
+      await this.saveConflict(entity, recordId, existing, normalizedData, existing.vector_clock ?? '{}', vectorClock);
+
+      if (decision.timestampLoss) {
+        // Server copy is newer — reject incoming
+        return existing;
+      }
+    } else if (decision.conflict === 'local_newer') {
+      // ✅ FIX: server state strictly dominates the client clock — the edit
+      // was made against stale data. The old code fell through and APPLIED
+      // it, regressing fields the server had already superseded. Apply only
+      // if the client demonstrably edited later (later timestamp, or an
+      // equal timestamp with a strictly higher version); otherwise reject.
+      if (decision.timestampLoss) {
+        return existing;
+      }
+    }
+    // 'equal' | 'remote_newer' → apply
+
+    // ─── Apply update (statement building shared with the atomic executor)
+    const now = await this.allocateUpdatedAt();
+    const build = await this.buildUpdateStatement(
+      table, existing, normalizedData, decision.mergedVc, decision.newVersion, deviceId, now
+    );
+
+    await this.db
+      .prepare(`UPDATE ${table} SET ${build.setClauses} WHERE local_uuid = ?`)
+      .bind(...build.values, recordId)
+      .run();
+
+    // Log to sync_log
+    await this.logSync(entity, recordId, 'update', decision.newVersion, deviceId, build.cleanUpdate);
+
+    // Return updated record
+    return { ...existing, ...build.cleanUpdate } as SyncRecord;
+  }
+
+  /**
+   * ✅ P0 review (2026-09-24): the LWW + vector-clock decision extracted
+   * verbatim from updateRecord so the legacy path and the new atomic push
+   * executor share ONE source of truth for conflict resolution.
+   * Handles: op-level updatedAt precedence, F2 forward clock-skew clamp,
+   * plan-2.4 version tie-break, F2(ب) within-window version rule.
+   */
+  private resolveLwwDecision(
+    existing: SyncRecord,
+    data: Record<string, unknown>,
+    vectorClock: string,
+    fallbackUpdatedAt?: number
+  ): {
+    conflict: 'equal' | 'local_newer' | 'remote_newer' | 'concurrent';
+    timestampLoss: boolean;
+    mergedVc: string;
+    newVersion: number;
+  } {
     const conflict = this.detectConflict(existing.vector_clock || '{}', vectorClock);
     // LWW input precedence (fix proven by test + client code): the op-level
     // `updatedAt` (outbox clientTs, cloudflare_sync_manager.dart:857) is the
@@ -1240,17 +1119,24 @@ export class Database {
         ? Math.floor(fallbackUpdatedAt)
         : Number(data.updated_at) || Math.floor(Date.now() / 1000);
 
-    // Bound future client clocks. Inside the 90-second skew window, the
-    // monotonic version breaks ties in either direction; an edit older than
-    // that window loses even if its client claims an inflated version.
+    // ✅ (F2 2026-09-22) part (أ): قصّ انحراف الساعة للأمام —
+    // incoming = min(clientTs, serverReceiveTime + سماحية). طابع المستقبل
+    // البعيد (ساعة أسرع) يُقص إلى سقف السماحية فلا يهيمن على تعارضات
+    // كل النافذة اللاحقة.
     const serverNow = Math.floor(Date.now() / 1000);
     const incomingTimestamp = Math.min(
       incomingTimestampRaw,
       serverNow + Database.CLOCK_SKEW_ALLOWANCE_S
     );
-    // Legacy rows have no independent edit time; retain the existing policy.
-    const existingEditTime = observedEditTime ?? Math.min(existing.updated_at, serverNow);
-    const incomingDelta = incomingTimestamp - existingEditTime;
+
+    // LWW resolution (plan 2.4 + F2 part ب): wall-clock timestamps are not
+    // monotonic across devices. Beyond the skew window the timestamp still
+    // dominates (a genuinely old edit must not resurrect via version);
+    // WITHIN the window the monotonic `version` decides — a slow-clock
+    // device carrying a genuinely newer edit (higher version) wins instead
+    // of being silently dropped, and the equal-timestamp tie-break below
+    // is the zero-width case of the same rule.
+    const incomingDelta = incomingTimestamp - existing.updated_at;
     const existingVersion = this.sanitizeVersion(existing.version);
     const timestampLoss =
       incomingDelta > 0
@@ -1260,33 +1146,28 @@ export class Database {
           : -incomingDelta > Database.CLOCK_SKEW_ALLOWANCE_S ||
             !this.incomingVersionWins(existingVersion, data.version);
 
-    if (conflict === 'concurrent') {
-      // Save conflict for audit
-      await this.saveConflict(entity, recordId, existing, data, existing.vector_clock ?? '{}', vectorClock);
+    return {
+      conflict,
+      timestampLoss,
+      mergedVc: this.mergeVectorClocks(existing.vector_clock || '{}', vectorClock),
+      newVersion: this.sanitizeVersion(existing.version) + 1,
+    };
+  }
 
-      if (timestampLoss) {
-        // Server copy is newer — reject incoming
-        return existing;
-      }
-    } else if (conflict === 'local_newer') {
-      // ✅ FIX: server state strictly dominates the client clock — the edit
-      // was made against stale data. The old code fell through and APPLIED
-      // it, regressing fields the server had already superseded. Apply only
-      // if the client demonstrably edited later (later timestamp, or an
-      // equal timestamp with a strictly higher version); otherwise reject.
-      if (timestampLoss) {
-        return existing;
-      }
-    }
-    // 'equal' | 'remote_newer' → apply
-
-    // ─── Apply update ────────────────────────────────────────
-    const now = Math.floor(Date.now() / 1000);
-    const newVersion = this.sanitizeVersion(existing.version) + 1;
-
-    // Merge vector clocks
-    const mergedVc = this.mergeVectorClocks(existing.vector_clock || '{}', vectorClock);
-
+  /**
+   * ✅ P0 review (2026-09-24): UPDATE SET-clause builder extracted verbatim
+   * from updateRecord (column whitelist + sync-field stamping) so the
+   * legacy path and the atomic push executor produce identical rows.
+   */
+  private async buildUpdateStatement(
+    table: string,
+    _existing: SyncRecord,
+    data: Record<string, unknown>,
+    mergedVc: string,
+    newVersion: number,
+    deviceId: string,
+    now: number
+  ): Promise<{ cleanUpdate: Record<string, unknown>; setClauses: string; values: unknown[] }> {
     // Build UPDATE SET clause
     const updateFields = { ...data };
     updateFields.updated_at = now;
@@ -1309,57 +1190,500 @@ export class Database {
     const validColumns = await this.getTableColumns(table);
     const cleanUpdate: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(updateFields)) {
-      const nullableLinkField =
-        key === 'employee_uuid' || key === 'expense_uuid' || key === 'cycle_uuid' ||
-        (entity === 'expenses' && key === 'related_id');
-      const explicitExpenseUnlink =
-        clearEmployeeLink && entity === 'expenses' &&
-        (key === 'employee_uuid' || key === 'related_id');
-      if (
-        value !== undefined &&
-        validColumns.has(key) &&
-        !(value === null && nullableLinkField && !explicitExpenseUnlink)
-      ) {
+      if (value !== undefined && validColumns.has(key)) {
         cleanUpdate[key] = value;
       }
     }
 
-    const columns = Object.keys(cleanUpdate).filter((col) => col !== 'updated_at');
-    const setClauses = columns.map((col) => `${col} = ?`).join(', ');
-    const values = columns.map((col) => cleanUpdate[col]);
+    const setClauses = Object.keys(cleanUpdate)
+      .map((col) => `${col} = ?`)
+      .join(', ');
+    const values = Object.keys(cleanUpdate).map((col) => cleanUpdate[col]);
+    return { cleanUpdate, setClauses, values };
+  }
 
-    // Compare-and-swap and metadata publication are in the SAME transaction.
-    // changes() belongs to the immediately preceding conditional UPDATE: a
-    // failed CAS must not replace the winning writer's sync_write_times entry.
-    // Clock gaps on a failed attempt are harmless; no row receives that stamp.
-    const results = await this.db.batch([
-      this.db.prepare('INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, 0)'),
-      this.db.prepare('UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1').bind(now),
-      this.db.prepare(`UPDATE ${table} SET ${setClauses},
-        updated_at = (SELECT last_ts FROM sync_clock WHERE id = 1)
-        WHERE local_uuid = ? AND updated_at = ? AND version IS ?
-          AND vector_clock IS ? AND deleted_at IS NULL
-          AND (SELECT edited_at FROM sync_write_times WHERE entity = ? AND local_uuid = ?) IS ?`)
-        .bind(...values, recordId, existing.updated_at, existing.version ?? null,
-          existing.vector_clock ?? null, entity, recordId, observedEditTime),
-      this.db.prepare('INSERT INTO sync_write_times (entity, local_uuid, edited_at) ' +
-        'SELECT ?, ?, ? WHERE changes() > 0 ' +
-        'ON CONFLICT(entity, local_uuid) DO UPDATE SET edited_at = excluded.edited_at')
-        .bind(entity, recordId, incomingTimestamp),
-      this.db.prepare(`SELECT * FROM ${table} WHERE local_uuid = ?`).bind(recordId),
-    ]);
-    if (results[2].meta.changes === 0) {
-      if (attempt >= 4) throw new Error('Concurrent update contention; retry operation');
-      return this.updateRecordAttempt(entity, recordId, originalData, vectorClock,
-        deviceId, fallbackUpdatedAt, attempt + 1);
+  /**
+   * ✅ P0 review (2026-09-24): INSERT row builder extracted verbatim from
+   * createRecord (NOT NULL fill + column whitelist) — shared with the
+   * atomic push executor so both paths produce identical rows.
+   */
+  private async prepareInsertRow(
+    table: string,
+    data: Record<string, unknown>,
+    deviceId: string,
+    serverUpdatedAt: number,
+    clientVectorClock: string | undefined
+  ): Promise<{ localUuid: string; cleanRecord: Record<string, unknown>; columns: string[]; values: unknown[] }> {
+    const now = Math.floor(Date.now() / 1000);
+
+    // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
+    const localUuid = (data.local_uuid as string) || crypto.randomUUID();
+
+    // ✅ Respect the client's vector clock when it is a valid object;
+    // otherwise seed a fresh clock for this device.
+    const clientVc = this.parseVectorClock(clientVectorClock || '{}');
+    const vectorClockJson =
+      Object.keys(clientVc).length > 0
+        ? JSON.stringify(clientVc)
+        : JSON.stringify({ [deviceId]: 1 });
+
+    const createdAtNum = Number(data.created_at);
+
+    const record: SyncRecord = {
+      ...data,
+      local_uuid: localUuid,
+      server_id: null,
+      created_at:
+        Number.isFinite(createdAtNum) && createdAtNum > 0
+          ? Math.floor(createdAtNum)
+          : now,
+      updated_at: serverUpdatedAt,
+      deleted_at: null,
+      version: 1,
+      device_id: deviceId,
+      vector_clock: vectorClockJson,
+      origin: 'cloud',
+    };
+
+    // Remove 'id' — D1 INTEGER autoIncrement will generate it
+    delete (record as Record<string, unknown>).id;
+
+    // Fill NOT NULL fields with defaults if not provided
+    if (!record.last_modified) (record as Record<string, unknown>).last_modified = now;
+    if (!record.created_at_epoch) (record as Record<string, unknown>).created_at_epoch = 0;
+    if (!record.last_modified_epoch) (record as Record<string, unknown>).last_modified_epoch = 0;
+
+    // ─── Filter to only columns that exist in the target table ───
+    // This prevents "no such column" errors when data contains fields
+    // from a different entity (e.g. guest_phone in debts data).
+    const validColumns = await this.getTableColumns(table);
+    const cleanRecord: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(record)) {
+      if (value !== undefined && validColumns.has(key)) {
+        cleanRecord[key] = value;
+      }
     }
-    const committed = { record: results[4].results[0] as unknown as SyncRecord };
 
-    // Log to sync_log
-    await this.logSync(entity, recordId, 'update', newVersion, deviceId, committed.record);
+    // ─── Fill NOT NULL columns (without defaults) with empty values ───
+    // Get the column metadata to identify NOT NULL columns without defaults
+    const colMeta = await this.db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all<{ name: string; notnull: number; dflt_value: string | null; type: string }>();
 
-    // Return updated record
-    return committed.record;
+    for (const col of colMeta.results) {
+      // Skip if column has a default, is nullable, is PK/id, or is already in cleanRecord
+      if (col.dflt_value !== null) continue;
+      if (col.notnull === 0) continue;
+      if (col.name === 'id' || col.name === 'local_uuid') continue;
+      if (col.name in cleanRecord) continue;
+
+      // Fill with appropriate empty value based on type
+      const typeLower = col.type.toLowerCase();
+      if (typeLower === 'integer' || typeLower === 'real' || typeLower === 'numeric') {
+        cleanRecord[col.name] = 0;
+      } else {
+        cleanRecord[col.name] = '';
+      }
+    }
+
+    const columns = Object.keys(cleanRecord);
+    const values = columns.map((col) => cleanRecord[col]);
+    return { localUuid, cleanRecord, columns, values };
+  }
+
+  /**
+   * ✅ P0 (2026-09-24): atomic push-operation executor.
+   *
+   * Fixes the check-then-act idempotency race in the old handlePush flow
+   * (checkIdempotency → mutation → saveIdempotency were three independent
+   * D1 round-trips: two devices racing the same idempotencyKey could both
+   * pass the check and double-apply the mutation).
+   *
+   * Design (D1 has no interactive BEGIN/COMMIT across await points; the
+   * atomic unit is db.batch() — "batched statements are SQL transactions;
+   * if a statement fails the whole batch rolls back"):
+   *
+   *   1. PLAN  (read-only): resolve the record identity (local_uuid →
+   *      server_id → legacy id), read the current row, run the SHARED
+   *      vector-clock/LWW decision, and build every write statement.
+   *   2. COMMIT (atomic db.batch):
+   *        [0] claim  — plain INSERT INTO idempotency_log … (key = PK).
+   *                     A duplicate key THROWS → whole batch rolls back
+   *                     → the mutation can never run twice for one key.
+   *                     The row already carries the final response JSON,
+   *                     so commit == claim + mutation + saved response.
+   *        [1..n] mutation — guarded INSERT / version-checked UPDATE
+   *                     (AND version = expected AND deleted_at IS NULL) /
+   *                     tombstone UPDATE, plus sync_log + sync_conflicts.
+   *   3. REPLAY — on the UNIQUE violation, the stored response is returned
+   *      (skipped: true) exactly like a retry after timeout/disconnect.
+   *
+   * Guarantees: same key ⇒ exactly-once effect; failed mutation ⇒ no
+   * idempotency record (rolled back together); retry after timeout ⇒
+   * previous response replayed; D1 stays the single source of truth —
+   * SyncLockDO/Realtime are never consulted for correctness.
+   */
+  async executeOperationAtomically(
+    op: PushOperation,
+    deviceId: string
+  ): Promise<
+    | { kind: 'applied'; entityId: string; response: unknown }
+    | { kind: 'replayed'; response: unknown }
+    | { kind: 'noop'; entityId: string; note: string; response: unknown }
+    | { kind: 'failed'; error: string }
+  > {
+    const table = getTableName(op.entity);
+    const now = Math.floor(Date.now() / 1000);
+
+    // Parity unification: normalise expense fields on the atomic push path
+    // (the production code path used by handlePush) so `expense_kind`
+    // derivation + `clear_employee_link` translation run for every push
+    // op, not only the legacy `createRecord`/`updateRecord` paths.
+    // Mirrors branch3 worker/src/database.ts createRecord L1042-1044 +
+    // updateRecord L1224-1228 normalization. We operate on a local copy
+    // so the caller's `op.data` reference is untouched. The `expense_kind`
+    // preservation for `update` (use existing if incoming is null) happens
+    // after the existing row is fetched, below.
+    if (op.entity === 'expenses' && op.operation !== 'delete') {
+      const normalized = this.normalizeExpenseFields({ ...op.data }, op.operation);
+      if (op.operation === 'create') {
+        normalized.expense_kind = expenseKind(op.data.expense_kind, op.data);
+      }
+      op = { ...op, data: normalized };
+    }
+
+    try {
+      // ─── PLAN (read-only) ──────────────────────────────────
+      // `local_uuid` is the only portable entity identity. Local integer
+      // columns (`id`, `server_id`, `employee_id`, `expense_id`) must never
+      // become a cross-device lookup key.
+      const dataLocalUuid = typeof op.data.local_uuid === 'string' &&
+          op.data.local_uuid.length > 0 &&
+          op.data.local_uuid.trim() === op.data.local_uuid
+        ? op.data.local_uuid
+        : null;
+      if (!dataLocalUuid) {
+        return { kind: 'failed', error: 'Error: Record is missing a valid local_uuid' };
+      }
+      const identity = { where: 'local_uuid', bind: dataLocalUuid };
+
+      // Pre-read the existing row for update/delete decisions.
+      let existing: SyncRecord | null = null;
+      if (op.operation !== 'create') {
+        existing = await this.db
+          .prepare(`SELECT * FROM ${table} WHERE ${identity.where} = ?`)
+          .bind(identity.bind as string | number)
+          .first<SyncRecord>();
+      }
+
+      // Parity unification: preserve `expense_kind` for `expenses` updates —
+      // a missing/null kind on an old client must never erase an existing
+      // kind (worker/test/expense-kind.test.ts "preserves installment after
+      // a legacy client edits free text or omits/nulls kind"). The check
+      // runs here, after `existing` is known, so we can fall back to its
+      // kind when the incoming payload omits the field. Mirrors branch3
+      // worker/src/database.ts updateRecord L1227.
+      if (op.entity === 'expenses' && op.operation === 'update' && existing) {
+        op = {
+          ...op,
+          data: {
+            ...op.data,
+            expense_kind: expenseKind(op.data.expense_kind ?? existing.expense_kind, existing),
+          },
+        };
+      }
+
+      // Op-level response payload (stored inside the claim row itself).
+      let responsePayload: Record<string, unknown>;
+      let statements: D1PreparedStatement[] = [];
+      let entityId = '';
+
+      if (op.operation === 'create') {
+        // Pre-check duplicate local_uuid (old INSERT OR IGNORE semantics:
+        // a different key carrying an existing local_uuid is a silent skip).
+        const dupLocalUuid = dataLocalUuid
+          ? await this.db
+              .prepare(`SELECT local_uuid FROM ${table} WHERE local_uuid = ?`)
+              .bind(dataLocalUuid)
+              .first<{ local_uuid: string }>()
+          : null;
+        if (dupLocalUuid) {
+          // No mutation — claim-only batch (response = skip). Preserves the
+          // old "duplicate local_uuid with a new key does not duplicate" test.
+          entityId = dataLocalUuid!;
+          responsePayload = { entity: op.entity, entityId, operation: 'create' };
+          statements = [this.claimStatement(op, entityId, responsePayload)];
+        } else {
+          const serverUpdatedAt = await this.allocateUpdatedAt();
+          const row = await this.prepareInsertRow(table, op.data, deviceId, serverUpdatedAt, op.vectorClock);
+          entityId = row.localUuid;
+          responsePayload = { entity: op.entity, entityId, operation: 'create' };
+          statements = [
+            this.claimStatement(op, entityId, responsePayload),
+            this.db
+              .prepare(`INSERT INTO ${table} (${row.columns.join(', ')}) VALUES (${row.columns.map(() => '?').join(', ')})`)
+              .bind(...row.values),
+            this.db
+              .prepare('INSERT INTO sync_log (entity, entity_id, operation, version, device_id, timestamp, payload) VALUES (?, ?, ?, ?, ?, ?, ?)')
+              .bind(op.entity, entityId, 'create', 1, deviceId, now, JSON.stringify(row.cleanRecord)),
+          ];
+        }
+      } else if (op.operation === 'update') {
+        if (!existing) {
+          // Update of a missing local_uuid retains the established idempotent
+          // create behavior, but it never falls back to a numeric identifier.
+          return this.executeOperationAtomically(
+            { ...op, operation: 'create', data: { ...op.data, local_uuid: dataLocalUuid } },
+            deviceId
+          );
+        }
+
+        // ✅ (F1 2026-09-22) delete-vs-update contract — tombstone wins.
+        if (existing.deleted_at != null) {
+          entityId = existing.local_uuid;
+          responsePayload = { entity: op.entity, entityId, operation: 'update', status: 'deleted' };
+          statements = [
+            this.claimStatement(op, entityId, responsePayload),
+            this.conflictStatement(op.entity, entityId, existing, op.data, existing.vector_clock ?? '{}', op.vectorClock, 'edit_on_deleted'),
+          ];
+        } else {
+          const decision = this.resolveLwwDecision(existing, op.data, op.vectorClock, op.updatedAt);
+          const rejectExisting =
+            (decision.conflict === 'concurrent' && decision.timestampLoss) ||
+            (decision.conflict === 'local_newer' && decision.timestampLoss);
+          if (rejectExisting) {
+            // Server copy wins — same response as the legacy path
+            // (success + no content change). Concurrent loss is recorded.
+            entityId = existing.local_uuid;
+            responsePayload = { entity: op.entity, entityId, operation: 'update' };
+            statements = [this.claimStatement(op, entityId, responsePayload)];
+            if (decision.conflict === 'concurrent') {
+              statements.push(
+                this.conflictStatement(op.entity, entityId, existing, op.data, existing.vector_clock ?? '{}', op.vectorClock)
+              );
+            }
+          } else {
+            const serverUpdatedAt = await this.allocateUpdatedAt();
+            const build = await this.buildUpdateStatement(
+              table, existing, op.data, decision.mergedVc, decision.newVersion, deviceId, serverUpdatedAt
+            );
+            entityId = existing.local_uuid;
+            responsePayload = { entity: op.entity, entityId, operation: 'update' };
+            // ✅ Optimistic concurrency (user contract: "D1 transaction +
+            // optimistic concurrency يجب أن يبقيا الحماية الأساسية"):
+            // the UPDATE only fires when the row still carries the version
+            // we decided against AND is still live. A racing writer between
+            // plan and commit makes this a 0-row no-op (verified post-commit
+            // via batch results → conflict recorded, current row returned).
+            statements = [
+              this.claimStatement(op, entityId, responsePayload),
+              this.db
+                .prepare(
+                  `UPDATE ${table} SET ${build.setClauses} WHERE local_uuid = ? AND version = ? AND deleted_at IS NULL`
+                )
+                .bind(...build.values, entityId, this.sanitizeVersion(existing.version)),
+              this.db
+                .prepare(
+                  `INSERT INTO sync_log (entity, entity_id, operation, version, device_id, timestamp, payload)
+                   SELECT ?, ?, ?, ?, ?, ?, ?
+                   WHERE EXISTS (SELECT 1 FROM ${table} WHERE local_uuid = ? AND version = ?)`
+                )
+                .bind(op.entity, entityId, 'update', decision.newVersion, deviceId, now, JSON.stringify(build.cleanUpdate), entityId, decision.newVersion),
+            ];
+            if (decision.conflict === 'concurrent') {
+              statements.push(
+                this.conflictStatement(op.entity, entityId, existing, op.data, existing.vector_clock ?? '{}', op.vectorClock)
+              );
+            }
+          }
+        }
+      } else {
+        // ─── delete ───
+        if (!existing) {
+          // Old contract: delete of a missing record is a no-op success
+          // (and the response is idempotency-recorded so retries replay).
+          entityId = String(identity.bind);
+          responsePayload = { entity: op.entity, entityId, operation: 'delete', deleted: false };
+          statements = [this.claimStatement(op, entityId, responsePayload)];
+        } else {
+          entityId = existing.local_uuid;
+          const newVersion = this.sanitizeVersion(existing.version) + 1;
+          const serverUpdatedAt = await this.allocateUpdatedAt();
+          responsePayload = { entity: op.entity, entityId, operation: 'delete', deleted: true };
+          // ✅ Optimistic guard: version-checked tombstone (idempotent for
+          // replays — the claim row replays first anyway; the guard covers a
+          // racing delete/update from a DIFFERENT key between plan & commit).
+          statements = [
+            this.claimStatement(op, entityId, responsePayload),
+            this.db
+              .prepare(
+                `UPDATE ${table} SET deleted_at = ?, updated_at = ?, version = ? WHERE local_uuid = ? AND version = ? AND deleted_at IS NULL`
+              )
+              .bind(serverUpdatedAt, serverUpdatedAt, newVersion, entityId, this.sanitizeVersion(existing.version)),
+            this.db
+              .prepare(
+                `INSERT INTO sync_log (entity, entity_id, operation, version, device_id, timestamp, payload)
+                 SELECT ?, ?, ?, ?, ?, ?, NULL
+                 WHERE EXISTS (SELECT 1 FROM ${table} WHERE local_uuid = ? AND version = ? AND deleted_at IS NOT NULL)`
+              )
+              .bind(op.entity, entityId, 'delete', newVersion, deviceId, now, entityId, newVersion),
+          ];
+        }
+      }
+
+      // ─── COMMIT (atomic) ───────────────────────────────────
+      const batchResults = await this.db.batch(statements);
+
+      // Optimistic-concurrency verification for update/delete: a 0-row
+      // guarded mutation means a racing writer won between plan and commit.
+      const mutationResult = batchResults[1];
+      if (
+        op.operation !== 'create' &&
+        existing &&
+        mutationResult &&
+        typeof (mutationResult as { meta?: { changes?: number } }).meta?.changes === 'number' &&
+        (mutationResult as { meta: { changes: number } }).meta.changes === 0
+      ) {
+        const current = await this.db
+          .prepare(`SELECT * FROM ${table} WHERE local_uuid = ?`)
+          .bind(entityId)
+          .first<SyncRecord>();
+        await this.saveConflict(
+          op.entity,
+          entityId,
+          existing,
+          op.data,
+          existing.vector_clock ?? '{}',
+          op.vectorClock,
+          'lost_race_optimistic_guard'
+        );
+        console.warn(`[SYNC/PUSH] ${op.entity}/${entityId} lost an optimistic-guard race — server row returned`);
+        return { kind: 'noop', entityId, note: 'lost_race_optimistic_guard', response: responsePayload };
+      }
+
+      return { kind: 'applied', entityId, response: responsePayload };
+    } catch (err) {
+      const msg = String(err);
+      // Claim collision → the op already ran (timeout retry / concurrent
+      // duplicate). Replay the stored response — exactly-once effect.
+      if (/UNIQUE constraint failed[\s\S]*idempotency_log/.test(msg) || /PRIMARY KEY[\s\S]*idempotency_log/.test(msg)) {
+        const saved = await this.checkIdempotency(op.idempotencyKey);
+        if (saved.exists) {
+          return { kind: 'replayed', response: saved.response };
+        }
+      }
+      console.error(`[SYNC/PUSH] atomic op failed (${op.idempotencyKey}):`, msg.slice(0, 300));
+      return { kind: 'failed', error: msg };
+    }
+  }
+
+  /** The claim row — plain INSERT so a duplicate key aborts the whole batch. */
+  private claimStatement(
+    op: PushOperation,
+    entityId: string,
+    response: unknown
+  ): D1PreparedStatement {
+    return this.db
+      .prepare(
+        'INSERT INTO idempotency_log (key, entity, operation, entity_id, processed_at, response) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .bind(
+        op.idempotencyKey,
+        op.entity,
+        op.operation,
+        entityId,
+        Math.floor(Date.now() / 1000),
+        JSON.stringify(response)
+      );
+  }
+
+  private conflictStatement(
+    entity: string,
+    entityId: string,
+    localRecord: unknown,
+    remoteData: unknown,
+    localVc: string,
+    remoteVc: string,
+    resolution: string = 'last_write_wins'
+  ): D1PreparedStatement {
+    const now = Math.floor(Date.now() / 1000);
+    return this.db
+      .prepare(
+        `INSERT INTO sync_conflicts (entity, entity_id, local_payload, remote_payload, local_vector_clock, remote_vector_clock, resolution, resolved_at, created_at, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        entity,
+        entityId,
+        JSON.stringify(localRecord),
+        JSON.stringify(remoteData),
+        localVc,
+        remoteVc,
+        resolution,
+        now,
+        now,
+        ''
+      );
+  }
+
+  // ─── Push: Delete guard — «الحذف يتيّم التاريخ المالي» ──────
+
+  /**
+   * ✅ (2026-09-21) حارس يتيم الموظفين — «لفصل موظف استخدم إنهاء
+   * الخدمة من التطبيق (تغيّر الحالة فقط)؛ أما الحذف فيتيّم تاريخه
+   * المالي على بقية الأجهزة».
+   *
+   * الجذر: tombstone الأب يُسلَّم للأجهزة الجديدة كصف no-op فلا
+   * يُبنى لها ظل server_id المحلي — فتعلّق أبناؤه الأحياء إلى الأبد
+   * (حذف ستة موظفين خادمياً في 2026-09 علّق 299 سحباً حياً، ومنها
+   * الـ 100 المُبلَّغ عنها في sync:pull-apply).
+   *
+   * عقد الربط = عقد ai.ts (EMPLOYEE_SALARY_EXPENSE_JOIN):
+   * - employee_uuid أولاً — dash-insensitive (الإنتاج يحوي الشكلين).
+   * - المسك الرقمي (employee_id/related_id = e.id) سقوطٌ فقط للصفوف
+   *   التي لا تحمل uuid (تسبق ترحيلات 0006/0007).
+   * - expenses: related_id متعدد الدلالة → مسكه الرقمي يُعتمد فقط مع
+   *   أنواع المصروفات المرتبطة بالموظف (نفس قائمة ai.ts — دونها
+   *   يحجب حجزُ غرفةٍ عابرٌ الحذفَ بمجرد تطابق رقمي).
+   * - tombstones تُحتسب: التاريخ المحذوف ناعماً قابلٌ للإحياء (رفعنا
+   *   حذف الستة في 2026-09-20 بلا أي فقد).
+   *
+   * @returns خريطة عدد السجلات المالية لكل جدول، أو null إن لم يوجد
+   * الموظف أصلاً (حذفه حينها no-op — انظر deleteRecord).
+   */
+  async employeeFinancialHistoryCount(
+    employeeUuid: string
+  ): Promise<Record<string, number> | null> {
+    const dashless = String(employeeUuid).replace(/-/g, '');
+    // أنواع المصروفات المرتبطة بالموظف — طبق الأصل من ai.ts
+    // (SALARY_EXPENSE_TYPES_ALL) — أبقِ القائمتين متطابقتين.
+    const salaryExpenseTypes = [
+      'رواتب', 'سحب راتب', 'سحب من الراتب', 'سلفة',
+      'خصم من الراتب', 'خصم راتب', 'خصم', 'غياب',
+    ];
+    const typeList = salaryExpenseTypes.map(() => '?').join(',');
+    return await this.db
+      .prepare(
+        `SELECT
+          (SELECT COUNT(*) FROM salary_withdrawals w WHERE
+             (w.employee_uuid IS NOT NULL AND REPLACE(w.employee_uuid,'-','') = ?)
+          OR (w.employee_uuid IS NULL AND w.employee_id = e.id)) AS withdrawals,
+          (SELECT COUNT(*) FROM salary_cycles c WHERE
+             (c.employee_uuid IS NOT NULL AND REPLACE(c.employee_uuid,'-','') = ?)
+          OR (c.employee_uuid IS NULL AND c.employee_id = e.id)) AS cycles,
+          (SELECT COUNT(*) FROM salary_payments p WHERE
+             p.employee_uuid IS NOT NULL AND REPLACE(p.employee_uuid,'-','') = ?) AS payments,
+          (SELECT COUNT(*) FROM salary_carry_over_logs k WHERE
+             k.employee_id = e.id) AS carryovers,
+          (SELECT COUNT(*) FROM expenses x WHERE
+             (x.employee_uuid IS NOT NULL AND REPLACE(x.employee_uuid,'-','') = ?)
+          OR (x.employee_uuid IS NULL AND x.related_id = e.id
+              AND TRIM(x.expense_type) IN (${typeList}))) AS expenses
+        FROM employees e
+        WHERE REPLACE(e.local_uuid,'-','') = ?`
+      )
+      .bind(dashless, dashless, dashless, dashless, ...salaryExpenseTypes, dashless)
+      .first<Record<string, number>>();
   }
 
   // ─── Push: Delete (soft delete) ────────────────────────────
@@ -1370,8 +1694,9 @@ export class Database {
     deviceId: string
   ): Promise<{ deleted: boolean }> {
     const table = getTableName(entity);
-    // Tombstones receive their final updated_at in the commit transaction.
-    const now = Math.floor(Date.now() / 1000);
+    // ✅ Tombstones must be pullable too — allocate a unique updated_at so
+    // the deletion surfaces exactly once in every client's delta stream.
+    const now = await this.allocateUpdatedAt();
 
     const existing = await this.db
       .prepare(`SELECT version FROM ${table} WHERE local_uuid = ?`)
@@ -1382,19 +1707,16 @@ export class Database {
       return { deleted: false };
     }
 
-    // A deletion is unconditional (delete-wins), but its version must be
-    // incremented from the CURRENT row in the transaction, not the earlier
-    // snapshot. Attribute the tombstone to the deleting device for echo filters.
-    const committed = await this.commitStamped(table, 'local_uuid', recordId, [this.db
-      .prepare(
-        `UPDATE ${table} SET deleted_at = ?, updated_at = ?, device_id = ?,
-          version = (CASE WHEN typeof(version) IN ('integer', 'real') AND version <= ?
-            THEN version ELSE 1 END) + 1 WHERE local_uuid = ?`
-      )
-      .bind(now, now, deviceId, Database.MAX_SANE_VERSION, recordId)]);
-    if (committed.results[0].meta.changes === 0) return { deleted: false };
+    const newVersion = this.sanitizeVersion(existing.version) + 1;
 
-    await this.logSync(entity, recordId, 'delete', committed.record.version, deviceId, null);
+    await this.db
+      .prepare(
+        `UPDATE ${table} SET deleted_at = ?, updated_at = ?, version = ? WHERE local_uuid = ?`
+      )
+      .bind(now, now, newVersion, recordId)
+      .run();
+
+    await this.logSync(entity, recordId, 'delete', newVersion, deviceId, null);
 
     return { deleted: true };
   }
@@ -1494,7 +1816,7 @@ export class Database {
     remoteData: unknown,
     localVc: string,
     remoteVc: string,
-    resolution = 'last_write_wins'
+    resolution: string = 'last_write_wins'
   ): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     await this.db
@@ -1654,8 +1976,10 @@ export class Database {
     platform?: string,
     localUuid?: string
   ): Promise<void> {
-    // Device wall-clock metadata is separate from its committed sync cursor.
-    const now = Math.floor(Date.now() / 1000);
+    // ✅ Globally-unique monotonic updated_at (sync_clock) — devices is
+    // a synced entity now; raw Date.now() would break the pull cursor's
+    // losslessness guarantee.
+    const now = await this.allocateUpdatedAt();
     // Ensure devices table exists (shape matches schema.sql / 0004 —
     // sync-entity shape with SyncFields mirror; device_id is BOTH the
     // device identity and the SyncFields writer column, unified).
@@ -1694,7 +2018,7 @@ export class Database {
 
     // Upsert by device_id; local_uuid anchors the sync protocol so REST
     // registration and outbox pushes converge on a single row.
-    await this.commitStamped('devices', 'device_id', deviceId, [this.db.prepare(
+    await this.db.prepare(
       `INSERT INTO devices (local_uuid, device_id, fcm_token, status,
          device_name, platform, last_active, created_at, updated_at,
          last_modified, last_modified_epoch, origin)
@@ -1722,7 +2046,7 @@ export class Database {
       now,
       now,
       now
-    )]);
+    ).run();
   }
 
   async getDeviceTokens(excludeDeviceId?: string): Promise<string[]> {
@@ -1740,10 +2064,10 @@ export class Database {
   }
 
   async setDeviceFcmToken(deviceId: string, fcmToken: string): Promise<void> {
-    // commitStamped assigns the sync cursor; metadata uses wall-clock seconds.
-    const now = Math.floor(Date.now() / 1000);
-    await this.commitStamped('devices', 'device_id', deviceId, [this.db.prepare(
+    // ✅ sync_clock allocation — monotonic pull cursor (see registerDevice)
+    const now = await this.allocateUpdatedAt();
+    await this.db.prepare(
       `UPDATE devices SET fcm_token = ?, updated_at = ?, last_modified = ?, last_modified_epoch = ? WHERE device_id = ?`
-    ).bind(fcmToken, now, now, now, deviceId)]);
+    ).bind(fcmToken, now, now, now, deviceId).run();
   }
 }

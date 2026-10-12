@@ -1,6 +1,7 @@
-import { legacyExpenseKind } from './expense-kind';
 // Natural-language hotel operations for Workers AI + D1.
 // The model may classify a request, but never supplies executable SQL.
+
+import { Database } from './database';
 
 export interface AiBinding {
   run(model: string, input: unknown): Promise<unknown>;
@@ -19,21 +20,58 @@ export interface AiEnv {
   CLOUDFLARE_ACCOUNT_ID?: string;
 }
 
+/// ✅ (2026-09-30) أنواع الكتابة القابلة للتنفيذ — كلها خلف بوابة الدور
+/// (admin/manager في handleAiRequest) وخطوة التأكيد، وتُطبَّع مدخلاتها في
+/// normalizePlan قبل أي تحقق أو تنفيذ (حماية من هلوسة النموذج ومن plan
+/// مُرسل يدوياً مع confirm:true). أُجّل عمداً: checkout/add_booking/
+/// settle_debt — تحتاج حساب أرصدة وحقولاً مشتقة (راجع final message).
+export type AiWriteKind =
+  | 'add_expense'
+  | 'update_room_price'
+  | 'record_payment'
+  | 'record_debt'
+  | 'add_salary_payout'
+  | 'update_room_status';
+
 export interface AiPlan {
-  kind: 'query' | 'add_expense' | 'unsupported';
+  kind: 'query' | AiWriteKind | 'unsupported';
   queryType?: 'expenses_total' | 'employee_withdrawals' | 'employee_salary' | 'daily_summary' | 'rooms_available' | 'rooms_all' | 'current_guests' | 'guest_search' | 'bookings_current' | 'occupancy_summary' | 'occupancy_trend' | 'booking_analysis' | 'overdue_bookings' | 'stay_statistics' | 'salary_expenses';
   employeeName?: string;
   guestName?: string;
   roomNumber?: string;
+  /** أرقام الغرف المستهدفة لتحديث السعر — kind='update_room_price' فقط. */
+  roomNumbers?: string[];
+  /** السعر الجديد المطلق للغرف المذكورة — kind='update_room_price' فقط. */
+  newPrice?: number;
   expenseType?: string;
   description?: string;
   amountPerDay?: number;
   dateFrom?: string;
   dateTo?: string;
+  /** مبلغ مفرد للإجراءات أحادية المبلغ (دفعة/دين/سحب راتب). */
+  amount?: number;
+  /** طريقة الدفع — تُطبَّع على [نقدي/تحويل/بطاقة/شيك] (افتراضي نقدي). */
+  paymentMethod?: string;
+  /** ملاحظات حرة (دفعة/دين). */
+  notes?: string;
+  /** سبب الدين — record_debt. */
+  debtReason?: string;
+  /** نوع حركة الموظف — يُطبَّع على canonical (سحب راتب/سلفة/خصم راتب). */
+  payoutType?: string;
+  /** هاتف المدين — record_debt (اختياري). */
+  guestPhone?: string;
+  /** حالة الغرفة الجديدة — تُطبَّع على (شاغرة/محجوزة/صيانة). */
+  roomStatus?: string;
   explanation: string;
 }
 
-const MODEL = '@cf/meta/llama-3.1-8b-instruct';
+// ✅ (2026-09-20) الطراز القديم @cf/meta/llama-3.1-8b-instruct أوقفته
+// Cloudflare بتاريخ 2026-05-30 (خطأ 5028 «model was deprecated») — فكان
+// الربط [ai] يفشل دائماً في الإنتاج بينما REST يقبل الاسم القديم مؤقتاً.
+// الترقية إلى llama-3.3-70b-fp8-fast (مشخّص حياً عبر worker تشخيصي):
+// أصاب kind في 8/8 حالات اختبار مقابل أخطاء تركيبية في 3.2-3b.
+// النماذج الحديثة ترجع بصيغة chat.completion — extractJson تدعمها.
+const MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 
 // ✅ (2026-09-20) نقطة نهاية REST لـ Workers AI — نفس الحساب والطراز،
 // مصادقة Bearer بسر AI_TOKEN. متغيرّ للحقن في الاختبارات العقدية.
@@ -109,33 +147,100 @@ function jsonResponse(data: unknown, status = 200): Response {
 }
 
 function extractJson(raw: unknown): AiPlan {
-  const text = typeof raw === 'string'
-    ? raw
-    : raw && typeof raw === 'object' && 'response' in raw
-      ? String((raw as { response: unknown }).response)
-      : JSON.stringify(raw);
+  let text: string;
+  if (typeof raw === 'string') {
+    text = raw;
+  } else if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    // ✅ (2026-09-20) نماذج 2026 (llama-3.3-70b) ترجع chat.completion:
+    // {choices: [{message: {content: "…"}}], response: {…}} — النص في
+    // choices. الصيغة القديمة {response: "…"} تبقى مدعومة (توافق خلفي
+    // للاختبارات ومسار REST الذي يمرر نصاً جاهزاً).
+    const choices = Array.isArray(obj.choices) ? (obj.choices as { message?: { content?: unknown } }[]) : undefined;
+    const content = choices?.[0]?.message?.content;
+    if (typeof content === 'string' && content.length > 0) {
+      text = content;
+    } else if (typeof obj.response === 'string') {
+      text = obj.response;
+    } else {
+      text = JSON.stringify(raw);
+    }
+  } else {
+    text = JSON.stringify(raw);
+  }
   const cleaned = text.replace(/```json|```/g, '').trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   if (start < 0 || end <= start) throw new Error('AI returned no JSON plan');
   const value = JSON.parse(cleaned.slice(start, end + 1)) as Record<string, unknown>;
+  const WRITE_KINDS: readonly string[] = ['add_expense', 'update_room_price', 'record_payment', 'record_debt', 'add_salary_payout', 'update_room_status'];
   return {
-    kind: value.kind === 'query' || value.kind === 'add_expense' ? value.kind : 'unsupported',
+    kind: value.kind === 'query' || (typeof value.kind === 'string' && WRITE_KINDS.includes(value.kind)) ? value.kind as AiPlan['kind'] : 'unsupported',
     queryType: typeof value.queryType === 'string' ? value.queryType as AiPlan['queryType'] : undefined,
     employeeName: typeof value.employeeName === 'string' ? value.employeeName.trim() : undefined,
     guestName: typeof value.guestName === 'string' ? value.guestName.trim() : undefined,
     roomNumber: typeof value.roomNumber === 'string' ? value.roomNumber.trim() : undefined,
+    roomNumbers: Array.isArray(value.roomNumbers)
+      ? value.roomNumbers
+          .filter((v): v is string => typeof v === 'string')
+          .map((v) => v.trim())
+          .filter((v) => v.length > 0)
+      : undefined,
+    newPrice: typeof value.newPrice === 'number' ? value.newPrice : undefined,
     expenseType: typeof value.expenseType === 'string' ? value.expenseType.trim() : undefined,
     description: typeof value.description === 'string' ? value.description.trim() : undefined,
     amountPerDay: typeof value.amountPerDay === 'number' ? value.amountPerDay : undefined,
     dateFrom: typeof value.dateFrom === 'string' ? value.dateFrom : undefined,
     dateTo: typeof value.dateTo === 'string' ? value.dateTo : undefined,
+    amount: typeof value.amount === 'number' ? value.amount : undefined,
+    paymentMethod: typeof value.paymentMethod === 'string' ? value.paymentMethod.trim() : undefined,
+    notes: typeof value.notes === 'string' ? value.notes.trim() : undefined,
+    debtReason: typeof value.debtReason === 'string' ? value.debtReason.trim() : undefined,
+    payoutType: typeof value.payoutType === 'string' ? value.payoutType.trim() : undefined,
+    guestPhone: typeof value.guestPhone === 'string' ? value.guestPhone.trim() : undefined,
+    roomStatus: typeof value.roomStatus === 'string' ? value.roomStatus.trim() : undefined,
     explanation: typeof value.explanation === 'string' ? value.explanation : 'تم تحليل الطلب.',
   };
 }
 
 function validDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+}
+
+/// ✅ (2026-09-20) حارس التواريخ الحتمي — نماذج 2026 ترجع تواريخ
+/// «1970-…» (أثر JS epoch) عند غياب السنة أو التاريخ رغم التعليمات
+/// الصريحة (شُوهد على 3.3-70b و3.2-3b معاً في الاختبار الحي). البيانات
+/// لا توجد قبل 2015، فأي سنة أقدم من ذلك أثر نموذجي حكماً:
+/// - «1970-01-01» (افتراضي الـ epoch) = «لا تاريخ» → للإضافة: اليوم/اليوم
+///   (عقد التصميم: بلا تاريخ = اليوم)، وللاستعلام: مسح القيمة فتطبّق
+///   resolveWindow افتراضاتها (30 يوماً لاتجاه الإشغال… إلخ).
+/// - «1970-MM-DD» بغير 01-01 = مدى المستخدم بلا سنة → سنة العام الحالي
+///   («من 15 الى 18 سبتمبر» → العام الحالي-09-15..18).
+function sanitizeModelDates(plan: AiPlan): AiPlan {
+  const today = new Date().toISOString().slice(0, 10);
+  const currentYear = today.slice(0, 4);
+  const isEpochJunk = (d: string) => parseInt(d.slice(0, 4), 10) < 2015;
+  const fix = (d: string): string | undefined => {
+    if (!isEpochJunk(d)) return d;
+    if (d.slice(5) === '01-01') return undefined;
+    const coerced = `${currentYear}-${d.slice(5)}`;
+    return validDate(coerced) ? coerced : undefined;
+  };
+  const fromWasJunk = !!plan.dateFrom && isEpochJunk(plan.dateFrom);
+  const toWasJunk = !!plan.dateTo && isEpochJunk(plan.dateTo);
+  let dateFrom = plan.dateFrom ? fix(plan.dateFrom) : undefined;
+  let dateTo = plan.dateTo ? fix(plan.dateTo) : undefined;
+  // نافذة مشوهة (جانبها epoch-افتراضي والآخر أثر نموذجي) → مسح متسق
+  // للجانبين معاً — resolveWindow يطبق افتراضاتهما (30 يوماً… إلخ).
+  if ((fromWasJunk || toWasJunk) && (dateFrom === undefined || dateTo === undefined)) {
+    dateFrom = undefined;
+    dateTo = undefined;
+  }
+  if (plan.kind === 'add_expense' && (!dateFrom || !dateTo)) {
+    return { ...plan, dateFrom: dateFrom ?? today, dateTo: dateTo ?? today };
+  }
+  if (dateFrom === plan.dateFrom && dateTo === plan.dateTo) return plan;
+  return { ...plan, dateFrom, dateTo };
 }
 
 function daysBetween(from: string, to: string): string[] {
@@ -152,14 +257,26 @@ function daysBetween(from: string, to: string): string[] {
 async function classify(env: { AI: AiBinding; AI_TOKEN?: string; CLOUDFLARE_ACCOUNT_ID?: string }, prompt: string): Promise<AiPlan> {
   const today = new Date().toISOString().slice(0, 10);
   const instruction = `أنت محلل طلبات لنظام إدارة فندق. تاريخ اليوم ${today}. أعد JSON فقط بلا markdown.
-الأنواع المسموحة: query أو add_expense أو unsupported.
+الأنواع المسموحة: query أو add_expense أو update_room_price أو record_payment أو record_debt أو add_salary_payout أو update_room_status أو unsupported.
 للاستعلام استخدم queryType واحداً من expenses_total, employee_withdrawals, employee_salary, salary_expenses, daily_summary, rooms_available, rooms_all, current_guests, guest_search, bookings_current, occupancy_summary, occupancy_trend, booking_analysis, overdue_bookings, stay_statistics.
+expenses_total لإجمالي المصروفات مصنّفة حسب النوع — ضع dateFrom وdateTo إذا ذُكرت فترة (مثل "من تاريخ إلى تاريخ")، واتركهما فارغين لإجمالي كل الفترة.
 rooms_available للغرف الشاغرة، rooms_all لكل الغرف وحالتها، current_guests للنزلاء الموجودين، guest_search للبحث عن نزيل باسمه أو رقم غرفته، bookings_current للحجوزات النشطة.
-employee_withdrawals لسحوبات وسلف وخصومات موظف — ضع employeeName إذا ذُكر موظف بعينه، واتركه فارغاً إذا سأل عن الموظفين عموماً. employee_salary لاستحقاق موظف (الأشهر والراتب الأساسي والمستحق والصافي) — كذلك الاسم اختياري. salary_expenses لإجمالي مصروفات الموظفين والرواتب النقدية لكل الموظفين.
+employee_withdrawals لسحوبات وسلف وخصومات موظف — ضع employeeName إذا ذُكر موظف بعينه، واتركه فارغاً إذا سأل عن الموظفين عموماً؛ وضع dateFrom وdateTo إذا ذُكرت فترة (مثل "مصروفات الموظف من تاريخ كذا")، واتركهما فارغين لإجمالي كل الفترة منذ التحاقه. employee_salary لاستحقاق موظف (الأشهر والراتب الأساسي والمستحق والصافي) — كذلك الاسم اختياري. salary_expenses لإجمالي مصروفات الموظفين والرواتب النقدية لكل الموظفين.
 occupancy_summary للإشغال الحالي (النسبة والغرف المشغولة والشاغرة والوصولات اليوم). occupancy_trend لاتجاه الإشغال مع الإيرادات والمصروفات اليومية خلال فترة — إن لم تذكر فترة فاستخدم آخر 30 يوماً حتى اليوم في dateFrom وdateTo. booking_analysis لتحليل الحجوزات خلال فترة (عددها اليومي والغرف والإيراد المتوقع والمغادرات) — إن لم تذكر فترة فاجعل dateFrom أول يوم من الشهر الحالي وdateTo اليوم. overdue_bookings للحجوزات المتأخرة عن موعد المغادرة. stay_statistics لإحصائيات الإقامة الحالية (متوسط الليالي وأطول إقامة والإيراد المتوقع والمحصل والمتبقي).
-لإضافة مصروف: expenseType, description, amountPerDay, dateFrom, dateTo بصيغة YYYY-MM-DD. إذا لم يذكر المستخدم تاريخاً فاجعل dateFrom=dateTo=${today}. المبلغ في مثال "40 ألف لكل يوم" هو 40000 لكل يوم، وليس إجمالياً.
-لا تخترع اسماً أو مبلغاً أو تاريخاً. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
-JSON schema: {kind,queryType,employeeName,guestName,roomNumber,expenseType,description,amountPerDay,dateFrom,dateTo,explanation}
+لإضافة مصروف: expenseType, description, amountPerDay, dateFrom, dateTo بصيغة YYYY-MM-DD. description وصف موجز دائماً (مثل "مصروف نظافة"). إذا لم يذكر المستخدم تاريخاً فاجعل dateFrom=dateTo=${today}. أي تاريخ ذُكر بلا سنة فسنته هي ${today.slice(0, 4)} — مثلاً "من 15 الى 18 سبتمبر" يعني ${today.slice(0, 4)}-09-15 إلى ${today.slice(0, 4)}-09-18. المبلغ في مثال "40 ألف لكل يوم" هو 40000 لكل يوم وليس إجمالياً، و"60 ألف شهرياً" يعني 2000 لكل يوم.
+لتعديل سعر غرف: update_room_price — ضع roomNumbers مصفوفة بكل أرقام الغرف المذكورة (مثل ["101","102","103","104"])، وnewPrice السعر الجديد المطلق لكل الغرف المذكورة (وليس زيادة أو نسبة). لا يوجد مفهوم "تاريخ سريان" لسعر الغرفة — التعديل يسري فوراً من لحظة التنفيذ دائماً، فتجاهل dateFrom/dateTo لهذا النوع حتى لو ذُكرت عبارة مثل "ابتداءً من اليوم". إذا لم يُذكر رقم غرفة واحد على الأقل أو لم يُذكر مبلغ، استخدم unsupported.
+لتسجيل دفعة: record_payment — ضع roomNumber رقم الغرفة وamount المبلغ المدفوع (رقم مطلق، وليس متبقياً)، وpaymentMethod من (نقدي، تحويل، بطاقة، شيك) إن ذُكرت وإلا اتركها فارغة (نقدي افتراضياً)، وnotes لأي ملاحظة. إن لم يُذكر رقم الغرفة أو المبلغ فاستخدم unsupported.
+لتسجيل دين: record_debt — ضع guestName اسم المدين وamount مبلغ الدين، وroomNumber إن ذُكرت غرفة لربط الدين بحجزها، وdebtReason للسبب إن ذُكر. إن لم يُذكر الاسم أو المبلغ فاستخدم unsupported.
+لحركة مالية لموظف: add_salary_payout — ضع employeeName اسم الموظف وamount المبلغ وpayoutType واحداً من (سحب راتب، سلفة، خصم راتب): "سحب/استلم من راتبه" → سحب راتب، "سلفة/سلفه" → سلفة، "اخصم/خصم من راتبه" → خصم راتب. إن لم يُذكر الموظف أو المبلغ فاستخدم unsupported.
+لتغيير حالة غرفة: update_room_status — ضع roomNumber وroomStatus واحداً من (شاغرة، محجوزة، صيانة): "شاغرة/فارغة/متاحة" → شاغرة، "مشغولة/محجوزة" → محجوزة، "صيانة/عطل" → صيانة. إن لم يُذكر الرقم أو الحالة فاستخدم unsupported.
+كلمات المبالغ: "ألف" تعني ×1000 (40 ألف = 40000)، "مليون" تعني ×1000000. "اليوم" تعني ${today}، "أمس" تعني اليوم ناقص يوم، "غداً" تعني اليوم زائد يوم.
+أمثلة (few-shot):
+طلب: "سجل دفعة 50 ألف للغرفة 101 نقدي" → {"kind":"record_payment","roomNumber":"101","amount":50000,"paymentMethod":"نقدي","explanation":"تسجيل دفعة للغرفة 101."}
+طلب: "سجل دين 30 ألف على أحمد محمد سببه باقي حساب" → {"kind":"record_debt","guestName":"أحمد محمد","amount":30000,"debtReason":"باقي حساب","explanation":"تسجيل دين على النزيل."}
+طلب: "اصرف سلفة 20 ألف للموظف خالد" → {"kind":"add_salary_payout","employeeName":"خالد","amount":20000,"payoutType":"سلفة","explanation":"صرف سلفة للموظف."}
+طلب: "حط الغرفة 102 صيانة" → {"kind":"update_room_status","roomNumber":"102","roomStatus":"صيانة","explanation":"تغيير حالة الغرفة."}
+لا تخترع اسماً أو مبلغاً أو تاريخاً أو رقم غرفة أو طريقة دفع. إذا كان الطلب غامضاً أو خطراً استخدم unsupported واشرح المطلوب.
+JSON schema: {kind,queryType,employeeName,guestName,roomNumber,roomNumbers,newPrice,expenseType,description,amountPerDay,dateFrom,dateTo,amount,paymentMethod,notes,debtReason,payoutType,guestPhone,roomStatus,explanation}
 طلب المستخدم: ${prompt}`;
   const input = {
     messages: [
@@ -183,12 +300,12 @@ JSON schema: {kind,queryType,employeeName,guestName,roomNumber,expenseType,descr
     raw = await runRestAi(env, input, error);
   }
   try {
-    return extractJson(raw);
+    return sanitizeModelDates(extractJson(raw));
   } catch (error) {
     // الربط رجع رداً غير قابل للتحليل — محاولة REST أخيرة قبل الاستسلام
     // (يرمي خطأ الربط الأصلي إن لم يُضبط AI_TOKEN — سلوك 502 كما كان).
     const cause = bindingError ?? error;
-    return extractJson(await runRestAi(env, input, cause));
+    return sanitizeModelDates(extractJson(await runRestAi(env, input, cause)));
   }
 }
 
@@ -223,6 +340,106 @@ async function runRestAi(
   throw new Error('AI REST fallback returned no content');
 }
 
+/** سقف عدد الغرف في طلب تعديل سعر واحد — حماية دفاعية من مصفوفة ضخمة
+ * مُهلوَسة من النموذج؛ أكبر فندق واقعي هنا أبعد ما يكون عن هذا الرقم. */
+const MAX_ROOM_PRICE_UPDATE_COUNT = 200;
+
+/** ✅ (2026-09-30) سقف المبلغ المفرد (دفعة/دين/سحب راتب) — يمسك الأصفار
+ * المُهلوَسة الشاذة فقط (100 مليون فوق أي حركة مفردة واقعية)؛ المراجعة
+ * البشرية في خطوة التأكيد تبقى الحارس الحقيقي للمبالغ المعقولة. */
+const MAX_AI_SINGLE_AMOUNT = 100_000_000;
+
+/** طرق الدفع المقبولة كتابةً — تُطابق ما يكتبه التطبيق (نقدي/تحويل
+ * أساساً، والباقي يُعرض كما هو في التقارير عبر default-echo). */
+const PAYMENT_METHODS = ['نقدي', 'تحويل', 'بطاقة', 'شيك'] as const;
+
+/** حالات الغرفة القابلة للضبط عبر المساعد — canonical فقط. */
+const ROOM_STATUSES = ['شاغرة', 'محجوزة', 'صيانة'] as const;
+
+/** أنواع حركات الموظف — canonical مطابقة لتصنيف التطبيق
+ * (SalaryExpenseClassification): WITHDRAWAL/سلفة/خصم. */
+const PAYOUT_TYPES = ['سحب راتب', 'سلفة', 'خصم راتب'] as const;
+
+function normalizePaymentMethod(raw: string | undefined): string {
+  const v = (raw ?? '').trim();
+  if ((PAYMENT_METHODS as readonly string[]).includes(v)) return v;
+  if (['نقداً', 'كاش', 'cash', 'نقد'].includes(v)) return 'نقدي';
+  if (['transfer', 'حوالة'].includes(v)) return 'تحويل';
+  if (['شبكة', 'card', 'فيزا'].includes(v)) return 'بطاقة';
+  if (['check', 'صك'].includes(v)) return 'شيك';
+  return 'نقدي';
+}
+
+function normalizeRoomStatus(raw: string | undefined): string | undefined {
+  const v = (raw ?? '').trim();
+  if ((ROOM_STATUSES as readonly string[]).includes(v)) return v;
+  if (['شاغره', 'فارغة', 'فارغه', 'متاحة', 'متاح', 'available', 'vacant', 'empty'].includes(v)) return 'شاغرة';
+  if (['محجوز', 'مشغولة', 'مشغول', 'occupied', 'نشط'].includes(v)) return 'محجوزة';
+  if (['maintenance', 'عطل', 'عطلانة', 'تحت الصيانة'].includes(v)) return 'صيانة';
+  return undefined;
+}
+
+function normalizePayoutType(raw: string | undefined): string | undefined {
+  const v = (raw ?? '').trim();
+  if ((PAYOUT_TYPES as readonly string[]).includes(v)) return v;
+  if (['سحب من الراتب', 'سحب', 'راتب', 'استلام راتب'].includes(v)) return 'سحب راتب';
+  if (['سلفه', 'سُلفة'].includes(v)) return 'سلفة';
+  if (['خصم', 'غياب'].includes(v)) return 'خصم راتب';
+  return undefined;
+}
+
+const VALID_PLAN_KINDS: readonly AiPlan['kind'][] = [
+  'query',
+  'add_expense',
+  'update_room_price',
+  'record_payment',
+  'record_debt',
+  'add_salary_payout',
+  'update_room_status',
+  'unsupported',
+];
+
+function trimOptional(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/// ✅ (2026-09-30) تطبيع حتمي للخطة قبل أي تحقق أو تنفيذ — يُطبَّق على
+/// ناتج التصنيف وعلى أي plan مُرسل يدوياً مع confirm:true على حد سواء،
+/// فلا تعتمد السلامة على التزام النموذج بالمفردات (مرادفات شائعة تُطوى
+/// على canonical، والقيم المجهولة تُسقَط ليكشفها التحقق برسالة واضحة).
+export function normalizePlan(plan: AiPlan): AiPlan {
+  const kind: AiPlan['kind'] = (VALID_PLAN_KINDS as readonly string[]).includes(plan.kind as string)
+    ? plan.kind
+    : 'unsupported';
+  return {
+    ...plan,
+    kind,
+    employeeName: trimOptional(plan.employeeName),
+    guestName: trimOptional(plan.guestName),
+    roomNumber: trimOptional(plan.roomNumber),
+    roomNumbers: Array.isArray(plan.roomNumbers)
+      ? plan.roomNumbers
+          .filter((v): v is string => typeof v === 'string')
+          .map((v) => v.trim())
+          .filter((v) => v.length > 0)
+      : plan.roomNumbers,
+    expenseType: trimOptional(plan.expenseType),
+    description: trimOptional(plan.description),
+    notes: trimOptional(plan.notes),
+    debtReason: trimOptional(plan.debtReason),
+    guestPhone: trimOptional(plan.guestPhone),
+    paymentMethod: kind === 'record_payment' ? normalizePaymentMethod(plan.paymentMethod) : plan.paymentMethod,
+    payoutType: kind === 'add_salary_payout' ? normalizePayoutType(plan.payoutType) : plan.payoutType,
+    roomStatus: kind === 'update_room_status' ? normalizeRoomStatus(plan.roomStatus) : plan.roomStatus,
+  };
+}
+
+function validSingleAmount(amount: unknown): boolean {
+  return typeof amount === 'number' && Number.isFinite(amount) && amount > 0 && amount <= MAX_AI_SINGLE_AMOUNT;
+}
+
 function validatePlan(plan: AiPlan): string | null {
   if (plan.kind === 'unsupported') return plan.explanation || 'الطلب غير مدعوم أو يحتاج توضيحاً.';
   if (plan.kind === 'query') {
@@ -230,10 +447,46 @@ function validatePlan(plan: AiPlan): string | null {
     if (plan.queryType === 'guest_search' && !plan.guestName && !plan.roomNumber) return 'اذكر اسم النزيل أو رقم الغرفة.';
     return null;
   }
-  if (!plan.expenseType || !plan.description || !Number.isFinite(plan.amountPerDay) || (plan.amountPerDay ?? 0) <= 0) return 'اذكر نوع المصروف والوصف والمبلغ الصحيح.';
-  if (!validDate(plan.dateFrom) || !validDate(plan.dateTo) || plan.dateFrom! > plan.dateTo!) return 'التاريخ يجب أن يكون بصيغة YYYY-MM-DD وبمدى صحيح.';
-  if (daysBetween(plan.dateFrom!, plan.dateTo!).length === 0) return 'مدى التاريخ غير صالح أو أكبر من سنة.';
-  return null;
+  if (plan.kind === 'update_room_price') {
+    if (!plan.roomNumbers || plan.roomNumbers.length === 0) return 'اذكر رقم غرفة واحداً على الأقل.';
+    if (plan.roomNumbers.length > MAX_ROOM_PRICE_UPDATE_COUNT) return `عدد الغرف كبير جداً (الحد الأقصى ${MAX_ROOM_PRICE_UPDATE_COUNT}).`;
+    if (!Number.isFinite(plan.newPrice) || (plan.newPrice ?? 0) <= 0) return 'اذكر السعر الجديد الصحيح.';
+    return null;
+  }
+  // ✅ (2026-09-30) الأنواع التنفيذية الجديدة — تعمل على خطة مُطبَّعة
+  // (normalizePlan) فالقيم هنا canonical أو مسقطة.
+  if (plan.kind === 'record_payment') {
+    if (!plan.roomNumber) return 'اذكر رقم الغرفة لتسجيل الدفعة.';
+    if (!validSingleAmount(plan.amount)) return 'اذكر مبلغ الدفعة الصحيح.';
+    return null;
+  }
+  if (plan.kind === 'record_debt') {
+    if (!plan.guestName) return 'اذكر اسم المدين لتسجيل الدين.';
+    if (!validSingleAmount(plan.amount)) return 'اذكر مبلغ الدين الصحيح.';
+    return null;
+  }
+  if (plan.kind === 'add_salary_payout') {
+    if (!plan.employeeName) return 'اذكر اسم الموظف.';
+    if (!validSingleAmount(plan.amount)) return 'اذكر مبلغ الحركة الصحيح.';
+    if (!plan.payoutType || !(PAYOUT_TYPES as readonly string[]).includes(plan.payoutType)) {
+      return 'اذكر نوع الحركة: سحب راتب أو سلفة أو خصم راتب.';
+    }
+    return null;
+  }
+  if (plan.kind === 'update_room_status') {
+    if (!plan.roomNumber) return 'اذكر رقم الغرفة.';
+    if (!plan.roomStatus || !(ROOM_STATUSES as readonly string[]).includes(plan.roomStatus)) {
+      return 'اذكر الحالة: شاغرة أو محجوزة أو صيانة.';
+    }
+    return null;
+  }
+  if (plan.kind === 'add_expense') {
+    if (!plan.expenseType || !plan.description || !Number.isFinite(plan.amountPerDay) || (plan.amountPerDay ?? 0) <= 0) return 'اذكر نوع المصروف والوصف والمبلغ الصحيح.';
+    if (!validDate(plan.dateFrom) || !validDate(plan.dateTo) || plan.dateFrom! > plan.dateTo!) return 'التاريخ يجب أن يكون بصيغة YYYY-MM-DD وبمدى صحيح.';
+    if (daysBetween(plan.dateFrom!, plan.dateTo!).length === 0) return 'مدى التاريخ غير صالح أو أكبر من سنة.';
+    return null;
+  }
+  return plan.explanation || 'الطلب غير مدعوم أو يحتاج توضيحاً.';
 }
 
 export async function handleAiRequest(
@@ -242,11 +495,13 @@ export async function handleAiRequest(
   role: string,
 ): Promise<Response> {
   const body = await request.json() as { prompt?: string; plan?: AiPlan; confirm?: boolean };
-  let plan = body.plan;
+  // ✅ (2026-09-30) التطبيع يشمل plan العميل المُرسل يدوياً مع confirm
+  // أيضاً — لا ثقة عمياء بمفردات النموذج ولا بمدخلات العميل.
+  let plan = body.plan ? normalizePlan(body.plan) : undefined;
   if (!plan) {
     if (!body.prompt?.trim()) return jsonResponse({ error: 'prompt is required' }, 400);
     try {
-      plan = await classify(env, body.prompt.trim());
+      plan = normalizePlan(await classify(env, body.prompt.trim()));
     } catch (error) {
       console.error('[AI] classification failed', error);
       return jsonResponse({ error: 'تعذر تحليل الطلب حالياً' }, 502);
@@ -260,25 +515,246 @@ export async function handleAiRequest(
     return jsonResponse({ plan, requires_confirmation: false, answer: answer ?? plan.explanation, rows });
   }
 
-  if (role !== 'admin' && role !== 'manager') return jsonResponse({ error: 'صلاحية المدير مطلوبة لإضافة مصروف' }, 403);
+  if (role !== 'admin' && role !== 'manager') return jsonResponse({ error: 'صلاحية المدير مطلوبة لهذا الإجراء' }, 403);
+
+  if (plan.kind === 'update_room_price') {
+    const roomNumbers = plan.roomNumbers!;
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأُحدّث سعر ${roomNumbers.length} غرفة (${roomNumbers.join('، ')}) إلى ${plan.newPrice} ابتداءً من الآن. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return updateRoomPrices(env, roomNumbers, plan.newPrice!, plan);
+  }
+
+  // ✅ (2026-09-30) الأنواع التنفيذية الجديدة — نفس العقد: تأكيد صريح
+  // أولاً (يعرض الخطة المُطبَّعة)، ثم تنفيذ يتحقق من وجود الهدف (حجز
+  // نشط/موظف/غرفة) قبل أي كتابة — الغياب يُنهي بجواب نهائي بلا كتابة.
+  if (plan.kind === 'record_payment') {
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأسجل دفعة ${plan.amount} ريال للغرفة ${plan.roomNumber} (${plan.paymentMethod ?? 'نقدي'})${plan.notes ? ` — ${plan.notes}` : ''}. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return recordPayment(env, plan);
+  }
+
+  if (plan.kind === 'record_debt') {
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأسجل دين ${plan.amount} ريال على ${plan.guestName}${plan.roomNumber ? ` (الغرفة ${plan.roomNumber})` : ''}${plan.debtReason ? ` — ${plan.debtReason}` : ''}. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return recordDebt(env, plan);
+  }
+
+  if (plan.kind === 'add_salary_payout') {
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأسجل ${plan.payoutType} ${plan.amount} ريال للموظف ${plan.employeeName} بتاريخ اليوم. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return addSalaryPayout(env, plan);
+  }
+
+  if (plan.kind === 'update_room_status') {
+    if (!body.confirm) {
+      return jsonResponse({
+        plan,
+        requires_confirmation: true,
+        answer: `سأغيّر حالة الغرفة ${plan.roomNumber} إلى «${plan.roomStatus}» ابتداءً من الآن. راجع التفاصيل ثم أكد التنفيذ.`,
+      });
+    }
+    return updateRoomStatus(env, plan.roomNumber!, plan.roomStatus!, plan);
+  }
+
   if (!body.confirm) return jsonResponse({ plan, requires_confirmation: true, answer: `سأضيف ${plan.amountPerDay} يومياً من ${plan.dateFrom} إلى ${plan.dateTo}. راجع التفاصيل ثم أكد التنفيذ.` });
 
   const dates = daysBetween(plan.dateFrom!, plan.dateTo!);
-  const now = Math.floor(Date.now() / 1000);
-  // AI writes participate in the same committed-cursor protocol as sync pushes.
-  // Keep the entire confirmed date range atomic; no partially added expenses.
-  const statements = [
-    env.DB.prepare('INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, 0)'),
-    ...dates.flatMap((date) => [
-      env.DB.prepare('UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1').bind(now),
-      env.DB.prepare(
-        `INSERT INTO expenses (expense_kind,expense_type,description,amount,date,hotel_day_key,is_auto_generated,local_uuid,created_at,updated_at,last_modified,origin,device_id)
-         VALUES (?,?,?,?,?,?,0,?,?,(SELECT last_ts FROM sync_clock WHERE id = 1),?,?,?)`,
-      ).bind(legacyExpenseKind({ expense_type: plan.expenseType, description: plan.description, is_auto_generated: false }), plan.expenseType, plan.description, plan.amountPerDay, date, date, crypto.randomUUID(), now, now, 'ai', 'worker'),
-    ]),
-  ];
+  const now = Date.now();
+  const statements = dates.map((date) => env.DB.prepare(
+    `INSERT INTO expenses (expense_type,description,amount,date,hotel_day_key,is_auto_generated,local_uuid,created_at,updated_at,last_modified,origin,device_id)
+     VALUES (?,?,?,?,?,0,?,?,?,?,?,?)`,
+  ).bind(plan.expenseType, plan.description, plan.amountPerDay, date, date, crypto.randomUUID(), now, now, now, 'ai', 'worker'));
   await env.DB.batch(statements);
   return jsonResponse({ plan, requires_confirmation: false, answer: `تمت إضافة ${dates.length} مصروفاً بمجموع ${(dates.length * plan.amountPerDay!).toFixed(0)} ريال.` });
+}
+
+/// ✅ (2026-09-23) تحديث سعر الغرف عبر `Database.updateRecord` — وليس
+/// `UPDATE` خام — كي يشارك التعديل في خط أنابيب LWW/version/vector-clock
+/// نفسه الذي يمر منه أي رفع عادي من الأجهزة (راجع F1/F2 أعلاه). كتابة
+/// خام كانت ستُبقي `version`/`vector_clock` كما هما فتُخفي التعديل عن
+/// أي كاشف تعارض لاحق (تعديل جهاز آخر متزامن على نفس الغرفة لن يُكتشف
+/// كتعارض حقيقي). vectorClock الممرَّر فارغ عمداً (`'{}'`) — الدمج مع
+/// فارغ لا يغيّر ساعة الصف الحالية، والطابع الزمني الحالي (`now`) وحده
+/// كافٍ ليكسب مقارنة LWW لأنه أحدث من أي `updated_at` سابق حتماً.
+async function updateRoomPrices(
+  env: AiEnv,
+  roomNumbers: string[],
+  newPrice: number,
+  plan: AiPlan,
+): Promise<Response> {
+  const db = new Database(env.DB);
+  const now = Math.floor(Date.now() / 1000);
+  const updated: string[] = [];
+  const notFound: string[] = [];
+  const rejected: string[] = [];
+
+  for (const roomNumber of roomNumbers) {
+    const row = await env.DB
+      .prepare('SELECT local_uuid FROM rooms WHERE room_number = ? AND deleted_at IS NULL')
+      .bind(roomNumber)
+      .first<{ local_uuid: string }>();
+    if (!row) {
+      notFound.push(roomNumber);
+      continue;
+    }
+    const result = await db.updateRecord(
+      'rooms',
+      row.local_uuid,
+      { price: newPrice, origin: 'ai' },
+      '{}',
+      'worker',
+      now,
+    );
+    // ✅ Number(...) بدل مقارنة مباشرة: updateRecord قد يرفض التعديل
+    // بصمت (يُعيد الصف كما كان) في السيناريو النادر جداً لتعادل
+    // updated_at بالثانية مع تعديل آخر بلا version أعلى — تحقّق فعلي
+    // من النتيجة بدل افتراض النجاح لمجرد عدم رمي استثناء.
+    if (Number(result.price) === newPrice) {
+      updated.push(roomNumber);
+    } else {
+      rejected.push(roomNumber);
+    }
+  }
+
+  const parts: string[] = [];
+  if (updated.length > 0) parts.push(`تم تحديث سعر ${updated.length} غرفة (${updated.join('، ')}) إلى ${newPrice}`);
+  if (notFound.length > 0) parts.push(`تعذّر العثور على: ${notFound.join('، ')}`);
+  if (rejected.length > 0) parts.push(`تعارض تحديث متزامن — أعد المحاولة لـ: ${rejected.join('، ')}`);
+  const answer = parts.length > 0 ? `${parts.join('. ')}.` : 'لم يُحدَّث أي شيء.';
+  return jsonResponse({ plan, requires_confirmation: false, answer });
+}
+
+// ─── Executors for the 2026-09-30 write kinds ────────────────────
+// Conventions (all AI writes):
+// - Single-row INSERTs stamp created_at/updated_at via allocateUpdatedAt
+//   (monotonic, cursor-safe); last_modified stays ms like clients.
+// - origin='ai', device_id='worker' — every AI row is attributable.
+// - Booking links set BOTH booking_local_id (D1 id) and booking_uuid_cache
+//   (global key): devices resolve via the uuid-cache first (_FkRule), so
+//   the D1-local number never corrupts device FKs.
+// - No active booking / unknown employee / unknown room → terminal answer
+//   (requires_confirmation:false) with ZERO writes.
+
+interface ActiveBookingRef {
+  id: number;
+  local_uuid: string;
+  guest_name: string;
+}
+
+async function findActiveBooking(db: D1Database, roomNumber: string): Promise<ActiveBookingRef | null> {
+  return db.prepare(
+    `SELECT id, local_uuid, guest_name FROM bookings
+     WHERE room_number = ? AND deleted_at IS NULL AND status IN ${sqlList(ACTIVE_BOOKING_STATUSES)}
+     ORDER BY checkin_date DESC, id DESC LIMIT 1`,
+  ).bind(roomNumber).first<ActiveBookingRef>();
+}
+
+async function recordPayment(env: AiEnv, plan: AiPlan): Promise<Response> {
+  const db = new Database(env.DB);
+  const booking = await findActiveBooking(env.DB, plan.roomNumber!);
+  if (!booking) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `لا يوجد حجز نشط في الغرفة ${plan.roomNumber} — لم يُسجَّل شيء.` });
+  }
+  const today = utcDate();
+  const nowSec = await db.allocateUpdatedAt();
+  const nowMs = Date.now();
+  const method = plan.paymentMethod ?? 'نقدي';
+  await env.DB.prepare(
+    `INSERT INTO payments (booking_local_id, room_number, amount, payment_date, notes, payment_method, revenue_type, hotel_day_key, booking_uuid_cache, local_uuid, created_at, updated_at, last_modified, origin, device_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  ).bind(booking.id, plan.roomNumber, plan.amount, today, plan.notes ?? null, method, 'room', today, booking.local_uuid, crypto.randomUUID(), nowSec, nowSec, nowMs, 'ai', 'worker').run();
+  return jsonResponse({ plan, requires_confirmation: false, answer: `تم تسجيل دفعة ${plan.amount} ريال (${method}) للغرفة ${plan.roomNumber} — النزيل ${booking.guest_name}.` });
+}
+
+async function recordDebt(env: AiEnv, plan: AiPlan): Promise<Response> {
+  const db = new Database(env.DB);
+  // ربط اختياري بالحجز النشط للغرفة المذكورة — غرفة بلا حجز نشط تُنهي
+  // بلا كتابة (أرجح أنها خطأ في الرقم) بدل دين يتيم مضلل.
+  const booking = plan.roomNumber ? await findActiveBooking(env.DB, plan.roomNumber) : null;
+  if (plan.roomNumber && !booking) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `لا يوجد حجز نشط في الغرفة ${plan.roomNumber} — سجّل الدين بلا غرفة أو صحّح الرقم. لم يُسجَّل شيء.` });
+  }
+  const today = utcDate();
+  const nowSec = await db.allocateUpdatedAt();
+  const nowMs = Date.now();
+  await env.DB.prepare(
+    `INSERT INTO debts (booking_local_id, guest_name, guest_phone, checkin_date, checkout_date, date_recorded, debt_reason, total_amount, paid_amount, remaining_amount, payment_date, booking_uuid_cache, local_uuid, created_at, updated_at, last_modified, origin, device_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  ).bind(booking?.id ?? null, plan.guestName, plan.guestPhone ?? null, today, today, today, plan.debtReason ?? plan.notes ?? '', plan.amount, 0, plan.amount, today, booking?.local_uuid ?? null, crypto.randomUUID(), nowSec, nowSec, nowMs, 'ai', 'worker').run();
+  return jsonResponse({ plan, requires_confirmation: false, answer: `تم تسجيل دين ${plan.amount} ريال على ${plan.guestName}${booking ? ` (الغرفة ${plan.roomNumber})` : ''}.` });
+}
+
+async function addSalaryPayout(env: AiEnv, plan: AiPlan): Promise<Response> {
+  const name = plan.employeeName!.trim();
+  // مطابقة دقيقة أولاً، ثم احتواء — تعدد المرشحين يُنهي بلا كتابة.
+  const exact = await env.DB.prepare(
+    'SELECT id, local_uuid, name FROM employees WHERE TRIM(name) = ? AND deleted_at IS NULL LIMIT 2',
+  ).bind(name).all<{ id: number; local_uuid: string; name: string }>();
+  let candidates = exact.results ?? [];
+  if (candidates.length === 0) {
+    // هروب wildcards قبل LIKE — اسم يحوي % أو _ يجب ألا يقلب الاستعلام.
+    const escaped = name.replace(/[%_\\]/g, (c) => `\\${c}`);
+    const fuzzy = await env.DB.prepare(
+      "SELECT id, local_uuid, name FROM employees WHERE name LIKE ? ESCAPE '\\' AND deleted_at IS NULL LIMIT 3",
+    ).bind(`%${escaped}%`).all<{ id: number; local_uuid: string; name: string }>();
+    candidates = fuzzy.results ?? [];
+  }
+  if (candidates.length === 0) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `لم أجد موظفاً باسم «${name}» — لم يُسجَّل شيء.` });
+  }
+  const match = candidates[0];
+  if (candidates.length > 1 || !match) {
+    const names = candidates.map((c) => c.name).join('، ');
+    return jsonResponse({ plan, requires_confirmation: false, answer: `الاسم «${name}» يطابق أكثر من موظف (${names}) — حدّد الاسم الكامل. لم يُسجَّل شيء.` });
+  }
+  const db = new Database(env.DB);
+  const today = utcDate();
+  const nowSec = await db.allocateUpdatedAt();
+  const nowMs = Date.now();
+  const description = plan.description?.trim() || `${plan.payoutType} عبر المساعد`;
+  await env.DB.prepare(
+    `INSERT INTO expenses (expense_type, related_id, description, amount, date, hotel_day_key, is_auto_generated, employee_uuid, local_uuid, created_at, updated_at, last_modified, origin, device_id)
+     VALUES (?,?,?,?,?,?,0,?,?,?,?,?,?,?)`,
+  ).bind(plan.payoutType, match.id, description, plan.amount, today, today, match.local_uuid, crypto.randomUUID(), nowSec, nowSec, nowMs, 'ai', 'worker').run();
+  return jsonResponse({ plan, requires_confirmation: false, answer: `تم تسجيل ${plan.payoutType} ${plan.amount} ريال للموظف ${match.name}.` });
+}
+
+async function updateRoomStatus(env: AiEnv, roomNumber: string, status: string, plan: AiPlan): Promise<Response> {
+  const db = new Database(env.DB);
+  const row = await env.DB.prepare(
+    'SELECT local_uuid FROM rooms WHERE room_number = ? AND deleted_at IS NULL',
+  ).bind(roomNumber).first<{ local_uuid: string }>();
+  if (!row) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `تعذّر العثور على الغرفة ${roomNumber} — لم يُغيَّر شيء.` });
+  }
+  const nowSec = await db.allocateUpdatedAt();
+  // نفس خط update_room_price: updateRecord (LWW/version/vector-clock)
+  // وليس UPDATE خام — كي يُكتشف أي تعارض متزامن لاحقاً.
+  const result = await db.updateRecord('rooms', row.local_uuid, { status, origin: 'ai' }, '{}', 'worker', nowSec);
+  if (String(result.status) === status) {
+    return jsonResponse({ plan, requires_confirmation: false, answer: `تم تغيير حالة الغرفة ${roomNumber} إلى «${status}».` });
+  }
+  return jsonResponse({ plan, requires_confirmation: false, answer: `تعارض تحديث متزامن على الغرفة ${roomNumber} — أعد المحاولة.` });
 }
 
 // ─── Query dispatch ────────────────────────────────────────────
@@ -298,6 +774,14 @@ async function runQuery(
       return { rows: result.results };
     }
     case 'employee_withdrawals': {
+      // ✅ (2026-09-23) مدى تاريخي اختياري — نفس نمط expenses_total
+      // (all-time افتراضياً عبر مدى مفتوح بالكامل، لا تغيير للسلوك
+      // الحالي حين لا يُذكر تاريخ). الشرط يُلحَق بجملة ON الخاصة بـ
+      // LEFT JOIN — وليس WHERE — كي يبقى الموظف ظاهراً بمجاميع صفرية
+      // حتى لو لم يقع له أي مصروف داخل المدى المطلوب (WHERE هنا كان
+      // سيحوّل LEFT JOIN إلى INNER JOIN فعلياً ويُسقط تلك الصفوف).
+      const dateFrom = plan.dateFrom ?? '0000-01-01';
+      const dateTo = plan.dateTo ?? '9999-12-31';
       const result = await env.DB.prepare(
         `SELECT e.name,
            ROUND(COALESCE(SUM(CASE WHEN TRIM(x.expense_type) IN ${sqlList(WITHDRAWAL_EXPENSE_TYPES)} THEN x.amount END),0),0) AS total_withdrawn,
@@ -307,10 +791,10 @@ async function runQuery(
            THEN x.amount END),0),0) AS total_deductions,
            COUNT(x.id) AS entries
          FROM employees e
-         ${EMPLOYEE_SALARY_EXPENSE_JOIN}
+         ${EMPLOYEE_SALARY_EXPENSE_JOIN} AND x.date >= ? AND x.date <= ?
          WHERE e.deleted_at IS NULL AND e.status IN ${sqlList(ACTIVE_EMPLOYEE_STATUSES)} AND e.name LIKE ?
          GROUP BY e.id, e.name LIMIT 20`,
-      ).bind(`%${plan.employeeName ?? ''}%`).all();
+      ).bind(dateFrom, dateTo, `%${plan.employeeName ?? ''}%`).all();
       return { rows: result.results, answer: result.results.length > 0 ? undefined : 'لم أجد موظفاً بهذا الاسم.' };
     }
     case 'employee_salary': {

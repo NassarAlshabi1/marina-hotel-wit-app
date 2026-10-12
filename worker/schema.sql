@@ -36,16 +36,6 @@ CREATE TABLE IF NOT EXISTS sync_clock (
 );
 INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, 0);
 
--- ─── Sync data generation (migration 0010) ───────────────────
--- Rotating epoch after a server-side restore resets client pull cursors.
-CREATE TABLE IF NOT EXISTS sync_meta (
-  k TEXT PRIMARY KEY,
-  v TEXT NOT NULL,
-  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-INSERT OR IGNORE INTO sync_meta (k, v)
-VALUES ('epoch', lower(hex(randomblob(16))));
-
 -- ─── Rate limiting (D1-based; no KV daily-write cap) ──────────
 CREATE TABLE IF NOT EXISTS rate_limits (
   client_id TEXT NOT NULL,
@@ -137,37 +127,9 @@ CREATE TABLE IF NOT EXISTS idempotency_log (
   response TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_idempotency_entity ON idempotency_log(entity, entity_id);
--- Parity unification: ports branch2's 0008_idempotency_log_cleanup.sql index
--- so the daily cron cleanup job (worker/src/maintenance.ts handleScheduledCleanup)
--- can purge expired idempotency claims by processed_at via an O(log n) index
--- lookup instead of a full table scan.
+-- ✅ (2026-09-24) فهرس TTL — يحذف به الـ cleanup اليومي (maintenance.ts)
+-- الصفوف المنتهية ببحث فهرسي بدل مسح الجدول كاملاً (ترحيل 0008).
 CREATE INDEX IF NOT EXISTS idx_idempotency_processed_at ON idempotency_log(processed_at);
-
--- ═══════════════════════════════════════════════════════════════
---  Parity unification — finance_snapshots (ports branch2's 0009)
---  Governance/forecast approval table; append-only, no UPDATE/DELETE
---  from API. ~10KB/week growth. Mirrors branch2 worker/schema.sql L1103.
--- ═══════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS finance_snapshots (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  label TEXT NOT NULL DEFAULT '',
-  scenario_key TEXT NOT NULL DEFAULT 'base',
-  scenario_json TEXT NOT NULL DEFAULT '{}',
-  model_start TEXT NOT NULL,
-  model_end TEXT NOT NULL,
-  opening_balance REAL NOT NULL DEFAULT 0,
-  total_inflow REAL NOT NULL DEFAULT 0,
-  total_outflow REAL NOT NULL DEFAULT 0,
-  financing_need REAL NOT NULL DEFAULT 0,
-  weeks_below_threshold INTEGER NOT NULL DEFAULT 0,
-  forecast_json TEXT NOT NULL,
-  approved_by TEXT NOT NULL DEFAULT '',
-  approved_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_finance_snapshots_approved
-  ON finance_snapshots(approved_at DESC);
-CREATE INDEX IF NOT EXISTS idx_finance_snapshots_scenario
-  ON finance_snapshots(scenario_key, approved_at DESC);
 
 -- ═══════════════════════════════════════════════════════════════
 --  Synced entity tables (columns = Drift tables + SyncFields)
@@ -583,6 +545,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   cash_flow_uuid TEXT,
   is_auto_generated INTEGER NOT NULL DEFAULT 0,
   employee_uuid TEXT,
+  withdrawal_uuid TEXT,
   employee_link_cleared INTEGER NOT NULL DEFAULT 0,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
@@ -606,6 +569,7 @@ CREATE INDEX IF NOT EXISTS idx_expenses_hotel_day ON expenses(hotel_day_key);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_uuid);
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
 CREATE INDEX IF NOT EXISTS idx_expenses_deleted ON expenses(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_expenses_withdrawal_uuid ON expenses(withdrawal_uuid);
 
 -- ─── Debts ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS debts (
@@ -667,11 +631,10 @@ CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted_at);
 CREATE TABLE IF NOT EXISTS salary_payments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   cycle_id INTEGER NOT NULL,
-  -- Stable cycle identity; cycle_id is normalized to D1's id on push.
-  cycle_uuid TEXT,
   -- ✅ (2026-09-19) مرجع الموظف المستقر عبر الأجهزة — migration 0007
   -- (مُردَّم من دورة الدفع salary_cycles عبر employee_uuid).
   employee_uuid TEXT,
+  cycle_uuid TEXT,
   amount INTEGER NOT NULL DEFAULT 0,
   hotel_day_key TEXT,
   payment_date_iso TEXT NOT NULL,
@@ -696,8 +659,8 @@ CREATE TABLE IF NOT EXISTS salary_payments (
 );
 CREATE INDEX IF NOT EXISTS idx_salary_payments_updated ON salary_payments(updated_at);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid ON salary_payments(employee_uuid);
-CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid ON salary_payments(cycle_uuid);
 CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle ON salary_payments(cycle_id, hotel_day_key);
+CREATE INDEX IF NOT EXISTS idx_salary_payments_cycle_uuid ON salary_payments(cycle_uuid);
 
 -- ─── Salary Withdrawals ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS salary_withdrawals (
@@ -734,13 +697,13 @@ CREATE TABLE IF NOT EXISTS salary_withdrawals (
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_updated ON salary_withdrawals(updated_at);
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee ON salary_withdrawals(employee_id);
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense ON salary_withdrawals(expense_id);
+CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid ON salary_withdrawals(expense_uuid);
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_hotel_day ON salary_withdrawals(hotel_day_key);
 
 -- ─── Salary Carry-Over Logs ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   employee_id INTEGER NOT NULL,
-  -- Stable employee identity; employee_id remains a D1-local cache.
   employee_uuid TEXT,
   amount REAL NOT NULL,
   previous_cycle_start TEXT NOT NULL,
@@ -1041,7 +1004,9 @@ CREATE INDEX IF NOT EXISTS idx_inventory_transactions_deleted ON inventory_trans
 CREATE INDEX IF NOT EXISTS idx_inventory_transactions_item_date ON inventory_transactions(item_id, created_at DESC);
 
 -- ─── blacklist ───────────────────────────────────────────────
--- Cloud-only entity (no Drift table): guests blacklisted across devices.
+-- Guests blacklisted across devices. Local landing zone is the
+-- blacklist_entries Drift table (Android + Flutter schemaVersion 73+);
+-- entity name in the sync protocol stays `blacklist`.
 CREATE TABLE IF NOT EXISTS blacklist (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   local_uuid TEXT NOT NULL UNIQUE,
@@ -1121,12 +1086,62 @@ CREATE TABLE IF NOT EXISTS app_users (
 CREATE INDEX IF NOT EXISTS idx_app_users_updated ON app_users(updated_at);
 CREATE INDEX IF NOT EXISTS idx_app_users_deleted ON app_users(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);
+-- ═══════════════════════════════════════════════════════════════
+--  0009 — finance_snapshots: اعتماد نسخة أسبوعية من نموذج التدفقات
+--
+--  خطوات التحديث الأسبوعي (§8): عند اعتماد نسخة النموذج يُحفظ توقع
+--  الـ13 أسبوعاً كاملاً (forecast_json) مع ملخصه الرقمي، ثم تُقارن
+--  الأسابيع المنتهية فعلياً بحركات D1 الحية عبر /api/finance/variance
+--  بإنذارات 5% (أخضر) / 10% (أصفر) / >10% (أحمر).
+--
+--  النسخ للقراءة فقط (append-only): لا UPDATE ولا DELETE من API —
+--  سجل الحوكمة يبقى سليماً؛ الحجم نمو أسبوعي واحد (~10KB) ضئيل.
+-- ═══════════════════════════════════════════════════════════════
 
+CREATE TABLE IF NOT EXISTS finance_snapshots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  label TEXT NOT NULL DEFAULT '',
+  scenario_key TEXT NOT NULL DEFAULT 'base',
+  scenario_json TEXT NOT NULL DEFAULT '{}',
+  model_start TEXT NOT NULL,
+  model_end TEXT NOT NULL,
+  opening_balance REAL NOT NULL DEFAULT 0,
+  total_inflow REAL NOT NULL DEFAULT 0,
+  total_outflow REAL NOT NULL DEFAULT 0,
+  financing_need REAL NOT NULL DEFAULT 0,
+  weeks_below_threshold INTEGER NOT NULL DEFAULT 0,
+  forecast_json TEXT NOT NULL,
+  approved_by TEXT NOT NULL DEFAULT '',
+  approved_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_finance_snapshots_approved
+  ON finance_snapshots(approved_at DESC);
+CREATE INDEX IF NOT EXISTS idx_finance_snapshots_scenario
+  ON finance_snapshots(scenario_key, approved_at DESC);
+
+-- ═══════════════════════════════════════════════════════════════
+--  0010 — sync_meta: جيل بيانات المزامنة (epoch) — انظر migrations/0010_sync_meta.sql
+-- ═══════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS sync_meta (
+  k TEXT PRIMARY KEY,
+  v TEXT NOT NULL,
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+INSERT OR IGNORE INTO sync_meta (k, v) VALUES ('epoch', lower(hex(randomblob(16))));
+
+-- ═══════════════════════════════════════════════════════════════
+--  Parity unification — additional schema parity with branch3
+-- ═══════════════════════════════════════════════════════════════
+
+-- 0013 — partial unique index on salary_withdrawals.expense_uuid so the
+-- mirror row is unique per active source expense. NULLs are allowed
+-- (legacy direct withdrawals + soft-deleted mirrors).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_salary_withdrawals_active_expense
   ON salary_withdrawals(expense_uuid) WHERE deleted_at IS NULL AND expense_uuid IS NOT NULL;
 
--- 0014: wall-clock conflict timestamps must not use the logical pull cursor.
--- Restore this table alongside entity data; rotate epoch after a server restore.
+-- 0014 — wall-clock conflict timestamps. Restore this table alongside
+-- entity data; rotate epoch after a server restore.
 CREATE TABLE IF NOT EXISTS sync_write_times (
   entity TEXT NOT NULL,
   local_uuid TEXT NOT NULL,

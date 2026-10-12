@@ -1,18 +1,27 @@
 // ═══════════════════════════════════════════════════════════════
 //  sync-lock.ts — Durable Object for Distributed Sync Locks
 //
-//  Each entity (room, booking, payment, etc.) gets its own DO instance.
-//  The DO provides:
-//    1. Mutex lock — prevents concurrent writes to the same entity
-//    2. Cursor tracking — tracks the last sync cursor per device
+//  ✅ P1 (2026-09-24) Coordination-only contract:
+//    SyncLockDO   = acquire / release / status  (lock tokens)
+//    RealtimeHubDO = WebSocket + presence + change notifications
 //
-//  ✅ (2026-09-17) Realtime notifications moved OUT of this class into
-//  the dedicated RealtimeHubDO (src/realtime-hub.ts) on the WebSocket
-//  Hibernation API — sessions now survive worker deploys/DO evictions,
-//  which the in-memory sessions Map here could not guarantee.
-//  The broadcast/WebSocket paths below remain for backward
-//  compatibility with direct DO callers (tests); production routes
-//  (/api/realtime, push broadcasts) target RealtimeHubDO.
+//  Lock tokens: every granted lock carries an unguessable
+//  crypto.randomUUID() lockId stored with the lock record. Release
+//  requires deviceId + lockId — knowing the deviceId alone (or
+//  guessing the old `${lockKey}:${deviceId}:${now}` pattern) can no
+//  longer release someone else's lock.
+//
+//  ✅ (2026-09-17→24) Realtime notifications moved OUT of this class
+//  into the dedicated RealtimeHubDO (src/realtime-hub.ts) on the
+//  WebSocket Hibernation API. The legacy in-memory WebSocket/session/
+//  broadcast/cursor code was removed after a full reference audit:
+//  production routes (/api/realtime, push broadcasts) target
+//  RealtimeHubDO; the only references to the legacy paths were inside
+//  this file's own tests (updated accordingly).
+//
+//  ⚠️ Correctness note: this DO is COORDINATION ONLY. D1 transactions
+//  + idempotency claims + optimistic concurrency (database.ts) are the
+//  actual correctness guarantees; lock loss never corrupts data.
 // ═══════════════════════════════════════════════════════════════
 
 export interface SyncLockRequest {
@@ -29,6 +38,12 @@ export interface SyncLockResponse {
   expiresAt?: number;
 }
 
+/**
+ * رسالة البث اللحظي — العقد المشترك بين Worker→RealtimeHubDO والعملاء.
+ * ⚠️ البيانات الكاملة للصف لا تُرسل عبر WebSocket أبداً: الرسالة
+ * إشعار إبطال (invalidation) فقط — العملاء يجيبون بـ /api/sync/pull
+ * ويحصلون على الدلتا الموثوقة من D1 (مصدر الحقيقة الوحيد).
+ */
 export interface RealtimeMessage {
   type: 'change' | 'lock' | 'unlock' | 'presence';
   entity: string;
@@ -39,29 +54,32 @@ export interface RealtimeMessage {
   data?: unknown;
 }
 
+/** مدة القفل الافتراضية (TTL) — إعادة التقييم: coordination فقط،
+ *  لا تصحّح بيانات، فانتهاء القفل ليس خطر سلامة. */
+const LOCK_TTL_MS = 30_000;
+
+interface StoredLock {
+  deviceId: string;
+  lockId: string;
+  expiresAt: number;
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  Durable Object: SyncLockDO
 // ═══════════════════════════════════════════════════════════════
 
 export class SyncLockDO {
   state: DurableObjectState;
-  sessions: Map<WebSocket, { deviceId: string; entity: string }>;
 
   constructor(state: DurableObjectState) {
     this.state = state;
-    this.sessions = new Map();
   }
 
-  // ─── HTTP Handler (for lock acquire/release) ───────────────
+  // ─── HTTP Handler (lock acquire/release/status) ────────────
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
-
-    // ─── WebSocket upgrade for realtime ─────────────────────
-    if (request.headers.get('Upgrade') === 'websocket') {
-      return this.handleWebSocket(request);
-    }
 
     // ─── Lock acquire ───────────────────────────────────────
     if (path === '/lock' && request.method === 'POST') {
@@ -76,21 +94,6 @@ export class SyncLockDO {
     // ─── Lock status ────────────────────────────────────────
     if (path === '/status' && request.method === 'GET') {
       return this.handleLockStatus();
-    }
-
-    // ─── Broadcast change ───────────────────────────────────
-    if (path === '/broadcast' && request.method === 'POST') {
-      return this.handleBroadcast(request);
-    }
-
-    // ─── Get cursors ────────────────────────────────────────
-    if (path === '/cursors' && request.method === 'GET') {
-      return this.handleGetCursors();
-    }
-
-    // ─── Update cursor ──────────────────────────────────────
-    if (path === '/cursor' && request.method === 'POST') {
-      return this.handleUpdateCursor(request);
     }
 
     return new Response('Not found', { status: 404 });
@@ -111,50 +114,39 @@ export class SyncLockDO {
       );
     }
     const lockKey = `${body.entity}:${body.entityId}`;
-
-    // Check existing lock
-    const existingLock = (await this.state.storage.get<{ deviceId: string; expiresAt: number }>(
-      `lock:${lockKey}`
-    )) as { deviceId: string; expiresAt: number } | undefined;
-
     const now = Date.now();
+
+    const existingLock = (await this.state.storage.get<StoredLock>(
+      `lock:${lockKey}`
+    )) as StoredLock | undefined;
+
+    const grant = async (): Promise<Response> => {
+      // ✅ P1: token حقيقي غير قابل للتخمين — crypto.randomUUID() بدل
+      // `${lockKey}:${deviceId}:${now}` الذي كان قابلاً للاستنتاج.
+      const lockId = crypto.randomUUID();
+      const expiresAt = now + LOCK_TTL_MS;
+      await this.state.storage.put(`lock:${lockKey}`, {
+        deviceId: body.deviceId,
+        lockId,
+        expiresAt,
+      } satisfies StoredLock);
+      return Response.json({
+        granted: true,
+        lockId,
+        expiresAt,
+      } as SyncLockResponse);
+    };
 
     if (existingLock) {
       // Lock expired? Take it over
       if (existingLock.expiresAt < now) {
-        await this.state.storage.put(`lock:${lockKey}`, {
-          deviceId: body.deviceId,
-          expiresAt: now + 30000, // 30 second lock
-        });
-
-        // Notify connected clients
-        this.broadcast({
-          type: 'lock',
-          entity: body.entity,
-          entityId: body.entityId,
-          deviceId: body.deviceId,
-          timestamp: now,
-        });
-
-        return Response.json({
-          granted: true,
-          lockId: `${lockKey}:${body.deviceId}:${now}`,
-          expiresAt: now + 30000,
-        } as SyncLockResponse);
+        return grant();
       }
 
-      // Same device? Extend the lock
+      // Same device? Extend the lock (new token — the old one expires
+      // with it; coordination-only so no correctness impact).
       if (existingLock.deviceId === body.deviceId) {
-        await this.state.storage.put(`lock:${lockKey}`, {
-          deviceId: body.deviceId,
-          expiresAt: now + 30000,
-        });
-
-        return Response.json({
-          granted: true,
-          lockId: `${lockKey}:${body.deviceId}:${now}`,
-          expiresAt: now + 30000,
-        } as SyncLockResponse);
+        return grant();
       }
 
       // Lock held by another device
@@ -166,31 +158,13 @@ export class SyncLockDO {
     }
 
     // No existing lock — acquire it
-    await this.state.storage.put(`lock:${lockKey}`, {
-      deviceId: body.deviceId,
-      expiresAt: now + 30000,
-    });
-
-    // Broadcast lock event
-    this.broadcast({
-      type: 'lock',
-      entity: body.entity,
-      entityId: body.entityId,
-      deviceId: body.deviceId,
-      timestamp: now,
-    });
-
-    return Response.json({
-      granted: true,
-      lockId: `${lockKey}:${body.deviceId}:${now}`,
-      expiresAt: now + 30000,
-    } as SyncLockResponse);
+    return grant();
   }
 
   // ─── Lock Release ──────────────────────────────────────────
 
   async handleLockRelease(request: Request): Promise<Response> {
-    const body = (await request.json()) as SyncLockRequest;
+    const body = (await request.json()) as (SyncLockRequest & { lockId?: string });
     if (!body || typeof body.deviceId !== 'string' || body.deviceId.length === 0 ||
         typeof body.entity !== 'string' || body.entity.length === 0 ||
         typeof body.entityId !== 'string' || body.entityId.length === 0) {
@@ -199,24 +173,26 @@ export class SyncLockDO {
         { status: 400 }
       );
     }
+    // ✅ P1: release يتطلب deviceId + lockId معاً — معرفة deviceId فقط
+    // (أو تخمين التوكن القديم) لا تكفي لفك قفل جهاز آخر.
+    if (typeof body.lockId !== 'string' || body.lockId.length === 0) {
+      return Response.json(
+        { released: false, reason: 'lockId is required' },
+        { status: 400 }
+      );
+    }
     const lockKey = `${body.entity}:${body.entityId}`;
 
-    const existingLock = (await this.state.storage.get<{ deviceId: string }>(
+    const existingLock = (await this.state.storage.get<StoredLock>(
       `lock:${lockKey}`
-    )) as { deviceId: string } | undefined;
+    )) as StoredLock | undefined;
 
-    if (existingLock && existingLock.deviceId === body.deviceId) {
+    if (
+      existingLock &&
+      existingLock.deviceId === body.deviceId &&
+      existingLock.lockId === body.lockId
+    ) {
       await this.state.storage.delete(`lock:${lockKey}`);
-
-      // Broadcast unlock event
-      this.broadcast({
-        type: 'unlock',
-        entity: body.entity,
-        entityId: body.entityId,
-        deviceId: body.deviceId,
-        timestamp: Date.now(),
-      });
-
       return Response.json({ released: true });
     }
 
@@ -228,15 +204,20 @@ export class SyncLockDO {
   async handleLockStatus(): Promise<Response> {
     // List all active locks — keys are returned WITHOUT the internal
     // `lock:` storage prefix so clients see the natural
-    // `<entity>:<entityId>` identity.
+    // `<entity>:<entityId>` identity. lockId is intentionally NOT echoed
+    // here (status is an ops view, not a release credential).
     const locks: Array<{ key: string; deviceId: string; expiresAt: number }> = [];
-    const entries = await this.state.storage.list<{ deviceId: string; expiresAt: number }>({
+    const entries = await this.state.storage.list<StoredLock>({
       prefix: 'lock:',
     });
 
     for (const [key, value] of entries) {
       if (value.expiresAt > Date.now()) {
-        locks.push({ key: key.slice('lock:'.length), deviceId: value.deviceId, expiresAt: value.expiresAt });
+        locks.push({
+          key: key.slice('lock:'.length),
+          deviceId: value.deviceId,
+          expiresAt: value.expiresAt,
+        });
       } else {
         // Clean up expired locks
         await this.state.storage.delete(key);
@@ -244,128 +225,5 @@ export class SyncLockDO {
     }
 
     return Response.json({ locks, count: locks.length });
-  }
-
-  // ─── Broadcast Change ──────────────────────────────────────
-
-  async handleBroadcast(request: Request): Promise<Response> {
-    const body = (await request.json()) as RealtimeMessage;
-
-    this.broadcast({
-      ...body,
-      timestamp: Date.now(),
-    });
-
-    return Response.json({ broadcast: true, recipients: this.sessions.size });
-  }
-
-  // ─── Cursor Management ─────────────────────────────────────
-
-  async handleGetCursors(): Promise<Response> {
-    const cursors: Record<string, number> = {};
-    const entries = await this.state.storage.list<number>({ prefix: 'cursor:' });
-
-    for (const [key, value] of entries) {
-      const deviceId = key.replace('cursor:', '');
-      cursors[deviceId] = value;
-    }
-
-    return Response.json({ cursors });
-  }
-
-  async handleUpdateCursor(request: Request): Promise<Response> {
-    const body = (await request.json()) as { deviceId: string; cursor: number };
-    await this.state.storage.put(`cursor:${body.deviceId}`, body.cursor);
-    return Response.json({ updated: true });
-  }
-
-  // ─── WebSocket Realtime ────────────────────────────────────
-
-  handleWebSocket(request: Request): Response {
-    const pair = new WebSocketPair();
-    const [client, server] = Object.values(pair);
-
-    // Extract device ID from query params
-    const url = new URL(request.url);
-    const deviceId = url.searchParams.get('deviceId') || 'unknown';
-    const entity = url.searchParams.get('entity') || '*';
-
-    // Accept the connection
-    server.accept();
-
-    // Store session
-    this.sessions.set(server, { deviceId, entity });
-
-    // Send welcome message
-    server.send(
-      JSON.stringify({
-        type: 'presence',
-        entity,
-        entityId: '',
-        deviceId: 'server',
-        timestamp: Date.now(),
-        data: { message: 'Connected', activeConnections: this.sessions.size },
-      } as RealtimeMessage)
-    );
-
-    // Notify others of new connection
-    this.broadcast(
-      {
-        type: 'presence',
-        entity,
-        entityId: '',
-        deviceId,
-        timestamp: Date.now(),
-        data: { action: 'join', activeConnections: this.sessions.size },
-      },
-      server // Exclude the new connection
-    );
-
-    // Handle incoming messages
-    server.addEventListener('message', (event: MessageEvent) => {
-      // Realtime is a server-originated invalidation channel.  Never relay
-      // client-supplied JSON: an authenticated client could otherwise forge
-      // `change` events and force every other device into needless pulls.
-      // Clients only need to receive events; protocol-level ping/pong is
-      // handled by the WebSocket implementation and does not arrive here.
-      void event;
-    });
-
-    // Handle close
-    server.addEventListener('close', () => {
-      this.sessions.delete(server);
-      this.broadcast({
-        type: 'presence',
-        entity,
-        entityId: '',
-        deviceId,
-        timestamp: Date.now(),
-        data: { action: 'leave', activeConnections: this.sessions.size },
-      });
-    });
-
-    // Handle error
-    server.addEventListener('error', () => {
-      this.sessions.delete(server);
-    });
-
-    return new Response(null, { status: 101, webSocket: client });
-  }
-
-  // ─── Broadcast Helper ──────────────────────────────────────
-
-  private broadcast(message: RealtimeMessage, exclude?: WebSocket): void {
-    const data = JSON.stringify(message);
-    for (const [ws, session] of this.sessions) {
-      if (ws === exclude) continue;
-      // Only send to clients subscribed to this entity or wildcard
-      if (session.entity === '*' || session.entity === message.entity) {
-        try {
-          ws.send(data);
-        } catch {
-          this.sessions.delete(ws);
-        }
-      }
-    }
   }
 }

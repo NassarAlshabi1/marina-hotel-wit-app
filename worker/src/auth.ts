@@ -275,6 +275,20 @@ export async function authMiddleware(
 
 // ─── Login Handler ────────────────────────────────────────────
 
+// ✅ (2026-09-30) Login timing hardening — user-enumeration guard.
+// Unknown-user logins used to return BEFORE any PBKDF2 work (~25k native
+// iterations), so response latency alone distinguished "user does not
+// exist" from "wrong password". Both paths now always pay one full
+// PBKDF2 verification: unknown users are verified against this fixed
+// dummy hash (valid v2 format → full derive + constant-time compare →
+// always false). The 401 body stays byte-identical (see auth.test.ts
+// "identical error" contract). The value is NOT a secret — it matches
+// no password; it exists only to equalize timing. Login stays inside
+// the 20/window brute-force bucket, so the extra derive is unabusable.
+const DUMMY_PASSWORD_HASH =
+  'pbkdf2$25000$00000000000000000000000000000000$' +
+  '0000000000000000000000000000000000000000000000000000000000000000';
+
 export async function handleLogin(
   request: Request,
   db: Database,
@@ -288,8 +302,23 @@ export async function handleLogin(
       return json({ error: 'Username and password required' }, 400);
     }
 
+    // ✅ (2026-09-30) Upper-bound caps — oversized inputs are rejected
+    // BEFORE any PBKDF2 work (CPU/memory DoS guard on the login path,
+    // which has no JSON body cap). UPPER bounds only: existing short
+    // passwords (including legacy bootstrap credentials) keep working —
+    // only absurd values fail. 400 (policy) reveals nothing about
+    // stored data. device_id cap mirrors PUSH_FIELD_LIMITS.deviceId.
+    if (body.username.length > 128 || body.password.length > 1024) {
+      return json({ error: 'Username or password too long' }, 400);
+    }
+    if (typeof body.device_id === 'string' && body.device_id.length > 128) {
+      return json({ error: 'device_id too long' }, 400);
+    }
+
     const user = await db.getUser(body.username);
     if (!user) {
+      // Timing padding (see DUMMY_PASSWORD_HASH) — result discarded.
+      await verifyPassword(body.password, DUMMY_PASSWORD_HASH);
       return json({ error: 'Invalid credentials' }, 401);
     }
 
