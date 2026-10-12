@@ -387,7 +387,13 @@ void main() {
         expect(guestCalc.remainingBalance, (400 - expectedPaid).toDouble());
 
         // ⑤ StayBalanceCalculator (المغادرة التلقائية/الليالي المدفوعة).
-        final stay = StayBalanceCalculator.calculate(booking, roomRate: rate);
+        final stay = StayBalanceCalculator.calculate(
+          booking,
+          roomRate: rate,
+          now: today,
+        );
+        expect(stay.actualNightsSpent, 4);
+        expect(stay.consumedCost, 400);
         expect(stay.totalPaid, expectedPaid.toDouble());
         expect(stay.totalPaidNights, 3, reason: '350 يغطي 3 ليالٍ × 100');
       },

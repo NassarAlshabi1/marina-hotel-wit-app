@@ -4302,7 +4302,7 @@ class AppwriteSyncManager {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return <Map<String, dynamic>>[];
       return decoded
-          .whereType<Map>()
+          .whereType<Map<String, dynamic>>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
     } catch (e) {

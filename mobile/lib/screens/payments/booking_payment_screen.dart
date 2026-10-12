@@ -259,24 +259,27 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// مصدر موحد لحساب الليالي والتكلفة — يزيل التباين بين
   /// العرض الرئيسي و _calculateCurrentTotals() ومسار التمديد.
   /// ═══════════════════════════════════════════════════════════════
-  Future<_StayCalculation> _calculateStay({
+  _StayCalculation _calculateStay({
     required DateTime checkin,
-    required DateTime? plannedCheckout,
     required DateTime? actualCheckout,
     required List<db.BookingNight> nights,
     required double roomRate,
     required double discount,
     required String discountType,
     required DateTime? discountStartDate,
-    required bool forExtensionCalculation,
-  }) async {
-    // لليالٍ الفعلية: نستخدم actualCheckout إن وجد، وإلا DateTime.now() للحجوزات النشطة
-    // هذا يتطابق مع سلوك العرض الرئيسي ويمنع استخدام plannedCheckout
-    // كسقف زمني عندما لم يُسجّل خروج فعلي بعد.
-    final DateTime effectiveCheckout = actualCheckout ??
-        (forExtensionCalculation ? DateTime.now() : DateTime.now());
+  }) {
+    // التاريخ المخطط لا يوقف تراكم الليالي. نستخدم actualCheckout إذا
+    // سُجّل وكان في الماضي، وإلا نواصل الحساب حتى اللحظة الحالية.
+    final now = DateTime.now();
+    final DateTime effectiveCheckout =
+        actualCheckout != null && !actualCheckout.isAfter(now)
+        ? actualCheckout
+        : now;
 
-    final int actualNights = Time.nightsWithCutoff(checkin, checkout: effectiveCheckout);
+    final int actualNights = Time.nightsWithCutoff(
+      checkin,
+      checkout: effectiveCheckout,
+    );
 
     // ── حارس سلامة لسجلات الليالي ────────────────────────────────
     // لا نعتمد على nights.length عميّاً — نتأكد أن السجلات نظيفة:
@@ -295,14 +298,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         0,
         (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
       );
-      effectiveNightlyRate = nightsCount > 0 ? nightTotal / nightsCount : roomRate;
+      effectiveNightlyRate = nightsCount > 0
+          ? nightTotal / nightsCount
+          : roomRate;
     } else {
       // Fallback: حساب من السعر الأساسي مع الخصم إذا وجد
-      final checkout = actualCheckout ?? (forExtensionCalculation ? DateTime.now() : DateTime.now());
-      if (checkout == null) {
-        nightTotal = actualNights * roomRate;
-        effectiveNightlyRate = roomRate;
-      } else if (discount > 0 && discountType == 'per_night') {
+      final checkout = effectiveCheckout;
+      if (discount > 0 && discountType == 'per_night') {
         final discountedNights = _countNightsWithDiscount(
           checkin,
           checkout,
@@ -310,9 +312,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         );
         final fullNightsRaw = actualNights - discountedNights;
         final fullNights = fullNightsRaw < 0 ? 0 : fullNightsRaw;
-        final discountedRate = (roomRate - discount).clamp(0, roomRate).toDouble();
-        nightTotal = (fullNights * roomRate) + (discountedNights * discountedRate);
-        effectiveNightlyRate = actualNights > 0 ? nightTotal / actualNights : roomRate;
+        final discountedRate = (roomRate - discount)
+            .clamp(0, roomRate)
+            .toDouble();
+        nightTotal =
+            (fullNights * roomRate) + (discountedNights * discountedRate);
+        effectiveNightlyRate = actualNights > 0
+            ? nightTotal / actualNights
+            : roomRate;
       } else {
         nightTotal = actualNights * roomRate;
         effectiveNightlyRate = roomRate;
@@ -362,10 +369,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         }
       }
     } else if (discount > 0 && discountType == 'per_night') {
-      final checkout = actualCheckout ?? (forExtensionCalculation ? DateTime.now() : DateTime.now());
       discountedNights = _countNightsWithDiscount(
         checkin,
-        checkout,
+        effectiveCheckout,
         discountStartDate,
       );
       normalNights = nightsCount - discountedNights;
@@ -395,7 +401,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// - لا فجوات في sequence
   /// - لا ليالٍ مستقبلية تتجاوز actualNights
   /// - finalRate/nightlyRate > 0
-  bool _validateNightsIntegrity(List<db.BookingNight> nights, int expectedNights) {
+  bool _validateNightsIntegrity(
+    List<db.BookingNight> nights,
+    int expectedNights,
+  ) {
     if (nights.isEmpty) return false;
 
     // 1) لا تكرار في sequence
@@ -409,15 +418,20 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     sequences.sort();
     for (int i = 0; i < sequences.length; i++) {
       if (sequences[i] != i + 1) {
-        dwarn(() => '⚠️ [NightsIntegrity] فجوة في sequence عند الفهرس $i: ${sequences[i]}');
+        dwarn(
+          () =>
+              '⚠️ [NightsIntegrity] فجوة في sequence عند الفهرس $i: ${sequences[i]}',
+        );
         return false;
       }
     }
 
     // 3) عدد السجلات لا يتجاوز الليالي المتوقعة (منع ليالٍ مستقبلية زائدة)
     if (nights.length > expectedNights) {
-      dwarn(() =>
-          '⚠️ [NightsIntegrity] سجلات الليالي (${nights.length}) > الليالي المتوقعة ($expectedNights)');
+      dwarn(
+        () =>
+            '⚠️ [NightsIntegrity] سجلات الليالي (${nights.length}) > الليالي المتوقعة ($expectedNights)',
+      );
       return false;
     }
 
@@ -425,8 +439,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     for (final n in nights) {
       final rate = n.finalRate > 0 ? n.finalRate : n.nightlyRate;
       if (rate <= 0) {
-        dwarn(() =>
-            '⚠️ [NightsIntegrity] ليلة sequence=${n.sequence} بسعر غير صالح: finalRate=${n.finalRate}, nightlyRate=${n.nightlyRate}');
+        dwarn(
+          () =>
+              '⚠️ [NightsIntegrity] ليلة sequence=${n.sequence} بسعر غير صالح: finalRate=${n.finalRate}, nightlyRate=${n.nightlyRate}',
+        );
         return false;
       }
     }
@@ -513,28 +529,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     // ═══════════════════════════════════════════════════════════════
     /// حساب موحد للإقامة — يزيل التباين بين المسارات
     /// ═══════════════════════════════════════════════════════════════
-    final stayCalc = await _calculateStay(
+    final stayCalc = _calculateStay(
       checkin: checkin,
-      plannedCheckout: plannedCheckout,
       actualCheckout: actualCheckout,
       nights: nights,
       roomRate: roomRate,
       discount: discount,
       discountType: discountType,
       discountStartDate: discountStartDate,
-      forExtensionCalculation: false,
     );
 
     final nightsCount = stayCalc.nightsCount;
-    final double nightTotal = stayCalc.nightTotal;
     final double totalAmount = stayCalc.totalAmount;
     final int discountedNights = stayCalc.discountedNights;
     final int surchargeNights = stayCalc.surchargeNights;
     final int normalNights = stayCalc.normalNights;
     final double totalDiscount = stayCalc.totalDiscount;
     final double totalSurcharge = stayCalc.totalSurcharge;
-    final bool nightsAreClean = stayCalc.nightsAreClean;
-    final double effectiveNightlyRate = stayCalc.effectiveNightlyRate;
 
     // مدفوعات الحجز (provider تم تعريفه في الأعلى)
     // الرصيد الفعلي = مجموع الدفعات الفعلية: غير الملغاة وغير المعلّقة
@@ -1643,9 +1654,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final plannedCheckout = widget.booking.checkoutDate != null
-        ? DateTime.tryParse(widget.booking.checkoutDate!)
-        : null;
     final actualCheckout = widget.booking.actualCheckout != null
         ? DateTime.tryParse(widget.booking.actualCheckout!)
         : null;
@@ -1661,19 +1669,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .get();
 
     // ═══════════════════════════════════════════════════════════════
-    /// استخدام الحساب الموحد — forExtensionCalculation=true يضمن
-    /// استخدام DateTime.now() كسقف للحجوزات النشطة بدون actualCheckout
+    /// استخدام الحساب الموحد — actualCheckout أو اللحظة الحالية يحددان
+    /// نهاية الإقامة الفعلية، ولا يوقفها checkoutDate المخطط.
     /// ═══════════════════════════════════════════════════════════════
-    final stayCalc = await _calculateStay(
+    final stayCalc = _calculateStay(
       checkin: checkin,
-      plannedCheckout: plannedCheckout,
       actualCheckout: actualCheckout,
       nights: nights,
       roomRate: roomRate,
       discount: discount,
       discountType: discountType,
       discountStartDate: discountStartDate,
-      forExtensionCalculation: true,
     );
 
     // الرصيد الفعلي المتّسق مع المحرك الموحد: الدفعات الفعلية فقط
@@ -1726,7 +1732,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final bookingsRepo = ref.read(bookingsRepoProvider);
 
-try {
+    try {
       final totals = await _calculateCurrentTotals();
 
       // ════════════════════════════════════════════════════════════════
@@ -1756,15 +1762,14 @@ try {
 
         final checkin =
             DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-        final plannedCheckout = widget.booking.checkoutDate != null
-            ? DateTime.tryParse(widget.booking.checkoutDate!)
-            : null;
         final actualCheckout = widget.booking.actualCheckout != null
             ? DateTime.tryParse(widget.booking.actualCheckout!)
             : null;
         final discount = widget.booking.discount;
         final discountType = widget.booking.discountType;
-        final discountStartDate = _parseDateTime(widget.booking.discountStartDate);
+        final discountStartDate = _parseDateTime(
+          widget.booking.discountStartDate,
+        );
 
         final nights =
             await (dbInstance.select(dbInstance.bookingNights)
@@ -1773,16 +1778,14 @@ try {
                 .get();
 
         // حساب موحد مع forExtensionCalculation=true للحصول على السعر الفعلي
-        final stayCalc = await _calculateStay(
+        final stayCalc = _calculateStay(
           checkin: checkin,
-          plannedCheckout: plannedCheckout,
           actualCheckout: actualCheckout,
           nights: nights,
           roomRate: baseRoomRate,
           discount: discount,
           discountType: discountType,
           discountStartDate: discountStartDate,
-          forExtensionCalculation: true,
         );
 
         final double effectiveRate = stayCalc.effectiveNightlyRate;
@@ -2066,8 +2069,12 @@ try {
       final actualCheckout = widget.booking.actualCheckout != null
           ? DateTime.tryParse(widget.booking.actualCheckout!)
           : null;
-       final bool isBookingActive = actualCheckout == null && StatusUtils.isBookingActive(widget.booking);
-       final DateTime? checkout = actualCheckout ?? (isBookingActive ? DateTime.now() : (plannedCheckout ?? checkin));
+      final now = DateTime.now();
+      final bool isBookingActive = StatusUtils.isBookingActive(widget.booking);
+      final DateTime checkout =
+          actualCheckout != null && !actualCheckout.isAfter(now)
+          ? actualCheckout
+          : (isBookingActive ? now : (plannedCheckout ?? checkin));
       final roomsRepo = ref.read(roomsRepoProvider);
       final room = await roomsRepo
           .watchByNumber(widget.booking.roomNumber)
@@ -2297,9 +2304,6 @@ try {
     double actualNightsCost = 0;
     // ── حارس سلامة لسجلات الليالي ────────────────────────────────
     final bool nightsAreClean = _validateNightsIntegrity(nights, actualNights);
-    final int validNightsCount = (nightsAreClean && nights.isNotEmpty)
-        ? nights.length
-        : actualNights;
     if (nightsAreClean && nights.isNotEmpty) {
       final effectiveCount = actualNights.clamp(0, nights.length);
       for (int i = 0; i < effectiveCount; i++) {
@@ -3854,8 +3858,12 @@ try {
       final actualCheckout = widget.booking.actualCheckout != null
           ? DateTime.tryParse(widget.booking.actualCheckout!)
           : null;
-       final bool isBookingActive = actualCheckout == null && StatusUtils.isBookingActive(widget.booking);
-       final DateTime? checkout = actualCheckout ?? (isBookingActive ? DateTime.now() : (plannedCheckout ?? checkin));
+      final now = DateTime.now();
+      final bool isBookingActive = StatusUtils.isBookingActive(widget.booking);
+      final DateTime checkout =
+          actualCheckout != null && !actualCheckout.isAfter(now)
+          ? actualCheckout
+          : (isBookingActive ? now : (plannedCheckout ?? checkin));
 
       final roomsRepo = ref.read(roomsRepoProvider);
       final room = await roomsRepo

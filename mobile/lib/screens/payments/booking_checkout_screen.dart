@@ -56,6 +56,13 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     });
   }
 
+  @override
+  void dispose() {
+    _hotelDayTickerSub?.cancel();
+    _isProcessingNotifier.dispose();
+    super.dispose();
+  }
+
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
@@ -86,15 +93,20 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     sequences.sort();
     for (int i = 0; i < sequences.length; i++) {
       if (sequences[i] != i + 1) {
-        dwarn(() => "⚠️ [NightsIntegrity] فجوة في sequence عند الفهرس $i: ${sequences[i]}");
+        dwarn(
+          () =>
+              "⚠️ [NightsIntegrity] فجوة في sequence عند الفهرس $i: ${sequences[i]}",
+        );
         return false;
       }
     }
 
     // 3) عدد السجلات لا يتجاوز الليالي المتوقعة (منع ليالٍ مستقبلية زائدة)
     if (nights.length > expectedNights) {
-      dwarn(() =>
-          "⚠️ [NightsIntegrity] سجلات الليالي (${nights.length}) > الليالي المتوقعة ($expectedNights)");
+      dwarn(
+        () =>
+            "⚠️ [NightsIntegrity] سجلات الليالي (${nights.length}) > الليالي المتوقعة ($expectedNights)",
+      );
       return false;
     }
 
@@ -102,8 +114,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     for (final n in nights) {
       final rate = n.finalRate > 0 ? n.finalRate : n.nightlyRate;
       if (rate <= 0) {
-        dwarn(() =>
-            "⚠️ [NightsIntegrity] ليلة sequence=${n.sequence} بسعر غير صالح: finalRate=${n.finalRate}, nightlyRate=${n.nightlyRate}");
+        dwarn(
+          () =>
+              "⚠️ [NightsIntegrity] ليلة sequence=${n.sequence} بسعر غير صالح: finalRate=${n.finalRate}, nightlyRate=${n.nightlyRate}",
+        );
         return false;
       }
     }
@@ -221,7 +235,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
 
     final totalDue = discount > 0 && discountType == "total"
         ? (nightTotal - discount).clamp(0.0, nightTotal)
-
+        : nightTotal;
 
     // ✅ الرصيد الفعلي (قاعدة موحدة مع المحرك): الدفعات الفعلية فقط —
     // غير الملغاة وغير المعلّقة، بغض النظر عن نوع الإيراد (deposit/service

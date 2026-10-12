@@ -84,8 +84,6 @@ void main() {
       3,
     );
   });
-}
-
 
   // ════════════════════════════════════════════════════════════════════
   // Boundary tests for 14:01 cutoff — exact minute precision
@@ -100,9 +98,15 @@ void main() {
     final checkin = DateTime(2024, 3, 1, 15);
     final checkout = DateTime(2024, 3, 2, 14, 0, 59);
     expect(
-      Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14, cutoffMinute: 1),
+      Time.nightsWithCutoff(
+        checkin,
+        checkout: checkout,
+        cutoffHour: 14,
+        cutoffMinute: 1,
+      ),
       1,
-      reason: '14:00:59 is still within the hotel day that started at 14:01 previous day',
+      reason:
+          '14:00:59 is still within the hotel day that started at 14:01 previous day',
     );
   });
 
@@ -119,7 +123,12 @@ void main() {
     final checkin = DateTime(2024, 3, 1, 15);
     final checkout = DateTime(2024, 3, 2, 14, 1, 0);
     expect(
-      Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14, cutoffMinute: 1),
+      Time.nightsWithCutoff(
+        checkin,
+        checkout: checkout,
+        cutoffHour: 14,
+        cutoffMinute: 1,
+      ),
       2,
       reason: '14:01:00 exactly crosses into next hotel day, adding a night',
     );
@@ -131,24 +140,37 @@ void main() {
     final checkin = DateTime(2024, 3, 1, 15);
     final checkout = DateTime(2024, 3, 2, 14, 1, 1);
     expect(
-      Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14, cutoffMinute: 1),
+      Time.nightsWithCutoff(
+        checkin,
+        checkout: checkout,
+        cutoffHour: 14,
+        cutoffMinute: 1,
+      ),
       2,
       reason: 'Any time >= 14:01:00 starts a new hotel day',
     );
   });
 
-  test('nightsWithCutoff midnight boundary (00:00) is within same hotel day', () {
-    // Checkin at 15:00 on day 1
-    // Checkout at midnight (00:00) day 2 — well before 14:01
-    // Hotel day started at day 1 14:01, ends at day 2 14:00:59
-    final checkin = DateTime(2024, 3, 1, 15);
-    final checkout = DateTime(2024, 3, 2, 0, 0, 0);
-    expect(
-      Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14, cutoffMinute: 1),
-      1,
-      reason: 'Midnight is within the hotel day (14:01 to next 14:00:59)',
-    );
-  });
+  test(
+    'nightsWithCutoff midnight boundary (00:00) is within same hotel day',
+    () {
+      // Checkin at 15:00 on day 1
+      // Checkout at midnight (00:00) day 2 — well before 14:01
+      // Hotel day started at day 1 14:01, ends at day 2 14:00:59
+      final checkin = DateTime(2024, 3, 1, 15);
+      final checkout = DateTime(2024, 3, 2, 0, 0, 0);
+      expect(
+        Time.nightsWithCutoff(
+          checkin,
+          checkout: checkout,
+          cutoffHour: 14,
+          cutoffMinute: 1,
+        ),
+        1,
+        reason: 'Midnight is within the hotel day (14:01 to next 14:00:59)',
+      );
+    },
+  );
 
   test('nightsWithCutoff month/year transition at 14:01', () {
     // Checkin Dec 31 15:00
@@ -156,53 +178,14 @@ void main() {
     final checkin = DateTime(2023, 12, 31, 15);
     final checkout = DateTime(2024, 1, 1, 14, 1, 0);
     expect(
-      Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14, cutoffMinute: 1),
+      Time.nightsWithCutoff(
+        checkin,
+        checkout: checkout,
+        cutoffHour: 14,
+        cutoffMinute: 1,
+      ),
       2,
       reason: 'Year transition at 14:01 boundary adds night',
     );
   });
-
-  // ════════════════════════════════════════════════════════════════════
-  // Active booking past plannedCheckout — no actualCheckout
-  // ════════════════════════════════════════════════════════════════════
-
-  test('active booking past plannedCheckout continues counting nights to now', () {
-    // This test documents the EXPECTED behavior:
-    // When actualCheckout == null and booking is active,
-    // nights calculation uses DateTime.now() as the effective checkout,
-    // regardless of plannedCheckout being in the past.
-    //
-    // Scenario: Guest checked in 3 days ago, planned for 1 night,
-    // but never checked out. Nights should be 3 (or 4 if past 14:01).
-    //
-    // Note: This test uses a fixed 'now' to avoid flakiness.
-    // In production, _resolveDateRange in EnhancedBookingCalculationService
-    // uses DateTime.now() for active bookings.
-    
-    final checkin = DateTime(2024, 3, 1, 15); // 3 days ago at 15:00
-    final plannedCheckout = DateTime(2024, 3, 2, 14); // Planned 1 night (past)
-    final moment = DateTime(2024, 3, 4, 10); // Now: 3 days later, before 14:01
-    
-    // With actualCheckout = null, active booking uses moment
-    final actualNights = Time.nightsWithCutoff(checkin, checkout: moment, cutoffHour: 14, cutoffMinute: 1);
-    
-    // March 1 15:00 → March 4 10:00
-    // Hotel day starts: March 1 14:01
-    // Duration: ~70 hours = 2 full 24h periods + ~22h
-    // nights = (2*86400 + 22*3600) ~/ 86400 + 1 = 2 + 1 = 3
-    expect(actualNights, 3, reason: 'Active booking counts nights to now, not plannedCheckout');
-  });
-
-  test('active booking past plannedCheckout after 14:01 counts extra night', () {
-    final checkin = DateTime(2024, 3, 1, 15); // 3 days ago
-    final plannedCheckout = DateTime(2024, 3, 2, 14); // Planned 1 night
-    final moment = DateTime(2024, 3, 4, 15); // Now: 3 days later, AFTER 14:01
-    
-    final actualNights = Time.nightsWithCutoff(checkin, checkout: moment, cutoffHour: 14, cutoffMinute: 1);
-    
-    // March 1 15:00 → March 4 15:00 (past 14:01)
-    // Hotel day starts: March 1 14:01
-    // Duration: ~72 hours = 3 full 24h periods
-    // nights = 3 + 1 = 4
-    expect(actualNights, 4, reason: 'Past 14:01 adds another hotel day');
-  });
+}
