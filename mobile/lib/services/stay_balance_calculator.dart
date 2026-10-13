@@ -288,7 +288,17 @@ class StayBalanceCalculator {
     }
 
     // ─── حساب تكلفة الأيام المقضية فعلياً ───
-    final actualNightsSpent = Time.nightsWithCutoff(checkin, checkout: moment);
+    // لا يوقف plannedCheckout الاستحقاق؛ وحده actualCheckout المسجل
+    // والماضي يحدد نهاية الإقامة، أما التاريخ المستقبلي فيُقصّ إلى الآن.
+    final actualCheckout = DateTime.tryParse(booking.actualCheckout ?? '');
+    final effectiveStayEnd =
+        actualCheckout != null && !actualCheckout.isAfter(moment)
+        ? actualCheckout
+        : moment;
+    final actualNightsSpent = Time.nightsWithCutoff(
+      checkin,
+      checkout: effectiveStayEnd,
+    );
 
     int consumedCostMinor = 0;
     DateTime consumedNight = firstHotelDay;

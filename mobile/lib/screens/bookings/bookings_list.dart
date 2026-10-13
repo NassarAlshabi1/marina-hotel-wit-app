@@ -18,6 +18,19 @@ import '../payments/booking_payment_screen.dart';
 import '../payments/payments_main_screen.dart';
 import 'booking_edit.dart';
 
+DateTime _effectiveStayEnd({
+  required String status,
+  required DateTime? actualCheckout,
+  required DateTime? plannedCheckout,
+  required DateTime now,
+}) {
+  if (actualCheckout != null && !actualCheckout.isAfter(now)) {
+    return actualCheckout;
+  }
+  if (StatusUtils.isActiveBooking(status)) return now;
+  return plannedCheckout ?? now;
+}
+
 class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});
 
@@ -166,33 +179,27 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                 ? DateTime.tryParse(booking.actualCheckout!)
                                 : null;
                             final price = room?.price ?? 0;
-                            // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
-                            final hasNoCheckout =
-                                plannedCheckout == null &&
-                                actualCheckout == null;
-                            final dynamicNights =
-                                hasNoCheckout && checkin != null
-                                ? Time.nightsWithCutoff(checkin)
-                                : null;
-                            final expectedNights =
-                                dynamicNights ??
-                                (booking.expectedNights > 0
-                                    ? booking.expectedNights
-                                    : (checkin == null
-                                          ? 1
-                                          : Time.nightsWithCutoff(
-                                              checkin,
-                                              checkout: plannedCheckout,
-                                            )));
-                            final actualNights =
-                                dynamicNights ??
-                                (checkin == null
-                                    ? expectedNights
-                                    : Time.nightsWithCutoff(
-                                        checkin,
-                                        checkout:
-                                            actualCheckout ?? plannedCheckout,
-                                      ));
+                            final now = DateTime.now();
+                            final effectiveCheckout = _effectiveStayEnd(
+                              status: booking.status,
+                              actualCheckout: actualCheckout,
+                              plannedCheckout: plannedCheckout,
+                              now: now,
+                            );
+                            final expectedNights = booking.expectedNights > 0
+                                ? booking.expectedNights
+                                : (checkin == null
+                                      ? 1
+                                      : Time.nightsWithCutoff(
+                                          checkin,
+                                          checkout: plannedCheckout,
+                                        ));
+                            final actualNights = checkin == null
+                                ? expectedNights
+                                : Time.nightsWithCutoff(
+                                    checkin,
+                                    checkout: effectiveCheckout,
+                                  );
                             final totalAmount = actualNights * price;
                             return RepaintBoundary(
                               child: _BookingRow(
@@ -235,30 +242,27 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                           ? DateTime.tryParse(booking.actualCheckout!)
                           : null;
                       final price = room?.price ?? 0;
-                      // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
-                      final hasNoCheckout =
-                          plannedCheckout == null && actualCheckout == null;
-                      final dynamicNights = hasNoCheckout && checkin != null
-                          ? Time.nightsWithCutoff(checkin)
-                          : null;
-                      final expectedNights =
-                          dynamicNights ??
-                          (booking.expectedNights > 0
-                              ? booking.expectedNights
-                              : (checkin == null
-                                    ? 1
-                                    : Time.nightsWithCutoff(
-                                        checkin,
-                                        checkout: plannedCheckout,
-                                      )));
-                      final actualNights =
-                          dynamicNights ??
-                          (checkin == null
-                              ? expectedNights
-                              : Time.nightsWithCutoff(
-                                  checkin,
-                                  checkout: actualCheckout ?? plannedCheckout,
-                                ));
+                      final now = DateTime.now();
+                      final effectiveCheckout = _effectiveStayEnd(
+                        status: booking.status,
+                        actualCheckout: actualCheckout,
+                        plannedCheckout: plannedCheckout,
+                        now: now,
+                      );
+                      final expectedNights = booking.expectedNights > 0
+                          ? booking.expectedNights
+                          : (checkin == null
+                                ? 1
+                                : Time.nightsWithCutoff(
+                                    checkin,
+                                    checkout: plannedCheckout,
+                                  ));
+                      final actualNights = checkin == null
+                          ? expectedNights
+                          : Time.nightsWithCutoff(
+                              checkin,
+                              checkout: effectiveCheckout,
+                            );
                       final totalAmount = actualNights * price;
                       return RepaintBoundary(
                         child: _BookingRow(

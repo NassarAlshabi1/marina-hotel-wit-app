@@ -158,7 +158,11 @@ void main() {
         resolveRowVectorClock: (_, __) async => null,
       );
       final entity = op['entity'] as String;
-      final table = CloudflareConfig.tableNameFor(entity);
+      // tableNameFor يحدد اسم جدول Drift المحلي. القائمة السوداء
+      // تخزن محلياً في blacklist_entries بينما اسم جدول Worker/D1 هو blacklist.
+      final table = entity == 'blacklist'
+          ? 'blacklist'
+          : CloudflareConfig.tableNameFor(entity);
       expect(table, isNotNull, reason: 'كيان بلا جدول D1: $entity');
       final data = op['data'] as Map<String, dynamic>;
       final allowed = schema[table]!.union(_droppableKeys).union({

@@ -143,9 +143,15 @@ class GuestPaymentCalculationService {
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
 
+    // لا يسمح بتاريخ مغادرة مستقبلي بتضخيم الأيام والتكلفة؛ إذا لم
+    // تُسجّل مغادرة ماضية فالإقامة مستمرة حتى اللحظة الحالية.
+    final effectiveStayEnd =
+        actualCheckout != null && !actualCheckout.isAfter(moment)
+        ? actualCheckout
+        : moment;
     final actualDaysSpent = Time.nightsWithCutoff(
       checkin,
-      checkout: actualCheckout ?? moment,
+      checkout: effectiveStayEnd,
     );
 
     // حساب الأيام المتبقية حتى موعد المغادرة المخطط

@@ -30,6 +30,7 @@ import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/loading_snackbar.dart';
+import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import 'widgets/actions_tab.dart';
@@ -1489,6 +1490,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  DateTime _effectiveCheckoutDate({
+    required DateTime? actualCheckout,
+    required DateTime? plannedCheckout,
+    required DateTime now,
+  }) {
+    if (actualCheckout != null && !actualCheckout.isAfter(now)) {
+      return actualCheckout;
+    }
+    if (StatusUtils.isActiveBooking(widget.booking.status)) return now;
+    return plannedCheckout ?? now;
+  }
+
   Future<_PaymentTotals> _calculateCurrentTotals() async {
     final roomsRepo = ref.read(roomsRepoProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
@@ -1512,9 +1525,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final actualCheckout = widget.booking.actualCheckout != null
         ? DateTime.tryParse(widget.booking.actualCheckout!)
         : null;
+    final effectiveCheckout = _effectiveCheckoutDate(
+      actualCheckout: actualCheckout,
+      plannedCheckout: plannedCheckout,
+      now: DateTime.now(),
+    );
     final actualNights = Time.nightsWithCutoff(
       checkin,
-      checkout: actualCheckout ?? plannedCheckout,
+      checkout: effectiveCheckout,
     );
 
     final nights =
@@ -1532,10 +1550,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
           )
         : (() {
-            final checkout = actualCheckout ?? plannedCheckout;
-            if (checkout == null) {
-              return actualNights * roomRate;
-            }
+            final checkout = effectiveCheckout;
             if (discount > 0 && discountType == 'per_night') {
               final discountedNights = _countNightsWithDiscount(
                 checkin,
@@ -1902,7 +1917,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final actualCheckout = widget.booking.actualCheckout != null
           ? DateTime.tryParse(widget.booking.actualCheckout!)
           : null;
-      final checkout = actualCheckout ?? plannedCheckout ?? checkin;
+      final checkout = _effectiveCheckoutDate(
+        actualCheckout: actualCheckout,
+        plannedCheckout: plannedCheckout,
+        now: DateTime.now(),
+      );
       final roomsRepo = ref.read(roomsRepoProvider);
       final room = await roomsRepo
           .watchByNumber(widget.booking.roomNumber)
@@ -3548,7 +3567,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final actualCheckout = widget.booking.actualCheckout != null
           ? DateTime.tryParse(widget.booking.actualCheckout!)
           : null;
-      final checkout = actualCheckout ?? plannedCheckout ?? checkin;
+      final checkout = _effectiveCheckoutDate(
+        actualCheckout: actualCheckout,
+        plannedCheckout: plannedCheckout,
+        now: DateTime.now(),
+      );
 
       final roomsRepo = ref.read(roomsRepoProvider);
       final room = await roomsRepo

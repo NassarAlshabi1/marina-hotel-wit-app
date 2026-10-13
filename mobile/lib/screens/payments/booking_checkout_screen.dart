@@ -139,8 +139,13 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         : (checkin != null
               ? Time.nightsWithCutoff(checkin, checkout: plannedCheckout)
               : 1);
-    final effectiveCheckout = actualCheckout ?? DateTime.now();
-    final hasNotCheckedOut = actualCheckout == null;
+    final now = DateTime.now();
+    final effectiveCheckout =
+        actualCheckout != null && !actualCheckout.isAfter(now)
+        ? actualCheckout
+        : now;
+    final hasNotCheckedOut =
+        actualCheckout == null || actualCheckout.isAfter(now);
     final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
     final actualNights = checkin != null
         ? Time.nightsWithCutoff(checkin, checkout: effectiveCheckout)
@@ -157,7 +162,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
           )
         : (() {
-            final checkout = actualCheckout ?? DateTime.now();
+            final checkout = effectiveCheckout;
             if (discount > 0 &&
                 discountType == 'per_night' &&
                 checkin != null) {
