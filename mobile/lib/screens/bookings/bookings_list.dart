@@ -11,9 +11,9 @@ import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../../utils/booking_nights_display.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/time.dart';
 import '../payments/booking_payment_screen.dart';
 import '../payments/payments_main_screen.dart';
 import 'booking_edit.dart';
@@ -162,39 +162,17 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                 ? DateTime.tryParse(booking.actualCheckout!)
                                 : null;
                             final price = room?.price ?? 0;
-                            // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
-                            final hasNoCheckout =
-                                plannedCheckout == null &&
-                                actualCheckout == null;
-                            final dynamicNights =
-                                hasNoCheckout && checkin != null
-                                ? Time.nightsWithCutoff(checkin)
-                                : null;
-                            final expectedNights =
-                                dynamicNights ??
-                                (booking.expectedNights > 0
-                                    ? booking.expectedNights
-                                    : (checkin == null
-                                          ? 1
-                                          : Time.nightsWithCutoff(
-                                              checkin,
-                                              checkout: plannedCheckout,
-                                            )));
-                            // ✅ حساب الليالي الفعلية: للحجز النشط نستخدم DateTime.now()
-                            final bool isBookingActive =
-                                actualCheckout == null &&
-                                StatusUtils.isBookingActive(booking);
-                            final DateTime? effectiveCheckout =
-                                actualCheckout ??
-                                (isBookingActive
-                                    ? DateTime.now()
-                                    : plannedCheckout);
-                            final actualNights = checkin == null
-                                ? expectedNights
-                                : Time.nightsWithCutoff(
-                                    checkin,
-                                    checkout: effectiveCheckout,
-                                  );
+                            // ✅ قاعدة موحّدة للنسختين (العريضة/المدمجة):
+                            // عرض الليالي ينقطع عند actualCheckout المسجّل.
+                            final nights = BookingNightsDisplay.forList(
+                              status: booking.status,
+                              storedExpectedNights: booking.expectedNights,
+                              checkin: checkin,
+                              plannedCheckout: plannedCheckout,
+                              actualCheckout: actualCheckout,
+                            );
+                            final expectedNights = nights.expectedNights;
+                            final actualNights = nights.actualNights;
                             final totalAmount = actualNights * price;
                             return RepaintBoundary(
                               child: _BookingRow(
@@ -237,35 +215,17 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                           ? DateTime.tryParse(booking.actualCheckout!)
                           : null;
                       final price = room?.price ?? 0;
-                      // إذا لم يُسجَّل خروج → احتساب ديناميكي من الآن
-                      final hasNoCheckout =
-                          plannedCheckout == null && actualCheckout == null;
-                      final dynamicNights = hasNoCheckout && checkin != null
-                          ? Time.nightsWithCutoff(checkin)
-                          : null;
-                      final expectedNights =
-                          dynamicNights ??
-                          (booking.expectedNights > 0
-                              ? booking.expectedNights
-                              : (checkin == null
-                                    ? 1
-                                    : Time.nightsWithCutoff(
-                                        checkin,
-                                        checkout: plannedCheckout,
-                                      )));
-                      // ✅ حساب الليالي الفعلية: للحجز النشط نستخدم DateTime.now()
-                      final bool isBookingActive =
-                          actualCheckout == null &&
-                          StatusUtils.isBookingActive(booking);
-                      final DateTime? effectiveCheckout =
-                          actualCheckout ??
-                          (isBookingActive ? DateTime.now() : plannedCheckout);
-                      final actualNights = checkin == null
-                          ? expectedNights
-                          : Time.nightsWithCutoff(
-                              checkin,
-                              checkout: effectiveCheckout,
-                            );
+                      // ✅ قاعدة موحّدة للنسختين (العريضة/المدمجة):
+                      // عرض الليالي ينقطع عند actualCheckout المسجّل.
+                      final nights = BookingNightsDisplay.forList(
+                        status: booking.status,
+                        storedExpectedNights: booking.expectedNights,
+                        checkin: checkin,
+                        plannedCheckout: plannedCheckout,
+                        actualCheckout: actualCheckout,
+                      );
+                      final expectedNights = nights.expectedNights;
+                      final actualNights = nights.actualNights;
                       final totalAmount = actualNights * price;
                       return RepaintBoundary(
                         child: _BookingRow(
