@@ -5712,6 +5712,15 @@ class AppwriteSyncManager {
         if (skipDeleted && cycle.deletedAt != null) continue;
         try {
           final payload = _salaryCycleToRemote(cycle);
+          // employeeId محلي ويتغير بين الأجهزة؛ أرسل UUID الحتمي أيضاً.
+          final employee = await (database.select(database.employees)
+                ..where((e) => e.id.equals(cycle.employeeId))
+                ..limit(1))
+              .getSingleOrNull();
+          if (employee != null) {
+            payload['employeeUuid'] = employee.localUuid;
+            payload['employeeLocalUuid'] = employee.localUuid;
+          }
           await appwriteService.upsertSalaryCycle(
             cycle.localUuid,
             _filterPayload('salary_cycles', payload),

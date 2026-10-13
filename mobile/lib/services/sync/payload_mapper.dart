@@ -528,6 +528,8 @@ class PayloadMapper {
   Map<String, dynamic> salaryCycleToRemote(SalaryCycle cycle) {
     final now = Time.nowEpoch();
     final data = <String, dynamic>{
+      // employeeId يبقى للتوافق مع المخطط القديم، لكن UUID هو مفتاح الربط
+      // الحتمي عبر الأجهزة ويُضاف في AppwriteSyncManager عندما يتوفر الموظف.
       'employeeId': cycle.employeeId,
       'cycleKey': cycle.cycleKey,
       'expectedAmount': cycle.expectedAmount,

@@ -773,6 +773,9 @@ class AppwriteSyncUtils {
       'version',
     },
     'salary_cycles': {
+      // UUIDs ضرورية لحل الموظف عبر الأجهزة؛ employeeId محلي فقط.
+      'employeeUuid',
+      'employeeLocalUuid',
       'actualPaid',
       'createdAt',
       'createdAtEpoch',
@@ -1346,6 +1349,8 @@ class AppwriteSyncUtils {
     'salary_cycles': {
       'localUuid': 'string',
       'serverId': 'integer',
+      'employeeUuid': 'string',
+      'employeeLocalUuid': 'string',
       'createdAt': 'integer',
       'updatedAt': 'integer',
       'deletedAt': 'integer',
