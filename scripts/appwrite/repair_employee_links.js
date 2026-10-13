@@ -118,10 +118,11 @@ async function main() {
       const uuid = value(candidates[0], 'localUuid') || candidates[0].$id;
       if (APPLY) {
         try {
-          await db.updateDocument(DATABASE_ID, target.collection, doc.$id, {
-            employeeUuid: uuid,
-            employeeLocalUuid: uuid,
-          });
+          const payload = { employeeUuid: uuid };
+          // salary_cycles و salary_withdrawals يدعمان الاسمين للتوافق
+          // القديم، بينما expenses لا تملك employeeLocalUuid.
+          if (target.collection !== 'expenses') payload.employeeLocalUuid = uuid;
+          await db.updateDocument(DATABASE_ID, target.collection, doc.$id, payload);
         } catch (e) {
           summary.failed++;
           console.error(`  FAILED ${target.collection}/${doc.$id}: ${e.message}`);
