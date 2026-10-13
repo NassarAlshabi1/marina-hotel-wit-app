@@ -181,11 +181,20 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                               checkout: plannedCheckout,
                                             )));
                             // ✅ حساب الليالي الفعلية: للحجز النشط نستخدم DateTime.now()
-                            final bool isBookingActive = actualCheckout == null && StatusUtils.isBookingActive(booking);
-                            final DateTime? effectiveCheckout = actualCheckout ?? (isBookingActive ? DateTime.now() : plannedCheckout);
+                            final bool isBookingActive =
+                                actualCheckout == null &&
+                                StatusUtils.isBookingActive(booking);
+                            final DateTime? effectiveCheckout =
+                                actualCheckout ??
+                                (isBookingActive
+                                    ? DateTime.now()
+                                    : plannedCheckout);
                             final actualNights = checkin == null
                                 ? expectedNights
-                                : Time.nightsWithCutoff(checkin, checkout: effectiveCheckout);
+                                : Time.nightsWithCutoff(
+                                    checkin,
+                                    checkout: effectiveCheckout,
+                                  );
                             final totalAmount = actualNights * price;
                             return RepaintBoundary(
                               child: _BookingRow(
@@ -244,12 +253,19 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                                         checkin,
                                         checkout: plannedCheckout,
                                       )));
-                            // ✅ حساب الليالي الفعلية: للحجز النشط نستخدم DateTime.now()
-                            final bool isBookingActive = actualCheckout == null && StatusUtils.isBookingActive(booking);
-                            final DateTime? effectiveCheckout = actualCheckout ?? (isBookingActive ? DateTime.now() : plannedCheckout);
-                            final actualNights = checkin == null
-                                ? expectedNights
-                                : Time.nightsWithCutoff(checkin, checkout: effectiveCheckout);
+                      // ✅ حساب الليالي الفعلية: للحجز النشط نستخدم DateTime.now()
+                      final bool isBookingActive =
+                          actualCheckout == null &&
+                          StatusUtils.isBookingActive(booking);
+                      final DateTime? effectiveCheckout =
+                          actualCheckout ??
+                          (isBookingActive ? DateTime.now() : plannedCheckout);
+                      final actualNights = checkin == null
+                          ? expectedNights
+                          : Time.nightsWithCutoff(
+                              checkin,
+                              checkout: effectiveCheckout,
+                            );
                       final totalAmount = actualNights * price;
                       return RepaintBoundary(
                         child: _BookingRow(
