@@ -3170,6 +3170,24 @@ class AppwriteSyncManager {
 
   /// تصفية الحمولة قبل الإرسال — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
   /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
+  /// يضمن وجود UUID الحجز في حمولة السجل التابع (الأجهزة الأخرى تحل به فقط).
+  Future<Map<String, dynamic>> _withBookingUuid(
+    Map<String, dynamic> payload,
+    int? bookingLocalId,
+  ) async {
+    final existing = payload['bookingUuidCache'];
+    if ((existing is String && existing.isNotEmpty) || bookingLocalId == null) {
+      return payload;
+    }
+    final booking =
+        await (database.select(database.bookings)
+              ..where((b) => b.id.equals(bookingLocalId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (booking == null || booking.localUuid.isEmpty) return payload;
+    return {...payload, 'bookingUuidCache': booking.localUuid};
+  }
+
   Map<String, dynamic> _filterPayload(
     String collectionId,
     Map<String, dynamic> payload,
@@ -6337,7 +6355,10 @@ class AppwriteSyncManager {
       for (final note in bookingNotes) {
         if (skipDeleted && note.deletedAt != null) continue;
         try {
-          final payload = _bookingNoteToRemote(note);
+          final payload = await _withBookingUuid(
+            _bookingNoteToRemote(note),
+            note.bookingId,
+          );
           await appwriteService.upsertBookingNote(
             note.localUuid,
             _filterPayload('booking_notes', payload),
@@ -6358,7 +6379,10 @@ class AppwriteSyncManager {
       for (final night in bookingNights) {
         if (skipDeleted && night.deletedAt != null) continue;
         try {
-          final payload = _bookingNightToRemote(night);
+          final payload = await _withBookingUuid(
+            _bookingNightToRemote(night),
+            night.bookingLocalId,
+          );
           await appwriteService.upsertBookingNight(
             night.localUuid,
             _filterPayload('booking_nights', payload),
@@ -7526,7 +7550,10 @@ class AppwriteSyncManager {
             appwriteService.deleteBookingNote(entry.localUuid),
       );
     }
-    final payload = _payloadMapper.bookingNoteToRemote(item);
+    final payload = await _withBookingUuid(
+      _payloadMapper.bookingNoteToRemote(item),
+      item.bookingId,
+    );
     final occPayload = await _occPushCheck(
       entity: 'booking_notes',
       documentId: item.localUuid,
@@ -7565,7 +7592,10 @@ class AppwriteSyncManager {
             appwriteService.deleteBookingNight(entry.localUuid),
       );
     }
-    final payload = _payloadMapper.bookingNightToRemote(item);
+    final payload = await _withBookingUuid(
+      _payloadMapper.bookingNightToRemote(item),
+      item.bookingLocalId,
+    );
     final occPayload = await _occPushCheck(
       entity: 'booking_nights',
       documentId: item.localUuid,

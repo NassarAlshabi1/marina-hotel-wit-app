@@ -73,6 +73,31 @@ void main() {
     });
   });
 
+  test('booking_nights: UUID الحجز يُحفظ محلياً ويُصدَّر في toJson', () async {
+    final id = await adapters.nights.upsertFromJson({
+      'localUuid': 'night-1',
+      'bookingLocalId': 999,
+      'bookingUuidCache': bookingUuid,
+      'hotelDayKey': '2026-08-01',
+      'nightStart': '2026-08-01T14:01:00.000',
+      'nightEnd': '2026-08-02T14:01:00.000',
+      'nightlyRate': 15000,
+      'createdAt': 1,
+      'lastModified': 1,
+    }, src: Source.appwrite);
+    expect(id, isNot(-1));
+    final row = (await db.select(db.bookingNights).get()).single;
+    expect(row.bookingLocalId, localBookingId);
+    expect(row.bookingUuidCache, bookingUuid);
+    expect(
+      adapters.nights.adapter.toJson(
+        row,
+        src: Source.drive,
+      )['booking_uuid_cache'],
+      bookingUuid,
+    );
+  });
+
   test('debts: appwrite برقم محلي فقط → لا ربط', () async {
     final refs = await adapters.debts.adapter.resolveRefs(db, {
       'bookingLocalId': localBookingId,

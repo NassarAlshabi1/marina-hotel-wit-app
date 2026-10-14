@@ -97,6 +97,9 @@ class NightsAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent()
           : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+      bookingUuidCache: refs.bookingUuidCache != null
+          ? d.Value(refs.bookingUuidCache)
+          : const d.Value.absent(),
       hotelDayKey: _vStr(
         json,
         'hotelDayKey',
@@ -206,6 +209,7 @@ class NightsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
+      _k(src, 'bookingUuidCache', 'booking_uuid_cache'): model.bookingUuidCache,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
       _k(src, 'nightStart', 'night_start'): model.nightStart,
       _k(src, 'nightEnd', 'night_end'): model.nightEnd,
