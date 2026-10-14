@@ -495,6 +495,7 @@ class EnhancedBookingCalculationService {
               lastModifiedEpoch: d.Value(stamp),
               origin: const d.Value('derived'),
               bookingLocalId: d.Value(booking.id),
+              bookingUuidCache: d.Value(booking.localUuid),
               hotelDayKey: d.Value(night.hotelDayKey),
               nightStart: d.Value(night.nightStart.toIso8601String()),
               nightEnd: d.Value(night.nightEnd.toIso8601String()),
