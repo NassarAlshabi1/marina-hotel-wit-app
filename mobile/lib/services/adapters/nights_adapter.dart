@@ -37,11 +37,28 @@ class NightsAdapter
     final localId =
         _asInt(json, 'bookingLocalId', src) ??
         _asInt(json, 'booking_local_id', src);
+    final isRemote = src != Source.local;
     final resolvedId = await resolver.resolveBooking(
       localId: localId,
       serverId: serverBookingId,
       uuid: bookingUuid,
+      fromRemote: isRemote,
     );
+    final resolvedBooking = resolvedId == null
+        ? null
+        : await (db.select(
+            db.bookings,
+          )..where((b) => b.id.equals(resolvedId))).getSingleOrNull();
+    String normalize(String value) =>
+        value.trim().toLowerCase().replaceAll('-', '');
+    final uuidMismatch =
+        bookingUuid?.trim().isNotEmpty == true &&
+        resolvedBooking != null &&
+        normalize(bookingUuid!) != normalize(resolvedBooking.localUuid);
+    final safeResolvedId = uuidMismatch ? null : resolvedId;
+    final resolvedBookingUuid = safeResolvedId == null
+        ? null
+        : resolvedBooking?.localUuid;
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
@@ -49,17 +66,18 @@ class NightsAdapter
     // بدلاً من وضع bookingLocalId = Value.absent() مما يسبب InvalidDataException
     // لأن bookingLocalId حقل مطلوب (NOT NULL FK) في جدول booking_nights
     // خدمة RestoreFixService ستعيد بناء الليالي من بيانات الحجز لاحقاً
-    final shouldSkip =
-        resolvedId == null && (src == Source.appwrite || src == Source.drive);
+    final shouldSkip = uuidMismatch || (safeResolvedId == null && isRemote);
     final skipReason = shouldSkip
-        ? 'booking_night: لا يمكن العثور على الحجز المرتبط '
-              '(uuid=$bookingUuid, serverId=$serverBookingId, localId=$localId) '
-              '— تم التخطي لتجنب InvalidDataException'
+        ? uuidMismatch
+              ? 'booking_night: UUID الحجز لا يطابق الحجز المحلول '
+                    '(uuid=$bookingUuid, serverId=$serverBookingId) — تم التخطي'
+              : 'booking_night: لا يمكن العثور على الحجز المرتبط '
+                    '(uuid=$bookingUuid, serverId=$serverBookingId) — تم التخطي'
         : null;
 
     return ResolveResult(
-      bookingLocalId: resolvedId,
-      bookingUuidCache: bookingUuid,
+      bookingLocalId: safeResolvedId,
+      bookingUuidCache: resolvedBookingUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
       shouldSkip: shouldSkip,
@@ -80,13 +98,24 @@ class NightsAdapter
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
+    final hotelDayKey =
+        _asString(json, 'hotelDayKey', src) ??
+        _asString(json, 'hotel_day_key', src) ??
+        '';
+    final localUuid =
+        _asString(json, 'localUuid', src) ??
+        _asString(json, 'local_uuid', src) ??
+        (refs.bookingUuidCache != null &&
+                refs.bookingUuidCache!.isNotEmpty &&
+                hotelDayKey.isNotEmpty
+            ? IdGen.bookingNightUuid(
+                bookingUuid: refs.bookingUuidCache!,
+                hotelDayKey: hotelDayKey,
+              )
+            : IdGen.uuid());
     return BookingNightsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(
-        _asString(json, 'localUuid', src) ??
-            _asString(json, 'local_uuid', src) ??
-            IdGen.uuid(),
-      ),
+      localUuid: d.Value(localUuid),
       serverId: _vInt(json, 'serverId', src),
       // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
       // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
@@ -96,13 +125,7 @@ class NightsAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent()
           : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
-      hotelDayKey: _vStr(
-        json,
-        'hotelDayKey',
-        src,
-        altKey: 'hotel_day_key',
-        fallback: '',
-      ),
+      hotelDayKey: d.Value(hotelDayKey),
       nightStart: _vStr(
         json,
         'nightStart',

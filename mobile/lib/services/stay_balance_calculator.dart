@@ -288,13 +288,11 @@ class StayBalanceCalculator {
     }
 
     // ─── حساب تكلفة الأيام المقضية فعلياً ───
-    // لا يوقف plannedCheckout الاستحقاق؛ وحده actualCheckout المسجل
-    // والماضي يحدد نهاية الإقامة، أما التاريخ المستقبلي فيُقصّ إلى الآن.
     final actualCheckout = DateTime.tryParse(booking.actualCheckout ?? '');
-    final effectiveStayEnd =
-        actualCheckout != null && !actualCheckout.isAfter(moment)
-        ? actualCheckout
-        : moment;
+    final effectiveStayEnd = Time.effectiveStayEnd(
+      actualCheckout: actualCheckout,
+      now: moment,
+    );
     final actualNightsSpent = Time.nightsWithCutoff(
       checkin,
       checkout: effectiveStayEnd,

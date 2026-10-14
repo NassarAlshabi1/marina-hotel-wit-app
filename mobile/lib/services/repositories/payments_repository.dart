@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/booking_payment_matcher.dart';
 import '../../utils/debug_log.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../auto_backup_manager.dart';
@@ -63,12 +64,23 @@ class PaymentsRepository {
         q.where((p) => p.bookingLocalId.equals(bookingLocalId));
       } else {
         final byLocalId = db.payments.bookingLocalId.equals(bookingLocalId);
-        final byUuid = db.payments.bookingUuidCache.equals(booking.localUuid);
+        final byUuid = db.payments.bookingUuidCache.isIn(
+          BookingPaymentMatcher.uuidCandidates(booking.localUuid),
+        );
         q.where((p) => byLocalId | byUuid);
       }
 
       q.orderBy([(p) => d.OrderingTerm.desc(p.paymentDate)]);
-      return q.watch();
+      return q.watch().map(
+        (payments) => booking == null
+            ? payments
+            : payments
+                  .where(
+                    (payment) =>
+                        BookingPaymentMatcher.matches(payment, booking),
+                  )
+                  .toList(),
+      );
     });
   }
 
@@ -202,12 +214,25 @@ class PaymentsRepository {
   /// مراقبة إجمالي المدفوعات لحجز محدد عبر SQL SUM() — بديل خفيف الوزن
   /// لـ [paymentsByBooking] عندما يحتاج المستهلك فقط للمجموع (مثل قائمة الحجوزات).
   /// يتجنب تحميل جميع صفوف المدفوعات (38 عمود) وفك تشفيرها فقط لجمع `amount`.
-  Stream<double> watchTotalPaidForBooking(int bookingLocalId) {
+  Stream<double> watchTotalPaidForBooking(
+    int bookingLocalId, {
+    String? bookingUuid,
+  }) {
+    final uuidCandidates = BookingPaymentMatcher.uuidCandidates(bookingUuid);
+    final uuidClause = uuidCandidates.isEmpty
+        ? '0'
+        : 'booking_uuid_cache IN (${List.filled(uuidCandidates.length, '?').join(', ')})';
+    final variables = <d.Variable<Object>>[
+      ...uuidCandidates.map(d.Variable.withString),
+      d.Variable.withInt(bookingLocalId),
+    ];
     return db
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
-          'WHERE deleted_at IS NULL AND is_voided = 0 AND booking_local_id = ?',
-          variables: [d.Variable.withInt(bookingLocalId)],
+          'WHERE deleted_at IS NULL AND is_voided = 0 AND '
+          '(($uuidClause) OR ((booking_uuid_cache IS NULL OR '
+          "TRIM(booking_uuid_cache) = '') AND booking_local_id = ?))",
+          variables: variables,
           readsFrom: {db.payments},
         )
         .watchSingle()

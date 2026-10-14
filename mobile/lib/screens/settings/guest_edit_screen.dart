@@ -11,6 +11,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
+import '../../utils/booking_payment_matcher.dart';
 import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
@@ -386,16 +387,21 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       totalAdjustments += adjustments.length;
 
       // عد المدفوعات
-      final payments =
+      final rawPayments =
           await (db.select(db.payments)
                 // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
                 ..where(
                   (p) =>
                       p.bookingLocalId.equals(booking.id) |
-                      p.bookingUuidCache.equals(booking.localUuid),
+                      p.bookingUuidCache.isIn(
+                        BookingPaymentMatcher.uuidCandidates(booking.localUuid),
+                      ),
                 )
                 ..where((p) => p.deletedAt.isNull()))
               .get();
+      final payments = rawPayments
+          .where((payment) => BookingPaymentMatcher.matches(payment, booking))
+          .toList();
       totalPayments += payments.length;
 
       // مقارنة أسعار الغرف

@@ -34,17 +34,24 @@ class BookingNotesAdapter
         _asString(json, 'booking_uuid', src);
     final bookingLocalId =
         _asInt(json, 'bookingId', src) ?? _asInt(json, 'booking_id', src);
+    final isRemote = src != Source.local;
     final resolvedId = await resolver.resolveBooking(
       localId: bookingLocalId,
       uuid: bookingUuid,
+      fromRemote: isRemote,
     );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
+    final shouldSkip = resolvedId == null && isRemote;
     return ResolveResult(
       bookingLocalId: resolvedId,
       bookingUuidCache: bookingUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      shouldSkip: shouldSkip,
+      skipReason: shouldSkip
+          ? 'booking_note: لا يمكن حل booking UUID؛ تم تخطي الربط الرقمي البعيد'
+          : null,
     );
   }
 

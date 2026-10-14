@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../utils/booking_payment_matcher.dart';
 import '../utils/debug_log.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
@@ -349,13 +350,13 @@ class RestoreFixService {
     final List<String> changes = [];
 
     try {
-      // تحليل تواريخ الدخول والخروج
+      // تاريخ المغادرة المخطط لا يوقف الإقامة؛ النهاية المحاسبية هي
+      // actualCheckout المسجل فقط، وإلا تستمر حتى لحظة الإصلاح.
       final checkinDate = DateTime.parse(booking.checkinDate);
-      final checkoutDate = booking.actualCheckout != null
-          ? DateTime.parse(booking.actualCheckout!)
-          : (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty
-                ? DateTime.parse(booking.checkoutDate!)
-                : now);
+      final checkoutDate = Time.effectiveStayEnd(
+        actualCheckout: DateTime.tryParse(booking.actualCheckout ?? ''),
+        now: now,
+      );
 
       // حساب الليالي باستخدام قاعدة الساعة 14:00
       final calculatedNights = Time.nightsWithCutoff(
@@ -423,16 +424,21 @@ class RestoreFixService {
   ) async {
     final changes = <String>[];
     try {
-      final payments =
+      final rawPayments =
           await (db.select(db.payments)
                 // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
                 ..where(
                   (p) =>
                       p.bookingLocalId.equals(booking.id) |
-                      p.bookingUuidCache.equals(booking.localUuid),
+                      p.bookingUuidCache.isIn(
+                        BookingPaymentMatcher.uuidCandidates(booking.localUuid),
+                      ),
                 )
                 ..where((p) => p.deletedAt.isNull()))
               .get();
+      final payments = rawPayments.where(
+        (payment) => BookingPaymentMatcher.matches(payment, booking),
+      );
 
       final totalPaid = payments.fold<double>(
         0,
@@ -811,7 +817,12 @@ class RestoreFixService {
 
       nightRows.add(
         BookingNightsCompanion(
-          localUuid: Value(IdGen.uuid()),
+          localUuid: Value(
+            IdGen.bookingNightUuid(
+              bookingUuid: booking.localUuid,
+              hotelDayKey: night.hotelDayKey,
+            ),
+          ),
           createdAt: Value(rowEpoch),
           updatedAt: Value(rowEpoch),
           lastModified: Value(rowEpoch),
@@ -822,6 +833,7 @@ class RestoreFixService {
           version: const Value(1),
           origin: const Value('auto_fix'),
           bookingLocalId: Value(booking.id),
+          bookingUuidCache: Value(booking.localUuid),
           hotelDayKey: Value(night.hotelDayKey),
           nightStart: Value(night.nightStart.toIso8601String()),
           nightEnd: Value(night.nightEnd.toIso8601String()),
@@ -850,12 +862,14 @@ class RestoreFixService {
     final int totalNights = math.max(breakdown.length, 1);
     final double totalDue = calculation.financialSummary.totalDue.toDouble();
 
-    final paymentRows =
+    final rawPaymentRows =
         await (db.select(db.payments)
               ..where(
                 (p) =>
                     (p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid)),
+                    p.bookingUuidCache.isIn(
+                      BookingPaymentMatcher.uuidCandidates(booking.localUuid),
+                    )),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isPendingBalance.equals(false))
@@ -866,6 +880,9 @@ class RestoreFixService {
                     p.revenueType.isNull(),
               ))
             .get();
+    final paymentRows = rawPaymentRows.where(
+      (payment) => BookingPaymentMatcher.matches(payment, booking),
+    );
     double totalPaid = 0;
     for (final payment in paymentRows) {
       totalPaid += payment.amount;

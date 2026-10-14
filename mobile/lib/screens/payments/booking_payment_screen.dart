@@ -22,6 +22,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../services/stay_balance_calculator.dart';
+import '../../utils/booking_night_coverage.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
 import '../../utils/debug_log.dart';
@@ -30,7 +31,6 @@ import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/loading_snackbar.dart';
-import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import 'widgets/actions_tab.dart';
@@ -303,8 +303,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
     final expectedNights = booking.expectedNights;
-    final actualNights = booking.calculatedNights;
-    final hasNotCheckedOut = actualCheckout == null;
+    final now = DateTime.now();
+    final effectiveCheckout = Time.effectiveStayEnd(
+      actualCheckout: actualCheckout,
+      now: now,
+    );
+    final actualNights = Time.nightsWithCutoff(
+      checkin,
+      checkout: effectiveCheckout,
+    );
+    final hasNotCheckedOut =
+        actualCheckout == null || actualCheckout.isAfter(now);
     final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
     final discount = booking.discount;
     final discountType = booking.discountType;
@@ -319,7 +328,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
 
     // ليالي الحجز (provider تم تعريفه في الأعلى)
-    final nights = nightsAsync.valueOrNull ?? const <db.BookingNight>[];
+    final rawNights = nightsAsync.valueOrNull ?? const <db.BookingNight>[];
+    final nights =
+        BookingNightCoverage.completeForStay(
+          nights: rawNights,
+          bookingLocalId: booking.id,
+          bookingUuid: booking.localUuid,
+          checkin: checkin,
+          expectedNights: actualNights,
+        ) ??
+        const <db.BookingNight>[];
     final nightsCount = nights.isNotEmpty ? nights.length : actualNights;
     final double nightTotal = nights.isNotEmpty
         ? nights.fold<double>(
@@ -327,7 +345,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
           )
         : (() {
-            final checkout = actualCheckout ?? DateTime.now();
+            final checkout = effectiveCheckout;
             if (discount > 0 && discountType == 'per_night') {
               final discountedNights = _countNightsWithDiscount(
                 checkin,
@@ -386,7 +404,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         }
       }
     } else if (discount > 0 && discountType == 'per_night') {
-      final checkout = actualCheckout ?? DateTime.now();
+      final checkout = effectiveCheckout;
       discountedNights = _countNightsWithDiscount(
         checkin,
         checkout,
@@ -1492,15 +1510,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   DateTime _effectiveCheckoutDate({
     required DateTime? actualCheckout,
-    required DateTime? plannedCheckout,
     required DateTime now,
-  }) {
-    if (actualCheckout != null && !actualCheckout.isAfter(now)) {
-      return actualCheckout;
-    }
-    if (StatusUtils.isActiveBooking(widget.booking.status)) return now;
-    return plannedCheckout ?? now;
-  }
+  }) => Time.effectiveStayEnd(actualCheckout: actualCheckout, now: now);
 
   Future<_PaymentTotals> _calculateCurrentTotals() async {
     final roomsRepo = ref.read(roomsRepoProvider);
@@ -1519,15 +1530,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final plannedCheckout = widget.booking.checkoutDate != null
-        ? DateTime.tryParse(widget.booking.checkoutDate!)
-        : null;
     final actualCheckout = widget.booking.actualCheckout != null
         ? DateTime.tryParse(widget.booking.actualCheckout!)
         : null;
     final effectiveCheckout = _effectiveCheckoutDate(
       actualCheckout: actualCheckout,
-      plannedCheckout: plannedCheckout,
       now: DateTime.now(),
     );
     final actualNights = Time.nightsWithCutoff(
@@ -1535,11 +1542,20 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       checkout: effectiveCheckout,
     );
 
-    final nights =
+    final rawNights =
         await (dbInstance.select(dbInstance.bookingNights)
               ..where((n) => n.bookingLocalId.equals(widget.booking.id))
               ..where((n) => n.deletedAt.isNull()))
             .get();
+    final nights =
+        BookingNightCoverage.completeForStay(
+          nights: rawNights,
+          bookingLocalId: widget.booking.id,
+          bookingUuid: widget.booking.localUuid,
+          checkin: checkin,
+          expectedNights: actualNights,
+        ) ??
+        const <db.BookingNight>[];
     final discount = widget.booking.discount;
     final discountType = widget.booking.discountType;
     final discountStartDate = _parseDateTime(widget.booking.discountStartDate);
@@ -1911,15 +1927,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     try {
       final checkin =
           DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-      final plannedCheckout = widget.booking.checkoutDate != null
-          ? DateTime.tryParse(widget.booking.checkoutDate!)
-          : null;
       final actualCheckout = widget.booking.actualCheckout != null
           ? DateTime.tryParse(widget.booking.actualCheckout!)
           : null;
       final checkout = _effectiveCheckoutDate(
         actualCheckout: actualCheckout,
-        plannedCheckout: plannedCheckout,
         now: DateTime.now(),
       );
       final roomsRepo = ref.read(roomsRepoProvider);
@@ -1960,8 +1972,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (!mounted) return;
 
     // حساب المبلغ المستحق
-    final double effectiveNightTotal = nights.isNotEmpty
-        ? nights.fold<double>(
+    final checkin = DateTime.tryParse(booking.checkinDate);
+    final effectiveStayNights = checkin == null
+        ? null
+        : BookingNightCoverage.completeForStay(
+            nights: nights,
+            bookingLocalId: booking.id,
+            bookingUuid: booking.localUuid,
+            checkin: checkin,
+            expectedNights: Time.nightsWithCutoff(
+              checkin,
+              checkout: Time.effectiveStayEnd(
+                actualCheckout: DateTime.tryParse(booking.actualCheckout ?? ''),
+              ),
+            ),
+          );
+    final double effectiveNightTotal = effectiveStayNights != null
+        ? effectiveStayNights.fold<double>(
             0,
             (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
           )
@@ -2093,12 +2120,21 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
 
     // جلب ليالي الحجز لتحسب تكلفة الليالي الفعلية
-    final nights =
+    final rawNights =
         await (dbInstance.select(dbInstance.bookingNights)
               ..where((n) => n.bookingLocalId.equals(widget.booking.id))
               ..where((n) => n.deletedAt.isNull())
               ..orderBy([(t) => OrderingTerm.asc(t.sequence)]))
             .get();
+    final nights =
+        BookingNightCoverage.completeForStay(
+          nights: rawNights,
+          bookingLocalId: widget.booking.id,
+          bookingUuid: widget.booking.localUuid,
+          checkin: checkin,
+          expectedNights: actualNights,
+        ) ??
+        const <db.BookingNight>[];
 
     // تكلفة الليالي الفعلية المستخدمة
     double actualNightsCost = 0;
@@ -3561,15 +3597,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // 1. توليد PDF
       final checkin =
           DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-      final plannedCheckout = widget.booking.checkoutDate != null
-          ? DateTime.tryParse(widget.booking.checkoutDate!)
-          : null;
       final actualCheckout = widget.booking.actualCheckout != null
           ? DateTime.tryParse(widget.booking.actualCheckout!)
           : null;
       final checkout = _effectiveCheckoutDate(
         actualCheckout: actualCheckout,
-        plannedCheckout: plannedCheckout,
         now: DateTime.now(),
       );
 

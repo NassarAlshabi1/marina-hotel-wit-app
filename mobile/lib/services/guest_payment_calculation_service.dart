@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import 'package:intl/intl.dart';
+import '../utils/booking_payment_matcher.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -116,13 +117,15 @@ class GuestPaymentCalculationService {
             .getSingleOrNull();
 
     // جلب المدفوعات الفعلية للحجز (استبعاد الملغاة والمعلّقة وغير المتعلقة بالغرف)
-    final payments =
+    final rawPayments =
         await (db.select(db.payments)
               // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
               ..where(
                 (p) =>
                     p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid),
+                    p.bookingUuidCache.isIn(
+                      BookingPaymentMatcher.uuidCandidates(booking.localUuid),
+                    ),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
@@ -135,6 +138,9 @@ class GuestPaymentCalculationService {
               )
               ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate)]))
             .get();
+    final payments = rawPayments
+        .where((payment) => BookingPaymentMatcher.matches(payment, booking))
+        .toList();
 
     // حساب الأيام المقضية بناءً على قاعدة الساعة 14:00
     final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
@@ -143,12 +149,10 @@ class GuestPaymentCalculationService {
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
 
-    // لا يسمح بتاريخ مغادرة مستقبلي بتضخيم الأيام والتكلفة؛ إذا لم
-    // تُسجّل مغادرة ماضية فالإقامة مستمرة حتى اللحظة الحالية.
-    final effectiveStayEnd =
-        actualCheckout != null && !actualCheckout.isAfter(moment)
-        ? actualCheckout
-        : moment;
+    final effectiveStayEnd = Time.effectiveStayEnd(
+      actualCheckout: actualCheckout,
+      now: moment,
+    );
     final actualDaysSpent = Time.nightsWithCutoff(
       checkin,
       checkout: effectiveStayEnd,

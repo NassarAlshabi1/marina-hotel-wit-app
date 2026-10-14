@@ -19,17 +19,9 @@ import '../payments/payments_main_screen.dart';
 import 'booking_edit.dart';
 
 DateTime _effectiveStayEnd({
-  required String status,
   required DateTime? actualCheckout,
-  required DateTime? plannedCheckout,
   required DateTime now,
-}) {
-  if (actualCheckout != null && !actualCheckout.isAfter(now)) {
-    return actualCheckout;
-  }
-  if (StatusUtils.isActiveBooking(status)) return now;
-  return plannedCheckout ?? now;
-}
+}) => Time.effectiveStayEnd(actualCheckout: actualCheckout, now: now);
 
 class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});
@@ -181,9 +173,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                             final price = room?.price ?? 0;
                             final now = DateTime.now();
                             final effectiveCheckout = _effectiveStayEnd(
-                              status: booking.status,
                               actualCheckout: actualCheckout,
-                              plannedCheckout: plannedCheckout,
                               now: now,
                             );
                             final expectedNights = booking.expectedNights > 0
@@ -244,9 +234,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                       final price = room?.price ?? 0;
                       final now = DateTime.now();
                       final effectiveCheckout = _effectiveStayEnd(
-                        status: booking.status,
                         actualCheckout: actualCheckout,
-                        plannedCheckout: plannedCheckout,
                         now: now,
                       );
                       final expectedNights = booking.expectedNights > 0
@@ -520,7 +508,12 @@ class _BookingRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final paidAsync = ref.watch(bookingPaidAmountProvider(booking.id));
+    final paidAsync = ref.watch(
+      bookingPaidAmountProvider((
+        bookingId: booking.id,
+        bookingUuid: booking.localUuid,
+      )),
+    );
     final baseTextStyle = TextStyle(
       color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black,
     );

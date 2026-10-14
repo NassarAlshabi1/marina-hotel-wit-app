@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 
 import '../models/financial_models.dart';
+import '../utils/booking_payment_matcher.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
@@ -358,12 +359,14 @@ class EnhancedBookingCalculationService {
   }
 
   Future<int> _getTotalPayments(Booking booking) async {
-    final payments =
+    final rawPayments =
         await (db.select(db.payments)
               ..where(
                 (p) =>
                     (p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid)),
+                    p.bookingUuidCache.isIn(
+                      BookingPaymentMatcher.uuidCandidates(booking.localUuid),
+                    )),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
@@ -376,6 +379,9 @@ class EnhancedBookingCalculationService {
               ))
             .get();
 
+    final payments = rawPayments.where(
+      (payment) => BookingPaymentMatcher.matches(payment, booking),
+    );
     return payments.fold<int>(0, (sum, p) => sum + _asInt(p.amount));
   }
 
@@ -440,12 +446,24 @@ class EnhancedBookingCalculationService {
     final nowUtc = DateTime.now().toUtc();
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
     final stampIso = nowUtc.toIso8601String();
+    String localUuidForNight(NightlyBreakdown night) => IdGen.bookingNightUuid(
+      bookingUuid: booking.localUuid,
+      hotelDayKey: night.hotelDayKey,
+    );
 
     var shouldRebuild = forceRebuild;
     if (!shouldRebuild) {
       final existing =
           await (db.select(db.bookingNights)
-                ..where((n) => n.bookingLocalId.equals(booking.id))
+                ..where(
+                  (n) =>
+                      n.bookingLocalId.equals(booking.id) |
+                      n.bookingUuidCache.isIn(
+                        BookingPaymentMatcher.uuidCandidates(
+                          booking.localUuid,
+                        ),
+                      ),
+                )
                 ..where((n) => n.deletedAt.isNull()))
               .get();
       if (existing.length != breakdown.length) {
@@ -455,6 +473,11 @@ class EnhancedBookingCalculationService {
         for (final night in breakdown) {
           final current = byDay[night.hotelDayKey];
           if (current == null) {
+            shouldRebuild = true;
+            break;
+          }
+          if (current.localUuid != localUuidForNight(night) ||
+              current.bookingUuidCache != booking.localUuid) {
             shouldRebuild = true;
             break;
           }
@@ -483,8 +506,15 @@ class EnhancedBookingCalculationService {
       if (!shouldRebuild) return;
 
       await (db.delete(
-        db.bookingNights,
-      )..where((n) => n.bookingLocalId.equals(booking.id))).go();
+            db.bookingNights,
+          )..where(
+            (n) =>
+                n.bookingLocalId.equals(booking.id) |
+                n.bookingUuidCache.isIn(
+                  BookingPaymentMatcher.uuidCandidates(booking.localUuid),
+                ),
+          ))
+          .go();
 
       int sequence = 0;
       await db.batch((batch) {
@@ -502,7 +532,7 @@ class EnhancedBookingCalculationService {
           batch.insert(
             db.bookingNights,
             BookingNightsCompanion(
-              localUuid: d.Value(IdGen.uuid()),
+              localUuid: d.Value(localUuidForNight(night)),
               createdAt: d.Value(stamp),
               updatedAt: d.Value(stamp),
               lastModified: d.Value(stamp),
@@ -512,6 +542,7 @@ class EnhancedBookingCalculationService {
               lastModifiedEpoch: d.Value(stamp),
               origin: const d.Value('derived'),
               bookingLocalId: d.Value(booking.id),
+              bookingUuidCache: d.Value(booking.localUuid),
               hotelDayKey: d.Value(night.hotelDayKey),
               nightStart: d.Value(night.nightStart.toIso8601String()),
               nightEnd: d.Value(night.nightEnd.toIso8601String()),
@@ -559,27 +590,14 @@ class EnhancedBookingCalculationService {
 
   _BookingDateRange _resolveDateRange(Booking booking, DateTime moment) {
     final checkin = _parseDateTime(booking.checkinDate) ?? moment;
-    final plannedCheckout = _parseDateTime(booking.checkoutDate);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
     final bookingActive =
         actualCheckout == null && StatusUtils.isBookingActive(booking);
 
-    // Resolve effective checkout:
-    // 1. Actual checkout exists → use it (unless it's in the future, then use moment)
-    // 2. Active booking (no actual checkout) → ALWAYS use moment to ensure dynamic calculation
-    // 3. Otherwise (e.g. cancelled/provisional) → use planned checkout if in the past, else moment
-    DateTime checkout;
-    if (actualCheckout != null) {
-      checkout = actualCheckout.isBefore(moment) ? actualCheckout : moment;
-    } else if (bookingActive) {
-      // For active guests, always calculate up to the current moment
-      // This ensures that if they stay past 14:00, a new night is added automatically
-      checkout = moment;
-    } else if (plannedCheckout != null && plannedCheckout.isBefore(moment)) {
-      checkout = plannedCheckout;
-    } else {
-      checkout = moment;
-    }
+    var checkout = Time.effectiveStayEnd(
+      actualCheckout: actualCheckout,
+      now: moment,
+    );
 
     if (!checkout.isAfter(checkin)) {
       checkout = checkin.add(const Duration(minutes: 1));

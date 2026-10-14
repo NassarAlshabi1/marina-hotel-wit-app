@@ -24,6 +24,7 @@ class StatusUtils {
   }.map(_normalize).toSet();
 
   static final Set<String> _activeBookingStatuses = {
+    'checked_in',
     'محجوزة',
     'محجوز',
     'نشط',
@@ -37,6 +38,7 @@ class StatusUtils {
 
   /// القائمة الخام للحالات النشطة (قبل التطبيع) - لاستخدامها في استعلامات SQL
   static const List<String> activeBookingStatuses = [
+    'checked_in',
     'محجوزة',
     'محجوز',
     'نشط',

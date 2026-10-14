@@ -109,12 +109,21 @@ class SyncIntegrityChecker {
     final issues = <IntegrityIssue>[];
 
     final orphaned = await db.customSelect('''
-      SELECT p.local_uuid, p.booking_local_id 
+      SELECT p.local_uuid, p.booking_local_id, p.booking_uuid_cache
       FROM payments p
-      LEFT JOIN bookings b ON p.booking_local_id = b.id
-      WHERE p.booking_local_id IS NOT NULL 
-        AND b.id IS NULL 
-        AND p.deleted_at IS NULL
+      LEFT JOIN bookings b ON b.deleted_at IS NULL AND (
+        (TRIM(COALESCE(p.booking_uuid_cache, '')) != '' AND
+          lower(replace(trim(b.local_uuid), '-', '')) =
+          lower(replace(trim(p.booking_uuid_cache), '-', '')))
+        OR
+        ((p.booking_uuid_cache IS NULL OR
+          TRIM(p.booking_uuid_cache) = '') AND
+          p.booking_local_id = b.id)
+      )
+      WHERE p.deleted_at IS NULL
+        AND (TRIM(COALESCE(p.booking_uuid_cache, '')) != '' OR
+          p.booking_local_id IS NOT NULL)
+        AND b.id IS NULL
     ''').get();
 
     for (final row in orphaned) {
@@ -247,7 +256,20 @@ class SyncIntegrityChecker {
         b.remaining_balance_cached,
         COALESCE(SUM(p.amount), 0) as actual_paid
       FROM bookings b
-      LEFT JOIN payments p ON p.booking_local_id = b.id AND p.deleted_at IS NULL
+      LEFT JOIN payments p ON p.deleted_at IS NULL
+        AND p.is_voided = 0
+        AND p.is_pending_balance = 0
+        AND (p.revenue_type = 'room' OR p.revenue_type = '' OR
+          p.revenue_type IS NULL)
+        AND (
+          (TRIM(COALESCE(p.booking_uuid_cache, '')) != '' AND
+            lower(replace(trim(p.booking_uuid_cache), '-', '')) =
+            lower(replace(trim(b.local_uuid), '-', '')))
+          OR
+          ((p.booking_uuid_cache IS NULL OR
+            TRIM(p.booking_uuid_cache) = '') AND
+            p.booking_local_id = b.id)
+        )
       WHERE b.deleted_at IS NULL
       GROUP BY b.id, b.local_uuid, b.total_due_cached, b.total_paid_cached, b.remaining_balance_cached
       HAVING ABS(b.total_paid_cached - actual_paid) > 0.01
@@ -284,15 +306,16 @@ class SyncIntegrityChecker {
     final issues = <IntegrityIssue>[];
 
     final invalidRefs = await db.customSelect('''
-      SELECT p.local_uuid, p.booking_local_id
+      SELECT p.local_uuid, p.booking_local_id, p.booking_uuid_cache,
+        b.id AS uuid_booking_local_id
       FROM payments p
+      JOIN bookings b ON b.deleted_at IS NULL AND
+        TRIM(COALESCE(p.booking_uuid_cache, '')) != '' AND
+        lower(replace(trim(b.local_uuid), '-', '')) =
+        lower(replace(trim(p.booking_uuid_cache), '-', ''))
       WHERE p.booking_local_id IS NOT NULL
         AND p.deleted_at IS NULL
-        AND NOT EXISTS (
-          SELECT 1 FROM bookings b 
-          WHERE b.id = p.booking_local_id 
-          AND b.deleted_at IS NULL
-        )
+        AND p.booking_local_id != b.id
     ''').get();
 
     for (final row in invalidRefs) {
@@ -302,7 +325,9 @@ class SyncIntegrityChecker {
           table: 'payments',
           uuid: row.read<String>('local_uuid'),
           description:
-              'Payment references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
+              'Payment local booking ID conflicts with its UUID owner '
+              '(local_id: ${row.read<int?>('booking_local_id')}, '
+              'uuid_owner_id: ${row.read<int?>('uuid_booking_local_id')})',
           isCritical: true,
         ),
       );

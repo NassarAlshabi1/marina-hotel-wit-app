@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
 
+import '../utils/booking_payment_matcher.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
 import 'hotel_time_engine.dart';
 import 'local_db.dart';
 
@@ -72,9 +74,11 @@ DateTime? _parseDate(String? value) {
 /// All financial values are computed client-side from raw data.
 /// This service does NOT store any computed values.
 class BookingComputedStreamService {
-  BookingComputedStreamService(this.db);
+  BookingComputedStreamService(this.db, {DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now;
 
   final AppDatabase db;
+  final DateTime Function() _clock;
 
   /// Watches a single booking by local ID and emits updated [BookingWithPayments].
   ///
@@ -142,11 +146,19 @@ class BookingComputedStreamService {
         bookingUuids,
       );
       final paymentsMap = <int, List<Payment>>{};
+      final bookingByUuid = {
+        for (final booking in bookings)
+          BookingPaymentMatcher.normalizeUuid(booking.localUuid): booking,
+      };
+      final bookingById = {for (final booking in bookings) booking.id: booking};
       for (final p in allPayments) {
-        final bid = p.bookingLocalId;
-        if (bid != null) {
-          paymentsMap.putIfAbsent(bid, () => []).add(p);
-        }
+        final paymentUuid = BookingPaymentMatcher.normalizeUuid(
+          p.bookingUuidCache,
+        );
+        final owner = paymentUuid.isNotEmpty
+            ? bookingByUuid[paymentUuid]
+            : bookingById[p.bookingLocalId];
+        if (owner != null) paymentsMap.putIfAbsent(owner.id, () => []).add(p);
       }
 
       return bookings
@@ -196,28 +208,16 @@ class BookingComputedStreamService {
   // ---------------------------------------------------------------------------
 
   Future<BookingWithPayments> _buildBookingWithPayments(Booking booking) async {
-    final now = DateTime.now();
+    final now = _clock();
     final checkIn = _parseDate(booking.checkinDate) ?? now;
-    final plannedCheckOut = _parseDate(booking.checkoutDate);
     final actualCheckOut = _parseDate(booking.actualCheckout);
     final isActive =
         actualCheckOut == null && StatusUtils.isBookingActive(booking);
 
-    // Effective checkout logic:
-    // - If guest is active (no actual checkout), always use NOW
-    // - If guest checked out, use actual checkout only if it's in the past
-    // - If a planned checkout exists but is in the future, treat as null (use NOW)
-    //   This prevents pre-set future dates from inflating the day count
-    final DateTime? effectiveCheckOut;
-    if (isActive) {
-      effectiveCheckOut = null; // Guest still present → use NOW
-    } else if (actualCheckOut != null && actualCheckOut.isBefore(now)) {
-      effectiveCheckOut = actualCheckOut;
-    } else if (plannedCheckOut != null && plannedCheckOut.isBefore(now)) {
-      effectiveCheckOut = plannedCheckOut;
-    } else {
-      effectiveCheckOut = null; // Future date or unknown → use NOW
-    }
+    final effectiveCheckOut = Time.effectiveStayEnd(
+      actualCheckout: actualCheckOut,
+      now: now,
+    );
 
     final days = HotelTimeEngine.calculateDays(
       checkIn,
@@ -258,12 +258,14 @@ class BookingComputedStreamService {
   }
 
   Future<int> _sumPaymentsForBooking(Booking booking) async {
-    final payments =
+    final rawPayments =
         await (db.select(db.payments)
               ..where(
                 (p) =>
                     (p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid)),
+                    p.bookingUuidCache.isIn(
+                      BookingPaymentMatcher.uuidCandidates(booking.localUuid),
+                    )),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
@@ -276,6 +278,9 @@ class BookingComputedStreamService {
               ))
             .get();
 
+    final payments = rawPayments.where(
+      (payment) => BookingPaymentMatcher.matches(payment, booking),
+    );
     return payments.fold<int>(0, (sum, p) => sum + p.amount.round());
   }
 
@@ -297,7 +302,15 @@ class BookingComputedStreamService {
                 p.revenueType.equals('') |
                 p.revenueType.isNull(),
           )
-          ..where((p) => p.bookingLocalId.isIn(bookingIds)))
+          ..where(
+            (p) =>
+                p.bookingLocalId.isIn(bookingIds) |
+                p.bookingUuidCache.isIn(
+                  bookingUuids
+                      .expand(BookingPaymentMatcher.uuidCandidates)
+                      .toSet(),
+                ),
+          ))
         .get();
   }
 
@@ -307,23 +320,16 @@ class BookingComputedStreamService {
     required Map<String, Room> roomMap,
     required Map<int, List<Payment>> paymentsMap,
   }) {
-    final now = DateTime.now();
+    final now = _clock();
     final checkIn = _parseDate(booking.checkinDate) ?? now;
-    final plannedCheckOut = _parseDate(booking.checkoutDate);
     final actualCheckOut = _parseDate(booking.actualCheckout);
     final isActive =
         actualCheckOut == null && StatusUtils.isBookingActive(booking);
 
-    final DateTime? effectiveCheckOut;
-    if (isActive) {
-      effectiveCheckOut = null;
-    } else if (actualCheckOut != null && actualCheckOut.isBefore(now)) {
-      effectiveCheckOut = actualCheckOut;
-    } else if (plannedCheckOut != null && plannedCheckOut.isBefore(now)) {
-      effectiveCheckOut = plannedCheckOut;
-    } else {
-      effectiveCheckOut = null;
-    }
+    final effectiveCheckOut = Time.effectiveStayEnd(
+      actualCheckout: actualCheckOut,
+      now: now,
+    );
 
     final days = HotelTimeEngine.calculateDays(
       checkIn,

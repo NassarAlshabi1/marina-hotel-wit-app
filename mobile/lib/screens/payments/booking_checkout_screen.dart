@@ -8,6 +8,7 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
+import '../../utils/booking_night_coverage.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
 import '../../utils/english_digits_input_formatter.dart';
@@ -124,7 +125,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     }
 
     final roomPrice = roomAsync.valueOrNull?.price ?? 0.0;
-    final nights = nightsAsync.valueOrNull ?? const <BookingNight>[];
+    final rawNights = nightsAsync.valueOrNull ?? const <BookingNight>[];
     final payments = paymentsAsync.valueOrNull ?? const <Payment>[];
 
     final checkin = DateTime.tryParse(widget.booking.checkinDate);
@@ -140,16 +141,26 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
               ? Time.nightsWithCutoff(checkin, checkout: plannedCheckout)
               : 1);
     final now = DateTime.now();
-    final effectiveCheckout =
-        actualCheckout != null && !actualCheckout.isAfter(now)
-        ? actualCheckout
-        : now;
+    final effectiveCheckout = Time.effectiveStayEnd(
+      actualCheckout: actualCheckout,
+      now: now,
+    );
     final hasNotCheckedOut =
         actualCheckout == null || actualCheckout.isAfter(now);
     final nowIsAfterCutoff = HotelDateHelper.isNowAfterCutoff();
     final actualNights = checkin != null
         ? Time.nightsWithCutoff(checkin, checkout: effectiveCheckout)
         : expectedNights;
+    final nights = checkin == null
+        ? const <BookingNight>[]
+        : BookingNightCoverage.completeForStay(
+                nights: rawNights,
+                bookingLocalId: widget.booking.id,
+                bookingUuid: widget.booking.localUuid,
+                checkin: checkin,
+                expectedNights: actualNights,
+              ) ??
+              const <BookingNight>[];
 
     final discount = widget.booking.discount;
     final discountType = widget.booking.discountType;

@@ -495,9 +495,12 @@ final bookingPaymentsProvider = StreamProvider.family
 /// جميع صفوف المدفوعات (38 عمود لكل صف) وفك تشفيرها فقط لجمع `amount`.
 /// استخدم [bookingPaymentsProvider] إذا كنت تحتاج لتفاصيل كل دفعة.
 final bookingPaidAmountProvider = StreamProvider.family
-    .autoDispose<double, int>((ref, bookingId) {
+    .autoDispose<double, ({int bookingId, String bookingUuid})>((ref, booking) {
       final paymentsRepo = ref.watch(paymentsRepoProvider);
-      return paymentsRepo.watchTotalPaidForBooking(bookingId);
+      return paymentsRepo.watchTotalPaidForBooking(
+        booking.bookingId,
+        bookingUuid: booking.bookingUuid,
+      );
     });
 
 final debtsListProvider = StreamProvider.autoDispose(

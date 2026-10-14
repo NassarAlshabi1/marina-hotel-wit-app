@@ -28,6 +28,8 @@ void main() {
 
     test('recalculates debts and settlement status', () async {
       final now = Time.nowEpoch();
+      final checkin = DateTime.now().subtract(const Duration(days: 2));
+      final plannedCheckout = checkin.add(const Duration(days: 3));
       final roomUuid = IdGen.uuid();
       final bookingUuid = IdGen.uuid();
       await database
@@ -53,8 +55,8 @@ void main() {
               guestName: const Value('أحمد'),
               guestPhone: const Value('0500000000'),
               guestNationality: const Value('سعودي'),
-              checkinDate: Value(DateTime(2024, 10, 1, 15).toIso8601String()),
-              checkoutDate: Value(DateTime(2024, 10, 4, 13).toIso8601String()),
+              checkinDate: Value(checkin.toIso8601String()),
+              checkoutDate: Value(plannedCheckout.toIso8601String()),
               status: const Value('محجوزة'),
               expectedNights: const Value(1),
               calculatedNights: const Value(1),
@@ -86,8 +88,8 @@ void main() {
               localUuid: Value(debtUuid),
               bookingLocalId: Value(bookingId),
               guestName: const Value('أحمد'),
-              checkinDate: Value(DateTime(2024, 10).toIso8601String()),
-              checkoutDate: Value(DateTime(2024, 10, 4).toIso8601String()),
+              checkinDate: Value(checkin.toIso8601String()),
+              checkoutDate: Value(plannedCheckout.toIso8601String()),
               totalAmount: const Value(1200),
               paidAmount: const Value(0),
               remainingAmount: const Value(1200),

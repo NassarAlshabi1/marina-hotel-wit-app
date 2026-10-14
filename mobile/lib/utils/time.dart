@@ -5,6 +5,19 @@ class Time {
   static const int hotelDayBoundaryHour = 14;
   static const int hotelDayBoundaryMinute = 1;
 
+  /// نهاية الإقامة المحاسبية: لا يوقف التراكم إلا actualCheckout مسجل
+  /// وغير مستقبلي؛ plannedCheckout وحالة الحجز لا يحددان نهاية الإقامة.
+  static DateTime effectiveStayEnd({
+    required DateTime? actualCheckout,
+    DateTime? now,
+  }) {
+    final moment = now ?? DateTime.now();
+    if (actualCheckout != null && !actualCheckout.isAfter(moment)) {
+      return actualCheckout;
+    }
+    return moment;
+  }
+
   static int nowEpoch() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
   static String nowIso() => DateTime.now().toIso8601String();
   static String nowDateString() {
