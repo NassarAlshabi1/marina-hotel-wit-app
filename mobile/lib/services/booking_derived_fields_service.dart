@@ -73,17 +73,23 @@ class BookingDerivedFieldsService {
       now: moment,
     );
 
-    await calcService.updateNightlyRecords(
-      booking,
-      now: moment,
-      forceRebuild: forceRebuild,
-      breakdown: calculation.breakdown,
-      inTransaction: true, // we are already inside a transaction
-      enqueueOutbox: enqueueOutbox,
-    );
-
     final plannedCheckout = _parseDateTime(booking.checkoutDate);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
+
+    // الحجز المنتهي مجمَّد: إعادة بناء الليالي تستخدم سعر الغرفة الحالي
+    // فتغيّر المستحق التاريخي. يُسمح بها فقط عند forceRebuild صريح.
+    final isCompleted =
+        actualCheckout != null && !actualCheckout.isAfter(moment);
+    if (forceRebuild || !isCompleted) {
+      await calcService.updateNightlyRecords(
+        booking,
+        now: moment,
+        forceRebuild: forceRebuild,
+        breakdown: calculation.breakdown,
+        inTransaction: true, // we are already inside a transaction
+        enqueueOutbox: enqueueOutbox,
+      );
+    }
 
     // For active bookings (no actual checkout), expectedNights should dynamically
     // grow with the current time (totalNights from calculation which uses moment).
