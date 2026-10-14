@@ -167,9 +167,14 @@ class BookingsRepository {
         //  - مزامنة Appwrite/السحب تستخدم upsert عبر DAO لا هذه الدالة.
         //  - القيمة نفسها (idempotent) مسموحة، والغياب (null) لا يغيّر شيئاً.
         final current = await dao.getById(id);
+        final recorded = current?.actualCheckout;
+        final hasRecordedCheckout = recorded != null && recorded.isNotEmpty;
+        final isFirstCheckout =
+            current != null &&
+            !hasRecordedCheckout &&
+            actualCheckout != null &&
+            actualCheckout.isNotEmpty;
         if (current != null) {
-          final recorded = current.actualCheckout;
-          final hasRecordedCheckout = recorded != null && recorded.isNotEmpty;
           if (hasRecordedCheckout &&
               actualCheckout != null &&
               actualCheckout != recorded) {
@@ -243,7 +248,12 @@ class BookingsRepository {
         );
         if (updated > 0) {
           await syncLegacyDiscountToAdjustments(id);
-          await derivedFields.refreshForBookingId(id);
+          // The first checkout must trim nights to the actual departure time.
+          // Later refreshes (for example after a payment) must preserve them.
+          await derivedFields.refreshForBookingId(
+            id,
+            forceRebuild: isFirstCheckout,
+          );
         }
         return updated;
       });

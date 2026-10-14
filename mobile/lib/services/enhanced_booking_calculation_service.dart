@@ -325,7 +325,7 @@ class EnhancedBookingCalculationService {
       totalAdjustments -= totalDiscount;
     }
 
-    final totalPaid = await _getTotalPayments(booking);
+    final totalPaid = await totalPaymentsForBooking(booking);
     final remaining = (totalDue - totalPaid).clamp(0, totalDue);
 
     return FinancialSummary(
@@ -346,7 +346,10 @@ class EnhancedBookingCalculationService {
   /// other) لأن تصنيف الإيراد لأغراض التقارير وليس شرط أهلية للرصيد.
   /// العرابون (deposit) ودفعة «رصيد تراكمي» ودفعة Gemini كلها أموال حقيقية.
   /// تُستثنى فقط: الملغاة (voided) والمعلّقة (isPendingBalance) والمحذوفة.
-  Future<int> _getTotalPayments(Booking booking) async {
+  /// Returns the real, non-voided and non-pending payments linked to a booking.
+  /// Kept public so completed-booking refreshes can update balances without
+  /// recalculating historical nightly rates.
+  Future<int> totalPaymentsForBooking(Booking booking) async {
     final payments =
         await (db.select(db.payments)
               ..where(

@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/booking_derived_fields_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/repositories/bookings_repository.dart';
+import 'package:marina_hotel_mobile/services/repositories/payments_repository.dart';
+import 'package:marina_hotel_mobile/services/payment_session_context.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 
 void main() {
@@ -61,7 +63,10 @@ void main() {
         );
   });
 
-  tearDown(() => db.close());
+  tearDown(() async {
+    PaymentSessionContext.clear();
+    await db.close();
+  });
 
   Future<int> outboxCount() async {
     final result = await db
@@ -130,6 +135,78 @@ void main() {
     );
 
     expect(await outboxCount(), 1);
+  });
+
+  test('دفعة لاحقة لا تعيد تسعير ليالي حجز مكتمل بسعر الغرفة الحالي', () async {
+    final now = DateTime.now();
+    final checkout = now.subtract(const Duration(days: 1));
+    final nightStart = now.subtract(const Duration(days: 2));
+    final nightEnd = nightStart.add(const Duration(days: 1));
+    final timestamp = Time.nowEpoch();
+    final hotelDayKey =
+        '${nightStart.year.toString().padLeft(4, '0')}-'
+        '${nightStart.month.toString().padLeft(2, '0')}-'
+        '${nightStart.day.toString().padLeft(2, '0')}';
+
+    await (db.update(db.rooms)..where((room) => room.roomNumber.equals('101')))
+        .write(const RoomsCompanion(price: d.Value(90000)));
+    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId))).write(
+      BookingsCompanion(
+        checkinDate: d.Value(nightStart.toIso8601String()),
+        checkoutDate: d.Value(checkout.toIso8601String()),
+        actualCheckout: d.Value(checkout.toIso8601String()),
+        status: const d.Value('مكتمل'),
+        expectedNights: const d.Value(1),
+        calculatedNights: const d.Value(1),
+        totalNightsCached: const d.Value(1),
+        totalDueCached: const d.Value(100),
+        totalPaidCached: const d.Value(0),
+        remainingBalanceCached: const d.Value(100),
+      ),
+    );
+    await db
+        .into(db.bookingNights)
+        .insert(
+          BookingNightsCompanion(
+            localUuid: const d.Value('historical-night-uuid'),
+            createdAt: d.Value(timestamp),
+            updatedAt: d.Value(timestamp),
+            lastModified: d.Value(timestamp),
+            bookingLocalId: d.Value(bookingId),
+            bookingUuidCache: const d.Value('booking-appwrite-001'),
+            hotelDayKey: d.Value(hotelDayKey),
+            nightStart: d.Value(nightStart.toIso8601String()),
+            nightEnd: d.Value(nightEnd.toIso8601String()),
+            nightlyRate: const d.Value(100),
+            baseRate: const d.Value(100),
+            finalRate: const d.Value(100),
+          ),
+        );
+
+    PaymentSessionContext.start(userId: 1, userName: 'اختبار');
+    await PaymentsRepository(db).create(
+      amount: 50,
+      paymentDate: now.toIso8601String(),
+      paymentMethod: 'cash',
+      revenueType: 'room',
+      bookingLocalId: bookingId,
+      roomNumber: '101',
+    );
+
+    final nights = await (db.select(
+      db.bookingNights,
+    )..where((night) => night.bookingLocalId.equals(bookingId))).get();
+    final refreshedBooking = await (db.select(
+      db.bookings,
+    )..where((booking) => booking.id.equals(bookingId))).getSingle();
+
+    expect(nights, hasLength(1));
+    expect(nights.single.localUuid, 'historical-night-uuid');
+    expect(nights.single.nightlyRate, 100);
+    expect(nights.single.finalRate, 100);
+    expect(refreshedBooking.totalDueCached, 100);
+    expect(refreshedBooking.totalPaidCached, 50);
+    expect(refreshedBooking.remainingBalanceCached, 50);
   });
 
   test('تنظيف تخفيض موروث مسحوب لا يضيف Outbox', () async {
