@@ -54,7 +54,8 @@ class PaymentsRepository {
   /// يحلّ هوية من نفّذ الحذف: مفتاح الجهاز المخزن عند تسجيل الجهاز
   /// (`appwrite_device_id` مع رجوع لـ `device_id`) واسم المستخدم الحالي
   /// (`full_name` ثم `username` من جلسة AuthLocalStore).
-  Future<({String? device, String? name})> _resolveDeleter() async {
+  Future<({String? device, String? name, String? userType, List<String> permissions})>
+  _resolveDeleter() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final device =
@@ -63,11 +64,32 @@ class PaymentsRepository {
       final name =
           (user?['full_name'] ?? user?['name'] ?? user?['username'])
               ?.toString();
-      return (device: device, name: name);
+      final rawPerms = user?['permissions'];
+      final permissions = rawPerms is List
+          ? rawPerms.map((e) => e.toString()).toList()
+          : const <String>[];
+      return (
+        device: device,
+        name: name,
+        userType: user?['user_type']?.toString(),
+        permissions: permissions,
+      );
     } catch (_) {
-      return (device: null, name: null);
+      return (
+        device: null,
+        name: null,
+        userType: null,
+        permissions: const <String>[],
+      );
     }
   }
+
+  /// إلغاء الدفعة (void) متاح للمدير والمشرف فقط — دفاع عميق حتى لو
+  /// وصل الاستدعاء من مسار لم تخفِ فيه الواجهة الزر.
+  bool _canVoid({String? userType, List<String> permissions = const []}) =>
+      userType == 'admin' ||
+      userType == 'manager' ||
+      permissions.contains('all');
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {
     final bookingStream = (db.select(
@@ -411,6 +433,14 @@ class PaymentsRepository {
 
       // هوية الملغي: المستخدم الحالي في جلسة التطبيق.
       final deleter = await _resolveDeleter();
+
+      // إلغاء الدفعة متاح للمدير والمشرف فقط.
+      if (!_canVoid(
+        userType: deleter.userType,
+        permissions: deleter.permissions,
+      )) {
+        throw StateError('إلغاء الدفعات متاح للمدير والمشرف فقط');
+      }
 
       final voided = await PaymentVoidService(db).voidPayment(
         paymentUuid: payment.localUuid,

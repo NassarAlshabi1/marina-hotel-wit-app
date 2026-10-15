@@ -62,6 +62,9 @@ class ActionsTab extends ConsumerWidget {
               : booking.actualCheckout!)
         : null;
 
+    final canVoidPayments =
+        ref.watch(authProvider).currentUser?.canVoidPayments ?? false;
+
     final actions = <Widget>[
       _buildActionCard(
         'عرض الفاتورة الشاملة',
@@ -104,13 +107,14 @@ class ActionsTab extends ConsumerWidget {
           Colors.green,
           () {}, // بطاقة معلومات فقط — بلا إجراء
         ),
-      _buildActionCard(
-        'إلغاء يوم إضافي',
-        'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ',
-        Icons.remove_circle_outline,
-        Colors.red.shade700,
-        () => onShowCancelTodayPayment(summary),
-      ),
+      if (canVoidPayments)
+        _buildActionCard(
+          'إلغاء يوم إضافي',
+          'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ',
+          Icons.remove_circle_outline,
+          Colors.red.shade700,
+          () => onShowCancelTodayPayment(summary),
+        ),
       _buildActionCard(
         'إرسال كشف حساب',
         'إرسال ملخص المدفوعات للعميل',

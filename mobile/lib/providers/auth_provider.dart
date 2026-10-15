@@ -50,6 +50,13 @@ class AuthUser {
 
   bool get isAdmin => userType == 'admin' || permissions.contains('all');
 
+  /// إلغاء الدفعات (void) متاح للمدير والمشرف فقط — لا يكفي
+  /// امتلاك صلاحية القسم؛ الدور نفسه يجب أن يكون admin أو manager.
+  bool get canVoidPayments =>
+      userType == 'admin' ||
+      userType == 'manager' ||
+      permissions.contains('all');
+
   bool canPerform(String module, String action) => AuthLocalStore.canPerform(
     userType: userType,
     permissions: permissions,
