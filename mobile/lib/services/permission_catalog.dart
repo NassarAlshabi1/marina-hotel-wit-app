@@ -20,20 +20,23 @@ class PermissionAction {
 }
 
 abstract final class PermissionCatalog {
+  /// الترتيب منطقي لسير العمل اليومي: لوحة → غرف → حجوزات → مدفوعات →
+  /// ديون → مصروفات → مالية → تقارير → مخزون → موظفون → ملاحظات →
+  /// معلومية → إعدادات (الأخيرة حساسة). عرضي فقط — الفحوص contains-based.
   static const List<PermissionModule> modules = [
     PermissionModule('dashboard', 'لوحة التحكم'),
     PermissionModule('rooms', 'الغرف'),
     PermissionModule('bookings', 'الحجوزات'),
     PermissionModule('payments', 'المدفوعات'),
     PermissionModule('debts', 'الديون'),
-    PermissionModule('employees', 'الموظفون'),
     PermissionModule('expenses', 'المصروفات'),
     PermissionModule('finance', 'المالية'),
     PermissionModule('reports', 'التقارير'),
-    PermissionModule('notes', 'الملاحظات'),
-    PermissionModule('information', 'معلومات النزلاء'),
-    PermissionModule('settings', 'الإعدادات'),
     PermissionModule('inventory', 'المخزون'),
+    PermissionModule('employees', 'الموظفون'),
+    PermissionModule('notes', 'الملاحظات'),
+    PermissionModule('information', 'المعلومية'),
+    PermissionModule('settings', 'الإعدادات'),
   ];
 
   static const List<PermissionAction> actions = [
@@ -70,7 +73,7 @@ abstract final class PermissionCatalog {
     'finance' => 'المالية',
     'reports' => 'التقارير',
     'notes' => 'الملاحظات',
-    'information' => 'معلومات النزلاء',
+    'information' => 'المعلومية',
     'settings' => 'الإعدادات',
     'inventory' => 'المخزون',
     _ => key,
