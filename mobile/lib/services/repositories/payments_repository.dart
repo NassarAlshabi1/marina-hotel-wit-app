@@ -90,6 +90,7 @@ class PaymentsRepository {
   bool _canVoid({String? userType, List<String> permissions = const []}) =>
       userType == 'admin' ||
       userType == 'manager' ||
+      userType == 'supervisor' ||
       permissions.contains('all');
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {

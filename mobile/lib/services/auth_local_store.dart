@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'permission_catalog.dart';
 import 'password_hasher.dart';
 
 enum AuthType { local }
@@ -84,55 +85,24 @@ class AuthLocalStore {
   static const _kRememberMe = 'remember_me';
   static const _kAuthType = 'auth_type';
 
-  /// ✅ (2026-09-30) ترتيب منطقي لسير العمل اليومي (كان ترتيباً تاريخياً):
-  /// لوحة → غرف → حجوزات → مدفوعات → ديون → مصروفات → مالية → تقارير →
-  /// مخزون → موظفون → ملاحظات → معلومية → إعدادات (الأخيرة حساسة).
-  /// الترتيب عرضي فقط — كل الفحوصات contains-based فلا أثر سلوكي.
-  static const List<String> permissionKeys = [
-    'dashboard',
-    'rooms',
-    'bookings',
-    'payments',
-    'debts',
-    'expenses',
-    'finance',
-    'reports',
-    'inventory',
-    'employees',
-    'notes',
-    'information',
-    'settings',
-  ];
+  /// مفاتيح الوحدات والعمليات — المصدر الوحيد `PermissionCatalog`؛
+  /// هذه التفويضات تبقي الاستدعاءات القديمة تعمل دون تغيير.
+  static List<String> get permissionKeys => PermissionCatalog.moduleKeys;
 
   /// صلاحيات العمليات الدقيقة. وجود المفتاح القديم للقسم يبقى متوافقاً
   /// ويمنح نفس صلاحيات الإصدار السابق، بينما المفاتيح الجديدة تسمح بالفصل
   /// بين القراءة والإضافة والتعديل والحذف.
-  static const List<String> operationPermissionKeys = [
-    'view',
-    'create',
-    'update',
-    'delete',
-  ];
+  static List<String> get operationPermissionKeys =>
+      PermissionCatalog.actionKeys;
 
-  static const Map<String, String> _permissionActions = {
-    'view': 'عرض',
-    'create': 'إضافة',
-    'update': 'تعديل',
-    'delete': 'حذف',
-  };
-
-  static List<String> permissionKeysForModule(String module) => [
-    for (final action in operationPermissionKeys) '$module.$action',
-  ];
+  static List<String> permissionKeysForModule(String module) =>
+      PermissionCatalog.keysForModule(module);
 
   /// مفاتيح محرر المستخدمين: المفاتيح القديمة للتوافق، ثم العمليات الدقيقة.
-  static List<String> get permissionEditorKeys => [
-    ...permissionKeys,
-    for (final module in permissionKeys) ...permissionKeysForModule(module),
-  ];
+  static List<String> get permissionEditorKeys => PermissionCatalog.editorKeys;
 
   static String operationLabel(String action) =>
-      _permissionActions[action] ?? action;
+      PermissionCatalog.actionLabel(action);
 
   /// يتحقق من صلاحية عملية محددة مع إبقاء الحسابات الحالية متوافقة.
   static bool canPerform({
