@@ -9,24 +9,36 @@ import 'local_db.dart';
 /// Other devices resolve pulled booking nights and notes by booking UUID only.
 /// Rows created before that rule were pushed without `bookingUuidCache`, so
 /// they are skipped on pull. This stamps the UUID on local nights and queues
-/// the affected nights and notes for a one-off re-push.
+/// the affected nights (in small batches) and notes for a one-off re-push.
 class BookingChildUuidBackfillService {
   BookingChildUuidBackfillService._();
   static final BookingChildUuidBackfillService instance =
       BookingChildUuidBackfillService._();
 
   static const notesRepushPrefKey = 'booking_notes_uuid_repush_v1';
-  static const _chunkSize = 500;
 
-  bool _applied = false;
+  /// Legacy nights queued per step. The next step waits until the queued
+  /// nights have been pushed, so a large history drains gradually instead of
+  /// flooding the outbox on low-memory devices.
+  static const nightsBatchSize = 200;
+  static const _notesChunkSize = 500;
 
-  /// Runs at most once per session; each step is idempotent.
-  Future<void> runIfNeeded(AppDatabase db) async {
-    if (_applied) return;
-    _applied = true;
+  bool _nightsDone = false;
+  bool _running = false;
+
+  /// Called at session start and after each successful sync. Each step is
+  /// idempotent and cheap once the backlog is gone.
+  Future<void> runPending(AppDatabase db) async {
+    if (_running) return;
+    _running = true;
     try {
-      final nights = await backfillNights(db);
       final notes = await repushNotesOnce(db);
+      var nights = 0;
+      if (!_nightsDone) {
+        final step = await backfillNights(db);
+        nights = step.queued;
+        _nightsDone = step.done;
+      }
       if (nights > 0 || notes > 0) {
         dlog(
           () =>
@@ -36,13 +48,31 @@ class BookingChildUuidBackfillService {
       }
     } catch (e) {
       dwarn(() => '⚠️ BookingChildUuidBackfill: $e');
+    } finally {
+      _running = false;
     }
   }
 
-  /// Fills `bookingUuidCache` on nights that lack it and queues them for push.
+  /// Stamps `bookingUuidCache` on up to [batchSize] legacy nights and queues
+  /// them for push, unless earlier queued nights are still waiting.
   /// `lastModified` is left untouched: the content is unchanged and the
   /// remote copy must not look older than the local one.
-  Future<int> backfillNights(AppDatabase db) async {
+  Future<({int queued, bool done})> backfillNights(
+    AppDatabase db, {
+    int batchSize = nightsBatchSize,
+  }) async {
+    final waiting = await db
+        .customSelect(
+          'SELECT COUNT(*) AS c FROM outbox '
+          "WHERE entity = 'booking_nights' "
+          "AND processing_status IN ('pending', 'processing', 'failed')",
+          readsFrom: {db.outbox},
+        )
+        .getSingle();
+    if (waiting.read<int>('c') >= batchSize) {
+      return (queued: 0, done: false);
+    }
+
     final rows = await db
         .customSelect(
           'SELECT n.id AS id, n.local_uuid AS night_uuid, '
@@ -51,40 +81,36 @@ class BookingChildUuidBackfillService {
           'JOIN bookings b ON b.id = n.booking_local_id '
           "WHERE (n.booking_uuid_cache IS NULL OR n.booking_uuid_cache = '') "
           'AND n.deleted_at IS NULL '
-          "AND b.local_uuid IS NOT NULL AND b.local_uuid <> ''",
+          "AND b.local_uuid IS NOT NULL AND b.local_uuid <> '' "
+          'ORDER BY n.id LIMIT ?',
+          variables: [d.Variable<int>(batchSize + 1)],
           readsFrom: {db.bookingNights, db.bookings},
         )
         .get();
-    if (rows.isEmpty) return 0;
+    if (rows.isEmpty) return (queued: 0, done: true);
 
-    final outboxDao = OutboxDao(db);
+    final batch = rows.length > batchSize ? rows.sublist(0, batchSize) : rows;
     final clientTs = Time.nowEpoch();
-    for (var i = 0; i < rows.length; i += _chunkSize) {
-      final chunk = rows.sublist(
-        i,
-        i + _chunkSize < rows.length ? i + _chunkSize : rows.length,
-      );
-      await db.transaction(() async {
-        for (final row in chunk) {
-          await (db.update(
-            db.bookingNights,
-          )..where((n) => n.id.equals(row.read<int>('id')))).write(
-            BookingNightsCompanion(
-              bookingUuidCache: d.Value(row.read<String>('booking_uuid')),
-            ),
-          );
-        }
-        await outboxDao.mergeBatch([
-          for (final row in chunk)
-            _outboxItem(
-              'booking_nights',
-              row.read<String>('night_uuid'),
-              clientTs,
-            ),
-        ]);
-      });
-    }
-    return rows.length;
+    await db.transaction(() async {
+      for (final row in batch) {
+        await (db.update(
+          db.bookingNights,
+        )..where((n) => n.id.equals(row.read<int>('id')))).write(
+          BookingNightsCompanion(
+            bookingUuidCache: d.Value(row.read<String>('booking_uuid')),
+          ),
+        );
+      }
+      await OutboxDao(db).mergeBatch([
+        for (final row in batch)
+          _outboxItem(
+            'booking_nights',
+            row.read<String>('night_uuid'),
+            clientTs,
+          ),
+      ]);
+    });
+    return (queued: batch.length, done: rows.length <= batchSize);
   }
 
   /// Notes have no local UUID column; the push path adds the booking UUID, so
@@ -105,10 +131,10 @@ class BookingChildUuidBackfillService {
 
     final outboxDao = OutboxDao(db);
     final clientTs = Time.nowEpoch();
-    for (var i = 0; i < rows.length; i += _chunkSize) {
+    for (var i = 0; i < rows.length; i += _notesChunkSize) {
       final chunk = rows.sublist(
         i,
-        i + _chunkSize < rows.length ? i + _chunkSize : rows.length,
+        i + _notesChunkSize < rows.length ? i + _notesChunkSize : rows.length,
       );
       await outboxDao.mergeBatch([
         for (final row in chunk)
