@@ -2853,6 +2853,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// تستخدم عندما يخرج النزيل قبل بداية اليوم الفندقي الجديد وينسى العامل
   /// تسجيل خروجه فيتم احتساب يوم إضافي بالخطأ
   void _showCancelTodayPaymentDialog(BookingPaymentSummary summary) {
+    // ✅ دفاع عميق: إلغاء الدفعات للمدير والمشرف فقط
+    final currentUser = ref.read(authProvider).currentUser;
+    if (!(currentUser?.canVoidPayments ?? false)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ إلغاء الدفعات متاح للمدير والمشرف فقط'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final hotelDay = HotelTimeEngine.getHotelDayKey();
 
@@ -3025,6 +3038,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   ) async {
     try {
       final paymentsRepo = ref.read(paymentsRepoProvider);
+
+      // ✅ دفاع عميق: إلغاء الدفعات للمدير والمشرف فقط
+      if (!(ref.read(authProvider).currentUser?.canVoidPayments ?? false)) {
+        throw StateError('إلغاء الدفعات متاح للمدير والمشرف فقط');
+      }
 
       // إلغاء دفعة اليوم المحتسبة بالخطأ عبر مسار void (لا حذف) —
       // voidedBy يُحلّ من المستخدم الحالي داخل الـ repository.
