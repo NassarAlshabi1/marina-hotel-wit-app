@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/booking_payment_matcher.dart';
 import '../../utils/debug_log.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../auth_local_store.dart';
 import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
@@ -67,7 +69,7 @@ class PaymentsRepository {
               ?.toString();
       final rawPerms = user?['permissions'];
       final permissions = rawPerms is List
-          ? rawPerms.map((e) => e.toString()).toList()
+          ? [for (final e in rawPerms) e.toString()]
           : const <String>[];
       return (
         device: device,

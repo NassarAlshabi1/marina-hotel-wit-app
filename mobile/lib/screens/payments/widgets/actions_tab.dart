@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../models/payment_models.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/local_db.dart' as db;
+import '../../../utils/status_utils.dart';
 
 /// تبويب الإجراءات — widget مستقل مُستخرج من BookingPaymentScreen.
 /// يعرض: الفاتورة، سجل المدفوعات، تسجيل المغادرة، مردود، إلغاء يوم، كشف حساب.

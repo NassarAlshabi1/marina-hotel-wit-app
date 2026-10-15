@@ -9,9 +9,9 @@ import '../services/permission_catalog.dart';
 /// يقرر قواعده (مثل «صلاحية واحدة على الأقل» أو وضع القراءة فقط).
 class PermissionMatrixEditor extends StatelessWidget {
   const PermissionMatrixEditor({
-    super.key,
     required this.selected,
     required this.onToggle,
+    super.key,
     this.enabled = true,
   });
 

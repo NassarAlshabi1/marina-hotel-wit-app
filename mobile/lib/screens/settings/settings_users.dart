@@ -5,7 +5,6 @@ import '../../components/app_scaffold.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/permission_matrix_editor.dart';
 
 class SettingsUsersScreen extends ConsumerStatefulWidget {
   const SettingsUsersScreen({super.key});
