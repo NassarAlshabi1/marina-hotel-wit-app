@@ -220,13 +220,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   /// يحدّث الحقول المشتقة للعرض فقط؛ فتح الشاشة ليس تغييراً من المستخدم.
   /// لذلك لا ينبغي أن ينشئ Outbox أو يغيّر قائمة التغييرات المحلية.
+  /// الحجز المنتهي لا يُعاد تسعيره: الخدمة تحسب مستحقه من لياليه المحفوظة.
   Future<void> _refreshBookingNights() async {
-    // الحجز المنتهي مجمَّد: إعادة البناء تستخدم سعر الغرفة الحالي فتغيّر
-    // المستحق التاريخي.
-    final actualCheckout = _parseDateTime(widget.booking.actualCheckout);
-    if (actualCheckout != null && !actualCheckout.isAfter(DateTime.now())) {
-      return;
-    }
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
     await derivedService.refreshForBookingId(

@@ -15,6 +15,14 @@ class BookingDerivedFieldsService {
   final AppDatabase db;
   final OutboxDao _outboxDao;
 
+  /// A stay whose actual checkout has passed. Its nights are never rebuilt
+  /// from the room's current price; refreshes only re-total them.
+  static bool isFrozenCompletedStay(Booking booking, {DateTime? now}) {
+    final actualCheckout = _parseDateTime(booking.actualCheckout);
+    return actualCheckout != null &&
+        !actualCheckout.isAfter(now ?? DateTime.now());
+  }
+
   Future<void> refreshForBookingId(
     int bookingId, {
     DateTime? now,
@@ -70,33 +78,20 @@ class BookingDerivedFieldsService {
     final calcService = EnhancedBookingCalculationService(db);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
     final preserveCompletedStay =
-        !forceRebuild &&
-        actualCheckout != null &&
-        !actualCheckout.isAfter(moment);
+        !forceRebuild && isFrozenCompletedStay(booking, now: moment);
 
     final nowUtc = DateTime.now().toUtc();
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
     final stampIso = nowUtc.toIso8601String();
 
     if (preserveCompletedStay) {
-      // Payment refreshes must never reprice a checked-out stay from today's
-      // room rate. Keep its stored nights and due total, but refresh the paid
-      // and remaining balances from the actual payment rows.
-      final totalPaid = await calcService.totalPaymentsForBooking(booking);
-      final totalDue = booking.totalDueCached.round();
-      final remainingBalance = (totalDue - totalPaid).clamp(0, totalDue);
-
-      await (db.update(
-        db.bookings,
-      )..where((b) => b.id.equals(booking.id))).write(
-        BookingsCompanion(
-          totalPaidCached: d.Value(totalPaid.toDouble()),
-          remainingBalanceCached: d.Value(remainingBalance.toDouble()),
-          isFullyPaid: d.Value(remainingBalance <= 0),
-          needsCheckoutReview: d.Value(remainingBalance > 0),
-          updatedAt: d.Value(stamp),
-          updatedAtIso: d.Value(stampIso),
-        ),
+      await _refreshCompletedStay(
+        booking,
+        calcService: calcService,
+        moment: moment,
+        stamp: stamp,
+        stampIso: stampIso,
+        enqueueOutbox: enqueueOutbox,
       );
     } else {
       final calculation = await calcService.calculateForBooking(
@@ -187,6 +182,74 @@ class BookingDerivedFieldsService {
         );
       }
     }
+  }
+
+  /// Checked-out stays keep their historical nightly base rates: the total is
+  /// rebuilt from the stored nights (plus current adjustments), never from the
+  /// room's current price. `totalDueCached` is not trusted because Appwrite
+  /// does not carry it, so a pulled or restored booking starts at 0.
+  Future<void> _refreshCompletedStay(
+    Booking booking, {
+    required EnhancedBookingCalculationService calcService,
+    required DateTime moment,
+    required int stamp,
+    required String stampIso,
+    required bool enqueueOutbox,
+  }) async {
+    int totalDue;
+    int totalPaid;
+    int? totalNights;
+
+    final summary = await calcService.refreshCompletedStay(
+      booking,
+      enqueueOutbox: enqueueOutbox,
+    );
+    if (summary != null) {
+      totalDue = summary.totalDue;
+      totalPaid = summary.totalPaid;
+      totalNights = summary.totalNights;
+    } else if (booking.totalDueCached > 0) {
+      // No nights on this device yet; the locally computed total is the best
+      // historical figure available.
+      totalDue = booking.totalDueCached.round();
+      totalPaid = await calcService.totalPaymentsForBooking(booking);
+    } else {
+      // No nights and no trusted total (fresh device or restore). Estimate
+      // from the current rate without persisting nights, so the stay is not
+      // reported as fully paid; synced nights replace this estimate.
+      final calculation = await calcService.calculateForBooking(
+        booking,
+        now: moment,
+      );
+      totalDue = calculation.financialSummary.totalDue;
+      totalPaid = calculation.financialSummary.totalPaid;
+      totalNights = calculation.financialSummary.totalNights;
+      dwarn(
+        () =>
+            '⚠️ حجز مكتمل ${booking.localUuid} بلا ليالٍ محلية: '
+            'تقدير المستحق مؤقتاً بسعر الغرفة الحالي',
+      );
+    }
+
+    final remainingBalance = (totalDue - totalPaid).clamp(0, totalDue);
+
+    await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
+      BookingsCompanion(
+        totalDueCached: d.Value(totalDue.toDouble()),
+        totalPaidCached: d.Value(totalPaid.toDouble()),
+        remainingBalanceCached: d.Value(remainingBalance.toDouble()),
+        isFullyPaid: d.Value(remainingBalance <= 0),
+        needsCheckoutReview: d.Value(remainingBalance > 0),
+        totalNightsCached: totalNights == null
+            ? const d.Value.absent()
+            : d.Value(totalNights),
+        calculatedNights: totalNights == null
+            ? const d.Value.absent()
+            : d.Value(totalNights),
+        updatedAt: d.Value(stamp),
+        updatedAtIso: d.Value(stampIso),
+      ),
+    );
   }
 
   Future<int> refreshAllActiveBookings({
@@ -329,7 +392,7 @@ class BookingDerivedFieldsService {
     return end.millisecondsSinceEpoch ~/ 1000;
   }
 
-  DateTime? _parseDateTime(String? value) {
+  static DateTime? _parseDateTime(String? value) {
     if (value == null) {
       return null;
     }

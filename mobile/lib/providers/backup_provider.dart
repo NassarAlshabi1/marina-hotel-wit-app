@@ -113,6 +113,7 @@ class BackupState {
     this.lastSqliteBackupPath,
     this.driveLoginSkipped = false,
     this.googleDriveSyncEnabled = false,
+    this.restartRequired = false,
   });
   final BackupStatus status;
   final String? message;
@@ -130,6 +131,10 @@ class BackupState {
   final bool driveLoginSkipped;
   final bool googleDriveSyncEnabled;
 
+  /// Set only by the update that finishes a SQLite file restore; any later
+  /// state change clears it.
+  final bool restartRequired;
+
   BackupState copyWith({
     BackupStatus? status,
     String? message,
@@ -146,6 +151,7 @@ class BackupState {
     String? lastSqliteBackupPath,
     bool? driveLoginSkipped,
     bool? googleDriveSyncEnabled,
+    bool restartRequired = false,
   }) {
     return BackupState(
       status: status ?? this.status,
@@ -164,6 +170,7 @@ class BackupState {
       driveLoginSkipped: driveLoginSkipped ?? this.driveLoginSkipped,
       googleDriveSyncEnabled:
           googleDriveSyncEnabled ?? this.googleDriveSyncEnabled,
+      restartRequired: restartRequired,
     );
   }
 
@@ -934,6 +941,11 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   }
 
   /// استعادة من نسخة احتياطية محلية
+  static bool _replacesDatabaseFile(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.db') || lower.endsWith('.sqlite');
+  }
+
   Future<void> restoreFromLocalBackup(
     String filePath, {
     bool syncToCloud = false,
@@ -1019,6 +1031,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
             ? 'تم استعادة البيانات ورفعها إلى السحابة بنجاح'
             : 'تم استعادة البيانات من النسخة المحلية بنجاح',
         progress: 1.0,
+        restartRequired: _replacesDatabaseFile(filePath),
       );
     } catch (e) {
       dlog(() => '❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
@@ -1088,6 +1101,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       state = state.copyWith(
         status: BackupStatus.success,
         message: 'تمت استعادة قاعدة البيانات بنجاح',
+        restartRequired: true,
         progress: 1.0,
       );
     } catch (e) {

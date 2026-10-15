@@ -2277,36 +2277,29 @@ class AppwriteSyncManager {
             enqueueOutbox: false,
           );
 
-          // ✅ 3. Recalculate derived fields — فقط للحجوزات النشطة أو غير المكتملة.
+          // ✅ 3. Recalculate derived fields.
           //
-          // منع حرج: لا نستدعي refreshForBookingId للحجوزات المكتملة (التي تمت
-          // مغادرتها) لأن:
-          //   - جهاز 1: عند _processCheckout، يحدّث الحجز + الغرفة + يرفع البيانات
-          //     (بما في ذلك الليالي النهائية) إلى Appwrite Cloud.
-          //   - جهاز 2: عند _syncBookings، يستقبل الحجز المكتمل + الليالي من السحابة.
-          //     إذا استدعينا refreshForBookingId هنا، سيُعيد بناء الليالي محلياً
-          //     بـ UUIDs جديدة مختلفة عن تلك المرفوعة من جهاز 1، مما يُسبب:
-          //       (أ) تكرار منطق حساب الليالي (إعادة تنفيذ جزء من المغادرة)
-          //       (ب) تضارب UUIDs بين الأجهزة عند الرفع التالي
-          //       (ج) احتمال إنشاء ليالٍ إضافية أو فروقات مالية
-          //   الحل: نعتمد الليالي المرفوعة من جهاز المصدر كما هي للحجوزات
-          //   المكتملة، ونُعيد الحساب فقط للحجوزات النشطة (التي قد تتغير لياليها
-          //   مع مرور الوقت).
-          final isCompletedBooking =
-              !StatusUtils.isActiveBooking(booking.status) ||
-              (booking.actualCheckout != null &&
-                  booking.actualCheckout!.isNotEmpty);
+          // الحجز المنتهي (actualCheckout مضى) يُعاد تجميع مستحقه من لياليه
+          // المحفوظة دون إعادة بنائها أو تسعيرها بسعر الغرفة الحالي — ضروري
+          // لأن الحقول المحسوبة لا تُسحب من Appwrite وتبدأ صفراً هنا، وإلا
+          // تظهر الإقامة "مدفوعة بالكامل". الحجوزات غير النشطة الأخرى (بلا
+          // actualCheckout) تبقى دون إعادة حساب حتى لا تُعاد بناء لياليها.
+          final isFrozenStay =
+              BookingDerivedFieldsService.isFrozenCompletedStay(booking);
+          final isActive =
+              StatusUtils.isActiveBooking(booking.status) &&
+              (booking.actualCheckout == null ||
+                  booking.actualCheckout!.isEmpty);
 
-          if (!isCompletedBooking) {
+          if (isFrozenStay || isActive) {
             await _bookingsRepository.derivedFields.refreshForBookingId(
               booking.id,
               enqueueOutbox: false,
             );
           } else {
             _logger.debug(
-              '⏭️ تخطي refreshForBookingId للحجز المكتمل ${localUuid.substring(0, 8)}... '
-              '(status=${booking.status}, actualCheckout=${booking.actualCheckout}) — '
-              'الليالي مرفوعة من جهاز المصدر، لا حاجة لإعادة الحساب',
+              '⏭️ تخطي refreshForBookingId للحجز ${localUuid.substring(0, 8)}... '
+              '(status=${booking.status}, actualCheckout=${booking.actualCheckout})',
               tag: 'SYNC',
             );
           }
@@ -3171,13 +3164,20 @@ class AppwriteSyncManager {
   /// تصفية الحمولة قبل الإرسال — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
   /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
   /// يضمن وجود UUID الحجز في حمولة السجل التابع (الأجهزة الأخرى تحل به فقط).
+  /// [bookingUuidIndex] avoids one query per row during full pushes.
   Future<Map<String, dynamic>> _withBookingUuid(
     Map<String, dynamic> payload,
-    int? bookingLocalId,
-  ) async {
+    int? bookingLocalId, {
+    Map<int, String>? bookingUuidIndex,
+  }) async {
     final existing = payload['bookingUuidCache'];
     if ((existing is String && existing.isNotEmpty) || bookingLocalId == null) {
       return payload;
+    }
+    if (bookingUuidIndex != null) {
+      final uuid = bookingUuidIndex[bookingLocalId];
+      if (uuid == null || uuid.isEmpty) return payload;
+      return {...payload, 'bookingUuidCache': uuid};
     }
     final booking =
         await (database.select(database.bookings)
@@ -3186,6 +3186,14 @@ class AppwriteSyncManager {
             .getSingleOrNull();
     if (booking == null || booking.localUuid.isEmpty) return payload;
     return {...payload, 'bookingUuidCache': booking.localUuid};
+  }
+
+  Future<Map<int, String>> _loadBookingUuidIndex() async {
+    final rows = await database.select(database.bookings).get();
+    return {
+      for (final b in rows)
+        if (b.localUuid.isNotEmpty) b.id: b.localUuid,
+    };
   }
 
   Map<String, dynamic> _filterPayload(
@@ -6351,6 +6359,7 @@ class AppwriteSyncManager {
       _logger.info('✅ تم رفع ${stats['debts']} دين', tag: 'SYNC');
 
       // رفع ملاحظات الحجوزات
+      final bookingUuidIndex = await _loadBookingUuidIndex();
       final bookingNotes = await database.select(database.bookingNotes).get();
       for (final note in bookingNotes) {
         if (skipDeleted && note.deletedAt != null) continue;
@@ -6358,6 +6367,7 @@ class AppwriteSyncManager {
           final payload = await _withBookingUuid(
             _bookingNoteToRemote(note),
             note.bookingId,
+            bookingUuidIndex: bookingUuidIndex,
           );
           await appwriteService.upsertBookingNote(
             note.localUuid,
@@ -6382,6 +6392,7 @@ class AppwriteSyncManager {
           final payload = await _withBookingUuid(
             _bookingNightToRemote(night),
             night.bookingLocalId,
+            bookingUuidIndex: bookingUuidIndex,
           );
           await appwriteService.upsertBookingNight(
             night.localUuid,
@@ -8172,7 +8183,54 @@ class AppwriteSyncManager {
       }
     }
 
+    await _refreshCompletedStaysForNights(uuids);
+
     return processed;
+  }
+
+  /// Pulled nights can arrive after their checked-out booking, so the booking
+  /// is re-totalled from the nights now stored locally.
+  Future<void> _refreshCompletedStaysForNights(List<String> nightUuids) async {
+    final bookingIds = <int>{};
+    const chunkSize = 500;
+    try {
+      for (var i = 0; i < nightUuids.length; i += chunkSize) {
+        final chunk = nightUuids.sublist(
+          i,
+          (i + chunkSize).clamp(0, nightUuids.length),
+        );
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        final rows = await database
+            .customSelect(
+              'SELECT DISTINCT b.id AS id FROM booking_nights n '
+              'JOIN bookings b ON b.id = n.booking_local_id '
+              'WHERE n.local_uuid IN ($placeholders) '
+              "AND b.actual_checkout IS NOT NULL AND b.actual_checkout <> '' "
+              'AND b.deleted_at IS NULL',
+              variables: [for (final u in chunk) drift.Variable<String>(u)],
+              readsFrom: {database.bookingNights, database.bookings},
+            )
+            .get();
+        bookingIds.addAll(rows.map((r) => r.read<int>('id')));
+      }
+    } catch (e) {
+      _logger.warning(
+        'تعذر تحديد الحجوزات المنتهية بعد سحب الليالي: $e',
+        tag: 'SYNC',
+      );
+      return;
+    }
+
+    for (final bookingId in bookingIds) {
+      try {
+        await _bookingsRepository.derivedFields.refreshForBookingId(
+          bookingId,
+          enqueueOutbox: false,
+        );
+      } catch (e) {
+        dwarn(() => 'refreshForBookingId($bookingId) after nights pull: $e');
+      }
+    }
   }
 
   /// حالة ليلة محلية موجودة — الأعمدة المطلوبة فقط لفحص الأحدثية والتعارض.

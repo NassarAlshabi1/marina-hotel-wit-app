@@ -62,6 +62,7 @@ import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_logger.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/hotel_day_key_fix_service.dart';
+import 'services/booking_child_uuid_backfill_service.dart';
 import 'services/late_payment_notification_service.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
@@ -738,6 +739,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // يعمل مرة واحدة فقط لكل جلسة — يُصلح البيانات المحلية
         // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Appwrite Cloud
         await HotelDayKeyFixService.instance.runIfNeeded(database);
+        await BookingChildUuidBackfillService.instance.runIfNeeded(database);
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();
