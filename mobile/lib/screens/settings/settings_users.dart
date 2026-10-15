@@ -989,9 +989,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
               )
             else ...[
               PermissionMatrixEditor(
-                selected: isAdminUser
-                    ? allKeys.toSet()
-                    : _perms.toSet(),
+                selected: isAdminUser ? allKeys.toSet() : _perms.toSet(),
                 enabled: !isAdminUser && !_savingPermissions,
                 onToggle: (k, v) {
                   final next = List<String>.from(_perms);
@@ -1021,7 +1019,6 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
     );
   }
 }
-
 
 String _typeLabel(String type) {
   switch (type) {

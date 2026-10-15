@@ -53,8 +53,7 @@ class AuthUser {
   /// تعديل/حذف سجلات موجودة (وإلغاء الدفعات) مقيّد بالدور —
   /// admin أو manager أو supervisor أو صلاحية 'all'.
   bool get canManageRecords =>
-      AuthLocalStore.isManagerialRole(userType) ||
-      permissions.contains('all');
+      AuthLocalStore.isManagerialRole(userType) || permissions.contains('all');
 
   /// إلغاء الدفعات (void) متاح للمدير والمشرف فقط — لا يكفي
   /// امتلاك صلاحية القسم؛ الدور نفسه يجب أن يكون admin أو manager أو supervisor.

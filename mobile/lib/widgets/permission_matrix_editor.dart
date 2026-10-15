@@ -59,10 +59,10 @@ class PermissionMatrixEditor extends StatelessWidget {
                       for (final action in PermissionCatalog.actions)
                         _MiniChip(
                           label: action.label,
-                          tooltip:
-                              '${action.label} ${module.label}',
-                          selected: selected
-                              .contains('${module.key}.${action.key}'),
+                          tooltip: '${action.label} ${module.label}',
+                          selected: selected.contains(
+                            '${module.key}.${action.key}',
+                          ),
                           enabled: enabled,
                           onSelected: (v) =>
                               onToggle('${module.key}.${action.key}', v),

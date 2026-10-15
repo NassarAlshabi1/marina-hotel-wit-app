@@ -46,14 +46,13 @@ abstract final class PermissionCatalog {
     PermissionAction('delete', 'حذف', 'ح'),
   ];
 
-  static List<String> get moduleKeys =>
-      [for (final m in modules) m.key];
+  static List<String> get moduleKeys => [for (final m in modules) m.key];
 
-  static List<String> get actionKeys =>
-      [for (final a in actions) a.key];
+  static List<String> get actionKeys => [for (final a in actions) a.key];
 
-  static List<String> keysForModule(String moduleKey) =>
-      [for (final a in actions) '$moduleKey.${a.key}'];
+  static List<String> keysForModule(String moduleKey) => [
+    for (final a in actions) '$moduleKey.${a.key}',
+  ];
 
   /// كل المفاتيح التي يعرضها محرر الصلاحيات: مفاتيح الوحدات القديمة
   /// (للتوافق) ثم المفاتيح الدقيقة لكل وحدة.
@@ -111,7 +110,6 @@ abstract final class PermissionCatalog {
   /// ملخّص كامل مختصر لقائمة الصلاحيات — سطر واحد لكل وحدة مملوكة.
   static List<String> summarize(Set<String> perms) => [
     for (final m in modules)
-      if (moduleSummary(m.key, perms) case final s?)
-        '${m.label}: $s',
+      if (moduleSummary(m.key, perms) case final s?) '${m.label}: $s',
   ];
 }
