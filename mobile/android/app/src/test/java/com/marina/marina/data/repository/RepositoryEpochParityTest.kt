@@ -24,6 +24,7 @@ import com.marina.marina.domain.model.SalaryCycle
 import com.marina.marina.domain.model.SalaryPayment
 import com.marina.marina.domain.model.SalaryWithdrawal
 import com.marina.marina.domain.model.ShiftNote
+import com.marina.marina.domain.session.UserSessionManager
 import com.marina.marina.domain.util.HotelTimeEngine
 import java.lang.reflect.Proxy
 import kotlinx.coroutines.flow.first
@@ -319,7 +320,11 @@ class RepositoryEpochParityTest {
             db, db.bookingsDao(), db.roomsDao(), db.paymentsDao(), db.bookingNightsDao()
         )
         val bookings = BookingsRepositoryImpl(db, db.bookingsDao(), outbox, derivedRefresh)
-        val payments = PaymentsRepositoryImpl(db.paymentsDao(), db.paymentVoidsDao(), outbox, db, bookings)
+        // softDelete ⇒ void مقيّد بالدور: جلسة مدير فعّالة حتى لا يرفضها الحارس.
+        val sessions = UserSessionManager().also {
+            it.startSession(com.marina.marina.domain.model.AuthUser(userType = "admin", username = "مدير"))
+        }
+        val payments = PaymentsRepositoryImpl(db.paymentsDao(), db.paymentVoidsDao(), outbox, db, bookings, sessions)
         val before = System.currentTimeMillis()
         val id = payments.insert(Payment(amount = 400.0, paymentMethod = "نقدي", revenueType = "room"))
         val inserted = requireNotNull(db.paymentsDao().getById(id))

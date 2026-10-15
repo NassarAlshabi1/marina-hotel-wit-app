@@ -29,6 +29,7 @@ import retrofit2.Response
 import com.marina.marina.data.repository.SyncIngestorRegistry
 import com.marina.marina.di.EncryptedSharedPreferencesManager
 import com.marina.marina.domain.model.BookingNight
+import com.marina.marina.domain.session.UserSessionManager
 import com.marina.marina.domain.util.HotelTimeEngine
 import java.lang.reflect.Proxy
 import java.util.concurrent.CountDownLatch
@@ -1268,7 +1269,8 @@ class SyncIngestorRegistryTest {
     )
 
     private fun editTestPaymentsRepository() = com.marina.marina.data.repository.PaymentsRepositoryImpl(
-        db.paymentsDao(), db.paymentVoidsDao(), outboxRepository(), db, editTestBookingsRepository()
+        db.paymentsDao(), db.paymentVoidsDao(), outboxRepository(), db, editTestBookingsRepository(),
+        UserSessionManager()
     )
 
     private suspend fun editTestBooking(room: String = "EDIT-101"): Long {
