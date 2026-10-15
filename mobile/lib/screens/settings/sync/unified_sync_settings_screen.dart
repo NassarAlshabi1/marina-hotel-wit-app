@@ -64,7 +64,7 @@ class _UnifiedSyncSettingsScreenState
   static const _batteryOptimizationKey = 'battery_optimization_enabled';
   static const _wifiOnlyKey = 'wifi_only_sync';
   static const _smartSyncKey = 'smart_sync_enabled';
-  static const _appwriteSyncKey = 'appwrite_sync_enabled';
+  static const _appwriteSyncKey = 'sync_enabled';
   static const _realtimeSyncKey = 'appwrite_realtime_sync_enabled';
   static const _syncIntervalKey = 'appwrite_sync_interval_minutes';
 

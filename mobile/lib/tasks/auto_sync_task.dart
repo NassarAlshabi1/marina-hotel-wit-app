@@ -21,11 +21,11 @@ void autoSyncCallbackDispatcher() {
       DartPluginRegistrant.ensureInitialized();
 
       // ✅ (2026-09-17) Cloudflare-only: أُزيلت بوابة Google Drive —
-      // المسار السحابي الوحيد هو appwrite_sync_enabled (مفتاح مزامنة
+      // المسار السحابي الوحيد هو sync_enabled (مفتاح مزامنة
       // Cloudflare التاريخي). مفتاح الإيقاف الداخلي في syncNow() يبقى
       // صاحب القرار النهائي.
       final prefs = await SharedPreferences.getInstance();
-      final cloudPathEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final cloudPathEnabled = prefs.getBool('sync_enabled') ?? true;
 
       if (!cloudPathEnabled) {
         return true;

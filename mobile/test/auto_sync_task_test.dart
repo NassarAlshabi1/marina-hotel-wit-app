@@ -10,7 +10,7 @@ void main() {
   test('AutoSyncTask consumes pending flag and triggers sync', () async {
     SharedPreferences.setMockInitialValues({
       'auto_sync_pending': true,
-      'appwrite_sync_enabled': false,
+      'sync_enabled': false,
       'google_drive_sync_enabled': false,
     });
     final prefs = await SharedPreferences.getInstance();

@@ -388,10 +388,12 @@ CREATE TABLE IF NOT EXISTS booking_notes (
   origin TEXT NOT NULL DEFAULT 'local',
   vector_clock TEXT NOT NULL DEFAULT '{}',
   device_id TEXT NOT NULL DEFAULT '',
-  idempotency_key TEXT
+  idempotency_key TEXT,
+  booking_uuid_cache TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_booking_notes_updated ON booking_notes(updated_at);
 CREATE INDEX IF NOT EXISTS idx_booking_notes_booking ON booking_notes(booking_id);
+CREATE INDEX IF NOT EXISTS idx_booking_notes_uuid_cache ON booking_notes(booking_uuid_cache);
 
 -- ─── Booking Nights ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS booking_nights (

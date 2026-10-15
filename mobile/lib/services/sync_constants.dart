@@ -142,7 +142,7 @@ class SyncConstants {
   /// سحباً تلقائياً **دلتا فقط** (deltaOnly=true — لا يبدأ Full Sync من
   /// الخلفية أبداً؛ الجهاز غير المُهيأ ينتظر المزامنة اليدوية/إقلاع
   /// التطبيق). يعمل حتى عند تعطيل المزامنة التلقائية — هذا هو الغرض —
-  /// لكنه يحترم المفتاح الرئيسي appwrite_sync_enabled وwifi-only.
+  /// لكنه يحترم المفتاح الرئيسي sync_enabled وwifi-only.
   static const Duration pullStalenessThreshold = Duration(hours: 1);
 
   /// ✅ (2026-09-01) فحص الركود كل 10 دقائق — تكلفة الفحص قراءة SharedPreferences

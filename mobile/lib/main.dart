@@ -82,6 +82,23 @@ import 'utils/weak_device_optimizer.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ✅ ترحيل مفتاح تفعيل المزامنة من اسمه التاريخي appwrite_sync_enabled
+  // إلى sync_enabled (الفرع أصبح Cloudflare-only). ينسخ القيمة القديمة
+  // قبل أي تهيئة تضبط الافتراضي true — وإلا أُعيد تفعيل مزامنة عطّلها
+  // المستخدم. fail-open: أي فشل يُبقي القراءة الافتراضية.
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    const legacyKey = 'appwrite_sync_enabled';
+    if (prefs.containsKey(legacyKey)) {
+      if (!prefs.containsKey('sync_enabled')) {
+        await prefs.setBool('sync_enabled', prefs.getBool(legacyKey) ?? true);
+      }
+      await prefs.remove(legacyKey);
+    }
+  } catch (e) {
+    debugPrint('⚠️ sync_enabled migration failed (fail-open): $e');
+  }
+
   // ─── ✅ (2026-09-30) كشف قدرة الجهاز أولاً وقبل كل شيء ───
   // كان هذا الاستدعاء غائباً تماماً: كل حدود الأجهزة الضعيفة (SQLite
   // low-RAM pragmas، image/API caches، دفعات المزامنة، debounce) كانت
@@ -313,8 +330,8 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
   try {
     final prefs = await SharedPreferences.getInstance();
-    if (!prefs.containsKey('appwrite_sync_enabled')) {
-      await prefs.setBool('appwrite_sync_enabled', true);
+    if (!prefs.containsKey('sync_enabled')) {
+      await prefs.setBool('sync_enabled', true);
     }
 
     // ✅ Database first (critical for everything)
@@ -694,7 +711,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // المزامنة التلقائي (القرار المُصدر من المراجعة المعمارية —
       // محركان متوازيان كانا يتنافسان على نفس البيانات). زناد
       // ما-بعد-الكتابة يشغّل الآن المدير الموحد (رفع + سحب دلتا) —
-      // sync() محمي داخلياً (kill switch / appwrite_sync_enabled /
+      // sync() محمي داخلياً (kill switch / sync_enabled /
       // _syncInProgress) والرفع الفوري مغطى بواسطة AutoOutboxSyncWatcher.
       final manager = ref.read(cloudflare.cloudflareSyncManagerProvider);
       if (manager.token == null) {
@@ -1405,7 +1422,7 @@ Future<bool> _executeAutoSyncTask(
 ) async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    final cloudflareEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+    final cloudflareEnabled = prefs.getBool('sync_enabled') ?? true;
 
     if (!cloudflareEnabled) {
       developer.log(

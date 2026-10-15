@@ -1071,19 +1071,19 @@ class CloudflareSyncManager {
       );
     }
     // ✅ (2026-09-05) مفتاح الإيقاف المحلي — «تفعيل مزامنة Appwrite»
-    // في شاشة إعدادات المزامنة (appwrite_sync_enabled، افتراضه مفعّل).
+    // في شاشة إعدادات المزامنة (sync_enabled، افتراضه مفعّل).
     // سابقاً كان يوقف الحلقات الخلفية فقط بينما المزامنة اليدوية
     // تتجاهله — سلوك إنتاج غير متوقع. OFF يعني OFF لكل المسارات.
     try {
       final prefs = await SharedPreferences.getInstance();
-      final locallyEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final locallyEnabled = prefs.getBool('sync_enabled') ?? true;
       if (!locallyEnabled) {
-        debugPrint('⏸️ Sync disabled locally (appwrite_sync_enabled=false)');
+        debugPrint('⏸️ Sync disabled locally (sync_enabled=false)');
         return SyncResult(
           status: SyncStatus.idle,
           timestamp: DateTime.now(),
           duration: Duration.zero,
-          errorMessage: 'Sync disabled locally (appwrite_sync_enabled=false)',
+          errorMessage: 'Sync disabled locally (sync_enabled=false)',
         );
       }
     } catch (_) {

@@ -95,7 +95,8 @@ class BookingChildUuidBackfillService {
 
     final rows = await db
         .customSelect(
-          'SELECT n.local_uuid AS note_uuid FROM booking_notes n '
+          'SELECT n.local_uuid AS note_uuid, b.local_uuid AS booking_uuid '
+          'FROM booking_notes n '
           'JOIN bookings b ON b.id = n.booking_id '
           'WHERE n.deleted_at IS NULL '
           "AND b.local_uuid IS NOT NULL AND b.local_uuid <> ''",
@@ -112,7 +113,16 @@ class BookingChildUuidBackfillService {
       );
       await outboxDao.mergeBatch([
         for (final row in chunk)
-          _outboxItem('booking_notes', row.read<String>('note_uuid'), clientTs),
+          <String, dynamic>{
+            'entity': 'booking_notes',
+            'op': 'update',
+            'localUuid': row.read<String>('note_uuid'),
+            'payload': <String, dynamic>{
+              'localUuid': row.read<String>('note_uuid'),
+              'booking_uuid_cache': row.read<String>('booking_uuid'),
+            },
+            'clientTs': clientTs,
+          },
       ]);
     }
     await prefs.setBool(notesRepushPrefKey, true);

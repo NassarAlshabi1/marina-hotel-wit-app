@@ -970,7 +970,7 @@ class LocalBackupService {
     await prefs.setBool('cf_full_sync_completed', false);
     await prefs.setBool('cf_timestamp_normalization_v1_done', false);
     await prefs.setBool('cf_restore_replay_pending', true);
-    await prefs.setBool('appwrite_sync_enabled', false);
+    await prefs.setBool('sync_enabled', false);
     await prefs.remove('cf_sync_stats_v1');
     await prefs.remove('cf_tombstone_sweep_v1_done');
     await prefs.remove('cf_tombstone_sweep_v1_cursor');

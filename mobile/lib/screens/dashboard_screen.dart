@@ -133,7 +133,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _autoPullFromAppwriteInner() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final appwriteEnabled = prefs.getBool('sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
         return;
@@ -250,7 +250,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _dashboardDeltaPull() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
+      if (!(prefs.getBool('sync_enabled') ?? true)) {
         return;
       }
       final result = await _runRobustSilentPull();

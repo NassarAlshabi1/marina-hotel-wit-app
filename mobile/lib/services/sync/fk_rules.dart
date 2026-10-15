@@ -84,14 +84,16 @@ const List<FkRule> fkRules = [
     uuidCacheColumn: 'booking_uuid_cache',
     legacyServerBookingId: true,
   ),
-  // ملاحظات الحجز → الحجز (لا uuid-cache على السلك — الاعتماد على
-  // ظلّ server_id للأب أو فضاء Appwrite).
+  // ملاحظات الحجز → الحجز. يُرسل booking_uuid_cache في الحمولة (عمود
+  // D1 أُضيف بهجرة 0016) فيُحلّ أولاً بالمفتاح العالمي؛ صفوف قديمة بلا
+  // الحقل تبقى على ظلّ server_id للأب أو فضاء Appwrite.
   FkRule(
     entity: 'booking_notes',
     column: 'booking_id',
     kind: FkKind.numericPointer,
     parentTable: 'bookings',
     parentKeyColumn: 'id',
+    uuidCacheColumn: 'booking_uuid_cache',
     legacyServerBookingId: true,
   ),
   // المدفوعات → الحجز (قابل للـ null — دفعة بلا حجز تمر بـ NULL).

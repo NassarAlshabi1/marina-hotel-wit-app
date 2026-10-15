@@ -185,6 +185,9 @@ const Set<String> _droppableKeys = {'sync_timestamp', 'clear_employee_link'};
 const Map<String, Set<String>> _serverOnlyColumns = {
   // مرجع ذاتي قديم في جدول employees على D1 بلا استخدام محلي
   'employees': {'employee_id'},
+  // عمود تخزين UUID الحجز على D1 — يُستخدم في حلّ booking_id عند السحب
+  // (uuidCacheColumn في fk_rules) ثم يُسقط؛ لا عمود مرآة محلي له.
+  'booking_notes': {'booking_uuid_cache'},
   // ✅ (2026-09-19) salary_withdrawals.employee_uuid لم يبقَ سحابياً فقط —
   // أُضيف عمود Drift محلي (migration 68) يُخزَّن من الحمولة ويُعاد
   // إرساله في toJson، فصار الاثنان متطابقين (نفس عقد expenses).

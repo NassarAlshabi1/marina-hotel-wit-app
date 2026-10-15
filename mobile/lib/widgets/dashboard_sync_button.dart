@@ -91,12 +91,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
-  /// ✅ (2026-09-17) تسمية صادقة: المفتاح التاريخي appwrite_sync_enabled
+  /// ✅ (2026-09-17) تسمية صادقة: المفتاح التاريخي sync_enabled
   /// يبوّب مزامنة Cloudflare (لا وجود لخدمة Appwrite) — القراءة كما هي
   /// حفاظاً على إعدادات التركيبات القائمة.
   Future<bool> _isAppwriteSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('appwrite_sync_enabled') ?? true;
+    return prefs.getBool('sync_enabled') ?? true;
   }
 
   Future<void> _loadAppwriteEnabled() async {
@@ -662,6 +662,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                     '⬆️ أُرسل: $totalPushed',
                     style: const TextStyle(fontSize: 12),
                   ),
+                  // صفوف dead-letter أو المرفوضة خادمياً تبقى في
+                  // العدّاد بعد دورة ناجحة — لا يُقال «نجاح» بصمت.
+                  if (_pendingChangesCount > 0)
+                    Text(
+                      '⚠️ تبقّى $_pendingChangesCount غير مسلَّمة '
+                      '(مرفوضة أو متعذرة)',
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   const Text(
                     '☁️ عبر: Cloudflare D1',
                     style: TextStyle(fontSize: 11),

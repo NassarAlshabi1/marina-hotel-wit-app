@@ -219,7 +219,7 @@ class UnifiedSyncOrchestrator {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cloudflareEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final cloudflareEnabled = prefs.getBool('sync_enabled') ?? true;
 
       if (!cloudflareEnabled) {
         dlog(() => 'ℹ️ مزامنة Cloudflare معطلة - تخطي الرفع التلقائي');
@@ -272,7 +272,7 @@ class UnifiedSyncOrchestrator {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cloudflareEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final cloudflareEnabled = prefs.getBool('sync_enabled') ?? true;
 
       var success = true;
 
@@ -388,7 +388,7 @@ class UnifiedSyncOrchestrator {
     // سحب فعلي: (1) "مشغول" — مزامنة أخرى قيد التنفيذ (`_syncing`)
     // فيتخطّى syncNow التنفيذ بالكامل ويُعيد true فوراً بلا استدعاء
     // _syncAppwrite (نمط "مشغول ≠ فشل" أعلاه في نفس الملف)، و(2) مزامنة
-    // Cloudflare معطّلة (`appwrite_sync_enabled`) فتبقى success=true
+    // Cloudflare معطّلة (`sync_enabled`) فتبقى success=true
     // الافتراضية دون أي نداء شبكي. القيمتان تُلتقطان هنا **قبل** نداء
     // syncNow مباشرة وبلا أي await بينهما — لا فرصة لتبدُّل `_syncing` في
     // هذه الفجوة لأن Dart تعاوني/أحادي الخيط، فتُطابق تماماً ما سيراه
@@ -398,7 +398,7 @@ class UnifiedSyncOrchestrator {
     // في main.dart:_startRealtimeSync عبر bootResult.isSuccess (تعليق
     // 2026-09-14 أعلى تلك الدالة).
     final wasBusy = _syncing;
-    final cloudflareEnabled = prefs?.getBool('appwrite_sync_enabled') ?? true;
+    final cloudflareEnabled = prefs?.getBool('sync_enabled') ?? true;
 
     // push دائماً true؛ pull محكوم بشرط الساعة أعلاه — دورة واحدة
     // متسلسلة كما كانت (رفع ثم سحب عند اجتماع الشرطين).

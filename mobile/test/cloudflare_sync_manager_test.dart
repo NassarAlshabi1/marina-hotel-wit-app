@@ -147,12 +147,12 @@ void main() {
     );
 
     test(
-      'sync() honors the local master toggle (appwrite_sync_enabled=false)',
+      'sync() honors the local master toggle (sync_enabled=false)',
       () async {
         // ✅ (2026-09-05) المفتاح المحلي كان يوقف الحلقات الخلفية فقط
         // والمزامنة اليدوية تتجاهله — الآن OFF يعني OFF لكل المسارات.
         SharedPreferences.setMockInitialValues(<String, Object>{
-          'appwrite_sync_enabled': false,
+          'sync_enabled': false,
         });
         final manager = CloudflareSyncManager();
         final result = await manager.sync();

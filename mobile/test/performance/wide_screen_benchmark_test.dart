@@ -342,7 +342,7 @@ void main() {
   setUp(() async {
     // Dashboard يبدأ auto-pull بعد أول frame. في Benchmark واجهة معزول يجب
     // قياس البناء المحلي لا فتح HTTP أو ترك مؤقتات Appwrite معلقة.
-    SharedPreferences.setMockInitialValues({'appwrite_sync_enabled': false});
+    SharedPreferences.setMockInitialValues({'sync_enabled': false});
     db = await _seedFullDatabase();
   });
 

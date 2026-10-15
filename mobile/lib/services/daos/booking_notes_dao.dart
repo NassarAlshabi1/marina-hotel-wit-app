@@ -110,7 +110,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
           op: 'create',
           localUuid: uu,
           serverId: comp.serverId.present ? comp.serverId.value : null,
-          payload: _payloadFrom(comp),
+          payload: await _payloadFrom(comp),
           clientTs: now,
         );
       }
@@ -148,7 +148,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: _payloadFrom(comp, base: existing),
+          payload: await _payloadFrom(comp, base: existing),
           clientTs: now,
         );
       }
@@ -190,13 +190,30 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Map<String, dynamic> _payloadFrom(
+  /// UUID الحجز المرتبط — المفتاح العالمي لحلّ booking_id على الأجهزة
+  /// الأخرى (نظير booking_uuid_cache في الليالي والديون والمدفوعات).
+  /// الـWorker يُرشّح الأعمدة ضد مخطط D1 الفعلي، فالحقل يُسقَط بأمان
+  /// قبل هجرة العمود ويُخزَّن بعدها.
+  Future<String?> _bookingUuidFor(int bookingId) async {
+    final row =
+        await (db.select(db.bookings)
+              ..where((b) => b.id.equals(bookingId)))
+            .getSingleOrNull();
+    final uuid = row?.localUuid;
+    return (uuid == null || uuid.isEmpty) ? null : uuid;
+  }
+
+  Future<Map<String, dynamic>> _payloadFrom(
     BookingNotesCompanion comp, {
     BookingNote? base,
-  }) {
+  }) async {
     final m = <String, dynamic>{};
     if (comp.bookingId.present) {
       m['booking_id'] = comp.bookingId.value;
+      final bookingUuid = await _bookingUuidFor(comp.bookingId.value);
+      if (bookingUuid != null) {
+        m['booking_uuid_cache'] = bookingUuid;
+      }
     }
     if (comp.noteText.present) {
       m['note_text'] = comp.noteText.value;

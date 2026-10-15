@@ -263,7 +263,7 @@ void main() {
 
   setUpAll(() async {
     FcmSender.setNotificationsDisabledForTesting(true);
-    SharedPreferences.setMockInitialValues({'appwrite_sync_enabled': false});
+    SharedPreferences.setMockInitialValues({'sync_enabled': false});
     await initializeDateFormatting();
   });
 
