@@ -11,6 +11,7 @@ import '../../services/local_db.dart';
 import '../../services/restore_fix_service.dart';
 import '../../utils/debug_log.dart';
 import '../../utils/theme.dart';
+import 'backup/widgets/restart_required_dialog.dart';
 import 'google_drive_logs_screen.dart';
 
 class GoogleDriveBackupScreen extends ConsumerWidget {
@@ -661,16 +662,10 @@ class _GoogleDriveBackupContentState
             ? 'تمت استعادة قاعدة البيانات وإصلاحها بنجاح'
             : 'تمت الاستعادة، لكن يلزم فحص الإصلاحات يدوياً',
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            fixReport.success
-                ? '✅ تمت استعادة نسخة .db وإصلاح البيانات بنجاح'
-                : '⚠️ تمت الاستعادة مع وجود ملاحظات في الإصلاح التلقائي',
-          ),
-          backgroundColor: fixReport.success ? Colors.green : Colors.orange,
-        ),
-      );
+      // استبدال ملف القاعدة يُغلق الاتصال الذي ما زالت المزوّدات
+      // وخدمات المزامنة تحتفظ به؛ لا يُحمَّل الملف المستعاد بأمان إلا بعد
+      // إعادة تشغيل التطبيق.
+      await showRestartRequiredDialog(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

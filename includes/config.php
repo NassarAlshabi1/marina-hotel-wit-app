@@ -45,6 +45,9 @@ $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' 
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $script_name = $_SERVER['SCRIPT_NAME'] ?? '';
 $base_path = dirname($script_name);
+if (defined('MARINA_RELOCATED_TOOL') && MARINA_RELOCATED_TOOL && defined('MARINA_WEB_ROOT')) {
+    $base_path = rtrim(MARINA_WEB_ROOT, '/');
+}
 
 // إزالة /admin من المسار إذا كان موجوداً لتجنب التكرار
 if (strpos($base_path, '/admin') !== false) {

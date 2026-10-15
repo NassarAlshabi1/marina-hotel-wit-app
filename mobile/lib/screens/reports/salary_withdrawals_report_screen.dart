@@ -4,8 +4,6 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/widgets.dart' as pw;
-
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
@@ -14,9 +12,9 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_mirror_matcher.dart';
 import '../../utils/device_attribution.dart';
-import '../../utils/enhanced_pdf_utils.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
+import '../../src/pdf/report_templates/salary_withdrawals_report_pdf.dart';
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -196,7 +194,8 @@ class SalaryWithdrawalsReportScreen extends ConsumerStatefulWidget {
 }
 
 class _SalaryWithdrawalsReportScreenState
-    extends ConsumerState<SalaryWithdrawalsReportScreen> {
+    extends ConsumerState<SalaryWithdrawalsReportScreen>
+    with PdfExportGuardMixin {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
@@ -461,7 +460,10 @@ class _SalaryWithdrawalsReportScreenState
     if (rows.isEmpty) {
       return;
     }
+    await runProtectedPdfExport(() => _buildAndShareSalaryPdf(rows));
+  }
 
+  Future<void> _buildAndShareSalaryPdf(List<_SalaryTxRow> rows) async {
     final selectedEmpName = _selectedEmployeeUuid != null
         ? _employeeDisplayName(
             _allEmployees
@@ -473,130 +475,31 @@ class _SalaryWithdrawalsReportScreenState
           )
         : null;
 
-    final headers = _selectedEmployeeUuid != null
-        ? <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الملاحظات']
-        : <String>[
-            'التاريخ',
-            'المبلغ',
-            'النوع',
-            'السبب',
-            'الملاحظات',
-            'الموظف',
-          ];
-
-    final dataRows = <List<String>>[];
-    for (final row in rows) {
-      // تنظيف حقل السبب: إذا كان يبدأ بـ "exp_" يُعتبر ربط داخلي، لا يُعرض
-      String displayReason = '-';
-      if (row.reason.isNotEmpty && !row.reason.startsWith('exp_')) {
-        displayReason = row.reason;
-      }
-
-      final cells = <String>[
-        _dateLabelFormat.format(row.date),
-        EnhancedPdfUtils.formatNumber(row.amount),
-        if (row.withdrawalType.isNotEmpty) row.withdrawalType else 'سحب',
-        displayReason,
-        if (row.description.isNotEmpty) row.description else '-',
-      ];
-      if (_selectedEmployeeUuid == null) {
-        cells.add(_employeeDisplayName(row.employee));
-      }
-      dataRows.add(cells);
-    }
-
-    final totalAmount = rows.fold<double>(0, (sum, r) => sum + r.amount);
-    final emptyCells = List.filled(headers.length, '');
-    dataRows.add([
-      'الإجمالي',
-      EnhancedPdfUtils.formatNumber(totalAmount),
-      ...emptyCells.sublist(2),
-    ]);
-
-    await ReportPdfBuilder.buildAndShare(
-      ReportPdfConfig(
-        title: 'تقرير سحبيات الرواتب',
+    // ✅ الشاشة تُمرّر بيانات فقط — التصميم بالكامل في القالب المستقل
+    // lib/src/pdf/report_templates/salary_withdrawals_report_pdf.dart.
+    await SalaryWithdrawalsReportPdf.share(
+      SalaryWithdrawalsReportData(
+        rows: rows.map((row) {
+          // تنظيف حقل السبب: إذا كان يبدأ بـ "exp_" يُعتبر ربط داخلي،
+          // لا يُعرض.
+          String displayReason = '-';
+          if (row.reason.isNotEmpty && !row.reason.startsWith('exp_')) {
+            displayReason = row.reason;
+          }
+          return SalaryWithdrawalsReportRow(
+            date: row.date,
+            amount: row.amount,
+            withdrawalType: row.withdrawalType.isNotEmpty
+                ? row.withdrawalType
+                : 'سحب',
+            displayReason: displayReason,
+            description: row.description.isNotEmpty ? row.description : '-',
+            employeeName: _employeeDisplayName(row.employee),
+          );
+        }).toList(),
         fromDate: _fromDate,
         toDate: _toDate,
-        buildContent: (fonts) {
-          final fromLabel = _fromDate != null
-              ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-              : 'غير محدد';
-          final toLabel = _toDate != null
-              ? DateFormat('yyyy-MM-dd').format(_toDate!)
-              : 'غير محدد';
-
-          return [
-            pw.SizedBox(height: 16),
-            EnhancedPdfUtils.buildInfoCard(
-              title: 'تقرير سحبيات الرواتب',
-              fonts: fonts,
-              content: [
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'الفترة',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                      ),
-                      pw.Text(
-                        'من $fromLabel إلى $toLabel',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'الموظف',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                      ),
-                      pw.Text(
-                        selectedEmpName ?? 'الكل',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'عدد السجلات',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                      ),
-                      pw.Text(
-                        '${rows.length}',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 12),
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: headers,
-              data: dataRows,
-              fonts: fonts,
-              headerColor: PdfColors.primary,
-              alternateRowColor: PdfColors.backgroundLight,
-            ),
-          ];
-        },
-        fileName: ReportPdfBuilder.generateFileName(
-          selectedEmpName != null
-              ? 'سحبيات راتب $selectedEmpName'
-              : 'تقرير سحبيات الرواتب',
-        ),
+        selectedEmployeeName: selectedEmpName,
       ),
     );
   }
@@ -637,7 +540,7 @@ class _SalaryWithdrawalsReportScreenState
         IconButton(
           icon: const Icon(Icons.picture_as_pdf),
           tooltip: 'تصدير PDF',
-          onPressed: filteredRows.isEmpty ? null : _exportPdf,
+          onPressed: filteredRows.isEmpty || isPdfExporting ? null : _exportPdf,
         ),
       ],
       body: Padding(

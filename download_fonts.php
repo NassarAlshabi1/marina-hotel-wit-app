@@ -221,7 +221,7 @@ if ($failed > 0) {
 echo "<h2>الخطوات التالية:</h2>";
 echo "<div class='info'>";
 echo "<ol>";
-echo "<li><a href='update_assets_paths.php'>تشغيل سكريبت تحديث مسارات الموارد</a></li>";
+echo "<li><a href='scripts/php/maintenance/update_assets_paths.php'>تشغيل سكريبت تحديث مسارات الموارد</a></li>";
 echo "<li>اختبار النظام للتأكد من عمل الخطوط</li>";
 echo "<li>في حالة وجود مشاكل، تحقق من ملف assets/fonts/fonts.css</li>";
 echo "</ol>";

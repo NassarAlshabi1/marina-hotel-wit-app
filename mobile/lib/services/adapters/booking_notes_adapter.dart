@@ -37,14 +37,22 @@ class BookingNotesAdapter
     final resolvedId = await resolver.resolveBooking(
       localId: bookingLocalId,
       uuid: bookingUuid,
+      fromRemote: src == Source.appwrite || src == Source.drive,
     );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
+    final shouldSkip =
+        resolvedId == null && (src == Source.appwrite || src == Source.drive);
     return ResolveResult(
       bookingLocalId: resolvedId,
       bookingUuidCache: bookingUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      shouldSkip: shouldSkip,
+      skipReason: shouldSkip
+          ? 'booking_note: لا يمكن العثور على الحجز المرتبط '
+                '(uuid=$bookingUuid, localId=$bookingLocalId)'
+          : null,
     );
   }
 
@@ -69,12 +77,15 @@ class BookingNotesAdapter
             IdGen.uuid(),
       ),
       serverId: _vInt(json, 'serverId', src),
-      bookingId: d.Value(
-        refs.bookingLocalId ??
-            _asInt(json, 'bookingId', src) ??
-            _asInt(json, 'booking_id', src) ??
-            0,
-      ),
+      bookingId: refs.bookingLocalId != null
+          ? d.Value(refs.bookingLocalId!)
+          : (src == Source.appwrite || src == Source.drive)
+          ? const d.Value.absent()
+          : d.Value(
+              _asInt(json, 'bookingId', src) ??
+                  _asInt(json, 'booking_id', src) ??
+                  0,
+            ),
       noteText: _vStr(json, 'noteText', src, altKey: 'note_text', fallback: ''),
       alertType: _vStr(
         json,

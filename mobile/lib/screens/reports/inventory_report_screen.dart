@@ -1,13 +1,12 @@
+import 'dart:async';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/widgets.dart' as pw;
-
 import '../../components/widgets/empty_state.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../providers/repository_providers.dart';
-import '../../utils/enhanced_pdf_utils.dart';
-import '../../utils/report_pdf_builder.dart';
+import '../../src/pdf/report_templates/inventory_report_pdf.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 
@@ -19,7 +18,8 @@ class InventoryReportScreen extends ConsumerStatefulWidget {
       _InventoryReportScreenState();
 }
 
-class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
+class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
+    with PdfExportGuardMixin {
   final DateFilterController _filterController = DateFilterController();
   final NumberFormat _numberFormat = NumberFormat('#,##0', 'en_US');
 
@@ -38,7 +38,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
     super.didChangeDependencies();
     if (_initialized) return;
     _initialized = true;
-    _initialize();
+    unawaited(_initialize());
   }
 
   Future<void> _initialize() async {
@@ -161,62 +161,42 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
 
   Future<void> _exportPdf() async {
     if (_rows.isEmpty) return;
-    final dataRows = [
-      for (final entry in _rows.asMap().entries)
-        [
-          '${entry.key + 1}',
-          entry.value.name,
-          entry.value.category ?? '-',
-          '${entry.value.quantity} ${entry.value.unit}',
-          '${entry.value.minimumQuantity}',
-          '${entry.value.totalIn}',
-          '${entry.value.totalOut}',
-          '${entry.value.totalAdjustment}',
-          '${entry.value.movementCount}',
-        ],
-    ];
+    await runProtectedPdfExport(_buildAndShareInventoryPdf);
+  }
 
-    await ReportPdfBuilder.buildAndShare(
-      ReportPdfConfig(
-        title: 'التقرير المخزني',
+  Future<void> _buildAndShareInventoryPdf() async {
+    // ✅ الشاشة تُمرّر بيانات فقط — التصميم بالكامل في القالب المستقل
+    // lib/src/pdf/report_templates/inventory_report_pdf.dart.
+    await InventoryReportPdf.share(
+      InventoryReportData(
+        rows: _rows
+            .map(
+              (row) => InventoryReportRow(
+                name: row.name,
+                unit: row.unit,
+                category: row.category,
+                quantity: row.quantity,
+                minimumQuantity: row.minimumQuantity,
+                totalIn: row.totalIn,
+                totalOut: row.totalOut,
+                totalAdjustment: row.totalAdjustment,
+                movementCount: row.movementCount,
+              ),
+            )
+            .toList(),
+        summary: InventoryReportSummary(
+          itemCount: _summary.itemCount,
+          lowStockCount: _summary.lowStockCount,
+          totalIn: _summary.totalIn,
+          totalOut: _summary.totalOut,
+          totalAdjustment: _summary.totalAdjustment,
+          movementCount: _summary.movementCount,
+        ),
         fromDate: _fromDate,
         toDate: _toDate,
-        extraHeaderLine: _selectedCategory?.isNotEmpty == true
+        categoryLabel: _selectedCategory?.isNotEmpty == true
             ? 'التصنيف: $_selectedCategory'
             : 'الأصناف النشطة',
-        buildContent: (fonts) => [
-          EnhancedPdfUtils.buildInfoCard(
-            title: 'ملخص التقرير',
-            content: [
-              pw.Text('عدد الأصناف: ${_summary.itemCount}'),
-              pw.Text('أصناف تحت الحد الأدنى: ${_summary.lowStockCount}'),
-              pw.Text('إجمالي الوارد: ${_summary.totalIn}'),
-              pw.Text('إجمالي الصرف: ${_summary.totalOut}'),
-              pw.Text('إجمالي التسويات: ${_summary.totalAdjustment}'),
-              pw.Text('عدد الحركات: ${_summary.movementCount}'),
-            ],
-            fonts: fonts,
-          ),
-          pw.SizedBox(height: 12),
-          EnhancedPdfUtils.buildProfessionalTable(
-            headers: [
-              'م',
-              'الصنف',
-              'التصنيف',
-              'الرصيد',
-              'الحد الأدنى',
-              'وارد',
-              'صرف',
-              'تسويات',
-              'الحركات',
-            ],
-            data: dataRows,
-            fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
-          ),
-        ],
-        fileName: ReportPdfBuilder.generateFileName('التقرير المخزني'),
       ),
     );
   }
@@ -231,11 +211,11 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
           _fromDate = range.from;
           _toDate = range.to;
         });
-        _fetchReport();
+        unawaited(_fetchReport());
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
-      isPdfEnabled: _rows.isNotEmpty && !_loading,
+      isPdfEnabled: _rows.isNotEmpty && !_loading && !isPdfExporting,
       isLoading: _loading,
       filterWidgets: [
         SizedBox(
@@ -249,10 +229,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
               border: OutlineInputBorder(),
             ),
             items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text('كل التصنيفات'),
-              ),
+              const DropdownMenuItem<String?>(child: Text('كل التصنيفات')),
               ..._categories.map(
                 (category) => DropdownMenuItem<String?>(
                   value: category,

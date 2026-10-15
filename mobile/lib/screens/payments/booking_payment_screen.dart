@@ -220,6 +220,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   /// يحدّث الحقول المشتقة للعرض فقط؛ فتح الشاشة ليس تغييراً من المستخدم.
   /// لذلك لا ينبغي أن ينشئ Outbox أو يغيّر قائمة التغييرات المحلية.
+  /// الحجز المنتهي لا يُعاد تسعيره: الخدمة تحسب مستحقه من لياليه المحفوظة.
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
@@ -674,7 +675,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     PaymentMethod.cash,
                     null,
                     'رصيد تراكمي للنزيل',
-                    true,
                   ),
                 ),
               ),
@@ -3123,6 +3123,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// تستخدم عندما يخرج النزيل قبل بداية اليوم الفندقي الجديد وينسى العامل
   /// تسجيل خروجه فيتم احتساب يوم إضافي بالخطأ
   void _showCancelTodayPaymentDialog(BookingPaymentSummary summary) {
+    // ✅ دفاع عميق: إلغاء الدفعات للمدير والمشرف فقط
+    final currentUser = ref.read(authProvider).currentUser;
+    if (!(currentUser?.canVoidPayments ?? false)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ إلغاء الدفعات متاح للمدير والمشرف فقط'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final hotelDay = HotelTimeEngine.getHotelDayKey();
 
@@ -3283,17 +3296,26 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   /// معالجة إلغاء دفعات اليوم الفندقي فقط (بدون تسجيل خروج أو تحرير غرفة)
-  /// paymentsRepo.delete → dao.softDelete → _mergeOutbox → كتابة في outbox للمزامنة
+  /// paymentsRepo.delete صار يؤدي void (isVoided + voidedBy/voidReason) —
+  /// لا tombstone — والدفعة الملغاة تبقى قابلة للتدقيق وتُستثنى من الأرصدة.
   Future<void> _processCancelTodayPayments(
     List<db.Payment> paymentsToCancel,
   ) async {
     try {
       final paymentsRepo = ref.read(paymentsRepoProvider);
 
-      // حذف (soft delete) دفعات اليوم الفندقي عبر PaymentsRepository
-      // الذي يكتب إلى outbox تلقائياً عبر dao.softDelete → _mergeOutbox
+      // ✅ دفاع عميق: إلغاء الدفعات للمدير والمشرف فقط
+      if (!(ref.read(authProvider).currentUser?.canVoidPayments ?? false)) {
+        throw StateError('إلغاء الدفعات متاح للمدير والمشرف فقط');
+      }
+
+      // إلغاء دفعة اليوم المحتسبة بالخطأ عبر مسار void (لا حذف) —
+      // voidedBy يُحلّ من المستخدم الحالي داخل الـ repository.
       for (final p in paymentsToCancel) {
-        await paymentsRepo.delete(p.id);
+        await paymentsRepo.delete(
+          p.id,
+          voidReason: 'دفعة يوم فندقي محتسبة بالخطأ',
+        );
       }
 
       // ✅ تسجيل تغيير المزامنة (نفس النمط الموجود في _processCheckout)

@@ -296,6 +296,11 @@ class Payments extends Table with SyncFields {
   TextColumn get receivedSessionUuid => text().nullable()();
   // معرّف مستخدم Appwrite Cloud الثابت بين الأجهزة.
   TextColumn get receivedByCloudId => text().nullable()();
+  // تتبّع الحذف: جهاز واسم المستخدم الذي نفّذ الحذف الناعم.
+  // التمييز بين الإلغاء والحذف: isVoided=true ⇒ إلغاء (voidedBy مسجّل)،
+  // deletedAt بدون isVoided ⇒ حذف وهذان العمودان يسجّلان الحاذف.
+  TextColumn get deletedByDevice => text().nullable()();
+  TextColumn get deletedByName => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -1250,7 +1255,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 72;
+  int get schemaVersion => 73;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1706,6 +1711,12 @@ class AppDatabase extends _$AppDatabase {
           'Migration 72: created blacklist table + migrated data from shift_notes',
           name: 'db.migration',
         );
+      }
+      // ✅ الإصدار 73: تتبّع حاذف المدفوعات — deletedByDevice/deletedByName.
+      // أعمدة nullable بلا backfill: الحذف التاريخي لا يُعرف حاذفه.
+      if (from < 73) {
+        await m.addColumn(payments, payments.deletedByDevice);
+        await m.addColumn(payments, payments.deletedByName);
       }
       if (from < 66) {
         await m.addColumn(salaryWithdrawals, salaryWithdrawals.recorderName);

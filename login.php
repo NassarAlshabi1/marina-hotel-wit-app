@@ -375,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <i class="fas fa-exclamation-triangle"></i>
                 <strong>تنبيه:</strong> يحتاج النظام إلى إعداد جداول الأمان.
                 <br><br>
-                <a href="setup_security_tables.php" style="color: #856404; text-decoration: underline; font-weight: bold;">انقر هنا لإعداد جداول الأمان</a>
+                <a href="scripts/php/maintenance/setup_security_tables.php" style="color: #856404; text-decoration: underline; font-weight: bold;">انقر هنا لإعداد جداول الأمان</a>
             </div>
         <?php endif; ?>
 

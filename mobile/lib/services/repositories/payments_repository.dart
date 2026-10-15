@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/hotel_time_engine.dart';
+import '../auth_local_store.dart';
 import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
@@ -10,6 +12,7 @@ import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 import '../local_db.dart';
 import '../payment_session_context.dart';
+import '../payment_void_service.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -47,6 +50,45 @@ class PaymentsRepository {
   late final OutboxDao outbox;
   late final PaymentsDao dao;
   late final BookingDerivedFieldsService derivedFields;
+
+  /// يحلّ هوية من نفّذ الحذف: مفتاح الجهاز المخزن عند تسجيل الجهاز
+  /// (`appwrite_device_id` مع رجوع لـ `device_id`) واسم المستخدم الحالي
+  /// (`full_name` ثم `username` من جلسة AuthLocalStore).
+  Future<
+    ({String? device, String? name, String? userType, List<String> permissions})
+  >
+  _resolveDeleter() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final device =
+          prefs.getString('appwrite_device_id') ?? prefs.getString('device_id');
+      final user = await AuthLocalStore().loadCurrentUser();
+      final name = (user?['full_name'] ?? user?['name'] ?? user?['username'])
+          ?.toString();
+      final rawPerms = user?['permissions'];
+      final permissions = rawPerms is List
+          ? rawPerms.map((e) => e.toString()).toList()
+          : const <String>[];
+      return (
+        device: device,
+        name: name,
+        userType: user?['user_type']?.toString(),
+        permissions: permissions,
+      );
+    } catch (_) {
+      return (
+        device: null,
+        name: null,
+        userType: null,
+        permissions: const <String>[],
+      );
+    }
+  }
+
+  /// إلغاء الدفعة (void) متاح للمدير والمشرف فقط — دفاع عميق حتى لو
+  /// وصل الاستدعاء من مسار لم تخفِ فيه الواجهة الزر.
+  bool _canVoid({String? userType, List<String> permissions = const []}) =>
+      AuthLocalStore.isManagerialRole(userType) || permissions.contains('all');
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {
     final bookingStream = (db.select(
@@ -376,27 +418,44 @@ class PaymentsRepository {
     }
   }
 
-  Future<int> delete(int id) async {
+  /// لا حذف للمدفوعات: «الحذف» في هذا التطبيق هو إلغاء (void).
+  /// يُعلّم الدفعة isVoided=true مع voidedBy/voidReason بدل tombstone،
+  /// فيبقى أثرها المالي قابلاً للتدقيق وتُستثنى من الأرصدة والقوائم.
+  /// [voidReason] سبب الإلغاء — من cascade حذف الحجز مرّر سبباً أوضح.
+  Future<int> delete(int id, {String? voidReason}) async {
     try {
       final payment = await (db.select(
         db.payments,
       )..where((p) => p.id.equals(id))).getSingleOrNull();
-      final bookingId = payment?.bookingLocalId;
+      if (payment == null) return 0;
+      final bookingId = payment.bookingLocalId;
 
-      // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
-      final result = await db.transaction(() async {
-        final deleted = await dao.softDelete(id);
-        if (deleted > 0 && bookingId != null) {
-          await derivedFields.refreshForBookingId(bookingId);
-        }
-        return deleted;
-      });
+      // هوية الملغي: المستخدم الحالي في جلسة التطبيق.
+      final deleter = await _resolveDeleter();
+
+      // إلغاء الدفعة متاح للمدير والمشرف فقط.
+      if (!_canVoid(
+        userType: deleter.userType,
+        permissions: deleter.permissions,
+      )) {
+        throw StateError('إلغاء الدفعات متاح للمدير والمشرف فقط');
+      }
+
+      final voided = await PaymentVoidService(db).voidPayment(
+        paymentUuid: payment.localUuid,
+        voidReason: voidReason ?? 'إلغاء من واجهة التطبيق',
+        voidedBy: deleter.name ?? 'مستخدم غير معروف',
+      );
+      final result = voided ? 1 : 0;
 
       if (result > 0) {
+        if (bookingId != null) {
+          await derivedFields.refreshForBookingId(bookingId);
+        }
         unawaited(
           AutoBackupManager.instance.onDataChange(
             'payments',
-            'DELETE',
+            'VOID',
             recordData: {'id': id},
           ),
         );

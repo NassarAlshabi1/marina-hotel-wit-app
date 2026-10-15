@@ -12,6 +12,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/auto_sync_engine_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
@@ -206,8 +207,28 @@ class _SettingsMaintenanceScreenState
 
   // ─── بناء الواجهة ─────────────────────────────────────
 
+  bool _canManage() =>
+      ref.read(authProvider).currentUser?.canManageRecords ?? false;
+
+  bool _isAdmin() => ref.read(authProvider).currentUser?.isAdmin ?? false;
+
+  bool _requireManage() {
+    if (_canManage()) return true;
+    _showSnack('⚠️ أدوات الصيانة متاحة للمدير والمشرف فقط', color: Colors.red);
+    return false;
+  }
+
+  bool _requireAdmin() {
+    if (_isAdmin()) return true;
+    _showSnack('⚠️ إعادة تعيين التطبيق متاحة للمدير فقط', color: Colors.red);
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final canManage =
+        ref.watch(authProvider).currentUser?.canManageRecords ?? false;
+    final isAdmin = ref.watch(authProvider).currentUser?.isAdmin ?? false;
     return AppScaffold(
       title: 'صيانة النظام',
       body: ListView(
@@ -238,21 +259,23 @@ class _SettingsMaintenanceScreenState
             onTap: () => _showDatabaseCheckDialog(context),
           ),
 
-          _buildMaintenanceCard(
-            title: 'ضغط قاعدة البيانات (VACUUM)',
-            subtitle: 'تحرير المساحة غير المستخدمة وتحسين الأداء',
-            icon: Icons.compress,
-            color: Colors.amber.shade700,
-            onTap: () => _showVacuumDialog(context, ref),
-          ),
+          if (canManage)
+            _buildMaintenanceCard(
+              title: 'ضغط قاعدة البيانات (VACUUM)',
+              subtitle: 'تحرير المساحة غير المستخدمة وتحسين الأداء',
+              icon: Icons.compress,
+              color: Colors.amber.shade700,
+              onTap: () => _showVacuumDialog(context, ref),
+            ),
 
-          _buildMaintenanceCard(
-            title: 'إعادة تعيين المزامنة',
-            subtitle: 'إعادة ضبط خدمة المزامنة مع الخادم',
-            icon: Icons.sync_problem,
-            color: Colors.orange,
-            onTap: () => _showResetSyncDialog(context, ref),
-          ),
+          if (canManage)
+            _buildMaintenanceCard(
+              title: 'إعادة تعيين المزامنة',
+              subtitle: 'إعادة ضبط خدمة المزامنة مع الخادم',
+              icon: Icons.sync_problem,
+              color: Colors.orange,
+              onTap: () => _showResetSyncDialog(context, ref),
+            ),
 
           const SizedBox(height: 20),
 
@@ -268,29 +291,32 @@ class _SettingsMaintenanceScreenState
             onTap: () => _showProcessPendingBalanceDialog(context, ref),
           ),
 
-          _buildMaintenanceCard(
-            title: 'إعادة محاولة Outbox الفاشل',
-            subtitle: 'تعيد العمليات الفاشلة إلى الانتظار دون حذف أي بيانات',
-            icon: Icons.outbox,
-            color: Colors.deepPurple,
-            onTap: () => _showOutboxResetDialog(context, ref),
-          ),
+          if (canManage)
+            _buildMaintenanceCard(
+              title: 'إعادة محاولة Outbox الفاشل',
+              subtitle: 'تعيد العمليات الفاشلة إلى الانتظار دون حذف أي بيانات',
+              icon: Icons.outbox,
+              color: Colors.deepPurple,
+              onTap: () => _showOutboxResetDialog(context, ref),
+            ),
 
-          _buildMaintenanceCard(
-            title: 'إعادة تشغيل الخدمات',
-            subtitle: 'إعادة تشغيل جميع خدمات التطبيق',
-            icon: Icons.restart_alt,
-            color: Colors.red,
-            onTap: () => _showRestartDialog(context),
-          ),
+          if (canManage)
+            _buildMaintenanceCard(
+              title: 'إعادة تشغيل الخدمات',
+              subtitle: 'إعادة تشغيل جميع خدمات التطبيق',
+              icon: Icons.restart_alt,
+              color: Colors.red,
+              onTap: () => _showRestartDialog(context),
+            ),
 
-          _buildMaintenanceCard(
-            title: 'إعادة تعيين التطبيق',
-            subtitle: 'حذف جميع البيانات المحلية وإعادة التهيئة',
-            icon: Icons.delete_forever,
-            color: Colors.red.shade900,
-            onTap: () => _showResetAppDialog(context),
-          ),
+          if (isAdmin)
+            _buildMaintenanceCard(
+              title: 'إعادة تعيين التطبيق',
+              subtitle: 'حذف جميع البيانات المحلية وإعادة التهيئة',
+              icon: Icons.delete_forever,
+              color: Colors.red.shade900,
+              onTap: () => _showResetAppDialog(context),
+            ),
 
           const SizedBox(height: 24),
 
@@ -683,6 +709,7 @@ class _SettingsMaintenanceScreenState
   // ─── VACUUM ─────────────────────────────────────────────
 
   void _showVacuumDialog(BuildContext context, WidgetRef ref) {
+    if (!_requireManage()) return;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -762,6 +789,7 @@ class _SettingsMaintenanceScreenState
   // ─── إعادة تعيين المزامنة ─────────────────────────────
 
   void _showResetSyncDialog(BuildContext context, WidgetRef ref) {
+    if (!_requireManage()) return;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1014,6 +1042,7 @@ class _SettingsMaintenanceScreenState
   // ─── مسح Outbox ───────────────────────────────────────
 
   void _showOutboxResetDialog(BuildContext context, WidgetRef ref) {
+    if (!_requireManage()) return;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1057,6 +1086,7 @@ class _SettingsMaintenanceScreenState
   // ─── إعادة تشغيل الخدمات ──────────────────────────────
 
   void _showRestartDialog(BuildContext context) {
+    if (!_requireManage()) return;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1096,6 +1126,7 @@ class _SettingsMaintenanceScreenState
   // ─── إعادة تعيين التطبيق ─────────────────────────────
 
   void _showResetAppDialog(BuildContext context) {
+    if (!_requireAdmin()) return;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(

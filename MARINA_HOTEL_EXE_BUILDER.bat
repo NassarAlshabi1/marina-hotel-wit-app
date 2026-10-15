@@ -90,8 +90,8 @@ if exist "..\hotel_db.sql" (
 )
 
 :: نسخ ملف الإعداد
-if exist "..\setup_exe_database.php" (
-    copy "..\setup_exe_database.php" "phpdesktop-chrome\www\" >nul 2>&1
+if exist "..\scripts\php\maintenance\setup_exe_database.php" (
+    copy "..\scripts\php\maintenance\setup_exe_database.php" "phpdesktop-chrome\www\" >nul 2>&1
     echo    • تم نسخ ملف الإعداد
 )
 

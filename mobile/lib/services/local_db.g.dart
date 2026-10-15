@@ -13405,6 +13405,28 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _deletedByDeviceMeta = const VerificationMeta(
+    'deletedByDevice',
+  );
+  @override
+  late final GeneratedColumn<String> deletedByDevice = GeneratedColumn<String>(
+    'deleted_by_device',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedByNameMeta = const VerificationMeta(
+    'deletedByName',
+  );
+  @override
+  late final GeneratedColumn<String> deletedByName = GeneratedColumn<String>(
+    'deleted_by_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -13452,6 +13474,8 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     receivedByName,
     receivedSessionUuid,
     receivedByCloudId,
+    deletedByDevice,
+    deletedByName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -13835,6 +13859,24 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         ),
       );
     }
+    if (data.containsKey('deleted_by_device')) {
+      context.handle(
+        _deletedByDeviceMeta,
+        deletedByDevice.isAcceptableOrUnknown(
+          data['deleted_by_device']!,
+          _deletedByDeviceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_by_name')) {
+      context.handle(
+        _deletedByNameMeta,
+        deletedByName.isAcceptableOrUnknown(
+          data['deleted_by_name']!,
+          _deletedByNameMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -14024,6 +14066,14 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         DriftSqlType.string,
         data['${effectivePrefix}received_by_cloud_id'],
       ),
+      deletedByDevice: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_by_device'],
+      ),
+      deletedByName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_by_name'],
+      ),
     );
   }
 
@@ -14079,6 +14129,8 @@ class Payment extends DataClass implements Insertable<Payment> {
   final String? receivedByName;
   final String? receivedSessionUuid;
   final String? receivedByCloudId;
+  final String? deletedByDevice;
+  final String? deletedByName;
   const Payment({
     required this.localUuid,
     this.serverId,
@@ -14125,6 +14177,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     this.receivedByName,
     this.receivedSessionUuid,
     this.receivedByCloudId,
+    this.deletedByDevice,
+    this.deletedByName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -14228,6 +14282,12 @@ class Payment extends DataClass implements Insertable<Payment> {
     if (!nullToAbsent || receivedByCloudId != null) {
       map['received_by_cloud_id'] = Variable<String>(receivedByCloudId);
     }
+    if (!nullToAbsent || deletedByDevice != null) {
+      map['deleted_by_device'] = Variable<String>(deletedByDevice);
+    }
+    if (!nullToAbsent || deletedByName != null) {
+      map['deleted_by_name'] = Variable<String>(deletedByName);
+    }
     return map;
   }
 
@@ -14330,6 +14390,12 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedByCloudId: receivedByCloudId == null && nullToAbsent
           ? const Value.absent()
           : Value(receivedByCloudId),
+      deletedByDevice: deletedByDevice == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedByDevice),
+      deletedByName: deletedByName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedByName),
     );
   }
 
@@ -14394,6 +14460,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedByCloudId: serializer.fromJson<String?>(
         json['receivedByCloudId'],
       ),
+      deletedByDevice: serializer.fromJson<String?>(json['deletedByDevice']),
+      deletedByName: serializer.fromJson<String?>(json['deletedByName']),
     );
   }
   @override
@@ -14447,6 +14515,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       'receivedByName': serializer.toJson<String?>(receivedByName),
       'receivedSessionUuid': serializer.toJson<String?>(receivedSessionUuid),
       'receivedByCloudId': serializer.toJson<String?>(receivedByCloudId),
+      'deletedByDevice': serializer.toJson<String?>(deletedByDevice),
+      'deletedByName': serializer.toJson<String?>(deletedByName),
     };
   }
 
@@ -14496,6 +14566,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     Value<String?> receivedByName = const Value.absent(),
     Value<String?> receivedSessionUuid = const Value.absent(),
     Value<String?> receivedByCloudId = const Value.absent(),
+    Value<String?> deletedByDevice = const Value.absent(),
+    Value<String?> deletedByName = const Value.absent(),
   }) => Payment(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -14572,6 +14644,12 @@ class Payment extends DataClass implements Insertable<Payment> {
     receivedByCloudId: receivedByCloudId.present
         ? receivedByCloudId.value
         : this.receivedByCloudId,
+    deletedByDevice: deletedByDevice.present
+        ? deletedByDevice.value
+        : this.deletedByDevice,
+    deletedByName: deletedByName.present
+        ? deletedByName.value
+        : this.deletedByName,
   );
   Payment copyWithCompanion(PaymentsCompanion data) {
     return Payment(
@@ -14682,6 +14760,12 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedByCloudId: data.receivedByCloudId.present
           ? data.receivedByCloudId.value
           : this.receivedByCloudId,
+      deletedByDevice: data.deletedByDevice.present
+          ? data.deletedByDevice.value
+          : this.deletedByDevice,
+      deletedByName: data.deletedByName.present
+          ? data.deletedByName.value
+          : this.deletedByName,
     );
   }
 
@@ -14732,7 +14816,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('receivedByUserId: $receivedByUserId, ')
           ..write('receivedByName: $receivedByName, ')
           ..write('receivedSessionUuid: $receivedSessionUuid, ')
-          ..write('receivedByCloudId: $receivedByCloudId')
+          ..write('receivedByCloudId: $receivedByCloudId, ')
+          ..write('deletedByDevice: $deletedByDevice, ')
+          ..write('deletedByName: $deletedByName')
           ..write(')'))
         .toString();
   }
@@ -14784,6 +14870,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     receivedByName,
     receivedSessionUuid,
     receivedByCloudId,
+    deletedByDevice,
+    deletedByName,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -14833,7 +14921,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.receivedByUserId == this.receivedByUserId &&
           other.receivedByName == this.receivedByName &&
           other.receivedSessionUuid == this.receivedSessionUuid &&
-          other.receivedByCloudId == this.receivedByCloudId);
+          other.receivedByCloudId == this.receivedByCloudId &&
+          other.deletedByDevice == this.deletedByDevice &&
+          other.deletedByName == this.deletedByName);
 }
 
 class PaymentsCompanion extends UpdateCompanion<Payment> {
@@ -14882,6 +14972,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<String?> receivedByName;
   final Value<String?> receivedSessionUuid;
   final Value<String?> receivedByCloudId;
+  final Value<String?> deletedByDevice;
+  final Value<String?> deletedByName;
   const PaymentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -14928,6 +15020,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.receivedByName = const Value.absent(),
     this.receivedSessionUuid = const Value.absent(),
     this.receivedByCloudId = const Value.absent(),
+    this.deletedByDevice = const Value.absent(),
+    this.deletedByName = const Value.absent(),
   });
   PaymentsCompanion.insert({
     required String localUuid,
@@ -14975,6 +15069,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.receivedByName = const Value.absent(),
     this.receivedSessionUuid = const Value.absent(),
     this.receivedByCloudId = const Value.absent(),
+    this.deletedByDevice = const Value.absent(),
+    this.deletedByName = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -15029,6 +15125,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<String>? receivedByName,
     Expression<String>? receivedSessionUuid,
     Expression<String>? receivedByCloudId,
+    Expression<String>? deletedByDevice,
+    Expression<String>? deletedByName,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -15079,6 +15177,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (receivedSessionUuid != null)
         'received_session_uuid': receivedSessionUuid,
       if (receivedByCloudId != null) 'received_by_cloud_id': receivedByCloudId,
+      if (deletedByDevice != null) 'deleted_by_device': deletedByDevice,
+      if (deletedByName != null) 'deleted_by_name': deletedByName,
     });
   }
 
@@ -15128,6 +15228,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<String?>? receivedByName,
     Value<String?>? receivedSessionUuid,
     Value<String?>? receivedByCloudId,
+    Value<String?>? deletedByDevice,
+    Value<String?>? deletedByName,
   }) {
     return PaymentsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -15177,6 +15279,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       receivedByName: receivedByName ?? this.receivedByName,
       receivedSessionUuid: receivedSessionUuid ?? this.receivedSessionUuid,
       receivedByCloudId: receivedByCloudId ?? this.receivedByCloudId,
+      deletedByDevice: deletedByDevice ?? this.deletedByDevice,
+      deletedByName: deletedByName ?? this.deletedByName,
     );
   }
 
@@ -15324,6 +15428,12 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     if (receivedByCloudId.present) {
       map['received_by_cloud_id'] = Variable<String>(receivedByCloudId.value);
     }
+    if (deletedByDevice.present) {
+      map['deleted_by_device'] = Variable<String>(deletedByDevice.value);
+    }
+    if (deletedByName.present) {
+      map['deleted_by_name'] = Variable<String>(deletedByName.value);
+    }
     return map;
   }
 
@@ -15374,7 +15484,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('receivedByUserId: $receivedByUserId, ')
           ..write('receivedByName: $receivedByName, ')
           ..write('receivedSessionUuid: $receivedSessionUuid, ')
-          ..write('receivedByCloudId: $receivedByCloudId')
+          ..write('receivedByCloudId: $receivedByCloudId, ')
+          ..write('deletedByDevice: $deletedByDevice, ')
+          ..write('deletedByName: $deletedByName')
           ..write(')'))
         .toString();
   }
@@ -52294,6 +52406,8 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<String?> receivedByName,
       Value<String?> receivedSessionUuid,
       Value<String?> receivedByCloudId,
+      Value<String?> deletedByDevice,
+      Value<String?> deletedByName,
     });
 typedef $$PaymentsTableUpdateCompanionBuilder =
     PaymentsCompanion Function({
@@ -52342,6 +52456,8 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<String?> receivedByName,
       Value<String?> receivedSessionUuid,
       Value<String?> receivedByCloudId,
+      Value<String?> deletedByDevice,
+      Value<String?> deletedByName,
     });
 
 final class $$PaymentsTableReferences
@@ -52609,6 +52725,16 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<String> get receivedByCloudId => $composableBuilder(
     column: $table.receivedByCloudId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedByDevice => $composableBuilder(
+    column: $table.deletedByDevice,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedByName => $composableBuilder(
+    column: $table.deletedByName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -52883,6 +53009,16 @@ class $$PaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deletedByDevice => $composableBuilder(
+    column: $table.deletedByDevice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedByName => $composableBuilder(
+    column: $table.deletedByName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -53126,6 +53262,16 @@ class $$PaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deletedByDevice => $composableBuilder(
+    column: $table.deletedByDevice,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deletedByName => $composableBuilder(
+    column: $table.deletedByName,
+    builder: (column) => column,
+  );
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -53249,6 +53395,8 @@ class $$PaymentsTableTableManager
                 Value<String?> receivedByName = const Value.absent(),
                 Value<String?> receivedSessionUuid = const Value.absent(),
                 Value<String?> receivedByCloudId = const Value.absent(),
+                Value<String?> deletedByDevice = const Value.absent(),
+                Value<String?> deletedByName = const Value.absent(),
               }) => PaymentsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -53295,6 +53443,8 @@ class $$PaymentsTableTableManager
                 receivedByName: receivedByName,
                 receivedSessionUuid: receivedSessionUuid,
                 receivedByCloudId: receivedByCloudId,
+                deletedByDevice: deletedByDevice,
+                deletedByName: deletedByName,
               ),
           createCompanionCallback:
               ({
@@ -53343,6 +53493,8 @@ class $$PaymentsTableTableManager
                 Value<String?> receivedByName = const Value.absent(),
                 Value<String?> receivedSessionUuid = const Value.absent(),
                 Value<String?> receivedByCloudId = const Value.absent(),
+                Value<String?> deletedByDevice = const Value.absent(),
+                Value<String?> deletedByName = const Value.absent(),
               }) => PaymentsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -53389,6 +53541,8 @@ class $$PaymentsTableTableManager
                 receivedByName: receivedByName,
                 receivedSessionUuid: receivedSessionUuid,
                 receivedByCloudId: receivedByCloudId,
+                deletedByDevice: deletedByDevice,
+                deletedByName: deletedByName,
               ),
           withReferenceMapper: (p0) => p0
               .map(

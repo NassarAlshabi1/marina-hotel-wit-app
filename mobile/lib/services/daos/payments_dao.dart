@@ -376,7 +376,12 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> softDelete(int id, {bool originIsServer = false}) async {
+  Future<int> softDelete(
+    int id, {
+    bool originIsServer = false,
+    String? deletedByDevice,
+    String? deletedByName,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -389,6 +394,10 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
               deletedAt: Value(now),
               updatedAt: Value(now),
               lastModified: Value(now),
+              // هوية الحاذف — تُملأ فقط من حذف محلي (لا من سحب السيرفر
+              // الذي يستورد الحقول كما أرسلها الجهاز الحاذف).
+              deletedByDevice: Value(deletedByDevice),
+              deletedByName: Value(deletedByName),
             ),
           );
       if (rows > 0 && !originIsServer) {

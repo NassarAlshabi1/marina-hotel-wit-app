@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/core.dart';
 import '../../../../providers/backup_provider.dart';
 import '../../../../services/local_backup_service.dart';
+import '../widgets/restart_required_dialog.dart';
 
 /// Local Backups Tab - إدارة النسخ المحلية
 ///
@@ -457,6 +458,10 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
     await ref.read(backupStatusProvider.notifier).importBackupFromFile();
     if (mounted) {
       final state = ref.read(backupStatusProvider);
+      if (state.restartRequired) {
+        await showRestartRequiredDialog(context);
+        return;
+      }
       if (state.status == BackupStatus.success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -530,6 +535,10 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
 
     if (mounted) {
       final state = ref.read(backupStatusProvider);
+      if (state.restartRequired) {
+        await showRestartRequiredDialog(context);
+        return;
+      }
       if (state.status == BackupStatus.success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
