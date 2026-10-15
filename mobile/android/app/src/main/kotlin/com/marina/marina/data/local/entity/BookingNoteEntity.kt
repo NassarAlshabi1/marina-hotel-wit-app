@@ -8,7 +8,10 @@ import com.google.gson.annotations.SerializedName
 
 @Entity(
     tableName = "booking_notes",
-    indices = [Index(value = ["booking_id"], name = "idx_booking_notes_booking")]
+    indices = [
+        Index(value = ["booking_id"], name = "idx_booking_notes_booking"),
+        Index(value = ["booking_uuid_cache"], name = "idx_booking_notes_uuid_cache")
+    ]
 )
 data class BookingNoteEntity(
     @PrimaryKey(autoGenerate = true)
@@ -99,7 +102,17 @@ data class BookingNoteEntity(
 
     @SerializedName("idempotency_key")
     @ColumnInfo(name = "idempotency_key")
-    override val idempotencyKey: String? = null
+    override val idempotencyKey: String? = null,
+
+    /**
+     * تخزين UUID الحجز — نظير عمود D1 `booking_uuid_cache` من هجرة 0016
+     * (`feat/cloudflare-sync-execution` + `fk_rules.dart`). المفتاح العالمي
+     * لحلّ `booking_id` عبر الأجهزة قبل ظلّ `server_id`؛ نظير نفس العمود في
+     * `booking_nights`/`payments`/`debts` (كلها تحمله محلياً هنا).
+     */
+    @SerializedName("booking_uuid_cache")
+    @ColumnInfo(name = "booking_uuid_cache")
+    val bookingUuidCache: String? = null
 ) : BaseSyncEntity(
     id = id,
     localUuid = localUuid,

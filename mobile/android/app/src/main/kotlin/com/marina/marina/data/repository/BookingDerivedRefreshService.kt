@@ -78,16 +78,36 @@ class BookingDerivedRefreshService @Inject constructor(
             val active = bookingsDao.listDerivedRefreshCandidates()
                 .filter { StatusUtils.isBookingActive(it.status) }
                 .map { it.toDomain() }
+            // نظير `isFrozenCompletedStay` (booking_derived_fields_service.dart):
+            // حجز أنهى إقامته فعلاً — أسعار لياليه مجمدة ولا تُعاد تسعيرها
+            // بسعر الغرفة الحالي، لكن رصيده ما زال يُعاد بناؤه من لياليه
+            // المخزنة (مسحوب بلا ليالٍ/إجمالي يبدأ بصفر فيخفي مستحقاً).
+            val frozen = bookingsDao.listFrozenCompletedCandidates()
+                .map { it.toDomain() }
+                .filter { booking ->
+                    val checkout = HotelTimeEngine.parseDate(booking.actualCheckout)
+                    checkout != null && checkout <= moment
+                }
             var refreshed = 0
             db.withTransaction {
                 for (booking in active) {
                     try {
-                        refreshInTransaction(booking, moment)
+                        refreshInTransaction(booking, moment, frozen = false)
                         refreshed++
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (error: Exception) {
                         Log.w(TAG, "تعذّر تحديث الحقول المشتقة للحجز ${booking.id}", error)
+                    }
+                }
+                for (booking in frozen) {
+                    try {
+                        refreshInTransaction(booking, moment, frozen = true)
+                        refreshed++
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        Log.w(TAG, "تعذّر تحديث حجز منتهٍ ${booking.id}", error)
                     }
                 }
             }
@@ -122,10 +142,33 @@ class BookingDerivedRefreshService @Inject constructor(
      * («الليلة الجارية تُحسب») — `nightsWithCutoff(checkin, null)` يستخدم
      * `moment` نفسه لتطابق `EnhancedBookingCalculationService(now: moment)` في Dart.
      */
-    private suspend fun refreshInTransaction(booking: Booking, moment: Long) {
+    private suspend fun refreshInTransaction(booking: Booking, moment: Long, frozen: Boolean = false) {
         val roomRate = roomsDao.getByNumber(booking.roomNumber)?.price ?: 0.0
         val payments = paymentsDao.getByBookingOnce(booking.id).map { it.toDomain() }
         val nights = nightsDao.getByBooking(booking.id).map { it.toDomain() }
+
+        // نظير ترتيب `_refreshCompletedStay` في Dart للحجز المجمّد:
+        // ليالٍ مخزنة → الإجمالي المحسوب محلياً → تقدير مؤقت بالسعر الحالي.
+        if (frozen && nights.isEmpty() && booking.totalDueCached > 0) {
+            val paid = payments.sumOf { it.amount }
+            bookingsDao.updateFinancialCache(
+                id = booking.id,
+                nights = booking.calculatedNights,
+                due = booking.totalDueCached,
+                paid = paid,
+                remaining = (booking.totalDueCached - paid).coerceIn(0.0, booking.totalDueCached),
+                fullyPaid = booking.totalDueCached - paid <= 0
+            )
+            return
+        }
+        if (frozen && nights.isEmpty()) {
+            Log.w(
+                TAG,
+                "حجز مكتمل ${booking.localUuid} بلا ليالٍ محلية: " +
+                    "تقدير المستحق مؤقتاً بسعر الغرفة الحالي"
+            )
+        }
+
         val checkin = HotelTimeEngine.parseDate(booking.checkinDate)
         val liveNights = if (checkin != null) {
             HotelTimeEngine.nightsWithCutoff(

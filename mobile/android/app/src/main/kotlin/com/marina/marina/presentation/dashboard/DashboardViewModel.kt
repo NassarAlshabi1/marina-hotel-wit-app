@@ -274,7 +274,11 @@ sealed interface DashboardEvent {
     /** "✅ تم سحب N سجل جديد من Cloudflare تلقائياً" — green snackbar. */
     data class AutoPullSucceeded(val pulledCount: Int) : DashboardEvent
 
-    data class SyncCompleted(val pushedCount: Int, val pulledCount: Int) : DashboardEvent
+    data class SyncCompleted(
+        val pushedCount: Int,
+        val pulledCount: Int,
+        val remainingCount: Int = 0
+    ) : DashboardEvent
     data class SyncFailed(val message: String) : DashboardEvent
     data class RoomStatusUpdated(val roomNumber: String, val newStatus: String) : DashboardEvent
     data class Error(val message: String) : DashboardEvent

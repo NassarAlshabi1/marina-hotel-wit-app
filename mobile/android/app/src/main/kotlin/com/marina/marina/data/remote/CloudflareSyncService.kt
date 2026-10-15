@@ -322,7 +322,10 @@ class SyncPreferences @Inject constructor(
         private const val KEY_BATTERY_OPTIMIZATION = "battery_optimization_enabled"
         private const val KEY_WIFI_ONLY = "wifi_only_sync"
         private const val KEY_SMART_SYNC = "smart_sync_enabled"
-        private const val KEY_CLOUDFLARE_SYNC = "appwrite_sync_enabled"
+        // ✅ أعيدت التسمية في الفرع المرجعي (Flutter b2b9e6ba): sync_enabled
+        // بدل الاسم القديم المرتبط بـ Appwrite — مع ترحيل القيمة أدناه.
+        private const val KEY_CLOUDFLARE_SYNC = "sync_enabled"
+        private const val KEY_CLOUDFLARE_SYNC_LEGACY = "appwrite_sync_enabled"
         private const val KEY_REALTIME_SYNC = "appwrite_realtime_sync_enabled"
         private const val KEY_SYNC_INTERVAL = "appwrite_sync_interval_minutes"
 
@@ -568,9 +571,14 @@ class SyncPreferences @Inject constructor(
         preferencesManager.putBoolean(KEY_SMART_SYNC, enabled)
     }
 
-    /** تفعيل مزامنة Cloudflare (appwrite_sync_enabled — افتراضياً true). */
-    fun getCloudflareSyncEnabled(): Boolean =
-        preferencesManager.getBoolean(KEY_CLOUDFLARE_SYNC, true)
+    /** تفعيل مزامنة Cloudflare (sync_enabled — افتراضياً true). */
+    fun getCloudflareSyncEnabled(): Boolean {
+        preferencesManager.migrateBooleanKey(
+            KEY_CLOUDFLARE_SYNC_LEGACY,
+            KEY_CLOUDFLARE_SYNC
+        )
+        return preferencesManager.getBoolean(KEY_CLOUDFLARE_SYNC, true)
+    }
 
     fun setCloudflareSyncEnabled(enabled: Boolean) {
         preferencesManager.putBoolean(KEY_CLOUDFLARE_SYNC, enabled)

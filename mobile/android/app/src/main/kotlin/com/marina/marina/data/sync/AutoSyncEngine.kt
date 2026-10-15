@@ -42,7 +42,8 @@ class AutoSyncEngine @Inject constructor(
     private val outboxRepositoryProvider: Lazy<OutboxRepository>,
     private val preferences: SyncPreferences,
     private val serviceProvider: Lazy<CloudflareSyncService>,
-    private val realtimeProvider: Lazy<CloudflareRealtimeClient>
+    private val realtimeProvider: Lazy<CloudflareRealtimeClient>,
+    private val uuidBackfillProvider: Lazy<BookingChildUuidBackfillService>
 ) {
     private val syncManager: SyncManager get() = syncManagerProvider.get()
     /**
@@ -90,6 +91,10 @@ class AutoSyncEngine @Inject constructor(
         appScope.launch {
             // حارس الإقلاع ضد المؤشر المسموم (Dart l.553) — قبل أي دورة.
             recover { syncManager.sanitizeStoredCursorIfNeeded() }
+            // نظير استدعاء main.dart: تعبئة UUID الحجز على أبنائه القدامى
+            // وإدراجها لإعادة الرفع مرة واحدة — حتى تحلّها الأجهزة الأخرى
+            // بـ UUID لا بظلال server_id.
+            recover { uuidBackfillProvider.get().runIfNeeded() }
             val recovered = recover { outboxRepository.recoverStaleProcessing() } ?: 0
             if (recovered > 0) schedulePush(3_000L)
         }

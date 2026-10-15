@@ -17,8 +17,13 @@ internal suspend fun runDashboardDirectionalSync(sync: SyncRepository, push: Boo
             else sync.syncState.value.lastMessage.ifBlank { "تعذرت المزامنة؛ أعد المحاولة" }
         return DashboardEvent.SyncFailed(message)
     }
+    // صفوف dead-letter/المرفوضة خادمياً تبقى في العدّاد بعد دورة ناجحة —
+    // تُعرض بجانب النجاح بدل ادعاء «كل شيء رُفع» (نظير snackbar الفرع
+    // المرجعي: «تبقّى X غير مسلَّمة»).
+    val remaining = sync.undeliveredCount().first()
     return DashboardEvent.SyncCompleted(
         pushedCount = if (push) count else 0,
-        pulledCount = if (push) 0 else count
+        pulledCount = if (push) 0 else count,
+        remainingCount = if (push) remaining else 0
     )
 }

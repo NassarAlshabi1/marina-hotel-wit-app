@@ -582,10 +582,12 @@ class SyncIngestorRegistry @Inject constructor(
                 mapped.remove("cash_transaction_local_id")
             }
             "booking_notes" -> {
-                // NOT NULL، لا uuid-cache على السلك — الرجل الإرثية فقط
-                // (فضاء Appwrite) ثم التأجيل (عقد Dart الحرفي).
+                // NOT NULL — uuidCache على السلك (عمود D1 booking_uuid_cache
+                // من هجرة 0016؛ تكافؤ uuidCacheColumn في fk_rules.dart) أولاً،
+                // ثم الرجل الإرثية (فضاء server_id) وإلا التأجيل (عقد Dart
+                // الحرفي بعد التحديث).
                 val resolved = resolveBookingId(
-                    uuid = null,
+                    uuid = asString(mapped["booking_uuid_cache"]),
                     legacyServerId = asLong(mapped["booking_id"])
                 ) ?: return ApplyOutcome.Deferred
                 mapped["booking_id"] = resolved

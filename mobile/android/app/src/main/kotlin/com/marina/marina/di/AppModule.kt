@@ -135,4 +135,19 @@ class EncryptedSharedPreferencesManager @Inject constructor(
     fun putBoolean(key: String, value: Boolean) {
         prefs().edit().putBoolean(key, value).apply()
     }
+
+    /**
+     * ترحيل مفتاح boolean لمرة واحدة: ينسخ القيمة القديمة إلى الاسم الجديد
+     * (ما لم يكن الجديد موجوداً أصلاً) ثم يحذف القديم. نظير ترحيل
+     * `appwrite_sync_enabled → sync_enabled` في main.dart على الفرع المرجعي.
+     */
+    fun migrateBooleanKey(oldKey: String, newKey: String) {
+        val p = prefs()
+        if (!p.contains(oldKey)) return
+        val oldValue = p.getBoolean(oldKey, true)
+        p.edit().apply {
+            if (!p.contains(newKey)) putBoolean(newKey, oldValue)
+            remove(oldKey)
+        }.apply()
+    }
 }

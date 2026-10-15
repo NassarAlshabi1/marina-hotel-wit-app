@@ -30,7 +30,11 @@ class DashboardDirectionalSyncTest {
 
     @Test fun pushAndPullRemainSeparateAndReportActualCounts() = runTest {
         val sync = FakeSync(undelivered = 3)
-        assertEquals(DashboardEvent.SyncCompleted(4, 0), runDashboardDirectionalSync(sync, true))
+        // الرفع الناجح يُبلّغ عن الباقي غير المسلَّم (dead-letter) بجانب النجاح.
+        assertEquals(
+            DashboardEvent.SyncCompleted(4, 0, remainingCount = 3),
+            runDashboardDirectionalSync(sync, true)
+        )
         sync.undelivered = 0
         assertEquals(DashboardEvent.SyncCompleted(0, 4), runDashboardDirectionalSync(sync, false))
         assertEquals(1, sync.pushes)

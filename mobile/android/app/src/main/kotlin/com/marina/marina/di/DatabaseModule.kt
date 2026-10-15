@@ -271,6 +271,25 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * 78 → 79: `booking_notes.booking_uuid_cache` — تخزين UUID الحجز على
+     * السطر محلياً وعلى السلك، نظير هجرة D1 0016 في الفرع المرجعي
+     * (`worker/migrations/0016_booking_notes_uuid_cache.sql`). العمود
+     * nullable لأن الصفوف القديمة تُعبّأ بخدمة
+     * [com.marina.marina.data.sync.BookingChildUuidBackfillService].
+     */
+    val MIGRATION_78_79 = object : Migration(78, 79) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE booking_notes ADD COLUMN booking_uuid_cache TEXT"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS idx_booking_notes_uuid_cache " +
+                    "ON booking_notes(booking_uuid_cache)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -279,7 +298,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75, MIGRATION_75_76, MIGRATION_76_77, MIGRATION_77_78)
+            .addMigrations(MIGRATION_70_71, MIGRATION_71_72, MIGRATION_72_73, MIGRATION_73_74, MIGRATION_74_75, MIGRATION_75_76, MIGRATION_76_77, MIGRATION_77_78, MIGRATION_78_79)
             // Unknown historical versions fail closed; never erase financial data/Outbox.
             .build()
     }

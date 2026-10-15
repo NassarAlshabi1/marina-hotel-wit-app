@@ -135,7 +135,12 @@ fun DashboardScreen(
                 is DashboardEvent.SyncCompleted ->
                     snackbarHostState.showSnackbar(
                         MarinaSnackbarVisuals(
-                            message = "تمت المزامنة: دُفع ${event.pushedCount}، سُحب ${event.pulledCount}",
+                            message = buildString {
+                                append("تمت المزامنة: دُفع ${event.pushedCount}، سُحب ${event.pulledCount}")
+                                if (event.remainingCount > 0) {
+                                    append(" — تبقّى ${event.remainingCount} غير مسلَّمة (مرفوضة أو متعذرة)")
+                                }
+                            },
                             type = MarinaSnackbarType.SUCCESS,
                             requestedDuration = SnackbarDuration.Short
                         )

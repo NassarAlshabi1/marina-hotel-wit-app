@@ -57,6 +57,14 @@ interface BookingsDao {
     suspend fun listDerivedRefreshCandidates(): List<BookingEntity>
 
     /**
+     * الحجوزات المنتهية فعلاً (لها `actual_checkout`) — نظير الاستعلام
+     * الثاني في `refreshAllActiveBookings` على الفرع المرجعي: تُرشَّح بعدها
+     * بـ `isFrozenCompletedStay` (checkout ماضٍ لا مستقبلي).
+     */
+    @Query("SELECT * FROM bookings WHERE deleted_at IS NULL AND actual_checkout IS NOT NULL AND actual_checkout != ''")
+    suspend fun listFrozenCompletedCandidates(): List<BookingEntity>
+
+    /**
      * أرقام الغرف المشغولة بحجز نشط — نظير استعلام Dart في
      * `RoomsRepository.refreshAllRoomOccupancy` (rooms_repository.dart l.226-235):
      * `selectOnly(roomNumber) where deletedAt IS NULL AND status IN activeBookingStatuses`.
