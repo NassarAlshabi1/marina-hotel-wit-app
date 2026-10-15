@@ -343,7 +343,7 @@ fun BookingPaymentScreen(
                             state = state,
                             onAddBalancePayment = {
                                 payRequest = PayDialogRequest(
-                                    PayMethodUi.CASH, null, "رصيد تراكمي للنزيل", true
+                                    PayMethodUi.CASH, null, "رصيد تراكمي للنزيل", false
                                 )
                             }
                         )
