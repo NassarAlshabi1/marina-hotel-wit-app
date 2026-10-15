@@ -44,6 +44,7 @@ import 'services/auto_outbox_sync_watcher.dart';
 import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/blacklist_alert_service.dart';
+import 'services/booking_child_uuid_backfill_service.dart';
 import 'services/bootstrap_full_pull.dart';
 import 'services/central_sync_coordinator.dart';
 import 'services/cloudflare_config.dart';
@@ -419,6 +420,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // يعمل مرة واحدة فقط لكل جلسة — يُصلح البيانات المحلية
         // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Cloudflare D1
         await HotelDayKeyFixService.instance.runIfNeeded(database);
+        // تعبئة bookingUuidCache على الليالي القديمة وإعادة رفعها، حتى
+        // تحلّها الأجهزة الأخرى بقاعدة uuid-cache قبل ظلّ server_id.
+        await BookingChildUuidBackfillService.instance.runIfNeeded(database);
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();

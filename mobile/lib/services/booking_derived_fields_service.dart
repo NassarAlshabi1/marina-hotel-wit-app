@@ -13,6 +13,31 @@ class BookingDerivedFieldsService {
   BookingDerivedFieldsService(this.db, [OutboxDao? outboxDao])
     : _outboxDao = outboxDao ?? OutboxDao(db);
 
+  /// حجز أنهى إقامته فعلاً (actualCheckout في الماضي) — أسعار لياليه
+  /// التاريخية مجمدة ولا تُعاد تسعيرها بسعر الغرفة الحالي.
+  static bool isFrozenCompletedStay(Booking booking, {DateTime? now}) {
+    final actualCheckout = _parseDateTimeStatic(booking.actualCheckout);
+    return actualCheckout != null &&
+        !actualCheckout.isAfter(now ?? DateTime.now());
+  }
+
+  static DateTime? _parseDateTimeStatic(String? value) {
+    if (value == null) {
+      return null;
+    }
+    final v = value.trim();
+    if (v.isEmpty) {
+      return null;
+    }
+    final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
+    final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
+    try {
+      return DateTime.parse(withSeconds);
+    } catch (_) {
+      return null;
+    }
+  }
+
   final AppDatabase db;
   final OutboxDao _outboxDao;
 
@@ -69,73 +94,91 @@ class BookingDerivedFieldsService {
   }) async {
     final moment = now ?? DateTime.now();
     final calcService = EnhancedBookingCalculationService(db);
-    final calculation = await calcService.calculateForBooking(
-      booking,
-      now: moment,
-    );
-
-    await calcService.updateNightlyRecords(
-      booking,
-      now: moment,
-      forceRebuild: forceRebuild,
-      breakdown: calculation.breakdown,
-      inTransaction: true, // we are already inside a transaction
-      enqueueOutbox: enqueueOutbox,
-    );
-
-    final plannedCheckout = _parseDateTime(booking.checkoutDate);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
-
-    // For active bookings (no actual checkout), expectedNights should dynamically
-    // grow with the current time (totalNights from calculation which uses moment).
-    // This ensures payment screens show the correct number of nights if they stay past 14:00.
-    final expectedNightsValue =
-        (actualCheckout == null && StatusUtils.isBookingActive(booking))
-        ? calculation.financialSummary.totalNights
-        : (plannedCheckout != null && actualCheckout == null
-              ? calculation.financialSummary.totalNights
-              : booking.expectedNights);
-
-    final isOverdue =
-        calculation.bookingActive &&
-        plannedCheckout != null &&
-        moment.isAfter(plannedCheckout);
-    final needsReview =
-        isOverdue || calculation.financialSummary.remainingBalance > 0;
+    final preserveCompletedStay =
+        !forceRebuild &&
+        actualCheckout != null &&
+        !actualCheckout.isAfter(moment);
 
     final nowUtc = DateTime.now().toUtc();
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
     final stampIso = nowUtc.toIso8601String();
 
-    // Direct write — no nested transaction because caller already holds one.
-    await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
-      BookingsCompanion(
-        expectedNights: d.Value(expectedNightsValue),
-        calculatedNights: d.Value(calculation.financialSummary.totalNights),
-        totalNightsCached: d.Value(calculation.financialSummary.totalNights),
-        stayDurationIso: d.Value(calculation.stayDurationIso),
-        lastNightEpoch: d.Value(calculation.lastNightEpoch),
-        isOverdue: d.Value(isOverdue),
-        needsCheckoutReview: d.Value(needsReview),
-        totalDueCached: d.Value(
-          calculation.financialSummary.totalDue.toDouble(),
+    if (preserveCompletedStay) {
+      await _refreshCompletedStay(
+        booking,
+        calcService: calcService,
+        moment: moment,
+        stamp: stamp,
+        stampIso: stampIso,
+        enqueueOutbox: enqueueOutbox,
+      );
+    } else {
+      final calculation = await calcService.calculateForBooking(
+        booking,
+        now: moment,
+      );
+
+      await calcService.updateNightlyRecords(
+        booking,
+        now: moment,
+        forceRebuild: forceRebuild,
+        breakdown: calculation.breakdown,
+        inTransaction: true, // we are already inside a transaction
+        enqueueOutbox: enqueueOutbox,
+      );
+
+      final plannedCheckout = _parseDateTime(booking.checkoutDate);
+
+      // For active bookings (no actual checkout), expectedNights should dynamically
+      // grow with the current time (totalNights from calculation which uses moment).
+      // This ensures payment screens show the correct number of nights if they stay past 14:00.
+      final expectedNightsValue =
+          (actualCheckout == null && StatusUtils.isBookingActive(booking))
+          ? calculation.financialSummary.totalNights
+          : (plannedCheckout != null && actualCheckout == null
+                ? calculation.financialSummary.totalNights
+                : booking.expectedNights);
+
+      final isOverdue =
+          calculation.bookingActive &&
+          plannedCheckout != null &&
+          moment.isAfter(plannedCheckout);
+      final needsReview =
+          isOverdue || calculation.financialSummary.remainingBalance > 0;
+
+      // Direct write — no nested transaction because caller already holds one.
+      await (db.update(
+        db.bookings,
+      )..where((b) => b.id.equals(booking.id))).write(
+        BookingsCompanion(
+          expectedNights: d.Value(expectedNightsValue),
+          calculatedNights: d.Value(calculation.financialSummary.totalNights),
+          totalNightsCached: d.Value(calculation.financialSummary.totalNights),
+          stayDurationIso: d.Value(calculation.stayDurationIso),
+          lastNightEpoch: d.Value(calculation.lastNightEpoch),
+          isOverdue: d.Value(isOverdue),
+          needsCheckoutReview: d.Value(needsReview),
+          totalDueCached: d.Value(
+            calculation.financialSummary.totalDue.toDouble(),
+          ),
+          totalPaidCached: d.Value(
+            calculation.financialSummary.totalPaid.toDouble(),
+          ),
+          remainingBalanceCached: d.Value(
+            calculation.financialSummary.remainingBalance.toDouble(),
+          ),
+          isFullyPaid: d.Value(calculation.financialSummary.isFullyPaid),
+          hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
+          hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
+          updatedAt: d.Value(stamp),
+          // ✅ لا نحدّث lastModified للحقول المشتقة لأنها تُحسب محلياً
+          // وليست تغييراً من المستخدم. تحديث lastModified يجعل البيانات
+          // المحلية تبدو "أحدث" مما يمنع السحب من تحديثها في المزامنة القادمة.
+          updatedAtIso: d.Value(stampIso),
         ),
-        totalPaidCached: d.Value(
-          calculation.financialSummary.totalPaid.toDouble(),
-        ),
-        remainingBalanceCached: d.Value(
-          calculation.financialSummary.remainingBalance.toDouble(),
-        ),
-        isFullyPaid: d.Value(calculation.financialSummary.isFullyPaid),
-        hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
-        hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
-        updatedAt: d.Value(stamp),
-        // ✅ لا نحدّث lastModified للحقول المشتقة لأنها تُحسب محلياً
-        // وليست تغييراً من المستخدم. تحديث lastModified يجعل البيانات
-        // المحلية تبدو "أحدث" مما يمنع السحب من تحديثها في المزامنة القادمة.
-        updatedAtIso: d.Value(stampIso),
-      ),
-    );
+      );
+    }
 
     // الحقول المشتقة تُعاد حسابها أثناء السحب أيضاً. لا يجوز أن تتحول
     // كتابة بيانات Appwrite إلى تعديل مستخدم محلي قابل للرفع.
@@ -161,6 +204,73 @@ class BookingDerivedFieldsService {
     }
   }
 
+  /// إجمالي الإقامة المنتهية يُعاد بناؤه من الليالي المخزنة (مع تعديلاتها
+  /// الحالية) لا بسعر الغرفة الحالي. لا يُوثَّق بـ totalDueCached لأن
+  /// المزامنة لا تحمله، فالحجز المسحوب أو المستعاد يبدأ بصفر.
+  Future<void> _refreshCompletedStay(
+    Booking booking, {
+    required EnhancedBookingCalculationService calcService,
+    required DateTime moment,
+    required int stamp,
+    required String stampIso,
+    required bool enqueueOutbox,
+  }) async {
+    int totalDue;
+    int totalPaid;
+    int? totalNights;
+
+    final summary = await calcService.refreshCompletedStay(
+      booking,
+      enqueueOutbox: enqueueOutbox,
+    );
+    if (summary != null) {
+      totalDue = summary.totalDue;
+      totalPaid = summary.totalPaid;
+      totalNights = summary.totalNights;
+    } else if (booking.totalDueCached > 0) {
+      // لا ليالٍ على هذا الجهاز بعد؛ الإجمالي المحسوب محلياً هو أفضل
+      // قيمة تاريخية متاحة.
+      totalDue = booking.totalDueCached.round();
+      totalPaid = await calcService.totalPaymentsForBooking(booking);
+    } else {
+      // لا ليالٍ ولا إجمالي موثوق (جهاز جديد أو استعادة). تقدير مؤقت
+      // بسعر الغرفة الحالي دون تخزين ليالٍ، حتى لا يُبلَّغ الحجز
+      // كمدفوع بالكامل؛ الليالي المتزامنة تستبدل التقدير لاحقاً.
+      final calculation = await calcService.calculateForBooking(
+        booking,
+        now: moment,
+      );
+      totalDue = calculation.financialSummary.totalDue;
+      totalPaid = calculation.financialSummary.totalPaid;
+      totalNights = calculation.financialSummary.totalNights;
+      dwarn(
+        () =>
+            '⚠️ حجز مكتمل ${booking.localUuid} بلا ليالٍ محلية: '
+            'تقدير المستحق مؤقتاً بسعر الغرفة الحالي',
+      );
+    }
+
+    final remainingBalance = (totalDue - totalPaid).clamp(0, totalDue);
+
+    await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
+      BookingsCompanion(
+        totalDueCached: d.Value(totalDue.toDouble()),
+        totalPaidCached: d.Value(totalPaid.toDouble()),
+        remainingBalanceCached: d.Value(remainingBalance.toDouble()),
+        isFullyPaid: d.Value(remainingBalance <= 0),
+        needsCheckoutReview: d.Value(remainingBalance > 0),
+        totalNightsCached: totalNights == null
+            ? const d.Value.absent()
+            : d.Value(totalNights),
+        calculatedNights: totalNights == null
+            ? const d.Value.absent()
+            : d.Value(totalNights),
+        updatedAt: d.Value(stamp),
+        updatedAtIso: d.Value(stampIso),
+      ),
+    );
+  }
+
   Future<int> refreshAllActiveBookings({
     DateTime? now,
     bool enqueueOutbox = true,
@@ -175,6 +285,21 @@ class BookingDerivedFieldsService {
             .get();
 
     final active = activeBookings.where(StatusUtils.isBookingActive).toList();
+
+    // الحجوزات المنتهية فعلاً: مسحوبة بدون ليالٍ/إجمالي تبدأ بصفر، فتُعاد
+    // حساب أرصدتها من لياليها المخزنة بدل إعادة تسعيرها بسعر اليوم.
+    final completedBookings =
+        await (db.select(db.bookings)
+              ..where(
+                (b) =>
+                    b.actualCheckout.isNotNull() &
+                    b.actualCheckout.isNotIn(const ['']),
+              )
+              ..where((b) => b.deletedAt.isNull()))
+            .get();
+    final frozen = completedBookings
+        .where((b) => isFrozenCompletedStay(b, now: moment))
+        .toList();
 
     int refreshed = 0;
     int promoted = 0;
@@ -198,6 +323,18 @@ class BookingDerivedFieldsService {
           refreshed++;
         } catch (e) {
           dlog(() => '⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+        }
+      }
+      for (final booking in frozen) {
+        try {
+          await _refreshForBookingInTransaction(
+            booking,
+            now: moment,
+            enqueueOutbox: enqueueOutbox,
+          );
+          refreshed++;
+        } catch (e) {
+          dlog(() => '⚠️ خطأ في تحديث حجز منتهٍ ${booking.id}: $e');
         }
       }
     });

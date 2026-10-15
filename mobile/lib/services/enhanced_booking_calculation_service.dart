@@ -204,79 +204,15 @@ class EnhancedBookingCalculationService {
       final nightKey = segment.hotelDayKey;
       final nightDate = DateTime.parse(nightKey);
 
-      final applied = <AppliedAdjustment>[];
-      int adjustmentTotal = 0;
+      final nightAdjustments = _adjustmentsForNight(
+        nightDate: nightDate,
+        segments: segments,
+        adjustments: adjustments,
+        legacyDiscount: legacyDiscount,
+        legacyDiscountStart: legacyDiscountStart,
+      );
 
-      for (final adj in adjustments) {
-        final effectiveDate = DateTime.parse(adj.effectiveHotelDay);
-        final endDate = adj.endHotelDay != null
-            ? DateTime.parse(adj.endHotelDay!)
-            : null;
-        if (!_isWithinRange(nightDate, effectiveDate, endDate)) {
-          continue;
-        }
-        final rawAmount = _asInt(adj.amount);
-        final isDiscount = adj.adjustmentType == 0;
-
-        int adjAmount = rawAmount;
-        if (adj.adjustmentMode == 'total') {
-          final nightsInRange = _countNightsInRange(
-            segments,
-            effectiveDate,
-            endDate,
-          );
-          if (nightsInRange > 0) {
-            // حساب المبلغ الموزع بدقة مع معالجة الباقي في آخر ليلة
-            final int basePart = rawAmount ~/ nightsInRange;
-            final int remainder = rawAmount % nightsInRange;
-
-            // تحديد ترتيب الليلة الحالية ضمن النطاق المتأثر
-            int nightIndexInRange = 0;
-            for (final s in segments) {
-              final d = DateTime.parse(s.hotelDayKey);
-              if (!_isWithinRange(d, effectiveDate, endDate)) {
-                continue;
-              }
-              if (d.isBefore(nightDate)) {
-                nightIndexInRange++;
-              } else {
-                break;
-              }
-            }
-
-            // إضافة 1 من الباقي لأول 'remainder' ليالي لضمان تطابق المجموع
-            adjAmount = basePart + (nightIndexInRange < remainder ? 1 : 0);
-          }
-        }
-
-        final signedAmount = isDiscount ? -adjAmount : adjAmount;
-        adjustmentTotal += signedAmount;
-        applied.add(
-          AppliedAdjustment(
-            uuid: adj.localUuid,
-            type: isDiscount ? 'discount' : 'surcharge',
-            amount: signedAmount,
-            reason: adj.reason,
-            appliedBy: adj.appliedBy,
-          ),
-        );
-      }
-
-      if (legacyDiscount > 0) {
-        if (_isLegacyDiscountApplicable(nightDate, legacyDiscountStart)) {
-          final signed = -legacyDiscount;
-          adjustmentTotal += signed;
-          applied.add(
-            AppliedAdjustment(
-              uuid: 'legacy_discount',
-              type: 'legacy_discount',
-              amount: signed,
-            ),
-          );
-        }
-      }
-
-      final int finalRate = (baseRate + adjustmentTotal).clamp(
+      final int finalRate = (baseRate + nightAdjustments.total).clamp(
         0,
         baseRate * 100,
       );
@@ -287,9 +223,9 @@ class EnhancedBookingCalculationService {
           nightStart: segment.start,
           nightEnd: segment.end,
           baseRate: baseRate,
-          adjustmentAmount: adjustmentTotal,
+          adjustmentAmount: nightAdjustments.total,
           finalRate: finalRate,
-          appliedAdjustments: applied,
+          appliedAdjustments: nightAdjustments.applied,
         ),
       );
     }
@@ -356,6 +292,239 @@ class EnhancedBookingCalculationService {
       totalNights: totalNights,
       isFullyPaid: remaining <= 0,
     );
+  }
+
+  /// المدفوعات الفعلية للحجز — مكشوفة لمسار تحديث الحجوزات المنتهية الذي
+  /// لا يعيد بناء الليالي التاريخية.
+  Future<int> totalPaymentsForBooking(Booking booking) =>
+      _getTotalPayments(booking);
+
+  /// إعادة حساب حجز منتهي من لياليه المخزنة — لا بسعر الغرفة الحالي —
+  /// حتى لا تُعاد تسعير الإقامة التاريخية عند السحب أو الاستعادة.
+  /// يعيد null إن لم تكن للحجز ليالٍ مخزنة على هذا الجهاز.
+  Future<FinancialSummary?> refreshCompletedStay(
+    Booking booking, {
+    bool enqueueOutbox = true,
+  }) async {
+    final nights =
+        await (db.select(db.bookingNights)
+              ..where(
+                (n) =>
+                    n.bookingLocalId.equals(booking.id) |
+                    n.bookingUuidCache.isIn(
+                      BookingPaymentMatcher.uuidCandidates(booking.localUuid),
+                    ),
+              )
+              ..where((n) => n.deletedAt.isNull())
+              ..orderBy([(n) => d.OrderingTerm.asc(n.hotelDayKey)]))
+            .get();
+    if (nights.isEmpty) {
+      return null;
+    }
+
+    final adjustments = await _fetchActiveAdjustments(booking);
+    final legacyDiscount = booking.discountType == 'total'
+        ? 0
+        : _asInt(booking.discount);
+    final legacyDiscountStart = _parseDateTime(booking.discountStartDate);
+    final segments = <_NightSegment>[
+      for (final night in nights)
+        _NightSegment(
+          hotelDayKey: night.hotelDayKey,
+          start: _parseDateTime(night.nightStart) ?? DateTime(0),
+          end: _parseDateTime(night.nightEnd) ?? DateTime(0),
+        ),
+    ];
+
+    final nowUtc = DateTime.now().toUtc();
+    final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
+    final stampIso = nowUtc.toIso8601String();
+    final breakdown = <NightlyBreakdown>[];
+    final changed = <BookingNight>[];
+
+    for (var i = 0; i < nights.length; i++) {
+      final night = nights[i];
+      final segment = segments[i];
+      final baseRate = _storedBaseRate(night);
+      final nightDate = DateTime.tryParse(night.hotelDayKey);
+      final nightAdjustments = nightDate == null
+          ? (total: night.adjustment.round(), applied: <AppliedAdjustment>[])
+          : _adjustmentsForNight(
+              nightDate: nightDate,
+              segments: segments,
+              adjustments: adjustments,
+              legacyDiscount: legacyDiscount,
+              legacyDiscountStart: legacyDiscountStart,
+            );
+      final finalRate = (baseRate + nightAdjustments.total).clamp(
+        0,
+        baseRate * 100,
+      );
+      breakdown.add(
+        NightlyBreakdown(
+          hotelDayKey: night.hotelDayKey,
+          nightStart: segment.start,
+          nightEnd: segment.end,
+          baseRate: baseRate,
+          adjustmentAmount: nightAdjustments.total,
+          finalRate: finalRate,
+          appliedAdjustments: nightAdjustments.applied,
+        ),
+      );
+
+      final unchanged =
+          night.finalRate.round() == finalRate &&
+          night.nightlyRate.round() == finalRate &&
+          night.adjustment.round() == nightAdjustments.total &&
+          night.baseRate.round() == baseRate;
+      if (unchanged) {
+        continue;
+      }
+      final applied = nightAdjustments.applied;
+      await (db.update(
+        db.bookingNights,
+      )..where((n) => n.id.equals(night.id))).write(
+        BookingNightsCompanion(
+          baseRate: d.Value(baseRate.toDouble()),
+          adjustment: d.Value(nightAdjustments.total.toDouble()),
+          finalRate: d.Value(finalRate.toDouble()),
+          nightlyRate: d.Value(finalRate.toDouble()),
+          appliedAdjustmentUuid: d.Value(
+            applied.length == 1 ? applied.first.uuid : null,
+          ),
+          appliedAdjustmentsJson: d.Value(
+            applied.isEmpty
+                ? null
+                : jsonEncode(applied.map((a) => a.toJson()).toList()),
+          ),
+          updatedAt: d.Value(stamp),
+          updatedAtIso: d.Value(stampIso),
+          // إعادة الحساب بعد السحب لا يجوز أن تجعل الصف المشتق يبدو
+          // تعديلاً محلياً أحدث؛ التحديثات المدفوعة من المستخدم فقط تُرفع.
+          lastModified: enqueueOutbox ? d.Value(stamp) : const d.Value.absent(),
+          lastModifiedEpoch: enqueueOutbox
+              ? d.Value(stamp)
+              : const d.Value.absent(),
+        ),
+      );
+      changed.add(night);
+    }
+
+    if (enqueueOutbox && changed.isNotEmpty) {
+      await _outboxDao.mergeBatch([
+        for (final night in changed)
+          <String, dynamic>{
+            'entity': 'booking_nights',
+            'op': 'update',
+            'localUuid': night.localUuid,
+            'payload': <String, dynamic>{'localUuid': night.localUuid},
+            'clientTs': stamp,
+          },
+      ]);
+    }
+
+    return _buildFinancialSummary(
+      booking,
+      breakdown: breakdown,
+      totalNights: breakdown.length,
+    );
+  }
+
+  /// سعر الليلة كما سُجّل وقت الإقامة. الصفوف القديمة قد تحمل السعر
+  /// النهائي فقط، فيُستخرج الأساسي بطرح التعديل المخزن منه.
+  int _storedBaseRate(BookingNight night) {
+    final base = night.baseRate.round();
+    if (base > 0) {
+      return base;
+    }
+    final recordedFinal = night.finalRate > 0
+        ? night.finalRate.round()
+        : night.nightlyRate.round();
+    final derived = recordedFinal - night.adjustment.round();
+    return derived < 0 ? 0 : derived;
+  }
+
+  /// تعديلات ليلة واحدة (سعر إضافي/خصم) ضمن نطاق شرائح الإقامة المعطى.
+  ({int total, List<AppliedAdjustment> applied}) _adjustmentsForNight({
+    required DateTime nightDate,
+    required List<_NightSegment> segments,
+    required List<BookingPriceAdjustment> adjustments,
+    required int legacyDiscount,
+    required DateTime? legacyDiscountStart,
+  }) {
+    final applied = <AppliedAdjustment>[];
+    int adjustmentTotal = 0;
+
+    for (final adj in adjustments) {
+      final effectiveDate = DateTime.parse(adj.effectiveHotelDay);
+      final endDate = adj.endHotelDay != null
+          ? DateTime.parse(adj.endHotelDay!)
+          : null;
+      if (!_isWithinRange(nightDate, effectiveDate, endDate)) {
+        continue;
+      }
+      final rawAmount = _asInt(adj.amount);
+      final isDiscount = adj.adjustmentType == 0;
+
+      int adjAmount = rawAmount;
+      if (adj.adjustmentMode == 'total') {
+        final nightsInRange = _countNightsInRange(
+          segments,
+          effectiveDate,
+          endDate,
+        );
+        if (nightsInRange > 0) {
+          // حساب المبلغ الموزع بدقة مع معالجة الباقي في آخر ليلة
+          final int basePart = rawAmount ~/ nightsInRange;
+          final int remainder = rawAmount % nightsInRange;
+
+          // تحديد ترتيب الليلة الحالية ضمن النطاق المتأثر
+          int nightIndexInRange = 0;
+          for (final s in segments) {
+            final d = DateTime.parse(s.hotelDayKey);
+            if (!_isWithinRange(d, effectiveDate, endDate)) {
+              continue;
+            }
+            if (d.isBefore(nightDate)) {
+              nightIndexInRange++;
+            } else {
+              break;
+            }
+          }
+
+          // إضافة 1 من الباقي لأول 'remainder' ليالي لضمان تطابق المجموع
+          adjAmount = basePart + (nightIndexInRange < remainder ? 1 : 0);
+        }
+      }
+
+      final signedAmount = isDiscount ? -adjAmount : adjAmount;
+      adjustmentTotal += signedAmount;
+      applied.add(
+        AppliedAdjustment(
+          uuid: adj.localUuid,
+          type: isDiscount ? 'discount' : 'surcharge',
+          amount: signedAmount,
+          reason: adj.reason,
+          appliedBy: adj.appliedBy,
+        ),
+      );
+    }
+
+    if (legacyDiscount > 0) {
+      if (_isLegacyDiscountApplicable(nightDate, legacyDiscountStart)) {
+        final signed = -legacyDiscount;
+        adjustmentTotal += signed;
+        applied.add(
+          AppliedAdjustment(
+            uuid: 'legacy_discount',
+            type: 'legacy_discount',
+            amount: signed,
+          ),
+        );
+      }
+    }
+
+    return (total: adjustmentTotal, applied: applied);
   }
 
   Future<int> _getTotalPayments(Booking booking) async {
