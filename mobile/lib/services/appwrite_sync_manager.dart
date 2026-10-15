@@ -31,7 +31,6 @@ import 'appwrite_logger.dart';
 import 'appwrite_models.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_utils.dart';
-import 'booking_child_uuid_backfill_service.dart';
 import 'booking_derived_fields_service.dart';
 import 'crashlytics_service.dart';
 import 'daos/ancestor_cache_dao.dart';
@@ -1311,12 +1310,6 @@ class AppwriteSyncManager {
             'Sync completed successfully (pushed: $recordsPushed, pulled: $recordsPulled)',
             tag: 'SYNC',
           );
-
-          // Queue the next small batch of legacy nights once the previous
-          // batch has been pushed.
-          if (push) {
-            await BookingChildUuidBackfillService.instance.runPending(database);
-          }
         } catch (e, stackTrace) {
           errorMessage = e.toString();
           finalStatus = SyncStatus.failed;

@@ -90,9 +90,7 @@ void main() {
         .map((n) => n.lastModified)
         .toList();
 
-    final step = await service.backfillNights(db);
-    expect(step.queued, 2);
-    expect(step.done, isTrue);
+    expect(await service.backfillNights(db), 2);
 
     final nights = await db.select(db.bookingNights).get();
     expect(
@@ -106,31 +104,8 @@ void main() {
       'night-2026-01-02',
     });
 
-    final again = await service.backfillNights(db);
-    expect(again.queued, 0);
+    expect(await service.backfillNights(db), 0);
     expect(await outboxFor('booking_nights'), hasLength(2));
-  });
-
-  test('يضيف الليالي على دفعات ولا يضيف دفعة قبل رفع السابقة', () async {
-    final first = await service.backfillNights(db, batchSize: 1);
-    expect(first.queued, 1);
-    expect(first.done, isFalse);
-
-    final throttled = await service.backfillNights(db, batchSize: 1);
-    expect(throttled.queued, 0);
-    expect(throttled.done, isFalse);
-    expect(await outboxFor('booking_nights'), hasLength(1));
-
-    await db.delete(db.outbox).go();
-
-    final second = await service.backfillNights(db, batchSize: 1);
-    expect(second.queued, 1);
-    expect(second.done, isTrue);
-    final nights = await db.select(db.bookingNights).get();
-    expect(
-      nights.map((n) => n.bookingUuidCache),
-      everyElement('booking-legacy-001'),
-    );
   });
 
   test('يعيد رفع الملاحظات مرة واحدة فقط', () async {

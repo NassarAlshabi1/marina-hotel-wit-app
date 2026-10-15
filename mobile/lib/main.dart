@@ -739,7 +739,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // يعمل مرة واحدة فقط لكل جلسة — يُصلح البيانات المحلية
         // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Appwrite Cloud
         await HotelDayKeyFixService.instance.runIfNeeded(database);
-        await BookingChildUuidBackfillService.instance.runPending(database);
+        await BookingChildUuidBackfillService.instance.runIfNeeded(database);
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();
