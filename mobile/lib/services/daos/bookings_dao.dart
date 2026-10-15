@@ -65,6 +65,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   Stream<List<Booking>> watchList({
     String? roomNumber,
     String? status,
+    List<String>? statuses,
     bool includeDeleted = false,
     int? limit,
     int offset = 0,
@@ -78,6 +79,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     }
     if (status != null && status.isNotEmpty) {
       q.where((t) => t.status.equals(status));
+    }
+    if (statuses != null && statuses.isNotEmpty) {
+      q.where((t) => t.status.isIn(statuses));
     }
     q.orderBy([
       (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),

@@ -38,7 +38,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bookingsAsync = ref.watch(bookingsListProvider);
+    final bookingsAsync = ref.watch(activeBookingsForGuestsProvider);
     final roomsAsync = ref.watch(roomsListProvider);
 
     return AppScaffold(
@@ -110,7 +110,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: () async {
-                        ref.invalidate(bookingsListProvider);
+                        ref.invalidate(activeBookingsForGuestsProvider);
                         ref.invalidate(roomsListProvider);
                       },
                       child: ListView.builder(
@@ -142,7 +142,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         continue;
       }
 
-      final key = '${booking.guestName}_${booking.guestPhone}';
+      // تطبيع المفتاح: مسافات زائدة في الاسم/الهاتف كانت تُنتج ضيفاً مكرراً.
+      final key = '${booking.guestName.trim()}_${booking.guestPhone.trim()}';
       final email = booking.guestEmail ?? '';
       final idType = booking.guestIdType;
       final idNumber = booking.guestIdNumber;
@@ -684,6 +685,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ),
     );
     if ((result ?? false) && mounted) {
+      ref.invalidate(activeBookingsForGuestsProvider);
       ref.invalidate(bookingsListProvider);
       ScaffoldMessenger.of(
         context,
@@ -774,6 +776,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (!mounted) return;
+      ref.invalidate(activeBookingsForGuestsProvider);
       ref.invalidate(bookingsListProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1252,6 +1255,20 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final debtsRepo = ref.read(debtsRepoProvider);
       final notesRepo = ref.read(notesRepoProvider);
       final database = ref.read(databaseProvider);
+      // الغرف محمّلة مسبقاً — خريطة رقم→غرفة تُجنّب استعلاماً لكل غرفة.
+      final Map<String, Room> roomsByNumber = {
+        for (final r
+            in ref.read(roomsListProvider).valueOrNull ?? const <Room>[])
+          r.roomNumber: r,
+      };
+      Future<void> freeRoom(String roomNumber) async {
+        final room =
+            roomsByNumber[roomNumber] ??
+            await roomsRepo.watchByNumber(roomNumber).first;
+        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+          await roomsRepo.update(room.id, status: 'شاغرة');
+        }
+      }
 
       if (guest.bookings.isEmpty) {
         return;
@@ -1275,10 +1292,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
         // ─── 2. تحرير الغرف ───
         for (final roomNumber in freedRooms) {
-          final room = await roomsRepo.watchByNumber(roomNumber).first;
-          if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
-            await roomsRepo.update(room.id, status: 'شاغرة');
-          }
+          await freeRoom(roomNumber);
         }
 
         // ─── 3. حذف الملاحظات ───
@@ -1319,10 +1333,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             .toSet()
             .difference(freedRooms);
         for (final roomNumber in allRoomNumbers) {
-          final room = await roomsRepo.watchByNumber(roomNumber).first;
-          if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
-            await roomsRepo.update(room.id, status: 'شاغرة');
-          }
+          await freeRoom(roomNumber);
         }
       }); // ✅ نهاية transaction — atomic
 
