@@ -8,8 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
-import 'permission_catalog.dart';
 import 'password_hasher.dart';
+import 'permission_catalog.dart';
 
 enum AuthType { local }
 
