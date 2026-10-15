@@ -90,9 +90,7 @@ class PaymentsRepository {
   /// إلغاء الدفعة (void) متاح للمدير والمشرف فقط — دفاع عميق حتى لو
   /// وصل الاستدعاء من مسار لم تخفِ فيه الواجهة الزر.
   bool _canVoid({String? userType, List<String> permissions = const []}) =>
-      userType == 'admin' ||
-      userType == 'manager' ||
-      userType == 'supervisor' ||
+      AuthLocalStore.isManagerialRole(userType) ||
       permissions.contains('all');
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {
