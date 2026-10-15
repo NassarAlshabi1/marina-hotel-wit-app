@@ -56,9 +56,10 @@ class _ActiveBookingsReminderScreenState
       // في bookings_outbox_pull_diagnosis_test) — كتابتها في outbox عند كل
       // دخول كانت تلوث الطابور بسجلات bookings/update لكل حجز نشط بلا أي
       // تغيير مادي (كانت الشكوى المبلغبة: «كل دخول يضيف بيانات إلى outbox»).
-      await BookingDerivedFieldsService(
-        db,
-      ).refreshAllActiveBookings(enqueueOutbox: false);
+      await BookingDerivedFieldsService(db).refreshAllActiveBookings(
+        enqueueOutbox: false,
+        promoteProvisional: false,
+      );
       if (mounted) {
         setState(() => _isInitialLoading = false);
       }
@@ -263,9 +264,11 @@ class _ActiveBookingsReminderScreenState
               // ✅ (2026-09-30) enqueueOutbox:false — زر التحديث للعرض فقط،
               // نفس منطق التحديث التلقائي أعلاه (ترقية الحجز المؤقت W3
               // تستمر بالبث حتى مع false — كتابتها غير مشروطة أصلاً).
-              final refreshedCount = await BookingDerivedFieldsService(
-                db,
-              ).refreshAllActiveBookings(enqueueOutbox: false);
+              final refreshedCount = await BookingDerivedFieldsService(db)
+                  .refreshAllActiveBookings(
+                    enqueueOutbox: false,
+                    promoteProvisional: false,
+                  );
               if (mounted) {
                 scaffoldMessenger.showSnackBar(
                   SnackBar(

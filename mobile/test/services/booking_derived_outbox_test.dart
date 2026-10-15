@@ -115,6 +115,7 @@ void main() {
     await service.refreshAllActiveBookings(
       now: DateTime.now().add(const Duration(days: 1)),
       enqueueOutbox: false,
+      promoteProvisional: false,
     );
 
     final booking = await (db.select(

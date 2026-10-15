@@ -274,6 +274,7 @@ class BookingDerivedFieldsService {
   Future<int> refreshAllActiveBookings({
     DateTime? now,
     bool enqueueOutbox = true,
+    bool promoteProvisional = true,
   }) async {
     final moment = now ?? DateTime.now();
     final activeBookings =
@@ -309,7 +310,8 @@ class BookingDerivedFieldsService {
     await db.transaction(() async {
       for (final booking in active) {
         try {
-          if (StatusUtils.isBookingProvisional(booking) &&
+          if (promoteProvisional &&
+              StatusUtils.isBookingProvisional(booking) &&
               HotelTimeEngine.isAfterCutoff(moment)) {
             await _promoteProvisionalBooking(booking.id);
             promoted++;
