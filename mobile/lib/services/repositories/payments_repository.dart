@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/hotel_time_engine.dart';
+import '../auth_local_store.dart';
 import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
@@ -47,6 +49,24 @@ class PaymentsRepository {
   late final OutboxDao outbox;
   late final PaymentsDao dao;
   late final BookingDerivedFieldsService derivedFields;
+
+  /// يحلّ هوية من نفّذ الحذف: مفتاح الجهاز المخزن عند تسجيل الجهاز
+  /// (`appwrite_device_id` مع رجوع لـ `device_id`) واسم المستخدم الحالي
+  /// (`full_name` ثم `username` من جلسة AuthLocalStore).
+  Future<({String? device, String? name})> _resolveDeleter() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final device =
+          prefs.getString('appwrite_device_id') ?? prefs.getString('device_id');
+      final user = await AuthLocalStore().loadCurrentUser();
+      final name =
+          (user?['full_name'] ?? user?['name'] ?? user?['username'])
+              ?.toString();
+      return (device: device, name: name);
+    } catch (_) {
+      return (device: null, name: null);
+    }
+  }
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {
     final bookingStream = (db.select(
@@ -383,9 +403,16 @@ class PaymentsRepository {
       )..where((p) => p.id.equals(id))).getSingleOrNull();
       final bookingId = payment?.bookingLocalId;
 
+      // تتبّع الحاذف: جهاز هذا العميل + المستخدم الحالي المسجّل.
+      final deleter = await _resolveDeleter();
+
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
       final result = await db.transaction(() async {
-        final deleted = await dao.softDelete(id);
+        final deleted = await dao.softDelete(
+          id,
+          deletedByDevice: deleter.device,
+          deletedByName: deleter.name,
+        );
         if (deleted > 0 && bookingId != null) {
           await derivedFields.refreshForBookingId(bookingId);
         }

@@ -314,6 +314,9 @@ class AppwriteSchemaVerifier {
         {'key': 'receivedByName', 'type': 'string', 'size': 200},
         {'key': 'receivedSessionUuid', 'type': 'string', 'size': 36},
         {'key': 'receivedByCloudId', 'type': 'string', 'size': 100},
+        // تتبّع الحاذف — nullable: الحذف التاريخي لا يُعرف حاذفه.
+        {'key': 'deletedByDevice', 'type': 'string', 'size': 100},
+        {'key': 'deletedByName', 'type': 'string', 'size': 200},
       ],
     },
     'debts': {

@@ -198,6 +198,8 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       // انظر appwrite_schema_verifier.dart:264-265 (Cloud) و
       // local_db.dart:256-257 (Drift columns).
       voidReason: _vStr(json, 'voidReason', src, altKey: 'void_reason'),
+      deletedByDevice: _vStr(json, 'deletedByDevice', src, altKey: 'deleted_by_device'),
+      deletedByName: _vStr(json, 'deletedByName', src, altKey: 'deleted_by_name'),
       isImmutable: _vBool(json, 'isImmutable', src, fallback: false),
       receivedByUserId: _vInt(
         json,
@@ -282,6 +284,8 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
           model.receivedSessionUuid,
       _k(src, 'receivedByCloudId', 'received_by_cloud_id'):
           model.receivedByCloudId,
+      _k(src, 'deletedByDevice', 'deleted_by_device'): model.deletedByDevice,
+      _k(src, 'deletedByName', 'deleted_by_name'): model.deletedByName,
     };
   }
 }
