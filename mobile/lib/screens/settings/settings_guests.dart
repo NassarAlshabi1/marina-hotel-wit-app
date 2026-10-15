@@ -39,7 +39,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bookingsAsync = ref.watch(bookingsListProvider);
+    final bookingsAsync = ref.watch(activeBookingsForGuestsProvider);
     final roomsAsync = ref.watch(roomsListProvider);
 
     return AppScaffold(
@@ -111,7 +111,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: () async {
-                        ref.invalidate(bookingsListProvider);
+                        ref.invalidate(activeBookingsForGuestsProvider);
                         ref.invalidate(roomsListProvider);
                       },
                       child: ListView.builder(
@@ -683,6 +683,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       ),
     );
     if ((result ?? false) && mounted) {
+      ref.invalidate(activeBookingsForGuestsProvider);
       ref.invalidate(bookingsListProvider);
       ScaffoldMessenger.of(
         context,
@@ -773,6 +774,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (!mounted) return;
+      ref.invalidate(activeBookingsForGuestsProvider);
       ref.invalidate(bookingsListProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
