@@ -1252,8 +1252,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final notesRepo = ref.read(notesRepoProvider);
       final database = ref.read(databaseProvider);
       // الغرف محمّلة مسبقاً — خريطة رقم→غرفة تُجنّب استعلاماً لكل غرفة.
-      final roomsByNumber = {
-        for (final r in ref.read(roomsListProvider).valueOrNull ?? const [])
+      final Map<String, Room> roomsByNumber = {
+        for (final r
+            in ref.read(roomsListProvider).valueOrNull ?? const <Room>[])
           r.roomNumber: r,
       };
       Future<void> freeRoom(String roomNumber) async {
