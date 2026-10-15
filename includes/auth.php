@@ -22,7 +22,8 @@ if (!isset($_SESSION['initiated'])) {
 if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 10800)) {
     session_unset();
     session_destroy();
-    header("Location: /login.php?error=انتهت صلاحية الجلسة");
+    $login_root = (defined('MARINA_RELOCATED_TOOL') && MARINA_RELOCATED_TOOL && defined('MARINA_WEB_ROOT')) ? MARINA_WEB_ROOT : '/';
+    header("Location: " . $login_root . "login.php?error=انتهت صلاحية الجلسة");
     exit;
 }
 $_SESSION['last_activity'] = time();
@@ -53,8 +54,12 @@ function redirect_if_not_logged_in() {
     if (!is_logged_in()) {
         // تحديد المسار الصحيح لصفحة تسجيل الدخول
         $current_path = $_SERVER['REQUEST_URI'];
-        $path_depth = substr_count(dirname($_SERVER['SCRIPT_NAME']), '/') - 1;
-        $login_path = str_repeat('../', max(0, $path_depth)) . 'login.php';
+        if (defined('MARINA_RELOCATED_TOOL') && MARINA_RELOCATED_TOOL && defined('MARINA_WEB_ROOT')) {
+            $login_path = MARINA_WEB_ROOT . 'login.php';
+        } else {
+            $path_depth = substr_count(dirname($_SERVER['SCRIPT_NAME']), '/') - 1;
+            $login_path = str_repeat('../', max(0, $path_depth)) . 'login.php';
+        }
 
         header("Location: " . $login_path . "?error=يجب تسجيل الدخول للوصول إلى هذه الصفحة");
         exit;
@@ -75,7 +80,8 @@ function logout() {
         );
     }
 
-    header("Location: /login.php?message=تم تسجيل الخروج بنجاح");
+    $login_root = (defined('MARINA_RELOCATED_TOOL') && MARINA_RELOCATED_TOOL && defined('MARINA_WEB_ROOT')) ? MARINA_WEB_ROOT : '/';
+    header("Location: " . $login_root . "login.php?message=تم تسجيل الخروج بنجاح");
     exit;
 }
 

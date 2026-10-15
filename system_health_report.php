@@ -243,10 +243,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
                             <p><i class="fas fa-check"></i> البيانات متناسقة</p>
                         <?php elseif ($db_health === 'warning'): ?>
                             <p><i class="fas fa-exclamation-triangle"></i> توجد <?php echo $db_issues; ?> مشاكل بسيطة</p>
-                            <p><a href="fix_system_issues.php" class="btn btn-warning">إصلاح المشاكل</a></p>
+                            <p><a href="scripts/php/maintenance/fix_system_issues.php" class="btn btn-warning">إصلاح المشاكل</a></p>
                         <?php else: ?>
                             <p><i class="fas fa-times"></i> مشاكل خطيرة في قاعدة البيانات</p>
-                            <p><a href="fix_system_issues.php" class="btn btn-danger">إصلاح فوري مطلوب</a></p>
+                            <p><a href="scripts/php/maintenance/fix_system_issues.php" class="btn btn-danger">إصلاح فوري مطلوب</a></p>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -443,7 +443,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
                         <a href="admin/system_tools/backup_manager.php" class="btn btn-success">
                             <i class="fas fa-database"></i> النسخ الاحتياطي
                         </a>
-                        <a href="fix_system_issues.php" class="btn btn-warning">
+                        <a href="scripts/php/maintenance/fix_system_issues.php" class="btn btn-warning">
                             <i class="fas fa-tools"></i> إصلاح المشاكل
                         </a>
                     </div>
