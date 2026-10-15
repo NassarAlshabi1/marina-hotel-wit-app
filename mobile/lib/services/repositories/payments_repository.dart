@@ -12,6 +12,7 @@ import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 import '../local_db.dart';
 import '../payment_session_context.dart';
+import '../payment_void_service.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -396,34 +397,36 @@ class PaymentsRepository {
     }
   }
 
-  Future<int> delete(int id) async {
+  /// لا حذف للمدفوعات: «الحذف» في هذا التطبيق هو إلغاء (void).
+  /// يُعلّم الدفعة isVoided=true مع voidedBy/voidReason بدل tombstone،
+  /// فيبقى أثرها المالي قابلاً للتدقيق وتُستثنى من الأرصدة والقوائم.
+  /// [voidReason] سبب الإلغاء — من cascade حذف الحجز مرّر سبباً أوضح.
+  Future<int> delete(int id, {String? voidReason}) async {
     try {
       final payment = await (db.select(
         db.payments,
       )..where((p) => p.id.equals(id))).getSingleOrNull();
-      final bookingId = payment?.bookingLocalId;
+      if (payment == null) return 0;
+      final bookingId = payment.bookingLocalId;
 
-      // تتبّع الحاذف: جهاز هذا العميل + المستخدم الحالي المسجّل.
+      // هوية الملغي: المستخدم الحالي في جلسة التطبيق.
       final deleter = await _resolveDeleter();
 
-      // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
-      final result = await db.transaction(() async {
-        final deleted = await dao.softDelete(
-          id,
-          deletedByDevice: deleter.device,
-          deletedByName: deleter.name,
-        );
-        if (deleted > 0 && bookingId != null) {
-          await derivedFields.refreshForBookingId(bookingId);
-        }
-        return deleted;
-      });
+      final voided = await PaymentVoidService(db).voidPayment(
+        paymentUuid: payment.localUuid,
+        voidReason: voidReason ?? 'إلغاء من واجهة التطبيق',
+        voidedBy: deleter.name ?? 'مستخدم غير معروف',
+      );
+      final result = voided ? 1 : 0;
 
       if (result > 0) {
+        if (bookingId != null) {
+          await derivedFields.refreshForBookingId(bookingId);
+        }
         unawaited(
           AutoBackupManager.instance.onDataChange(
             'payments',
-            'DELETE',
+            'VOID',
             recordData: {'id': id},
           ),
         );
