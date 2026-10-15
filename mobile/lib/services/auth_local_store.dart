@@ -51,7 +51,14 @@ class AuthLocalStore {
   static String operationLabel(String action) =>
       PermissionCatalog.actionLabel(action);
 
+  /// أدوار الإدارة: من يملك تعديل أو حذف سجلات موجودة.
+  /// الإضافة والعرض متاحان لكل مستخدم قادر على دخول الوحدة.
+  static bool isManagerialRole(String? userType) =>
+      userType == 'admin' || userType == 'manager' || userType == 'supervisor';
+
   /// يتحقق من صلاحية عملية محددة مع إبقاء الحسابات الحالية متوافقة.
+  /// القاعدة: view/create متاحان لكل مستخدم يملك دخول الوحدة؛
+  /// update/delete مقيّدان بالدور (admin/manager/supervisor) أو 'all'.
   static bool canPerform({
     required String? userType,
     required List<String> permissions,
@@ -59,8 +66,11 @@ class AuthLocalStore {
     required String action,
   }) {
     if (userType == 'admin' || permissions.contains('all')) return true;
-    if (permissions.contains(module)) return true;
-    return permissions.contains('$module.$action');
+    final canEnter = permissions.contains(module) ||
+        permissionKeysForModule(module).any(permissions.contains);
+    if (!canEnter) return false;
+    if (action == 'view' || action == 'create') return true;
+    return isManagerialRole(userType);
   }
 
   /// يستخدم لحارس الصفحة والقائمة: يكفي امتلاك أي صلاحية تشغيلية.

@@ -50,13 +50,15 @@ class AuthUser {
 
   bool get isAdmin => userType == 'admin' || permissions.contains('all');
 
+  /// تعديل/حذف سجلات موجودة (وإلغاء الدفعات) مقيّد بالدور —
+  /// admin أو manager أو supervisor أو صلاحية 'all'.
+  bool get canManageRecords =>
+      AuthLocalStore.isManagerialRole(userType) ||
+      permissions.contains('all');
+
   /// إلغاء الدفعات (void) متاح للمدير والمشرف فقط — لا يكفي
   /// امتلاك صلاحية القسم؛ الدور نفسه يجب أن يكون admin أو manager أو supervisor.
-  bool get canVoidPayments =>
-      userType == 'admin' ||
-      userType == 'manager' ||
-      userType == 'supervisor' ||
-      permissions.contains('all');
+  bool get canVoidPayments => canManageRecords;
 
   bool canPerform(String module, String action) => AuthLocalStore.canPerform(
     userType: userType,

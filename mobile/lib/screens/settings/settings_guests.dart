@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../utils/performance_config.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
@@ -661,7 +662,21 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   /// ✅ تعديل حجز فردي — يفتح BookingEditScreen مع `existing: booking`
+  /// التعديل/الحذف على سجلات الحجوزات مقيّد بالدور — مدير/مشرف فقط.
+  bool _canManageRecords() {
+    final user = ref.read(authProvider).currentUser;
+    if (user?.canManageRecords ?? false) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('⚠️ التعديل والحذف متاحان للمدير والمشرف فقط'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return false;
+  }
+
   Future<void> _editBooking(BuildContext context, Booking booking) async {
+    if (!_canManageRecords()) return;
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => BookingEditScreen(existing: booking),
@@ -681,6 +696,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     Booking booking,
     GuestInfo guest,
   ) async {
+    if (!_canManageRecords()) return;
     final isActive = StatusUtils.isActiveBooking(booking.status);
 
     final confirmed = await showDialog<bool>(
