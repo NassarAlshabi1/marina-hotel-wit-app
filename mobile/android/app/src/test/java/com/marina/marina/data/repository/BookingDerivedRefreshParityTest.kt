@@ -286,7 +286,8 @@ class BookingDerivedRefreshParityTest {
         ))
 
         val refreshed = derivedRefresh().refreshAllActiveBookings()
-        assertEquals(1, refreshed)
+        // النشط + الحجز المكتمل المجمّد (actualCheckout + بلا ليالٍ) كلاهما يُعاد بناؤه.
+        assertEquals(2, refreshed)
         val active = db.bookingsDao().getById(activeId)!!
         assertEquals(40.0, active.totalPaidCached, 0.001)
         assertTrue(active.calculatedNights >= 1)
