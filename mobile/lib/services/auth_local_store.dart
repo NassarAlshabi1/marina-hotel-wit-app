@@ -119,7 +119,8 @@ class AuthLocalStore {
     required String action,
   }) {
     if (userType == 'admin' || permissions.contains('all')) return true;
-    final canEnter = permissions.contains(module) ||
+    final canEnter =
+        permissions.contains(module) ||
         permissionKeysForModule(module).any(permissions.contains);
     if (!canEnter) return false;
     if (action == 'view' || action == 'create') return true;

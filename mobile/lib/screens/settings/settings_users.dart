@@ -1164,7 +1164,9 @@ class _PermissionModuleEditor extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 6),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+              color: colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.35,
+              ),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(
@@ -1214,8 +1216,7 @@ class _PermissionModuleEditor extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 4,
                   children: [
-                    for (final action
-                        in AuthLocalStore.operationPermissionKeys)
+                    for (final action in AuthLocalStore.operationPermissionKeys)
                       FilterChip(
                         label: Text(
                           AuthLocalStore.operationLabel(action),

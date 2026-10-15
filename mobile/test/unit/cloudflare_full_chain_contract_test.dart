@@ -203,8 +203,9 @@ bool _sameValue(Object? a, Object? b) {
 /// اسم جدول D1 للكيان — الاستثناء blacklist: جدولها السحابي `blacklist`
 /// (worker ENTITY_TABLES) بينما جدولها المحلي `blacklist_entries`
 /// (entityToTable يحيل محلياً — مواءمة مع فرع Android).
-String _d1TableFor(String entity) =>
-    entity == 'blacklist' ? 'blacklist' : CloudflareConfig.tableNameFor(entity)!;
+String _d1TableFor(String entity) => entity == 'blacklist'
+    ? 'blacklist'
+    : CloudflareConfig.tableNameFor(entity)!;
 
 // ═══════════════════════════════════════════════════════════════
 //  محاكاة أمينة لدلالات worker createRecord (worker/src/database.ts)

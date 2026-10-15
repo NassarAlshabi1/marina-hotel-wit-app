@@ -195,10 +195,9 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
   /// الـWorker يُرشّح الأعمدة ضد مخطط D1 الفعلي، فالحقل يُسقَط بأمان
   /// قبل هجرة العمود ويُخزَّن بعدها.
   Future<String?> _bookingUuidFor(int bookingId) async {
-    final row =
-        await (db.select(db.bookings)
-              ..where((b) => b.id.equals(bookingId)))
-            .getSingleOrNull();
+    final row = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     final uuid = row?.localUuid;
     return (uuid == null || uuid.isEmpty) ? null : uuid;
   }
