@@ -675,7 +675,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     PaymentMethod.cash,
                     null,
                     'رصيد تراكمي للنزيل',
-                    true,
                   ),
                 ),
               ),
