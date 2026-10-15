@@ -210,6 +210,7 @@ fun BookingPaymentScreen(
     onOpenPaymentHistory: () -> Unit = {},
     onOpenDebts: () -> Unit = {},
     isAdmin: Boolean = true,
+    canVoidPayments: Boolean = false,
     viewModel: BookingPaymentViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -400,6 +401,7 @@ fun BookingPaymentScreen(
                                 1 -> ActionsTab(
                                     state = state,
                                     isAdmin = isAdmin,
+                                    canVoidPayments = canVoidPayments,
                                     onCheckout = { showCheckoutConfirm = true },
                                     onEarlyCheckout = { guardEarlyCheckout() },
                                     onCancelToday = { showCancelToday = true },
@@ -1158,6 +1160,7 @@ private fun QuickPaymentButton(
 private fun ActionsTab(
     state: BookingPaymentUiState,
     isAdmin: Boolean,
+    canVoidPayments: Boolean,
     onCheckout: () -> Unit,
     onEarlyCheckout: () -> Unit,
     onCancelToday: () -> Unit,
@@ -1283,10 +1286,12 @@ private fun ActionsTab(
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ActionCard(
-                "إلغاء يوم إضافي", "إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ",
-                Icons.Filled.RemoveCircleOutline, Red700, Modifier.weight(1f), onCancelToday
-            )
+            if (canVoidPayments) {
+                ActionCard(
+                    "إلغاء يوم إضافي", "إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ",
+                    Icons.Filled.RemoveCircleOutline, Red700, Modifier.weight(1f), onCancelToday
+                )
+            }
             ActionCard(
                 "إرسال كشف حساب", "إرسال ملخص المدفوعات للعميل",
                 Icons.Filled.Send, OrangePrimary, Modifier.weight(1f), onStatement

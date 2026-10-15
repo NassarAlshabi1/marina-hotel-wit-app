@@ -33,8 +33,13 @@ interface PaymentsRepository {
         excludePendingBalance: Boolean = true
     ): List<Payment>
 
-    /** Dart `paymentsRepo.delete(id)` — soft delete that enqueues an outbox op. */
-    suspend fun softDelete(id: Long)
+    /**
+     * Dart `paymentsRepo.delete(id, voidReason)` — لا حذف للمدفوعات:
+     * يؤدي void (isVoided + voidedBy/voidReason) بدل tombstone، ومقيّد
+     * بالدور (admin/manager/supervisor) — يرمي [IllegalStateException]
+     * لغير المخوّلين.
+     */
+    suspend fun softDelete(id: Long, voidReason: String = "إلغاء من واجهة التطبيق")
 
     /**
      * Live total of non-voided payments for the given hotel day

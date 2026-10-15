@@ -16,15 +16,29 @@ data class AuthUser(
     val isAdmin: Boolean get() = userType == "admin" || permissions.contains("all")
 
     /**
-     * Dart `AuthUser.canPerform(module, action)` (auth_local_store.dart
-     * l.87-154): admins pass everything; otherwise the permission list must
-     * contain `all`, the bare module, or the `module.action` key.
+     * Dart `AuthLocalStore.isManagerialRole` + `AuthUser.canManageRecords`:
+     * تعديل/حذف السجلات الموجودة (وإلغاء الدفعات) مقيّد بالدور —
+     * admin أو manager أو supervisor أو صلاحية 'all'.
+     */
+    val canManageRecords: Boolean
+        get() = userType == "admin" || userType == "manager" ||
+            userType == "supervisor" || permissions.contains("all")
+
+    /** إلغاء الدفعات (void) — نفس قيد canManageRecords. */
+    val canVoidPayments: Boolean get() = canManageRecords
+
+    /**
+     * Dart `AuthUser.canPerform(module, action)` — القاعدة المحدّثة:
+     * view/create متاحان لكل مستخدم يملك دخول الوحدة، بينما
+     * update/delete يتطلبان دوراً إدارياً (canManageRecords).
      */
     fun canPerform(module: String, action: String): Boolean {
         if (isAdmin) return true
-        if (permissions.contains("all")) return true
-        if (permissions.contains(module)) return true
-        return permissions.contains("$module.$action")
+        val canEnter = permissions.contains(module) ||
+            permissions.any { it.startsWith("$module.") }
+        if (!canEnter) return false
+        if (action == "view" || action == "create") return true
+        return canManageRecords
     }
 
     /** Dart `canAccessModule` — visibility gate for whole screens. */

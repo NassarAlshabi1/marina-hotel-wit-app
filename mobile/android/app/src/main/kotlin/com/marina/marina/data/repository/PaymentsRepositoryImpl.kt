@@ -12,6 +12,7 @@ import com.marina.marina.domain.model.PaymentUserHotelDaySummary
 import com.marina.marina.domain.model.PaymentVoid
 import com.marina.marina.domain.repository.PaymentsRepository
 import com.marina.marina.domain.session.PaymentSessionContext
+import com.marina.marina.domain.session.UserSessionManager
 import com.marina.marina.domain.util.HotelTimeEngine
 import com.marina.marina.data.sync.SyncEpochs
 import java.util.UUID
@@ -29,7 +30,8 @@ class PaymentsRepositoryImpl @Inject constructor(
     private val paymentVoidsDao: PaymentVoidsDao,
     private val outboxRepository: OutboxRepository,
     private val db: AppDatabase,
-    private val bookingsRepository: BookingsRepositoryImpl
+    private val bookingsRepository: BookingsRepositoryImpl,
+    private val userSessionManager: UserSessionManager
 ) : PaymentsRepository {
 
     override fun getAll(): Flow<List<Payment>> =
@@ -184,14 +186,17 @@ class PaymentsRepositoryImpl @Inject constructor(
         ).map { it.toDomain() }
     }
 
-    override suspend fun softDelete(id: Long) {
-        // Dart `paymentsRepo.delete(id)` — soft delete + outbox merge so the
-        // deletion propagates to the cloud.
-        val now = SyncEpochs.nowSeconds()
+    override suspend fun softDelete(id: Long, voidReason: String) {
+        // Dart `paymentsRepo.delete(id, voidReason)` — لا حذف نهائياً:
+        // «الحذف» هو إلغاء (void) يختم voidedBy/voidReason ويبقي الأثر
+        // قابلاً للتدقيق، ومقيّد بالدور (admin/manager/supervisor).
+        val user = userSessionManager.currentUser.value
+        if (user?.canVoidPayments != true) {
+            throw IllegalStateException("إلغاء الدفعات متاح للمدير والمشرف فقط")
+        }
         val entity = paymentsDao.getById(id) ?: return
-        paymentsDao.softDelete(id, deletedAt = now, updatedAt = now, lastModified = now)
-        val deleted = entity.copy(deletedAt = now, updatedAt = now, lastModified = now).toDomain()
-        outboxRepository.enqueueObject("payments", "delete", deleted.localUuid, deleted)
+        void(id, voidedBy = user.name, voidReason = voidReason)
+        entity.bookingLocalId?.let { bookingsRepository.refreshFinancialCache(it) }
     }
 
     override fun watchTotalByHotelDayKey(hotelDayKey: String): Flow<Double> =

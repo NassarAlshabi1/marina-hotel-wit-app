@@ -172,7 +172,8 @@ fun MarinaNavGraph(
                     navController.navigate(Screen.PaymentHistory.createRoute(bookingId))
                 },
                 onOpenDebts = { navController.navigate(Screen.Debts.route) },
-                isAdmin = authState.currentUser?.isAdmin ?: true
+                isAdmin = authState.currentUser?.isAdmin ?: true,
+                canVoidPayments = authState.currentUser?.canVoidPayments ?: false
             )
         }
 

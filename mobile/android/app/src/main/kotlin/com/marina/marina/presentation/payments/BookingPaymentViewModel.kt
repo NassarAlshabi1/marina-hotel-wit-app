@@ -13,6 +13,7 @@ import com.marina.marina.domain.repository.DebtsRepository
 import com.marina.marina.domain.repository.PaymentsRepository
 import com.marina.marina.domain.repository.RoomsRepository
 import com.marina.marina.domain.repository.SyncRepository
+import com.marina.marina.domain.session.UserSessionManager
 import com.marina.marina.domain.util.BookingFinancials
 import com.marina.marina.domain.util.CurrencyFormatter
 import com.marina.marina.domain.util.HotelTimeEngine
@@ -92,7 +93,8 @@ class BookingPaymentViewModel @Inject constructor(
     private val roomsRepository: RoomsRepository,
     private val nightsRepository: BookingNightsRepository,
     private val debtsRepository: DebtsRepository,
-    private val syncRepository: SyncRepository
+    private val syncRepository: SyncRepository,
+    private val userSessionManager: UserSessionManager
 ) : ViewModel() {
 
     private val bookingId: Long = savedStateHandle.get<Long>("bookingId") ?: 0L
@@ -355,10 +357,18 @@ class BookingPaymentViewModel @Inject constructor(
         }
     }
 
-    /** Dart `_processCancelTodayPayments` (l.2967-3005) — حذف ناعم لمدفوعات اليوم. */
+    /** Dart `_processCancelTodayPayments` — إلغاء (void) لمدفوعات اليوم،
+     *  مقيّد بالدور: مدير/مشرف فقط (نفس حارس الشاشة في Dart). */
     fun cancelTodayPayments() {
         viewModelScope.launch {
             try {
+                if (userSessionManager.currentUser.value?.canVoidPayments != true) {
+                    _state.value = _state.value.copy(
+                        error = "إلغاء الدفعات متاح للمدير والمشرف فقط",
+                        tone = MsgTone.ERROR_DARK
+                    )
+                    return@launch
+                }
                 val hotelDay = HotelTimeEngine.currentHotelDayKey()
                 val todays = _state.value.payments.filter { p ->
                     !p.isVoided && (p.hotelDayKey == hotelDay ||
@@ -368,7 +378,9 @@ class BookingPaymentViewModel @Inject constructor(
                     _state.value = _state.value.copy(message = "لا توجد دفعات اليوم", tone = MsgTone.INFO)
                     return@launch
                 }
-                todays.forEach { paymentsRepository.softDelete(it.id) }
+                todays.forEach {
+                    paymentsRepository.softDelete(it.id, "دفعة يوم فندقي محتسبة بالخطأ")
+                }
                 _state.value = _state.value.copy(
                     message = "تم إلغاء ${todays.size} دفعة بنجاح",
                     tone = MsgTone.SUCCESS
