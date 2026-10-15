@@ -3775,7 +3775,6 @@ class CloudflareSyncManager {
       final service = BookingDerivedFieldsService(_db!);
       final refreshed = await service.refreshAllActiveBookings(
         enqueueOutbox: false,
-        promoteProvisional: false,
       );
       debugPrint('🔄 Derived refresh after pull: $refreshed bookings rebuilt');
     } catch (e) {
