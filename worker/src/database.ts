@@ -747,12 +747,27 @@ export class Database {
     // the current clock — ATOMICALLY (single UPDATE … RETURNING): two
     // concurrent healers could otherwise read the same clock base and
     // assign overlapping timestamps (the duplicate-ts disease).
-    const alloc = await this.db
+    let alloc = await this.db
       .prepare(
         'UPDATE sync_clock SET last_ts = MAX(last_ts, ?) + ? WHERE id = 1 RETURNING last_ts'
       )
       .bind(Math.floor(Date.now() / 1000), targets.length)
       .first<{ last_ts: number }>();
+    if (!alloc || typeof alloc.last_ts !== 'number') {
+      // Singleton row missing (DB created before seeding) — seed and retry
+      // once, mirroring allocateUpdatedAt: without this the self-heal
+      // fails on every pull and the whole table gets skipped forever.
+      await this.db
+        .prepare('INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, ?)')
+        .bind(Math.floor(Date.now() / 1000))
+        .run();
+      alloc = await this.db
+        .prepare(
+          'UPDATE sync_clock SET last_ts = MAX(last_ts, ?) + ? WHERE id = 1 RETURNING last_ts'
+        )
+        .bind(Math.floor(Date.now() / 1000), targets.length)
+        .first<{ last_ts: number }>();
+    }
     if (!alloc || typeof alloc.last_ts !== 'number') {
       throw new Error('sync_clock allocation failed (poison re-stamp)');
     }
