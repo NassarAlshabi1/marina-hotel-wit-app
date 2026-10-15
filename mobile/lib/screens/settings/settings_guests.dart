@@ -739,7 +739,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       // 3. حذف المدفوعات المرتبطة
       final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
       for (final payment in payments) {
-        await paymentsRepo.delete(payment.id);
+        await paymentsRepo.delete(payment.id, voidReason: 'حُذف الحجز');
       }
 
       // 4. حذف الديون المرتبطة
@@ -1279,7 +1279,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               .paymentsByBooking(booking.id)
               .first;
           for (final payment in payments) {
-            await paymentsRepo.delete(payment.id);
+            await paymentsRepo.delete(payment.id, voidReason: 'حُذف الحجز');
           }
         }
 
