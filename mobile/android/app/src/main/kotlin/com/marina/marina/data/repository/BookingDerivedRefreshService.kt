@@ -150,7 +150,9 @@ class BookingDerivedRefreshService @Inject constructor(
         // نظير ترتيب `_refreshCompletedStay` في Dart للحجز المجمّد:
         // ليالٍ مخزنة → الإجمالي المحسوب محلياً → تقدير مؤقت بالسعر الحالي.
         if (frozen && nights.isEmpty() && booking.totalDueCached > 0) {
-            val paid = payments.sumOf { it.amount }
+            val paid = payments
+                .filter { !it.isVoided && !it.isPendingBalance }
+                .sumOf { it.amount }
             bookingsDao.updateFinancialCache(
                 id = booking.id,
                 nights = booking.calculatedNights,

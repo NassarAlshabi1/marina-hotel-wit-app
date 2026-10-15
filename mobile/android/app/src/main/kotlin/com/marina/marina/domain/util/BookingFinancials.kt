@@ -124,9 +124,10 @@ object BookingFinancials {
         val normalNights = (actualNights - discountedNights - surchargeNights).coerceAtLeast(0)
 
         // ------------------------------------------------------------------
-        // Paid amounts (voided excluded — Dart l.402-433).
+        // Paid amounts (voided + pending-balance excluded — Dart l.402-433):
+        // رصيد تراكمي معلّق لا يُحتسب رصيداً فعلياً حتى تُعالجه الصيانة.
         // ------------------------------------------------------------------
-        val validPayments = payments.filter { !it.isVoided }
+        val validPayments = payments.filter { !it.isVoided && !it.isPendingBalance }
         val paidAmount = validPayments.sumOf { it.amount }
         val todayPaidAmount = validPayments.filter {
             val hotelDay = HotelTimeEngine.currentHotelDayKey()

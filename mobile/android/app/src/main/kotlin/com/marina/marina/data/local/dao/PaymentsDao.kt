@@ -102,6 +102,7 @@ interface PaymentsDao {
         """
         SELECT COALESCE(SUM(amount), 0.0) FROM payments
         WHERE deleted_at IS NULL AND is_voided = 0
+          AND is_pending_balance = 0
           AND (hotel_day_key = :hotelDayKey
                OR (hotel_day_key IS NULL AND payment_date LIKE :hotelDayKeyPrefix))
         """
