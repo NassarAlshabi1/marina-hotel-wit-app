@@ -76,6 +76,7 @@ import 'utils/env.dart';
 import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
 import 'utils/performance_config.dart';
+import 'utils/responsive.dart';
 import 'utils/theme.dart';
 import 'utils/weak_device_optimizer.dart';
 
@@ -968,7 +969,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               GlobalWidgetsLocalizations.delegate,
             ],
             supportedLocales: const [Locale('ar')],
-            // ✅ تم إزالة onGenerateRoute — جميع المسارات تُدار عبر HomeShell
+            // ✅ يغطي كل المسارات (بما فيها الشاشات المدفوعة عبر Navigator
+            // خارج AdminLayout): على الشاشات الواسعة يُقصّر عرض المحتوى
+            // ويُمركزه — لا أثر على مسار الهاتف (<768).
+            builder: (context, child) =>
+                ResponsiveContent(child: child ?? const SizedBox.shrink()),
             home: const RootRouter(),
           );
         },
