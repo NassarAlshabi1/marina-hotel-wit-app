@@ -387,6 +387,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   DateTime? _lastLocalAutoSync;
   bool _localAutoSyncRunning = false;
   AppDatabase? _pendingDatabase;
+  late final ProviderSubscription<AppDatabase> _databaseSub;
 
   @override
   void initState() {
@@ -399,7 +400,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     // فحص عند عودة الشبكة، ودورة كل 60 ث. الحالة تنعكس في
     // connectionStatusProvider (SyncIndicator + بطاقة الاتصال + الأزرار).
     ref.read(cfconn.startupConnectionWatcherProvider);
-    ref.listen<AppDatabase>(databaseProvider, (previous, database) {
+    // ref.listen خارج build غير مسموح (Riverpod 2.6.1) — كان يكسر إقلاع
+    // Windows بشاشة حمراء. listenManual هو المكافئ المشروع داخل initState.
+    _databaseSub = ref.listenManual<AppDatabase>(databaseProvider, (
+      previous,
+      database,
+    ) {
       if (_sessionConfigured &&
           previous != null &&
           identical(previous, database)) {
@@ -805,6 +811,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _databaseSub.close();
     // Realtime sync stopped
     _localAutoSyncSub?.cancel();
     _conflictSubscription?.cancel();
