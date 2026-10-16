@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -198,7 +199,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: MediaQuery.sizeOf(context).width > 600
-                          ? 5
+                          ? context.adaptiveColumns(
+                              mobile: 5,
+                              itemMinWidth: 150,
+                              max: 9,
+                            )
                           : 3,
                       childAspectRatio: 0.85,
                       crossAxisSpacing: 10,
