@@ -529,7 +529,9 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     // بدون هذا، registerOneOffTask/registerPeriodicTask تفشل بصمت!
     dlog('⚙️ [7.6/8] Initializing WorkManager + SyncContinuationService...');
     try {
-      await Workmanager().initialize(_unifiedCallbackDispatcher);
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        await Workmanager().initialize(_unifiedCallbackDispatcher);
+      }
       await SyncContinuationService.initialize(debug: kDebugMode);
       // تسجيل فحص دوري للمزامنات المعلّقة (كل 15 دقيقة)
       await SyncContinuationService.schedulePeriodicCheck();
