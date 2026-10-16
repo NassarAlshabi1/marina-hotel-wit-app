@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/performance_monitor.dart';
+import '../utils/responsive.dart';
 import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
@@ -46,7 +47,7 @@ class AdminLayout extends StatelessWidget {
                         color: Theme.of(context).scaffoldBackgroundColor,
                         child: PerformanceInspector(
                           name: title ?? currentRoute,
-                          child: body,
+                          child: ResponsiveContent(child: body),
                         ),
                       ),
                     ),

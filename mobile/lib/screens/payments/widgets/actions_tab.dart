@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../models/payment_models.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/local_db.dart' as db;
+import '../../../utils/responsive.dart';
 import '../../../utils/status_utils.dart';
 
 /// تبويب الإجراءات — widget مستقل مُستخرج من BookingPaymentScreen.
@@ -273,7 +274,11 @@ class ActionsTab extends ConsumerWidget {
             const SizedBox(height: 6),
           ],
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: context.adaptiveColumns(
+              mobile: 2,
+              itemMinWidth: 200,
+              max: 6,
+            ),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 8,
