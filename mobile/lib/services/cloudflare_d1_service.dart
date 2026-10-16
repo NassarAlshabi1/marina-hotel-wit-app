@@ -401,7 +401,12 @@ class CloudflareD1Service {
           if (chunk.isEmpty) break;
           firstChunk ??= chunk;
           if (columns.isEmpty) {
-            columns = firstChunk.first.keys.toList();
+            // ✅ إسقاط id المحلي: عمود Drift autoincrement بلا معنى على D1
+            // التي لها ترقيم id مستقل خاص بها — إرساله كان يصطدم بـ
+            // UNIQUE constraint على <table>.id لكل صف يوجد نظيره بـ
+            // local_uuid مختلف (فشل 400 لكل الجداول في النسخ الاحتياطي).
+            // عقد الهوية هنا هو local_uuid حصراً (نفس قرار المزامنة).
+            columns = firstChunk.first.keys.where((c) => c != 'id').toList();
             // مصالحة المخطط قبل أول INSERT: أعمدة محلية غائبة عن D1 تُضاف
             // بـ ALTER (مخطط D1 قد يكون أقدم من المخطط المحلي).
             await _reconcileSchema(t, columns, warnings);
