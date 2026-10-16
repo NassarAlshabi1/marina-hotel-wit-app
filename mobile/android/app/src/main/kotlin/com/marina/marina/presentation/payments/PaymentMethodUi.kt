@@ -1,11 +1,11 @@
 package com.marina.marina.presentation.payments
 
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Payment
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
@@ -32,7 +32,7 @@ enum class PayMethodUi(
     CASH("نقدي", "نقدي", Icons.Filled.Money),
     CARD("بطاقة", "بطاقة ائتمانية", Icons.Filled.CreditCard),
     TRANSFER("تحويل", "تحويل بنكي", Icons.Filled.AccountBalance),
-    CHECK("شيك", "شيك", Icons.Filled.ReceiptLong),
+    CHECK("شيك", "شيك", Icons.AutoMirrored.Filled.ReceiptLong),
     INSTALLMENT("تقسيط", "تقسيط", Icons.Filled.Schedule);
 
     companion object {
@@ -79,7 +79,7 @@ fun dbMethodIcon(method: String): ImageVector = when (method) {
     "نقدي" -> Icons.Filled.Money
     "بطاقة" -> Icons.Filled.CreditCard
     "تحويل" -> Icons.Filled.AccountBalance
-    "شيك" -> Icons.Filled.ReceiptLong
+    "شيك" -> Icons.AutoMirrored.Filled.ReceiptLong
     else -> Icons.Filled.Payment
 }
 

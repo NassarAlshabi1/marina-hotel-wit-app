@@ -1,5 +1,6 @@
 package com.marina.marina.presentation.settings
 
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -45,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -79,8 +78,6 @@ fun SettingsCustomListsScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<CustomListItemEntity?>(null) }
     var deleteConfirmItem by remember { mutableStateOf<CustomListItemEntity?>(null) }
-    val context = LocalContext.current
-
     LaunchedEffect(state.message, state.error) {
         val msg = state.error ?: state.message
         if (msg != null) {
@@ -169,7 +166,6 @@ fun SettingsCustomListsScreen(
                     )
                 } else {
                     CustomListTabContent(
-                        listKey = currentTab.listKey,
                         items = currentTab.items,
                         onAdd = { showAddDialog = true },
                         onEdit = { editingItem = it },
@@ -235,7 +231,6 @@ private data class TabConfig(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CustomListTabContent(
-    listKey: String,
     items: List<CustomListItemEntity>,
     onAdd: () -> Unit,
     onEdit: (CustomListItemEntity) -> Unit,
@@ -306,6 +301,14 @@ private fun CustomListTabContent(
                 }
             }
         }
+        item {
+            Button(
+                onClick = onAdd,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("إضافة عنصر")
+            }
+        }
         if (sortedItems.isEmpty()) {
             item {
             androidx.compose.foundation.layout.Box(
@@ -316,7 +319,7 @@ private fun CustomListTabContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.ListAlt, contentDescription = null, tint = AppColors.TextSecondary, modifier = Modifier.size(48.dp))
+                    Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = null, tint = AppColors.TextSecondary, modifier = Modifier.size(48.dp))
                     Text("لا توجد عناصر", style = AppTypography.bodyLarge, color = AppColors.TextSecondary)
                     Text("اضغط + لإضافة أول عنصر", style = AppTypography.bodySmall, color = AppColors.TextSecondary)
                 }

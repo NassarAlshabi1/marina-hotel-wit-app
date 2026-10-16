@@ -149,7 +149,7 @@ fun AppBarSyncIconButton(
                     if (result.isError) {
                         lastError = result.lastMessage
                         snackbarHostState.showAppSnackbar(
-                            AppSnackbar("فشل في المزامنة: ${result.lastMessage ?: "سبب غير معروف"}")
+                            AppSnackbar("فشل في المزامنة: ${result.lastMessage}")
                         )
                     } else {
                         snackbarHostState.showAppSnackbar(

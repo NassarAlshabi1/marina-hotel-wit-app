@@ -181,7 +181,7 @@ class ExpensesReportViewModel @Inject constructor(
                     withdrawals.filter { w ->
                         val key = w.hotelDayKey
                             ?: HotelTimeEngine.hotelDayKey(w.withdrawDate)
-                        key == null || (key >= rangeFrom && key <= rangeTo)
+                        key >= rangeFrom && key <= rangeTo
                     }.forEach { w ->
                         // Dart l.437-439: السحوبات المباشرة (direct_withdrawal_)
                         // لا تُطابق أبداً — ليس لها مصروف مقابل أصلاً وتُعرض دائماً.

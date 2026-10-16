@@ -1,5 +1,6 @@
 package com.marina.marina.presentation.search
 
+import androidx.compose.material.icons.automirrored.outlined.ManageSearch
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -22,13 +23,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.ManageSearch
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PieChart
@@ -127,14 +127,14 @@ fun kindLabel(kind: SearchEntityKind): String = when (kind) {
 }
 
 fun kindIcon(kind: SearchEntityKind): ImageVector = when (kind) {
-    SearchEntityKind.BOOKING -> Icons.Outlined.Assignment
+    SearchEntityKind.BOOKING -> Icons.AutoMirrored.Outlined.Assignment
     SearchEntityKind.GUEST_INFO -> Icons.Outlined.Badge
     SearchEntityKind.PAYMENT -> Icons.Outlined.Payments
     SearchEntityKind.EXPENSE -> Icons.Outlined.AccountBalanceWallet
     SearchEntityKind.WITHDRAWAL -> Icons.Outlined.Payments
     SearchEntityKind.DEBT -> Icons.Outlined.PieChart
     SearchEntityKind.EMPLOYEE -> Icons.Outlined.Person
-    SearchEntityKind.ROOM -> Icons.Outlined.ManageSearch
+    SearchEntityKind.ROOM -> Icons.AutoMirrored.Outlined.ManageSearch
     SearchEntityKind.INVENTORY_ITEM -> Icons.Outlined.Inventory2
     SearchEntityKind.BLACKLIST -> Icons.Outlined.Block
 }
@@ -209,7 +209,7 @@ fun GlobalSearchScreen(
                 Box(modifier = Modifier.fillMaxSize()) {
                     when {
                         state.isBelowMinQuery -> EmptyStateView(
-                            icon = Icons.Outlined.ManageSearch,
+                            icon = Icons.AutoMirrored.Outlined.ManageSearch,
                             title = "ابدأ البحث",
                             message = "اكتب حرفين على الأقل للبحث في كل بيانات النظام."
                         )

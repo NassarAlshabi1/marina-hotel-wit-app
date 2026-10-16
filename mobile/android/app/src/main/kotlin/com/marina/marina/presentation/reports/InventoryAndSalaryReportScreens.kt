@@ -337,8 +337,8 @@ fun SalaryWithdrawalsReportScreen(
                                                         fontSize = 10.sp, color = AppColors.TextSecondary
                                                     )
                                                 }
-                                                if (!w.reason.isNullOrBlank() && !w.reason!!.startsWith("exp_")) {
-                                                    Text(w.reason!!, fontSize = 10.sp, color = AppColors.TextSecondary, maxLines = 1)
+                                                w.reason?.takeIf { it.isNotBlank() && !it.startsWith("exp_") }?.let {
+                                                    Text(it, fontSize = 10.sp, color = AppColors.TextSecondary, maxLines = 1)
                                                 }
                                                 w.description?.let {
                                                     if (it.isNotBlank()) Text(it, fontSize = 10.sp, color = AppColors.TextSecondary, maxLines = 1)

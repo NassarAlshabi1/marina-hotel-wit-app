@@ -1,5 +1,9 @@
 package com.marina.marina.components
 
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Note
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.BarChart
@@ -29,10 +32,7 @@ import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Note
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.HorizontalDivider
@@ -60,15 +60,15 @@ import com.marina.marina.ui.theme.ReferenceLayout
 val SidebarDestinations = listOf(
     SidebarDestination("لوحة التحكم", Screen.Dashboard.route, Icons.Filled.Dashboard),
     SidebarDestination("إدارة الغرف", Screen.Rooms.route, Icons.Filled.Bed),
-    SidebarDestination("إدارة الحجوزات", Screen.Bookings.route, Icons.Filled.Assignment),
+    SidebarDestination("إدارة الحجوزات", Screen.Bookings.route, Icons.AutoMirrored.Filled.Assignment),
     SidebarDestination("إدارة المدفوعات", Screen.Payments.route, Icons.Filled.AttachMoney),
     SidebarDestination("الديون", Screen.Debts.route, Icons.Filled.AccountBalance),
     SidebarDestination("الموظفون", Screen.Employees.route, Icons.Filled.Groups),
-    SidebarDestination("إدارة المصروفات", Screen.Expenses.route, Icons.Filled.ReceiptLong),
+    SidebarDestination("إدارة المصروفات", Screen.Expenses.route, Icons.AutoMirrored.Filled.ReceiptLong),
     SidebarDestination("المخزون", Screen.Inventory.route, Icons.Filled.Inventory2),
     SidebarDestination("الصندوق والمالية", Screen.Finance.route, Icons.Filled.AccountBalanceWallet),
     SidebarDestination("التقارير", Screen.Reports.route, Icons.Filled.BarChart),
-    SidebarDestination("الملاحظات والتنبيهات", Screen.Notes.route, Icons.Filled.Note),
+    SidebarDestination("الملاحظات والتنبيهات", Screen.Notes.route, Icons.AutoMirrored.Filled.Note),
     SidebarDestination("القائمة السوداء", Screen.Blacklist.route, Icons.Filled.Gavel),
     SidebarDestination("سجل المعلومية", Screen.Information.route, Icons.Filled.Badge),
     SidebarDestination("المساعد الذكي", Screen.AIChat.route, Icons.Filled.SmartToy),
@@ -131,7 +131,7 @@ fun AdminSidebar(
             SidebarEntry(
                 label = "تسجيل الخروج",
                 route = "",
-                icon = Icons.Filled.Logout,
+                icon = Icons.AutoMirrored.Filled.Logout,
                 currentRoute = currentRoute,
                 onRouteSelected = { onLogout() },
                 isLogout = true

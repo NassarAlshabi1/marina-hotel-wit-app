@@ -1,5 +1,11 @@
 package com.marina.marina.presentation.payments
 
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,23 +35,17 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Discount
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoneyOff
 import androidx.compose.material.icons.filled.NightsStay
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TaskAlt
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -825,12 +825,13 @@ private fun PaymentSummaryCard(state: BookingPaymentUiState, onAddBalancePayment
                 }
                 // سطر المغادرة التلقائية (StayBalanceCalculator) عند وجود دفعات.
                 state.stayBalance?.let { balance ->
-                    if (summary.paidAmount > 0 && summary.roomRate > 0 && balance.autoCheckoutMillis != null) {
+                    val autoCheckoutMillis = balance.autoCheckoutMillis
+                    if (summary.paidAmount > 0 && summary.roomRate > 0 && autoCheckoutMillis != null) {
                         val extra = if (balance.isAutoExtended) {
                             " (+${(balance.totalPaidNights - booking.expectedNights).coerceAtLeast(0)})"
                         } else ""
                         Text(
-                            "المغادرة التلقائية: ${HotelTimeEngine.formatDisplayDateOnly(balance.autoCheckoutMillis!!)} " +
+                            "المغادرة التلقائية: ${HotelTimeEngine.formatDisplayDateOnly(autoCheckoutMillis)} " +
                                 "(${balance.totalPaidNights} ليلة مدفوعة)$extra",
                             fontSize = 11.sp, color = Grey600
                         )
@@ -902,14 +903,14 @@ private fun PaymentSummaryCard(state: BookingPaymentUiState, onAddBalancePayment
             }
             if (summary.discountedNights > 0) {
                 SummaryDetailChip(
-                    Icons.Filled.TrendingDown, "ليالي مخفضة",
+                    Icons.AutoMirrored.Filled.TrendingDown, "ليالي مخفضة",
                     "${summary.discountedNights} (-${CurrencyFormatter.formatAmount(summary.totalDiscount)})",
                     PurplePrimary
                 )
             }
             if (summary.surchargeNights > 0) {
                 SummaryDetailChip(
-                    Icons.Filled.TrendingUp, "ليالي مزادة",
+                    Icons.AutoMirrored.Filled.TrendingUp, "ليالي مزادة",
                     "${summary.surchargeNights} (+${CurrencyFormatter.formatAmount(summary.totalSurcharge)})",
                     TealPrimary
                 )
@@ -1080,16 +1081,16 @@ private fun NewPaymentTab(
         // دفعات سريعة 25/50/75/100% من المتبقي (Dart l.796-846).
         val remaining = kotlin.math.round(summary.remainingAmount).toInt()
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            QuickPaymentButton("25%", (remaining * 25 / 100.0).toInt(), summary, Modifier.weight(1f)) {
+            QuickPaymentButton("25%", (remaining * 25 / 100.0).toInt(), Modifier.weight(1f)) {
                 onPay(PayMethodUi.CASH, (remaining * 25 / 100.0).toDouble(), null)
             }
-            QuickPaymentButton("50%", (remaining * 50 / 100.0).toInt(), summary, Modifier.weight(1f)) {
+            QuickPaymentButton("50%", (remaining * 50 / 100.0).toInt(), Modifier.weight(1f)) {
                 onPay(PayMethodUi.CASH, (remaining * 50 / 100.0).toDouble(), null)
             }
-            QuickPaymentButton("75%", (remaining * 75 / 100.0).toInt(), summary, Modifier.weight(1f)) {
+            QuickPaymentButton("75%", (remaining * 75 / 100.0).toInt(), Modifier.weight(1f)) {
                 onPay(PayMethodUi.CASH, (remaining * 75 / 100.0).toDouble(), null)
             }
-            QuickPaymentButton("100%", remaining, summary, Modifier.weight(1f)) {
+            QuickPaymentButton("100%", remaining, Modifier.weight(1f)) {
                 onPay(PayMethodUi.CASH, remaining.toDouble(), null)
             }
         }
@@ -1125,7 +1126,6 @@ private fun PayMethodCard(method: PayMethodUi, modifier: Modifier = Modifier, on
 private fun QuickPaymentButton(
     label: String,
     amount: Int,
-    summary: BookingFinancials.Summary,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -1263,7 +1263,7 @@ private fun ActionsTab(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ActionCard(
                 "عرض الفاتورة الشاملة", "عرض وطباعة الفاتورة التفصيلية",
-                Icons.Filled.ReceiptLong, TealPrimary, Modifier.weight(1f), onInvoice
+                Icons.AutoMirrored.Filled.ReceiptLong, TealPrimary, Modifier.weight(1f), onInvoice
             )
             ActionCard(
                 "سجل المدفوعات", "عرض تاريخ جميع المدفوعات",
@@ -1275,7 +1275,7 @@ private fun ActionsTab(
             ActionCard(
                 "تسجيل المغادرة",
                 if (summary.isFullyPaid) "تسجيل مغادرة العميل" else "تحذير: يوجد مبلغ متبقي!",
-                Icons.Filled.Logout,
+                Icons.AutoMirrored.Filled.Logout,
                 if (summary.isFullyPaid) GreenPrimary else RedPrimary,
                 Modifier.weight(1f), onCheckout
             )
@@ -1294,7 +1294,7 @@ private fun ActionsTab(
             }
             ActionCard(
                 "إرسال كشف حساب", "إرسال ملخص المدفوعات للعميل",
-                Icons.Filled.Send, OrangePrimary, Modifier.weight(1f), onStatement
+                Icons.AutoMirrored.Filled.Send, OrangePrimary, Modifier.weight(1f), onStatement
             )
         }
 
@@ -1899,7 +1899,7 @@ private fun StatementDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.ReceiptLong, null, tint = OrangePrimary)
+                Icon(Icons.AutoMirrored.Filled.ReceiptLong, null, tint = OrangePrimary)
                 Spacer(Modifier.width(8.dp))
                 Text("إرسال كشف حساب", maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -2009,7 +2009,7 @@ private fun StatementDialog(
                         containerColor = Green100
                     )
                 ) {
-                    Icon(Icons.Filled.Chat, null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.AutoMirrored.Filled.Chat, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                     Text("إرسال كنص")
                 }

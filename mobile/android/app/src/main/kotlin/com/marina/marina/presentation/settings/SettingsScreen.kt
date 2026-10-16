@@ -1,5 +1,7 @@
 package com.marina.marina.presentation.settings
 
+import androidx.compose.material.icons.automirrored.filled.ListAlt
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.background
@@ -20,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Apps
-import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.CloudSync
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.NightlightRound
 import androidx.compose.material.icons.filled.Notifications
@@ -127,7 +127,7 @@ fun SettingsScreen(
         HubItem("القائمة السوداء", "إضافة/إدارة الأشخاص المطلوبين", Icons.Default.Gavel, DartColors.red, route = "blacklist"),
         HubItem("المخزون", "الأصناف والرصيد والوارد والصرف والجرد", Icons.Default.Inventory2, DartColors.brown, route = "inventory"),
         HubItem("الاستحقاقات", "استحقاقات الرواتب للموظفين", Icons.Default.Payment, DartColors.indigo, route = "salary_entitlements"),
-        HubItem("القوائم المنسدلة", "إدارة أنواع المصروفات والهوية والدفع", Icons.Default.ListAlt, DartColors.teal, route = "custom_lists")
+        HubItem("القوائم المنسدلة", "إدارة أنواع المصروفات والهوية والدفع", Icons.AutoMirrored.Filled.ListAlt, DartColors.teal, route = "custom_lists")
     )
     val syncItems = listOf(
         HubItem(
@@ -409,7 +409,7 @@ private fun QuickStatsCard(
             Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
                 StatItem("الغرف", "$rooms", Icons.Default.Hotel, DartColors.blue, Modifier.weight(1f))
-                StatItem("النشطة", "$active", Icons.Default.Assignment, DartColors.green, Modifier.weight(1f))
+                StatItem("النشطة", "$active", Icons.AutoMirrored.Filled.Assignment, DartColors.green, Modifier.weight(1f))
                 StatItem("الموظفين", "$employees", Icons.Default.People, DartColors.orange, Modifier.weight(1f))
                 StatItem("المستخدمين", "$users", Icons.Default.AdminPanelSettings, DartColors.purple, Modifier.weight(1f))
             }

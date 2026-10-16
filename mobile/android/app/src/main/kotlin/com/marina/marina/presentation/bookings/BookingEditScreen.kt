@@ -576,9 +576,9 @@ fun BookingEditScreen(
                             label = { Text("عدد الليالي") },
                             singleLine = true
                         )
-                        if (booking?.actualCheckout != null) {
+                        booking?.actualCheckout?.let { actualCheckout ->
                             OutlinedTextField(
-                                value = booking.actualCheckout!!,
+                                value = actualCheckout,
                                 onValueChange = {},
                                 readOnly = true,
                                 modifier = Modifier.fillMaxWidth(),

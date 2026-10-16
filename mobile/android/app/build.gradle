@@ -104,7 +104,10 @@ android {
     buildTypes {
         debug {
             debuggable true
-            signingConfig signingConfigs.unified
+            // Debug builds must use AGP's ephemeral debug keystore. Release
+            // signing material is provisioned only by CI and is intentionally
+            // unavailable on developer machines.
+            signingConfig signingConfigs.debug
         }
 
         release {
@@ -251,6 +254,10 @@ dependencies {
     // Hilt graph, Room, Compose composition) on the JVM inside CI so a
     // launch crash surfaces with its true production stack trace.
     testImplementation "org.robolectric:robolectric:4.13"
+    // Robolectric 4.13 brings Conscrypt 2.5.2, which contains only the
+    // x86_64 native library. Keep the test runtime portable on ARM64 runners
+    // while retaining x86_64 support through the same uber JAR.
+    testImplementation "org.conscrypt:conscrypt-openjdk-uber:2.6.3"
     testImplementation "androidx.test:core-ktx:1.6.1"
     testImplementation "androidx.test.ext:junit-ktx:1.2.1"
     androidTestImplementation "androidx.test.ext:junit:1.2.1"

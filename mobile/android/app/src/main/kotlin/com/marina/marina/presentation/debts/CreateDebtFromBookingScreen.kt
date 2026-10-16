@@ -1,5 +1,6 @@
 package com.marina.marina.presentation.debts
 
+import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Note
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -227,7 +227,7 @@ fun CreateDebtFromBookingScreen(
                         value = state.notes,
                         onValueChange = viewModel::setNotes,
                         label = { Text("ملاحظات", style = LabelStyle) },
-                        leadingIcon = { Icon(Icons.Filled.Note, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Note, contentDescription = null) },
                         textStyle = FieldStyle,
                         minLines = 3,
                         modifier = Modifier.fillMaxWidth()

@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
@@ -42,7 +43,6 @@ import com.marina.marina.domain.model.BlacklistEntry
 
 import com.marina.marina.ui.theme.AppColors
 import com.marina.marina.components.MarinaTopAppBar
-import com.marina.marina.components.SidebarMenuButton
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlacklistScreen(
@@ -63,7 +63,11 @@ fun BlacklistScreen(
         topBar = {
             MarinaTopAppBar(
                 title = { Text("القائمة السوداء") },
-                navigationIcon = { SidebarMenuButton() }
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "رجوع")
+                    }
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },

@@ -235,21 +235,6 @@ class SyncIngestorRegistry @Inject constructor(
         val fieldNames = booleanWireFields(clazz)
         fieldNames.forEach { name ->
             val wireValue = mapped[name] ?: return@forEach
-            generateSequence(clazz) { it.superclass }
-                .takeWhile { it != Any::class.java }
-                .flatMap { it.declaredFields.asSequence() }
-                .filter { field ->
-                    field.type == Boolean::class.javaPrimitiveType ||
-                        field.type == Boolean::class.javaObjectType
-                }
-                .map { field ->
-                    field.getAnnotation(SerializedName::class.java)?.value ?: field.name
-                }
-                .toSet()
-        }
-
-        fieldNames.forEach { name ->
-            val wireValue = mapped[name] ?: return@forEach
             val booleanValue = when (wireValue) {
                 is Boolean -> wireValue
                 is Number -> wireValue.toDouble() != 0.0

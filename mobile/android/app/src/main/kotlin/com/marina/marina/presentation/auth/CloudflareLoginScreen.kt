@@ -1,5 +1,6 @@
 package com.marina.marina.presentation.auth
 
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,7 +24,6 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Sync
@@ -200,7 +200,7 @@ fun CloudflareLoginScreen(
                             Spacer(Modifier.width(8.dp))
                             Text("جارٍ تسجيل الدخول...")
                         } else {
-                            Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("تسجيل الدخول")
                         }

@@ -4,8 +4,8 @@ import com.marina.marina.data.auth.LocalAdminAuth
 import okhttp3.Interceptor
 import okhttp3.MediaType
 import okhttp3.Request
-import okhttp3.RequestBody
 import okhttp3.Response
+import okhttp3.RequestBody.Companion.toRequestBody
 import okio.Buffer
 import java.io.IOException
 import java.net.URI
@@ -147,7 +147,7 @@ class WorkerFailoverInterceptor(
         if (body != null) {
             builder.method(
                 request.method,
-                RequestBody.create(contentType, body)
+                body.toRequestBody(contentType)
             )
         }
         return builder.build()

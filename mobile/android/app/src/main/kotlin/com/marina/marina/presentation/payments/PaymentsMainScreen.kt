@@ -1,5 +1,6 @@
 package com.marina.marina.presentation.payments
 
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +31,6 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Hotel
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.WarningAmber
@@ -200,7 +200,7 @@ fun PaymentsMainScreen(
                     Tab(
                         selected = selectedTab == 1, onClick = { selectedTab = 1 },
                         text = { Text("المعاملات", fontSize = 12.sp, fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal) },
-                        icon = { Icon(Icons.Filled.List, null, modifier = Modifier.size(18.dp)) },
+                        icon = { Icon(Icons.AutoMirrored.Filled.List, null, modifier = Modifier.size(18.dp)) },
                         selectedContentColor = Green800,
                         unselectedContentColor = Grey600
                     )

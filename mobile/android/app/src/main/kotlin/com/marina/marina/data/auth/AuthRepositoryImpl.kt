@@ -36,8 +36,8 @@ class AuthRepositoryImpl @Inject constructor(
 
         val tokenResult = syncService.login(username, password)
         return tokenResult.fold(
-            onSuccess = { token ->
-                val deviceId = ensureDeviceId()
+            onSuccess = { _ ->
+                ensureDeviceId()
                 // Dart auth_local_store.dart l.355-412 — the Worker response
                 // carries the REAL user metadata (id / username / role). The
                 // role drives RBAC: 'admin' -> permissions ['all']; every other

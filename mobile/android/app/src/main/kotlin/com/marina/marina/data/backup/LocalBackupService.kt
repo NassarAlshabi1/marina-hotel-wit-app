@@ -335,7 +335,7 @@ class LocalBackupService @Inject constructor(
     private fun copySqliteDatabase(dest: File) {
         val sq = db.openHelper.writableDatabase
         sq.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-        val dbPath = sq.path
+        val dbPath = sq.path ?: error("Database path is unavailable")
         val src = File(dbPath)
         FileInputStream(src).use { inp -> FileOutputStream(dest).use { out -> inp.copyTo(out) } }
     }
@@ -531,7 +531,8 @@ class LocalBackupService @Inject constructor(
     /** نظير estimateDatabaseSize في BackupDataService. */
     suspend fun estimateDatabaseSize(): Long = withContext(Dispatchers.IO) {
         try {
-            File(db.openHelper.writableDatabase.path).length()
+            val dbPath = db.openHelper.writableDatabase.path ?: return@withContext 0L
+            File(dbPath).length()
         } catch (e: Exception) {
             0L
         }

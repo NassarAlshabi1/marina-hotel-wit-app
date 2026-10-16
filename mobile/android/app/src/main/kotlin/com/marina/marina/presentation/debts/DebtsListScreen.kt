@@ -1,5 +1,8 @@
 package com.marina.marina.presentation.debts
 
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,15 +29,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Login
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
@@ -588,10 +588,10 @@ private fun DebtCard(
             // التواريخ والسبب
             Row {
                 Box(Modifier.weight(1f)) {
-                    InfoRow(Icons.Filled.Login, "الدخول", debtsSafeIsoToDateString(debt.checkinDate))
+                    InfoRow(Icons.AutoMirrored.Filled.Login, "الدخول", debtsSafeIsoToDateString(debt.checkinDate))
                 }
                 Box(Modifier.weight(1f)) {
-                    InfoRow(Icons.Filled.Logout, "الخروج", debtsSafeIsoToDateString(debt.checkoutDate))
+                    InfoRow(Icons.AutoMirrored.Filled.Logout, "الخروج", debtsSafeIsoToDateString(debt.checkoutDate))
                 }
             }
 
@@ -683,7 +683,7 @@ private fun DebtCard(
                     border = BorderStroke(1.dp, FlutterGreen),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = FlutterGreen)
                 ) {
-                    Icon(Icons.Filled.Chat, contentDescription = null, modifier = Modifier.size(12.dp), tint = FlutterGreen)
+                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(12.dp), tint = FlutterGreen)
                     Spacer(Modifier.width(2.dp))
                     Text("واتساب", fontSize = 10.sp, maxLines = 1)
                 }

@@ -35,8 +35,12 @@ rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
+// Only optional benchmark modules need the app evaluated first. Avoid calling
+// evaluationDependsOn(":app") from the app project itself.
 subprojects {
-    project.evaluationDependsOn(":app")
+    if (project.path != ":app") {
+        project.evaluationDependsOn(":app")
+    }
 }
 
 tasks.register("clean", Delete) {

@@ -1,5 +1,6 @@
 package com.marina.marina.presentation.settings
 
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,7 +28,6 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.PendingActions
@@ -184,7 +184,7 @@ fun CloudflareSyncSettingsScreen(
 
             // ─── 2) تسجيل الدخول إلى Cloudflare ──────────────────
             SectionCard {
-                SectionHeader(icon = Icons.Default.Login, title = "تسجيل الدخول إلى Cloudflare", tint = SyncColor)
+                SectionHeader(icon = Icons.AutoMirrored.Filled.Login, title = "تسجيل الدخول إلى Cloudflare", tint = SyncColor)
                 InfoRow(
                     label = "حالة الحساب",
                     value = if (state.loggedIn) "مسجَّل الدخول" else "غير مسجَّل",

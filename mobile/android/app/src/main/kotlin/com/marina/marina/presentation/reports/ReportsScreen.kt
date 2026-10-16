@@ -1,5 +1,6 @@
 package com.marina.marina.presentation.reports
 
+import androidx.compose.material.icons.automirrored.outlined.ManageSearch
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,13 +21,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.ManageSearch
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.PieChart
-import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.StackedLineChart
 import androidx.compose.material.icons.outlined.Sync
@@ -119,7 +119,7 @@ fun ReportsScreen(
                         // ✅ نُقل من ترويسة لوحة التحكم (dashboard_screen.dart) إلى هنا —
                         // قسم التقارير هو المكان الطبيعي لنقطة دخول البحث الشامل.
                         MarinaToolbarActionButton(onClick = onOpenSearch) {
-                            Icon(Icons.Outlined.ManageSearch, contentDescription = "بحث شامل")
+                            Icon(Icons.AutoMirrored.Outlined.ManageSearch, contentDescription = "بحث شامل")
                         }
                         MarinaToolbarActionButton(onClick = { viewModel.loadCharts() }) {
                             Icon(Icons.Outlined.Refresh, contentDescription = "تحديث")
@@ -148,10 +148,10 @@ fun ReportsScreen(
                     // ─── التقارير المالية ───
                     item { SectionHeader("التقارير المالية") }
                     item {
-                        ReportShortcut(Icons.Outlined.ReceiptLong, "تقرير دفوعات النزلاء", AppColors.SuccessColor) { onOpenReport("payments_report") }
+                        ReportShortcut(Icons.AutoMirrored.Outlined.ReceiptLong, "تقرير دفوعات النزلاء", AppColors.SuccessColor) { onOpenReport("payments_report") }
                     }
                     item {
-                        ReportShortcut(Icons.Outlined.Assignment, "تقرير تفصيلي - الأيام والمدفوعات", AppColors.PrimaryColor) { onOpenReport("guest_detail_report") }
+                        ReportShortcut(Icons.AutoMirrored.Outlined.Assignment, "تقرير تفصيلي - الأيام والمدفوعات", AppColors.PrimaryColor) { onOpenReport("guest_detail_report") }
                     }
                     item {
                         ReportShortcut(Icons.Outlined.AccountBalanceWallet, "تقرير المصروفات", AppColors.WarningColor) { onOpenReport("expenses_report") }

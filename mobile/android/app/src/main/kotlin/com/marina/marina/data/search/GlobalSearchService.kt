@@ -556,12 +556,14 @@ class GlobalSearchService @Inject constructor(
         // السجلات المحذوفة ناعمياً لا تظهر (عقد getAllOnce الثابت).
         val entries = blacklistDao.getAllOnce()
         val fmt = dayFormat()
+        val fromDay = query.fromDay
+        val toDay = query.toDay
         val matched = entries.filter { entry ->
             val textHit = listOf(entry.name, entry.nationality, entry.nationalId, entry.phone, entry.reason, entry.notes)
                 .any { value -> !value.isNullOrEmpty() && wordHitsAny(value, m.words) }
             val day = fmt.format(Date(entry.createdAt))
-            val afterFrom = query.fromDay == null || day >= query.fromDay!!
-            val beforeTo = query.toDay == null || day <= query.toDay!!
+            val afterFrom = fromDay == null || day >= fromDay
+            val beforeTo = toDay == null || day <= toDay
             textHit && afterFrom && beforeTo
         }
         val hits = matched.take(MAX_HITS_PER_KIND).map { entry ->

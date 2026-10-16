@@ -322,7 +322,7 @@ fun CloudflareD1Tab(
                                 ) {
                                     Checkbox(
                                         checked = state.selected.contains(t.name),
-                                        onCheckedChange = { checked ->
+                                        onCheckedChange = {
                                             viewModel.toggleTable(t.name)
                                         },
                                         enabled = !state.uploading
