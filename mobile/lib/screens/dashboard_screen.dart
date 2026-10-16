@@ -18,6 +18,7 @@ import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/debug_log.dart';
 import '../utils/loading_snackbar.dart';
+import '../utils/responsive.dart';
 import '../utils/performance_config.dart';
 import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
@@ -657,8 +658,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: context.adaptiveColumns(
+                mobile: 4,
+                itemMinWidth: 170,
+              ),
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
               childAspectRatio: 1.2,
