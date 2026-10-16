@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
@@ -217,6 +218,16 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   }
 
   Future<void> _pickContact() async {
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('اختيار جهات الاتصال غير متاح على هذا الجهاز'),
+          ),
+        );
+      }
+      return;
+    }
     final status = await Permission.contacts.request();
     if (!status.isGranted) {
       if (mounted) {

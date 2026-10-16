@@ -347,7 +347,9 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     // جدولة إكمال المزامنة الخلفية بصمت عند الخروج من التطبيق.
     // الآن يُهيّأ دائماً (مهام Cloudflare فقط بعد إزالة Drive كاملاً).
     try {
-      await Workmanager().initialize(_unifiedCallbackDispatcher);
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        await Workmanager().initialize(_unifiedCallbackDispatcher);
+      }
       await SyncContinuationService.initialize(debug: kDebugMode);
       await SyncContinuationService.schedulePeriodicCheck();
     } catch (e) {
