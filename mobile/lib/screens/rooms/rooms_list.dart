@@ -2,7 +2,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../../utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -16,6 +15,7 @@ import '../../services/price_adjustment_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/performance_config.dart';
+import '../../utils/responsive.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/theme.dart';
 

@@ -641,7 +641,6 @@ class PaymentMethodSelector extends StatelessWidget {
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: context.adaptiveColumns(
               mobile: 2,
-              itemMinWidth: 220,
               max: 4,
             ),
             childAspectRatio: 2.5,
