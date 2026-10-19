@@ -38,11 +38,11 @@ jobs:
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: Verify Android Signing Files
-        # Local keystore and key.properties are committed to repo
-        # No secrets or base64 decoding needed
+        # key.properties points to the unified release.keystore committed in
+        # this repository; staging uses the same signing identity.
         run: |
           echo "Verifying local signing files..."
-          ls -la android/app/staging.keystore
+          ls -la android/app/release.keystore
           ls -la android/key.properties
           echo "Local signing files verified successfully."
 
