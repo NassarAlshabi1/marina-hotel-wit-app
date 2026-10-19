@@ -349,7 +349,14 @@ void main() {
       // 2) القيم محفوظة حرفياً — timestamps/version/idempotency_key لم تُعد إنشاؤها.
       final row =
           (await db.customSelect('SELECT * FROM "rooms"').get()).first.data;
-      final cols = row.keys.toList();
+      // id هو مفتاح Drift محلي autoincrement؛ لا يجوز إرساله إلى D1 لأن
+      // D1 يملك تسلسله الخاص، وقد يصطدم بصف موجود تحت local_uuid مختلف.
+      final cols = row.keys.where((c) => c != 'id').toList();
+      expect(
+        sql,
+        isNot(contains('"id"')),
+        reason: 'يجب ألا يصل id المحلي إلى INSERT الخاص بـ D1',
+      );
       final updateCols = cols
           .where((c) => c != 'local_uuid')
           .map((c) => '$c = excluded.$c')
