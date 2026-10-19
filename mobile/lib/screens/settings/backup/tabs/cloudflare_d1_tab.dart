@@ -347,7 +347,6 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     final service = CloudflareD1Service(_config);
     _activeService = service;
 
-    final infoLogs = <String>[];
     final sources = <CloudflareD1SourceTable>[];
 
     // ✅ (migration 72) blacklist جدول Drift حقيقي منذ migration 72 — يُرفع
@@ -387,9 +386,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       _progress = 0;
       _stage = 'بدء الرفع...';
       _result = null;
-      _logs
-        ..clear()
-        ..addAll(infoLogs);
+      _logs.clear();
     });
 
     try {

@@ -401,12 +401,17 @@ class CloudflareD1Service {
           if (chunk.isEmpty) break;
           firstChunk ??= chunk;
           if (columns.isEmpty) {
-            // ✅ إسقاط id المحلي: عمود Drift autoincrement بلا معنى على D1
-            // التي لها ترقيم id مستقل خاص بها — إرساله كان يصطدم بـ
-            // UNIQUE constraint على <table>.id لكل صف يوجد نظيره بـ
-            // local_uuid مختلف (فشل 400 لكل الجداول في النسخ الاحتياطي).
-            // عقد الهوية هنا هو local_uuid حصراً (نفس قرار المزامنة).
-            columns = firstChunk.first.keys.where((c) => c != 'id').toList();
+            // لا نستبعد id إلا إذا أثبت DDL المحلي أنه مفتاح Drift
+            // AUTOINCREMENT؛ بعض جداول الحالة تستخدم id ذا معنى.
+            final localIdIsAutoIncrement = t.createSqlList.any(
+              (sql) => RegExp(
+                r'(?:(?:"id")|(?:`id`)|(?:\[id\])|(?:id))\s+INTEGER\s+NOT NULL\s+PRIMARY KEY\s+AUTOINCREMENT',
+                caseSensitive: false,
+              ).hasMatch(sql),
+            );
+            columns = firstChunk.first.keys
+                .where((c) => !(c == 'id' && localIdIsAutoIncrement))
+                .toList();
             // مصالحة المخطط قبل أول INSERT: أعمدة محلية غائبة عن D1 تُضاف
             // بـ ALTER (مخطط D1 قد يكون أقدم من المخطط المحلي).
             await _reconcileSchema(t, columns, warnings);
@@ -427,17 +432,19 @@ class CloudflareD1Service {
             if (hasLocalUuid) {
               final updateColumns = columns
                   .where((c) => c != 'local_uuid')
-                  .map((c) => '${_quoteIdent(c)} = excluded.${_quoteIdent(c)}')
+                  .map(
+                    (c) => '${_quotedIdent(c)} = excluded.${_quotedIdent(c)}',
+                  )
                   .join(',');
               statements.add(
-                'INSERT INTO "${_quoteIdent(t.name)}" '
-                '(${columns.map(_quoteIdent).join(',')}) VALUES ($values) '
+                'INSERT INTO ${_quotedIdent(t.name)} '
+                '(${columns.map(_quotedIdent).join(',')}) VALUES ($values) '
                 'ON CONFLICT("local_uuid") DO UPDATE SET $updateColumns',
               );
             } else {
               statements.add(
-                'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
-                '(${columns.map(_quoteIdent).join(',')}) VALUES ($values)',
+                'INSERT OR REPLACE INTO ${_quotedIdent(t.name)} '
+                '(${columns.map(_quotedIdent).join(',')}) VALUES ($values)',
               );
             }
           }
@@ -599,7 +606,9 @@ class CloudflareD1Service {
         if (raw == null) continue;
         final add = _toAddColumnFragment(raw);
         if (add == null) continue;
-        alters.add('ALTER TABLE "${_quoteIdent(t.name)}" ADD COLUMN "$c" $add');
+        alters.add(
+          'ALTER TABLE ${_quotedIdent(t.name)} ADD COLUMN ${_quotedIdent(c)} $add',
+        );
       }
       if (alters.isEmpty) return;
       var ai = 0;
@@ -687,6 +696,8 @@ class CloudflareD1Service {
   // ════════════════════════════════════════════════════════════════
 
   static String _quoteIdent(String name) => name.replaceAll('"', '""');
+
+  static String _quotedIdent(String name) => '"${_quoteIdent(name)}"';
 
   /// تحويل قيمة SQLite خام إلى literal آمن (للجداول العريضة فقط).
   static String _sqlLiteral(Object? v) {

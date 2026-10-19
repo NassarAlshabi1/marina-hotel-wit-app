@@ -180,38 +180,55 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     String localUuid, {
     bool originIsServer = false,
   }) async {
-    final existing = await getByLocalUuid(localUuid);
-    if (existing == null) return 0;
-    return softDelete(existing.id, originIsServer: originIsServer);
+    return db.transaction(() async {
+      final existing = await getByLocalUuid(localUuid);
+      if (existing == null) return 0;
+      return _softDeleteExisting(
+        existing,
+        originIsServer: originIsServer,
+        now: Time.nowEpoch(),
+      );
+    });
   }
 
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
     return db.transaction(() async {
-      final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) {
         return 0;
       }
-      final rows = await (update(employees)..where((t) => t.id.equals(id)))
-          .write(
-            EmployeesCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
-      if (rows > 0 && !originIsServer) {
-        // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
-        // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
-        await _mergeOutbox(
-          op: 'update',
-          localUuid: existing.localUuid,
-          serverId: existing.serverId,
-          clientTs: now,
-        );
-      }
-      return rows;
+      return _softDeleteExisting(
+        existing,
+        originIsServer: originIsServer,
+        now: Time.nowEpoch(),
+      );
     });
+  }
+
+  Future<int> _softDeleteExisting(
+    Employee existing, {
+    required bool originIsServer,
+    required int now,
+  }) async {
+    final rows =
+        await (update(employees)..where((t) => t.id.equals(existing.id))).write(
+          EmployeesCompanion(
+            deletedAt: Value(now),
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ),
+        );
+    if (rows > 0 && !originIsServer) {
+      // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
+      // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
+      await _mergeOutbox(
+        op: 'update',
+        localUuid: existing.localUuid,
+        serverId: existing.serverId,
+        clientTs: now,
+      );
+    }
+    return rows;
   }
 
   Future<int> updateByServerId(

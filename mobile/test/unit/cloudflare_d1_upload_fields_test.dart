@@ -110,6 +110,42 @@ void main() {
     }
   });
 
+  test('يحافظ رفع D1 على id ذي المعنى الذي ليس AUTOINCREMENT', () async {
+    final requests = <String>[];
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      requests.add(body['sql'] as String);
+      return http.Response('{"success":true,"result":[]}', 200);
+    });
+    final service = CloudflareD1Service(
+      const CloudflareD1Config(accountId: 'a', databaseId: 'b', apiToken: 't'),
+      client: client,
+    );
+
+    final result = await service.uploadData(
+      tables: [
+        CloudflareD1SourceTable(
+          name: 'sync_state',
+          rowCount: 1,
+          createSqlList: const [
+            'CREATE TABLE sync_state (id INTEGER NOT NULL)',
+          ],
+          readChunk: (limit, offset) async => offset == 0
+              ? [
+                  <String, Object?>{'id': 1, 'version': 4},
+                ]
+              : const <Map<String, Object?>>[],
+        ),
+      ],
+    );
+
+    expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+    final insert = requests.singleWhere(
+      (sql) => sql.startsWith('INSERT OR REPLACE'),
+    );
+    expect(insert, contains('("id","version") VALUES (1,4)'));
+  });
+
   test(
     'كل جدول مزامنة يحمل الأعمدة الـ 17 بصيغة snake_case (مسار رفع D1)',
     () async {
@@ -305,7 +341,9 @@ void main() {
             CloudflareD1SourceTable(
               name: 'rooms',
               rowCount: 1,
-              createSqlList: const [],
+              createSqlList: const [
+                'CREATE TABLE rooms (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT)',
+              ],
               readChunk: readChunk,
             ),
           ],
@@ -352,6 +390,7 @@ void main() {
       // id هو مفتاح Drift محلي autoincrement؛ لا يجوز إرساله إلى D1 لأن
       // D1 يملك تسلسله الخاص، وقد يصطدم بصف موجود تحت local_uuid مختلف.
       final cols = row.keys.where((c) => c != 'id').toList();
+      expect(colList, isNot(contains('id')));
       expect(
         sql,
         isNot(contains('"id"')),
@@ -359,11 +398,11 @@ void main() {
       );
       final updateCols = cols
           .where((c) => c != 'local_uuid')
-          .map((c) => '$c = excluded.$c')
+          .map((c) => '"$c" = excluded."$c"')
           .join(',');
       final expectedSql =
           'INSERT INTO "rooms" '
-          '(${cols.join(',')}) '
+          '(${cols.map((c) => '"$c"').join(',')}) '
           'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
           'ON CONFLICT("local_uuid") DO UPDATE SET $updateCols';
       expect(
@@ -489,21 +528,37 @@ void main() {
         return rows.map((r) => r.data).toList();
       }
 
+      Future<String> createSql(String table) async =>
+          (await db
+                      .customSelect(
+                        'SELECT sql FROM sqlite_master WHERE type = ? AND name = ?',
+                        variables: [
+                          Variable.withString('table'),
+                          Variable.withString(table),
+                        ],
+                      )
+                      .getSingle())
+                  .data['sql']
+              as String;
+
       final result = await service.uploadData(
         tables: [
           CloudflareD1SourceTable(
             name: 'salary_cycles',
             rowCount: 1,
+            createSqlList: [await createSql('salary_cycles')],
             readChunk: (l, o) => chunk('salary_cycles', l, o),
           ),
           CloudflareD1SourceTable(
             name: 'salary_withdrawals',
             rowCount: 1,
+            createSqlList: [await createSql('salary_withdrawals')],
             readChunk: (l, o) => chunk('salary_withdrawals', l, o),
           ),
           CloudflareD1SourceTable(
             name: 'expenses',
             rowCount: 1,
+            createSqlList: [await createSql('expenses')],
             readChunk: (l, o) => chunk('expenses', l, o),
           ),
         ],
@@ -570,10 +625,10 @@ void main() {
       expect(
         expSql,
         'INSERT INTO "expenses" '
-        '(${cols.join(',')}) '
+        '(${cols.map((c) => '"$c"').join(',')}) '
         'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
         'ON CONFLICT("local_uuid") DO UPDATE SET '
-        '${cols.where((c) => c != 'local_uuid').map((c) => '$c = excluded.$c').join(',')}',
+        '${cols.where((c) => c != 'local_uuid').map((c) => '"$c" = excluded."$c"').join(',')}',
         reason: 'عبارة expenses المرسلة لا تطابق القيم الحرفية للصف',
       );
     },
@@ -710,7 +765,7 @@ void main() {
     const localHash = 'pbkdf2_sha256\$100000\$localSalt\$localHash==';
     const cloudHash = 'pbkdf2_sha256\$100000\$cloudSalt\$cloudHash==';
     final rows = buildAppUsersBackupRows(
-      AppUsersBackupInputs(
+      const AppUsersBackupInputs(
         localAccounts: {
           'yasser': {
             'password': localHash,

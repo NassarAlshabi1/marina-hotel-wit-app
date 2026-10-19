@@ -42,6 +42,9 @@ extension ResponsiveContext on BuildContext {
     if (!isWide) {
       return mobile;
     }
+    if (!itemMinWidth.isFinite || itemMinWidth <= 0 || max <= 0) {
+      return mobile;
+    }
     final cols = (screenWidth / itemMinWidth).floor();
     return cols < mobile ? mobile : (cols > max ? max : cols);
   }
