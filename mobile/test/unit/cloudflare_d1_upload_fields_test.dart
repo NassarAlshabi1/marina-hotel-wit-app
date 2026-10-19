@@ -552,7 +552,13 @@ void main() {
           (await db.customSelect('SELECT * FROM "expenses"').get()).first.data;
       expect(row['related_id'], isNull);
       expect(row['employee_uuid'], 'emp-uuid-9');
-      final cols = row.keys.toList();
+      // يتولى D1 توليد المفتاح الأساسي؛ لا نرسل معرّف Drift المحلي.
+      final cols = row.keys.where((c) => c != 'id').toList();
+      expect(
+        expSql,
+        isNot(contains('"id"')),
+        reason: 'يجب ألا يصل id المحلي إلى INSERT الخاص بـ D1',
+      );
       String lit(Object? v) {
         if (v == null) return 'NULL';
         if (v is int) return v.toString();
