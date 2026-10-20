@@ -625,10 +625,17 @@ jobs:
           fi
           mkdir -p sarif-results
           psalm --version || true
+          # ملاحظة: الخيار هو --report=PATH وليس --report-file=PATH.
+          # الصيغة القديمة --report-file غير معروفة لدى Psalm 6.x (قائمة getopt
+          # في src/Psalm/Internal/Cli/Psalm.php تحوي 'report:' فقط)، فكان getopt
+          # يتجاهلها بصمت ويُطبع SARIF إلى stdout بدل كتابته في ملف — وهذا هو
+          # السبب الحقيقي لعدم ظهور sarif-results/psalm.sarif.
+          # الصيغة تُشتق من امتداد الملف عبر Report::getMapping() حيث
+          # '.sarif' => TYPE_SARIF، لذلك يكفي الامتداد الصحيح.
           set +e
           psalm --taint-analysis \
-            --output-format=sarif \
-            --report-file=sarif-results/psalm.sarif 2>&1 | tee psalm-output.txt
+            --output-format=console \
+            --report=sarif-results/psalm.sarif 2>&1 | tee psalm-output.txt
           psalm_exit=${PIPESTATUS[0]}
           set -e
           echo "Psalm exit code: $psalm_exit"
