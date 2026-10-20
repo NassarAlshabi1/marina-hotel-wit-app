@@ -61,7 +61,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -88,6 +87,13 @@ jobs:
         uses: github/codeql-action/autobuild@v4
         continue-on-error: true
 
+      # `upload: never` is required: this repo has CodeQL *default setup* enabled
+      # (dynamic/github-code-scanning/codeql), and GitHub rejects SARIF from an
+      # advanced configuration with
+      # "CodeQL analyses from advanced configurations cannot be processed when the
+      # default setup is enabled". Default setup owns the Security → Code scanning
+      # alerts; this job keeps the broader `security-and-quality` suite as a build
+      # artifact so its extra coverage is not silently discarded.
       - name: Perform CodeQL Analysis
         if: steps.init.outcome == 'success'
         uses: github/codeql-action/analyze@v4
@@ -95,6 +101,32 @@ jobs:
         with:
           category: "/language:javascript"
           output: sarif-results/codeql-js.sarif
+          upload: never
+
+      - name: Upload CodeQL SARIF artifact
+        if: always() && hashFiles('sarif-results/codeql-js.sarif') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: codeql-js-sarif
+          path: sarif-results/codeql-js.sarif
+          retention-days: 30
+
+      - name: Report CodeQL scope
+        if: always()
+        run: |
+          {
+            echo "### CodeQL Analysis (JS)"
+            echo ""
+            echo "CodeQL **default setup** owns the Security → Code scanning alerts for this"
+            echo "repository, so this advanced-config job does **not** upload SARIF"
+            echo "(\`upload: never\`). GitHub rejects advanced CodeQL SARIF while default setup"
+            echo "is enabled."
+            echo ""
+            echo "This job still runs the broader \`security-and-quality\` query suite; its SARIF"
+            echo "is attached as the \`codeql-js-sarif\` artifact. To surface these results as"
+            echo "alerts instead, disable default setup in Settings → Code security and analysis"
+            echo "and switch this job back to \`upload: always\`."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ═══════════════════════════════════════════════════════════
   # 2) Semgrep — multi-language SAST + supply-chain detection
@@ -119,6 +151,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p sarif-results
+          # Semgrep honours only ONE --output per invocation. This step passed both
+          # `--json --output=semgrep-report.json` and
+          # `--sarif --output=sarif-results/semgrep.sarif`, so the SARIF file was
+          # never written and the upload step failed with
+          # "Path does not exist: sarif-results/semgrep.sarif" — no Semgrep finding
+          # ever reached the Code scanning tab. SARIF is now the single output
+          # because it is the format Code scanning ingests.
           semgrep scan \
             --config=p/default \
             --config=p/security-audit \
@@ -130,27 +169,35 @@ jobs:
             --config=p/command-injection \
             --config=p/xss \
             --config=p/secrets \
-            --json --output=semgrep-report.json \
             --sarif --output=sarif-results/semgrep.sarif \
-            . || {
-              echo "::warning::Semgrep found findings; see SARIF report"
-              exit 0
-            }
+            . || echo "::warning::Semgrep reported findings; see the SARIF report"
+
+      - name: Verify SARIF was produced
+        run: |
+          # Previously a failed scan silently skipped the upload (hashFiles == '')
+          # and the job still reported success, so nobody noticed that no Semgrep
+          # finding had ever reached Code scanning.
+          if [ ! -s sarif-results/semgrep.sarif ]; then
+            echo "::error::Semgrep produced no SARIF output; Code scanning would silently receive nothing."
+            exit 1
+          fi
+          echo "SARIF size: $(wc -c < sarif-results/semgrep.sarif) bytes"
 
       - name: Upload Semgrep SARIF
-        if: always()
+        if: always() && hashFiles('sarif-results/semgrep.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/semgrep.sarif
+          category: semgrep
           wait-for-processing: true
-        continue-on-error: true  # Don't fail workflow if SARIF upload fails (rate limits, permissions)
 
-      - name: Upload Semgrep JSON report
+      - name: Upload Semgrep SARIF artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: semgrep-report
-          path: semgrep-report.json
+          path: sarif-results/semgrep.sarif
+          if-no-files-found: warn
           retention-days: 30
 
   # ═══════════════════════════════════════════════════════════
@@ -204,21 +251,34 @@ jobs:
             --format table --output trivy-licenses.txt \
             . || echo "License scan completed with warnings"
 
+      # Both uploads live in one job, so each needs a distinct `category`:
+      # codeql-action aborts the second upload with "only one run of the
+      # codeql/analyze or codeql/upload-sarif actions is allowed per job per
+      # tool/category", which is why the misconfig results never landed.
       - name: Upload Trivy SARIF (filesystem)
         if: always() && hashFiles('sarif-results/trivy-fs.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/trivy-fs.sarif
+          category: trivy-filesystem
           wait-for-processing: true
-        continue-on-error: true
 
       - name: Upload Trivy SARIF (misconfig)
         if: always() && hashFiles('sarif-results/trivy-misconfig.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/trivy-misconfig.sarif
+          category: trivy-misconfig
           wait-for-processing: true
-        continue-on-error: true
+
+      - name: Upload Trivy SARIF artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-sarif
+          path: sarif-results/
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Upload Trivy license report
         if: always()
@@ -253,18 +313,24 @@ jobs:
         uses: anchore/scan-action@v7
         with:
           sbom: sbom.spdx.json
-          output-format: sarif
-          output-file: sarif-results/grype.sarif
+          output-format: json
+          output-file: grype-report.json
           fail-build: false
           severity-cutoff: high
 
-      - name: Upload Grype SARIF
-        if: always() && hashFiles('sarif-results/grype.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
+      # Grype scans the SBOM, not the working tree, so its results carry package
+      # coordinates instead of file paths. Uploading that SARIF is rejected with
+      # "locationFromSarifResult: expected artifact location" — Code scanning
+      # cannot attach a finding that has no artifact location. The report is kept
+      # as an artifact instead; dependency CVEs that DO have file locations are
+      # already covered by the Trivy filesystem scan (trivy-filesystem category).
+      - name: Upload Grype report artifact
+        if: always() && hashFiles('grype-report.json') != ''
+        uses: actions/upload-artifact@v7
         with:
-          sarif_file: sarif-results/grype.sarif
-          wait-for-processing: true
-        continue-on-error: true
+          name: grype-report
+          path: grype-report.json
+          retention-days: 30
 
   # ═══════════════════════════════════════════════════════════
   # 5) npm audit — Node.js advisories
@@ -710,7 +776,10 @@ jobs:
           echo "| PHP security (Psalm + checker) | ${{ needs.php-security.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Malware & Supply-Chain | ${{ needs.malware-detect.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Detailed findings appear in the **Security** tab once SARIF files are ingested." >> $GITHUB_STEP_SUMMARY
+          echo "Ingested into **Security → Code scanning**: Semgrep, Trivy (filesystem + misconfig)." >> $GITHUB_STEP_SUMMARY
+          echo "CodeQL alerts come from CodeQL **default setup**; this workflow's advanced CodeQL job" >> $GITHUB_STEP_SUMMARY
+          echo "attaches its SARIF as an artifact because GitHub rejects advanced SARIF while default setup is on." >> $GITHUB_STEP_SUMMARY
+          echo "Grype results are artifact-only (SBOM scan has no file locations to attach findings to)." >> $GITHUB_STEP_SUMMARY
 
           # Fail only if a hard scanner (CodeQL/Semgrep/Trivy) failed catastrophically
           for r in "${{ needs.codeql.result }}" "${{ needs.semgrep.result }}" "${{ needs.trivy.result }}"; do
