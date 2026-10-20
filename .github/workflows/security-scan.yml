@@ -641,7 +641,16 @@ jobs:
           echo "Psalm exit code: $psalm_exit"
           if [ ! -s sarif-results/psalm.sarif ]; then
             echo "::error::Psalm produced no SARIF output — the taint analysis did not actually run."
-            echo "::error::Psalm exit code was $psalm_exit. See psalm-output.txt below and in the php-security-report artifact."
+            echo "::error::Psalm exit code was $psalm_exit. Psalm output follows as annotations and in the php-security-report artifact."
+            # نُمرّر مخرجات Psalm كتعليقات توضيحية (annotations) لأنها تصل عبر
+            # واجهة GitHub، بينما ملفات logs وartifacts تُخدَم من
+            # blob.core.windows.net الذي قد يكون غير متاح للقارئ الآلي.
+            # كل سطر تعليق مستقل لأن السطر الجديد يكسر صيغة أوامر Workflow.
+            head -60 psalm-output.txt | sed 's/\r$//' | while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              printf '::notice title=psalm-output::%s\n' "$line"
+            done
+            echo "--- psalm-output.txt (full) ---"
             cat psalm-output.txt
             exit 1
           fi
