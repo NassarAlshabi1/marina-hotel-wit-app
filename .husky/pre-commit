@@ -1,0 +1,16 @@
+# بوابة ما قبل الالتزام — Marina Hotel
+#
+# تشغّل بوابة أخطاء ESLint فقط (eslint --quiet) لا التحذيرات، لأن المستودع
+# يحتوي 40 تحذيراً قائماً وإلا سيُحجب كل التزام.
+#
+# ملاحظة: `npm test` هو Playwright ويحتاج متصفحات مثبّتة
+# (npm run install:playwright)، لذلك لا يُشغَّل هنا.
+
+# لا تفشل إن لم تكن الاعتماديات مثبّتة بعد (استنساخ جديد قبل npm install)
+if [ ! -d node_modules/eslint ]; then
+  echo "pre-commit: node_modules/eslint غير موجود — تجاوز الفحص (شغّل npm install)."
+  exit 0
+fi
+
+echo "pre-commit: ESLint (بوابة الأخطاء)..."
+npx eslint . --quiet

@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<!--
+  إعداد Psalm لمستودع Marina Hotel.
+
+  الغرض الأساسي: تحليل التلوّث (taint analysis) لكشف حقن SQL وXSS ومسار
+  الملف. الكود يستخدم mysqli بكثافة (271 استدعاء prepare، 212 query،
+  18 mysqli_query) ولا توجد مساحات أسماء (0 ملف namespace) — فهو كود
+  إجرائي بالكامل، لذا لا يوجد autoloader ويُعتمد على projectFiles.
+
+  تُشغّله CI في .github/workflows/security-scan.yml داخل وظيفة php-security
+  باستدعاء Psalm مع taint-analysis وكتابة تقرير SARIF.
+  (لا يُكتب سطر الأمر هنا حرفياً: تسلسل شرطتين متتاليتين غير مسموح داخل
+  تعليق XML ويكسر تحليل الملف.)
+
+  وقبل وجود هذا الملف كانت الوظيفة تطبع
+  "No psalm.xml config — skipping Psalm taint analysis" وتتجاوز التحليل
+  بالكامل، أي أن 182 ملف PHP لم تكن تُفحص أمنياً إطلاقاً.
+
+  errorLevel=8 (الأقل صرامة) مقصود: بلا autoloader سيبلّغ Psalm عن كل
+  صنف/دالة غير معروفة، والهدف هنا أمني لا فحص أنواع شامل.
+-->
+<psalm
+    errorLevel="8"
+    resolveFromConfigFile="true"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+    findUnusedBaselineEntry="false"
+    findUnusedCode="false"
+>
+    <projectFiles>
+        <directory name="admin" />
+        <directory name="api" />
+        <directory name="includes" />
+        <directory name="scripts/php" />
+        <file name="index.php" />
+        <file name="login.php" />
+        <file name="logout.php" />
+        <file name="sync_cron.php" />
+        <file name="admin_permissions.php" />
+        <file name="system_health_report.php" />
+        <file name="switch_header.php" />
+        <file name="install_pwa.php" />
+        <file name="download_fonts.php" />
+
+        <ignoreFiles>
+            <!-- مكتبة FPDF: طرف ثالث، وليست من كود المشروع -->
+            <file name="fpdf.php" />
+            <directory name="includes/fpdf" />
+            <!--
+              لا تُضف <directory name="vendor" /> هنا.
+              مجلد vendor غير موجود في هذا المستودع (لا composer.json)، وPsalm
+              يفشل في قراءة ملف الإعداد بالكامل عند أي مسار غير قابل للحل:
+                  Could not resolve config path to .../vendor
+                  Problem parsing .../psalm.xml
+              ولا حاجة إليه أصلاً: vendor ليس ضمن projectFiles، فليس ممسوحاً.
+              إن أُضيف composer مستقبلاً، يُضاف vendor وقتها فقط.
+            -->
+        </ignoreFiles>
+    </projectFiles>
+
+    <!--
+      بلا composer autoloader كل صنف خارجي سيُبلَّغ كغير معرّف.
+      هذه الفئات ضجيج وليست ثغرات، فتُكتم لإبقاء تقرير التلوّث قابلاً للقراءة.
+    -->
+    <issueHandlers>
+        <UndefinedClass errorLevel="suppress" />
+        <UndefinedFunction errorLevel="suppress" />
+        <UndefinedGlobalVariable errorLevel="suppress" />
+        <MixedAssignment errorLevel="suppress" />
+        <MixedArgument errorLevel="suppress" />
+        <MixedArrayAccess errorLevel="suppress" />
+        <MixedOperand errorLevel="suppress" />
+        <MissingReturnType errorLevel="suppress" />
+        <MissingParamType errorLevel="suppress" />
+    </issueHandlers>
+</psalm>
