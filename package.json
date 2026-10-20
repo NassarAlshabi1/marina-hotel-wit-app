@@ -4,6 +4,9 @@
   "description": "E2E tests for Marina Hotel management system",
   "scripts": {
     "test": "npx playwright test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:errors": "eslint . --quiet",
     "test:ui": "npx playwright test --ui",
     "test:debug": "npx playwright test --debug",
     "test:expenses": "npx playwright test tests/expenses --reporter=line",
@@ -18,10 +21,15 @@
     "appwrite:indexes": "npm run appwrite:setup",
     "appwrite:mobile-indexes": "npm run appwrite:setup",
     "appwrite:sync-logs": "npm run appwrite:setup",
-    "appwrite:list": "node scripts/appwrite/list_appwrite_collections.js"
+    "appwrite:list": "node scripts/appwrite/list_appwrite_collections.js",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.44.0",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
   },

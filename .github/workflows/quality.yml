@@ -82,6 +82,70 @@ jobs:
   #  Job 2: Extended Quality Checks (full mode only)
   #  فحوصات إضافية لا يُغطيها الـ reusable workflow
   # ═══════════════════════════════════════════════════════════════
+  # ═══════════════════════════════════════════════════════════════
+  #  Job: JavaScript Lint (ESLint)
+  #
+  #  يعمل على كل push وpull_request — وليس داخل extended-quality
+  #  المشروطة بـ check_level == 'full' — حتى يُفحص JS في كل مرة.
+  #  يفرض بوابة الأخطاء فقط (eslint --quiet)؛ التحذيرات تبقى مرئية
+  #  في الملخص دون أن تكسر البناء، لأن الكود القائم يحتوي 40 تحذيراً.
+  # ═══════════════════════════════════════════════════════════════
+  js-lint:
+    name: 🔎 JavaScript Lint (ESLint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📚 Checkout Code
+        uses: actions/checkout@v5
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔎 ESLint (errors gate)
+        run: npx eslint . --quiet
+
+      - name: 📊 ESLint (full report, non-blocking)
+        if: always()
+        run: |
+          set -uo pipefail
+          npx eslint . --format json --output-file eslint-report.json || true
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          from collections import Counter
+          if not os.path.exists('eslint-report.json'):
+              print('### 🔎 ESLint\n\nلم يُنتج تقرير.'); raise SystemExit
+          data = json.load(open('eslint-report.json'))
+          errors = sum(f['errorCount'] for f in data)
+          warnings = sum(f['warningCount'] for f in data)
+          dirty = [f for f in data if f['errorCount'] or f['warningCount']]
+          print('### 🔎 ESLint\n')
+          print(f'- ملفات مفحوصة: **{len(data)}**')
+          print(f'- ملفات فيها ملاحظات: **{len(dirty)}**')
+          print(f'- أخطاء: **{errors}** (بوابة كاسرة)')
+          print(f'- تحذيرات: **{warnings}** (غير كاسرة)\n')
+          rules = Counter(m.get('ruleId') for f in data for m in f['messages'])
+          if rules:
+              print('| القاعدة | العدد |')
+              print('|---|---|')
+              for rule, count in rules.most_common(12):
+                  print(f'| `{rule}` | {count} |')
+          PY
+
+      - name: 📦 Upload ESLint report
+        if: always() && inputs.upload_reports == true
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: eslint-report-${{ github.run_id }}
+          path: eslint-report.json
+          retention-days: 14
+          if-no-files-found: ignore
+
   extended-quality:
     name: 🛡️ Extended Quality (${{ inputs.check_level || 'quick' }})
     runs-on: ubuntu-latest
