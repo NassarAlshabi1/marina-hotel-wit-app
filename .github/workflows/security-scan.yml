@@ -30,6 +30,7 @@ on:
       - 'package-lock.json'
       - 'scripts/**/package.json'
       - 'scripts/**/package-lock.json'
+      - 'psalm.xml'
       - '.github/workflows/security-scan.yml'
       - '.github/dependabot.yml'
   pull_request:
