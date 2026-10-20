@@ -7,8 +7,11 @@
   18 mysqli_query) ولا توجد مساحات أسماء (0 ملف namespace) — فهو كود
   إجرائي بالكامل، لذا لا يوجد autoloader ويُعتمد على projectFiles.
 
-  تُشغّله CI في .github/workflows/security-scan.yml (وظيفة php-security):
-      psalm - -taint-analysis - -output-format=sarif
+  تُشغّله CI في .github/workflows/security-scan.yml داخل وظيفة php-security
+  باستدعاء Psalm مع taint-analysis وكتابة تقرير SARIF.
+  (لا يُكتب سطر الأمر هنا حرفياً: تسلسل شرطتين متتاليتين غير مسموح داخل
+  تعليق XML ويكسر تحليل الملف.)
+
   وقبل وجود هذا الملف كانت الوظيفة تطبع
   "No psalm.xml config — skipping Psalm taint analysis" وتتجاوز التحليل
   بالكامل، أي أن 182 ملف PHP لم تكن تُفحص أمنياً إطلاقاً.
@@ -44,7 +47,15 @@
             <!-- مكتبة FPDF: طرف ثالث، وليست من كود المشروع -->
             <file name="fpdf.php" />
             <directory name="includes/fpdf" />
-            <directory name="vendor" />
+            <!--
+              لا تُضف <directory name="vendor" /> هنا.
+              مجلد vendor غير موجود في هذا المستودع (لا composer.json)، وPsalm
+              يفشل في قراءة ملف الإعداد بالكامل عند أي مسار غير قابل للحل:
+                  Could not resolve config path to .../vendor
+                  Problem parsing .../psalm.xml
+              ولا حاجة إليه أصلاً: vendor ليس ضمن projectFiles، فليس ممسوحاً.
+              إن أُضيف composer مستقبلاً، يُضاف vendor وقتها فقط.
+            -->
         </ignoreFiles>
     </projectFiles>
 
