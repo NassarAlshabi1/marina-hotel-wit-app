@@ -16,7 +16,7 @@
    ✓ مجلد includes (كاملاً)
    ✓ مجلد api (كاملاً)
    ✓ ملف hotel_db.sql
-   ✓ ملف setup_exe_database.php
+   ✓ ملف scripts/php/maintenance/setup_exe_database.php
 
 2. أنشئ هذه المجلدات في www\:
    - uploads\
@@ -27,7 +27,7 @@
    - العنوان: Marina Hotel Management System
    - الحجم: 1400x900
    - المنفذ: 8080
-   - الصفحة الأولى: setup_exe_database.php
+   - الصفحة الأولى: setup_exe_database.php (يُنسخ إلى جذر www عند بناء الحزمة)
 
 4. لتشغيل النظام:
    - اذهب إلى مجلد phpdesktop-chrome-57.0-rc-php-7.1.3

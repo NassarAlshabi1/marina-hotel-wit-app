@@ -40,6 +40,7 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       localId: localId,
       serverId: serverBookingId,
       uuid: bookingUuid,
+      fromRemote: src == Source.appwrite || src == Source.drive,
     );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);

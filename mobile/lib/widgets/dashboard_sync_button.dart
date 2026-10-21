@@ -424,8 +424,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
     // ✅ P1-1 fix: كل الفحوص قبل كتابة سجل in_progress
     if (_pendingChangesCount == 0) {
-      _isPushing = false;
       if (mounted) {
+        setState(() => _isPushing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -443,7 +443,56 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
-    // ✅ الآن بعد اجتياز الفحوص — نكتب سجل in_progress
+    // ✅ P1-1 fix موسّع (طابق مسار السحب): كل الفحوص قبل كتابة سجل
+    // in_progress — لتفادي سجلات عالقة في in_progress عند المرتجعات المبكرة.
+    final appwriteEnabled = await _isAppwriteSyncEnabled();
+    if (!appwriteEnabled) {
+      if (mounted) {
+        setState(() => _isPushing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'ℹ️ مزامنة Appwrite معطلة - يرجى تفعيلها من الإعدادات',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    await ref.read(connectionStatusProvider.notifier).checkConnection();
+    final appwriteConnected = ref.read(connectionStatusProvider).isConnected;
+    if (!appwriteConnected) {
+      if (mounted) {
+        setState(() => _isPushing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.cloud_off, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(child: Text('لا يوجد اتصال بـ Appwrite')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    // ✅ الآن بعد اجتياز كل الفحوص — نكتب سجل in_progress
     final db = ref.read(databaseProvider);
     final syncLogDao = SyncLogDao(db);
     await syncLogDao.logSync(
@@ -457,146 +506,41 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     unawaited(_pushAnimationController.repeat());
     // _isPushing ضُبط بالفعل في الأعلى (P1-2 fix)
 
+    // ✅ إشعار تحميل قابل للإغلاق برمجياً
+    LoadingSnackBar? pushLoading;
+    if (mounted) {
+      pushLoading = LoadingSnackBar.show(
+        context,
+        message: '⬆️ جاري رفع التغييرات إلى Appwrite...',
+      );
+    }
+
     try {
-      final smartSyncManager = ref.read(smartSyncManagerProvider);
+      // ✅ Sync Simplification: Appwrite هو الوجهة الوحيدة (secondary sync
+      // مُعطّل بالكامل) — حُذف رفع Google Drive من زر «رفع التغييرات».
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
-      final smartEnabled = await smartSyncManager.isEnabled();
-      final isGoogleDriveSignedIn = ref.read(
-        smartSyncGoogleDriveSignInStatusProvider,
-      );
-      final appwriteEnabled = await _isAppwriteSyncEnabled();
-
-      if (!smartEnabled && !appwriteEnabled) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.white),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'ℹ️ المزامنة معطلة - يرجى تفعيلها من الإعدادات',
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-        return;
-      }
-
-      bool appwriteConnected = false;
-      if (appwriteEnabled) {
-        await ref.read(connectionStatusProvider.notifier).checkConnection();
-        appwriteConnected = ref.read(connectionStatusProvider).isConnected;
-      }
-
-      final targets = <String>[];
-      if (smartEnabled && isGoogleDriveSignedIn) {
-        targets.add('Google Drive');
-      }
-      if (appwriteEnabled && appwriteConnected) {
-        targets.add('Appwrite');
-      }
-
-      if (targets.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('لا توجد وجهات مزامنة متاحة حالياً'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
-      // ✅ إشعار دائم: يُحفظ مثيل ScaffoldMessengerState للتحكم بالإغلاق
-      // ✅ إشعار تحميل قابل للإغلاق برمجياً
-      LoadingSnackBar? pushLoading;
-      if (mounted) {
-        pushLoading = LoadingSnackBar.show(
-          context,
-          message: '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...',
-        );
-      }
-
-      final results = <String, Map<String, dynamic>>{};
-
-      // رفع إلى Appwrite أولاً
-      if (appwriteEnabled && appwriteConnected) {
-        try {
-          // ✅ P1-3 fix: pushLocalChanges تُعيد عدد السجلات الفعلي
-          final pushedCount = await appwriteSyncManager.pushLocalChanges();
-          results['Appwrite'] = {
-            'success': pushedCount >= 0,
-            'pushed': pushedCount,
-          };
-        } catch (e) {
-          results['Appwrite'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
-          dlog(() => '❌ خطأ في رفع التغييرات إلى Appwrite: $e');
-        }
-      }
-
-      // رفع إلى Google Drive (بدون سحب - نسخ احتياطي فقط)
-      if (smartEnabled && isGoogleDriveSignedIn) {
-        try {
-          final result = await smartSyncManager.pushLocalChanges();
-          results['Google Drive'] = {
-            'success': result,
-            'pushed': _pendingChangesCount,
-          };
-        } catch (e) {
-          results['Google Drive'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
-          dlog(() => '❌ خطأ في رفع التغييرات إلى Google Drive: $e');
-        }
-      }
-
-      // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
-      // Appwrite primary هو authority الوحيد. لا حاجة لرفع للثانوي.
-
+      // ✅ P1-3 موسّع: pushLocalChanges تُرجع -1 عند الفشل الحقيقي
+      // (فشل sync() أو استثناء) — لا نعرض «نجاح» كاذماً عند بقاء Outbox ممتلئاً.
+      final pushedCount = await appwriteSyncManager.pushLocalChanges();
       await _loadPendingChangesCount();
 
-      // حساب الإحصائيات
-      int totalPushed = 0;
-      final successTargets = <String>[];
-      final failedTargets = <String>[];
+      final remaining = _pendingChangesCount;
+      final bool failed = pushedCount < 0;
+      final bool partial = !failed && remaining > 0;
 
-      for (final entry in results.entries) {
-        final data = entry.value;
-        if (data['success'] == true) {
-          successTargets.add(entry.key);
-          totalPushed += (data['pushed'] as int?) ?? 0;
-        } else {
-          failedTargets.add(entry.key);
-        }
-      }
-
-      // ✅ تسجيل نجاح العملية
       stopwatch.stop();
       await syncLogDao.logSync(
         syncId: syncId,
         direction: 'push',
         deviceId: deviceId,
-        target: successTargets.join('+'),
-        status: failedTargets.isEmpty
-            ? 'success'
-            : (successTargets.isNotEmpty ? 'partial' : 'failed'),
-        recordsPushed: totalPushed,
+        target: 'Appwrite',
+        status: failed ? 'failed' : (partial ? 'partial' : 'success'),
+        recordsPushed: pushedCount > 0 ? pushedCount : 0,
         durationMs: stopwatch.elapsedMilliseconds,
+        errorMessage: failed
+            ? 'تعذر إتمام sync() — راجع الاتصال وحالة المزامنة'
+            : null,
       );
 
       if (mounted) {
@@ -604,9 +548,60 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           _lastSyncTime = DateTime.now();
         });
 
-        if (failedTargets.isEmpty) {
-          // ✅ إغلاق إشعار "جاري الرفع" فوراً قبل إظهار النتيجة
-          pushLoading?.close();
+        // ✅ إغلاق إشعار "جاري الرفع" فوراً قبل إظهار النتيجة
+        pushLoading?.close();
+        if (failed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(child: Text('❌ فشل رفع التغييرات')),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              action: SnackBarAction(
+                label: 'إعادة',
+                textColor: Colors.white,
+                onPressed: () => _pushChanges(context),
+              ),
+            ),
+          );
+        } else if (partial) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('⚠️ رُفع جزء من التغييرات'),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '⬆️ أُرسل: ${pushedCount > 0 ? pushedCount : 0}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  Text(
+                    '⏳ بقي معلقاً في Outbox: $remaining',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              action: SnackBarAction(
+                label: 'إعادة',
+                textColor: Colors.white,
+                onPressed: () => _pushChanges(context),
+              ),
+            ),
+          );
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -627,79 +622,23 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '⬆️ أُرسل: $totalPushed',
+                    '⬆️ أُرسل: ${pushedCount > 0 ? pushedCount : 0} عبر Appwrite',
                     style: const TextStyle(fontSize: 12),
-                  ),
-                  Text(
-                    '☁️ عبر: ${successTargets.join(' + ')}',
-                    style: const TextStyle(fontSize: 11),
                   ),
                 ],
               ),
               backgroundColor: Colors.green,
             ),
           );
-        } else if (successTargets.isEmpty) {
-          // ✅ إغلاق إشعار "جاري الرفع" فوراً عند الفشل
-          pushLoading?.close();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.error_outline, color: Colors.white),
-                  SizedBox(width: 8),
-                  Expanded(child: Text('❌ فشل رفع التغييرات')),
-                ],
-              ),
-              backgroundColor: Colors.red,
-              action: SnackBarAction(
-                label: 'إعادة',
-                textColor: Colors.white,
-                onPressed: () => _pushChanges(context),
-              ),
-            ),
-          );
-        } else {
-          // ✅ إغلاق إشعار "جاري الرفع" فوراً للنتيجة الجزئية
-          pushLoading?.close();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.warning, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text('⚠️ نجح جزئياً'),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '✅ نجح: ${successTargets.join(', ')}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  Text(
-                    '❌ فشل: ${failedTargets.join(', ')}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  if (totalPushed > 0)
-                    Text(
-                      '⬆️ أُرسل: $totalPushed',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                ],
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
         }
       }
-
-      ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
       dlog(() => '❌ فشل رفع التغييرات: $e');
+
+      // ✅ P2 fix: إغلاق إشعار "جاري الرفع" عند الفشل العام أيضاً —
+      // وإلا يبقى معروضاً 10 دقائق (LoadingSnackBar غير قابل للسحب)
+      // ويطاب طابور snackbar الخطأ.
+      pushLoading?.close();
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
@@ -707,7 +646,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         syncId: syncId,
         direction: 'push',
         deviceId: deviceId,
-        target: 'Appwrite+GoogleDrive',
+        target: 'Appwrite',
         status: 'failed',
         errorMessage: e.toString(),
         durationMs: stopwatch.elapsedMilliseconds,
@@ -806,7 +745,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   // ✅ تحسين: إضافة معامل pendingCount لعرض عدد التغييرات
   Widget _buildPullButton(
     bool hasRemoteChanges,
-    bool isGoogleDriveSignedIn,
     int pendingCount,
     bool gateBusy,
   ) {
@@ -938,11 +876,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     );
   }
 
-  Widget _buildPushButton(
-    bool hasChanges,
-    bool isGoogleDriveSignedIn,
-    bool gateBusy,
-  ) {
+  Widget _buildPushButton(bool hasChanges, bool gateBusy) {
     // زر الدفع متاح فقط إذا كان يوجد تغييرات محلية، والبوّابة العامة
     // ليست مشغولة بعملية من أي مصدر آخر.
     final bool pushEnabled =
@@ -1067,9 +1001,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
   @override
   Widget build(BuildContext context) {
-    final isGoogleDriveSignedIn = ref.watch(
-      smartSyncGoogleDriveSignInStatusProvider,
-    );
+    // ✅ Sync Simplification: حُذفت مراقبة Google Drive من هذا الودجت —
+    // زر «رفع التغييرات» يستهدف Appwrite فقط (secondary sync مُعطّل).
 
     // ✅ Appwrite Realtime معطّل في dashboard — استخدم قيمًا ثابتة بدلاً من
     // ValueListenableBuilder على hasRemoteChanges/pendingRemoteChangesCount.
@@ -1078,7 +1011,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     // Realtime إطلاقاً — السحب يتم فقط عبر زر المستخدم أو السحب التلقائي
     // عند فتح التطبيق.
     const hasRemoteChanges = false;
-    const pendingRemoteCount = 0;
 
     // ✅ P3-5 (Global SyncGate): مراقبة البوّابة العامة. إذا كانت مشغولة
     // بعملية من أي مصدر (زر آخر، سحب تلقائي، مؤقّت)، تُعطَّل الأزرار تلقائياً.
@@ -1101,20 +1033,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات + حالة البوّابة
+                // زر السحب من السيرفر - ✅ تمرير عداد التغييرات المحلية
+                // (يُفعّل حارس pendingCount==0 و tooltip السحب المعطّل)
                 _buildPullButton(
                   hasRemoteChanges,
-                  isGoogleDriveSignedIn,
-                  pendingRemoteCount,
+                  _pendingChangesCount,
                   gateBusy,
                 ),
                 const SizedBox(width: 8),
-                // زر الدفع إلى السيرفر
-                _buildPushButton(
-                  hasLocalChanges,
-                  isGoogleDriveSignedIn,
-                  gateBusy,
-                ),
+                // زر الدفع إلى السيرفر (Appwrite فقط — حُذف Google Drive)
+                _buildPushButton(hasLocalChanges, gateBusy),
               ],
             ),
             const SizedBox(height: 6),

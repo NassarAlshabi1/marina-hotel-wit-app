@@ -4,9 +4,6 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfColor;
-import 'package:pdf/widgets.dart' as pw;
-
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';
@@ -14,9 +11,9 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_expense_classifier.dart';
 import '../../services/salary_mirror_matcher.dart';
-import '../../utils/enhanced_pdf_utils.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
+import '../../src/pdf/report_templates/expenses_report_pdf.dart';
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -98,7 +95,8 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
       _ExpensesReportScreenState();
 }
 
-class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
+class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
+    with PdfExportGuardMixin {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
 
@@ -515,200 +513,39 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     if (_rows.isEmpty) {
       return;
     }
-    final fromLabel = _fromDate != null
-        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-        : 'غير محدد';
-    final toLabel = _toDate != null
-        ? DateFormat('yyyy-MM-dd').format(_toDate!)
-        : 'غير محدد';
-    final selectedTypeLabel = _selectedType?.isNotEmpty ?? false
-        ? _selectedType!
-        : 'الكل';
+    await runProtectedPdfExport(_buildAndShareExpensesPdf);
+  }
 
-    // عرض عمود الموظف تلقائياً عند وجود بيانات رواتب أو تفعيله يدوياً
-    final showEmployeeCol = widget.includeEmployeeDetails || _hasSalaryData;
-
-    final headers = <String>['التاريخ', 'المبلغ', 'النوع', 'الوصف'];
-    if (showEmployeeCol) {
-      headers.add('الموظف');
-    }
-
-    final dataRows = <List<String>>[];
-    for (final row in _rows) {
-      final cells = [
-        _dateLabelFormat.format(row.date),
-        EnhancedPdfUtils.formatNumber(row.amount),
-        row.type,
-        if (row.description.isNotEmpty) row.description else '-',
-      ];
-      if (showEmployeeCol) {
-        cells.add(
-          row.employee?.name ?? (row.isSalaryWithdrawal ? 'غير محدد' : '-'),
-        );
-      }
-      dataRows.add(cells);
-    }
-
-    final totalRow = [
-      widget.totalRowLabel,
-      EnhancedPdfUtils.formatNumber(_totalAmount),
-      '',
-      '',
-    ];
-    if (showEmployeeCol) {
-      totalRow.add('');
-    }
-    dataRows.add(totalRow);
-
-    await ReportPdfBuilder.buildAndShare(
-      ReportPdfConfig(
-        title: widget.title,
+  Future<void> _buildAndShareExpensesPdf() async {
+    // ✅ الشاشة تُمرّر بيانات فقط — التصميم بالكامل في القالب المستقل
+    // lib/src/pdf/report_templates/expenses_report_pdf.dart.
+    await ExpensesReportPdf.share(
+      ExpensesReportData(
+        rows: _rows
+            .map(
+              (row) => ExpensesReportRow(
+                date: row.date,
+                amount: row.amount,
+                type: row.type,
+                description: row.description,
+                employeeName: row.employee?.name,
+                isSalaryWithdrawal: row.isSalaryWithdrawal,
+              ),
+            )
+            .toList(),
+        totalAmount: _totalAmount,
+        hasSalaryData: widget.includeEmployeeDetails || _hasSalaryData,
+        labels: ExpensesReportLabels(
+          title: widget.title,
+          typeLabel: widget.typeLabel,
+          totalSummaryLabel: widget.totalSummaryLabel,
+          totalRowLabel: widget.totalRowLabel,
+        ),
         fromDate: _fromDate,
         toDate: _toDate,
-        buildContent: (fonts) {
-          pw.Widget metaRow(String label, String value) {
-            return pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 6),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    label,
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                  ),
-                  pw.Text(
-                    value,
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final metaInfoCard = EnhancedPdfUtils.buildInfoCard(
-            title: widget.title,
-            fonts: fonts,
-            content: [
-              metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
-              metaRow(widget.typeLabel, selectedTypeLabel),
-              metaRow('عدد السجلات', _rows.length.toString()),
-              if (_hasSalaryData)
-                metaRow('يشمل', 'مصروفات تشغيلية + سحوبات الرواتب'),
-            ],
-          );
-
-          pw.Widget buildSummaryItem(
-            String title,
-            String value,
-            PdfColor accent,
-          ) {
-            return pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.backgroundCard,
-                border: pw.Border.all(color: accent, width: 0.7),
-                borderRadius: pw.BorderRadius.circular(4),
-              ),
-              child: pw.Column(
-                children: [
-                  pw.Text(
-                    title,
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 11,
-                      color: PdfColors.textDark,
-                    ),
-                  ),
-                  pw.SizedBox(height: 4),
-                  pw.Text(
-                    value,
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 16,
-                      color: accent,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // ملخص الرواتب مقابل المصروفات التشغيلية
-          final salaryTotal = _rows
-              .where((r) => _isSalaryType(r.type))
-              .fold<double>(0, (sum, r) => sum + r.amount);
-          final nonSalaryTotal = _totalAmount - salaryTotal;
-
-          return [
-            pw.SizedBox(height: 16),
-            metaInfoCard,
-            pw.SizedBox(height: 12),
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: headers,
-              data: dataRows,
-              fonts: fonts,
-              headerColor: PdfColors.primary,
-              alternateRowColor: PdfColors.backgroundLight,
-            ),
-            pw.SizedBox(height: 12),
-            // ملخص الإجماليات
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.backgroundLight,
-                borderRadius: pw.BorderRadius.circular(6),
-                border: pw.Border.all(color: PdfColors.primary, width: 0.4),
-              ),
-              child: pw.Column(
-                children: [
-                  pw.Row(
-                    children: [
-                      pw.Expanded(
-                        child: buildSummaryItem(
-                          widget.totalSummaryLabel,
-                          EnhancedPdfUtils.formatNumber(_totalAmount),
-                          PdfColors.secondary,
-                        ),
-                      ),
-                      pw.SizedBox(width: 8),
-                      pw.Expanded(
-                        child: buildSummaryItem(
-                          'عدد السجلات',
-                          _rows.length.toString(),
-                          PdfColors.info,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_hasSalaryData) ...[
-                    pw.SizedBox(height: 8),
-                    pw.Row(
-                      children: [
-                        pw.Expanded(
-                          child: buildSummaryItem(
-                            'سحوبات الرواتب',
-                            EnhancedPdfUtils.formatNumber(salaryTotal),
-                            PdfColors.warning,
-                          ),
-                        ),
-                        pw.SizedBox(width: 8),
-                        pw.Expanded(
-                          child: buildSummaryItem(
-                            'مصروفات تشغيلية',
-                            EnhancedPdfUtils.formatNumber(nonSalaryTotal),
-                            PdfColors.info,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ];
-        },
-        fileName: ReportPdfBuilder.generateFileName(widget.title),
+        selectedTypeLabel: _selectedType?.isNotEmpty ?? false
+            ? _selectedType!
+            : 'الكل',
       ),
     );
   }
@@ -727,7 +564,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
-      isPdfEnabled: _rows.isNotEmpty,
+      isPdfEnabled: _rows.isNotEmpty && !isPdfExporting,
       isLoading: _loading,
       filterWidgets: [
         if (widget.showTypeFilter)

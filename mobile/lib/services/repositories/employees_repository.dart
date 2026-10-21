@@ -292,6 +292,40 @@ class EmployeesRepository {
     }
   }
 
+  Future<int> terminateByLocalUuid({
+    required String localUuid,
+    required String terminationType,
+    required String terminationDate,
+    String? terminationReason,
+  }) async {
+    final employee = await dao.getByLocalUuid(localUuid);
+    if (employee == null) return 0;
+    return terminate(
+      id: employee.id,
+      terminationType: terminationType,
+      terminationDate: terminationDate,
+      terminationReason: terminationReason,
+    );
+  }
+
+  Future<int> reactivateByLocalUuid({required String localUuid}) async {
+    final employee = await dao.getByLocalUuid(localUuid);
+    if (employee == null) return 0;
+    return reactivate(id: employee.id);
+  }
+
+  Future<int> deleteByLocalUuid(String localUuid) async {
+    final employee = await dao.getByLocalUuid(localUuid);
+    if (employee == null) return 0;
+    return delete(employee.id);
+  }
+
+  Future<int> financialRecordsCountByLocalUuid(String localUuid) async {
+    final employee = await dao.getByLocalUuid(localUuid);
+    if (employee == null) return 0;
+    return dao.countFinancialRecords(employee.id, employee.localUuid);
+  }
+
   /// ✅ حارس حذف الموظفين: عدد السجلات المالية المرتبطة بالموظف
   /// (مصروفات رواتب/سلف + سحوبات غير مكررة). يُستخدم في حوار الحذف
   /// لتحذير صاحب الفندق قبل يتم التاريخ المالي لموظف على بقية الأجهزة.

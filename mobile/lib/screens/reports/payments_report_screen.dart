@@ -3,22 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart' show PdfColor;
-import 'package:pdf/widgets.dart' as pw;
 
 import '../../components/widgets/empty_state.dart';
-import '../../utils/performance_config.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
-import '../../utils/enhanced_pdf_utils.dart';
+import '../../src/pdf/report_templates/payments_report_pdf.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -28,7 +25,8 @@ class PaymentsReportScreen extends ConsumerStatefulWidget {
       _PaymentsReportScreenState();
 }
 
-class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
+class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
+    with PdfExportGuardMixin {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
@@ -55,7 +53,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     super.didChangeDependencies();
     if (!_roomsLoaded) {
       _roomsLoaded = true;
-      _initializeDefaults();
+      unawaited(_initializeDefaults());
     }
   }
 
@@ -67,10 +65,15 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     await _loadRooms();
     // تحديث القيم المحسوبة (totalDueCached, totalPaidCached, remainingBalanceCached)
     // لضمان دقة المجاميع في التقرير
+    // ✅ (2026-09-30) enqueueOutbox:false — فتح التقرير قراءة؛ نفس منطق
+    // شاشة تذكير المتبقي (W2 موثقة) — لا تلوث لطابور outbox عند كل فتح.
     try {
       final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
-      await derivedService.refreshAllActiveBookings();
+      await derivedService.refreshAllActiveBookings(
+        enqueueOutbox: false,
+        promoteProvisional: false,
+      );
     } catch (_) {}
     await _fetchReport();
   }
@@ -254,147 +257,50 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     if (_rows.isEmpty) {
       return;
     }
-    final selectedRoomLabel = _selectedRoom?.isNotEmpty ?? false
-        ? _selectedRoom!
-        : '';
+    await runProtectedPdfExport(_buildAndSharePaymentsPdf);
+  }
 
-    final dataRows = [
-      for (final entry in _rows.asMap().entries)
-        [
-          (entry.key + 1).toString(),
-          entry.value.bookingCode,
-          entry.value.booking?.guestName ?? entry.value.payerName,
-          entry.value.roomNumber,
-          _translatePaymentMethod(entry.value.payment.paymentMethod),
-          _dateLabelFormat.format(entry.value.paymentDate),
-          EnhancedPdfUtils.formatNumber(entry.value.amount),
-        ],
-      [
-        '',
-        '',
-        '',
-        '',
-        '',
-        'الإجمالي',
-        EnhancedPdfUtils.formatNumber(_totalPaid),
-      ],
-    ];
+  Future<void> _buildAndSharePaymentsPdf() async {
+    // نسخة مرتبة بدون تعديل _rows الأصلية:
+    // 1) paymentDate من الأحدث إلى الأقدم.
+    // 2) عند تطابق التاريخ: roomNumber تصاعدياً.
+    // 3) عند تطابق الغرفة: bookingCode تصاعدياً.
+    final sortedRows = List<_PaymentReportRow>.from(_rows)
+      ..sort((a, b) {
+        final byDate = b.paymentDate.compareTo(a.paymentDate);
+        if (byDate != 0) return byDate;
+        final byRoom = a.roomNumber.compareTo(b.roomNumber);
+        if (byRoom != 0) return byRoom;
+        return a.bookingCode.compareTo(b.bookingCode);
+      });
 
-    await ReportPdfBuilder.buildAndShare(
-      ReportPdfConfig(
-        title: 'مدفوعات النزلاء',
+    // ✅ الشاشة تُمرّر بيانات فقط — التصميم بالكامل في القالب المستقل
+    // lib/src/pdf/report_templates/payments_report_pdf.dart.
+    await PaymentsReportPdf.share(
+      PaymentsReportData(
+        rows: sortedRows
+            .map(
+              (row) => PaymentsReportRow(
+                paymentDate: row.paymentDate,
+                amount: row.amount,
+                roomNumber: row.roomNumber,
+                payerName: row.booking?.guestName ?? row.payerName,
+                bookingCode: row.bookingCode,
+                paymentMethod: _translatePaymentMethod(
+                  row.payment.paymentMethod,
+                ),
+              ),
+            )
+            .toList(),
+        totalRoomPaid: _totalPaid,
+        totalOtherPaid: _totalOtherPaid,
+        totalRemaining: _totalRemaining,
+        totalDue: _totalDue,
         fromDate: _fromDate,
         toDate: _toDate,
-        extraHeaderLine: selectedRoomLabel.isNotEmpty
-            ? 'الغرفة: $selectedRoomLabel'
+        roomFilterLabel: _selectedRoom?.isNotEmpty ?? false
+            ? _selectedRoom
             : null,
-        buildContent: (fonts) => [
-          pw.SizedBox(height: 20),
-          EnhancedPdfUtils.buildProfessionalTable(
-            headers: [
-              'م',
-              'رقم الحجز',
-              'اسم النزيل',
-              'الغرفة',
-              'طريقة الدفع',
-              'التاريخ',
-              'المبلغ',
-            ],
-            data: dataRows,
-            fonts: fonts,
-            headerColor: PdfColors.primary,
-            alternateRowColor: PdfColors.backgroundLight,
-          ),
-          pw.SizedBox(height: 12),
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.backgroundLight,
-              border: pw.Border.all(color: PdfColors.primary, width: 0.5),
-            ),
-            child: pw.Column(
-              children: [
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Row(
-                      children: [
-                        pw.Text(
-                          'الإجمالي المدفوع: ',
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 12,
-                            color: PdfColors.textDark,
-                          ),
-                        ),
-                        pw.Text(
-                          EnhancedPdfUtils.formatNumber(
-                            _totalPaid + _totalOtherPaid,
-                          ),
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 14,
-                            color: PdfColors.secondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    pw.Row(
-                      children: [
-                        pw.Text(
-                          'المبلغ المتبقي: ',
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 12,
-                            color: _totalRemaining > 0
-                                ? const PdfColor(0.9, 0.2, 0.2)
-                                : const PdfColor(0.0, 0.5, 0.2),
-                          ),
-                        ),
-                        pw.Text(
-                          EnhancedPdfUtils.formatNumber(_totalRemaining),
-                          style: pw.TextStyle(
-                            font: fonts.bold,
-                            fontSize: 12,
-                            color: _totalRemaining > 0
-                                ? const PdfColor(0.9, 0.2, 0.2)
-                                : const PdfColor(0.0, 0.5, 0.2),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                if (_totalDue > 0) ...[
-                  pw.SizedBox(height: 8),
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.end,
-                    children: [
-                      pw.Text(
-                        'إجمالي ما على النزيل: ',
-                        style: pw.TextStyle(
-                          font: fonts.bold,
-                          fontSize: 11,
-                          color: PdfColors.textDark,
-                        ),
-                      ),
-                      pw.Text(
-                        EnhancedPdfUtils.formatNumber(_totalDue),
-                        style: pw.TextStyle(
-                          font: fonts.bold,
-                          fontSize: 13,
-                          color: PdfColors.info,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-        fileName: ReportPdfBuilder.generateFileName('مدفوعات النزلاء'),
       ),
     );
   }
@@ -409,11 +315,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           _fromDate = range.from;
           _toDate = range.to;
         });
-        _fetchReport();
+        unawaited(_fetchReport());
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
-      isPdfEnabled: _rows.isNotEmpty,
+      isPdfEnabled: _rows.isNotEmpty && !isPdfExporting,
       isLoading: _loading,
       filterWidgets: [
         SizedBox(
@@ -459,7 +365,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               setState(() {
                 _selectedRoom = value;
               });
-              _fetchReport();
+              unawaited(_fetchReport());
             },
           ),
         ),
@@ -474,8 +380,6 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               icon: Icons.receipt_long,
             )
           : ListView.separated(
-              // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
-              scrollCacheExtent: optimizedScrollCacheExtent,
               padding: const EdgeInsets.only(bottom: 8),
               itemCount: _rows.length,
               separatorBuilder: (_, _) => const SizedBox(height: 5),

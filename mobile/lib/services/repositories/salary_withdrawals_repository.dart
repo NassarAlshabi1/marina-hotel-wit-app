@@ -47,6 +47,15 @@ class SalaryWithdrawalsRepository {
     return d.Value(employee.localUuid);
   }
 
+  String _requireEmployeeUuid(d.Value<String> employeeUuid, int employeeId) {
+    if (!employeeUuid.present || employeeUuid.value.trim().isEmpty) {
+      throw StateError(
+        'تعذر حفظ السحب: لا يوجد local_uuid صالح للموظف #$employeeId.',
+      );
+    }
+    return employeeUuid.value.trim();
+  }
+
   /// ✅ (migration 68) جلب UUID المصروف من قاعدة البيانات المحلية —
   /// الرابط الدائم سحبة→مصروف الذي ينجو من إعادة ترقيم المعرفات.
   Future<d.Value<String>> _expenseUuidFor(int expenseId) async {
@@ -128,7 +137,10 @@ class SalaryWithdrawalsRepository {
     // ✅ وسم الجهاز — عمود deviceId موجود في SyncFields وكان يُرسل فارغاً دائماً
     final deviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
     // ✅ (2026-09-19) UUID الموظف عند الإنشاء — الربط الدائم عبر الأجهزة
-    final employeeUuid = await _employeeUuidFor(employeeId);
+    final employeeUuid = _requireEmployeeUuid(
+      await _employeeUuidFor(employeeId),
+      employeeId,
+    );
     // ✅ (migration 68) UUID المصروف عند الإنشاء — الرابط الدائم سحبة→مصروف
     final expenseUuid = expenseId > 0
         ? await _expenseUuidFor(expenseId)
@@ -140,7 +152,7 @@ class SalaryWithdrawalsRepository {
         serverId: const d.Value(null),
         employeeId: d.Value(employeeId),
         // ✅ (2026-09-19) توليد employee_uuid عند الإنشاء — الربط الدائم
-        employeeUuid: employeeUuid,
+        employeeUuid: d.Value(employeeUuid),
         // ✅ (migration 68) expense_uuid عند الإنشاء — الرابط الدائم
         expenseUuid: expenseUuid,
         amount: d.Value(amount),
@@ -192,6 +204,7 @@ class SalaryWithdrawalsRepository {
       if (!originIsServer) {
         final payload = <String, dynamic>{
           'employeeId': employeeId,
+          'employeeUuid': employeeUuid,
           'amount': amount,
           'withdrawDate': date,
           'reason': reason,
@@ -290,7 +303,10 @@ class SalaryWithdrawalsRepository {
     bool originIsServer = false,
   }) async {
     // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
-    final employeeUuid = await _employeeUuidFor(employeeId);
+    final employeeUuid = _requireEmployeeUuid(
+      await _employeeUuidFor(employeeId),
+      employeeId,
+    );
 
     // ✅ (هجرة 68) صف المصروف نفسه — مصدر حقول الهوية للمطابقة والختم.
     // التمييز هنا بهوية العملية نفسها (UUID)، وليس باسم الموظف أو اليوم
@@ -394,7 +410,7 @@ class SalaryWithdrawalsRepository {
                 byId,
                 employeeId: employeeId,
                 previousEmployeeId: previousEmployeeId,
-                employeeUuid: employeeUuid.value,
+                employeeUuid: employeeUuid,
               )) {
             matched = byId;
             break;
@@ -420,7 +436,7 @@ class SalaryWithdrawalsRepository {
                   w,
                   employeeId: employeeId,
                   previousEmployeeId: previousEmployeeId,
-                  employeeUuid: employeeUuid.value,
+                  employeeUuid: employeeUuid,
                 ),
           )
           .firstOrNull;
@@ -498,7 +514,7 @@ class SalaryWithdrawalsRepository {
               w,
               employeeId: employeeId,
               previousEmployeeId: previousEmployeeId,
-              employeeUuid: employeeUuid.value,
+              employeeUuid: employeeUuid,
             )) {
           staleRecords.add(w);
         }
@@ -527,6 +543,8 @@ class SalaryWithdrawalsRepository {
             serverId: duplicate.serverId,
             payload: {
               'employeeId': duplicate.employeeId,
+              'employeeUuid': duplicate.employeeUuid,
+              'expenseUuid': duplicate.expenseUuid,
               'deletedAt': now,
               'lastModified': now,
             },
@@ -560,6 +578,8 @@ class SalaryWithdrawalsRepository {
             serverId: stale.serverId,
             payload: {
               'employeeId': stale.employeeId,
+              'employeeUuid': stale.employeeUuid,
+              'expenseUuid': stale.expenseUuid,
               'deletedAt': now,
               'lastModified': now,
             },
@@ -582,7 +602,7 @@ class SalaryWithdrawalsRepository {
             employeeId: d.Value(employeeId),
             // ✅ (R12) تحديث employeeUuid مع employeeId — بدونه يبقى قديم
             // الموظف السابق ويُرفع للسحابة (ربط خاطئ ينتشر لكل الأجهزة).
-            employeeUuid: employeeUuid,
+            employeeUuid: d.Value(employeeUuid),
             amount: d.Value(amount),
             withdrawDate: d.Value(date),
             reason: d.Value(reasonText),
@@ -631,6 +651,7 @@ class SalaryWithdrawalsRepository {
             serverId: matchedServerId,
             payload: {
               'employeeId': employeeId,
+              'employeeUuid': employeeUuid,
               'amount': amount,
               'withdrawDate': date,
               'reason': reasonText,
@@ -672,7 +693,7 @@ class SalaryWithdrawalsRepository {
                 serverId: const d.Value(null),
                 employeeId: d.Value(employeeId),
                 // ✅ (2026-09-19) employee_uuid عند الإنشاء
-                employeeUuid: employeeUuid,
+                employeeUuid: d.Value(employeeUuid),
                 // ✅ (هجرة 68) هوية المصروف عند الإنشاء — الرابط الدائم
                 expenseUuid: expenseLocalUuid.isNotEmpty
                     ? d.Value(expenseLocalUuid)
@@ -731,6 +752,7 @@ class SalaryWithdrawalsRepository {
             localUuid: uuid,
             payload: {
               'employeeId': employeeId,
+              'employeeUuid': employeeUuid,
               'amount': amount,
               'withdrawDate': date,
               'reason': reasonText,

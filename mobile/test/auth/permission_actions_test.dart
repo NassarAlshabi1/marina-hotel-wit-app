@@ -18,7 +18,9 @@ void main() {
     expect(user.canPerform('inventory', 'delete'), isFalse);
   });
 
-  test('view-only permission allows access but not mutations', () {
+  test('view-only permission allows access and create but not mutations', () {
+    // قاعدة 2026-10-15: العرض والإضافة لكل من يملك دخول الوحدة؛
+    // التعديل والحذف مقيّدان بالدور الإداري.
     const user = AuthUser(
       id: 12,
       username: 'viewer',
@@ -29,7 +31,7 @@ void main() {
 
     expect(user.canAccessModule('inventory'), isTrue);
     expect(user.canPerform('inventory', 'view'), isTrue);
-    expect(user.canPerform('inventory', 'create'), isFalse);
+    expect(user.canPerform('inventory', 'create'), isTrue);
     expect(user.canPerform('inventory', 'update'), isFalse);
     expect(user.canPerform('inventory', 'delete'), isFalse);
   });
@@ -59,17 +61,23 @@ void main() {
     }
   });
 
-  test('legacy module permissions remain backward compatible', () {
-    const user = AuthUser(
-      id: 11,
-      username: 'legacy-user',
-      fullName: 'مستخدم سابق',
-      userType: 'employee',
-      permissions: ['inventory'],
-    );
+  test(
+    'legacy module permissions remain backward compatible for access and create',
+    () {
+      // مفتاح الوحدة القديم يمنح دخول الوحدة والإضافة كما كان،
+      // لكن التعديل والحذف يتطلبان دوراً إدارياً (قاعدة 2026-10-15).
+      const user = AuthUser(
+        id: 11,
+        username: 'legacy-user',
+        fullName: 'مستخدم سابق',
+        userType: 'employee',
+        permissions: ['inventory'],
+      );
 
-    expect(user.canAccessModule('inventory'), isTrue);
-    expect(user.canPerform('inventory', 'create'), isTrue);
-    expect(user.canPerform('inventory', 'delete'), isTrue);
-  });
+      expect(user.canAccessModule('inventory'), isTrue);
+      expect(user.canPerform('inventory', 'create'), isTrue);
+      expect(user.canPerform('inventory', 'update'), isFalse);
+      expect(user.canPerform('inventory', 'delete'), isFalse);
+    },
+  );
 }

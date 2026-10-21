@@ -1179,8 +1179,8 @@ class AppwriteService {
     List<String> queries,
   ) async {
     final db = _secondaryDb;
-    // ignore: deprecated_member_use
     final result = await db
+        // ignore: deprecated_member_use
         .listDocuments(
           databaseId: SecondaryAppwriteConfig.databaseId,
           collectionId: collectionId,

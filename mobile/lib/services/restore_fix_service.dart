@@ -822,6 +822,7 @@ class RestoreFixService {
           version: const Value(1),
           origin: const Value('auto_fix'),
           bookingLocalId: Value(booking.id),
+          bookingUuidCache: Value(booking.localUuid),
           hotelDayKey: Value(night.hotelDayKey),
           nightStart: Value(night.nightStart.toIso8601String()),
           nightEnd: Value(night.nightEnd.toIso8601String()),

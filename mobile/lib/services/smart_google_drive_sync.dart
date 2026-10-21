@@ -286,7 +286,8 @@ class SmartGoogleDriveSync {
     }
   }
 
-  /// بدء الفحص الدوري
+  /// بدء الفحص الدوري — محفوظ للتوافق مع إعدادات النسخ القديمة.
+  // ignore: unused_element
   void _startPeriodicSync() {
     _periodicSyncTimer?.cancel();
 

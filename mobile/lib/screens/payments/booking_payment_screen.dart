@@ -220,6 +220,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   /// يحدّث الحقول المشتقة للعرض فقط؛ فتح الشاشة ليس تغييراً من المستخدم.
   /// لذلك لا ينبغي أن ينشئ Outbox أو يغيّر قائمة التغييرات المحلية.
+  /// الحجز المنتهي لا يُعاد تسعيره: الخدمة تحسب مستحقه من لياليه المحفوظة.
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
@@ -253,6 +254,201 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       return 0;
     }
     return Time.nightsWithCutoff(effectiveStart, checkout: checkout);
+  }
+
+  /// ════════════════════════════════════════════════════════════════
+  /// مصدر موحد لحساب الليالي والتكلفة — يزيل التباين بين
+  /// العرض الرئيسي و _calculateCurrentTotals() ومسار التمديد.
+  /// ═══════════════════════════════════════════════════════════════
+  _StayCalculation _calculateStay({
+    required DateTime checkin,
+    required DateTime? actualCheckout,
+    required List<db.BookingNight> nights,
+    required double roomRate,
+    required double discount,
+    required String discountType,
+    required DateTime? discountStartDate,
+  }) {
+    // التاريخ المخطط لا يوقف تراكم الليالي. نستخدم actualCheckout إذا
+    // سُجّل وكان في الماضي، وإلا نواصل الحساب حتى اللحظة الحالية.
+    final now = DateTime.now();
+    final DateTime effectiveCheckout =
+        actualCheckout != null && !actualCheckout.isAfter(now)
+        ? actualCheckout
+        : now;
+
+    final int actualNights = Time.nightsWithCutoff(
+      checkin,
+      checkout: effectiveCheckout,
+    );
+
+    // ── حارس سلامة لسجلات الليالي ────────────────────────────────
+    // لا نعتمد على nights.length عميّاً — نتأكد أن السجلات نظيفة:
+    // لا تكرار، لا فجوات في التسلسل، لا ليالٍ مستقبلية زائدة، finalRate صحيح.
+    final bool nightsAreClean = _validateNightsIntegrity(nights, actualNights);
+    final int nightsCount = (nightsAreClean && nights.isNotEmpty)
+        ? nights.length
+        : actualNights;
+
+    // ── تكلفة الليالي: نستخدم finalRate > 0 ? finalRate : nightlyRate ─────
+    // هذا هو السعر الفعلي لليالٍ، وهو ما يجب أن نعتمد عليه للتمديد.
+    double nightTotal;
+    double effectiveNightlyRate;
+    if (nightsAreClean && nights.isNotEmpty) {
+      nightTotal = nights.fold<double>(
+        0,
+        (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
+      );
+      effectiveNightlyRate = nightsCount > 0
+          ? nightTotal / nightsCount
+          : roomRate;
+    } else {
+      // Fallback: حساب من السعر الأساسي مع الخصم إذا وجد
+      final checkout = effectiveCheckout;
+      if (discount > 0 && discountType == 'per_night') {
+        final discountedNights = _countNightsWithDiscount(
+          checkin,
+          checkout,
+          discountStartDate,
+        );
+        final fullNightsRaw = actualNights - discountedNights;
+        final fullNights = fullNightsRaw < 0 ? 0 : fullNightsRaw;
+        final discountedRate = (roomRate - discount)
+            .clamp(0, roomRate)
+            .toDouble();
+        nightTotal =
+            (fullNights * roomRate) + (discountedNights * discountedRate);
+        effectiveNightlyRate = actualNights > 0
+            ? nightTotal / actualNights
+            : roomRate;
+      } else {
+        nightTotal = actualNights * roomRate;
+        effectiveNightlyRate = roomRate;
+      }
+    }
+
+    final double totalAmount = discount > 0 && discountType == 'total'
+        ? (nightTotal - discount).clamp(0, nightTotal).toDouble()
+        : nightTotal;
+
+    // ── تفصيل الخصم/الإضافات من السجلات النظيفة فقط ───────────────
+    int discountedNights = 0;
+    int surchargeNights = 0;
+    int normalNights = nightsCount;
+    double totalDiscount = 0;
+    double totalSurcharge = 0;
+
+    if (nightsAreClean && nights.isNotEmpty) {
+      discountedNights = nights.where((n) => n.adjustment < 0).length;
+      surchargeNights = nights.where((n) => n.adjustment > 0).length;
+      normalNights = nightsCount - discountedNights - surchargeNights;
+      if (normalNights < 0) normalNights = 0;
+      totalDiscount = nights.fold<double>(
+        0,
+        (sum, n) => sum + (n.adjustment < 0 ? -n.adjustment : 0),
+      );
+      totalSurcharge = nights.fold<double>(
+        0,
+        (sum, n) => sum + (n.adjustment > 0 ? n.adjustment : 0),
+      );
+      // نفس منطق التنظيف الموجود في الكود الأصلي
+      if (discount <= 0 && totalDiscount > 0) {
+        final hasValidBaseRates = nights.any((n) => n.baseRate > 0);
+        if (!hasValidBaseRates) {
+          totalDiscount = 0;
+          discountedNights = 0;
+          normalNights = nightsCount;
+        } else {
+          final allRatesMatchBase = nights.every(
+            (n) => (n.finalRate - n.baseRate).abs() < 0.01,
+          );
+          if (allRatesMatchBase) {
+            totalDiscount = 0;
+            discountedNights = 0;
+            normalNights = nightsCount;
+          }
+        }
+      }
+    } else if (discount > 0 && discountType == 'per_night') {
+      discountedNights = _countNightsWithDiscount(
+        checkin,
+        effectiveCheckout,
+        discountStartDate,
+      );
+      normalNights = nightsCount - discountedNights;
+      if (normalNights < 0) normalNights = 0;
+      totalDiscount = discountedNights * discount;
+    } else if (discount > 0 && discountType == 'total') {
+      totalDiscount = discount;
+    }
+
+    return _StayCalculation(
+      actualNights: actualNights,
+      nightsCount: nightsCount,
+      nightTotal: nightTotal,
+      totalAmount: totalAmount,
+      effectiveNightlyRate: effectiveNightlyRate,
+      discountedNights: discountedNights,
+      surchargeNights: surchargeNights,
+      normalNights: normalNights,
+      totalDiscount: totalDiscount,
+      totalSurcharge: totalSurcharge,
+      nightsAreClean: nightsAreClean,
+    );
+  }
+
+  /// يتحقق من نظافة سجلات BookingNight:
+  /// - لا تكرار في sequence
+  /// - لا فجوات في sequence
+  /// - لا ليالٍ مستقبلية تتجاوز actualNights
+  /// - finalRate/nightlyRate > 0
+  bool _validateNightsIntegrity(
+    List<db.BookingNight> nights,
+    int expectedNights,
+  ) {
+    if (nights.isEmpty) return false;
+
+    // 1) لا تكرار في sequence
+    final sequences = nights.map((n) => n.sequence).toList();
+    if (sequences.length != sequences.toSet().length) {
+      dwarn(() => '⚠️ [NightsIntegrity] تكرار في sequence: $sequences');
+      return false;
+    }
+
+    // 2) لا فجوات — sequence يجب أن يكون 1..n متواصلاً
+    sequences.sort();
+    for (int i = 0; i < sequences.length; i++) {
+      if (sequences[i] != i + 1) {
+        dwarn(
+          () =>
+              '⚠️ [NightsIntegrity] فجوة في sequence عند الفهرس $i: ${sequences[i]}',
+        );
+        return false;
+      }
+    }
+
+    // 3) عدد السجلات لا يتجاوز الليالي المتوقعة (منع ليالٍ مستقبلية زائدة)
+    if (nights.length > expectedNights) {
+      dwarn(
+        () =>
+            '⚠️ [NightsIntegrity] سجلات الليالي (${nights.length}) > الليالي المتوقعة ($expectedNights)',
+      );
+      return false;
+    }
+
+    // 4) كل ليلة لها سعر صحيح (> 0)
+    for (final n in nights) {
+      final rate = n.finalRate > 0 ? n.finalRate : n.nightlyRate;
+      if (rate <= 0) {
+        dwarn(
+          () =>
+              '⚠️ [NightsIntegrity] ليلة sequence=${n.sequence} بسعر غير صالح: finalRate=${n.finalRate}, nightlyRate=${n.nightlyRate}',
+        );
+        return false;
+      }
+    }
+
+    return true;
   }
 
   @override
@@ -330,84 +526,27 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     // ليالي الحجز (provider تم تعريفه في الأعلى)
     final nights = nightsAsync.valueOrNull ?? const <db.BookingNight>[];
-    final nightsCount = nights.isNotEmpty ? nights.length : actualNights;
-    final double nightTotal = nights.isNotEmpty
-        ? nights.fold<double>(
-            0,
-            (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
-          )
-        : (() {
-            final checkout = actualCheckout ?? DateTime.now();
-            if (discount > 0 && discountType == 'per_night') {
-              final discountedNights = _countNightsWithDiscount(
-                checkin,
-                checkout,
-                discountStartDate,
-              );
-              final fullNightsRaw = actualNights - discountedNights;
-              final fullNights = fullNightsRaw < 0 ? 0 : fullNightsRaw;
-              final discountedRate = (roomRate - discount)
-                  .clamp(0, roomRate)
-                  .toDouble();
-              return (fullNights * roomRate) +
-                  (discountedNights * discountedRate);
-            }
-            return actualNights * roomRate;
-          })();
 
-    final double totalAmount = discount > 0 && discountType == 'total'
-        ? (nightTotal - discount).clamp(0, nightTotal).toDouble()
-        : nightTotal;
+    // ═══════════════════════════════════════════════════════════════
+    /// حساب موحد للإقامة — يزيل التباين بين المسارات
+    /// ═══════════════════════════════════════════════════════════════
+    final stayCalc = _calculateStay(
+      checkin: checkin,
+      actualCheckout: actualCheckout,
+      nights: nights,
+      roomRate: roomRate,
+      discount: discount,
+      discountType: discountType,
+      discountStartDate: discountStartDate,
+    );
 
-    int discountedNights = 0;
-    int surchargeNights = 0;
-    int normalNights = nightsCount;
-    double totalDiscount = 0;
-    double totalSurcharge = 0;
-
-    if (nights.isNotEmpty) {
-      discountedNights = nights.where((n) => n.adjustment < 0).length;
-      surchargeNights = nights.where((n) => n.adjustment > 0).length;
-      normalNights = nightsCount - discountedNights - surchargeNights;
-      if (normalNights < 0) normalNights = 0;
-      totalDiscount = nights.fold<double>(
-        0,
-        (sum, n) => sum + (n.adjustment < 0 ? -n.adjustment : 0),
-      );
-      totalSurcharge = nights.fold<double>(
-        0,
-        (sum, n) => sum + (n.adjustment > 0 ? n.adjustment : 0),
-      );
-      if (discount <= 0 && totalDiscount > 0) {
-        final hasValidBaseRates = nights.any((n) => n.baseRate > 0);
-        if (!hasValidBaseRates) {
-          totalDiscount = 0;
-          discountedNights = 0;
-          normalNights = nightsCount;
-        } else {
-          final allRatesMatchBase = nights.every(
-            (n) => (n.finalRate - n.baseRate).abs() < 0.01,
-          );
-          if (allRatesMatchBase) {
-            totalDiscount = 0;
-            discountedNights = 0;
-            normalNights = nightsCount;
-          }
-        }
-      }
-    } else if (discount > 0 && discountType == 'per_night') {
-      final checkout = actualCheckout ?? DateTime.now();
-      discountedNights = _countNightsWithDiscount(
-        checkin,
-        checkout,
-        discountStartDate,
-      );
-      normalNights = nightsCount - discountedNights;
-      if (normalNights < 0) normalNights = 0;
-      totalDiscount = discountedNights * discount;
-    } else if (discount > 0 && discountType == 'total') {
-      totalDiscount = discount;
-    }
+    final nightsCount = stayCalc.nightsCount;
+    final double totalAmount = stayCalc.totalAmount;
+    final int discountedNights = stayCalc.discountedNights;
+    final int surchargeNights = stayCalc.surchargeNights;
+    final int normalNights = stayCalc.normalNights;
+    final double totalDiscount = stayCalc.totalDiscount;
+    final double totalSurcharge = stayCalc.totalSurcharge;
 
     // مدفوعات الحجز (provider تم تعريفه في الأعلى)
     // الرصيد الفعلي = مجموع الدفعات الفعلية: غير الملغاة وغير المعلّقة
@@ -536,7 +675,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     PaymentMethod.cash,
                     null,
                     'رصيد تراكمي للنزيل',
-                    true,
                   ),
                 ),
               ),
@@ -1516,56 +1654,34 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final plannedCheckout = widget.booking.checkoutDate != null
-        ? DateTime.tryParse(widget.booking.checkoutDate!)
-        : null;
     final actualCheckout = widget.booking.actualCheckout != null
         ? DateTime.tryParse(widget.booking.actualCheckout!)
         : null;
-    final actualNights = Time.nightsWithCutoff(
-      checkin,
-      checkout: actualCheckout ?? plannedCheckout,
-    );
+    final discount = widget.booking.discount;
+    final discountType = widget.booking.discountType;
+    final discountStartDate = _parseDateTime(widget.booking.discountStartDate);
 
+    // ── جلب الليالي من قاعدة البيانات ─────────────────────────────
     final nights =
         await (dbInstance.select(dbInstance.bookingNights)
               ..where((n) => n.bookingLocalId.equals(widget.booking.id))
               ..where((n) => n.deletedAt.isNull()))
             .get();
-    final discount = widget.booking.discount;
-    final discountType = widget.booking.discountType;
-    final discountStartDate = _parseDateTime(widget.booking.discountStartDate);
 
-    final double nightTotal = nights.isNotEmpty
-        ? nights.fold<double>(
-            0,
-            (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
-          )
-        : (() {
-            final checkout = actualCheckout ?? plannedCheckout;
-            if (checkout == null) {
-              return actualNights * roomRate;
-            }
-            if (discount > 0 && discountType == 'per_night') {
-              final discountedNights = _countNightsWithDiscount(
-                checkin,
-                checkout,
-                discountStartDate,
-              );
-              final fullNightsRaw = actualNights - discountedNights;
-              final fullNights = fullNightsRaw < 0 ? 0 : fullNightsRaw;
-              final discountedRate = (roomRate - discount)
-                  .clamp(0, roomRate)
-                  .toDouble();
-              return (fullNights * roomRate) +
-                  (discountedNights * discountedRate);
-            }
-            return actualNights * roomRate;
-          })();
+    // ═══════════════════════════════════════════════════════════════
+    /// استخدام الحساب الموحد — actualCheckout أو اللحظة الحالية يحددان
+    /// نهاية الإقامة الفعلية، ولا يوقفها checkoutDate المخطط.
+    /// ═══════════════════════════════════════════════════════════════
+    final stayCalc = _calculateStay(
+      checkin: checkin,
+      actualCheckout: actualCheckout,
+      nights: nights,
+      roomRate: roomRate,
+      discount: discount,
+      discountType: discountType,
+      discountStartDate: discountStartDate,
+    );
 
-    final double totalAmount = discount > 0 && discountType == 'total'
-        ? (nightTotal - discount).clamp(0, nightTotal).toDouble()
-        : nightTotal;
     // الرصيد الفعلي المتّسق مع المحرك الموحد: الدفعات الفعلية فقط
     // (غير الملغاة وغير المعلّقة) — يُستخدم لقرار التمديد و«المتبقي»
     // في الإيصال ورسالة الواتساب، فلا يجوز أن يضمّ الدفعات الملغاة.
@@ -1575,12 +1691,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paidAmount = payments
         .where((p) => !p.isVoided && !p.isPendingBalance)
         .fold<double>(0, (s, p) => s + p.amount);
-    double remainingAmount = totalAmount - paidAmount;
+    double remainingAmount = stayCalc.totalAmount - paidAmount;
     if (remainingAmount < 0) {
       remainingAmount = 0;
     }
 
-    return _PaymentTotals(totalAmount, remainingAmount);
+    return _PaymentTotals(stayCalc.totalAmount, remainingAmount);
   }
 
   Future<void> _processPayment(
@@ -1619,9 +1735,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     try {
       final totals = await _calculateCurrentTotals();
 
-      // ═══════════════════════════════════════════════════════
+      // ════════════════════════════════════════════════════════════════
       // حساب التمديد (قراءة + حوار تأكيد) — قبل الـ transaction
-      // ═══════════════════════════════════════════════════════
+      // ════════════════════════════════════════════════════════════════
       bool needsExtension = false;
       DateTime? newCheckout;
       int? newExpectedNights;
@@ -1630,17 +1746,55 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       if (!isPendingBalance && amount > totals.remaining) {
         // المبلغ يتجاوز المتبقي — نحسب الليالي الإضافية و نمدد الحجز
         final surplus = amount - totals.remaining;
+
+        // ═══════════════════════════════════════════════════════════════
+        /// نستخدم السعر الفعلي للليلة (effectiveNightlyRate) بدلاً من
+        /// السعر الأساسي للغرفة (roomRate) — السعر الفعلي يشمل الخصومات
+        /// والإضافات على مستوى كل ليلة، وهو ما يحسب به المستحق فعلياً.
+        /// ═══════════════════════════════════════════════════════════════
+        // نجلب الليالي والخصومات لحساب السعر الفعلي
         final roomsRepo = ref.read(roomsRepoProvider);
+        final dbInstance = ref.read(databaseProvider);
         final room = await roomsRepo
             .watchByNumber(widget.booking.roomNumber)
             .first;
-        final double rmRate = room?.price ?? 0;
+        final double baseRoomRate = room?.price ?? 0;
 
-        if (rmRate <= 0) {
+        final checkin =
+            DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+        final actualCheckout = widget.booking.actualCheckout != null
+            ? DateTime.tryParse(widget.booking.actualCheckout!)
+            : null;
+        final discount = widget.booking.discount;
+        final discountType = widget.booking.discountType;
+        final discountStartDate = _parseDateTime(
+          widget.booking.discountStartDate,
+        );
+
+        final nights =
+            await (dbInstance.select(dbInstance.bookingNights)
+                  ..where((n) => n.bookingLocalId.equals(widget.booking.id))
+                  ..where((n) => n.deletedAt.isNull()))
+                .get();
+
+        // حساب موحد مع forExtensionCalculation=true للحصول على السعر الفعلي
+        final stayCalc = _calculateStay(
+          checkin: checkin,
+          actualCheckout: actualCheckout,
+          nights: nights,
+          roomRate: baseRoomRate,
+          discount: discount,
+          discountType: discountType,
+          discountStartDate: discountStartDate,
+        );
+
+        final double effectiveRate = stayCalc.effectiveNightlyRate;
+
+        if (effectiveRate <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'لا يمكن حساب الليالي الإضافية — سعر الغرفة غير محدد',
+                'لا يمكن حساب الليالي الإضافية — السعر الفعلي للليلة غير محدد',
               ),
               backgroundColor: Colors.red,
             ),
@@ -1648,7 +1802,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           return;
         }
 
-        extraNights = (surplus / rmRate).ceil();
+        extraNights = (surplus / effectiveRate).ceil();
         if (extraNights <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')),
@@ -1915,7 +2069,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final actualCheckout = widget.booking.actualCheckout != null
           ? DateTime.tryParse(widget.booking.actualCheckout!)
           : null;
-      final checkout = actualCheckout ?? plannedCheckout ?? checkin;
+      final now = DateTime.now();
+      final bool isBookingActive = StatusUtils.isBookingActive(widget.booking);
+      final DateTime checkout =
+          actualCheckout != null && !actualCheckout.isAfter(now)
+          ? actualCheckout
+          : (isBookingActive ? now : (plannedCheckout ?? checkin));
       final roomsRepo = ref.read(roomsRepoProvider);
       final room = await roomsRepo
           .watchByNumber(widget.booking.roomNumber)
@@ -2141,16 +2300,24 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ..where((n) => n.deletedAt.isNull())
               ..orderBy([(t) => OrderingTerm.asc(t.sequence)]))
             .get();
-
     // تكلفة الليالي الفعلية المستخدمة
     double actualNightsCost = 0;
-    if (nights.isNotEmpty) {
+    // ── حارس سلامة لسجلات الليالي ────────────────────────────────
+    final bool nightsAreClean = _validateNightsIntegrity(nights, actualNights);
+    if (nightsAreClean && nights.isNotEmpty) {
       final effectiveCount = actualNights.clamp(0, nights.length);
       for (int i = 0; i < effectiveCount; i++) {
         actualNightsCost += nights[i].finalRate > 0
             ? nights[i].finalRate
             : nights[i].nightlyRate;
       }
+    } else if (nights.isNotEmpty) {
+      // Nights exist but failed validation — fallback to calculated nights
+      final roomsRepo = ref.read(roomsRepoProvider);
+      final room = await roomsRepo
+          .watchByNumber(widget.booking.roomNumber)
+          .first;
+      actualNightsCost = actualNights * (room?.price ?? 0);
     } else {
       // بديل: سعر الغرفة × الليالي الفعلية
       final roomsRepo = ref.read(roomsRepoProvider);
@@ -2956,6 +3123,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// تستخدم عندما يخرج النزيل قبل بداية اليوم الفندقي الجديد وينسى العامل
   /// تسجيل خروجه فيتم احتساب يوم إضافي بالخطأ
   void _showCancelTodayPaymentDialog(BookingPaymentSummary summary) {
+    // ✅ دفاع عميق: إلغاء الدفعات للمدير والمشرف فقط
+    final currentUser = ref.read(authProvider).currentUser;
+    if (!(currentUser?.canVoidPayments ?? false)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ إلغاء الدفعات متاح للمدير والمشرف فقط'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final hotelDay = HotelTimeEngine.getHotelDayKey();
 
@@ -3116,17 +3296,26 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   /// معالجة إلغاء دفعات اليوم الفندقي فقط (بدون تسجيل خروج أو تحرير غرفة)
-  /// paymentsRepo.delete → dao.softDelete → _mergeOutbox → كتابة في outbox للمزامنة
+  /// paymentsRepo.delete صار يؤدي void (isVoided + voidedBy/voidReason) —
+  /// لا tombstone — والدفعة الملغاة تبقى قابلة للتدقيق وتُستثنى من الأرصدة.
   Future<void> _processCancelTodayPayments(
     List<db.Payment> paymentsToCancel,
   ) async {
     try {
       final paymentsRepo = ref.read(paymentsRepoProvider);
 
-      // حذف (soft delete) دفعات اليوم الفندقي عبر PaymentsRepository
-      // الذي يكتب إلى outbox تلقائياً عبر dao.softDelete → _mergeOutbox
+      // ✅ دفاع عميق: إلغاء الدفعات للمدير والمشرف فقط
+      if (!(ref.read(authProvider).currentUser?.canVoidPayments ?? false)) {
+        throw StateError('إلغاء الدفعات متاح للمدير والمشرف فقط');
+      }
+
+      // إلغاء دفعة اليوم المحتسبة بالخطأ عبر مسار void (لا حذف) —
+      // voidedBy يُحلّ من المستخدم الحالي داخل الـ repository.
       for (final p in paymentsToCancel) {
-        await paymentsRepo.delete(p.id);
+        await paymentsRepo.delete(
+          p.id,
+          voidReason: 'دفعة يوم فندقي محتسبة بالخطأ',
+        );
       }
 
       // ✅ تسجيل تغيير المزامنة (نفس النمط الموجود في _processCheckout)
@@ -3691,7 +3880,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final actualCheckout = widget.booking.actualCheckout != null
           ? DateTime.tryParse(widget.booking.actualCheckout!)
           : null;
-      final checkout = actualCheckout ?? plannedCheckout ?? checkin;
+      final now = DateTime.now();
+      final bool isBookingActive = StatusUtils.isBookingActive(widget.booking);
+      final DateTime checkout =
+          actualCheckout != null && !actualCheckout.isAfter(now)
+          ? actualCheckout
+          : (isBookingActive ? now : (plannedCheckout ?? checkin));
 
       final roomsRepo = ref.read(roomsRepoProvider);
       final room = await roomsRepo
@@ -4305,6 +4499,34 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final s = dt.second.toString().padLeft(2, '0');
     return '$y-$m-$d $h:$min:$s';
   }
+}
+
+class _StayCalculation {
+  final int actualNights;
+  final int nightsCount;
+  final double nightTotal;
+  final double totalAmount;
+  final double effectiveNightlyRate;
+  final int discountedNights;
+  final int surchargeNights;
+  final int normalNights;
+  final double totalDiscount;
+  final double totalSurcharge;
+  final bool nightsAreClean;
+
+  _StayCalculation({
+    required this.actualNights,
+    required this.nightsCount,
+    required this.nightTotal,
+    required this.totalAmount,
+    required this.effectiveNightlyRate,
+    required this.discountedNights,
+    required this.surchargeNights,
+    required this.normalNights,
+    required this.totalDiscount,
+    required this.totalSurcharge,
+    required this.nightsAreClean,
+  });
 }
 
 class _PaymentTotals {

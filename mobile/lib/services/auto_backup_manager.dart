@@ -683,7 +683,12 @@ class AutoBackupManager {
         return;
       }
       final service = BookingDerivedFieldsService(_database!);
-      final count = await service.refreshAllActiveBookings();
+      // التجديد التلقائي يعيد بناء حقول مشتقة محلياً فقط؛ ليس تعديلاً
+      // مباشراً من المستخدم ولا ينبغي أن ينشئ عمليات مزامنة في Outbox.
+      final count = await service.refreshAllActiveBookings(
+        enqueueOutbox: false,
+        promoteProvisional: false,
+      );
       _lastRenewedHotelDay = currentHotelDay;
       if (count > 0) {
         dlog(

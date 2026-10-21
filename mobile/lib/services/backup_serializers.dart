@@ -168,6 +168,7 @@ class BackupTableData {
     required this.salaryCarryOverLogsData,
     required this.inventoryItemsData,
     required this.inventoryTransactionsData,
+    required this.blacklistData,
   });
 
   final List<dynamic> roomsData;
@@ -192,6 +193,7 @@ class BackupTableData {
   final List<dynamic> salaryCarryOverLogsData;
   final List<dynamic> inventoryItemsData;
   final List<dynamic> inventoryTransactionsData;
+  final List<dynamic> blacklistData;
 
   /// إجمالي عدد السجلات في جميع الجداول
   int get totalRecords =>
@@ -216,7 +218,8 @@ class BackupTableData {
       salaryWithdrawalsData.length +
       salaryCarryOverLogsData.length +
       inventoryItemsData.length +
-      inventoryTransactionsData.length;
+      inventoryTransactionsData.length +
+      blacklistData.length;
 
   /// بناء خريطة بيانات النسخ الاحتياطي من هذه الحاوية
   Map<String, dynamic> toBackupDataMap({
@@ -249,7 +252,8 @@ class BackupTableData {
       salaryCarryOverLogsData: salaryCarryOverLogsData,
       inventoryItemsData: inventoryItemsData,
       inventoryTransactionsData: inventoryTransactionsData,
-      blacklistData: blacklistData,
+      // ✅ يُمرَّر من الحقل؛ المعامل الاختياري يبقى للتوافق مع مستدعين أقدم.
+      blacklistData: blacklistData ?? this.blacklistData,
       whatsappSettings: whatsappSettings,
       syncStateData: syncStateData,
     );

@@ -65,10 +65,13 @@ void main() {
 
   late AppDatabase db;
 
-  /// استخراج قائمة الأعمدة من عبارة INSERT OR REPLACE الملتقطة
+  /// استخراج قائمة الأعمدة من عبارة INSERT/UPSERT الملتقطة
   /// (بين أول '(' و ') VALUES').
-  List<String> insertColsOf(String sql) =>
-      sql.substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES')).split(',');
+  List<String> insertColsOf(String sql) => sql
+      .substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES'))
+      .split(',')
+      .map((column) => column.replaceAll('"', ''))
+      .toList();
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -105,6 +108,42 @@ void main() {
             '${entry.key}: اسم حقل Dart/Appwrite يجب أن يكون camelCase بلا "_"',
       );
     }
+  });
+
+  test('يحافظ رفع D1 على id ذي المعنى الذي ليس AUTOINCREMENT', () async {
+    final requests = <String>[];
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      requests.add(body['sql'] as String);
+      return http.Response('{"success":true,"result":[]}', 200);
+    });
+    final service = CloudflareD1Service(
+      const CloudflareD1Config(accountId: 'a', databaseId: 'b', apiToken: 't'),
+      client: client,
+    );
+
+    final result = await service.uploadData(
+      tables: [
+        CloudflareD1SourceTable(
+          name: 'sync_state',
+          rowCount: 1,
+          createSqlList: const [
+            'CREATE TABLE sync_state (id INTEGER NOT NULL)',
+          ],
+          readChunk: (limit, offset) async => offset == 0
+              ? [
+                  <String, Object?>{'id': 1, 'version': 4},
+                ]
+              : const <Map<String, Object?>>[],
+        ),
+      ],
+    );
+
+    expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+    final insert = requests.singleWhere(
+      (sql) => sql.startsWith('INSERT OR REPLACE'),
+    );
+    expect(insert, contains('("id","version") VALUES (1,4)'));
   });
 
   test(
@@ -302,7 +341,9 @@ void main() {
             CloudflareD1SourceTable(
               name: 'rooms',
               rowCount: 1,
-              createSqlList: const [],
+              createSqlList: const [
+                'CREATE TABLE rooms (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT)',
+              ],
               readChunk: readChunk,
             ),
           ],
@@ -318,7 +359,7 @@ void main() {
             )
             .expand((sql) => sql.split(';\n'))
             .map((s) => s.trim())
-            .where((s) => s.startsWith('INSERT OR REPLACE INTO "rooms"'))
+            .where((s) => s.startsWith('INSERT INTO "rooms"'))
             .toList();
         expect(
           inserts,
@@ -331,11 +372,12 @@ void main() {
       final firstRun = await runUpload();
       final sql = firstRun.single;
 
-      // 1) أسماء الأعمدة الـ 17 بصيغة snake_case داخل نص SQL
-      //    (الإنتاج يكتب قائمة الأعمدة بدون اقتباس — أسماء صالحة لـ SQLite).
+      // 1) أسماء الأعمدة الـ 17 بصيغة snake_case داخل نص SQL.
       final colList = sql
           .substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES'))
-          .split(',');
+          .split(',')
+          .map((column) => column.replaceAll('"', ''))
+          .toList();
       expect(colList.toSet(), containsAll(kExpectedSyncFieldMapping.values));
       expect(colList, isNot(contains('localUuid')));
       expect(colList, isNot(contains('idempotencyKey')));
@@ -345,11 +387,24 @@ void main() {
       // 2) القيم محفوظة حرفياً — timestamps/version/idempotency_key لم تُعد إنشاؤها.
       final row =
           (await db.customSelect('SELECT * FROM "rooms"').get()).first.data;
-      final cols = row.keys.toList();
+      // id هو مفتاح Drift محلي autoincrement؛ لا يجوز إرساله إلى D1 لأن
+      // D1 يملك تسلسله الخاص، وقد يصطدم بصف موجود تحت local_uuid مختلف.
+      final cols = row.keys.where((c) => c != 'id').toList();
+      expect(colList, isNot(contains('id')));
+      expect(
+        sql,
+        isNot(contains('"id"')),
+        reason: 'يجب ألا يصل id المحلي إلى INSERT الخاص بـ D1',
+      );
+      final updateCols = cols
+          .where((c) => c != 'local_uuid')
+          .map((c) => '"$c" = excluded."$c"')
+          .join(',');
       final expectedSql =
-          'INSERT OR REPLACE INTO "rooms" '
-          '(${cols.join(',')}) '
-          'VALUES (${cols.map((c) => lit(row[c])).join(',')})';
+          'INSERT INTO "rooms" '
+          '(${cols.map((c) => '"$c"').join(',')}) '
+          'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
+          'ON CONFLICT("local_uuid") DO UPDATE SET $updateCols';
       expect(
         sql,
         expectedSql,
@@ -473,21 +528,37 @@ void main() {
         return rows.map((r) => r.data).toList();
       }
 
+      Future<String> createSql(String table) async =>
+          (await db
+                      .customSelect(
+                        'SELECT sql FROM sqlite_master WHERE type = ? AND name = ?',
+                        variables: [
+                          Variable.withString('table'),
+                          Variable.withString(table),
+                        ],
+                      )
+                      .getSingle())
+                  .data['sql']
+              as String;
+
       final result = await service.uploadData(
         tables: [
           CloudflareD1SourceTable(
             name: 'salary_cycles',
             rowCount: 1,
+            createSqlList: [await createSql('salary_cycles')],
             readChunk: (l, o) => chunk('salary_cycles', l, o),
           ),
           CloudflareD1SourceTable(
             name: 'salary_withdrawals',
             rowCount: 1,
+            createSqlList: [await createSql('salary_withdrawals')],
             readChunk: (l, o) => chunk('salary_withdrawals', l, o),
           ),
           CloudflareD1SourceTable(
             name: 'expenses',
             rowCount: 1,
+            createSqlList: [await createSql('expenses')],
             readChunk: (l, o) => chunk('expenses', l, o),
           ),
         ],
@@ -501,16 +572,16 @@ void main() {
           .map((s) => s.trim())
           // جدول app_backup_meta تُكتبه الخدمة تلقائياً بعد اكتمال الرفع —
           // نستثنيه (اسمه غير مقتبس بعلامات تنصيص).
-          .where((s) => s.startsWith('INSERT OR REPLACE INTO "'))
+          .where((s) => s.startsWith('INSERT INTO "'))
           .toList();
       expect(inserts, hasLength(3));
 
-      String insertFor(String table) => inserts.firstWhere(
-        (s) => s.startsWith('INSERT OR REPLACE INTO "$table"'),
-      );
+      String insertFor(String table) =>
+          inserts.firstWhere((s) => s.startsWith('INSERT INTO "$table"'));
 
       // 1) salary_cycles: عمود employee_uuid موجود وقيمته الحرفية تصل.
       final cyclesSql = insertFor('salary_cycles');
+      expect(cyclesSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
       final cyclesCols = insertColsOf(cyclesSql);
       expect(cyclesCols, contains('employee_uuid'));
       expect(
@@ -521,11 +592,13 @@ void main() {
 
       // 2) salary_withdrawals: نفس التثبيت.
       final wdSql = insertFor('salary_withdrawals');
+      expect(wdSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
       expect(insertColsOf(wdSql), contains('employee_uuid'));
       expect(wdSql, contains("'emp-uuid-9'"));
 
       // 3) expenses: employee_uuid يصل وrelated_id يصل NULL صراحةً (P0.4).
       final expSql = insertFor('expenses');
+      expect(expSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
       expect(insertColsOf(expSql), contains('employee_uuid'));
       expect(expSql, contains("'emp-uuid-9'"));
       // التحقق الحرفي: الصف المحلي related_id == NULL ويجب أن يُرسل NULL
@@ -534,7 +607,13 @@ void main() {
           (await db.customSelect('SELECT * FROM "expenses"').get()).first.data;
       expect(row['related_id'], isNull);
       expect(row['employee_uuid'], 'emp-uuid-9');
-      final cols = row.keys.toList();
+      // يتولى D1 توليد المفتاح الأساسي؛ لا نرسل معرّف Drift المحلي.
+      final cols = row.keys.where((c) => c != 'id').toList();
+      expect(
+        expSql,
+        isNot(contains('"id"')),
+        reason: 'يجب ألا يصل id المحلي إلى INSERT الخاص بـ D1',
+      );
       String lit(Object? v) {
         if (v == null) return 'NULL';
         if (v is int) return v.toString();
@@ -545,8 +624,11 @@ void main() {
 
       expect(
         expSql,
-        'INSERT OR REPLACE INTO "expenses" '
-        '(${cols.join(',')}) VALUES (${cols.map((c) => lit(row[c])).join(',')})',
+        'INSERT INTO "expenses" '
+        '(${cols.map((c) => '"$c"').join(',')}) '
+        'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
+        'ON CONFLICT("local_uuid") DO UPDATE SET '
+        '${cols.where((c) => c != 'local_uuid').map((c) => '"$c" = excluded."$c"').join(',')}',
         reason: 'عبارة expenses المرسلة لا تطابق القيم الحرفية للصف',
       );
     },
@@ -662,16 +744,28 @@ void main() {
     // الفلتر يسمح بـ NULL ويستبعد 'blacklist' حرفياً.
     expect(kShiftNotesD1ExclusionWhere, contains('created_by IS NULL'));
     expect(kShiftNotesD1ExclusionWhere, contains("created_by <> 'blacklist'"));
-    // app_users تركيبي وليس جدول Drift ضمن القائمة العادية.
-    expect(kD1SyntheticTables, contains('app_users'));
+    // ✅ تحديث (2026-10-11) لمعمارية migration 72:
+    // - app_users لم يعد يُرفع إلى D1 إطلاقاً (متزامن عبر Appwrite outbox مباشرة)
+    //   → لا جداول تركيبية في مسار D1 بعد الآن.
+    // - blacklist صار جدول Drift حقيقي ضمن الجداول المتزامنة (بلا صفوف تركيبية).
+    expect(
+      kD1SyntheticTables,
+      isEmpty,
+      reason: 'لا مصادر تركيبية بعد إزالة app_users من مسار D1',
+    );
     expect(kAppwriteSyncedTables, isNot(contains('app_users')));
+    expect(
+      kAppwriteSyncedTables,
+      contains('blacklist'),
+      reason: 'blacklist جدول متزامن حقيقي منذ migration 72',
+    );
   });
 
   test('الفجوة F2: بناء صفوف app_users التركيبية — الدمج والأمان والثبات', () {
     const localHash = 'pbkdf2_sha256\$100000\$localSalt\$localHash==';
     const cloudHash = 'pbkdf2_sha256\$100000\$cloudSalt\$cloudHash==';
     final rows = buildAppUsersBackupRows(
-      AppUsersBackupInputs(
+      const AppUsersBackupInputs(
         localAccounts: {
           'yasser': {
             'password': localHash,

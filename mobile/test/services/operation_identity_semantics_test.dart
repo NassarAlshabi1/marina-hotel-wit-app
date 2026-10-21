@@ -580,6 +580,12 @@ void main() {
 
     test('إنشاء مزدوج لنفس الهوية عبر الأجهزة: تُعتمد الأحدث وتُحذف النسخة '
         'الأخرى — العملية تُحتسب مرة واحدة', () async {
+      // This test models legacy data created before the active 1:1 mirror
+      // constraint existed. The production schema prevents new collisions;
+      // the repair service must still be able to clean historical collisions.
+      await db.customStatement(
+        'DROP INDEX IF EXISTS ux_salary_withdrawals_expense_uuid_active',
+      );
       final expId = await createExpense(db, empId, 100, localUuid: 'dup-1');
       // نسختان لنفس العملية (تصادم إنشاء من جهازين) — الأحدث تحديثاً 2000.
       await createMirrorRaw(

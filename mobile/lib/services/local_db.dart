@@ -202,6 +202,10 @@ class Expenses extends Table with SyncFields {
 
   List<Index> get indexes => [
     Index(
+      'idx_expenses_employee_uuid',
+      'CREATE INDEX idx_expenses_employee_uuid ON expenses (employee_uuid)',
+    ),
+    Index(
       'idx_expenses_hotel_day',
       'CREATE INDEX idx_expenses_hotel_day ON expenses (hotel_day_key)',
     ),
@@ -292,6 +296,11 @@ class Payments extends Table with SyncFields {
   TextColumn get receivedSessionUuid => text().nullable()();
   // معرّف مستخدم Appwrite Cloud الثابت بين الأجهزة.
   TextColumn get receivedByCloudId => text().nullable()();
+  // تتبّع الحذف: جهاز واسم المستخدم الذي نفّذ الحذف الناعم.
+  // التمييز بين الإلغاء والحذف: isVoided=true ⇒ إلغاء (voidedBy مسجّل)،
+  // deletedAt بدون isVoided ⇒ حذف وهذان العمودان يسجّلان الحاذف.
+  TextColumn get deletedByDevice => text().nullable()();
+  TextColumn get deletedByName => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -435,6 +444,36 @@ class ShiftNotes extends Table with SyncFields {
     Index(
       'idx_shift_notes_shift_type',
       'CREATE INDEX idx_shift_notes_shift_type ON shift_notes (shift_type)',
+    ),
+  ];
+}
+
+// ✅ إصلاح (2026-10-11): بلا @DataClassName — الاسم الافتراضي المولّد
+// `BlacklistData` هو ما يستخدمه كل المستهلكون (sync manager, repository,
+// payload mapper, خدمات النسخ). لا نستخدم 'BlacklistEntry' لأنه يتعارض
+// مع نموذج واجهة المستخدم BlacklistEntry في blacklist_repository.dart.
+class Blacklist extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  TextColumn get nationality => text().nullable()();
+  TextColumn get nationalId => text().nullable()();
+  TextColumn get phone => text().nullable()();
+  TextColumn get reason => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  TextColumn get reportedBy => text().withDefault(const Constant('police'))();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+  // ✅ override لـ SyncFields.createdAt (نفس النوع) — يبطل تحذير annotate_overrides.
+  @override
+  IntColumn get createdAt => integer()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_blacklist_name',
+      'CREATE INDEX idx_blacklist_name ON blacklist (name)',
+    ),
+    Index(
+      'idx_blacklist_active',
+      'CREATE INDEX idx_blacklist_active ON blacklist (active)',
     ),
   ];
 }
@@ -734,6 +773,9 @@ class SalaryPayments extends Table with SyncFields {
   // ✅ (migration 67) UUID الموظف المالك للدفعة (مُشتق من الدورة) —
   // يُخزّن مباشرة ليُستعلم بدل الانحدار عبر cycleId الرقمي المحلي.
   TextColumn get employeeUuid => text().nullable()();
+  // ✅ (migration 71) UUID دورة الراتب — الهوية الثابتة عبر الأجهزة
+  // للربط مع salary_cycles.local_uuid بدلاً من cycleId الرقمي المحلي.
+  TextColumn get cycleUuid => text().nullable()();
   IntColumn get amount => integer().withDefault(const Constant(0))();
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get paymentDateIso => text()();
@@ -750,9 +792,19 @@ class SalaryPayments extends Table with SyncFields {
       'idx_salary_payments_employee_uuid',
       'CREATE INDEX idx_salary_payments_employee_uuid ON salary_payments (employee_uuid)',
     ),
+    Index(
+      'idx_salary_payments_cycle_uuid',
+      'CREATE INDEX idx_salary_payments_cycle_uuid ON salary_payments (cycle_uuid)',
+    ),
   ];
 }
 
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX ux_salary_withdrawals_expense_uuid_active '
+  'ON salary_withdrawals (expense_uuid) '
+  "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+  'AND deleted_at IS NULL',
+)
 @DataClassName('SalaryWithdrawal')
 class SalaryWithdrawals extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
@@ -800,8 +852,10 @@ class SalaryWithdrawals extends Table with SyncFields {
     ),
     // ✅ (migration 68) فهرسة رابط المرآة الدائم — السحب يحل عبره
     Index(
-      'idx_salary_withdrawals_expense_uuid',
-      'CREATE INDEX idx_salary_withdrawals_expense_uuid ON salary_withdrawals (expense_uuid)',
+      'ux_salary_withdrawals_expense_uuid_active',
+      'CREATE UNIQUE INDEX ux_salary_withdrawals_expense_uuid_active '
+          'ON salary_withdrawals (expense_uuid) '
+          'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL',
     ),
   ];
 }
@@ -1162,6 +1216,7 @@ class SyncRemoteMeta extends Table {
     Bookings,
     BookingNotes,
     ShiftNotes,
+    Blacklist,
     Employees,
     Expenses,
     CashTransactions,
@@ -1200,7 +1255,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 68;
+  int get schemaVersion => 73;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1229,124 +1284,6 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
-      // ✅ (2026-10-05) الإصدار 68: uuid رابط المرآة سحبة↔مصروف.
-      //
-      // المشكلة (نفس عائلة PR #601 employee_uuid و PR #609 cycle_uuid):
-      // salary_withdrawals.expense_id يحمل معرّف المصروف المحلي على جهاز
-      // المصدر (autoincrement) — وعند المزامنة لا يُعاد ترقيمه، فعلى أي
-      // جهاز آخر يشير إما إلى مصروف غريب (موظف آخر!) أو إلى لا شيء
-      // (حالة «الاورمو محمد» 2026-09-14 → عد مزدوج في الاستحقاق).
-      //
-      // الحل: عمودا expense_uuid (على السحبة) و withdrawal_uuid (على
-      // المصروف) يخزنان local_uuid الطرف الآخر — هوية ثابتة عبر الأجهزة —
-      // + backfill محلي حتمي (روابط صالحة داخل قاعدة الجهاز نفسها فقط،
-      // مع حراس الموظف/المبلغ/اليوم/فريدية الفتحة حتى لا يُخترع رابط خاطئ).
-      // كل العمليات إضافية (أعمدة nullable + UPDATE تعبئة) — لا حذف ولا
-      // إعادة بناء ولا فقدان بيانات بأي شكل.
-      if (from < 68) {
-        await m.addColumn(salaryWithdrawals, salaryWithdrawals.expenseUuid);
-        await m.addColumn(expenses, expenses.withdrawalUuid);
-
-        // ── Backfill السحبات: expense_id → local_uuid للمصروف ──
-        // حراس الأمان (مطابقة SalaryMirrorMatcher المستوى 3 + فريدية 1:1):
-        // 1) نفس الموظف (employee_uuid) — يمنع ربط مصروف موظف آخر عند
-        //    تصادم المعرفات الرقمية بين الأجهزة.
-        // 2) نفس المبلغ.
-        // 3) نفس اليوم بالضبط (hotel_day_key متطابق، أو تاريخ = تاريخ
-        //    السحبة حرفياً — دلالة SalaryMirrorMatcher المستوى 3 نفسها،
-        //    بلا أي تسامح زمني حتى لا يُكتب رابط غير مؤكد).
-        // 4) فريدية الفتحة (COUNT(*) = 1) — الفتحات المتعددة (مكررات
-        //    الاستيراد الجماعي) تبقى بلا رابط بدل تخمين خاطئ.
-        await m.database.customStatement(
-          'UPDATE salary_withdrawals SET expense_uuid = ('
-          '  SELECT e.local_uuid FROM expenses e'
-          '  WHERE e.id = salary_withdrawals.expense_id'
-          '    AND e.deleted_at IS NULL'
-          '    AND e.employee_uuid IS NOT NULL'
-          '    AND salary_withdrawals.employee_uuid IS NOT NULL'
-          '    AND e.employee_uuid = salary_withdrawals.employee_uuid'
-          '    AND ABS(e.amount - salary_withdrawals.amount) < 0.005'
-          '    AND ('
-          '      (e.hotel_day_key IS NOT NULL AND e.hotel_day_key != ""'
-          '        AND e.hotel_day_key = salary_withdrawals.hotel_day_key)'
-          '      OR (e.date IS NOT NULL'
-          '        AND julianday(e.date) IS NOT NULL'
-          '        AND e.date = salary_withdrawals.withdraw_date)'
-          '    )'
-          '    AND (SELECT COUNT(*) FROM expenses e3'
-          '      WHERE e3.id = salary_withdrawals.expense_id'
-          '        AND e3.deleted_at IS NULL'
-          '        AND e3.employee_uuid IS NOT NULL'
-          '        AND salary_withdrawals.employee_uuid IS NOT NULL'
-          '        AND e3.employee_uuid = salary_withdrawals.employee_uuid'
-          '        AND ABS(e3.amount - salary_withdrawals.amount) < 0.005'
-          '        AND ('
-          '          (e3.hotel_day_key IS NOT NULL AND e3.hotel_day_key != ""'
-          '            AND e3.hotel_day_key = salary_withdrawals.hotel_day_key)'
-          '          OR (e3.date IS NOT NULL'
-          '            AND julianday(e3.date) IS NOT NULL'
-          '            AND e3.date = salary_withdrawals.withdraw_date)'
-          '        )'
-          '    ) = 1'
-          ') WHERE expense_uuid IS NULL AND expense_id IS NOT NULL',
-        );
-
-        // ── Backfill عكسي للمصروفات: سحبة مرآة وحيدة لنفس
-        //    (الموظف، المبلغ، اليوم) عبر expense_id → withdrawal_uuid ──
-        //    للعائلة الراتبية فقط حفاظاً على دلالة expense_id لمصروفات
-        //    الأنواع الأخرى.
-        await m.database.customStatement(
-          "UPDATE expenses SET withdrawal_uuid = ("
-          "  SELECT w.local_uuid FROM salary_withdrawals w"
-          "  WHERE w.expense_id = expenses.id"
-          "    AND w.deleted_at IS NULL"
-          "    AND w.employee_uuid IS NOT NULL"
-          "    AND expenses.employee_uuid IS NOT NULL"
-          "    AND w.employee_uuid = expenses.employee_uuid"
-          "    AND ABS(w.amount - expenses.amount) < 0.005"
-          "    AND ("
-          "      (w.hotel_day_key IS NOT NULL AND w.hotel_day_key != \"\""
-          "        AND w.hotel_day_key = expenses.hotel_day_key)"
-          "      OR (w.withdraw_date IS NOT NULL AND expenses.date IS NOT NULL"
-          "        AND julianday(w.withdraw_date) IS NOT NULL"
-          "        AND w.withdraw_date = expenses.date)"
-          "    )"
-          "    AND (SELECT COUNT(*) FROM salary_withdrawals w3"
-          "      WHERE w3.expense_id = expenses.id"
-          "        AND w3.deleted_at IS NULL"
-          "        AND w3.employee_uuid IS NOT NULL"
-          "        AND expenses.employee_uuid IS NOT NULL"
-          "        AND w3.employee_uuid = expenses.employee_uuid"
-          "        AND ABS(w3.amount - expenses.amount) < 0.005"
-          "        AND ("
-          "          (w3.hotel_day_key IS NOT NULL AND w3.hotel_day_key != \"\""
-          "            AND w3.hotel_day_key = expenses.hotel_day_key)"
-          "          OR (w3.withdraw_date IS NOT NULL AND expenses.date IS NOT NULL"
-          "            AND julianday(w3.withdraw_date) IS NOT NULL"
-          "            AND w3.withdraw_date = expenses.date)"
-          "        )"
-          "    ) = 1"
-          ") WHERE withdrawal_uuid IS NULL"
-          " AND TRIM(expense_type) IN "
-          "('سحب راتب','خصم راتب','سحب من الراتب','خصم من الراتب','سلفة','رواتب')",
-        );
-
-        // ── فهارس الأعمدة الجديدة ──
-        await m.database.customStatement(
-          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid '
-          'ON salary_withdrawals (expense_uuid)',
-        );
-        await m.database.customStatement(
-          'CREATE INDEX IF NOT EXISTS idx_expenses_withdrawal_uuid '
-          'ON expenses (withdrawal_uuid)',
-        );
-
-        developer.log(
-          'Migration 68: added expense_uuid/withdrawal_uuid mirror link '
-          '+ deterministic backfill',
-          name: 'db.migration',
-        );
-      }
       // ✅ (2026-09-19) الإصدار 67: سد فجوة employee_uuid في جداول الرواتب.
       //
       // المشكلة: جداول الرواتب كانت تربط الموظف بمعرّف رقمي محلي
@@ -1455,6 +1392,332 @@ class AppDatabase extends _$AppDatabase {
       // ✅ (2026-09-14) الإصدار 66: إسناد سحوبات الرواتب لمسجّلها.
       // recorder_name على salary_withdrawals — من سجّل السحبة (اسم المستخدم).
       // Nullable عمداً؛ السجلات القديمة تبقى بلا إسناد ولا نجتهي عليها.
+      // ✅ (2026-10-05) الإصدار 68: uuid رابط المرآة سحبة↔مصروف.
+      //
+      // المشكلة (نفس عائلة PR #601 employee_uuid و PR #609 cycle_uuid):
+      // salary_withdrawals.expense_id يحمل معرّف المصروف المحلي على جهاز
+      // المصدر (autoincrement) — وعند المزامنة لا يُعاد ترقيمه، فعلى أي
+      // جهاز آخر يشير إما إلى مصروف غريب (موظف آخر!) أو إلى لا شيء
+      // (حالة «الاورمو محمد» 2026-09-14 → عد مزدوج في الاستحقاق).
+      //
+      // الحل: عمودا expense_uuid (على السحبة) و withdrawal_uuid (على
+      // المصروف) يخزنان local_uuid الطرف الآخر — هوية ثابتة عبر الأجهزة —
+      // + backfill محلي حتمي (روابط صالحة داخل قاعدة الجهاز نفسها فقط،
+      // مع حراس الموظف/المبلغ/اليوم/فريدية الفتحة حتى لا يُخترع رابط خاطئ).
+      // كل العمليات إضافية (أعمدة nullable + UPDATE تعبئة) — لا حذف ولا
+      // إعادة بناء ولا فقدان بيانات بأي شكل.
+      if (from < 68) {
+        await m.addColumn(salaryWithdrawals, salaryWithdrawals.expenseUuid);
+        await m.addColumn(expenses, expenses.withdrawalUuid);
+
+        // ── Backfill السحبات: expense_id → local_uuid للمصروف ──
+        // حراس الأمان (مطابقة SalaryMirrorMatcher المستوى 3 + فريدية 1:1):
+        // 1) نفس الموظف (employee_uuid) — يمنع ربط مصروف موظف آخر عند
+        //    تصادم المعرفات الرقمية بين الأجهزة.
+        // 2) نفس المبلغ.
+        // 3) نفس اليوم بالضبط (hotel_day_key متطابق، أو تاريخ = تاريخ
+        //    السحبة حرفياً — دلالة SalaryMirrorMatcher المستوى 3 نفسها،
+        //    بلا أي تسامح زمني حتى لا يُكتب رابط غير مؤكد).
+        // 4) فريدية الفتحة (COUNT(*) = 1) — الفتحات المتعددة (مكررات
+        //    الاستيراد الجماعي) تبقى بلا رابط بدل تخمين خاطئ.
+        await m.database.customStatement(
+          'UPDATE salary_withdrawals SET expense_uuid = ('
+          '  SELECT e.local_uuid FROM expenses e'
+          '  WHERE e.id = salary_withdrawals.expense_id'
+          '    AND e.deleted_at IS NULL'
+          '    AND e.employee_uuid IS NOT NULL'
+          '    AND salary_withdrawals.employee_uuid IS NOT NULL'
+          '    AND e.employee_uuid = salary_withdrawals.employee_uuid'
+          '    AND ABS(e.amount - salary_withdrawals.amount) < 0.005'
+          '    AND ('
+          '      (e.hotel_day_key IS NOT NULL AND e.hotel_day_key != ""'
+          '        AND e.hotel_day_key = salary_withdrawals.hotel_day_key)'
+          '      OR (e.date IS NOT NULL'
+          '        AND julianday(e.date) IS NOT NULL'
+          '        AND e.date = salary_withdrawals.withdraw_date)'
+          '    )'
+          '    AND (SELECT COUNT(*) FROM expenses e3'
+          '      WHERE e3.id = salary_withdrawals.expense_id'
+          '        AND e3.deleted_at IS NULL'
+          '        AND e3.employee_uuid IS NOT NULL'
+          '        AND salary_withdrawals.employee_uuid IS NOT NULL'
+          '        AND e3.employee_uuid = salary_withdrawals.employee_uuid'
+          '        AND ABS(e3.amount - salary_withdrawals.amount) < 0.005'
+          '        AND ('
+          '          (e3.hotel_day_key IS NOT NULL AND e3.hotel_day_key != ""'
+          '            AND e3.hotel_day_key = salary_withdrawals.hotel_day_key)'
+          '          OR (e3.date IS NOT NULL'
+          '            AND julianday(e3.date) IS NOT NULL'
+          '            AND e3.date = salary_withdrawals.withdraw_date)'
+          '        )'
+          '    ) = 1'
+          ') WHERE expense_uuid IS NULL AND expense_id IS NOT NULL',
+        );
+
+        // ── Backfill عكسي للمصروفات: سحبة مرآة وحيدة لنفس
+        //    (الموظف، المبلغ، اليوم) عبر expense_id → withdrawal_uuid ──
+        //    للعائلة الراتبية فقط حفاظاً على دلالة expense_id لمصروفات
+        //    الأنواع الأخرى.
+        await m.database.customStatement(
+          "UPDATE expenses SET withdrawal_uuid = ("
+          "  SELECT w.local_uuid FROM salary_withdrawals w"
+          "  WHERE w.expense_id = expenses.id"
+          "    AND w.deleted_at IS NULL"
+          "    AND w.employee_uuid IS NOT NULL"
+          "    AND expenses.employee_uuid IS NOT NULL"
+          "    AND w.employee_uuid = expenses.employee_uuid"
+          "    AND ABS(w.amount - expenses.amount) < 0.005"
+          "    AND ("
+          "      (w.hotel_day_key IS NOT NULL AND w.hotel_day_key != \"\""
+          "        AND w.hotel_day_key = expenses.hotel_day_key)"
+          "      OR (w.withdraw_date IS NOT NULL AND expenses.date IS NOT NULL"
+          "        AND julianday(w.withdraw_date) IS NOT NULL"
+          "        AND w.withdraw_date = expenses.date)"
+          "    )"
+          "    AND (SELECT COUNT(*) FROM salary_withdrawals w3"
+          "      WHERE w3.expense_id = expenses.id"
+          "        AND w3.deleted_at IS NULL"
+          "        AND w3.employee_uuid IS NOT NULL"
+          "        AND expenses.employee_uuid IS NOT NULL"
+          "        AND w3.employee_uuid = expenses.employee_uuid"
+          "        AND ABS(w3.amount - expenses.amount) < 0.005"
+          "        AND ("
+          "          (w3.hotel_day_key IS NOT NULL AND w3.hotel_day_key != \"\""
+          "            AND w3.hotel_day_key = expenses.hotel_day_key)"
+          "          OR (w3.withdraw_date IS NOT NULL AND expenses.date IS NOT NULL"
+          "            AND julianday(w3.withdraw_date) IS NOT NULL"
+          "            AND w3.withdraw_date = expenses.date)"
+          "        )"
+          "    ) = 1"
+          ") WHERE withdrawal_uuid IS NULL"
+          " AND TRIM(expense_type) IN "
+          "('سحب راتب','خصم راتب','سحب من الراتب','خصم من الراتب','سلفة','رواتب')",
+        );
+
+        // ── فهارس الأعمدة الجديدة ──
+        // Do not force uniqueness over legacy collisions. Preserve every row
+        // and let the deterministic relink/repair pass resolve any collision.
+        final mirrorDuplicates = await m.database
+            .customSelect(
+              'SELECT expense_uuid, COUNT(*) AS c '
+              'FROM salary_withdrawals '
+              "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+              'AND deleted_at IS NULL '
+              'GROUP BY expense_uuid HAVING COUNT(*) > 1',
+            )
+            .get();
+        if (mirrorDuplicates.isEmpty) {
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ux_salary_withdrawals_expense_uuid_active '
+            'ON salary_withdrawals (expense_uuid) '
+            "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+            'AND deleted_at IS NULL',
+          );
+        } else {
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid '
+            'ON salary_withdrawals (expense_uuid)',
+          );
+          developer.log(
+            'Migration 68: preserved ${mirrorDuplicates.length} active '
+            'expense_uuid collision group(s) without guessing a winner',
+            name: 'db.migration',
+          );
+        }
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_expenses_withdrawal_uuid '
+          'ON expenses (withdrawal_uuid)',
+        );
+
+        developer.log(
+          'Migration 68: added expense_uuid/withdrawal_uuid mirror link '
+          '+ deterministic backfill',
+          name: 'db.migration',
+        );
+      }
+
+      // Migration 69: normalize the physical mirror index for databases that
+      // already reached schema 68. No row is deleted or rewritten here.
+      // Existing active duplicate links are preserved and explicitly logged;
+      // the unique constraint is created only when the data already satisfies
+      // the 1:1 invariant.
+      if (from < 69) {
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_expenses_employee_uuid '
+          'ON expenses (employee_uuid)',
+        );
+        final duplicateRows = await m.database
+            .customSelect(
+              'SELECT expense_uuid, COUNT(*) AS c '
+              'FROM salary_withdrawals '
+              "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+              'AND deleted_at IS NULL '
+              'GROUP BY expense_uuid HAVING COUNT(*) > 1',
+            )
+            .get();
+
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS idx_salary_withdrawals_expense_uuid',
+        );
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS ux_salary_withdrawals_expense_uuid_active',
+        );
+
+        if (duplicateRows.isEmpty) {
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX ux_salary_withdrawals_expense_uuid_active '
+            'ON salary_withdrawals (expense_uuid) '
+            "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+            'AND deleted_at IS NULL',
+          );
+        } else {
+          await m.database.customStatement(
+            'CREATE INDEX idx_salary_withdrawals_expense_uuid '
+            'ON salary_withdrawals (expense_uuid)',
+          );
+          developer.log(
+            'Migration 69: found ${duplicateRows.length} active duplicate '
+            'expense_uuid group(s); unique enforcement withheld to prevent '
+            'data loss. Deterministic repair is required.',
+            name: 'db.migration',
+          );
+        }
+      }
+      // Migration 70: explicitly protect the mirror link on databases that
+      // upgraded from schema 69. Fresh databases get the same partial UNIQUE
+      // index from the @TableIndex.sql declaration above.
+      if (from < 70) {
+        final duplicateRows = await m.database
+            .customSelect(
+              'SELECT expense_uuid, COUNT(*) AS c '
+              'FROM salary_withdrawals '
+              "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+              'AND deleted_at IS NULL '
+              'GROUP BY expense_uuid HAVING COUNT(*) > 1',
+            )
+            .get();
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS ux_salary_withdrawals_expense_uuid_active',
+        );
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS idx_salary_withdrawals_expense_uuid',
+        );
+        if (duplicateRows.isEmpty) {
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ux_salary_withdrawals_expense_uuid_active '
+            'ON salary_withdrawals (expense_uuid) '
+            "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+            'AND deleted_at IS NULL',
+          );
+        } else {
+          await m.database.customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid '
+            'ON salary_withdrawals (expense_uuid)',
+          );
+          developer.log(
+            'Migration 70: preserved ${duplicateRows.length} active '
+            'expense_uuid collision group(s); unique enforcement withheld.',
+            name: 'db.migration',
+          );
+        }
+      }
+      // ✅ (2026-10-11) الإصدار 71: إضافة cycle_uuid إلى salary_payments.
+      //
+      // المشكلة: salary_payments تستخدم cycleId الرقمي المحلي للربط مع
+      // salary_cycles، لكن هذا المعرف يختلف بين الأجهزة. عند المزامنة مع
+      // Cloudflare D1 أو Appwrite، لا يمكن الاعتماد على cycleId لتطابق
+      // الدفعة مع دورتها على جهاز آخر.
+      //
+      // الحل: عمود cycle_uuid يخزن salary_cycles.local_uuid (هوية ثابتة
+      // عبر الأجهزة) — يُملأ من الربط المحلي الحالي (cycle_id → cycle.local_uuid)
+      // لكل السجلات الموجودة. العمليات إضافية فقط (nullable + UPDATE backfill).
+      if (from < 71) {
+        await m.addColumn(salaryPayments, salaryPayments.cycleUuid);
+
+        // Backfill: تعبئة cycle_uuid من salary_cycles.local_uuid عبر cycle_id
+        await m.database.customStatement(
+          'UPDATE salary_payments SET cycle_uuid = ('
+          '  SELECT sc.local_uuid FROM salary_cycles sc'
+          '  WHERE sc.id = salary_payments.cycle_id'
+          '    AND sc.local_uuid IS NOT NULL'
+          '    AND TRIM(sc.local_uuid) != \'\''
+          ') WHERE cycle_uuid IS NULL'
+          '  AND cycle_id IS NOT NULL'
+          '  AND EXISTS ('
+          '    SELECT 1 FROM salary_cycles sc2'
+          '    WHERE sc2.id = salary_payments.cycle_id'
+          '      AND sc2.local_uuid IS NOT NULL'
+          '      AND TRIM(sc2.local_uuid) != \'\''
+          '  )',
+        );
+
+        developer.log(
+          'Migration 71: added cycle_uuid to salary_payments + backfill',
+          name: 'db.migration',
+        );
+      }
+      // ✅ (2026-10-11) الإصدار 72: فصل جدول blacklist عن shift_notes.
+      //
+      // المشكلة: عناصر القائمة السوداء كانت مخزنة داخل shift_notes
+      // بفلتر created_by='blacklist' — هذا يسبب تعقيداً في المزامنة
+      // (مسارين مختلفين لجدول واحد فيزيائي) وصعوبة في الاستعلام.
+      //
+      // الحل: جدول Drift مستقل `blacklist` بأعمدة صريحة
+      // (name, nationality, nationalId, phone, reason, notes, reportedBy, active)
+      // + ترحيل البيانات الموجودة من shift_notes حيث created_by='blacklist'.
+      if (from < 72) {
+        await m.createTable(blacklist);
+
+        // ترحيل البيانات من shift_notes إلى blacklist.
+        // ملاحظة سلامة: vector_clock و device_id و *_epoch أُضيفت لأعمدة
+        // SyncFields عبر addColumn بلا backfill، لذا تحمل NULL في قواعد
+        // الأجهزة المرقّاة — وblacklist تفرض NOT NULL عليها. COALESCE يمنع
+        // فشل الترحيل (NOT NULL constraint) دون فقدان أي صف.
+        // حراسة JSON: json_extract يرمي خطأً على المحتوى التالف (لا يعيد
+        // NULL) — json_valid يطابق دلالة try/catch في BlacklistRepository:
+        // الصف يُرحَّل دائماً بالاسم والهوية، وحقول JSON التالفة تُملأ
+        // بالقيم الافتراضية بدل إسقاط الترحيل كله.
+        await m.database.customStatement(
+          'INSERT INTO blacklist ('
+          'id, name, nationality, national_id, phone, reason, notes, '
+          'reported_by, active, created_at, updated_at, '
+          'local_uuid, server_id, version, origin, vector_clock, device_id, '
+          'idempotency_key, created_at_iso, updated_at_iso, deleted_at, deleted_at_iso, '
+          'last_modified, created_at_epoch, last_modified_epoch'
+          ') '
+          'SELECT '
+          'id, title, '
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.nationality') END, "
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.nationalId') END, "
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.phone') END, "
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.reason') END, "
+          "CASE WHEN json_valid(content) THEN json_extract(content, '\$.notes') END, "
+          "COALESCE(CASE WHEN json_valid(content) THEN json_extract(content, '\$.reportedBy') END, 'police'), "
+          'CASE WHEN json_valid(content) '
+          "AND json_extract(content, '\$.active') IN (0, 1) "
+          "THEN json_extract(content, '\$.active') ELSE 1 END, "
+          'created_at, updated_at, '
+          'local_uuid, server_id, '
+          'COALESCE(version, 1), COALESCE(origin, \'local\'), '
+          'COALESCE(vector_clock, \'{}\'), COALESCE(device_id, \'\'), '
+          'idempotency_key, created_at_iso, updated_at_iso, deleted_at, deleted_at_iso, '
+          'COALESCE(last_modified, updated_at, created_at, 0), '
+          'COALESCE(created_at_epoch, 0), COALESCE(last_modified_epoch, 0) '
+          'FROM shift_notes '
+          "WHERE created_by = 'blacklist'",
+        );
+
+        developer.log(
+          'Migration 72: created blacklist table + migrated data from shift_notes',
+          name: 'db.migration',
+        );
+      }
+      // ✅ الإصدار 73: تتبّع حاذف المدفوعات — deletedByDevice/deletedByName.
+      // أعمدة nullable بلا backfill: الحذف التاريخي لا يُعرف حاذفه.
+      if (from < 73) {
+        await m.addColumn(payments, payments.deletedByDevice);
+        await m.addColumn(payments, payments.deletedByName);
+      }
       if (from < 66) {
         await m.addColumn(salaryWithdrawals, salaryWithdrawals.recorderName);
       }
