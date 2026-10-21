@@ -254,10 +254,8 @@ dependencies {
     // Hilt graph, Room, Compose composition) on the JVM inside CI so a
     // launch crash surfaces with its true production stack trace.
     testImplementation "org.robolectric:robolectric:4.13"
-    // Robolectric 4.13 brings Conscrypt 2.5.2, which contains only the
-    // x86_64 native library. Keep the test runtime portable on ARM64 runners
-    // while retaining x86_64 support through the same uber JAR.
-    testImplementation "org.conscrypt:conscrypt-openjdk-uber:2.6.3"
+    // Keep Robolectric's bundled Conscrypt version; 2.6.x breaks its API 26
+    // SDK artifact download over TLS on the JDK 17 CI runner (XDH keypair).
     testImplementation "androidx.test:core-ktx:1.6.1"
     testImplementation "androidx.test.ext:junit-ktx:1.2.1"
     androidTestImplementation "androidx.test.ext:junit:1.2.1"
