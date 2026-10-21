@@ -426,6 +426,7 @@ void main() {
         guestName: 'نزيل العقد',
         nationality: 'يمني',
         idNumber: '12345',
+        entryDate: '2026-10-21',
       );
       final ops = await pushedOperations();
       final data =
@@ -433,6 +434,7 @@ void main() {
               as Map<String, dynamic>;
       expect(data['guest_name'], 'نزيل العقد');
       expect(data['id_number'], '12345');
+      expect(data['entry_date'], '2026-10-21');
       expect(data.containsKey('guestName'), isFalse);
     });
 

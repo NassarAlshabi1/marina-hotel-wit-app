@@ -343,6 +343,7 @@ CREATE TABLE IF NOT EXISTS guest_infos (
   issue_place TEXT,
   governorate TEXT,
   notes TEXT,
+  entry_date TEXT,
   -- ✅ Parity (2026-09-05): Drift GuestInfos
   guest_phone TEXT,
   local_uuid TEXT NOT NULL UNIQUE,

@@ -474,6 +474,7 @@ void main() {
       guestName: 'نزيل السلسلة',
       nationality: 'يمني',
       idNumber: '12345',
+      entryDate: '2026-10-21',
     );
     await InventoryRepository(dbA).createItem(
       name: 'منشفة',

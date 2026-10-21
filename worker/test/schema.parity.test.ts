@@ -16,6 +16,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:test';
 import migrationSql0005 from '../migrations/0005_schema_parity.sql?raw';
+import migrationSql0017 from '../migrations/0017_guest_infos_entry_date.sql?raw';
 import { resetDb, schemaStatements } from './helpers';
 
 interface ColumnInfo {
@@ -107,6 +108,12 @@ describe('schema parity: fresh install (schema.sql)', () => {
     expect(actual.get('adjustment_mode')!.type).toBe('TEXT');
     expect(actual.get('booking_uuid')!.type).toBe('TEXT');
     expect(actual.get('applied_at')!.type).toBe('INTEGER');
+  });
+
+  it('guest_infos.entry_date is nullable for legacy compatibility', async () => {
+    const actual = await columnsOf('guest_infos');
+    expect(actual.get('entry_date')?.type).toBe('TEXT');
+    expect(actual.get('entry_date')?.notnull).toBe(0);
   });
 });
 
@@ -450,5 +457,35 @@ describe('migration 0011: portable financial relationship identities', () => {
         expect(row?.value).toBeNull();
       }
     }
+  });
+});
+
+describe('migration 0017: guest entry date', () => {
+  it('preserves legacy rows without a date and accepts a new ISO date', async () => {
+    await resetDb();
+    await env.DB.prepare('DROP TABLE IF EXISTS guest_infos').run();
+    await env.DB.prepare(
+      'CREATE TABLE guest_infos (id INTEGER PRIMARY KEY, room_number TEXT)',
+    ).run();
+    await env.DB.prepare(
+      "INSERT INTO guest_infos (id, room_number) VALUES (1, '101')",
+    ).run();
+
+    for (const stmt of schemaStatements(migrationSql0017)) {
+      await env.DB.prepare(stmt).run();
+    }
+
+    const legacy = await env.DB.prepare(
+      'SELECT entry_date FROM guest_infos WHERE id = 1',
+    ).first<{ entry_date: string | null }>();
+    expect(legacy?.entry_date).toBeNull();
+
+    await env.DB.prepare(
+      "INSERT INTO guest_infos (id, room_number, entry_date) VALUES (2, '102', '2026-10-21')",
+    ).run();
+    const added = await env.DB.prepare(
+      'SELECT entry_date FROM guest_infos WHERE id = 2',
+    ).first<{ entry_date: string | null }>();
+    expect(added?.entry_date).toBe('2026-10-21');
   });
 });

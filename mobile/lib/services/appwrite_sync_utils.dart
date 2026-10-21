@@ -516,6 +516,7 @@ class AppwriteSyncUtils {
       'deletedAt',
       'deletedAtIso',
       'deviceId',
+      'entryDate',
       'governorate',
       'guestName',
       'idNumber',
@@ -1703,6 +1704,7 @@ class AppwriteSyncUtils {
       'issueDate': 'string',
       'issuePlace': 'string',
       'governorate': 'string',
+      'entryDate': 'string',
       'notes': 'string',
     },
   };

@@ -195,7 +195,29 @@ void main() {
   //  Group 1: Backup JSON schema + checksum
   // ═════════════════════════════════════════════════════════════════════════
   group('Backup JSON schema + checksum', () {
-    test('backup map includes inventory tables and detects tampering', () {
+    test('backup map preserves guest entry dates and detects tampering', () async {
+      final legacyGuestId = await db
+          .into(db.guestInfos)
+          .insert(
+            GuestInfosCompanion.insert(
+              roomNumber: '101',
+              guestName: 'سجل قديم',
+              nationality: 'يمني',
+              idNumber: 'old-id',
+            ),
+          );
+      final newGuestId = await db
+          .into(db.guestInfos)
+          .insert(
+            GuestInfosCompanion.insert(
+              roomNumber: '102',
+              guestName: 'سجل جديد',
+              nationality: 'يمني',
+              idNumber: 'new-id',
+              entryDate: const d.Value('2026-10-21'),
+            ),
+          );
+      final guestInfosData = await db.select(db.guestInfos).get();
       final metadata = BackupMetadata(
         appVersion: '1.2.0+3',
         databaseVersion: db.schemaVersion,
@@ -222,7 +244,7 @@ void main() {
         bookingPriceAdjData: const [],
         auditLogsData: const [],
         paymentVoidsData: const [],
-        guestInfosData: const [],
+        guestInfosData: guestInfosData,
         salaryWithdrawalsData: const [],
         salaryCarryOverLogsData: const [],
         inventoryItemsData: const [],
@@ -230,6 +252,36 @@ void main() {
       );
       expect(backupData, containsPair('inventory_items', isEmpty));
       expect(backupData, containsPair('inventory_transactions', isEmpty));
+      final guestRows = (backupData['guest_infos'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final legacyBackupRow = guestRows.singleWhere(
+        (row) => row['id'] == legacyGuestId,
+      );
+      final newBackupRow = guestRows.singleWhere(
+        (row) => row['id'] == newGuestId,
+      );
+      expect(legacyBackupRow['entryDate'], isNull);
+      expect(newBackupRow['entryDate'], '2026-10-21');
+
+      await db.delete(db.guestInfos).go();
+      for (final row in guestRows) {
+        await db
+            .into(db.guestInfos)
+            .insertOnConflictUpdate(
+              GuestInfo.fromJson(row, serializer: lenientValueSerializer),
+            );
+      }
+      final restoredGuests = await db.select(db.guestInfos).get();
+      expect(
+        restoredGuests.singleWhere((guest) => guest.id == legacyGuestId)
+            .entryDate,
+        isNull,
+      );
+      expect(
+        restoredGuests.singleWhere((guest) => guest.id == newGuestId)
+            .entryDate,
+        '2026-10-21',
+      );
 
       final hash = BackupDataService.computeBackupChecksum(backupData);
       (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = hash;
