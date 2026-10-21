@@ -681,6 +681,8 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
   TextColumn get notes => text().nullable()();
+  /// تاريخ دخول النزيل؛ يبقى فارغاً للسجلات القديمة.
+  TextColumn get entryDate => text().nullable()();
   TextColumn get guestPhone => text().nullable()();
 
   List<Index> get indexes => [
@@ -1255,7 +1257,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 73;
+  int get schemaVersion => 74;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1284,6 +1286,11 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      // Migration 74: تاريخ الدخول للسجلات الجديدة فقط. لا تتم تعبئة
+      // السجلات الموجودة حتى تبقى مستثناة من التاريخ في تقرير PDF.
+      if (from < 74) {
+        await m.addColumn(guestInfos, guestInfos.entryDate);
+      }
       // ✅ (2026-09-19) الإصدار 67: سد فجوة employee_uuid في جداول الرواتب.
       //
       // المشكلة: جداول الرواتب كانت تربط الموظف بمعرّف رقمي محلي
