@@ -697,6 +697,8 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
   TextColumn get notes => text().nullable()();
+  /// تاريخ دخول النزيل؛ يبقى فارغاً للسجلات القديمة.
+  TextColumn get entryDate => text().nullable()();
   TextColumn get guestPhone => text().nullable()();
 
   List<Index> get indexes => [
@@ -1360,7 +1362,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 74;
+  int get schemaVersion => 75;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1436,6 +1438,11 @@ class AppDatabase extends _$AppDatabase {
       }
     },
     onUpgrade: (m, from, to) async {
+      // Migration 75: تاريخ الدخول للسجلات الجديدة فقط. لا تتم تعبئة
+      // السجلات الموجودة حتى تبقى مستثناة من التاريخ في تقرير PDF.
+      if (from < 75) {
+        await m.addColumn(guestInfos, guestInfos.entryDate);
+      }
       // ✅ Parity unification (الإصدار 71): إضافة expense_kind +
       // employee_link_cleared + sync_write_times ليتطابق مخطط Drift
       // مع branch3 (Android/Kotlin). كل الإضافات آمنة للتكرار (try/catch

@@ -38743,6 +38743,15 @@ class $GuestInfosTable extends GuestInfos
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _entryDateMeta = const VerificationMeta('entryDate');
+  @override
+  late final GeneratedColumn<String> entryDate = GeneratedColumn<String>(
+    'entry_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _guestPhoneMeta = const VerificationMeta(
     'guestPhone',
   );
@@ -38783,6 +38792,7 @@ class $GuestInfosTable extends GuestInfos
     issuePlace,
     governorate,
     notes,
+    entryDate,
     guestPhone,
   ];
   @override
@@ -39005,6 +39015,12 @@ class $GuestInfosTable extends GuestInfos
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
+    if (data.containsKey('entry_date')) {
+      context.handle(
+        _entryDateMeta,
+        entryDate.isAcceptableOrUnknown(data['entry_date']!, _entryDateMeta),
+      );
+    }
     if (data.containsKey('guest_phone')) {
       context.handle(
         _guestPhoneMeta,
@@ -39128,6 +39144,10 @@ class $GuestInfosTable extends GuestInfos
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      entryDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entry_date'],
+      ),
       guestPhone: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}guest_phone'],
@@ -39169,6 +39189,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
   final String? issuePlace;
   final String? governorate;
   final String? notes;
+  final String? entryDate;
   final String? guestPhone;
   const GuestInfo({
     required this.localUuid,
@@ -39198,6 +39219,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     this.issuePlace,
     this.governorate,
     this.notes,
+    this.entryDate,
     this.guestPhone,
   });
   @override
@@ -39249,6 +39271,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || entryDate != null) {
+      map['entry_date'] = Variable<String>(entryDate);
     }
     if (!nullToAbsent || guestPhone != null) {
       map['guest_phone'] = Variable<String>(guestPhone);
@@ -39305,6 +39330,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      entryDate: entryDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(entryDate),
       guestPhone: guestPhone == null && nullToAbsent
           ? const Value.absent()
           : Value(guestPhone),
@@ -39344,6 +39372,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       issuePlace: serializer.fromJson<String?>(json['issuePlace']),
       governorate: serializer.fromJson<String?>(json['governorate']),
       notes: serializer.fromJson<String?>(json['notes']),
+      entryDate: serializer.fromJson<String?>(json['entryDate']),
       guestPhone: serializer.fromJson<String?>(json['guestPhone']),
     );
   }
@@ -39378,6 +39407,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       'issuePlace': serializer.toJson<String?>(issuePlace),
       'governorate': serializer.toJson<String?>(governorate),
       'notes': serializer.toJson<String?>(notes),
+      'entryDate': serializer.toJson<String?>(entryDate),
       'guestPhone': serializer.toJson<String?>(guestPhone),
     };
   }
@@ -39410,6 +39440,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     Value<String?> issuePlace = const Value.absent(),
     Value<String?> governorate = const Value.absent(),
     Value<String?> notes = const Value.absent(),
+    Value<String?> entryDate = const Value.absent(),
     Value<String?> guestPhone = const Value.absent(),
   }) => GuestInfo(
     localUuid: localUuid ?? this.localUuid,
@@ -39441,6 +39472,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     issuePlace: issuePlace.present ? issuePlace.value : this.issuePlace,
     governorate: governorate.present ? governorate.value : this.governorate,
     notes: notes.present ? notes.value : this.notes,
+    entryDate: entryDate.present ? entryDate.value : this.entryDate,
     guestPhone: guestPhone.present ? guestPhone.value : this.guestPhone,
   );
   GuestInfo copyWithCompanion(GuestInfosCompanion data) {
@@ -39498,6 +39530,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ? data.governorate.value
           : this.governorate,
       notes: data.notes.present ? data.notes.value : this.notes,
+      entryDate: data.entryDate.present
+          ? data.entryDate.value
+          : this.entryDate,
       guestPhone: data.guestPhone.present
           ? data.guestPhone.value
           : this.guestPhone,
@@ -39534,6 +39569,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ..write('issuePlace: $issuePlace, ')
           ..write('governorate: $governorate, ')
           ..write('notes: $notes, ')
+          ..write('entryDate: $entryDate, ')
           ..write('guestPhone: $guestPhone')
           ..write(')'))
         .toString();
@@ -39568,6 +39604,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     issuePlace,
     governorate,
     notes,
+    entryDate,
     guestPhone,
   ]);
   @override
@@ -39601,6 +39638,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           other.issuePlace == this.issuePlace &&
           other.governorate == this.governorate &&
           other.notes == this.notes &&
+          other.entryDate == this.entryDate &&
           other.guestPhone == this.guestPhone);
 }
 
@@ -39632,6 +39670,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
   final Value<String?> issuePlace;
   final Value<String?> governorate;
   final Value<String?> notes;
+  final Value<String?> entryDate;
   final Value<String?> guestPhone;
   const GuestInfosCompanion({
     this.localUuid = const Value.absent(),
@@ -39661,6 +39700,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.issuePlace = const Value.absent(),
     this.governorate = const Value.absent(),
     this.notes = const Value.absent(),
+    this.entryDate = const Value.absent(),
     this.guestPhone = const Value.absent(),
   });
   GuestInfosCompanion.insert({
@@ -39691,6 +39731,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.issuePlace = const Value.absent(),
     this.governorate = const Value.absent(),
     this.notes = const Value.absent(),
+    this.entryDate = const Value.absent(),
     this.guestPhone = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
@@ -39728,6 +39769,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Expression<String>? issuePlace,
     Expression<String>? governorate,
     Expression<String>? notes,
+    Expression<String>? entryDate,
     Expression<String>? guestPhone,
   }) {
     return RawValuesInsertable({
@@ -39758,6 +39800,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       if (issuePlace != null) 'issue_place': issuePlace,
       if (governorate != null) 'governorate': governorate,
       if (notes != null) 'notes': notes,
+      if (entryDate != null) 'entry_date': entryDate,
       if (guestPhone != null) 'guest_phone': guestPhone,
     });
   }
@@ -39790,6 +39833,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Value<String?>? issuePlace,
     Value<String?>? governorate,
     Value<String?>? notes,
+    Value<String?>? entryDate,
     Value<String?>? guestPhone,
   }) {
     return GuestInfosCompanion(
@@ -39820,6 +39864,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       issuePlace: issuePlace ?? this.issuePlace,
       governorate: governorate ?? this.governorate,
       notes: notes ?? this.notes,
+      entryDate: entryDate ?? this.entryDate,
       guestPhone: guestPhone ?? this.guestPhone,
     );
   }
@@ -39908,6 +39953,9 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (entryDate.present) {
+      map['entry_date'] = Variable<String>(entryDate.value);
+    }
     if (guestPhone.present) {
       map['guest_phone'] = Variable<String>(guestPhone.value);
     }
@@ -39944,6 +39992,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
           ..write('issuePlace: $issuePlace, ')
           ..write('governorate: $governorate, ')
           ..write('notes: $notes, ')
+          ..write('entryDate: $entryDate, ')
           ..write('guestPhone: $guestPhone')
           ..write(')'))
         .toString();
