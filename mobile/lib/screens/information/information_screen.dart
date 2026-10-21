@@ -338,6 +338,11 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       text: existing?.governorate ?? '',
     );
     final notesController = TextEditingController(text: existing?.notes ?? '');
+    final entryDateController = TextEditingController(
+      text: existing != null
+          ? (existing.entryDate ?? '')
+          : DateFormat('yyyy-MM-dd').format(DateTime.now()),
+    );
 
     String selectedIdType = existing?.idType ?? _idTypes.first;
     if (!_idTypes.contains(selectedIdType)) {
@@ -424,6 +429,18 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                       controller: governorateController,
                       decoration: const InputDecoration(labelText: 'المحافظة'),
                     ),
+                    TextFormField(
+                      controller: entryDateController,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'تاريخ الدخول',
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.date_range),
+                          onPressed: () =>
+                              _pickEntryDate(entryDateController),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: notesController,
@@ -464,6 +481,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     issuePlaceController.dispose();
     governorateController.dispose();
     notesController.dispose();
+    entryDateController.dispose();
 
     if (confirmed != true) {
       return;
@@ -484,6 +502,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           issuePlace: issuePlaceController.text,
           governorate: governorateController.text,
           notes: notesController.text,
+          entryDate: entryDateController.text,
         );
         _showSnack('تم حفظ السجل بنجاح');
       } else {
@@ -498,6 +517,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           issuePlace: issuePlaceController.text,
           governorate: governorateController.text,
           notes: notesController.text,
+          entryDate: entryDateController.text.isEmpty
+              ? null
+              : entryDateController.text,
         );
         _showSnack('تم تحديث السجل بنجاح');
       }
@@ -556,6 +578,21 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           backgroundColor: Colors.red.shade900,
         ),
       );
+    }
+  }
+
+  Future<void> _pickEntryDate(TextEditingController controller) async {
+    final initial = controller.text.isEmpty
+        ? DateTime.now()
+        : DateTime.tryParse(controller.text) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1990),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      controller.text = DateFormat('yyyy-MM-dd').format(picked);
     }
   }
 
@@ -618,11 +655,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final sortedEntries = _sortByRoomNumber(entries);
       final data = List.generate(sortedEntries.length, (i) {
         final info = sortedEntries[i];
-        final entryDate = info.createdAt > 0
-            ? DateFormat('dd/MM/yyyy').format(
-                DateTime.fromMillisecondsSinceEpoch(info.createdAt * 1000),
-              )
-            : '-';
+        // تاريخ مستقل للسجلات الجديدة فقط؛ لا نستخدم createdAt هنا.
+        final entryDate = info.entryDate == null || info.entryDate!.isEmpty
+            ? '-'
+            : info.entryDate!;
         return [
           entryDate,
           safe(info.notes),
@@ -752,7 +788,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 color: pdf.PdfColors.white,
                 fontSize: 10,
               ),
-              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 9),
+              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 10),
               cellAlignment: pw.Alignment.center,
               border: pw.TableBorder.all(
                 color: pdf.PdfColors.grey400,

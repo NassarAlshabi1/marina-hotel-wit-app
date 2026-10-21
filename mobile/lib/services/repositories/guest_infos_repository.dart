@@ -52,6 +52,7 @@ class GuestInfosRepository {
     String? issuePlace,
     String? governorate,
     String? notes,
+    String? entryDate,
     bool originIsServer = false,
   }) async {
     return _db.transaction(() async {
@@ -72,6 +73,7 @@ class GuestInfosRepository {
               issuePlace: d.Value(issuePlace),
               governorate: d.Value(governorate),
               notes: d.Value(notes),
+              entryDate: d.Value(entryDate ?? nowIso.substring(0, 10)),
               localUuid: d.Value(uuid),
               createdAt: d.Value(now),
               updatedAt: d.Value(now),
@@ -99,6 +101,7 @@ class GuestInfosRepository {
             'issuePlace': issuePlace,
             'governorate': governorate,
             'notes': notes,
+            'entryDate': entryDate ?? nowIso.substring(0, 10),
           },
           clientTs: now,
         );
@@ -120,6 +123,7 @@ class GuestInfosRepository {
     String issuePlace = '',
     String governorate = '',
     String notes = '',
+    String? entryDate,
     bool originIsServer = false,
   }) async {
     await _db.transaction(() async {
@@ -152,6 +156,9 @@ class GuestInfosRepository {
               issuePlace: d.Value(issuePlace.isEmpty ? null : issuePlace),
               governorate: d.Value(governorate.isEmpty ? null : governorate),
               notes: d.Value(notes.isEmpty ? null : notes),
+              entryDate: entryDate == null
+                  ? const d.Value.absent()
+                  : d.Value(entryDate),
               updatedAt: d.Value(now),
               lastModified: d.Value(now),
               updatedAtIso: d.Value(nowIso),
@@ -175,6 +182,7 @@ class GuestInfosRepository {
             'issuePlace': issuePlace.isEmpty ? null : issuePlace,
             'governorate': governorate.isEmpty ? null : governorate,
             'notes': notes.isEmpty ? null : notes,
+            if (entryDate != null) 'entryDate': entryDate,
           },
           clientTs: now,
         );
