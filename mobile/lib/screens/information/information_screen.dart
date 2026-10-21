@@ -594,6 +594,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final prefs = await SharedPreferences.getInstance();
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
+        'تاريخ الدخول',
         'الملاحظات',
         'المحافظة',
         'مكان الإصدار',
@@ -616,7 +617,13 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
       final data = List.generate(exportEntries.length, (i) {
         final info = exportEntries[i];
+        final entryDate = info.createdAt > 0
+            ? DateFormat('dd/MM/yyyy').format(
+                DateTime.fromMillisecondsSinceEpoch(info.createdAt * 1000),
+              )
+            : '-';
         return [
+          entryDate,
           safe(info.notes),
           safe(info.governorate),
           safe(info.issuePlace),
@@ -751,7 +758,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 width: 0.5,
               ),
               headerAlignments: {
-                0: pw.Alignment.centerRight,
+                0: pw.Alignment.center,
                 1: pw.Alignment.centerRight,
                 2: pw.Alignment.centerRight,
                 3: pw.Alignment.centerRight,
@@ -760,7 +767,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 6: pw.Alignment.centerRight,
                 7: pw.Alignment.centerRight,
                 8: pw.Alignment.centerRight,
-                9: pw.Alignment.center,
+                9: pw.Alignment.centerRight,
+                10: pw.Alignment.center,
               },
             ),
           ],
