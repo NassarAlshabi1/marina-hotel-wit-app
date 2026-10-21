@@ -153,6 +153,7 @@ fun InformationScreen(
                 val exportEntries = InformationViewModel.sortedByRoomNumber(entries)
                 val stamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.US).format(Date())
                 val file = withContext(Dispatchers.IO) {
+                    val entryDateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.US)
                     PdfExporter.buildReport(
                         context = context,
                         reportTitle = "سجل المعلومية",
@@ -172,6 +173,7 @@ fun InformationScreen(
                                     "تاريخ الإصدار",
                                     "مكان الإصدار",
                                     "المحافظة",
+                                    "تاريخ الدخول",
                                     "الملاحظات"
                                 ),
                                 rows = exportEntries.mapIndexed { index, info ->
@@ -185,10 +187,16 @@ fun InformationScreen(
                                         safe(info.issueDate),
                                         safe(info.issuePlace),
                                         safe(info.governorate),
+                                        info.createdAt.takeIf { it > 0L }
+                                            ?.let { entryDateFormat.format(Date(it * 1_000L)) }
+                                            ?: "-",
                                         safe(info.notes)
                                     )
                                 },
-                                columnWeights = listOf(0.5f, 0.8f, 1.5f, 1.0f, 1.2f, 1.3f, 1.1f, 1.2f, 1.0f, 1.8f)
+                                columnWeights = listOf(
+                                    0.5f, 0.8f, 1.5f, 1.0f, 1.2f, 1.3f,
+                                    1.1f, 1.2f, 1.0f, 1.5f, 1.8f
+                                )
                             )
                         ),
                         fileName = "guest-info-$stamp.pdf"
