@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
 import '../../services/local_db.dart';
@@ -47,6 +48,16 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
   }
 
   Future<void> _navigateToAddBooking() async {
+    if (!(ref
+            .read(authProvider)
+            .currentUser
+            ?.canPerform('bookings', 'create') ??
+        false)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ليست لديك صلاحية إضافة الحجوزات')),
+      );
+      return;
+    }
     // ✅ Analytics: تتبّع محاولة إنشاء حجز جديد
     unawaited(
       AnalyticsService().logCustomEvent(name: 'booking_create_started'),
@@ -60,6 +71,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context); // ✅ AutomaticKeepAlive
+    final canCreate =
+        ref.watch(authProvider).currentUser?.canPerform('bookings', 'create') ??
+        false;
     final bookingsAsync = ref.watch(bookingsListProvider);
     final roomsAsync = ref.watch(roomsListProvider);
 
@@ -79,16 +93,19 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
             icon: const Icon(Icons.payments),
             tooltip: 'إدارة المدفوعات',
           ),
-          IconButton(
-            onPressed: _navigateToAddBooking,
-            icon: const Icon(Icons.add),
-            tooltip: 'حجز جديد',
-          ),
+          if (canCreate)
+            IconButton(
+              onPressed: _navigateToAddBooking,
+              icon: const Icon(Icons.add),
+              tooltip: 'حجز جديد',
+            ),
         ],
-        fab: FloatingActionButton(
-          onPressed: _navigateToAddBooking,
-          child: const Icon(Icons.add),
-        ),
+        fab: canCreate
+            ? FloatingActionButton(
+                onPressed: _navigateToAddBooking,
+                child: const Icon(Icons.add),
+              )
+            : null,
         body: bookingsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
@@ -422,9 +439,8 @@ class _CompactBookingCard extends StatelessWidget {
 Widget _buildHeaderRow(BuildContext context) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    color: Theme.of(
-      context,
-    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+    color: Theme.of(context).colorScheme.surfaceContainerHighest
+        .withValues(alpha: 0.5),
     child: const Row(
       children: [
         SizedBox(width: 40, child: Text('#', textAlign: TextAlign.center)),

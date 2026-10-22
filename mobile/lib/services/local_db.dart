@@ -681,6 +681,7 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
   TextColumn get notes => text().nullable()();
+
   /// تاريخ دخول النزيل؛ يبقى فارغاً للسجلات القديمة.
   TextColumn get entryDate => text().nullable()();
   TextColumn get guestPhone => text().nullable()();
@@ -2136,9 +2137,8 @@ class AppDatabase extends _$AppDatabase {
             createdTimestamp = now.millisecondsSinceEpoch;
           }
 
-          final isoDate = DateTime.fromMillisecondsSinceEpoch(
-            createdTimestamp,
-          ).toIso8601String();
+          final isoDate = DateTime.fromMillisecondsSinceEpoch(createdTimestamp)
+              .toIso8601String();
 
           await m.database.customInsert(
             'INSERT INTO shift_notes ('

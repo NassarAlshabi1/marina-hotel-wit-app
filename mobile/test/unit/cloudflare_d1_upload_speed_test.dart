@@ -160,9 +160,8 @@ void main() {
       const rows = 5000;
       final fake = FakeD1();
 
-      final result = await serviceFor(
-        fake,
-      ).uploadData(tables: [sourceTable('rooms', rows, narrow: true)]);
+      final result = await serviceFor(fake)
+          .uploadData(tables: [sourceTable('rooms', rows, narrow: true)]);
 
       expect(result.ok, isTrue, reason: result.errors.join('؛ '));
       expect(result.rowsUploaded, rows);
@@ -188,9 +187,11 @@ void main() {
 
       final inserts = fake.requestSqls
           .expand(insertStatementsOf)
-          .where((s) =>
-              s.startsWith('INSERT INTO "rooms"') &&
-              s.endsWith('ON CONFLICT DO NOTHING'))
+          .where(
+            (s) =>
+                s.startsWith('INSERT INTO "rooms"') &&
+                s.endsWith('ON CONFLICT DO NOTHING'),
+          )
           .toList();
       expect(inserts, hasLength(rows), reason: 'فقدان صفوف في الرفع');
       final uuids = inserts
@@ -204,9 +205,8 @@ void main() {
     const rows = 5000;
     final fake = FakeD1();
 
-    final result = await serviceFor(
-      fake,
-    ).uploadData(tables: [sourceTable('rooms', rows)]);
+    final result = await serviceFor(fake)
+        .uploadData(tables: [sourceTable('rooms', rows)]);
 
     expect(result.ok, isTrue, reason: result.errors.join('؛ '));
     expect(result.rowsUploaded, rows);
@@ -264,55 +264,46 @@ void main() {
     );
   });
 
-  test(
-    'الزمن: الرفع المتوازي أقصر من مجموع أزمنة النداءات (المسار المتسلسل)',
-    () async {
-      final fake = FakeD1(latency: const Duration(milliseconds: 40));
-      final sw = Stopwatch()..start();
-      final result = await serviceFor(
-        fake,
-      ).uploadData(tables: [sourceTable('rooms', 5000, narrow: true)]);
-      sw.stop();
+  test('الزمن: الرفع المتوازي أقصر من مجموع أزمنة النداءات (المسار المتسلسل)', () async {
+    final fake = FakeD1(latency: const Duration(milliseconds: 40));
+    final sw = Stopwatch()..start();
+    final result = await serviceFor(fake)
+        .uploadData(tables: [sourceTable('rooms', 5000, narrow: true)]);
+    sw.stop();
 
-      expect(result.ok, isTrue, reason: result.errors.join('؛ '));
-      expect(result.rowsUploaded, 5000);
-      expect(fake.requestSqls, isNotEmpty);
+    expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+    expect(result.rowsUploaded, 5000);
+    expect(fake.requestSqls, isNotEmpty);
 
-      // المرجع المتسلسل = مجموع أزمنة النداءات فعلياً (كل نداء ينتظر RTT واحداً).
-      final sequentialMs = fake.totalHandlerMs;
-      expect(sequentialMs, greaterThanOrEqualTo(300));
-      expect(
-        sw.elapsedMilliseconds,
-        lessThan((sequentialMs * 0.8).round()),
-        reason:
-            'الزمن المقاس ${sw.elapsedMilliseconds}ms لم يهبط تحت 80% من '
-            'المرجع المتسلسل ${sequentialMs}ms',
-      );
-    },
-  );
+    // المرجع المتسلسل = مجموع أزمنة النداءات فعلياً (كل نداء ينتظر RTT واحداً).
+    final sequentialMs = fake.totalHandlerMs;
+    expect(sequentialMs, greaterThanOrEqualTo(300));
+    expect(
+      sw.elapsedMilliseconds,
+      lessThan((sequentialMs * 0.8).round()),
+      reason:
+          'الزمن المقاس ${sw.elapsedMilliseconds}ms لم يهبط تحت 80% من '
+          'المرجع المتسلسل ${sequentialMs}ms',
+    );
+  });
 
-  test(
-    'الرد العابر 429 يُعاد بمهلة تصاعدية ثم ينجح الرفع',
-    () async {
-      final fake = FakeD1()..responder = _retryOnceResponder();
+  test('الرد العابر 429 يُعاد بمهلة تصاعدية ثم ينجح الرفع', () async {
+    final fake = FakeD1()..responder = _retryOnceResponder();
 
-      final result = await serviceFor(
-        fake,
-      ).uploadData(tables: [sourceTable('rooms', 1, narrow: true)]);
+    final result = await serviceFor(fake)
+        .uploadData(tables: [sourceTable('rooms', 1, narrow: true)]);
 
-      expect(result.ok, isTrue, reason: result.errors.join('؛ '));
-      expect(result.rowsUploaded, 1);
-      final insertCalls = fake.requestSqls
-          .where((sql) => insertStatementsOf(sql).isNotEmpty)
-          .length;
-      expect(
-        insertCalls,
-        greaterThanOrEqualTo(2),
-        reason: 'نداء الـ 429 لم يُعد إطلاقاً',
-      );
-    },
-    timeout: const Timeout(Duration(seconds: 30)),
-  );
+    expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+    expect(result.rowsUploaded, 1);
+    final insertCalls = fake.requestSqls
+        .where((sql) => insertStatementsOf(sql).isNotEmpty)
+        .length;
+    expect(
+      insertCalls,
+      greaterThanOrEqualTo(2),
+      reason: 'نداء الـ 429 لم يُعد إطلاقاً',
+    );
+  }, timeout: const Timeout(Duration(seconds: 30)));
 
   test('الرد غير العابر (400 خطأ SQL) لا يُعاد ويُسجَّل خطأ الجدول', () async {
     final fake = FakeD1()
@@ -321,9 +312,8 @@ void main() {
         400,
       );
 
-    final result = await serviceFor(
-      fake,
-    ).uploadData(tables: [sourceTable('rooms', 1, narrow: true)]);
+    final result = await serviceFor(fake)
+        .uploadData(tables: [sourceTable('rooms', 1, narrow: true)]);
 
     expect(result.ok, isFalse);
     expect(result.errors, isNotEmpty);

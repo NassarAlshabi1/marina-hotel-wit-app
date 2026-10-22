@@ -56,9 +56,9 @@ class AuthLocalStore {
   static bool isManagerialRole(String? userType) =>
       userType == 'admin' || userType == 'manager' || userType == 'supervisor';
 
-  /// يتحقق من صلاحية عملية محددة مع إبقاء الحسابات الحالية متوافقة.
-  /// القاعدة: view/create متاحان لكل مستخدم يملك دخول الوحدة؛
-  /// update/delete مقيّدان بالدور (admin/manager/supervisor) أو 'all'.
+  /// يتحقق من صلاحية عملية محددة مع إبقاء مفاتيح الوحدة القديمة متوافقة.
+  /// view/create متاحان لمن يملك دخول الوحدة؛ update/delete متاحان للأدوار
+  /// الإدارية أو عند منح المفتاح الدقيق `module.action` صراحةً.
   static bool canPerform({
     required String? userType,
     required List<String> permissions,
@@ -71,7 +71,8 @@ class AuthLocalStore {
         permissionKeysForModule(module).any(permissions.contains);
     if (!canEnter) return false;
     if (action == 'view' || action == 'create') return true;
-    return isManagerialRole(userType);
+    return isManagerialRole(userType) ||
+        permissions.contains('$module.$action');
   }
 
   /// يستخدم لحارس الصفحة والقائمة: يكفي امتلاك أي صلاحية تشغيلية.

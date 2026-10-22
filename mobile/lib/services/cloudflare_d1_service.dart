@@ -566,8 +566,10 @@ class CloudflareD1Service {
 
     for (final sql in table.createSqlList) {
       if (inlineUnique.hasMatch(sql) || tableUnique.hasMatch(sql)) return true;
-      if (!RegExp(r'^\s*CREATE\s+UNIQUE\s+INDEX\b', caseSensitive: false)
-          .hasMatch(sql)) {
+      if (!RegExp(
+        r'^\s*CREATE\s+UNIQUE\s+INDEX\b',
+        caseSensitive: false,
+      ).hasMatch(sql)) {
         continue;
       }
       final open = sql.indexOf('(');
