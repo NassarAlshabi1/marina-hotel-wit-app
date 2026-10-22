@@ -10,7 +10,7 @@
 //      FOREIGN KEY لأن D1 يفرضها افتراضياً.
 //   4) الردود العابرة (429/5xx) تُعاد بمهلة تصاعدية بدل إفشال الرفع،
 //      والردود غير العابرة (400 خطأ SQL) لا تُعاد.
-//   5) البيان المرفوع (SQL) لم يتغيّر: نفس عبارات UPSERT ونفس القيم حرفياً.
+//   5) البيان المرفوع (SQL) يحتفظ بالقيم نفسها ويتجاهل تعارضات المفاتيح.
 //
 // القياس بزمن صناعي على MockClient: الزمن الكلي ≈ عدد النداءات × زمن النداء
 // الثابت (RTT) — وهو النموذج الذي بُني عليه التحسين. لذلك المرجع الذي
@@ -135,7 +135,7 @@ CloudflareD1Service serviceFor(FakeD1 fake) => CloudflareD1Service(
 /// pragma_table_info وapp_backup_meta غير المقتبسين).
 String? insertTableOf(String sql) {
   final m = RegExp(
-    r'(?:INSERT INTO|INSERT OR REPLACE INTO|ALTER TABLE) "([a-z0-9_]+)"',
+    r'(?:INSERT INTO|INSERT OR IGNORE INTO|INSERT OR REPLACE INTO|ALTER TABLE) "([a-z0-9_]+)"',
   ).firstMatch(sql);
   return m?.group(1);
 }
@@ -188,7 +188,9 @@ void main() {
 
       final inserts = fake.requestSqls
           .expand(insertStatementsOf)
-          .where((s) => s.startsWith('INSERT INTO "rooms"'))
+          .where((s) =>
+              s.startsWith('INSERT INTO "rooms"') &&
+              s.endsWith('ON CONFLICT DO NOTHING'))
           .toList();
       expect(inserts, hasLength(rows), reason: 'فقدان صفوف في الرفع');
       final uuids = inserts

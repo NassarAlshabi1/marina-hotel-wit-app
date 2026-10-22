@@ -8,7 +8,7 @@
 // camelCase → snake_case تعتمد كلياً على أعمدة مخطط drift المولّد.
 // هذا الاختبار يفتح قاعدة drift حقيقية في الذاكرة ويقرأ أسماء الأعمدة
 // الفعلية عبر PRAGMA table_info لكل جدول مزامنة (نفس الجداول التي يرفعها
-// التبويب افتراضياً — kAppwriteSyncedTables) ويثبّت الحقول الـ 17:
+// التبويب افتراضياً — kAppwriteSyncedTables) ويثبّت الحقول العامة الـ 17:
 //
 //   localUuid → local_uuid            serverId → server_id
 //   createdAt → created_at            updatedAt → updated_at
@@ -60,12 +60,17 @@ const Map<String, String> kExpectedSyncFieldMapping = <String, String>{
   'deviceId': 'device_id',
 };
 
+/// حقل خاص بـ guest_infos فقط؛ لا يُخلط مع حقول SyncFields العامة.
+const Map<String, String> kExpectedGuestInfoFieldMapping = <String, String>{
+  'entryDate': 'entry_date',
+};
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppDatabase db;
 
-  /// استخراج قائمة الأعمدة من عبارة INSERT/UPSERT الملتقطة
+  /// استخراج قائمة الأعمدة من عبارة INSERT الملتقطة
   /// (بين أول '(' و ') VALUES').
   List<String> insertColsOf(String sql) => sql
       .substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES'))
@@ -110,7 +115,81 @@ void main() {
     }
   });
 
-  test('يحافظ رفع D1 على id ذي المعنى الذي ليس AUTOINCREMENT', () async {
+  test(
+    'guest_infos يرفع entryDate إلى D1 باسم entry_date وصيغة yyyy-MM-dd',
+    () async {
+    expect(kExpectedGuestInfoFieldMapping, {'entryDate': 'entry_date'});
+    await db
+        .into(db.guestInfos)
+        .insert(
+          GuestInfosCompanion.insert(
+            localUuid: 'guest-entry-date-1',
+            createdAt: 1792627200000,
+            updatedAt: 1792627200000,
+            lastModified: 1792627200000,
+            roomNumber: '101',
+            guestName: 'ضيف اختبار',
+            nationality: 'يمني',
+            idNumber: 'TEST-101',
+            entryDate: const Value('2026-10-22'),
+          ),
+        );
+
+    final ddlRows = await db
+        .customSelect(
+          "SELECT sql FROM sqlite_master WHERE tbl_name='guest_infos' "
+          "AND sql IS NOT NULL ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END",
+        )
+        .get();
+    final captured = <String>[];
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      captured.add(body['sql'] as String);
+      return http.Response('{"success":true,"result":[]}', 200);
+    });
+    final service = CloudflareD1Service(
+      const CloudflareD1Config(accountId: 'a', databaseId: 'b', apiToken: 't'),
+      client: client,
+    );
+    final result = await service.uploadData(
+      tables: [
+        CloudflareD1SourceTable(
+          name: 'guest_infos',
+          rowCount: 1,
+          createSqlList: ddlRows
+              .map((row) => row.data['sql'] as String)
+              .toList(),
+          readChunk: (limit, offset) async {
+            final rows = await db
+                .customSelect(
+                  'SELECT * FROM "guest_infos" LIMIT ? OFFSET ?',
+                  variables: [
+                    Variable.withInt(limit),
+                    Variable.withInt(offset),
+                  ],
+                )
+                .get();
+            return rows.map((row) => row.data).toList();
+          },
+        ),
+      ],
+    );
+
+    expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+    final statements = captured
+        .expand((sql) => sql.split(';\n'))
+        .map((sql) => sql.trim());
+    final insert = statements.singleWhere(
+      (sql) => sql.startsWith('INSERT INTO "guest_infos"'),
+    );
+    expect(insert, contains('"entry_date"'));
+    expect(insert, contains("'2026-10-22'"));
+    expect(insert, endsWith('ON CONFLICT DO NOTHING'));
+    expect(insert, isNot(contains('"id"')));
+    },
+  );
+
+  test('يحافظ رفع D1 على id ذي المعنى ويتجاهل تصادمه', () async {
     final requests = <String>[];
     final client = MockClient((request) async {
       final body = jsonDecode(request.body) as Map<String, dynamic>;
@@ -128,7 +207,7 @@ void main() {
           name: 'sync_state',
           rowCount: 1,
           createSqlList: const [
-            'CREATE TABLE sync_state (id INTEGER NOT NULL)',
+            'CREATE TABLE sync_state (id INTEGER NOT NULL PRIMARY KEY)',
           ],
           readChunk: (limit, offset) async => offset == 0
               ? [
@@ -141,10 +220,89 @@ void main() {
 
     expect(result.ok, isTrue, reason: result.errors.join('؛ '));
     final insert = requests.singleWhere(
-      (sql) => sql.startsWith('INSERT OR REPLACE'),
+      (sql) => sql.startsWith('INSERT INTO "sync_state"'),
     );
     expect(insert, contains('("id","version") VALUES (1,4)'));
+    expect(insert, endsWith('ON CONFLICT DO NOTHING'));
   });
+
+  test(
+    'الجداول المحلية تتجاهل التعارضات وتحفظ id عندما لا يكون local_uuid فريداً',
+    () async {
+      final requests = <String>[];
+      final client = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        requests.add(body['sql'] as String);
+        return http.Response('{"success":true,"result":[]}', 200);
+      });
+      final service = CloudflareD1Service(
+        const CloudflareD1Config(
+          accountId: 'a',
+          databaseId: 'b',
+          apiToken: 't',
+        ),
+        client: client,
+      );
+
+      final result = await service.uploadData(
+        tables: [
+          CloudflareD1SourceTable(
+            name: 'integrity_violations',
+            rowCount: 1,
+            createSqlList: const [
+              'CREATE TABLE integrity_violations ('
+                  '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+                  '"run_id" INTEGER NOT NULL)',
+            ],
+            readChunk: (limit, offset) async => offset == 0
+                ? [<String, Object?>{'id': 7, 'run_id': 2}]
+                : const <Map<String, Object?>>[],
+          ),
+          CloudflareD1SourceTable(
+            name: 'ancestor_cache',
+            rowCount: 1,
+            createSqlList: const [
+              'CREATE TABLE ancestor_cache ('
+                  '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+                  '"entity" TEXT NOT NULL, "local_uuid" TEXT NOT NULL, '
+                  '"data_json" TEXT NOT NULL, "captured_at" INTEGER NOT NULL, '
+                  'UNIQUE ("entity", "local_uuid"))',
+            ],
+            readChunk: (limit, offset) async => offset == 0
+                ? [
+                    <String, Object?>{
+                      'id': 3,
+                      'entity': 'guest_infos',
+                      'local_uuid': 'guest-1',
+                      'data_json': '{}',
+                      'captured_at': 1,
+                    },
+                  ]
+                : const <Map<String, Object?>>[],
+          ),
+        ],
+      );
+
+      expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      final statements = requests
+          .expand((sql) => sql.split(';\n'))
+          .map((sql) => sql.trim())
+          .toList();
+      final violations = statements.singleWhere(
+        (sql) => sql.startsWith('INSERT INTO "integrity_violations"'),
+      );
+      expect(violations, contains('("id","run_id") VALUES (7,2)'));
+      expect(violations, endsWith('ON CONFLICT DO NOTHING'));
+      final ancestor = statements.singleWhere(
+        (sql) => sql.startsWith('INSERT INTO "ancestor_cache"'),
+      );
+      expect(ancestor, contains('("id","entity","local_uuid"'));
+      expect(ancestor, contains("VALUES (3,'guest_infos','guest-1','{}',1)"));
+      expect(ancestor, endsWith('ON CONFLICT DO NOTHING'));
+      expect(statements.where((sql) => sql.contains('DO UPDATE SET')), isEmpty);
+      expect(statements.where((sql) => sql.contains('INSERT OR REPLACE')), isEmpty);
+    },
+  );
 
   test(
     'كل جدول مزامنة يحمل الأعمدة الـ 17 بصيغة snake_case (مسار رفع D1)',
@@ -342,7 +500,9 @@ void main() {
               name: 'rooms',
               rowCount: 1,
               createSqlList: const [
-                'CREATE TABLE rooms (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT)',
+                'CREATE TABLE rooms ('
+                    '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+                    '"local_uuid" TEXT NOT NULL UNIQUE)',
               ],
               readChunk: readChunk,
             ),
@@ -396,15 +556,11 @@ void main() {
         isNot(contains('"id"')),
         reason: 'يجب ألا يصل id المحلي إلى INSERT الخاص بـ D1',
       );
-      final updateCols = cols
-          .where((c) => c != 'local_uuid')
-          .map((c) => '"$c" = excluded."$c"')
-          .join(',');
       final expectedSql =
           'INSERT INTO "rooms" '
           '(${cols.map((c) => '"$c"').join(',')}) '
           'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
-          'ON CONFLICT("local_uuid") DO UPDATE SET $updateCols';
+          'ON CONFLICT DO NOTHING';
       expect(
         sql,
         expectedSql,
@@ -577,11 +733,13 @@ void main() {
       expect(inserts, hasLength(3));
 
       String insertFor(String table) =>
-          inserts.firstWhere((s) => s.startsWith('INSERT INTO "$table"'));
+          inserts.firstWhere(
+            (s) => s.startsWith('INSERT INTO "$table"'),
+          );
 
       // 1) salary_cycles: عمود employee_uuid موجود وقيمته الحرفية تصل.
       final cyclesSql = insertFor('salary_cycles');
-      expect(cyclesSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
+      expect(cyclesSql, endsWith('ON CONFLICT DO NOTHING'));
       final cyclesCols = insertColsOf(cyclesSql);
       expect(cyclesCols, contains('employee_uuid'));
       expect(
@@ -592,13 +750,13 @@ void main() {
 
       // 2) salary_withdrawals: نفس التثبيت.
       final wdSql = insertFor('salary_withdrawals');
-      expect(wdSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
+      expect(wdSql, endsWith('ON CONFLICT DO NOTHING'));
       expect(insertColsOf(wdSql), contains('employee_uuid'));
       expect(wdSql, contains("'emp-uuid-9'"));
 
       // 3) expenses: employee_uuid يصل وrelated_id يصل NULL صراحةً (P0.4).
       final expSql = insertFor('expenses');
-      expect(expSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
+      expect(expSql, endsWith('ON CONFLICT DO NOTHING'));
       expect(insertColsOf(expSql), contains('employee_uuid'));
       expect(expSql, contains("'emp-uuid-9'"));
       // التحقق الحرفي: الصف المحلي related_id == NULL ويجب أن يُرسل NULL
@@ -627,8 +785,7 @@ void main() {
         'INSERT INTO "expenses" '
         '(${cols.map((c) => '"$c"').join(',')}) '
         'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
-        'ON CONFLICT("local_uuid") DO UPDATE SET '
-        '${cols.where((c) => c != 'local_uuid').map((c) => '"$c" = excluded."$c"').join(',')}',
+        'ON CONFLICT DO NOTHING',
         reason: 'عبارة expenses المرسلة لا تطابق القيم الحرفية للصف',
       );
     },

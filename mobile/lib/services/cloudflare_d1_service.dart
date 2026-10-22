@@ -40,8 +40,8 @@ class CloudflareD1Service {
   static const int _statementBatch = 800;
 
   /// ✅ تسريع إضافي (2026-10-12): حتى هذا العدد من النداءات يكون في الطيران
-  /// داخل الجدول الواحد. صفوف الجدول الواحد هويتها فريدة (UPSERT على
-  /// local_uuid أو INSERT OR REPLACE على المفتاح المحلي) فلا يُنشئ التوازي
+  /// داخل الجدول الواحد. صفوف الجدول الواحد هويتها فريدة (ON CONFLICT DO
+  /// NOTHING على المفتاح المحلي) فلا يُنشئ التوازي
   /// تعارضاً، بينما ترتيب الجداول نفسه يبقى متسلسلاً لحفظ علاقات
   /// FOREIGN KEY (D1 يفرضها افتراضياً).
   /// التوازي محافظ عن قصد: D1 أحادي الخيط ويُصدر "overloaded" عند تجاوز
@@ -310,9 +310,8 @@ class CloudflareD1Service {
   //  الرفع
   // ════════════════════════════════════════════════════════════════
 
-  /// رفع الجداول المحددة إلى D1 (مخطط + بيانات) بأسلوب UPSERT على local_uuid
-  /// للجداول المتزامنة — الإعادة آمنة (idempotent) ولا تحذف أي سجل بعيد غير
-  /// موجود محلياً.
+  /// رفع الجداول المحددة إلى D1 (مخطط + بيانات) بأسلوب ON CONFLICT DO NOTHING:
+  /// التعارضات مع المفاتيح الفريدة تتخطى السجل الموجود ولا تستبدله.
   Future<CloudflareD1UploadResult> uploadData({
     required List<CloudflareD1SourceTable> tables,
     String? deviceLabel,
@@ -401,16 +400,25 @@ class CloudflareD1Service {
           if (chunk.isEmpty) break;
           firstChunk ??= chunk;
           if (columns.isEmpty) {
-            // لا نستبعد id إلا إذا أثبت DDL المحلي أنه مفتاح Drift
-            // AUTOINCREMENT؛ بعض جداول الحالة تستخدم id ذا معنى.
+            // لا نستبعد id إلا عندما يكون local_uuid فريداً في DDL المحلي.
+            // في الجداول المحلية/المساعدة غير ذات الهوية الفريدة يبقى id
+            // مفتاحاً يمنع تكرار السجل عند تكرار رفع النسخة الاحتياطية.
             final localIdIsAutoIncrement = t.createSqlList.any(
               (sql) => RegExp(
-                r'(?:(?:"id")|(?:`id`)|(?:\[id\])|(?:id))\s+INTEGER\s+NOT NULL\s+PRIMARY KEY\s+AUTOINCREMENT',
+                r'(?:(?:"id")|(?:`id`)|(?:\[id\])|(?:id))\s+INTEGER(?:\s+NOT\s+NULL)?\s+PRIMARY\s+KEY\s+AUTOINCREMENT',
                 caseSensitive: false,
               ).hasMatch(sql),
             );
+            final hasStableLocalUuid =
+                firstChunk.first.containsKey('local_uuid') &&
+                _hasUniqueLocalUuid(t);
             columns = firstChunk.first.keys
-                .where((c) => !(c == 'id' && localIdIsAutoIncrement))
+                .where(
+                  (c) =>
+                      !(c == 'id' &&
+                          localIdIsAutoIncrement &&
+                          hasStableLocalUuid),
+                )
                 .toList();
             // مصالحة المخطط قبل أول INSERT: أعمدة محلية غائبة عن D1 تُضاف
             // بـ ALTER (مخطط D1 قد يكون أقدم من المخطط المحلي).
@@ -421,32 +429,17 @@ class CloudflareD1Service {
             offset += chunk.length;
             continue;
           }
-          // الهوية الدائمة هي local_uuid. لا نستخدم REPLACE لأنه يحذف الصف
-          // ثم يعيد إدخاله، وقد يكسر علاقات/تدقيقات محلية في مرآة D1.
-          // إذا كان الجدول متزامناً ويحمل local_uuid، نستخدم UPSERT على هذه
-          // الهوية؛ أما الجداول القديمة غير المتزامنة فتحتفظ بالمسار السابق.
+          // ON CONFLICT DO NOTHING يتخطى أي تعارض فريد (local_uuid أو id أو مفتاح
+          // مركّب) دون استبدال/تحديث الصف الموجود. هذا مسار نسخ احتياطي فقط؛
+          // لا يغيّر مزامنة Appwrite أو سجل outbox.
           final statements = <String>[];
-          final hasLocalUuid = columns.contains('local_uuid');
           for (final row in chunk) {
             final values = columns.map((c) => _sqlLiteral(row[c])).join(',');
-            if (hasLocalUuid) {
-              final updateColumns = columns
-                  .where((c) => c != 'local_uuid')
-                  .map(
-                    (c) => '${_quotedIdent(c)} = excluded.${_quotedIdent(c)}',
-                  )
-                  .join(',');
-              statements.add(
-                'INSERT INTO ${_quotedIdent(t.name)} '
-                '(${columns.map(_quotedIdent).join(',')}) VALUES ($values) '
-                'ON CONFLICT("local_uuid") DO UPDATE SET $updateColumns',
-              );
-            } else {
-              statements.add(
-                'INSERT OR REPLACE INTO ${_quotedIdent(t.name)} '
-                '(${columns.map(_quotedIdent).join(',')}) VALUES ($values)',
-              );
-            }
+            statements.add(
+              'INSERT INTO ${_quotedIdent(t.name)} '
+              '(${columns.map(_quotedIdent).join(',')}) VALUES ($values) '
+              'ON CONFLICT DO NOTHING',
+            );
           }
           var bi = 0;
           while (bi < statements.length) {
@@ -556,6 +549,48 @@ class CloudflareD1Service {
       end++;
     }
     return end;
+  }
+
+  /// هل local_uuid مفتاح فريد منفرد في DDL المحلي (وليس جزءاً من مفتاح
+  /// مركّب)؟ إن لم يكن، نحتفظ بـid ونستخدم ON CONFLICT DO NOTHING للمفاتيح
+  /// الفعلية للجدول.
+  static bool _hasUniqueLocalUuid(CloudflareD1SourceTable table) {
+    final inlineUnique = RegExp(
+      r'(?:(?:"local_uuid")|(?:`local_uuid`)|(?:\[local_uuid\])|(?:local_uuid))\s+[^,]*\bUNIQUE\b',
+      caseSensitive: false,
+    );
+    final tableUnique = RegExp(
+      r'\bUNIQUE\s*\(\s*(?:"local_uuid"|`local_uuid`|\[local_uuid\]|local_uuid)\s*\)',
+      caseSensitive: false,
+    );
+
+    for (final sql in table.createSqlList) {
+      if (inlineUnique.hasMatch(sql) || tableUnique.hasMatch(sql)) return true;
+      if (!RegExp(r'^\s*CREATE\s+UNIQUE\s+INDEX\b', caseSensitive: false)
+          .hasMatch(sql)) {
+        continue;
+      }
+      final open = sql.indexOf('(');
+      final close = sql.lastIndexOf(')');
+      if (open < 0 || close <= open) continue;
+      final indexedColumns = sql
+          .substring(open + 1, close)
+          .split(',')
+          .map(
+            (column) => column
+                .replaceAll('"', '')
+                .replaceAll('`', '')
+                .replaceAll('[', '')
+                .replaceAll(']', '')
+                .trim()
+                .toLowerCase(),
+          )
+          .toList();
+      if (indexedColumns.length == 1 && indexedColumns.single == 'local_uuid') {
+        return true;
+      }
+    }
+    return false;
   }
 
   static const int _chunkSize = 1000;

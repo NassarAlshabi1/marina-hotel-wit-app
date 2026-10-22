@@ -53,8 +53,8 @@ bool _isD1SyncInfrastructure(String name) =>
 
 /// تبويب رفع البيانات المحلية (المسحوبة من Appwrite) إلى Cloudflare D1.
 ///
-/// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم UPSERT بالهوية الثابتة
-/// إلى D1 — لا يمس حلقة مزامنة Appwrite ولا يحذف أي سجل بعيد.
+/// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT مع DO NOTHING عند التعارض؛
+/// أي سجل موجود بمفتاح فريد يُتخطى ولا يُستبدل. لا يمس حلقة مزامنة Appwrite.
 /// القيود المطبقة (مثبتة تجريبياً): عبارات حرفية متعددة بلا معاملات في
 /// النداء الواحد — دفعة 200 عبارة (مثبت: 800 عبارة/187KB نجحت بـ 635ms).
 class CloudflareD1Tab extends ConsumerStatefulWidget {
@@ -321,8 +321,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         title: const Text('تأكيد الرفع إلى Cloudflare D1'),
         content: Text(
           'سيتم رفع ${_selected.length} جدولاً ($totalRows صفاً) إلى قاعدة '
-          'D1 المحددة. الجداول التي تحمل local_uuid تستخدم UPSERT على الهوية الثابتة، وليس INSERT OR REPLACE.\n\n'
-          '• لا يُحذف أي سجل موجود في D1 غير موجود محلياً.\n'
+          'D1 المحددة. سيتم تجاهل الصفوف الموجودة مسبقاً عند تعارض المفتاح الفريد؛ '
+          'لن تُحدّث أو تُستبدل.\n\n'
+          '• لا يُحذف أو يُستبدل أي سجل موجود في D1.\n'
           '• لا يتم اختراع employee_uuid أو إعادة ربط سجل بموظف بالتخمين.\n'
           '• قد تظهر تحذيرات للسجلات التاريخية التي تحتاج مراجعة.',
         ),
@@ -475,10 +476,10 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         const SizedBox(height: 8),
         const Text(
           'ينقل هذا التبويب نسخة بيانات محلية إلى Cloudflare D1. هوية السجل '
-          'المحمولة هي local_uuid، وعلاقات الموظفين تعتمد على employee_uuid؛ '
-          'لا يتم استخدام id الرقمي المحلي/البعيد كهوية للمزامنة. الرفع يتم '
-          'بـ UPSERT على local_uuid للجداول التي تحتويه، وليس REPLACE، لمنع '
-          'حذف وإعادة إنشاء الصفوف وكسر العلاقات.',
+          'المحمولة هي local_uuid للجداول المتزامنة؛ والجداول المساعدة تحتفظ '
+          'بمفتاحها المحلي عند عدم وجود local_uuid فريد. الصفوف الموجودة ذات '
+          'المفتاح نفسه يتم تجاهلها دون تحديث أو استبدال، ولا يتغير مسار '
+          'مزامنة Appwrite أو outbox.',
           textAlign: TextAlign.start,
         ),
         const SizedBox(height: 10),
@@ -812,13 +813,13 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                     _result!.cancelled
                         ? 'أُوقف الرفع جزئياً'
                         : _result!.ok
-                        ? 'اكتمل الرفع بنجاح'
+                        ? 'اكتملت معالجة الرفع بنجاح'
                         : 'اكتمل مع أخطاء',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'جداول: ${_result!.tablesDone} — صفوف: ${_result!.rowsUploaded} — '
+                    'جداول: ${_result!.tablesDone} — صفوف تمت معالجتها (قد تشمل المتجاوزة): ${_result!.rowsUploaded} — '
                     'نداءات: ${_result!.apiCalls} — '
                     'الزمن: ${_result!.elapsed.inSeconds}ث',
                   ),
