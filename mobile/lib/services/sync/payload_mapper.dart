@@ -767,6 +767,7 @@ class PayloadMapper {
     };
 
     putIfStringNotEmpty(data, 'idempotencyKey', info.idempotencyKey);
+    putIfStringNotEmpty(data, 'entryDate', info.entryDate);
 
     putIfNotNull(data, 'serverId', info.serverId);
     putIfNotNull(data, 'deletedAt', info.deletedAt);

@@ -182,7 +182,7 @@ class GuestInfosRepository {
             'issuePlace': issuePlace.isEmpty ? null : issuePlace,
             'governorate': governorate.isEmpty ? null : governorate,
             'notes': notes.isEmpty ? null : notes,
-            if (entryDate != null) 'entryDate': entryDate,
+            'entryDate': entryDate ?? existing.entryDate,
           },
           clientTs: now,
         );
