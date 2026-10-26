@@ -8,6 +8,8 @@ import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
+import 'package:marina_hotel_mobile/services/adapters/source.dart';
 import 'package:marina_hotel_mobile/services/backup_serializers.dart';
 import 'package:marina_hotel_mobile/services/google_drive_backup_service.dart'
     show BackupFormat, BackupMetadata, GoogleDriveBackupService;
@@ -295,6 +297,19 @@ void main() {
               .entryDate,
           '2026-10-21',
         );
+
+        // مسار Google Drive الإنتاجي يستعيد سجل guest_infos عبر adapter.
+        await db.delete(db.guestInfos).go();
+        final driveRegistry = AdapterRegistry(db);
+        await driveRegistry.guestInfos.upsertFromJson(
+          Map<String, dynamic>.from(newBackupRow),
+          src: Source.drive,
+        );
+        final driveRestoredGuest = await (db.select(
+          db.guestInfos,
+        )..where((guest) => guest.localUuid.equals('backup-new-guest')))
+            .getSingle();
+        expect(driveRestoredGuest.entryDate, '2026-10-21');
 
         final hash = GoogleDriveBackupService.computeBackupChecksum(backupData);
         (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = hash;

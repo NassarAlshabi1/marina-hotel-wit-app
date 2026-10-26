@@ -68,6 +68,7 @@ void main() {
       'issuePlace': 'عدن',
       'governorate': 'عدن',
       'notes': 'سجل $seq من السحب الكامل',
+      'entryDate': '2026-02-03',
       if (deletedAt != null) 'deletedAt': deletedAt,
     };
   }
@@ -105,6 +106,11 @@ void main() {
       for (var i = 1; i <= kActiveCount; i++) {
         expect(names.contains('نزيل سحب $i'), isTrue, reason: 'السجل $i غائب');
       }
+      expect(
+        displayed.every((guest) => guest.entryDate == '2026-02-03'),
+        isTrue,
+        reason: 'entryDate يجب أن يبقى موجوداً بعد تطبيق full pull',
+      );
 
       // الـ tombstones في القاعدة (للإسناد التراخي) لكنها مستبعدة من العرض.
       final rawCount = await (db.select(db.guestInfos)).get();
