@@ -2136,9 +2136,8 @@ class AppDatabase extends _$AppDatabase {
             createdTimestamp = now.millisecondsSinceEpoch;
           }
 
-          final isoDate = DateTime.fromMillisecondsSinceEpoch(
-            createdTimestamp,
-          ).toIso8601String();
+          final isoDate = DateTime.fromMillisecondsSinceEpoch(createdTimestamp)
+              .toIso8601String();
 
           await m.database.customInsert(
             'INSERT INTO shift_notes ('

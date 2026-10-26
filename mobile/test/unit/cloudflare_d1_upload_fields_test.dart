@@ -8,7 +8,7 @@
 // camelCase → snake_case تعتمد كلياً على أعمدة مخطط drift المولّد.
 // هذا الاختبار يفتح قاعدة drift حقيقية في الذاكرة ويقرأ أسماء الأعمدة
 // الفعلية عبر PRAGMA table_info لكل جدول مزامنة (نفس الجداول التي يرفعها
-// التبويب افتراضياً — kAppwriteSyncedTables) ويثبّت الحقول الـ 17:
+// التبويب افتراضياً — kAppwriteSyncedTables) ويثبّت الحقول العامة الـ 17:
 //
 //   localUuid → local_uuid            serverId → server_id
 //   createdAt → created_at            updatedAt → updated_at
@@ -60,12 +60,17 @@ const Map<String, String> kExpectedSyncFieldMapping = <String, String>{
   'deviceId': 'device_id',
 };
 
+/// حقل خاص بـ guest_infos فقط؛ لا يُخلط مع حقول SyncFields العامة.
+const Map<String, String> kExpectedGuestInfoFieldMapping = <String, String>{
+  'entryDate': 'entry_date',
+};
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppDatabase db;
 
-  /// استخراج قائمة الأعمدة من عبارة INSERT/UPSERT الملتقطة
+  /// استخراج قائمة الأعمدة من عبارة INSERT الملتقطة
   /// (بين أول '(' و ') VALUES').
   List<String> insertColsOf(String sql) => sql
       .substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES'))
@@ -110,7 +115,85 @@ void main() {
     }
   });
 
-  test('يحافظ رفع D1 على id ذي المعنى الذي ليس AUTOINCREMENT', () async {
+  test(
+    'guest_infos يرفع entryDate إلى D1 باسم entry_date وصيغة yyyy-MM-dd',
+    () async {
+      expect(kExpectedGuestInfoFieldMapping, {'entryDate': 'entry_date'});
+      await db
+          .into(db.guestInfos)
+          .insert(
+            GuestInfosCompanion.insert(
+              localUuid: 'guest-entry-date-1',
+              createdAt: 1792627200000,
+              updatedAt: 1792627200000,
+              lastModified: 1792627200000,
+              roomNumber: '101',
+              guestName: 'ضيف اختبار',
+              nationality: 'يمني',
+              idNumber: 'TEST-101',
+              entryDate: const Value('2026-10-22'),
+            ),
+          );
+
+      final ddlRows = await db
+          .customSelect(
+            "SELECT sql FROM sqlite_master WHERE tbl_name='guest_infos' "
+            "AND sql IS NOT NULL ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END",
+          )
+          .get();
+      final captured = <String>[];
+      final client = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        captured.add(body['sql'] as String);
+        return http.Response('{"success":true,"result":[]}', 200);
+      });
+      final service = CloudflareD1Service(
+        const CloudflareD1Config(
+          accountId: 'a',
+          databaseId: 'b',
+          apiToken: 't',
+        ),
+        client: client,
+      );
+      final result = await service.uploadData(
+        tables: [
+          CloudflareD1SourceTable(
+            name: 'guest_infos',
+            rowCount: 1,
+            createSqlList: ddlRows
+                .map((row) => row.data['sql'] as String)
+                .toList(),
+            readChunk: (limit, offset) async {
+              final rows = await db
+                  .customSelect(
+                    'SELECT * FROM "guest_infos" LIMIT ? OFFSET ?',
+                    variables: [
+                      Variable.withInt(limit),
+                      Variable.withInt(offset),
+                    ],
+                  )
+                  .get();
+              return rows.map((row) => row.data).toList();
+            },
+          ),
+        ],
+      );
+
+      expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      final statements = captured
+          .expand((sql) => sql.split(';\n'))
+          .map((sql) => sql.trim());
+      final insert = statements.singleWhere(
+        (sql) => sql.startsWith('INSERT INTO "guest_infos"'),
+      );
+      expect(insert, contains('"entry_date"'));
+      expect(insert, contains("'2026-10-22'"));
+      expect(insert, endsWith('ON CONFLICT DO NOTHING'));
+      expect(insert, isNot(contains('"id"')));
+    },
+  );
+
+  test('يحافظ رفع D1 على id ذي المعنى ويتجاهل تصادمه', () async {
     final requests = <String>[];
     final client = MockClient((request) async {
       final body = jsonDecode(request.body) as Map<String, dynamic>;
@@ -128,7 +211,7 @@ void main() {
           name: 'sync_state',
           rowCount: 1,
           createSqlList: const [
-            'CREATE TABLE sync_state (id INTEGER NOT NULL)',
+            'CREATE TABLE sync_state (id INTEGER NOT NULL PRIMARY KEY)',
           ],
           readChunk: (limit, offset) async => offset == 0
               ? [
@@ -141,10 +224,101 @@ void main() {
 
     expect(result.ok, isTrue, reason: result.errors.join('؛ '));
     final insert = requests.singleWhere(
-      (sql) => sql.startsWith('INSERT OR REPLACE'),
+      (sql) => sql.startsWith('INSERT INTO "sync_state"'),
     );
     expect(insert, contains('("id","version") VALUES (1,4)'));
+    expect(insert, endsWith('ON CONFLICT DO NOTHING'));
   });
+
+  test(
+    'الجداول المحلية تتجاهل التعارضات وتحفظ id عندما لا يكون local_uuid فريداً',
+    () async {
+      final requests = <String>[];
+      final client = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        requests.add(body['sql'] as String);
+        return http.Response('{"success":true,"result":[]}', 200);
+      });
+      final service = CloudflareD1Service(
+        const CloudflareD1Config(
+          accountId: 'a',
+          databaseId: 'b',
+          apiToken: 't',
+        ),
+        client: client,
+      );
+
+      final result = await service.uploadData(
+        tables: [
+          CloudflareD1SourceTable(
+            name: 'integrity_violations',
+            rowCount: 1,
+            createSqlList: const [
+              'CREATE TABLE integrity_violations ('
+                  '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+                  '"run_id" INTEGER NOT NULL)',
+            ],
+            readChunk: (limit, offset) async => offset == 0
+                ? [
+                    <String, Object?>{'id': 7, 'run_id': 2},
+                  ]
+                : const <Map<String, Object?>>[],
+          ),
+          CloudflareD1SourceTable(
+            name: 'ancestor_cache',
+            rowCount: 1,
+            createSqlList: const [
+              'CREATE TABLE ancestor_cache ('
+                  '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+                  '"entity" TEXT NOT NULL, "local_uuid" TEXT NOT NULL, '
+                  '"data_json" TEXT NOT NULL, "captured_at" INTEGER NOT NULL, '
+                  'UNIQUE ("entity", "local_uuid"))',
+            ],
+            readChunk: (limit, offset) async => offset == 0
+                ? [
+                    <String, Object?>{
+                      'id': 3,
+                      'entity': 'guest_infos',
+                      'local_uuid': 'guest-1',
+                      'data_json': '{}',
+                      'captured_at': 1,
+                    },
+                  ]
+                : const <Map<String, Object?>>[],
+          ),
+        ],
+      );
+
+      expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      final statements = requests
+          .expand((sql) => sql.split(';\n'))
+          .map((sql) => sql.trim())
+          .toList();
+      final violations = statements.singleWhere(
+        (sql) => sql.startsWith('INSERT INTO "integrity_violations"'),
+      );
+      expect(violations, contains('("id","run_id") VALUES (7,2)'));
+      expect(violations, endsWith('ON CONFLICT DO NOTHING'));
+      final ancestor = statements.singleWhere(
+        (sql) => sql.startsWith('INSERT INTO "ancestor_cache"'),
+      );
+      expect(ancestor, contains('("id","entity","local_uuid"'));
+      expect(ancestor, contains("VALUES (3,'guest_infos','guest-1','{}',1)"));
+      expect(ancestor, endsWith('ON CONFLICT DO NOTHING'));
+      final dataInserts = statements
+          .where((sql) => sql.startsWith('INSERT INTO "'))
+          .toList();
+      expect(dataInserts, hasLength(2));
+      expect(
+        dataInserts.every((sql) => sql.endsWith('ON CONFLICT DO NOTHING')),
+        isTrue,
+      );
+      expect(
+        statements.where((sql) => sql.contains('INSERT OR REPLACE')),
+        isEmpty,
+      );
+    },
+  );
 
   test(
     'كل جدول مزامنة يحمل الأعمدة الـ 17 بصيغة snake_case (مسار رفع D1)',
@@ -206,225 +380,212 @@ void main() {
     },
   );
 
-  test(
-    'الرفع الفعلي يرسل أسماء snake_case (إدراج ثم قراءة بنمط SELECT *)',
-    () async {
-      // محاكاة المسار الكامل: الإدراج عبر drift ثم القراءة بنفس استعلام
-      // CloudflareD1Tab._upload (SELECT * FROM "table" LIMIT ? OFFSET ?)
-      // والتحقق أن مفاتيح الخريطة هي أسماء snake_case الـ 17 نفسها.
-      await db
-          .into(db.rooms)
-          .insert(
-            RoomsCompanion.insert(
-              localUuid: 'room-101-uuid',
-              createdAt: 1735689600000,
-              updatedAt: 1735776000000,
-              lastModified: 1735776001000,
-              roomNumber: '101',
-              type: 'double',
-              price: 100,
-              status: 'شاغرة',
-              serverId: const Value(7),
-              createdAtIso: const Value('2026-01-01T00:00:00.000Z'),
-              updatedAtIso: const Value('2026-01-02T00:00:00.000Z'),
-              createdAtEpoch: const Value(1735689600),
-              lastModifiedEpoch: const Value(1735776000),
-              version: const Value(3),
-              origin: const Value('local'),
-              vectorClock: const Value('{"dev-a":1}'),
-              deviceId: const Value('dev-a'),
-              syncTimestamp: const Value(1735776001),
-              idempotencyKey: const Value('idem-key-1'),
-            ),
-          );
-
-      // نفس قراءة التبويب: SELECT * — مفاتيح r.data هي ما يُرفع حرفياً إلى D1.
-      final rows = await db.customSelect('SELECT * FROM "rooms"').get();
-      expect(rows, hasLength(1));
-      final uploaded = rows.first.data;
-
-      for (final entry in kExpectedSyncFieldMapping.entries) {
-        expect(
-          uploaded.containsKey(entry.value),
-          isTrue,
-          reason:
-              'الصف المرفوع لا يحتوي عمود "${entry.value}" (المتوقع من '
-              '${entry.key}) — المفاتيح الفعلية: ${uploaded.keys.toList()..sort()}',
-        );
-      }
-      // عينة قيم للتأكد من أن الأعمدة ليست موجودة فحسب بل تحمل بياناتنا.
-      expect(uploaded['local_uuid'], 'room-101-uuid');
-      expect(uploaded['server_id'], 7);
-      expect(uploaded['last_modified'], 1735776001000);
-      expect(uploaded['created_at_iso'], '2026-01-01T00:00:00.000Z');
-      expect(uploaded['updated_at_iso'], '2026-01-02T00:00:00.000Z');
-      expect(uploaded['created_at_epoch'], 1735689600);
-      expect(uploaded['last_modified_epoch'], 1735776000);
-      expect(uploaded['sync_timestamp'], 1735776001);
-      expect(uploaded['vector_clock'], '{"dev-a":1}');
-      expect(uploaded['device_id'], 'dev-a');
-      expect(uploaded['origin'], 'local');
-      expect(uploaded['version'], 3);
-      expect(uploaded['idempotency_key'], 'idem-key-1');
-    },
-  );
-
-  test(
-    'uploadData الفعلي: SQL بأسامي snake_case وقيم محفوظة حرفياً + إعادة رفع مطابقة',
-    () async {
-      // إدراج صف بقيم مميزة قابلة للتتبع في نص SQL.
-      await db
-          .into(db.rooms)
-          .insert(
-            RoomsCompanion.insert(
-              localUuid: 'room-102-uuid',
-              createdAt: 1735603200000,
-              updatedAt: 1735689600000,
-              lastModified: 1735776123456,
-              roomNumber: '102',
-              type: 'suite',
-              price: 250,
-              status: 'شاغرة',
-              serverId: const Value(77),
-              createdAtIso: const Value('2025-12-31T00:00:00.000Z'),
-              updatedAtIso: const Value('2026-01-01T00:00:00.000Z'),
-              createdAtEpoch: const Value(1735603200),
-              lastModifiedEpoch: const Value(1735689600),
-              version: const Value(42),
-              origin: const Value('remote'),
-              vectorClock: const Value('{"dev-b":9}'),
-              deviceId: const Value('dev-b'),
-              syncTimestamp: const Value(1735776999),
-              idempotencyKey: const Value('idem-rooms-102'),
-            ),
-          );
-
-      // نفس readChunk الذي يستخدمه CloudflareD1Tab._upload حرفياً.
-      Future<List<Map<String, Object?>>> readChunk(
-        int limit,
-        int offset,
-      ) async {
-        final rows = await db
-            .customSelect(
-              'SELECT * FROM "rooms" LIMIT ? OFFSET ?',
-              variables: [Variable.withInt(limit), Variable.withInt(offset)],
-            )
-            .get();
-        return rows.map((r) => r.data).toList();
-      }
-
-      // مرآة لـ _sqlLiteral في CloudflareD1Service (نفس المنطق حرفياً).
-      String lit(Object? v) {
-        if (v == null) return 'NULL';
-        if (v is int) return v.toString();
-        if (v is double) return v.toString();
-        if (v is bool) return v ? '1' : '0';
-        return "'${v.toString().replaceAll("'", "''")}'";
-      }
-
-      Future<List<String>> runUpload() async {
-        final captured = <String>[];
-        final client = MockClient((request) async {
-          captured.add(request.body);
-          return http.Response('{"success": true, "result": []}', 200);
-        });
-        final service = CloudflareD1Service(
-          const CloudflareD1Config(
-            accountId: 'a',
-            databaseId: 'b',
-            apiToken: 't',
+  test('الرفع الفعلي يرسل أسماء snake_case (إدراج ثم قراءة بنمط SELECT *)', () async {
+    // محاكاة المسار الكامل: الإدراج عبر drift ثم القراءة بنفس استعلام
+    // CloudflareD1Tab._upload (SELECT * FROM "table" LIMIT ? OFFSET ?)
+    // والتحقق أن مفاتيح الخريطة هي أسماء snake_case الـ 17 نفسها.
+    await db
+        .into(db.rooms)
+        .insert(
+          RoomsCompanion.insert(
+            localUuid: 'room-101-uuid',
+            createdAt: 1735689600000,
+            updatedAt: 1735776000000,
+            lastModified: 1735776001000,
+            roomNumber: '101',
+            type: 'double',
+            price: 100,
+            status: 'شاغرة',
+            serverId: const Value(7),
+            createdAtIso: const Value('2026-01-01T00:00:00.000Z'),
+            updatedAtIso: const Value('2026-01-02T00:00:00.000Z'),
+            createdAtEpoch: const Value(1735689600),
+            lastModifiedEpoch: const Value(1735776000),
+            version: const Value(3),
+            origin: const Value('local'),
+            vectorClock: const Value('{"dev-a":1}'),
+            deviceId: const Value('dev-a'),
+            syncTimestamp: const Value(1735776001),
+            idempotencyKey: const Value('idem-key-1'),
           ),
-          client: client,
         );
-        final result = await service.uploadData(
-          tables: [
-            CloudflareD1SourceTable(
-              name: 'rooms',
-              rowCount: 1,
-              createSqlList: const [
-                'CREATE TABLE rooms (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT)',
-              ],
-              readChunk: readChunk,
-            ),
-          ],
-          deviceLabel: 'test-device',
+
+    // نفس قراءة التبويب: SELECT * — مفاتيح r.data هي ما يُرفع حرفياً إلى D1.
+    final rows = await db.customSelect('SELECT * FROM "rooms"').get();
+    expect(rows, hasLength(1));
+    final uploaded = rows.first.data;
+
+    for (final entry in kExpectedSyncFieldMapping.entries) {
+      expect(
+        uploaded.containsKey(entry.value),
+        isTrue,
+        reason:
+            'الصف المرفوع لا يحتوي عمود "${entry.value}" (المتوقع من '
+            '${entry.key}) — المفاتيح الفعلية: ${uploaded.keys.toList()..sort()}',
+      );
+    }
+    // عينة قيم للتأكد من أن الأعمدة ليست موجودة فحسب بل تحمل بياناتنا.
+    expect(uploaded['local_uuid'], 'room-101-uuid');
+    expect(uploaded['server_id'], 7);
+    expect(uploaded['last_modified'], 1735776001000);
+    expect(uploaded['created_at_iso'], '2026-01-01T00:00:00.000Z');
+    expect(uploaded['updated_at_iso'], '2026-01-02T00:00:00.000Z');
+    expect(uploaded['created_at_epoch'], 1735689600);
+    expect(uploaded['last_modified_epoch'], 1735776000);
+    expect(uploaded['sync_timestamp'], 1735776001);
+    expect(uploaded['vector_clock'], '{"dev-a":1}');
+    expect(uploaded['device_id'], 'dev-a');
+    expect(uploaded['origin'], 'local');
+    expect(uploaded['version'], 3);
+    expect(uploaded['idempotency_key'], 'idem-key-1');
+  });
+
+  test('uploadData الفعلي: SQL بأسامي snake_case وقيم محفوظة حرفياً + إعادة رفع مطابقة', () async {
+    // إدراج صف بقيم مميزة قابلة للتتبع في نص SQL.
+    await db
+        .into(db.rooms)
+        .insert(
+          RoomsCompanion.insert(
+            localUuid: 'room-102-uuid',
+            createdAt: 1735603200000,
+            updatedAt: 1735689600000,
+            lastModified: 1735776123456,
+            roomNumber: '102',
+            type: 'suite',
+            price: 250,
+            status: 'شاغرة',
+            serverId: const Value(77),
+            createdAtIso: const Value('2025-12-31T00:00:00.000Z'),
+            updatedAtIso: const Value('2026-01-01T00:00:00.000Z'),
+            createdAtEpoch: const Value(1735603200),
+            lastModifiedEpoch: const Value(1735689600),
+            version: const Value(42),
+            origin: const Value('remote'),
+            vectorClock: const Value('{"dev-b":9}'),
+            deviceId: const Value('dev-b'),
+            syncTimestamp: const Value(1735776999),
+            idempotencyKey: const Value('idem-rooms-102'),
+          ),
         );
-        expect(result.ok, isTrue, reason: result.errors.join('؛ '));
-        expect(result.rowsUploaded, 1);
 
-        // استخراج عبارات INSERT الخاصة بـ rooms من أجسام النداءات.
-        final inserts = captured
-            .map(
-              (b) => (jsonDecode(b) as Map<String, dynamic>)['sql'] as String,
-            )
-            .expand((sql) => sql.split(';\n'))
-            .map((s) => s.trim())
-            .where((s) => s.startsWith('INSERT INTO "rooms"'))
-            .toList();
-        expect(
-          inserts,
-          hasLength(1),
-          reason: 'المتوقع عبارة INSERT واحدة لـ rooms',
-        );
-        return inserts;
-      }
+    // نفس readChunk الذي يستخدمه CloudflareD1Tab._upload حرفياً.
+    Future<List<Map<String, Object?>>> readChunk(int limit, int offset) async {
+      final rows = await db
+          .customSelect(
+            'SELECT * FROM "rooms" LIMIT ? OFFSET ?',
+            variables: [Variable.withInt(limit), Variable.withInt(offset)],
+          )
+          .get();
+      return rows.map((r) => r.data).toList();
+    }
 
-      final firstRun = await runUpload();
-      final sql = firstRun.single;
+    // مرآة لـ _sqlLiteral في CloudflareD1Service (نفس المنطق حرفياً).
+    String lit(Object? v) {
+      if (v == null) return 'NULL';
+      if (v is int) return v.toString();
+      if (v is double) return v.toString();
+      if (v is bool) return v ? '1' : '0';
+      return "'${v.toString().replaceAll("'", "''")}'";
+    }
 
-      // 1) أسماء الأعمدة الـ 17 بصيغة snake_case داخل نص SQL.
-      final colList = sql
-          .substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES'))
-          .split(',')
-          .map((column) => column.replaceAll('"', ''))
+    Future<List<String>> runUpload() async {
+      final captured = <String>[];
+      final client = MockClient((request) async {
+        captured.add(request.body);
+        return http.Response('{"success": true, "result": []}', 200);
+      });
+      final service = CloudflareD1Service(
+        const CloudflareD1Config(
+          accountId: 'a',
+          databaseId: 'b',
+          apiToken: 't',
+        ),
+        client: client,
+      );
+      final result = await service.uploadData(
+        tables: [
+          CloudflareD1SourceTable(
+            name: 'rooms',
+            rowCount: 1,
+            createSqlList: const [
+              'CREATE TABLE rooms ('
+                  '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+                  '"local_uuid" TEXT NOT NULL UNIQUE)',
+            ],
+            readChunk: readChunk,
+          ),
+        ],
+        deviceLabel: 'test-device',
+      );
+      expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      expect(result.rowsUploaded, 1);
+
+      // استخراج عبارات INSERT الخاصة بـ rooms من أجسام النداءات.
+      final inserts = captured
+          .map((b) => (jsonDecode(b) as Map<String, dynamic>)['sql'] as String)
+          .expand((sql) => sql.split(';\n'))
+          .map((s) => s.trim())
+          .where((s) => s.startsWith('INSERT INTO "rooms"'))
           .toList();
-      expect(colList.toSet(), containsAll(kExpectedSyncFieldMapping.values));
-      expect(colList, isNot(contains('localUuid')));
-      expect(colList, isNot(contains('idempotencyKey')));
-      expect(colList, isNot(contains('syncTimestamp')));
-      expect(sql, isNot(contains('localUuid')));
+      expect(
+        inserts,
+        hasLength(1),
+        reason: 'المتوقع عبارة INSERT واحدة لـ rooms',
+      );
+      return inserts;
+    }
 
-      // 2) القيم محفوظة حرفياً — timestamps/version/idempotency_key لم تُعد إنشاؤها.
-      final row =
-          (await db.customSelect('SELECT * FROM "rooms"').get()).first.data;
-      // id هو مفتاح Drift محلي autoincrement؛ لا يجوز إرساله إلى D1 لأن
-      // D1 يملك تسلسله الخاص، وقد يصطدم بصف موجود تحت local_uuid مختلف.
-      final cols = row.keys.where((c) => c != 'id').toList();
-      expect(colList, isNot(contains('id')));
-      expect(
-        sql,
-        isNot(contains('"id"')),
-        reason: 'يجب ألا يصل id المحلي إلى INSERT الخاص بـ D1',
-      );
-      final updateCols = cols
-          .where((c) => c != 'local_uuid')
-          .map((c) => '"$c" = excluded."$c"')
-          .join(',');
-      final expectedSql =
-          'INSERT INTO "rooms" '
-          '(${cols.map((c) => '"$c"').join(',')}) '
-          'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
-          'ON CONFLICT("local_uuid") DO UPDATE SET $updateCols';
-      expect(
-        sql,
-        expectedSql,
-        reason: 'العبارة المرسلة لا تطابق القيم الحرفية للصف',
-      );
-      // تحقق صريح بأثر واضح:
-      expect(sql, contains('1735776123456')); // last_modified
-      expect(sql, contains('1735776999')); // sync_timestamp
-      expect(sql, contains('42')); // version — ليس 1
-      expect(sql, contains("'idem-rooms-102'"));
+    final firstRun = await runUpload();
+    final sql = firstRun.single;
 
-      // 3) إعادة الرفع: نفس العبارة حرفياً — لا تُولَّد قيم جديدة.
-      final secondRun = await runUpload();
-      expect(
-        secondRun.single,
-        sql,
-        reason: 'إعادة الرفع غيّرت العبارة — يتم إعادة إنشاء قيم بشكل خاطئ',
-      );
-    },
-  );
+    // 1) أسماء الأعمدة الـ 17 بصيغة snake_case داخل نص SQL.
+    final colList = sql
+        .substring(sql.indexOf('(') + 1, sql.indexOf(') VALUES'))
+        .split(',')
+        .map((column) => column.replaceAll('"', ''))
+        .toList();
+    expect(colList.toSet(), containsAll(kExpectedSyncFieldMapping.values));
+    expect(colList, isNot(contains('localUuid')));
+    expect(colList, isNot(contains('idempotencyKey')));
+    expect(colList, isNot(contains('syncTimestamp')));
+    expect(sql, isNot(contains('localUuid')));
+
+    // 2) القيم محفوظة حرفياً — timestamps/version/idempotency_key لم تُعد إنشاؤها.
+    final row =
+        (await db.customSelect('SELECT * FROM "rooms"').get()).first.data;
+    // id هو مفتاح Drift محلي autoincrement؛ لا يجوز إرساله إلى D1 لأن
+    // D1 يملك تسلسله الخاص، وقد يصطدم بصف موجود تحت local_uuid مختلف.
+    final cols = row.keys.where((c) => c != 'id').toList();
+    expect(colList, isNot(contains('id')));
+    expect(
+      sql,
+      isNot(contains('"id"')),
+      reason: 'يجب ألا يصل id المحلي إلى INSERT الخاص بـ D1',
+    );
+    final expectedSql =
+        'INSERT INTO "rooms" '
+        '(${cols.map((c) => '"$c"').join(',')}) '
+        'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
+        'ON CONFLICT DO NOTHING';
+    expect(
+      sql,
+      expectedSql,
+      reason: 'العبارة المرسلة لا تطابق القيم الحرفية للصف',
+    );
+    // تحقق صريح بأثر واضح:
+    expect(sql, contains('1735776123456')); // last_modified
+    expect(sql, contains('1735776999')); // sync_timestamp
+    expect(sql, contains('42')); // version — ليس 1
+    expect(sql, contains("'idem-rooms-102'"));
+
+    // 3) إعادة الرفع: نفس العبارة حرفياً — لا تُولَّد قيم جديدة.
+    final secondRun = await runUpload();
+    expect(
+      secondRun.single,
+      sql,
+      reason: 'إعادة الرفع غيّرت العبارة — يتم إعادة إنشاء قيم بشكل خاطئ',
+    );
+  });
 
   // ════════════════════════════════════════════════════════════════
   // ✅ D1-path audit fixes (2026-10-04) — الفجوات F1/F2/F3
@@ -581,7 +742,7 @@ void main() {
 
       // 1) salary_cycles: عمود employee_uuid موجود وقيمته الحرفية تصل.
       final cyclesSql = insertFor('salary_cycles');
-      expect(cyclesSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
+      expect(cyclesSql, endsWith('ON CONFLICT DO NOTHING'));
       final cyclesCols = insertColsOf(cyclesSql);
       expect(cyclesCols, contains('employee_uuid'));
       expect(
@@ -592,13 +753,13 @@ void main() {
 
       // 2) salary_withdrawals: نفس التثبيت.
       final wdSql = insertFor('salary_withdrawals');
-      expect(wdSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
+      expect(wdSql, endsWith('ON CONFLICT DO NOTHING'));
       expect(insertColsOf(wdSql), contains('employee_uuid'));
       expect(wdSql, contains("'emp-uuid-9'"));
 
       // 3) expenses: employee_uuid يصل وrelated_id يصل NULL صراحةً (P0.4).
       final expSql = insertFor('expenses');
-      expect(expSql, contains('ON CONFLICT("local_uuid") DO UPDATE SET'));
+      expect(expSql, endsWith('ON CONFLICT DO NOTHING'));
       expect(insertColsOf(expSql), contains('employee_uuid'));
       expect(expSql, contains("'emp-uuid-9'"));
       // التحقق الحرفي: الصف المحلي related_id == NULL ويجب أن يُرسل NULL
@@ -627,8 +788,7 @@ void main() {
         'INSERT INTO "expenses" '
         '(${cols.map((c) => '"$c"').join(',')}) '
         'VALUES (${cols.map((c) => lit(row[c])).join(',')}) '
-        'ON CONFLICT("local_uuid") DO UPDATE SET '
-        '${cols.where((c) => c != 'local_uuid').map((c) => '"$c" = excluded."$c"').join(',')}',
+        'ON CONFLICT DO NOTHING',
         reason: 'عبارة expenses المرسلة لا تطابق القيم الحرفية للصف',
       );
     },

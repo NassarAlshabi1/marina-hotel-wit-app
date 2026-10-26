@@ -2,7 +2,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../utils/responsive.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -62,10 +64,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     // استخدام البروفايدر المدمج
     final roomsStream = ref.watch(roomsWithPaymentStatusProvider);
     final auth = ref.watch(authProvider);
-    final canRooms =
-        (auth.currentUser?.permissions.contains('all') ?? false) ||
-        auth.currentUser?.userType == 'admin' ||
-        (auth.currentUser?.permissions.contains('rooms') ?? false);
+    final canCreate = auth.currentUser?.canPerform('rooms', 'create') ?? false;
+    final canUpdate = auth.currentUser?.canPerform('rooms', 'update') ?? false;
 
     return wrapWithSyncOnExit(
       child: AppScaffold(
@@ -76,7 +76,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
             tooltip: _isGridView ? 'عرض قائمة' : 'عرض شبكي',
           ),
-          if (canRooms)
+          if (canCreate)
             IconButton(
               onPressed: () => _editRoom(context, ref),
               icon: const Icon(Icons.add),
@@ -104,12 +104,12 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           ),
           data: (rooms) {
             if (rooms.isEmpty) {
-              return _buildEmptyState(canRooms);
+              return _buildEmptyState(canCreate);
             }
 
             return _isGridView
-                ? _buildGridView(rooms, canRooms)
-                : _buildListView(rooms, canRooms);
+                ? _buildGridView(rooms, canUpdate)
+                : _buildListView(rooms, canUpdate);
           },
         ),
       ),
@@ -426,6 +426,15 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   }
 
   Future<void> _quickStatusChange(Room room, String newStatus) async {
+    if (!(ref.read(authProvider).currentUser?.canPerform('rooms', 'update') ??
+        false)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ليست لديك صلاحية تعديل الغرف')),
+        );
+      }
+      return;
+    }
     final repo = ref.read(roomsRepoProvider);
     // ✅ منع تحويل غرفة لشاغرة إذا كان عليها حجز نشط
     if (newStatus == 'شاغرة') {
@@ -464,6 +473,22 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     WidgetRef ref, {
     Room? existing,
   }) async {
+    final action = existing == null ? 'create' : 'update';
+    if (!(ref.read(authProvider).currentUser?.canPerform('rooms', action) ??
+        false)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              existing == null
+                  ? 'ليست لديك صلاحية إضافة الغرف'
+                  : 'ليست لديك صلاحية تعديل الغرف',
+            ),
+          ),
+        );
+      }
+      return;
+    }
     final formKey = GlobalKey<FormState>();
     final roomNumberCtrl = TextEditingController(
       text: existing?.roomNumber ?? '',

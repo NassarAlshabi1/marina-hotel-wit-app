@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
@@ -18,7 +19,9 @@ import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+
 import '../../utils/english_digits_input_formatter.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
@@ -571,6 +574,25 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   onPressed: _isSaving
                       ? null
                       : () async {
+                          final permissionAction = widget.existing == null
+                              ? 'create'
+                              : 'update';
+                          if (!(ref
+                                  .read(authProvider)
+                                  .currentUser
+                                  ?.canPerform('bookings', permissionAction) ??
+                              false)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  widget.existing == null
+                                      ? 'ليست لديك صلاحية إضافة الحجوزات'
+                                      : 'ليست لديك صلاحية تعديل الحجوزات',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
                           if (_formKey.currentState == null ||
                               !_formKey.currentState!.validate()) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -718,9 +740,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               ),
                             );
                             ScaffoldMessenger.of(context).clearSnackBars();
-                            ScaffoldMessenger.of(
-                              context,
-                            ).showSnackBar(snackBar);
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(snackBar);
                             // لا نوقف الحجز — نعرض التحذير فقط
                           }
 

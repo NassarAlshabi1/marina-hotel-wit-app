@@ -17,6 +17,7 @@ import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
+
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class InformationScreen extends ConsumerStatefulWidget {
@@ -842,9 +843,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// مزامنة فورية إلى Appwrite بعد كل عملية CRUD

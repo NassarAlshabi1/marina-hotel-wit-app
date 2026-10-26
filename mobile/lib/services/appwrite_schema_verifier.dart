@@ -665,6 +665,7 @@ class AppwriteSchemaVerifier {
         {'key': 'issuePlace', 'type': 'string'},
         {'key': 'governorate', 'type': 'string'},
         {'key': 'notes', 'type': 'string'},
+        {'key': 'entryDate', 'type': 'string'},
       ],
     },
     'salary_carry_over_logs': {

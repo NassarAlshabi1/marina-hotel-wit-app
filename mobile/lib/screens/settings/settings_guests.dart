@@ -581,6 +581,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestHistory(BuildContext context, GuestInfo guest) {
+    final canUpdate =
+        ref.read(authProvider).currentUser?.canPerform('bookings', 'update') ??
+        false;
+    final canDelete =
+        ref.read(authProvider).currentUser?.canPerform('bookings', 'delete') ??
+        false;
     showDialog<void>(
       context: context,
       builder: (context) => Directionality(
@@ -618,33 +624,39 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                         isThreeLine: true,
                       ),
                       // ✅ أزرار تعديل وحذف لكل حجز فردي
-                      OverflowBar(
-                        alignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _editBooking(context, booking);
-                            },
-                            icon: const Icon(Icons.edit, size: 16),
-                            label: const Text('تعديل الحجز'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.blue,
-                            ),
-                          ),
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _deleteBooking(context, booking, guest);
-                            },
-                            icon: const Icon(Icons.delete_outline, size: 16),
-                            label: const Text('حذف الحجز'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
-                          ),
-                        ],
-                      ),
+                      if (canUpdate || canDelete)
+                        OverflowBar(
+                          alignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            if (canUpdate)
+                              TextButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _editBooking(context, booking);
+                                },
+                                icon: const Icon(Icons.edit, size: 16),
+                                label: const Text('تعديل الحجز'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.blue,
+                                ),
+                              ),
+                            if (canDelete)
+                              TextButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _deleteBooking(context, booking, guest);
+                                },
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 16,
+                                ),
+                                label: const Text('حذف الحجز'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                ),
+                              ),
+                          ],
+                        ),
                     ],
                   ),
                 );
@@ -662,14 +674,13 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  /// ✅ تعديل حجز فردي — يفتح BookingEditScreen مع `existing: booking`
-  /// التعديل/الحذف على سجلات الحجوزات مقيّد بالدور — مدير/مشرف فقط.
-  bool _canManageRecords() {
+  /// يتحقق من الفعل الدقيق على الحجوزات، كما تعرضه مصفوفة الصلاحيات.
+  bool _canPerformBookingAction(String action) {
     final user = ref.read(authProvider).currentUser;
-    if (user?.canManageRecords ?? false) return true;
+    if (user?.canPerform('bookings', action) ?? false) return true;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('⚠️ التعديل والحذف متاحان للمدير والمشرف فقط'),
+        content: Text('ليست لديك صلاحية لتنفيذ هذا الإجراء على الحجوزات'),
         backgroundColor: Colors.red,
       ),
     );
@@ -677,7 +688,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   Future<void> _editBooking(BuildContext context, Booking booking) async {
-    if (!_canManageRecords()) return;
+    if (!_canPerformBookingAction('update')) return;
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => BookingEditScreen(existing: booking),
@@ -686,9 +697,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     if ((result ?? false) && mounted) {
       ref.invalidate(activeBookingsForGuestsProvider);
       ref.invalidate(bookingsListProvider);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الحجز')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الحجز')));
     }
   }
 
@@ -698,7 +708,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     Booking booking,
     GuestInfo guest,
   ) async {
-    if (!_canManageRecords()) return;
+    if (!_canPerformBookingAction('delete')) return;
     final isActive = StatusUtils.isActiveBooking(booking.status);
 
     final confirmed = await showDialog<bool>(
@@ -1206,9 +1216,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       MaterialPageRoute<bool>(builder: (_) => GuestEditScreen(guest: guest)),
     );
     if ((result ?? false) && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
     }
   }
 

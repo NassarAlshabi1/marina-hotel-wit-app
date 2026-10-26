@@ -195,52 +195,121 @@ void main() {
   //  Group 1: Backup JSON schema + checksum
   // ═════════════════════════════════════════════════════════════════════════
   group('Backup JSON schema + checksum', () {
-    test('backup map includes inventory tables and detects tampering', () {
-      final metadata = BackupMetadata(
-        appVersion: '1.2.0+3',
-        databaseVersion: db.schemaVersion,
-        backupTimestamp: DateTime(2026, 8, 28),
-        totalRecords: 2,
-        deviceInfo: 'Test Device',
-      ).toJson();
-      final backupData = buildBackupDataMap(
-        metadata: metadata,
-        roomsData: const [],
-        bookingsData: const [],
-        bookingNotesData: const [],
-        bookingNightsData: const [],
-        ledgerData: const [],
-        shiftNotesData: const [],
-        employeesData: const [],
-        expensesData: const [],
-        cashTransactionsData: const [],
-        paymentsData: const [],
-        debtsData: const [],
-        salaryCyclesData: const [],
-        salaryPaymentsData: const [],
-        priceAdjustmentsData: const [],
-        bookingPriceAdjData: const [],
-        auditLogsData: const [],
-        paymentVoidsData: const [],
-        guestInfosData: const [],
-        salaryWithdrawalsData: const [],
-        salaryCarryOverLogsData: const [],
-        inventoryItemsData: const [],
-        inventoryTransactionsData: const [],
-      );
-      expect(backupData, containsPair('inventory_items', isEmpty));
-      expect(backupData, containsPair('inventory_transactions', isEmpty));
+    test(
+      'backup map preserves guest entry dates and detects tampering',
+      () async {
+        const guestTimestamp = 1792540800000;
+        final legacyGuestId = await db
+            .into(db.guestInfos)
+            .insert(
+              GuestInfosCompanion.insert(
+                localUuid: 'backup-legacy-guest',
+                createdAt: guestTimestamp,
+                updatedAt: guestTimestamp,
+                lastModified: guestTimestamp,
+                roomNumber: '101',
+                guestName: 'سجل قديم',
+                nationality: 'يمني',
+                idNumber: 'old-id',
+              ),
+            );
+        final newGuestId = await db
+            .into(db.guestInfos)
+            .insert(
+              GuestInfosCompanion.insert(
+                localUuid: 'backup-new-guest',
+                createdAt: guestTimestamp,
+                updatedAt: guestTimestamp,
+                lastModified: guestTimestamp,
+                roomNumber: '102',
+                guestName: 'سجل جديد',
+                nationality: 'يمني',
+                idNumber: 'new-id',
+                entryDate: const d.Value('2026-10-21'),
+              ),
+            );
+        final guestInfosData = await db.select(db.guestInfos).get();
+        final metadata = BackupMetadata(
+          appVersion: '1.2.0+3',
+          databaseVersion: db.schemaVersion,
+          backupTimestamp: DateTime(2026, 8, 28),
+          totalRecords: 2,
+          deviceInfo: 'Test Device',
+        ).toJson();
+        final backupData = buildBackupDataMap(
+          metadata: metadata,
+          roomsData: const [],
+          bookingsData: const [],
+          bookingNotesData: const [],
+          bookingNightsData: const [],
+          ledgerData: const [],
+          shiftNotesData: const [],
+          employeesData: const [],
+          expensesData: const [],
+          cashTransactionsData: const [],
+          paymentsData: const [],
+          debtsData: const [],
+          salaryCyclesData: const [],
+          salaryPaymentsData: const [],
+          priceAdjustmentsData: const [],
+          bookingPriceAdjData: const [],
+          auditLogsData: const [],
+          paymentVoidsData: const [],
+          guestInfosData: guestInfosData,
+          salaryWithdrawalsData: const [],
+          salaryCarryOverLogsData: const [],
+          inventoryItemsData: const [],
+          inventoryTransactionsData: const [],
+        );
+        expect(backupData, containsPair('inventory_items', isEmpty));
+        expect(backupData, containsPair('inventory_transactions', isEmpty));
+        final guestRows = (backupData['guest_infos'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final legacyBackupRow = guestRows.singleWhere(
+          (row) => row['id'] == legacyGuestId,
+        );
+        final newBackupRow = guestRows.singleWhere(
+          (row) => row['id'] == newGuestId,
+        );
+        expect(legacyBackupRow['entryDate'], isNull);
+        expect(newBackupRow['entryDate'], '2026-10-21');
 
-      final hash = GoogleDriveBackupService.computeBackupChecksum(backupData);
-      (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = hash;
-      expect(GoogleDriveBackupService.verifyBackupChecksum(backupData), isTrue);
+        await db.delete(db.guestInfos).go();
+        for (final row in guestRows) {
+          await db
+              .into(db.guestInfos)
+              .insertOnConflictUpdate(
+                GuestInfo.fromJson(row, serializer: lenientValueSerializer),
+              );
+        }
+        final restoredGuests = await db.select(db.guestInfos).get();
+        expect(
+          restoredGuests
+              .singleWhere((guest) => guest.id == legacyGuestId)
+              .entryDate,
+          isNull,
+        );
+        expect(
+          restoredGuests
+              .singleWhere((guest) => guest.id == newGuestId)
+              .entryDate,
+          '2026-10-21',
+        );
 
-      (backupData['inventory_items'] as List<dynamic>).add({'name': 'تعديل'});
-      expect(
-        GoogleDriveBackupService.verifyBackupChecksum(backupData),
-        isFalse,
-      );
-    });
+        final hash = GoogleDriveBackupService.computeBackupChecksum(backupData);
+        (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = hash;
+        expect(
+          GoogleDriveBackupService.verifyBackupChecksum(backupData),
+          isTrue,
+        );
+
+        (backupData['inventory_items'] as List<dynamic>).add({'name': 'تعديل'});
+        expect(
+          GoogleDriveBackupService.verifyBackupChecksum(backupData),
+          isFalse,
+        );
+      },
+    );
   });
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -597,15 +666,14 @@ void main() {
       };
 
       final backupPath = p.join(backupDir.path, 'future_backup.json.gz');
-      await File(
-        backupPath,
-      ).writeAsBytes(gzip.encode(utf8.encode(jsonEncode(backupData))));
+      await File(backupPath)
+          .writeAsBytes(gzip.encode(utf8.encode(jsonEncode(backupData))));
 
       // ✅ محاكاة فحص الإصدار في _restoreFromJsonBackup
       final rawBytes = await File(backupPath).readAsBytes();
-      final jsonData =
-          jsonDecode(utf8.decode(gzip.decode(rawBytes)))
-              as Map<String, dynamic>;
+      final jsonData = jsonDecode(
+        utf8.decode(gzip.decode(rawBytes)),
+      ) as Map<String, dynamic>;
       final metaSource = jsonData['metadata'] as Map<String, dynamic>;
       final restoredMetadata = BackupMetadata.fromJson(
         Map<String, dynamic>.from(metaSource),
@@ -876,59 +944,56 @@ void main() {
       },
     );
 
-    test(
-      'file replacement via temp + rename preserves data on success',
-      () async {
-        // محاكاة منطق SqliteBackupRestore.restoreDatabase (temp + rename)
-        final dbPath = p.join(tempDir.path, 'main.db');
-        final tmpPath = '$dbPath.tmp';
+    test('file replacement via temp + rename preserves data on success', () async {
+      // محاكاة منطق SqliteBackupRestore.restoreDatabase (temp + rename)
+      final dbPath = p.join(tempDir.path, 'main.db');
+      final tmpPath = '$dbPath.tmp';
 
-        // 1. إنشاء DB الأصلي
-        final originalDb = await openDatabase(dbPath, version: 1);
-        await originalDb.execute(
-          'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
-        );
-        await originalDb.insert('test', {'value': 'original'});
-        await originalDb.close();
+      // 1. إنشاء DB الأصلي
+      final originalDb = await openDatabase(dbPath, version: 1);
+      await originalDb.execute(
+        'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
+      );
+      await originalDb.insert('test', {'value': 'original'});
+      await originalDb.close();
 
-        // 2. إنشاء ملف backup جديد (يحتوي على بيانات جديدة)
-        final backupPath = p.join(tempDir.path, 'backup.db');
-        final backupDb = await openDatabase(backupPath, version: 1);
-        await backupDb.execute(
-          'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
-        );
-        await backupDb.insert('test', {'value': 'new_data'});
-        await backupDb.close();
+      // 2. إنشاء ملف backup جديد (يحتوي على بيانات جديدة)
+      final backupPath = p.join(tempDir.path, 'backup.db');
+      final backupDb = await openDatabase(backupPath, version: 1);
+      await backupDb.execute(
+        'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
+      );
+      await backupDb.insert('test', {'value': 'new_data'});
+      await backupDb.close();
 
-        // 3. ✅ Atomic replace: نسخ backup → tmp → rename main → rename tmp → main
-        // محاكاة المنطق في SqliteBackupRestore.restoreDatabase
-        await File(backupPath).copy(tmpPath);
+      // 3. ✅ Atomic replace: نسخ backup → tmp → rename main → rename tmp → main
+      // محاكاة المنطق في SqliteBackupRestore.restoreDatabase
+      await File(backupPath).copy(tmpPath);
 
-        // حذف الأصلي (في الكود الفعلي: rename إلى .pre_restore للأمان)
-        final preRestorePath = '$dbPath.pre_restore';
-        await File(dbPath).rename(preRestorePath);
+      // حذف الأصلي (في الكود الفعلي: rename إلى .pre_restore للأمان)
+      final preRestorePath = '$dbPath.pre_restore';
+      await File(dbPath).rename(preRestorePath);
 
-        // rename tmp إلى main
-        try {
-          await File(tmpPath).rename(dbPath);
-        } catch (e) {
-          // ✅ Rollback: استعادة main.db الأصلي
-          await File(preRestorePath).rename(dbPath);
-          rethrow;
-        }
+      // rename tmp إلى main
+      try {
+        await File(tmpPath).rename(dbPath);
+      } catch (e) {
+        // ✅ Rollback: استعادة main.db الأصلي
+        await File(preRestorePath).rename(dbPath);
+        rethrow;
+      }
 
-        // 4. ✅ التحقق: البيانات الجديدة موجودة
-        final restoredDb = await openDatabase(dbPath, readOnly: true);
-        final rows = await restoredDb.query('test');
-        await restoredDb.close();
+      // 4. ✅ التحقق: البيانات الجديدة موجودة
+      final restoredDb = await openDatabase(dbPath, readOnly: true);
+      final rows = await restoredDb.query('test');
+      await restoredDb.close();
 
-        expect(rows.length, equals(1));
-        expect(rows[0]['value'], equals('new_data'));
+      expect(rows.length, equals(1));
+      expect(rows[0]['value'], equals('new_data'));
 
-        // 5. ✅ التحقق: ملف pre_restore لا يزال موجود (للأمان)
-        expect(await File(preRestorePath).exists(), isTrue);
-      },
-    );
+      // 5. ✅ التحقق: ملف pre_restore لا يزال موجود (للأمان)
+      expect(await File(preRestorePath).exists(), isTrue);
+    });
 
     test('rollback to .pre_restore on rename failure', () async {
       // محاكاة فشل في إعادة تسمية tmp → main
@@ -1144,259 +1209,244 @@ void main() {
       return path;
     }
 
-    test(
-      'WAL checkpoint before backup is essential — bytes without checkpoint may miss recent data',
-      () async {
-        // 1. إنشاء DB في وضع WAL مع بيانات
-        final dbPath = p.join(tempDir.path, 'wal_test.db');
-        await createWalDatabase(dbPath, rowCount: 50);
+    test('WAL checkpoint before backup is essential — bytes without checkpoint may miss recent data', () async {
+      // 1. إنشاء DB في وضع WAL مع بيانات
+      final dbPath = p.join(tempDir.path, 'wal_test.db');
+      await createWalDatabase(dbPath, rowCount: 50);
 
-        // 2. فتح DB مرة أخرى وإضافة بيانات إضافية WITHOUT checkpoint
-        final database = await openDatabase(dbPath, version: 1);
-        // إضافة 50 سجل آخر — قد تبقى في WAL
-        for (var i = 50; i < 100; i++) {
-          await database.insert('rooms', {'number': 'R$i', 'price': 100.0 + i});
-        }
+      // 2. فتح DB مرة أخرى وإضافة بيانات إضافية WITHOUT checkpoint
+      final database = await openDatabase(dbPath, version: 1);
+      // إضافة 50 سجل آخر — قد تبقى في WAL
+      for (var i = 50; i < 100; i++) {
+        await database.insert('rooms', {'number': 'R$i', 'price': 100.0 + i});
+      }
 
-        // 3. ✅ محاكاة منطق uploadDbBackup WITHOUT WAL checkpoint (الخطأ الحالي)
-        final bytesWithoutCheckpoint = await File(dbPath).readAsBytes();
+      // 3. ✅ محاكاة منطق uploadDbBackup WITHOUT WAL checkpoint (الخطأ الحالي)
+      final bytesWithoutCheckpoint = await File(dbPath).readAsBytes();
 
-        // 4. نسخ الـ bytes إلى ملف جديد ومحاولة قراءته
-        final noCheckpointCopyPath = p.join(
-          tempDir.path,
-          'no_checkpoint_copy.db',
-        );
-        await File(noCheckpointCopyPath).writeAsBytes(bytesWithoutCheckpoint);
+      // 4. نسخ الـ bytes إلى ملف جديد ومحاولة قراءته
+      final noCheckpointCopyPath = p.join(
+        tempDir.path,
+        'no_checkpoint_copy.db',
+      );
+      await File(noCheckpointCopyPath).writeAsBytes(bytesWithoutCheckpoint);
 
-        // محاولة فتح النسخة والتحقق من عدد السجلات
-        int noCheckpointCount;
-        try {
-          final copyDb = await openDatabase(
-            noCheckpointCopyPath,
-            readOnly: true,
-          );
-          noCheckpointCount =
-              Sqflite.firstIntValue(
-                await copyDb.rawQuery('SELECT COUNT(*) FROM rooms'),
-              ) ??
-              0;
-          await copyDb.close();
-        } catch (e) {
-          // النسخة بدون checkpoint قد لا تُفتح أصلاً (WAL مفقود)
-          noCheckpointCount = -1;
-        }
-
-        // 5. الآن نُنفّذ WAL checkpoint ثم نقرأ الـ bytes من جديد
-        await database.execute('PRAGMA wal_checkpoint(TRUNCATE)');
-        await database.close();
-
-        final bytesWithCheckpoint = await File(dbPath).readAsBytes();
-        final checkpointCopyPath = p.join(
-          tempDir.path,
-          'with_checkpoint_copy.db',
-        );
-        await File(checkpointCopyPath).writeAsBytes(bytesWithCheckpoint);
-
-        final copyDb2 = await openDatabase(checkpointCopyPath, readOnly: true);
-        final withCheckpointCount =
+      // محاولة فتح النسخة والتحقق من عدد السجلات
+      int noCheckpointCount;
+      try {
+        final copyDb = await openDatabase(noCheckpointCopyPath, readOnly: true);
+        noCheckpointCount =
             Sqflite.firstIntValue(
-              await copyDb2.rawQuery('SELECT COUNT(*) FROM rooms'),
+              await copyDb.rawQuery('SELECT COUNT(*) FROM rooms'),
             ) ??
             0;
-        await copyDb2.close();
+        await copyDb.close();
+      } catch (e) {
+        // النسخة بدون checkpoint قد لا تُفتح أصلاً (WAL مفقود)
+        noCheckpointCount = -1;
+      }
 
-        // ✅ التحقق: بعد checkpoint، كل السجلات الـ100 موجودة
-        expect(
-          withCheckpointCount,
-          equals(100),
-          reason:
-              'after WAL checkpoint, all 100 records should be in the .db file',
-        );
+      // 5. الآن نُنفّذ WAL checkpoint ثم نقرأ الـ bytes من جديد
+      await database.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+      await database.close();
 
-        // ⚠️ التحقق من الخطأ: بدون checkpoint، قد يكون العدد أقل من 100
-        // (يعتمد على متى يُنفّذ sqflite auto-checkpoint تلقائياً، لكن في الإنتاج
-        //  مع wal_autocheckpoint=1000، قد تضيع مئات السجلات الحديثة)
-        // هذا الـ assertion يُوثّق وجود المشكلة — قد ينجح أحياناً (إذا نفّذ
-        // sqflite checkpoint تلقائياً)، لكنه يُظهر أن السلوك غير موثوق.
-        debugPrint(
-          '📊 without checkpoint: $noCheckpointCount records, with checkpoint: $withCheckpointCount records',
-        );
-        // الـ contract: بعد checkpoint يجب أن نرى كل البيانات
-        expect(
-          withCheckpointCount,
-          greaterThanOrEqualTo(noCheckpointCount),
-          reason: 'checkpoint should never decrease record count',
-        );
-      },
-    );
+      final bytesWithCheckpoint = await File(dbPath).readAsBytes();
+      final checkpointCopyPath = p.join(
+        tempDir.path,
+        'with_checkpoint_copy.db',
+      );
+      await File(checkpointCopyPath).writeAsBytes(bytesWithCheckpoint);
 
-    test(
-      'restoreDatabase MUST delete stale -wal/-shm files (regression test)',
-      () async {
-        // هذا الاختبار يُحاكي السيناريو الخطير:
-        // 1. DB قديم مع -wal فيه معاملات
-        // 2. استبدال .db بنسخة احتياطية مختلفة
-        // 3. بدون حذف -wal، قد يتم إعادة تطبيق المعاملات القديمة على .db الجديد
+      final copyDb2 = await openDatabase(checkpointCopyPath, readOnly: true);
+      final withCheckpointCount =
+          Sqflite.firstIntValue(
+            await copyDb2.rawQuery('SELECT COUNT(*) FROM rooms'),
+          ) ??
+          0;
+      await copyDb2.close();
 
-        // 1. إنشاء "DB القديم" مع بيانات
-        final oldDbPath = p.join(tempDir.path, 'old.db');
-        final oldDb = await openDatabase(
-          oldDbPath,
-          version: 1,
-          onCreate: (db, _) async {
-            await db.execute(
-              'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
-            );
-          },
-        );
-        await oldDb.insert('test', {'value': 'old_data_1'});
-        await oldDb.insert('test', {'value': 'old_data_2'});
-        await oldDb.close();
+      // ✅ التحقق: بعد checkpoint، كل السجلات الـ100 موجودة
+      expect(
+        withCheckpointCount,
+        equals(100),
+        reason:
+            'after WAL checkpoint, all 100 records should be in the .db file',
+      );
 
-        // التحقق من وجود ملف -wal (يعتمد على توقيت checkpoint)
-        final oldWalPath = '$oldDbPath-wal';
-        // ملاحظة: قد يكون -wal فارغاً أو غير موجود اعتماداً على auto-checkpoint.
-        // الاختبار الفعلي أدناه يتحقق من السلوك المستقل عن وجود -wal.
+      // ⚠️ التحقق من الخطأ: بدون checkpoint، قد يكون العدد أقل من 100
+      // (يعتمد على متى يُنفّذ sqflite auto-checkpoint تلقائياً، لكن في الإنتاج
+      //  مع wal_autocheckpoint=1000، قد تضيع مئات السجلات الحديثة)
+      // هذا الـ assertion يُوثّق وجود المشكلة — قد ينجح أحياناً (إذا نفّذ
+      // sqflite checkpoint تلقائياً)، لكنه يُظهر أن السلوك غير موثوق.
+      debugPrint(
+        '📊 without checkpoint: $noCheckpointCount records, with checkpoint: $withCheckpointCount records',
+      );
+      // الـ contract: بعد checkpoint يجب أن نرى كل البيانات
+      expect(
+        withCheckpointCount,
+        greaterThanOrEqualTo(noCheckpointCount),
+        reason: 'checkpoint should never decrease record count',
+      );
+    });
 
-        // 2. إنشاء "backup جديد" ببيانات مختلفة تماماً
-        final newBackupPath = p.join(tempDir.path, 'new_backup.db');
-        final newDb = await openDatabase(
-          newBackupPath,
-          version: 1,
-          onCreate: (db, _) async {
-            await db.execute(
-              'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
-            );
-          },
-        );
-        await newDb.insert('test', {'value': 'new_data_only'});
-        // ✅ WAL checkpoint لضمان كتابة البيانات للـ .db الرئيسي
-        await newDb.execute('PRAGMA wal_checkpoint(TRUNCATE)');
-        await newDb.close();
+    test('restoreDatabase MUST delete stale -wal/-shm files (regression test)', () async {
+      // هذا الاختبار يُحاكي السيناريو الخطير:
+      // 1. DB قديم مع -wal فيه معاملات
+      // 2. استبدال .db بنسخة احتياطية مختلفة
+      // 3. بدون حذف -wal، قد يتم إعادة تطبيق المعاملات القديمة على .db الجديد
 
-        // 3. ✅ محاكاة منطق restoreDatabase الصحيح: حذف -wal/-shm قبل إعادة الفتح
-        // نسخ backup جديد فوق DB القديم
-        await File(newBackupPath).copy(oldDbPath);
+      // 1. إنشاء "DB القديم" مع بيانات
+      final oldDbPath = p.join(tempDir.path, 'old.db');
+      final oldDb = await openDatabase(
+        oldDbPath,
+        version: 1,
+        onCreate: (db, _) async {
+          await db.execute(
+            'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
+          );
+        },
+      );
+      await oldDb.insert('test', {'value': 'old_data_1'});
+      await oldDb.insert('test', {'value': 'old_data_2'});
+      await oldDb.close();
 
-        // ✅ الخطوة الحرجة: حذف -wal و -shm القديمين (هذا ما يجب أن يفعله الكود)
-        for (final suffix in const ['-wal', '-shm']) {
-          final sidecar = File('$oldDbPath$suffix');
-          if (sidecar.existsSync()) {
-            await sidecar.delete();
-          }
+      // التحقق من وجود ملف -wal (يعتمد على توقيت checkpoint)
+      final oldWalPath = '$oldDbPath-wal';
+      // ملاحظة: قد يكون -wal فارغاً أو غير موجود اعتماداً على auto-checkpoint.
+      // الاختبار الفعلي أدناه يتحقق من السلوك المستقل عن وجود -wal.
+
+      // 2. إنشاء "backup جديد" ببيانات مختلفة تماماً
+      final newBackupPath = p.join(tempDir.path, 'new_backup.db');
+      final newDb = await openDatabase(
+        newBackupPath,
+        version: 1,
+        onCreate: (db, _) async {
+          await db.execute(
+            'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
+          );
+        },
+      );
+      await newDb.insert('test', {'value': 'new_data_only'});
+      // ✅ WAL checkpoint لضمان كتابة البيانات للـ .db الرئيسي
+      await newDb.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+      await newDb.close();
+
+      // 3. ✅ محاكاة منطق restoreDatabase الصحيح: حذف -wal/-shm قبل إعادة الفتح
+      // نسخ backup جديد فوق DB القديم
+      await File(newBackupPath).copy(oldDbPath);
+
+      // ✅ الخطوة الحرجة: حذف -wal و -shm القديمين (هذا ما يجب أن يفعله الكود)
+      for (final suffix in const ['-wal', '-shm']) {
+        final sidecar = File('$oldDbPath$suffix');
+        if (sidecar.existsSync()) {
+          await sidecar.delete();
         }
+      }
 
-        // 4. فتح DB والتحقق من البيانات
-        final restoredDb = await openDatabase(oldDbPath, readOnly: true);
-        final rows = await restoredDb.query('test');
-        await restoredDb.close();
+      // 4. فتح DB والتحقق من البيانات
+      final restoredDb = await openDatabase(oldDbPath, readOnly: true);
+      final rows = await restoredDb.query('test');
+      await restoredDb.close();
 
-        // ✅ التحقق: البيانات هي من النسخة الجديدة فقط (لا توجد بيانات قديمة)
-        expect(
-          rows.length,
-          equals(1),
-          reason: 'restored DB should have only new_data',
-        );
-        expect(
-          rows[0]['value'],
-          equals('new_data_only'),
-          reason:
-              'restored DB should contain only new data, not stale old data',
-        );
+      // ✅ التحقق: البيانات هي من النسخة الجديدة فقط (لا توجد بيانات قديمة)
+      expect(
+        rows.length,
+        equals(1),
+        reason: 'restored DB should have only new_data',
+      );
+      expect(
+        rows[0]['value'],
+        equals('new_data_only'),
+        reason: 'restored DB should contain only new data, not stale old data',
+      );
 
-        // ⚠️ توثيق: لو لم نحذف -wal، قد يظهر rows.length == 3 (1 جديد + 2 قديم)
-        // مما يعني تلف منطقي للبيانات
-        debugPrint('✅ stale -wal/-shm deletion prevented data corruption');
-      },
-    );
+      // ⚠️ توثيق: لو لم نحذف -wal، قد يظهر rows.length == 3 (1 جديد + 2 قديم)
+      // مما يعني تلف منطقي للبيانات
+      debugPrint('✅ stale -wal/-shm deletion prevented data corruption');
+    });
 
-    test(
-      'restoreDatabase without -wal cleanup can leak stale data (proves the bug exists)',
-      () async {
-        // هذا الاختبار يُحاكي السيناريو الخطير بدون إصلاح:
-        // يُنشئ DB في وضع WAL، يكتب بيانات، يستبدل .db فقط (دون حذف -wal)
-        // ويُظهر أن المعاملات من -wal القديم قد تظهر في الـ DB الجديد.
+    test('restoreDatabase without -wal cleanup can leak stale data (proves the bug exists)', () async {
+      // هذا الاختبار يُحاكي السيناريو الخطير بدون إصلاح:
+      // يُنشئ DB في وضع WAL، يكتب بيانات، يستبدل .db فقط (دون حذف -wal)
+      // ويُظهر أن المعاملات من -wal القديم قد تظهر في الـ DB الجديد.
 
-        // 1. إنشاء DB الأصلي في وضع WAL مع معاملات (تبقى في WAL)
-        final oldDbPath = p.join(tempDir.path, 'old_wal.db');
-        final oldDb = await openDatabase(
-          oldDbPath,
-          version: 1,
-          onCreate: (db, _) async {
-            await db.execute(
-              'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
-            );
-          },
-        );
-        await oldDb.execute('PRAGMA journal_mode = WAL');
-        // إدخال بيانات — هذه قد تبقى في WAL إذا لم يحدث auto-checkpoint
-        await oldDb.insert('test', {'value': 'old_stale_data'});
-        await oldDb.close();
+      // 1. إنشاء DB الأصلي في وضع WAL مع معاملات (تبقى في WAL)
+      final oldDbPath = p.join(tempDir.path, 'old_wal.db');
+      final oldDb = await openDatabase(
+        oldDbPath,
+        version: 1,
+        onCreate: (db, _) async {
+          await db.execute(
+            'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
+          );
+        },
+      );
+      await oldDb.execute('PRAGMA journal_mode = WAL');
+      // إدخال بيانات — هذه قد تبقى في WAL إذا لم يحدث auto-checkpoint
+      await oldDb.insert('test', {'value': 'old_stale_data'});
+      await oldDb.close();
 
-        // التحقق من وجود -wal
-        final walFile = File('$oldDbPath-wal');
-        final shmFile = File('$oldDbPath-shm');
-        // قد يكون walFile موجوداً وغير فارغ، أو قد يكون sqflite قد checkpoint تلقائياً
-        final walExisted = walFile.existsSync();
-        debugPrint(
-          '📊 -wal exists after close: $walExisted, size: ${walExisted ? await walFile.length() : 0}',
-        );
+      // التحقق من وجود -wal
+      final walFile = File('$oldDbPath-wal');
+      final shmFile = File('$oldDbPath-shm');
+      // قد يكون walFile موجوداً وغير فارغ، أو قد يكون sqflite قد checkpoint تلقائياً
+      final walExisted = walFile.existsSync();
+      debugPrint(
+        '📊 -wal exists after close: $walExisted, size: ${walExisted ? await walFile.length() : 0}',
+      );
 
-        // 2. إنشاء backup جديد ببيانات مختلفة
-        final newBackupPath = p.join(tempDir.path, 'new_wal_backup.db');
-        final newDb = await openDatabase(
-          newBackupPath,
-          version: 1,
-          onCreate: (db, _) async {
-            await db.execute(
-              'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
-            );
-          },
-        );
-        await newDb.insert('test', {'value': 'new_only_data'});
-        await newDb.execute('PRAGMA wal_checkpoint(TRUNCATE)');
-        await newDb.close();
-        // ✅ حذف -wal/-shm للـ backup الجديد (لأن النسخة الاحتياطية لا تشملها)
-        for (final suffix in const ['-wal', '-shm']) {
-          final f = File('$newBackupPath$suffix');
-          if (f.existsSync()) await f.delete();
-        }
+      // 2. إنشاء backup جديد ببيانات مختلفة
+      final newBackupPath = p.join(tempDir.path, 'new_wal_backup.db');
+      final newDb = await openDatabase(
+        newBackupPath,
+        version: 1,
+        onCreate: (db, _) async {
+          await db.execute(
+            'CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)',
+          );
+        },
+      );
+      await newDb.insert('test', {'value': 'new_only_data'});
+      await newDb.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+      await newDb.close();
+      // ✅ حذف -wal/-shm للـ backup الجديد (لأن النسخة الاحتياطية لا تشملها)
+      for (final suffix in const ['-wal', '-shm']) {
+        final f = File('$newBackupPath$suffix');
+        if (f.existsSync()) await f.delete();
+      }
 
-        // 3. محاكاة restoreDatabase WITHOUT -wal cleanup (الخطأ الحالي في الكود)
-        // نسخ .db فقط فوق القديم (دون لمس -wal/-shm)
-        await File(newBackupPath).copy(oldDbPath);
-        // ⚠️ ملاحظة: -wal/-shm القديمين لا يُحذفون (الخطأ)
+      // 3. محاكاة restoreDatabase WITHOUT -wal cleanup (الخطأ الحالي في الكود)
+      // نسخ .db فقط فوق القديم (دون لمس -wal/-shm)
+      await File(newBackupPath).copy(oldDbPath);
+      // ⚠️ ملاحظة: -wal/-shm القديمين لا يُحذفون (الخطأ)
 
-        // 4. فتح DB والتحقق
-        final restoredDb = await openDatabase(oldDbPath);
-        final rows = await restoredDb.query('test');
-        await restoredDb.close();
+      // 4. فتح DB والتحقق
+      final restoredDb = await openDatabase(oldDbPath);
+      final rows = await restoredDb.query('test');
+      await restoredDb.close();
 
-        // ⚠️ التحقق من السلوك: قد نرى بيانات قديمة (تلف) أو بيانات جديدة فقط
-        // هذا الـ test يُوثّق السلوك الفعلي — ولا يفشل (لأن السلوك يعتمد على
-        // توقيت auto-checkpoint)، لكنه يُظهر أن الكود الحالي غير موثوق.
-        debugPrint(
-          '📊 rows after restore without -wal cleanup: ${rows.length}',
-        );
-        for (final row in rows) {
-          debugPrint('   - value: ${row['value']}');
-        }
+      // ⚠️ التحقق من السلوك: قد نرى بيانات قديمة (تلف) أو بيانات جديدة فقط
+      // هذا الـ test يُوثّق السلوك الفعلي — ولا يفشل (لأن السلوك يعتمد على
+      // توقيت auto-checkpoint)، لكنه يُظهر أن الكود الحالي غير موثوق.
+      debugPrint('📊 rows after restore without -wal cleanup: ${rows.length}');
+      for (final row in rows) {
+        debugPrint('   - value: ${row['value']}');
+      }
 
-        // ✅ الـ contract: على الأقل الـ new_only_data يجب أن تكون موجودة
-        expect(
-          rows.any((r) => r['value'] == 'new_only_data'),
-          isTrue,
-          reason: 'restored DB must contain new data from backup',
-        );
+      // ✅ الـ contract: على الأقل الـ new_only_data يجب أن تكون موجودة
+      expect(
+        rows.any((r) => r['value'] == 'new_only_data'),
+        isTrue,
+        reason: 'restored DB must contain new data from backup',
+      );
 
-        // ⚠️ هذا الـ test يُظهر احتمال وجود بيانات قديمة (leak) — لا نفشل
-        // الاختبار لأن السلوك يعتمد على auto-checkpoint timing، لكن السطر
-        // التالي يُوثّق المشكلة للمراجعة.
-        if (rows.any((r) => r['value'] == 'old_stale_data')) {
-          debugPrint('⚠️ BUG REPRODUCED: stale data leaked into restored DB');
-        }
-      },
-    );
+      // ⚠️ هذا الـ test يُظهر احتمال وجود بيانات قديمة (leak) — لا نفشل
+      // الاختبار لأن السلوك يعتمد على auto-checkpoint timing، لكن السطر
+      // التالي يُوثّق المشكلة للمراجعة.
+      if (rows.any((r) => r['value'] == 'old_stale_data')) {
+        debugPrint('⚠️ BUG REPRODUCED: stale data leaked into restored DB');
+      }
+    });
   });
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -1447,59 +1497,56 @@ void main() {
       );
     });
 
-    test(
-      '.db copy alone (no sidecars) is complete after live-connection checkpoint',
-      () async {
-        // 1. قاعدة WAL حقيقية مع كتابة جارية (الاتصال يبقى مفتوحاً — مثل الإنتاج)
-        final dbPath = p.join(tempDir.path, 'live_wal.db');
-        final database = await openDatabase(dbPath, version: 1);
-        await database.execute('PRAGMA journal_mode = WAL');
-        await database.execute(
-          'CREATE TABLE rooms (id INTEGER PRIMARY KEY, number TEXT, price REAL)',
-        );
-        for (var i = 0; i < 120; i++) {
-          await database.insert('rooms', {
-            'id': i,
-            'number': 'R$i',
-            'price': 50.0,
-          });
-        }
+    test('.db copy alone (no sidecars) is complete after live-connection checkpoint', () async {
+      // 1. قاعدة WAL حقيقية مع كتابة جارية (الاتصال يبقى مفتوحاً — مثل الإنتاج)
+      final dbPath = p.join(tempDir.path, 'live_wal.db');
+      final database = await openDatabase(dbPath, version: 1);
+      await database.execute('PRAGMA journal_mode = WAL');
+      await database.execute(
+        'CREATE TABLE rooms (id INTEGER PRIMARY KEY, number TEXT, price REAL)',
+      );
+      for (var i = 0; i < 120; i++) {
+        await database.insert('rooms', {
+          'id': i,
+          'number': 'R$i',
+          'price': 50.0,
+        });
+      }
 
-        // 2. checkpoint(TRUNCATE) عبر نفس الاتصال الحي (منطق createLocalBackup)
-        final checkpoint = await database.rawQuery(
-          'PRAGMA wal_checkpoint(TRUNCATE)',
-        );
-        final busy = Sqflite.firstIntValue(checkpoint) ?? 1;
-        expect(busy, equals(0), reason: 'no active reader → busy must be 0');
+      // 2. checkpoint(TRUNCATE) عبر نفس الاتصال الحي (منطق createLocalBackup)
+      final checkpoint = await database.rawQuery(
+        'PRAGMA wal_checkpoint(TRUNCATE)',
+      );
+      final busy = Sqflite.firstIntValue(checkpoint) ?? 1;
+      expect(busy, equals(0), reason: 'no active reader → busy must be 0');
 
-        // 3. نسخ ملف .db فقط — بدون -wal وبدون -shm
-        final backupPath = p.join(backupDir.path, 'backup_live.db');
-        await File(dbPath).copy(backupPath);
-        expect(
-          File('$backupPath-wal').existsSync(),
-          isFalse,
-          reason: 'complete backup must be a single .db file',
-        );
+      // 3. نسخ ملف .db فقط — بدون -wal وبدون -shm
+      final backupPath = p.join(backupDir.path, 'backup_live.db');
+      await File(dbPath).copy(backupPath);
+      expect(
+        File('$backupPath-wal').existsSync(),
+        isFalse,
+        reason: 'complete backup must be a single .db file',
+      );
 
-        // 4. النسخة تمرّ integrity_check ثم تحتوي كل السجلات الـ120
-        await SqliteBackupRestore.verifyBackupIntegrity(File(backupPath));
+      // 4. النسخة تمرّ integrity_check ثم تحتوي كل السجلات الـ120
+      await SqliteBackupRestore.verifyBackupIntegrity(File(backupPath));
 
-        final copyDb = await openDatabase(backupPath, readOnly: true);
-        final count =
-            Sqflite.firstIntValue(
-              await copyDb.rawQuery('SELECT COUNT(*) FROM rooms'),
-            ) ??
-            0;
-        await copyDb.close();
-        await database.close();
+      final copyDb = await openDatabase(backupPath, readOnly: true);
+      final count =
+          Sqflite.firstIntValue(
+            await copyDb.rawQuery('SELECT COUNT(*) FROM rooms'),
+          ) ??
+          0;
+      await copyDb.close();
+      await database.close();
 
-        expect(
-          count,
-          equals(120),
-          reason: 'single .db file after TRUNCATE checkpoint holds ALL rows',
-        );
-      },
-    );
+      expect(
+        count,
+        equals(120),
+        reason: 'single .db file after TRUNCATE checkpoint holds ALL rows',
+      );
+    });
   });
 
   group('deleteLocalBackup sidecar cleanup', () {
@@ -1516,9 +1563,8 @@ void main() {
           'marina_hotel_backup_test.metadata.json',
         );
 
-        await File(
-          sqlitePath,
-        ).writeAsBytes([0x53, 0x51, 0x4c, 0x69]); // SQLite header
+        await File(sqlitePath)
+            .writeAsBytes([0x53, 0x51, 0x4c, 0x69]); // SQLite header
         await File(metadataPath).writeAsString('{"app_version":"1.0"}');
 
         expect(await File(sqlitePath).exists(), isTrue);
@@ -1545,34 +1591,31 @@ void main() {
       },
     );
 
-    test(
-      'current deleteLocalBackup leaves orphaned .metadata.json (proves the bug)',
-      () async {
-        // توثيق الخطأ الحالي: deleteLocalBackup يحذف .sqlite فقط دون .metadata.json
-        final sqlitePath = p.join(
-          backupDir.path,
-          'marina_hotel_backup_orphan.sqlite',
-        );
-        final metadataPath = p.join(
-          backupDir.path,
-          'marina_hotel_backup_orphan.metadata.json',
-        );
+    test('current deleteLocalBackup leaves orphaned .metadata.json (proves the bug)', () async {
+      // توثيق الخطأ الحالي: deleteLocalBackup يحذف .sqlite فقط دون .metadata.json
+      final sqlitePath = p.join(
+        backupDir.path,
+        'marina_hotel_backup_orphan.sqlite',
+      );
+      final metadataPath = p.join(
+        backupDir.path,
+        'marina_hotel_backup_orphan.metadata.json',
+      );
 
-        await File(sqlitePath).writeAsBytes([0x53, 0x51, 0x4c, 0x69]);
-        await File(metadataPath).writeAsString('{"app_version":"1.0"}');
+      await File(sqlitePath).writeAsBytes([0x53, 0x51, 0x4c, 0x69]);
+      await File(metadataPath).writeAsString('{"app_version":"1.0"}');
 
-        // محاكاة السلوك الحالي (بدون cleanup): حذف الملف الأساسي فقط
-        await File(sqlitePath).delete();
+      // محاكاة السلوك الحالي (بدون cleanup): حذف الملف الأساسي فقط
+      await File(sqlitePath).delete();
 
-        // ⚠️ الـ bug: ملف metadata يبقى موجوداً
-        expect(await File(sqlitePath).exists(), isFalse);
-        expect(
-          await File(metadataPath).exists(),
-          isTrue,
-          reason: 'BUG: current code leaves .metadata.json orphaned on disk',
-        );
-      },
-    );
+      // ⚠️ الـ bug: ملف metadata يبقى موجوداً
+      expect(await File(sqlitePath).exists(), isFalse);
+      expect(
+        await File(metadataPath).exists(),
+        isTrue,
+        reason: 'BUG: current code leaves .metadata.json orphaned on disk',
+      );
+    });
   });
 
   // ═════════════════════════════════════════════════════════════════════════

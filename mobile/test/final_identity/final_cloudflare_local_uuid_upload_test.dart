@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -7,7 +8,7 @@ import 'package:marina_hotel_mobile/services/cloudflare_d1_service.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('Cloudflare upload uses local_uuid conflict identity', () async {
+  test('Cloudflare upload ignores an existing local_uuid identity', () async {
     final requests = <String>[];
     final client = MockClient((request) async {
       requests.add(jsonDecode(request.body)['sql'] as String);
@@ -22,6 +23,11 @@ void main() {
     final source = CloudflareD1SourceTable(
       name: 'employees',
       rowCount: 1,
+      createSqlList: const [
+        'CREATE TABLE employees ('
+            '"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+            '"local_uuid" TEXT NOT NULL UNIQUE, "name" TEXT NOT NULL)',
+      ],
       readChunk: (limit, offset) async => [
         {'local_uuid': 'EMP-A', 'name': 'A'},
       ],
@@ -29,7 +35,9 @@ void main() {
     final result = await service.uploadData(tables: [source]);
     expect(result.errors, isEmpty);
     final sql = requests.join('\n');
-    expect(sql, contains('ON CONFLICT("local_uuid") DO UPDATE'));
+    expect(sql, contains('INSERT INTO "employees"'));
+    expect(sql, contains('ON CONFLICT DO NOTHING'));
     expect(sql, isNot(contains('INSERT OR REPLACE INTO "employees"')));
+    expect(sql, isNot(contains('"id"')));
   });
 }
