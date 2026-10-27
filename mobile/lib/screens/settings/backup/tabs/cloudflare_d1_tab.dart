@@ -8,8 +8,8 @@ import '../../../../services/daos/outbox_dao.dart';
 
 /// الجداول المحلية المطابقة لمجموعات Appwrite Cloud (collections) —
 /// مشتقة من خريطة `_entityToCollectionId` في AppwriteSyncManager ومن دورة
-/// السحب الفعلية. بيانات blacklist تُخزّن محلياً داخل shift_notes، و
-/// app_users بلا جدول محلي (AuthLocalStore) — لذا لا جدول مستقل لهما هنا.
+/// السحب الفعلية. blacklist جدول Drift مستقل (منذ migration 72).
+/// app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
 const Set<String> kAppwriteSyncedTables = <String>{
   'rooms',
   'bookings',
@@ -25,6 +25,7 @@ const Set<String> kAppwriteSyncedTables = <String>{
   'guest_infos',
   'cash_transactions',
   'shift_notes',
+  'blacklist',
   'salary_cycles',
   'salary_payments',
   'salary_withdrawals',
@@ -34,10 +35,26 @@ const Set<String> kAppwriteSyncedTables = <String>{
   'inventory_transactions',
 };
 
+/// blacklist جدول Drift مستقل (منذ migration 72) — يُرفع إلى D1 كجدول مستقل.
+/// app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
+const Set<String> kD1SyntheticTables = <String>{};
+
+/// ✅ استبعاد صفوف القائمة السوداء القديمة من رفع shift_notes.
+/// الهجرة 72 تنسخ صفوف created_by='blacklist' إلى جدول blacklist المستقل
+/// لكنها لا تحذفها من shift_notes — بدون هذا الفلتر ستُرفع مرتين
+/// (داخل shift_notes وداخل blacklist) وتتضخم المرآة المخصصة للملاحظات.
+const String kShiftNotesD1ExclusionWhere =
+    "(created_by IS NULL OR created_by <> 'blacklist')";
+
+/// جداول تشغيل محلية لا تمثل بيانات الفندق ولا يجوز رفعها إلى D1 من شاشة
+/// النسخ الاحتياطي، حتى عند إيقاف مرشح Appwrite واختيار «كل الجداول».
+bool _isD1SyncInfrastructure(String name) =>
+    name == 'outbox' || name.startsWith('sync_');
+
 /// تبويب رفع البيانات المحلية (المسحوبة من Appwrite) إلى Cloudflare D1.
 ///
-/// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT OR REPLACE
-/// إلى D1 — لا يمس حلقة مزامنة Appwrite ولا يحذف أي سجل بعيد.
+/// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT مع DO NOTHING عند التعارض؛
+/// أي سجل موجود بمفتاح فريد يُتخطى ولا يُستبدل. لا يمس حلقة مزامنة Appwrite.
 /// القيود المطبقة (مثبتة تجريبياً): عبارات حرفية متعددة بلا معاملات في
 /// النداء الواحد — دفعة 200 عبارة (مثبت: 800 عبارة/187KB نجحت بـ 635ms).
 class CloudflareD1Tab extends ConsumerStatefulWidget {
@@ -222,9 +239,13 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
 
       final tables = <_LocalTableInfo>[];
       for (final n in names) {
+        // ✅ صفوف blacklist داخل shift_notes لا تُحسب ولا تُرفع (نفس فلتر readChunk أدناه).
+        final countWhere = n == 'shift_notes'
+            ? 'WHERE $kShiftNotesD1ExclusionWhere'
+            : '';
         final countRows = await db
             .customSelect(
-              'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}"',
+              'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}" $countWhere',
             )
             .get();
         final count = (countRows.first.data['n'] as int?) ?? 0;
@@ -236,6 +257,11 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           ),
         );
       }
+
+      // ✅ (migration 72) blacklist الآن جدول Drift حقيقي في sqlite_master —
+      // يُعدّد تلقائياً في الحلقة أعلاه بـ DDL وعدد حقيقيين.
+      // app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
+
       if (!mounted) return;
       setState(() {
         _localTables = tables;
@@ -254,10 +280,20 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   }
 
   /// الجداول الظاهرة حسب وضع التصفية (مزامنة Appwrite فقط / الكل).
+  /// blacklist جدول Drift حقيقي منذ migration 72 ويُعرض في الوضعين ضمن
+  /// الجداول المتزامنة. app_users لا يُرفع إلى D1 إطلاقاً (عبر Appwrite مباشرة).
   List<_LocalTableInfo> get _visibleTables {
-    if (!_appwriteOnly) return _localTables;
+    if (!_appwriteOnly) {
+      return _localTables
+          .where((t) => !_isD1SyncInfrastructure(t.name))
+          .toList();
+    }
     return _localTables
-        .where((t) => kAppwriteSyncedTables.contains(t.name))
+        .where(
+          (t) =>
+              kAppwriteSyncedTables.contains(t.name) ||
+              kD1SyntheticTables.contains(t.name),
+        )
         .toList();
   }
 
@@ -285,10 +321,11 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         title: const Text('تأكيد الرفع إلى Cloudflare D1'),
         content: Text(
           'سيتم رفع ${_selected.length} جدولاً ($totalRows صفاً) إلى قاعدة '
-          'D1 المحددة باستخدام INSERT OR REPLACE.\n\n'
-          '• لا يُحذف أي سجل موجود في D1 غير موجود محلياً.\n'
-          '• إعادة الرفع آمنة (نفس البيانات تستبدل نفسها).\n'
-          '• يُنصح بعدد صفوف كبير بألا تكون هناك عمليات كتابة كثيرة أثناء الرفع.',
+          'D1 المحددة. سيتم تجاهل الصفوف الموجودة مسبقاً عند تعارض المفتاح الفريد؛ '
+          'لن تُحدّث أو تُستبدل.\n\n'
+          '• لا يُحذف أو يُستبدل أي سجل موجود في D1.\n'
+          '• لا يتم اختراع employee_uuid أو إعادة ربط سجل بموظف بالتخمين.\n'
+          '• قد تظهر تحذيرات للسجلات التاريخية التي تحتاج مراجعة.',
         ),
         actions: [
           TextButton(
@@ -312,9 +349,17 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     _activeService = service;
 
     final sources = <CloudflareD1SourceTable>[];
+
+    // ✅ (migration 72) blacklist جدول Drift حقيقي منذ migration 72 — يُرفع
+    // عبر المسار العام أدناه من sqlite_master (بلا صفوف تركيبية).
+    // app_users لا يُرفع إلى D1 — متزامن عبر Appwrite مباشرة (outbox → app_users collection).
     for (final t in _localTables) {
       if (!_selected.contains(t.name)) continue;
       final table = t;
+      // ✅ استبعاد صفوف blacklist القديمة من shift_notes (انظر تعريف الثابت أعلاه).
+      final uploadWhere = table.name == 'shift_notes'
+          ? 'WHERE $kShiftNotesD1ExclusionWhere'
+          : '';
       sources.add(
         CloudflareD1SourceTable(
           name: table.name,
@@ -323,7 +368,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           readChunk: (limit, offset) async {
             final rows = await db
                 .customSelect(
-                  'SELECT * FROM "${table.name.replaceAll('"', '""')}" LIMIT ? OFFSET ?',
+                  'SELECT * FROM "${table.name.replaceAll('"', '""')}" $uploadWhere '
+                  'LIMIT ? OFFSET ?',
                   variables: [
                     Variable.withInt(limit),
                     Variable.withInt(offset),
@@ -429,12 +475,31 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'ينقل هذا التبويب بيانات جداول المزامنة من Appwrite Cloud — '
-          'المطابقة لمجموعات collections — إلى قاعدة Cloudflare D1 كنسخة '
-          'استشارية على السحابة. القراءة من القاعدة المحلية فقط والكتابة '
-          'بأسلوب INSERT OR REPLACE الآمن، ويمكن إظهار جميع الجداول '
-          'المحلية عبر المفتاح أدناه.',
+          'ينقل هذا التبويب نسخة بيانات محلية إلى Cloudflare D1. هوية السجل '
+          'المحمولة هي local_uuid للجداول المتزامنة؛ والجداول المساعدة تحتفظ '
+          'بمفتاحها المحلي عند عدم وجود local_uuid فريد. الصفوف الموجودة ذات '
+          'المفتاح نفسه يتم تجاهلها دون تحديث أو استبدال، ولا يتغير مسار '
+          'مزامنة Appwrite أو outbox.',
           textAlign: TextAlign.start,
+        ),
+        const SizedBox(height: 10),
+        Card(
+          color: colorScheme.tertiaryContainer,
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.verified_user_outlined),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'حارس الهوية: employees / expenses / salary_withdrawals وكيانات الرواتب يجب أن تحمل local_uuid، والروابط employee_uuid. أي سجل بلا هوية ثابتة لا يُعاد تعيينه اعتمادًا على id الرقمي.',
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         if (_outboxPending > 0) ...[
           const SizedBox(height: 8),
@@ -748,13 +813,13 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                     _result!.cancelled
                         ? 'أُوقف الرفع جزئياً'
                         : _result!.ok
-                        ? 'اكتمل الرفع بنجاح'
+                        ? 'اكتملت معالجة الرفع بنجاح'
                         : 'اكتمل مع أخطاء',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'جداول: ${_result!.tablesDone} — صفوف: ${_result!.rowsUploaded} — '
+                    'جداول: ${_result!.tablesDone} — صفوف تمت معالجتها (قد تشمل المتجاوزة): ${_result!.rowsUploaded} — '
                     'نداءات: ${_result!.apiCalls} — '
                     'الزمن: ${_result!.elapsed.inSeconds}ث',
                   ),

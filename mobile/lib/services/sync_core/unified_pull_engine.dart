@@ -1,5 +1,6 @@
 import 'package:appwrite/models.dart' as models;
 
+import '../../utils/weak_device_optimizer.dart';
 import 'sync_checkpoint_store.dart';
 import 'sync_pull_service.dart';
 
@@ -31,17 +32,35 @@ class CollectionPullTask {
     required this.name,
     required this.fetch,
     required this.apply,
+    this.fetchPage,
+    this.streamFullSync = false,
     this.critical = true,
   });
 
   /// اسم المجموعة (مفتاح الـ checkpoint في sync_checkpoints).
   final String name;
 
-  /// جلب المستندات من Appwrite وفق خطة المجموعة (Full أو Delta).
+  /// جلب المستندات من Appwrite وفق خطة المجموعة (Full أو Delta) — المسار
+  /// الكلاسيكي أحادي الطلبات (كل الصفحات تُجلب دفعة واحدة في الذاكرة).
   final Future<List<models.Document>> Function(CollectionPullPlan plan) fetch;
 
   /// تطبيق المستندات محلياً — يعيد عدد السجلات المطبَّقة.
   final Future<int> Function(List<models.Document> docs) apply;
+
+  /// ✅ Resumable Full Sync (2026-09-21): جلب **صفحة واحدة** بمعطى استعلاماتها
+  /// الكاملة (orderAsc($id) + limit + cursorAfter مضمنة من
+  /// [SyncPullService.buildFullSyncPageQueries]).
+  ///
+  /// عند توفّره مع [streamFullSync] يستبدل مسار Full الكلاسيكي بمسار تدفقي:
+  /// صفحة → تطبيق → تقدّم مؤشر → صفحة. الذاكرة محدودة بحجم صفحة واحدة
+  /// بغض النظر عن حجم المجموعة (عشرات آلاف الليالي)، والانقطاع (شبكة
+  /// ضعيفة/قتل التطبيق) يُستأنف من آخر صفحة نجحت.
+  final Future<List<models.Document>> Function(List<String> queries)? fetchPage;
+
+  /// ✅ Resumable Full Sync: true → مسار Full لهذه المهمة يعمل تدفقياً
+  /// (يتطلب [fetchPage]). false (الافتراضي) → السلوك الكلاسيكي كما هو —
+  /// توافق خلفي كامل مع المجموعات الأخرى.
+  final bool streamFullSync;
 
   /// false → فشلها لا يُسجَّل في failedCollections (مثل app_settings).
   final bool critical;
@@ -81,11 +100,44 @@ typedef UnifiedPullTaskErrorHandler =
 ///   - pullRemoteChanges كان يفقد 3 مجموعات موجودة في sync()
 ///     (inventory_items, inventory_transactions, salary_carry_over_logs) —
 ///     القائمة الموحدة تُغلق هذه الفجوة.
+///
+/// ✅ Resumable Full Sync (2026-09-21) — إصلاح P0 فقدان البيانات:
+///
+/// المشكلة القديمة: مهمة Full لـ booking_nights كانت تُسحب بسقف جزئي
+/// (1000 سجل) ثم يُثبَّت checkpoint من `max($updatedAt)` لأقدم 1000 سجل
+/// وتُعلن المجموعة مكتملة → السجلات الباقية (الأحدث ترتيباً بـ $id أو
+/// غير المعدّلة منذ المؤشر) لا تظهر في أي Delta لاحق → **فقدان صامت**.
+/// فندق 20 غرفة × سنة ≈ 7000 ليلة: 85% من الليالي مفقودة على أي تثبيت
+/// جديد — والحجوزات المكتملة تعتمد عمداً على ليالي السحابة (لا إعادة
+/// بناء محلي) فتظهر التقارير المالية ناقصة.
+///
+/// الحل ([_runStreamingFullPull]):
+///   - **بلا سقف**: الحلقة تستمر حتى نفاد المستندات فعلياً — أول مزامنة
+///     كاملة بلا حد كما هو مطلوب.
+///   - **ذاكرة محدودة**: صفحة (100 مستند) تُطبَّق ثم تُنسى — لا تجميع
+///     آلاف المستندات في الذاكرة (حماية أجهزة 1GB).
+///   - **crash-safe**: مؤشر الصفحة (`full_sync_cursor`) يُثبَّت بعد نجاح
+///     التطبيق فقط؛ الانقطاع (إنترنت ضعيف، قتل التطبيق، نفاد مهلة الدورة)
+///     يُستأنف من آخر صفحة في الدورة التالية (المزامنة التلقائية 15 دقيقة
+///     أو فتح التطبيق).
+///   - **checkpoint عند النفاد فقط**: `completeFullSync` يُثبّت مؤشر Delta
+///     من أقصى `$updatedAt` مُشاهد عبر كل الصفحات — لا فقدان أبداً.
+///   - **تنفّس للأجهزة الضعيفة**: مهلة قصيرة بين الصفحات (250ms على
+///     الأجهزة الضعيفة / yield للأجهزة القوية) تمنع تجويع حلقة الأحداث
+///     واضطراب الواجهة أثناء سحب طويل.
 class UnifiedPullEngine {
   UnifiedPullEngine({required this.checkpoints, required this.pullService});
 
   final SyncCheckpointStore checkpoints;
   final SyncPullService pullService;
+
+  /// حجم صفحة السحب الكامل التدفقي — مطابق لـ AppwriteConfig.maxPageSize
+  /// (100). صفحة واحدة في الذاكرة في كل لحظة.
+  static const int fullSyncPageSize = 100;
+
+  /// صمام أمان ضد حلقة لا نهائية (مؤشر لا يتقدم بخادم مخرب): 5000 صفحة
+  /// × 100 مستند = 500 ألف مستند لكل مجموعة — أبعد من أي فندق واقعي.
+  static const int _maxFullSyncPages = 5000;
 
   /// يبني خطة السحب لمجموعة واحدة:
   ///   - checkpoint غير مكتمل أو صفر → Full pull (استبعاد tombstones).
@@ -162,13 +214,21 @@ class UnifiedPullEngine {
         // الظلّ هنا (final plan = await plan(...)) يجعل الاستدعاء يشير
         // إلى المتغير نفسه قبل تهيئته (referenced_before_declaration).
         final pullPlan = await plan(task.name);
-        final docs = await task.fetch(pullPlan);
-        recordsPulled += await task.apply(docs);
-        await commit(
-          task.name,
-          maxUpdatedAtSec: maxUpdatedAtOf(docs),
-          sinceTs: pullPlan.sinceTs,
-        );
+        if (pullPlan.isFullSync &&
+            task.streamFullSync &&
+            task.fetchPage != null) {
+          // ✅ مسار تدفقي قابل للاستئناف (بلا سقف، ذاكرة صفحة واحدة).
+          recordsPulled += await _runStreamingFullPull(task, pullPlan);
+        } else {
+          // المسار الكلاسيكي — Full أحادي الطلب أو Delta.
+          final docs = await task.fetch(pullPlan);
+          recordsPulled += await task.apply(docs);
+          await commit(
+            task.name,
+            maxUpdatedAtSec: maxUpdatedAtOf(docs),
+            sinceTs: pullPlan.sinceTs,
+          );
+        }
         success = true;
       } catch (error, stackTrace) {
         if (task.critical) failed.add(task.name);
@@ -189,6 +249,96 @@ class UnifiedPullEngine {
       recordsPulled: recordsPulled,
       failedCollections: failed,
     );
+  }
+
+  /// ✅ Resumable Full Sync (2026-09-21): سحب كامل تدفقي بلا سقف.
+  ///
+  /// الحلقة: صفحة (100) → apply → bump max($updatedAt) → cursor = آخر $id
+  /// → الصفحة التالية. عند نفاد المستندات أو صفحة ناقصة:
+  /// [SyncCheckpointStore.completeFullSync] يثبّت مؤشر Delta النهائي.
+  ///
+  /// **الانقطاع**: أي استثناء (شبكة/قتل/مهلة) يخرج من الحلقة والمؤشر
+  /// محفوظ عند آخر صفحة **ناجحة** — الدورة التالية تستأنف من
+  /// `cursorAfter(cursor)` فلا صفحة مفقودة ولا إعادة عمل كبيرة.
+  ///
+  /// **المجموعة الفارغة** (أول صفحة فارغة ولم يُسحب شيء): نمسح حالة التقدم
+  /// فقط ونُبقي المجموعة في وضع Full — نفس دلالات [commit] الكلاسيكية
+  /// (استعلام فارغ رخيص في كل دورة حتى تظهر أول مستندات).
+  Future<int> _runStreamingFullPull(
+    CollectionPullTask task,
+    CollectionPullPlan plan,
+  ) async {
+    var cursor = await checkpoints.getFullSyncCursor(task.name);
+    var totalApplied = 0;
+    var pages = 0;
+    final weakDevice = WeakDeviceOptimizer.instance.isWeakDevice;
+
+    while (true) {
+      pages++;
+      if (pages > _maxFullSyncPages) {
+        throw StateError(
+          'full sync page limit exceeded for ${task.name} '
+          '($_maxFullSyncPages pages) — cursor not advancing?',
+        );
+      }
+
+      final pageQueries = SyncPullService.buildFullSyncPageQueries(
+        baseQueries: plan.queries,
+        cursor: cursor,
+        pageSize: fullSyncPageSize,
+      );
+      final docs = await task.fetchPage!(pageQueries);
+
+      // نفاد المستندات.
+      if (docs.isEmpty) {
+        final maxUpdated = await checkpoints.getFullSyncMaxUpdated(task.name);
+        if (maxUpdated > 0) {
+          // سحبنا صفحات سابقة (صفحة كاملة أخيرة بالضبط) → اكتمل فعلياً.
+          await checkpoints.completeFullSync(
+            task.name,
+            maxUpdatedSec: maxUpdated,
+          );
+        } else {
+          // مجموعة فارغة من البداية → وضع Full رخيص (كما في commit).
+          await checkpoints.clearFullSyncProgress(task.name);
+        }
+        break;
+      }
+
+      final applied = await task.apply(docs);
+      totalApplied += applied;
+
+      // تتبّع أقصى $updatedAt (سلطة الخادم للمؤشر النهائي) قبل تقدّم المؤشر.
+      final pageMax = maxUpdatedAtOf(docs);
+      if (pageMax != null) {
+        await checkpoints.bumpFullSyncMaxUpdated(task.name, pageMax);
+      }
+
+      // تقدّم المؤشر بعد نجاح التطبيق فقط (crash-safe).
+      cursor = docs.last.$id;
+      await checkpoints.setFullSyncCursor(task.name, cursor);
+
+      // صفحة ناقصة = الأخيرة → اكتمال.
+      if (docs.length < fullSyncPageSize) {
+        final maxUpdated = await checkpoints.getFullSyncMaxUpdated(task.name);
+        await checkpoints.completeFullSync(
+          task.name,
+          maxUpdatedSec: maxUpdated,
+        );
+        break;
+      }
+
+      // ✅ تنفّس للأجهزة الضعيفة: مهلة قصيرة بين الصفحات تسمح لحلقة
+      // الأحداث بمعالجة أحداث الواجهة (فريمات/لمسات) أثناء سحب طويل،
+      // وتقلل ضغط الذاكرة/الشبكة المتتالي على الجهاز.
+      await Future<void>.delayed(
+        weakDevice
+            ? const Duration(milliseconds: 250)
+            : const Duration(milliseconds: 0),
+      );
+    }
+
+    return totalApplied;
   }
 
   /// أقصى $updatedAt (ثوانٍ epoch) بين مستندات مجموعة — سلطة الخادم.

@@ -155,14 +155,18 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final startOfMonth = DateTime(today.year, today.month);
 
-    // حساب المبالغ
-    final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
+    // حساب المبالغ — الرصيد الفعلي: تُستثنى الدفعات الملغاة والمعلّقة
+    // من كل الإحصاءات (نفس قاعدة المحرك الموحد والتقارير).
+    final activePayments = payments
+        .where((p) => !p.isVoided && !p.isPendingBalance)
+        .toList();
+    final totalAmount = activePayments.fold<double>(
+      0,
+      (sum, p) => sum + p.amount,
+    );
 
-    // مدفوعات اليوم الفندقي الحالي
-    final todayPayments = payments.where((p) {
-      if (p.isVoided) {
-        return false;
-      }
+    // مدفوعات اليوم الفندقي الحالي — من الدفعات الفعلية فقط
+    final todayPayments = activePayments.where((p) {
       if (p.hotelDayKey == hotelDay) {
         return true;
       }
@@ -176,8 +180,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       (sum, p) => sum + p.amount,
     );
 
-    // مدفوعات هذا الشهر
-    final monthlyPayments = payments.where((p) {
+    // مدفوعات هذا الشهر — على الدفعات الفعلية فقط
+    final monthlyPayments = activePayments.where((p) {
       try {
         final date = DateTime.parse(p.paymentDate);
         return date.isAfter(startOfMonth);
@@ -308,10 +312,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   }
 
   Widget _buildRecentPayments(List<db.Payment> payments) {
-    // عرض مدفوعات اليوم الفندقي الحالي
+    // عرض مدفوعات اليوم الفندقي الحالي — الفعلية فقط (غير الملغاة/المعلّقة)
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPayments = payments.where((p) {
-      if (p.isVoided) {
+      if (p.isVoided || p.isPendingBalance) {
         return false;
       }
       if (p.hotelDayKey == hotelDay) {

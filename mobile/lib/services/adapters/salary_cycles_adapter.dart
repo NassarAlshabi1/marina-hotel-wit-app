@@ -105,6 +105,8 @@ class SalaryCyclesAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'employeeId', src, altKey: 'employee_id', fallback: 0),
+      // ✅ (2026-09-19) تخزين UUID الموظف — الربط الدائم عبر الأجهزة
+      employeeUuid: _vUuid(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       cycleKey: _vStr(json, 'cycleKey', src, altKey: 'cycle_key', fallback: ''),
       hotelDayStart: _vStr(
         json,
@@ -179,6 +181,7 @@ class SalaryCyclesAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'cycleKey', 'cycle_key'): model.cycleKey,
       _k(src, 'hotelDayStart', 'hotel_day_start'): model.hotelDayStart,
       _k(src, 'hotelDayEnd', 'hotel_day_end'): model.hotelDayEnd,
@@ -203,6 +206,29 @@ class SalaryCyclesAdapter
       'deviceId': model.deviceId,
     };
   }
+}
+
+d.Value<String> _vUuid(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+}) {
+  final raw =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null);
+  if (raw == null || raw.trim().isEmpty) return const d.Value.absent();
+  final trimmed = raw.trim();
+  final compact = trimmed.replaceAll('-', '');
+  if (compact.length == 32 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(compact)) {
+    return d.Value(
+      '${compact.substring(0, 8)}-${compact.substring(8, 12)}-'
+              '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
+              '${compact.substring(20)}'
+          .toLowerCase(),
+    );
+  }
+  return d.Value(trimmed.toLowerCase());
 }
 
 d.Value<int> _vInt(

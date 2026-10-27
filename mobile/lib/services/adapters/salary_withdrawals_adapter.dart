@@ -151,6 +151,8 @@ class SalaryWithdrawalsAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيم — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
+      // ✅ (2026-09-19) تخزين UUID الموظف — الربط الدائم عبر الأجهزة
+      employeeUuid: _vUuid(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       amount: _vDouble(json, 'amount', src),
       withdrawDate: d.Value(wd),
       // ✅ Audit Fix (2026-08-06): إضافة expenseId.
@@ -158,6 +160,10 @@ class SalaryWithdrawalsAdapter
       // (local_db.dart:669). كان يُستخرج من reason بصيغة "exp_123"
       // لكن لا يُعاد تعبئته في expenseId عند fromJson.
       expenseId: _vInt(json, 'expenseId', src, altKey: 'expense_id'),
+      // ✅ (migration 68) uuid المرآة الدائم — الرابط الذي ينجو من إعادة
+      // ترقيم المعرفات عبر الأجهزة (نفس عائلة employee_uuid). يُحل لاحقاً
+      // في _syncSalaryWithdrawals إلى معرّف المصروف المحلي الصحيح.
+      expenseUuid: _vUuid(json, 'expenseUuid', src, altKey: 'expense_uuid'),
       reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       withdrawalType: wt != null ? d.Value(wt) : const d.Value.absent(),
@@ -225,6 +231,7 @@ class SalaryWithdrawalsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'amount', 'amount'): model.amount.round(), // Appwrite: integer
       _k(src, 'withdrawDate', 'withdraw_date'): effectiveWithdrawDate,
       _k(src, 'reason', 'reason'): model.reason,
@@ -264,6 +271,10 @@ class SalaryWithdrawalsAdapter
     // ✅ note = ملاحظة المستخدم فقط (من description)
     map['note'] = model.description ?? '';
     map['expenseId'] = expenseId;
+    // ✅ (migration 68) uuid المرآة — يُرسل دائماً لضمان التوافق مع مخطط
+    // Appwrite الجديد؛ القيمة null للسجلات القديمة قبل الترحيل لا تضر
+    // (العمود السحابي optional).
+    map['expenseUuid'] = model.expenseUuid;
     // ✅ إضافة name فارغ (optional لكن بعض إصدارات المخطط تتوقعه)
     // ✅ (2026-09-14) name = اسم من سجّل السحبة (كان يُرسل فارغاً دائماً)
     map['name'] = model.recorderName ?? '';
@@ -273,6 +284,29 @@ class SalaryWithdrawalsAdapter
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────
+
+d.Value<String> _vUuid(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+}) {
+  final raw =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null);
+  if (raw == null || raw.trim().isEmpty) return const d.Value.absent();
+  final trimmed = raw.trim();
+  final compact = trimmed.replaceAll('-', '');
+  if (compact.length == 32 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(compact)) {
+    return d.Value(
+      '${compact.substring(0, 8)}-${compact.substring(8, 12)}-'
+              '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
+              '${compact.substring(20)}'
+          .toLowerCase(),
+    );
+  }
+  return d.Value(trimmed.toLowerCase());
+}
 
 d.Value<int> _vInt(
   Map<String, dynamic> json,

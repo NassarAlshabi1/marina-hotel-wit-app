@@ -241,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <i class="fas fa-download"></i>
                     تطبيق هيدر CodePen
                 </button>
-                <a href="test_codepen_header.php" class="preview-link" target="_blank">
+                <a href="scripts/php/diagnostics/test_codepen_header.php" class="preview-link" target="_blank">
                     <i class="fas fa-eye"></i>
                     معاينة الهيدر الجديد
                 </a>

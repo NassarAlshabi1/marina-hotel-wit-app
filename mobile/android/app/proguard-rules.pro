@@ -16,7 +16,12 @@
 -keep class androidx.lifecycle.DefaultLifecycleObserver
 -keep class androidx.lifecycle.FullLifecycleObserver
 
-# Firebase
+# Firebase / GMS — قواعد keep استُرجعت (قرار المخاطرة):
+# أكبر تقليل للحجم بأقل مخاطرة يأتي من ABI split + obfuscation
+# وليس من حذف قواعد R8 بشكل عدواني — طبقة Java/Kotlin في تطبيق
+# Flutter رقيقة أصلاً فالعائد من إزالتها محدود، بينما خطر كسر
+# Firebase/GMS (FCM، Crashlytics، Google Sign-In) عبر reflection
+# حقيقي وغير قابل للاختبار المحلي.
 -keep class com.google.firebase.** { *; }
 -keep class com.google.android.gms.** { *; }
 -dontwarn com.google.firebase.**
@@ -26,7 +31,9 @@
 -keep class io.appwrite.** { *; }
 -dontwarn io.appwrite.**
 
-# OkHttp / Dio (networking)
+# OkHttp / Okio — قواعد keep استُرجعت (نفس قرار المخاطرة أعلاه:
+# عائد حجم محدود مقابل خطر كسر مسارات الشبكة، والتطبيق يعتمد
+# عليها في كل عمليات المزامنة)
 -keep class okhttp3.** { *; }
 -keep class okio.** { *; }
 -dontwarn okhttp3.**

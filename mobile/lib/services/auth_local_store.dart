@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import '../utils/id.dart';
 import 'appwrite_service.dart';
+import 'permission_catalog.dart';
 import 'appwrite_sync_manager.dart';
 import 'password_hasher.dart';
 
@@ -31,53 +32,33 @@ class AuthLocalStore {
   static const _kRememberMe = 'remember_me';
   static const _kAuthType = 'auth_type';
 
-  static const List<String> permissionKeys = [
-    'dashboard',
-    'rooms',
-    'bookings',
-    'payments',
-    'debts',
-    'employees',
-    'expenses',
-    'finance',
-    'reports',
-    'notes',
-    'information',
-    'settings',
-    'inventory',
-  ];
+  /// مفاتيح الوحدات والعمليات — المصدر الوحيد `PermissionCatalog`؛
+  /// هذه التفويضات تبقي الاستدعاءات القديمة تعمل دون تغيير.
+  static List<String> get permissionKeys => PermissionCatalog.moduleKeys;
 
   /// صلاحيات العمليات الدقيقة. وجود المفتاح القديم للقسم يبقى متوافقاً
   /// ويمنح نفس صلاحيات الإصدار السابق، بينما المفاتيح الجديدة تسمح بالفصل
   /// بين القراءة والإضافة والتعديل والحذف.
-  static const List<String> operationPermissionKeys = [
-    'view',
-    'create',
-    'update',
-    'delete',
-  ];
+  static List<String> get operationPermissionKeys =>
+      PermissionCatalog.actionKeys;
 
-  static const Map<String, String> _permissionActions = {
-    'view': 'عرض',
-    'create': 'إضافة',
-    'update': 'تعديل',
-    'delete': 'حذف',
-  };
-
-  static List<String> permissionKeysForModule(String module) => [
-    for (final action in operationPermissionKeys) '$module.$action',
-  ];
+  static List<String> permissionKeysForModule(String module) =>
+      PermissionCatalog.keysForModule(module);
 
   /// مفاتيح محرر المستخدمين: المفاتيح القديمة للتوافق، ثم العمليات الدقيقة.
-  static List<String> get permissionEditorKeys => [
-    ...permissionKeys,
-    for (final module in permissionKeys) ...permissionKeysForModule(module),
-  ];
+  static List<String> get permissionEditorKeys => PermissionCatalog.editorKeys;
 
   static String operationLabel(String action) =>
-      _permissionActions[action] ?? action;
+      PermissionCatalog.actionLabel(action);
 
-  /// يتحقق من صلاحية عملية محددة مع إبقاء الحسابات الحالية متوافقة.
+  /// أدوار الإدارة: من يملك تعديل أو حذف سجلات موجودة.
+  /// الإضافة والعرض متاحان لكل مستخدم قادر على دخول الوحدة.
+  static bool isManagerialRole(String? userType) =>
+      userType == 'admin' || userType == 'manager' || userType == 'supervisor';
+
+  /// يتحقق من صلاحية عملية محددة مع إبقاء مفاتيح الوحدة القديمة متوافقة.
+  /// view/create متاحان لمن يملك دخول الوحدة؛ update/delete متاحان للأدوار
+  /// الإدارية أو عند منح المفتاح الدقيق `module.action` صراحةً.
   static bool canPerform({
     required String? userType,
     required List<String> permissions,
@@ -85,8 +66,13 @@ class AuthLocalStore {
     required String action,
   }) {
     if (userType == 'admin' || permissions.contains('all')) return true;
-    if (permissions.contains(module)) return true;
-    return permissions.contains('$module.$action');
+    final canEnter =
+        permissions.contains(module) ||
+        permissionKeysForModule(module).any(permissions.contains);
+    if (!canEnter) return false;
+    if (action == 'view' || action == 'create') return true;
+    return isManagerialRole(userType) ||
+        permissions.contains('$module.$action');
   }
 
   /// يستخدم لحارس الصفحة والقائمة: يكفي امتلاك أي صلاحية تشغيلية.

@@ -17,7 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 API_BASE = os.environ.get("MANUS_API_BASE", "https://api.manus.ai").rstrip("/")
 POLL_SECONDS = 5
@@ -28,6 +28,37 @@ MAX_POLLS = 240
 # فجزء 12K حرف قد يتجاوز الحد ويفشل الطلب بـ HTTP 400 (run 33440645636).
 # حدّ 5_000 حرف يبقى دائماً تحت سقف الـ API حتى مع نص عربي كثيف.
 MAX_DIFF_CHUNK_CHARS = 5_000
+# ✅ 2026-10-20: إصلاح فشل PR #636 (run 39314309799). الطلب غيّر 1490 ملفاً،
+# فأنتج `git diff --unified=80` نصاً بحجم 4.75 MB، وكان السكربت يرمي خطأً فورياً
+# عند تجاوز 1.5 MB فيفشل الـ Workflow قبل أي اتصال بالـ API. إرسال diff كامل
+# مستحيل أصلاً (4.75 MB ≈ 950 قطعة متسلسلة تتجاوز timeout-minutes: 25)، لذلك
+# تُراجَع أهم الملفات أمنياً ضمن ميزانية قطع محدودة، وتُذكَر الملفات غير
+# المراجَعة صراحةً في التقرير بدلاً من إفشال الفحص الاستشاري.
+DEFAULT_MAX_CHUNKS = 12
+# حماية للـ runner فقط (قراءة diff هائل في الذاكرة)؛ ليست سبب فشل للمراجعة.
+MAX_DIFF_BYTES = 25_000_000
+
+# أولوية الملفات للمراجعة الأمنية: الأعلى يُراجَع أولاً داخل الميزانية.
+SECURITY_PATH_WEIGHTS: tuple[tuple[str, int], ...] = (
+    (r"^\.github/workflows/", 100),
+    (r"^(?:scripts|tools|bin|\.github)/", 90),
+    (r"\.php$", 80),
+    (r"(?:auth|login|token|credential|password|secret|session|crypto|encrypt|payment)", 75),
+    (r"(?:api|http|network|client|sync|backup|upload|import|export)", 70),
+    (r"(?:database|drift|migrat|sqflite|sqlite|repository|local_db)", 65),
+    (r"\.(?:ts|js|mjs|cjs)$", 60),
+    (r"\.dart$", 50),
+    (r"\.(?:yml|yaml)$", 40),
+)
+# مكافأة إضافية عند وجود أنماط حساسة داخل القطعة نفسها.
+CONTENT_BONUS = 25
+CONTENT_PATTERN = re.compile(
+    r"(?i)(?:api[_-]?key|secret|password|passwd|token|bearer\s|private[_-]?key|http://|"
+    r"eval\(|process\.run|runtime\.getruntime|rawquery|rawinsert|\.exec\(|"
+    r"allowarbitraryloads|setjavascriptmode|loadrequest|unserialize|pickle\.loads|"
+    r"file_get_contents|include_once|require_once|\$_(?:GET|POST|REQUEST))"
+)
+DEFAULT_WEIGHT = 30
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -119,7 +150,12 @@ def redact_diff(diff: str) -> str:
     import re
 
     patterns = [
-        r"(?im)^(\s*(?:export\s+)?(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|private[_-]?key)\s*[:=]\s*)([^\s#]+)",
+        # ✅ 2026-10-20: every body line of a unified diff starts with '+', '-', or
+        # a space, and the assignment usually sits behind a qualifier (`const`,
+        # `static`, `$`, YAML indentation), so the previous '^(\s*key\s*[:=])'
+        # anchor never matched diff content and credentials were sent to the API
+        # unredacted. Allow a diff prefix plus arbitrary leading text on the line.
+        r"(?im)^([+\- ]?[^#\n]*?\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|private[_-]?key)\s*[:=]\s*)([^\s#]+)",
         r"(?i)(Bearer\s+)[A-Za-z0-9._~+/=-]{16,}",
         r"(?i)(x-api-key\s*[:=]\s*)[^\s,;]+",
     ]
@@ -203,36 +239,137 @@ def create_and_poll(api_key: str, prompt: str) -> dict[str, Any]:
     raise TimeoutError("Manus security review exceeded the polling timeout")
 
 
-def split_diff(diff: str, max_chars: int = MAX_DIFF_CHUNK_CHARS) -> list[str]:
-    """Split a unified diff into reviewable chunks below Manus' token limit."""
+def split_sections(diff: str) -> list[str]:
+    """Split a unified diff into one section per changed file."""
     sections = re.split(r"(?=^diff --git )", diff, flags=re.MULTILINE)
-    sections = [section for section in sections if section.strip()]
+    return [section for section in sections if section.strip()]
+
+
+def split_oversized(section: str, max_chars: int = MAX_DIFF_CHUNK_CHARS) -> list[str]:
+    """Split a single file diff that is itself larger than one chunk.
+
+    A single file diff can exceed the limit; split on lines while preserving
+    the section content rather than silently dropping it.
+    """
+    if len(section) <= max_chars:
+        return [section]
+    # A single minified or generated line can exceed the limit on its own; slice
+    # it by characters first so no piece can overflow the API message limit.
+    lines: list[str] = []
+    for line in section.splitlines(keepends=True):
+        while len(line) > max_chars:
+            lines.append(line[:max_chars])
+            line = line[max_chars:]
+        if line:
+            lines.append(line)
+    parts: list[str] = []
+    part = ""
+    for line in lines:
+        if part and len(part) + len(line) > max_chars:
+            parts.append(part)
+            part = ""
+        part += line
+    if part:
+        parts.append(part)
+    return parts
+
+
+def pack_pieces(pieces: list[str], max_chars: int = MAX_DIFF_CHUNK_CHARS) -> list[str]:
+    """Pack diff pieces into chunks that stay below the Manus message limit."""
     chunks: list[str] = []
     current = ""
-    for section in sections:
-        if len(section) <= max_chars:
-            if current and len(current) + len(section) > max_chars:
-                chunks.append(current)
-                current = ""
-            current += section
-            continue
-        if current:
+    for piece in pieces:
+        if current and len(current) + len(piece) > max_chars:
             chunks.append(current)
             current = ""
-        # A single file diff can itself exceed the limit; split on lines while
-        # preserving the section content rather than silently dropping it.
-        lines = section.splitlines(keepends=True)
-        part = ""
-        for line in lines:
-            if part and len(part) + len(line) > max_chars:
-                chunks.append(part)
-                part = ""
-            part += line
-        if part:
-            chunks.append(part)
+        current += piece
     if current:
         chunks.append(current)
     return chunks
+
+
+def split_diff(diff: str, max_chars: int = MAX_DIFF_CHUNK_CHARS) -> list[str]:
+    """Split a unified diff into reviewable chunks below Manus' token limit."""
+    pieces: list[str] = []
+    for section in split_sections(diff):
+        pieces.extend(split_oversized(section, max_chars))
+    return pack_pieces(pieces, max_chars)
+
+
+def section_path(section: str) -> str:
+    """Return the file path a diff section belongs to."""
+    match = re.search(r"^\+\+\+ (?:b/)?(\S+)", section, flags=re.MULTILINE)
+    if match and match.group(1) != "/dev/null":
+        return match.group(1)
+    match = re.search(r"^diff --git a/.+ b/(.+)$", section, flags=re.MULTILINE)
+    if match:
+        return match.group(1)
+    return "<unknown>"
+
+
+def section_weight(section: str) -> int:
+    """Rank a diff section so security-relevant files are reviewed first."""
+    path = section_path(section)
+    weight = DEFAULT_WEIGHT
+    for pattern, value in SECURITY_PATH_WEIGHTS:
+        if re.search(pattern, path, flags=re.IGNORECASE):
+            weight = max(weight, value)
+    if CONTENT_PATTERN.search(section):
+        weight += CONTENT_BONUS
+    return weight
+
+
+class ReviewPlan(NamedTuple):
+    """What the review will send to Manus and what it had to leave out."""
+
+    chunks: list[str]
+    reviewed: list[str]
+    excluded: list[str]
+    total_sections: int
+
+
+def plan_review(diff: str, max_chunks: int = DEFAULT_MAX_CHUNKS) -> ReviewPlan:
+    """Select the highest-priority diff sections that fit the chunk budget.
+
+    Every Manus chunk is a separate task polled to completion, so the review is
+    bounded by ``max_chunks`` instead of failing on large pull requests. Files
+    that do not fit are reported as excluded so the summary never overstates
+    the coverage of an advisory review.
+    """
+    if max_chunks < 1:
+        raise ValueError("max_chunks must be at least 1")
+    sections = split_sections(diff)
+    ordered = sorted(sections, key=lambda section: (-section_weight(section), len(section), section_path(section)))
+    budget = max_chunks * MAX_DIFF_CHUNK_CHARS
+    pieces: list[str] = []
+    reviewed: list[str] = []
+    excluded: list[str] = []
+    used = 0
+    for section in ordered:
+        if used + len(section) <= budget:
+            pieces.extend(split_oversized(section))
+            reviewed.append(section_path(section))
+            used += len(section)
+        else:
+            # Keep scanning: a smaller high-priority file can still fit after a
+            # large one was skipped.
+            excluded.append(section_path(section))
+    # total selected chars <= budget, so packing cannot exceed max_chunks.
+    chunks = pack_pieces(pieces)[:max_chunks]
+    return ReviewPlan(chunks=chunks, reviewed=reviewed, excluded=excluded, total_sections=len(sections))
+
+
+def _env_max_chunks() -> int:
+    """Read the optional MANUS_MAX_CHUNKS override used by the workflow."""
+    raw = os.environ.get("MANUS_MAX_CHUNKS", "").strip()
+    if not raw:
+        return DEFAULT_MAX_CHUNKS
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        print(f"Ignoring invalid MANUS_MAX_CHUNKS={raw!r}; using {DEFAULT_MAX_CHUNKS}.", file=sys.stderr)
+        return DEFAULT_MAX_CHUNKS
+
 
 
 def review_chunk_prompt(sha: str, chunk: str, index: int, total: int) -> str:
@@ -272,7 +409,22 @@ def _line_for_deduplication(value: Any) -> int:
     return 0
 
 
-def merge_reports(reports: list[dict[str, Any]], sha: str, total_chunks: int) -> dict[str, Any]:
+def review_scope_note(plan: ReviewPlan) -> str:
+    """Describe exactly which files the review covered and which it skipped."""
+    covered = (
+        f"Covered {len(plan.reviewed)} of {plan.total_sections} changed source file(s) "
+        f"in {len(plan.chunks)} diff chunk(s) under the {DEFAULT_MAX_CHUNKS}-chunk budget"
+    )
+    if not plan.excluded:
+        return f"{covered}; no file was left out."
+    shown = ", ".join(plan.excluded[:15])
+    remaining = len(plan.excluded) - 15
+    if remaining > 0:
+        shown += f", … and {remaining} more"
+    return f"{covered}. Not reviewed ({len(plan.excluded)}): {shown}."
+
+
+def merge_reports(reports: list[dict[str, Any]], sha: str, plan: ReviewPlan) -> dict[str, Any]:
     severity_rank = {"none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
     findings: list[dict[str, Any]] = []
     seen: set[tuple[str, int, str]] = set()
@@ -293,16 +445,30 @@ def merge_reports(reports: list[dict[str, Any]], sha: str, total_chunks: int) ->
         level = str(finding.get("severity", "low"))
         if severity_rank.get(level, 0) > severity_rank[overall]:
             overall = level
+    total_chunks = len(plan.chunks)
     if findings:
-        summary = f"Manus reviewed {total_chunks} diff chunks and returned {len(findings)} finding(s)."
+        summary = (
+            f"Manus reviewed {len(plan.reviewed)} of {plan.total_sections} changed file(s) "
+            f"across {total_chunks} diff chunk(s) and returned {len(findings)} finding(s)."
+        )
     else:
-        summary = f"Manus reviewed {total_chunks} diff chunks and identified no concrete security vulnerabilities."
+        summary = (
+            f"Manus reviewed {len(plan.reviewed)} of {plan.total_sections} changed file(s) "
+            f"across {total_chunks} diff chunk(s) and identified no concrete security vulnerabilities."
+        )
     return {
         "summary": summary,
         "overall_severity": overall,
         "findings": findings,
         "reviewed_sha": sha,
-        "limitations": f"The review was split into {total_chunks} chunks because Manus API limits message content size. Findings are advisory and limited to the supplied diff.",
+        "reviewed_files": plan.reviewed,
+        "excluded_files": plan.excluded,
+        "chunks_reviewed": total_chunks,
+        "limitations": (
+            f"{review_scope_note(plan)} Manus API limits message content size, so the diff is "
+            "split into chunks and the most security-relevant files are prioritised. Findings "
+            "are advisory and limited to the reviewed diff; the static scanners stay authoritative."
+        ),
     }
 
 
@@ -314,9 +480,20 @@ def write_markdown(report: dict[str, Any], path: Path) -> None:
         "",
         report.get("summary", "No summary returned."),
         "",
-        "## Findings",
-        "",
     ]
+    excluded = report.get("excluded_files") or []
+    reviewed = report.get("reviewed_files") or []
+    if reviewed or excluded:
+        lines.extend(
+            [
+                "## Review scope",
+                "",
+                f"- Reviewed files: {len(reviewed)}",
+                f"- Files not reviewed (outside the chunk budget): {len(excluded)}",
+                "",
+            ]
+        )
+    lines.extend(["## Findings", ""])
     findings = report.get("findings") or []
     if not findings:
         lines.append("No findings were returned for the reviewed diff.")
@@ -345,7 +522,19 @@ def main() -> int:
     parser.add_argument("--sha", required=True)
     parser.add_argument("--json-output", type=Path, default=Path("manus-security-report.json"))
     parser.add_argument("--markdown-output", type=Path, default=Path("manus-security-report.md"))
+    parser.add_argument(
+        "--max-chunks",
+        type=int,
+        default=_env_max_chunks(),
+        help=(
+            "Maximum number of Manus chunks (one task each) to review. Defaults to "
+            f"MANUS_MAX_CHUNKS or {DEFAULT_MAX_CHUNKS}. Files that do not fit are reported "
+            "as not reviewed instead of failing the advisory check."
+        ),
+    )
     args = parser.parse_args()
+    if args.max_chunks < 1:
+        parser.error("--max-chunks must be at least 1")
 
     api_key = os.environ.get("MANUS_API_KEY", "")
     if not api_key:
@@ -353,29 +542,61 @@ def main() -> int:
         return 0
 
     diff = redact_diff(args.diff_file.read_text(encoding="utf-8", errors="replace"))
-    if not diff.strip():
-        report = {
-            "summary": "No reviewable source or workflow diff was found for this commit.",
-            "overall_severity": "none",
-            "findings": [],
-            "reviewed_sha": args.sha,
-            "limitations": "The configured review scope excludes documentation-only and Python-only changes.",
-        }
+    diff_bytes = len(diff.encode("utf-8"))
+    if not diff.strip() or diff_bytes > MAX_DIFF_BYTES:
+        if diff.strip():
+            print(
+                f"Redacted diff is {diff_bytes} bytes, above the {MAX_DIFF_BYTES}-byte runner "
+                "guard; no chunk was sent to Manus.",
+                file=sys.stderr,
+            )
+            report = {
+                "summary": "The redacted diff was too large to read into the review runner.",
+                "overall_severity": "none",
+                "findings": [],
+                "reviewed_sha": args.sha,
+                "reviewed_files": [],
+                "excluded_files": [],
+                "chunks_reviewed": 0,
+                "limitations": (
+                    f"The redacted diff ({diff_bytes} bytes) exceeded the {MAX_DIFF_BYTES}-byte "
+                    "runner guard, so this advisory review covered nothing. The static scanners "
+                    "remain authoritative."
+                ),
+            }
+        else:
+            report = {
+                "summary": "No reviewable source or workflow diff was found for this commit.",
+                "overall_severity": "none",
+                "findings": [],
+                "reviewed_sha": args.sha,
+                "reviewed_files": [],
+                "excluded_files": [],
+                "chunks_reviewed": 0,
+                "limitations": (
+                    "The configured review scope sends only Dart, PHP, JS/TS, and YAML changes to "
+                    "Manus; other file types are never transmitted."
+                ),
+            }
         args.json_output.write_text(
             json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
         write_markdown(report, args.markdown_output)
-        print("No reviewable diff found; an empty Manus report was generated.")
+        print(report["summary"])
         return 0
-    if len(diff.encode("utf-8")) > 1_500_000:
-        raise RuntimeError("Redacted diff exceeds the configured 1.5 MB review limit")
 
-    chunks = split_diff(diff)
+    plan = plan_review(diff, args.max_chunks)
+    print(
+        f"Redacted diff: {diff_bytes} bytes across {plan.total_sections} file(s); "
+        f"reviewing {len(plan.reviewed)} file(s) in {len(plan.chunks)} chunk(s), "
+        f"{len(plan.excluded)} file(s) reported as not reviewed.",
+        file=sys.stderr,
+    )
     reports: list[dict[str, Any]] = []
-    for index, chunk in enumerate(chunks, 1):
-        prompt = review_chunk_prompt(args.sha, chunk, index, len(chunks))
+    for index, chunk in enumerate(plan.chunks, 1):
+        prompt = review_chunk_prompt(args.sha, chunk, index, len(plan.chunks))
         reports.append(create_and_poll(api_key, prompt))
-    report = merge_reports(reports, args.sha, len(chunks))
+    report = merge_reports(reports, args.sha, plan)
     args.json_output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     write_markdown(report, args.markdown_output)
     print(json.dumps(report, ensure_ascii=False))

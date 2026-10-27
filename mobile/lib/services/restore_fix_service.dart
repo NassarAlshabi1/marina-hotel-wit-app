@@ -822,6 +822,7 @@ class RestoreFixService {
           version: const Value(1),
           origin: const Value('auto_fix'),
           bookingLocalId: Value(booking.id),
+          bookingUuidCache: Value(booking.localUuid),
           hotelDayKey: Value(night.hotelDayKey),
           nightStart: Value(night.nightStart.toIso8601String()),
           nightEnd: Value(night.nightEnd.toIso8601String()),
@@ -850,6 +851,9 @@ class RestoreFixService {
     final int totalNights = math.max(breakdown.length, 1);
     final double totalDue = calculation.financialSummary.totalDue.toDouble();
 
+    // الرصيد الفعلي (قاعدة موحدة مع EnhancedBookingCalculationService):
+    // كل الدفعات المرتبطة بالحجز عدا المحذوفة/الملغاة/المعلّقة — بدون
+    // فلتر نوع الإيراد (deposit/service أموال فعلية تُخصم من المتبقي).
     final paymentRows =
         await (db.select(db.payments)
               ..where(
@@ -858,13 +862,8 @@ class RestoreFixService {
                     p.bookingUuidCache.equals(booking.localUuid)),
               )
               ..where((p) => p.deletedAt.isNull())
-              ..where((p) => p.isPendingBalance.equals(false))
-              ..where(
-                (p) =>
-                    p.revenueType.equals('room') |
-                    p.revenueType.equals('') |
-                    p.revenueType.isNull(),
-              ))
+              ..where((p) => p.isVoided.equals(false))
+              ..where((p) => p.isPendingBalance.equals(false)))
             .get();
     double totalPaid = 0;
     for (final payment in paymentRows) {

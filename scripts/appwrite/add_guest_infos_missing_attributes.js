@@ -24,8 +24,8 @@
 const { Client, Databases } = require('node-appwrite');
 
 const endpoint = 'https://fra.cloud.appwrite.io/v1';
-const projectId = '6a2b01d0000752ce97e7';
-const databaseId = '6a2b030d000445596163';
+const projectId = process.env.APPWRITE_PROJECT_ID || '6a4408f300217885fd7b';
+const databaseId = process.env.APPWRITE_DATABASE_ID || '6a4409b50019dd39dde5';
 const apiKey = process.env.APPWRITE_API_KEY;
 const collectionId = 'guest_infos';
 
@@ -58,6 +58,8 @@ const missingAttributes = [
   // ✅ notes — التطبيق يرسله (ولكن السيرفر عنده notes ✅)
   // ملحوظة: notes موجود بالفعل، سيتخطاه السكريبت
   { key: 'notes', type: 'string', size: 2000, required: false },
+  // تاريخ الدخول للسجلات الجديدة فقط، بصيغة yyyy-MM-dd
+  { key: 'entryDate', type: 'string', size: 10, required: false },
 ];
 
 (function() {

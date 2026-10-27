@@ -103,6 +103,20 @@ class SalaryPaymentsAdapter
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent() // يتيمة — لا نستخدم القيمة الخامة البعيدة
           : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
+      // ✅ (2026-09-19) تخزين UUID الموظف (مُشتق من الدورة على المصدر) —
+      // يُخزّن مباشرة ليُستعلم محلياً دون الانحدار عبر cycleId الرقمي.
+      employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
+      // ✅ (migration 71) UUID دورة الراتب — مفاتيح السحابة المعتمدة هي
+      // cycleLocalUuid (Appwrite collection + allow-list) و cycle_local_uuid
+      // (Drive)، مع توافق رجعي لمفتاحي البناء السابق cycleUuid/cycle_uuid.
+      cycleUuid: _vStr4(
+        json,
+        'cycleLocalUuid',
+        'cycle_local_uuid',
+        'cycleUuid',
+        'cycle_uuid',
+        src,
+      ),
       amount: _vInt(json, 'amount', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       paymentDateIso: _vStr(
@@ -159,6 +173,11 @@ class SalaryPaymentsAdapter
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'cycleId', 'cycle_id'): model.cycleId,
+      // ✅ عقد السحابة: Appwrite collection تتوقع cycleLocalUuid (allow-list
+      // ومخطط التحقق)، وDrive يتوقع cycle_local_uuid (نفس مفتاح الإثراء في
+      // النسخ الاحتياطي ومفتاح القراءة في resolveRefs).
+      _k(src, 'cycleLocalUuid', 'cycle_local_uuid'): model.cycleUuid,
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // المحلي يستخدم IntColumn — النوع متطابق
       _k(src, 'amount', 'amount'): model.amount,
@@ -210,6 +229,23 @@ d.Value<String> _vStr(
       _asString(json, key, src) ??
       (altKey != null ? _asString(json, altKey, src) : null) ??
       fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+/// قراءة نصية بأربع مفاتيح مرتبة بالأولوية (عقد سحابي + توافق رجعي).
+d.Value<String> _vStr4(
+  Map<String, dynamic> json,
+  String key1,
+  String key2,
+  String key3,
+  String key4,
+  Source src,
+) {
+  final v =
+      _asString(json, key1, src) ??
+      _asString(json, key2, src) ??
+      _asString(json, key3, src) ??
+      _asString(json, key4, src);
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 

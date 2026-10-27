@@ -158,6 +158,33 @@ class BookingsRepository {
     try {
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
       final result = await db.transaction(() async {
+        // ✅ P1 (double-checkout): حرس حتمية المغادرة — بعد تسجيل وقت
+        // المغادرة لا يجوز استبداله بقيمة مختلفة (إعادة ضغط «تسجيل
+        // المغادرة»/«مغادرة مبكرة» تستبدل actualCheckout بوقت أحدث فتمدد
+        // الليالي وتضخّم الفاتورة). المسارات الشرعية لا تتأثر:
+        //  - booking_edit يمرر actualCheckout = null للحجز المكتمل مسبقاً.
+        //  - settings_guests يغادر الحجوزات النشطة فقط (أول مغادرة).
+        //  - مزامنة Appwrite/السحب تستخدم upsert عبر DAO لا هذه الدالة.
+        //  - القيمة نفسها (idempotent) مسموحة، والغياب (null) لا يغيّر شيئاً.
+        final current = await dao.getById(id);
+        final recorded = current?.actualCheckout;
+        final hasRecordedCheckout = recorded != null && recorded.isNotEmpty;
+        final isFirstCheckout =
+            current != null &&
+            !hasRecordedCheckout &&
+            actualCheckout != null &&
+            actualCheckout.isNotEmpty;
+        if (current != null) {
+          if (hasRecordedCheckout &&
+              actualCheckout != null &&
+              actualCheckout != recorded) {
+            throw StateError(
+              'لا يمكن تسجيل المغادرة مرتين للحجز $id — '
+              'غادر فعلياً بتاريخ $recorded '
+              '(الحالة: ${current.status})',
+            );
+          }
+        }
         final updated = await dao.updateById(
           id,
           BookingsCompanion(
@@ -221,7 +248,12 @@ class BookingsRepository {
         );
         if (updated > 0) {
           await syncLegacyDiscountToAdjustments(id);
-          await derivedFields.refreshForBookingId(id);
+          // The first checkout must trim nights to the actual departure time.
+          // Later refreshes (for example after a payment) must preserve them.
+          await derivedFields.refreshForBookingId(
+            id,
+            forceRebuild: isFirstCheckout,
+          );
         }
         return updated;
       });

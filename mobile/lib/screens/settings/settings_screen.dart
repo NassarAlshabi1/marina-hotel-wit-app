@@ -8,6 +8,7 @@ import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/local_db.dart';
+import '../../utils/responsive.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
@@ -540,12 +541,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // نفس تخطيط فرع A: بطاقات صغيرة ثابتة بثلاثة أعمدة.
-        const crossAxisCount = 3;
+        // نفس تخطيط فرع A على الهاتف: 3 أعمدة. على الشاشات الواسعة
+        // يتمدّد عدد الأعمدة لملء العرض بلا تمديد مفرط للبطاقة الواحدة.
+        final crossAxisCount = context.adaptiveColumns(
+          mobile: 3,
+          itemMinWidth: 240,
+          max: 6,
+        );
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,

@@ -17,6 +17,7 @@ import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
+
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class InformationScreen extends ConsumerStatefulWidget {
@@ -47,6 +48,32 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     'بطاقة رقم جلوس',
     'استبيان',
   ];
+
+  /// مقارنة أرقام الغرف تصاعدياً (أرقام أولاً، ثم أبجدي).
+  /// ✅ مصدر فرز واحد تُشاركه الشاشة وتصدير PDF — يضمن تطابق الترتيب
+  /// في المكانين ويمنع انحراف أي منهما عن الآخر مستقبلاً.
+  static int _compareRoomNumbers(GuestInfo a, GuestInfo b) {
+    final aNum = int.tryParse(a.roomNumber);
+    final bNum = int.tryParse(b.roomNumber);
+    if (aNum != null && bNum != null) {
+      return aNum.compareTo(bNum);
+    }
+    if (aNum != null) {
+      return -1;
+    }
+    if (bNum != null) {
+      return 1;
+    }
+    return a.roomNumber.compareTo(b.roomNumber);
+  }
+
+  /// نسخة مرتبة تصاعدياً حسب رقم الغرفة — لا تُعدّل القائمة الأصلية
+  /// (قائمة الـ provider تُستخدم في مواضع أخرى ويجب بقاؤها كما هي).
+  static List<GuestInfo> _sortByRoomNumber(List<GuestInfo> entries) {
+    final sorted = List<GuestInfo>.from(entries);
+    sorted.sort(_compareRoomNumbers);
+    return sorted;
+  }
 
   @override
   String get screenId => 'information_screen';
@@ -135,22 +162,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
 
     final scrollCtrl = _verticalScrollController;
 
-    // ترتيب حسب رقم الغرفة (أرقام أولاً، ثم أبجدي)
-    final sorted = List<GuestInfo>.from(entries);
-    sorted.sort((a, b) {
-      final aNum = int.tryParse(a.roomNumber);
-      final bNum = int.tryParse(b.roomNumber);
-      if (aNum != null && bNum != null) {
-        return aNum.compareTo(bNum);
-      }
-      if (aNum != null) {
-        return -1;
-      }
-      if (bNum != null) {
-        return 1;
-      }
-      return a.roomNumber.compareTo(b.roomNumber);
-    });
+    // ترتيب تصاعدي حسب رقم الغرفة (أرقام أولاً، ثم أبجدي)
+    final sorted = _sortByRoomNumber(entries);
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -326,6 +339,11 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       text: existing?.governorate ?? '',
     );
     final notesController = TextEditingController(text: existing?.notes ?? '');
+    final entryDateController = TextEditingController(
+      text: existing != null
+          ? (existing.entryDate ?? '')
+          : DateFormat('yyyy-MM-dd').format(DateTime.now()),
+    );
 
     String selectedIdType = existing?.idType ?? _idTypes.first;
     if (!_idTypes.contains(selectedIdType)) {
@@ -412,6 +430,17 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                       controller: governorateController,
                       decoration: const InputDecoration(labelText: 'المحافظة'),
                     ),
+                    TextFormField(
+                      controller: entryDateController,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'تاريخ الدخول',
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.date_range),
+                          onPressed: () => _pickEntryDate(entryDateController),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: notesController,
@@ -452,6 +481,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     issuePlaceController.dispose();
     governorateController.dispose();
     notesController.dispose();
+    entryDateController.dispose();
 
     if (confirmed != true) {
       return;
@@ -472,6 +502,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           issuePlace: issuePlaceController.text,
           governorate: governorateController.text,
           notes: notesController.text,
+          entryDate: entryDateController.text,
         );
         _showSnack('تم حفظ السجل بنجاح');
       } else {
@@ -486,6 +517,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           issuePlace: issuePlaceController.text,
           governorate: governorateController.text,
           notes: notesController.text,
+          entryDate: entryDateController.text.isEmpty
+              ? null
+              : entryDateController.text,
         );
         _showSnack('تم تحديث السجل بنجاح');
       }
@@ -547,6 +581,21 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     }
   }
 
+  Future<void> _pickEntryDate(TextEditingController controller) async {
+    final initial = controller.text.isEmpty
+        ? DateTime.now()
+        : DateTime.tryParse(controller.text) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1990),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      controller.text = DateFormat('yyyy-MM-dd').format(picked);
+    }
+  }
+
   Future<void> _pickIssueDate(TextEditingController controller) async {
     final initial = controller.text.isEmpty
         ? DateTime.now()
@@ -579,6 +628,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final prefs = await SharedPreferences.getInstance();
       final hotelName = prefs.getString('hotel_name') ?? 'فندق مارينا بلازا';
       final headers = [
+        'تاريخ الدخول',
         'الملاحظات',
         'المحافظة',
         'مكان الإصدار',
@@ -599,9 +649,18 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
         return s.isEmpty ? '-' : s;
       }
 
-      final data = List.generate(entries.length, (i) {
-        final info = entries[i];
+      // ✅ فرز تصاعدي حسب رقم الغرفة قبل بناء صفوف PDF — نفس ترتيب الشاشة.
+      // سابقاً كان التصدير يستخدم ترتيب القاعدة الخام (updatedAt DESC)
+      // فكان الملف يخرج بترتيب آخر-تحديث-أولاً بدلاً من أرقام الغرف.
+      final sortedEntries = _sortByRoomNumber(entries);
+      final data = List.generate(sortedEntries.length, (i) {
+        final info = sortedEntries[i];
+        // تاريخ مستقل للسجلات الجديدة فقط؛ لا نستخدم createdAt هنا.
+        final entryDate = info.entryDate == null || info.entryDate!.isEmpty
+            ? '-'
+            : info.entryDate!;
         return [
+          entryDate,
           safe(info.notes),
           safe(info.governorate),
           safe(info.issuePlace),
@@ -729,14 +788,14 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 color: pdf.PdfColors.white,
                 fontSize: 10,
               ),
-              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 9),
+              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 10),
               cellAlignment: pw.Alignment.center,
               border: pw.TableBorder.all(
                 color: pdf.PdfColors.grey400,
                 width: 0.5,
               ),
               headerAlignments: {
-                0: pw.Alignment.centerRight,
+                0: pw.Alignment.center,
                 1: pw.Alignment.centerRight,
                 2: pw.Alignment.centerRight,
                 3: pw.Alignment.centerRight,
@@ -745,7 +804,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 6: pw.Alignment.centerRight,
                 7: pw.Alignment.centerRight,
                 8: pw.Alignment.centerRight,
-                9: pw.Alignment.center,
+                9: pw.Alignment.centerRight,
+                10: pw.Alignment.center,
               },
             ),
           ],
@@ -782,9 +842,8 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// مزامنة فورية إلى Appwrite بعد كل عملية CRUD

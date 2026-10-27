@@ -26,6 +26,9 @@ class SyncConstants {
     'audit_logs',
     'payment_voids',
     'guest_infos',
+    // ✅ (ت1 المكملة 2026-10-04) inventory_items كيان مستقل (Level 0) —
+    // كان مفقوداً فكان يُرتَّب بـ 999 في فرز دلتا Drive.
+    'inventory_items',
     'ancestor_cache', // ✅ Audit Fix (2026-08-06): كان مفقوداً — لا يُحذف في sync rollback
     'auto_fix_runs',
     'app_sessions',
@@ -49,6 +52,9 @@ class SyncConstants {
     'salary_withdrawals', // FK→ employees.id
     'salary_carry_over_logs', // FK→ employees.id
     'integrity_violations', // FK→ auto_fix_runs.id
+    // ✅ (ت1 المكملة 2026-10-04) inventory_transactions ابن inventory_items —
+    // في الترتيب الأمامي يُدرج بعد الأب، وفي العكسي (الحذف) يُحذف قبله.
+    'inventory_transactions', // FK→ inventory_items.localUuid
   ];
 
   /// للتوافق مع الكود القديم الذي يستخدم extraTables
@@ -83,13 +89,15 @@ class SyncConstants {
   /// "مُسلَّمة" (تُسقط بأمان) بدل أن تتراكم بحالة failed.
   static const bool auditLogsSyncEnabled = false;
 
-  /// ✅ (2026-08-30) الحد الأقصى لسجلات booking_nights عند السحب الكامل/الأولي.
+  /// ✅ Resumable Full Sync: حجم دفعة الكتابة المجمّعة (db.batch) لليالي
+  /// الحجوزات في مسار السحب — ذرّة واحدة لكل 250 سجل مع fallback صف-بصف.
   ///
-  /// booking_nights قد يحوي عشرات الآلاف من الليالي التاريخية؛ السحب الكامل
-  /// غير المحدود يبطئ التهيئة الأولى ويستهلك ذاكرة وبيانات كبيرة. السحب
-  /// التزايدي اللاحق (delta) يجلب التغييرات الجديدة فقط دون سقف.
-  /// نفس القيمة كانت معرّفة محلياً في pullRemoteChanges — تم توحيدها هنا.
-  static const int initialBookingNightsPullLimit = 1000;
+  /// (تاريخي): كان هناك سقف سحب أولي 1000 ليلة + ثابت مكرر
+  /// `initialBookingNightsPullLimit` — أُزيلا كلياً (2026-09-21، إصلاح P0)
+  /// بعد إثبات فقدان ~85% من الليالي عند التثبيت الجديد: السحب الأولي
+  /// أصبح تدفقياً بلا سقف عبر UnifiedPullEngine._runStreamingFullPull،
+  /// والثابت المتبقي كان كوداً ميتاً بصفر استخدامات في المستودع كله.
+  static const int bookingNightsApplyChunkSize = 250;
 
   /// مفتاح SharedPreferences لفاصل المزامنة التلقائية (بالدقائق).
   /// يُسمح للمستخدم بتغييره من شاشة الإعدادات دون إعادة بناء التطبيق.
